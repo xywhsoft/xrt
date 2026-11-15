@@ -1,0 +1,287 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-native-WS-WSS-write-prefix-prerequisite",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "05f306bcaf1a0db3b4e1951d0be2c18c9c847e0c",
+  "branch_operations": 0,
+  "remote_push": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "complete_four_product_goal": false,
+  "mqtt_websocket_complete": false,
+  "Core_production_changed": true,
+  "new_shared_runtime": false,
+  "new_modules": [
+    "websocket_stream_write_progress",
+    "websocket_stream_tls_write_progress"
+  ],
+  "new_functions": [
+    "xrtWsStreamSetWriteProgress",
+    "xrtWsStreamWriteProgress"
+  ],
+  "new_types": [
+    "xwswriteprogress",
+    "xwsstreamwriteproc"
+  ],
+  "motivation": "Actual baseline masked BinaryRef releases its input owner while native bytes remain pending on Windows and WSL. A copied input release and whole-stream Drain are insufficient independent QoS0 write-prefix evidence.",
+  "contract": "Owning-worker optional epoch, no allocation/per-write watch. Native Produced/Completed are TCP bytes, ciphertext for WSS, not payload bytes or peer acknowledgement. A successful Staged snapshot still exposes Completed for previously saved cuts; Produced excludes local unsent WSS suffixes and is not a new full-message cut until Staged clears. Later output does not extend an existing cut. Async submissions first require successful native write results. Native batch completion may be coarse. Close/abort/overflow/binding replacement invalidate success comparisons; all non-OK outputs are unchanged.",
+  "ownership": "Observer uses the existing event Data/owner/code lifetime. Coalesced deferred notification outside Send/native completion, permanent epoch through observer removal. Active opaque observers refuse owned-graph admission. Native owner/hooks and existing deferred WS drive retain actual duties; terminal state clears callbacks before context retirement.",
+  "verification": {
+    "windows": {
+      "validate": 1,
+      "matrix": 3,
+      "finish_consumers": 4,
+      "plain_example": 1,
+      "delivery": 2,
+      "regression": 8,
+      "primary_C_executions": 19
+    },
+    "wsl": {
+      "validate": 1,
+      "matrix": 3,
+      "finish_consumers": 4,
+      "plain_example": 1,
+      "delivery": 2,
+      "regression": 8,
+      "tsan": 2,
+      "primary_C_executions": 21
+    }
+  },
+  "additional_checks": {
+    "package_tool_consumer_executions_per_host": 2,
+    "ABI_probe_executions_per_host": 3,
+    "query_diagnostic_executions_per_host": 1,
+    "baseline_probes": "Retained separately, not counted as candidate qualification",
+    "gates": [
+      "features",
+      "amalgamation",
+      "WebSocket API reference/docs",
+      "release maturity",
+      "generated example index",
+      "seven WebSocket layout tests"
+    ]
+  },
+  "resource_accounting": {
+    "ABI": {
+      "windows": {
+        "off": {
+          "ws": 1064,
+          "tcp": 744,
+          "tls": 360,
+          "config": 128,
+          "events": 80
+        },
+        "plain": {
+          "ws": 1088,
+          "tcp": 760,
+          "tls": 360,
+          "config": 128,
+          "events": 80,
+          "view": 32
+        },
+        "full": {
+          "ws": 1088,
+          "tcp": 760,
+          "tls": 384,
+          "config": 128,
+          "events": 80,
+          "view": 32
+        }
+      },
+      "wsl": {
+        "off": {
+          "ws": 1200,
+          "tcp": 880,
+          "tls": 360,
+          "config": 128,
+          "events": 80
+        },
+        "plain": {
+          "ws": 1224,
+          "tcp": 896,
+          "tls": 360,
+          "config": 128,
+          "events": 80,
+          "view": 32
+        },
+        "full": {
+          "ws": 1224,
+          "tcp": 896,
+          "tls": 384,
+          "config": 128,
+          "events": 80,
+          "view": 32
+        }
+      }
+    },
+    "scope": "Selected WS private fields +24 bytes per instance even if inactive; existing TCP hook +16 where not already selected, existing TLS progress +24 similarly. New public checked view32, existing config128/events80 unchanged on these x64 builds. Existing Native/TLS/masking/allocator costs remain real.",
+    "heap": "Actual budget1 activation/query and10000 warmed successful snapshots cause no XRT allocation/refusal. This does not claim process-wide or end-to-end zero cost."
+  },
+  "query_diagnostics": {
+    "windows": {
+      "results": {
+        "tcp": {
+          "samples_ns": [
+            23.4297,
+            23.3386,
+            23.9482,
+            23.413,
+            23.3081
+          ],
+          "median_ns": 23.413
+        },
+        "tls": {
+          "samples_ns": [
+            52.2325,
+            51.7796,
+            57.5224,
+            52.3521,
+            52.0059
+          ],
+          "median_ns": 52.2325
+        }
+      },
+      "instrumented": false,
+      "scope": "Single-owner warmed query loop, one million calls per sample, five samples, includes wrapper validation. Unpinned shared host. Not wire throughput, per-write hook CPU, queue-inclusive tails, equivalent-workload overhead or performance acceptance."
+    },
+    "wsl": {
+      "results": {
+        "tcp": {
+          "samples_ns": [
+            59.735104,
+            59.711903,
+            63.864703,
+            59.675804,
+            59.721103
+          ],
+          "median_ns": 59.721103
+        },
+        "tls": {
+          "samples_ns": [
+            111.439006,
+            110.430706,
+            109.923206,
+            119.729407,
+            110.960906
+          ],
+          "median_ns": 110.960906
+        }
+      },
+      "instrumented": true,
+      "scope": "Single-owner warmed query loop, one million calls per sample, five samples, includes wrapper validation. Unpinned shared host. Not wire throughput, per-write hook CPU, queue-inclusive tails, equivalent-workload overhead or performance acceptance."
+    }
+  },
+  "distribution": {
+    "forms": [
+      "fresh modular",
+      "explicit full/plain/off singles",
+      "documented plain-leaf example",
+      "static/shared libraries",
+      "standalone declarations"
+    ],
+    "exports": {
+      "windows": {
+        "public_progress": [
+          "xrtWsStreamSetWriteProgress",
+          "xrtWsStreamWriteProgress"
+        ],
+        "preexisting_detail_exports": [
+          "__xrtCondWaitUntil",
+          "__xrtNetEngineSchedule",
+          "__xrtNetEngineScheduleOwnedV1",
+          "__xrtNetPortWait",
+          "__xrtThreadWaitUntil"
+        ]
+      },
+      "wsl": {
+        "public_progress": [
+          "xrtWsStreamSetWriteProgress",
+          "xrtWsStreamWriteProgress"
+        ],
+        "preexisting_detail_exports": [
+          "__xrtCondWaitUntil",
+          "__xrtNetEngineSchedule",
+          "__xrtNetEngineScheduleOwnedV1",
+          "__xrtNetPortWait",
+          "__xrtThreadWaitUntil"
+        ]
+      }
+    },
+    "note": "Both new public functions export; new private helper does not. Five existing Core detail exports are retained. An initial overbroad no-__xrt assertion was a harness assumption, not a newly introduced export leak."
+  },
+  "source_identity": {
+    "final_source_map_sha256": "8f261a1c5359df435a76a4476a19b68410f6774c4d834bc1fadcb622365068ed",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "explanation": "All selected candidate executions match final production src/include/single hashes. Later config registration, documented-example namespace/protocol correction and generated index updates are separately rechecked. Old examples and failed prototype attempts are not substituted for the selected final runs."
+  },
+  "failures": [
+    {
+      "receipts": "windows-matrix-receipts.json",
+      "label": "native-progress",
+      "log": "windows-native-progress.log",
+      "exit_code": 1,
+      "source_map_sha256": "e8c1f41a3e0c054e6bcf683fa6da232d729efcab42a492f22683c2b38e5b1c02"
+    },
+    {
+      "receipts": "windows-matrix-receipts.json",
+      "label": "native-progress",
+      "log": "windows-native-progress-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "e62a73d7ec4f285fb9ded59346325197bdd979a70a784428ba03533b17add2a6"
+    },
+    {
+      "receipts": "windows-matrix-receipts.json",
+      "label": "test_single_websocket_stream_write_progress_plain-build",
+      "log": "windows-test_single_websocket_stream_write_progress_plain-build.log",
+      "exit_code": 1,
+      "source_map_sha256": "f03f562fb8ed5af637c748ac0e6e083569243a16e6af5562ff2018fe0fe0c69e"
+    },
+    {
+      "receipts": "wsl-matrix-receipts.json",
+      "label": "test_single_websocket_stream_write_progress_plain-build",
+      "log": "wsl-test_single_websocket_stream_write_progress_plain-build.log",
+      "exit_code": 1,
+      "source_map_sha256": "f03f562fb8ed5af637c748ac0e6e083569243a16e6af5562ff2018fe0fe0c69e"
+    },
+    {
+      "receipts": "wsl-proof-receipts.json",
+      "label": "baseline-proof",
+      "log": "wsl-baseline-proof.log",
+      "exit_code": 1,
+      "source_map_sha256": "d199a32701f790a1216ce25148f99f8c511061f51936373a01a8a9112a227f02"
+    },
+    {
+      "receipts": "wsl-refresh-receipts.json",
+      "label": "progress-select",
+      "log": "wsl-progress-select.log",
+      "exit_code": 1,
+      "source_map_sha256": "e62a73d7ec4f285fb9ded59346325197bdd979a70a784428ba03533b17add2a6"
+    }
+  ],
+  "corrections": [
+    "Initial tiny WSL probe could complete immediately; strengthen actual pending-output probe rather than assuming any small send stays pending.",
+    "Initial native test incorrectly required an intermediate callback while the reader was fully paused, despite coalescing/batch completion; exercise real later writes/reentrant callbacks and bounded actual queues. An overly tiny receiver socket window made the test transfer deadline unsuitable; remove it.",
+    "Reject the experimental AGAIN-only WSS query: it hid previously saved-cut completion behind later staged output. Final Staged snapshots retain both observations.",
+    "Prefix example static callback names to avoid platform accept/open symbols in amalgamated builds.",
+    "Correct example ownership to the plain leaf, run its exact documented command and reconcile three already-existing root index entries."
+  ],
+  "remaining": [
+    "Full MQTT WS/WSS transport integration with the existing Client parser/QoS/ownership state",
+    "Checked native HTTP Upgrade, numeric/URI/DNS/prepared/TLS factories and original setup deadlines",
+    "Session/Inbox/enhanced-auth/reconnect composition and durable protocol state",
+    "Independent broker WS/WSS interop, broader async fault/OOM/lifetime and workload performance",
+    "RPC async stdio and negotiated remote deadlines/cancellation, remaining Redis/Cron scope",
+    "Controlled CPU/throughput/queue-inclusive tails/scale and native Windows/Linux>=72h qualification"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/websocket-write-progress-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "f7bfcf8c9e973cd4766e330a1bb65d2d7a350e3ffc6790bc14a367bd6a106b56",
+    "regular_files": 517,
+    "sha256_verified": true,
+    "scope": "Source maps/changed-source snapshots, actual selected binaries, raw attempts, packages/declarations and diagnostic scripts preserved; object caches/compiler temp excluded. Synthetic TLS fixture only; no external production/provider credentials collected."
+  }
+}

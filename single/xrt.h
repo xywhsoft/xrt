@@ -55,6 +55,35 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* websocket_stream_tls_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_WRITE_PROGRESS
+#define XRT_MODULE_WEBSOCKET_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_MODULE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#endif
+
+/* websocket_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM
+#define XRT_MODULE_WEBSOCKET_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* websocket_stream_tls_exchange 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
@@ -33569,6 +33598,19 @@ typedef struct xwsstreamevents {
 	);
 } xwsstreamevents;
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+#if !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#error "WebSocket write progress requires native TCP write progress"
+#endif
+/* Native TCP byte cursors, ciphertext for WSS. They certify local physical
+ * write retirement only, never peer receipt or application effects. */
+typedef struct xwswriteprogress {size_t Size;uint64 Produced,Completed;bool Staged;} xwswriteprogress;
+typedef void (*xwsstreamwriteproc)(xwsstream*,ptr);
+#endif
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS) && (!defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS) || !defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS))
+#error "WSS write progress requires WS progress and native TLS write progress"
+#endif
+
 /* Permanent native descriptor. Success of an owned Attach consumes exactly
  * one Data credit; failures consume none. Ops traces every actual Data edge.
  * Retire, if present, only disables application callbacks through atomic
@@ -33776,6 +33818,31 @@ XRT_API void xrtWsStreamPause(xwsstream* pStream);
 XRT_API bool xrtWsStreamResume(xwsstream* pStream);
 
 
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+/* Owning Worker, live OPEN only. First success establishes a permanent cursor
+ * epoch including output already pending in its native transport. NULL enables
+ * polling/removes notification without resetting the epoch. Notifications
+ * coalesce outside Send/native completion and use the existing event Data;
+ * callback/code/context obey its owner lifetime. No allocation or per-write
+ * watch. Opaque observers prevent owned-graph admission until removed.
+ * Never write directly to the borrowed TCP/TLS transport. WSS requires the
+ * separate websocket_stream_tls_write_progress selection. */
+XRT_API bool xrtWsStreamSetWriteProgress(xwsstream*,xwsstreamwriteproc);
+/* Checked Size, owning Worker, enabled epoch. OK always snapshots current
+ * native Produced/Completed. Staged means WSS still owns an unsent local frame
+ * suffix, not included in Produced: previous saved cuts remain comparable,
+ * but do not take Produced as the complete cut for a new message until Staged
+ * clears. Pause further ordinary writes while obtaining such a cut. Async
+ * submission alone is outside a cut: first observe its successful native write
+ * result. Handshake/control bytes may conservatively extend the cut taken then.
+ * Later output does not extend an already saved cut. CLOSED invalidates success
+ * comparisons after close/abort; ERROR includes invalid output/owner, unsupported
+ * selection, replaced binding or overflow. All non-OK results preserve every
+ * output byte; normal OK/CLOSED preserve ambient error. Native completion may
+ * certify a batch at once, not every message separately. Not payload counters. */
+XRT_API xnetresult xrtWsStreamWriteProgress(xwsstream*,xwswriteprogress* Output);
+#endif
 
 /* 返回接收侧当前是否被应用暂停。 */
 XRT_API bool xrtWsStreamPaused(const xwsstream* pStream);
@@ -53923,7 +53990,9 @@ bool __xrtNetListenerFutureAccept(
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE) || \
-	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) || \
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS) || \
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #ifndef XRT_INTERNAL_WEBSOCKET_STREAM_H
 #define XRT_INTERNAL_WEBSOCKET_STREAM_H
 
@@ -54129,6 +54198,11 @@ struct xwsstream {
 	xatomic64 OutputBytes;
 	xatomic32 ReadPaused;
 	xatomic32 DrivePosted;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+        xwsstreamwriteproc WriteProgress;
+        uint64 WriteCompleted;
+        bool WriteProgressEnabled,WriteProgressPending,WriteProgressOverflow;
+    #endif
 	uint64 CloseTimer;
 	__xrt_net_engine_internal DriveCommand;
 	bool FrameActive;
@@ -54178,6 +54252,9 @@ void __xrtWsOwnedRuntimeRelease(xwsstream* pStream);
 extern const xrtownershipops __xrtWsStreamOwnershipOps;
 void __xrtWsStreamFree(xwsstream* pStream);
 bool __xrtWsStreamDrivePrepare(xwsstream* pStream);
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+void __xrtWsStreamPublishWriteProgress(xwsstream* Stream);
+#endif
 bool __xrtWsStreamAttachBudget(xwsstream* pStream,ptr pTransport);
 bool __xrtWsStreamInitialTake(xnetbuf* pInitial,const xnetbuf* pTransport,xnetbuf* pDraft);
 bool __xrtWsStreamAbortBody(xwsstream* pStream);
@@ -170494,6 +170571,9 @@ static void __xrtWsStreamDrive(
 	) ) {
 		__xrtWsStreamRead(pConnection);
 	}
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+        __xrtWsStreamPublishWriteProgress(pConnection);
+    #endif
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 		if ( pConnection->TransportKind ==
 			__XRT_WS_TRANSPORT_TLS ) {
@@ -170898,6 +170978,10 @@ static void __xrtWsStreamTransportClose(
 	__xrtWsStreamOutputClear(pConnection);
 	if ( !pConnection->CloseEmitted ) {
 		pConnection->CloseEmitted = true;
+        #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+            pConnection->WriteProgress = NULL;
+            pConnection->WriteProgressPending = false;
+        #endif
 		__xrtWsStreamCloseSnapshot(pConnection, &Close);
 		if ( pConnection->Events.Close != NULL ) {
 			pConnection->Events.Close(
@@ -172883,6 +172967,9 @@ static bool __xrtWsOwnedCount(const void* data,size_t* result)
     if(!s||!result||__xrtWsOwnedBusy(s)||!s->OwnershipPolicy||!s->OwnershipDataHeld||!s->Data||
        !s->OwnershipStorageHeld||!s->OwnershipEngine||s->Reading||
        (xrtAtomic32Load(&s->OwnershipState,XMEMORY_ACQUIRE)&__XRT_WS_OWN_CLEARED))return false;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+    if(s->WriteProgress)return false;
+    #endif
     if(s->RuntimeHeld){
         if(!s->OwnershipEngineHeld||s->RuntimeOwner.Data!=s||!s->RuntimeOwner.Previous||
            s->RuntimeOwner.Engine!=s->OwnershipEngine||s->RuntimeOwner.Policy!=xrtWsStreamRuntimeOwnershipV1Get())return false;
@@ -348617,6 +348704,113 @@ XRT_API xwaitresult xrtWsStreamWaitRetired(xwsstream* S,int64 Timeout)
     if(Result!=XWAIT_ERROR && xrtWsStreamState(S)==XWS_STREAM_CLOSED && __xrtAtomicRefLoad(&S->References)==1)Result=XWAIT_OK;
     if(!xrtMutexUnlock(&S->RetirementLock))return XWAIT_ERROR;
     return Result==XWAIT_OK?xrtNetStreamWaitRetired(TCP,__xrtWaitRemaining(Deadline)):Result;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/websocket/stream_write_progress.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
+#endif
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+static bool __xrtWsProgressLive(xwsstream* S)
+{
+    return xrtWsStreamState(S)==XWS_STREAM_OPEN && !S->CloseEmitted &&
+        !S->TransportClosing && xrtAtomicPtrLoad(&S->Transport,XMEMORY_ACQUIRE);
+}
+static bool __xrtWsProgressTcp(xwsstream* S,xnetstream* T)
+{
+    const xnetstreamevents* E=&xrtWsStreamTcpEventsOwnershipV1Get()->Events;
+    return T && xrtAtomicPtrLoad(&T->Data,XMEMORY_RELAXED)==S &&
+        T->Events.Read==E->Read && T->Events.Close==E->Close &&
+        !xrtAtomic32Load(&T->AbortGate,XMEMORY_ACQUIRE) &&
+        !xrtAtomic32Load(&T->CloseGate,XMEMORY_ACQUIRE) &&
+        xrtNetStreamState(T)==XNET_STREAM_OPEN;
+}
+static void __xrtWsProgressWritten(xnetstream* T,size_t N,ptr Data)
+{
+    (void)T;xwsstream* S=Data;
+    if((uint64)N>UINT64_MAX-S->WriteCompleted)S->WriteProgressOverflow=true;
+    else S->WriteCompleted+=(uint64)N;
+    if(S->WriteProgress){S->WriteProgressPending=true;(void)__xrtWsStreamDrivePrepare(S);}
+}
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
+static void __xrtWsProgressTlsWritten(xtlsstream* T,ptr Data)
+{
+    (void)T;xwsstream* S=Data;
+    if(S->WriteProgress){S->WriteProgressPending=true;(void)__xrtWsStreamDrivePrepare(S);}
+}
+#endif
+static bool __xrtWsProgressSet(xwsstream* S,xwsstreamwriteproc Proc)
+{
+    if(!__xrtWsProgressLive(S)){__xrtErrorSetInvalidState();return false;}
+    ptr Native=xrtAtomicPtrLoad(&S->Transport,XMEMORY_ACQUIRE);
+    if(S->TransportKind==__XRT_WS_TRANSPORT_TLS){
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
+        if(!xrtTlsStreamSetWriteProgress(Native,Proc?__xrtWsProgressTlsWritten:NULL))return false;
+#else
+        __xrtWsStreamReject(XERR_UNSUPPORTED,XWS_STREAM_ERROR_STATE,"set-websocket-write-progress","WSS write progress selection is required",NULL);return false;
+#endif
+    }else{
+        xnetstream* T=Native;
+        if(!__xrtWsProgressTcp(S,T) || (S->WriteProgressEnabled &&
+           (T->WriteProgress!=__xrtWsProgressWritten||T->WriteProgressData!=S)) ||
+           (!S->WriteProgressEnabled&&T->WriteProgress)){__xrtErrorSetInvalidState();return false;}
+        if(!S->WriteProgressEnabled){T->WriteProgressData=S;T->WriteProgress=__xrtWsProgressWritten;}
+    }
+    S->WriteProgressEnabled=true;S->WriteProgress=Proc;S->WriteProgressPending=false;return true;
+}
+XRT_API bool xrtWsStreamSetWriteProgress(xwsstream* S,xwsstreamwriteproc Proc)
+{
+    if(!__xrtWsStreamWorker(S,"set-websocket-write-progress"))return false;
+    bool Owned=S->OwnershipPolicy!=NULL;
+    if(Owned&&!__xrtWsStreamOwnershipEnter(S,true))return false;
+    bool OK=__xrtWsProgressSet(S,Proc);
+    if(Owned)__xrtWsStreamOwnershipLeave(S);
+    return OK;
+}
+XRT_API xnetresult xrtWsStreamWriteProgress(xwsstream* S,xwswriteprogress* Out)
+{
+    if(!__xrtWsStreamWorker(S,"get-websocket-write-progress"))return XNET_RESULT_ERROR;
+    size_t Bytes=0;ptr Native=xrtAtomicPtrLoad(&S->Transport,XMEMORY_ACQUIRE);
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||Out->Size!=sizeof(*Out)||
+       !__xrtWsStreamStorageRange(S,&Bytes)||xrtMemRangesOverlap(Out,sizeof(*Out),S,Bytes)){
+        __xrtErrorSetInvalidArgument();return XNET_RESULT_ERROR;}
+    if(!__xrtWsProgressLive(S))return XNET_RESULT_CLOSED;
+    if(!S->WriteProgressEnabled){__xrtErrorSetInvalidState();return XNET_RESULT_ERROR;}
+    xwswriteprogress Value={.Size=sizeof(Value)};
+    if(S->TransportKind==__XRT_WS_TRANSPORT_TLS){
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
+        xtlsstream* T=Native;xnetstream* TCP=xrtTlsStreamTransport(T);
+        if(xrtMemRangesOverlap(Out,sizeof(*Out),T,sizeof(*T))||xrtMemRangesOverlap(Out,sizeof(*Out),T->Session,sizeof(*T->Session))||
+           xrtMemRangesOverlap(Out,sizeof(*Out),TCP,sizeof(*TCP))){__xrtErrorSetInvalidArgument();return XNET_RESULT_ERROR;}
+        if(xrtTlsStreamState(T)!=XTLS_STREAM_OPEN||T->CloseEmitted||xrtAtomic32Load(&T->AbortGate,XMEMORY_ACQUIRE)||!TCP||xrtNetStreamState(TCP)!=XNET_STREAM_OPEN||xrtAtomic32Load(&TCP->AbortGate,XMEMORY_ACQUIRE)||xrtAtomic32Load(&TCP->CloseGate,XMEMORY_ACQUIRE))return XNET_RESULT_CLOSED;
+        Value.Staged=S->OutputHead!=NULL;
+        xtlswriteprogress W={sizeof(W),0,0};if(!xrtTlsStreamWriteProgress(T,&W))return XNET_RESULT_ERROR;
+        Value.Produced=W.Produced;Value.Completed=W.Completed;
+#else
+        __xrtWsStreamReject(XERR_UNSUPPORTED,XWS_STREAM_ERROR_STATE,"get-websocket-write-progress","WSS write progress selection is required",NULL);return XNET_RESULT_ERROR;
+#endif
+    }else{
+        xnetstream* T=Native;
+        if(xrtMemRangesOverlap(Out,sizeof(*Out),T,sizeof(*T))){__xrtErrorSetInvalidArgument();return XNET_RESULT_ERROR;}
+        if(!__xrtWsProgressTcp(S,T))return XNET_RESULT_CLOSED;
+        if(T->WriteProgress!=__xrtWsProgressWritten||T->WriteProgressData!=S){__xrtErrorSetInvalidState();return XNET_RESULT_ERROR;}
+        uint64 Pending=(uint64)xrtNetStreamPending(T);
+        if(S->WriteProgressOverflow||Pending>UINT64_MAX-S->WriteCompleted){
+            __xrtWsStreamReject(XERR_RANGE,XWS_STREAM_ERROR_LIMIT,"get-websocket-write-progress","WebSocket write cursor overflow",NULL);return XNET_RESULT_ERROR;}
+        Value.Produced=S->WriteCompleted+Pending;Value.Completed=S->WriteCompleted;
+    }
+    *Out=Value;return XNET_RESULT_OK;
+}
+void __xrtWsStreamPublishWriteProgress(xwsstream* S)
+{
+    if(!S->WriteProgressPending||!S->WriteProgress||!__xrtWsProgressLive(S))return;
+    S->WriteProgressPending=false;S->WriteProgress(S,S->Data);
 }
 #endif
 #endif

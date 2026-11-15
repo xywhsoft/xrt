@@ -47,6 +47,9 @@ static bool __xrtWsOwnedCount(const void* data,size_t* result)
     if(!s||!result||__xrtWsOwnedBusy(s)||!s->OwnershipPolicy||!s->OwnershipDataHeld||!s->Data||
        !s->OwnershipStorageHeld||!s->OwnershipEngine||s->Reading||
        (xrtAtomic32Load(&s->OwnershipState,XMEMORY_ACQUIRE)&__XRT_WS_OWN_CLEARED))return false;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+    if(s->WriteProgress)return false;
+    #endif
     if(s->RuntimeHeld){
         if(!s->OwnershipEngineHeld||s->RuntimeOwner.Data!=s||!s->RuntimeOwner.Previous||
            s->RuntimeOwner.Engine!=s->OwnershipEngine||s->RuntimeOwner.Policy!=xrtWsStreamRuntimeOwnershipV1Get())return false;

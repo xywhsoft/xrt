@@ -16533,6 +16533,78 @@
 			"single_tests": ["tests/single/test_single_websocket_stream_tls_reentrant.c"],
 			"examples": [],
 			"docs": ["docs/api/websocket.md"]
+		},
+		{
+			"state": "implemented",
+			"public_headers": [
+				"include/xrt/websocket_stream.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_stream.h"
+			],
+			"sources": [
+				"src/websocket/stream_write_progress.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": ["examples/websocket/write_progress/main.c"],
+			"docs": [
+				"docs/api/websocket.md"
+			],
+			"name": "websocket_stream_write_progress",
+			"feature": "XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS",
+			"depends": [
+				"websocket_stream",
+				"net_tcp_write_progress"
+			]
+		},
+		{
+			"state": "implemented",
+			"public_headers": [
+				"include/xrt/websocket_stream.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_stream.h"
+			],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md"
+			],
+			"name": "websocket_stream_tls_write_progress",
+			"feature": "XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS",
+			"depends": [
+				"websocket_stream_write_progress",
+				"websocket_stream_tls",
+				"tls_stream_write_progress"
+			]
+		},
+		{
+			"name": "websocket_stream_write_progress_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_stream_tls_write_progress",
+				"websocket_stream_retire_tests",
+				"websocket_stream_ref"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_stream_write_progress.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_stream_write_progress.c",
+				"tests/single/test_single_websocket_stream_write_progress_off.c",
+				"tests/single/test_single_websocket_stream_write_progress_plain.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md"
+			]
 		}
 	]
 }

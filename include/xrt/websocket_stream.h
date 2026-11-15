@@ -175,6 +175,19 @@ typedef struct xwsstreamevents {
 	);
 } xwsstreamevents;
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+#if !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#error "WebSocket write progress requires native TCP write progress"
+#endif
+/* Native TCP byte cursors, ciphertext for WSS. They certify local physical
+ * write retirement only, never peer receipt or application effects. */
+typedef struct xwswriteprogress {size_t Size;uint64 Produced,Completed;bool Staged;} xwswriteprogress;
+typedef void (*xwsstreamwriteproc)(xwsstream*,ptr);
+#endif
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS) && (!defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS) || !defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS))
+#error "WSS write progress requires WS progress and native TLS write progress"
+#endif
+
 /* Permanent native descriptor. Success of an owned Attach consumes exactly
  * one Data credit; failures consume none. Ops traces every actual Data edge.
  * Retire, if present, only disables application callbacks through atomic
@@ -382,6 +395,31 @@ XRT_API void xrtWsStreamPause(xwsstream* pStream);
 XRT_API bool xrtWsStreamResume(xwsstream* pStream);
 
 
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+/* Owning Worker, live OPEN only. First success establishes a permanent cursor
+ * epoch including output already pending in its native transport. NULL enables
+ * polling/removes notification without resetting the epoch. Notifications
+ * coalesce outside Send/native completion and use the existing event Data;
+ * callback/code/context obey its owner lifetime. No allocation or per-write
+ * watch. Opaque observers prevent owned-graph admission until removed.
+ * Never write directly to the borrowed TCP/TLS transport. WSS requires the
+ * separate websocket_stream_tls_write_progress selection. */
+XRT_API bool xrtWsStreamSetWriteProgress(xwsstream*,xwsstreamwriteproc);
+/* Checked Size, owning Worker, enabled epoch. OK always snapshots current
+ * native Produced/Completed. Staged means WSS still owns an unsent local frame
+ * suffix, not included in Produced: previous saved cuts remain comparable,
+ * but do not take Produced as the complete cut for a new message until Staged
+ * clears. Pause further ordinary writes while obtaining such a cut. Async
+ * submission alone is outside a cut: first observe its successful native write
+ * result. Handshake/control bytes may conservatively extend the cut taken then.
+ * Later output does not extend an already saved cut. CLOSED invalidates success
+ * comparisons after close/abort; ERROR includes invalid output/owner, unsupported
+ * selection, replaced binding or overflow. All non-OK results preserve every
+ * output byte; normal OK/CLOSED preserve ambient error. Native completion may
+ * certify a batch at once, not every message separately. Not payload counters. */
+XRT_API xnetresult xrtWsStreamWriteProgress(xwsstream*,xwswriteprogress* Output);
+#endif
 
 /* 返回接收侧当前是否被应用暂停。 */
 XRT_API bool xrtWsStreamPaused(const xwsstream* pStream);

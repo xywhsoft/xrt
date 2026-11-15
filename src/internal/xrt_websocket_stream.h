@@ -207,6 +207,11 @@ struct xwsstream {
 	xatomic64 OutputBytes;
 	xatomic32 ReadPaused;
 	xatomic32 DrivePosted;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+        xwsstreamwriteproc WriteProgress;
+        uint64 WriteCompleted;
+        bool WriteProgressEnabled,WriteProgressPending,WriteProgressOverflow;
+    #endif
 	uint64 CloseTimer;
 	__xrt_net_engine_internal DriveCommand;
 	bool FrameActive;
@@ -256,6 +261,9 @@ void __xrtWsOwnedRuntimeRelease(xwsstream* pStream);
 extern const xrtownershipops __xrtWsStreamOwnershipOps;
 void __xrtWsStreamFree(xwsstream* pStream);
 bool __xrtWsStreamDrivePrepare(xwsstream* pStream);
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+void __xrtWsStreamPublishWriteProgress(xwsstream* Stream);
+#endif
 bool __xrtWsStreamAttachBudget(xwsstream* pStream,ptr pTransport);
 bool __xrtWsStreamInitialTake(xnetbuf* pInitial,const xnetbuf* pTransport,xnetbuf* pDraft);
 bool __xrtWsStreamAbortBody(xwsstream* pStream);

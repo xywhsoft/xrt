@@ -1,0 +1,60 @@
+# MQTT WebSocket integration design
+
+Scope remains the full MQTT5/3.1.1 TCP/TLS/WS client with authentication, Session,
+Inbox, automatic reconnect, durability and final production/performance gates.
+This document does not declare a transport module implemented.
+
+## Required behavior
+
+Follow [MQTT5 chapter6](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and the corresponding MQTT3.1.1 transport rules independently. Checked HTTP Upgrade
+must offer/select exactly the MQTT subprotocol. MQTT octets use Binary data;
+Text is terminal. Packet parsing spans arbitrary WebSocket frame/message splits
+and coalesced packets. Control Ping/Pong/Close stay with Core. Limits bound native
+frames, staging, packet input, retained objects and whole-instance resources.
+No user business/storage work runs on the network worker.
+
+## Reuse and physical completion
+
+Extend the existing Client transport switches and central constructor, preserving
+one owner, protocol parser, QoS identifier/credit map, aliases, auth and Session.
+Do not create a second MQTT runtime. Initial open-transport attachment must keep
+success-only native handoff and false-output/alias atomicity, then add original-
+entry setup clocks across URI/DNS/TCP/TLS/checked Upgrade. Verified WSS policy is
+mandatory with no fallback. Attach must prove the selected `mqtt` protocol and
+verified native OPEN state using public Core capabilities.
+
+Actual Windows/WSL probes at05f306bc show a masked BinaryRef input owner released
+while native output remains pending. Input ref release and global Drain cannot
+supply independent QoS0 write-prefix completion. Core now provides optional
+native WS/WSS prefix observation. Save Produced only after the accepted message's
+Staged flag clears; previously saved cuts remain observable while later local
+WSS suffixes are staged. Native Completed reaching a cut certifies local kernel
+write retirement, not broker receipt/effects. Close/abort/overflow invalidate
+success. Native completion can retire a batch at once. Keep real request/quota
+credits through the enclosing native duties, including early QoS acknowledgements.
+No per-write Future/watch or separate runtime is required by this primitive.
+
+## Integration still to implement and verify
+
+- Native TCP/WSS attachment plus the existing Client APIs, Session/Inbox/Auth
+  variants and physical close/Wait/Destroy. Use existing original entry clocks;
+  accepted partial MQTT output retains its conservative uncertainty.
+- Feed callback-borrowed WS bytes directly into the existing parser when budgets
+  permit. Pause at chunk boundaries; only unavoidable remainders use bounded,
+  charged reusable staging. Measure each copy/allocation rather than promising
+  zero-copy. Never reset MQTT framing at WS message boundaries.
+- Bound per-turn packet/byte work across all callbacks and sends. Preserve
+  deterministic backpressure, typed overload/error and graceful MQTT DISCONNECT
+  followed by bounded native WS/TLS close. Numeric/URI/DNS/prepared setup must not
+  duplicate protocol state or refresh setup/request deadlines.
+- Exercise full QoS0/1/2, aliases, subscriptions, proof-gated authentication,
+  Session recovery and reconnect factories on the same Client transport. Persist
+  state with separately explicit durability/acknowledgement ordering.
+- Literal fragmented/coalesced independent peers and real broker WS/WSS,
+  adversarial/OOM/partial-write/close/cancel/lifetime, packages/singles, native
+  Windows/Linux throughput/CPU/queue-inclusive tails and>=72h acceptance.
+
+The new Core prerequisite and its evidence are recorded separately in
+[the write-progress stage](websocket-write-progress-20261116.json). Full MQTT
+WebSocket delivery and all four-product acceptance remain incomplete.

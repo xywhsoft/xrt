@@ -5243,3 +5243,45 @@ this is not a zero-cost or performance-acceptance claim.
 records, one authenticated record per frame byte. It separately verifies a
 native TLS ReadMore parser and WS delivery with Pause/posted Resume: 32 ordered
 frames each, followed by actual callback-owner and WS/native/Engine joins.
+
+
+## Native write-prefix observation
+
+The optional `websocket_stream_write_progress` leaf adds owning-worker
+`xrtWsStreamSetWriteProgress` and checked-Size `xrtWsStreamWriteProgress`.
+A masked input reference can be released after copying while real native output
+is pending; that release cannot certify a protocol operation's physical send.
+The new cursor reuses the native TCP prefix hook rather than diagnostic stats,
+whole-stream Drain or a new per-write watch/runtime. Save Produced and compare a
+later Completed while the connection remains live. Later output does not extend
+that cut. Abort/close/failure invalidates comparisons; native kernel acceptance
+still does not prove peer receipt, acknowledgement or business effects.
+
+`websocket_stream_tls_write_progress` additionally composes the native TLS
+ciphertext cursor. An accepted WSS message can retain a local plaintext/frame
+suffix; a successful query marks Staged and still reports actual native
+Produced/Completed. Previously saved cuts stay comparable. Pause additional
+ordinary writes, continue native driving, and wait for Staged to clear before
+saving a cut for the new message. This avoids guessed ciphertext estimates. Protocol control traffic can conservatively
+extend the cut taken at that point. Do not write directly to the borrowed native
+TCP/TLS transport; observe successful async write results before taking a cut.
+
+Activation/query allocate nothing, including with a one-byte allocation budget.
+First activation establishes a permanent epoch (including currently pending
+native output); changing/removing the observer does not rebase it. NULL enables
+polling. Notifications coalesce on the worker, outside Send/native completion,
+using the existing event Data/owner lifetime. Query immediately after registering
+because notifications do not replay earlier progress. Closed/aborted/rebound
+transports cannot certify success. Size/range/alias/binding/overflow errors and
+normal CLOSED leave output unchanged; counters never wrap. Registered
+opaque observers refuse owned-graph admission; remove them before collection.
+
+On both measured x64 hosts, selection adds24 bytes to every WS instance,
+including never-activated instances. Selecting the existing native TCP hook adds
+16 bytes where not already selected; native TLS progress adds24 bytes similarly.
+Existing public WS config128/events80 bytes stay unchanged; the new checked view
+is32 bytes. These are feature-selection costs, not an enable-time heap block. Counter updates, deferred posts and
+native masking/crypto/copy costs remain real; no zero-overhead or throughput/tail
+acceptance is inferred. Unselected WS builds omit these paths and do not force
+TLS. See the [runnable attachment-stage example](../../examples/websocket/write_progress/README.md).
+This prerequisite does not by itself complete the MQTT WebSocket transport.

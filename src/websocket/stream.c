@@ -2353,6 +2353,9 @@ static void __xrtWsStreamDrive(
 	) ) {
 		__xrtWsStreamRead(pConnection);
 	}
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+        __xrtWsStreamPublishWriteProgress(pConnection);
+    #endif
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 		if ( pConnection->TransportKind ==
 			__XRT_WS_TRANSPORT_TLS ) {
@@ -2757,6 +2760,10 @@ static void __xrtWsStreamTransportClose(
 	__xrtWsStreamOutputClear(pConnection);
 	if ( !pConnection->CloseEmitted ) {
 		pConnection->CloseEmitted = true;
+        #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
+            pConnection->WriteProgress = NULL;
+            pConnection->WriteProgressPending = false;
+        #endif
 		__xrtWsStreamCloseSnapshot(pConnection, &Close);
 		if ( pConnection->Events.Close != NULL ) {
 			pConnection->Events.Close(

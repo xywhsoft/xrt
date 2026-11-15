@@ -13204,3 +13204,51 @@ and out/service-extensions/xrpc-frame-20261112.
   async framed stdio and remaining original Redis/MQTT5/Cron requirements remain
   open. All new feature nodes remain developing; production/performance acceptance
   and the full four-product goal remain incomplete.
+
+
+## 2026-11-16: native WS/WSS write-prefix prerequisite for MQTT
+
+- Continue directly on master from05f306bc. Previous turn delivered bounded RPC
+  URI factories; no branch/switch/worktree/merge operation or push this stage.
+- The next required MQTT transport is WS/WSS. Real masked BinaryRef probes on
+  Windows and WSL show original input release while native output remains pending.
+  Do not use that copied-input release, diagnostic stats or whole-stream Drain as
+  an individual QoS0 physical-send receipt. Probe binaries/raw failed first WSL
+  assumption and stronger real backpressure runs are preserved.
+- Add actual public Core websocket_stream_write_progress and optional
+  websocket_stream_tls_write_progress leaves, SetWriteProgress and checked32-byte
+  WriteProgress view. Reuse the original native TCP hook and TLS ciphertext
+  counters. No new thread/timer/runtime, input copy or per-write watch node.
+  Notifications coalesce outside Send/native completion with existing event Data
+  lifetime. Opaque observers reject ownership-graph admission until removed.
+- Final snapshots always expose exact native Produced/Completed; Staged marks
+  a WSS local unsent suffix excluded from Produced. Existing saved cuts remain
+  comparable while later tails are staged. Wait for Staged to clear before taking
+  a new message cut; later writes do not extend an already saved cut. The earlier
+  experimental AGAIN-only approach was rejected because it hid old-cut progress.
+  Native batches may retire together; kernel completion is not peer/business ack.
+- Both x64 hosts measure +24 bytes per selected WS instance, +16 per TCP when
+  its existing progress hook was not selected, and +24 per TLS when its existing
+  progress fields were not selected. Public WS config128/events80 remain unchanged;
+  feature-excluded paths stay absent. No enable/query heap allocation is observed
+  under real one-byte budgets, including10000 successful warmed snapshots.
+- Positive/negative scenarios cover real TCP and verified TLS, select/IOCP/epoll,
+  native prefix versus later output, actual local WSS suffixes, conservative
+  batching, deferred/reentrant observers, callback abort, epoch preservation,
+  real counter-overflow writes, foreign-owner/Size atomic failures and physical
+  WS/TLS/TCP/Engine joins. Stronger bounded-buffer test cases replace an invalid
+  assumption about notification granularity and an overly tiny receiver window.
+- Explicit full/plain/off singles, the documented plain selector example,
+  independent static/shared/declaration consumers, native export checks, existing
+  WS/owned retirement/TLS/native-prefix suites and separate WSL TSan pass. Initial
+  single-example accept/open C namespace collisions are corrected with local
+  names. Existing Core detail exports remain; the new private helper is hidden.
+  Root generated example index also reconciles three already-existing entries.
+- Exact evidence, source cohorts, failures, ABI and query-only diagnostics are in
+  [the stage report](websocket-write-progress-20261116.json). Windows O2 warmed
+  query loops and instrumented WSL diagnostics are not an end-to-end performance
+  comparison. Production/performance acceptance remains false.
+- Full MQTT WS/WSS integration, native transport setup, Session/Auth/reconnect
+  composition, durable state and the other original Redis/RPC/Cron requirements
+  remain active; see [the integration design](xmqtt-websocket-design.md). This
+  Core prerequisite does not count as a completed MQTT WebSocket client.

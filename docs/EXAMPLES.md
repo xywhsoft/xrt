@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `418` 个可运行示例。
+当前共登记 `422` 个可运行示例。
 
 ## asn1 (5)
 
@@ -309,7 +309,7 @@
 - [memory/stats](../examples/memory/stats/main.c) - `memory_stats`
 - [memory/temp](../examples/memory/temp/main.c) - `temp_memory`
 
-## network (50)
+## network (51)
 
 - [network/addr_tour](../examples/network/addr_tour/main.c) - `net_addr_examples`
 - [network/address](../examples/network/address/main.c) - `net`
@@ -348,6 +348,7 @@
 - [network/tcp_dial_sync](../examples/network/tcp_dial_sync/main.c) - `net_tcp_dial_sync`
 - [network/tcp_dial_tour](../examples/network/tcp_dial_tour/main.c) - `net_tcp`
 - [network/tcp_future](../examples/network/tcp_future/main.c) - `net_tcp_future`
+- [network/tcp_retire_poll](../examples/network/tcp_retire_poll/main.c) - `net_tcp_retire`
 - [network/tcp_server](../examples/network/tcp_server/main.c) - `net_tcp_server`
 - [network/tcp_server_sync](../examples/network/tcp_server_sync/main.c) - `net_tcp_server_sync`
 - [network/tcp_server_tour](../examples/network/tcp_server_tour/main.c) - `net_tcp_server`
@@ -447,7 +448,7 @@
 - [time/range_tour](../examples/time/range_tour/main.c) - `time`
 - [time/text_parse](../examples/time/text_parse/main.c) - `time_text`
 
-## tls (26)
+## tls (27)
 
 - [tls/auth_messages](../examples/tls/auth_messages/main.c) - `tls_auth_messages_write`
 - [tls/cipher_backends](../examples/tls/cipher_backends/main.c) - `tls_cipher_backends_examples`
@@ -472,6 +473,7 @@
 - [tls/session_tour](../examples/tls/session_tour/main.c) - `tls_session`
 - [tls/stream](../examples/tls/stream/main.c) - `tls_stream_tests`
 - [tls/stream_future](../examples/tls/stream_future/main.c) - `tls_stream_future`
+- [tls/stream_retire](../examples/tls/stream_retire/main.c) - `tls_stream_retire_tests`
 - [tls/stream_tour](../examples/tls/stream_tour/main.c) - `tls_stream`
 - [tls/verify](../examples/tls/verify/main.c) - `tls_verify`
 - [tls/writer_tour](../examples/tls/writer_tour/main.c) - `tls_negotiate`
@@ -493,7 +495,7 @@
 - [value/ownership](../examples/value/ownership/main.c) - `value`
 - [value/set_tour](../examples/value/set_tour/main.c) - `value`
 
-## websocket (13)
+## websocket (15)
 
 - [websocket/close](../examples/websocket/close/main.c) - `websocket_close`
 - [websocket/deflate](../examples/websocket/deflate/main.c) - `websocket_deflate`
@@ -505,9 +507,11 @@
 - [websocket/inflater](../examples/websocket/inflater/main.c) - `websocket_inflater`
 - [websocket/message](../examples/websocket/message/main.c) - `websocket_message`
 - [websocket/stream_ref](../examples/websocket/stream_ref/main.c) - `websocket_stream_ref`
+- [websocket/stream_retire](../examples/websocket/stream_retire/main.c) - `websocket_stream_retire`
 - [websocket/stream_tour](../examples/websocket/stream_tour/main.c) - `websocket_stream`
 - [websocket/upgrade](../examples/websocket/upgrade/main.c) - `websocket_upgrade`
 - [websocket/upgrade_tour](../examples/websocket/upgrade_tour/main.c) - `websocket_upgrade`
+- [websocket/write_progress](../examples/websocket/write_progress/main.c) - `websocket_stream_write_progress`
 
 ## x509 (19)
 
