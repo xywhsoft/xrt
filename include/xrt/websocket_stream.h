@@ -352,7 +352,8 @@ XRT_API bool xrtWsStreamSendSize(const xwsstream* pStream, size_t iPayload,
 
 
 
-/* 在当前消息分块结束后暂停应用数据事件。 */
+/* 在当前消息分块结束后暂停应用数据事件。正常输入 EOF 等待已缓冲分块及
+ * MessageEnd 交付；暂停时由 Resume 继续，放弃读取时调用 Close/Abort。 */
 XRT_API void xrtWsStreamPause(xwsstream* pStream);
 
 

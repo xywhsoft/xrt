@@ -5169,3 +5169,16 @@ one pointer add storage and synchronization only when selected; ordinary hot
 releases above two references keep a compare/exchange path. No zero-cost or
 production-performance acceptance is implied. Host Engine/native worker join,
 external callers and library code unload remain separate duties.
+
+Normal TCP EOF and authenticated TLS input End follow buffered message chunks.
+If an application pauses at Begin, Data (even the last byte), or MessageEnd,
+Resume continues those callbacks before normal transport close. A reader that
+abandons its paused input must explicitly Close/Abort; error/abort termination
+can still discard incomplete input. This ordering adds no queue or receive copy.
+
+TLS can close reentrantly while the WS reader consumes its final plaintext byte.
+For a normal authenticated native Close, WS retains its existing TLS owner until
+the paused parser finishes buffered callbacks. Resume finishes normal delivery;
+Close on the Worker or Abort from any thread abandons pending input and releases
+that owner. No additional TLS reference, buffer, timer or reader thread is added.
+Transport errors and explicit abort do not wait for an abandoned reader.

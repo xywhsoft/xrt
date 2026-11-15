@@ -2011,7 +2011,8 @@
 			"tests": [
 				"tests/websocket/test_stream.c",
 				"tests/websocket/test_stream_protocol.c",
-				"tests/websocket/test_stream_invalid.c"
+				"tests/websocket/test_stream_invalid.c",
+				"tests/websocket/test_stream_eof.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_websocket_stream.c",
@@ -2117,7 +2118,8 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"tests/websocket/test_stream_tls.c"
+				"tests/websocket/test_stream_tls.c",
+				"tests/websocket/test_stream_eof_tls.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_websocket_stream_tls.c"
@@ -2188,7 +2190,8 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"tests/websocket/test_stream_tls.c"
+				"tests/websocket/test_stream_tls.c",
+				"tests/websocket/test_stream_eof_tls.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_websocket_stream_tls.c"

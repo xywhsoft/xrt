@@ -1272,6 +1272,27 @@ static void __xrtWsStreamCloseTransport(xwsstream* pConnection)
 	__xrtWsStreamCloseTransportStart(pConnection);
 }
 
+static void __xrtWsStreamTransportClose(xwsstream*,ptr,xnetresult,const xerror*);
+
+/* EOF must follow already buffered application chunks, including an End still
+ * pending after a Data callback paused at the final byte. Resume owns progress
+ * while paused; Close/Abort can always terminate an abandoned reader. */
+static void __xrtWsStreamInputFinish(xwsstream* pConnection)
+{
+	if ( pConnection->InputEnded && !pConnection->Reading &&
+		(xrtWsStreamState(pConnection) != XWS_STREAM_CLOSED) &&
+		!xrtAtomic32Load(&pConnection->ReadPaused, XMEMORY_ACQUIRE) ) {
+		if ( pConnection->NativeCloseDeferred ) {
+			pConnection->NativeCloseDeferred = false;
+			__xrtWsStreamTransportClose(pConnection,
+				xrtAtomicPtrLoad(&pConnection->Transport, XMEMORY_ACQUIRE),
+				XNET_RESULT_OK, NULL);
+		} else {
+			__xrtWsStreamCloseTransportStart(pConnection);
+		}
+	}
+}
+
 
 
 /* 关闭计时器只在远端没有回应时把握手变为明确超时。 */
@@ -1604,6 +1625,7 @@ static bool __xrtWsStreamConsume(
 /* TLS 在保留不完整帧头时显式请求继续累积受限明文。 */
 static bool __xrtWsStreamReadMore(xwsstream* pConnection)
 {
+	if ( pConnection->InputEnded ) return true;
 	(void)pConnection;
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 		if ( pConnection->TransportKind ==
@@ -2294,6 +2316,7 @@ static void __xrtWsStreamRead(xwsstream* pConnection)
 		pConnection->FrameOffset += iChunk;
 	}
 	pConnection->Reading = false;
+	__xrtWsStreamInputFinish(pConnection);
 	xrtWsStreamDestroy(pConnection);
 }
 
@@ -2313,6 +2336,17 @@ static void __xrtWsStreamDrive(
 		0,
 		XMEMORY_RELEASE
 	);
+	/* Abort may arrive from any thread after TLS already published its one
+	 * Close. Finish on the Worker even if its application reader is paused. */
+	if ( pConnection->NativeCloseDeferred &&
+		(xrtWsStreamState(pConnection) != XWS_STREAM_OPEN) ) {
+		pConnection->NativeCloseDeferred = false;
+		__xrtWsStreamTransportClose(pConnection,
+			xrtAtomicPtrLoad(&pConnection->Transport, XMEMORY_ACQUIRE),
+			XNET_RESULT_CANCELLED, NULL);
+		xrtWsStreamDestroy(pConnection);
+		return;
+	}
 	if ( !xrtAtomic32Load(
 		&pConnection->ReadPaused,
 		XMEMORY_ACQUIRE
@@ -2518,12 +2552,13 @@ static void __xrtWsStreamTcpEnd(
 	xwsstream* pConnection = (xwsstream*)pData;
 
 	(void)pStream;
-	if ( !pConnection->CloseReceived ) {
-		pConnection->TransportClosing = true;
-		if ( !xrtNetStreamClose(pStream) ) {
-			xrtClearError();
-			(void)xrtNetStreamAbort(pStream);
-		}
+	pConnection->InputEnded = true;
+	if ( pConnection->ProtocolFailed ) {
+		__xrtWsStreamCloseTransportStart(pConnection);
+	} else {
+		/* Resume can clear ReadPaused before its posted drive runs. Drain
+		 * here too; the flag alone does not prove buffered input is done. */
+		__xrtWsStreamRead(pConnection);
 	}
 }
 
@@ -2858,12 +2893,12 @@ static void __xrtWsStreamTlsEnd(
 {
 	xwsstream* pConnection = (xwsstream*)pData;
 
-	if ( !pConnection->TransportClosing ) {
-		pConnection->TransportClosing = true;
-		if ( !xrtTlsStreamClose(pStream) ) {
-			xrtClearError();
-			(void)xrtTlsStreamAbort(pStream);
-		}
+	(void)pStream;
+	pConnection->InputEnded = true;
+	if ( pConnection->ProtocolFailed ) {
+		__xrtWsStreamCloseTransportStart(pConnection);
+	} else {
+		__xrtWsStreamRead(pConnection);
 	}
 }
 
@@ -2877,8 +2912,20 @@ static void __xrtWsStreamTlsClose(
 	ptr pData
 )
 {
+	xwsstream* pConnection = (xwsstream*)pData;
+	/* TLS can complete close_notify reentrantly from Consume at the final
+	 * payload byte, before the outer WS reader can publish MessageEnd.
+	 * Keep the existing TLS owner (and its buffered plaintext) until Resume
+	 * finishes parsing. Errors and explicit abort always terminate promptly. */
+	if ( (Result == XNET_RESULT_OK) && (pError == NULL) &&
+		(xrtWsStreamState(pConnection) == XWS_STREAM_OPEN) &&
+		(pConnection->Reading || xrtWsStreamPaused(pConnection)) ) {
+		pConnection->InputEnded = true;
+		pConnection->NativeCloseDeferred = true;
+		return;
+	}
 	__xrtWsStreamTransportClose(
-		(xwsstream*)pData,
+		pConnection,
 		pStream,
 		Result,
 		pError
@@ -4456,6 +4503,13 @@ static xnetresult xrtWsStreamCloseBody(
 		(xrtWsStreamState(pConnection) != XWS_STREAM_OPEN) ) {
 		return XNET_RESULT_CLOSED;
 	}
+	if ( pConnection->NativeCloseDeferred ) {
+		pConnection->NativeCloseDeferred = false;
+		__xrtWsStreamTransportClose(pConnection,
+			xrtAtomicPtrLoad(&pConnection->Transport, XMEMORY_ACQUIRE),
+			XNET_RESULT_OK, NULL);
+		return XNET_RESULT_CLOSED;
+	}
 	if ( !xrtWsCloseWrite(
 		iCode,
 		Reason,
@@ -4538,6 +4592,10 @@ bool __xrtWsStreamAbortBody(xwsstream* pConnection)
 			bAccepted = xrtTlsStreamAbort(
 				(xtlsstream*)pTransport
 			);
+			if ( xrtTlsStreamState((xtlsstream*)pTransport) ==
+				XTLS_STREAM_CLOSED ) {
+				__xrtWsStreamDriveSchedule(pConnection);
+			}
 		} else
 	#endif
 	{

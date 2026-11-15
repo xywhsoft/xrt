@@ -218,6 +218,8 @@ struct xwsstream {
 	bool ProtocolFailed;
 	bool ProtocolPeerActivity;
 	bool TransportClosing;
+	bool InputEnded;
+	bool NativeCloseDeferred;
 	bool Backpressured;
 	bool DrainPending;
 	bool ErrorEmitted;
