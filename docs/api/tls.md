@@ -13582,7 +13582,8 @@ Await；公共桥接器的监听安装 OOM 由
 `xtlsstreamownershipv1` 策略。成功接管一个 Data 引用，失败不接管；
 Attach 的 TCP／Session 接管合同不变。Data 必须真实拥有所有事件和
 Session 所借用的回调上下文，直到 Session 销毁后才释放。此模式的
-Events／Data 不可替换，旧借用式工厂不自动获得图认证。
+Session／配置的原始 Data 引用持续保留，旧借用式工厂不自动获得图认证。
+额外事件槽可按下述显式绑定／交换合同交给上层协议。
 
 `xrtTlsStreamOwnership` 返回真实引用；
 `xrtTlsStreamRuntimeOwnershipV1Get`、
@@ -13601,6 +13602,44 @@ Clear 不执行回调；Finish 在图目标有真实 pin 的前提下于 Freeze 
 完整引用边、失败原子性和退役约束见
 [TLS Stream 拥有图设计](../design/tls-stream-ownership.md)。仅运行普通
 固定密钥本机回环与生命周期检查，不以此代替安全专项或发布验收。
+
+### TLS 上层事件拥有者的显式交换
+
+`xrtTlsStreamBindEventsOwnedV1` 在已 OPEN 的拥有式 TLS 流上安装一次额外
+事件拥有者，原始 Session／配置 Data 一直保留到本机 TLS 对象销毁。
+HTTP Upgrade 之后再次交接时，选择 `tls_stream_event_exchange`
+（`XRT_MODULE_TLS_STREAM_EVENT_EXCHANGE`），调用
+`xrtTlsStreamExchangeEventsOwnedV1`。旧 Bind 和借用式 SetEvents 的规则不变。
+
+```c
+xtlsstreambindingv1 expected = { http_data, http_policy };
+xtlsstreambindingv1 previous = {0};
+if (xrtTlsStreamExchangeEventsOwnedV1(tls, &expected,
+        next_data, next_policy, &previous)) {
+    /* 先完成上层对象发布；退出全部 ownership Claim／Mutation 后再释放。 */
+    previous.Policy->Drop(previous.Data);
+}
+```
+
+`xtlsstreambindingv1` 用作输入时借用当前 Data／永久策略的精确身份；用作
+成功输出时持有一个真实旧事件 Data 引用。交换成功消费一个新 Data 引用，
+将旧引用交回调用方，不执行 Drop／Retain，也不重放已缓冲明文。即使新旧
+身份相同，两次引用仍必须各自真实存在。返回的旧引用只释放一次；其策略和
+代码须一直有效到释放完成。失败不消费新引用，也不改动绑定或输出。
+
+只允许所属 Worker 在 OPEN、Open 已完成、没有活动回调／驱动／发送、
+ReadMore／异步读、关闭请求或 ownership Claim 时调用。协议回调必须先通过
+`xrtNetPost` 退出原生驱动，再解析／消费已验证 HTTP 头并进行交换。
+Previous 必须与 Expected、流、策略、配置及新旧上下文的完整存储互不重叠；
+Core 可检查已知结构和上下文起点，不探测不透明上下文的分配范围。
+调用方还必须停止旧上层协议的独立任务和直接 IO；原生空闲检查不负责
+加入任意应用回调或排空旧协议自己保存的工作队列。
+
+这个原语不新增对象字段、队列、线程、定时器、堆分配或预算重置。它只是
+原生事件槽的事务；它不证明 HTTP Upgrade 已通过验证、不提供握手期限，
+也不执行协议协商或身份认证。上层组合工厂应在完成全部可能失败的准备后
+才交换，并将旧拥有者保留至新外观对象发布之后，避免旧 Drop 重入半初始化
+对象。完整可运行验证见 `tests/websocket/test_stream_tls_exchange.c`。
 
 ### TLS Stream Future 拥有图
 

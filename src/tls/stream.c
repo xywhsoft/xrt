@@ -1762,6 +1762,62 @@ XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* s, ptr data,
 	}
 	__xrtTlsStreamOwnershipLeave(s);return ok;
 }
+#if defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+XRT_API bool xrtTlsStreamExchangeEventsOwnedV1(xtlsstream* s,
+    const xtlsstreambindingv1* expected, ptr data,
+    const xtlsstreamownershipv1* policy, xtlsstreambindingv1* previous)
+{
+    if(!s || !__xrtTlsStreamOwnedPolicyValid(data,policy) ||
+       !__xrtRangeValid(expected,sizeof(*expected)) || !__xrtRangeValid(previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(expected,sizeof(*expected),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(s,sizeof(*s),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(policy,sizeof(*policy),previous,sizeof(*previous))){
+        __xrtErrorSetInvalidArgument();return false;
+    }
+    xtlsstreambindingv1 old;memcpy(&old,expected,sizeof(old));
+    if(!old.Data || !old.Policy ||
+       xrtMemRangesOverlap(old.Policy,sizeof(*old.Policy),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(old.Data,1,previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(data,1,previous,sizeof(*previous))){
+        __xrtErrorSetInvalidArgument();return false;
+    }
+    if(!__xrtTlsStreamOwnershipEnter(s,true))return false;
+    bool ok=false;
+    if(!xrtNetWorkerIsCurrent(xrtNetStreamWorker(xrtAtomicPtrLoad(&s->Transport,XMEMORY_ACQUIRE))) ||
+       !s->OwnershipPolicy || !s->OwnershipDataHeld || s->EventPolicy!=old.Policy ||
+       xrtAtomicPtrLoad(&s->EventData,XMEMORY_ACQUIRE)!=old.Data ||
+       xrtTlsStreamState(s)!=XTLS_STREAM_OPEN || !s->OpenEmitted ||
+       xrtAtomic32Load(&s->CloseGate,XMEMORY_ACQUIRE) || xrtAtomic32Load(&s->AbortGate,XMEMORY_ACQUIRE) ||
+       s->ActiveDepth || s->Driving || s->Sending || s->ReadMore){
+        __xrtErrorSetInvalidState();
+    }else{
+        xrtownershipscope mutation={0};
+        if(!xrtOwnershipMutationBegin(&mutation)){__xrtTlsStreamOwnershipLeave(s);return false;}
+        #if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+        __xrtSpinLock(&s->AsyncLock);
+        if(xrtAtomic32Load(&s->AsyncReads,XMEMORY_ACQUIRE)){
+            __xrtErrorSetInvalidState();
+        }else
+        #endif
+        {
+            #if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+            s->WriteProgress=NULL;s->WriteProgressPending=false;
+            #endif
+            /* Move only the event slot. Old Data is now a caller owner, not a
+             * callback to invoke before a composite protocol has published. */
+            s->Events=policy->Events;s->EventPolicy=policy;
+            xrtAtomicPtrStore(&s->EventData,data,XMEMORY_RELEASE);
+            memcpy(previous,&old,sizeof(old));ok=true;
+        }
+        #if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+        __xrtSpinUnlock(&s->AsyncLock);
+        #endif
+        if(!xrtOwnershipScopeEnd(&mutation))abort();
+    }
+    __xrtTlsStreamOwnershipLeave(s);return ok;
+}
+#endif
+
 static xtlsstream* __xrtTlsStreamCreateOwned(xnetengine* engine,
 	xtlssession* session, bool server, const xtlsstreamconfig* config,
 	const xtlsstreamevents* events, ptr data, const xtlsstreamownershipv1* policy)

@@ -249,10 +249,26 @@ static void __xrtWsOwnedDiscard(xwsstream* s)
     xrtWsStreamDestroy(s);xrtWsStreamDestroy(s);
 }
 static xwsstream* __xrtWsOwnedAttach(ptr transport,__xrt_ws_transport kind,xnetbuf* initial,
-    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
+    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,const xtlsstreambindingv1* expected,xtlsstreambindingv1* previous
+    #endif
+    )
 {
     if(!transport||!data||!policy||policy->size!=sizeof(*policy)||!policy->Drop||
        !policy->Ops||!policy->Ops->Count||!policy->Ops->Trace){__xrtErrorSetInvalidArgument();return NULL;}
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    if(expected || previous){
+        if(kind!=__XRT_WS_TRANSPORT_TLS || !__xrtRangeValid(expected,sizeof(*expected)) ||
+           !__xrtRangeValid(previous,sizeof(*previous)) ||
+           (initial&&xrtMemRangesOverlap(initial,sizeof(*initial),previous,sizeof(*previous))) ||
+           (config&&xrtMemRangesOverlap(config,sizeof(*config),previous,sizeof(*previous))) ||
+           xrtMemRangesOverlap(policy,sizeof(*policy),previous,sizeof(*previous)) ||
+           xrtMemRangesOverlap(data,1,previous,sizeof(*previous))){
+            __xrtErrorSetInvalidArgument();return NULL;
+        }
+    }
+    #endif
     xnetworker* worker=NULL;const xnetbuf* buffered=NULL;
     #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
     if(kind==__XRT_WS_TRANSPORT_TLS){worker=xrtNetStreamWorker(xrtTlsStreamTransport(transport));}else
@@ -291,7 +307,12 @@ static xwsstream* __xrtWsOwnedAttach(ptr transport,__xrt_ws_transport kind,xnetb
     if(!__xrtWsStreamDrivePrepare(s))goto fail;
     bool bound;
     #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
-    if(kind==__XRT_WS_TRANSPORT_TLS)bound=xrtTlsStreamBindEventsOwnedV1(transport,s,xrtWsStreamTlsEventsOwnershipV1Get());else
+    if(kind==__XRT_WS_TRANSPORT_TLS){
+        #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+        if(expected)bound=xrtTlsStreamExchangeEventsOwnedV1(transport,expected,s,xrtWsStreamTlsEventsOwnershipV1Get(),previous);else
+        #endif
+        bound=xrtTlsStreamBindEventsOwnedV1(transport,s,xrtWsStreamTlsEventsOwnershipV1Get());
+    }else
     #endif
     bound=xrtNetStreamSetEventsOwnedV1(transport,s,xrtWsStreamTcpEventsOwnershipV1Get());
     if(!bound)goto fail;
@@ -306,10 +327,27 @@ fail:
 }
 XRT_API xwsstream* xrtWsStreamAttachOwnedV1(xnetstream* transport,xnetbuf* initial,
     const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
-{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TCP,initial,config,data,policy);}
+{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TCP,initial,config,data,policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,NULL,NULL
+    #endif
+    );}
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 XRT_API xwsstream* xrtWsStreamAttachTlsOwnedV1(xtlsstream* transport,xnetbuf* initial,
     const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
-{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy);}
+{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,NULL,NULL
+    #endif
+    );}
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+XRT_API xwsstream* xrtWsStreamAttachTlsExchangeOwnedV1(xtlsstream* transport,xnetbuf* initial,
+    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy,
+    const xtlsstreambindingv1* expected,xtlsstreambindingv1* previous)
+{
+    if(!expected || !previous){__xrtErrorSetInvalidArgument();return NULL;}
+    return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy,expected,previous);
+}
+#endif
 #endif
 #endif

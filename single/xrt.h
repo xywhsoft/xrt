@@ -55,6 +55,29 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* websocket_stream_tls_exchange 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_EVENT_EXCHANGE
+#define XRT_MODULE_TLS_STREAM_EVENT_EXCHANGE
+#endif
+#endif
+
+/* tls_stream_event_exchange 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_EVENT_EXCHANGE)
+#ifndef XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE
+#define XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#endif
+
 /* websocket_stream_retire 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_RETIRE)
 #ifndef XRT_FEATURE_WEBSOCKET_STREAM_RETIRE
@@ -32413,6 +32436,10 @@ XRT_EXTERN_C_END
 
 
 
+#if defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE) && !defined(XRT_FEATURE_TLS_STREAM)
+	#error "TLS event exchange requires TLS Stream"
+#endif
+
 #if defined(XRT_FEATURE_TLS_STREAM) && \
 	(!defined(XRT_FEATURE_NET_TCP) || \
 	 !defined(XRT_FEATURE_TLS_CLIENT) || \
@@ -32611,6 +32638,15 @@ typedef struct xtlsstreamownershipv1 {
 	void (*Drop)(const void* pData);
 	const xrtownershipops* Ops;
 } xtlsstreamownershipv1;
+
+/* Borrowed identities when used as Expected; one actual event-data credit when
+ * returned as Previous by Exchange. The session/configuration owner is separate.
+ * A returned owner must be released exactly once through Policy->Drop(Data),
+ * outside ownership claims/mutations after the composite handoff has returned. */
+typedef struct xtlsstreambindingv1 {
+	ptr Data;
+	const xtlsstreamownershipv1* Policy;
+} xtlsstreambindingv1;
 
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL)
 /* One aggregate owner for Done, final Stream events and every borrowed TLS
@@ -33095,6 +33131,20 @@ XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream);
  * or pending read may overlap. Both exact policies participate in tracing. */
 XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* pStream, ptr pData,
 	const xtlsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+/* Exclusive idle OPEN Worker transaction. Expected must match the current
+ * additional event binding exactly; original session/configuration Data stays
+ * unchanged. No active callback/drive/send/incremental or async read. Consumes
+ * one NewData credit and returns the previous credit only on success; false
+ * changes neither binding nor Previous and consumes no new credit. Does not
+ * call Drop/Retain, replay buffered data, allocate, or reset a caller quota.
+ * Previous storage must be separate from Expected/Stream/descriptors/contexts.
+ * Retain the returned owner through completion of the higher protocol factory;
+ * its later Drop can reenter this stream. Both descriptors/code stay resident. */
+XRT_API bool xrtTlsStreamExchangeEventsOwnedV1(xtlsstream* pStream,
+	const xtlsstreambindingv1* pExpected, ptr pNewData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstreambindingv1* pPrevious);
+#endif
 XRT_API const xnetruntimeownershipv1* xrtTlsStreamRuntimeOwnershipV1Get(void);
 XRT_API const xnetstreameventsownershipv1* xrtTlsStreamTransportOwnershipV1Get(void);
 XRT_API const xrtownershipquiescencev1* xrtTlsStreamOwnershipQuiescenceV1Get(void);
@@ -33372,6 +33422,12 @@ XRT_EXTERN_C_END
 	#error "XRT WebSocket TLS Stream requires WebSocket Stream and TLS Stream"
 #endif
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) && \
+	(!defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
+	 !defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE))
+	#error "WebSocket TLS exchange requires TLS Stream and owned event exchange"
+#endif
+
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE) && \
 	(!defined(XRT_FEATURE_WEBSOCKET_STREAM) || \
 	 !defined(XRT_FEATURE_WEBSOCKET_INFLATER) || \
@@ -33610,6 +33666,20 @@ XRT_API xwsstream* xrtWsStreamAttachOwnedV1(xnetstream* pTransport,
 XRT_API xwsstream* xrtWsStreamAttachTlsOwnedV1(xtlsstream* pTransport,
 	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
 	ptr pData, const xwsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+/* As AttachTlsOwnedV1, but replace an exact existing owned event binding
+ * (e.g. HTTP Upgrade). Success takes transport/Initial/new Data and returns
+ * the previous event owner; false preserves all inputs and Previous. Expected
+ * is borrowed; Previous storage must be separate from inputs and contexts.
+ * No old Drop is called inside this composite factory. Publish the returned
+ * WS in its facade before calling Previous.Policy->Drop(Previous.Data), outside
+ * claims/mutations. Session/configuration owner and buffered suffix stay intact.
+ * Existing attach APIs retain their one-time binding rule. */
+XRT_API xwsstream* xrtWsStreamAttachTlsExchangeOwnedV1(xtlsstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig, ptr pData,
+	const xwsstreamownershipv1* pPolicy, const xtlsstreambindingv1* pExpected,
+	xtlsstreambindingv1* pPrevious);
+#endif
 XRT_API const xtlsstreamownershipv1* xrtWsStreamTlsEventsOwnershipV1Get(void);
 #endif
 XRT_API xrtownershipref xrtWsStreamOwnership(const xwsstream* pStream);
@@ -53852,7 +53922,8 @@ bool __xrtNetListenerFutureAccept(
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_REF) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE) || \
-	defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE) || \
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #ifndef XRT_INTERNAL_WEBSOCKET_STREAM_H
 #define XRT_INTERNAL_WEBSOCKET_STREAM_H
 
@@ -56414,7 +56485,8 @@ bool __xrtTlsServerResumeSelect(
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC) || \
 	defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY) || \
-	defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE)
+	defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) || \
+	defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
 #ifndef XRT_INTERNAL_TLS_STREAM_H
 #define XRT_INTERNAL_TLS_STREAM_H
 
@@ -173005,10 +173077,26 @@ static void __xrtWsOwnedDiscard(xwsstream* s)
     xrtWsStreamDestroy(s);xrtWsStreamDestroy(s);
 }
 static xwsstream* __xrtWsOwnedAttach(ptr transport,__xrt_ws_transport kind,xnetbuf* initial,
-    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
+    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,const xtlsstreambindingv1* expected,xtlsstreambindingv1* previous
+    #endif
+    )
 {
     if(!transport||!data||!policy||policy->size!=sizeof(*policy)||!policy->Drop||
        !policy->Ops||!policy->Ops->Count||!policy->Ops->Trace){__xrtErrorSetInvalidArgument();return NULL;}
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    if(expected || previous){
+        if(kind!=__XRT_WS_TRANSPORT_TLS || !__xrtRangeValid(expected,sizeof(*expected)) ||
+           !__xrtRangeValid(previous,sizeof(*previous)) ||
+           (initial&&xrtMemRangesOverlap(initial,sizeof(*initial),previous,sizeof(*previous))) ||
+           (config&&xrtMemRangesOverlap(config,sizeof(*config),previous,sizeof(*previous))) ||
+           xrtMemRangesOverlap(policy,sizeof(*policy),previous,sizeof(*previous)) ||
+           xrtMemRangesOverlap(data,1,previous,sizeof(*previous))){
+            __xrtErrorSetInvalidArgument();return NULL;
+        }
+    }
+    #endif
     xnetworker* worker=NULL;const xnetbuf* buffered=NULL;
     #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
     if(kind==__XRT_WS_TRANSPORT_TLS){worker=xrtNetStreamWorker(xrtTlsStreamTransport(transport));}else
@@ -173047,7 +173135,12 @@ static xwsstream* __xrtWsOwnedAttach(ptr transport,__xrt_ws_transport kind,xnetb
     if(!__xrtWsStreamDrivePrepare(s))goto fail;
     bool bound;
     #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
-    if(kind==__XRT_WS_TRANSPORT_TLS)bound=xrtTlsStreamBindEventsOwnedV1(transport,s,xrtWsStreamTlsEventsOwnershipV1Get());else
+    if(kind==__XRT_WS_TRANSPORT_TLS){
+        #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+        if(expected)bound=xrtTlsStreamExchangeEventsOwnedV1(transport,expected,s,xrtWsStreamTlsEventsOwnershipV1Get(),previous);else
+        #endif
+        bound=xrtTlsStreamBindEventsOwnedV1(transport,s,xrtWsStreamTlsEventsOwnershipV1Get());
+    }else
     #endif
     bound=xrtNetStreamSetEventsOwnedV1(transport,s,xrtWsStreamTcpEventsOwnershipV1Get());
     if(!bound)goto fail;
@@ -173062,11 +173155,28 @@ fail:
 }
 XRT_API xwsstream* xrtWsStreamAttachOwnedV1(xnetstream* transport,xnetbuf* initial,
     const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
-{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TCP,initial,config,data,policy);}
+{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TCP,initial,config,data,policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,NULL,NULL
+    #endif
+    );}
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 XRT_API xwsstream* xrtWsStreamAttachTlsOwnedV1(xtlsstream* transport,xnetbuf* initial,
     const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy)
-{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy);}
+{return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+    ,NULL,NULL
+    #endif
+    );}
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+XRT_API xwsstream* xrtWsStreamAttachTlsExchangeOwnedV1(xtlsstream* transport,xnetbuf* initial,
+    const xwsstreamconfig* config,ptr data,const xwsstreamownershipv1* policy,
+    const xtlsstreambindingv1* expected,xtlsstreambindingv1* previous)
+{
+    if(!expected || !previous){__xrtErrorSetInvalidArgument();return NULL;}
+    return __xrtWsOwnedAttach(transport,__XRT_WS_TRANSPORT_TLS,initial,config,data,policy,expected,previous);
+}
+#endif
 #endif
 #endif
 #endif
@@ -200927,6 +201037,62 @@ XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* s, ptr data,
 	}
 	__xrtTlsStreamOwnershipLeave(s);return ok;
 }
+#if defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+XRT_API bool xrtTlsStreamExchangeEventsOwnedV1(xtlsstream* s,
+    const xtlsstreambindingv1* expected, ptr data,
+    const xtlsstreamownershipv1* policy, xtlsstreambindingv1* previous)
+{
+    if(!s || !__xrtTlsStreamOwnedPolicyValid(data,policy) ||
+       !__xrtRangeValid(expected,sizeof(*expected)) || !__xrtRangeValid(previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(expected,sizeof(*expected),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(s,sizeof(*s),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(policy,sizeof(*policy),previous,sizeof(*previous))){
+        __xrtErrorSetInvalidArgument();return false;
+    }
+    xtlsstreambindingv1 old;memcpy(&old,expected,sizeof(old));
+    if(!old.Data || !old.Policy ||
+       xrtMemRangesOverlap(old.Policy,sizeof(*old.Policy),previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(old.Data,1,previous,sizeof(*previous)) ||
+       xrtMemRangesOverlap(data,1,previous,sizeof(*previous))){
+        __xrtErrorSetInvalidArgument();return false;
+    }
+    if(!__xrtTlsStreamOwnershipEnter(s,true))return false;
+    bool ok=false;
+    if(!xrtNetWorkerIsCurrent(xrtNetStreamWorker(xrtAtomicPtrLoad(&s->Transport,XMEMORY_ACQUIRE))) ||
+       !s->OwnershipPolicy || !s->OwnershipDataHeld || s->EventPolicy!=old.Policy ||
+       xrtAtomicPtrLoad(&s->EventData,XMEMORY_ACQUIRE)!=old.Data ||
+       xrtTlsStreamState(s)!=XTLS_STREAM_OPEN || !s->OpenEmitted ||
+       xrtAtomic32Load(&s->CloseGate,XMEMORY_ACQUIRE) || xrtAtomic32Load(&s->AbortGate,XMEMORY_ACQUIRE) ||
+       s->ActiveDepth || s->Driving || s->Sending || s->ReadMore){
+        __xrtErrorSetInvalidState();
+    }else{
+        xrtownershipscope mutation={0};
+        if(!xrtOwnershipMutationBegin(&mutation)){__xrtTlsStreamOwnershipLeave(s);return false;}
+        #if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+        __xrtSpinLock(&s->AsyncLock);
+        if(xrtAtomic32Load(&s->AsyncReads,XMEMORY_ACQUIRE)){
+            __xrtErrorSetInvalidState();
+        }else
+        #endif
+        {
+            #if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+            s->WriteProgress=NULL;s->WriteProgressPending=false;
+            #endif
+            /* Move only the event slot. Old Data is now a caller owner, not a
+             * callback to invoke before a composite protocol has published. */
+            s->Events=policy->Events;s->EventPolicy=policy;
+            xrtAtomicPtrStore(&s->EventData,data,XMEMORY_RELEASE);
+            memcpy(previous,&old,sizeof(old));ok=true;
+        }
+        #if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+        __xrtSpinUnlock(&s->AsyncLock);
+        #endif
+        if(!xrtOwnershipScopeEnd(&mutation))abort();
+    }
+    __xrtTlsStreamOwnershipLeave(s);return ok;
+}
+#endif
+
 static xtlsstream* __xrtTlsStreamCreateOwned(xnetengine* engine,
 	xtlssession* session, bool server, const xtlsstreamconfig* config,
 	const xtlsstreamevents* events, ptr data, const xtlsstreamownershipv1* policy)

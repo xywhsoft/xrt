@@ -5182,3 +5182,48 @@ the paused parser finishes buffered callbacks. Resume finishes normal delivery;
 Close on the Worker or Abort from any thread abandons pending input and releases
 that owner. No additional TLS reference, buffer, timer or reader thread is added.
 Transport errors and explicit abort do not wait for an abandoned reader.
+
+## Owned TLS HTTP Upgrade handoff
+
+Select `websocket_stream_tls_exchange`
+(`XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE`) for
+`xrtWsStreamAttachTlsExchangeOwnedV1`. It composes the existing owned WS
+constructor with `xrtTlsStreamExchangeEventsOwnedV1` when an owned HTTP layer
+already occupies TLS's additional event slot. `xrtWsStreamAttachTlsOwnedV1`
+continues to require an unused slot. Both retain the original session/config
+owner; neither changes certificate verification or TLS configuration.
+
+On the idle native Worker, first strictly validate the HTTP request/101 response,
+nonce and negotiated protocol using `websocket_upgrade_stream` and `http1_tls`.
+Consume exactly the checked header and copy any selected protocol needed beyond
+that borrowed view. WS takes any exclusive `Initial` buffer before the native
+unconsumed suffix. Both sources are driven after the factory returns.
+
+```c
+xtlsstreambindingv1 expected = { http_data, http_policy };
+xtlsstreambindingv1 previous = {0};
+xwsstream *ws = xrtWsStreamAttachTlsExchangeOwnedV1(tls, &initial,
+    &config, ws_data, ws_policy, &expected, &previous);
+if (ws) {
+    facade->ws = ws; /* Publish before releasing the old HTTP owner. */
+    previous.Policy->Drop(previous.Data);
+}
+```
+
+Success consumes the caller's native TLS reference, Initial blocks and one new
+Data credit, and returns one old event Data credit. The factory never invokes
+the old Drop, which may free its sole context or reenter/abort the new facade.
+Release it once after publishing and outside all ownership scopes. Failure
+preserves TLS binding, caller references, exact Initial blocks and Previous.
+Keep Previous storage separate from all input descriptors, buffers and opaque
+contexts. Constructor allocations still use the original caller budget; the
+underlying exchange itself performs no heap request. No per-object field or
+runtime facility is added by selecting these two optional leaves.
+
+`websocket_stream_tls_exchange_tests` runs real authenticated TLS and HTTP with
+a split 101, random nonce/subprotocol verification and a coalesced first frame.
+It also covers explicit read-ahead, wrong identity/thread/callback/ReadMore,
+same-identity actual credits, quota rollback, old-context destruction/reentry,
+and physical WS/native/Engine joins. This API is a handoff primitive; HTTP
+client/server factories, routing/auth policy and end-to-end setup deadlines
+remain separate work. It does not claim production or throughput acceptance.

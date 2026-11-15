@@ -12895,3 +12895,47 @@ and out/service-extensions/xrpc-frame-20261112.
   products. Controlled native throughput/tails/scale and native Windows/Linux
   >=72h remain required. Performance/production acceptance and the full goal
   remain incomplete.
+
+
+## 2026-11-15: owned TLS HTTP-to-WS handoff prerequisite
+
+- Reproduce a public Core gap on both hosts: owned TLS can bind the HTTP event
+  owner once, but the existing owned WS attach cannot take that occupied slot.
+  Keep those existing APIs unchanged. Add two optional leaves and two explicit
+  APIs: `xrtTlsStreamExchangeEventsOwnedV1` and
+  `xrtWsStreamAttachTlsExchangeOwnedV1`, with `xtlsstreambindingv1` for exact
+  input identities and one returned real old event-owner credit.
+- Exchange only on the idle OPEN native Worker, after active callback/drive,
+  ReadMore and async-read work has stopped. Preserve the original TLS Session/
+  configuration owner. Return the old event owner instead of calling its Drop
+  inside a composite factory; publish the new facade before releasing that
+  owner, outside ownership scopes. Sole old-context destruction and reentrant
+  Drop/Abort are verified. All fallible WS preparation precedes exchange;
+  failure preserves native events, owner credits, exact Initial blocks/output.
+- Direct exchange requests no heap under original budget1. Existing WS
+  constructor allocations still respect that budget and roll back on OOM.
+  No per-object field, alias, queue, timer, retained-context list or shared
+  runtime is added. Existing public/private layouts match off/on; all previous
+  manifest entries and RPC implementation/dependencies remain unchanged.
+- Verify27 Windows/29 WSL primary C program executions: modular/single real
+  TLS and strict HTTP Upgrade, random nonce/subprotocol, split 101, coalesced
+  frame and Initial ordering, callback/thread/read/async conflicts, actual
+  same-identity credits, late identity failure/OOM, old APIs/EOF/retirement/
+  owned graphs and existing xrpc WS/WSS. Select/IOCP and Select/epoll, static/
+  shared integration and standalone declaration consumers. WSL functional
+  regressions use ASan/UBSan/leak halt; TSan select/epoll also passes.
+- TSan found a real new-fixture Client publication race; add an explicit
+  release/acquire barrier after ConnectOwned returns and rerun the affected
+  final fixtures. Keep the failed source/log/binary and earlier compile/probe
+  mistakes. Two new shared exports are verified; the five existing public
+  detail helpers remain intentional. No suppression or test skip masks a fail.
+- Report: `docs/development/tls-ws-owned-exchange-20261115.json`;457 sealed raw
+  artifacts in `out/service-extensions/ws-upgrade-20261115/`, with physical D
+  storage. Final handoff/async/package/backend/TSan programs use the final source
+  map; earlier unrelated legacy/layout/gates differ only in the unused fixture
+  publication barrier. This stage exercises the new handoff as WS client.
+- Continue actual xrpc same-handle HTTP client/server factories, route/auth/
+  negotiation/URI and original setup deadlines, independent full peers, then
+  remaining four-product scope. No throughput/tail/scale or native72h acceptance
+  is claimed; complete-product and production gates remain open. All changes
+  and tests use `D:/GIT/xrt` master, with no branch creation/switch/merge or push.
