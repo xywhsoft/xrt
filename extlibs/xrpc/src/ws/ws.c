@@ -4,6 +4,9 @@
 #include <xrt/sync.h>
 #include <math.h>
 #include <string.h>
+#if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+#include <xrpc/ws_deflate.h>
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
 #include "../internal/xrpc_ws_http_internal.h"
 #include <xrt/http1_net.h>
@@ -14,6 +17,9 @@
 #if defined(XRPC_FEATURE_XRPC_WS)
 struct xrpcws {
     xrpcwsconfig Config;xrpcwsinfo Info;xatomic32 References;
+    #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+    bool DeflateReady;
+    #endif
     xmutex Gate,Retirement;xcond Retired;xnetengine* Engine;xnetworker* Worker;xwsstream* Stream;
     xrpcduplex* Duplex;xrpcduplexoutput* Output;unsigned char* Receive;
     xnetpost Post;uint64 Timer,Token;double TimerAt,MessageEntered;size_t Used,Capacity,ReadTurnBytes;
@@ -164,14 +170,24 @@ static void xrpcWsWrite(xrpcws* P)
         xrpcduplexinfo D={0};D.Size=sizeof(D);if(!xrpcDuplexInfo(P->Duplex,&D)){xrpcWsFail(P,XRPC_WS_PROTOCOL);return;}
         if(P->Output && !D.Selected)xrpcWsOutputClear(P);
         if(!P->Output){int R=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(R<0){xrpcWsFail(P,xrpcWsLocalFailure());return;}if(!R)return;}
-        xstrview Wire=xrpcDuplexOutputWire(P->Output);size_t Required=0;
-        if(Wire.Size>P->Config.MaxMessageBytes || !xrtWsStreamSendSize(P->Stream,Wire.Size,&Required) || Required>xrtWsStreamWriteLimit(P->Stream)){xrpcWsFail(P,XRPC_WS_LIMIT);return;}
+        xstrview Wire=xrpcDuplexOutputWire(P->Output);size_t Required=0;bool Compress=false;
+        #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+        Compress=P->Config.CompressOutput&&P->Config.Stream.DeflateEnabled&&Wire.Size>=P->Config.CompressMinBytes;
+        #endif
+        if(Wire.Size>P->Config.MaxMessageBytes || !xrtWsStreamSendSize(P->Stream,Compress?0:Wire.Size,&Required) || Required>xrtWsStreamWriteLimit(P->Stream)){xrpcWsFail(P,XRPC_WS_LIMIT);return;}
         if(Wire.Size>Budget){xrpcWsWake(P);return;}
         if(Required>xrtWsStreamWritable(P->Stream))return;
         if(!P->Offered){if(!xrpcDuplexStarted(P->Duplex,P->Token)){xrpcWsWake(P);return;}P->Offered=true;}
-        if(!xrpcDuplexOutputRetain(P->Output)){xrpcWsFail(P,xrpcWsLocalFailure());return;}
-        xnetref Ref={(cbytes)Wire.Data,Wire.Size,xrpcWsWireDrop,P->Output};xnetresult R=xrtWsStreamSendRef(P->Stream,XWS_OPCODE_TEXT,&Ref);
-        if(R!=XNET_RESULT_OK){xrpcDuplexOutputRelease(P->Output);if(R!=XNET_RESULT_AGAIN){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,R==XNET_RESULT_ERROR?xrpcWsLocalFailure():XRPC_WS_TRANSPORT);}return;}
+        xnetresult R;
+        #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+        if(Compress)R=xrtWsStreamSendCompressed(P->Stream,XWS_OPCODE_TEXT,(xbytesview){(cbytes)Wire.Data,Wire.Size});else
+        #endif
+        {
+            if(!xrpcDuplexOutputRetain(P->Output)){xrpcWsFail(P,xrpcWsLocalFailure());return;}
+            xnetref Ref={(cbytes)Wire.Data,Wire.Size,xrpcWsWireDrop,P->Output};R=xrtWsStreamSendRef(P->Stream,XWS_OPCODE_TEXT,&Ref);
+            if(R!=XNET_RESULT_OK)xrpcDuplexOutputRelease(P->Output);
+        }
+        if(R!=XNET_RESULT_OK){if(R!=XNET_RESULT_AGAIN){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,R==XNET_RESULT_ERROR?xrpcWsLocalFailure():XRPC_WS_TRANSPORT);}return;}
         if(!xrpcDuplexSent(P->Duplex,P->Token)){xrpcWsFail(P,XRPC_WS_PROTOCOL);return;}
         Budget-=Wire.Size;xrtMutexLock(&P->Gate);P->Info.WriteBytes+=Wire.Size;++P->Info.WriteMessages;xrtMutexUnlock(&P->Gate);xrpcWsOutputClear(P);
     }
@@ -242,7 +258,7 @@ End:
 XRPC_API bool xrpcWsConfigInit(xrpcwsconfig* C)
 {
     if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcWsReport(XERR_ARGUMENT,"invalid WS config output");
-    *C=(xrpcwsconfig){0};C->Size=sizeof(*C);xrpcDuplexConfigInit(&C->Duplex);xrtWsStreamConfigInit(&C->Stream);C->MaxMessageBytes=1048576;C->MaxReceiveBytes=3145728;C->KeepReceiveBytes=4096;C->ReadBytes=65536;C->WriteBytes=1048576;C->WorkMessages=32;C->MaxSubmitters=128;C->MessageTimeout=30000;return true;
+    *C=(xrpcwsconfig){0};C->Size=sizeof(*C);xrpcDuplexConfigInit(&C->Duplex);xrtWsStreamConfigInit(&C->Stream);C->MaxMessageBytes=1048576;C->MaxReceiveBytes=3145728;C->KeepReceiveBytes=4096;C->ReadBytes=65536;C->WriteBytes=1048576;C->WorkMessages=32;C->MaxSubmitters=128;C->MessageTimeout=30000;C->CompressMinBytes=256;return true;
 }
 static void xrpcWsFree(xrpcws* P)
 {
@@ -254,6 +270,10 @@ static xrpcws* xrpcWsCreate(xnetworker* W,const xrpcwsconfig* Config,xnetbuf* In
     if(!W || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Initial && (!xrtMemRangeValid(Initial,sizeof(*Initial))||xrtMemRangesOverlap(Initial,sizeof(*Initial),Out,sizeof(*Out)))) || (Config&&(!xrtMemRangeValid(Config,sizeof(*Config))||xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))goto Argument;
     xrpcwsconfig C={0};if(Config)C=*Config;else if(!xrpcWsConfigInit(&C))return NULL;
     if(C.Size!=sizeof(C)||C.Duplex.Wake||C.Duplex.User||!C.MaxMessageBytes||C.MaxMessageBytes>16777216||C.MaxReceiveBytes<C.MaxMessageBytes||C.MaxReceiveBytes>33554432||C.KeepReceiveBytes>C.MaxMessageBytes||!C.ReadBytes||C.ReadBytes>16777216||C.WriteBytes<C.MaxMessageBytes||C.WriteBytes>33554432||!C.WorkMessages||C.WorkMessages>65536||!C.MaxSubmitters||C.MaxSubmitters>65536||C.MessageTimeout<XRT_WAIT_FOREVER||C.RequestContext.Size>16384||!xrtMemRangeValid(C.RequestContext.Data,C.RequestContext.Size)||xrtMemRangesOverlap(C.RequestContext.Data,C.RequestContext.Size,Out,sizeof(*Out))||C.Stream.Protocol.Size>255||xrtMemRangesOverlap(C.Stream.Protocol.Data,C.Stream.Protocol.Size,Out,sizeof(*Out))||!xrtWsStreamConfigValid(&C.Stream))goto Argument;
+    #if !defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+    if(C.CompressOutput)goto Argument;
+    #endif
+    if(C.Stream.Inflater.OutputLimit>C.MaxMessageBytes)C.Stream.Inflater.OutputLimit=C.MaxMessageBytes;
     xnetengine* E=xrtNetWorkerEngine(W);if(!xrtNetEnginePin(E))return NULL;
     size_t Bytes=sizeof(xrpcws)+C.RequestContext.Size;xrpcws* P=xrtCalloc(1,Bytes);if(!P){xrtNetEngineUnpin(E);return NULL;}
     P->Engine=E;P->Worker=W;P->Config=C;P->TimerAt=INFINITY;P->NativeReason=XRPC_WS_TRANSPORT;P->EventsGone=true;P->Info.Size=sizeof(P->Info);P->Info.FixedBytes=Bytes;xrtAtomic32Init(&P->References,1);
@@ -285,7 +305,11 @@ static bool xrpcWsAttach(ptr Native,bool TLS,xnetbuf* Initial,const xrpcwsconfig
     P->Stream=xrtWsStreamAttachOwnedV1(Native,Initial,&K,P,&xrpcWsEvents);
     if(!P->Stream){xerror* Error=xrtTakeError();P->EventsGone=true;xrpcWsDrop(P);xrpcWsFree(P);xrtClearError();xrtSetErrorTake(Error);return false;}
     P->Config.Stream.Protocol=xrtWsStreamProtocol(P->Stream);P->Info.ProtocolBytes=P->Config.Stream.Protocol.Size;if(P->Info.ProtocolBytes)memcpy(P->Info.Protocol,P->Config.Stream.Protocol.Data,P->Info.ProtocolBytes);
-    xrtMutexLock(&P->Gate);P->Active=true;P->Info.State=XRPC_WS_OPEN;xrpcWsRef(P);*Out=P;if(!xrpcWsWakeLocked(P)){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=XRPC_WS_LIMIT;}xrtMutexUnlock(&P->Gate);return true;
+    xrtMutexLock(&P->Gate);P->Active=true;P->Info.State=XRPC_WS_OPEN;
+    #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+    P->DeflateReady=true;
+    #endif
+    xrpcWsRef(P);*Out=P;if(!xrpcWsWakeLocked(P)){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=XRPC_WS_LIMIT;}xrtMutexUnlock(&P->Gate);return true;
 }
 XRPC_API bool xrpcWsAttachTcp(xnetstream* S,xnetbuf* Initial,const xrpcwsconfig* C,xrpcws** Out){return xrpcWsAttach(S,false,Initial,C,Out);}
 #if defined(XRPC_FEATURE_XRPC_WS_TLS)
@@ -317,6 +341,15 @@ XRPC_API bool xrpcWsInfo(xrpcws* P,xrpcwsinfo* I)
     if(!P || !I || !xrtMemRangeValid(I,sizeof(*I)) || I->Size!=sizeof(*I) || xrtMemRangesOverlap(P,P->Info.FixedBytes,I,sizeof(*I)))return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS info output");
     xrtMutexLock(&P->Gate);*I=P->Info;xrtMutexUnlock(&P->Gate);return true;
 }
+#if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+XRPC_API bool xrpcWsDeflateInfo(xrpcws* P,xrpcwsdeflateinfo* I)
+{
+    if(!P||!I||!xrtMemRangeValid(I,sizeof(*I))||I->Size!=sizeof(*I)||xrtMemRangesOverlap(P,P->Info.FixedBytes,I,sizeof(*I)))return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS deflate info");
+    xrtMutexLock(&P->Gate);bool Ready=P->DeflateReady;
+    if(Ready)*I=(xrpcwsdeflateinfo){.Size=sizeof(*I),.Negotiated=P->Config.Stream.Deflate,.CompressMinBytes=P->Config.CompressMinBytes,.Enabled=P->Config.Stream.DeflateEnabled,.CompressOutput=P->Config.CompressOutput};
+    xrtMutexUnlock(&P->Gate);return Ready?true:xrpcWsReport(XERR_STATE,"RPC WS negotiation is not complete");
+}
+#endif
 XRPC_API xwaitresult xrpcWsPollRetired(xrpcws* P)
 {
     if(!P){xrpcWsReport(XERR_ARGUMENT,"RPC WS peer is NULL");return XWAIT_ERROR;}
@@ -460,7 +493,10 @@ static xrpcwsupgrade* xrpcWsHttpControl(const xrpcwshttpconfig* Config,bool Serv
 {
     if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Config&&(!xrtMemRangeValid(Config,sizeof(*Config))||xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))goto Argument;
     xrpcwshttpconfig C={0};if(Config)C=*Config;else if(!xrpcWsHttpConfigInit(&C))return NULL;
-    if(C.Size!=sizeof(C)||!C.Head.MaxHead||C.Head.MaxHead>16384||!C.Head.MaxStartLine||C.Head.MaxStartLine>C.Head.MaxHead||!C.Head.MaxFieldLine||C.Head.MaxFieldLine>C.Head.MaxHead||!C.Head.MaxFields||C.Head.MaxFields>128||C.MaxWriteBytes<256||C.MaxWriteBytes>65536||C.SetupTimeout<XRT_WAIT_FOREVER||C.FieldCount>32||C.MaxAuthorizationContextBytes>16384||(!Server&&C.Authorize)||!C.Target.Size||C.Target.Size>4096||C.Host.Size>1024||(!Server&&!C.Host.Size)||C.Origin.Size>2048||C.UnauthorizedChallenge.Size>128||C.Client.Protocols.Size>1024||C.Server.Protocols.Size>1024||C.Client.EnableDeflate||C.Client.RequireDeflate||C.Server.EnableDeflate||C.Server.RequireDeflate||C.Server.AcceptDeflate||!xrtWsUpgradeClientConfigValid(&C.Client)||!xrtWsUpgradeServerConfigValid(&C.Server))goto Argument;
+    if(C.Size!=sizeof(C)||!C.Head.MaxHead||C.Head.MaxHead>16384||!C.Head.MaxStartLine||C.Head.MaxStartLine>C.Head.MaxHead||!C.Head.MaxFieldLine||C.Head.MaxFieldLine>C.Head.MaxHead||!C.Head.MaxFields||C.Head.MaxFields>128||C.MaxWriteBytes<256||C.MaxWriteBytes>65536||C.SetupTimeout<XRT_WAIT_FOREVER||C.FieldCount>32||C.MaxAuthorizationContextBytes>16384||(!Server&&C.Authorize)||!C.Target.Size||C.Target.Size>4096||C.Host.Size>1024||(!Server&&!C.Host.Size)||C.Origin.Size>2048||C.UnauthorizedChallenge.Size>128||C.Client.Protocols.Size>1024||C.Server.Protocols.Size>1024||!xrtWsUpgradeClientConfigValid(&C.Client)||!xrtWsUpgradeServerConfigValid(&C.Server))goto Argument;
+    #if !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+    if(C.Client.EnableDeflate||C.Client.RequireDeflate||C.Server.EnableDeflate||C.Server.RequireDeflate||C.Server.AcceptDeflate)goto Argument;
+    #endif
     xstrview Views[]={C.Host,C.Target,C.Origin,C.UnauthorizedChallenge,C.Client.Protocols,C.Server.Protocols};size_t Strings=0;
     for(size_t I=0;I<sizeof(Views)/sizeof(*Views);++I){xstrview V=Views[I];if(!xrtMemRangeValid(V.Data,V.Size)||xrtMemRangesOverlap(V.Data,V.Size,Out,sizeof(*Out)))goto Argument;Strings+=V.Size;}
     if((C.Host.Size&&!xrtHttpHostValid(C.Host))||!xrtHttpFieldValueValid(C.Origin)||!xrtHttpFieldValueValid(C.UnauthorizedChallenge))goto Argument;
@@ -484,7 +520,12 @@ static bool xrpcWsHttpRequest(xrpcwsupgrade* H)
 {
     if(!xrtWsKeyGenerate(H->Key,sizeof(H->Key)))return false;
     xhttpfield Fields[XWS_UPGRADE_REQUEST_FIELDS_MAX+33];size_t N=0;
-    if(!xrtWsUpgradeRequestFields(H->Config.Host,(xstrview){H->Key,XWS_KEY_SIZE},H->Config.Client.Protocols,(xstrview){0},Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;
+    xstrview Extension={0};
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+    char Offer[XWS_DEFLATE_MAX_SIZE];size_t OfferBytes=0;
+    if(H->Config.Client.EnableDeflate){if(!xrtWsDeflateOfferWrite(&H->Config.Client.Deflate,Offer,sizeof(Offer),&OfferBytes))return false;Extension=(xstrview){Offer,OfferBytes};}
+    #endif
+    if(!xrtWsUpgradeRequestFields(H->Config.Host,(xstrview){H->Key,XWS_KEY_SIZE},H->Config.Client.Protocols,Extension,Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;
     if(H->Config.Origin.Size)Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Origin"),H->Config.Origin};
     for(size_t I=0;I<H->Config.FieldCount;++I)Fields[N++]=H->Config.Fields[I];
     return xrtHttp1RequestWrite(XRT_STR_LITERAL("GET"),H->Config.Target,XHTTP_VERSION_1_1,Fields,N,H->Wire,H->Config.MaxWriteBytes,&H->WireBytes);
@@ -492,7 +533,7 @@ static bool xrpcWsHttpRequest(xrpcwsupgrade* H)
 static bool xrpcWsHttpResponse(xrpcws* P,uint16 Status)
 {
     xrpcwsupgrade* H=P->Upgrade;xhttpfield Fields[XWS_UPGRADE_RESPONSE_FIELDS_MAX+36];size_t N=0;xstrview Reason=XRT_STR_LITERAL("Bad Request");
-    if(Status==101){Reason=XRT_STR_LITERAL("Switching Protocols");if(!xrtWsUpgradeResponseFields((xstrview){H->Negotiated.Accept,XWS_ACCEPT_SIZE},H->Negotiated.Protocol,(xstrview){0},Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;}
+    if(Status==101){Reason=XRT_STR_LITERAL("Switching Protocols");if(!xrtWsUpgradeResponseFields((xstrview){H->Negotiated.Accept,XWS_ACCEPT_SIZE},H->Negotiated.Protocol,(xstrview){H->Negotiated.Extensions,H->Negotiated.ExtensionSize},Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;}
     else{Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Connection"),XRT_STR_LITERAL("close")};Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Content-Length"),XRT_STR_LITERAL("0")};
         switch(Status){case 401:Reason=XRT_STR_LITERAL("Unauthorized");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("WWW-Authenticate"),H->Config.UnauthorizedChallenge};break;case 403:Reason=XRT_STR_LITERAL("Forbidden");break;case 404:Reason=XRT_STR_LITERAL("Not Found");break;case 405:Reason=XRT_STR_LITERAL("Method Not Allowed");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Allow"),XRT_STR_LITERAL("GET")};break;case 426:Reason=XRT_STR_LITERAL("Upgrade Required");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Upgrade"),XRT_STR_LITERAL("websocket")};Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Sec-WebSocket-Version"),XRT_STR_LITERAL("13")};break;case 431:Reason=XRT_STR_LITERAL("Request Header Fields Too Large");break;case 500:Reason=XRT_STR_LITERAL("Internal Server Error");break;case 503:Reason=XRT_STR_LITERAL("Service Unavailable");break;default:break;}}
     for(size_t I=0;I<H->Config.FieldCount;++I)Fields[N++]=H->Config.Fields[I];
@@ -520,7 +561,8 @@ static void xrpcWsHttpReject(xrpcws* P,uint16 Status,xrpcwsreason Reason)
     if(!H->Server){xrpcWsFail(P,Reason);return;}
     if(!xrpcWsHttpResponse(P,Status)){H->Rejected=false;xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());}
 }
-/* Only the exceptional unpublished-read/full-record-growth case copies input.
+/* Partial TCP heads and exceptional unpublished TLS/full-record-growth cases
+ * use bounded cold storage, without mutating a native borrowed read buffer.
  * Peek may preview bytes past CRLFCRLF, but consume exactly through its end:
  * native WS data stays native, including a final message before TLS input EOF. */
 static xhttp1status xrpcWsHttpCachedHeader(xrpcws* P,xhttp1head* Head,xhttp1errorinfo* Error)
@@ -542,7 +584,14 @@ static bool xrpcWsHttpHeader(xrpcws* P)
     #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
     if(H->TLS)R=H->Server?xrtHttp1RequestParseTls(H->Native,&Head,&H->Config.Head,&Error):xrtHttp1ResponseParseTls(H->Native,&Head,&H->Config.Head,&Error);else
     #endif
-    R=H->Server?xrtHttp1RequestParseBuffer((xnetbuf*)xrpcWsHttpBuffer(H),&Head,&H->Config.Head,&Error):xrtHttp1ResponseParseBuffer((xnetbuf*)xrpcWsHttpBuffer(H),&Head,&H->Config.Head,&Error);
+    {
+        /* IOCP may already own a write reservation for its next receive.
+         * Parse a contiguous borrowed prefix without a mutable Pullup; retain
+         * a partial/cross-block head in our own bounded cold cache instead. */
+        xnetspan Span={0};const xnetbuf* Buffer=xrpcWsHttpBuffer(H);(void)xrtNetBufFront(Buffer,&Span);
+        R=H->Server?xrtHttp1RequestParse((xbytesview){Span.Data,Span.Size},&Head,&H->Config.Head,&Error):xrtHttp1ResponseParse((xbytesview){Span.Data,Span.Size},&Head,&H->Config.Head,&Error);
+        if(R==XHTTP1_MORE&&xrtNetBufSize(Buffer))R=xrpcWsHttpCachedHeader(P,&Head,&Error);
+    }
     #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
     xerrkind K=xrtErrorKind(xrtGetError());
     if(H->TLS&&R==XHTTP1_ERROR&&xrtTlsStreamState(H->Native)==XTLS_STREAM_OPEN&&xrtNetBufSize(xrpcWsHttpBuffer(H))&&(K==XERR_STATE||(K==XERR_RANGE&&(Error.Code==0||Error.Code==XHTTP1_ERROR_HEAD_INCOMPLETE)))){xrtClearError();Error=(xhttp1errorinfo){0};R=xrpcWsHttpCachedHeader(P,&Head,&Error);}
@@ -589,12 +638,19 @@ static void xrpcWsHttpHandoff(xrpcws* P)
     xnetstream* Raw=xrpcWsHttpRaw(H);xrpcWsRef(P);P->EventsGone=false;
     #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
     xtlsstreambindingv1 Previous={0};
-    if(H->TLS){xtlsstreambindingv1 Expected={P,&xrpcWsHttpTlsEvents};P->Stream=xrtWsStreamAttachTlsExchangeOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents,&Expected,&Previous);}else
     #endif
-    P->Stream=xrtWsStreamAttachOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents);
-    if(!P->Stream){xerror* Error=xrtTakeError();P->EventsGone=true;xrpcWsDrop(P);xrtSetErrorTake(Error);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return;}
-    H->Native=NULL;P->Config.Stream.Protocol=xrtWsStreamProtocol(P->Stream);
-    xrtMutexLock(&P->Gate);P->Info.ProtocolBytes=P->Config.Stream.Protocol.Size;if(P->Info.ProtocolBytes)memcpy(P->Info.Protocol,P->Config.Stream.Protocol.Data,P->Info.ProtocolBytes);if(P->Info.State==XRPC_WS_UPGRADING)P->Info.State=XRPC_WS_OPEN;P->UpgradeInfo.Outcome=XRPC_WS_HTTP_OPEN;xrtMutexUnlock(&P->Gate);
+    xwsstream* Stream;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS){xtlsstreambindingv1 Expected={P,&xrpcWsHttpTlsEvents};Stream=xrtWsStreamAttachTlsExchangeOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents,&Expected,&Previous);}else
+    #endif
+    Stream=xrtWsStreamAttachOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents);
+    if(!Stream){xerror* Error=xrtTakeError();P->EventsGone=true;xrpcWsDrop(P);xrtSetErrorTake(Error);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return;}
+    H->Native=NULL;P->Config.Stream.Protocol=xrtWsStreamProtocol(Stream);
+    xrtMutexLock(&P->Gate);P->Stream=Stream;P->Config.Stream.Deflate=H->Negotiated.Deflate;P->Config.Stream.DeflateEnabled=H->Negotiated.DeflateEnabled;
+    #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+    P->DeflateReady=true;
+    #endif
+    P->Info.ProtocolBytes=P->Config.Stream.Protocol.Size;if(P->Info.ProtocolBytes)memcpy(P->Info.Protocol,P->Config.Stream.Protocol.Data,P->Info.ProtocolBytes);if(P->Info.State==XRPC_WS_UPGRADING)P->Info.State=XRPC_WS_OPEN;P->UpgradeInfo.Outcome=XRPC_WS_HTTP_OPEN;xrtMutexUnlock(&P->Gate);
     #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
     if(Previous.Policy)Previous.Policy->Drop(Previous.Data);
     #endif

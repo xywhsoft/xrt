@@ -12986,8 +12986,9 @@ and out/service-extensions/xrpc-frame-20261112.
 - Keep HTTP head/output/extras/auth hard caps. Constructor budget failures leave
   native/output/credits unchanged. Exceptional unpublished native TLS prefixes
   use one bounded cold cache, preserve the suffix, and release cold copies after
-  handoff/old-event/auth final tails. Current x64 private peer1672 to1768 bytes
-  when HTTP is selected; config520/info680 stay unchanged. No zero-cost claim.
+  handoff/old-event/auth final tails. HTTP adds96 bytes per private peer:
+  Windows1464 to1560, WSL Linux1672 to1768; config520/info680 stay unchanged.
+  This clarifies the earlier platform-generalized absolute size. No zero-cost claim.
 - Verify74 Windows/76 WSL primary executions: modular/single and runnable TCP/
   TLS example, select/IOCP or select/epoll, actual constructor OOM/joins, full
   Duplex and old HTTP-off WS regression, separate static/shared/declarations,
@@ -13007,3 +13008,47 @@ and out/service-extensions/xrpc-frame-20261112.
   framed stdio, remaining four-product scope and controlled throughput/tails/
   native72h remain required. Maturity stays developing; all work remains on
   `D:/GIT/xrt` master, with no branch creation/switch/merge or remote push.
+
+## 2026-11-16: optional bounded WS/WSS RPC compression
+
+- Deliver developing `xrpc_ws_deflate` / `xrpc_ws_http_deflate` leaves on the
+  existing peer and Core codecs. HTTP offer/require/decline, context/direction/
+  window facts, thresholded outgoing Text, bounded decoded input and an immutable
+  `xrpcWsDeflateInfo` snapshot compose with native TCP/TLS and ordinary auth.
+  Default output remains off, threshold256; uncompressed sends retain Ref paths.
+- Keep Started/uncertain delivery and actual native encoded-output ownership.
+  An8KiB document can fit a2KiB native compressed budget without an incorrect
+  raw-length admission refusal. Actual budget1 refusal returns typed MEMORY,
+  runs no business handler, balances charged bytes and physically joins peers.
+- Config gains two unconditional fields, Size520 to528 on both measured x64
+  hosts; old field offsets remain. Rebuild ALL consumers with matching headers/
+  libraries, including ConfigInit storage. The readiness fact fits existing RPC
+  padding; Core WS grows16 bytes when compression is selected, in addition to
+  codec/dictionary/encoded-output allocations and CPU. No zero-cost claim.
+- Verify168 Windows/170 WSL primary executions: modular/examples, single,
+  select/IOCP or select/epoll, separate static/shared/declarations, existing RPC/
+  Core regressions, actual OOM,104 PMCE plus38 uncompressed independent sessions.
+  WSL adds TSan select/epoll; functional work uses ASan/UBSan/leak halt. Actual
+  RSV1/payload checks distinguish output threshold, dictionary reuse/no-context,
+  malformed/required-missing negotiation, decoded expansion rejection without
+  business, valid compressed messages coalesced with101 and every8..15-bit window.
+  Python8-bit sends use Huffman-only9-bit zlib with no distance references;
+  native8-bit output is independently decoded. ABI/package smoke/Python gates
+  are additional. API coverage157 functions/240 constants/116 types, no omissions.
+- Retain initial helper compile failure and snapshot-after-native-close failure.
+  The stronger valid coalesced fixture reproduces STATE/BUFFER_STATE on Windows
+  TCP. A logging-only diagnostic localizes it to mutable HTTP Pullup while IOCP
+  owns a receive reservation. The earlier Resume hypothesis did not fix it and
+  is removed. Parse const contiguous TCP spans; use bounded cold storage for
+  partial/cross-block TCP and exceptional TLS. Preserve suffix/credits and rerun
+  all affected final functional/package/sanitizer programs. No Core change.
+- Report: `docs/development/xrpc-ws-deflate-20261116.json`; frozen raw checkpoint
+  under `out/service-extensions/xrpc-ws-deflate-20261115/`, physically on D.
+  Correct the prior prose absolute Windows/Linux private sizes from its actual
+  already-recorded platform evidence; its96-byte delta is unchanged. Finish
+  guides after code freeze; report exact source cohorts, never rebrand old code.
+- URI/DNS/dial composition, framed stdio, negotiated deadline/cancellation,
+  broader asynchronous faults/OOM/fuzz/scale, controlled throughput/tails and
+  native72h acceptance remain open with the original four-product scope. No
+  production/performance or complete-product claim. Work and commits remain on
+  `D:/GIT/xrt` master, with no branch operation or push.

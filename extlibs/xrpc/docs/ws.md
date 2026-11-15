@@ -17,7 +17,7 @@ The base leaf does not select compression. Binary input is explicit opt-in;
 output remains Text. Message timeout starts at native MessageBegin; native host
 TCP/TLS read/idle policies must bound earlier partial-header stalls.
 
-Sends hold actual immutable output credits through native SendRef. Unmasked TCP
+Uncompressed sends hold actual immutable output credits through native SendRef. Unmasked TCP
 servers avoid an adapter body copy; clients must mask and TLS copies in Core.
 Native opaque send graphs can refuse collection until IO drains. Permanent frame
 capacity is checked before Started, and current budget before each whole-message
@@ -34,9 +34,13 @@ cleanup uses bounded backoff; on timer exhaustion Poll/Wait nudges progress.
 The host Engine stays pinned through successful Destroy. Shared Server/Engine/
 external callers and callback code have separate joins. Result references survive.
 
-This stage remains developing: URI/dial composition and compression for the
+This stage remains developing: URI/dial composition for the
 HTTP factories, framed stdio, broader
 fault/OOM/fuzz/TSan/performance/scale/native72h acceptance remain in the full goal.
+
+The optional [compression leaves](ws_deflate.md) negotiate permessage-deflate,
+apply explicit output thresholds and cap decoded input before RPC accumulation.
+Their dictionaries, encoded output and CPU costs remain counted separately.
 
 Normative references: [JSON-RPC 2.0](https://www.jsonrpc.org/specification) and
 [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html). JSON-RPC is transport

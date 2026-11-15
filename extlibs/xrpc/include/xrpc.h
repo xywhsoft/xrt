@@ -90,4 +90,8 @@
 #error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
 #endif
 #include <xrpc/ws_http.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+#error "XRPC_FEATURE_XRPC requires optional WS HTTP compression support"
+#endif
+#include <xrpc/ws_deflate.h>
 #endif

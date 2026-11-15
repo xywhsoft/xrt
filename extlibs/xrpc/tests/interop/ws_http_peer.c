@@ -1,4 +1,7 @@
 #include <xrpc/ws_http.h>
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+#include <xrpc/ws_deflate.h>
+#endif
 #include <xrt/thread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +49,15 @@ static xrpcwshttpauthstatus httpInteropAuthorize(const xrpcwshttpauthrequest* R,
     if(!strcmp(S->Mode,"auth-timeout")){while(xrtTimer()<R->Deadline&&!xrtCancelRequested(R->Cancel))xrtSleep(1);return XRPC_WS_HTTP_AUTH_ERROR;}
     httpInteropRequire(Capacity>=4,"context capacity");memcpy(Context,"[42]",4);*Used=4;return XRPC_WS_HTTP_ALLOW;
 }
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+static bool httpInteropDeflate(const xwsdeflate* Offer,xwsdeflate* Response,ptr Data)
+{
+    (void)Data;if(!xrtWsDeflateAccept(Offer,Response))return false;
+    if(Offer->Flags&XWS_DEFLATE_CLIENT_NO_CONTEXT)Response->Flags|=XWS_DEFLATE_CLIENT_NO_CONTEXT;
+    if(Offer->Flags&XWS_DEFLATE_CLIENT_MAX_WINDOW){Response->Flags|=XWS_DEFLATE_CLIENT_MAX_WINDOW;Response->ClientMaxWindowBits=Offer->ClientMaxWindowBits;}
+    return true;
+}
+#endif
 static void httpInteropAttach(httpInterop* S,ptr Native)
 {
     bool OK;if(S->Secure)OK=S->Client?xrpcWsHttpClientTls(Native,&S->RPC,&S->HTTP,&S->Peer):xrpcWsHttpServerTls(Native,&S->RPC,&S->HTTP,&S->Peer);else OK=S->Client?xrpcWsHttpClientTcp(Native,&S->RPC,&S->HTTP,&S->Peer):xrpcWsHttpServerTcp(Native,&S->RPC,&S->HTTP,&S->Peer);
@@ -75,13 +87,24 @@ static bool httpInteropAccept(xnetlistener* L,xnetstream* Native,ptr Data)
 }
 int main(int Argc,char** Argv)
 {
-    if(Argc!=7)return 2;
+    if(Argc!=7&&Argc!=8)return 2;
+    #if !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+    if(Argc==8)return 2;
+    #endif
     httpInterop S={0};S.Client=!strcmp(Argv[1],"client");S.Secure=!strcmp(Argv[2],"tls");S.Mode=Argv[3];unsigned Port=(unsigned)strtoul(Argv[4],NULL,10);if(Port>65535||(S.Client&&!Port))return 3;setbuf(stdout,NULL);
     xrtAtomic32Init(&S.Ready,0);xrtAtomic32Init(&S.Finished,0);xrtAtomic32Init(&S.Calls,0);xrtAtomic32Init(&S.NativeRefs,1);httpInteropRequire(xrtNetPostInit(&S.Attach),"embedded TLS handoff");
     unsigned char Certificate[65536],Key[8192];size_t CertificateBytes=0,KeyBytes=0;
     if(S.Secure){httpInteropRequire(httpInteropRead(Argv[5],Certificate,sizeof(Certificate),&CertificateBytes),"runtime public certificate");S.Pin=(xbytesview){Certificate,CertificateBytes};if(!S.Client){httpInteropRequire(httpInteropRead(Argv[6],Key,sizeof(Key),&KeyBytes),"runtime private key");S.Identity=xrtTlsIdentityRsa(&S.Pin,1,(xbytesview){Key,KeyBytes});xrtSecureZero(Key,sizeof(Key));httpInteropRequire(S.Identity!=NULL,"owned RSA identity");}else{xtlsverifierconfig V;xrtTlsVerifierConfigInit(&V);V.Verify=httpInteropPin;V.Context=&S;S.Verifier=xrtTlsVerifierCreate(&V);httpInteropRequire(S.Verifier!=NULL,"explicit DER pin and host");}}
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;S.Engine=xrtNetEngineCreate(&E);httpInteropRequire(S.Engine&&xrtNetEngineStart(S.Engine),"native Engine");xrpcserverconfig Server;xrpcServerConfigInit(&Server);Server.Call=httpInteropEcho;Server.User=&S;httpInteropRequire(xrpcServerCreate(&Server,&S.Server),"shared Server");xrpcWsConfigInit(&S.RPC);S.RPC.Duplex.Server=S.Server;xrpcWsHttpConfigInit(&S.HTTP);S.HTTP.Host=XRT_STR_LITERAL("rpc.test");S.HTTP.SetupTimeout=700;
     xhttpfield Authorization={XRT_STR_LITERAL("Authorization"),XRT_STR_LITERAL("Bearer fixture")};if(S.Client){S.HTTP.Fields=&Authorization;S.HTTP.FieldCount=1;}else{S.HTTP.Authorize=httpInteropAuthorize;S.HTTP.AuthorizationUser=&S;S.HTTP.MaxAuthorizationContextBytes=16;}
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+    if(Argc==8){S.RPC.CompressOutput=true;S.RPC.CompressMinBytes=0;S.HTTP.Client.EnableDeflate=true;S.HTTP.Client.RequireDeflate=!strcmp(Argv[7],"missing");S.HTTP.Server.EnableDeflate=strcmp(Argv[7],"decline")!=0;S.HTTP.Server.AcceptDeflate=httpInteropDeflate;
+        if(!strcmp(Argv[7],"no-context"))S.HTTP.Client.Deflate.Flags=XWS_DEFLATE_SERVER_NO_CONTEXT|XWS_DEFLATE_CLIENT_NO_CONTEXT;
+        if(!strcmp(Argv[7],"bomb"))S.RPC.MaxMessageBytes=4096;
+        if(!strcmp(Argv[7],"threshold"))S.RPC.CompressMinBytes=1024;
+        if(!strncmp(Argv[7],"window",6)){unsigned Bits=(unsigned)strtoul(Argv[7]+6,NULL,10);httpInteropRequire(Bits>=8&&Bits<=15,"fixture window");S.HTTP.Client.Deflate.Flags=XWS_DEFLATE_SERVER_MAX_WINDOW|XWS_DEFLATE_CLIENT_MAX_WINDOW;S.HTTP.Client.Deflate.ServerMaxWindowBits=S.HTTP.Client.Deflate.ClientMaxWindowBits=(uint8)Bits;}
+    }
+    #endif
     if(S.Client){xnetaddr A;httpInteropRequire(xrtNetAddrParse(&A,"127.0.0.1",(uint16)Port),"numeric loopback");if(S.Secure){xtlsclientconfig TLS;xrtTlsClientConfigInit(&TLS);TLS.Verifier=S.Verifier;TLS.ServerName=XRT_STR_LITERAL("rpc.test");xrtAtomic32FetchAdd(&S.NativeRefs,1,XMEMORY_RELAXED);httpInteropRequire(xrtTlsStreamConnectOwnedV1(S.Engine,&A,1,NULL,&TLS,NULL,&S,&HttpInteropNative)!=NULL,"native TLS connect");}else{xnetstreamevents Events={.Open=httpInteropOpen};httpInteropRequire(xrtNetStreamConnect(S.Engine,&A,1,NULL,&Events,&S)!=NULL,"native TCP connect");}puts("READY");}
     else{xrtTlsServerConfigInit(&S.TLS);S.TLS.Identity=S.Identity;xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrLoopback(&L.Address,XNET_FAMILY_IPV4,0);xnetlistenerevents Events={httpInteropAccept,NULL,NULL};S.Listener=xrtNetListen(S.Engine,&L,&Events,NULL,&S);xnetaddr A;httpInteropRequire(S.Listener&&xrtNetListenerLocal(S.Listener,&A),"native listener");printf("PORT %u\n",(unsigned)A.Port);}
     double End=xrtTimer()+15;while(!xrtAtomic32Load(&S.Ready,XMEMORY_ACQUIRE)){httpInteropRequire(xrtTimer()<End,"factory readiness");xrtSleep(1);}httpInteropRequire(xrtAtomic32Load(&S.Ready,XMEMORY_ACQUIRE)==1,"native TLS handshake precedes factory");xwaitresult Wait=xrtFutureWaitFor(S.Call,5000);
@@ -93,16 +116,20 @@ int main(int Argc,char** Argv)
     bool Normal=!strcmp(S.Mode,"normal");if(Normal){if(R->Status!=XRPC_CALL_OK){xrpcwsinfo D={.Size=sizeof(D)};(void)xrpcWsInfo(S.Peer,&D);fprintf(stderr,"[diagnostic] status%u delivery%u state%u reason%u messages%llu/%llu native%d/%d\n",(unsigned)R->Status,(unsigned)R->Delivery,(unsigned)D.State,(unsigned)D.Reason,(unsigned long long)D.ReadMessages,(unsigned long long)D.WriteMessages,(int)D.NativeErrorKind,(int)D.NativeErrorCode);}httpInteropRequire(R->Status==XRPC_CALL_OK&&R->Delivery==XRPC_REPLIED,"bidirectional reply");xrtTlsStreamDestroy(S.Probe);S.Probe=NULL;httpInteropRequire(xrpcWsWaitFor(S.Peer,15000)==XWAIT_OK&&xrtAtomic32Load(&S.Finished,XMEMORY_ACQUIRE),"independent acknowledged barrier and remote WS close");}
     else{
         xrpccallstatus Expected=XRPC_CALL_PROTOCOL;
-        if(!strcmp(S.Mode,"timeout")||!strcmp(S.Mode,"auth-timeout"))Expected=XRPC_CALL_TIMEOUT;
+        if(!strcmp(S.Mode,"deflate-bomb"))Expected=XRPC_CALL_LIMIT;
+        else if(!strcmp(S.Mode,"timeout")||!strcmp(S.Mode,"auth-timeout"))Expected=XRPC_CALL_TIMEOUT;
         else if(!strcmp(S.Mode,"reject")||!strcmp(S.Mode,"route")||!strcmp(S.Mode,"method")||!strcmp(S.Mode,"unauthorized"))Expected=XRPC_CALL_HTTP_ERROR;
-        httpInteropRequire(R->Delivery==XRPC_NOT_SENT&&R->Status==Expected,"exact typed handshake failure never starts RPC send");
+        httpInteropRequire((R->Delivery==XRPC_NOT_SENT||!strcmp(S.Mode,"deflate-bomb"))&&R->Status==Expected,"exact typed handshake/decode failure and delivery");
         /* A terminal unsent call does not mean the rejection response has
          * drained. Let the peer finish its orderly HTTP close before issuing
          * the host's explicit Close, which deliberately permits abort. */
         xrtTlsStreamDestroy(S.Probe);S.Probe=NULL;
         httpInteropRequire(xrpcWsWaitFor(S.Peer,10000)==XWAIT_OK,"rejected HTTP response and native physical tail precede explicit abort");
     }
-    xrpcwshttpinfo H={.Size=sizeof(H)};xrpcwsinfo I={.Size=sizeof(I)};httpInteropRequire(xrpcWsHttpInfo(S.Peer,&H)&&xrpcWsInfo(S.Peer,&I),"HTTP/native snapshots");if(Normal)httpInteropRequire(H.Outcome==XRPC_WS_HTTP_OPEN&&H.Status==101&&I.ProtocolBytes==7&&!memcmp(I.Protocol,"jsonrpc",7)&&I.Encrypted==S.Secure&&(!S.Secure||I.Version),"checked upgrade role/security/protocol");else httpInteropRequire(!I.ReadMessages&&!I.WriteMessages&&!xrtAtomic32Load(&S.Calls,XMEMORY_ACQUIRE),"failed upgrade has no JSON/business");
+    xrpcwshttpinfo H={.Size=sizeof(H)};xrpcwsinfo I={.Size=sizeof(I)};httpInteropRequire(xrpcWsHttpInfo(S.Peer,&H)&&xrpcWsInfo(S.Peer,&I),"HTTP/native snapshots");if(Normal)httpInteropRequire(H.Outcome==XRPC_WS_HTTP_OPEN&&H.Status==101&&I.ProtocolBytes==7&&!memcmp(I.Protocol,"jsonrpc",7)&&I.Encrypted==S.Secure&&(!S.Secure||I.Version),"checked upgrade role/security/protocol");else httpInteropRequire(!I.ReadMessages&&(!I.WriteMessages||!strcmp(S.Mode,"deflate-bomb"))&&!xrtAtomic32Load(&S.Calls,XMEMORY_ACQUIRE),"failed upgrade/decode has no JSON/business");
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+    if(Argc==8&&Normal){xrpcwsdeflateinfo D={.Size=sizeof(D)};httpInteropRequire(xrpcWsDeflateInfo(S.Peer,&D)&&D.Enabled==(strcmp(Argv[7],"decline")!=0)&&D.CompressOutput,"actual negotiated compression snapshot after physical close");}
+    #endif
     unsigned ResultStatus=(unsigned)R->Status,Delivery=(unsigned)R->Delivery;xrtTlsStreamDestroy(S.Probe);S.Probe=NULL;
     httpInteropRequire(xrpcWsClose(S.Peer)&&xrpcWsWaitFor(S.Peer,10000)==XWAIT_OK&&xrpcWsDestroy(S.Peer),"physical peer tail");xrtFutureDestroy(S.Call);if(S.Listener){httpInteropRequire(xrtNetListenerClose(S.Listener),"listener close");xrtNetListenerDestroy(S.Listener);}httpInteropRequire(xrpcServerDestroy(S.Server),"shared Server join");End=xrtTimer()+10;xnetretireresult Q;while((Q=xrtNetEngineTryDestroy(S.Engine))==XNET_RETIRE_BUSY){httpInteropRequire(xrtTimer()<End,"host tail");xrtSleep(1);}httpInteropRequire(Q==XNET_RETIRE_READY&&xrtAtomic32Load(&S.NativeRefs,XMEMORY_ACQUIRE)==1,"Engine/native original owners");xrtTlsVerifierRelease(S.Verifier);xrtTlsIdentityRelease(S.Identity);
     printf("PASS role=%s transport=%s mode=%s outcome=%u status=%u call=%u delivery=%u\n",S.Client?"client":"server",S.Secure?"tls":"tcp",S.Mode,(unsigned)H.Outcome,(unsigned)H.Status,ResultStatus,Delivery);return 0;

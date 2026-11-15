@@ -38,7 +38,7 @@
     "Legacy validated attach remains available; selecting HTTP does not change its config/info layout. Duplex Close accepts setup TIMEOUT and HTTP_ERROR, preserves first reason/delivery/operation clocks, and joins physical work."
   ],
   "resources": [
-    "Current Windows/Linux x64: existing WS config520 and info680 bytes unchanged; private peer1672 to1768 bytes when selecting HTTP, a96-byte fixed increase. Additional per-work pointer/state branches are not a measured performance result.",
+    "Measured Windows x64 private peer1464 to1560, WSL Linux x64 private peer1672 to1768 when selecting HTTP:96 bytes on both. Existing WS config520 and info680 bytes unchanged. Additional per-work pointer/state branches are not a measured performance result.",
     "Cold control/field views/outgoing bytes are bounded and erased/released after handoff and old binding tail. Header16KiB/128 fields, write64KiB, extras32/16KiB, auth context16KiB hard caps. Native IO and existing Duplex limits remain separate.",
     "Only the exceptional unpublished-read/full-record-growth case adds a bounded16KiB head cache. It consumes through CRLFCRLF, preserves suffix and counts actual preview copies. Shared auth copies one bounded head snapshot and context into the peer; ordinary handler admission retains its existing context copy. No zero-copy or zero-overhead claim.",
     "Actual constructor original-budget ladder verifies false-output/native/credit rollback and zero live allocations after final physical joins. Async cache/auth/handoff fault and broader OOM/fuzz coverage are still incomplete; no quota reset or substitute runtime is introduced."
@@ -3860,5 +3860,6 @@
     "HTTP URI/DNS/native dial composition and compression negotiation; broader async OOM/fault/fuzz/auth/close/scale coverage.",
     "Framed stdio and the remaining original xredis/xrpc/xmqtt5/xcron scope.",
     "Controlled Windows/Linux native throughput and tail latency, scale and >=72h production acceptance; native Windows sanitizer and other toolchains remain unverified."
-  ]
+  ],
+  "erratum_20261116": "Correct platform-generalized absolute private sizes using the already-recorded platform layout evidence. The96-byte difference and original tests are unchanged."
 }

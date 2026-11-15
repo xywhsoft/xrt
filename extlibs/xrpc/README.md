@@ -25,8 +25,13 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. URI/dial and compression composition for HTTP, framed stdio,
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. URI/dial composition for HTTP and framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
+
+Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
+thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.
+WS config gained two unconditional fields, so rebuild checked-Size users with
+the matching headers/libraries. URI/dial composition and framed stdio remain open.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
 caller-owned message scratch. It classifies calls, notifications, success/error

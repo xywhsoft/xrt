@@ -52,16 +52,19 @@ rejected before native ownership moves.
 
 Managed Host/Origin/Connection/Upgrade/framing/handshake/WWW-Authenticate fields
 cannot be overridden with extras. Duplicate Authorization extras are refused.
-Compression negotiation is explicitly unsupported by this initial HTTP leaf;
-enable/require/accept-deflate configuration is rejected. The existing validated
-WS attach leaf retains its separate compression negotiation contract.
+Compression policies require the optional [HTTP compression leaf](ws_deflate.md).
+Without that leaf, enable/require/accept-deflate configuration is rejected.
+The existing validated WS attach retains its explicit negotiation contract.
 
 HTTP control, field descriptors, copied credentials and output are cold storage.
 They retire after handoff and the old event-owner tail. An exceptional native
 TLS partial prefix with no published original Read, or insufficient full-record
-growth space, uses one additional bounded Head cache. It consumes exactly through
-CRLFCRLF, preserves the WS suffix, and erases/releases that cache after checking.
-Ordinary input does not take this cache path. Auth snapshots have separate
+growth space, uses one additional bounded Head cache. Partial/cross-block TCP
+headers use the same cache; complete contiguous TCP heads parse a const span.
+The adapter never mutates a borrowed TCP receive buffer: IOCP can own an active
+write reservation for its next receive. Consume exactly through CRLFCRLF,
+preserve the WS suffix, and erase/release that cache after checking.
+Auth snapshots have separate
 bounded storage and actual executor credits. Cold storage is securely erased at
 release. Selecting HTTP also adds a permanent private copied HTTP-info snapshot;
 this stage makes no zero-overhead or performance-acceptance claim.
@@ -122,7 +125,7 @@ failure classes, strict key/protocol/framing failures and acknowledged close.
 Its ephemeral local keys stay in the supplied test directory and are removed.
 
 These factories begin after native establishment. URI/DNS/dial composition,
-compression, broader fault/fuzz/scale validation, controlled native throughput/
+broader fault/fuzz/scale validation, controlled native throughput/
 tail latency and native Windows/Linux72h qualification remain required. The
 four-product and production goals are incomplete.
 

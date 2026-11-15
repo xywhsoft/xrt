@@ -102,8 +102,14 @@
 #if !defined(XRPC_FEATURE_XRPC_WS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_WS_HTTP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP 1
+#endif
+#if !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE 1
 #endif
 #if !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_TLS 1
@@ -186,8 +192,14 @@
 #if !defined(XRPC_MODULE_XRPC_WS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS 1
 #endif
+#if !defined(XRPC_MODULE_XRPC_WS_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE 1
+#endif
 #if !defined(XRPC_MODULE_XRPC_WS_HTTP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_WS_HTTP_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_DEFLATE 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_TLS 1
@@ -1494,6 +1506,9 @@
 #if !defined(XRT_MODULE_UNICODE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE 1
 #endif
+#if !defined(XRT_MODULE_WEBSOCKET_STREAM_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_DEFLATE 1
+#endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_REF)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF 1
 #endif
@@ -1505,6 +1520,9 @@
 #endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
+#endif
+#if !defined(XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE 1
 #endif
 #if !defined(XRT_MODULE_WEBSOCKET_UPGRADE_STREAM)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_STREAM 1
@@ -2799,6 +2817,38 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
 #define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#define XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#endif
+#endif
+
+/* xrpc_ws_http_deflate 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_DEFLATE)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
+#define XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DEFLATE
+#define XRPC_MODULE_XRPC_WS_DEFLATE
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#define XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#endif
+#endif
+
+/* xrpc_ws_deflate 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DEFLATE)
+#ifndef XRPC_FEATURE_XRPC_WS_DEFLATE
+#define XRPC_FEATURE_XRPC_WS_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
+#define XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
 #endif
 #endif
 
@@ -5206,8 +5256,9 @@ typedef struct xrpcwsconfig {
     xwsstreamconfig Stream;
     size_t MaxMessageBytes,MaxReceiveBytes,KeepReceiveBytes,ReadBytes,WriteBytes,WorkMessages,MaxSubmitters;
     int64 MessageTimeout;
-    bool AllowBinary;
+    bool AllowBinary,CompressOutput;
     xbytesview RequestContext;
+    size_t CompressMinBytes;
 } xrpcwsconfig;
 typedef struct xrpcwsinfo {
     size_t Size;
@@ -5231,6 +5282,11 @@ XRT_EXTERN_C_BEGIN
  * RequestContext copies once (<=16KiB). Native HTTP/TLS and read/idle limits are
  * supplied by the host before attach; partial WS header time is not observable
  * through native MessageBegin. No new Engine/Server/Resolver/thread/runtime. */
+/* CompressOutput defaults false, CompressMinBytes256. Select xrpc_ws_deflate
+ * to enable output compression, which additionally requires negotiated
+ * Stream.DeflateEnabled. Smaller messages remain ordinary Text. Decoded input
+ * is bounded by MaxMessageBytes even if native Inflater.OutputLimit is larger.
+ * Config gained two unconditional fields: rebuild checked-Size consumers. */
 XRPC_API bool xrpcWsConfigInit(xrpcwsconfig* Config);
 /* Worker-only exclusive OPEN transport after validated HTTP Upgrade. Initial is
  * optional exclusive owned read-ahead after its header. Stream.Role/Protocol and
@@ -5366,6 +5422,37 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/ws_deflate.h */
+/* ========================================================================== */
+
+#ifndef XRPC_WS_DEFLATE_H
+#define XRPC_WS_DEFLATE_H
+#if defined(XRPC_FEATURE_XRPC_WS_DEFLATE) && (!defined(XRPC_FEATURE_XRPC_WS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE))
+#error "RPC WS compression requires WS and Core compressed streams"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE) && (!defined(XRPC_FEATURE_XRPC_WS_HTTP) || !defined(XRPC_FEATURE_XRPC_WS_DEFLATE) || !defined(XRT_FEATURE_WEBSOCKET_UPGRADE_DEFLATE))
+#error "RPC compressed HTTP Upgrade requires HTTP WS and Core negotiation"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
+typedef struct xrpcwsdeflateinfo {
+    size_t Size;
+    xwsdeflate Negotiated;
+    size_t CompressMinBytes;
+    bool Enabled,CompressOutput;
+} xrpcwsdeflateinfo;
+XRT_EXTERN_C_BEGIN
+/* Copied facts after native WS attach/HTTP handoff, including after Close.
+ * Enabled is the actual negotiation; CompressOutput is the caller's policy,
+ * applied only when Enabled and message bytes >= CompressMinBytes. Never
+ * exposes codec/dictionary pointers. No negotiation yet returns STATE and
+ * preserves output. Keep the peer owner stable through this concurrent call. */
+XRPC_API bool xrpcWsDeflateInfo(xrpcws*,xrpcwsdeflateinfo*);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -5436,6 +5523,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
 #error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+#error "XRPC_FEATURE_XRPC requires optional WS HTTP compression support"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
@@ -5534,9 +5624,17 @@ XRT_EXTERN_C_END
 #undef XRPC_FEATURE_XRPC_WS
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE)
+#undef XRPC_FEATURE_XRPC_WS_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP)
 #undef XRPC_FEATURE_XRPC_WS_HTTP
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
+#undef XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_TLS)
 #undef XRPC_FEATURE_XRPC_WS_HTTP_TLS
@@ -5646,9 +5744,17 @@ XRT_EXTERN_C_END
 #undef XRPC_MODULE_XRPC_WS
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE)
+#undef XRPC_MODULE_XRPC_WS_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP)
 #undef XRPC_MODULE_XRPC_WS_HTTP
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_DEFLATE)
+#undef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_TLS)
 #undef XRPC_MODULE_XRPC_WS_HTTP_TLS
@@ -7390,6 +7496,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_UNICODE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_DEFLATE)
+#undef XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF)
 #undef XRT_MODULE_WEBSOCKET_STREAM_REF
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF
@@ -7405,6 +7515,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #undef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE)
+#undef XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_STREAM)
 #undef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
@@ -7501,6 +7615,38 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
 #define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#define XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#endif
+#endif
+
+/* xrpc_ws_http_deflate 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_DEFLATE)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
+#define XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DEFLATE
+#define XRPC_MODULE_XRPC_WS_DEFLATE
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#define XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#endif
+#endif
+
+/* xrpc_ws_deflate 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DEFLATE)
+#ifndef XRPC_FEATURE_XRPC_WS_DEFLATE
+#define XRPC_FEATURE_XRPC_WS_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
+#define XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
 #endif
 #endif
 

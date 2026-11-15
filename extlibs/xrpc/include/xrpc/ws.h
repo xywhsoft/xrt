@@ -15,8 +15,9 @@ typedef struct xrpcwsconfig {
     xwsstreamconfig Stream;
     size_t MaxMessageBytes,MaxReceiveBytes,KeepReceiveBytes,ReadBytes,WriteBytes,WorkMessages,MaxSubmitters;
     int64 MessageTimeout;
-    bool AllowBinary;
+    bool AllowBinary,CompressOutput;
     xbytesview RequestContext;
+    size_t CompressMinBytes;
 } xrpcwsconfig;
 typedef struct xrpcwsinfo {
     size_t Size;
@@ -40,6 +41,11 @@ XRT_EXTERN_C_BEGIN
  * RequestContext copies once (<=16KiB). Native HTTP/TLS and read/idle limits are
  * supplied by the host before attach; partial WS header time is not observable
  * through native MessageBegin. No new Engine/Server/Resolver/thread/runtime. */
+/* CompressOutput defaults false, CompressMinBytes256. Select xrpc_ws_deflate
+ * to enable output compression, which additionally requires negotiated
+ * Stream.DeflateEnabled. Smaller messages remain ordinary Text. Decoded input
+ * is bounded by MaxMessageBytes even if native Inflater.OutputLimit is larger.
+ * Config gained two unconditional fields: rebuild checked-Size consumers. */
 XRPC_API bool xrpcWsConfigInit(xrpcwsconfig* Config);
 /* Worker-only exclusive OPEN transport after validated HTTP Upgrade. Initial is
  * optional exclusive owned read-ahead after its header. Stream.Role/Protocol and

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `156` 个函数、`238` 个常量或宏、
-`115` 个公共类型。
+当前登记 `157` 个函数、`240` 个常量或宏、
+`116` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -789,6 +789,24 @@
 - `xrpcwsreason`
 - `xrpcwsstate`
 
+## `extlibs/xrpc/include/xrpc/ws_deflate.h`
+
+[查看带契约注释的公共头](../../include/xrpc/ws_deflate.h)
+
+### 函数 (1)
+
+- `xrpcWsDeflateInfo`
+
+### 常量与宏 (3)
+
+- `XRPC_FEATURE_XRPC_WS_DEFLATE`
+- `XRPC_FEATURE_XRPC_WS_HTTP`
+- `XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE`
+
+### 类型 (1)
+
+- `xrpcwsdeflateinfo`
+
 ## `extlibs/xrpc/include/xrpc/ws_http.h`
 
 [查看带契约注释的公共头](../../include/xrpc/ws_http.h)
@@ -802,9 +820,8 @@
 - `xrpcWsHttpServerTcp`
 - `xrpcWsHttpServerTls`
 
-### 常量与宏 (12)
+### 常量与宏 (11)
 
-- `XRPC_FEATURE_XRPC_WS_HTTP`
 - `XRPC_FEATURE_XRPC_WS_HTTP_TLS`
 - `XRPC_WS_HTTP_ALLOW`
 - `XRPC_WS_HTTP_AUTH_ERROR`
