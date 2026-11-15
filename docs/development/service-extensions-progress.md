@@ -49,9 +49,12 @@ Target and rules: [development contract](service-extensions-plan.md).
   locally verified, along with verified TLS and TLS1.3 credential handoff.
   In-memory Session/expiry and explicit numeric TCP recovery are locally verified.
   Optional numeric/hostname/prepared TLS Session factories and MQTT5 proof-gated
-  authentication composition are locally verified. Plain Dial/Auth composition,
-  automatic reconnect, durable storage,
-  WebSocket and full performance/production qualification remain pending.
+  authentication composition are locally verified. Plain Dial/Auth Session and
+  the developing reconnect controller have dated local evidence below. Native
+  WS/WSS attachment and numeric/DNS/prepared HTTP connection factories are now
+  locally verified with selected Auth/Session/Inbox recovery. URI/reconnect
+  transport composition, post-Upgrade TLS credential capture, durable storage,
+  strict broker-close and full performance/production qualification remain pending.
 - Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
 ## Baseline checks
@@ -13295,3 +13298,48 @@ and out/service-extensions/xrpc-frame-20261112.
   factories, automatic reconnect composition, durable state, independent external
   broker tests, larger adversarial/load/performance/soak matrices and the remaining
   original Redis/RPC/Cron scope remain active. Four-product goal is not complete.
+
+
+## 2026-11-16: native MQTT WS/WSS HTTP connection factories on master
+
+- Continue directly from d869f73 in D:/GIT/xrt master; no branch/worktree/merge
+  operation or push. Add client_ws_connect and optional verified TLS composition.
+  One ordinary Client covers numeric/counted DNS/prepared candidates, native TCP/
+  TLS, strict HTTP Upgrade and MQTT readiness under its original setup clock.
+- Snapshot the complete random-key GET request before return, enforce exact mqtt,
+  correct101/Accept and no unoffered compression; send no MQTT before validation.
+  Bound interim100/103 responses without refreshing time. Original queued request
+  deadlines still expire while HTTP is held. Preserve WS read-ahead and original
+  native owner/alias barriers before and after handoff.
+- Reuse existing Dial, TLS session, Client parser/QoS/aliases/Auth/Session/Inbox,
+  post and timer; Core production source stays unchanged. Partial heads use a
+  bounded charged/wiped incremental cache; complete contiguous heads borrow native
+  bytes. Cold request/descriptors/cache retire at handoff/stop, retaining240-byte
+  HTTP info state. Connect config344/info80; selected cold WS state+8 bytes to296,
+  existing Client/public config272/info160 unchanged in both measured x64 builds.
+- Correct a real TSan publication race: after exposing a deferred Client to its
+  owner, the constructor must inspect only immutable WS.Native plan data, not the
+  owner-only WS.Stream field. Final select/epoll TSan positive/fault/state suites
+  pass. Fix the test peer's partial TLS record consumption and canceled-handoff
+  cleanup; retain failed attempts. Short original-deadline tests no longer assume
+  instrumented TLS must finish before80ms; timeout assertions remain active.
+- Windows select/IOCP and WSL select/epoll verify modular/plain/full/root/stat-off,
+  Auth/Session recovery, HTTP/metadata atomicity, original clocks, bounds/OOM and
+  actual native aliases. WSL ASan/UBSan/leaks and independent TSan, legacy TCP/Auth/
+  Session/TLS/raw WS regressions, separate static/shared protocol and declaration
+  consumers pass. WSL remains distinct from native Linux acceptance.
+- Independent stdlib/OpenSSL peer verifies12 actual CLI cases: both platforms and
+  MQTT versions, WS/TLS1.2/TLS1.3,103/101, independent SHA1 Accept, fragmented Binary,
+  Ping/Pong, real CA trust, clean close and physical joins. Pinned local Mosquitto
+  packages complete8 data exchanges/joins but strict Disconnect fails in all8.
+  Independent plain wire capture shows client Close1000 and peer EOF without a
+  returned Close. Do not convert that uncertainty into success or hide the gate.
+- Actual cold and HTTP-established steady QoS1/checksum/retirement profiles and
+  plain/TLS sizes are recorded. Shared-host quality limits fail; thresholds stay
+  unchanged and performance/production acceptance remains false. Strict release
+  stays closed on developing modules.
+- See [the stage report](xmqtt-websocket-connect-20261116.json) for source cohorts,
+  binaries, raw failures and exact counts. URI/reconnect, post-Upgrade TLS credential
+  capture (new ResumeLimit must be zero here), durability, additional broker-close/
+  adversarial/load qualification, controlled performance, native>=72h soak and all
+  remaining original Redis/RPC/Cron requirements stay active.

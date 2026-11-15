@@ -3827,6 +3827,222 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_ws_connect",
+      "system": "client_ws_connect",
+      "description": "Actual per-cycle host Engine/Resolver/listener, native HTTP WS/WSS, MQTT5 CONNACK/PUBACK and physical joins; throughput includes host creation/destruction, latency starts before Client factory; no controlled performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_connect",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_connect.c",
+          "suite": "xmqtt_client_ws_connect_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "16",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycle/s"
+            },
+            "ready_latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "retire_latency_mean_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cold_peak_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_connect_tls",
+      "system": "client_ws_connect",
+      "description": "Actual per-cycle host Engine/Resolver/listener, native HTTP WS/WSS, MQTT5 CONNACK/PUBACK and physical joins; throughput includes host creation/destruction, latency starts before Client factory; no controlled performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_connect_tls",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_connect.c",
+          "suite": "xmqtt_client_ws_connect_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "16",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycle/s"
+            },
+            "ready_latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "retire_latency_mean_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cold_peak_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_connect_steady",
+      "system": "client_ws_connect",
+      "description": "Steady local MQTT5 QoS1 after actual native HTTP WS/WSS factory readiness; setup excluded from timed publish loop, XRT stats include both peers; no controlled acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_connect_steady",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_connect_steady.c",
+          "suite": "xmqtt_client_ws_connect_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "10000",
+            "5",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_connect_steady_tls",
+      "system": "client_ws_connect",
+      "description": "Steady local MQTT5 QoS1 after actual native HTTP WS/WSS factory readiness; setup excluded from timed publish loop, XRT stats include both peers; no controlled acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_connect_steady_tls",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_connect_steady.c",
+          "suite": "xmqtt_client_ws_connect_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "10000",
+            "5",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -141,6 +141,24 @@
       "system": "client_ws",
       "suite": "xmqtt_client_ws_tls",
       "description": "MQTT Binary attachment/native write prefix/retirement; WSS adds native TLS closure only when selected"
+    },
+    {
+      "name": "xmqtt_client_ws_connect",
+      "system": "client_ws_connect",
+      "suite": "xmqtt_client_ws_connect",
+      "description": "Ordinary Client, numeric/DNS/prepared HTTP Upgrade, bounded cold state and physical WS/TCP retirement; TLS/Auth/Session absent",
+      "forbid_symbols": [
+        "xmqttClientWssConnect",
+        "xmqttClientConnectAuth",
+        "xmqttSessionCreate",
+        "xrtTlsClientCreate"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_connect_tls",
+      "system": "client_ws_connect",
+      "suite": "xmqtt_client_ws_connect_tls",
+      "description": "Ordinary Client, numeric/DNS/prepared HTTP Upgrade, bounded cold state and physical WS/TCP retirement; native verified TLS added"
     }
   ]
 }

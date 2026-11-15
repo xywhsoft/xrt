@@ -12,6 +12,7 @@ typedef struct mqttWsPeer {
     xatomicptr Server,Client;xatomic32 Owners,Constructed,Closed,ListenerClosed,Publishes,ReceivedAcks,Disconnects;
     xmqttclientconfig ClientConfig;xmqttclientwsconfig WsConfig;xmqttpacket Connect;
     xnetpost Attach[2];ptr Native[2];
+    void (*NativeServerOpen)(struct mqttWsPeer*,ptr);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
     xtlscontext* Context;xtlsidentity* Identity;xtlsverifier* Verifier;xtlsserverconfig NativeServer;
 #endif
@@ -80,7 +81,7 @@ static inline void mqttWsData(xwsstream* S,xbytesview Data,ptr User)
 static inline void mqttWsClosed(xwsstream* S,const xwsstreamclose* Close,ptr Data)
 {(void)S;(void)Close;xrtAtomic32Store(&((mqttWsPeer*)Data)->Closed,1,XMEMORY_RELEASE);}
 static const xwsstreamevents MqttWsPeerEvents={.MessageBegin=mqttWsBegin,.MessageData=mqttWsData,.Close=mqttWsClosed};
-static inline void mqttWsAttachServer(mqttWsPeer* P,ptr Native)
+static inline void mqttWsAttachServerData(mqttWsPeer* P,ptr Native)
 {
     xwsstreamconfig K;xrtWsStreamConfigInit(&K);K.Role=XWS_ROLE_SERVER;K.Protocol=XRT_STR_LITERAL("mqtt");xwsstream* S;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
@@ -89,6 +90,8 @@ static inline void mqttWsAttachServer(mqttWsPeer* P,ptr Native)
     S=xrtWsStreamAttach(Native,0,&K,&MqttWsPeerEvents,P);
     testRequire(S!=NULL,"literal WS server attachment");xrtAtomicPtrStore(&P->Server,S,XMEMORY_RELEASE);
 }
+static inline void mqttWsAttachServer(mqttWsPeer* P,ptr Native)
+{if(P->NativeServerOpen)P->NativeServerOpen(P,Native);else mqttWsAttachServerData(P,Native);}
 static inline void mqttWsAttachClient(mqttWsPeer* P,ptr Native)
 {
     xmqttclient* C=NULL;bool OK;
@@ -141,7 +144,7 @@ static inline bool mqttWsAccept(xnetlistener* L,xnetstream* S,ptr Data)
 {
     (void)L;mqttWsPeer* P=Data;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
-    if(P->TLS){xtlsstream* T=NULL;testRequire(xrtTlsStreamAccept(S,&P->NativeServer,NULL,&MqttWsTlsEvents,P,&T),"native TLS server");return true;}
+    if(P->TLS){xtlsstream* T=NULL;testRequire(xrtTlsStreamAccept(S,&P->NativeServer,NULL,&MqttWsTlsEvents,P,&T),"native TLS server");P->Native[1]=T;return true;}
 #endif
     mqttWsAttachServer(P,S);return true;
 }

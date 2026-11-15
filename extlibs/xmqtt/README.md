@@ -1,11 +1,18 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The developing [native WS/WSS connection factories](docs/client_ws_connect.md)
+now compose numeric/DNS/prepared native TCP/verified TLS, strict HTTP Upgrade and
+ordinary MQTT readiness under one original setup clock. URI/reconnect, new WSS
+credential capture, clean broker-close qualification and final production/
+performance acceptance remain required. See the [native CLI](examples/ws_connect/README.md).
+
 The developing [WS/WSS attachment](docs/client_ws.md) now reuses the ordinary
 Client for Binary MQTT traffic, QoS, subscriptions, selected enhanced auth and
 explicit Session/Inbox recovery. The host supplies an already checked Upgrade
-and native OPEN connection; URI/HTTP setup and automatic reconnect integration
-are still required. See the [local runnable example](examples/ws/README.md).
+and native OPEN connection to these attachment APIs; the connection factories
+above perform native network/HTTP setup. URI input and automatic reconnect
+integration remain required. See the [local runnable example](examples/ws/README.md).
 The independent [in-memory session state](docs/session.md) leaf now implements
 bounded QoS state, cross-connection replay decisions, incoming identity retention
 and expiry. The optional [Client Session factory](docs/client_session.md) now attaches it
@@ -32,7 +39,8 @@ provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
 numeric, hostname and prepared-address factories. Optional
 [TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
 ticket for explicit subsequent connections. Durable sessions,
-cross-connection cache management and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
+cross-connection cache management and complete WebSocket delivery remain pending.
+The developing WS/WSS stages above have separate evidence. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages
 and one shared physical object quota through sequential Client/Engine destruction.

@@ -7,7 +7,9 @@ binding, active driver/callback or pending read. Its original configuration owne
 remains retained. The host configures peer trust and performs HTTP Upgrade and supplies its exact negotiated mqtt/client policy.
 These attachment factories enforce the metadata and OPEN/client native state; they do not
 re-verify peer credentials or
-perform/attest earlier host network setup. URI/DNS/HTTP factories remain required.
+perform/attest earlier host network setup. The separate developing
+[native connection factories](client_ws_connect.md) perform numeric/DNS/prepared
+network setup and HTTP Upgrade. URI input and reconnect integration remain required.
 
 One ordinary Client owns all existing packet/QoS/auth/Session/Inbox state. Binary
 bytes span arbitrary WS frames/messages; Text closes the transport. WS control
@@ -33,7 +35,8 @@ native aliases can delay this barrier. The host separately joins Engine/code.
 The 176-byte public WS config layout is independent of optional Auth/Session/
 Inbox and plain/WSS selection on x64. Selecting WS adds an 8-byte pointer to the
 private Client even when the connection uses TCP; an attached WS client adds a
-288-byte cold state plus bounded staging. These are real costs. The existing
+288-byte cold state plus bounded staging (296 bytes when the optional HTTP
+connection factories are selected). These are real costs. The existing
 Client public config272/info160 layouts stay unchanged on both tested x64 hosts.
 The request fence is24 bytes plus its existing alignment. A valid UINT64_MAX cut
 uses the explicit pending-owner identity and can complete while still open.
@@ -65,7 +68,9 @@ receive/staging copies and allocation traffic still require controlled analysis.
 
 All new leaves remain developing. See the source-bound
 [stage report](../../../docs/development/xmqtt-websocket-20261116.json).
-URI/DNS/prepared native HTTP Upgrade, automatic reconnect transport factories,
-durable state, external broker interoperability, broader async-OOM/slow-peer/
+The later [native connection stage](client_ws_connect.md) separately records
+numeric/DNS/prepared HTTP Upgrade and independent peer/broker evidence.
+URI input, automatic reconnect transport factories, durable state, strict clean
+broker interoperability, broader async-OOM/slow-peer/
 malformed/load tests, controlled throughput/tails/CPU and native Linux/Windows
 soak qualification remain required. No complete WS/WSS product acceptance is claimed.

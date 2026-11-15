@@ -1,0 +1,9 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_client_ws_connect_state.c"

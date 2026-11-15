@@ -1,0 +1,824 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-numeric-DNS-prepared-native-WS-WSS-HTTP-client-stage",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "d869f73ee548feff03e0e836c55ffd828c42bb34",
+  "branch_operations": 0,
+  "remote_push": false,
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "complete_four_product_goal": false,
+  "mqtt_websocket_complete": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "new_modules": [
+    "xmqtt_client_ws_connect",
+    "xmqtt_client_ws_connect_tls"
+  ],
+  "new_functions": [
+    "xmqttClientWsConnectConfigInit",
+    "xmqttClientWsConnectInfo",
+    "xmqttClientWsConnect",
+    "xmqttClientWsDial",
+    "xmqttClientWsDialAddresses",
+    "xmqttClientWssConnect",
+    "xmqttClientWssDial",
+    "xmqttClientWssDialAddresses"
+  ],
+  "architecture": "One existing MQTT Client and original setup/request clocks across immutable request/CONNECT/auth snapshots, numeric/counted DNS/prepared candidates, native verified TLS, strict HTTP Upgrade and MQTT CONNACK/local proof. No MQTT bytes before valid101/Accept/exact mqtt; no compression, redirects, automatic authentication retry, proxy, transport downgrade or extra runtime.",
+  "http": "Public Core request writer/random key/response parser/Upgrade validator. Contiguous complete response borrows native bytes; fragmented heads use a lazily charged16KiB cache with an incremental delimiter/line-limit probe and one authoritative full semantic parse. Consume exactly through the head, preserving native WS read-ahead. Up to configured bounded informational responses, no clock reset. Header preview can copy some suffix before detecting delimiter; counters report actual preview copies. HTTP state240 persists for snapshots; request/descriptors/cache and key are wiped/freed after handoff or setup stop.",
+  "ownership": "Existing shared Dial/TLS owned policies and Client post/timer. Native WS attachment consumes the final raw/TLS caller reference, drops the independent pre-Upgrade raw retirement handle only after successful WSS handoff, and retains the original TLS configuration owner until actual WS/TLS retirement. Before handoff, Wait/Poll preserve real raw/TLS alias barriers. Constructor failure consumes no HTTP plan or caller output. Original Client QoS/fences/Auth/Session/Inbox and conservative uncertainty remain unchanged.",
+  "publication_fix": "TSan found a caller read of WS.Stream racing owner HTTP attachment after Client publication. Final constructor checks only its immutable WS.Native plan, activating inline only for owning-worker raw attachment. Deferred HTTP activation stays exclusively on the owner. Independent select/epoll TSan positive/fault/state tests pass after the correction.",
+  "verification": {
+    "windows": {
+      "final_tests": 20,
+      "delivery": 4,
+      "regression": 6,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "python_interop": 6,
+      "total_C_executions": 41,
+      "usage_only_executions": 2
+    },
+    "wsl": {
+      "final_tests": 20,
+      "delivery": 4,
+      "regression": 6,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "tsan": 6,
+      "python_interop": 6,
+      "total_C_executions": 47,
+      "usage_only_executions": 2
+    }
+  },
+  "additional_checks": {
+    "package_tool_verified_consumers_per_host": 2,
+    "linux_runtime": "WSL x64 ASan+UBSan with leak detection, independent TSan; not native Linux production acceptance",
+    "backends": "Windows select/IOCP, WSL select/epoll",
+    "cases": [
+      "numeric/counted-DNS/prepared routes, MQTT5/3.1.1, QoS0/1/2",
+      "one-byte work quotas, split HTTP/TLS records, bounded100/103 and101, preserved first WS control bytes",
+      "managed/invalid policy and output-alias atomicity, live valid control after refused policies",
+      "401/302, wrong Accept, absent/wrong mqtt, framing/compression rejection",
+      "original setup timeout/cancel/close through held HTTP and detached DNS",
+      "queued publication expires without MQTT output while setup remains usable",
+      "interim/head/field/native-byte capacity bounds and constructor allocation-budget ladder with real host joins",
+      "real pre-Upgrade raw/TLS aliases block retirement, including single-header tests",
+      "initial enhanced AUTH/final-proof/reauth and explicit Session/Inbox replay across HTTP-established connections",
+      "legacy TCP/Auth/Session/TLS and raw WS/WSS regression with new selections",
+      "plain/full/root singles, stats-off, separate static/shared libraries with real socket protocol consumers, standalone declaration consumers and hidden internal symbols"
+    ]
+  },
+  "ABI": {
+    "windows": {
+      "off": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 288,
+        "fence": 24
+      },
+      "plain": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      },
+      "full": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      }
+    },
+    "wsl": {
+      "off": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 288,
+        "fence": 24
+      },
+      "plain": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      },
+      "full": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      }
+    }
+  },
+  "resource_scope": "Existing public Client config272/info160 and native WS config176 remain unchanged. Connect config344/info80 and HTTP state240 measured on both x64 hosts. Selecting connection setup adds8 bytes to the existing cold WS state288->296, no additional direct Client pointer; attached HTTP storage is charged to MaxPrivateBytes including optional cache. Native Dial/Resolver/TLS/WS/TCP/allocator/CA-I/O storage is separately bounded and not all charged to MQTT logical private bytes.",
+  "interop": {
+    "python": {
+      "cases": [
+        {
+          "host": "windows",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        }
+      ],
+      "ssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "stdlib": true,
+      "request_accept_sha1_independent_of_XRT": true
+    },
+    "mosquitto": {
+      "packages": [
+        {
+          "name": "mosquitto",
+          "version": "2.0.22-5build1",
+          "sha256": "a91e89b34f70e53103bbb1fbff2a6a6aa417db3925af98748f3d1c98efff9d5d",
+          "metadata": "Package: mosquitto\nPriority: optional\nSection: universe/net\nInstalled-Size: 716\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 2.0.22-5build1\nSuggests: apparmor\nDepends: adduser (>= 3.10), libcjson1 (>= 1.7.13), libmosquitto1 (= 2.0.22-5build1), sysvinit-utils (>= 3.06), libc6 (>= 2.38), libdlt3 (>= 3.0.0), libssl3t64 (>= 3.0.0), libsystemd0, libwebsockets19t64 (>= 1.6.0), libwrap0 (>= 7.6-4~)\nPre-Depends: init-system-helpers (>= 1.54~)\nFilename: pool/universe/m/mosquitto/mosquitto_2.0.22-5build1_amd64.deb\nSize: 239954\nMD5sum: 7e91b8d3831660a3a836096a8d6e4966\nSHA1: 6781d5f10c8ee2628fb9d71469f62ca676dd87a4\nSHA256: a91e89b34f70e53103bbb1fbff2a6a6aa417db3925af98748f3d1c98efff9d5d\nSHA512: ebb302593e21dc97a894eb9a618b04d0b4845dbf6a5fe9084fa95c82ee175f9a547cbb7b32599eb43ea3c65eae16a4a4cbfbfdad393d7adf6a483c9a712e36c4\nHomepage: https://mosquitto.org/\nDescription-en: MQTT version 5.0/3.1.1/3.1 compatible message broker\n This is a message broker that supports version 3.1 and 3.1.1 of the MQTT\n protocol.\n .\n MQTT provides a method of carrying out messaging using a publish/subscribe\n model. It is lightweight, both in terms of bandwidth usage and ease of\n implementation. This makes it particularly useful at the edge of the network\n where a sensor or other simple device may be implemented using an arduino for\n example.\nDescription-md5: f8c193c62c4a30a9acfb862fd9561343\nOriginal-Maintainer: Debian IoT Maintainers <debian-iot-maintainers@alioth-lists.debian.net>\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug"
+        },
+        {
+          "name": "libmosquitto1",
+          "version": "2.0.22-5build1",
+          "sha256": "22d5fd90277ccd37dea02dc6cf13514896facf1a1b321ec832595346bd2ab1a3",
+          "metadata": "Package: libmosquitto1\nSource: mosquitto\nPriority: optional\nSection: universe/libs\nInstalled-Size: 190\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 2.0.22-5build1\nDepends: libc6 (>= 2.34), libssl3t64 (>= 3.0.0)\nFilename: pool/universe/m/mosquitto/libmosquitto1_2.0.22-5build1_amd64.deb\nSize: 54814\nMD5sum: d56b70862ace27fab50f64eb9140ed59\nSHA1: 6de6483667476541513cb7d147088a25df3242ba\nSHA256: 22d5fd90277ccd37dea02dc6cf13514896facf1a1b321ec832595346bd2ab1a3\nSHA512: 56b7bdf61624598e1f97e6bdd0ca8ca18590b0bcd3eb3b9942da427ab2a7c7a7d3787c2a4366e71dbc9ac5bbe9fcee677447049d061c3b370e59fbb011b81f61\nHomepage: https://mosquitto.org/\nDescription-en: MQTT version 5.0/3.1.1/3.1 client library\n This is a C library for implementing MQTT version 5.0/3.1.1/3.1 clients.\n .\n MQTT provides a method of carrying out messaging using a publish/subscribe\n model. It is lightweight, both in terms of bandwidth usage and ease of\n implementation. This makes it particularly useful at the edge of the network\n where a sensor or other simple device may be implemented using an arduino for\n example.\nDescription-md5: d6db03b5024e1bf84fc82288546d2e4d\nOriginal-Maintainer: Debian IoT Maintainers <debian-iot-maintainers@alioth-lists.debian.net>\nMulti-Arch: same\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug"
+        },
+        {
+          "name": "libwebsockets19t64",
+          "version": "4.3.5-3ubuntu1.1",
+          "sha256": "2e819fbaa8a5a692fe98352ae882b2be435bfdf184b59164e8d4a6d87e5134d3",
+          "metadata": "Package: libwebsockets19t64\nSource: libwebsockets\nPriority: optional\nSection: universe/libs\nInstalled-Size: 536\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 4.3.5-3ubuntu1.1\nReplaces: libwebsockets19\nProvides: libwebsockets19 (= 4.3.5-3ubuntu1.1)\nDepends: libc6 (>= 2.38), libcap2 (>= 1:2.10), libssl3t64 (>= 3.0.0), zlib1g (>= 1:1.2.6)\nBreaks: libwebsockets19 (<< 4.3.5-3ubuntu1.1)\nFilename: pool/universe/libw/libwebsockets/libwebsockets19t64_4.3.5-3ubuntu1.1_amd64.deb\nSize: 227460\nMD5sum: 81a38d82d3c129656c9eecc81851afe8\nSHA1: aff8a6f5346d3d4f2809ee1dd4659e7e7c795305\nSHA256: 2e819fbaa8a5a692fe98352ae882b2be435bfdf184b59164e8d4a6d87e5134d3\nSHA512: 4782a866b9c8ca739abeadd9b379c6ff99066e73b1c1961e57aafd09fbdb68af91c787e1dcaa77a080908afac54f3c4f49216e2e2a76d607951d12f999aab9ab\nHomepage: https://libwebsockets.org/\nDescription-en: lightweight C websockets library\n Libwebsockets is a lightweight pure C library for both websockets\n clients and servers built to use minimal CPU and memory resources\n and provide fast throughput in both directions.\n .\n This package contains the main shared library.\nDescription-md5: 82d5eb97b473199832ea3836e73fcdd3\nMulti-Arch: same\nOriginal-Maintainer: Laszlo Boszormenyi (GCS) <gcs@debian.org>\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug\nTask: ubuntustudio-desktop"
+        },
+        {
+          "name": "libdlt3",
+          "version": "3.0.0-4",
+          "sha256": "84fd6650d215f7c92a837bf8e28447f21d8252b82a80c5f3cb0cf8db1b1f0c64",
+          "metadata": "Package: libdlt3\nSource: dlt-daemon\nPriority: optional\nSection: universe/libs\nInstalled-Size: 590\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 3.0.0-4\nDepends: libc6 (>= 2.42), zlib1g (>= 1:1.2.11)\nFilename: pool/universe/d/dlt-daemon/libdlt3_3.0.0-4_amd64.deb\nSize: 193126\nMD5sum: 87e529568063e6be5ae03809b1d61c7a\nSHA1: 10d6afceaf23837a964d76d82e6ec1f817741df1\nSHA256: 84fd6650d215f7c92a837bf8e28447f21d8252b82a80c5f3cb0cf8db1b1f0c64\nSHA512: 5e50817655e2511a89653f0069407468329a01edb45c22cffe5c1070d57ea2b3a31eb0600ad8533e1c59332f21f3ed07c8d959e6102e51435f9aac9d094edbc7\nHomepage: https://github.com/COVESA/dlt-daemon\nDescription-en: Diagnostic Log and Trace (DLT) library\n This component provides a log and trace interface, based on the standardised\n protocol specified in the AUTOSAR standard 4.0 DLT. This software can be used\n by COVESA components and other applications as logging facility.\n .\n DLT library is used by apps that need to log to a DLT daemon directly and by\n apps that want to read logs from DLT daemon.\nDescription-md5: 4828cea0785da57bab9519cc9d178830\nOriginal-Maintainer: Aigars Mahinovs <aigarius@debian.org>\nMulti-Arch: same\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug"
+        },
+        {
+          "name": "libwrap0",
+          "version": "7.6.q-36build2",
+          "sha256": "a3784ca083c626c3ae41cdd32d4c5898554650dc77d2b54dbb1197a38198adf8",
+          "metadata": "Package: libwrap0\nSource: tcp-wrappers\nPriority: optional\nSection: libs\nInstalled-Size: 107\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 7.6.q-36build2\nDepends: libc6 (>= 2.38)\nFilename: pool/main/t/tcp-wrappers/libwrap0_7.6.q-36build2_amd64.deb\nSize: 48490\nMD5sum: 31798d95ff777ce047541c73f643d971\nSHA1: 71902755af66f5c52f343b20bf546834c9c390fe\nSHA256: a3784ca083c626c3ae41cdd32d4c5898554650dc77d2b54dbb1197a38198adf8\nSHA512: f27e94d2b6cafa86e201d64f0b444875e90160dc9d2d8ea275fcaf9a49cbafae6fb4b733e3cb35e8b3f9b7c58373f6a1a076a77e422609f7bb6ecfdff5d3e352\nDescription-en: Wietse Venema's TCP wrappers library\n Wietse Venema's network logger, also known as TCPD or LOG_TCP.\n .\n These programs log the client host name of incoming telnet,\n ftp, rsh, rlogin, finger etc. requests.\n .\n Security options are:\n - access control per host, domain and/or service;\n - detection of host name spoofing or host address spoofing;\n - booby traps to implement an early-warning system.\nDescription-md5: 312b3b845509b9c30ecd6a3ca042b766\nOriginal-Maintainer: Marco d'Itri <md@linux.it>\nMulti-Arch: same\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug\nTask: cloud-minimal, ubuntu-desktop-minimal, ubuntu-desktop, cloud-image, server-live, print-server, openssh-server, ubuntu-desktop-raspi, kubuntu-desktop, xubuntu-minimal, xubuntu-desktop, lubuntu-desktop-minimal, lubuntu-desktop, lubuntu-desktop, ubuntustudio-desktop, ubuntustudio-desktop-core, ubuntukylin-desktop, ubuntukylin-desktop-minimal, ubuntu-mate-core, ubuntu-mate-desktop, ubuntu-budgie-desktop-minimal, ubuntu-budgie-desktop, ubuntu-budgie-desktop-raspi, ubuntu-unity-desktop, edubuntu-desktop-gnome-minimal, edubuntu-desktop-gnome-raspi, ubuntucinnamon-desktop-minimal, ubuntucinnamon-desktop-raspi"
+        },
+        {
+          "name": "libcjson1",
+          "version": "1.7.19-2",
+          "sha256": "1c47d315a46d610708aecdcafbc5b2c59c28f174dfb8a562290a17620bda3549",
+          "metadata": "Package: libcjson1\nSource: cjson\nPriority: optional\nSection: universe/libs\nInstalled-Size: 83\nMaintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\nArchitecture: amd64\nVersion: 1.7.19-2\nDepends: libc6 (>= 2.14)\nFilename: pool/universe/c/cjson/libcjson1_1.7.19-2_amd64.deb\nSize: 22806\nMD5sum: 3c09064f5d4ef98156d345873cbf1bf8\nSHA1: 4aa66c41b4609dc20423413c7cf757ccb6a6abfd\nSHA256: 1c47d315a46d610708aecdcafbc5b2c59c28f174dfb8a562290a17620bda3549\nSHA512: 1f6656d1a70bf35f0c7dbba46f99a18a78f02994f69e05555c5263052a354f5a84bfe2fefe14e76977079f39402e243ae5ef8bfaa6cd080f4742937445eb2506\nHomepage: https://github.com/DaveGamble/cJSON\nDescription-en: Ultralightweight JSON parser in ANSI C\n cJSON is a ultralightweight json parse.\n .\n It aims to be the dumbest possible parser that you can get your job done with.\n .\n It's a single file of C, and a single header file.\n .\n This package contains the shared libraries.\nDescription-md5: b70ec1dac01c769ddace4c75bd4ef426\nOriginal-Maintainer: Maytham Alsudany <maytham@debian.org>\nMulti-Arch: same\nOrigin: Ubuntu\nBugs: https://bugs.launchpad.net/ubuntu/+filebug\nTask: kubuntu-desktop, kubuntu-full, xubuntu-desktop, lubuntu-desktop-minimal, lubuntu-desktop, ubuntustudio-desktop, ubuntustudio-desktop-core, ubuntukylin-desktop, ubuntukylin-desktop, ubuntukylin-desktop-minimal, ubuntu-mate-core, ubuntu-mate-desktop, ubuntu-budgie-desktop-minimal, ubuntu-budgie-desktop, ubuntu-budgie-desktop-raspi, ubuntu-unity-desktop, edubuntu-desktop-gnome, edubuntu-desktop-gnome-raspi, ubuntucinnamon-desktop-minimal, ubuntucinnamon-desktop, ubuntucinnamon-desktop, ubuntucinnamon-desktop-raspi"
+        }
+      ],
+      "matrix": {
+        "cases": [
+          {
+            "host": "windows",
+            "secure": false,
+            "version": "5",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-windows-ws-5-attempt4.log"
+          },
+          {
+            "host": "windows",
+            "secure": false,
+            "version": "311",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-windows-ws-311.log"
+          },
+          {
+            "host": "windows",
+            "secure": true,
+            "version": "5",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-windows-wss-5.log"
+          },
+          {
+            "host": "windows",
+            "secure": true,
+            "version": "311",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-windows-wss-311.log"
+          },
+          {
+            "host": "wsl",
+            "secure": false,
+            "version": "5",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-wsl-ws-5.log"
+          },
+          {
+            "host": "wsl",
+            "secure": false,
+            "version": "311",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-wsl-ws-311.log"
+          },
+          {
+            "host": "wsl",
+            "secure": true,
+            "version": "5",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-wsl-wss-5.log"
+          },
+          {
+            "host": "wsl",
+            "secure": true,
+            "version": "311",
+            "exit_code": 1,
+            "data_exchange": true,
+            "physical_join": true,
+            "clean_disconnect": false,
+            "log": "wsl-broker-wsl-wss-311.log"
+          }
+        ],
+        "complete": false
+      },
+      "complete": false,
+      "finding": "All8 Windows/WSL,MQTT5/3.1.1,WS/WSS cases verify HTTP101/mqtt,CONNACK,PUBACK and physical Client/Resolver/Engine joins using real CA trust. All8 strict application Disconnect commands return nonzero TRANSPORT because the tested broker closes without a returned WS Close. Do not count these as clean interoperability success.",
+      "wire_witness": {
+        "client": [
+          {
+            "opcode": 2,
+            "bytes": 36,
+            "payload_hex": "102200044d515454050200000000157872742d776562736f636b65742d6578616d706c65"
+          },
+          {
+            "opcode": 2,
+            "bytes": 20,
+            "payload_hex": "3212000a6578616d706c652f777300010078007a"
+          },
+          {
+            "opcode": 2,
+            "bytes": 2,
+            "payload_hex": "e000"
+          },
+          {
+            "opcode": 8,
+            "bytes": 2,
+            "payload_hex": "03e8"
+          }
+        ],
+        "server": [
+          {
+            "opcode": 2,
+            "bytes": 11,
+            "payload_hex": "200900000622000a210014"
+          },
+          {
+            "opcode": 2,
+            "bytes": 5,
+            "payload_hex": "4003000110"
+          }
+        ]
+      },
+      "wire_scope": "Independent plain TCP relay decodes actual client Binary CONNECT/PUBLISH/DISCONNECT plus Close1000 and server Binary CONNACK/PUBACK followed by EOF with no Close. Instrumented private diagnostic reports flags=SENT only, transportOK. Native success predicates were not relaxed."
+    }
+  },
+  "distribution": {
+    "new_exports": {
+      "windows": [
+        "xmqttClientWsConnect",
+        "xmqttClientWsConnectConfigInit",
+        "xmqttClientWsConnectInfo",
+        "xmqttClientWsDial",
+        "xmqttClientWsDialAddresses",
+        "xmqttClientWssConnect",
+        "xmqttClientWssDial",
+        "xmqttClientWssDialAddresses"
+      ],
+      "wsl": [
+        "xmqttClientWsConnect",
+        "xmqttClientWsConnectConfigInit",
+        "xmqttClientWsConnectInfo",
+        "xmqttClientWsDial",
+        "xmqttClientWsDialAddresses",
+        "xmqttClientWssConnect",
+        "xmqttClientWssDial",
+        "xmqttClientWssDialAddresses"
+      ]
+    },
+    "internal_bridge_exported": false,
+    "example": "Documented native hostname WS/WSS CLI, real CA verification, explicit DATA and physical JOIN observations; incomplete clean shutdown remains exit failure. No-argument execution only prints usage and is separately identified."
+  },
+  "gates": {
+    "development_maturity": true,
+    "strict_release": false,
+    "performance_quality": false,
+    "note": "Generation/API/reference/layout/index and development coverage pass. All new leaves remain developing; strict release is intentionally still closed, not suppressed."
+  },
+  "performance": {
+    "accepted": false,
+    "diagnostics": {
+      "windows": {
+        "performance_profiles": {
+          "policy": "baseline-unpinned",
+          "source_fingerprint": "e25faeff9c4441517aae56d2c69fa1184c12b8fe9c946b912855e1e11dab78c4",
+          "profiles": {
+            "xmqtt_client_ws_connect": {
+              "cycles_per_sec": 19.439,
+              "ready_latency_p50_us": 511.4,
+              "ready_latency_p99_us": 644.8,
+              "ready_latency_max_us": 1181.6,
+              "retire_latency_mean_us": 49806.044,
+              "cold_peak_bytes": 4526.0
+            },
+            "xmqtt_client_ws_connect_tls": {
+              "cycles_per_sec": 13.884,
+              "ready_latency_p50_us": 13241.5,
+              "ready_latency_p99_us": 15673.5,
+              "ready_latency_max_us": 17087.3,
+              "retire_latency_mean_us": 48878.612,
+              "cold_peak_bytes": 4526.0
+            }
+          }
+        },
+        "steady_profiles": {
+          "policy": "baseline-unpinned",
+          "source_fingerprint": "137030fdb2eb38f46adaeca47f18cbd8881b91a01d39ab2e55d06862fb812336",
+          "profiles": {
+            "xmqtt_client_ws_connect_steady": {
+              "publishes_per_sec": 17763.024,
+              "latency_p50_us": 1796.7,
+              "latency_p99_us": 2159.4,
+              "latency_max_us": 2495.0,
+              "heap_blocks_per_publish": 9.8456,
+              "heap_bytes_per_publish": 1067.6504
+            },
+            "xmqtt_client_ws_connect_steady_tls": {
+              "publishes_per_sec": 20735.135,
+              "latency_p50_us": 1586.1,
+              "latency_p99_us": 2237.5,
+              "latency_max_us": 2409.1,
+              "heap_blocks_per_publish": 9.7462,
+              "heap_bytes_per_publish": 1063.3624
+            }
+          }
+        }
+      },
+      "wsl": {
+        "performance_profiles": {
+          "policy": "baseline-unpinned",
+          "source_fingerprint": "e25faeff9c4441517aae56d2c69fa1184c12b8fe9c946b912855e1e11dab78c4",
+          "profiles": {
+            "xmqtt_client_ws_connect": {
+              "cycles_per_sec": 113.267,
+              "ready_latency_p50_us": 349.4,
+              "ready_latency_p99_us": 409.1,
+              "ready_latency_max_us": 1289.0,
+              "retire_latency_mean_us": 7864.688,
+              "cold_peak_bytes": 4526.0
+            },
+            "xmqtt_client_ws_connect_tls": {
+              "cycles_per_sec": 32.268,
+              "ready_latency_p50_us": 12724.5,
+              "ready_latency_p99_us": 15166.499,
+              "ready_latency_max_us": 16456.4,
+              "retire_latency_mean_us": 8067.256,
+              "cold_peak_bytes": 4526.0
+            }
+          }
+        },
+        "steady_profiles": {
+          "policy": "baseline-unpinned",
+          "source_fingerprint": "137030fdb2eb38f46adaeca47f18cbd8881b91a01d39ab2e55d06862fb812336",
+          "profiles": {
+            "xmqtt_client_ws_connect_steady": {
+              "publishes_per_sec": 13387.703,
+              "latency_p50_us": 2162.9,
+              "latency_p99_us": 5947.9,
+              "latency_max_us": 11364.601,
+              "heap_blocks_per_publish": 9.6136,
+              "heap_bytes_per_publish": 1267.108
+            },
+            "xmqtt_client_ws_connect_steady_tls": {
+              "publishes_per_sec": 22041.72,
+              "latency_p50_us": 1486.7,
+              "latency_p99_us": 2166.0,
+              "latency_max_us": 2335.6,
+              "heap_blocks_per_publish": 9.6171,
+              "heap_bytes_per_publish": 1265.1656
+            }
+          }
+        }
+      }
+    },
+    "scope": "Unpinned shared host. Cold cycles include separate fixture Engine/Resolver/listener create/destroy and use a fixture TLS verifier; setup latency begins before the actual factory. Steady profiles use native HTTP factory then time10000 MQTT5 QoS1 messages,32-byte payload,window32,packet-ID checksum and XRT allocation instrumentation including both peers. Measurements do not cover all CPU/CRT/native costs, controlled P99.9/scale or equivalent-workload comparisons. Quality failures remain recorded; no threshold relaxation or rerun-to-green."
+  },
+  "source_identity": {
+    "final_source_map_sha256": "710a9e6a1c73a09cb215bd4d52bed30f7ca3f01a82f149a56584ed0a6c957846",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "policy": "Selected passing C programs match final src/include/single hashes. Old assumptions, failed prototypes, nonzero broker close cases and pre-fix race evidence remain distinct. Source snapshots and real binaries are preserved."
+  },
+  "failures": [
+    {
+      "receipts": "windows-close_probe-receipts.json",
+      "label": "close-probe-build",
+      "log": "windows-close-probe-build.log",
+      "exit_code": 1,
+      "source_map_sha256": "fd7e93c47a82926f581247d652ad17ddc2abe4795e896119c8851ca725cb6874"
+    },
+    {
+      "receipts": "windows-example_build-receipts.json",
+      "label": "example-build",
+      "log": "windows-example-build.log",
+      "exit_code": 1,
+      "source_map_sha256": "8391813c1c68737f747a7c91d6d2044db8da4da20809063fad05c137df620547"
+    },
+    {
+      "receipts": "windows-measure-receipts.json",
+      "label": "measure_performance",
+      "log": "windows-measure_performance.log",
+      "exit_code": 1,
+      "source_map_sha256": "1a5c9f0297dcaace2c014db098d3f9ae57c1244d2a6f9dbebc8a33ec1050d0d1"
+    },
+    {
+      "receipts": "windows-measure_steady-receipts.json",
+      "label": "measure-steady",
+      "log": "windows-measure-steady.log",
+      "exit_code": 1,
+      "source_map_sha256": "5496c68daf683b6acf68f887b2540e1cd56dd6d80b2ce8920f0188358cf5083b"
+    },
+    {
+      "receipts": "windows-relink-receipts.json",
+      "label": "test_client_ws_connect",
+      "log": "windows-test_client_ws_connect.log",
+      "exit_code": 1,
+      "source_map_sha256": "e6a3a3d179afc7c1b0df5c7c7f906ebced8570729ce17fe2f0abd25cf0ae1fb5"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "log": "windows-strict-release.log",
+      "exit_code": 1,
+      "source_map_sha256": "710a9e6a1c73a09cb215bd4d52bed30f7ca3f01a82f149a56584ed0a6c957846"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tests",
+      "log": "windows-xmqtt_client_ws_connect_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "f65346bb1a0bd0a385fb47e24dcbeff29222f6db54533941013145158977624a"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tests",
+      "log": "windows-xmqtt_client_ws_connect_tests-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "6451c0f680f7f409934d58c45faa12efcaa6d22004831361ca47b3b61f9beec2"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tls_tests",
+      "log": "windows-xmqtt_client_ws_connect_tls_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "89e2007f067822650b3bb81dee1b815a201e5ae222cb6673d42bbbda3454173b"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tests",
+      "log": "windows-xmqtt_client_ws_connect_tests-attempt4.log",
+      "exit_code": 1,
+      "source_map_sha256": "279253e5bcafbba125de1c8ad0220a0bc661b23c0c53e0313837cd5d6b841366"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tls_tests",
+      "log": "windows-xmqtt_client_ws_connect_tls_tests-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "de3eeb8aebd948ef2681bd327d7fa477c27b5a98d4cfa446da7a9ecfb3a55119"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_connect_tls_tests",
+      "log": "windows-xmqtt_client_ws_connect_tls_tests-attempt3.log",
+      "exit_code": 1,
+      "source_map_sha256": "96321601f58c99f98a6c56f3727b310b5cd4c90dc84506162593b747ab17ff7e"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-ws-5",
+      "log": "wsl-broker-windows-ws-5.log",
+      "exit_code": 1,
+      "source_map_sha256": "6033312570eaad92647be4c696291ea31815f8d5c1ceb45c071283b3bd881175"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-ws-5",
+      "log": "wsl-broker-windows-ws-5-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "fd7e93c47a82926f581247d652ad17ddc2abe4795e896119c8851ca725cb6874"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-ws-5",
+      "log": "wsl-broker-windows-ws-5-attempt3.log",
+      "exit_code": 1,
+      "source_map_sha256": "fd7e93c47a82926f581247d652ad17ddc2abe4795e896119c8851ca725cb6874"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-ws-5",
+      "log": "wsl-broker-windows-ws-5-attempt4.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-ws-311",
+      "log": "wsl-broker-windows-ws-311.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-wss-5",
+      "log": "wsl-broker-windows-wss-5.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-windows-wss-311",
+      "log": "wsl-broker-windows-wss-311.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-wsl-ws-5",
+      "log": "wsl-broker-wsl-ws-5.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-wsl-ws-311",
+      "log": "wsl-broker-wsl-ws-311.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-wsl-wss-5",
+      "log": "wsl-broker-wsl-wss-5.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-broker_interop-receipts.json",
+      "label": "broker-wsl-wss-311",
+      "log": "wsl-broker-wsl-wss-311.log",
+      "exit_code": 1,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-final_tests-receipts.json",
+      "label": "xmqtt_client_ws_connect_tests",
+      "log": "wsl-xmqtt_client_ws_connect_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "6033312570eaad92647be4c696291ea31815f8d5c1ceb45c071283b3bd881175"
+    },
+    {
+      "receipts": "wsl-measure-receipts.json",
+      "label": "measure_performance",
+      "log": "wsl-measure_performance.log",
+      "exit_code": 1,
+      "source_map_sha256": "1a5c9f0297dcaace2c014db098d3f9ae57c1244d2a6f9dbebc8a33ec1050d0d1"
+    },
+    {
+      "receipts": "wsl-measure_steady-receipts.json",
+      "label": "measure-steady",
+      "log": "wsl-measure-steady.log",
+      "exit_code": 1,
+      "source_map_sha256": "5496c68daf683b6acf68f887b2540e1cd56dd6d80b2ce8920f0188358cf5083b"
+    },
+    {
+      "receipts": "wsl-tsan-receipts.json",
+      "label": "test_single_xmqtt_client_ws_connect_tls-select",
+      "log": "wsl-test_single_xmqtt_client_ws_connect_tls-select.log",
+      "exit_code": 66,
+      "source_map_sha256": "e2db64a18192e6797c506ccd78abdac9f3609736fbd9ab1ee58878feb52ae07b"
+    },
+    {
+      "receipts": "wsl-tsan-receipts.json",
+      "label": "test_single_xmqtt_client_ws_connect_tls_faults-select",
+      "log": "wsl-test_single_xmqtt_client_ws_connect_tls_faults-select.log",
+      "exit_code": 1,
+      "source_map_sha256": "1a5c9f0297dcaace2c014db098d3f9ae57c1244d2a6f9dbebc8a33ec1050d0d1"
+    },
+    {
+      "receipts": "wsl-wire_trace-receipts.json",
+      "label": "wire-trace-client",
+      "log": "wsl-wire-trace-client.log",
+      "exit_code": 1,
+      "source_map_sha256": "fd7e93c47a82926f581247d652ad17ddc2abe4795e896119c8851ca725cb6874"
+    }
+  ],
+  "corrections": [
+    "Mandatory HTTP writer size output added after initial constructor failure.",
+    "Feature-compatible WSS fixture explicitly uses zero ResumeLimit; post-handoff capture remains required later.",
+    "Partial TLS HTTP request fixture consumes its cached prefix to allow native next-record progress; a peek-only fixture could stall on one-byte records.",
+    "Queued server WS fixture handoff permits a negative-case Client to close first; an unconsumed native reference remains for actual cleanup.",
+    "Fix warning-clean C branches and actual X509StoreFree example API; retain compile failures.",
+    "Correct the post-publication owner-only Stream read found by TSan.",
+    "An80ms original setup clock may expire during instrumented TLS, so only explicit HTTP cancellation/queue controls require observing the header first; timeout assertions remain active.",
+    "Independent byte relay verifies the broker Close gap; strict native completion semantics remain unchanged."
+  ],
+  "remaining": [
+    "URI/authority/target factories and automatic reconnect WS/WSS transport integration with generation leases and original clocks",
+    "Post-Upgrade TLS credential capture and full resumption/reconnect surface; supplied Resume is accepted but new WSS ResumeLimit must be zero in this stage",
+    "Durable protocol state and remaining session/auth/adversarial/async-OOM/partial-write/load matrices",
+    "Strict clean broker-shutdown qualification/compatibility policy, additional independent brokers and all original MQTT transport scope",
+    "Controlled throughput/tails/CPU/allocation/copy and large-scale work, native Windows/native Linux>=72h soak",
+    "Remaining original Redis/RPC/Cron work and complete four-product release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-websocket-connect-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "d46b3e8fae56c67fbd28b1f7c855ce05276f0fe70b60e6a80f7d6ca57eccba9f",
+    "regular_files": 980,
+    "sha256_verified": true,
+    "scope": "Source maps/changed-source snapshots, selected actual binaries, every raw attempt including failures, packages/declarations, cold/steady benchmark executables, size objects, independent peer/wire diagnostics and original scripts. Complete checksummed apt archives retain local broker/dependency licenses and reconstruct its extracted root. Generated local public CA/server certificates preserved; generated private keys, unpacked root, compiler/object caches and temporary files excluded. Fixtures and archives are test evidence, not production credentials or an embedded reference client implementation."
+  }
+}

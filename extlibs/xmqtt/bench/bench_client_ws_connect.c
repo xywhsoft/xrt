@@ -1,0 +1,11 @@
+#include "../tests/support/ws_connect_peer.h"
+#include <inttypes.h>
+static int wsSetupOrder(const void* A,const void* B){double X=*(const double*)A,Y=*(const double*)B;return X<Y?-1:X>Y?1:0;}
+int main(int Count,char** Args)
+{
+    unsigned N=Count>1?(unsigned)strtoul(Args[1],NULL,10):16;bool Secure=Count>2&&strtoul(Args[2],NULL,10)!=0;if(!N||N>256||Count>3)return 2;double* Times=malloc(N*sizeof(*Times));testRequire(Times!=NULL,"setup latency samples");double Retire=0,Start=xrtTimer();size_t Peak=0;uint64 Sum=0;
+    for(unsigned I=0;I<N;++I){mqttWsConnectPeer P;mqttWsConnectInit(&P,Secure,XMQTT_VERSION_5,XNET_PORT_SELECT);xmqttclientwsconnectconfig W;xmqttClientWsConnectConfigInit(&W);W.Host=XRT_STR_LITERAL("example.com");W.Target=XRT_STR_LITERAL("/mqtt?x=%00");double Entered=xrtTimer();xmqttclient* C=wsConnectStart(&P,0,NULL,&W);xfuture* F=xmqttClientReady(C);testRequire(((const xmqttreadyresult*)mqttWsFuture(F))->Status==XMQTT_STATUS_OK,"measured native setup plus MQTT readiness");Times[I]=(xrtTimer()-Entered)*1000000.;xmqttclientwsconnectinfo Info={.Size=sizeof(Info)};testRequire(xmqttClientWsConnectInfo(C,&Info)&&Info.Upgraded&&Info.Status==101,"measured real HTTP101 state");if(Info.PeakColdBytes>Peak)Peak=Info.PeakColdBytes;
+        xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Body.Publish.Topic=XRT_STR_LITERAL("ws/topic");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("x\0z");xfuture* Sent=NULL;testRequire(xmqttClientPublishAsync(C,&Q,5000,&Sent)==XMQTT_ADMISSION_ACCEPTED,"measured setup application control");const xmqttwriteresult* R=mqttWsFuture(Sent);testRequire(R->Status==XMQTT_STATUS_OK&&R->Identifier==1&&R->Puback,"measured PUBACK control");Sum+=R->Identifier;Entered=xrtTimer();mqttWsCloseClient(C);mqttWsConnectStop(&P);Retire+=xrtTimer()-Entered;xrtFutureDestroy(F);xrtFutureDestroy(Sent);
+    }
+    double Elapsed=xrtTimer()-Start;testRequire(Sum==N,"exact measured exchange checksum");qsort(Times,N,sizeof(*Times),wsSetupOrder);printf("cycles_per_sec: %.3f\nready_latency_p50_us: %.3f\nready_latency_p99_us: %.3f\nready_latency_max_us: %.3f\nretire_latency_mean_us: %.3f\ncold_peak_bytes: %zu\nchecksum: %" PRIu64 "\n",N/Elapsed,Times[N/2],Times[(N-1)*99/100],Times[N-1],Retire*1000000./N,Peak,Sum);free(Times);return 0;
+}

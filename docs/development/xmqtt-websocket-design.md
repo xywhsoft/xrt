@@ -35,7 +35,7 @@ success. Native completion can retire a batch at once. Keep real request/quota
 credits through the enclosing native duties, including early QoS acknowledgements.
 No per-write Future/watch or separate runtime is required by this primitive.
 
-## Integration still to implement and verify
+## Original integration checklist (see dated evidence below)
 
 - Native TCP/WSS attachment plus the existing Client APIs, Session/Inbox/Auth
   variants and physical close/Wait/Destroy. Use existing original entry clocks;
@@ -63,6 +63,13 @@ WebSocket delivery and all four-product acceptance remain incomplete.
 Implementation update 2026-11-16: native post-Upgrade attachment, ordinary Client
 integration and selected Auth/Session recovery now have source-bound evidence in
 [xmqtt-websocket-20261116.json](xmqtt-websocket-20261116.json). Host-native HTTP
-establishment, original whole-setup clocks, reconnect factories and broader
-production/performance acceptance remain outstanding; this does not supersede
-the complete scope above.
+establishment and original whole-setup clocks are covered by the subsequent
+native setup stage below. Reconnect factories and broader production/performance
+acceptance remain outstanding; the full checklist is not yet accepted.
+
+
+Native setup update 2026-11-16: numeric, counted DNS and prepared WS/WSS factories
+now perform strict native HTTP Upgrade under the original Client clock. See
+[xmqtt-websocket-connect-20261116.json](xmqtt-websocket-connect-20261116.json).
+URI/reconnect, credential capture after WSS handoff, durability, clean broker-close
+qualification and production/performance acceptance remain outstanding.
