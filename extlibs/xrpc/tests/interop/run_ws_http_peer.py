@@ -6,7 +6,7 @@ No implementation library or WebSocket package is imported by the Python peer.
 import argparse,base64,hashlib,json,os,platform,queue,random,shutil,socket,ssl,struct,subprocess,sys,tempfile,threading,time,zlib
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[4]
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('binary',type=Path);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--quick',action='store_true');p.add_argument('--dial',action='store_true');p.add_argument('--only');p.add_argument('--deflate',choices=['takeover','no-context','decline','threshold','missing','invalid','bomb']+['window'+str(b) for b in range(8,16)]);a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('binary',type=Path);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--quick',action='store_true');p.add_argument('--dial',action='store_true');p.add_argument('--uri',action='store_true');p.add_argument('--only');p.add_argument('--deflate',choices=['takeover','no-context','decline','threshold','missing','invalid','bomb']+['window'+str(b) for b in range(8,16)]);a=p.parse_args()
 binary=a.binary if a.binary.is_absolute() else ROOT/a.binary;out=a.output_dir if a.output_dir.is_absolute() else ROOT/a.output_dir;out.mkdir(parents=True,exist_ok=True);assert binary.is_file()
 openssl=shutil.which('openssl')
 if not openssl and os.name=='nt':
@@ -19,6 +19,9 @@ pattern=base64.b64encode(random.Random(971).randbytes(2048)).decode()
 env=dict(os.environ,ASAN_OPTIONS='detect_leaks=1:halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1')
 if a.dial:env['XRPC_TEST_WS_DIAL']='1'
 else:env.pop('XRPC_TEST_WS_DIAL',None)
+if a.uri:env['XRPC_TEST_WS_URI']='1'
+else:env.pop('XRPC_TEST_WS_URI',None)
+assert not(a.uri and a.dial),'select URI or lower-level dial'
 
 def exact(s,n):
  data=b''
@@ -139,9 +142,9 @@ def failure_drain(s,masked):
   if opcode==8:return
   assert opcode in (1,10)
 
-def client_case(s,mode,fragment):
+def client_case(s,mode,fragment,authority=b'rpc.test'):
  global compressed
- start,f=head(s);assert start==b'GET /rpc HTTP/1.1' and f[b'host']==[b'rpc.test'] and f[b'authorization']==[b'Bearer fixture'] and f[b'sec-websocket-protocol']==[b'jsonrpc']
+ start,f=head(s);assert start==b'GET /rpc HTTP/1.1' and f[b'host']==[authority] and f[b'authorization']==[b'Bearer fixture'] and f[b'sec-websocket-protocol']==[b'jsonrpc']
  key=f[b'sec-websocket-key'][0];assert len(base64.b64decode(key,validate=True))==16;keys.append(key.decode());no_rpc(s)
  if mode=='timeout':time.sleep(.9);return None
  if mode=='reject':send(s,b'HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n',fragment);return 403
@@ -223,7 +226,8 @@ with tempfile.TemporaryDirectory(prefix='ws-http-',dir=out) as temporary:
       context=None
       if secure:
        context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER if role=='client' else ssl.PROTOCOL_TLS_CLIENT)
-       if role=='client':context.load_cert_chain(str(temp/'peer.pem'),str(temp/'peer.key'))
+       if role=='client':
+        context.load_cert_chain(str(temp/'peer.pem'),str(temp/'peer.key'));server_names=[];context.set_servername_callback(lambda sock,name,ctx:server_names.append(name))
        else:context.load_verify_locations(cafile=str(temp/'ca.pem'))
        context.minimum_version=context.maximum_version=ssl.TLSVersion.TLSv1_3
       process=subprocess.Popen([str(binary),role,'tls' if secure else 'tcp',mode,str(port),str(temp/'peer.der'),str(temp/'key.der')]+([a.deflate] if a.deflate else []),stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=env)
@@ -234,7 +238,8 @@ with tempfile.TemporaryDirectory(prefix='ws-http-',dir=out) as temporary:
       reader=threading.Thread(target=read_lines);reader.start();line=lines.get(timeout=15);assert line,process.stderr.read()
       if role=='client':assert line.startswith('READY'),line;raw,_=listener.accept();s=context.wrap_socket(raw,server_side=True) if secure else raw
       else:assert line.startswith('PORT '),line;raw=socket.create_connection(('127.0.0.1',int(line.split()[1])),timeout=15);s=context.wrap_socket(raw,server_hostname='rpc.test') if secure else raw
-      s.settimeout(10);version=s.version() if secure else None;status=(client_case if role=='client' else server_case)(s,mode,fragment)
+      s.settimeout(10);version=s.version() if secure else None;status=client_case(s,mode,fragment,('rpc.test:'+str(port)).encode() if a.uri else b'rpc.test') if role=='client' else server_case(s,mode,fragment)
+      if secure and role=='client':assert server_names==['rpc.test'],'actual URI/default native SNI'
       if secure and mode=='normal':
        try:raw=s.unwrap();raw.close()
        except (ssl.SSLEOFError,ConnectionResetError,ssl.SSLZeroReturnError):pass
@@ -258,5 +263,5 @@ with tempfile.TemporaryDirectory(prefix='ws-http-',dir=out) as temporary:
        if process.stderr:process.stderr.close()
       if reader:reader.join(timeout=5)
  assert len(keys)==len(set(keys)),'client nonce reused between independent connections'
-report=dict(binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),python=sys.version,openssl=ssl.OPENSSL_VERSION,zlib=zlib.ZLIB_RUNTIME_VERSION,deflate=a.deflate,dial_clients=a.dial,platform=platform.platform(),public_certificate_sha256=cert_sha,private_keys_recorded=False,cases=cases,scope='Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance.')
+report=dict(binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),python=sys.version,openssl=ssl.OPENSSL_VERSION,zlib=zlib.ZLIB_RUNTIME_VERSION,deflate=a.deflate,dial_clients=a.dial,uri_clients=a.uri,platform=platform.platform(),public_certificate_sha256=cert_sha,private_keys_recorded=False,cases=cases,scope='Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance.')
 a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n');print('[PASS]',len(cases),'independent WS HTTP sessions')

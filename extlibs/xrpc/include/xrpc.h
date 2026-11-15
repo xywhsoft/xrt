@@ -98,4 +98,8 @@
 #error "XRPC_FEATURE_XRPC requires WS/WSS connection setup"
 #endif
 #include <xrpc/ws_dial.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+#error "XRPC_FEATURE_XRPC requires WS/WSS URI input"
+#endif
+#include <xrpc/ws_uri.h>
 #endif

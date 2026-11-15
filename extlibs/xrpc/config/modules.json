@@ -180,6 +180,13 @@
         "source_roots": [
           "ws"
         ]
+      },
+      {
+        "name": "ws_uri",
+        "state": "retained",
+        "source_roots": [
+          "ws_uri"
+        ]
       }
     ]
   },
@@ -256,7 +263,8 @@
         "xrpc_ws_tls",
         "xrpc_ws_http_tls",
         "xrpc_ws_http_deflate",
-        "xrpc_ws_dial_tls"
+        "xrpc_ws_dial_tls",
+        "xrpc_ws_uri_tls"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -773,7 +781,10 @@
         "xrpc_ws_http_deflate_tests",
         "xrpc_ws_http_tls_deflate_tests",
         "xrpc_ws_dial_tests",
-        "xrpc_ws_dial_tls_tests"
+        "xrpc_ws_dial_tls_tests",
+        "xrpc_ws_uri_parse_tests",
+        "xrpc_ws_uri_tests",
+        "xrpc_ws_uri_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -1993,6 +2004,146 @@
       "docs": [
         "extlibs/xrpc/docs/ws_dial.md",
         "extlibs/xrpc/examples/ws_dial/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri_parse",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_WS_URI_PARSE",
+      "depends": [
+        "http_target"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/ws_uri/uri.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_ws_uri.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_WS_URI",
+      "depends": [
+        "xrpc_ws_uri_parse",
+        "xrpc_ws_dial"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri_tls",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_WS_URI_TLS",
+      "depends": [
+        "xrpc_ws_uri",
+        "xrpc_ws_dial_tls"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri_parse_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_ws_uri_parse",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_ws_uri_parse.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_uri_parse.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_ws_uri",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_ws_uri.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_uri.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/ws_uri/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_uri_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_ws_uri_tls",
+        "xrpc_ws_dial_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_ws_uri.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_uri_tls.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/ws_uri/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_uri.md"
       ]
     }
   ]

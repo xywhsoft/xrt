@@ -25,13 +25,13 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. URI/dial composition for HTTP and framed stdio,
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. [WS/WSS dial](docs/ws_dial.md) and [URI input](docs/ws_uri.md) compose native setup. Framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
 thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.
 WS config gained two unconditional fields, so rebuild checked-Size users with
-the matching headers/libraries. URI/dial composition and framed stdio remain open.
+the matching headers/libraries. [WS/WSS URI input](docs/ws_uri.md) is available; framed stdio remains open.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
 caller-owned message scratch. It classifies calls, notifications, success/error
@@ -261,5 +261,11 @@ The optional [WS/WSS dial leaf](docs/ws_dial.md) creates one peer directly from 
 numeric endpoint, borrowed asynchronous Resolver or retained prepared endpoints.
 It composes verified TLS and checked HTTP Upgrade under one original setup clock,
 with queued RPC operations, native typed results and physical close/owner joins.
-Run [the client-establishment example](examples/ws_dial/README.md). URI input,
-negotiated remote extensions and production/performance qualification remain open.
+Run [the client-establishment example](examples/ws_dial/README.md). Negotiated
+remote extensions and production/performance qualification remain open.
+
+Optional [WS/WSS URI input](docs/ws_uri.md) adds bounded zero-heap syntax parsing
+and same-peer ws/wss factories with exact authority/resource preservation, decoded
+routing, default TLS identity and the existing original setup clock/retirement.
+See [the runnable URI example](examples/ws_uri/README.md). This remains developing;
+production and performance acceptance are separate outstanding gates.

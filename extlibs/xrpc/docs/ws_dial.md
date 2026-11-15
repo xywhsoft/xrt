@@ -19,7 +19,7 @@ inputs. The native TLS client snapshot holds context/verifier/resume references
 and copies names/ALPN before returning. Keep callback data/code alive through
 physical Destroy. Negotiated ALPN must be empty or http/1.1. No cleartext fallback,
 credential retry, replay, redirect, implicit reconnect or IDNA conversion occurs.
-The URI convenience input layer is still pending.
+The developing [URI input layer](ws_uri.md) composes these same factories.
 
 HTTP SetupTimeout begins at factory entry and includes validation/copy, owner
 queue, DNS, candidate retirement, verified TLS, Upgrade and authorization. Zero

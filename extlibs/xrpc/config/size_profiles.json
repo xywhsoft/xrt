@@ -194,6 +194,21 @@
         "xrpcTcp",
         "xrpcFrame"
       ]
+    },
+    {
+      "name": "xrpc_ws_uri_parse",
+      "system": "ws_uri",
+      "suite": "xrpc_ws_uri_parse",
+      "description": "Allocation-free WS URI syntax and resource accounting, independent of all native transport/client runtimes",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtWebSocket",
+        "xrtProcess",
+        "xrpcWsConnect",
+        "xrpcWsDial",
+        "xrpcServer"
+      ]
     }
   ]
 }

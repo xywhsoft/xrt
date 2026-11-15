@@ -7,6 +7,10 @@
 #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
 #include <xrpc/ws_dial.h>
 #endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+#include <xrpc/ws_uri.h>
+#include <xrt/charset.h>
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
 #include <xrpc/ws_deflate.h>
 #endif
@@ -985,6 +989,47 @@ XRPC_API bool xrpcWsDialTls(xnetengine* E,xnetresolver* R,xstrview N,uint16 Port
 {return xrpcWsDialCreate(E,NULL,R,NULL,N,Port,F,true,T,S,C,H,D,Out,xrtTimer());}
 XRPC_API bool xrpcWsDialAddressesTls(xnetengine* E,xnetaddrlist* A,uint64 F,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
 {if(!A)return xrpcWsReport(XERR_ARGUMENT,"WSS endpoints are NULL");return xrpcWsDialCreate(E,NULL,NULL,A,(xstrview){0},0,F,true,T,S,C,H,D,Out,xrtTimer());}
+#endif
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+static int xrpcWsUriHex(unsigned char C)
+{return C>='0'&&C<='9'?C-'0':C>='a'&&C<='f'?C-'a'+10:C>='A'&&C<='F'?C-'A'+10:-1;}
+static bool xrpcWsUriRoute(xnetengine* E,xnetresolver* R,const xrpcwsuri* U,xstrview Target,uint64 Affinity,bool Secure,
+    const void* Client,const void* NativeTLS,const xrpcwsconfig* Config,const xrpcwshttpconfig* HTTP,const xrpcwsdialconfig* Dial,xrpcws** Out,double Entered)
+{
+    char Decoded[XRPC_WS_URI_MAX_AUTHORITY+1];xstrview Route=U->Host;
+    if(memchr(Route.Data,'%',Route.Size)){
+        size_t N=0;for(size_t I=0;I<Route.Size;++I){unsigned char C=(unsigned char)Route.Data[I];if(C=='%'){int A=xrpcWsUriHex((unsigned char)Route.Data[I+1]),B=xrpcWsUriHex((unsigned char)Route.Data[I+2]);C=(unsigned char)(A*16+B);I+=2;}
+            if(C<=32||C==127||C=='/'||C==':'||C=='?'||C=='#'||C=='@'||C=='['||C==']'){return xrpcWsReport(XERR_ARGUMENT,"decoded URI host contains a forbidden routing byte");}
+            Decoded[N++]=(char)C;}
+        Route=(xstrview){Decoded,N};if(!xrtUtf8Valid(Route,NULL))return xrpcWsReport(XERR_ARGUMENT,"decoded URI host is not UTF-8");
+    }
+    bool Numeric=U->HostKind==XRPC_WS_URI_IPV4||U->HostKind==XRPC_WS_URI_IPV6||xrtHttpIpv4Valid(Route);xnetaddr Address;
+    if(Numeric){char IP[64];if(Route.Size>=sizeof(IP))return xrpcWsReport(XERR_ARGUMENT,"URI IP literal exceeds bound");memcpy(IP,Route.Data,Route.Size);IP[Route.Size]=0;if(!xrtNetAddrParse(&Address,IP,U->Port))return false;}
+    xrpcwshttpconfig H={0};if(HTTP){if(!xrtMemRangeValid(HTTP,sizeof(*HTTP))||xrtMemRangesOverlap(HTTP,sizeof(*HTTP),Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"invalid URI HTTP policy/output overlap");H=*HTTP;}else xrpcWsHttpConfigInit(&H);
+    H.Host=U->Authority;H.Target=Target;
+    #if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+    xtlsclientconfig TLS;
+    if(Secure){if(!Client||!xrtMemRangeValid(Client,sizeof(TLS))||xrtMemRangesOverlap(Client,sizeof(TLS),Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"URI TLS requires an explicit client/trust policy");TLS=*(const xtlsclientconfig*)Client;if(!TLS.VerifyName.Size)TLS.VerifyName=Route;if(!TLS.ServerName.Size&&!Numeric)TLS.ServerName=Route;Client=&TLS;}
+    #endif
+    return xrpcWsDialCreate(E,Numeric?&Address:NULL,Numeric?NULL:R,NULL,Numeric?(xstrview){0}:Route,Numeric?0:U->Port,Affinity,Secure,Client,NativeTLS,Config,&H,Dial,Out,Entered);
+}
+static bool xrpcWsUriCreate(xnetengine* E,xnetresolver* R,xstrview URI,uint64 Affinity,bool Secure,const void* Client,const void* NativeTLS,
+    const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out,double Entered)
+{
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!xrtMemRangeValid(URI.Data,URI.Size)||xrtMemRangesOverlap(URI.Data,URI.Size,Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"invalid URI/output range or overlap");
+    xrpcwsuri U={.Size=sizeof(U)};if(!xrpcWsUriParse(URI,&U))return false;
+    if(U.Secure!=Secure)return xrpcWsReport(XERR_ARGUMENT,"URI scheme does not match the explicit secure/plain factory");
+    if(U.HostKind==XRPC_WS_URI_IPVFUTURE)return xrpcWsReport(XERR_UNSUPPORTED,"URI IPvFuture address mechanism is unsupported");
+    if(!U.Path.Size&&U.Query.Size){char Target[XRPC_WS_URI_MAX_TARGET];Target[0]='/';Target[1]='?';memcpy(Target+2,U.Query.Data,U.Query.Size);return xrpcWsUriRoute(E,R,&U,(xstrview){Target,U.TargetBytes},Affinity,Secure,Client,NativeTLS,C,H,D,Out,Entered);}
+    xstrview Target=U.Path.Size?(xstrview){U.Path.Data,U.TargetBytes}:XRT_STR_LITERAL("/");
+    return xrpcWsUriRoute(E,R,&U,Target,Affinity,Secure,Client,NativeTLS,C,H,D,Out,Entered);
+}
+XRPC_API bool xrpcWsConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsUriCreate(E,R,URI,A,false,NULL,NULL,C,H,D,Out,xrtTimer());}
+#if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+XRPC_API bool xrpcWsConnectUriTls(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsUriCreate(E,R,URI,A,true,T,S,C,H,D,Out,xrtTimer());}
 #endif
 #endif
 XRPC_API bool xrpcWsHttpClientTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)

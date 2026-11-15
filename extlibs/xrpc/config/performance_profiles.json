@@ -5009,6 +5009,65 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_ws_uri",
+      "system": "ws_uri",
+      "description": "WS URI validation versus generic Core target parsing; extra WS semantics, no connection or performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_ws_uri_parse",
+          "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+          "suite": "xrpc_ws_uri_parse,memory_stats,time",
+          "args": [
+            "1000000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "10000",
+            "0",
+            "1"
+          ],
+          "facts": [
+            "scope",
+            "mode",
+            "checksum"
+          ],
+          "metrics": {
+            "uris_per_sec": {
+              "unit": "URIs/s",
+              "direction": "higher"
+            }
+          }
+        },
+        {
+          "name": "xrpc_ws_uri_core_target",
+          "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+          "suite": "xrpc_ws_uri_parse,memory_stats,time",
+          "args": [
+            "1000000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "10000",
+            "1",
+            "1"
+          ],
+          "facts": [
+            "scope",
+            "mode",
+            "checksum"
+          ],
+          "metrics": {
+            "uris_per_sec": {
+              "unit": "URIs/s",
+              "direction": "higher"
+            }
+          }
+        }
+      ]
     }
   ]
 }

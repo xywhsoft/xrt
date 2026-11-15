@@ -1,0 +1,714 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-developing-bounded-WS-WSS-URI-input",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "03ba490cd2c8ecca99032f66ec42765e941edac6",
+  "historical_mainline_migrations": [
+    "05dc625d",
+    "f0e0955c"
+  ],
+  "branch_operations": 0,
+  "remote_push": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "complete_four_product_goal": false,
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "new_modules": [
+    "xrpc_ws_uri_parse",
+    "xrpc_ws_uri",
+    "xrpc_ws_uri_tls"
+  ],
+  "new_functions": [
+    "xrpcWsUriParse",
+    "xrpcWsConnectUri",
+    "xrpcWsConnectUriTls"
+  ],
+  "new_types": [
+    "xrpcwsuri",
+    "xrpcwsurihostkind"
+  ],
+  "verification": {
+    "windows": {
+      "validate": 5,
+      "singles": 3,
+      "backends": 1,
+      "regression": 14,
+      "interop": 108,
+      "delivery": 6,
+      "primary_C_executions": 137
+    },
+    "wsl": {
+      "validate": 5,
+      "singles": 3,
+      "backends": 1,
+      "regression": 14,
+      "interop": 108,
+      "delivery": 6,
+      "tsan": 2,
+      "primary_C_executions": 139
+    }
+  },
+  "contract": "Checked-Size borrowed parser with ws/wss/default80/443, exact encoded authority/path/query, empty path / and nonempty-query resource marker, hard8192/1024/4096 caps. Factories percent-decode host once, validate UTF8/routing delimiters, bypass host Resolver for strict numeric IP, derive empty TLS identity/SNI while retaining explicit trust/overrides, snapshot caller bytes and reuse the same original-entry native dial peer/clock/physical retirement. No hidden redirect/retry/replay/downgrade, implicit IDNA/IRI or IPvFuture routing.",
+  "resource_accounting": {
+    "ABI": {
+      "windows": {
+        "base": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 872,
+          "uri": 96
+        },
+        "plain": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 888,
+          "uri": 96,
+          "controller": 280,
+          "dial_config": 104
+        },
+        "dial": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 888,
+          "uri": 96,
+          "controller": 320,
+          "dial_config": 104
+        }
+      },
+      "wsl": {
+        "base": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 872,
+          "uri": 96
+        },
+        "plain": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 888,
+          "uri": 96,
+          "controller": 280,
+          "dial_config": 104
+        },
+        "dial": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 888,
+          "uri": 96,
+          "controller": 320,
+          "dial_config": 104
+        }
+      }
+    },
+    "parser_valid_heap": "20000 actual valid parses with budget1 and no allocation/refusal, plus one-million-parse heap diagnostics on both hosts",
+    "factory_heap": "Actual same-input plain numeric constructor allocation count and bytes equal to direct dial while owner is gated. This does not establish identical TLS/DNS/candidate costs.",
+    "stack": "At most1025 decoded-host bytes and4096 resource assembly bytes plus descriptors/call frames; no extra URI heap owner. Existing native allocation/copy/crypto/synchronization costs remain additional."
+  },
+  "protocol_validation": {
+    "independent_sessions_per_host": 108,
+    "selection": [
+      "attach baseline38",
+      "URI baseline38",
+      "takeover8",
+      "no-context8",
+      "decline8",
+      "missing2",
+      "invalid2",
+      "bomb4"
+    ],
+    "derived_identity": "Python/OpenSSL checks actual rpc.test SNI, raw Host including port and trusted verified native TLS; native server roles retain original attach mode.",
+    "keys": "Independent fixture removes its temporary private keys."
+  },
+  "performance": {
+    "scope": "Single-thread bounded URI parsing only, not server throughput, tails, queue-inclusive latency, CPU efficiency or production acceptance. Generic Core target baseline omits added WS scheme/port/size semantics; throughput ratio is not equivalent-workload overhead. Unpinned shared host with concurrent unrelated work; no noise thresholds relaxed.",
+    "original_one_million_windows": "Retained quality failure. Longer ten-million duration per sample and five repeats used separately to reduce timer/scheduling noise; short heap smoke remains diagnostic.",
+    "quality": "Windows ten-million duration passes local noise checks; WSL Core baseline duration and both short heap-smoke reports fail noise checks. All raw failure exits remain retained. No performance acceptance is granted.",
+    "results": {
+      "windows": {
+        "duration": {
+          "report": "windows-uri-perf-duration.json",
+          "sha256": "411a4b79b743cc8c5f9342072e6777e8921f2522a02f43a1e9beedd4154d0480",
+          "benchmarks": {
+            "xrpc_ws_uri_parse": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000000",
+                "0",
+                "0"
+              ],
+              "facts": {
+                "checksum": "110000000",
+                "mode": "ws-uri",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    7298842.797542,
+                    7701521.674236,
+                    7581687.949414,
+                    7950626.608959,
+                    7587985.729781
+                  ],
+                  "median": 7587985.729781,
+                  "mean": 7624132.9519863995,
+                  "min": 7298842.797542,
+                  "max": 7950626.608959,
+                  "mad": 113535.94445499964,
+                  "relative_mad": 0.01496259330185594,
+                  "range": 651783.8114169994,
+                  "relative_range": 0.08589681565410784,
+                  "central_range": 119833.72482199967,
+                  "relative_central_range": 0.01579256064645475,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            },
+            "xrpc_ws_uri_core_target": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000000",
+                "1",
+                "0"
+              ],
+              "facts": {
+                "checksum": "110000000",
+                "mode": "core-target",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    12844297.82581,
+                    12575596.626537,
+                    12312114.061546,
+                    13093980.606009,
+                    11984849.232874
+                  ],
+                  "median": 12575596.626537,
+                  "mean": 12562167.6705552,
+                  "min": 11984849.232874,
+                  "max": 13093980.606009,
+                  "mad": 268701.19927299954,
+                  "relative_mad": 0.021366874849181053,
+                  "range": 1109131.3731350005,
+                  "relative_range": 0.08819711748661797,
+                  "central_range": 532183.7642640006,
+                  "relative_central_range": 0.04231876864919374,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            }
+          },
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1
+        },
+        "heap-smoke": {
+          "report": "windows-uri-perf-heap-smoke.json",
+          "sha256": "e3a93f57f05e293d1dd324e7175ae6d74bf7aeefc5b6e80a4f3c4cc868744351",
+          "benchmarks": {
+            "xrpc_ws_uri_parse": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000",
+                "0",
+                "1"
+              ],
+              "facts": {
+                "checksum": "110000",
+                "mode": "ws-uri",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    7325470.793641,
+                    6502373.321505,
+                    7027406.843405,
+                    7554011.45422,
+                    8057368.32903
+                  ],
+                  "median": 7325470.793641,
+                  "mean": 7293326.1483602,
+                  "min": 6502373.321505,
+                  "max": 8057368.32903,
+                  "mad": 298063.9502360001,
+                  "relative_mad": 0.040688709112694794,
+                  "range": 1554995.0075249998,
+                  "relative_range": 0.2122723646478585,
+                  "central_range": 526604.6108149998,
+                  "relative_central_range": 0.07188679412552268,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            },
+            "xrpc_ws_uri_core_target": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000",
+                "1",
+                "1"
+              ],
+              "facts": {
+                "checksum": "110000",
+                "mode": "core-target",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    10270104.111433,
+                    11397309.646563,
+                    12648620.906239,
+                    12241400.535191,
+                    10437324.291958
+                  ],
+                  "median": 11397309.646563,
+                  "mean": 11398951.8982768,
+                  "min": 10270104.111433,
+                  "max": 12648620.906239,
+                  "mad": 959985.3546049986,
+                  "relative_mad": 0.0842291193601548,
+                  "range": 2378516.794806,
+                  "relative_range": 0.20869107434694215,
+                  "central_range": 1804076.243232999,
+                  "relative_central_range": 0.1582896577506816,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            }
+          },
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1
+        }
+      },
+      "wsl": {
+        "duration": {
+          "report": "wsl-uri-perf-duration.json",
+          "sha256": "327b2510adfbbd953d88ea77082c8dd70e4a217ec32755b7164e6c812b8bdef1",
+          "benchmarks": {
+            "xrpc_ws_uri_parse": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000000",
+                "0",
+                "0"
+              ],
+              "facts": {
+                "checksum": "110000000",
+                "mode": "ws-uri",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    6935833.655127,
+                    7306415.00556,
+                    7679204.063891,
+                    7723356.208074,
+                    7681956.580821
+                  ],
+                  "median": 7679204.063891,
+                  "mean": 7465353.102694601,
+                  "min": 6935833.655127,
+                  "max": 7723356.208074,
+                  "mad": 44152.14418299962,
+                  "relative_mad": 0.005749572978612581,
+                  "range": 787522.5529469997,
+                  "relative_range": 0.10255262738101628,
+                  "central_range": 375541.5752609996,
+                  "relative_central_range": 0.04890371087113881,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            },
+            "xrpc_ws_uri_core_target": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000000",
+                "1",
+                "0"
+              ],
+              "facts": {
+                "checksum": "110000000",
+                "mode": "core-target",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    15811162.029922,
+                    14487666.54154,
+                    15264330.511051,
+                    16254290.336188,
+                    16641125.755916
+                  ],
+                  "median": 15811162.029922,
+                  "mean": 15691715.034923399,
+                  "min": 14487666.54154,
+                  "max": 16641125.755916,
+                  "mad": 546831.518871,
+                  "relative_mad": 0.034585156855400194,
+                  "range": 2153459.214375999,
+                  "relative_range": 0.1361986684027817,
+                  "central_range": 989959.8251370005,
+                  "relative_central_range": 0.06261145279920227,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            }
+          },
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1
+        },
+        "heap-smoke": {
+          "report": "wsl-uri-perf-heap-smoke.json",
+          "sha256": "df825678d6ef6493d1fd1cbfbc92ba069fb30e31c9623a5bfe59892e8e49cdf5",
+          "benchmarks": {
+            "xrpc_ws_uri_parse": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000",
+                "0",
+                "1"
+              ],
+              "facts": {
+                "checksum": "110000",
+                "mode": "ws-uri",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    8182636.445417,
+                    8935751.943551,
+                    7907013.520948,
+                    8224360.556027,
+                    6194635.445704
+                  ],
+                  "median": 8182636.445417,
+                  "mean": 7888879.5823294,
+                  "min": 6194635.445704,
+                  "max": 8935751.943551,
+                  "mad": 275622.9244689997,
+                  "relative_mad": 0.0336838775995447,
+                  "range": 2741116.497847,
+                  "relative_range": 0.33499184720375397,
+                  "central_range": 317347.0350789996,
+                  "relative_central_range": 0.03878298115722128,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            },
+            "xrpc_ws_uri_core_target": {
+              "source": "extlibs/xrpc/bench/bench_ws_uri.c",
+              "inputs": [],
+              "suite": "xrpc_ws_uri_parse,memory_stats,time",
+              "args": [
+                "10000",
+                "1",
+                "1"
+              ],
+              "facts": {
+                "checksum": "110000",
+                "mode": "core-target",
+                "scope": "single-thread bounded URI input, Core target baseline lacks WS scheme/port/size semantics, no connection/tail acceptance"
+              },
+              "metrics": {
+                "uris_per_sec": {
+                  "samples": [
+                    17667844.522772,
+                    17349063.150592,
+                    16252234.682463,
+                    15477480.266277,
+                    17624250.969513
+                  ],
+                  "median": 17349063.150592,
+                  "mean": 16874174.718323402,
+                  "min": 15477480.266277,
+                  "max": 17667844.522772,
+                  "mad": 318781.37217999995,
+                  "relative_mad": 0.01837455829245294,
+                  "range": 2190364.256494999,
+                  "relative_range": 0.12625259574435624,
+                  "central_range": 1372016.2870499995,
+                  "relative_central_range": 0.07908301878555225,
+                  "direction": "higher",
+                  "unit": "URIs/s",
+                  "limit": 0.05,
+                  "max_relative_mad": 0.03,
+                  "max_relative_central_range": 0.06
+                }
+              }
+            }
+          },
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1
+        }
+      }
+    }
+  },
+  "size": {
+    "profiles": [
+      "xrpc_ws_uri_parse"
+    ],
+    "results": {
+      "windows": {
+        "xrpc_ws_uri_parse": {
+          "suite": "xrpc_ws_uri_parse",
+          "description": "Allocation-free WS URI syntax and resource accounting, independent of all native transport/client runtimes",
+          "forbid_symbols": [
+            "xrtNet",
+            "xrtTls",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrpcWsConnect",
+            "xrpcWsDial",
+            "xrpcServer"
+          ],
+          "kinds": {
+            "single": {
+              "text": 52320,
+              "data": 2376,
+              "bss": 11040,
+              "members": 1,
+              "load": 54696,
+              "file": 87735,
+              "path": "out/size/gnu/native/xrpc_ws_uri_parse/single/xrpc_single.o",
+              "compile_seconds": 2.1670234000193886,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 1336,
+              "data": 0,
+              "bss": 0,
+              "members": 1,
+              "load": 1336,
+              "file": 2736,
+              "path": "release/gnu/native/xrpc_ws_uri_parse/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 9826,
+              "data": 144,
+              "bss": 272,
+              "members": 1,
+              "load": 9970,
+              "file": 42384,
+              "path": "release/gnu/native/xrpc_ws_uri_parse/shared/xrpc.dll"
+            }
+          }
+        }
+      },
+      "wsl": {
+        "xrpc_ws_uri_parse": {
+          "suite": "xrpc_ws_uri_parse",
+          "description": "Allocation-free WS URI syntax and resource accounting, independent of all native transport/client runtimes",
+          "forbid_symbols": [
+            "xrtNet",
+            "xrtTls",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrpcWsConnect",
+            "xrpcWsDial",
+            "xrpcServer"
+          ],
+          "kinds": {
+            "single": {
+              "text": 53872,
+              "data": 2416,
+              "bss": 10892,
+              "members": 1,
+              "load": 56288,
+              "file": 111752,
+              "path": "out/size/gnu/x64/xrpc_ws_uri_parse/single/xrpc_single.o",
+              "compile_seconds": 1.827571657999897,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 1266,
+              "data": 0,
+              "bss": 0,
+              "members": 1,
+              "load": 1266,
+              "file": 4024,
+              "path": "release/gnu/x64/xrpc_ws_uri_parse/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 3011,
+              "data": 600,
+              "bss": 8,
+              "members": 1,
+              "load": 3611,
+              "file": 15856,
+              "path": "release/gnu/x64/xrpc_ws_uri_parse/shared/libxrpc.so"
+            }
+          }
+        }
+      }
+    },
+    "scope": "Parser selector has no native transport/client runtime symbols. Single object includes its Core closure. Static/shared values measure the extension artifact, not a whole application and independently packaged Core."
+  },
+  "source_identity": {
+    "final_source_map_sha256": "cc0e06eda6d019cdaf1a81eab78d1ee859bf4f53840793bb00dadb8314d94b36",
+    "cohort_audit": "runtime-cohorts.json",
+    "selected": "selected-functional.json",
+    "explanation": "All selected functional runs match final canonical production src/include/single hashes. Earlier maps differ in fixture/benchmark-registration/docs and the corrected parser test helper; Windows parser modular/single selections use corrected runs explicitly. Exact raw maps and failure attempts are preserved."
+  },
+  "failures": [
+    {
+      "receipts": "windows-abi-receipts.json",
+      "label": "base-abi-build",
+      "exit_code": 1,
+      "log": "windows-base-abi-build.log",
+      "source_map_sha256": "08482ddb4f1d634d2b3e34ab817095d1b23fc4cb6d4b50949ffbc04260cf7c5f"
+    },
+    {
+      "receipts": "windows-corrected-receipts.json",
+      "label": "uri-single-parse-corrected-build",
+      "exit_code": 1,
+      "log": "windows-uri-single-parse-corrected-build.log",
+      "source_map_sha256": "08482ddb4f1d634d2b3e34ab817095d1b23fc4cb6d4b50949ffbc04260cf7c5f"
+    },
+    {
+      "receipts": "windows-gates-receipts.json",
+      "label": "http-maturity",
+      "exit_code": 1,
+      "log": "windows-http-maturity.log",
+      "source_map_sha256": "df32857e4df504313b20bdfa2b92132ee109b49cb9556b614096dd560d8b1cf2"
+    },
+    {
+      "receipts": "windows-perf-receipts.json",
+      "label": "uri-perf-full",
+      "exit_code": 1,
+      "log": "windows-uri-perf-full.log",
+      "source_map_sha256": "08482ddb4f1d634d2b3e34ab817095d1b23fc4cb6d4b50949ffbc04260cf7c5f"
+    },
+    {
+      "receipts": "windows-perf_stable-receipts.json",
+      "label": "uri-perf-heap-smoke",
+      "exit_code": 1,
+      "log": "windows-uri-perf-heap-smoke.log",
+      "source_map_sha256": "cc0e06eda6d019cdaf1a81eab78d1ee859bf4f53840793bb00dadb8314d94b36"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xrpc_ws_uri_parse_tests",
+      "exit_code": 1,
+      "log": "windows-xrpc_ws_uri_parse_tests.log",
+      "source_map_sha256": "8428c992816d1f4801a9e2e7814346ff00f77892b950b29663eb2e749f7ab836"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xrpc_ws_uri_tests",
+      "exit_code": 1,
+      "log": "windows-xrpc_ws_uri_tests.log",
+      "source_map_sha256": "766724b15e5785f94b55fd1abbbd1c03e1be42e9578101fe097f71dc854dbead"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xrpc_ws_uri_tests",
+      "exit_code": 1,
+      "log": "windows-xrpc_ws_uri_tests-attempt2.log",
+      "source_map_sha256": "63bb177b31cb80dc513c0ccc18fd59808e5b59a3e385c668a3772f97d065d5f0"
+    },
+    {
+      "receipts": "wsl-gates-receipts.json",
+      "label": "http-maturity",
+      "exit_code": 1,
+      "log": "wsl-http-maturity.log",
+      "source_map_sha256": "08482ddb4f1d634d2b3e34ab817095d1b23fc4cb6d4b50949ffbc04260cf7c5f"
+    },
+    {
+      "receipts": "wsl-perf_stable-receipts.json",
+      "label": "uri-perf-duration",
+      "exit_code": 1,
+      "log": "wsl-uri-perf-duration.log",
+      "source_map_sha256": "cc0e06eda6d019cdaf1a81eab78d1ee859bf4f53840793bb00dadb8314d94b36"
+    },
+    {
+      "receipts": "wsl-perf_stable-receipts.json",
+      "label": "uri-perf-heap-smoke",
+      "exit_code": 1,
+      "log": "wsl-uri-perf-heap-smoke.log",
+      "source_map_sha256": "cc0e06eda6d019cdaf1a81eab78d1ee859bf4f53840793bb00dadb8314d94b36"
+    },
+    {
+      "receipts": "wsl-validate-receipts.json",
+      "label": "xrpc_ws_uri_parse_tests",
+      "exit_code": 1,
+      "log": "wsl-xrpc_ws_uri_parse_tests.log",
+      "source_map_sha256": "286d188d946b1e7eba7a3bc2d6b846c6af13c278d13560e6b235186ba7c01a07"
+    }
+  ],
+  "remaining": [
+    "Controlled same-workload throughput/CPU/queue-inclusive tails and scale",
+    "Native Linux and Windows >=72h qualification",
+    "Broader URI/factory async OOM/fault/fuzz and host admission/per-IP CONNECTING coordination qualification",
+    "Host IRI/IDNA/name-service policy and unsupported IPvFuture mechanisms",
+    "Negotiated remote deadlines/cancellation and asynchronous framed stdio",
+    "Remaining full original xredis/xmqtt5/xcron scope and final production/release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/xrpc-ws-uri-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "437f636de54b7b6455a8dfb5ac2c8d8f7ecf1e415e4bc2f1ecfbbbbc43d3666b",
+    "regular_files": 562,
+    "sha256_verified": true,
+    "notes": "Read-only sealed selected source maps, changed-source snapshots, actual validated binaries, package/declaration consumers and raw attempts. Ignored object caches/compiler temp directories are not a qualification artifact. No failed/noisy report removed or relabeled."
+  }
+}

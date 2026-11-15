@@ -85,6 +85,45 @@
 #ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
 #define XRPC_MODULE_XRPC_WS_DIAL_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_WS_URI_TLS
+#define XRPC_MODULE_XRPC_WS_URI_TLS
+#endif
+#endif
+
+/* xrpc_ws_uri_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_URI_TLS
+#define XRPC_FEATURE_XRPC_WS_URI_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_URI
+#define XRPC_MODULE_XRPC_WS_URI
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#endif
+#endif
+
+/* xrpc_ws_uri 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI)
+#ifndef XRPC_FEATURE_XRPC_WS_URI
+#define XRPC_FEATURE_XRPC_WS_URI
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_URI_PARSE
+#define XRPC_MODULE_XRPC_WS_URI_PARSE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL
+#define XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#endif
+
+/* xrpc_ws_uri_parse 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI_PARSE)
+#ifndef XRPC_FEATURE_XRPC_WS_URI_PARSE
+#define XRPC_FEATURE_XRPC_WS_URI_PARSE
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
 #endif
 
 /* xrpc_ws_dial_tls 及其直接依赖。 */

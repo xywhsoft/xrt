@@ -142,6 +142,45 @@
 #ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
 #define XRPC_MODULE_XRPC_WS_DIAL_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_WS_URI_TLS
+#define XRPC_MODULE_XRPC_WS_URI_TLS
+#endif
+#endif
+
+/* xrpc_ws_uri_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_URI_TLS
+#define XRPC_FEATURE_XRPC_WS_URI_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_URI
+#define XRPC_MODULE_XRPC_WS_URI
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#endif
+#endif
+
+/* xrpc_ws_uri 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI)
+#ifndef XRPC_FEATURE_XRPC_WS_URI
+#define XRPC_FEATURE_XRPC_WS_URI
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_URI_PARSE
+#define XRPC_MODULE_XRPC_WS_URI_PARSE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL
+#define XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#endif
+
+/* xrpc_ws_uri_parse 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_URI_PARSE)
+#ifndef XRPC_FEATURE_XRPC_WS_URI_PARSE
+#define XRPC_FEATURE_XRPC_WS_URI_PARSE
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
 #endif
 
 /* xrpc_ws_dial_tls 及其直接依赖。 */
@@ -2871,6 +2910,81 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/ws_uri.h */
+/* ========================================================================== */
+
+#ifndef XRPC_WS_URI_H
+#define XRPC_WS_URI_H
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI_PARSE) && !defined(XRT_FEATURE_HTTP_TARGET)
+#error "RPC WS URI parsing requires Core HTTP target"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI) && (!defined(XRPC_FEATURE_XRPC_WS_URI_PARSE) || !defined(XRPC_FEATURE_XRPC_WS_DIAL))
+#error "RPC WS URI requires URI parsing and WS dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI_TLS) && (!defined(XRPC_FEATURE_XRPC_WS_URI) || !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS))
+#error "RPC WSS URI requires URI and verified TLS dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI_PARSE)
+#define XRPC_WS_URI_MAX_BYTES 8192u
+#define XRPC_WS_URI_MAX_AUTHORITY 1024u
+#define XRPC_WS_URI_MAX_TARGET 4096u
+typedef enum xrpcwsurihostkind {XRPC_WS_URI_NAME=0,XRPC_WS_URI_IPV4,XRPC_WS_URI_IPV6,XRPC_WS_URI_IPVFUTURE} xrpcwsurihostkind;
+typedef struct xrpcwsuri {
+    size_t Size;
+    bool Secure,HasQuery;
+    uint16 Port;
+    xrpcwsurihostkind HostKind;
+    xstrview Authority,Host,Path,Query;
+    size_t RouteBytes,TargetBytes;
+} xrpcwsuri;
+XRT_EXTERN_C_BEGIN
+/* Checked Size; failure preserves all output bytes. Borrowed raw URI views,
+ * host excludes brackets/port. Absolute case-insensitive ws/wss only, nonempty
+ * authority, no userinfo/fragment/raw non-ASCII or malformed percent triplet.
+ * Explicit positive network port<=65535, absent/empty port defaults80/443.
+ * Empty path maps to /; resource-name includes ? only for NONEMPTY query per
+ * RFC6455. HasQuery separately preserves a syntactically present empty query.
+ * HostKind uses strict IPv4/IPv6 recognition; valid IPvFuture is inspectable.
+ * RouteBytes is decoded host octets, not IDNA size; TargetBytes is the eventual
+ * resource-name. Hard limits above. No heap allocation on valid parsing. */
+XRPC_API bool xrpcWsUriParse(xstrview URI,xrpcwsuri* Output);
+XRT_EXTERN_C_END
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+XRT_EXTERN_C_BEGIN
+/* Concurrent ws:// URI factory, with the ordinary WS peer/close contract.
+ * URI owns HTTP.Host/Target (those two config views are replaced); all remaining
+ * HTTP policies apply. Routing and resource bytes are snapshotted before return.
+ * Numeric IP (including an escaped strict IPv4 name) bypasses Resolver; names
+ * require a borrowed host Resolver. Host is percent-decoded ONCE, valid UTF-8 and
+ * non-control/non-delimiter; path/query retain exact encoded bytes. IPvFuture
+ * routing is UNSUPPORTED, never guessed as DNS. No IRI/IDNA conversion; host
+ * Resolver owns its name-service policy. ASCII DNS A-labels work directly.
+ * No redirects, userinfo auth, retries, downgrade or replay. Original API-entry
+ * HTTP setup deadline includes URI validation/assembly and all native setup.
+ * False preserves Peer and consumes no aliases; input/output must be disjoint.
+ * Bounded temporary stack storage, no extra URI heap owner or shared runtime. */
+XRPC_API bool xrpcWsConnectUri(xnetengine*,xnetresolver*,xstrview URI,uint64 Affinity,
+    const xrpcwsconfig*,const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws** Peer);
+#if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+/* wss:// only. Explicit native client/trust policy is required. Empty VerifyName
+ * derives from decoded URI host; empty ServerName derives only for a name, not
+ * an IP literal. Explicit nonempty identity/SNI overrides remain intentional
+ * caller policy. For international names, supply name-service/IDNA policy and
+ * appropriate native ASCII identity as required by Core. No cleartext fallback.
+ * Native client/metadata/stream/Resolver lifetime rules match WS dial. */
+XRPC_API bool xrpcWsConnectUriTls(xnetengine*,xnetresolver*,xstrview URI,uint64 Affinity,
+    const xtlsclientconfig*,const xtlsstreamconfig*,const xrpcwsconfig*,
+    const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws** Peer);
+#endif
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -2947,6 +3061,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
 #error "XRPC_FEATURE_XRPC requires WS/WSS connection setup"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+#error "XRPC_FEATURE_XRPC requires WS/WSS URI input"
 #endif
 #endif
 
@@ -9069,6 +9186,8 @@ XRPC_API bool xrpcTlsDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 
 #include <string.h>
 #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
 #endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
 #endif
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
@@ -10045,6 +10164,47 @@ XRPC_API bool xrpcWsDialAddressesTls(xnetengine* E,xnetaddrlist* A,uint64 F,cons
 {if(!A)return xrpcWsReport(XERR_ARGUMENT,"WSS endpoints are NULL");return xrpcWsDialCreate(E,NULL,NULL,A,(xstrview){0},0,F,true,T,S,C,H,D,Out,xrtTimer());}
 #endif
 #endif
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+static int xrpcWsUriHex(unsigned char C)
+{return C>='0'&&C<='9'?C-'0':C>='a'&&C<='f'?C-'a'+10:C>='A'&&C<='F'?C-'A'+10:-1;}
+static bool xrpcWsUriRoute(xnetengine* E,xnetresolver* R,const xrpcwsuri* U,xstrview Target,uint64 Affinity,bool Secure,
+    const void* Client,const void* NativeTLS,const xrpcwsconfig* Config,const xrpcwshttpconfig* HTTP,const xrpcwsdialconfig* Dial,xrpcws** Out,double Entered)
+{
+    char Decoded[XRPC_WS_URI_MAX_AUTHORITY+1];xstrview Route=U->Host;
+    if(memchr(Route.Data,'%',Route.Size)){
+        size_t N=0;for(size_t I=0;I<Route.Size;++I){unsigned char C=(unsigned char)Route.Data[I];if(C=='%'){int A=xrpcWsUriHex((unsigned char)Route.Data[I+1]),B=xrpcWsUriHex((unsigned char)Route.Data[I+2]);C=(unsigned char)(A*16+B);I+=2;}
+            if(C<=32||C==127||C=='/'||C==':'||C=='?'||C=='#'||C=='@'||C=='['||C==']'){return xrpcWsReport(XERR_ARGUMENT,"decoded URI host contains a forbidden routing byte");}
+            Decoded[N++]=(char)C;}
+        Route=(xstrview){Decoded,N};if(!xrtUtf8Valid(Route,NULL))return xrpcWsReport(XERR_ARGUMENT,"decoded URI host is not UTF-8");
+    }
+    bool Numeric=U->HostKind==XRPC_WS_URI_IPV4||U->HostKind==XRPC_WS_URI_IPV6||xrtHttpIpv4Valid(Route);xnetaddr Address;
+    if(Numeric){char IP[64];if(Route.Size>=sizeof(IP))return xrpcWsReport(XERR_ARGUMENT,"URI IP literal exceeds bound");memcpy(IP,Route.Data,Route.Size);IP[Route.Size]=0;if(!xrtNetAddrParse(&Address,IP,U->Port))return false;}
+    xrpcwshttpconfig H={0};if(HTTP){if(!xrtMemRangeValid(HTTP,sizeof(*HTTP))||xrtMemRangesOverlap(HTTP,sizeof(*HTTP),Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"invalid URI HTTP policy/output overlap");H=*HTTP;}else xrpcWsHttpConfigInit(&H);
+    H.Host=U->Authority;H.Target=Target;
+    #if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+    xtlsclientconfig TLS;
+    if(Secure){if(!Client||!xrtMemRangeValid(Client,sizeof(TLS))||xrtMemRangesOverlap(Client,sizeof(TLS),Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"URI TLS requires an explicit client/trust policy");TLS=*(const xtlsclientconfig*)Client;if(!TLS.VerifyName.Size)TLS.VerifyName=Route;if(!TLS.ServerName.Size&&!Numeric)TLS.ServerName=Route;Client=&TLS;}
+    #endif
+    return xrpcWsDialCreate(E,Numeric?&Address:NULL,Numeric?NULL:R,NULL,Numeric?(xstrview){0}:Route,Numeric?0:U->Port,Affinity,Secure,Client,NativeTLS,Config,&H,Dial,Out,Entered);
+}
+static bool xrpcWsUriCreate(xnetengine* E,xnetresolver* R,xstrview URI,uint64 Affinity,bool Secure,const void* Client,const void* NativeTLS,
+    const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out,double Entered)
+{
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!xrtMemRangeValid(URI.Data,URI.Size)||xrtMemRangesOverlap(URI.Data,URI.Size,Out,sizeof(*Out)))return xrpcWsReport(XERR_ARGUMENT,"invalid URI/output range or overlap");
+    xrpcwsuri U={.Size=sizeof(U)};if(!xrpcWsUriParse(URI,&U))return false;
+    if(U.Secure!=Secure)return xrpcWsReport(XERR_ARGUMENT,"URI scheme does not match the explicit secure/plain factory");
+    if(U.HostKind==XRPC_WS_URI_IPVFUTURE)return xrpcWsReport(XERR_UNSUPPORTED,"URI IPvFuture address mechanism is unsupported");
+    if(!U.Path.Size&&U.Query.Size){char Target[XRPC_WS_URI_MAX_TARGET];Target[0]='/';Target[1]='?';memcpy(Target+2,U.Query.Data,U.Query.Size);return xrpcWsUriRoute(E,R,&U,(xstrview){Target,U.TargetBytes},Affinity,Secure,Client,NativeTLS,C,H,D,Out,Entered);}
+    xstrview Target=U.Path.Size?(xstrview){U.Path.Data,U.TargetBytes}:XRT_STR_LITERAL("/");
+    return xrpcWsUriRoute(E,R,&U,Target,Affinity,Secure,Client,NativeTLS,C,H,D,Out,Entered);
+}
+XRPC_API bool xrpcWsConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsUriCreate(E,R,URI,A,false,NULL,NULL,C,H,D,Out,xrtTimer());}
+#if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+XRPC_API bool xrpcWsConnectUriTls(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsUriCreate(E,R,URI,A,true,T,S,C,H,D,Out,xrtTimer());}
+#endif
+#endif
 XRPC_API bool xrpcWsHttpClientTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
 {return xrpcWsHttpCreate(S,false,false,C,H,Out,xrtTimer());}
 XRPC_API bool xrpcWsHttpServerTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
@@ -10061,6 +10221,34 @@ XRPC_API bool xrpcWsHttpInfo(xrpcws* P,xrpcwshttpinfo* I)
     xrtMutexLock(&P->Gate);bool Valid=P->UpgradeInfo.Size==sizeof(P->UpgradeInfo);if(Valid)*I=P->UpgradeInfo;xrtMutexUnlock(&P->Gate);return Valid?true:xrpcWsReport(XERR_STATE,"peer did not use HTTP Upgrade factory");
 }
 #endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/ws_uri/uri.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_WS_URI_PARSE)
+#if defined(XRPC_FEATURE_XRPC_WS_URI_PARSE)
+static bool xrpcWsUriFail(xerrkind Kind,cstr Message)
+{xrtSetErrorInfo(Kind,"xrt.rpc",19501,Message);return false;}
+XRPC_API bool xrpcWsUriParse(xstrview Input,xrpcwsuri* Out)
+{
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||Out->Size!=sizeof(*Out)||!xrtMemRangeValid(Input.Data,Input.Size)||xrtMemRangesOverlap(Input.Data,Input.Size,Out,sizeof(*Out)))return xrpcWsUriFail(XERR_ARGUMENT,"invalid URI view/output/Size/overlap");
+    if(Input.Size>XRPC_WS_URI_MAX_BYTES)return xrpcWsUriFail(XERR_RANGE,"WS URI exceeds byte limit");
+    xhttptarget T={0};if(!xrtHttpTargetParse(XRT_STR_LITERAL("GET"),Input,&T))return false;
+    bool Secure=xrtHttpTokenEqual(T.Scheme,XRT_STR_LITERAL("wss"));
+    if(T.Form!=XHTTP_TARGET_ABSOLUTE||!(T.Flags&XHTTP_TARGET_HAS_AUTHORITY)||(!Secure&&!xrtHttpTokenEqual(T.Scheme,XRT_STR_LITERAL("ws"))))return xrpcWsUriFail(XERR_ARGUMENT,"absolute ws/wss URI with authority required");
+    uint16 Port=0;if(!xrtHttpAuthorityPort(&T.Host,Secure?443:80,&Port)||!Port)return xrpcWsUriFail(XERR_ARGUMENT,"WS URI requires a positive network port");
+    size_t Target=(T.Path.Size?T.Path.Size:1)+(T.Query.Size?T.Query.Size+1:0);
+    if(T.Authority.Size>XRPC_WS_URI_MAX_AUTHORITY||Target>XRPC_WS_URI_MAX_TARGET)return xrpcWsUriFail(XERR_RANGE,"WS URI authority/resource exceeds bound");
+    xrpcwsurihostkind Kind=XRPC_WS_URI_NAME;
+    if(T.Host.Flags&XHTTP_AUTHORITY_IP_LITERAL)Kind=xrtHttpIpv6Valid(T.Host.Host)?XRPC_WS_URI_IPV6:XRPC_WS_URI_IPVFUTURE;
+    else if(xrtHttpIpv4Valid(T.Host.Host))Kind=XRPC_WS_URI_IPV4;
+    size_t Route=T.Host.Host.Size;for(size_t I=0;I<T.Host.Host.Size;++I)if(T.Host.Host.Data[I]=='%'){Route-=2;I+=2;}
+    *Out=(xrpcwsuri){.Size=sizeof(*Out),.Secure=Secure,.HasQuery=(T.Flags&XHTTP_TARGET_HAS_QUERY)!=0,.Port=Port,.HostKind=Kind,.Authority=T.Authority,.Host=T.Host.Host,.Path=T.Path,.Query=T.Query,.RouteBytes=Route,.TargetBytes=Target};return true;
+}
 #endif
 #endif
 

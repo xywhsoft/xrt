@@ -13156,3 +13156,51 @@ and out/service-extensions/xrpc-frame-20261112.
   WSL TSan tool builds also pass. All primary modules/singles/independent peers/
   packages are reverified after this fix; the earlier sealed checkpoint remains
   unchanged, and the report selects the separate final archive.
+
+
+## 2026-11-16: bounded WS/WSS URI input
+
+- Continue directly on D:/GIT/xrt master from03ba490c. Both historical migration
+  commits05dc625d/f0e0955c are ancestors. The retired worktree stays a preserved
+  backup; no branch/switch/merge/worktree operation or remote push this stage.
+- Add developing xrpc_ws_uri_parse/xrpc_ws_uri/xrpc_ws_uri_tls. The parser returns
+  checked-Size borrowed authority/host/path/query views, default ports and bounded
+  resource/decoded-route sizes with zero valid-path heap allocations. Factories
+  compose the same native WS dial peer and original outer API-entry setup clock.
+  Preserve exact encoded HTTP authority/resource, decode routing once, bypass
+  Resolver for strict numeric IP and derive empty TLS identity/SNI from URI host
+  while retaining mandatory explicit native trust and intentional overrides.
+- No Core production change, private-peer field or new shared runtime/URI heap
+  owner. Public URI result96 bytes on both x64 hosts; config528/info680 and peer
+  Windows1568/WSL1776 remain unchanged. Actual matching plain numeric constructors
+  have equal allocation count/bytes; native session/TLS/copies and bounded URI
+  stack storage remain real costs.
+- Real scenarios cover URI caps, aliases/atomic failures,10000 generated/mutated
+  inputs,20000 successful parses under a real budget1, all9 routing/resource
+  forms over TCP and verified TLS, UTF-8 escaped names, IPv4/IPv6, mutated caller
+  input/released verifier aliases, original setup deadlines and physical joins.
+  Existing dial/OOM/close, HTTP/cache/WS/compression and cross-owner regressions
+  are retained. Explicit selectors, runnable example, static/shared libraries,
+  standalone declarations and actual exports are checked on master.
+- Windows137 and WSL139 selected functional C executions pass (including108
+  independent Python/OpenSSL sessions per host and2 separate WSL TSan runs).
+  WSL modular/single/regression/independent peers use ASan/UBSan/leak checks;
+  package consumers additionally run uninstrumented. ABI probes, parser heap
+  diagnostics, size profiles and benchmark iterations are counted separately.
+- The new independent --uri fixture preserves attach/dial modes, checks raw Host
+  with port, actual TLS SNI and URI-derived verification identity, and covers
+  context/takeover/decline/malformed/missing/bomb compression cases. Temporary
+  fixture private keys are removed rather than published.
+- Initial parser include/indentation, example Host-policy mismatch, a test-only
+  zero-length null memcmp, probe include paths and missing size-profile failures
+  are retained with corrections. Functional sources are reverified; source maps
+  distinguish later fixture/benchmark/docs-only changes and the corrected parser
+  helper. Short benchmark noise failures remain failures, not release evidence.
+- See [the stage report](xrpc-ws-uri-20261116.json) for exact sources, selected
+  binaries, raw receipts, diagnostic performance/size scope and remaining gates.
+  No implicit IRI/IDNA policy, global per-IP CONNECTING coordinator, redirect or
+  replay is added. Broader async fault/OOM/fuzz, controlled throughput/CPU/queue-
+  inclusive tails/scale, native Windows/Linux>=72h, negotiated remote extensions,
+  async framed stdio and remaining original Redis/MQTT5/Cron requirements remain
+  open. All new feature nodes remain developing; production/performance acceptance
+  and the full four-product goal remain incomplete.

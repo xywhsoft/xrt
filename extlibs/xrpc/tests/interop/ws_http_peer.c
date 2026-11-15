@@ -1,6 +1,9 @@
 #include <xrpc/ws_http.h>
 #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
 #include <xrpc/ws_dial.h>
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+#include <xrpc/ws_uri.h>
+#endif
 #endif
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
 #include <xrpc/ws_deflate.h>
@@ -29,6 +32,9 @@ typedef struct httpInterop {
     xnetengine* Engine;xnetlistener* Listener;xrpcserver* Server;xrpcws* Peer;xfuture* Call;
     xrpcwsconfig RPC;xrpcwshttpconfig HTTP;xatomic32 Ready,Finished,Calls,NativeRefs;
     bool Client,Secure;const char* Mode;ptr Native;xnetpost Attach;
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+    xnetresolver* Resolver;
+#endif
     xtlsserverconfig TLS;xtlsidentity* Identity;xtlsverifier* Verifier;xtlsstream* Probe;xbytesview Pin;
 } httpInterop;
 static void httpInteropRequire(bool OK,cstr Text)
@@ -88,6 +94,10 @@ static bool httpInteropAccept(xnetlistener* L,xnetstream* Native,ptr Data)
 {
     (void)L;httpInterop* S=Data;if(S->Secure){xtlsstream* TLS=NULL;xrtAtomic32FetchAdd(&S->NativeRefs,1,XMEMORY_RELAXED);httpInteropRequire(xrtTlsStreamAcceptOwnedV1(Native,&S->TLS,NULL,S,&HttpInteropNative,&TLS),"native TLS accept");}else httpInteropAttach(S,Native);return true;
 }
+#if defined(XRPC_FEATURE_XRPC_WS_URI)
+static xnetaddrlist* httpInteropUriLookup(cstr Name,xnetfamily Family,ptr Data)
+{(void)Data;httpInteropRequire(!strcmp(Name,"rpc.test")&&(Family==XNET_FAMILY_UNSPEC||Family==XNET_FAMILY_IPV4),"URI decoded routing name");xnetaddr A;xrtNetAddrLoopback(&A,XNET_FAMILY_IPV4,0);return xrtNetAddrListCreate(&A,1);}
+#endif
 int main(int Argc,char** Argv)
 {
     if(Argc!=7&&Argc!=8)return 2;
@@ -109,7 +119,15 @@ int main(int Argc,char** Argv)
     }
     #endif
     if(S.Client){xnetaddr A;httpInteropRequire(xrtNetAddrParse(&A,"127.0.0.1",(uint16)Port),"numeric loopback");
-        const char* Dial=getenv("XRPC_TEST_WS_DIAL");if(Dial&&Dial[0]=='1'){
+        const char* Uri=getenv("XRPC_TEST_WS_URI");const char* Dial=getenv("XRPC_TEST_WS_DIAL");if(Uri&&Uri[0]=='1'){
+            #if defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
+            xnetresolverconfig RC;xrtNetResolverConfigInit(&RC);RC.Workers=1;RC.CacheEntries=0;RC.Lookup=httpInteropUriLookup;S.Resolver=xrtNetResolverCreate(&RC);httpInteropRequire(S.Resolver!=NULL,"host URI Resolver");char URL[100];int N=snprintf(URL,sizeof(URL),"%s://rpc.test:%u/rpc",S.Secure?"wss":"ws",Port);bool OK;
+            if(S.Secure){xtlsclientconfig T;xrtTlsClientConfigInit(&T);T.Verifier=S.Verifier;OK=xrpcWsConnectUriTls(S.Engine,S.Resolver,(xstrview){URL,(size_t)N},1,&T,NULL,&S.RPC,&S.HTTP,NULL,&S.Peer);}else OK=xrpcWsConnectUri(S.Engine,S.Resolver,(xstrview){URL,(size_t)N},1,&S.RPC,&S.HTTP,NULL,&S.Peer);
+            httpInteropRequire(OK&&xrpcWsCall(S.Peer,XRT_STR_LITERAL("python_echo"),XRT_STR_LITERAL("[42]"),10000,&S.Call)==XRPC_DUPLEX_ACCEPTED,"URI factory, derived native identity and queued call");xrtAtomic32Store(&S.Ready,1,XMEMORY_RELEASE);
+            #else
+            return 2;
+            #endif
+        }else if(Dial&&Dial[0]=='1'){
             #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
             bool OK;if(S.Secure){xtlsclientconfig TLS;xrtTlsClientConfigInit(&TLS);TLS.Verifier=S.Verifier;TLS.ServerName=XRT_STR_LITERAL("rpc.test");OK=xrpcWsConnectTls(S.Engine,&A,1,&TLS,NULL,&S.RPC,&S.HTTP,NULL,&S.Peer);}else OK=xrpcWsConnect(S.Engine,&A,1,&S.RPC,&S.HTTP,NULL,&S.Peer);
             httpInteropRequire(OK&&xrpcWsCall(S.Peer,XRT_STR_LITERAL("python_echo"),XRT_STR_LITERAL("[42]"),10000,&S.Call)==XRPC_DUPLEX_ACCEPTED,"full numeric WS/WSS dial and queued call");xrtAtomic32Store(&S.Ready,1,XMEMORY_RELEASE);
@@ -142,6 +160,10 @@ int main(int Argc,char** Argv)
     if(Argc==8&&Normal){xrpcwsdeflateinfo D={.Size=sizeof(D)};httpInteropRequire(xrpcWsDeflateInfo(S.Peer,&D)&&D.Enabled==(strcmp(Argv[7],"decline")!=0)&&D.CompressOutput,"actual negotiated compression snapshot after physical close");}
     #endif
     unsigned ResultStatus=(unsigned)R->Status,Delivery=(unsigned)R->Delivery;xrtTlsStreamDestroy(S.Probe);S.Probe=NULL;
-    httpInteropRequire(xrpcWsClose(S.Peer)&&xrpcWsWaitFor(S.Peer,10000)==XWAIT_OK&&xrpcWsDestroy(S.Peer),"physical peer tail");xrtFutureDestroy(S.Call);if(S.Listener){httpInteropRequire(xrtNetListenerClose(S.Listener),"listener close");xrtNetListenerDestroy(S.Listener);}httpInteropRequire(xrpcServerDestroy(S.Server),"shared Server join");End=xrtTimer()+10;xnetretireresult Q;while((Q=xrtNetEngineTryDestroy(S.Engine))==XNET_RETIRE_BUSY){httpInteropRequire(xrtTimer()<End,"host tail");xrtSleep(1);}httpInteropRequire(Q==XNET_RETIRE_READY&&xrtAtomic32Load(&S.NativeRefs,XMEMORY_ACQUIRE)==1,"Engine/native original owners");xrtTlsVerifierRelease(S.Verifier);xrtTlsIdentityRelease(S.Identity);
+    httpInteropRequire(xrpcWsClose(S.Peer)&&xrpcWsWaitFor(S.Peer,10000)==XWAIT_OK&&xrpcWsDestroy(S.Peer),"physical peer tail");xrtFutureDestroy(S.Call);if(S.Listener){httpInteropRequire(xrtNetListenerClose(S.Listener),"listener close");xrtNetListenerDestroy(S.Listener);}httpInteropRequire(xrpcServerDestroy(S.Server),"shared Server join");
+    #if defined(XRPC_FEATURE_XRPC_WS_URI)
+    if(S.Resolver)httpInteropRequire(xrtNetResolverDestroy(S.Resolver),"host URI Resolver physical join");
+    #endif
+    End=xrtTimer()+10;xnetretireresult Q;while((Q=xrtNetEngineTryDestroy(S.Engine))==XNET_RETIRE_BUSY){httpInteropRequire(xrtTimer()<End,"host tail");xrtSleep(1);}httpInteropRequire(Q==XNET_RETIRE_READY&&xrtAtomic32Load(&S.NativeRefs,XMEMORY_ACQUIRE)==1,"Engine/native original owners");xrtTlsVerifierRelease(S.Verifier);xrtTlsIdentityRelease(S.Identity);
     printf("PASS role=%s transport=%s mode=%s outcome=%u status=%u call=%u delivery=%u\n",S.Client?"client":"server",S.Secure?"tls":"tcp",S.Mode,(unsigned)H.Outcome,(unsigned)H.Status,ResultStatus,Delivery);return 0;
 }

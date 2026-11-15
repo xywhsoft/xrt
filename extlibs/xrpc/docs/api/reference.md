@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `164` 个函数、`242` 个常量或宏、
-`117` 个公共类型。
+当前登记 `167` 个函数、`252` 个常量或宏、
+`119` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -865,3 +865,31 @@
 - `xrpcwshttpauthstatus`
 - `xrpcwshttpinfo`
 - `xrpcwshttpoutcome`
+
+## `extlibs/xrpc/include/xrpc/ws_uri.h`
+
+[查看带契约注释的公共头](../../include/xrpc/ws_uri.h)
+
+### 函数 (3)
+
+- `xrpcWsConnectUri`
+- `xrpcWsConnectUriTls`
+- `xrpcWsUriParse`
+
+### 常量与宏 (10)
+
+- `XRPC_FEATURE_XRPC_WS_URI`
+- `XRPC_FEATURE_XRPC_WS_URI_PARSE`
+- `XRPC_FEATURE_XRPC_WS_URI_TLS`
+- `XRPC_WS_URI_IPV4`
+- `XRPC_WS_URI_IPV6`
+- `XRPC_WS_URI_IPVFUTURE`
+- `XRPC_WS_URI_MAX_AUTHORITY`
+- `XRPC_WS_URI_MAX_BYTES`
+- `XRPC_WS_URI_MAX_TARGET`
+- `XRPC_WS_URI_NAME`
+
+### 类型 (2)
+
+- `xrpcwsuri`
+- `xrpcwsurihostkind`
