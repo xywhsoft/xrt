@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `150` 个函数、`223` 个常量或宏、
-`109` 个公共类型。
+当前登记 `156` 个函数、`238` 个常量或宏、
+`115` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -763,13 +763,15 @@
 - `xrpcWsPollRetired`
 - `xrpcWsWaitFor`
 
-### 常量与宏 (12)
+### 常量与宏 (15)
 
 - `XRPC_FEATURE_XRPC_WS`
 - `XRPC_FEATURE_XRPC_WS_TLS`
+- `XRPC_WS_AUTH`
 - `XRPC_WS_CLOSED`
 - `XRPC_WS_CLOSING`
 - `XRPC_WS_ENGINE`
+- `XRPC_WS_HTTP`
 - `XRPC_WS_LIMIT`
 - `XRPC_WS_LOCAL`
 - `XRPC_WS_MEMORY`
@@ -777,6 +779,7 @@
 - `XRPC_WS_PROTOCOL`
 - `XRPC_WS_TIMEOUT`
 - `XRPC_WS_TRANSPORT`
+- `XRPC_WS_UPGRADING`
 
 ### 类型 (5)
 
@@ -785,3 +788,40 @@
 - `xrpcwsinfo`
 - `xrpcwsreason`
 - `xrpcwsstate`
+
+## `extlibs/xrpc/include/xrpc/ws_http.h`
+
+[查看带契约注释的公共头](../../include/xrpc/ws_http.h)
+
+### 函数 (6)
+
+- `xrpcWsHttpClientTcp`
+- `xrpcWsHttpClientTls`
+- `xrpcWsHttpConfigInit`
+- `xrpcWsHttpInfo`
+- `xrpcWsHttpServerTcp`
+- `xrpcWsHttpServerTls`
+
+### 常量与宏 (12)
+
+- `XRPC_FEATURE_XRPC_WS_HTTP`
+- `XRPC_FEATURE_XRPC_WS_HTTP_TLS`
+- `XRPC_WS_HTTP_ALLOW`
+- `XRPC_WS_HTTP_AUTH_ERROR`
+- `XRPC_WS_HTTP_CLOSED`
+- `XRPC_WS_HTTP_FAILED`
+- `XRPC_WS_HTTP_FORBIDDEN`
+- `XRPC_WS_HTTP_OPEN`
+- `XRPC_WS_HTTP_PENDING`
+- `XRPC_WS_HTTP_REJECTED`
+- `XRPC_WS_HTTP_TIMED_OUT`
+- `XRPC_WS_HTTP_UNAUTHORIZED`
+
+### 类型 (6)
+
+- `xrpcwshttpauthorize`
+- `xrpcwshttpauthrequest`
+- `xrpcwshttpauthstatus`
+- `xrpcwshttpconfig`
+- `xrpcwshttpinfo`
+- `xrpcwshttpoutcome`

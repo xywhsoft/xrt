@@ -114,8 +114,11 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* Duplex,uint64 Token);
 XRPC_API xstrview xrpcDuplexOutputWire(const xrpcduplexoutput* Output);
 XRPC_API bool xrpcDuplexOutputRetain(xrpcduplexoutput* Output);
 XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
-/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY.
- * Owner Step drives typed completion; no forced interruption/rollback. */
+/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY/
+ * TIMEOUT/HTTP_ERROR. TIMEOUT also represents an adapter's earlier whole-setup deadline;
+ * individual call clocks do not get refreshed. Existing NOT_SENT/uncertain
+ * delivery knowledge is preserved. Owner Step drives typed completion and
+ * physical incoming work; no forced interruption/rollback. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
  * not a global atomic snapshot. Closing with only physical pins remaining has

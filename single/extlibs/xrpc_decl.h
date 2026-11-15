@@ -102,6 +102,12 @@
 #if !defined(XRPC_FEATURE_XRPC_WS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_WS_HTTP)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP 1
+#endif
+#if !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_TLS 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_WS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_TLS 1
 #endif
@@ -179,6 +185,12 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_WS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_WS_HTTP)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_TLS 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_WS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_TLS 1
@@ -1173,6 +1185,9 @@
 #if !defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_DIAL_PROXY 1
 #endif
+#if !defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE 1
+#endif
 #if !defined(XRT_FEATURE_TLS_STREAM_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_FUTURE 1
 #endif
@@ -1271,6 +1286,9 @@
 #endif
 #if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS 1
+#endif
+#if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
 #endif
 #if !defined(XRT_FEATURE_WEBSOCKET_UPGRADE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_UPGRADE 1
@@ -1389,6 +1407,9 @@
 #if !defined(XRT_MODULE_HTTP1_BODY)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY 1
 #endif
+#if !defined(XRT_MODULE_HTTP1_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_TLS 1
+#endif
 #if !defined(XRT_MODULE_HTTP_EXPECT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT 1
 #endif
@@ -1481,6 +1502,12 @@
 #endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS 1
+#endif
+#if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
+#endif
+#if !defined(XRT_MODULE_WEBSOCKET_UPGRADE_STREAM)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_STREAM 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_ALL)
 #define XRPC_MODULE_ALL 1
@@ -2475,6 +2502,9 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
 #define XRT_FEATURE_TLS_STREAM_DIAL_PROXY 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+#define XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE 1
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_FUTURE)
 #define XRT_FEATURE_TLS_STREAM_FUTURE 1
 #endif
@@ -2573,6 +2603,9 @@
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 #define XRT_FEATURE_WEBSOCKET_STREAM_TLS 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_UPGRADE)
 #define XRT_FEATURE_WEBSOCKET_UPGRADE 1
@@ -2763,6 +2796,44 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_TLS
 #define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#endif
+
+/* xrpc_ws_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#define XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_TLS
+#define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_HTTP1_TLS
+#define XRT_MODULE_HTTP1_TLS
+#endif
+#endif
+
+/* xrpc_ws_http 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP
+#define XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#define XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
 #endif
 #endif
 
@@ -4809,8 +4880,11 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* Duplex,uint64 Token);
 XRPC_API xstrview xrpcDuplexOutputWire(const xrpcduplexoutput* Output);
 XRPC_API bool xrpcDuplexOutputRetain(xrpcduplexoutput* Output);
 XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
-/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY.
- * Owner Step drives typed completion; no forced interruption/rollback. */
+/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY/
+ * TIMEOUT/HTTP_ERROR. TIMEOUT also represents an adapter's earlier whole-setup deadline;
+ * individual call clocks do not get refreshed. Existing NOT_SENT/uncertain
+ * delivery knowledge is preserved. Owner Step drives typed completion and
+ * physical incoming work; no forced interruption/rollback. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
  * not a global atomic snapshot. Closing with only physical pins remaining has
@@ -5124,8 +5198,8 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC_WS)
 typedef struct xrpcws xrpcws;
-typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED} xrpcwsstate;
-typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE} xrpcwsreason;
+typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED,XRPC_WS_UPGRADING} xrpcwsstate;
+typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE,XRPC_WS_HTTP,XRPC_WS_AUTH} xrpcwsreason;
 typedef struct xrpcwsconfig {
     size_t Size;
     xrpcduplexconfig Duplex;
@@ -5199,6 +5273,99 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/ws_http.h */
+/* ========================================================================== */
+
+#ifndef XRPC_WS_HTTP_H
+#define XRPC_WS_HTTP_H
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP) && (!defined(XRPC_FEATURE_XRPC_WS) || !defined(XRT_FEATURE_WEBSOCKET_UPGRADE_STREAM))
+#error "RPC WS HTTP requires WS and strict Core HTTP Upgrade"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS) && (!defined(XRPC_FEATURE_XRPC_WS_HTTP) || !defined(XRPC_FEATURE_XRPC_WS_TLS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) || !defined(XRT_FEATURE_TLS_STREAM_RETIRE))
+#error "RPC WSS HTTP requires WS HTTP, owned TLS exchange and physical TLS retirement"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+typedef enum xrpcwshttpauthstatus {
+    XRPC_WS_HTTP_ALLOW=0,XRPC_WS_HTTP_UNAUTHORIZED,XRPC_WS_HTTP_FORBIDDEN,XRPC_WS_HTTP_AUTH_ERROR
+} xrpcwshttpauthstatus;
+typedef struct xrpcwshttpauthrequest {
+    const xhttp1head* Head;
+    xnetaddr Remote;
+    xcancel* Cancel;
+    double Deadline;
+    bool Secure;
+} xrpcwshttpauthrequest;
+/* Existing shared Server executor, never an IO Worker. Head is an owned immutable
+ * snapshot borrowed during this call; Cancel is poll-only. Return bounded opaque
+ * context for subsequent RPC handlers. Poll the original Deadline/Cancel. Code/
+ * User remain resident through physical peer retirement; noncooperative work
+ * delays that retirement. No input/output borrow survives this callback. */
+typedef xrpcwshttpauthstatus (*xrpcwshttpauthorize)(const xrpcwshttpauthrequest*,
+    bytes Context,size_t Capacity,size_t* ContextBytes,ptr User);
+typedef struct xrpcwshttpconfig {
+    size_t Size;
+    xhttp1limits Head;
+    size_t MaxWriteBytes;
+    int64 SetupTimeout;
+    xstrview Host,Target,Origin,UnauthorizedChallenge;
+    const xhttpfield* Fields;size_t FieldCount;
+    xwsupgradeclientconfig Client;
+    xwsupgradeserverconfig Server;
+    bool RequireProtocol;
+    xrpcwshttpauthorize Authorize;ptr AuthorizationUser;
+    size_t MaxAuthorizationContextBytes;
+} xrpcwshttpconfig;
+typedef enum xrpcwshttpoutcome {
+    XRPC_WS_HTTP_PENDING=0,XRPC_WS_HTTP_OPEN,XRPC_WS_HTTP_REJECTED,
+    XRPC_WS_HTTP_FAILED,XRPC_WS_HTTP_TIMED_OUT,XRPC_WS_HTTP_CLOSED
+} xrpcwshttpoutcome;
+typedef struct xrpcwshttpinfo {
+    size_t Size;
+    xrpcwshttpoutcome Outcome;
+    double Deadline;
+    uint16 Status,AuthorizationStatus;
+    size_t HeaderBytes,WriteBytes,ColdBytes,PeakColdBytes,HeaderCopyBytes;
+    bool Server,Secure,AuthorizationPending;
+} xrpcwshttpinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: strict Core head limits,32KiB output,10s whole setup deadline,
+ * /rpc target,required jsonrpc subprotocol,both compression policies disabled.
+ * Client Host is required. Server nonempty Host/Origin are exact allow rules
+ * (Host ASCII case-insensitive); Target is exact including any query. Empty
+ * Origin does not implement a browser-origin allow rule. Fields are client
+ * request/server response extras; managed/framing/handshake fields are rejected.
+ * <=32 extras,16KiB head,128 fields,64KiB output,16KiB auth context hard caps.
+ * Strings/fields are copied before return, credentials erased at cold cleanup.
+ * DeflateData and AuthorizationUser are borrowed through peer retirement. */
+XRPC_API bool xrpcWsHttpConfigInit(xrpcwshttpconfig*);
+/* Exclusive native OPEN Worker factories; role follows function. TLS must be
+ * authenticated and outside its Open/Read driver. Success consumes one native
+ * owner and returns the same xrpcws handle in UPGRADING. Existing buffered HTTP
+ * bytes are processed, then only the validated header is consumed; its first WS
+ * suffix is preserved. No JSON or handler dispatch before validated Upgrade.
+ * All calls/batches/notifications use their original API-entry deadlines while
+ * queued. SetupTimeout begins at factory entry; no clock refresh at 101/auth.
+ * False changes no output/binding and consumes no native owner. No replay,
+ * redirect, credential retry or implicit downgrade. DNS/TCP/TLS establishment
+ * precedes these attach factories and has its own host ownership contract.
+ * Authorize requires RPC.Duplex.Server and an empty RPC.RequestContext; its
+ * allowed context becomes that connection's handler context. All setup and
+ * executor tails join through ordinary Close/WaitFor/Destroy. */
+XRPC_API bool xrpcWsHttpClientTcp(xnetstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+XRPC_API bool xrpcWsHttpServerTcp(xnetstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+XRPC_API bool xrpcWsHttpClientTls(xtlsstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+XRPC_API bool xrpcWsHttpServerTls(xtlsstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+#endif
+/* Copied snapshot, including after cold setup storage has retired. Ordinary
+ * post-Upgrade attach peers report STATE and leave output unchanged. */
+XRPC_API bool xrpcWsHttpInfo(xrpcws*,xrpcwshttpinfo*);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -5266,6 +5433,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRPC_FEATURE_XRPC_WS)
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
@@ -5363,6 +5533,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS)
 #undef XRPC_FEATURE_XRPC_WS
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP)
+#undef XRPC_FEATURE_XRPC_WS_HTTP
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#undef XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_TLS)
 #undef XRPC_FEATURE_XRPC_WS_TLS
@@ -5467,6 +5645,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS)
 #undef XRPC_MODULE_XRPC_WS
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP)
+#undef XRPC_MODULE_XRPC_WS_HTTP
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#undef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_TLS)
 #undef XRPC_MODULE_XRPC_WS_TLS
@@ -6792,6 +6978,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_TLS_STREAM_DIAL_PROXY
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_DIAL_PROXY
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE)
+#undef XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_FUTURE)
 #undef XRT_FEATURE_TLS_STREAM_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_FUTURE
@@ -6923,6 +7113,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS)
 #undef XRT_FEATURE_WEBSOCKET_STREAM_TLS
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#undef XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_UPGRADE)
 #undef XRT_FEATURE_WEBSOCKET_UPGRADE
@@ -7080,6 +7274,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_HTTP1_BODY
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_TLS)
+#undef XRT_MODULE_HTTP1_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_TLS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT)
 #undef XRT_MODULE_HTTP_EXPECT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT
@@ -7204,6 +7402,14 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_WEBSOCKET_STREAM_TLS
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
+#undef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_STREAM)
+#undef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#endif
 
 #endif
 
@@ -7292,6 +7498,44 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_TLS
 #define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#endif
+
+/* xrpc_ws_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#define XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_TLS
+#define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_HTTP1_TLS
+#define XRT_MODULE_HTTP1_TLS
+#endif
+#endif
+
+/* xrpc_ws_http 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP
+#define XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#define XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
 #endif
 #endif
 

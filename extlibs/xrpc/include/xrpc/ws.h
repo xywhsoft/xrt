@@ -7,8 +7,8 @@
 #endif
 #if defined(XRPC_FEATURE_XRPC_WS)
 typedef struct xrpcws xrpcws;
-typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED} xrpcwsstate;
-typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE} xrpcwsreason;
+typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED,XRPC_WS_UPGRADING} xrpcwsstate;
+typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE,XRPC_WS_HTTP,XRPC_WS_AUTH} xrpcwsreason;
 typedef struct xrpcwsconfig {
     size_t Size;
     xrpcduplexconfig Duplex;

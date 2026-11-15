@@ -133,6 +133,44 @@
 #ifndef XRPC_MODULE_XRPC_WS_TLS
 #define XRPC_MODULE_XRPC_WS_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#endif
+
+/* xrpc_ws_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#define XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_TLS
+#define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_HTTP1_TLS
+#define XRT_MODULE_HTTP1_TLS
+#endif
+#endif
+
+/* xrpc_ws_http 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP
+#define XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#define XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#endif
 #endif
 
 /* xrpc_ws_tls 及其直接依赖。 */
@@ -2178,8 +2216,11 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* Duplex,uint64 Token);
 XRPC_API xstrview xrpcDuplexOutputWire(const xrpcduplexoutput* Output);
 XRPC_API bool xrpcDuplexOutputRetain(xrpcduplexoutput* Output);
 XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
-/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY.
- * Owner Step drives typed completion; no forced interruption/rollback. */
+/* Concurrent nonblocking close. Reason CLOSED/TRANSPORT/PROTOCOL/LIMIT/MEMORY/
+ * TIMEOUT/HTTP_ERROR. TIMEOUT also represents an adapter's earlier whole-setup deadline;
+ * individual call clocks do not get refreshed. Existing NOT_SENT/uncertain
+ * delivery knowledge is preserved. Owner Step drives typed completion and
+ * physical incoming work; no forced interruption/rollback. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
  * not a global atomic snapshot. Closing with only physical pins remaining has
@@ -2493,8 +2534,8 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC_WS)
 typedef struct xrpcws xrpcws;
-typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED} xrpcwsstate;
-typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE} xrpcwsreason;
+typedef enum xrpcwsstate {XRPC_WS_OPEN=0,XRPC_WS_CLOSING,XRPC_WS_CLOSED,XRPC_WS_UPGRADING} xrpcwsstate;
+typedef enum xrpcwsreason {XRPC_WS_LOCAL=0,XRPC_WS_TRANSPORT,XRPC_WS_PROTOCOL,XRPC_WS_LIMIT,XRPC_WS_MEMORY,XRPC_WS_TIMEOUT,XRPC_WS_ENGINE,XRPC_WS_HTTP,XRPC_WS_AUTH} xrpcwsreason;
 typedef struct xrpcwsconfig {
     size_t Size;
     xrpcduplexconfig Duplex;
@@ -2568,6 +2609,99 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/ws_http.h */
+/* ========================================================================== */
+
+#ifndef XRPC_WS_HTTP_H
+#define XRPC_WS_HTTP_H
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP) && (!defined(XRPC_FEATURE_XRPC_WS) || !defined(XRT_FEATURE_WEBSOCKET_UPGRADE_STREAM))
+#error "RPC WS HTTP requires WS and strict Core HTTP Upgrade"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS) && (!defined(XRPC_FEATURE_XRPC_WS_HTTP) || !defined(XRPC_FEATURE_XRPC_WS_TLS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) || !defined(XRT_FEATURE_TLS_STREAM_RETIRE))
+#error "RPC WSS HTTP requires WS HTTP, owned TLS exchange and physical TLS retirement"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+typedef enum xrpcwshttpauthstatus {
+    XRPC_WS_HTTP_ALLOW=0,XRPC_WS_HTTP_UNAUTHORIZED,XRPC_WS_HTTP_FORBIDDEN,XRPC_WS_HTTP_AUTH_ERROR
+} xrpcwshttpauthstatus;
+typedef struct xrpcwshttpauthrequest {
+    const xhttp1head* Head;
+    xnetaddr Remote;
+    xcancel* Cancel;
+    double Deadline;
+    bool Secure;
+} xrpcwshttpauthrequest;
+/* Existing shared Server executor, never an IO Worker. Head is an owned immutable
+ * snapshot borrowed during this call; Cancel is poll-only. Return bounded opaque
+ * context for subsequent RPC handlers. Poll the original Deadline/Cancel. Code/
+ * User remain resident through physical peer retirement; noncooperative work
+ * delays that retirement. No input/output borrow survives this callback. */
+typedef xrpcwshttpauthstatus (*xrpcwshttpauthorize)(const xrpcwshttpauthrequest*,
+    bytes Context,size_t Capacity,size_t* ContextBytes,ptr User);
+typedef struct xrpcwshttpconfig {
+    size_t Size;
+    xhttp1limits Head;
+    size_t MaxWriteBytes;
+    int64 SetupTimeout;
+    xstrview Host,Target,Origin,UnauthorizedChallenge;
+    const xhttpfield* Fields;size_t FieldCount;
+    xwsupgradeclientconfig Client;
+    xwsupgradeserverconfig Server;
+    bool RequireProtocol;
+    xrpcwshttpauthorize Authorize;ptr AuthorizationUser;
+    size_t MaxAuthorizationContextBytes;
+} xrpcwshttpconfig;
+typedef enum xrpcwshttpoutcome {
+    XRPC_WS_HTTP_PENDING=0,XRPC_WS_HTTP_OPEN,XRPC_WS_HTTP_REJECTED,
+    XRPC_WS_HTTP_FAILED,XRPC_WS_HTTP_TIMED_OUT,XRPC_WS_HTTP_CLOSED
+} xrpcwshttpoutcome;
+typedef struct xrpcwshttpinfo {
+    size_t Size;
+    xrpcwshttpoutcome Outcome;
+    double Deadline;
+    uint16 Status,AuthorizationStatus;
+    size_t HeaderBytes,WriteBytes,ColdBytes,PeakColdBytes,HeaderCopyBytes;
+    bool Server,Secure,AuthorizationPending;
+} xrpcwshttpinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: strict Core head limits,32KiB output,10s whole setup deadline,
+ * /rpc target,required jsonrpc subprotocol,both compression policies disabled.
+ * Client Host is required. Server nonempty Host/Origin are exact allow rules
+ * (Host ASCII case-insensitive); Target is exact including any query. Empty
+ * Origin does not implement a browser-origin allow rule. Fields are client
+ * request/server response extras; managed/framing/handshake fields are rejected.
+ * <=32 extras,16KiB head,128 fields,64KiB output,16KiB auth context hard caps.
+ * Strings/fields are copied before return, credentials erased at cold cleanup.
+ * DeflateData and AuthorizationUser are borrowed through peer retirement. */
+XRPC_API bool xrpcWsHttpConfigInit(xrpcwshttpconfig*);
+/* Exclusive native OPEN Worker factories; role follows function. TLS must be
+ * authenticated and outside its Open/Read driver. Success consumes one native
+ * owner and returns the same xrpcws handle in UPGRADING. Existing buffered HTTP
+ * bytes are processed, then only the validated header is consumed; its first WS
+ * suffix is preserved. No JSON or handler dispatch before validated Upgrade.
+ * All calls/batches/notifications use their original API-entry deadlines while
+ * queued. SetupTimeout begins at factory entry; no clock refresh at 101/auth.
+ * False changes no output/binding and consumes no native owner. No replay,
+ * redirect, credential retry or implicit downgrade. DNS/TCP/TLS establishment
+ * precedes these attach factories and has its own host ownership contract.
+ * Authorize requires RPC.Duplex.Server and an empty RPC.RequestContext; its
+ * allowed context becomes that connection's handler context. All setup and
+ * executor tails join through ordinary Close/WaitFor/Destroy. */
+XRPC_API bool xrpcWsHttpClientTcp(xnetstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+XRPC_API bool xrpcWsHttpServerTcp(xnetstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+XRPC_API bool xrpcWsHttpClientTls(xtlsstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+XRPC_API bool xrpcWsHttpServerTls(xtlsstream*,const xrpcwsconfig*,const xrpcwshttpconfig*,xrpcws**);
+#endif
+/* Copied snapshot, including after cold setup storage has retired. Ordinary
+ * post-Upgrade attach peers report STATE and leave output unchanged. */
+XRPC_API bool xrpcWsHttpInfo(xrpcws*,xrpcwshttpinfo*);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -2635,6 +2769,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRPC_FEATURE_XRPC_WS)
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
 #endif
 #endif
 
@@ -2860,7 +2997,9 @@ void xrpcHttpSecureDrop(xrpchttpsecure* Secure);
 /* ========================================================================== */
 
 #if defined(XRPC_FEATURE_XRPC_SERVER) || \
-	defined(XRPC_FEATURE_XRPC_DUPLEX)
+	defined(XRPC_FEATURE_XRPC_DUPLEX) || \
+	defined(XRPC_FEATURE_XRPC_WS_HTTP) || \
+	defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
 #ifndef XRPC_SERVER_INTERNAL_H
 #define XRPC_SERVER_INTERNAL_H
 #if defined(XRPC_FEATURE_XRPC_SERVER)
@@ -2999,6 +3138,48 @@ typedef struct xrpctlsconnect {
 bool xrpcTlsCreatePlanned(xnetengine*,uint64,const xtlsclientconfig*,const xrpctlsconfig*,xrpctlsconnect*,xrpctls**,double);
 void xrpcTlsConnected(xrpctls*,xnetresult,xnetstream*,const xerror*);
 void xrpcTlsConnectRetired(xrpctls*);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_ws_http_internal.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP) || \
+	defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#ifndef XRPC_WS_HTTP_INTERNAL_H
+#define XRPC_WS_HTTP_INTERNAL_H
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+typedef struct xrpcwsauthorization xrpcwsauthorization;
+typedef struct xrpcwsupgrade {
+    xrpcwshttpconfig Config;
+    ptr Native;
+    size_t Bytes,WireBytes,WireOffset,HeaderBytes;
+    double Deadline;
+    bool TLS,Server,EventGone,NativeClosed,InputEnded,Paused,Checked,Rejected,Closing;
+    xrpcwsreason Reason;
+    xhttpfield* Fields;
+    unsigned char* Wire;
+    unsigned char* ZeroContext;
+    unsigned char* Cache;size_t CacheUsed;
+    xwsupgrade Negotiated;
+    char Key[XWS_KEY_CAPACITY],Protocol[256];
+    xrpcwsauthorization* Authorization;
+} xrpcwsupgrade;
+struct xrpcwsauthorization {
+    xrpcserverwork Work;
+    xatomic32 References,Ready;
+    xrpcws* Peer;
+    xrpcwshttpauthorize Call;
+    ptr User;
+    size_t Bytes,Capacity,ContextBytes;
+    bytes Context;
+    uint16 Status;
+    xrpcwshttpauthrequest Request;
+    xhttp1head Head;
+};
 #endif
 #endif
 #endif
@@ -7315,7 +7496,7 @@ static void xrpcDuplexSeal(xrpcduplex* D,xrpccallstatus Reason)
 {xrtMutexLock(&D->Gate);if(!D->Closing){D->Closing=true;D->Reason=Reason;}xrtMutexUnlock(&D->Gate);}
 XRPC_API bool xrpcDuplexClose(xrpcduplex* D,xrpccallstatus Reason)
 {
-    if(!D || (Reason!=XRPC_CALL_CLOSED && Reason!=XRPC_CALL_TRANSPORT && Reason!=XRPC_CALL_PROTOCOL && Reason!=XRPC_CALL_LIMIT && Reason!=XRPC_CALL_MEMORY))
+    if(!D || (Reason!=XRPC_CALL_CLOSED && Reason!=XRPC_CALL_TRANSPORT && Reason!=XRPC_CALL_PROTOCOL && Reason!=XRPC_CALL_LIMIT && Reason!=XRPC_CALL_MEMORY && Reason!=XRPC_CALL_TIMEOUT && Reason!=XRPC_CALL_HTTP_ERROR))
         return xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex close reason");
     xrpcDuplexSeal(D,Reason);xrpcDuplexWake(D);return true;
 }
@@ -8705,6 +8886,10 @@ XRPC_API bool xrpcTlsDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 
 #if defined(XRPC_FEATURE_XRPC_WS)
 #include <math.h>
 #include <string.h>
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#endif
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS)
 struct xrpcws {
     xrpcwsconfig Config;xrpcwsinfo Info;xatomic32 References;
@@ -8712,10 +8897,19 @@ struct xrpcws {
     xrpcduplex* Duplex;xrpcduplexoutput* Output;unsigned char* Receive;
     xnetpost Post;uint64 Timer,Token;double TimerAt,MessageEntered;size_t Used,Capacity,ReadTurnBytes;
     bool Active,Posted,EventsGone,NativeClosed,NativeFailed,MessageActive,Complete,Offered,AbortIssued,DuplexClosing,TimerUnavailable,DestroyingNative;
-    unsigned CleanupDelay;xrpcwsreason NativeReason;unsigned char Context[];
+    unsigned CleanupDelay;xrpcwsreason NativeReason;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+    xrpcwsupgrade* Upgrade;xrpcwshttpinfo UpgradeInfo;bool UpgradeAbort;
+    #endif
+    unsigned char Context[];
 };
 static void xrpcWsWork(xnetworker*,ptr);
 static void xrpcWsTimer(xnetworker*,uint64,xnetresult,ptr);
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+static void xrpcWsHttpStep(xrpcws*);
+static bool xrpcWsHttpRetire(xrpcws*);
+static void xrpcWsHttpDiscard(xrpcws*);
+#endif
 static bool xrpcWsReport(xerrkind K,cstr M){xrtSetErrorInfo(K,"xrt.rpc",19401,M);return false;}
 static double xrpcWsDeadline(double Entered,int64 Timeout)
 {return Timeout==XRT_WAIT_FOREVER?INFINITY:Timeout==0?Entered:nextafter(Entered+(double)(Timeout/1000)+(double)(Timeout%1000)*.001,INFINITY);}
@@ -8742,16 +8936,24 @@ static bool xrpcWsWakeLocked(xrpcws* P)
 }
 static void xrpcWsWake(ptr Data)
 {xrpcws* P=Data;xrtMutexLock(&P->Gate);(void)xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);}
+static bool xrpcWsTerminal(xrpcwsstate State)
+{
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+    return State==XRPC_WS_CLOSING || State==XRPC_WS_CLOSED;
+    #else
+    return State>=XRPC_WS_CLOSING;
+    #endif
+}
 static bool xrpcWsClosing(xrpcws* P)
-{xrtMutexLock(&P->Gate);bool B=P->Info.State>=XRPC_WS_CLOSING;xrtMutexUnlock(&P->Gate);return B;}
+{xrtMutexLock(&P->Gate);bool B=xrpcWsTerminal(P->Info.State);xrtMutexUnlock(&P->Gate);return B;}
 static void xrpcWsFail(xrpcws* P,xrpcwsreason Reason)
 {
-    xrtMutexLock(&P->Gate);if(P->Info.State<XRPC_WS_CLOSING){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=Reason;}xrtMutexUnlock(&P->Gate);
+    xrtMutexLock(&P->Gate);if(!xrpcWsTerminal(P->Info.State)){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=Reason;}xrtMutexUnlock(&P->Gate);
 }
 static xrpcwsreason xrpcWsLocalFailure(void)
 {return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_WS_MEMORY:xrtErrorKind(xrtGetError())==XERR_RANGE?XRPC_WS_LIMIT:XRPC_WS_TRANSPORT;}
 static xrpccallstatus xrpcWsCallFailure(xrpcwsreason Reason)
-{return Reason==XRPC_WS_LOCAL?XRPC_CALL_CLOSED:Reason==XRPC_WS_PROTOCOL?XRPC_CALL_PROTOCOL:Reason==XRPC_WS_LIMIT?XRPC_CALL_LIMIT:Reason==XRPC_WS_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT;}
+{return Reason==XRPC_WS_LOCAL?XRPC_CALL_CLOSED:Reason==XRPC_WS_PROTOCOL?XRPC_CALL_PROTOCOL:(Reason==XRPC_WS_HTTP||Reason==XRPC_WS_AUTH)?XRPC_CALL_HTTP_ERROR:Reason==XRPC_WS_LIMIT?XRPC_CALL_LIMIT:Reason==XRPC_WS_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT;}
 static void xrpcWsNativeError(xrpcws* P,const xerror* E)
 {
     if(!E)return;
@@ -8859,6 +9061,15 @@ static void xrpcWsWork(xnetworker* W,ptr Data)
     (void)W;xerror* Ambient=xrtTakeError();xrpcws* P=Data;xrtMutexLock(&P->Gate);P->Posted=false;bool Closed=P->Info.State==XRPC_WS_CLOSED;xrtMutexUnlock(&P->Gate);
     if(Closed)goto End;
     if(!xrpcDuplexStep(P->Duplex))xrpcWsFail(P,xrpcWsLocalFailure());
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+    if(P->Upgrade){xrpcWsHttpStep(P);
+    xrtMutexLock(&P->Gate);bool Upgrading=P->Info.State==XRPC_WS_UPGRADING;xrtMutexUnlock(&P->Gate);
+    if(Upgrading){xrpcduplexinfo U={0};U.Size=sizeof(U);xrpcDuplexInfo(P->Duplex,&U);
+        if(U.Closing)xrpcWsFail(P,U.Reason==XRPC_CALL_PROTOCOL?XRPC_WS_PROTOCOL:U.Reason==XRPC_CALL_MEMORY?XRPC_WS_MEMORY:U.Reason==XRPC_CALL_LIMIT?XRPC_WS_LIMIT:XRPC_WS_TRANSPORT);
+        if(!xrpcWsClosing(P)){double At=U.NextDeadline;if(P->Upgrade->Deadline<At)At=P->Upgrade->Deadline;if(U.More)xrpcWsWake(P);else xrpcWsArm(P,At);xrtMutexLock(&P->Gate);P->Info.Duplex=U;xrtMutexUnlock(&P->Gate);goto End;}
+    }
+    }
+    #endif
     if(!xrpcWsClosing(P) && !P->NativeFailed && P->MessageActive && xrtTimer()>=xrpcWsDeadline(P->MessageEntered,P->Config.MessageTimeout))xrpcWsFail(P,XRPC_WS_TIMEOUT);
     if(!xrpcWsClosing(P) && P->Complete){
         xrpcduplexadmission A=xrpcDuplexReceiveEntered(P->Duplex,(xstrview){(cstr)P->Receive,P->Used},P->Config.RequestContext,P->MessageEntered);
@@ -8873,16 +9084,30 @@ static void xrpcWsWork(xnetworker* W,ptr Data)
     xrpcDuplexInfo(P->Duplex,&D);if(D.Closing && !xrpcWsClosing(P))xrpcWsFail(P,D.Reason==XRPC_CALL_PROTOCOL?XRPC_WS_PROTOCOL:D.Reason==XRPC_CALL_MEMORY?XRPC_WS_MEMORY:D.Reason==XRPC_CALL_LIMIT?XRPC_WS_LIMIT:XRPC_WS_TRANSPORT);
     if(xrpcWsClosing(P)){
         xrpcWsTimerCancel(P);xrpcWsOutputClear(P);xrpcWsReceiveClear(P,true);
+        #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+        bool HttpRetired=xrpcWsHttpRetire(P);
+        #endif
         if(P->Stream && !P->AbortIssued){P->AbortIssued=true;if(xrtWsStreamState(P->Stream)!=XWS_STREAM_CLOSED)(void)xrtWsStreamAbort(P->Stream);}
         if(P->Stream && xrtWsStreamPollRetired(P->Stream)==XWAIT_OK){xwsstream* S=P->Stream;P->Stream=NULL;P->DestroyingNative=true;xrtWsStreamDestroy(S);P->DestroyingNative=false;}
         xrtMutexLock(&P->Gate);xrpcwsreason Reason=P->Info.Reason;size_t Entries=P->Info.Submitters;xrtMutexUnlock(&P->Gate);
-        if(!P->DuplexClosing){P->DuplexClosing=true;(void)xrpcDuplexClose(P->Duplex,xrpcWsCallFailure(Reason));}
+        if(!P->DuplexClosing){xrpccallstatus Status=xrpcWsCallFailure(Reason);
+            #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+            if(Reason==XRPC_WS_TIMEOUT&&P->UpgradeInfo.Size&&P->UpgradeInfo.Outcome!=XRPC_WS_HTTP_OPEN)Status=XRPC_CALL_TIMEOUT;
+            #endif
+            if(xrpcDuplexClose(P->Duplex,Status))P->DuplexClosing=true;else{xrpcWsNativeError(P,xrtGetError());xrpcWsWake(P);}}
         (void)xrpcDuplexStep(P->Duplex);xrpcDuplexInfo(P->Duplex,&D);
         bool Done=!Entries&&D.Drained&&!P->Stream&&P->EventsGone;
+        #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+        Done=Done&&HttpRetired;
+        #endif
         if(Done){xrtMutexLock(&P->Gate);Done=P->Info.Submitters==0;xrtMutexUnlock(&P->Gate);}
         if(Done && xrpcDuplexDestroy(P->Duplex)){P->Duplex=NULL;xrtMutexLock(&P->Gate);P->Info.State=XRPC_WS_CLOSED;xrtMutexUnlock(&P->Gate);xrpcWsDrop(P);}
         else if(D.More)xrpcWsWake(P);
-        else {double At=D.NextDeadline;if(P->Stream){if(!P->CleanupDelay)P->CleanupDelay=1;else if(P->CleanupDelay<32)P->CleanupDelay*=2;double Retry=xrpcWsDeadline(xrtTimer(),P->CleanupDelay);if(Retry<At)At=Retry;}xrpcWsArm(P,At);}
+        else {double At=D.NextDeadline;bool NativePending=P->Stream!=NULL;
+            #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+            NativePending=NativePending||P->Upgrade!=NULL;
+            #endif
+            if(NativePending){if(!P->CleanupDelay)P->CleanupDelay=1;else if(P->CleanupDelay<32)P->CleanupDelay*=2;double Retry=xrpcWsDeadline(xrtTimer(),P->CleanupDelay);if(Retry<At)At=Retry;}xrpcWsArm(P,At);}
     }else {
         P->ReadTurnBytes=0;
         if(xrtWsStreamPaused(P->Stream) && !xrtWsStreamResume(P->Stream)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());xrpcWsWake(P);}
@@ -8948,11 +9173,11 @@ XRPC_API bool xrpcWsAttachTls(xtlsstream* S,xnetbuf* Initial,const xrpcwsconfig*
 static xrpcduplexadmission xrpcWsSubmit(xrpcws* P,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
     if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS submission output"),XRPC_DUPLEX_ERROR;
-    xrtMutexLock(&P->Gate);if(P->Info.State>=XRPC_WS_CLOSING){xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_CLOSED;}
+    xrtMutexLock(&P->Gate);if(xrpcWsTerminal(P->Info.State)){xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_CLOSED;}
     if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_OVERLOADED;}
     ++P->Info.Submitters;xrpcWsRef(P);xrtMutexUnlock(&P->Gate);
     xrpcduplexadmission A=xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
-    xerror* Error=xrtTakeError();xrtMutexLock(&P->Gate);--P->Info.Submitters;if(P->Info.State>=XRPC_WS_CLOSING)(void)xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);xrpcWsDrop(P);xrtClearError();xrtSetErrorTake(Error);return A;
+    xerror* Error=xrtTakeError();xrtMutexLock(&P->Gate);--P->Info.Submitters;if(xrpcWsTerminal(P->Info.State))(void)xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);xrpcWsDrop(P);xrtClearError();xrtSetErrorTake(Error);return A;
 }
 XRPC_API xrpcduplexadmission xrpcWsCall(xrpcws* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
 {double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcWsSubmit(P,&I,1,false,Timeout,Future,E);}
@@ -8961,7 +9186,11 @@ XRPC_API xrpcduplexadmission xrpcWsNotify(xrpcws* P,xstrview Method,xstrview Par
 XRPC_API xrpcduplexadmission xrpcWsBatch(xrpcws* P,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future)
 {return xrpcWsSubmit(P,Items,Count,true,Timeout,Future,xrtTimer());}
 XRPC_API bool xrpcWsClose(xrpcws* P)
-{if(!P)return xrpcWsReport(XERR_ARGUMENT,"RPC WS peer is NULL");xrpcWsFail(P,XRPC_WS_LOCAL);xrtMutexLock(&P->Gate);bool OK=xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);return OK;}
+{if(!P)return xrpcWsReport(XERR_ARGUMENT,"RPC WS peer is NULL");xrpcWsFail(P,XRPC_WS_LOCAL);xrtMutexLock(&P->Gate);
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+    P->UpgradeAbort=true;
+    #endif
+    bool OK=xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);return OK;}
 XRPC_API bool xrpcWsInfo(xrpcws* P,xrpcwsinfo* I)
 {
     if(!P || !I || !xrtMemRangeValid(I,sizeof(*I)) || I->Size!=sizeof(*I) || xrtMemRangesOverlap(P,P->Info.FixedBytes,I,sizeof(*I)))return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS info output");
@@ -8988,6 +9217,364 @@ XRPC_API xwaitresult xrpcWsWaitFor(xrpcws* P,int64 Timeout)
 }
 XRPC_API bool xrpcWsDestroy(xrpcws* P)
 {if(!P)return true;if(xrpcWsPollRetired(P)!=XWAIT_OK)return xrpcWsReport(XERR_STATE,"RPC WS peer still has physical duties");xrpcWsFree(P);return true;}
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP)
+static xnetstream* xrpcWsHttpRaw(xrpcwsupgrade* H)
+{
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS)return xrtTlsStreamTransport(H->Native);
+    #endif
+    return H->Native;
+}
+static const xnetbuf* xrpcWsHttpBuffer(xrpcwsupgrade* H)
+{
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS)return xrtTlsStreamBuffer(H->Native);
+    #endif
+    return xrtNetStreamBuffer(H->Native);
+}
+static bool xrpcWsHttpConsume(xrpcwsupgrade* H,size_t N)
+{
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS)return xrtTlsStreamConsume(H->Native,N);
+    #endif
+    return xrtNetStreamConsume(H->Native,N)==N;
+}
+static bool xrpcWsHttpEqual(xstrview A,xstrview B,bool Fold)
+{
+    if(A.Size!=B.Size)return false;
+    for(size_t I=0;I<A.Size;++I){unsigned char X=(unsigned char)A.Data[I],Y=(unsigned char)B.Data[I];if(Fold){if(X>='A'&&X<='Z')X+=32;if(Y>='A'&&Y<='Z')Y+=32;}if(X!=Y)return false;}
+    return true;
+}
+static bool xrpcWsHttpName(xstrview Name,cstr Literal)
+{return xrpcWsHttpEqual(Name,(xstrview){Literal,strlen(Literal)},true);}
+static bool xrpcWsHttpManaged(xstrview Name)
+{
+    static const cstr Names[]={"Host","Connection","Upgrade","Content-Length","Transfer-Encoding","Expect","Trailer","Sec-WebSocket-Key","Sec-WebSocket-Accept","Sec-WebSocket-Version","Sec-WebSocket-Protocol","Sec-WebSocket-Extensions","Origin","WWW-Authenticate"};
+    for(size_t I=0;I<sizeof(Names)/sizeof(*Names);++I)if(xrpcWsHttpName(Name,Names[I]))return true;
+    return false;
+}
+static void xrpcWsHttpCostAdd(xrpcws* P,size_t N)
+{
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.ColdBytes+=N;if(P->UpgradeInfo.ColdBytes>P->UpgradeInfo.PeakColdBytes)P->UpgradeInfo.PeakColdBytes=P->UpgradeInfo.ColdBytes;xrtMutexUnlock(&P->Gate);
+}
+static void xrpcWsHttpCostDrop(xrpcws* P,size_t N)
+{xrtMutexLock(&P->Gate);P->UpgradeInfo.ColdBytes-=N;xrtMutexUnlock(&P->Gate);}
+static void xrpcWsHttpRead(xnetstream* S,xnetbuf* B,ptr Data)
+{(void)S;(void)B;xrpcWsWake(Data);}
+static void xrpcWsHttpWritable(xnetstream* S,ptr Data)
+{(void)S;xrpcWsWake(Data);}
+static void xrpcWsHttpLowWater(xnetstream* S,size_t N,ptr Data)
+{(void)S;(void)N;xrpcWsWake(Data);}
+static void xrpcWsHttpEnd(xnetstream* S,ptr Data)
+{(void)S;xrpcws* P=Data;if(P->Upgrade)P->Upgrade->InputEnded=true;xrpcWsWake(P);}
+static void xrpcWsHttpClosed(xnetstream* S,xnetresult R,const xerror* E,ptr Data)
+{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade)P->Upgrade->NativeClosed=true;xrpcWsWake(P);}
+static void xrpcWsHttpEventsDrop(const void* Data)
+{xrpcws* P=(xrpcws*)Data;if(P->Upgrade)P->Upgrade->EventGone=true;xrpcWsWake(P);xrpcWsDrop(P);}
+static const xnetstreameventsownershipv1 xrpcWsHttpTcpEvents={sizeof(xnetstreameventsownershipv1),{.Read=xrpcWsHttpRead,.End=xrpcWsHttpEnd,.LowWater=xrpcWsHttpLowWater,.Drain=xrpcWsHttpWritable,.Close=xrpcWsHttpClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+static void xrpcWsHttpTlsRead(xtlsstream* S,const xnetbuf* B,ptr Data)
+{(void)S;(void)B;xrpcWsWake(Data);}
+static void xrpcWsHttpTlsWritable(xtlsstream* S,ptr Data)
+{(void)S;xrpcWsWake(Data);}
+static void xrpcWsHttpTlsEnd(xtlsstream* S,ptr Data)
+{(void)S;xrpcws* P=Data;if(P->Upgrade)P->Upgrade->InputEnded=true;xrpcWsWake(P);}
+static void xrpcWsHttpTlsClosed(xtlsstream* S,xnetresult R,const xerror* E,ptr Data)
+{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade)P->Upgrade->NativeClosed=true;xrpcWsWake(P);}
+static const xtlsstreamownershipv1 xrpcWsHttpTlsEvents={sizeof(xtlsstreamownershipv1),{.Read=xrpcWsHttpTlsRead,.End=xrpcWsHttpTlsEnd,.Writable=xrpcWsHttpTlsWritable,.Drain=xrpcWsHttpTlsWritable,.Close=xrpcWsHttpTlsClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
+#endif
+static void xrpcWsHttpAuthRelease(xrpcwsauthorization* A)
+{
+    if(!A || xrtAtomic32FetchSub(&A->References,1,XMEMORY_ACQ_REL)!=1)return;
+    xrpcws* P=A->Peer;size_t N=A->Bytes;xrtCancelDestroy(A->Work.Cancel);xrtSecureZero(A,N);xrtFree(A);xrpcWsHttpCostDrop(P,N);xrpcWsDrop(P);
+}
+static void xrpcWsHttpAuthCall(xrpcserverwork* Work,xrpcserverstatus Status)
+{
+    xrpcwsauthorization* A=(xrpcwsauthorization*)Work;A->Status=503;if(Status!=XRPC_SERVER_DONE)return;
+    size_t Used=0;xrpcwshttpauthstatus R=A->Call(&A->Request,A->Context,A->Capacity,&Used,A->User);
+    if(xrtTimer()>=Work->Deadline || xrtCancelRequested(Work->Cancel))return;
+    if((unsigned)R>(unsigned)XRPC_WS_HTTP_AUTH_ERROR || Used>A->Capacity){A->Status=500;return;}
+    A->Status=R==XRPC_WS_HTTP_ALLOW?200:R==XRPC_WS_HTTP_UNAUTHORIZED?401:R==XRPC_WS_HTTP_FORBIDDEN?403:503;
+    if(R==XRPC_WS_HTTP_ALLOW)A->ContextBytes=Used;
+}
+static void xrpcWsHttpAuthDrop(xrpcserverwork* Work)
+{
+    xrpcwsauthorization* A=(xrpcwsauthorization*)Work;
+    xrtAtomic32Store(&A->Ready,1,XMEMORY_RELEASE);xrpcWsWake(A->Peer);xrpcWsHttpAuthRelease(A);
+}
+static xstrview xrpcWsHttpRelocate(xstrview V,cbytes From,cbytes To)
+{return V.Size?(xstrview){(cstr)(To+(V.Data-(cstr)From)),V.Size}:(xstrview){0};}
+static bool xrpcWsHttpAuthorize(xrpcws* P,const xhttp1head* Head)
+{
+    xrpcwsupgrade* H=P->Upgrade;size_t Fields=Head->FieldCount*sizeof(xhttpfield);
+    size_t N=sizeof(xrpcwsauthorization)+Fields+Head->Bytes+H->Config.MaxAuthorizationContextBytes;
+    xrpcwsauthorization* A=xrtCalloc(1,N);if(!A)return false;
+    xnetspan Span={0};if(H->Cache)Span=(xnetspan){H->Cache,H->CacheUsed};else if(!xrtNetBufFront(xrpcWsHttpBuffer(H),&Span)){xrtFree(A);return xrpcWsReport(XERR_STATE,"parsed HTTP head is not contiguous");}
+    if(Span.Size<Head->Bytes){xrtFree(A);return xrpcWsReport(XERR_STATE,"parsed HTTP head exceeds its source");}
+    xrtAtomic32Init(&A->References,1);xrtAtomic32Init(&A->Ready,0);A->Peer=P;xrpcWsRef(P);A->Bytes=N;xrpcWsHttpCostAdd(P,N);A->Call=H->Config.Authorize;A->User=H->Config.AuthorizationUser;A->Capacity=H->Config.MaxAuthorizationContextBytes;
+    A->Head=*Head;A->Head.Fields=(xhttpfield*)(A+1);A->Head.FieldCapacity=Head->FieldCount;bytes Raw=(bytes)A->Head.Fields+Fields;memcpy(Raw,Span.Data,Head->Bytes);xrtMutexLock(&P->Gate);P->UpgradeInfo.HeaderCopyBytes+=Head->Bytes;xrtMutexUnlock(&P->Gate);
+    A->Head.Method=xrpcWsHttpRelocate(Head->Method,Span.Data,Raw);A->Head.Target=xrpcWsHttpRelocate(Head->Target,Span.Data,Raw);A->Head.Reason=(xstrview){0};
+    for(size_t I=0;I<Head->FieldCount;++I)A->Head.Fields[I]=(xhttpfield){xrpcWsHttpRelocate(Head->Fields[I].Name,Span.Data,Raw),xrpcWsHttpRelocate(Head->Fields[I].Value,Span.Data,Raw)};
+    A->Context=Raw+Head->Bytes;A->Work.Bytes=N;A->Work.Deadline=H->Deadline;A->Work.Call=xrpcWsHttpAuthCall;A->Work.Drop=xrpcWsHttpAuthDrop;A->Work.Cancel=xrpcServerCancelChild(P->Config.Duplex.Server);
+    if(!A->Work.Cancel){xrpcWsHttpAuthRelease(A);return false;}
+    A->Request.Head=&A->Head;A->Request.Cancel=A->Work.Cancel;A->Request.Deadline=H->Deadline;A->Request.Secure=H->TLS;
+    if(!xrtNetStreamRemote(xrpcWsHttpRaw(H),&A->Request.Remote)){xrpcWsHttpAuthRelease(A);return false;}
+    H->Authorization=A;xrtAtomic32FetchAdd(&A->References,1,XMEMORY_RELAXED);
+    if(xrpcServerWorkSubmit(P->Config.Duplex.Server,&A->Work)!=XRPC_SERVER_ACCEPTED){H->Authorization=NULL;xrpcWsHttpAuthRelease(A);xrpcWsHttpAuthRelease(A);return false;}
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.AuthorizationPending=true;xrtMutexUnlock(&P->Gate);return true;
+}
+static void xrpcWsHttpFreeControl(xrpcwsupgrade* H)
+{if(H){if(H->Cache){xrtSecureZero(H->Cache,H->Config.Head.MaxHead);xrtFree(H->Cache);}size_t N=H->Bytes;xrtSecureZero(H,N);xrtFree(H);}}
+static void xrpcWsHttpDiscard(xrpcws* P)
+{xrpcwsupgrade* H=P->Upgrade;P->Upgrade=NULL;if(H){size_t N=H->Bytes+(H->Cache?H->Config.Head.MaxHead:0);xrpcWsHttpFreeControl(H);xrpcWsHttpCostDrop(P,N);}}
+XRPC_API bool xrpcWsHttpConfigInit(xrpcwshttpconfig* C)
+{
+    if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcWsReport(XERR_ARGUMENT,"invalid WS HTTP config output");
+    *C=(xrpcwshttpconfig){0};C->Size=sizeof(*C);xrtHttp1LimitsInit(&C->Head);C->Head.MaxHead=16384;if(C->Head.MaxStartLine>16384)C->Head.MaxStartLine=16384;if(C->Head.MaxFieldLine>16384)C->Head.MaxFieldLine=16384;if(C->Head.MaxFields>128)C->Head.MaxFields=128;
+    C->MaxWriteBytes=32768;C->SetupTimeout=10000;C->Target=XRT_STR_LITERAL("/rpc");C->UnauthorizedChallenge=XRT_STR_LITERAL("Bearer");C->RequireProtocol=true;xrtWsUpgradeClientConfigInit(&C->Client);xrtWsUpgradeServerConfigInit(&C->Server);C->Client.Protocols=C->Server.Protocols=XRT_STR_LITERAL("jsonrpc");return true;
+}
+static xstrview xrpcWsHttpCopyView(xstrview V,bytes* At)
+{if(!V.Size)return (xstrview){0};xstrview Out={(cstr)*At,V.Size};memcpy(*At,V.Data,V.Size);*At+=V.Size;return Out;}
+static xrpcwsupgrade* xrpcWsHttpControl(const xrpcwshttpconfig* Config,bool Server,xrpcws** Out,double Entered)
+{
+    if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Config&&(!xrtMemRangeValid(Config,sizeof(*Config))||xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))goto Argument;
+    xrpcwshttpconfig C={0};if(Config)C=*Config;else if(!xrpcWsHttpConfigInit(&C))return NULL;
+    if(C.Size!=sizeof(C)||!C.Head.MaxHead||C.Head.MaxHead>16384||!C.Head.MaxStartLine||C.Head.MaxStartLine>C.Head.MaxHead||!C.Head.MaxFieldLine||C.Head.MaxFieldLine>C.Head.MaxHead||!C.Head.MaxFields||C.Head.MaxFields>128||C.MaxWriteBytes<256||C.MaxWriteBytes>65536||C.SetupTimeout<XRT_WAIT_FOREVER||C.FieldCount>32||C.MaxAuthorizationContextBytes>16384||(!Server&&C.Authorize)||!C.Target.Size||C.Target.Size>4096||C.Host.Size>1024||(!Server&&!C.Host.Size)||C.Origin.Size>2048||C.UnauthorizedChallenge.Size>128||C.Client.Protocols.Size>1024||C.Server.Protocols.Size>1024||C.Client.EnableDeflate||C.Client.RequireDeflate||C.Server.EnableDeflate||C.Server.RequireDeflate||C.Server.AcceptDeflate||!xrtWsUpgradeClientConfigValid(&C.Client)||!xrtWsUpgradeServerConfigValid(&C.Server))goto Argument;
+    xstrview Views[]={C.Host,C.Target,C.Origin,C.UnauthorizedChallenge,C.Client.Protocols,C.Server.Protocols};size_t Strings=0;
+    for(size_t I=0;I<sizeof(Views)/sizeof(*Views);++I){xstrview V=Views[I];if(!xrtMemRangeValid(V.Data,V.Size)||xrtMemRangesOverlap(V.Data,V.Size,Out,sizeof(*Out)))goto Argument;Strings+=V.Size;}
+    if((C.Host.Size&&!xrtHttpHostValid(C.Host))||!xrtHttpFieldValueValid(C.Origin)||!xrtHttpFieldValueValid(C.UnauthorizedChallenge))goto Argument;
+    if(C.Target.Data[0]!='/' || memchr(C.Target.Data,'#',C.Target.Size) || (C.Authorize&&!C.UnauthorizedChallenge.Size) || !xrtMemRangeValid(C.Fields,C.FieldCount*sizeof(xhttpfield)) || xrtMemRangesOverlap(C.Fields,C.FieldCount*sizeof(xhttpfield),Out,sizeof(*Out)))goto Argument;
+    size_t Extras=0;unsigned Credentials=0;
+    for(size_t I=0;I<C.FieldCount;++I){xhttpfield F=C.Fields[I];if(!F.Name.Size||F.Name.Size>256||F.Value.Size>4096||!xrtMemRangeValid(F.Name.Data,F.Name.Size)||!xrtMemRangeValid(F.Value.Data,F.Value.Size)||xrtMemRangesOverlap(F.Name.Data,F.Name.Size,Out,sizeof(*Out))||xrtMemRangesOverlap(F.Value.Data,F.Value.Size,Out,sizeof(*Out))||xrpcWsHttpManaged(F.Name))goto Argument;if(xrpcWsHttpName(F.Name,"Authorization")&&++Credentials>1)goto Argument;Extras+=F.Name.Size+F.Value.Size;if(Extras>16384)goto Argument;}
+    size_t N=sizeof(xrpcwsupgrade)+(C.Head.MaxFields+C.FieldCount)*sizeof(xhttpfield)+Strings+Extras+C.MaxWriteBytes+(C.Authorize?C.MaxAuthorizationContextBytes:0);
+    xrpcwsupgrade* H=xrtCalloc(1,N);if(!H)return NULL;H->Bytes=N;H->Config=C;H->Server=Server;H->Reason=XRPC_WS_TRANSPORT;H->Deadline=xrpcWsDeadline(Entered,C.SetupTimeout);H->EventGone=true;
+    H->Fields=(xhttpfield*)(H+1);xhttpfield* Fields=H->Fields+C.Head.MaxFields;H->Config.Fields=Fields;bytes At=(bytes)(Fields+C.FieldCount);
+    H->Config.Host=xrpcWsHttpCopyView(C.Host,&At);H->Config.Target=xrpcWsHttpCopyView(C.Target,&At);H->Config.Origin=xrpcWsHttpCopyView(C.Origin,&At);H->Config.UnauthorizedChallenge=xrpcWsHttpCopyView(C.UnauthorizedChallenge,&At);H->Config.Client.Protocols=xrpcWsHttpCopyView(C.Client.Protocols,&At);H->Config.Server.Protocols=xrpcWsHttpCopyView(C.Server.Protocols,&At);
+    for(size_t I=0;I<C.FieldCount;++I)Fields[I]=(xhttpfield){xrpcWsHttpCopyView(C.Fields[I].Name,&At),xrpcWsHttpCopyView(C.Fields[I].Value,&At)};
+    H->Wire=At;At+=C.MaxWriteBytes;H->ZeroContext=At;
+    /* Validate target/header grammar before consuming any native owner. */
+    size_t Used=0;
+    if(!xrtHttp1RequestWrite(XRT_STR_LITERAL("GET"),H->Config.Target,XHTTP_VERSION_1_1,NULL,0,H->Wire,C.MaxWriteBytes,&Used)||!xrtHttp1ResponseWrite(XHTTP_VERSION_1_1,400,XRT_STR_LITERAL("Bad Request"),H->Config.Fields,C.FieldCount,H->Wire,C.MaxWriteBytes,&Used)){xrpcWsHttpFreeControl(H);return NULL;}
+    return H;
+Argument:
+    xrpcWsReport(XERR_ARGUMENT,"invalid WS HTTP config, ranges, policy or bounds");return NULL;
+}
+static bool xrpcWsHttpRequest(xrpcwsupgrade* H)
+{
+    if(!xrtWsKeyGenerate(H->Key,sizeof(H->Key)))return false;
+    xhttpfield Fields[XWS_UPGRADE_REQUEST_FIELDS_MAX+33];size_t N=0;
+    if(!xrtWsUpgradeRequestFields(H->Config.Host,(xstrview){H->Key,XWS_KEY_SIZE},H->Config.Client.Protocols,(xstrview){0},Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;
+    if(H->Config.Origin.Size)Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Origin"),H->Config.Origin};
+    for(size_t I=0;I<H->Config.FieldCount;++I)Fields[N++]=H->Config.Fields[I];
+    return xrtHttp1RequestWrite(XRT_STR_LITERAL("GET"),H->Config.Target,XHTTP_VERSION_1_1,Fields,N,H->Wire,H->Config.MaxWriteBytes,&H->WireBytes);
+}
+static bool xrpcWsHttpResponse(xrpcws* P,uint16 Status)
+{
+    xrpcwsupgrade* H=P->Upgrade;xhttpfield Fields[XWS_UPGRADE_RESPONSE_FIELDS_MAX+36];size_t N=0;xstrview Reason=XRT_STR_LITERAL("Bad Request");
+    if(Status==101){Reason=XRT_STR_LITERAL("Switching Protocols");if(!xrtWsUpgradeResponseFields((xstrview){H->Negotiated.Accept,XWS_ACCEPT_SIZE},H->Negotiated.Protocol,(xstrview){0},Fields,sizeof(Fields)/sizeof(*Fields),&N))return false;}
+    else{Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Connection"),XRT_STR_LITERAL("close")};Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Content-Length"),XRT_STR_LITERAL("0")};
+        switch(Status){case 401:Reason=XRT_STR_LITERAL("Unauthorized");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("WWW-Authenticate"),H->Config.UnauthorizedChallenge};break;case 403:Reason=XRT_STR_LITERAL("Forbidden");break;case 404:Reason=XRT_STR_LITERAL("Not Found");break;case 405:Reason=XRT_STR_LITERAL("Method Not Allowed");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Allow"),XRT_STR_LITERAL("GET")};break;case 426:Reason=XRT_STR_LITERAL("Upgrade Required");Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Upgrade"),XRT_STR_LITERAL("websocket")};Fields[N++]=(xhttpfield){XRT_STR_LITERAL("Sec-WebSocket-Version"),XRT_STR_LITERAL("13")};break;case 431:Reason=XRT_STR_LITERAL("Request Header Fields Too Large");break;case 500:Reason=XRT_STR_LITERAL("Internal Server Error");break;case 503:Reason=XRT_STR_LITERAL("Service Unavailable");break;default:break;}}
+    for(size_t I=0;I<H->Config.FieldCount;++I)Fields[N++]=H->Config.Fields[I];
+    if(!xrtHttp1ResponseWrite(XHTTP_VERSION_1_1,Status,Reason,Fields,N,H->Wire,H->Config.MaxWriteBytes,&H->WireBytes))return false;
+    H->WireOffset=0;xrtMutexLock(&P->Gate);P->UpgradeInfo.Status=Status;xrtMutexUnlock(&P->Gate);return true;
+}
+static bool xrpcWsHttpWrite(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;if(H->WireOffset==H->WireBytes)return true;size_t N=H->WireBytes-H->WireOffset;bool Waiting=false;
+    if(N>P->Config.WriteBytes)N=P->Config.WriteBytes;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS){size_t Written=0;xtlsresult R=xrtTlsStreamSend(H->Native,H->Wire+H->WireOffset,N,&Written);H->WireOffset+=Written;
+        if(R!=XTLS_OK&&R!=XTLS_AGAIN){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return false;}Waiting=R==XTLS_AGAIN;
+    }else
+    #endif
+    {size_t Available=xrtNetStreamWritable(H->Native);if(N>Available)N=Available;if(!N)return false;xnetresult R=xrtNetStreamSend(H->Native,H->Wire+H->WireOffset,N);if(R==XNET_RESULT_AGAIN)return false;if(R!=XNET_RESULT_OK){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return false;}H->WireOffset+=N;}
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.WriteBytes=H->WireOffset;xrtMutexUnlock(&P->Gate);
+    if(H->WireOffset!=H->WireBytes){if(!Waiting)xrpcWsWake(P);return false;}return true;
+}
+static void xrpcWsHttpOutcome(xrpcws* P,xrpcwshttpoutcome Outcome)
+{xrtMutexLock(&P->Gate);if(P->UpgradeInfo.Outcome==XRPC_WS_HTTP_PENDING)P->UpgradeInfo.Outcome=Outcome;xrtMutexUnlock(&P->Gate);}
+static void xrpcWsHttpReject(xrpcws* P,uint16 Status,xrpcwsreason Reason)
+{
+    xrpcwsupgrade* H=P->Upgrade;H->Reason=Reason;H->Rejected=true;xrpcWsHttpOutcome(P,XRPC_WS_HTTP_REJECTED);
+    if(!H->Server){xrpcWsFail(P,Reason);return;}
+    if(!xrpcWsHttpResponse(P,Status)){H->Rejected=false;xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());}
+}
+/* Only the exceptional unpublished-read/full-record-growth case copies input.
+ * Peek may preview bytes past CRLFCRLF, but consume exactly through its end:
+ * native WS data stays native, including a final message before TLS input EOF. */
+static xhttp1status xrpcWsHttpCachedHeader(xrpcws* P,xhttp1head* Head,xhttp1errorinfo* Error)
+{
+    xrpcwsupgrade* H=P->Upgrade;if(!H->Cache){H->Cache=xrtMalloc(H->Config.Head.MaxHead);if(!H->Cache)return XHTTP1_ERROR;xrpcWsHttpCostAdd(P,H->Config.Head.MaxHead);}
+    size_t Old=H->CacheUsed,Left=H->Config.Head.MaxHead-Old;
+    size_t N=xrtNetBufPeek(xrpcWsHttpBuffer(H),0,H->Cache+Old,Left),End=Old+N;
+    for(size_t I=Old>3?Old-3:0;I+4<=End;++I)if(!memcmp(H->Cache+I,"\r\n\r\n",4)){End=I+4;break;}
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.HeaderCopyBytes+=N;xrtMutexUnlock(&P->Gate);H->CacheUsed=End;
+    if(End>Old&&!xrpcWsHttpConsume(H,End-Old))return XHTTP1_ERROR;
+    xbytesview Input={H->Cache,H->CacheUsed};xhttp1status R=H->Server?xrtHttp1RequestParse(Input,Head,&H->Config.Head,Error):xrtHttp1ResponseParse(Input,Head,&H->Config.Head,Error);
+    if(R==XHTTP1_MORE&&H->CacheUsed==H->Config.Head.MaxHead){Error->Code=XHTTP1_ERROR_HEAD_TOO_LARGE;xrpcWsReport(XERR_RANGE,"WS HTTP retained header reached its hard limit");return XHTTP1_ERROR;}
+    return R;
+}
+static bool xrpcWsHttpHeader(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;xhttp1head Head={.Fields=H->Fields,.FieldCapacity=H->Config.Head.MaxFields};xhttp1errorinfo Error={0};xhttp1status R;
+    if(H->Cache)R=xrpcWsHttpCachedHeader(P,&Head,&Error);else {
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS)R=H->Server?xrtHttp1RequestParseTls(H->Native,&Head,&H->Config.Head,&Error):xrtHttp1ResponseParseTls(H->Native,&Head,&H->Config.Head,&Error);else
+    #endif
+    R=H->Server?xrtHttp1RequestParseBuffer((xnetbuf*)xrpcWsHttpBuffer(H),&Head,&H->Config.Head,&Error):xrtHttp1ResponseParseBuffer((xnetbuf*)xrpcWsHttpBuffer(H),&Head,&H->Config.Head,&Error);
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    xerrkind K=xrtErrorKind(xrtGetError());
+    if(H->TLS&&R==XHTTP1_ERROR&&xrtTlsStreamState(H->Native)==XTLS_STREAM_OPEN&&xrtNetBufSize(xrpcWsHttpBuffer(H))&&(K==XERR_STATE||(K==XERR_RANGE&&(Error.Code==0||Error.Code==XHTTP1_ERROR_HEAD_INCOMPLETE)))){xrtClearError();Error=(xhttp1errorinfo){0};R=xrpcWsHttpCachedHeader(P,&Head,&Error);}
+    #endif
+    }
+    if(R==XHTTP1_MORE){if(H->InputEnded){if(H->Server)xrpcWsHttpReject(P,400,XRPC_WS_PROTOCOL);else xrpcWsFail(P,XRPC_WS_TRANSPORT);return false;}
+        /* ParseTls already requests growth. It may synchronously grow the
+         * prefix before returning MORE; a second ReadMore could then retain
+         * an unnecessary read-ahead request across a complete HTTP header. */
+        return false;
+    }
+    if(R!=XHTTP1_READY){xrpcWsNativeError(P,xrtGetError());if(xrtErrorKind(xrtGetError())==XERR_MEMORY)xrpcWsFail(P,XRPC_WS_MEMORY);else if(H->Server)xrpcWsHttpReject(P,R==XHTTP1_FIELDS||Error.Code==XHTTP1_ERROR_HEAD_TOO_LARGE||Error.Code==XHTTP1_ERROR_TOO_MANY_FIELDS?431:400,XRPC_WS_PROTOCOL);else xrpcWsFail(P,XRPC_WS_PROTOCOL);return false;}
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.HeaderBytes=Head.Bytes;if(!H->Server)P->UpgradeInfo.Status=Head.Status;xrtMutexUnlock(&P->Gate);
+    if(H->Server){
+        unsigned Origins=0,Credentials=0;for(size_t I=0;I<Head.FieldCount;++I){Origins+=xrpcWsHttpName(Head.Fields[I].Name,"Origin");Credentials+=xrpcWsHttpName(Head.Fields[I].Name,"Authorization");}
+        if(Origins>1||Credentials>1){xrpcWsHttpReject(P,400,XRPC_WS_PROTOCOL);return false;}
+        if(!xrpcWsHttpEqual(Head.Method,XRT_STR_LITERAL("GET"),false)){xrpcWsHttpReject(P,405,XRPC_WS_HTTP);return false;}
+        if(!xrpcWsHttpEqual(Head.Target,H->Config.Target,false)){xrpcWsHttpReject(P,404,XRPC_WS_HTTP);return false;}
+        const xhttpfield* Host=xrtHttp1Field(&Head,XRT_STR_LITERAL("Host"));const xhttpfield* Origin=xrtHttp1Field(&Head,XRT_STR_LITERAL("Origin"));
+        if(H->Config.Host.Size&&(!Host||!xrpcWsHttpEqual(Host->Value,H->Config.Host,true))){xrpcWsHttpReject(P,400,XRPC_WS_HTTP);return false;}
+        if(H->Config.Origin.Size&&(!Origin||!xrpcWsHttpEqual(Origin->Value,H->Config.Origin,false))){xrpcWsHttpReject(P,403,XRPC_WS_AUTH);return false;}
+        if(!xrtWsUpgradeRequestCheck(&Head,&H->Config.Server,&H->Negotiated)){
+            xrpcWsNativeError(P,xrtGetError());const xhttpfield* Version=xrtHttp1Field(&Head,XRT_STR_LITERAL("Sec-WebSocket-Version"));xrpcWsHttpReject(P,Version&&!xrpcWsHttpEqual(Version->Value,XRT_STR_LITERAL("13"),false)?426:400,XRPC_WS_PROTOCOL);return false;
+        }
+    }else{
+        if(Head.Status!=101){xrpcWsHttpReject(P,Head.Status,XRPC_WS_HTTP);return false;}
+        if(!xrtWsUpgradeResponseCheck(&Head,(xstrview){H->Key,XWS_KEY_SIZE},&H->Config.Client,&H->Negotiated)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,XRPC_WS_PROTOCOL);return false;}
+    }
+    if((H->Config.RequireProtocol&&!H->Negotiated.Protocol.Size)||H->Negotiated.Protocol.Size>255){if(H->Server)xrpcWsHttpReject(P,400,XRPC_WS_PROTOCOL);else xrpcWsFail(P,XRPC_WS_PROTOCOL);return false;}
+    if(H->Negotiated.Protocol.Size)memcpy(H->Protocol,H->Negotiated.Protocol.Data,H->Negotiated.Protocol.Size);
+    H->Negotiated.Protocol.Data=H->Protocol;
+    H->HeaderBytes=Head.Bytes;H->Checked=true;
+    if(H->Server&&H->Config.Authorize){if(!H->TLS){xrtNetStreamPause(xrpcWsHttpRaw(H));H->Paused=true;}if(!xrpcWsHttpAuthorize(P,&Head)){xrpcWsNativeError(P,xrtGetError());xrpcWsHttpReject(P,503,xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_WS_MEMORY:XRPC_WS_LIMIT);}}
+    if(H->Cache){size_t N=H->Config.Head.MaxHead;xrtSecureZero(H->Cache,N);xrtFree(H->Cache);H->Cache=NULL;H->CacheUsed=0;xrpcWsHttpCostDrop(P,N);}
+    else if(!xrpcWsHttpConsume(H,Head.Bytes)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return false;}
+    if(H->Server&&!H->Authorization&&!H->Rejected&&!xrpcWsHttpResponse(P,101)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return false;}
+    return true;
+}
+static void xrpcWsHttpHandoff(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;xwsstreamconfig K=P->Config.Stream;K.Role=H->Server?XWS_ROLE_SERVER:XWS_ROLE_CLIENT;K.Protocol=H->Negotiated.Protocol;K.Deflate=H->Negotiated.Deflate;K.DeflateEnabled=H->Negotiated.DeflateEnabled;
+    if(K.MessageLimit>P->Config.MaxMessageBytes)K.MessageLimit=P->Config.MaxMessageBytes;
+    if(K.FrameLimit>P->Config.MaxMessageBytes)K.FrameLimit=P->Config.MaxMessageBytes;
+    xnetstream* Raw=xrpcWsHttpRaw(H);xrpcWsRef(P);P->EventsGone=false;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    xtlsstreambindingv1 Previous={0};
+    if(H->TLS){xtlsstreambindingv1 Expected={P,&xrpcWsHttpTlsEvents};P->Stream=xrtWsStreamAttachTlsExchangeOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents,&Expected,&Previous);}else
+    #endif
+    P->Stream=xrtWsStreamAttachOwnedV1(H->Native,NULL,&K,P,&xrpcWsEvents);
+    if(!P->Stream){xerror* Error=xrtTakeError();P->EventsGone=true;xrpcWsDrop(P);xrtSetErrorTake(Error);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return;}
+    H->Native=NULL;P->Config.Stream.Protocol=xrtWsStreamProtocol(P->Stream);
+    xrtMutexLock(&P->Gate);P->Info.ProtocolBytes=P->Config.Stream.Protocol.Size;if(P->Info.ProtocolBytes)memcpy(P->Info.Protocol,P->Config.Stream.Protocol.Data,P->Info.ProtocolBytes);if(P->Info.State==XRPC_WS_UPGRADING)P->Info.State=XRPC_WS_OPEN;P->UpgradeInfo.Outcome=XRPC_WS_HTTP_OPEN;xrtMutexUnlock(&P->Gate);
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(Previous.Policy)Previous.Policy->Drop(Previous.Data);
+    #endif
+    if(H->Paused&&!xrtNetStreamResume(Raw)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());}
+    if(H->EventGone)xrpcWsHttpDiscard(P);
+}
+static void xrpcWsHttpNativeClose(xrpcwsupgrade* H,bool Abort)
+{
+    if(!H->Native)return;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(H->TLS){if(Abort)(void)xrtTlsStreamAbort(H->Native);else (void)xrtTlsStreamClose(H->Native);}else
+    #endif
+    {if(Abort)(void)xrtNetStreamAbort(H->Native);else (void)xrtNetStreamClose(H->Native);}
+    H->Closing=true;
+}
+static void xrpcWsHttpStep(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;if(!H||xrpcWsClosing(P))return;
+    if(!H->Native){if(H->EventGone)xrpcWsHttpDiscard(P);return;}
+    if(xrtTimer()>=H->Deadline){xrpcWsHttpOutcome(P,XRPC_WS_HTTP_TIMED_OUT);xrpcWsFail(P,XRPC_WS_TIMEOUT);return;}
+    if(H->NativeClosed){xrpcWsFail(P,XRPC_WS_TRANSPORT);return;}
+    if(!xrpcWsHttpWrite(P))return;
+    if(H->Rejected){xrpcWsHttpNativeClose(H,false);xrpcWsFail(P,H->Reason);return;}
+    if(!H->Checked&&!xrpcWsHttpHeader(P)){
+        if(H->Rejected&&!xrpcWsClosing(P))xrpcWsWake(P);
+        return;
+    }
+    if(xrpcWsClosing(P)||H->NativeClosed)return;
+    if(H->Authorization){xrpcwsauthorization* A=H->Authorization;if(!xrtAtomic32Load(&A->Ready,XMEMORY_ACQUIRE))return;
+        uint16 Status=A->Status;xrtMutexLock(&P->Gate);P->UpgradeInfo.AuthorizationPending=false;P->UpgradeInfo.AuthorizationStatus=Status;xrtMutexUnlock(&P->Gate);
+        if(Status==200){if(A->ContextBytes)memcpy(P->Context,A->Context,A->ContextBytes);P->Config.RequestContext.Size=A->ContextBytes;}
+        H->Authorization=NULL;xrpcWsHttpAuthRelease(A);
+        if(Status!=200){xrpcWsHttpReject(P,Status,Status==401||Status==403?XRPC_WS_AUTH:XRPC_WS_LIMIT);xrpcWsWake(P);return;}
+        if(!xrpcWsHttpResponse(P,101)){xrpcWsFail(P,xrpcWsLocalFailure());return;}
+    }
+    if(H->Rejected){xrpcWsWake(P);return;}
+    if(!xrpcWsHttpWrite(P))return;
+    xrpcWsHttpHandoff(P);
+}
+static bool xrpcWsHttpRetire(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;if(!H)return true;
+    xrtMutexLock(&P->Gate);xrpcwsreason Reason=P->Info.Reason;bool Force=P->UpgradeAbort;xrtMutexUnlock(&P->Gate);xrpcWsHttpOutcome(P,Reason==XRPC_WS_TIMEOUT?XRPC_WS_HTTP_TIMED_OUT:Reason==XRPC_WS_LOCAL?XRPC_WS_HTTP_CLOSED:XRPC_WS_HTTP_FAILED);
+    if(H->Authorization){xrpcwsauthorization* A=H->Authorization;(void)xrtCancelRequest(A->Work.Cancel);if(xrtAtomic32Load(&A->Ready,XMEMORY_ACQUIRE)){H->Authorization=NULL;xrtMutexLock(&P->Gate);P->UpgradeInfo.AuthorizationPending=false;xrtMutexUnlock(&P->Gate);xrpcWsHttpAuthRelease(A);}}
+    if(H->Native){bool Abort=Force||!H->Server||!H->Rejected||Reason==XRPC_WS_LOCAL||xrtTimer()>=H->Deadline;if(!H->Closing||Abort)xrpcWsHttpNativeClose(H,Abort);
+        bool Ready;
+        #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+        if(H->TLS)Ready=xrtTlsStreamPollRetired(H->Native)==XWAIT_OK;else
+        #endif
+        Ready=xrtNetStreamPollRetired(H->Native)==XWAIT_OK;
+        if(Ready){ptr Native=H->Native;H->Native=NULL;
+            #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+            if(H->TLS)xrtTlsStreamDestroy(Native);else
+            #endif
+            xrtNetStreamDestroy(Native);
+        }
+    }
+    if(!H->Native&&H->EventGone&&!H->Authorization){xrpcWsHttpDiscard(P);return true;}return false;
+}
+static bool xrpcWsHttpCreate(ptr Native,bool TLS,bool Server,const xrpcwsconfig* Config,const xrpcwshttpconfig* HTTP,xrpcws** Out,double Entered)
+{
+    if(!Native)return xrpcWsReport(XERR_ARGUMENT,"WS HTTP transport is NULL");
+    xnetworker* W=NULL;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(TLS){W=xrtNetStreamWorker(xrtTlsStreamTransport(Native));if(xrtTlsStreamState(Native)!=XTLS_STREAM_OPEN)return xrpcWsReport(XERR_STATE,"WSS HTTP requires authenticated OPEN TLS");}else
+    #endif
+    {W=xrtNetStreamWorker(Native);if(xrtNetStreamState(Native)!=XNET_STREAM_OPEN)return xrpcWsReport(XERR_STATE,"WS HTTP requires OPEN TCP");}
+    if(!xrtNetWorkerIsCurrent(W))return xrpcWsReport(XERR_STATE,"WS HTTP factory requires exclusive native Worker");
+    xrpcwsupgrade* H=xrpcWsHttpControl(HTTP,Server,Out,Entered);if(!H)return false;
+    if(Config&&(!xrtMemRangeValid(Config,sizeof(*Config))||xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))){xrpcWsHttpFreeControl(H);return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS config");}
+    xrpcwsconfig C={0};if(Config)C=*Config;else xrpcWsConfigInit(&C);
+    if(H->Config.Authorize&&(!C.Duplex.Server||C.RequestContext.Size)){xrpcWsHttpFreeControl(H);return xrpcWsReport(XERR_ARGUMENT,"WS HTTP authorization needs shared Server and empty preconfigured context");}
+    C.Stream.Role=Server?XWS_ROLE_SERVER:XWS_ROLE_CLIENT;C.Stream.Protocol=(xstrview){0};C.Stream.DeflateEnabled=false;
+    if(H->Config.Authorize)C.RequestContext=(xbytesview){H->ZeroContext,H->Config.MaxAuthorizationContextBytes};
+    if(!Server&&!xrpcWsHttpRequest(H)){xrpcWsHttpFreeControl(H);return false;}
+    xrpcws* P=xrpcWsCreate(W,&C,NULL,Out);if(!P){xrpcWsHttpFreeControl(H);return false;}
+    P->Upgrade=H;H->Native=Native;H->TLS=TLS;P->Info.State=XRPC_WS_UPGRADING;P->UpgradeInfo=(xrpcwshttpinfo){.Size=sizeof(xrpcwshttpinfo),.Deadline=H->Deadline,.Server=Server,.Secure=TLS};xrpcWsHttpCostAdd(P,H->Bytes);
+    bool Bound;xrpcWsRef(P);H->EventGone=false;
+    #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+    if(TLS){xtlssession* S=xrtTlsStreamSession(Native);P->Info.Encrypted=true;P->Info.Version=xrtTlsSessionVersion(S);P->Info.Cipher=xrtTlsSessionCipher(S);Bound=xrtTlsStreamBindEventsOwnedV1(Native,P,&xrpcWsHttpTlsEvents);}else
+    #endif
+    Bound=xrtNetStreamSetEventsOwnedV1(Native,P,&xrpcWsHttpTcpEvents);
+    if(!Bound){xerror* Error=xrtTakeError();H->EventGone=true;H->Native=NULL;xrpcWsDrop(P);xrpcWsHttpDiscard(P);xrpcWsFree(P);xrtSetErrorTake(Error);return false;}
+    xrtMutexLock(&P->Gate);P->Active=true;xrpcWsRef(P);*Out=P;if(!xrpcWsWakeLocked(P)){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=XRPC_WS_LIMIT;}xrtMutexUnlock(&P->Gate);return true;
+}
+XRPC_API bool xrpcWsHttpClientTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
+{return xrpcWsHttpCreate(S,false,false,C,H,Out,xrtTimer());}
+XRPC_API bool xrpcWsHttpServerTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
+{return xrpcWsHttpCreate(S,false,true,C,H,Out,xrtTimer());}
+#if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+XRPC_API bool xrpcWsHttpClientTls(xtlsstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
+{return xrpcWsHttpCreate(S,true,false,C,H,Out,xrtTimer());}
+XRPC_API bool xrpcWsHttpServerTls(xtlsstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
+{return xrpcWsHttpCreate(S,true,true,C,H,Out,xrtTimer());}
+#endif
+XRPC_API bool xrpcWsHttpInfo(xrpcws* P,xrpcwshttpinfo* I)
+{
+    if(!P||!I||!xrtMemRangeValid(I,sizeof(*I))||I->Size!=sizeof(*I)||xrtMemRangesOverlap(P,P->Info.FixedBytes,I,sizeof(*I)))return xrpcWsReport(XERR_ARGUMENT,"invalid WS HTTP info output");
+    xrtMutexLock(&P->Gate);bool Valid=P->UpgradeInfo.Size==sizeof(P->UpgradeInfo);if(Valid)*I=P->UpgradeInfo;xrtMutexUnlock(&P->Gate);return Valid?true:xrpcWsReport(XERR_STATE,"peer did not use HTTP Upgrade factory");
+}
+#endif
 #endif
 #endif
 

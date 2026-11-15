@@ -86,4 +86,8 @@
 #if defined(XRPC_FEATURE_XRPC_WS)
 #include <xrpc/ws.h>
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
+#error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
+#endif
+#include <xrpc/ws_http.h>
 #endif

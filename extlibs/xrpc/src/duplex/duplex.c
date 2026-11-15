@@ -249,7 +249,7 @@ static void xrpcDuplexSeal(xrpcduplex* D,xrpccallstatus Reason)
 {xrtMutexLock(&D->Gate);if(!D->Closing){D->Closing=true;D->Reason=Reason;}xrtMutexUnlock(&D->Gate);}
 XRPC_API bool xrpcDuplexClose(xrpcduplex* D,xrpccallstatus Reason)
 {
-    if(!D || (Reason!=XRPC_CALL_CLOSED && Reason!=XRPC_CALL_TRANSPORT && Reason!=XRPC_CALL_PROTOCOL && Reason!=XRPC_CALL_LIMIT && Reason!=XRPC_CALL_MEMORY))
+    if(!D || (Reason!=XRPC_CALL_CLOSED && Reason!=XRPC_CALL_TRANSPORT && Reason!=XRPC_CALL_PROTOCOL && Reason!=XRPC_CALL_LIMIT && Reason!=XRPC_CALL_MEMORY && Reason!=XRPC_CALL_TIMEOUT && Reason!=XRPC_CALL_HTTP_ERROR))
         return xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex close reason");
     xrpcDuplexSeal(D,Reason);xrpcDuplexWake(D);return true;
 }

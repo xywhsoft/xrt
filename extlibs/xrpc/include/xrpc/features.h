@@ -76,6 +76,44 @@
 #ifndef XRPC_MODULE_XRPC_WS_TLS
 #define XRPC_MODULE_XRPC_WS_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#endif
+
+/* xrpc_ws_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#define XRPC_FEATURE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_TLS
+#define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_HTTP1_TLS
+#define XRT_MODULE_HTTP1_TLS
+#endif
+#endif
+
+/* xrpc_ws_http 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_HTTP)
+#ifndef XRPC_FEATURE_XRPC_WS_HTTP
+#define XRPC_FEATURE_XRPC_WS_HTTP
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#define XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#endif
 #endif
 
 /* xrpc_ws_tls 及其直接依赖。 */

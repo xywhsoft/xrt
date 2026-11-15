@@ -253,7 +253,8 @@
         "xrpc_tcp_dial",
         "xrpc_tls_dial",
         "xrpc_ws",
-        "xrpc_ws_tls"
+        "xrpc_ws_tls",
+        "xrpc_ws_http_tls"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -764,7 +765,9 @@
         "xrpc_tcp_dial_tests",
         "xrpc_tls_dial_tests",
         "xrpc_ws_tests",
-        "xrpc_ws_tls_tests"
+        "xrpc_ws_tls_tests",
+        "xrpc_ws_http_tests",
+        "xrpc_ws_http_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -792,7 +795,9 @@
         "extlibs/xrpc/tests/test_tcp_dial.c",
         "extlibs/xrpc/tests/test_tls_dial.c",
         "extlibs/xrpc/tests/test_ws.c",
-        "extlibs/xrpc/tests/test_ws_post.c"
+        "extlibs/xrpc/tests/test_ws_post.c",
+        "extlibs/xrpc/tests/test_ws_http.c",
+        "extlibs/xrpc/tests/test_ws_http_prebuffer.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -819,7 +824,10 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_ws.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_post.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_tls.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_prebuffer.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -851,7 +859,10 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_ws.c": "xrpc_ws_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c": "xrpc_ws_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_post.c": "xrpc_ws_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c": "xrpc_ws_tls_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c": "xrpc_ws_tls_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http.c": "xrpc_ws_http_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_tls.c": "xrpc_ws_http_tls_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_prebuffer.c": "xrpc_ws_http_tls_tests"
       }
     },
     {
@@ -1657,6 +1668,120 @@
       "docs": [
         "extlibs/xrpc/docs/ws.md",
         "extlibs/xrpc/examples/ws/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_http",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_WS_HTTP",
+      "depends": [
+        "xrpc_ws",
+        "websocket_upgrade_stream"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/ws_http.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_ws_http_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_server_internal.h"
+      ],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_http.md",
+        "extlibs/xrpc/examples/ws_http/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_http_tls",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_WS_HTTP_TLS",
+      "depends": [
+        "xrpc_ws_http",
+        "xrpc_ws_tls",
+        "websocket_stream_tls_exchange",
+        "tls_stream_retire",
+        "http1_tls"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/ws_http.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_ws_http_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_server_internal.h"
+      ],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_http.md",
+        "extlibs/xrpc/examples/ws_http/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_http_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_ws_http",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_ws_http.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/ws_http/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_http.md",
+        "extlibs/xrpc/examples/ws_http/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_ws_http_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_ws_http_tls",
+        "memory_stats",
+        "thread",
+        "tls_client_verify",
+        "tls_schedule_sha256",
+        "tls_record_aes",
+        "tls_key_exchange_x25519",
+        "tls_identity_rsa"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_ws_http.c",
+        "extlibs/xrpc/tests/test_ws_http_prebuffer.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_tls.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_prebuffer.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/ws_http/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/ws_http.md",
+        "extlibs/xrpc/examples/ws_http/README.md"
       ]
     }
   ]

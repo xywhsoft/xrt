@@ -12971,3 +12971,39 @@ and out/service-extensions/xrpc-frame-20261112.
   close join before explicit abort. Remaining RPC HTTP packaging/docs/examples,
   the original four-product scope, throughput/tail/scale and native72h acceptance
   remain open. All work stays on `D:/GIT/xrt` master; no branch operation or push.
+
+## 2026-11-15: native WS/WSS HTTP Upgrade RPC composition
+
+- Deliver developing `xrpc_ws_http` / `xrpc_ws_http_tls` leaves: six public APIs
+  attach OPEN native TCP/authenticated TLS as HTTP client/server and return the
+  ordinary same peer in UPGRADING. Strict GET/101, random key/Accept, required
+  protocol, exact header consumption and coalesced first frame precede any JSON.
+- Add bounded route/Host/Origin/header policy and shared-executor authorization
+  with an immutable owned request snapshot, opaque connection handler context,
+  original setup deadline and cooperative cancel. No new runtime/executor/Engine.
+  Duplex accepts setup TIMEOUT/HTTP_ERROR close reasons and keeps delivery clocks.
+  Actual old TLS session/config credits survive owned HTTP-to-WS exchange.
+- Keep HTTP head/output/extras/auth hard caps. Constructor budget failures leave
+  native/output/credits unchanged. Exceptional unpublished native TLS prefixes
+  use one bounded cold cache, preserve the suffix, and release cold copies after
+  handoff/old-event/auth final tails. Current x64 private peer1672 to1768 bytes
+  when HTTP is selected; config520/info680 stay unchanged. No zero-cost claim.
+- Verify74 Windows/76 WSL primary executions: modular/single and runnable TCP/
+  TLS example, select/IOCP or select/epoll, actual constructor OOM/joins, full
+  Duplex and old HTTP-off WS regression, separate static/shared/declarations,
+  independent38-session matrices and10 repeated byte-split TLS sessions per host.
+  WSL adds targeted TSan; functional cases use ASan/UBSan/leak halt. ABI probes,
+  package smoke and seven Python gates per host are additional. API coverage is
+  156 functions/238 constants/115 types with zero omissions.
+- Independent fixtures exposed an unacknowledged finish notification, premature
+  rejection abort and duplicate ReadMore after ParseTls had already requested
+  growth. Use an acknowledged RPC barrier, join orderly rejection before explicit
+  abort, and remove the duplicate request. Preserve all failed attempts and rerun
+  every selected final receipt on one frozen source map, without aliases/nudges.
+- Report: `docs/development/xrpc-ws-http-upgrade-20261115.json`; raw frozen HTTP
+  checkpoint under `out/service-extensions/xrpc-ws-upgrade-20261115/`, physically
+  on D. The separate Core read-progress prerequisite is committed as `b8cc073`.
+  URI/DNS/dial and compression composition, broader async OOM/fault/fuzz/scale,
+  framed stdio, remaining four-product scope and controlled throughput/tails/
+  native72h remain required. Maturity stays developing; all work remains on
+  `D:/GIT/xrt` master, with no branch creation/switch/merge or remote push.

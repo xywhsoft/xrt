@@ -253,5 +253,23 @@ static void testDuplexCompactCorrelation(void)
     testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":\"\\u0031\",\"result\":2}]"),(xbytesview){0})==XRPC_DUPLEX_PROTOCOL && !xrtFutureDone(F),"escaped duplicate partially completed a batch");
     duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
 }
+static void testDuplexSetupTimeout(void)
+{
+    for(unsigned Reason=0;Reason<2;++Reason)for(unsigned Batch=0;Batch<2;++Batch)for(unsigned Mode=0;Mode<3;++Mode){
+        duplexTestContext C;duplexTestInit(&C);xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxWork=1;xrpcduplex* D=duplexTestCreate(NULL,&C,&K);xfuture* F=NULL;
+        xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{true,XRT_STR_LITERAL("note"),(xstrview){0}}};
+        testRequire((Batch?xrpcDuplexBatch(D,Items,2,60000,&F):xrpcDuplexCall(D,XRT_STR_LITERAL("a"),(xstrview){0},60000,&F))==XRPC_DUPLEX_ACCEPTED,"setup timeout long-lived call/batch");
+        xrpcduplexoutput* O=NULL;uint64 Token=0;double End=xrtTimer()+1;int Selected=0;
+        while(!(Selected=xrpcDuplexNext(D,&O,&Token))){testRequire(xrpcDuplexStep(D)&&xrtTimer()<End,"setup timeout bounded selection");}
+        testRequire(Selected==1&&!xrtFutureDone(F),"setup timeout does not depend on call's later deadline");
+        if(Mode)testRequire(xrpcDuplexStarted(D,Token),"setup timeout preserves conservative started delivery");
+        if(Mode==2)testRequire(xrpcDuplexSent(D,Token),"setup timeout sent boundary");
+        xrpccallstatus Status=Reason?XRPC_CALL_HTTP_ERROR:XRPC_CALL_TIMEOUT;testRequire(xrpcDuplexClose(D,Status),"adapter setup failure is a valid typed close reason");
+        while(!duplexTestInfo(D).Drained){testRequire(xrpcDuplexStep(D)&&xrtTimer()<End,"setup timeout promptly drains every owner unit");}
+        const xrpccallresult* R=duplexTestResult(F,Status,Mode?XRPC_MAY_HAVE_EXECUTED:XRPC_NOT_SENT);testRequire(!R->Responses,"setup timeout retains no fabricated response");
+        if(Batch){const xrpcbatchcallresult* B=(const xrpcbatchcallresult*)R;testRequire(B->Count==2&&B->Indices[0]==SIZE_MAX&&B->Indices[1]==SIZE_MAX,"timeout batch map has no reply indices");}
+        testRequire(xrpcDuplexDestroy(D)&&xrpcDuplexOutputWire(O).Size,"retained output outlives setup timeout and duplex destruction");xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
+    }
+}
 int main(void)
-{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs");return 0;}
+{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout");return 0;}

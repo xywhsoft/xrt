@@ -25,7 +25,7 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. WebSocket/framed stdio,
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. URI/dial and compression composition for HTTP, framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
@@ -212,8 +212,8 @@ returns owned response Futures. Pending and retained result capacities share
 explicit limits, including reallocation peaks. Close drains, Cancel cooperates
 and drops queued jobs, and Destroy physically joins workers. Handler code/User
 remain borrowed through successful Destroy. This is the execution component;
-See the HTTP and framed TCP/TLS adapters below; WebSocket/stdio transports and
-final acceptance remain pending.
+See the HTTP and framed TCP/TLS adapters below and the [WS/HTTP guide](docs/ws_http.md);
+stdio transport and final acceptance remain pending.
 
 
 Select `XRPC_MODULE_XRPC_HTTP_SERVER` for the bounded HTTP/1 server. It copies

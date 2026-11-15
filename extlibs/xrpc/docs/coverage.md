@@ -295,3 +295,17 @@ TU probe freezes encoding and the real post-Wake constructor reference to verify
 owner/other-producer progress, close/rollback/original deadlines and observable
 physical retirement. Compact local-ID matching retains full response validation,
 escaped equality, unknown long-ID handling and the uint64 no-wrap boundary.
+
+## Native WS HTTP Upgrade stage
+
+The [WS HTTP guide](ws_http.md) supersedes the earlier adapter-pending snapshot
+for native TCP/TLS attachment: both HTTP roles perform checked GET/101, queue RPC
+on the same peer and use the existing shared Server executor for bounded auth.
+Functional evidence covers exact header consumption/coalesced suffix, an
+exceptional prebuffered TLS prefix, constructor-budget rollback, held auth and
+context lifetime, original setup/call deadlines, typed rejection and full
+native/host joins. The independent stdlib/OpenSSL matrix verifies both roles,
+strict failures and byte-split records. Delivery includes modular, single,
+separate static/shared and declaration consumers. The stage remains developing;
+URI/dial and compression composition, broader fault/fuzz/scale, measured native
+throughput/tails and native72h acceptance remain open.

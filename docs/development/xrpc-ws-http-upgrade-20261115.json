@@ -1,0 +1,3864 @@
+{
+  "schema": 1,
+  "date": "2026-11-15",
+  "status": "verified-developing-native-WS-HTTP-Upgrade-leaves",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "b8cc073b2ac8b72d3cc7833407f0c372cc818cc4",
+  "original_phase_base": "560bae30022c72610cd6e579a5e7b22abc3cce7b",
+  "core_prerequisite": "b8cc073b2ac8b72d3cc7833407f0c372cc818cc4",
+  "new_modules": [
+    "xrpc_ws_http",
+    "xrpc_ws_http_tls"
+  ],
+  "new_functions": [
+    "xrpcWsHttpConfigInit",
+    "xrpcWsHttpClientTcp",
+    "xrpcWsHttpServerTcp",
+    "xrpcWsHttpClientTls",
+    "xrpcWsHttpServerTls",
+    "xrpcWsHttpInfo"
+  ],
+  "existing_public_struct_layouts_unchanged": true,
+  "existing_enum_values_preserved": true,
+  "new_enum_values": [
+    "XRPC_WS_UPGRADING",
+    "XRPC_WS_HTTP",
+    "XRPC_WS_AUTH"
+  ],
+  "new_shared_runtime": false,
+  "performance_acceptance": false,
+  "production_acceptance": false,
+  "complete_four_product_goal": false,
+  "contract": [
+    "Exclusive native OPEN Worker attach; authenticated TLS must be outside its driver. Success consumes one original native owner, returns one ordinary peer in UPGRADING; false preserves binding/owner/output. Original TLS session/config owner remains alive.",
+    "Strict Core GET/101/key/Accept/subprotocol/fields; preserve coalesced WS suffix; no JSON/business before checked101, no redirects/retries/downgrades/replay. Both endpoint roles, native TCP/TLS.",
+    "One original factory-entry setup clock spans copy, queue, parse, shared authorization, output and handoff. Queued call/batch/notify retain entry clocks. HTTP/auth rejection, malformed negotiation and timeout retain exact HTTP_ERROR/PROTOCOL/TIMEOUT with NOT_SENT.",
+    "Route/method/version/Host/Origin policies, bounded extras, pretransfer injection rejection,401 challenge,400/403/404/405/426/431/500/503 and native close. Auth executes on existing shared Server quotas/executor with owned immutable header/context, poll-only cancel/original deadline. Noncooperative work delays actual retirement.",
+    "Legacy validated attach remains available; selecting HTTP does not change its config/info layout. Duplex Close accepts setup TIMEOUT and HTTP_ERROR, preserves first reason/delivery/operation clocks, and joins physical work."
+  ],
+  "resources": [
+    "Current Windows/Linux x64: existing WS config520 and info680 bytes unchanged; private peer1672 to1768 bytes when selecting HTTP, a96-byte fixed increase. Additional per-work pointer/state branches are not a measured performance result.",
+    "Cold control/field views/outgoing bytes are bounded and erased/released after handoff and old binding tail. Header16KiB/128 fields, write64KiB, extras32/16KiB, auth context16KiB hard caps. Native IO and existing Duplex limits remain separate.",
+    "Only the exceptional unpublished-read/full-record-growth case adds a bounded16KiB head cache. It consumes through CRLFCRLF, preserves suffix and counts actual preview copies. Shared auth copies one bounded head snapshot and context into the peer; ordinary handler admission retains its existing context copy. No zero-copy or zero-overhead claim.",
+    "Actual constructor original-budget ladder verifies false-output/native/credit rollback and zero live allocations after final physical joins. Async cache/auth/handoff fault and broader OOM/fuzz coverage are still incomplete; no quota reset or substitute runtime is introduced."
+  ],
+  "verification": "74 Windows/76 WSL primary C executions:5 modular/example,3 single,9 forced-backend/example,1 full Duplex,6 static/shared/declarations,2 legacy HTTP-off,38 independent sessions and10 repeated TLS byte-split sessions per host; WSL adds2 TSan. WSL focused/backends/Duplex/legacy/interop uses ASan+UBSan+leak halt; packages are O2 unsanitized. ABI probes, package smoke checks and7 Python gates per host are additional. All selected final receipts use the same final source map.",
+  "platforms": {
+    "windows": {
+      "primary_program_executions": 74,
+      "primary": {
+        "validate/xrpc_ws_http_tests": {
+          "label": "xrpc_ws_http_tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tests",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 2.329,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-xrpc_ws_http_tests-attempt9.log",
+          "log_sha256": "bd5ce1dd5aee9a5a7476bba5abbf69c556ce65148ac2220863ef010b4712bbcc",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tests\\test_ws_http.exe",
+              "sha256": "afa755db65e4ffaf0a4c9caf9001a2dab9b93437f64419bdbc00acf0ac1b1feb",
+              "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tests-attempt9/test_ws_http.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tests\\examples_ws_http_main.exe",
+              "sha256": "8606e2f440db9323d49b482aca10d7a6aa1f50fbb8d793198367e51c569f3f6c",
+              "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tests-attempt9/examples_ws_http_main.exe"
+            }
+          ]
+        },
+        "validate/xrpc_ws_http_tls_tests": {
+          "label": "xrpc_ws_http_tls_tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 3.875,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-xrpc_ws_http_tls_tests-attempt7.log",
+          "log_sha256": "8e4ffc3620f240b5ee93cd6fd27321a35b66c0b83aa7540e2301eafb23f860f5",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http.exe",
+              "sha256": "1cce683beb30077bc592f7acfd91ae83f66c3610a5093bc8901003e0031a9270",
+              "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tls_tests-attempt7/test_ws_http.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http_prebuffer.exe",
+              "sha256": "bb90f4643ae5adc1947791e29b5904a815a2437050432a547b7b7c6c0b2adaf4",
+              "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tls_tests-attempt7/test_ws_http_prebuffer.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tls_tests\\examples_ws_http_main.exe",
+              "sha256": "a88c605811e124e9d26c69748ac84f56266e8b27659cc31f484d262ec57f4397",
+              "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tls_tests-attempt7/examples_ws_http_main.exe"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http.c": {
+          "label": "test_single_xrpc_ws_http.c",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http.c",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 20.406,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-test_single_xrpc_ws_http.c-attempt3.log",
+          "log_sha256": "9c6e9c0c06a5b2c859961929ef5de25e50d7728e03f3181067598dd5a4425b7e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tests\\test_single_xrpc_ws_http.exe",
+              "sha256": "ff2e862f7238043e222d9a5e34f9ebf0ac9bc7e0c4abc29d2f77bb57d843664a",
+              "preserved": "validated-binaries/windows/singles/windows-test_single_xrpc_ws_http.c-attempt3/test_single_xrpc_ws_http.exe"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http_tls.c": {
+          "label": "test_single_xrpc_ws_http_tls.c",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http_tls.c",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 31.203,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-test_single_xrpc_ws_http_tls.c-attempt3.log",
+          "log_sha256": "e67d25597328a85bc75c17ec9314fde8462a4472fb1584006e50ce97fe89bdbd",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_tls.exe",
+              "sha256": "f07d1287a9bfa33bb3ed5fd8895f589a6eff2c90a172dc2adf76482bf011d58e",
+              "preserved": "validated-binaries/windows/singles/windows-test_single_xrpc_ws_http_tls.c-attempt3/test_single_xrpc_ws_http_tls.exe"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http_prebuffer.c": {
+          "label": "test_single_xrpc_ws_http_prebuffer.c",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http_prebuffer.c",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 29.844,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-test_single_xrpc_ws_http_prebuffer.c-attempt3.log",
+          "log_sha256": "0664da99f4d58ae276e5757c1cc4647c7e3a31a8d03d4faa61bd757c2bf3598f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_prebuffer.exe",
+              "sha256": "33ff7c2bdb3e33254124399d6a7059fb1802fd78d2e693cacc61b09a02c181b2",
+              "preserved": "validated-binaries/windows/singles/windows-test_single_xrpc_ws_http_prebuffer.c-attempt3/test_single_xrpc_ws_http_prebuffer.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http-select": {
+          "label": "http-backend-test_ws_http-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.5,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_ws_http-select-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http.exe",
+              "sha256": "1cce683beb30077bc592f7acfd91ae83f66c3610a5093bc8901003e0031a9270",
+              "preserved": "validated-binaries/direct/windows/1cce683beb30077bc592f7acfd91ae83f66c3610a5093bc8901003e0031a9270.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http-iocp": {
+          "label": "http-backend-test_ws_http-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 1.578,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_ws_http-iocp-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http.exe",
+              "sha256": "1cce683beb30077bc592f7acfd91ae83f66c3610a5093bc8901003e0031a9270",
+              "preserved": "validated-binaries/direct/windows/1cce683beb30077bc592f7acfd91ae83f66c3610a5093bc8901003e0031a9270.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http_prebuffer-select": {
+          "label": "http-backend-test_ws_http_prebuffer-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http_prebuffer.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_ws_http_prebuffer-select-attempt2.log",
+          "log_sha256": "ffa7999624bbc94d19fa7c40d94367430b5a2130ccaa8bcde5f7ba51415e8eda",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http_prebuffer.exe",
+              "sha256": "bb90f4643ae5adc1947791e29b5904a815a2437050432a547b7b7c6c0b2adaf4",
+              "preserved": "validated-binaries/direct/windows/bb90f4643ae5adc1947791e29b5904a815a2437050432a547b7b7c6c0b2adaf4.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http_prebuffer-iocp": {
+          "label": "http-backend-test_ws_http_prebuffer-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http_prebuffer.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 0.125,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_ws_http_prebuffer-iocp-attempt2.log",
+          "log_sha256": "ffa7999624bbc94d19fa7c40d94367430b5a2130ccaa8bcde5f7ba51415e8eda",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_ws_http_prebuffer.exe",
+              "sha256": "bb90f4643ae5adc1947791e29b5904a815a2437050432a547b7b7c6c0b2adaf4",
+              "preserved": "validated-binaries/direct/windows/bb90f4643ae5adc1947791e29b5904a815a2437050432a547b7b7c6c0b2adaf4.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_tls-select": {
+          "label": "http-backend-test_single_xrpc_ws_http_tls-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_tls.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.437,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_single_xrpc_ws_http_tls-select-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_tls.exe",
+              "sha256": "f07d1287a9bfa33bb3ed5fd8895f589a6eff2c90a172dc2adf76482bf011d58e",
+              "preserved": "validated-binaries/direct/windows/f07d1287a9bfa33bb3ed5fd8895f589a6eff2c90a172dc2adf76482bf011d58e.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_tls-iocp": {
+          "label": "http-backend-test_single_xrpc_ws_http_tls-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_tls.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 1.579,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_single_xrpc_ws_http_tls-iocp-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_tls.exe",
+              "sha256": "f07d1287a9bfa33bb3ed5fd8895f589a6eff2c90a172dc2adf76482bf011d58e",
+              "preserved": "validated-binaries/direct/windows/f07d1287a9bfa33bb3ed5fd8895f589a6eff2c90a172dc2adf76482bf011d58e.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_prebuffer-select": {
+          "label": "http-backend-test_single_xrpc_ws_http_prebuffer-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_prebuffer.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_single_xrpc_ws_http_prebuffer-select-attempt2.log",
+          "log_sha256": "ffa7999624bbc94d19fa7c40d94367430b5a2130ccaa8bcde5f7ba51415e8eda",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_prebuffer.exe",
+              "sha256": "33ff7c2bdb3e33254124399d6a7059fb1802fd78d2e693cacc61b09a02c181b2",
+              "preserved": "validated-binaries/direct/windows/33ff7c2bdb3e33254124399d6a7059fb1802fd78d2e693cacc61b09a02c181b2.exe"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_prebuffer-iocp": {
+          "label": "http-backend-test_single_xrpc_ws_http_prebuffer-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_prebuffer.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-backend-test_single_xrpc_ws_http_prebuffer-iocp-attempt2.log",
+          "log_sha256": "ffa7999624bbc94d19fa7c40d94367430b5a2130ccaa8bcde5f7ba51415e8eda",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\test_single_xrpc_ws_http_prebuffer.exe",
+              "sha256": "33ff7c2bdb3e33254124399d6a7059fb1802fd78d2e693cacc61b09a02c181b2",
+              "preserved": "validated-binaries/direct/windows/33ff7c2bdb3e33254124399d6a7059fb1802fd78d2e693cacc61b09a02c181b2.exe"
+            }
+          ]
+        },
+        "http_backends/http-example-tls": {
+          "label": "http-example-tls",
+          "command": [
+            "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\examples_ws_http_main.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.062,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-example-tls-attempt2.log",
+          "log_sha256": "679d56d734d7ed28ab6b18b0b71d388e1568c39d457220012af57c5889e66bb5",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\examples_ws_http_main.exe",
+              "sha256": "a88c605811e124e9d26c69748ac84f56266e8b27659cc31f484d262ec57f4397",
+              "preserved": "validated-binaries/direct/windows/a88c605811e124e9d26c69748ac84f56266e8b27659cc31f484d262ec57f4397.exe"
+            }
+          ]
+        },
+        "duplex/duplex-full-regression": {
+          "label": "duplex-full-regression",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-duplex.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.062,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-duplex-full-regression-attempt3.log",
+          "log_sha256": "620520c61bbd798a4ff591d4de98fe0c995479ef1f172bbd609a4812da47c769",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-duplex.exe",
+              "sha256": "d8e86fa1162e519c72b6896fc6ca4752e85385f62a9ff520109cdcbb1dd499f0",
+              "preserved": "validated-binaries/direct/windows/d8e86fa1162e519c72b6896fc6ca4752e85385f62a9ff520109cdcbb1dd499f0.exe"
+            }
+          ]
+        },
+        "http_delivery/http-static-select": {
+          "label": "http-static-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\integration.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.515,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-static-select-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\integration.exe",
+              "sha256": "e31dabed4eea33b6395cd7c81bfa1c6a8ab44c0031ea49398c2511ff11b0ff96",
+              "preserved": "validated-binaries/direct/windows/e31dabed4eea33b6395cd7c81bfa1c6a8ab44c0031ea49398c2511ff11b0ff96.exe"
+            }
+          ]
+        },
+        "http_delivery/http-static-iocp": {
+          "label": "http-static-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\integration.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 1.61,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-static-iocp-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\integration.exe",
+              "sha256": "e31dabed4eea33b6395cd7c81bfa1c6a8ab44c0031ea49398c2511ff11b0ff96",
+              "preserved": "validated-binaries/direct/windows/e31dabed4eea33b6395cd7c81bfa1c6a8ab44c0031ea49398c2511ff11b0ff96.exe"
+            }
+          ]
+        },
+        "http_delivery/http-static-declarations": {
+          "label": "http-static-declarations",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\declarations.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.016,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-static-declarations-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\static\\declarations.exe",
+              "sha256": "4317dabfadc73eae0f11dd30eac45d75c69214f00783ac6ac78c2296e47df387",
+              "preserved": "validated-binaries/direct/windows/4317dabfadc73eae0f11dd30eac45d75c69214f00783ac6ac78c2296e47df387.exe"
+            }
+          ]
+        },
+        "http_delivery/http-shared-select": {
+          "label": "http-shared-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\integration.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.531,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-shared-select-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\integration.exe",
+              "sha256": "925827c991a3f49738bf72c645f68fff47738ce98e71b85fb1b828ee15a0d269",
+              "preserved": "validated-binaries/direct/windows/925827c991a3f49738bf72c645f68fff47738ce98e71b85fb1b828ee15a0d269.exe"
+            }
+          ]
+        },
+        "http_delivery/http-shared-iocp": {
+          "label": "http-shared-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\integration.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 1.594,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-shared-iocp-attempt2.log",
+          "log_sha256": "fb0702b6234d001ccc62496de2555c2e74a7bf25b4c043eab65f7496aa53da6f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\integration.exe",
+              "sha256": "925827c991a3f49738bf72c645f68fff47738ce98e71b85fb1b828ee15a0d269",
+              "preserved": "validated-binaries/direct/windows/925827c991a3f49738bf72c645f68fff47738ce98e71b85fb1b828ee15a0d269.exe"
+            }
+          ]
+        },
+        "http_delivery/http-shared-declarations": {
+          "label": "http-shared-declarations",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\declarations.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.016,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-shared-declarations-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-packages\\windows\\shared\\declarations.exe",
+              "sha256": "f9256cede696b3565776a61100755a5c7055dfe8f77c5ef2069695532a26041a",
+              "preserved": "validated-binaries/direct/windows/f9256cede696b3565776a61100755a5c7055dfe8f77c5ef2069695532a26041a.exe"
+            }
+          ]
+        },
+        "http_legacy/http-legacy-test_single_xrpc_ws_tls.c": {
+          "label": "http-legacy-test_single_xrpc_ws_tls.c",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-legacy\\windows\\test_single_xrpc_ws_tls.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 1.86,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-legacy-test_single_xrpc_ws_tls.c-attempt2.log",
+          "log_sha256": "21e03386f8d7af8bffa4d7c43d08598054cea079c23371e6cf2a03cbafcd49ca",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-legacy\\windows\\test_single_xrpc_ws_tls.exe",
+              "sha256": "7ab6b711d47ced28d8f4352f4b8ad7ed0605ecc344a155e07ff3fca0dbd8d05c",
+              "preserved": "validated-binaries/direct/windows/7ab6b711d47ced28d8f4352f4b8ad7ed0605ecc344a155e07ff3fca0dbd8d05c.exe"
+            }
+          ]
+        },
+        "http_legacy/http-legacy-test_single_xrpc_ws_tls_post.c": {
+          "label": "http-legacy-test_single_xrpc_ws_tls_post.c",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-legacy\\windows\\test_single_xrpc_ws_tls_post.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.875,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-legacy-test_single_xrpc_ws_tls_post.c-attempt2.log",
+          "log_sha256": "de9bb8b27529fc9c60c616c6313bf671708b7d73f621031f90544b533cd9675a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-legacy\\windows\\test_single_xrpc_ws_tls_post.exe",
+              "sha256": "8b16ed437bf617bdd585ba3166665021f2263a9e041dc529a36a33fafdb48e04",
+              "preserved": "validated-binaries/direct/windows/8b16ed437bf617bdd585ba3166665021f2263a9e041dc529a36a33fafdb48e04.exe"
+            }
+          ]
+        },
+        "interop/independent-http-full": {
+          "label": "independent-http-full",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop.json"
+          ],
+          "exit_code": 0,
+          "seconds": 11.234,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-independent-http-full-attempt5.log",
+          "log_sha256": "17ce7f7ab5ac8af75e3677cdfdaac7e5bf4637cb5b7ce1067b22478e89cbe49f",
+          "programs": 38,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-0": {
+          "label": "http-repeat-client-0",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-client-0.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.531,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-client-0.log",
+          "log_sha256": "b01e2a9a3b0056ec7426247ed756323b84e6c61f7580747d0da99a58c2de9660",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-1": {
+          "label": "http-repeat-client-1",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-client-1.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.547,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-client-1.log",
+          "log_sha256": "b01e2a9a3b0056ec7426247ed756323b84e6c61f7580747d0da99a58c2de9660",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-2": {
+          "label": "http-repeat-client-2",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-client-2.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.593,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-client-2.log",
+          "log_sha256": "b01e2a9a3b0056ec7426247ed756323b84e6c61f7580747d0da99a58c2de9660",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-3": {
+          "label": "http-repeat-client-3",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-client-3.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.844,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-client-3.log",
+          "log_sha256": "b01e2a9a3b0056ec7426247ed756323b84e6c61f7580747d0da99a58c2de9660",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-4": {
+          "label": "http-repeat-client-4",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-client-4.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.687,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-client-4.log",
+          "log_sha256": "b01e2a9a3b0056ec7426247ed756323b84e6c61f7580747d0da99a58c2de9660",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-0": {
+          "label": "http-repeat-server-0",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-server-0.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.688,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-server-0.log",
+          "log_sha256": "67418c893f176be6660125c3f402d81371070c6d2bc05746cf47cd06beb7ea79",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-1": {
+          "label": "http-repeat-server-1",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-server-1.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.656,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-server-1.log",
+          "log_sha256": "67418c893f176be6660125c3f402d81371070c6d2bc05746cf47cd06beb7ea79",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-2": {
+          "label": "http-repeat-server-2",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-server-2.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 1.031,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-server-2.log",
+          "log_sha256": "67418c893f176be6660125c3f402d81371070c6d2bc05746cf47cd06beb7ea79",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-3": {
+          "label": "http-repeat-server-3",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-server-3.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.641,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-server-3.log",
+          "log_sha256": "67418c893f176be6660125c3f402d81371070c6d2bc05746cf47cd06beb7ea79",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-4": {
+          "label": "http-repeat-server-4",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\http-repeat\\windows\\6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a.exe",
+            "--output-dir",
+            "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\http-repeat\\windows",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-http-repeat-server-4.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.609,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "windows-http-repeat-server-4.log",
+          "log_sha256": "67418c893f176be6660125c3f402d81371070c6d2bc05746cf47cd06beb7ea79",
+          "programs": 1,
+          "binaries": []
+        }
+      },
+      "layout": {
+        "public_config_info_and_legacy_values_unchanged": true,
+        "columns": [
+          "config_bytes",
+          "info_bytes",
+          "private_bytes",
+          "closed_value",
+          "engine_reason"
+        ],
+        "variants": {
+          "off": [
+            520,
+            680,
+            1464,
+            2,
+            6
+          ],
+          "on": [
+            520,
+            680,
+            1560,
+            2,
+            6
+          ]
+        },
+        "permanent_private_extra_bytes": 96,
+        "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d"
+      },
+      "independent_peer": {
+        "binary_sha256": "6efbb804550c8ead9452ceab9d47802e240d03c4edce6ecba05575c305b82e7a",
+        "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+        "openssl": "OpenSSL 3.0.16 11 Feb 2025",
+        "platform": "Windows-10-10.0.19045-SP0",
+        "public_certificate_sha256": "23eb61c9998ff283c66989ed7f108702644f17131b32a4acc85732f8cb3deb19",
+        "private_keys_recorded": false,
+        "cases": [
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "bad-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=bad-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "wrong-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=wrong-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "missing-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=missing-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "duplicate-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=duplicate-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "body-framing",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=body-framing outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "reject",
+            "fragment_write_bytes": 65536,
+            "status": 403,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=reject outcome=2 status=403 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "timeout",
+            "fragment_write_bytes": 65536,
+            "status": null,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "route",
+            "fragment_write_bytes": 65536,
+            "status": 404,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=route outcome=2 status=404 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "method",
+            "fragment_write_bytes": 65536,
+            "status": 405,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=method outcome=2 status=405 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "version",
+            "fragment_write_bytes": 65536,
+            "status": 426,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=version outcome=2 status=426 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "unauthorized",
+            "fragment_write_bytes": 65536,
+            "status": 401,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=unauthorized outcome=2 status=401 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "duplicate-origin",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=duplicate-origin outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "duplicate-auth",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=duplicate-auth outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "many-fields",
+            "fragment_write_bytes": 65536,
+            "status": 431,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=many-fields outcome=2 status=431 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "auth-timeout",
+            "fragment_write_bytes": 65536,
+            "status": 0,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=auth-timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "bad-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=bad-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "wrong-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=wrong-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "missing-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=missing-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "duplicate-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=duplicate-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "body-framing",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=body-framing outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "reject",
+            "fragment_write_bytes": 65536,
+            "status": 403,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=reject outcome=2 status=403 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "timeout",
+            "fragment_write_bytes": 65536,
+            "status": null,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "route",
+            "fragment_write_bytes": 65536,
+            "status": 404,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=route outcome=2 status=404 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "method",
+            "fragment_write_bytes": 65536,
+            "status": 405,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=method outcome=2 status=405 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "version",
+            "fragment_write_bytes": 65536,
+            "status": 426,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=version outcome=2 status=426 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "unauthorized",
+            "fragment_write_bytes": 65536,
+            "status": 401,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=unauthorized outcome=2 status=401 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "duplicate-origin",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=duplicate-origin outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "duplicate-auth",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=duplicate-auth outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "many-fields",
+            "fragment_write_bytes": 65536,
+            "status": 431,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=many-fields outcome=2 status=431 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "auth-timeout",
+            "fragment_write_bytes": 65536,
+            "status": 0,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=auth-timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          }
+        ],
+        "scope": "Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance."
+      }
+    },
+    "wsl": {
+      "primary_program_executions": 76,
+      "primary": {
+        "validate/xrpc_ws_http_tests": {
+          "label": "xrpc_ws_http_tests",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tests",
+            "--no-single",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 19.657,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-xrpc_ws_http_tests-attempt8.log",
+          "log_sha256": "e398f4bcf7cf100f88d98144fb42258826264476a5c97fb7cbd5b307beb755f8",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tests/test_ws_http",
+              "sha256": "9dc8bb7e45e82cbd6dff87181ecd77ae7881b0f91cf03446dc700faa91c8a2ae",
+              "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tests-attempt8/test_ws_http"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tests/examples_ws_http_main",
+              "sha256": "42230b0e2d40c3f8ff0936f013cc5736e628b5b37a6abba59537e980f0b79cc8",
+              "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tests-attempt8/examples_ws_http_main"
+            }
+          ]
+        },
+        "validate/xrpc_ws_http_tls_tests": {
+          "label": "xrpc_ws_http_tls_tests",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-single",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 46.805,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-xrpc_ws_http_tls_tests-attempt6.log",
+          "log_sha256": "13e053d08b521d821a17e12dd51b45f5d07f1acdc3d83c921db88b8a2cb8a414",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http",
+              "sha256": "4eaea8ec499003e325add1b55089231b550075e34ba13d55adddd1dbe6004c43",
+              "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tls_tests-attempt6/test_ws_http"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http_prebuffer",
+              "sha256": "1be90c95069cc8c649631ac522fdd2e5da51b40ead77ceb30b66aabf38232550",
+              "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tls_tests-attempt6/test_ws_http_prebuffer"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tls_tests/examples_ws_http_main",
+              "sha256": "6aa80d4851f166f6e332776f074a4299e36a76394ca7a550c1558c42c388c03f",
+              "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tls_tests-attempt6/examples_ws_http_main"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http.c": {
+          "label": "test_single_xrpc_ws_http.c",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http.c",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 74.075,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-test_single_xrpc_ws_http.c-attempt3.log",
+          "log_sha256": "ec1915b533477db0f7918ee72a0adcd5b742edaaa447b6269ec458b94226a59d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tests/test_single_xrpc_ws_http",
+              "sha256": "9df952f70c9809b9ae899a393f2c783c5705574a5c6341fc6e96ccbfb9043fdc",
+              "preserved": "validated-binaries/wsl/singles/wsl-test_single_xrpc_ws_http.c-attempt3/test_single_xrpc_ws_http"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http_tls.c": {
+          "label": "test_single_xrpc_ws_http_tls.c",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http_tls.c",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 104.833,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-test_single_xrpc_ws_http_tls.c-attempt3.log",
+          "log_sha256": "7ef4a5a25aff18c70874fe1404acb67fcab39ff5b9204d275fa7170f65d69795",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_tls",
+              "sha256": "b513a89fd6ab87d895bb83cbdb4b1551b1205ae7285a305f317216f3468d3613",
+              "preserved": "validated-binaries/wsl/singles/wsl-test_single_xrpc_ws_http_tls.c-attempt3/test_single_xrpc_ws_http_tls"
+            }
+          ]
+        },
+        "singles/test_single_xrpc_ws_http_prebuffer.c": {
+          "label": "test_single_xrpc_ws_http_prebuffer.c",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_ws_http_tls_tests",
+            "--no-examples",
+            "--single-test",
+            "test_single_xrpc_ws_http_prebuffer.c",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 102.929,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-test_single_xrpc_ws_http_prebuffer.c-attempt3.log",
+          "log_sha256": "ee648a1d9c1aa45c3554f75d0e9dc34c0040e8872b82c2ce47ffbc81044dafc0",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_prebuffer",
+              "sha256": "1930add88e4275d225921db6ddbfadeac845bdacd4c1f7f2b16c85835f265c98",
+              "preserved": "validated-binaries/wsl/singles/wsl-test_single_xrpc_ws_http_prebuffer.c-attempt3/test_single_xrpc_ws_http_prebuffer"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http-select": {
+          "label": "http-backend-test_ws_http-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.747,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_ws_http-select-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http",
+              "sha256": "4eaea8ec499003e325add1b55089231b550075e34ba13d55adddd1dbe6004c43",
+              "preserved": "validated-binaries/direct/wsl/4eaea8ec499003e325add1b55089231b550075e34ba13d55adddd1dbe6004c43.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http-epoll": {
+          "label": "http-backend-test_ws_http-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 1.598,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_ws_http-epoll-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http",
+              "sha256": "4eaea8ec499003e325add1b55089231b550075e34ba13d55adddd1dbe6004c43",
+              "preserved": "validated-binaries/direct/wsl/4eaea8ec499003e325add1b55089231b550075e34ba13d55adddd1dbe6004c43.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http_prebuffer-select": {
+          "label": "http-backend-test_ws_http_prebuffer-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http_prebuffer",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.489,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_ws_http_prebuffer-select-attempt2.log",
+          "log_sha256": "59bdad62aee86d32dc27d5c855d09ebe1754627e202790113fd852491de9eb5d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http_prebuffer",
+              "sha256": "1be90c95069cc8c649631ac522fdd2e5da51b40ead77ceb30b66aabf38232550",
+              "preserved": "validated-binaries/direct/wsl/1be90c95069cc8c649631ac522fdd2e5da51b40ead77ceb30b66aabf38232550.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_ws_http_prebuffer-epoll": {
+          "label": "http-backend-test_ws_http_prebuffer-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http_prebuffer",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 0.346,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_ws_http_prebuffer-epoll-attempt2.log",
+          "log_sha256": "59bdad62aee86d32dc27d5c855d09ebe1754627e202790113fd852491de9eb5d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_ws_http_prebuffer",
+              "sha256": "1be90c95069cc8c649631ac522fdd2e5da51b40ead77ceb30b66aabf38232550",
+              "preserved": "validated-binaries/direct/wsl/1be90c95069cc8c649631ac522fdd2e5da51b40ead77ceb30b66aabf38232550.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_tls-select": {
+          "label": "http-backend-test_single_xrpc_ws_http_tls-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_tls",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.797,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_single_xrpc_ws_http_tls-select-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_tls",
+              "sha256": "b513a89fd6ab87d895bb83cbdb4b1551b1205ae7285a305f317216f3468d3613",
+              "preserved": "validated-binaries/direct/wsl/b513a89fd6ab87d895bb83cbdb4b1551b1205ae7285a305f317216f3468d3613.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_tls-epoll": {
+          "label": "http-backend-test_single_xrpc_ws_http_tls-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_tls",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 1.634,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_single_xrpc_ws_http_tls-epoll-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_tls",
+              "sha256": "b513a89fd6ab87d895bb83cbdb4b1551b1205ae7285a305f317216f3468d3613",
+              "preserved": "validated-binaries/direct/wsl/b513a89fd6ab87d895bb83cbdb4b1551b1205ae7285a305f317216f3468d3613.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_prebuffer-select": {
+          "label": "http-backend-test_single_xrpc_ws_http_prebuffer-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_prebuffer",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.549,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_single_xrpc_ws_http_prebuffer-select-attempt2.log",
+          "log_sha256": "59bdad62aee86d32dc27d5c855d09ebe1754627e202790113fd852491de9eb5d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_prebuffer",
+              "sha256": "1930add88e4275d225921db6ddbfadeac845bdacd4c1f7f2b16c85835f265c98",
+              "preserved": "validated-binaries/direct/wsl/1930add88e4275d225921db6ddbfadeac845bdacd4c1f7f2b16c85835f265c98.bin"
+            }
+          ]
+        },
+        "http_backends/http-backend-test_single_xrpc_ws_http_prebuffer-epoll": {
+          "label": "http-backend-test_single_xrpc_ws_http_prebuffer-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_prebuffer",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 0.386,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-backend-test_single_xrpc_ws_http_prebuffer-epoll-attempt2.log",
+          "log_sha256": "59bdad62aee86d32dc27d5c855d09ebe1754627e202790113fd852491de9eb5d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/test_single_xrpc_ws_http_prebuffer",
+              "sha256": "1930add88e4275d225921db6ddbfadeac845bdacd4c1f7f2b16c85835f265c98",
+              "preserved": "validated-binaries/direct/wsl/1930add88e4275d225921db6ddbfadeac845bdacd4c1f7f2b16c85835f265c98.bin"
+            }
+          ]
+        },
+        "http_backends/http-example-tls": {
+          "label": "http-example-tls",
+          "command": [
+            "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/examples_ws_http_main",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.484,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-example-tls-attempt2.log",
+          "log_sha256": "18c1f33c5a6375254678d689cb3e8e32f5ae4f17b9212ab9696bee449d4688cf",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/gcc/x64/xrpc_ws_http_tls_tests/examples_ws_http_main",
+              "sha256": "6aa80d4851f166f6e332776f074a4299e36a76394ca7a550c1558c42c388c03f",
+              "preserved": "validated-binaries/direct/wsl/6aa80d4851f166f6e332776f074a4299e36a76394ca7a550c1558c42c388c03f.bin"
+            }
+          ]
+        },
+        "duplex/duplex-full-regression": {
+          "label": "duplex-full-regression",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-duplex"
+          ],
+          "exit_code": 0,
+          "seconds": 0.299,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-duplex-full-regression-attempt3.log",
+          "log_sha256": "dfa0230dbd4168bf49aa96d8bd1333750433834642c9817ea9b0f239f20b6a7e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-duplex",
+              "sha256": "a2d155649fb6d398375f854e247c80a83ff566fb9b83109078ba68ea66aea1f1",
+              "preserved": "validated-binaries/direct/wsl/a2d155649fb6d398375f854e247c80a83ff566fb9b83109078ba68ea66aea1f1.bin"
+            }
+          ]
+        },
+        "http_delivery/http-static-select": {
+          "label": "http-static-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/integration",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.26,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-static-select-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/integration",
+              "sha256": "211c9cc65c2457dc137a33ed03e91d6a88977b948bd23304f314e66dc6905bf7",
+              "preserved": "validated-binaries/direct/wsl/211c9cc65c2457dc137a33ed03e91d6a88977b948bd23304f314e66dc6905bf7.bin"
+            }
+          ]
+        },
+        "http_delivery/http-static-epoll": {
+          "label": "http-static-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/integration",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 1.219,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-static-epoll-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/integration",
+              "sha256": "211c9cc65c2457dc137a33ed03e91d6a88977b948bd23304f314e66dc6905bf7",
+              "preserved": "validated-binaries/direct/wsl/211c9cc65c2457dc137a33ed03e91d6a88977b948bd23304f314e66dc6905bf7.bin"
+            }
+          ]
+        },
+        "http_delivery/http-static-declarations": {
+          "label": "http-static-declarations",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/declarations"
+          ],
+          "exit_code": 0,
+          "seconds": 0.111,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-static-declarations-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/static/declarations",
+              "sha256": "ff0d09629351cfd4f54e448efd2e5f349052a46da23c86876e4bc0eaea9f182f",
+              "preserved": "validated-binaries/direct/wsl/ff0d09629351cfd4f54e448efd2e5f349052a46da23c86876e4bc0eaea9f182f.bin"
+            }
+          ]
+        },
+        "http_delivery/http-shared-select": {
+          "label": "http-shared-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/integration",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.25,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-shared-select-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/integration",
+              "sha256": "0424e699cb06971f85d61bb22d58d63d2ec951f029427b1ad32f25df3a0ea0d0",
+              "preserved": "validated-binaries/direct/wsl/0424e699cb06971f85d61bb22d58d63d2ec951f029427b1ad32f25df3a0ea0d0.bin"
+            }
+          ]
+        },
+        "http_delivery/http-shared-epoll": {
+          "label": "http-shared-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/integration",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 1.201,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-shared-epoll-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/integration",
+              "sha256": "0424e699cb06971f85d61bb22d58d63d2ec951f029427b1ad32f25df3a0ea0d0",
+              "preserved": "validated-binaries/direct/wsl/0424e699cb06971f85d61bb22d58d63d2ec951f029427b1ad32f25df3a0ea0d0.bin"
+            }
+          ]
+        },
+        "http_delivery/http-shared-declarations": {
+          "label": "http-shared-declarations",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/declarations"
+          ],
+          "exit_code": 0,
+          "seconds": 0.065,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-shared-declarations-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-packages/wsl/shared/declarations",
+              "sha256": "a0019504bd4cf8df0b5e14c948cdd78a9f340ab8ffa828e89ed433f05d3ab2c6",
+              "preserved": "validated-binaries/direct/wsl/a0019504bd4cf8df0b5e14c948cdd78a9f340ab8ffa828e89ed433f05d3ab2c6.bin"
+            }
+          ]
+        },
+        "http_legacy/http-legacy-test_single_xrpc_ws_tls.c": {
+          "label": "http-legacy-test_single_xrpc_ws_tls.c",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-legacy/wsl/test_single_xrpc_ws_tls"
+          ],
+          "exit_code": 0,
+          "seconds": 1.084,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-legacy-test_single_xrpc_ws_tls.c-attempt2.log",
+          "log_sha256": "0a49752bccccf43c57168c6f434cacceff20799b0b4a69aaf668c14d0efdd7a7",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-legacy/wsl/test_single_xrpc_ws_tls",
+              "sha256": "0dfd2500a06b457cdbf50e33e011a98e936c74b7724dc44b89891c1790a05106",
+              "preserved": "validated-binaries/direct/wsl/0dfd2500a06b457cdbf50e33e011a98e936c74b7724dc44b89891c1790a05106.bin"
+            }
+          ]
+        },
+        "http_legacy/http-legacy-test_single_xrpc_ws_tls_post.c": {
+          "label": "http-legacy-test_single_xrpc_ws_tls_post.c",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-legacy/wsl/test_single_xrpc_ws_tls_post"
+          ],
+          "exit_code": 0,
+          "seconds": 0.714,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-legacy-test_single_xrpc_ws_tls_post.c-attempt2.log",
+          "log_sha256": "54e54bdeb0f22fd5670b039aea412409eb5becea6fc2e54413cdc69876201d6d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-legacy/wsl/test_single_xrpc_ws_tls_post",
+              "sha256": "46ba3ce85394da7392fe6eca5b1b361b5edba2fea125a81fcd4d63eda5cb0413",
+              "preserved": "validated-binaries/direct/wsl/46ba3ce85394da7392fe6eca5b1b361b5edba2fea125a81fcd4d63eda5cb0413.bin"
+            }
+          ]
+        },
+        "interop/independent-http-full": {
+          "label": "independent-http-full",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/interop/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/interop/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-interop.json"
+          ],
+          "exit_code": 0,
+          "seconds": 13.248,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-independent-http-full-attempt3.log",
+          "log_sha256": "82ce1e8e36fbd1adead8782488a33a0d58180c3dce92d74e3554c527e493467f",
+          "programs": 38,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-0": {
+          "label": "http-repeat-client-0",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-client-0.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.672,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-client-0.log",
+          "log_sha256": "f18fbfec4e0d43dc9e109b9274a61b2d8b320c7a0ff4ed9bcd5fb3a2c4ffdca0",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-1": {
+          "label": "http-repeat-client-1",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-client-1.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.672,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-client-1.log",
+          "log_sha256": "f18fbfec4e0d43dc9e109b9274a61b2d8b320c7a0ff4ed9bcd5fb3a2c4ffdca0",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-2": {
+          "label": "http-repeat-client-2",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-client-2.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.672,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-client-2.log",
+          "log_sha256": "f18fbfec4e0d43dc9e109b9274a61b2d8b320c7a0ff4ed9bcd5fb3a2c4ffdca0",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-3": {
+          "label": "http-repeat-client-3",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-client-3.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.623,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-client-3.log",
+          "log_sha256": "f18fbfec4e0d43dc9e109b9274a61b2d8b320c7a0ff4ed9bcd5fb3a2c4ffdca0",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-client-4": {
+          "label": "http-repeat-client-4",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-client-4.json",
+            "--quick",
+            "--only",
+            "client:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.622,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-client-4.log",
+          "log_sha256": "f18fbfec4e0d43dc9e109b9274a61b2d8b320c7a0ff4ed9bcd5fb3a2c4ffdca0",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-0": {
+          "label": "http-repeat-server-0",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-server-0.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.823,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-server-0.log",
+          "log_sha256": "03152b70e6c67c465f98e80b3cf42a34cd355182c4a2696656e040eae4fe1d35",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-1": {
+          "label": "http-repeat-server-1",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-server-1.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.723,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-server-1.log",
+          "log_sha256": "03152b70e6c67c465f98e80b3cf42a34cd355182c4a2696656e040eae4fe1d35",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-2": {
+          "label": "http-repeat-server-2",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-server-2.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.772,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-server-2.log",
+          "log_sha256": "03152b70e6c67c465f98e80b3cf42a34cd355182c4a2696656e040eae4fe1d35",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-3": {
+          "label": "http-repeat-server-3",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-server-3.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.773,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-server-3.log",
+          "log_sha256": "03152b70e6c67c465f98e80b3cf42a34cd355182c4a2696656e040eae4fe1d35",
+          "programs": 1,
+          "binaries": []
+        },
+        "http_repeat/http-repeat-server-4": {
+          "label": "http-repeat-server-4",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/http-repeat/wsl/1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+            "--output-dir",
+            "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/http-repeat/wsl",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-http-repeat-server-4.json",
+            "--quick",
+            "--only",
+            "server:tls:normal:1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.772,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-repeat-server-4.log",
+          "log_sha256": "03152b70e6c67c465f98e80b3cf42a34cd355182c4a2696656e040eae4fe1d35",
+          "programs": 1,
+          "binaries": []
+        },
+        "tsan_http/http-tsan-select": {
+          "label": "http-tsan-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-tsan/ws-http",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 2.431,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-tsan-select-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-tsan/ws-http",
+              "sha256": "aa7a3b25d73dddbe752ca0093d4e3a3eb609ec5d9308eafe5219ebd90ed32535",
+              "preserved": "validated-binaries/direct/wsl/aa7a3b25d73dddbe752ca0093d4e3a3eb609ec5d9308eafe5219ebd90ed32535.bin"
+            }
+          ]
+        },
+        "tsan_http/http-tsan-epoll": {
+          "label": "http-tsan-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-tsan/ws-http",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 2.31,
+          "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d",
+          "log": "wsl-http-tsan-epoll-attempt2.log",
+          "log_sha256": "4e34d8b5d47cc725b5d1312f1dc6bd485e33fdf2334eba27fa367e753e1a016a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/http-tsan/ws-http",
+              "sha256": "aa7a3b25d73dddbe752ca0093d4e3a3eb609ec5d9308eafe5219ebd90ed32535",
+              "preserved": "validated-binaries/direct/wsl/aa7a3b25d73dddbe752ca0093d4e3a3eb609ec5d9308eafe5219ebd90ed32535.bin"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "public_config_info_and_legacy_values_unchanged": true,
+        "columns": [
+          "config_bytes",
+          "info_bytes",
+          "private_bytes",
+          "closed_value",
+          "engine_reason"
+        ],
+        "variants": {
+          "off": [
+            520,
+            680,
+            1672,
+            2,
+            6
+          ],
+          "on": [
+            520,
+            680,
+            1768,
+            2,
+            6
+          ]
+        },
+        "permanent_private_extra_bytes": 96,
+        "source_map_sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d"
+      },
+      "independent_peer": {
+        "binary_sha256": "1deaa6cdb0cefc6e298ea672476bab2789b931d6f1a818ab9d55767a4f9cc40c",
+        "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+        "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "public_certificate_sha256": "66436cbd1cd915229c81869b7c76cd04c31dd226b14dfbe148f752e783d3a424",
+        "private_keys_recorded": false,
+        "cases": [
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "bad-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=bad-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "wrong-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=wrong-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "missing-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=missing-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "duplicate-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=duplicate-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "body-framing",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=body-framing outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "reject",
+            "fragment_write_bytes": 65536,
+            "status": 403,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=reject outcome=2 status=403 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": false,
+            "mode": "timeout",
+            "fragment_write_bytes": 65536,
+            "status": null,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tcp mode=timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "route",
+            "fragment_write_bytes": 65536,
+            "status": 404,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=route outcome=2 status=404 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "method",
+            "fragment_write_bytes": 65536,
+            "status": 405,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=method outcome=2 status=405 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "version",
+            "fragment_write_bytes": 65536,
+            "status": 426,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=version outcome=2 status=426 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "unauthorized",
+            "fragment_write_bytes": 65536,
+            "status": 401,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=unauthorized outcome=2 status=401 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "duplicate-origin",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=duplicate-origin outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "duplicate-auth",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=duplicate-auth outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "many-fields",
+            "fragment_write_bytes": 65536,
+            "status": 431,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=many-fields outcome=2 status=431 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": false,
+            "mode": "auth-timeout",
+            "fragment_write_bytes": 65536,
+            "status": 0,
+            "tls": null,
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tcp mode=auth-timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "bad-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=bad-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "wrong-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=wrong-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "missing-protocol",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=missing-protocol outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "duplicate-accept",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=duplicate-accept outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "body-framing",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=body-framing outcome=3 status=101 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "reject",
+            "fragment_write_bytes": 65536,
+            "status": 403,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=reject outcome=2 status=403 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "client",
+            "secure": true,
+            "mode": "timeout",
+            "fragment_write_bytes": 65536,
+            "status": null,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=client transport=tls mode=timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 1,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "normal",
+            "fragment_write_bytes": 65536,
+            "status": 101,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=normal outcome=1 status=101 call=0 delivery=2"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "route",
+            "fragment_write_bytes": 65536,
+            "status": 404,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=route outcome=2 status=404 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "method",
+            "fragment_write_bytes": 65536,
+            "status": 405,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=method outcome=2 status=405 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "version",
+            "fragment_write_bytes": 65536,
+            "status": 426,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=version outcome=2 status=426 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "unauthorized",
+            "fragment_write_bytes": 65536,
+            "status": 401,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=unauthorized outcome=2 status=401 call=11 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "duplicate-origin",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=duplicate-origin outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "duplicate-auth",
+            "fragment_write_bytes": 65536,
+            "status": 400,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=duplicate-auth outcome=2 status=400 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "many-fields",
+            "fragment_write_bytes": 65536,
+            "status": 431,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=many-fields outcome=2 status=431 call=6 delivery=0"
+            ]
+          },
+          {
+            "native_role": "server",
+            "secure": true,
+            "mode": "auth-timeout",
+            "fragment_write_bytes": 65536,
+            "status": 0,
+            "tls": "TLSv1.3",
+            "exit_code": 0,
+            "summary": [
+              "PASS role=server transport=tls mode=auth-timeout outcome=4 status=0 call=2 delivery=0"
+            ]
+          }
+        ],
+        "scope": "Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance."
+      }
+    }
+  },
+  "API_coverage": {
+    "functions": 156,
+    "constants": 238,
+    "types": 115,
+    "missing": 0
+  },
+  "source_map": {
+    "path": "source.json",
+    "sha256": "648b95dce9d22dd5eb3980e21c1b8f38db702301f12d1cb4d15bc3d11ebc789d"
+  },
+  "failures": [
+    {
+      "receipts": "windows-core_regression-receipts.json",
+      "entry": {
+        "label": "regression-test_stream-build",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_MEMORY_STATS",
+          "-DXRT_FEATURE_TEMP_MEMORY",
+          "-DXRT_FEATURE_NUMBER_INTEGER",
+          "-DXRT_FEATURE_NUMBER_FLOAT",
+          "-DXRT_FEATURE_CODEC_BASE64",
+          "-DXRT_FEATURE_WEBSOCKET_FRAME",
+          "-DXRT_FEATURE_WEBSOCKET_CLOSE",
+          "-DXRT_FEATURE_WEBSOCKET_MESSAGE",
+          "-DXRT_FEATURE_WEBSOCKET_HANDSHAKE",
+          "-DXRT_FEATURE_WEBSOCKET_KEYGEN",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_REF",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_TLS",
+          "-DXRT_FEATURE_WEBSOCKET_UPGRADE",
+          "-DXRT_FEATURE_WEBSOCKET_UPGRADE_STREAM",
+          "-DXRT_FEATURE_HTTP",
+          "-DXRT_FEATURE_HTTP_UPGRADE",
+          "-DXRT_FEATURE_HTTP_HOST",
+          "-DXRT_FEATURE_HTTP1_HEAD",
+          "-DXRT_FEATURE_HTTP1_NET",
+          "-DXRT_FEATURE_HTTP1_TLS",
+          "-DXRT_FEATURE_ASN1_DER",
+          "-DXRT_FEATURE_PEM",
+          "-DXRT_FEATURE_UNICODE",
+          "-DXRT_FEATURE_HASH64",
+          "-DXRT_FEATURE_RANDOM_SECURE",
+          "-DXRT_FEATURE_CRYPTO_CORE",
+          "-DXRT_FEATURE_CRYPTO_INT31",
+          "-DXRT_FEATURE_CRYPTO_RSA",
+          "-DXRT_FEATURE_CRYPTO_RSA_PRIVATE",
+          "-DXRT_FEATURE_CRYPTO_RSA_PSS",
+          "-DXRT_FEATURE_CRYPTO_RSA_PSS_SIGN",
+          "-DXRT_FEATURE_CRYPTO_RSA_PKCS1",
+          "-DXRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_CORE",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_DER",
+          "-DXRT_FEATURE_CRYPTO_NIST",
+          "-DXRT_FEATURE_CRYPTO_P256",
+          "-DXRT_FEATURE_CRYPTO_P384",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_MATH",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P256",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P384",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY_DER",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P256_DER",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P384_DER",
+          "-DXRT_FEATURE_CRYPTO_SHA1",
+          "-DXRT_FEATURE_CRYPTO_SHA256",
+          "-DXRT_FEATURE_CRYPTO_SHA224",
+          "-DXRT_FEATURE_CRYPTO_SHA512",
+          "-DXRT_FEATURE_CRYPTO_HMAC_SHA256",
+          "-DXRT_FEATURE_CRYPTO_HKDF_SHA256",
+          "-DXRT_FEATURE_CRYPTO_AES",
+          "-DXRT_FEATURE_CRYPTO_AES_GCM",
+          "-DXRT_FEATURE_CRYPTO_CURVE25519",
+          "-DXRT_FEATURE_CRYPTO_X25519",
+          "-DXRT_FEATURE_CRYPTO_ED25519",
+          "-DXRT_FEATURE_CRYPTO_ED25519_VERIFY",
+          "-DXRT_FEATURE_CRYPTO_X25519_KEYPAIR",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_X509_PARSE",
+          "-DXRT_FEATURE_X509_SIGNATURE",
+          "-DXRT_FEATURE_X509_DIGEST",
+          "-DXRT_FEATURE_X509_VERIFY",
+          "-DXRT_FEATURE_X509_VERIFY_RSA",
+          "-DXRT_FEATURE_X509_VERIFY_ECDSA",
+          "-DXRT_FEATURE_X509_VERIFY_ED25519",
+          "-DXRT_FEATURE_X509_PROFILE",
+          "-DXRT_FEATURE_X509_NAME",
+          "-DXRT_FEATURE_X509_NAME_CONSTRAINTS",
+          "-DXRT_FEATURE_X509_PATH",
+          "-DXRT_FEATURE_X509_PATH_BUILD",
+          "-DXRT_FEATURE_X509_STORE",
+          "-DXRT_FEATURE_X509_IDENTITY",
+          "-DXRT_FEATURE_TLS",
+          "-DXRT_FEATURE_TLS_HANDSHAKE",
+          "-DXRT_FEATURE_TLS_HANDSHAKE_READER",
+          "-DXRT_FEATURE_TLS_HELLO",
+          "-DXRT_FEATURE_TLS_NEGOTIATE",
+          "-DXRT_FEATURE_TLS_HELLO_WRITE",
+          "-DXRT_FEATURE_TLS_KEY_EXCHANGE",
+          "-DXRT_FEATURE_TLS_POLICY",
+          "-DXRT_FEATURE_TLS_CONTEXT",
+          "-DXRT_FEATURE_TLS_KEY_EXCHANGE_X25519",
+          "-DXRT_FEATURE_TLS_MESSAGES",
+          "-DXRT_FEATURE_TLS_MESSAGES_WRITE",
+          "-DXRT_FEATURE_TLS_AUTH_MESSAGES",
+          "-DXRT_FEATURE_TLS_AUTH_MESSAGES_WRITE",
+          "-DXRT_FEATURE_TLS_SCHEDULE",
+          "-DXRT_FEATURE_TLS_SCHEDULE_SHA256",
+          "-DXRT_FEATURE_TLS_RECORD",
+          "-DXRT_FEATURE_TLS_RECORD_AES",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_CANCEL",
+          "-DXRT_FEATURE_FUTURE",
+          "-DXRT_FEATURE_EXECUTOR",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_TLS_SESSION",
+          "-DXRT_FEATURE_TLS_VERIFY",
+          "-DXRT_FEATURE_TLS_CLIENT",
+          "-DXRT_FEATURE_TLS_CLIENT_VERIFY",
+          "-DXRT_FEATURE_TLS_IDENTITY",
+          "-DXRT_FEATURE_TLS_IDENTITY_RSA",
+          "-DXRT_FEATURE_TLS_SERVER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-DXRT_FEATURE_TLS_STREAM",
+          "-DXRT_FEATURE_TLS_STREAM_RETIRE",
+          "-DXRT_FEATURE_POOL_PAGE",
+          "-DXRT_FEATURE_POOL",
+          "-DXRT_FEATURE_ARRAY",
+          "-DXRT_FEATURE_BUFFER",
+          "-DXRT_FEATURE_PTR_ARRAY",
+          "-DXRT_FEATURE_AVL",
+          "-DXRT_FEATURE_AVL_TREE",
+          "-DXRT_FEATURE_INT_MAP",
+          "-DXRT_FEATURE_MAP",
+          "-DXRT_FEATURE_SET",
+          "-DXRT_FEATURE_VALUE",
+          "-DXRT_FEATURE_VALUE_CONTAINER",
+          "-DXRT_FEATURE_JSON_CORE",
+          "-DXRT_FEATURE_JSON_ESCAPE",
+          "-DXRT_FEATURE_JSON_READ",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_RETIRE",
+          "-DXRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE",
+          "-DXRPC_FEATURE_XRPC_RESULT_QUOTA",
+          "-DXRPC_FEATURE_XRPC_DECODE",
+          "-DXRPC_FEATURE_XRPC_ENCODE",
+          "-DXRPC_FEATURE_XRPC_DISPATCH",
+          "-DXRPC_FEATURE_XRPC_ID",
+          "-DXRPC_FEATURE_XRPC_PENDING",
+          "-DXRPC_FEATURE_XRPC_RESPONSE",
+          "-DXRPC_FEATURE_XRPC_CALL",
+          "-DXRPC_FEATURE_XRPC_SERVER",
+          "-DXRPC_FEATURE_XRPC_DUPLEX",
+          "-DXRPC_FEATURE_XRPC_WS",
+          "-DXRPC_FEATURE_XRPC_WS_TLS",
+          "-DXRPC_FEATURE_XRPC_WS_HTTP",
+          "-DXRPC_FEATURE_XRPC_WS_HTTP_TLS",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-I",
+          "D:\\GIT\\xrt",
+          "-I",
+          "D:\\GIT\\xrt\\extlibs\\xrpc\\include",
+          "D:\\GIT\\xrt\\tests\\tls\\test_stream.c",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__core__core.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__core__ownership.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__core__ownership_scope.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__allocator.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__heap.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__core__error.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__core__atomic.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__queue.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__queue_mpsc.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__stats.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__temp.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__text__number_integer.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__text__number_float_core.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__text__number_float.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__codec__base64.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__frame.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__close.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__message.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__handshake.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__key.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__stream.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__stream_ownership.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__stream_ref.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__upgrade.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__upgrade_stream.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http_upgrade.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http_host.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http1.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http1_write.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http1_net.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__http__http1_tls.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__asn1__der.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__asn1__pem.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__text__unicode.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__hash__rapidhash.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__math__random_secure.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__crypto_core.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__int31.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_error.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_private.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_blinding.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_pss.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_pss_sign.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_pkcs1.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__rsa_pkcs1_sign.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_error.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_der.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__nist.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__p256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__p384.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_math.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_verify.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_p256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_p384.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_verify_der.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_p256_der.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ecdsa_p384_der.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__sha1.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__sha256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__sha512.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__hmac_sha256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__hkdf_sha256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__aes.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__aes_gcm.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__curve25519.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__x25519.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ed25519.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__ed25519_verify.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__crypto__x25519_keypair.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__system__time.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__core.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__certificate.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__public_key.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__signature.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__digest.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__verify.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__verify_rsa.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__verify_ecdsa.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__verify_ed25519.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__profile.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__name.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__name_constraints.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__name_constraints_match.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__path.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__path_build.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__store.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__x509__identity.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__core.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__handshake.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__handshake_reader.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__extensions.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__hello_fields.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__hello.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__negotiate.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__extension_write.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__hello_write.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__key_exchange.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__policy.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__context.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__messages.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__messages_write.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__auth_messages.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__auth_messages_write.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__schedule.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__schedule_sha256.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__record.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__record_aes.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__wait.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__thread.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__sync.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__mutex.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__cond.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__cancel.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__future.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__executor.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__concurrency__executor_ownership.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__net.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__address.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__socket.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__buffer.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__buffer_ownership.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__session.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__verify.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__client.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__client_handshake.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__client12.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__identity.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__identity_rsa.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__server.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__server_handshake.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__server12.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__port.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__port_select.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__port_iocp.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__engine.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__tcp.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__tcp_ownership.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__network__tcp_retire.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__stream.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__tls__stream_retire.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__pool_page.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__memory__pool.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__array.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__buffer.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__ptr_array.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__avl.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__avl_tree.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__int_map.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__map.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__containers__set.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__value__value.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__value__value_container.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__data__text_value_common.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__data__json_common.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__data__json_escape.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__data__text_value_read.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__data__json_read.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\src__websocket__stream_retire.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__result_quota__result_quota.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__decode__decode.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__encode__encode.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__dispatch__dispatch.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__id__id.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__pending__pending.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__response__response.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__call__call.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__server__server.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__duplex__duplex.o",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_http_tls_tests\\obj\\extlibs__xrpc__src__ws__ws.o",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\core-regression\\windows\\test_stream.exe"
+        ],
+        "exit_code": 1,
+        "seconds": 0.047,
+        "source_map_sha256": "6e67c1b3c6dab2cc65e2b40f17e0004747c808f067b62fd17dfa2baa1eaf04fd",
+        "log": "windows-regression-test_stream-build.log",
+        "log_sha256": "608cb069d3cc852db450bf91f1289305ff0c70860577ada6338061079bc00acf",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-core_validate-receipts.json",
+      "entry": {
+        "label": "core-repeat-test_single_websocket_stream_tls_reentrant-select-1",
+        "command": [
+          "D:\\GIT\\xrt\\out\\gcc\\native\\websocket_stream_tls_reentrant_tests\\test_single_websocket_stream_tls_reentrant.exe",
+          "select"
+        ],
+        "exit_code": 1,
+        "seconds": 10.063,
+        "source_map_sha256": "eca3f4bb1a9b8ccc6b118dfb5d3233d5716cb69f549729c93188e677056a8217",
+        "log": "windows-core-repeat-test_single_websocket_stream_tls_reentrant-select-1.log",
+        "log_sha256": "283029f4c0ae2233d9db28575dfb86981039d4a2bcd82e5b0c99b35bbdd63656",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "D:\\GIT\\xrt\\out\\gcc\\native\\websocket_stream_tls_reentrant_tests\\test_single_websocket_stream_tls_reentrant.exe",
+            "sha256": "676be52066fa3abf8f83fd554d22a3164dd5134b4167e41975c55a9d26265da3",
+            "preserved": "validated-binaries/direct/windows/676be52066fa3abf8f83fd554d22a3164dd5134b4167e41975c55a9d26265da3.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "windows-http_abi-receipts.json",
+      "entry": {
+        "label": "http-abi-off-build",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_MEMORY_STATS",
+          "-DXRT_FEATURE_TEMP_MEMORY",
+          "-DXRT_FEATURE_NUMBER_INTEGER",
+          "-DXRT_FEATURE_NUMBER_FLOAT",
+          "-DXRT_FEATURE_CODEC_BASE64",
+          "-DXRT_FEATURE_WEBSOCKET_FRAME",
+          "-DXRT_FEATURE_WEBSOCKET_CLOSE",
+          "-DXRT_FEATURE_WEBSOCKET_MESSAGE",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_REF",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_TLS",
+          "-DXRT_FEATURE_ASN1_DER",
+          "-DXRT_FEATURE_PEM",
+          "-DXRT_FEATURE_UNICODE",
+          "-DXRT_FEATURE_HASH64",
+          "-DXRT_FEATURE_RANDOM_SECURE",
+          "-DXRT_FEATURE_CRYPTO_CORE",
+          "-DXRT_FEATURE_CRYPTO_INT31",
+          "-DXRT_FEATURE_CRYPTO_RSA",
+          "-DXRT_FEATURE_CRYPTO_RSA_PRIVATE",
+          "-DXRT_FEATURE_CRYPTO_RSA_PSS",
+          "-DXRT_FEATURE_CRYPTO_RSA_PSS_SIGN",
+          "-DXRT_FEATURE_CRYPTO_RSA_PKCS1",
+          "-DXRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_CORE",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_DER",
+          "-DXRT_FEATURE_CRYPTO_NIST",
+          "-DXRT_FEATURE_CRYPTO_P256",
+          "-DXRT_FEATURE_CRYPTO_P384",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_MATH",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P256",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P384",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY_DER",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P256_DER",
+          "-DXRT_FEATURE_CRYPTO_ECDSA_P384_DER",
+          "-DXRT_FEATURE_CRYPTO_SHA1",
+          "-DXRT_FEATURE_CRYPTO_SHA256",
+          "-DXRT_FEATURE_CRYPTO_SHA224",
+          "-DXRT_FEATURE_CRYPTO_SHA512",
+          "-DXRT_FEATURE_CRYPTO_HMAC_SHA256",
+          "-DXRT_FEATURE_CRYPTO_HKDF_SHA256",
+          "-DXRT_FEATURE_CRYPTO_AES",
+          "-DXRT_FEATURE_CRYPTO_AES_GCM",
+          "-DXRT_FEATURE_CRYPTO_CURVE25519",
+          "-DXRT_FEATURE_CRYPTO_X25519",
+          "-DXRT_FEATURE_CRYPTO_ED25519",
+          "-DXRT_FEATURE_CRYPTO_ED25519_VERIFY",
+          "-DXRT_FEATURE_CRYPTO_X25519_KEYPAIR",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_X509_PARSE",
+          "-DXRT_FEATURE_X509_SIGNATURE",
+          "-DXRT_FEATURE_X509_DIGEST",
+          "-DXRT_FEATURE_X509_VERIFY",
+          "-DXRT_FEATURE_X509_VERIFY_RSA",
+          "-DXRT_FEATURE_X509_VERIFY_ECDSA",
+          "-DXRT_FEATURE_X509_VERIFY_ED25519",
+          "-DXRT_FEATURE_X509_PROFILE",
+          "-DXRT_FEATURE_X509_NAME",
+          "-DXRT_FEATURE_X509_NAME_CONSTRAINTS",
+          "-DXRT_FEATURE_X509_PATH",
+          "-DXRT_FEATURE_X509_PATH_BUILD",
+          "-DXRT_FEATURE_X509_STORE",
+          "-DXRT_FEATURE_X509_IDENTITY",
+          "-DXRT_FEATURE_TLS",
+          "-DXRT_FEATURE_TLS_HANDSHAKE",
+          "-DXRT_FEATURE_TLS_HANDSHAKE_READER",
+          "-DXRT_FEATURE_TLS_HELLO",
+          "-DXRT_FEATURE_TLS_NEGOTIATE",
+          "-DXRT_FEATURE_TLS_HELLO_WRITE",
+          "-DXRT_FEATURE_TLS_KEY_EXCHANGE",
+          "-DXRT_FEATURE_TLS_POLICY",
+          "-DXRT_FEATURE_TLS_CONTEXT",
+          "-DXRT_FEATURE_TLS_KEY_EXCHANGE_X25519",
+          "-DXRT_FEATURE_TLS_MESSAGES",
+          "-DXRT_FEATURE_TLS_MESSAGES_WRITE",
+          "-DXRT_FEATURE_TLS_AUTH_MESSAGES",
+          "-DXRT_FEATURE_TLS_AUTH_MESSAGES_WRITE",
+          "-DXRT_FEATURE_TLS_SCHEDULE",
+          "-DXRT_FEATURE_TLS_SCHEDULE_SHA256",
+          "-DXRT_FEATURE_TLS_RECORD",
+          "-DXRT_FEATURE_TLS_RECORD_AES",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_CANCEL",
+          "-DXRT_FEATURE_FUTURE",
+          "-DXRT_FEATURE_EXECUTOR",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_TLS_SESSION",
+          "-DXRT_FEATURE_TLS_VERIFY",
+          "-DXRT_FEATURE_TLS_CLIENT",
+          "-DXRT_FEATURE_TLS_CLIENT_VERIFY",
+          "-DXRT_FEATURE_TLS_IDENTITY",
+          "-DXRT_FEATURE_TLS_IDENTITY_RSA",
+          "-DXRT_FEATURE_TLS_SERVER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-DXRT_FEATURE_TLS_STREAM",
+          "-DXRT_FEATURE_POOL_PAGE",
+          "-DXRT_FEATURE_POOL",
+          "-DXRT_FEATURE_ARRAY",
+          "-DXRT_FEATURE_BUFFER",
+          "-DXRT_FEATURE_PTR_ARRAY",
+          "-DXRT_FEATURE_AVL",
+          "-DXRT_FEATURE_AVL_TREE",
+          "-DXRT_FEATURE_INT_MAP",
+          "-DXRT_FEATURE_MAP",
+          "-DXRT_FEATURE_SET",
+          "-DXRT_FEATURE_VALUE",
+          "-DXRT_FEATURE_VALUE_CONTAINER",
+          "-DXRT_FEATURE_JSON_CORE",
+          "-DXRT_FEATURE_JSON_ESCAPE",
+          "-DXRT_FEATURE_JSON_READ",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_RETIRE",
+          "-DXRPC_FEATURE_XRPC_RESULT_QUOTA",
+          "-DXRPC_FEATURE_XRPC_DECODE",
+          "-DXRPC_FEATURE_XRPC_ENCODE",
+          "-DXRPC_FEATURE_XRPC_DISPATCH",
+          "-DXRPC_FEATURE_XRPC_ID",
+          "-DXRPC_FEATURE_XRPC_PENDING",
+          "-DXRPC_FEATURE_XRPC_RESPONSE",
+          "-DXRPC_FEATURE_XRPC_CALL",
+          "-DXRPC_FEATURE_XRPC_SERVER",
+          "-DXRPC_FEATURE_XRPC_DUPLEX",
+          "-DXRPC_FEATURE_XRPC_WS",
+          "-DXRPC_FEATURE_XRPC_WS_TLS",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-ffunction-sections",
+          "-fdata-sections",
+          "-I",
+          "D:\\GIT\\xrt",
+          "-I",
+          "D:\\GIT\\xrt\\extlibs\\xrpc\\include",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-abi\\windows\\off.c",
+          "-Wl,--gc-sections",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\http-abi\\windows\\off.exe"
+        ],
+        "exit_code": 1,
+        "seconds": 0.5,
+        "source_map_sha256": "009f1c2532d95503d9a7e14bdcc9ce189a764d86f9236754ddd19fbf3e8574dc",
+        "log": "windows-http-abi-off-build.log",
+        "log_sha256": "797d7866f79bfa60150e89dcc99bbcf6e84cb50c6c1338b8640b6e535f155c36",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-quick",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\f4c7d09f9620b097ca589b6be84ef2217b402ac2fa20cc9f9fa0b1c8c10f929c.exe",
+          "--output-dir",
+          "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop-quick.json",
+          "--quick"
+        ],
+        "exit_code": 1,
+        "seconds": 6.734,
+        "source_map_sha256": "6f56332fba77aeab5fb6ec7c9a44e6d7b02a950502d97c50011f75703d9ed169",
+        "log": "windows-independent-http-quick.log",
+        "log_sha256": "447077734a5e88f66a831d5fedb26fc9db027c1d6131ecfb5645a8aabcdddce4",
+        "programs": 8,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-quick",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\9afb71b26de696cb2535900b8d46f81d2d3b13a3dd1500a4fc67033759599781.exe",
+          "--output-dir",
+          "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop-quick.json",
+          "--quick"
+        ],
+        "exit_code": 1,
+        "seconds": 5.984,
+        "source_map_sha256": "2042efa36a6de4a1eb3ce8b80d6fa68254a7394d1ee0f63d1257c17117679095",
+        "log": "windows-independent-http-quick-attempt2.log",
+        "log_sha256": "d1f5d6815f86ae39ad8c53d6fe3d6caa74a19b6c72898af11df72f970ae314ca",
+        "programs": 8,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-quick",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\cb4fc8eed1dc0507d3cb36d388147638940667e8f7348bf400cb6669aa01771a.exe",
+          "--output-dir",
+          "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop-quick.json",
+          "--quick"
+        ],
+        "exit_code": 1,
+        "seconds": 5.953,
+        "source_map_sha256": "a522bd2ecc5fc0ea28ccc8f7b2e95455470f94ed9c406d6d9b5dd23063f8c98a",
+        "log": "windows-independent-http-quick-attempt4.log",
+        "log_sha256": "a37887e2f55033021af09f1a4040ae05e23f161f5aa20c3332e878474670d6b6",
+        "programs": 8,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-quick",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\cb4fc8eed1dc0507d3cb36d388147638940667e8f7348bf400cb6669aa01771a.exe",
+          "--output-dir",
+          "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop-quick.json",
+          "--quick"
+        ],
+        "exit_code": 1,
+        "seconds": 6.328,
+        "source_map_sha256": "a522bd2ecc5fc0ea28ccc8f7b2e95455470f94ed9c406d6d9b5dd23063f8c98a",
+        "log": "windows-independent-http-quick-attempt5.log",
+        "log_sha256": "ac080448498e2fa6d2c0930db0a8342a307a647baa86653327738084a22b820a",
+        "programs": 8,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-full",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\validated-binaries\\interop\\windows\\62e5904520e81bd7c6aa1664a06955ef51db4fe885bab1ba1e980f80956f4736.exe",
+          "--output-dir",
+          "D:\\GIT\\xrt\\out\\local-service-extensions\\xrpc-ws-upgrade-20261115\\interop\\windows",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-interop.json"
+        ],
+        "exit_code": 1,
+        "seconds": 2.438,
+        "source_map_sha256": "66975541d157e90597d55f55b9f676fe2389c4de80d95a4e8bd535328515cb50",
+        "log": "windows-independent-http-full-attempt2.log",
+        "log_sha256": "64a5e8a8a57f3557c505c0eca8a20005b2c467257080ef84821c8809feac40c4",
+        "programs": 38,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-prebuffer-receipts.json",
+      "entry": {
+        "label": "prebuffer-gap",
+        "command": [
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-prebuffer.exe",
+          "gap"
+        ],
+        "exit_code": 1,
+        "seconds": 0.047,
+        "source_map_sha256": "a9d59a0b5aed083754e2f84da5339ec18835633427da1b5eb0e576687c94e6b9",
+        "log": "windows-prebuffer-gap.log",
+        "log_sha256": "d0a8b75743e2cea10a7f9a46c7763f8ebac397604b21ea316fa0f790049a0292",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-prebuffer.exe",
+            "sha256": "00fced2069f849a49f4f233efa71883eef096f4aec17012cc86241635364a227",
+            "preserved": "validated-binaries/direct/windows/00fced2069f849a49f4f233efa71883eef096f4aec17012cc86241635364a227.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "windows-prototype-receipts.json",
+      "entry": {
+        "label": "xrpc_ws_http-syntax",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TEMP_MEMORY",
+          "-DXRT_FEATURE_NUMBER_INTEGER",
+          "-DXRT_FEATURE_NUMBER_FLOAT",
+          "-DXRT_FEATURE_CODEC_BASE64",
+          "-DXRT_FEATURE_WEBSOCKET_FRAME",
+          "-DXRT_FEATURE_WEBSOCKET_CLOSE",
+          "-DXRT_FEATURE_WEBSOCKET_MESSAGE",
+          "-DXRT_FEATURE_WEBSOCKET_HANDSHAKE",
+          "-DXRT_FEATURE_WEBSOCKET_KEYGEN",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_REF",
+          "-DXRT_FEATURE_WEBSOCKET_UPGRADE",
+          "-DXRT_FEATURE_WEBSOCKET_UPGRADE_STREAM",
+          "-DXRT_FEATURE_HTTP",
+          "-DXRT_FEATURE_HTTP_UPGRADE",
+          "-DXRT_FEATURE_HTTP_HOST",
+          "-DXRT_FEATURE_HTTP1_HEAD",
+          "-DXRT_FEATURE_HTTP1_NET",
+          "-DXRT_FEATURE_UNICODE",
+          "-DXRT_FEATURE_HASH64",
+          "-DXRT_FEATURE_RANDOM_SECURE",
+          "-DXRT_FEATURE_CRYPTO_CORE",
+          "-DXRT_FEATURE_CRYPTO_SHA1",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_CANCEL",
+          "-DXRT_FEATURE_FUTURE",
+          "-DXRT_FEATURE_EXECUTOR",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-DXRT_FEATURE_POOL_PAGE",
+          "-DXRT_FEATURE_POOL",
+          "-DXRT_FEATURE_ARRAY",
+          "-DXRT_FEATURE_BUFFER",
+          "-DXRT_FEATURE_PTR_ARRAY",
+          "-DXRT_FEATURE_AVL",
+          "-DXRT_FEATURE_AVL_TREE",
+          "-DXRT_FEATURE_INT_MAP",
+          "-DXRT_FEATURE_MAP",
+          "-DXRT_FEATURE_SET",
+          "-DXRT_FEATURE_VALUE",
+          "-DXRT_FEATURE_VALUE_CONTAINER",
+          "-DXRT_FEATURE_JSON_CORE",
+          "-DXRT_FEATURE_JSON_ESCAPE",
+          "-DXRT_FEATURE_JSON_READ",
+          "-DXRT_FEATURE_WEBSOCKET_STREAM_RETIRE",
+          "-DXRPC_FEATURE_XRPC_RESULT_QUOTA",
+          "-DXRPC_FEATURE_XRPC_DECODE",
+          "-DXRPC_FEATURE_XRPC_ENCODE",
+          "-DXRPC_FEATURE_XRPC_DISPATCH",
+          "-DXRPC_FEATURE_XRPC_ID",
+          "-DXRPC_FEATURE_XRPC_PENDING",
+          "-DXRPC_FEATURE_XRPC_RESPONSE",
+          "-DXRPC_FEATURE_XRPC_CALL",
+          "-DXRPC_FEATURE_XRPC_SERVER",
+          "-DXRPC_FEATURE_XRPC_DUPLEX",
+          "-DXRPC_FEATURE_XRPC_WS",
+          "-DXRPC_FEATURE_XRPC_WS_HTTP",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-I",
+          "D:\\GIT\\xrt\\extlibs\\xrpc\\include",
+          "-fsyntax-only",
+          "D:\\GIT\\xrt\\extlibs\\xrpc\\src\\ws\\ws.c"
+        ],
+        "exit_code": 1,
+        "seconds": 0.078,
+        "source_map_sha256": "b851be3f36638f2fac863a8221a02dc81a2ba72fab259f356800e2febfd9a06c",
+        "log": "windows-xrpc_ws_http-syntax.log",
+        "log_sha256": "9a26a7229539c7419e0f855d15e13c1fc8b3634a62c2ac9a9fd7345b03434d57",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-reentrant-receipts.json",
+      "entry": {
+        "label": "reentrant-baseline-iocp",
+        "command": [
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant-baseline.exe",
+          "iocp"
+        ],
+        "exit_code": 1,
+        "seconds": 10.078,
+        "source_map_sha256": "eca3f4bb1a9b8ccc6b118dfb5d3233d5716cb69f549729c93188e677056a8217",
+        "log": "windows-reentrant-baseline-iocp.log",
+        "log_sha256": "283029f4c0ae2233d9db28575dfb86981039d4a2bcd82e5b0c99b35bbdd63656",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant-baseline.exe",
+            "sha256": "18cfbe395100aac9bbe557bb8ed1b46f76a5d57d453584dd0536d1c095c3f2f2",
+            "preserved": "validated-binaries/direct/windows/18cfbe395100aac9bbe557bb8ed1b46f76a5d57d453584dd0536d1c095c3f2f2.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "windows-reentrant-receipts.json",
+      "entry": {
+        "label": "reentrant-iocp",
+        "command": [
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant.exe",
+          "iocp"
+        ],
+        "exit_code": 1,
+        "seconds": 10.11,
+        "source_map_sha256": "05ee20806f6693452c295254dd5d569a54947a701cdb0a55a3af524d4012aebb",
+        "log": "windows-reentrant-iocp-attempt4.log",
+        "log_sha256": "db40d4eee9c4dc8c1784fd431f45f7bb57b11ca6c68b997e3a83beb0ef345550",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant.exe",
+            "sha256": "280aa19659fbc6bdb446b8f820ae2cabc4b2f264426f34c830c7095d82dca627",
+            "preserved": "validated-binaries/direct/windows/280aa19659fbc6bdb446b8f820ae2cabc4b2f264426f34c830c7095d82dca627.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "windows-reentrant_repeat-receipts.json",
+      "entry": {
+        "label": "probe-select-12",
+        "command": [
+          "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant-probe.exe",
+          "select"
+        ],
+        "exit_code": 1,
+        "seconds": 10.062,
+        "source_map_sha256": "dc7c71b68ab3dc0c22a99a36e5bf09fe8fb9652e325dfe042aa9ef8df29f828c",
+        "log": "windows-probe-select-12.log",
+        "log_sha256": "ab28323819cf05fd1e5aaa100aaa8398fe9b91b20f6999fe63ae5ad3b358b292",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-upgrade-20261115\\windows-reentrant-probe.exe",
+            "sha256": "7e65403a4c97714de2e8cad77ad70dcf35d02eb25b1d8af10096a322567c0d89",
+            "preserved": "validated-binaries/direct/windows/7e65403a4c97714de2e8cad77ad70dcf35d02eb25b1d8af10096a322567c0d89.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "entry": {
+        "label": "xrpc_ws_http_tests",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xrpc/config/modules.json",
+          "--suite",
+          "xrpc_ws_http_tests",
+          "--no-examples",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "exit_code": 1,
+        "seconds": 68.141,
+        "source_map_sha256": "1277c01222248e0783f5fe529e4b5a30e0861cadad4774a04b9117b2259eae52",
+        "log": "windows-xrpc_ws_http_tests.log",
+        "log_sha256": "6d23c6cc93c3711b4927f73ae520fa05ae2d2219f31293b42f760ce863c1443b",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "entry": {
+        "label": "xrpc_ws_http_tests",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xrpc/config/modules.json",
+          "--suite",
+          "xrpc_ws_http_tests",
+          "--no-examples",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "exit_code": 1,
+        "seconds": 16.438,
+        "source_map_sha256": "f27a62cba18c8319100b0067d90ab6597466425adafc29ae0eb89055715d6e0e",
+        "log": "windows-xrpc_ws_http_tests-attempt2.log",
+        "log_sha256": "c069fe85c9668b9ef690e7da4b8be0fef91af9a1c04a0421f7a7c26f1a66828f",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "out\\gcc\\native\\xrpc_ws_http_tests\\test_ws_http.exe",
+            "sha256": "4af211bbda6a345ab64e49af15cedc42b67eba38b8b3ce1678869dac4ce79a99",
+            "preserved": "validated-binaries/windows/validate/windows-xrpc_ws_http_tests-attempt2/test_ws_http.exe"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "wsl-core_validate-receipts.json",
+      "entry": {
+        "label": "core-repeat-test_stream_tls_reentrant-select-7",
+        "command": [
+          "/mnt/d/GIT/xrt/out/gcc/x64/websocket_stream_tls_reentrant_tests/test_stream_tls_reentrant",
+          "select"
+        ],
+        "exit_code": 1,
+        "seconds": 10.268,
+        "source_map_sha256": "eca3f4bb1a9b8ccc6b118dfb5d3233d5716cb69f549729c93188e677056a8217",
+        "log": "wsl-core-repeat-test_stream_tls_reentrant-select-7.log",
+        "log_sha256": "f66783ea878dcafe430d3e6045f6e89a80ebc822b6990f41f4e52718f3c4989f",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "/mnt/d/GIT/xrt/out/gcc/x64/websocket_stream_tls_reentrant_tests/test_stream_tls_reentrant",
+            "sha256": "6e1daf75b279f9614ca3408fb56b32ab3c1759042d7929fd4688c5ce15db449f",
+            "preserved": "validated-binaries/direct/wsl/6e1daf75b279f9614ca3408fb56b32ab3c1759042d7929fd4688c5ce15db449f.bin"
+          }
+        ]
+      }
+    },
+    {
+      "receipts": "wsl-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-quick",
+        "command": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/interop/wsl/1bf296533d406f9ef06b494dcf5ac52e8c507ad1028ad466ade528814c7eacc2",
+          "--output-dir",
+          "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/interop/wsl",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-interop-quick.json",
+          "--quick"
+        ],
+        "exit_code": 1,
+        "seconds": 16.103,
+        "source_map_sha256": "6f56332fba77aeab5fb6ec7c9a44e6d7b02a950502d97c50011f75703d9ed169",
+        "log": "wsl-independent-http-quick.log",
+        "log_sha256": "4d39220514336d83203d5fdba73345f3b6dba18583c26b78c1d0f20e84e14e0d",
+        "programs": 8,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "wsl-interop-receipts.json",
+      "entry": {
+        "label": "independent-http-full",
+        "command": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xrpc/tests/interop/run_ws_http_peer.py",
+          "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/validated-binaries/interop/wsl/310e2c90aee2c0f160a367bf7816edd4c832fd5ba5e471912513cbb61c5f45fa",
+          "--output-dir",
+          "/mnt/d/GIT/xrt/out/local-service-extensions/xrpc-ws-upgrade-20261115/interop/wsl",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-upgrade-20261115/wsl-interop.json"
+        ],
+        "exit_code": 1,
+        "seconds": 4.531,
+        "source_map_sha256": "009f1c2532d95503d9a7e14bdcc9ce189a764d86f9236754ddd19fbf3e8574dc",
+        "log": "wsl-independent-http-full-attempt2.log",
+        "log_sha256": "4883e168a3b296ffdda8daff35edf9c09e8fda3503da8614d62271b1c70da88b",
+        "programs": 38,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "wsl-validate-receipts.json",
+      "entry": {
+        "label": "xrpc_ws_http_tests",
+        "command": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xrpc/config/modules.json",
+          "--suite",
+          "xrpc_ws_http_tests",
+          "--no-examples",
+          "--no-single",
+          "--cflag=-O2",
+          "--cflag=-g",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "exit_code": 1,
+        "seconds": 71.291,
+        "source_map_sha256": "1277c01222248e0783f5fe529e4b5a30e0861cadad4774a04b9117b2259eae52",
+        "log": "wsl-xrpc_ws_http_tests.log",
+        "log_sha256": "4b06cd8a46d3c0c91671c0baffda5bac79f333a897b97267d8ccdb8880363bfc",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    {
+      "receipts": "wsl-validate-receipts.json",
+      "entry": {
+        "label": "xrpc_ws_http_tests",
+        "command": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xrpc/config/modules.json",
+          "--suite",
+          "xrpc_ws_http_tests",
+          "--no-examples",
+          "--no-single",
+          "--cflag=-O2",
+          "--cflag=-g",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "exit_code": 1,
+        "seconds": 27.228,
+        "source_map_sha256": "f27a62cba18c8319100b0067d90ab6597466425adafc29ae0eb89055715d6e0e",
+        "log": "wsl-xrpc_ws_http_tests-attempt2.log",
+        "log_sha256": "41b36094199037aa4732dad2b6ba4c3c175082dcb14f47672ee6d826bae8259d",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "out/gcc/x64/xrpc_ws_http_tests/test_ws_http",
+            "sha256": "5a61eecbd6436fb0d2344ad2f844b7b9c4811ea2e191279b0892bcd97dbdb4f3",
+            "preserved": "validated-binaries/wsl/validate/wsl-xrpc_ws_http_tests-attempt2/test_ws_http"
+          }
+        ]
+      }
+    }
+  ],
+  "failure_notes": [
+    "Discovery required the separately committed Core TLS/WS read-progress fixes. Core-checkpoint evidence remains distinct and is not relabelled as HTTP acceptance.",
+    "The first native TLS prefix fixture reproduced a valid9-byte buffered header failing ReadMore STATE with no original Read callback. Bound the exceptional cold cache; keep original gap source/binary/log and final constructor OOM/owner checks.",
+    "A client setup timeout exposed Duplex Close rejecting TIMEOUT; fix valid close reasons and add a full12-shape delivery/close regression.",
+    "Independent finish notification was not an execution acknowledgement; replace it with a checked RPC final barrier before WS/TLS close. Remove a printf use after future destruction by snapshotting scalars first.",
+    "Independent rejection fixture explicitly aborted after its unsent call became terminal, which can truncate an orderly HTTP response. Wait for physical rejection retirement before explicit Close.",
+    "A coalesced101/first Ping on byte-split native TLS exposed duplicate ReadMore: ParseTls already requests growth and may synchronously grow before returning MORE. A second request could survive across a complete head with a suffix and block owned exchange. Remove the duplicate; rerun final focused/single/packages/TSan/matrices/repeats.",
+    "Initial compile/style errors, one Windows ABI probe needing its actual dependency objects, and an aggregate legacy guard observing concurrent documentation edits are preserved. Rerun all final primary receipts on the frozen map; no suppression, native progress nudge or probe alias is used in final primary fixtures."
+  ],
+  "raw_evidence": "out/service-extensions/xrpc-ws-upgrade-20261115/http-checkpoint",
+  "physical_evidence": "out/local-service-extensions/xrpc-ws-upgrade-20261115/http-checkpoint",
+  "artifact_seal": {
+    "path": "artifact-seal.json",
+    "sha256": "5a7cccdd9acf594dfed1844577818dfaf205cd2ffe2a963f7e6b8e22579de6e2",
+    "files": 1531
+  },
+  "guides": {
+    "extlibs/xrpc/README.md": "b858e3c1da4f72481a4cdf73da77e959e5dffcf8b320b58280ae870a227c29ad",
+    "extlibs/xrpc/docs/ws.md": "b31ee9cf5085e4ee9143938e28ab5e748d888ee9291fc57d1a2180975130b33c",
+    "extlibs/xrpc/docs/ws_http.md": "b6e58bbfe658c11da9d267c5b738db49a066069b32d67db5977d8b38e263cd1c",
+    "extlibs/xrpc/docs/coverage.md": "7c9c3a067e2817355ce961e27be3d13ad4e782ff8278d49d3cff9c1159669d6d",
+    "extlibs/xrpc/docs/api/reference.md": "8c595f3e79b9920e78abce3e886ef7dc32f473d757126ed6ea1cb6c5759a3a1a",
+    "extlibs/xrpc/examples/ws_http/README.md": "2bc931fb776086fe13b393bb1678fd584ac634270cfdf88e14598d2ce3859abc",
+    "docs/development/service-extensions-progress.md": "04d338db59f69a1850b79e77144350a5952ce130ca32b563ceaf930146a8606a"
+  },
+  "remaining_gates": [
+    "HTTP URI/DNS/native dial composition and compression negotiation; broader async OOM/fault/fuzz/auth/close/scale coverage.",
+    "Framed stdio and the remaining original xredis/xrpc/xmqtt5/xcron scope.",
+    "Controlled Windows/Linux native throughput and tail latency, scale and >=72h production acceptance; native Windows sanitizer and other toolchains remain unverified."
+  ]
+}
