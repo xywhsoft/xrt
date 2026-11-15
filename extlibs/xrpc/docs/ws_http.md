@@ -64,6 +64,15 @@ headers use the same cache; complete contiguous TCP heads parse a const span.
 The adapter never mutates a borrowed TCP receive buffer: IOCP can own an active
 write reservation for its next receive. Consume exactly through CRLFCRLF,
 preserve the WS suffix, and erase/release that cache after checking.
+The cache tracks its scan offset and current line across fragments. Each new
+byte is probed once (a split trailing CR is revisited); incomplete valid prefixes
+do not repeatedly invoke the full parser. Bad CR/LF and start/field-line limits
+still invoke Core immediately for its authoritative error. Complete heads retain
+all Core syntax, field-count and handshake validation. The exact retained head
+cap still rejects an unterminated head. Three private size counters add24 bytes
+to cold setup control on measured x64 hosts; no public layout, new allocation,
+thread or shared runtime is added. The ordinary native TLS parsing path remains
+unchanged; the optimization applies when either transport uses this cache.
 Auth snapshots have separate
 bounded storage and actual executor credits. Cold storage is securely erased at
 release. Selecting HTTP also adds a permanent private copied HTTP-info snapshot;
@@ -123,6 +132,16 @@ prebuffered TLS and physical joins. The independent stdlib/OpenSSL peer checks
 both roles over TCP/TLS, byte-split and coalesced101/first frame, exact typed
 failure classes, strict key/protocol/framing failures and acknowledged close.
 Its ephemeral local keys stay in the supplied test directory and are removed.
+
+Run the separate structural/IO regression with
+`python tools/test_xrpc_ws_http_scan.py --compiler gcc`. On Linux add
+`--sanitize address` or `--sanitize thread` in separate output directories.
+It compares every prefix of adversarial inputs with the public Core parser,
+then paces real TCP fragments from actual receive consumption on select and
+IOCP/epoll. It counts actual production-TU parser input, checks101 and the first
+WS Ping/Pong suffix, and joins peer/native/Engine duties. Those paced wall times
+are not a throughput or tail-latency benchmark. A larger native TLS incomplete
+prefix outside the cache still needs separate performance evaluation.
 
 These factories begin after native establishment. URI/DNS/dial composition,
 broader fault/fuzz/scale validation, controlled native throughput/

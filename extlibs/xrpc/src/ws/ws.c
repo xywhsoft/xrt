@@ -565,14 +565,37 @@ static void xrpcWsHttpReject(xrpcws* P,uint16 Status,xrpcwsreason Reason)
  * use bounded cold storage, without mutating a native borrowed read buffer.
  * Peek may preview bytes past CRLFCRLF, but consume exactly through its end:
  * native WS data stays native, including a final message before TLS input EOF. */
+/* Probe only whether the authoritative parser can still return MORE. Keep the
+ * line position across input fragments; malformed endings and line limits go
+ * immediately to Core for its precise error, complete heads for all semantics.
+ * A trailing CR is revisited once when its following byte arrives. */
+static bool xrpcWsHttpProbeHeader(xrpcwsupgrade* H,size_t* End)
+{
+    while(H->ScanOffset<H->CacheUsed){
+        size_t I=H->ScanOffset,Limit=H->ScanLine?H->Config.Head.MaxFieldLine:H->Config.Head.MaxStartLine;
+        if(I>=H->Config.Head.MaxHead || H->Cache[I]=='\n')return true;
+        if(H->Cache[I]=='\r'){
+            if(I+1==H->CacheUsed)break;
+            if(H->Cache[I+1]!='\n' || I-H->ScanLineStart>Limit)return true;
+            H->ScanOffset=I+2;
+            if(H->ScanLine && I==H->ScanLineStart){*End=I+2;return true;}
+            H->ScanLineStart=I+2;++H->ScanLine;
+        }else{
+            if(I-H->ScanLineStart>=Limit)return true;
+            ++H->ScanOffset;
+        }
+    }
+    return H->CacheUsed==H->Config.Head.MaxHead;
+}
 static xhttp1status xrpcWsHttpCachedHeader(xrpcws* P,xhttp1head* Head,xhttp1errorinfo* Error)
 {
     xrpcwsupgrade* H=P->Upgrade;if(!H->Cache){H->Cache=xrtMalloc(H->Config.Head.MaxHead);if(!H->Cache)return XHTTP1_ERROR;xrpcWsHttpCostAdd(P,H->Config.Head.MaxHead);}
     size_t Old=H->CacheUsed,Left=H->Config.Head.MaxHead-Old;
     size_t N=xrtNetBufPeek(xrpcWsHttpBuffer(H),0,H->Cache+Old,Left),End=Old+N;
-    for(size_t I=Old>3?Old-3:0;I+4<=End;++I)if(!memcmp(H->Cache+I,"\r\n\r\n",4)){End=I+4;break;}
-    xrtMutexLock(&P->Gate);P->UpgradeInfo.HeaderCopyBytes+=N;xrtMutexUnlock(&P->Gate);H->CacheUsed=End;
+    H->CacheUsed=End;bool Parse=xrpcWsHttpProbeHeader(H,&End);H->CacheUsed=End;
+    xrtMutexLock(&P->Gate);P->UpgradeInfo.HeaderCopyBytes+=N;xrtMutexUnlock(&P->Gate);
     if(End>Old&&!xrpcWsHttpConsume(H,End-Old))return XHTTP1_ERROR;
+    if(!Parse)return XHTTP1_MORE;
     xbytesview Input={H->Cache,H->CacheUsed};xhttp1status R=H->Server?xrtHttp1RequestParse(Input,Head,&H->Config.Head,Error):xrtHttp1ResponseParse(Input,Head,&H->Config.Head,Error);
     if(R==XHTTP1_MORE&&H->CacheUsed==H->Config.Head.MaxHead){Error->Code=XHTTP1_ERROR_HEAD_TOO_LARGE;xrpcWsReport(XERR_RANGE,"WS HTTP retained header reached its hard limit");return XHTTP1_ERROR;}
     return R;

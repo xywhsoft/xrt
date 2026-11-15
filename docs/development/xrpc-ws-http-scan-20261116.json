@@ -1,0 +1,512 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-developing-cached-WS-HTTP-linear-probe",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "1cf7224cac3a2528f928a70c2fc52dfb358fda5c",
+  "performance_acceptance": false,
+  "production_acceptance": false,
+  "complete_four_product_goal": false,
+  "problem": "Cached partial heads previously ran the authoritative full prefix parser on every fragment. Valid one-byte input therefore induces quadratic repeated scans.",
+  "behavior": "Persist private scan/line position, probe only appended bytes plus split CR. Skip Core only while its answer must be MORE; defer complete semantics and exact malformed/line-limit decisions to public Core. At retained MaxHead preserve the prior rejection. Const contiguous native fast path, suffix preservation, auth and handshake policies remain.",
+  "scope": "Cached TCP heads and exceptional cached TLS prefixes. Ordinary native TLS ParseTls/ReadMore prefixes outside the cache are unchanged and remain a separate measurement/optimization gate.",
+  "resource_accounting": {
+    "public_config": 528,
+    "public_info": 680,
+    "private_cold_control": {
+      "windows": {
+        "old": {
+          "cold": 848,
+          "public_config": 528,
+          "public_info": 680
+        },
+        "new": {
+          "cold": 872,
+          "public_config": 528,
+          "public_info": 680
+        }
+      },
+      "wsl": {
+        "old": {
+          "cold": 848,
+          "public_config": 528,
+          "public_info": 680
+        },
+        "new": {
+          "cold": 872,
+          "public_config": 528,
+          "public_info": 680
+        }
+      }
+    },
+    "new_allocations": 0,
+    "new_API": false,
+    "public_ABI_change": false,
+    "Core_production_changed": false,
+    "new_shared_runtime": false,
+    "note": "24 additional cold control bytes; existing full cache/copy, native/TLS/allocator costs remain. No new steady-state fields."
+  },
+  "verification": {
+    "windows": {
+      "C_executions": 81,
+      "existing_modular_single_examples": 19,
+      "independent_cases": 58,
+      "full_selection_scan": 2,
+      "fresh_plain_scan": 2,
+      "tsan_scan": 0
+    },
+    "wsl": {
+      "C_executions": 83,
+      "existing_modular_single_examples": 19,
+      "independent_cases": 58,
+      "full_selection_scan": 2,
+      "fresh_plain_scan": 2,
+      "tsan_scan": 2
+    }
+  },
+  "additional_baseline_executions": {
+    "windows": 2,
+    "wsl": 2
+  },
+  "additional_ABI_executions_per_host": 2,
+  "checks": "7 generator/API/layout/isolated-trim/maturity checks per host. Canonical scan tool freshly compiles the real plain dependency closure; full-selection probes and regressions reuse identity-checked unchanged Core/runtime dependencies with the current production WS TU. WSL functional uses ASan+UBSan/leak halt. Separate fresh WSL TSan has no race suppressions; GCC atomic-fence warning is demoted from Werror as documented. No Windows sanitizer/native Linux/endurance claim.",
+  "independent_scope": "38 original uncompressed stdlib/OpenSSL cases,8 compressed takeover,8 no-context and4 expansion-limit cases per host; both native endpoint roles/TCP/TLS, byte fragmentation/coalescing, exact RPC/control/close semantics. This stage does not rerun all window modes from the prior stage.",
+  "structural_scope": "Every prefix of4009 adversarial heads compared with authoritative Core MORE/error/first-header boundary, plus six paced real TCP heads per scan process on each backend. Parser wrappers call the real function; native consume and send results are unmodified. First WS suffix produces actual Pong. No fabricated IO or success result.",
+  "work_observations": {
+    "windows": {
+      "select": {
+        "baseline": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 712,
+            "parser_input": 253117,
+            "paced_seconds": 0.084149,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 1224,
+            "parser_input": 748477,
+            "paced_seconds": 0.107462,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2248,
+            "parser_input": 2525629,
+            "paced_seconds": 0.123332,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 4296,
+            "parser_input": 9225661,
+            "paced_seconds": 0.177699,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 1173,
+            "parser_input": 4811648,
+            "paced_seconds": 0.086225,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 2,
+            "parser_input": 10247,
+            "paced_seconds": 0.048564,
+            "header_copy_bytes": 8205
+          }
+        ],
+        "candidate": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 712,
+            "paced_seconds": 0.062885,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 1224,
+            "paced_seconds": 0.119649,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 2248,
+            "paced_seconds": 0.129094,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 4296,
+            "paced_seconds": 0.175282,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 3,
+            "parser_input": 8206,
+            "paced_seconds": 0.102196,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 3,
+            "parser_input": 10247,
+            "paced_seconds": 0.067882,
+            "header_copy_bytes": 8205
+          }
+        ]
+      },
+      "iocp": {
+        "baseline": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 713,
+            "parser_input": 253117,
+            "paced_seconds": 0.051184,
+            "header_copy_bytes": 711
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 1225,
+            "parser_input": 748477,
+            "paced_seconds": 0.075456,
+            "header_copy_bytes": 1223
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2249,
+            "parser_input": 2525629,
+            "paced_seconds": 0.105207,
+            "header_copy_bytes": 2247
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 4297,
+            "parser_input": 9225661,
+            "paced_seconds": 0.117405,
+            "header_copy_bytes": 4295
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 1174,
+            "parser_input": 4811648,
+            "paced_seconds": 0.07684,
+            "header_copy_bytes": 8199
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 7,
+            "parser_input": 30727,
+            "paced_seconds": 0.089752,
+            "header_copy_bytes": 8205
+          }
+        ],
+        "candidate": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 3,
+            "parser_input": 712,
+            "paced_seconds": 0.08371,
+            "header_copy_bytes": 711
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 3,
+            "parser_input": 1224,
+            "paced_seconds": 0.068175,
+            "header_copy_bytes": 1223
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 3,
+            "parser_input": 2248,
+            "paced_seconds": 0.080945,
+            "header_copy_bytes": 2247
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 3,
+            "parser_input": 4296,
+            "paced_seconds": 0.150955,
+            "header_copy_bytes": 4295
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 3,
+            "parser_input": 8206,
+            "paced_seconds": 0.076721,
+            "header_copy_bytes": 8199
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 3,
+            "parser_input": 10247,
+            "paced_seconds": 0.048657,
+            "header_copy_bytes": 8205
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "select": {
+        "baseline": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 712,
+            "parser_input": 253117,
+            "paced_seconds": 0.064302,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 1224,
+            "parser_input": 748477,
+            "paced_seconds": 0.087096,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2248,
+            "parser_input": 2525629,
+            "paced_seconds": 0.15132,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 4296,
+            "parser_input": 9225661,
+            "paced_seconds": 0.262448,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 1173,
+            "parser_input": 4811648,
+            "paced_seconds": 0.073269,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 2,
+            "parser_input": 10247,
+            "paced_seconds": 0.003558,
+            "header_copy_bytes": 8205
+          }
+        ],
+        "candidate": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 712,
+            "paced_seconds": 0.063885,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 1224,
+            "paced_seconds": 0.090305,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 2248,
+            "paced_seconds": 0.15894,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 4296,
+            "paced_seconds": 0.278611,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 2,
+            "parser_input": 8206,
+            "paced_seconds": 0.081843,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 2,
+            "parser_input": 10247,
+            "paced_seconds": 0.003582,
+            "header_copy_bytes": 8205
+          }
+        ]
+      },
+      "epoll": {
+        "baseline": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 712,
+            "parser_input": 253117,
+            "paced_seconds": 0.060697,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 1224,
+            "parser_input": 748477,
+            "paced_seconds": 0.081489,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2248,
+            "parser_input": 2525629,
+            "paced_seconds": 0.14045,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 4296,
+            "parser_input": 9225661,
+            "paced_seconds": 0.254609,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 1173,
+            "parser_input": 4811648,
+            "paced_seconds": 0.069864,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 2,
+            "parser_input": 10247,
+            "paced_seconds": 0.003519,
+            "header_copy_bytes": 8205
+          }
+        ],
+        "candidate": [
+          {
+            "header": 711,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 712,
+            "paced_seconds": 0.059637,
+            "header_copy_bytes": 717
+          },
+          {
+            "header": 1223,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 1224,
+            "paced_seconds": 0.078271,
+            "header_copy_bytes": 1229
+          },
+          {
+            "header": 2247,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 2248,
+            "paced_seconds": 0.144648,
+            "header_copy_bytes": 2253
+          },
+          {
+            "header": 4295,
+            "chunk": 1,
+            "parser_calls": 2,
+            "parser_input": 4296,
+            "paced_seconds": 0.256946,
+            "header_copy_bytes": 4301
+          },
+          {
+            "header": 8199,
+            "chunk": 7,
+            "parser_calls": 2,
+            "parser_input": 8206,
+            "paced_seconds": 0.077411,
+            "header_copy_bytes": 8205
+          },
+          {
+            "header": 8199,
+            "chunk": 65536,
+            "parser_calls": 2,
+            "parser_input": 10247,
+            "paced_seconds": 0.003475,
+            "header_copy_bytes": 8205
+          }
+        ]
+      }
+    }
+  },
+  "wall_time_caveat": "Paced handshake wall times include posts, syscalls, independent physical joins and scheduler noise. They do not quantify CPU/throughput/P99 benefit; parser_input is actual submitted prefix bytes rather than all instruction/copy costs.",
+  "failures": [
+    "First harness compile used a TLS-like four-argument signature for native TCP Send; corrected to the actual three-argument all-or-refuse API. Initial logging lacked its required source snapshot; raw compiler log retained.",
+    "The first pacing harness reposted one already pending embedded node when a large native offer arrived in multiple receive blocks. Coalesce using actual Pending state; the production path did not fail. Rebuild/re-run both baseline and candidate; earlier failed receipt retained."
+  ],
+  "raw_evidence": "out/service-extensions/xrpc-ws-http-scan-20261116/checkpoint",
+  "physical_evidence": "out/local-service-extensions/xrpc-ws-http-scan-20261116/checkpoint",
+  "artifact_seal": {
+    "path": "artifact-seal.json",
+    "sha256": "1dad10ca37d7715ad63478d1efefcd5cd6c837aa6f09534082a5adf47302b1a7",
+    "files": 252
+  },
+  "final_source_map": {
+    "path": "source.json",
+    "sha256": "9eb3a8e753711e76f2d88c15a9e37450506dd0209203c5f93c3f1ebdf9be119b"
+  },
+  "source_cohorts": "Frozen source maps and raw receipts preserve every attempt. Selected final full-selection runtime probes predate only docs, generated single headers and the standalone tool; canonical/regression/interop use the final source map. No production/test-body mismatch is accepted.",
+  "remaining_gates": [
+    "Broader async OOM/fault/fuzz and ordinary native TLS prefix work outside the cache.",
+    "Controlled CPU/throughput, queue-inclusive tails, scale, native Linux/Windows>=72h and Windows sanitizers.",
+    "WS URI/DNS/dial, asynchronous framed stdio, negotiated remote deadlines/cancellation, remaining original xredis/xmqtt5/xcron scope."
+  ]
+}

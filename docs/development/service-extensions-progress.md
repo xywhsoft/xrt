@@ -32,9 +32,12 @@ Target and rules: [development contract](service-extensions-plan.md).
   asynchronous DNS/prepared-address dialing and an explicit TLS client with
   verified server identity are also locally verified. The client has bounded concurrent submission,
   worker ownership and API-entry
-  deadlines. TLS server/mutual/application authentication, richer HTTP
-  metadata/recovery/pooling, other transports, bidirectional calls and deferred
-  business handlers remain pending.
+  deadlines. Later stages also locally verify bounded bidirectional Duplex,
+  framed TCP/TLS with DNS/prepared dialing, and native WS/WSS attachment with
+  checked HTTP Upgrade, shared-executor authorization and optional compression.
+  Richer HTTP metadata/recovery/pooling, WS URI/DNS/dial composition, asynchronous
+  framed stdio, negotiated remote deadline/cancellation and deferred business
+  handlers remain pending; the dated evidence below defines each delivered scope.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -13052,3 +13055,41 @@ and out/service-extensions/xrpc-frame-20261112.
   native72h acceptance remain open with the original four-product scope. No
   production/performance or complete-product claim. Work and commits remain on
   `D:/GIT/xrt` master, with no branch operation or push.
+
+
+## 2026-11-16: linear work for cached WS HTTP fragments
+
+- Direct master from1cf7224c; previous goal stage committed verified functionality.
+  No branch/worktree operation or push. The full four-product goal stays active.
+- A real native TCP reproduction paces each next fragment after actual receive
+  consumption, instrumenting original Core parser calls in the production ws.c
+  TU. The baseline is frozen1cf7224c source/private control, with only include
+  paths adapted for isolated compilation. For a valid4295-byte head delivered
+  one byte at a time, actual parser input falls9225661 to4296 bytes. This is
+  structural work evidence, not a measured throughput/tail improvement.
+- Add an owner-only incremental cache probe: persist byte/line position, revisit
+  only a split trailing CR, and skip full parsing only while Core must return
+  MORE. Complete heads, malformed CR/LF and overlong start/field lines still go
+  to the public authoritative Core parser; its exact-head cap and full semantic/
+  handshake/auth checks remain. Preserve first WS suffix and the const TCP fast
+  path. Normal native TLS parsing outside this cache is unchanged.
+- Three size counters add24 cold setup bytes (848 to872 on both measured x64
+  hosts); public config528/info680 remain unchanged. No new allocation count,
+  public API/ABI, Core change, queue, thread or shared runtime. Full cache copying
+  and existing allocator/TLS costs remain counted.
+- Add a repeatable standalone tool and actual production-TU structural/IO test:
+  every prefix of4009 adversarial inputs against the public Core parser, real
+  select/IOCP/epoll fragments, checked101, first Ping/Pong and physical native/
+  Engine joins. Run `python tools/test_xrpc_ws_http_scan.py --compiler gcc`;
+  Linux `--sanitize address` and separately `--sanitize thread` are supported.
+- Validation and source-bound raw evidence are recorded in
+  [the stage report](xrpc-ws-http-scan-20261116.json). This includes canonical
+  fresh module builds, full WS/TLS/compression selection, existing protocol/
+  deadline/auth/prebuffer/OOM/native-owner suites, five single-header entries,
+  four real examples and independent plain/compressed peers on each host.
+  Earlier harness compile/pacing failures are retained and distinguished.
+- Full performance/production acceptance remains false: broader async fault/
+  OOM/fuzz, ordinary TLS prefix work outside the cache, controlled CPU/throughput/
+  queue-inclusive tails and scale, native Linux/Windows>=72h, WS URI/DNS/dial,
+  asynchronous framed stdio, negotiated extensions and the original xredis/
+  xmqtt5/xcron requirements remain open.

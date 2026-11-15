@@ -14,7 +14,7 @@ typedef struct xrpcwsupgrade {
     xhttpfield* Fields;
     unsigned char* Wire;
     unsigned char* ZeroContext;
-    unsigned char* Cache;size_t CacheUsed;
+    unsigned char* Cache;size_t CacheUsed,ScanOffset,ScanLineStart,ScanLine;
     xwsupgrade Negotiated;
     char Key[XWS_KEY_CAPACITY],Protocol[256];
     xrpcwsauthorization* Authorization;
