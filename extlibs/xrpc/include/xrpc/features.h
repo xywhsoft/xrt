@@ -82,6 +82,38 @@
 #ifndef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
 #define XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
 #endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#endif
+#endif
+
+/* xrpc_ws_dial_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#define XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL
+#define XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT
+#define XRT_MODULE_TLS_CLIENT
+#endif
+#endif
+
+/* xrpc_ws_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL
+#define XRPC_FEATURE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_ws_http_deflate 及其直接依赖。 */

@@ -1,0 +1,14 @@
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#include <xrpc/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XRPC_IMPLEMENTATION
+#include "../../../../single/extlibs/xrpc.h"
+#include "../test_ws_dial_setup.c"

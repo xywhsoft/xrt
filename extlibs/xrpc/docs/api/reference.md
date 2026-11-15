@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `157` 个函数、`240` 个常量或宏、
-`116` 个公共类型。
+当前登记 `164` 个函数、`242` 个常量或宏、
+`117` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -807,6 +807,31 @@
 
 - `xrpcwsdeflateinfo`
 
+## `extlibs/xrpc/include/xrpc/ws_dial.h`
+
+[查看带契约注释的公共头](../../include/xrpc/ws_dial.h)
+
+### 函数 (7)
+
+- `xrpcWsConnect`
+- `xrpcWsConnectTls`
+- `xrpcWsDial`
+- `xrpcWsDialAddresses`
+- `xrpcWsDialAddressesTls`
+- `xrpcWsDialConfigInit`
+- `xrpcWsDialTls`
+
+### 常量与宏 (3)
+
+- `XRPC_FEATURE_XRPC_WS_DIAL`
+- `XRPC_FEATURE_XRPC_WS_DIAL_TLS`
+- `XRPC_FEATURE_XRPC_WS_HTTP_TLS`
+
+### 类型 (2)
+
+- `xrpcwsdialconfig`
+- `xrpcwshttpconfig`
+
 ## `extlibs/xrpc/include/xrpc/ws_http.h`
 
 [查看带契约注释的公共头](../../include/xrpc/ws_http.h)
@@ -820,9 +845,8 @@
 - `xrpcWsHttpServerTcp`
 - `xrpcWsHttpServerTls`
 
-### 常量与宏 (11)
+### 常量与宏 (10)
 
-- `XRPC_FEATURE_XRPC_WS_HTTP_TLS`
 - `XRPC_WS_HTTP_ALLOW`
 - `XRPC_WS_HTTP_AUTH_ERROR`
 - `XRPC_WS_HTTP_CLOSED`
@@ -834,11 +858,10 @@
 - `XRPC_WS_HTTP_TIMED_OUT`
 - `XRPC_WS_HTTP_UNAUTHORIZED`
 
-### 类型 (6)
+### 类型 (5)
 
 - `xrpcwshttpauthorize`
 - `xrpcwshttpauthrequest`
 - `xrpcwshttpauthstatus`
-- `xrpcwshttpconfig`
 - `xrpcwshttpinfo`
 - `xrpcwshttpoutcome`

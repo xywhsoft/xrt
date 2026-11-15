@@ -35,7 +35,7 @@ Target and rules: [development contract](service-extensions-plan.md).
   deadlines. Later stages also locally verify bounded bidirectional Duplex,
   framed TCP/TLS with DNS/prepared dialing, and native WS/WSS attachment with
   checked HTTP Upgrade, shared-executor authorization and optional compression.
-  Richer HTTP metadata/recovery/pooling, WS URI/DNS/dial composition, asynchronous
+  Richer HTTP metadata/recovery/pooling, WS URI input, asynchronous
   framed stdio, negotiated remote deadline/cancellation and deferred business
   handlers remain pending; the dated evidence below defines each delivered scope.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
@@ -13093,3 +13093,66 @@ and out/service-extensions/xrpc-frame-20261112.
   queue-inclusive tails and scale, native Linux/Windows>=72h, WS URI/DNS/dial,
   asynchronous framed stdio, negotiated extensions and the original xredis/
   xmqtt5/xcron requirements remain open.
+
+
+## 2026-11-16: native WS/WSS client establishment
+
+- Direct master from12a4b909. Previous goal turn completed verified cached-head
+  work; this stage adds real functionality. No branch/worktree operation or push.
+- Add developing xrpc_ws_dial/xrpc_ws_dial_tls: config init plus numeric, DNS and
+  prepared-endpoint client factories for TCP and verified TLS. The same xrpcws
+  handle admits calls/notifications/batches during setup. Routing, HTTP authority/
+  target and mandatory explicit TLS identity remain independent. One factory-entry
+  HTTP setup clock covers copying, queue, DNS/candidates, TLS and checked Upgrade;
+  each RPC retains its own entry clock. No replay, redirect or cleartext fallback.
+- Reuse public Core candidate racing, original owned Done/Drop, immutable address
+  lists, a caller-thread TLS session snapshot and existing HTTP/WS/Server runtime.
+  Only the transferred TCP winner starts TLS. Session metadata is bounded before
+  copying, borrowed lookup/verification data retain their documented host lifetime.
+  Close joins actual source/raw/TLS/WS duties; the host joins its Resolver separately.
+- The first verified-TLS scenario reached101 but rejected the event handoff. A
+  logging-only derived production TU located the public exchange failure: native
+  TLS root ownership is not an independently bound event slot. Add a distinct real
+  root owner and bind the HTTP event owner after verified Open/outside its driver,
+  before HTTP. Existing transactional HTTP-to-WS exchange remains unchanged; no
+  Core private access, relaxed guards, diagnostic aliases or new runtime.
+- Original config528/info680 and per-platform peer1568 Windows/1776 WSL remain
+  unchanged. Optional cold HTTP control872 to888, plain/TLS controller280/320
+  plus DNS bytes+NUL, public dial config104 on both measured x64 hosts. Native
+  candidate/session/crypto/buffer/allocator storage remains additional. Cold
+  controllers, original source lists and copied setup storage retire physically.
+- Real tests cover all source forms, reverse calls/batches/notifications, mutable
+  source snapshots/released verifier aliases, original call/setup clocks, DNS
+  cancellation/close/diagnostics, real refused candidate and constructor budget
+  ladders, actual ClientHello timeout/close and ALPN/identity rejection before HTTP.
+  Explicit selection single wrappers, static/shared and standalone-declaration
+  consumers execute the actual new APIs, under select/IOCP/epoll and sanitizer
+  modes. The common example fixture now exposes listen-only setup without creating
+  an otherwise unused client; its original entry points keep their prior behavior.
+- The independent Python/OpenSSL fixture adds --dial for native client factories,
+  preserving original attach mode and server factories. Both hosts verify180
+  sessions each:38 old attach,38 dial-mode uncompressed,104 dial-mode compressed
+  across all8..15-bit windows, context/threshold/decline and typed failures.
+  Native server cases in dial mode still use the ordinary attach API. Runtime
+  private keys are removed and not published.
+- Exact source identities, raw failures, platform/ABI/consumer evidence and current
+  acceptance limits are in [the stage report](xrpc-ws-dial-20261116.json).
+  Initial root/event binding, raw-DNS-wrapper expectation and single test-selector
+  failures are retained; corrected sources are independently reverified.
+- URI input, negotiated remote deadline/cancellation, async framed stdio, broader
+  async OOM/fault/fuzz, controlled CPU/throughput/queue-inclusive tails/scale,
+  native Windows/Linux>=72h and the remaining original Redis/MQTT5/Cron scope
+  remain required. Production/performance acceptance and the four-product goal
+  remain incomplete; all new feature nodes stay developing.
+
+- Final lifetime review found another concrete boundary: a source's real context
+  credit may be retained after WS handoff. Keep HTTP/controller storage through
+  its original Drop and retire it after native ownership moved; a completed setup
+  deadline must not close the accepted WS connection. The new production-TU tool
+  moves the actual existing credit into a holder, never fabricating counts/IO.
+  Pre-fix source fails the retained-control invariant on both hosts. Candidate
+  select/IOCP/epoll, actual communication past the setup deadline, Close-before-
+  release timeout and physical release/join pass. Fresh standalone Windows and
+  WSL TSan tool builds also pass. All primary modules/singles/independent peers/
+  packages are reverified after this fix; the earlier sealed checkpoint remains
+  unchanged, and the report selects the separate final archive.

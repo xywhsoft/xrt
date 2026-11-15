@@ -143,7 +143,8 @@ WS Ping/Pong suffix, and joins peer/native/Engine duties. Those paced wall times
 are not a throughput or tail-latency benchmark. A larger native TLS incomplete
 prefix outside the cache still needs separate performance evaluation.
 
-These factories begin after native establishment. URI/DNS/dial composition,
+These attach factories begin after native establishment. For numeric, DNS and
+prepared client setup, select the [WS/WSS dial leaf](ws_dial.md). URI input,
 broader fault/fuzz/scale validation, controlled native throughput/
 tail latency and native Windows/Linux72h qualification remain required. The
 four-product and production goals are incomplete.

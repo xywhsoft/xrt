@@ -4,12 +4,18 @@
 #include "xrpc_server_internal.h"
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP)
 typedef struct xrpcwsauthorization xrpcwsauthorization;
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+typedef struct xrpcwsdialdata xrpcwsdialdata;
+#endif
 typedef struct xrpcwsupgrade {
     xrpcwshttpconfig Config;
     ptr Native;
     size_t Bytes,WireBytes,WireOffset,HeaderBytes;
     double Deadline;
     bool TLS,Server,EventGone,NativeClosed,InputEnded,Paused,Checked,Rejected,Closing;
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    bool Establishing,BindTLS;xrpcwsdialdata* Dial;
+    #endif
     xrpcwsreason Reason;
     xhttpfield* Fields;
     unsigned char* Wire;

@@ -6,7 +6,7 @@ No implementation library or WebSocket package is imported by the Python peer.
 import argparse,base64,hashlib,json,os,platform,queue,random,shutil,socket,ssl,struct,subprocess,sys,tempfile,threading,time,zlib
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[4]
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('binary',type=Path);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--quick',action='store_true');p.add_argument('--only');p.add_argument('--deflate',choices=['takeover','no-context','decline','threshold','missing','invalid','bomb']+['window'+str(b) for b in range(8,16)]);a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('binary',type=Path);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--quick',action='store_true');p.add_argument('--dial',action='store_true');p.add_argument('--only');p.add_argument('--deflate',choices=['takeover','no-context','decline','threshold','missing','invalid','bomb']+['window'+str(b) for b in range(8,16)]);a=p.parse_args()
 binary=a.binary if a.binary.is_absolute() else ROOT/a.binary;out=a.output_dir if a.output_dir.is_absolute() else ROOT/a.output_dir;out.mkdir(parents=True,exist_ok=True);assert binary.is_file()
 openssl=shutil.which('openssl')
 if not openssl and os.name=='nt':
@@ -17,6 +17,8 @@ GUID=b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11';keys=[];cases=[];compressed=False;e
 window=int(a.deflate[6:]) if a.deflate and a.deflate.startswith('window') else 15
 pattern=base64.b64encode(random.Random(971).randbytes(2048)).decode()
 env=dict(os.environ,ASAN_OPTIONS='detect_leaks=1:halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1')
+if a.dial:env['XRPC_TEST_WS_DIAL']='1'
+else:env.pop('XRPC_TEST_WS_DIAL',None)
 
 def exact(s,n):
  data=b''
@@ -256,5 +258,5 @@ with tempfile.TemporaryDirectory(prefix='ws-http-',dir=out) as temporary:
        if process.stderr:process.stderr.close()
       if reader:reader.join(timeout=5)
  assert len(keys)==len(set(keys)),'client nonce reused between independent connections'
-report=dict(binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),python=sys.version,openssl=ssl.OPENSSL_VERSION,zlib=zlib.ZLIB_RUNTIME_VERSION,deflate=a.deflate,platform=platform.platform(),public_certificate_sha256=cert_sha,private_keys_recorded=False,cases=cases,scope='Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance.')
+report=dict(binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),python=sys.version,openssl=ssl.OPENSSL_VERSION,zlib=zlib.ZLIB_RUNTIME_VERSION,deflate=a.deflate,dial_clients=a.dial,platform=platform.platform(),public_certificate_sha256=cert_sha,private_keys_recorded=False,cases=cases,scope='Actual local HTTP Upgrade and RFC6455/JSON sessions, both endpoint roles, no application bytes before101, shared authorization, strict failures, original timeout and physical joins; no performance or native72h acceptance.')
 a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n');print('[PASS]',len(cases),'independent WS HTTP sessions')

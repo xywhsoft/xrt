@@ -4,6 +4,9 @@
 #include <xrt/sync.h>
 #include <math.h>
 #include <string.h>
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+#include <xrpc/ws_dial.h>
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
 #include <xrpc/ws_deflate.h>
 #endif
@@ -36,6 +39,10 @@ static void xrpcWsTimer(xnetworker*,uint64,xnetresult,ptr);
 static void xrpcWsHttpStep(xrpcws*);
 static bool xrpcWsHttpRetire(xrpcws*);
 static void xrpcWsHttpDiscard(xrpcws*);
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+static void xrpcWsDialStep(xrpcws*);
+static bool xrpcWsDialRetire(xrpcws*);
+#endif
 #endif
 static bool xrpcWsReport(xerrkind K,cstr M){xrtSetErrorInfo(K,"xrt.rpc",19401,M);return false;}
 static double xrpcWsDeadline(double Entered,int64 Timeout)
@@ -422,10 +429,22 @@ static void xrpcWsHttpLowWater(xnetstream* S,size_t N,ptr Data)
 static void xrpcWsHttpEnd(xnetstream* S,ptr Data)
 {(void)S;xrpcws* P=Data;if(P->Upgrade)P->Upgrade->InputEnded=true;xrpcWsWake(P);}
 static void xrpcWsHttpClosed(xnetstream* S,xnetresult R,const xerror* E,ptr Data)
-{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade)P->Upgrade->NativeClosed=true;xrpcWsWake(P);}
+{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade){P->Upgrade->NativeClosed=true;
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    if(P->Upgrade->Establishing)xrpcWsFail(P,R==XNET_RESULT_TIMEOUT||xrtErrorKind(E)==XERR_TIMEOUT?XRPC_WS_TIMEOUT:xrtErrorKind(E)==XERR_MEMORY?XRPC_WS_MEMORY:XRPC_WS_TRANSPORT);
+    #endif
+    }xrpcWsWake(P);}
 static void xrpcWsHttpEventsDrop(const void* Data)
 {xrpcws* P=(xrpcws*)Data;if(P->Upgrade)P->Upgrade->EventGone=true;xrpcWsWake(P);xrpcWsDrop(P);}
-static const xnetstreameventsownershipv1 xrpcWsHttpTcpEvents={sizeof(xnetstreameventsownershipv1),{.Read=xrpcWsHttpRead,.End=xrpcWsHttpEnd,.LowWater=xrpcWsHttpLowWater,.Drain=xrpcWsHttpWritable,.Close=xrpcWsHttpClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+static void xrpcWsHttpOpened(xnetstream* S,ptr Data)
+{(void)S;xrpcws* P=Data;if(P->Upgrade)P->Upgrade->Establishing=false;xrpcWsWake(P);}
+#endif
+static const xnetstreameventsownershipv1 xrpcWsHttpTcpEvents={sizeof(xnetstreameventsownershipv1),{
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    .Open=xrpcWsHttpOpened,
+    #endif
+    .Read=xrpcWsHttpRead,.End=xrpcWsHttpEnd,.LowWater=xrpcWsHttpLowWater,.Drain=xrpcWsHttpWritable,.Close=xrpcWsHttpClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
 static void xrpcWsHttpTlsRead(xtlsstream* S,const xnetbuf* B,ptr Data)
 {(void)S;(void)B;xrpcWsWake(Data);}
@@ -434,8 +453,25 @@ static void xrpcWsHttpTlsWritable(xtlsstream* S,ptr Data)
 static void xrpcWsHttpTlsEnd(xtlsstream* S,ptr Data)
 {(void)S;xrpcws* P=Data;if(P->Upgrade)P->Upgrade->InputEnded=true;xrpcWsWake(P);}
 static void xrpcWsHttpTlsClosed(xtlsstream* S,xnetresult R,const xerror* E,ptr Data)
-{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade)P->Upgrade->NativeClosed=true;xrpcWsWake(P);}
-static const xtlsstreamownershipv1 xrpcWsHttpTlsEvents={sizeof(xtlsstreamownershipv1),{.Read=xrpcWsHttpTlsRead,.End=xrpcWsHttpTlsEnd,.Writable=xrpcWsHttpTlsWritable,.Drain=xrpcWsHttpTlsWritable,.Close=xrpcWsHttpTlsClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
+{(void)S;(void)R;xrpcws* P=Data;xrpcWsNativeError(P,E);if(P->Upgrade){P->Upgrade->NativeClosed=true;
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    if(P->Upgrade->Establishing)xrpcWsFail(P,R==XNET_RESULT_TIMEOUT||xrtErrorKind(E)==XERR_TIMEOUT?XRPC_WS_TIMEOUT:xrtErrorKind(E)==XERR_MEMORY?XRPC_WS_MEMORY:XRPC_WS_TRANSPORT);
+    #endif
+    }xrpcWsWake(P);}
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+static void xrpcWsHttpTlsOpened(xtlsstream* S,ptr Data)
+{
+    xrpcws* P=Data;if(P->Upgrade)P->Upgrade->Establishing=false;xtlssession* Session=xrtTlsStreamSession(S);xbytesview Protocol={0};(void)xrtTlsSessionProtocol(Session,&Protocol);
+    xrtMutexLock(&P->Gate);P->Info.Encrypted=true;P->Info.Version=xrtTlsSessionVersion(Session);P->Info.Cipher=xrtTlsSessionCipher(Session);xrtMutexUnlock(&P->Gate);
+    if(Protocol.Size&&(Protocol.Size!=8||memcmp(Protocol.Data,"http/1.1",8)))xrpcWsFail(P,XRPC_WS_PROTOCOL);
+    xrpcWsWake(P);
+}
+#endif
+static const xtlsstreamownershipv1 xrpcWsHttpTlsEvents={sizeof(xtlsstreamownershipv1),{
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    .Open=xrpcWsHttpTlsOpened,
+    #endif
+    .Read=xrpcWsHttpTlsRead,.End=xrpcWsHttpTlsEnd,.Writable=xrpcWsHttpTlsWritable,.Drain=xrpcWsHttpTlsWritable,.Close=xrpcWsHttpTlsClosed},xrpcWsHttpEventsDrop,&xrpcWsOps};
 #endif
 static void xrpcWsHttpAuthRelease(xrpcwsauthorization* A)
 {
@@ -678,7 +714,11 @@ static void xrpcWsHttpHandoff(xrpcws* P)
     if(Previous.Policy)Previous.Policy->Drop(Previous.Data);
     #endif
     if(H->Paused&&!xrtNetStreamResume(Raw)){xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());}
-    if(H->EventGone)xrpcWsHttpDiscard(P);
+    if(H->EventGone
+        #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+        &&!H->Dial
+        #endif
+        )xrpcWsHttpDiscard(P);
 }
 static void xrpcWsHttpNativeClose(xrpcwsupgrade* H,bool Abort)
 {
@@ -692,9 +732,29 @@ static void xrpcWsHttpNativeClose(xrpcwsupgrade* H,bool Abort)
 static void xrpcWsHttpStep(xrpcws* P)
 {
     xrpcwsupgrade* H=P->Upgrade;if(!H||xrpcWsClosing(P))return;
-    if(!H->Native){if(H->EventGone)xrpcWsHttpDiscard(P);return;}
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    if(H->Dial||H->Establishing){
+        if(!P->Stream&&xrtTimer()>=H->Deadline){xrpcWsHttpOutcome(P,XRPC_WS_HTTP_TIMED_OUT);xrpcWsFail(P,XRPC_WS_TIMEOUT);return;}
+        xrpcWsDialStep(P);if(xrpcWsClosing(P)||H->Establishing)return;
+    }
+    #endif
+    if(!H->Native){if(H->EventGone
+        #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+        &&!H->Dial
+        #endif
+        ){xrpcWsHttpDiscard(P);}return;}
     if(xrtTimer()>=H->Deadline){xrpcWsHttpOutcome(P,XRPC_WS_HTTP_TIMED_OUT);xrpcWsFail(P,XRPC_WS_TIMEOUT);return;}
     if(H->NativeClosed){xrpcWsFail(P,XRPC_WS_TRANSPORT);return;}
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+    if(H->BindTLS){
+        /* A freshly created TLS stream's root owner is not its replaceable
+         * event slot. Bind a separate real credit after verified Open, outside
+         * the native driver, before any HTTP parsing or event exchange. */
+        xrpcWsRef(P);
+        if(!xrtTlsStreamBindEventsOwnedV1(H->Native,P,&xrpcWsHttpTlsEvents)){xrpcWsDrop(P);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsLocalFailure());return;}
+        H->EventGone=false;H->BindTLS=false;
+    }
+    #endif
     if(!xrpcWsHttpWrite(P))return;
     if(H->Rejected){xrpcWsHttpNativeClose(H,false);xrpcWsFail(P,H->Reason);return;}
     if(!H->Checked&&!xrpcWsHttpHeader(P)){
@@ -716,6 +776,9 @@ static void xrpcWsHttpStep(xrpcws* P)
 static bool xrpcWsHttpRetire(xrpcws* P)
 {
     xrpcwsupgrade* H=P->Upgrade;if(!H)return true;
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+    (void)xrpcWsDialRetire(P);
+    #endif
     xrtMutexLock(&P->Gate);xrpcwsreason Reason=P->Info.Reason;bool Force=P->UpgradeAbort;xrtMutexUnlock(&P->Gate);xrpcWsHttpOutcome(P,Reason==XRPC_WS_TIMEOUT?XRPC_WS_HTTP_TIMED_OUT:Reason==XRPC_WS_LOCAL?XRPC_WS_HTTP_CLOSED:XRPC_WS_HTTP_FAILED);
     if(H->Authorization){xrpcwsauthorization* A=H->Authorization;(void)xrtCancelRequest(A->Work.Cancel);if(xrtAtomic32Load(&A->Ready,XMEMORY_ACQUIRE)){H->Authorization=NULL;xrtMutexLock(&P->Gate);P->UpgradeInfo.AuthorizationPending=false;xrtMutexUnlock(&P->Gate);xrpcWsHttpAuthRelease(A);}}
     if(H->Native){bool Abort=Force||!H->Server||!H->Rejected||Reason==XRPC_WS_LOCAL||xrtTimer()>=H->Deadline;if(!H->Closing||Abort)xrpcWsHttpNativeClose(H,Abort);
@@ -731,7 +794,11 @@ static bool xrpcWsHttpRetire(xrpcws* P)
             xrtNetStreamDestroy(Native);
         }
     }
-    if(!H->Native&&H->EventGone&&!H->Authorization){xrpcWsHttpDiscard(P);return true;}return false;
+    if(!H->Native&&H->EventGone&&!H->Authorization
+        #if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+        &&!H->Dial
+        #endif
+        ){xrpcWsHttpDiscard(P);return true;}return false;
 }
 static bool xrpcWsHttpCreate(ptr Native,bool TLS,bool Server,const xrpcwsconfig* Config,const xrpcwshttpconfig* HTTP,xrpcws** Out,double Entered)
 {
@@ -759,6 +826,167 @@ static bool xrpcWsHttpCreate(ptr Native,bool TLS,bool Server,const xrpcwsconfig*
     if(!Bound){xerror* Error=xrtTakeError();H->EventGone=true;H->Native=NULL;xrpcWsDrop(P);xrpcWsHttpDiscard(P);xrpcWsFree(P);xrtSetErrorTake(Error);return false;}
     xrtMutexLock(&P->Gate);P->Active=true;xrpcWsRef(P);*Out=P;if(!xrpcWsWakeLocked(P)){P->Info.State=XRPC_WS_CLOSING;P->Info.Reason=XRPC_WS_LIMIT;}xrtMutexUnlock(&P->Gate);return true;
 }
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+struct xrpcwsdialdata {
+    size_t Bytes;xrpcwsdialconfig Config;xnetdialconfig Native;
+    xnetresolver* Resolver;xnetaddrlist* Addresses;xnetdial* Dial;xnetstream* Raw;
+    xnetaddr Remote;uint64 Affinity;uint16 Port;
+    bool Numeric,Started,Pending,RawOpen,RawGone,Handoff;
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+    xtlssession* Session;xtlsstreamconfig TLS;
+    #endif
+    char Name[];
+};
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+static void xrpcWsDialTlsRootDrop(const void* Data)
+{xrpcws* P=(xrpcws*)Data;xrpcWsWake(P);xrpcWsDrop(P);}
+static const xtlsstreamownershipv1 xrpcWsDialTlsRootEvents={sizeof(xtlsstreamownershipv1),{
+    .Open=xrpcWsHttpTlsOpened,.Read=xrpcWsHttpTlsRead,.End=xrpcWsHttpTlsEnd,
+    .Writable=xrpcWsHttpTlsWritable,.Drain=xrpcWsHttpTlsWritable,.Close=xrpcWsHttpTlsClosed},xrpcWsDialTlsRootDrop,&xrpcWsOps};
+#endif
+static xrpcwsreason xrpcWsDialFailure(xnetresult R,const xerror* E)
+{xerrkind K=xrtErrorKind(E);return R==XNET_RESULT_TIMEOUT||K==XERR_TIMEOUT?XRPC_WS_TIMEOUT:K==XERR_MEMORY?XRPC_WS_MEMORY:K==XERR_RANGE||K==XERR_AGAIN?XRPC_WS_LIMIT:XRPC_WS_TRANSPORT;}
+static void xrpcWsDialFree(xrpcwsdialdata* D)
+{
+    if(!D)return;
+    xrtNetDialDestroy(D->Dial);xrtNetAddrListDestroy(D->Addresses);
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+    xrtTlsSessionDestroy(D->Session);
+    #endif
+    size_t N=D->Bytes;xrtSecureZero(D,N);xrtFree(D);
+}
+static void xrpcWsDialDiscard(xrpcws* P)
+{xrpcwsdialdata* D=P->Upgrade->Dial;P->Upgrade->Dial=NULL;size_t N=D->Bytes;xrpcWsDialFree(D);xrpcWsHttpCostDrop(P,N);}
+static void xrpcWsDialRawOpen(xnetstream* S,ptr Data)
+{(void)S;xrpcws* P=Data;P->Upgrade->Dial->RawOpen=true;xrpcWsWake(P);}
+static void xrpcWsDialRawRead(xnetstream* S,xnetbuf* B,ptr Data)
+{(void)B;xrpcws* P=Data;if(!P->Upgrade->Dial->Handoff)(void)xrtNetStreamPause(S);xrpcWsWake(P);}
+static void xrpcWsDialRawEnd(xnetstream* S,ptr Data)
+{(void)S;xrpcWsFail(Data,XRPC_WS_TRANSPORT);xrpcWsWake(Data);}
+static void xrpcWsDialRawClose(xnetstream* S,xnetresult R,const xerror* E,ptr Data)
+{(void)S;xrpcws* P=Data;xrpcWsNativeError(P,E);xrpcWsFail(P,xrpcWsDialFailure(R,E));xrpcWsWake(P);}
+static void xrpcWsDialRawDrop(const void* Data)
+{xrpcws* P=(xrpcws*)Data;P->Upgrade->Dial->RawGone=true;xrpcWsWake(P);xrpcWsDrop(P);}
+static const xnetstreameventsownershipv1 xrpcWsDialRawEvents={sizeof(xnetstreameventsownershipv1),{.Open=xrpcWsDialRawOpen,.Read=xrpcWsDialRawRead,.End=xrpcWsDialRawEnd,.Close=xrpcWsDialRawClose},xrpcWsDialRawDrop,&xrpcWsOps};
+static void xrpcWsDialDone(xnetdial* Dial,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
+{
+    (void)Dial;xrpcws* P=Data;xrpcwsupgrade* H=P->Upgrade;xrpcwsdialdata* D=H->Dial;xrpcWsNativeError(P,Cause);
+    if(xrtTimer()>=H->Deadline)xrpcWsFail(P,XRPC_WS_TIMEOUT);
+    if(!Stream){xrpcWsFail(P,xrpcWsDialFailure(Result,Cause));xrpcWsWake(P);return;}
+    D->Raw=Stream;
+    if(!xrpcWsClosing(P)){
+        xrpcWsRef(P);D->RawGone=false;
+        if(!xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcWsDialRawEvents)){D->RawGone=true;xrpcWsDrop(P);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsDialFailure(XNET_RESULT_ERROR,xrtGetError()));}
+        else D->RawOpen=true;
+    }
+    if(xrpcWsClosing(P))(void)xrtNetStreamAbort(Stream);
+    xrpcWsWake(P);
+}
+static void xrpcWsDialDropped(const void* Data)
+{xrpcws* P=(xrpcws*)Data;P->Upgrade->Dial->Pending=false;xrpcWsWake(P);xrpcWsDrop(P);}
+static const xnetdialownershipv1 xrpcWsDialEvents={sizeof(xnetdialownershipv1),xrpcWsDialDone,xrpcWsDialDropped,&xrpcWsOps};
+static void xrpcWsDialStep(xrpcws* P)
+{
+    xrpcwsupgrade* H=P->Upgrade;xrpcwsdialdata* D=H->Dial;if(!D)return;
+    if(!D->Started){
+        D->Started=true;
+        if(D->Numeric){
+            D->RawGone=false;xrpcWsRef(P);D->Raw=xrtNetStreamConnectOwnedV1(P->Engine,&D->Remote,D->Affinity,&D->Config.Stream,P,&xrpcWsDialRawEvents);
+            if(!D->Raw){D->RawGone=true;xrpcWsDrop(P);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsDialFailure(XNET_RESULT_ERROR,xrtGetError()));return;}
+        }else{
+            D->Pending=true;xrpcWsRef(P);
+            D->Dial=D->Addresses?xrtNetDialAddressesOwnedV1(P->Engine,D->Addresses,&D->Native,NULL,NULL,P,&xrpcWsDialEvents):xrtNetDialOwnedV1(P->Engine,D->Resolver,D->Name,D->Port,&D->Native,NULL,NULL,P,&xrpcWsDialEvents);
+            if(!D->Dial){D->Pending=false;xrpcWsDrop(P);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsDialFailure(XNET_RESULT_ERROR,xrtGetError()));return;}
+            xrtNetAddrListDestroy(D->Addresses);D->Addresses=NULL;
+        }
+    }
+    if(D->Raw&&D->RawOpen){
+        D->Handoff=true;bool Ready=xrtNetStreamResume(D->Raw);D->Handoff=false;
+        if(!Ready||xrpcWsClosing(P)){if(!xrpcWsClosing(P))xrpcWsFail(P,xrpcWsDialFailure(XNET_RESULT_ERROR,xrtGetError()));return;}
+        bool Bound;H->EventGone=false;xrpcWsRef(P);
+        #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+        if(H->TLS){xtlsstream* S=NULL;Bound=xrtTlsStreamAttachOwnedV1(D->Raw,D->Session,&D->TLS,P,&xrpcWsDialTlsRootEvents,&S);if(Bound){H->Native=S;D->Session=NULL;H->EventGone=true;}}
+        else
+        #endif
+        {Bound=xrtNetStreamSetEventsOwnedV1(D->Raw,P,&xrpcWsHttpTcpEvents);if(Bound){H->Native=D->Raw;H->Establishing=false;}}
+        if(!Bound){H->EventGone=true;xrpcWsDrop(P);xrpcWsNativeError(P,xrtGetError());xrpcWsFail(P,xrpcWsDialFailure(XNET_RESULT_ERROR,xrtGetError()));return;}
+        D->Raw=NULL;
+    }
+    if(D->Dial&&!D->Pending){xrtNetDialDestroy(D->Dial);D->Dial=NULL;}
+    if(!D->Pending&&!D->Raw&&D->RawGone&&(H->Native||P->Stream))xrpcWsDialDiscard(P);
+}
+static bool xrpcWsDialRetire(xrpcws* P)
+{
+    xrpcwsdialdata* D=P->Upgrade->Dial;if(!D)return true;
+    if(D->Pending)(void)xrtNetDialCancel(D->Dial);
+    if(D->Raw){(void)xrtNetStreamAbort(D->Raw);if(xrtNetStreamPollRetired(D->Raw)==XWAIT_OK){xnetstream* S=D->Raw;D->Raw=NULL;xrtNetStreamDestroy(S);}}
+    if(!D->Pending&&!D->Raw&&D->RawGone){xrpcWsDialDiscard(P);return true;}return false;
+}
+XRPC_API bool xrpcWsDialConfigInit(xrpcwsdialconfig* C)
+{
+    if(!C||!xrtMemRangeValid(C,sizeof(*C)))return xrpcWsReport(XERR_ARGUMENT,"invalid WS dial config output");
+    *C=(xrpcwsdialconfig){0};C->Size=sizeof(*C);xrtNetStreamConfigInit(&C->Stream);C->Family=XNET_FAMILY_UNSPEC;C->FallbackDelay=250;C->MaxAttempts=8;C->MaxHostBytes=1024;C->MaxMetadataBytes=16384;return true;
+}
+static bool xrpcWsDialCreate(xnetengine* E,const xnetaddr* Remote,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
+    bool Secure,const void* Client,const void* NativeTLS,const xrpcwsconfig* Config,const xrpcwshttpconfig* HTTP,const xrpcwsdialconfig* Dial,xrpcws** Out,double Entered)
+{
+    if(!E||!Out||!xrtMemRangeValid(Out,sizeof(*Out))||(Dial&&(!xrtMemRangeValid(Dial,sizeof(*Dial))||xrtMemRangesOverlap(Dial,sizeof(*Dial),Out,sizeof(*Out)))))goto Argument;
+    xrpcwsdialconfig K={0};if(Dial)K=*Dial;else if(!xrpcWsDialConfigInit(&K))return false;
+    if(K.Size!=sizeof(K)||(K.Family!=XNET_FAMILY_UNSPEC&&K.Family!=XNET_FAMILY_IPV4&&K.Family!=XNET_FAMILY_IPV6)||K.FallbackDelay<0||!K.MaxAttempts||K.MaxAttempts>64||!K.MaxHostBytes||K.MaxHostBytes>65535||!K.MaxMetadataBytes||K.MaxMetadataBytes>16384||!xrtNetStreamConfigValid(&K.Stream))goto Argument;
+    if(Remote){if(!xrtMemRangeValid(Remote,sizeof(*Remote))||xrtMemRangesOverlap(Remote,sizeof(*Remote),Out,sizeof(*Out))||(Remote->Family!=XNET_FAMILY_IPV4&&Remote->Family!=XNET_FAMILY_IPV6)||!Remote->Port||(K.Family!=XNET_FAMILY_UNSPEC&&K.Family!=Remote->Family))goto Argument;}
+    else if(Addresses){
+        size_t Count=xrtNetAddrListCount(Addresses),Eligible=0;if(!Count||Count>64)goto Argument;
+        for(size_t I=0;I<Count;++I){const xnetaddr* A=xrtNetAddrListGet(Addresses,I);if(!A)return false;if(xrtMemRangesOverlap(A,sizeof(*A),Out,sizeof(*Out)))goto Argument;if(K.Family!=XNET_FAMILY_UNSPEC&&K.Family!=A->Family)continue;if(!A->Port)goto Argument;++Eligible;}if(!Eligible)goto Argument;
+    }else if(!Resolver||!Port||!Name.Size||Name.Size>K.MaxHostBytes||!xrtMemRangeValid(Name.Data,Name.Size)||xrtMemRangesOverlap(Name.Data,Name.Size,Out,sizeof(*Out))||memchr(Name.Data,0,Name.Size))goto Argument;
+    uint32 Workers=xrtNetEngineWorkerCount(E);if(!Workers)return xrpcWsReport(XERR_STATE,"WS dial Engine has no Worker");
+    xrpcwsupgrade* H=xrpcWsHttpControl(HTTP,false,Out,Entered);if(!H)return false;
+    if((Config&&(!xrtMemRangeValid(Config,sizeof(*Config))||xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out))))||H->Config.Authorize){xrpcWsHttpFreeControl(H);goto Argument;}
+    xrpcwsconfig C={0};if(Config)C=*Config;else xrpcWsConfigInit(&C);C.Stream.Role=XWS_ROLE_CLIENT;C.Stream.Protocol=(xstrview){0};C.Stream.DeflateEnabled=false;
+    if(!xrpcWsHttpRequest(H)){xrpcWsHttpFreeControl(H);return false;}
+    xrpcwsdialdata* D=xrtCalloc(1,sizeof(*D)+Name.Size+1);if(!D){xrpcWsHttpFreeControl(H);return false;}
+    D->Bytes=sizeof(*D)+Name.Size+1;D->Config=K;D->Resolver=Resolver;D->Affinity=Affinity;D->Port=Port;D->RawGone=true;D->Numeric=Remote!=NULL;if(Remote)D->Remote=*Remote;
+    xrtNetDialConfigInit(&D->Native);D->Native.Stream=K.Stream;D->Native.Family=K.Family;D->Native.Affinity=Affinity;D->Native.FallbackDelay=K.FallbackDelay;D->Native.MaxAttempts=K.MaxAttempts;D->Native.Timeout=0;
+    if(Addresses){D->Addresses=xrtNetAddrListRef(Addresses);if(!D->Addresses)goto Fail;}else if(Name.Size)memcpy(D->Name,Name.Data,Name.Size);
+    #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+    if(Secure){
+        const xtlsclientconfig* T=Client;
+        if(!T||!xrtMemRangeValid(T,sizeof(*T))||xrtMemRangesOverlap(T,sizeof(*T),Out,sizeof(*Out))||(!T->ServerName.Size&&!T->VerifyName.Size)||T->ProtocolCount>K.MaxMetadataBytes/sizeof(xstrview))goto BadTLS;
+        size_t Bytes=T->ProtocolCount*sizeof(xstrview);if(!xrtMemRangeValid(T->Protocols,Bytes)||xrtMemRangesOverlap(T->Protocols,Bytes,Out,sizeof(*Out)))goto BadTLS;
+        for(size_t I=0;I<T->ProtocolCount+2;++I){xstrview V=I==0?T->ServerName:I==1?T->VerifyName:T->Protocols[I-2];if(V.Size>K.MaxMetadataBytes-Bytes||!xrtMemRangeValid(V.Data,V.Size)||xrtMemRangesOverlap(V.Data,V.Size,Out,sizeof(*Out))||(I<2&&V.Size&&memchr(V.Data,0,V.Size)))goto BadTLS;Bytes+=V.Size;}
+        xrtTlsStreamConfigInit(&D->TLS);if(NativeTLS){if(!xrtMemRangeValid(NativeTLS,sizeof(D->TLS))||xrtMemRangesOverlap(NativeTLS,sizeof(D->TLS),Out,sizeof(*Out)))goto BadTLS;D->TLS=*(const xtlsstreamconfig*)NativeTLS;}
+        if(D->TLS.HandshakeTimeout<0||D->TLS.CloseTimeout<0||!D->TLS.AsyncBytesLimit||!D->TLS.AsyncCountLimit||!D->TLS.AsyncBatch)goto BadTLS;
+        D->Session=xrtTlsClientCreate(T,NULL);if(!D->Session)goto Fail;
+    }
+    #else
+    (void)Client;(void)NativeTLS;if(Secure)goto BadTLS;
+    #endif
+    xrpcws* P=xrpcWsCreate(xrtNetEngineWorker(E,(uint32)(Affinity%Workers)),&C,NULL,Out);if(!P)goto Fail;
+    H->TLS=Secure;H->Establishing=true;H->BindTLS=Secure;H->EventGone=true;H->Dial=D;P->Upgrade=H;P->Info.State=XRPC_WS_UPGRADING;P->Info.Encrypted=Secure;
+    P->UpgradeInfo=(xrpcwshttpinfo){.Size=sizeof(xrpcwshttpinfo),.Deadline=H->Deadline,.Secure=Secure};xrpcWsHttpCostAdd(P,H->Bytes+D->Bytes);
+    xrtMutexLock(&P->Gate);P->Active=true;xrpcWsRef(P);bool Posted=xrpcWsWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
+    if(!Posted){xerror* Error=xrtTakeError();xrpcWsDrop(P);H->Dial=NULL;xrpcWsDialFree(D);xrpcWsHttpDiscard(P);xrpcWsFree(P);xrtSetErrorTake(Error);}return Posted;
+BadTLS:
+    xrpcWsReport(XERR_ARGUMENT,"invalid WS TLS identity/metadata/stream policy");
+Fail:
+    {xerror* Error=xrtTakeError();xrpcWsDialFree(D);xrpcWsHttpFreeControl(H);xrtClearError();xrtSetErrorTake(Error);}return false;
+Argument:
+    return xrpcWsReport(XERR_ARGUMENT,"invalid WS dial policy/address/input/output");
+}
+XRPC_API bool xrpcWsConnect(xnetengine* E,const xnetaddr* A,uint64 F,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsDialCreate(E,A,NULL,NULL,(xstrview){0},0,F,false,NULL,NULL,C,H,D,Out,xrtTimer());}
+XRPC_API bool xrpcWsDial(xnetengine* E,xnetresolver* R,xstrview N,uint16 Port,uint64 F,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsDialCreate(E,NULL,R,NULL,N,Port,F,false,NULL,NULL,C,H,D,Out,xrtTimer());}
+XRPC_API bool xrpcWsDialAddresses(xnetengine* E,xnetaddrlist* A,uint64 F,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{if(!A)return xrpcWsReport(XERR_ARGUMENT,"WS endpoints are NULL");return xrpcWsDialCreate(E,NULL,NULL,A,(xstrview){0},0,F,false,NULL,NULL,C,H,D,Out,xrtTimer());}
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+XRPC_API bool xrpcWsConnectTls(xnetengine* E,const xnetaddr* A,uint64 F,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsDialCreate(E,A,NULL,NULL,(xstrview){0},0,F,true,T,S,C,H,D,Out,xrtTimer());}
+XRPC_API bool xrpcWsDialTls(xnetengine* E,xnetresolver* R,xstrview N,uint16 Port,uint64 F,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{return xrpcWsDialCreate(E,NULL,R,NULL,N,Port,F,true,T,S,C,H,D,Out,xrtTimer());}
+XRPC_API bool xrpcWsDialAddressesTls(xnetengine* E,xnetaddrlist* A,uint64 F,const xtlsclientconfig* T,const xtlsstreamconfig* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,const xrpcwsdialconfig* D,xrpcws** Out)
+{if(!A)return xrpcWsReport(XERR_ARGUMENT,"WSS endpoints are NULL");return xrpcWsDialCreate(E,NULL,NULL,A,(xstrview){0},0,F,true,T,S,C,H,D,Out,xrtTimer());}
+#endif
+#endif
 XRPC_API bool xrpcWsHttpClientTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)
 {return xrpcWsHttpCreate(S,false,false,C,H,Out,xrtTimer());}
 XRPC_API bool xrpcWsHttpServerTcp(xnetstream* S,const xrpcwsconfig* C,const xrpcwshttpconfig* H,xrpcws** Out)

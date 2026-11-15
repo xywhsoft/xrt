@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-developing-WS-WSS-client-establishment",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "12a4b9090bf1318465bb2a1ca1353bf968532c1d",
+  "new_modules": [
+    "xrpc_ws_dial",
+    "xrpc_ws_dial_tls"
+  ],
+  "new_functions": [
+    "xrpcWsDialConfigInit",
+    "xrpcWsConnect",
+    "xrpcWsDial",
+    "xrpcWsDialAddresses",
+    "xrpcWsConnectTls",
+    "xrpcWsDialTls",
+    "xrpcWsDialAddressesTls"
+  ],
+  "new_types": [
+    "xrpcwsdialconfig"
+  ],
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "complete_four_product_goal": false,
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "contract": "Concurrent numeric, borrowed host DNS or retained <=64 prepared endpoints return the same UPGRADING peer. Explicit HTTP Host/Target and mandatory TLS identity are distinct from routing. One original factory-entry HTTP setup deadline spans snapshots/owner queue/DNS/candidates/TLS/Upgrade; each RPC has its own entry clock. Snapshot bounded native TLS client metadata before return. Only the winning TCP connection starts TLS. No RPC before checked101, no replay/redirect/reconnect/credential retry or downgrade. Close joins real owned callback/raw/TLS/WS duties; host Resolver backend/code/data is joined separately.",
+  "ownership": "Fresh native TLS root context and replaceable events are distinct real owners. A separate root descriptor retains the peer, then an HTTP event credit is bound after verified Open/outside driver before HTTP. The existing exact HTTP-to-WS event exchange transfers the event slot; root peer credit retires at native destruction. No private Core access, relaxed state guard, diagnostic inspection alias, invented owner or new runtime.",
+  "resource_accounting": {
+    "ABI": {
+      "windows": {
+        "base": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 872
+        },
+        "plain": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 888,
+          "controller": 280,
+          "dial_config": 104
+        },
+        "dial": {
+          "config": 528,
+          "info": 680,
+          "peer": 1568,
+          "cold": 888,
+          "controller": 320,
+          "dial_config": 104
+        }
+      },
+      "wsl": {
+        "base": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 872
+        },
+        "plain": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 888,
+          "controller": 280,
+          "dial_config": 104
+        },
+        "dial": {
+          "config": 528,
+          "info": 680,
+          "peer": 1776,
+          "cold": 888,
+          "controller": 320,
+          "dial_config": 104
+        }
+      }
+    },
+    "description": "Public config528/info680 and private peer size unchanged across selections. Optional cold HTTP control +16; plain/TLS controller280/320 +copied DNS bytes+NUL, new public dial config104. ColdByte info charges adapter control/cache/auth/controller blocks; native candidates/sessions/crypto/buffers, allocator headers and shared caches are additional, not zero. TLS keeps a real root peer owner plus replaceable event owner until native physical retirement."
+  },
+  "verification": {
+    "windows": {
+      "validate": 6,
+      "singles": 4,
+      "backends": 5,
+      "regression": 10,
+      "interop": 180,
+      "delivery": 6,
+      "drop": 2,
+      "drop_tool": 2,
+      "primary_C_executions": 215
+    },
+    "wsl": {
+      "validate": 6,
+      "singles": 4,
+      "backends": 5,
+      "regression": 10,
+      "interop": 180,
+      "delivery": 6,
+      "drop": 2,
+      "tsan": 4,
+      "drop_tool": 2,
+      "primary_C_executions": 219
+    }
+  },
+  "late_drop_controls": {
+    "windows": {
+      "exit_code": 1,
+      "binary_sha256": "a9327ea9386a10b829f5d19d3b01b9580c5908cfad890733fd656c0c86c62b3c",
+      "source_sha256": "1cb7426f6a52d6a8c504cce2b9652df13aa5df115a1ffd22a4a77e9053bbca7e",
+      "log_sha256": "63436d1190bca36ca0974917af30bbff0987ca564e3089d698384dbd84a2e8a1",
+      "expected_failure": true
+    },
+    "wsl": {
+      "exit_code": 1,
+      "binary_sha256": "f9b07adce4cda7660ce4386eab8bfbce5eadd439fc5da9a681cc1963b691dcb9",
+      "source_sha256": "1cb7426f6a52d6a8c504cce2b9652df13aa5df115a1ffd22a4a77e9053bbca7e",
+      "log_sha256": "4aa2fc5624075f60079e4d2fdd8096b29f1430480e3a786bf0dad6057b0ce96c",
+      "expected_failure": true
+    }
+  },
+  "additional": "Expected-failing frozen pre-fix Drop control per host,3 ABI probes per host, static/shared package verification smokes, seven generator/API/layout/trim/maturity checks and five final documentation checks per host are excluded from primary C count.",
+  "functional_scope": "All three source forms over actual TCP and verified TLS; reverse calls/batches/notifications and independent retained responses. Held DNS cancel/setup expiry/close, DNS wrapper diagnostics, mutable routing/HTTP/TLS/context inputs and released verifier alias, original operation clocks, actual constructor allocation ladders with zero final original credits, real refused candidate then winner/no replay, zero setup before any connect, actual ClientHello timeout/close and TLS identity/h2 ALPN rejection before HTTP. Existing HTTP authorization/deadline/prebuffer/OOM/native-owner and WS wake/compression suites are also rerun.",
+  "independent_scope": "180 stdlib/OpenSSL sessions per host:38 original attach,38 --dial uncompressed,104 --dial compressed (context/no-context/decline/threshold/required omission/invalid negotiation/expansion limit and every8..15-bit window). --dial uses new numeric factories only in native client roles; native server cases retain the ordinary attach API. Both TCP/TLS, byte fragments/coalesced checked101/first valid RPC, exact huge IDs, reverse RPC, batch/notifications/control and acknowledged WS/TLS close/native joins. Original CLI/default attach mode is preserved. Runtime private keys are removed, no credentials published.",
+  "platform_limits": "Windows x64 GCC16.2 functional/O2; WSL Linux GCC15.2 functional ASan+UBSan/leak halt. Separate modular WSL TSan select/epoll for both new tests has no race suppressions; GCC atomic-fence unsupported-instrumentation warning is demoted from Werror. Static/shared packages are O2 unsanitized. Independent TLS here is the fixture-selected TLS1.3; TLS1.2/trust/resumption variants are not rerun. These are not native Linux, Windows sanitizer/handle-counter, controlled CPU/throughput/tail/scale or >=72h production acceptance.",
+  "failures": [
+    "Final review also identified premature cold-control disposal when the actual owned source context credit is retained past WS handoff. Keep source/header until its real Drop, clean it up after native ownership transferred, and stop applying the completed setup deadline to the live WS connection. The public-native wrapper moves one actual existing context credit into a holder (no increment, fabricated Count, result or IO); owner inspection, communication past the original deadline, Close timeout before release and physical joins verify it. Pre-fix source fails the specific retained-control invariant on both hosts. Complete primary suites/packages and fresh canonical Windows/TSan probes are rerun after the fix. A transient misleading-indentation compile error in the new guard was corrected without disabling warnings.",
+    "Initial fresh TLS reached101 but public WS event exchange failed STATE because its root context was not an explicitly bound event slot. Derived logging-only ws.c localized failure; fixed using public owned root/bind/exchange contracts, then revalidated all source forms/negatives and independent peers.",
+    "The first DNS-negative assertion expected the raw backend domain/code17. Core wraps it as IO/xrt.net/XNET_ERROR_DIAL_RESOLVE; preserve and assert that actual public native diagnostic instead of unwrapping or borrowing a transient cause.",
+    "Initial TLS single wrapper selected a featureless test-aggregator macro, which standalone selection does not expand. Real compile failed missing verifier/RSA types. Replace with explicit real TLS client verify/schedule/record/key-exchange/identity modules; all four standalone binaries rebuilt/run. Modular runtime was unaffected."
+  ],
+  "final_source_map": {
+    "path": "source.json",
+    "sha256": "644e0c2e15f44b9ca9ffe30c8c2996f450c94accee53a79d1dc0e0a2c0c13456"
+  },
+  "source_cohorts": {
+    "7a3101b9b0b510d8072744f86971b7a4d2328fc5bb09c35513a3d4a4bf422ede": [
+      "extlibs/xrpc/docs/ws_dial.md"
+    ]
+  },
+  "cohort_note": "Selected functional bodies/public/private headers match final inputs. Earlier non-single programs may predate only the corrected unused single wrappers and Markdown; selected TLS single programs use the corrected wrappers. Final docs-only changes are followed by generator/API/docs/maturity checks. Expected-failing baseline builds intentionally override only the frozen pre-fix production body and are comparison evidence, never accepted functional executions. Failed versions and logging-only diagnostics are retained.",
+  "raw_evidence": "out/service-extensions/xrpc-ws-dial-20261116/checkpoint-reviewed",
+  "physical_evidence": "out/local-service-extensions/xrpc-ws-dial-20261116/checkpoint-reviewed",
+  "artifact_seal": {
+    "path": "artifact-seal.json",
+    "sha256": "8b6addbe88dbd28d01cd696ad06987c555c313c326f7b3674349b549b96555b2",
+    "files": 1018
+  },
+  "remaining_gates": [
+    "URI input/composition, negotiated remote deadlines/cancellation and asynchronous framed stdio.",
+    "Broader async allocation/fault/fuzz and ordinary native TLS prefix performance outside the retained cache.",
+    "Controlled CPU/throughput, queue-inclusive P50/P95/P99/P99.9, copy/allocation/synchronization/syscall counts and scale, comparator baselines, native Windows/Linux>=72h and extra toolchains/Windows sanitizers.",
+    "Remaining original Redis/MQTT5/Cron scope and full four-product acceptance as defined by the plan and dated evidence; this phase does not audit their completion."
+  ]
+}

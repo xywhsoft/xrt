@@ -59,8 +59,10 @@ static bool rpcWsHttpServiceAccept(xnetlistener* L,xnetstream* Native,ptr Data)
 #endif
     rpcWsHttpServiceAttach(S,Native,true);return true;
 }
+#if !defined(XRPC_WS_HTTP_SERVICE_LISTEN_ONLY)
 static void rpcWsHttpServiceOpen(xnetstream* Native,ptr Data){rpcWsHttpServiceAttach(Data,Native,false);}
-static void rpcWsHttpServiceStartEx(rpcWsHttpService* S,bool TLS,const xrpcwsconfig* Config,bool Hold,size_t TimerLimit,const xrpcwshttpconfig* ClientHTTP,const xrpcwshttpconfig* ServerHTTP,xnetportbackend Backend)
+#endif
+static void rpcWsHttpServiceListen(rpcWsHttpService* S,bool TLS,const xrpcwsconfig* Config,bool Hold,size_t TimerLimit,const xrpcwshttpconfig* ClientHTTP,const xrpcwshttpconfig* ServerHTTP,xnetportbackend Backend)
 {
     memset(S,0,sizeof(*S));S->TLS=TLS;S->HoldHandler=Hold;xrtAtomic32Init(&S->ClientReady,0);xrtAtomic32Init(&S->ServerReady,0);xrtAtomic32Init(&S->Calls,0);xrtAtomic32Init(&S->NativeRefs,1);xrtAtomic32Init(&S->HandlerEntered,0);xrtAtomic32Init(&S->HandlerPermit,0);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;E.Backend=Backend;if(TimerLimit)E.TimerLimit=TimerLimit;S->Engine=xrtNetEngineCreate(&E);rpcWsHttpServiceRequire(S->Engine&&xrtNetEngineStart(S->Engine),"WS host Engine");xrpcserverconfig C;xrpcServerConfigInit(&C);C.Call=rpcWsHttpServiceEcho;C.User=S;rpcWsHttpServiceRequire(xrpcServerCreate(&C,&S->Server),"WS shared Server");
@@ -72,6 +74,12 @@ static void rpcWsHttpServiceStartEx(rpcWsHttpService* S,bool TLS,const xrpcwscon
     rpcWsHttpServiceRequire(!TLS,"TLS module not selected");
 #endif
     xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrLoopback(&L.Address,XNET_FAMILY_IPV4,0);xnetlistenerevents LE={rpcWsHttpServiceAccept,NULL,NULL};S->Listener=xrtNetListen(S->Engine,&L,&LE,NULL,S);rpcWsHttpServiceRequire(S->Listener&&xrtNetListenerLocal(S->Listener,&S->Address),"WS local listener");
+
+}
+#if !defined(XRPC_WS_HTTP_SERVICE_LISTEN_ONLY)
+static void rpcWsHttpServiceStartEx(rpcWsHttpService* S,bool TLS,const xrpcwsconfig* Config,bool Hold,size_t TimerLimit,const xrpcwshttpconfig* ClientHTTP,const xrpcwshttpconfig* ServerHTTP,xnetportbackend Backend)
+{
+    rpcWsHttpServiceListen(S,TLS,Config,Hold,TimerLimit,ClientHTTP,ServerHTTP,Backend);
 #if defined(XRPC_FEATURE_XRPC_WS_TLS)
     if(TLS){xtlsclientconfig K;xrtTlsClientConfigInit(&K);K.Context=S->Context;K.Verifier=S->Verifier;K.ServerName=XRT_STR_LITERAL("rpc.fixture");xrtAtomic32FetchAdd(&S->NativeRefs,1,XMEMORY_RELAXED);rpcWsHttpServiceRequire(xrtTlsStreamConnectOwnedV1(S->Engine,&S->Address,1,NULL,&K,NULL,S,&RpcWsHttpServiceTLSPolicy)!=NULL,"WSS native connect");}
     else
@@ -81,6 +89,7 @@ static void rpcWsHttpServiceStartEx(rpcWsHttpService* S,bool TLS,const xrpcwscon
 }
 static void rpcWsHttpServiceStart(rpcWsHttpService* S,bool TLS,const xrpcwsconfig* Config,bool Hold)
 {rpcWsHttpServiceStartEx(S,TLS,Config,Hold,0,NULL,NULL,XNET_PORT_SELECT);}
+#endif
 static const xrpccallresult* rpcWsHttpServiceResult(xfuture* F)
 {rpcWsHttpServiceRequire(xrtFutureWaitFor(F,15000)==XWAIT_OK,"WS call wait");const xrpccallresult* R=xrtFutureValue(F);rpcWsHttpServiceRequire(R!=NULL,"WS typed call result");return R;}
 static void rpcWsHttpServicePeerClose(xrpcws* P){if(P)rpcWsHttpServiceRequire(xrpcWsClose(P)&&xrpcWsWaitFor(P,10000)==XWAIT_OK&&xrpcWsDestroy(P),"WS physical peer retirement");}

@@ -1,4 +1,7 @@
 #include <xrpc/ws_http.h>
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+#include <xrpc/ws_dial.h>
+#endif
 #if defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
 #include <xrpc/ws_deflate.h>
 #endif
@@ -105,7 +108,15 @@ int main(int Argc,char** Argv)
         if(!strncmp(Argv[7],"window",6)){unsigned Bits=(unsigned)strtoul(Argv[7]+6,NULL,10);httpInteropRequire(Bits>=8&&Bits<=15,"fixture window");S.HTTP.Client.Deflate.Flags=XWS_DEFLATE_SERVER_MAX_WINDOW|XWS_DEFLATE_CLIENT_MAX_WINDOW;S.HTTP.Client.Deflate.ServerMaxWindowBits=S.HTTP.Client.Deflate.ClientMaxWindowBits=(uint8)Bits;}
     }
     #endif
-    if(S.Client){xnetaddr A;httpInteropRequire(xrtNetAddrParse(&A,"127.0.0.1",(uint16)Port),"numeric loopback");if(S.Secure){xtlsclientconfig TLS;xrtTlsClientConfigInit(&TLS);TLS.Verifier=S.Verifier;TLS.ServerName=XRT_STR_LITERAL("rpc.test");xrtAtomic32FetchAdd(&S.NativeRefs,1,XMEMORY_RELAXED);httpInteropRequire(xrtTlsStreamConnectOwnedV1(S.Engine,&A,1,NULL,&TLS,NULL,&S,&HttpInteropNative)!=NULL,"native TLS connect");}else{xnetstreamevents Events={.Open=httpInteropOpen};httpInteropRequire(xrtNetStreamConnect(S.Engine,&A,1,NULL,&Events,&S)!=NULL,"native TCP connect");}puts("READY");}
+    if(S.Client){xnetaddr A;httpInteropRequire(xrtNetAddrParse(&A,"127.0.0.1",(uint16)Port),"numeric loopback");
+        const char* Dial=getenv("XRPC_TEST_WS_DIAL");if(Dial&&Dial[0]=='1'){
+            #if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+            bool OK;if(S.Secure){xtlsclientconfig TLS;xrtTlsClientConfigInit(&TLS);TLS.Verifier=S.Verifier;TLS.ServerName=XRT_STR_LITERAL("rpc.test");OK=xrpcWsConnectTls(S.Engine,&A,1,&TLS,NULL,&S.RPC,&S.HTTP,NULL,&S.Peer);}else OK=xrpcWsConnect(S.Engine,&A,1,&S.RPC,&S.HTTP,NULL,&S.Peer);
+            httpInteropRequire(OK&&xrpcWsCall(S.Peer,XRT_STR_LITERAL("python_echo"),XRT_STR_LITERAL("[42]"),10000,&S.Call)==XRPC_DUPLEX_ACCEPTED,"full numeric WS/WSS dial and queued call");xrtAtomic32Store(&S.Ready,1,XMEMORY_RELEASE);
+            #else
+            return 2;
+            #endif
+        }else if(S.Secure){xtlsclientconfig TLS;xrtTlsClientConfigInit(&TLS);TLS.Verifier=S.Verifier;TLS.ServerName=XRT_STR_LITERAL("rpc.test");xrtAtomic32FetchAdd(&S.NativeRefs,1,XMEMORY_RELAXED);httpInteropRequire(xrtTlsStreamConnectOwnedV1(S.Engine,&A,1,NULL,&TLS,NULL,&S,&HttpInteropNative)!=NULL,"native TLS connect");}else{xnetstreamevents Events={.Open=httpInteropOpen};httpInteropRequire(xrtNetStreamConnect(S.Engine,&A,1,NULL,&Events,&S)!=NULL,"native TCP connect");}puts("READY");}
     else{xrtTlsServerConfigInit(&S.TLS);S.TLS.Identity=S.Identity;xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrLoopback(&L.Address,XNET_FAMILY_IPV4,0);xnetlistenerevents Events={httpInteropAccept,NULL,NULL};S.Listener=xrtNetListen(S.Engine,&L,&Events,NULL,&S);xnetaddr A;httpInteropRequire(S.Listener&&xrtNetListenerLocal(S.Listener,&A),"native listener");printf("PORT %u\n",(unsigned)A.Port);}
     double End=xrtTimer()+15;while(!xrtAtomic32Load(&S.Ready,XMEMORY_ACQUIRE)){httpInteropRequire(xrtTimer()<End,"factory readiness");xrtSleep(1);}httpInteropRequire(xrtAtomic32Load(&S.Ready,XMEMORY_ACQUIRE)==1,"native TLS handshake precedes factory");xwaitresult Wait=xrtFutureWaitFor(S.Call,5000);
     if(Wait!=XWAIT_OK){xrpcwsinfo D={.Size=sizeof(D)};(void)xrpcWsInfo(S.Peer,&D);fprintf(stderr,"[wait diagnostic] state%u reason%u messages%llu/%llu bytes%llu/%llu buffered%zu pending%zu native%d/%d\n",(unsigned)D.State,(unsigned)D.Reason,(unsigned long long)D.ReadMessages,(unsigned long long)D.WriteMessages,(unsigned long long)D.ReadBytes,(unsigned long long)D.WriteBytes,D.ReceiveBytes,D.Duplex.PendingCalls,(int)D.NativeErrorKind,(int)D.NativeErrorCode);if(S.Probe){xnetstreamstats N={0};(void)xrtNetStreamStats(xrtTlsStreamTransport(S.Probe),&N);fprintf(stderr,"[TLS diagnostic] state%u plain%zu pending%zu readpaused%d recv%llu\n",(unsigned)xrtTlsStreamState(S.Probe),xrtTlsStreamAvailable(S.Probe),xrtTlsStreamPending(S.Probe),(int)N.ReadPaused,(unsigned long long)N.ReceivedBytes);}}

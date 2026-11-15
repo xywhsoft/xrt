@@ -94,4 +94,8 @@
 #error "XRPC_FEATURE_XRPC requires optional WS HTTP compression support"
 #endif
 #include <xrpc/ws_deflate.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+#error "XRPC_FEATURE_XRPC requires WS/WSS connection setup"
+#endif
+#include <xrpc/ws_dial.h>
 #endif

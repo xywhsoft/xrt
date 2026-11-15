@@ -105,6 +105,12 @@
 #if !defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_WS_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL 1
+#endif
+#if !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL_TLS 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_WS_HTTP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP 1
 #endif
@@ -194,6 +200,12 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_WS_DEFLATE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_WS_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_WS_DIAL_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL_TLS 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_WS_HTTP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP 1
@@ -1457,6 +1469,9 @@
 #endif
 #if !defined(XRT_MODULE_TIME_TEXT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME_TEXT 1
+#endif
+#if !defined(XRT_MODULE_TLS_CLIENT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT 1
 #endif
 #if !defined(XRT_MODULE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME 1
@@ -2820,6 +2835,38 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
 #define XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#endif
+#endif
+
+/* xrpc_ws_dial_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#define XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL
+#define XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT
+#define XRT_MODULE_TLS_CLIENT
+#endif
+#endif
+
+/* xrpc_ws_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL
+#define XRPC_FEATURE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
 #endif
 #endif
 
@@ -5453,6 +5500,74 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/ws_dial.h */
+/* ========================================================================== */
+
+#ifndef XRPC_WS_DIAL_H
+#define XRPC_WS_DIAL_H
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL) && (!defined(XRPC_FEATURE_XRPC_WS_HTTP) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "RPC WS dial requires HTTP Upgrade and Core candidate dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS) && (!defined(XRPC_FEATURE_XRPC_WS_DIAL) || !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS) || !defined(XRT_FEATURE_TLS_CLIENT))
+#error "RPC WSS dial requires WS dial, owned TLS Upgrade and TLS client"
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL)
+typedef struct xrpcwsdialconfig {
+    size_t Size;
+    xnetstreamconfig Stream;
+    xnetfamily Family;
+    int64 FallbackDelay;
+    uint32 MaxAttempts;
+    size_t MaxHostBytes,MaxMetadataBytes;
+} xrpcwsdialconfig;
+XRT_EXTERN_C_BEGIN
+/* Native TCP defaults, dual stack,250ms fallback,8 attempts,1024 copied DNS
+ * bytes,16KiB TLS name/ALPN metadata. Hard64 endpoints/attempts,65535 DNS and
+ * 16KiB metadata. No Resolver/Engine/executor/thread is created. */
+XRPC_API bool xrpcWsDialConfigInit(xrpcwsdialconfig*);
+/* Concurrent factories return the SAME xrpcws handle in UPGRADING. HTTP.Host
+ * and Target remain explicit and independent of the routing address/DNSName.
+ * HTTP.SetupTimeout is ONE factory-entry monotonic deadline across copying,
+ * worker queue, DNS, candidates, verified TLS, Upgrade and authorization;0
+ * expires immediately,-1 disables that deadline. Native caps remain effective.
+ * Calls/batches/notifications can queue with their own original entry clocks.
+ * Only checked101 permits RPC bytes. No replay/reconnect, redirect, credential
+ * retry, scheme inference or cleartext fallback. False preserves output and
+ * consumes no aliases. Success copies inputs and returns one creator reference;
+ * Close/WaitFor/Destroy joins physical peer/native/owned Done/Drop duties.
+ * Resolver is borrowed through peer retirement, then joined separately by its
+ * host; cancelled shared backend lookups may outlive this owned callback.
+ * DNSName is bounded nonempty and NUL-free; no IDNA conversion is performed. */
+XRPC_API bool xrpcWsConnect(xnetengine*,const xnetaddr*,uint64 Affinity,
+    const xrpcwsconfig*,const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+XRPC_API bool xrpcWsDial(xnetengine*,xnetresolver*,xstrview DNSName,uint16 Port,uint64 Affinity,
+    const xrpcwsconfig*,const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+/* Retains <=64 immutable endpoints before return; selected ports nonzero and
+ * preserved, Family filters candidates. Caller may release its list at once. */
+XRPC_API bool xrpcWsDialAddresses(xnetengine*,xnetaddrlist*,uint64 Affinity,
+    const xrpcwsconfig*,const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+#if defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+/* Explicit Client.ServerName/VerifyName is mandatory, distinct from HTTP Host
+ * and DNS routing. Session snapshots names/ALPN and holds context/verifier/
+ * resume aliases before return. All borrowed native callback data/code remains
+ * resident through Destroy. Empty or http/1.1 negotiated ALPN only. Native TLS
+ * limits are copied; NULL uses defaults. TCP candidates never begin TLS. */
+XRPC_API bool xrpcWsConnectTls(xnetengine*,const xnetaddr*,uint64 Affinity,
+    const xtlsclientconfig*,const xtlsstreamconfig*,const xrpcwsconfig*,
+    const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+XRPC_API bool xrpcWsDialTls(xnetengine*,xnetresolver*,xstrview DNSName,uint16 Port,uint64 Affinity,
+    const xtlsclientconfig*,const xtlsstreamconfig*,const xrpcwsconfig*,
+    const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+XRPC_API bool xrpcWsDialAddressesTls(xnetengine*,xnetaddrlist*,uint64 Affinity,
+    const xtlsclientconfig*,const xtlsstreamconfig*,const xrpcwsconfig*,
+    const xrpcwshttpconfig*,const xrpcwsdialconfig*,xrpcws**);
+#endif
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -5526,6 +5641,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
 #error "XRPC_FEATURE_XRPC requires optional WS HTTP compression support"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+#error "XRPC_FEATURE_XRPC requires WS/WSS connection setup"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
@@ -5627,6 +5745,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE)
 #undef XRPC_FEATURE_XRPC_WS_DEFLATE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DEFLATE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL)
+#undef XRPC_FEATURE_XRPC_WS_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL_TLS)
+#undef XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_DIAL_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_WS_HTTP)
 #undef XRPC_FEATURE_XRPC_WS_HTTP
@@ -5747,6 +5873,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE)
 #undef XRPC_MODULE_XRPC_WS_DEFLATE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DEFLATE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL)
+#undef XRPC_MODULE_XRPC_WS_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL_TLS)
+#undef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_DIAL_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_WS_HTTP)
 #undef XRPC_MODULE_XRPC_WS_HTTP
@@ -7432,6 +7566,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_TIME_TEXT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME_TEXT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT)
+#undef XRT_MODULE_TLS_CLIENT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME)
 #undef XRT_MODULE_TLS_CLIENT_RESUME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME
@@ -7618,6 +7756,38 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
 #define XRPC_MODULE_XRPC_WS_HTTP_DEFLATE
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL_TLS
+#define XRPC_MODULE_XRPC_WS_DIAL_TLS
+#endif
+#endif
+
+/* xrpc_ws_dial_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#define XRPC_FEATURE_XRPC_WS_DIAL_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_DIAL
+#define XRPC_MODULE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP_TLS
+#define XRPC_MODULE_XRPC_WS_HTTP_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT
+#define XRT_MODULE_TLS_CLIENT
+#endif
+#endif
+
+/* xrpc_ws_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_DIAL)
+#ifndef XRPC_FEATURE_XRPC_WS_DIAL
+#define XRPC_FEATURE_XRPC_WS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_HTTP
+#define XRPC_MODULE_XRPC_WS_HTTP
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
 #endif
 #endif
 

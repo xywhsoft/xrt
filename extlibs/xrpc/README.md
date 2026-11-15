@@ -256,3 +256,10 @@ uses five-byte fragments; independent stdin/stdout tests compose the production
 framer with dispatch. The duplex runtime and framed TCP/TLS adapters are available;
 a production process adapter remains required. The framing leaf adds no thread,
 Future, JSON or transport.
+
+The optional [WS/WSS dial leaf](docs/ws_dial.md) creates one peer directly from a
+numeric endpoint, borrowed asynchronous Resolver or retained prepared endpoints.
+It composes verified TLS and checked HTTP Upgrade under one original setup clock,
+with queued RPC operations, native typed results and physical close/owner joins.
+Run [the client-establishment example](examples/ws_dial/README.md). URI input,
+negotiated remote extensions and production/performance qualification remain open.
