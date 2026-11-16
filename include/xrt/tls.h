@@ -3,6 +3,9 @@
 
 #include <xrt/core.h>
 
+/* Shared opaque identity used by both client and server configurations. */
+typedef struct xtlsresume xtlsresume;
+
 
 
 #if defined(XRT_FEATURE_TLS_RECORD) && !defined(XRT_FEATURE_TLS)

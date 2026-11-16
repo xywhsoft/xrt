@@ -11,10 +11,6 @@
 
 
 
-/* 关闭会话恢复实现时仍保留公开配置使用的不透明类型。 */
-#if !defined(XRT_FEATURE_TLS_SERVER_RESUME)
-typedef struct xtlsresume xtlsresume;
-#endif
 
 
 

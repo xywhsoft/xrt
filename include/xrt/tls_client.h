@@ -21,9 +21,6 @@
 typedef struct xtlsverifier xtlsverifier;
 #endif
 
-#if !defined(XRT_FEATURE_TLS_CLIENT_RESUME)
-typedef struct xtlsresume xtlsresume;
-#endif
 
 
 

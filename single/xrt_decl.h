@@ -29322,6 +29322,9 @@ XRT_EXTERN_C_END
 #define XRT_TLS_H
 
 
+/* Shared opaque identity used by both client and server configurations. */
+typedef struct xtlsresume xtlsresume;
+
 
 
 #if defined(XRT_FEATURE_TLS_RECORD) && !defined(XRT_FEATURE_TLS)
@@ -34106,7 +34109,6 @@ XRT_EXTERN_C_END
 
 #if defined(XRT_FEATURE_TLS_RESUME)
 
-typedef struct xtlsresume xtlsresume;
 
 
 
@@ -34230,9 +34232,6 @@ XRT_EXTERN_C_END
 typedef struct xtlsverifier xtlsverifier;
 #endif
 
-#if !defined(XRT_FEATURE_TLS_CLIENT_RESUME)
-typedef struct xtlsresume xtlsresume;
-#endif
 
 
 
@@ -34683,10 +34682,6 @@ XRT_EXTERN_C_END
 
 
 
-/* 关闭会话恢复实现时仍保留公开配置使用的不透明类型。 */
-#if !defined(XRT_FEATURE_TLS_SERVER_RESUME)
-typedef struct xtlsresume xtlsresume;
-#endif
 
 
 

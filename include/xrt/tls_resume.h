@@ -16,7 +16,6 @@
 
 #if defined(XRT_FEATURE_TLS_RESUME)
 
-typedef struct xtlsresume xtlsresume;
 
 
 
