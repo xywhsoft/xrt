@@ -492,6 +492,30 @@
         "extlibs/xtp/bench/bench_production.c"
       ],
       "docs": []
+    },
+    {
+      "name": "xtp_delivery_native_tests",
+      "state": "developing",
+      "feature": null,
+      "depends": [
+        "xtp_native",
+        "xtp_delivery"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_delivery_native.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_delivery_native.c"
+      ],
+      "single_test_owners": {
+        "extlibs/xtp/tests/single/test_single_xtp_delivery_native.c": "xtp_delivery_native_tests"
+      },
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     }
   ],
   "dependency_manifests": [

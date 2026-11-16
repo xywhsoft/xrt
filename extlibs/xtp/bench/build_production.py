@@ -17,7 +17,7 @@ def main():
     cflags=['-O1','-g','-fsanitize=address,undefined','-fno-sanitize-recover=all'] if args.sanitizers else ['-O2']
     ldflags=['-fsanitize=address,undefined'] if args.sanitizers else []
     performance._compile_benchmark(performance.xrt_build._compiler(args.compiler),'native',
-        {'source':'extlibs/xtp/bench/bench_production.c','suite':'xtp_wss_tests,time'},
+        {'source':'extlibs/xtp/bench/bench_production.c','suite':'xtp_wss_tests,xtp_delivery,time'},
         {'cflags':cflags,'ldflags':ldflags},args.output.resolve(),
         tuple(performance.expand_manifest_paths([Path('extlibs/xtp/config/modules.json')])))
 

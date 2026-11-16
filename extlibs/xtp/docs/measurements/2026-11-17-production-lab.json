@@ -9,7 +9,9 @@
     "recorder_false_pass_tests": "passed",
     "lab_udp_nat_blackout_key_rotation": "passed",
     "continuous_72h": "pending",
-    "target_devices_and_carrier_network": "pending"
+    "target_devices_and_carrier_network": "pending",
+    "real_tls_resume_and_failure": "passed",
+    "extended_fuzz": "pending"
   },
   "controlled_p99": {
     "count_per_shape_repeat": 1000000,
@@ -56,7 +58,12 @@
     "smoke-wss.json": "d926ebc5f842de0204abe76276b8497ae189ad95d243a1cd06943d104b8d103a",
     "smoke-wss-asan.json": "4870468cc0925c006b5cd86453551bb4b448cd4a040d5e8b0b705a29bed83735",
     "recorder-tests-final.log": "a793ace89b4c1e6de5a57ac27ff723544c8df90b38d5661087422cf5926acae2",
-    "udp-path-keys-asan.log": "87ea9b1c6eff9a4247accc85edacd78657526067ccf034d6e909ee6b57dc38f0"
+    "udp-path-keys-asan.log": "87ea9b1c6eff9a4247accc85edacd78657526067ccf034d6e909ee6b57dc38f0",
+    "tls-recovery-windows-single.log": "b24f992c9ffc8ecf1f1c7c5ba824ea256b03a9d4e82867eaf7652512565d50af",
+    "tls-recovery-asan.log": "9fb1199ee6fd2ab80e19b011c30dd1f095ff5a27c1127f42701e7d006c408df6",
+    "smoke-full-tls.json": "5099b34edbd493b2a01cef7a2ac1489d3d1723f1d49cb7e72c45007bf4b9506d",
+    "smoke-full-wss-asan.json": "4d9d2d69cc14a26cd5df4865ce21831c14871a67f76c98f20f570d4bd25cd820",
+    "fuzz-seeded-preflight.json": "f1656eb67fca133f60c706763d8c1fa272358f2ba9cb9d31352fef96411f47ee"
   },
   "device_inventory": "ADB found; devices -l reported no connected devices; user asked for target equipment/endpoints",
   "long_run_conditions": {
@@ -68,5 +75,10 @@
     "warmup_seconds": 300,
     "live_growth_allowance_bytes_per_peer": 131072
   },
-  "qualification_rule": "pending/running/failure never count as pass; physical mobile/carrier/NAT targets require actual target environment"
+  "qualification_rule": "pending/running/failure never count as pass; physical mobile/carrier/NAT targets require actual target environment",
+  "full_build_includes_delivery": true,
+  "preflight_interruptions": {
+    "classification": "operator stopped minimal native variant before formal long run; interrupted reports remain failed and their runtime is not accumulated",
+    "evidence_sha256": "b9fc797f48dc395ac6ddc49c801ad184ada5e10001659a9767cecbd61ab89d77"
+  }
 }
