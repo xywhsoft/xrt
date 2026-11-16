@@ -24,6 +24,10 @@
 #include <xmqtt/negotiation.h>
 #include <xmqtt/session.h>
 #include <xmqtt/session_image.h>
+#include <xmqtt/journal.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#error "MQTT root requires journal"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE)
 #error "MQTT root requires Session images"
 #endif

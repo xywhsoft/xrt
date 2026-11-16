@@ -5,6 +5,17 @@ verified separately. The file store, live transaction driver, durable Inbox and
 crash recovery below remain required work. This plan preserves the original
 four-product objective and does not label a protocol checkpoint as durable MQTT.
 
+The developing `xmqtt_journal` now supplies a bounded, versioned transaction
+envelope over an exclusively owned, already durably published borrowed `xfile`.
+Data sync precedes both latest commit witnesses and publication sync. Recovery
+checks committed history before suffix retirement; no silent older fallback.
+This primitive uses public file/VFS/CRC APIs and opaque schema-tagged payloads;
+it does not implement the MQTT delta schema, file namespace/lock policy,
+asynchronous driver, compaction, group commit or durable Inbox. Public anchored
+rename/creation does not yet supply a complete directory publication durability
+contract. Resolve that reproduced boundary in the full store before claiming
+creation/replacement survives power loss; do not infer it from file flush alone.
+
 ## State and ownership
 
 - One store owns one broker/security-principal/logical-slot binding, immutable

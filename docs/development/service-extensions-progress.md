@@ -13532,3 +13532,40 @@ and out/service-extensions/xrpc-frame-20261112.
   journal/Inbox/ack ordering, real sync/crash recovery, compaction and controlled
   native performance/soak work. Twenty-one developing MQTT modules keep strict
   release closed; the original Redis/RPC/Cron scope remains active.
+
+## 2026-11-16 — bounded MQTT transactional journal (developing)
+
+- Added7 public Journal APIs over an exclusively owned, caller-supplied, already
+  durably published XRT file. No new Core API/shared runtime. Frame data sync
+  precedes both latest4096-byte commit witnesses and publication sync. Successful
+  append performs no heap allocation or extra payload copy; all real CRC/I/O/
+  sync costs remain. Opaque schema-tagged payloads are not durable MQTT state.
+- Recovery validates the highest chosen committed prefix without older fallback,
+  returns at most one bounded transaction per call, and admits writes only after
+  final sequence/chain validation plus uncommitted-suffix resize/sync. Definite
+  and uncertain append failures poison the owner; outputs remain atomic.
+- Windows/WSL modular/single, complete root and stats-off smoke, separate static/
+  shared packages and all7-API declaration consumers pass. WSL ASan/UBSan/leaks
+  pass. Each fault binary runs224 partial-write/sync/cache models,12427 committed
+  bit faults and12427 truncations; each reader binary injects72 partial reads.
+  OOM/refunds/reentry/error isolation/borrowed file lifetimes and bounds pass.
+- Across12 forms,84 real child kills at7 native I/O/sync barriers recover exact
+  payloads with84 fresh processes;72 opposite-OS reads and independent Python
+  struct/zlib fixture/oracle pass. Process kill does not prove physical powerloss.
+  Original tested executables/runtime libraries and source-cohort hashes remain
+  preserved even after later rebuilds for the separate read-failure matrix.
+- Closed-loop native two-sync diagnostics use5x1000 samples for256/4096-byte
+  transactions plus separate allocation runs. Windows NTFS and WSL ext4 are
+  different devices/filesystems and cannot be ranked as OS implementations.
+  Quality gates fail12 Windows and7 WSL metrics with unchanged MAD/range limits;
+  performance acceptance remains open. Actual hot XRT allocations are0/op.
+- Concurrent master commit d7159a85 added only the XTP design. The post-run guard
+  stopped Windows metadata assembly after the last successful sample; mapped
+  source hashes were all identical, so summaries use the original samples. The
+  unrelated commit was preserved and the remaining work continues linearly.
+- [Stage evidence](xmqtt-journal-20261116.json) records exact receipts, old/new
+  source identities, diagnostics and limitations. The [full store plan](xmqtt-store-design.md)
+  still requires durable namespace publication/locking/compaction, group commit,
+  live MQTT deltas/async driver/Inbox/ACK ordering, broker/device qualification and
+  controlled native >=72h runs. Twenty-two developing MQTT modules keep strict
+  release closed; original Redis/RPC/Cron scope and the four-product goal remain.

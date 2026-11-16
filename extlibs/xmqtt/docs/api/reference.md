@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `145` 个函数、`231` 个常量或宏、
-`82` 个公共类型。
+当前登记 `152` 个函数、`246` 个常量或宏、
+`89` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -371,6 +371,49 @@
 - `XMQTT_BUILD_SHARED`
 - `XMQTT_USE_SHARED`
 
+## `extlibs/xmqtt/include/xmqtt/journal.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/journal.h)
+
+### 函数 (7)
+
+- `xmqttJournalAppend`
+- `xmqttJournalConfigInit`
+- `xmqttJournalCreate`
+- `xmqttJournalDestroy`
+- `xmqttJournalInfo`
+- `xmqttJournalNext`
+- `xmqttJournalOpen`
+
+### 常量与宏 (16)
+
+- `XMQTT_FEATURE_XMQTT_JOURNAL`
+- `XMQTT_FEATURE_XMQTT_WIRE`
+- `XMQTT_JOURNAL_COMMITTED`
+- `XMQTT_JOURNAL_CORRUPT`
+- `XMQTT_JOURNAL_DONE`
+- `XMQTT_JOURNAL_EMPTY`
+- `XMQTT_JOURNAL_ERROR`
+- `XMQTT_JOURNAL_IO`
+- `XMQTT_JOURNAL_LIMIT`
+- `XMQTT_JOURNAL_MAY_BE_COMMITTED`
+- `XMQTT_JOURNAL_NOT_COMMITTED`
+- `XMQTT_JOURNAL_POISONED`
+- `XMQTT_JOURNAL_READY`
+- `XMQTT_JOURNAL_RECOVERING`
+- `XMQTT_JOURNAL_STATE`
+- `XMQTT_JOURNAL_UNCERTAIN`
+
+### 类型 (7)
+
+- `xmqttjournal`
+- `xmqttjournalconfig`
+- `xmqttjournaleffect`
+- `xmqttjournalinfo`
+- `xmqttjournalrecord`
+- `xmqttjournalstate`
+- `xmqttjournalstatus`
+
 ## `extlibs/xmqtt/include/xmqtt/negotiation.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/negotiation.h)
@@ -422,7 +465,7 @@
 - `xmqttCodecConfigInit`
 - `xmqttPacketInit`
 
-### 常量与宏 (24)
+### 常量与宏 (23)
 
 - `XMQTT_CODEC_ARGUMENT`
 - `XMQTT_CODEC_CAPACITY`
@@ -443,7 +486,6 @@
 - `XMQTT_CODEC_TOPIC_ALIAS_REPEAT`
 - `XMQTT_CODEC_UNSUPPORTED`
 - `XMQTT_CODEC_VERSION`
-- `XMQTT_FEATURE_XMQTT_WIRE`
 - `XMQTT_SUBSCRIBE_NO_LOCAL`
 - `XMQTT_SUBSCRIBE_QOS_MASK`
 - `XMQTT_SUBSCRIBE_RETAIN_AS_PUBLISHED`

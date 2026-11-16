@@ -87,6 +87,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_CODEC5)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_NEGOTIATION 1
 #endif
@@ -173,6 +176,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CODEC5)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_JOURNAL)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_NEGOTIATION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_NEGOTIATION 1
@@ -1415,6 +1421,9 @@
 #endif
 #if !defined(XRT_MODULE_CRC32)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32 1
+#endif
+#if !defined(XRT_MODULE_FILE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE 1
 #endif
 #if !defined(XRT_MODULE_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE 1
@@ -2775,6 +2784,25 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #define XMQTT_MODULE_XMQTT_SESSION_IMAGE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#endif
+
+/* xmqtt_journal 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL
+#define XMQTT_FEATURE_XMQTT_JOURNAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
 #endif
 #endif
 
@@ -5127,6 +5155,86 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/journal.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_JOURNAL_H
+#define XMQTT_JOURNAL_H
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL) && (!defined(XMQTT_FEATURE_XMQTT_WIRE) || !defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_CRC32))
+#error "MQTT journal requires wire, file and CRC32"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+typedef struct xmqttjournal xmqttjournal;
+typedef enum xmqttjournalstatus {
+    XMQTT_JOURNAL_UNCERTAIN=-6,XMQTT_JOURNAL_IO=-5,XMQTT_JOURNAL_CORRUPT=-4,
+    XMQTT_JOURNAL_STATE=-3,XMQTT_JOURNAL_ERROR=-2,
+    XMQTT_JOURNAL_EMPTY=0,XMQTT_JOURNAL_DONE=1,XMQTT_JOURNAL_LIMIT=2
+} xmqttjournalstatus;
+typedef enum xmqttjournaleffect {
+    XMQTT_JOURNAL_NOT_COMMITTED=0,XMQTT_JOURNAL_MAY_BE_COMMITTED=1,XMQTT_JOURNAL_COMMITTED=2
+} xmqttjournaleffect;
+typedef enum xmqttjournalstate {
+    XMQTT_JOURNAL_RECOVERING=0,XMQTT_JOURNAL_READY=1,XMQTT_JOURNAL_POISONED=2
+} xmqttjournalstate;
+typedef struct xmqttjournalconfig {
+    size_t Size;xmqttversion Version;xbytesview Binding;uint64 Generation;
+    uint32 PayloadSchema;size_t MaxTransactionBytes,MaxMemoryBytes;uint64 MaxFileBytes;
+} xmqttjournalconfig;
+typedef struct xmqttjournalrecord {uint64 Sequence;xbytesview Data;} xmqttjournalrecord;
+typedef struct xmqttjournalinfo {
+    xmqttjournalstate State;xmqttjournaleffect Effect;
+    uint64 Sequence,CommittedEnd,AttemptSequence,AttemptEnd;
+    size_t MemoryBytes;uint32 Chain;
+} xmqttjournalinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: MQTT5, schema1,1MiB transaction,2MiB memory,1GiB file. Set exact
+ * opaque broker/principal/slot Binding (1..1024 bytes), nonzero Generation.
+ * Schema is an application format discriminator; payload semantics are opaque.
+ * This developing storage primitive is not a durable MQTT Client/Inbox. */
+XMQTT_API bool xmqttJournalConfigInit(xmqttjournalconfig* Config);
+/* Borrow a READ/WRITE absolute-I/O/stat/resize/flush file, without APPEND/ASYNC.
+ * Caller exclusively serializes its CONTENT through Destroy and then closes
+ * it. No file lock/close/namespace publication is performed here. Native file
+ * must already be durably published; virtual provider must implement real sync
+ * semantics if durability is required. Filesystem/device assumptions still apply.
+ * Create requires length0, initializes version1 and synchronizes before success;
+ * failed creation may leave partial bytes. Open validates descriptor and two
+ * commit witnesses; replay ALL committed records before Append is admitted.
+ * One bounded allocation (including replay buffer), no growing storage cache.
+ * Constructors leave Journal untouched on failure; never take File ownership. */
+XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
+XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
+/* At most one transaction per call. Record.Data is borrowed until ANY next
+ * operation/Destroy. Validate committed frames/checksums before publishing a
+ * record. EMPTY verifies final sequence/chain, truncates any uncommitted suffix
+ * and syncs before READY. Corrupt committed data is fatal, never older fallback.
+ * A local capacity LIMIT leaves the cursor intact; reopen with larger limits.
+ * Replay can have returned earlier records before a later failure: callers
+ * must stage recovered application state until EMPTY establishes readiness. */
+XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* Journal,xmqttjournalrecord* Record);
+/* Storage-worker primitive: blocking two sync barriers, never call in a network
+ * callback. Borrow immutable disjoint payload only during this call. Success
+ * writes frame, syncs data, writes BOTH latest witnesses and syncs publication.
+ * No allocation/payload copy on success; two payload CRC scans, three frame
+ * writes, two4096-byte witness writes and two flushes for nonempty payload.
+ * Before witness write: IO means definitely not committed. From first witness
+ * write: UNCERTAIN may be recovered. Both failures poison; reopen to resolve.
+ * A fully published transaction can survive even when its caller saw no success.
+ * Sequence output changes only on DONE. LIMIT is normal refusal without I/O. */
+XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* Journal,xbytesview Data,uint64* Sequence);
+/* One serialized owner, no concurrent/reentrant operations. Reentry from a
+ * synchronous file backend is rejected, including Info/Destroy. All caller
+ * outputs must be disjoint from inputs and all Journal storage. DONE/EMPTY/LIMIT
+ * preserve ambient errors; failure publishes an operation error. Diagnostics
+ * may allocate. CRC detects accidental corruption, not forgery or rollback. */
+XMQTT_API bool xmqttJournalInfo(xmqttjournal* Journal,xmqttjournalinfo* Info);
+XMQTT_API bool xmqttJournalDestroy(xmqttjournal* Journal);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -5146,6 +5254,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_NEGOTIATION"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#error "MQTT root requires journal"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE)
 #error "MQTT root requires Session images"
@@ -5241,6 +5352,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5)
 #undef XMQTT_FEATURE_XMQTT_CODEC5
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL)
+#undef XMQTT_FEATURE_XMQTT_JOURNAL
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #undef XMQTT_FEATURE_XMQTT_NEGOTIATION
@@ -5357,6 +5472,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5)
 #undef XMQTT_MODULE_XMQTT_CODEC5
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL)
+#undef XMQTT_MODULE_XMQTT_JOURNAL
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_NEGOTIATION)
 #undef XMQTT_MODULE_XMQTT_NEGOTIATION
@@ -7014,6 +7133,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_CRC32
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE)
+#undef XRT_MODULE_FILE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE)
 #undef XRT_MODULE_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE
@@ -7187,6 +7310,25 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #define XMQTT_MODULE_XMQTT_SESSION_IMAGE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#endif
+
+/* xmqtt_journal 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL
+#define XMQTT_FEATURE_XMQTT_JOURNAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
 #endif
 #endif
 

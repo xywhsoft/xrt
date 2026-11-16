@@ -5,7 +5,11 @@ The developing [Session image codec](docs/session_image.md) checkpoints bounded
 outgoing QoS/committed incoming identities under an explicit broker/principal/slot
 binding, validates corruption and quotas, and restores independent clock epochs
 and server-assigned MQTT5 identity. See the [offline example](examples/session_image/README.md).
-Full transactional Inbox/journal/acknowledgement durability remains pending.
+The developing [transactional journal](docs/journal.md) adds bounded, checksummed
+records with two sync barriers and redundant latest commit witnesses on an
+explicitly supplied, already published XRT file. See the [storage-worker example](examples/journal/README.md).
+Full file publication/compaction, live transactional Inbox and acknowledgement
+durability remain pending.
 Optional [WSS credential handoff](docs/client_ws_tls_resume.md) now connects
 native ticket-only events to the existing bounded TLS resume cache across
 direct/HTTP/URI channels and ordinary reconnect factories. See the

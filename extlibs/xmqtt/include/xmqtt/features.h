@@ -73,6 +73,25 @@
 #ifndef XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #define XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#endif
+
+/* xmqtt_journal 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL
+#define XMQTT_FEATURE_XMQTT_JOURNAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
+#ifndef XRT_MODULE_FILE
+#define XRT_MODULE_FILE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
 #endif
 
 /* xmqtt_session_image 及其直接依赖。 */
