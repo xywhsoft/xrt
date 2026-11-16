@@ -138,6 +138,8 @@ MetadataSize=0 是无参数的唯一规范编码。非空参数区以 UInt16 Cou
 
 参数值和 Body 均为显式长度的二进制视图，允许零长度和嵌入 NUL。库不创建 xvalue、xdict、参数字符串或数字对象。值的类型、字节序及必需字段由应用 schema 定义。
 
+API 中的 ParamID 是 array 的零起始下标，不是另一个在线路上传输的稀疏数字 key。Command 与参数的四种组合及统一回调见 [消息 API 与回调设计](xtp3-api.md)。
+
 所有结束偏移相对于参数数据区起点，不包含 Count 和描述表。完整验证参数区后才交付消息。最后一个结束偏移必须等于数据区长度，拒绝隐藏尾字节、回退偏移和越界项。
 
 ### 4.2 Array 模式
@@ -400,13 +402,15 @@ MaxIncomingRequests×MaxResponseBytes 等预留也必须落在总配额内；资
 
 名称使用 `xtp` 前缀。下面固定职责和契约，最终 C 声明通过头文件及消费示例确认 ABI，不为每种传输、命令模式或参数模式复制 API。
 
+具体描述类型、构造 helper、Submit/Reply 声明及 OnMessage/OnComplete 规则见 [消息 API 与回调设计](xtp3-api.md)。发送使用带 Kind 的 Command/Params 描述，接收使用经过验证的只读视图；不要求应用填写原始 flags。
+
 | 入口 | 职责 |
 | --- | --- |
 | ConfigInit / Create / Destroy | 配置与实例生命周期；Create 复制配置 |
 | Bind / Unbind | 绑定或报告网络断开，隔离旧 Generation；Unbind 不等于终结逻辑会话 |
 | Input | STREAM/RECORD 输入，报告 Used，校验后回调 |
 | End | 显式接收结束或 RecordEnd；零长度 Input 不是 EOF |
-| Submit | 一个或一组 REQUEST/PUSH/NOTIFY，原子受理，分配 ID |
+| Submit / SubmitBatch | 单条或批量 REQUEST/PUSH/NOTIFY，原子受理，分配 ID；单条共用 Count=1 实现 |
 | Reply | 使用有效请求令牌提交一个 RESPONSE |
 | Output / Advance | 获取待发视图并提交下层真正受理的前缀或报文 |
 | Drive | 推进期限、背压恢复和可选重投，返回 next_due |
@@ -415,6 +419,8 @@ MaxIncomingRequests×MaxResponseBytes 等预留也必须落在总配额内；资
 | ParamAt / ParamNext / ParamFind | array 下标、顺序迭代、table 二分查找 |
 
 回调包括 OnMessage、OnComplete 和 OnFault。OnMessage 只做应用决策：ACCEPT、BUSY、REJECT、PAUSE。PAUSE 表示尚未产生业务效果，不发送成功 ACK；恢复后才可再次交付。REQUEST 的 ACCEPT 表示应用持有应答责任，PUSH 的 ACCEPT 表示投递接管，NOTIFY 的 BUSY/REJECT 均可丢弃。
+
+OnMessage 只发布入站 REQUEST/PUSH/NOTIFY。匹配的 RESPONSE/ACK 经 OnComplete 完成原提交，不在两个回调中重复交付同一个结果；RESULT_ACK 等内部确认不进入业务消息回调。
 
 回调可在定义的入口同步 Submit/Reply，但这些操作只排队，不递归派发 Input 或完成回调。Destroy、Bind、Close 的最终销毁及重入 Input 在活动回调中禁止或延后；回调返回后统一提交状态并检查关闭标记。
 
