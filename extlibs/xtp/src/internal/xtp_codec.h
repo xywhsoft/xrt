@@ -33,4 +33,9 @@ static inline xtpresult xtp__Envelope(const unsigned char* p,const xtpcodecconfi
     *size=n;return XTP_OK;
 }
 xtpresult xtp__CodecConfig(const xtpcodecconfig* Input,xtpcodecconfig* Config);
+/* Header/envelope already checked; command+metadata bytes must be readable.
+ * Body is not touched. This lets readers discard malformed frames before
+ * allocating/copying their bodies. Returned views are not delivered yet. */
+xtpresult xtp__DecodePrefix(const unsigned char* Data,size_t Size,
+    const xtpcodecconfig* Config,xtpframeview* Frame);
 #endif

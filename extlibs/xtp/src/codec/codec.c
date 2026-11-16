@@ -180,6 +180,27 @@ static xtpresult xtpMetadata(xbytesview wire,xtpparamkind kind,const xtpcodeccon
     if(kind==XTP_PARAMS_TABLE&&n>1){xtpkeys k={NULL,table,data};if(!xtpUnique(&k,n))return XTP_E_VALUE;}
     out->Count=n;return XTP_OK;
 }
+xtpresult xtp__DecodePrefix(const unsigned char* p,size_t size,const xtpcodecconfig* config,xtpframeview* frame)
+{
+    unsigned flags=p[17];size_t cmd=xtp__U16(p+18),meta=xtp__U32(p+20);xtpresult r;
+    if(flags&~15u)return XTP_E_VALUE;
+    xtpframeview f;memset(&f,0,sizeof(f));f.Type=(xtpmessagekind)p[16];f.MessageID=xtp__U64(p+8);
+    uint32_t status=xtp__U32(p+24);f.Status=status<=INT32_MAX?(int32_t)status:-(int32_t)(UINT32_MAX-status)-1;
+    f.Command.Kind=(f.Type==XTP_REQUEST||f.Type==XTP_PUSH||f.Type==XTP_NOTIFY)?
+        (flags&1?XTP_COMMAND_ID:XTP_COMMAND_NAME):XTP_COMMAND_NONE;
+    f.Replayable=(flags&8)!=0;f.ResultAck=(flags&4)!=0;
+    if(f.Command.Kind==XTP_COMMAND_ID)f.Command.As.ID=xtp__U32(p+28);
+    else if(f.Command.Kind==XTP_COMMAND_NAME)f.Command.As.Name=(xstrview){(const char*)p+32,cmd};
+    f.Body=(xbytesview){p+32+cmd+meta,size-32-cmd-meta};f.Packet=(xbytesview){p,size};
+    if(f.Command.Kind==XTP_COMMAND_NONE && (flags&1))return XTP_E_VALUE;
+    r=xtpFields(f.Type,f.MessageID,f.Command.Kind,cmd,xtp__U32(p+28),meta,
+        flags&2?XTP_PARAMS_ARRAY:XTP_PARAMS_TABLE,f.Body.Size,f.Status,f.Replayable,f.ResultAck);
+    if(r!=XTP_OK)return r;
+    if(f.Command.Kind==XTP_COMMAND_NAME&&!xtpCommandValid(f.Command.As.Name))return XTP_E_VALUE;
+    r=xtpMetadata((xbytesview){p+32+cmd,meta},flags&2?XTP_PARAMS_ARRAY:XTP_PARAMS_TABLE,config,&f.Params);
+    if(r!=XTP_OK)return r;
+    *frame=f;return XTP_OK;
+}
 XTP_API xtpresult xtpDecode(xbytesview in,const xtpcodecconfig* input,xtpframeview* frame)
 {
     xtpcodecconfig c;size_t size;xtpresult r=xtp__CodecConfig(input,&c);if(r!=XTP_OK)return r;
@@ -189,24 +210,7 @@ XTP_API xtpresult xtpDecode(xbytesview in,const xtpcodecconfig* input,xtpframevi
     r=xtp__Envelope(in.Data,&c,&size);if(r!=XTP_OK)return r;
     if(in.Size<size)return XTP_E_TRUNCATED;
     if(in.Size>size)return XTP_E_LENGTH;
-    const unsigned char* p=in.Data;unsigned flags=p[17];size_t cmd=xtp__U16(p+18),meta=xtp__U32(p+20);
-    if(flags&~15u)return XTP_E_VALUE;
-    xtpframeview f;memset(&f,0,sizeof(f));f.Type=(xtpmessagekind)p[16];f.MessageID=xtp__U64(p+8);
-    uint32_t status=xtp__U32(p+24);f.Status=status<=INT32_MAX?(int32_t)status:-(int32_t)(UINT32_MAX-status)-1;
-    f.Command.Kind=(f.Type==XTP_REQUEST||f.Type==XTP_PUSH||f.Type==XTP_NOTIFY)?
-        (flags&1?XTP_COMMAND_ID:XTP_COMMAND_NAME):XTP_COMMAND_NONE;
-    f.Replayable=(flags&8)!=0;f.ResultAck=(flags&4)!=0;
-    if(f.Command.Kind==XTP_COMMAND_ID)f.Command.As.ID=xtp__U32(p+28);
-    else if(f.Command.Kind==XTP_COMMAND_NAME)f.Command.As.Name=(xstrview){(const char*)p+32,cmd};
-    f.Body=(xbytesview){p+32+cmd+meta,size-32-cmd-meta};f.Packet=in;
-    if(f.Command.Kind==XTP_COMMAND_NONE && (flags&1))return XTP_E_VALUE;
-    r=xtpFields(f.Type,f.MessageID,f.Command.Kind,cmd,xtp__U32(p+28),meta,
-        flags&2?XTP_PARAMS_ARRAY:XTP_PARAMS_TABLE,f.Body.Size,f.Status,f.Replayable,f.ResultAck);
-    if(r!=XTP_OK)return r;
-    if(f.Command.Kind==XTP_COMMAND_NAME&&!xtpCommandValid(f.Command.As.Name))return XTP_E_VALUE;
-    r=xtpMetadata((xbytesview){p+32+cmd,meta},flags&2?XTP_PARAMS_ARRAY:XTP_PARAMS_TABLE,&c,&f.Params);
-    if(r!=XTP_OK)return r;
-    *frame=f;return XTP_OK;
+    return xtp__DecodePrefix(in.Data,size,&c,frame);
 }
 static bool xtpParamOutput(const xtpparamsview* p,const void* out,size_t bytes)
 {

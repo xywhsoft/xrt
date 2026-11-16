@@ -10,6 +10,19 @@
 #ifndef XTP_MODULE_XTP_CODEC
 #define XTP_MODULE_XTP_CODEC
 #endif
+#ifndef XTP_MODULE_XTP_READER
+#define XTP_MODULE_XTP_READER
+#endif
+#endif
+
+/* xtp_reader 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_READER)
+#ifndef XTP_FEATURE_XTP_READER
+#define XTP_FEATURE_XTP_READER
+#endif
+#ifndef XTP_MODULE_XTP_CODEC
+#define XTP_MODULE_XTP_CODEC
+#endif
 #endif
 
 /* xtp_codec 及其直接依赖。 */

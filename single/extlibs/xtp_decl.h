@@ -1245,6 +1245,9 @@
 #if !defined(XTP_FEATURE_XTP_CODEC)
 #define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_CODEC 1
 #endif
+#if !defined(XTP_FEATURE_XTP_READER)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER 1
+#endif
 #if !defined(XTP_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL 1
 #endif
@@ -1253,6 +1256,9 @@
 #endif
 #if !defined(XTP_MODULE_XTP_CODEC)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_CODEC 1
+#endif
+#if !defined(XTP_MODULE_XTP_READER)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL)
 #define XTP_MODULE_ALL 1
@@ -2485,6 +2491,19 @@
 #ifndef XTP_MODULE_XTP_CODEC
 #define XTP_MODULE_XTP_CODEC
 #endif
+#ifndef XTP_MODULE_XTP_READER
+#define XTP_MODULE_XTP_READER
+#endif
+#endif
+
+/* xtp_reader 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_READER)
+#ifndef XTP_FEATURE_XTP_READER
+#define XTP_FEATURE_XTP_READER
+#endif
+#ifndef XTP_MODULE_XTP_CODEC
+#define XTP_MODULE_XTP_CODEC
+#endif
 #endif
 
 /* xtp_codec 及其直接依赖。 */
@@ -2643,6 +2662,75 @@ XTP_API xtpparamresult xtpParamAt(const xtpparamsview* Params,size_t Index,xbyte
 XTP_API xtpparamresult xtpParamFind(const xtpparamsview* Params,xstrview Key,xbytesview* Value);
 XTP_API xtpparamiter xtpParams(const xtpparamsview* Params);
 XTP_API xtpparamresult xtpParamNext(xtpparamiter* Iter,xtpparamentry* Entry);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/reader.h */
+/* ========================================================================== */
+
+#ifndef XTP_READER_H
+#define XTP_READER_H
+#if defined(XTP_FEATURE_XTP_READER)
+typedef struct xtpreader xtpreader;
+typedef enum xtpinputmode { XTP_INPUT_STREAM=0,XTP_INPUT_RECORD=1 } xtpinputmode;
+typedef enum xtpflow { XTP_FLOW_ACCEPT=1,XTP_FLOW_PAUSE=2,XTP_FLOW_STOP=3 } xtpflow;
+/* Normal realloc alignment/preservation; Size=0 frees and returns NULL.
+ * Context/code live until Destroy. NULL selects public XRT memory functions. */
+typedef void* (*xtpreallocproc)(void* User,void* Memory,size_t Size);
+typedef struct xtpreaderconfig {
+    xtpcodecconfig Codec;xtpinputmode Mode;
+    size_t RetainBytes,MaxStorageBytes,MaxWorkBytes,MaxFrames;
+    uint32_t MaxConsecutiveBad,MaxBad;
+    uint64_t ReceiveTimeoutUs;
+    xtpreallocproc Realloc;void* AllocatorUser;
+} xtpreaderconfig;
+typedef struct xtpreaderevents {
+    /* Borrow valid only in callback. No recursive Input/End/Reset/Destroy.
+     * PAUSE means no application effects; complete borrowed frame remains in
+     * the caller's unconsumed suffix. Buffered paused frames remain in reader.
+     * ACCEPT consumes exactly that frame; STOP consumes it and closes reader. */
+    xtpflow (*Frame)(xtpreader*,const xtpframeview*,void* User);
+    void (*Drop)(xtpreader*,xtpresult Reason,void* User);
+} xtpreaderevents;
+typedef struct xtpreadprogress {size_t Used,Frames,Dropped,WorkBytes;} xtpreadprogress;
+typedef struct xtpreaderinfo {
+    size_t BufferedBytes,Capacity,StorageBytes,PeakReservedBytes;
+    uint64_t Frames,Dropped,NextDeadlineUs;
+    uint32_t ConsecutiveBad;
+    xtpresult Failure;bool Paused,Ended,DiscardingRecord;
+} xtpreaderinfo;
+XRT_EXTERN_C_BEGIN
+/* Default STREAM;64KiB retention,3MiB storage,256KiB work,64 frames,
+ * 8 consecutive/64 total bad frames,5s absolute frame receive deadline. */
+XTP_API void xtpReaderConfigInit(xtpreaderconfig* Config);
+/* Copies config/events. Only Create and fragmented-buffer growth allocate.
+ * No socket/thread/timer/global state. One owner; failure preserves output. */
+XTP_API xtpresult xtpReaderCreate(const xtpreaderconfig* Config,
+    const xtpreaderevents* Events,void* User,xtpreader** Reader);
+XTP_API xtpresult xtpReaderDestroy(xtpreader* Reader);
+/* Reports Used on every valid call including a failing prefix. Progress itself
+ * must not overlap input/reader storage. Input must not alias internal buffers.
+ * Empty input is NOT EOF. RECORD End applies only after this input was consumed;
+ * after AGAIN/PAUSED retry its unconsumed suffix with the same End flag.
+ * OK=boundary,MORE=partial,AGAIN=work budget,PAUSED=explicit resume required,
+ * DROPPED=recoverable record/frame discard. Fatal errors stick until Reset.
+ * Budget counts copies,discarded bytes and prefix validation,not opaque borrowed
+ * Body bytes. No unchecked magic search or body allocation for invalid prefixes. */
+XTP_API xtpresult xtpReaderInput(xtpreader* Reader,xbytesview Input,bool RecordEnd,
+    uint64_t NowUs,xtpreadprogress* Progress);
+XTP_API xtpresult xtpReaderResume(xtpreader* Reader);
+/* End is receive EOF; partial STREAM is sticky TRUNCATED. EndRecord is supplied
+ * to Input, not End. Reset is allowed only at a trusted new stream/boundary. */
+XTP_API xtpresult xtpReaderEnd(xtpreader* Reader,uint64_t NowUs);
+XTP_API xtpresult xtpReaderReset(xtpreader* Reader);
+/* Drives deadlines and internally buffered complete frames without new network
+ * bytes. AGAIN requests another bounded turn;0 NextDue means no timed deadline.
+ * A borrowed paused suffix still has to be supplied by the caller after Resume. */
+XTP_API xtpresult xtpReaderDrive(xtpreader* Reader,uint64_t NowUs,uint64_t* NextDue);
+XTP_API xtpresult xtpReaderInfo(const xtpreader* Reader,xtpreaderinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -4275,6 +4363,10 @@ XRT_EXTERN_C_END
 #undef XTP_FEATURE_XTP_CODEC
 #undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_CODEC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER)
+#undef XTP_FEATURE_XTP_READER
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL)
 #undef XTP_MODULE_ALL
 #undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL
@@ -4286,6 +4378,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_CODEC)
 #undef XTP_MODULE_XTP_CODEC
 #undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_CODEC
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER)
+#undef XTP_MODULE_XTP_READER
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER
 #endif
 
 #endif
@@ -4306,6 +4402,19 @@ XRT_EXTERN_C_END
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP)
 #ifndef XTP_FEATURE_XTP
 #define XTP_FEATURE_XTP
+#endif
+#ifndef XTP_MODULE_XTP_CODEC
+#define XTP_MODULE_XTP_CODEC
+#endif
+#ifndef XTP_MODULE_XTP_READER
+#define XTP_MODULE_XTP_READER
+#endif
+#endif
+
+/* xtp_reader 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_READER)
+#ifndef XTP_FEATURE_XTP_READER
+#define XTP_FEATURE_XTP_READER
 #endif
 #ifndef XTP_MODULE_XTP_CODEC
 #define XTP_MODULE_XTP_CODEC

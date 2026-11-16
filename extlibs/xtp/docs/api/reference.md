@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `0` 个函数、`54` 个常量或宏、
-`17` 个公共类型。
+当前登记 `0` 个函数、`60` 个常量或宏、
+`25` 个公共类型。
 
 ## `extlibs/xtp/include/xtp/codec.h`
 
@@ -26,6 +26,30 @@
 - `xtpparamresult`
 - `xtpparamsview`
 - `xtpresult`
+
+## `extlibs/xtp/include/xtp/reader.h`
+
+[查看带契约注释的公共头](../../include/xtp/reader.h)
+
+### 常量与宏 (6)
+
+- `XTP_FEATURE_XTP_READER`
+- `XTP_FLOW_ACCEPT`
+- `XTP_FLOW_PAUSE`
+- `XTP_FLOW_STOP`
+- `XTP_INPUT_RECORD`
+- `XTP_INPUT_STREAM`
+
+### 类型 (8)
+
+- `xtpflow`
+- `xtpinputmode`
+- `xtpreader`
+- `xtpreaderconfig`
+- `xtpreaderevents`
+- `xtpreaderinfo`
+- `xtpreadprogress`
+- `xtpreallocproc`
 
 ## `extlibs/xtp/include/xtp/types.h`
 

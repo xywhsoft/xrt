@@ -42,6 +42,13 @@
         "source_roots": [
           "codec"
         ]
+      },
+      {
+        "name": "reader",
+        "state": "retained",
+        "source_roots": [
+          "reader"
+        ]
       }
     ]
   },
@@ -51,7 +58,8 @@
       "state": "developing",
       "feature": "XTP_FEATURE_XTP",
       "depends": [
-        "xtp_codec"
+        "xtp_codec",
+        "xtp_reader"
       ],
       "public_headers": [
         "extlibs/xtp/include/xtp.h",
@@ -107,6 +115,37 @@
       ]
     },
     {
+      "name": "xtp_reader",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_READER",
+      "depends": [
+        "xtp_codec"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/reader.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/reader/reader.c"
+      ],
+      "tests": [
+        "extlibs/xtp/tests/test_reader.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_reader.c"
+      ],
+      "examples": [
+        "extlibs/xtp/examples/backend/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/coverage.md"
+      ],
+      "fuzz_sources": [
+        "extlibs/xtp/tests/fuzz_reader.c"
+      ]
+    },
+    {
       "name": "xtp_tests",
       "state": "developing",
       "feature": null,
@@ -117,16 +156,19 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xtp/tests/test_codec.c"
+        "extlibs/xtp/tests/test_codec.c",
+        "extlibs/xtp/tests/test_reader.c"
       ],
       "single_tests": [
-        "extlibs/xtp/tests/single/test_single_xtp_codec.c"
+        "extlibs/xtp/tests/single/test_single_xtp_codec.c",
+        "extlibs/xtp/tests/single/test_single_xtp_reader.c"
       ],
       "examples": [],
       "benchmarks": [],
       "docs": [],
       "single_test_owners": {
-        "extlibs/xtp/tests/single/test_single_xtp_codec.c": "xtp_codec"
+        "extlibs/xtp/tests/single/test_single_xtp_codec.c": "xtp_codec",
+        "extlibs/xtp/tests/single/test_single_xtp_reader.c": "xtp_reader"
       }
     }
   ]
