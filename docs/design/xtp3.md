@@ -95,7 +95,7 @@ BodySize = FrameSize - 32 - CommandSize - MetadataSize
 | --- | --- | --- |
 | `0x01` | ROUTE_ID | REQUEST/PUSH/NOTIFY 使用数字命令 |
 | `0x02` | PARAM_ARRAY | REQUEST/RESPONSE/PUSH/NOTIFY 使用 array 参数 |
-| `0x04` | RESULT_ACK | 仅 ACK：确认可恢复 REQUEST 的 RESPONSE 已被接收方接管 |
+| `0x04` | RESULT_ACK | 仅 ACK：可恢复 RESPONSE 的结果回执：已消费或明确退休 |
 | `0x08` | REPLAYABLE | 仅 REQUEST/PUSH：请求双方保留恢复所需的身份与结果状态 |
 
 其他位必须零。不使用同一位同时控制命令和参数，四种组合全部合法。RESULT_ACK 和 REPLAYABLE 只在启用并约定 Delivery 时使用；普通 RPC 不增加这一回执。接收方不支持 REPLAYABLE 时，在执行业务前明确返回 UNSUPPORTED，不能静默忽略后执行。Submit 根据交付选项设置 REPLAYABLE，重投保留原标志；RESPONSE 不回显此位，双方通过对应请求记录判断是否需要结果确认。
@@ -126,7 +126,7 @@ BodySize = FrameSize - 32 - CommandSize - MetadataSize
 | -8 | STATE_LOST | 旧身份或结果状态不足，历史受理或执行结果未知，禁止自动当新消息重试 |
 | -9 | DEADLINE_EXCEEDED | 接收端请求期限已过；可能已有业务效果，不能作为未执行证明 |
 
-普通非零 ACK 表示本轮 PUSH 未被接管；STATE_LOST 另表示历史结果未知，不构成从未受理的证明。只有 BUSY 可以触发管理器的有限重试。已经返回成功 ACK 的 PUSH 不再改判拒绝。RESULT_ACK 的 Status 必须零；DEADLINE_EXCEEDED 只用于 RESPONSE。ACK 的 INTERNAL 也只能在接管前使用，不能将已产生业务效果的 PUSH 改报未受理。
+普通非零 ACK 表示本轮 PUSH 未被接管；STATE_LOST 另表示历史结果未知，不构成从未受理的证明。只有 BUSY 可以触发管理器的有限重试。已经返回成功 ACK 的 PUSH 不再改判拒绝。RESULT_ACK 的 Status 为零表示已消费，为 STATE_LOST 表示已退休/不再保留；其他状态非法。DEADLINE_EXCEEDED 只用于 RESPONSE。ACK 的 INTERNAL 也只能在接管前使用，不能将已产生业务效果的 PUSH 改报未受理。
 
 本地错误使用独立的 C 返回枚举；不把本地 OOM、解析错误或超时混作远端 Status。对无法信任的头部不自动生成错误回复。
 
@@ -655,8 +655,12 @@ P1～P3 不等待网络工厂或恢复控制面即可独立验收。每个通过
 
 ### P6 实施细化（2026-11-16）
 
-Delivery 已落地为可选编译模块，运行时默认关闭。恢复证明、协商寿命、原帧与逐轮 Ticket、结果缓存、紧凑回执的实际规则以 [Delivery 操作说明](../../extlibs/xtp/docs/delivery.md) 为准。回执槽不能淘汰未到期 DONE 记录，因此默认 1024 槽/60 秒只支持约 17 次/秒持续可恢复 RPC；普通 RPC 不承担这项保留，按业务缩短寿命/扩大窗口并处理容量拒绝。
+Delivery 已落地为可选编译模块，运行时默认关闭。恢复证明、协商寿命、原帧与逐轮 Ticket、结果缓存、紧凑回执的实际规则以 [Delivery 操作说明](../../extlibs/xtp/docs/delivery.md) 为准。完成回执现采用滚动窗口，精确活跃请求单独保留；窗口外旧结果回复 RESULT_ACK+STATE_LOST，不能冒充消费成功。默认约 17 次/秒的时间槽限制已移除。
 
 ### P7 实施细化（2026-11-16）
 
 模块/单头、C99/C++11、静态/动态包、Windows/Linux 与 XS 外层/嵌套 TCC 已实际验证。性能工具分别输出 Codec/本地 Session 和真实 TCP/TLS1.3/WS 的原始重复样本；所有窗口拒绝与操作完成分开记录。当前网络性能包含闭环容量和 1ms 定时器采样的固定到达率，客户端窗口满的全部到达计为拒绝，生成器延迟单列；完整 WSS/HTTP Upgrade、xrudp 饱和吞吐、内核唤醒细分、移动网络与长稳资格仍列为发布验收缺口，不能由已通过的功能或回环测试替代。详见 [性能记录](../../extlibs/xtp/docs/performance.md)。
+
+### 收尾更新
+
+源码不再设 80 KiB 硬上限，按用户确认优先保持简洁、安全和性能，源码、目标码及运行内存分别实测。可靠恢复结果的回收区分成功消费与明确退休，不因优化吞吐而伪造成功确认。

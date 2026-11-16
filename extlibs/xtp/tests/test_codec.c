@@ -137,4 +137,14 @@ static void limits(void)
     c.MaxFrameBytes=n;c.MaxParams=0;assert(xtpDecode((xbytesview){out,n},&c,&f)==XTP_E_LIMIT);
     fields[255].Key=fields[0].Key;c.MaxParams=256;assert(xtpEncodeSize(&p,1,&c,&n)==XTP_E_VALUE);
 }
-int main(void){golden();randomized();failure();limits();puts("xtp codec: golden/order/modes/random/adversarial/limits PASS");return 0;}
+static void retired_result_receipt(void)
+{
+    const unsigned char expected[32]={0x78,0x74,0x70,3,32,0,0,0,1,0,0,0,0,0,0,0,
+        4,4,0,0,0,0,0,0,0xf8,0xff,0xff,0xff,0,0,0,0};
+    xtppacket p={0};p.Type=XTP_ACK;p.MessageID=1;p.ResultAck=true;p.Status=XTP_STATUS_STATE_LOST;
+    unsigned char wire[32];size_t n;xtpframeview f;
+    assert(xtpEncode(&p,1,NULL,wire,32,&n)==XTP_OK&&!memcmp(expected,wire,32));
+    assert(xtpDecode((xbytesview){expected,32},NULL,&f)==XTP_OK&&f.ResultAck&&f.Status==XTP_STATUS_STATE_LOST);
+    p.Status=123;assert(xtpEncodeSize(&p,1,NULL,&n)==XTP_E_VALUE);
+}
+int main(void){golden();randomized();failure();limits();retired_result_receipt();puts("xtp codec: golden/order/modes/random/adversarial/limits PASS");return 0;}

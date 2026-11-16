@@ -71,7 +71,7 @@ static xtpresult xtpFields(xtpmessagekind type,uint64_t id,xtpcommandkind route,
         if(route==XTP_COMMAND_ID ? cmd!=0 : (!cmd||command!=0))return XTP_E_VALUE;
     }else if(route!=XTP_COMMAND_NONE||cmd||command)return XTP_E_VALUE;
     if(replay && type!=XTP_REQUEST && type!=XTP_PUSH)return XTP_E_VALUE;
-    if(ack && (type!=XTP_ACK||status))return XTP_E_VALUE;
+    if(ack && (type!=XTP_ACK||(status&&status!=XTP_STATUS_STATE_LOST)))return XTP_E_VALUE;
     if(type==XTP_ACK && (params||pk!=XTP_PARAMS_TABLE||body||status==XTP_STATUS_DEADLINE_EXCEEDED))return XTP_E_VALUE;
     return XTP_OK;
 }

@@ -58,7 +58,7 @@ static void response_and_receipt_loss(void)
     assert(transfer(&b,&a,1,1)==1&&a.Completed==1&&!info(&a).Retained&&info(&a).Receipts==1);
     take_wire(&a,wire,sizeof(wire));assert(info(&b).Retained==1);reconnect(&a,&b);
     assert(transfer(&b,&a,0,1)==1&&a.Completed==1);assert(transfer(&a,&b,0,1)==1&&!info(&b).Retained);
-    assert(b.Requests==1&&info(&a).Duplicates==1);drive_at(&a,1000);assert(!info(&a).Receipts&&info(&a).ResultFloor==2);
+    assert(b.Requests==1&&info(&a).Duplicates==1);drive_at(&a,1000);assert(info(&a).Receipts==1&&info(&a).ResultFloor==1);
     destroy(&a);b.Now=1000;destroy(&b);
 }
 static void async_and_failed_identity(void)
@@ -116,9 +116,10 @@ static void bounded_receipts_and_replay(void)
     for(size_t i=0;i<3;++i)op[i].Replay=true;
     xtpinfo before=info(&a);assert(xtpSubmitBatch(a.Session,m,3,op,0,NULL)==XTP_E_LIMIT);assert(info(&a).NextMessageID==before.NextMessageID);
     assert(xtpSubmitBatch(a.Session,m,2,op,0,NULL)==XTP_OK);assert(transfer(&a,&b,0,3)==2&&transfer(&b,&a,0,3)==2&&transfer(&a,&b,0,3)==2);
-    assert(!info(&a).Retained&&info(&a).Receipts==2);assert(xtpSubmit(a.Session,m,op,0,NULL)==XTP_E_LIMIT);
-    drive_at(&a,1000);b.Now=1000;assert(xtpSubmit(a.Session,m,op,1000,NULL)==XTP_OK);assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1);
-    assert(a.Completed==3);destroy(&a);destroy(&b);
+    assert(!info(&a).Retained&&info(&a).Receipts==2);
+    for(size_t i=0;i<16;++i){assert(xtpSubmit(a.Session,m,op,0,NULL)==XTP_OK);
+        assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1&&transfer(&a,&b,0,1)==1);}
+    assert(a.Completed==18&&info(&a).Receipts==2&&info(&a).ResultFloor==17);destroy(&a);destroy(&b);
 }
 static void delivery_oom(void)
 {
@@ -161,10 +162,60 @@ static void expiry_proofs_and_window(void)
     memset(&a,0,sizeof(a));create(&a,&c);p=proof(false,false);p.UntilUs=10;assert(delivery_bind(&a,false,false,&p)==XTP_OK);
     op.DeadlineUs=9;assert(xtpSubmit(a.Session,&push,&op,0,NULL)==XTP_OK);drive_at(&a,10);assert(info(&a).Closed);destroy(&a);
 }
+static void retired_and_unconsumed_results(void)
+{
+    xtpconfig c=delivery_config();c.DedupWindow=2;session_test a={0},b={0};b.AutoReply=true;pair_create(&a,&b,&c);
+    xtpmessage m=message(XTP_REQUEST);xtpsubmitoptions op={0};op.Replay=true;unsigned char request[64],result[512],receipt[64];
+    assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK);size_t q=take_wire(&a,request,sizeof(request));feed(&b,request,q,1,false,0);
+    size_t n=take_wire(&b,result,sizeof(result));feed(&a,result,n,1,false,0);take_wire(&a,receipt,sizeof(receipt)); /* lost */
+    for(size_t i=0;i<3;++i){assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK);
+        assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1&&transfer(&a,&b,0,1)==1);}
+    assert(info(&a).ResultFloor==3&&info(&b).Retained==1);
+    feed(&b,request,q,1,false,0);assert(transfer(&b,&a,0,1)==1&&a.Completed==4&&b.Requests==4);
+    n=take_wire(&a,receipt,sizeof(receipt));xtpframeview f;
+    assert(xtpDecode((xbytesview){receipt,n},NULL,&f)==XTP_OK&&f.ResultAck&&f.Status==XTP_STATUS_STATE_LOST);
+    feed(&b,receipt,n,1,false,0);assert(!info(&b).Retained);destroy(&a);destroy(&b);
+
+    memset(&a,0,sizeof(a));memset(&b,0,sizeof(b));b.AutoReply=true;pair_create(&a,&b,&c);
+    op.DeadlineUs=10;assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK);assert(transfer(&a,&b,0,1)==1);
+    n=take_wire(&b,result,sizeof(result));drive_at(&a,10);b.Now=10;assert(a.Results[0].Knowledge==XTP_KNOW_UNKNOWN);
+    feed(&a,result,n,1,false,0);n=take_wire(&a,receipt,sizeof(receipt));
+    assert(xtpDecode((xbytesview){receipt,n},NULL,&f)==XTP_OK&&f.ResultAck&&f.Status==XTP_STATUS_STATE_LOST&&a.Completed==1);
+    feed(&b,receipt,n,1,false,0);assert(!info(&b).Retained);
+    encode_packet(receipt,32,XTP_RESPONSE,999,0,false);feed(&a,receipt,32,1,false,0);xtpoutput out;assert(xtpOutput(a.Session,0,&out)==XTP_AGAIN);
+    destroy(&a);destroy(&b);
+}
+static void pending_below_rolling_floor(void)
+{
+    xtpconfig c=delivery_config();c.DedupWindow=2;session_test a={0},b={0};pair_create(&a,&b,&c);
+    xtpmessage m=message(XTP_REQUEST);xtpsubmitoptions op={0};op.Replay=true;
+    assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK&&transfer(&a,&b,0,1)==1);xtprequesttoken held=b.RequestsHeld[0];b.AutoReply=true;
+    for(size_t i=0;i<4;++i){assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK);
+        assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1&&transfer(&a,&b,0,1)==1);}
+    assert(info(&a).Pending==1&&info(&a).ResultFloor==1);reconnect(&a,&b);
+    assert(xtpReply(b.Session,held,&(xtpresponse){0},0)==XTP_OK);assert(transfer(&b,&a,0,1)==1&&a.Completed==5);
+    assert(transfer(&a,&b,0,1)==1&&b.Requests==5&&info(&a).ResultFloor==4);destroy(&a);destroy(&b);
+}
+static xtpdecision rolling_message(xtpsession* s,const xtpmessageview* m,void* user)
+{session_test* t=user;++t->Requests;assert(xtpReply(s,m->Request,&(xtpresponse){0},0)==XTP_OK);return xtpAccept();}
+static void rolling_complete(xtpsession* s,const xtpcompletion* c,void* user)
+{session_test* t=user;(void)s;assert(c->Reason==XTP_FINISH_RESPONSE&&c->Knowledge==XTP_KNOW_REPLIED&&c->MessageID==++t->Completed);}
+static void sustained_replay_requests(void)
+{
+    xtpconfig c=delivery_config();session_test a={0},b={0};xtpevents e={rolling_message,rolling_complete,on_fault};
+    assert(xtpCreate(&c,&e,&a,&a.Session)==XTP_OK&&xtpCreate(&c,&e,&b,&b.Session)==XTP_OK);
+    assert(delivery_bind(&a,false,false,NULL)==XTP_OK&&delivery_bind(&b,true,false,NULL)==XTP_OK);
+    xtpmessage m=message(XTP_REQUEST);xtpsubmitoptions op={0};op.Replay=true;
+    for(size_t i=0;i<12000;++i){assert(xtpSubmit(a.Session,&m,&op,0,NULL)==XTP_OK);
+        assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1&&transfer(&a,&b,0,1)==1);}
+    assert(a.Completed==12000&&b.Requests==12000&&info(&a).Receipts==1024&&!info(&a).Retained&&!info(&b).Retained);
+    destroy(&a);destroy(&b);
+}
 int main(void)
 {
     assert(xtp_base_session_tests()==0);push_ack_loss();response_and_receipt_loss();async_and_failed_identity();
     busy_deadlines_and_tickets();partial_resend_completion();partial_cache_receipt();bounded_receipts_and_replay();
     delivery_oom();expiry_proofs_and_window();
+    retired_and_unconsumed_results();pending_below_rolling_floor();sustained_replay_requests();
     puts("xtp delivery: resume, lost ACK/result/receipt, async token, BUSY, bounds and partial lifetimes passed");return 0;
 }

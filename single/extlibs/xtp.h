@@ -856,7 +856,7 @@ static xtpresult xtpFields(xtpmessagekind type,uint64_t id,xtpcommandkind route,
         if(route==XTP_COMMAND_ID ? cmd!=0 : (!cmd||command!=0))return XTP_E_VALUE;
     }else if(route!=XTP_COMMAND_NONE||cmd||command)return XTP_E_VALUE;
     if(replay && type!=XTP_REQUEST && type!=XTP_PUSH)return XTP_E_VALUE;
-    if(ack && (type!=XTP_ACK||status))return XTP_E_VALUE;
+    if(ack && (type!=XTP_ACK||(status&&status!=XTP_STATUS_STATE_LOST)))return XTP_E_VALUE;
     if(type==XTP_ACK && (params||pk!=XTP_PARAMS_TABLE||body||status==XTP_STATUS_DEADLINE_EXCEEDED))return XTP_E_VALUE;
     return XTP_OK;
 }
@@ -1313,7 +1313,7 @@ typedef struct xtptx {
 #endif
 } xtptx;
 #if defined(XTP_FEATURE_XTP_DELIVERY)
-typedef struct xtpreceipt {uint64_t ID,Until;size_t Lane;unsigned State;} xtpreceipt;
+typedef struct xtpreceipt {uint64_t ID;size_t Lane;} xtpreceipt;
 #define XTP_REPLAY(t) ((t)->Replay)
 #define XTP_TICKET(t) ((t)->Ticket)
 #else
@@ -1526,10 +1526,6 @@ static void xtpSessionComplete(xtpsession* s,size_t pi,xtpcompletion* c)
         }else
 #endif
         xtpTxFree(s,p.Tx);}
-#if defined(XTP_FEATURE_XTP_DELIVERY)
-    if(s->Receipts){xtpreceipt* r=&s->Receipts[p.ID%s->Config.DedupWindow];
-        if(r->ID==p.ID&&r->State==1){r->State=0;--s->ReceiptCount;}}
-#endif
     c->Operation=(xtpoperationtoken){{s->Cookie[0],p.Serial}};c->Type=p.Type;c->MessageID=p.ID;c->Tag=p.Tag;
     ++s->Completed;if(s->Events.OnComplete){s->Callback=true;s->Events.OnComplete(s,c,s->User);s->Callback=false;}
 }
@@ -1556,10 +1552,22 @@ static bool xtpKeep(const xtpsession* s,const xtptx* t)
 {return s->Unbinding&&!s->Closing&&!s->CloseRequested&&t->Replay&&!t->RetireAfterSend;}
 static bool xtpRetriable(const xtpsession* s,const xtptx* t)
 {return !t->Replay||(t->Queued&&t->RoundStarted)||t->Attempts<s->Config.Delivery.MaxAttempts;}
-static void xtpReceiptExpire(xtpsession* s,xtpreceipt* r)
+static void xtpReceiptPut(xtpsession* s,uint64_t id,size_t lane)
 {
-    if(r->ID>=s->ResultFloor)s->ResultFloor=r->ID==UINT64_MAX?UINT64_MAX:r->ID+1;
-    r->State=0;--s->ReceiptCount;
+    uint64_t floor=id>=s->Config.DedupWindow?id-s->Config.DedupWindow+1:1;
+    if(floor>s->ResultFloor)s->ResultFloor=floor;
+    if(id<s->ResultFloor)return;
+    xtpreceipt* r=&s->Receipts[id%s->Config.DedupWindow];
+    if(!r->ID)++s->ReceiptCount;
+    *r=(xtpreceipt){id,lane};
+}
+static uint64_t xtpResultFloor(const xtpsession* s)
+{
+    uint64_t floor=s->ResultFloor;
+    for(size_t i=0;i<s->Config.MaxPending;++i){const xtppending* p=&s->Pending[i];
+        if(p->Active&&p->Type==XTP_REQUEST&&p->Tx!=XTP_NONE&&s->Tx[p->Tx].Replay&&
+            p->Deadline>s->LastNow&&p->ID<floor)floor=p->ID;}
+    return floor;
 }
 #else
 #define xtpKeep(s,t) false
@@ -1633,14 +1641,14 @@ static xtpflow xtpSendControl(xtpsession* s,size_t lane,const xtpframeview* f,in
     return XTP_FLOW_ACCEPT;
 }
 #if defined(XTP_FEATURE_XTP_DELIVERY)
-static bool xtpResultAck(xtpsession* s,size_t lane,uint64_t id)
+static bool xtpResultAck(xtpsession* s,size_t lane,uint64_t id,int32_t status)
 {
     /* Coalesce queued receipts without owning another queue. */
     for(size_t j=0;j<s->Config.MaxTxFrames;++j){xtptx* q=&s->Tx[j];
         if(q->Active&&q->Type==XTP_ACK&&q->ID==id&&q->Lane==lane&&
             !q->Bytes&&(q->Control[17]&XTP_FLAG_RESULT_ACK))return true;}
     size_t i=xtpTxTake(s,lane,32,false);if(i==XTP_NONE)return false;
-    if(!xtpControl(s,i,XTP_ACK,id,0)){xtpTxFree(s,i);return false;}
+    if(!xtpControl(s,i,XTP_ACK,id,status)){xtpTxFree(s,i);return false;}
     s->Tx[i].Control[17]|=XTP_FLAG_RESULT_ACK;++s->ResultAcks;return true;
 }
 static void xtpRetireResult(xtpsession* s,size_t i)
@@ -1678,10 +1686,14 @@ static xtpflow xtpSessionFrame(xtpreader* reader,const xtpframeview* f,void* use
 #endif
         size_t pi=xtpPendingFind(s,f->MessageID);
 #if defined(XTP_FEATURE_XTP_DELIVERY)
-        if(pi==XTP_NONE&&f->Type==XTP_RESPONSE&&s->Receipts){xtpreceipt* r=&s->Receipts[f->MessageID%s->Config.DedupWindow];
-            if(r->State==2&&r->ID==f->MessageID&&r->Lane==li&&r->Until>s->LastNow){
-                if(!xtpResultAck(s,li,f->MessageID))return XTP_FLOW_PAUSE;
-                ++s->Duplicates;return XTP_FLOW_ACCEPT;}}
+        if(pi==XTP_NONE&&f->Type==XTP_RESPONSE&&s->ReplayRequests&&
+            (!s->NextID||f->MessageID<s->NextID)){
+            xtpreceipt* r=&s->Receipts[f->MessageID%s->Config.DedupWindow];
+            bool consumed=r->ID==f->MessageID&&f->MessageID>=s->ResultFloor;
+            if(consumed&&r->Lane!=li){++s->Unknown;return XTP_FLOW_ACCEPT;}
+            if(!xtpResultAck(s,li,f->MessageID,consumed?0:XTP_STATUS_STATE_LOST))return XTP_FLOW_PAUSE;
+            if(consumed)++s->Duplicates;else ++s->Unknown;
+            return XTP_FLOW_ACCEPT;}
 #endif
         if(f->ResultAck||pi==XTP_NONE||s->Pending[pi].Lane!=li||
             (s->Pending[pi].Type==XTP_REQUEST)!=(f->Type==XTP_RESPONSE)){
@@ -1696,9 +1708,8 @@ static xtpflow xtpSessionFrame(xtpreader* reader,const xtpframeview* f,void* use
         if(p->Tx!=XTP_NONE&&s->Tx[p->Tx].Replay&&s->LastNow<p->Deadline){
             if(f->Status==XTP_STATUS_BUSY){xtpRetryBusy(s,p->Tx);return XTP_FLOW_ACCEPT;}
             if(f->Type==XTP_RESPONSE){
-                if(!xtpResultAck(s,li,f->MessageID))return XTP_FLOW_PAUSE;
-                xtpreceipt* r=&s->Receipts[p->ID%s->Config.DedupWindow];r->State=2;
-                r->Until=xtpSessionDue(s->LastNow,s->Lifetime);if(r->Until>s->AuthUntil)r->Until=s->AuthUntil;}}
+                if(!xtpResultAck(s,li,f->MessageID,0))return XTP_FLOW_PAUSE;
+                xtpReceiptPut(s,p->ID,li);}}
 #endif
         xtpcompletion c={0};c.Reason=f->Type==XTP_RESPONSE?XTP_FINISH_RESPONSE:XTP_FINISH_ACK;
         c.HasRemoteStatus=true;c.Status=f->Status;
@@ -1787,8 +1798,7 @@ static bool xtpProof(xtpsession* s,const xtpbinding* b,uint64_t now)
         memcmp(&p->Identity,&s->Identity,sizeof(s->Identity))||p->LifetimeUs!=s->Lifetime||
         (p->AllowRequests&&s->Config.Delivery.AllowRequests)!=s->ReplayRequests)return false;
     for(size_t i=s->RetainHead;i!=XTP_NONE;i=s->Tx[i].RetainNext){const xtptx* t=&s->Tx[i];
-        if((!t->Incoming&&t->Type==XTP_PUSH&&t->ID<p->PeerReceiveFloor)||
-            (t->Incoming&&!t->Waiting&&t->ID<p->PeerResultFloor))return false;}
+        if(!t->Incoming&&t->Type==XTP_PUSH&&t->ID<p->PeerReceiveFloor)return false;}
     return true;
 }
 #endif
@@ -1831,6 +1841,12 @@ XTP_API xtpresult xtpBind(xtpsession* s,const xtpbinding* b,uint64_t now,uint64_
                 s->ReplayRequests=p->AllowRequests&&s->Config.Delivery.AllowRequests;s->DeliveryStarted=true;}
             else if(p->UntilUs<s->AuthUntil)s->AuthUntil=p->UntilUs;
             s->Suspended=false;
+            for(size_t i=s->RetainHead;i!=XTP_NONE;i=s->Tx[i].RetainNext)s->Tx[i].Queued=false;
+            /* The peer proves no live request remains below this floor.
+             * Cache retirement is not a claim of result consumption. */
+            for(size_t i=s->RetainHead;i!=XTP_NONE;){xtptx* t=&s->Tx[i];size_t next=t->RetainNext;
+                if(t->Incoming&&!t->Waiting&&t->ID<p->PeerResultFloor)xtpTxFree(s,i);
+                i=next;}
             /* Cached results precede resubmissions. Retained order is stable. */
             for(unsigned pass=0;pass<2;++pass)for(size_t i=s->RetainHead;i!=XTP_NONE;i=s->Tx[i].RetainNext){xtptx* t=&s->Tx[i];
                 if((pass==0)!=t->Incoming||t->Waiting)continue;
@@ -1926,10 +1942,6 @@ XTP_API xtpresult xtpSubmitBatch(xtpsession* s,const xtpmessage* messages,size_t
         if(due[i]<=now)return XTP_E_DEADLINE;
 #if defined(XTP_FEATURE_XTP_DELIVERY)
         if(o.Replay&&(due[i]>s->AuthUntil||due[i]>xtpSessionDue(now,s->Lifetime)))return XTP_E_LIMIT;
-        if(o.Replay&&m->Type==XTP_REQUEST){
-            if(s->Receipts[id%s->Config.DedupWindow].State)return XTP_E_LIMIT;
-            for(size_t j=0;j<i;++j)if(options[j].Replay&&messages[j].Type==XTP_REQUEST&&
-                packets[j].MessageID%s->Config.DedupWindow==id%s->Config.DedupWindow)return XTP_E_LIMIT;}
 #endif
         if(m->Type!=XTP_NOTIFY){if(!id)return XTP_E_LIMIT;++reliable;}
         packets[i]=(xtppacket){0};packets[i].Type=m->Type;packets[i].Command=m->Command;
@@ -1964,9 +1976,7 @@ XTP_API xtpresult xtpSubmitBatch(xtpsession* s,const xtpmessage* messages,size_t
     for(size_t i=0;i<count;++i){xtptx* t=&s->Tx[taken[i]];t->Type=messages[i].Type;t->ID=packets[i].MessageID;
         t->Deadline=due[i];t->Notify=t->Type==XTP_NOTIFY;t->Tag=options?options[i].Tag:NULL;
 #if defined(XTP_FEATURE_XTP_DELIVERY)
-        if(packets[i].Replayable){xtpRetain(s,taken[i],due[i]);
-            if(t->Type==XTP_REQUEST){xtpreceipt* r=&s->Receipts[t->ID%s->Config.DedupWindow];
-                *r=(xtpreceipt){t->ID,0,t->Lane,1};++s->ReceiptCount;}}
+        if(packets[i].Replayable)xtpRetain(s,taken[i],due[i]);
 #endif
         if(!t->Notify){size_t pi=s->FreePending;xtppending* p=&s->Pending[pi];s->FreePending=p->Next;
             memset(p,0,sizeof(*p));p->Active=true;p->ID=t->ID;p->Type=t->Type;p->Serial=t->Serial;
@@ -2109,12 +2119,6 @@ XTP_API xtpresult xtpDrive(xtpsession* s,uint64_t now,uint64_t* next)
         if(s->Bound)xtpDueMin(&due,s->Tx[i].RetryAt);
 #endif
     }
-#if defined(XTP_FEATURE_XTP_DELIVERY)
-    if(s->Receipts)for(size_t i=0;i<s->Config.DedupWindow;++i){xtpreceipt* r=&s->Receipts[i];
-        if(r->State!=2)continue;
-        if(r->Until<=now){if(!s->TurnFrames){again=true;continue;}--s->TurnFrames;xtpReceiptExpire(s,r);}
-        else xtpDueMin(&due,r->Until);}
-#endif
     xtpresult result=xtpSessionLeave(s,again?XTP_AGAIN:XTP_OK);*next=s->Closed?0:due;return result;
 }
 XTP_API xtpresult xtpClose(xtpsession* s,uint64_t now)
@@ -2139,7 +2143,7 @@ XTP_API xtpresult xtpInfo(const xtpsession* s,xtpinfo* info)
         s->PendingCount,s->Incoming,s->TxCount,s->TxBytes,s->Storage,s->Peak,s->Bound,s->Closing||s->CloseRequested,s->Closed,
         0,0,s->HighID>=s->Config.DedupWindow?s->HighID-s->Config.DedupWindow+1:1,1,0,0,0,false,false};
 #if defined(XTP_FEATURE_XTP_DELIVERY)
-    info->Retained=s->Retained;info->Receipts=s->ReceiptCount;info->ResultFloor=s->ResultFloor;
+    info->Retained=s->Retained;info->Receipts=s->ReceiptCount;info->ResultFloor=xtpResultFloor(s);
     info->Attempts=s->Attempts;info->Retries=s->Retries;info->ResultAcks=s->ResultAcks;
     info->Suspended=s->Suspended;info->ReplayRequests=s->ReplayRequests;
 #endif
