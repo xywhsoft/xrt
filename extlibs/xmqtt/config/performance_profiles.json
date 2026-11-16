@@ -4739,6 +4739,157 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_session_image",
+      "system": "session",
+      "description": "64-packet bounded protocol image Size/Write/Restore microbenchmarks; CRC/copy/gate/allocator costs, not durable I/O or accepted performance",
+      "benchmarks": [
+        {
+          "name": "session_image_size",
+          "source": "extlibs/xmqtt/bench/bench_session_image.c",
+          "suite": "xmqtt_session_image_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "session_image_write",
+          "source": "extlibs/xmqtt/bench/bench_session_image.c",
+          "suite": "xmqtt_session_image_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "2000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "session_image_restore",
+          "source": "extlibs/xmqtt/bench/bench_session_image.c",
+          "suite": "xmqtt_session_image_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "2000",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "2",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        }
+      ]
     }
   ]
 }

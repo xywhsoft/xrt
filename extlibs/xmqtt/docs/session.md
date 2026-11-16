@@ -3,6 +3,11 @@
 `xmqtt_session` implements caller-driven MQTT5/3.1.1 session state using public
 XRT codecs, allocation, atomics and mutexes. It owns no connection, Engine,
 background retry timer, credentials, application receive queue or disk store.
+The separate [Session image codec](session_image.md) now supplies bounded
+checkpoint/restore, explicit binding/expiry and assigned-id recovery. Its selected
+private expiry field permits fractional restart intervals; the unselected layout
+is retained. This checkpoint is a component of future durable storage, with no
+implicit Client/Inbox/disk transaction or acknowledgement guarantee.
 The optional [Client Session factory](client_session.md) attaches it to numeric
 TCP with explicit reconnect and connection-scoped Futures. Automatic reconnect,
 durable/crash recovery remain required. TCP/TLS/Dial/Auth composition is available

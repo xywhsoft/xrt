@@ -1,0 +1,468 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-bounded-Session-protocol-images",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "19775f625df9c8ab220c2893ecc00b54009fd706",
+  "previous_goal_turn": "progress:19775f62 WSS credential capture/reuse tested and committed",
+  "branch_operations": 0,
+  "remote_push": false,
+  "complete_four_product_goal": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "durable_MQTT_complete": false,
+  "feature": "xmqtt_session_image (developing)",
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "new_public_APIs": [
+    "xmqttSessionImageConfigInit",
+    "xmqttSessionImageSize",
+    "xmqttSessionImageWrite",
+    "xmqttSessionImageRestore",
+    "xmqttSessionImageRestoreAssigned"
+  ],
+  "architecture": "Cold coherent protocol checkpoint over the existing passive Session and public Core CRC/memory/synchronization. Exact opaque broker/principal/storage-slot binding plus version and ClientId; explicit assigned-id adoption. A live Client claim rejects passive capture through physical Wait until Destroy. No Client runtime change, file/store/thread/timer or receive-payload persistence.",
+  "format": {
+    "version": 1,
+    "definition": "extlibs/xmqtt/docs/session_image.md",
+    "layout": "64-byte big-endian header, binding/ClientId, ordered canonical PUBLISH/state records, sorted committed QoS2 ids and CRC-32/ISO-HDLC. Exact bounds/CRC before construction, complete embedded codec validation, count/byte/codec limits and atomic output/cleanup. CRC is not authentication or anti-rollback.",
+    "expiry": "Closed finite lifetime rounded conservatively to milliseconds, downtime charged and rebased on new monotonic epoch; backward wall time rejected. Live-at-cut candidate has unknown disconnect time and awaits fresh authenticated CONNACK/SessionPresent, rather than guessing from checkpoint age. No connected readiness or old lease/Future restored."
+  },
+  "verification": {
+    "windows": {
+      "initial_tests": 5,
+      "client_tests": 2,
+      "delivery": 12,
+      "regression": 6,
+      "abi": 3,
+      "root_smoke": 2,
+      "local_C_total": 30,
+      "diagnostic_benchmarks": 21,
+      "interchange": 40,
+      "real_broker": 80,
+      "selected_C_total": 171
+    },
+    "wsl": {
+      "initial_tests": 5,
+      "client_tests": 2,
+      "delivery": 12,
+      "regression": 6,
+      "abi": 3,
+      "root_smoke": 2,
+      "tsan": 1,
+      "local_C_total": 31,
+      "diagnostic_benchmarks": 21,
+      "interchange": 40,
+      "real_broker": 80,
+      "selected_C_total": 172
+    }
+  },
+  "local_scope": [
+    "Both MQTT versions, live/offline/clean/infinite/finite/expired state; exact PUBLISH/PUBREL/id/attempt behavior, receive deduplication, next id/generation, new/huge monotonic epochs, broker-absent decision and assigned identity adoption",
+    "MQTT5 property/binary data and Topic Alias removal, selected/incomplete frame conservatively attempted, input erasure and original owner/external frame/packet lifetime",
+    "Every truncated prefix, one least-significant-bit corruption per byte, CRC-valid malformed metadata/ids/DUP/property count and10000 seeded CRC-valid mutations; accepted variants remain bounded and reserializable",
+    "Binding/version/ClientId/clock/count/byte/codec caps, alias/wrap output atomicity;10000 warm budget1 Size/Write cycles with zero allocation/rejection and ambient error identity",
+    "Sixteen actual allocation-budget probes include measured exact state/each packet boundary, successful control and zero remaining live credits; fixed storage cap preflight is allocation-free LIMIT under a one-byte budget; diagnostic OOM preserves malformed status",
+    "Actual native Client claim and original Client/Engine/Session destruction, six ACK-cut recovery cases per program and immutable old uncertain outcomes; retained Inbox is independently volatile",
+    "Windows native and WSL ASan/UBSan/leaks, separate TSan over all three suites, root/stats-off, six legacy modular/single on/off regressions per host. WSL does not substitute for native Linux acceptance; GCC TSan fence modeling warning retained."
+  ],
+  "distribution": {
+    "static_shared": true,
+    "standalone_declarations": true,
+    "verified_package_tool_consumers_per_host": 2,
+    "exports": {
+      "windows": "windows-exports.json",
+      "wsl": "wsl-exports.json"
+    },
+    "scope": "Separate XRT/MQTT libraries execute protocol/fault/real Client/legacy Session, actual offline example and declaration consumers. Five APIs export; private image/internal bridges hidden. No-argument example performs an actual passive round trip, not usage only. Isolated dependency trim/off modular API checks pass."
+  },
+  "ABI": {
+    "windows": {
+      "baseline": {
+        "session": 464,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 4
+      },
+      "off": {
+        "session": 464,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 4
+      },
+      "on": {
+        "session": 472,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 8
+      }
+    },
+    "wsl": {
+      "baseline": {
+        "session": 536,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 4
+      },
+      "off": {
+        "session": 536,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 4
+      },
+      "on": {
+        "session": 544,
+        "packet": 272,
+        "config": 112,
+        "info": 88,
+        "frame": 72,
+        "expiry": 8
+      }
+    }
+  },
+  "costs": "With matching driver selections, private Session464->472 Windows/536->544 WSL (+8 only when image leaf selected); baseline and unselected layouts equal. Existing public Session config112/info88/frame72 and private packet272 unchanged. New image config48. Size scans active metadata under one existing gate; Write additionally scans the receive map when needed, copies wire once and CRC-scans output. Restore copies wire once per object, decodes/validates native packets, allocates one state plus one object per active packet and rebuilds maps. Shared fixed-store sizing keeps constructor/image quota formulas consistent. Caller image/latency storage, native CRT/kernel/allocator costs remain additional. No zero-overhead claim.",
+  "interchange": {
+    "report": "interchange.json",
+    "C_executions": 80,
+    "images": 16,
+    "opposite_OS_reads": 64,
+    "oracle": "Independent Python struct/zlib validates every field, CRC, literal canonical MQTT wire/stages/reasons and sorted ids; eight Windows/WSL modular/single/static/shared forms emit identical bytes. Original executed C binaries preserved losslessly, even when later test-only builds replace a file timestamp.",
+    "scope": "Actual process/file interchange and fresh protocol negotiation/replay with input erasure; not storage synchronization, process-kill or power-loss durability."
+  },
+  "broker": {
+    "report": "broker.json",
+    "cases": 160,
+    "version": "2.0.22",
+    "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+    "forms": 8,
+    "scope": "Real pinned Mosquitto TCP broker plus independent ACK-cut proxy, both MQTT versions, five outgoing/incoming ACK cuts and normal/tiny work budgets across eight native C forms. Original Clients/Engines AND Session destroyed, image input erased before next Session/Client; volatile Inbox is retained separately. Not full Inbox persistence, process-kill/fsync/power-loss or production acceptance.",
+    "checked": "Both versions, five outgoing/incoming ACK cuts, normal/tiny budgets and257/65537-byte binary payloads. Real broker SessionPresent0/1, canonical full-topic/id/DUP/PUBREL behavior, alias removal, incoming duplicate identity/unknown PUBREL decisions, exact local delivery counts, old outcomes and physical joins. Public image replaces the destroyed old Session; independently retained Inbox remains volatile.",
+    "port_setup": "Windows front socket bound in WSL and checked on native Windows before listen with bounded32 setup candidates; actual readiness still mandatory. WSL forms use the unchanged default listener path. No protocol retries.",
+    "runner_snapshot": "broker-executed-1feba942c47a4e36.py",
+    "fixture_changes": "Optional prebound listener preserves the default TCP proxy; optional probe replacement macro leaves existing non-image probes unchanged. Executed runner preserved before correcting its future log-attempt filename guard; first160 cases were never overwritten."
+  },
+  "performance": {
+    "accepted": false,
+    "OS_drivers_serialized": true,
+    "profiles": {
+      "windows": {
+        "accepted": false,
+        "quality_passed": false,
+        "quality_failure_count": 9,
+        "report": "windows-performance.json",
+        "profiles": {
+          "size": {
+            "operations_per_sec": 4919395.706,
+            "latency_p50_us": 0.2,
+            "latency_p95_us": 0.3,
+            "latency_p99_us": 0.3,
+            "latency_p999_us": 0.4,
+            "latency_max_us": 145.7,
+            "process_cpu_ns_per_op": 234.375
+          },
+          "write": {
+            "operations_per_sec": 15177.858,
+            "latency_p50_us": 65.1,
+            "latency_p95_us": 73.8,
+            "latency_p99_us": 84.2,
+            "latency_p999_us": 142.8,
+            "latency_max_us": 223.2,
+            "process_cpu_ns_per_op": 62500.0
+          },
+          "restore": {
+            "operations_per_sec": 12229.469,
+            "latency_p50_us": 80.2,
+            "latency_p95_us": 93.8,
+            "latency_p99_us": 110.6,
+            "latency_p999_us": 208.1,
+            "latency_max_us": 278.4,
+            "process_cpu_ns_per_op": 78125.0
+          }
+        },
+        "instrument": [
+          {
+            "name": "size",
+            "metrics": {
+              "operations_per_sec": 5948839.996,
+              "latency_p50_us": 0.1,
+              "latency_p95_us": 0.2,
+              "latency_p99_us": 0.2,
+              "latency_p999_us": 0.2,
+              "latency_max_us": 0.4,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 0.0,
+              "heap_bytes_per_op": 0.0,
+              "process_cpu_ns_per_op": 0.0
+            }
+          },
+          {
+            "name": "write",
+            "metrics": {
+              "operations_per_sec": 15181.856,
+              "latency_p50_us": 65.3,
+              "latency_p95_us": 72.1,
+              "latency_p99_us": 78.9,
+              "latency_p999_us": 111.1,
+              "latency_max_us": 112.6,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 0.0,
+              "heap_bytes_per_op": 0.0,
+              "process_cpu_ns_per_op": 62500.0
+            }
+          },
+          {
+            "name": "restore",
+            "metrics": {
+              "operations_per_sec": 11558.943,
+              "latency_p50_us": 86.9,
+              "latency_p95_us": 98.0,
+              "latency_p99_us": 128.5,
+              "latency_p999_us": 292.0,
+              "latency_max_us": 397.0,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 65.0,
+              "heap_bytes_per_op": 45731.0,
+              "process_cpu_ns_per_op": 78125.0
+            }
+          }
+        ]
+      },
+      "wsl": {
+        "accepted": false,
+        "quality_passed": false,
+        "quality_failure_count": 8,
+        "report": "wsl-performance.json",
+        "profiles": {
+          "size": {
+            "operations_per_sec": 5923503.871,
+            "latency_p50_us": 0.1,
+            "latency_p95_us": 0.2,
+            "latency_p99_us": 0.2,
+            "latency_p999_us": 0.4,
+            "latency_max_us": 79.4,
+            "process_cpu_ns_per_op": 168.757
+          },
+          "write": {
+            "operations_per_sec": 14966.643,
+            "latency_p50_us": 65.0,
+            "latency_p95_us": 77.3,
+            "latency_p99_us": 96.6,
+            "latency_p999_us": 161.7,
+            "latency_max_us": 228.1,
+            "process_cpu_ns_per_op": 66820.15
+          },
+          "restore": {
+            "operations_per_sec": 12167.826,
+            "latency_p50_us": 81.5,
+            "latency_p95_us": 98.1,
+            "latency_p99_us": 116.7,
+            "latency_p999_us": 196.3,
+            "latency_max_us": 215.0,
+            "process_cpu_ns_per_op": 82179.75
+          }
+        },
+        "instrument": [
+          {
+            "name": "size",
+            "metrics": {
+              "operations_per_sec": 6531678.65,
+              "latency_p50_us": 0.1,
+              "latency_p95_us": 0.2,
+              "latency_p99_us": 0.2,
+              "latency_p999_us": 0.4,
+              "latency_max_us": 8.0,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 0.0,
+              "heap_bytes_per_op": 0.0,
+              "process_cpu_ns_per_op": 162.3
+            }
+          },
+          {
+            "name": "write",
+            "metrics": {
+              "operations_per_sec": 14683.512,
+              "latency_p50_us": 65.8,
+              "latency_p95_us": 79.1,
+              "latency_p99_us": 95.9,
+              "latency_p999_us": 157.2,
+              "latency_max_us": 158.4,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 0.0,
+              "heap_bytes_per_op": 0.0,
+              "process_cpu_ns_per_op": 68112.4
+            }
+          },
+          {
+            "name": "restore",
+            "metrics": {
+              "operations_per_sec": 11951.372,
+              "latency_p50_us": 80.9,
+              "latency_p95_us": 107.4,
+              "latency_p99_us": 131.7,
+              "latency_p999_us": 218.4,
+              "latency_max_us": 244.5,
+              "image_bytes": 18464.0,
+              "checksum": 18464000.0,
+              "heap_blocks_per_op": 65.0,
+              "heap_bytes_per_op": 45803.0,
+              "process_cpu_ns_per_op": 83681.8
+            }
+          }
+        ]
+      }
+    },
+    "policy": "Five measured samples and one warmup per Size/Write/Restore mode,64 QoS1/256-byte snapshots, caller-observed P50/P95/P99/P99.9/max and exact byte checksum. Three separate1000-operation allocator diagnostics per host: zero XRT allocations Size/Write,65 per Restore. Unchanged MAD0.03/central-range0.06 limits; failures retained without retry-to-green. Per-op clock/check/gate/CRC/copy/decoder costs remain; Restore includes Info/Destroy. Windows CPU resolution may quantize short runs. Unpinned shared-host microbenchmarks, not network/fixed-arrival/comparator/durable-I/O/native production acceptance."
+  },
+  "gates": {
+    "development_passed": true,
+    "strict_release": {
+      "windows": {
+        "passed": false,
+        "expected": true,
+        "reason": "21 explicitly developing MQTT modules; four-product strict release remains closed",
+        "log": "windows-strict-release.log"
+      },
+      "wsl": {
+        "passed": false,
+        "expected": true,
+        "reason": "21 explicitly developing MQTT modules; four-product strict release remains closed",
+        "log": "wsl-strict-release.log"
+      }
+    },
+    "four_product_release_open": false
+  },
+  "source_identity": {
+    "final_source_map_sha256": "b8b9c30f5ff82896e42f9d916492f4a779789e57e1525d9adc1fe2a1f1df7160",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "raw_receipts": 461,
+    "lossless_binary_snapshots_verified": 168,
+    "policy": "Selected successes match final production/support and actual C input bytes; exact start/end source maps, commands/log hashes and original/compressed binaries retained. Changed partial-OOM tests refreshed in unit/single/packages/TSan. Broker probe/writer/proxy/oracle retain their exact code hashes and raw results. Earlier failed cohorts remain distinct."
+  },
+  "failures": [
+    {
+      "receipt": "windows-benchmark-receipts.json",
+      "label": "benchmark-build",
+      "exit_code": 1,
+      "log": "windows-benchmark-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-initial_tests-receipts.json",
+      "label": "initial-suite",
+      "exit_code": 1,
+      "log": "windows-initial-suite.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-initial_tests-receipts.json",
+      "label": "initial-suite",
+      "exit_code": 1,
+      "log": "windows-initial-suite-attempt3.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-off_api-receipts.json",
+      "label": "off-api-compile",
+      "exit_code": 1,
+      "log": "windows-off-api-compile.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "windows-regression-receipts.json",
+      "label": "legacy-single-on-build",
+      "exit_code": 1,
+      "log": "windows-legacy-single-on-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "windows-strict-release.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "wsl-benchmark-receipts.json",
+      "label": "benchmark-build",
+      "exit_code": 1,
+      "log": "wsl-benchmark-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-initial_tests-receipts.json",
+      "label": "initial-suite",
+      "exit_code": 1,
+      "log": "wsl-initial-suite.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-initial_tests-receipts.json",
+      "label": "initial-suite",
+      "exit_code": 1,
+      "log": "wsl-initial-suite-attempt3.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-off_api-receipts.json",
+      "label": "off-api-compile",
+      "exit_code": 1,
+      "log": "wsl-off-api-compile.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "wsl-regression-receipts.json",
+      "label": "legacy-single-on-build",
+      "exit_code": 1,
+      "log": "wsl-legacy-single-on-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "wsl-strict-release.log",
+      "expected_negative": true
+    }
+  ],
+  "corrections": [
+    "Test helper/else formatting initially failed optimized misleading-indentation diagnostics; fix braces without changing production semantics.",
+    "Copied legacy single runner initially omitted the root include path; fix the driver and retain failed commands.",
+    "Standalone benchmark initially lacked the explicit memory_stats header; add public header, with no product dependency change.",
+    "Do not reject a different nonzero next-id as malformed: it is a valid format field. Negative fixtures explicitly encode zero, duplicates or inconsistent flags instead.",
+    "Fixed-state byte cap must be typed allocation-free LIMIT, including diagnostic OOM. Factor the existing bounded storage-size formula into one private inline helper used by creation and image preflight.",
+    "Strengthen initial small-budget tests with measured exact per-allocation boundaries, proving partial state/packet cleanup rather than only first-allocation failure.",
+    "Use recursive finite JSON serialization for standalone benchmark data rather than the measurement tool report-specific serializer; no timing result or threshold altered."
+  ],
+  "remaining": [
+    "Asynchronous bounded file journal/native sync/commit publication, durable Inbox/payload leases and explicit acknowledgement ordering, generation/rollback/compaction and fresh-process crash recovery; see docs/development/xmqtt-store-design.md",
+    "Further broker/TLS/auth/partial-write/slow-peer/OOM/adversarial/scale/load and native Windows/Linux >=72h qualification",
+    "Controlled comparator/fixed-arrival queue-inclusive throughput/tails/CPU/copy/syscall/native memory and equivalent durable-versus-volatile workload acceptance",
+    "Remaining original Redis/RPC/Cron scope and complete four-product release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-session-image-20261116/checkpoint",
+    "physical_storage": "F:/xrt-agent-artifacts/service-extensions/mqtt-session-image-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "d74c389ddc4bdd199596860753241f78c0ef9853a4ef7a19a666614e96baf043",
+    "regular_files": 1381,
+    "sha256_verified": true,
+    "scope": "Changed canonical source snapshots/cohorts, actual native tests and raw failed attempts, original binaries lossless gzip with original/compressed hashes, static/shared packages/declarations, exact executed broker runner and eight probe binaries,160 real broker traces/logs,80 process interchange data/receipts and independent oracle, ABI and performance diagnostics. No secret/key files; compiler/object/temp caches and duplicate raw executables excluded."
+  }
+}

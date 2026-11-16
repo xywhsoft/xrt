@@ -4,30 +4,11 @@
 #include <xrt/sync.h>
 #include "../internal/xmqtt_internal.h"
 #include "../internal/xmqtt_session_client.h"
+#include "../internal/xmqtt_session_state.h"
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_SESSION)
-enum {XMQTT_SESSION_ID_WORDS=2048,XMQTT_SESSION_ID_BYTES=8192,XMQTT_SESSION_RX_BYTES=16384};
-struct xmqttsessionpacket {
-    xatomic32 Refs;xmqttsession* Owner;
-    xmqttsessionpacket *Next,*Previous,*HashNext,*ReadyNext,*ReadyPrevious;
-    size_t Allocation,Bytes;uint16 Identifier;uint8 Qos,Reason,PubrecReason,ReadyKind,SelectedType;
-    bool Active,Sent,Attempted,ReleaseSent,PubrecReceived,Need,Retry;
-    xmqttsessionstage Stage;unsigned char Duplicate,Release[4];
-    xmqttpacket Packet;xmqttproperty Properties[];
-};
-struct xmqttsession {
-    xatomic32 Refs;xmutex Gate;xmqttsessionconfig Config;xmqttnegotiated Peer;
-    size_t BaseBytes,LiveBytes,Objects,Active,RxCount,Prepared,Buckets;
-    xmqttsessionpacket **Hash,*Head,*Tail,*ReadyHead[2],*ReadyTail[2],*Selected;
-    unsigned char *Ids,*Receive;uint16 Next,Quota,InitialQuota;uint64 Generation,Selection;
-    bool Connected,HasState,Persistent,InfiniteExpiry;uint32 Expiry;double LastNow,ExpiresAt,ClosedAt;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    const void* Driver;const xmqttcodecconfig* DriverCodec;
-#endif
-    unsigned char Data[];
-};
 static xmqttsessionstatus xmqttSessionFailure(xmqttsessionstatus Status,cstr Text)
 {
     xerrkind K=Status==XMQTT_SESSION_STATE_ERROR?XERR_STATE:Status==XMQTT_SESSION_PROTOCOL_ERROR?XERR_PROTOCOL:Status==XMQTT_SESSION_RESTRICTED?XERR_RANGE:XERR_ARGUMENT;
@@ -190,8 +171,7 @@ static bool xmqttSessionCreateIdentity(const xmqttsessionconfig* Config,size_t A
        !xmqttSessionSpan(C.ClientId.Data,C.ClientId.Size) || !xmqttSessionSeparate(Out,sizeof(*Out),C.ClientId.Data,C.ClientId.Size) ||
        !xmqttInternalCodecSettings(XMQTT_CLIENT_TO_SERVER,&C.Codec,&Codec) || !xmqttUtf8StringCheck(C.ClientId,C.Codec.Utf8Flags,NULL)){
         xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session settings/identity");return false;}
-    size_t Buckets=0;if(C.MaxOutgoing){Buckets=2;while(Buckets<C.MaxOutgoing*2u)Buckets*=2u;}
-    size_t Base=sizeof(xmqttsession)+Buckets*sizeof(xmqttsessionpacket*)+(C.MaxOutgoing?XMQTT_SESSION_ID_BYTES:0u)+(C.MaxIncoming?XMQTT_SESSION_RX_BYTES:0u)+(AssignedCapacity?AssignedCapacity:C.ClientId.Size);
+    size_t Buckets=0,Base=xmqttSessionStorageSize(&C,AssignedCapacity,&Buckets);
     if(Base>C.MaxBytes){xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"session fixed maps exceed byte budget");return false;}
     xmqttsession* S=xrtCalloc(1,Base);if(!S)return false;
     if(!xrtMutexInit(&S->Gate)){xrtFree(S);return false;}

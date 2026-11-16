@@ -13490,3 +13490,45 @@ and out/service-extensions/xrpc-frame-20261112.
   controlled fixed-arrival performance, native Windows/Linux >=72h soak and the
   original Redis/RPC/Cron scope remain outstanding. Twenty developing MQTT modules
   keep the four-product strict release gate closed.
+
+
+## 2026-11-16: bounded MQTT Session images on master
+
+- Continue from19775f62 directly in D:/GIT/xrt master. No branch or remote push.
+  Optional xmqtt_session_image uses existing Session, both codecs and public Core
+  CRC/memory/synchronization. Five public APIs measure/write/restore a coherent
+  protocol image, including explicit MQTT5 assigned-id adoption. No file/thread/
+  timer/shared runtime or complete durable-store claim is introduced.
+- Big-endian version1 fields, exact boundaries/CRC, binding/ClientId/version,
+  canonical PUBLISH/PUBREL/attempt state, committed incoming identities and
+  generation are checked. Closed finite expiry consumes downtime at millisecond
+  precision; a live candidate awaits the real broker decision. The selected
+  private expiry field adds8 bytes (Windows464->472, WSL536->544 with the same
+  driver selections); the unselected layout, public config112/info88/frame72 and private
+  packet272 stay unchanged. Fixed-store sizing uses one shared internal formula.
+- Separate protocol/fault/real-Client suites, modular/single/root/stats-off,
+  WSL ASan/UBSan/leaks and independent TSan cover property/alias normalization,
+  lifetime past original/image destruction, assigned identity, quota/clock/alias
+  failures, every truncated prefix, one-bit mutation per byte,10000 CRC-valid
+  seeded mutations and actual failures at the state and each packet allocation.
+  Passive images reject live Client claims through physical Wait until Destroy.
+- Eight native forms emit equal bytes checked by independent Python struct/zlib;
+  80 actual process executions cover generation/opposite-OS restore and fresh
+  canonical QoS replay. Real pinned Mosquitto TCP plus independent ACK-cut proxy
+  passes160 cases across both versions/five cuts/normal-small budgets/eight forms.
+  Each destroys the old Session/Clients/Engines and erases image input. Inbox
+  remains separately volatile; neither result proves full crash/power-loss storage.
+- Separate static/shared libraries export all five APIs and execute protocol,
+  faults, native Client recovery, legacy Session, offline example and standalone
+  declaration consumers. Feature-off API rejection, isolated dependency trimming
+  and development metadata gates retain source-bound receipts.
+- Size/Write/Restore profiles count actual64-packet/256-byte-payload work, API
+  latency/CPU/checksum and XRT allocations. Real CRC/copy/gate/decoder/allocator
+  costs remain. Shared-host quality failures and original failed attempts are
+  retained; performance and production acceptance remain open.
+- Exact checks, hashes/cohorts and limitations are in
+  [the stage report](xmqtt-session-image-20261116.json). The
+  [durable-store execution plan](xmqtt-store-design.md) preserves asynchronous
+  journal/Inbox/ack ordering, real sync/crash recovery, compaction and controlled
+  native performance/soak work. Twenty-one developing MQTT modules keep strict
+  release closed; the original Redis/RPC/Cron scope remains active.

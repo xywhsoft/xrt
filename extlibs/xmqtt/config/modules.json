@@ -143,7 +143,8 @@
         "xmqtt_client_ws_tls",
         "xmqtt_client_ws_connect_tls",
         "xmqtt_client_ws_uri_tls",
-        "xmqtt_client_ws_tls_resume"
+        "xmqtt_client_ws_tls_resume",
+        "xmqtt_session_image"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -648,7 +649,8 @@
         "extlibs/xmqtt/include/xmqtt/session.h"
       ],
       "internal_headers": [
-        "extlibs/xmqtt/src/internal/xmqtt_session_client.h"
+        "extlibs/xmqtt/src/internal/xmqtt_session_client.h",
+        "extlibs/xmqtt/src/internal/xmqtt_session_state.h"
       ],
       "sources": [
         "extlibs/xmqtt/src/session/session.c"
@@ -1642,6 +1644,84 @@
       "single_test_owners": {
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_stats_off.c": "xmqtt_client_ws_tls_resume"
       }
+    },
+    {
+      "name": "xmqtt_session_image",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SESSION_IMAGE",
+      "depends": [
+        "xmqtt_session",
+        "crc32"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/session_image.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/session/session_image.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/session_image.md"
+      ]
+    },
+    {
+      "name": "xmqtt_session_image_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_session_image",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_session_image.c",
+        "extlibs/xmqtt/tests/test_session_image_faults.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_session_image.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_session_image_faults.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/session_image/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_session_image.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/session_image.md"
+      ]
+    },
+    {
+      "name": "xmqtt_session_image_client_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_session_image",
+        "xmqtt_client_session",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_session_image_client.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_session_image_client.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/session_image.md"
+      ]
     }
   ]
 }

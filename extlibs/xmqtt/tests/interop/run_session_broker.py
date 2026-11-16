@@ -61,10 +61,11 @@ def packet(sock):
 
 
 class Proxy:
-    def __init__(self, backend, version, mode, host='127.0.0.1', *, drop_packets=True):
+    def __init__(self, backend, version, mode, host='127.0.0.1', *, drop_packets=True, listener=None):
         self.backend, self.version, self.mode = backend, version, mode
-        self.listener = socket.socket()
-        self.listener.bind((host, 0))
+        self.listener = listener if listener is not None else socket.socket()
+        if listener is None:
+            self.listener.bind((host, 0))
         self.port = self.listener.getsockname()[1]
         self.listener.listen(2)
         self.listener.settimeout(.1)

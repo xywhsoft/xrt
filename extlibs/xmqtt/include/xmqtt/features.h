@@ -70,6 +70,22 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_TLS_RESUME
 #define XMQTT_MODULE_XMQTT_CLIENT_WS_TLS_RESUME
 #endif
+#ifndef XMQTT_MODULE_XMQTT_SESSION_IMAGE
+#define XMQTT_MODULE_XMQTT_SESSION_IMAGE
+#endif
+#endif
+
+/* xmqtt_session_image 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SESSION_IMAGE)
+#ifndef XMQTT_FEATURE_XMQTT_SESSION_IMAGE
+#define XMQTT_FEATURE_XMQTT_SESSION_IMAGE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SESSION
+#define XMQTT_MODULE_XMQTT_SESSION
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
 #endif
 
 /* xmqtt_client_ws_tls_resume 及其直接依赖。 */

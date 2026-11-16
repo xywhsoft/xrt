@@ -1,6 +1,11 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The developing [Session image codec](docs/session_image.md) checkpoints bounded
+outgoing QoS/committed incoming identities under an explicit broker/principal/slot
+binding, validates corruption and quotas, and restores independent clock epochs
+and server-assigned MQTT5 identity. See the [offline example](examples/session_image/README.md).
+Full transactional Inbox/journal/acknowledgement durability remains pending.
 Optional [WSS credential handoff](docs/client_ws_tls_resume.md) now connects
 native ticket-only events to the existing bounded TLS resume cache across
 direct/HTTP/URI channels and ordinary reconnect factories. See the

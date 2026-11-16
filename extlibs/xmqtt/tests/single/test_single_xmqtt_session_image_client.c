@@ -1,0 +1,10 @@
+#define XMQTT_MODULE_XMQTT_SESSION_IMAGE
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_session_image_client.c"

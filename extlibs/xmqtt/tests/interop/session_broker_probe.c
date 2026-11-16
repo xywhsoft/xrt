@@ -82,6 +82,9 @@ int main(int Argc,char** Argv)
     check(Old->AcceptedBytes && Old->Identifier && Old->Status==(Mode>=3?XMQTT_STATUS_OK:XMQTT_STATUS_CLOSED),"original connection outcome retained");
     check(Old->PubrecReceived==(Mode>=2) && Old->PubcompReceived==(Mode>=3),"original observed QoS2 phase retained");
     free(Payload);
+#if defined(XMQTT_SESSION_BROKER_REPLACE_SESSION)
+    XMQTT_SESSION_BROKER_REPLACE_SESSION(&SK,&S);
+#endif
     E=engine();C=connectSession(E,(uint16)Port,S,Inbox,true,Fragment,&R2);
     barrier("WAIT_DRAIN","drain\n");
     /* Independent wire barrier first; then a broker round trip on another topic. */

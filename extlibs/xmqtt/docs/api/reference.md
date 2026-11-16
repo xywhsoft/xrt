@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `140` 个函数、`229` 个常量或宏、
-`81` 个公共类型。
+当前登记 `145` 个函数、`231` 个常量或宏、
+`82` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -662,6 +662,27 @@
 - `xmqttsessionpacketinfo`
 - `xmqttsessionstage`
 - `xmqttsessionstatus`
+
+## `extlibs/xmqtt/include/xmqtt/session_image.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/session_image.h)
+
+### 函数 (5)
+
+- `xmqttSessionImageConfigInit`
+- `xmqttSessionImageRestore`
+- `xmqttSessionImageRestoreAssigned`
+- `xmqttSessionImageSize`
+- `xmqttSessionImageWrite`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_SESSION_IMAGE`
+- `XMQTT_SESSION_IMAGE_BINDING_MAX`
+
+### 类型 (1)
+
+- `xmqttsessionimageconfig`
 
 ## `extlibs/xmqtt/include/xmqtt/wire.h`
 
