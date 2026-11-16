@@ -1,0 +1,640 @@
+{
+  "schema": 2,
+  "date_local": "2026-11-17",
+  "measurement_head": "5e5cce76845d62aaa3518a942a5f1c4e1cdf490d",
+  "compiler": "gcc.EXE (GCC) 16.2.0",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "processor": "AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD",
+  "scope": "Windows x64 GCC -O2; three repeats, separate warmup; local/native/capacity runs serialized; no fixed CPU affinity/power policy or HTTP comparison; memory/text exclude transport dependencies unless marked OS process",
+  "local_samples": 888,
+  "native_samples": 180,
+  "xrudp_samples": 153,
+  "multi_samples": 81,
+  "local_rejected": 0,
+  "local_timeouts": 0,
+  "local_rpc": [
+    {
+      "shape": 0,
+      "rpc_per_sec": 294017.335,
+      "p99_us": 45.4,
+      "writer_calls": 1250,
+      "batch_copied_bytes": 1025000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 1,
+      "rpc_per_sec": 308926.111,
+      "p99_us": 37.7,
+      "writer_calls": 1250,
+      "batch_copied_bytes": 1045000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 2,
+      "rpc_per_sec": 298400.572,
+      "p99_us": 46.3,
+      "writer_calls": 1250,
+      "batch_copied_bytes": 1055000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 3,
+      "rpc_per_sec": 293858.36,
+      "p99_us": 42.2,
+      "writer_calls": 1250,
+      "batch_copied_bytes": 1075000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    }
+  ],
+  "replay_rpc": [
+    {
+      "shape": 0,
+      "rpc_per_sec": 254314.445,
+      "p99_us": 23.3,
+      "writer_calls": 1875,
+      "batch_copied_bytes": 1185000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 1,
+      "rpc_per_sec": 258768.366,
+      "p99_us": 22.6,
+      "writer_calls": 1875,
+      "batch_copied_bytes": 1205000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 2,
+      "rpc_per_sec": 247281.144,
+      "p99_us": 23.2,
+      "writer_calls": 1875,
+      "batch_copied_bytes": 1215000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    },
+    {
+      "shape": 3,
+      "rpc_per_sec": 262282.698,
+      "p99_us": 22.0,
+      "writer_calls": 1875,
+      "batch_copied_bytes": 1235000,
+      "offered": 5000,
+      "completed": 5000,
+      "rejected": 0
+    }
+  ],
+  "native_rpc": [
+    {
+      "mode": 0,
+      "rpc_per_sec_both_directions": 181476.676,
+      "median_worst_peer_p99_us": 739.4,
+      "writer_calls_both_directions": 379
+    },
+    {
+      "mode": 1,
+      "rpc_per_sec_both_directions": 154294.796,
+      "median_worst_peer_p99_us": 602.0,
+      "writer_calls_both_directions": 252
+    },
+    {
+      "mode": 2,
+      "rpc_per_sec_both_directions": 174923.798,
+      "median_worst_peer_p99_us": 620.2,
+      "writer_calls_both_directions": 252
+    }
+  ],
+  "native_fixed_rate": [
+    {
+      "mode": 0,
+      "rate_per_direction": 10000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2214.8
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2031.5
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2113.5
+        }
+      ]
+    },
+    {
+      "mode": 0,
+      "rate_per_direction": 200000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2000.9
+        },
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2020.9
+        },
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2016.9
+        }
+      ]
+    },
+    {
+      "mode": 1,
+      "rate_per_direction": 10000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2346.3
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2039.5
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2012.5
+        }
+      ]
+    },
+    {
+      "mode": 1,
+      "rate_per_direction": 200000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 442,
+          "rejected": 3558,
+          "max_generator_lag_us": 2013.9
+        },
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2048.0
+        },
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 1997.8
+        }
+      ]
+    },
+    {
+      "mode": 2,
+      "rate_per_direction": 10000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2188.2
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2032.6
+        },
+        {
+          "offered": 4000,
+          "completed": 4000,
+          "rejected": 0,
+          "max_generator_lag_us": 2151.3
+        }
+      ]
+    },
+    {
+      "mode": 2,
+      "rate_per_direction": 200000,
+      "counts": [
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2025.2
+        },
+        {
+          "offered": 4000,
+          "completed": 448,
+          "rejected": 3552,
+          "max_generator_lag_us": 2005.6
+        },
+        {
+          "offered": 4000,
+          "completed": 384,
+          "rejected": 3616,
+          "max_generator_lag_us": 2053.0
+        }
+      ]
+    }
+  ],
+  "xrudp": [
+    {
+      "kind": 1,
+      "completion": "remote_response",
+      "messages_per_sec_both_directions": 81188.602,
+      "median_worst_peer_p99_us": 897.6,
+      "counts": [
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        }
+      ]
+    },
+    {
+      "kind": 3,
+      "completion": "remote_acceptance_ack",
+      "messages_per_sec_both_directions": 169865.806,
+      "median_worst_peer_p99_us": 412.2,
+      "counts": [
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        }
+      ]
+    },
+    {
+      "kind": 5,
+      "completion": "local_admission",
+      "messages_per_sec_both_directions": 97068.53,
+      "median_worst_peer_p99_us": 755.1,
+      "counts": [
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        },
+        {
+          "completed": 1000,
+          "received": 1000
+        }
+      ]
+    }
+  ],
+  "multi": [
+    {
+      "mode": 0,
+      "connections": 8,
+      "workers": 1,
+      "rpc_per_sec": 166738.573,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 0,
+      "connections": 8,
+      "workers": 2,
+      "rpc_per_sec": 171657.243,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 0,
+      "connections": 8,
+      "workers": 4,
+      "rpc_per_sec": 173083.746,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 0,
+      "connections": 32,
+      "workers": 1,
+      "rpc_per_sec": 344063.084,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 0,
+      "connections": 32,
+      "workers": 2,
+      "rpc_per_sec": 345638.421,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 0,
+      "connections": 32,
+      "workers": 4,
+      "rpc_per_sec": 410211.707,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 1,
+      "connections": 8,
+      "workers": 1,
+      "rpc_per_sec": 125152.725,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 1,
+      "connections": 8,
+      "workers": 2,
+      "rpc_per_sec": 169933.641,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 1,
+      "connections": 8,
+      "workers": 4,
+      "rpc_per_sec": 173269.31,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 1,
+      "connections": 32,
+      "workers": 1,
+      "rpc_per_sec": 145388.592,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 1,
+      "connections": 32,
+      "workers": 2,
+      "rpc_per_sec": 292589.619,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 1,
+      "connections": 32,
+      "workers": 4,
+      "rpc_per_sec": 293145.525,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 2,
+      "connections": 8,
+      "workers": 1,
+      "rpc_per_sec": 168233.693,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 2,
+      "connections": 8,
+      "workers": 2,
+      "rpc_per_sec": 257977.968,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 2,
+      "connections": 8,
+      "workers": 4,
+      "rpc_per_sec": 171885.172,
+      "completed_per_sample": 8000
+    },
+    {
+      "mode": 2,
+      "connections": 32,
+      "workers": 1,
+      "rpc_per_sec": 206251.748,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 2,
+      "connections": 32,
+      "workers": 2,
+      "rpc_per_sec": 255134.99,
+      "completed_per_sample": 32000
+    },
+    {
+      "mode": 2,
+      "connections": 32,
+      "workers": 4,
+      "rpc_per_sec": 257517.499,
+      "completed_per_sample": 32000
+    }
+  ],
+  "source_bytes_lf": {
+    "include": 28189,
+    "src": 93827,
+    "total": 122016
+  },
+  "owned_size_profiles": {
+    "xtp_codec": {
+      "suite": "xtp_codec",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 8120,
+          "data": 0,
+          "bss": 0,
+          "members": 1,
+          "load": 8120,
+          "file": 10782,
+          "path": "release/gnu/native/xtp_codec/static/libxtp.a"
+        }
+      }
+    },
+    "xtp_session": {
+      "suite": "xtp_session",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 38360,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 38360,
+          "file": 49058,
+          "path": "release/gnu/native/xtp_session/static/libxtp.a"
+        }
+      }
+    },
+    "xtp_delivery": {
+      "suite": "xtp_delivery",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 44992,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 44992,
+          "file": 55906,
+          "path": "release/gnu/native/xtp_delivery/static/libxtp.a"
+        }
+      }
+    }
+  },
+  "soak_asan": {
+    "summary": {
+      "summary": true,
+      "mode": 1,
+      "connections": 8,
+      "workers": 4,
+      "body": 64,
+      "rounds": 250,
+      "completed": 8000000,
+      "seconds": 301.233683287,
+      "rpc_per_sec": 26557.455,
+      "cpu_seconds": 781.076576,
+      "fastest_pair_seconds": 1.43235549,
+      "slowest_pair_seconds": 1.48405199,
+      "peak_xtp_bytes": 68188544,
+      "writer_calls": 504000,
+      "batch_copied_bytes": 1536000000
+    },
+    "log_sha256": "c7201ddef3ec71e06c6aad244c43c2770cc3f7d92e18a03bcb3fa0ce1dff3222",
+    "executable_sha256": "eaf434fb733ed9d28de85eadd7644d4bfe12ea9dae47df23fe9ab56192d8ed76",
+    "errors": 0,
+    "scope": "functional stress under concurrent test/build load; timing not used as clean capacity"
+  },
+  "soak_windows": {
+    "summary": {
+      "summary": true,
+      "mode": 1,
+      "connections": 8,
+      "workers": 4,
+      "body": 64,
+      "rounds": 1371,
+      "completed": 43872000,
+      "seconds": 60.032526,
+      "rpc_per_sec": 730803.831,
+      "cpu_seconds": 170.75,
+      "fastest_pair_seconds": 0.0319965,
+      "slowest_pair_seconds": 0.0336638,
+      "peak_xtp_bytes": 68188544,
+      "writer_calls": 2763936,
+      "batch_copied_bytes": 8423424000
+    },
+    "exit_code": 0,
+    "samples": 31,
+    "resident_tail_range": [
+      8085504,
+      8171520
+    ],
+    "private_tail_range": [
+      20328448,
+      21815296
+    ],
+    "scope": "60s persistent TLS stress; OS memory includes entire process; separate from clean matrix"
+  },
+  "standard_profile_quality": {
+    "final-profiles-windows.json": {
+      "repeats": 3,
+      "passed": false,
+      "failures": [
+        {
+          "benchmark": "xtp_shape_2",
+          "metric": "p99_us",
+          "field": "relative_mad",
+          "value": 0.27254509018036077,
+          "limit": 0.2
+        },
+        {
+          "benchmark": "xtp_shape_2",
+          "metric": "p99_us",
+          "field": "relative_central_range",
+          "value": 1.0460921843687376,
+          "limit": 0.3
+        }
+      ]
+    },
+    "final-profiles-7-windows.json": {
+      "repeats": 7,
+      "passed": false,
+      "failures": [
+        {
+          "benchmark": "xtp_shape_0",
+          "metric": "p99_us",
+          "field": "relative_central_range",
+          "value": 0.3356973995271867,
+          "limit": 0.3
+        },
+        {
+          "benchmark": "xtp_shape_1",
+          "metric": "p99_us",
+          "field": "relative_central_range",
+          "value": 0.31509846827133475,
+          "limit": 0.3
+        },
+        {
+          "benchmark": "xtp_shape_2",
+          "metric": "p99_us",
+          "field": "relative_central_range",
+          "value": 0.6506276150627616,
+          "limit": 0.3
+        }
+      ]
+    }
+  },
+  "raw_reports_sha256": {
+    "out/xtp3-bench/final-matrix-windows.json": "d147268dc0ee15af5e308e5a4843f5d3bcf756e21091aaae2b4dcf39f8e9fd6f",
+    "out/xtp3-bench/final-native-windows.json": "5580d68eafaafd6e66cfdd9716e1d0b1936240f7c2b27ae56c3fade653ae9383",
+    "out/xtp3-bench/final-capacity-windows.json": "cb491916a1d4e2543bcdd1f6f4578d1855bd215756097029488bd9e5d12ba1ed",
+    "out/xtp3-bench/final-profiles-windows.json": "4ea4eff14de403be98d55804b085a40033eca90105873fa9bb541b14bf8bcb02",
+    "out/xtp3-bench/size-final-windows.json": "e0c089c3980e19659728b0fb6ff272a7b8424e558a470521ee31b32b82aeff67",
+    "out/xtp3-bench/soak-windows.json": "5c8e042b12375211d6d7e30276029cdb6b1aa61758effda3a431ad05a2b8cd74",
+    "out/xtp3-bench/final-profiles-7-windows.json": "a6ab0e76366f26df9e9ed55cc2e71cc0e97fae12121679886e62470b3335aa0f"
+  },
+  "validation_logs_sha256": {
+    "r2-batch-test.log": "bc6b6500b7dad5c6c425f00d640e2371ac9b6ed4bb7ba1f1f18d610ec9d324d2",
+    "r2-asan.log": "a669653e4612e54a0990e003627ba73ee899f0ce04ada5efd012cb58e9df932a",
+    "r2-fuzz.log": "84558104ec93fb20ffe8a6b728c99cfdf74cab53d45226198c164047e34555e1",
+    "r4-wss-final.log": "2242db050eae36a82cc7363d53c527b55b640aa6bb38a223490dd3ee3fc7e43d",
+    "r3-wss-asan.log": "1ea0294edff777ef70bd27b33849c447af484e42c1e99dd4a6547e17a54f56a3",
+    "r3-all-native.log": "aae258f7f3f4774036cc62a6762489e56dc050aa851f08b6821ff80bed293335",
+    "r3-ppc64.log": "cb73608dfd263f6ac5d602c4141c45dd5d20e340791d3dc280ec6533753e7260",
+    "r3-x86-o0.log": "f2467d6a695d35bc87ddbac46e29a85bc42e4f5ddd04867b22625ab5fd400d30",
+    "r3-x86-modular-o2.log": "e826f45273ba15261c451fe6c01d68ca60f22b30cef175789ab676b55d2c2631",
+    "r3-x86.log": "3186b59dacb95eaec76b81e19292b61713652b1a662e7c2f525af332c0b9f835",
+    "r3-x86-o1.log": "38e778bbe3315e177289c3b589c9f02866f085a1f523e893f4e97b497ee6c310",
+    "r4-public-abi.log": "dd4ecabd93cc6cca87b5108c9a7fa34a59d8c44e1ccbcf864b64080184c12465",
+    "r4-declarations.log": "f67f2025b50462be078725a4f9af5d4ab4ac163cf6152505d0a3585799314066",
+    "r4-package-static.log": "ef13aabe586b00550341bb35517f3da16da207123e439593e78913b52d06f655",
+    "r4-package-shared.log": "a8903fc24b9bbdcff97fd8c362c65d20df993a189e8e56b264759c89a6477907",
+    "r4-xrudp-asan.log": "a826fb50715da755b5ed360aeb17dc3c486f7f330705ded48bab11c6d93eb6ec",
+    "r4-soak-asan.log": "c7201ddef3ec71e06c6aad244c43c2770cc3f7d92e18a03bcb3fa0ce1dff3222"
+  }
+}

@@ -1,57 +1,76 @@
 # XTP3 性能与体积记录
 
-2026-11-16，Windows x64、GCC -O2，CPU 标识 `AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD`。这些是本机容量与回环记录，机器没有固定亲和性或电源策略，不作为跨机器基线或 HTTP 倍数承诺。源码/编译器信息、摘要及原始报告 SHA256 见 [测量收据](measurements/2026-11-16-windows.json)。原始报告保存在可重建的 out/xtp3-bench/，不把测试输出作为生产源码。
+2026-11-17，Windows x64、GCC -O2，CPU `AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD`。测量基于 `5e5cce76`，包含滚动结果确认与自动聚合。摘要、源码身份、原始报告及验证日志 SHA256 见 [最新收据](measurements/2026-11-17-windows.json)。[旧收据](measurements/2026-11-16-windows.json) 保留为历史，旧回执容量及体积不代表当前实现。
+
+机器没有固定 CPU 亲和性和电源策略。各矩阵串行运行，每场景单独预热，保留三次重复；结果不代表互联网时延、跨机器基线或相对 HTTP 的固定倍数。原始文件在 out/xtp3-bench/，可按下列命令重建。
 
 ## 重建
 
-从 XRT 根目录运行，PATH 中提供 GCC/Python；Linux 可用相同命令，但不能直接比较不同主机结果：
-
 ```text
-python extlibs/xtp/bench/measure_matrix.py --compiler gcc --count 5000 --repeats 3 --report out/xtp3-bench/windows-matrix.json
-python extlibs/xtp/bench/measure_native.py --compiler gcc --count 2000 --repeats 3 --report out/xtp3-bench/windows-native.json
-python tools/measure_performance.py --compiler gcc --config extlibs/xtp/config/performance_profiles.json --report out/xtp3-bench/performance-windows.json
-python tools/measure_size.py --compiler gcc --config extlibs/xtp/config/size_profiles.json --profiles xtp_codec,xtp_session,xtp_delivery --kind static --report out/xtp3-bench/size-windows.json
+python extlibs/xtp/bench/measure_matrix.py --compiler gcc --count 5000 --repeats 3 --report out/xtp3-bench/final-matrix-windows.json
+python extlibs/xtp/bench/measure_native.py --compiler gcc --count 2000 --repeats 3 --report out/xtp3-bench/final-native-windows.json
+python extlibs/xtp/bench/measure_capacity.py --compiler gcc --count 500 --repeats 3 --report out/xtp3-bench/final-capacity-windows.json
+python tools/measure_performance.py --compiler gcc --config extlibs/xtp/config/performance_profiles.json --report out/xtp3-bench/final-profiles-windows.json
+python tools/measure_size.py --compiler gcc --config extlibs/xtp/config/size_profiles.json --profiles xtp_codec,xtp_session,xtp_delivery --kind static --report out/xtp3-bench/size-final-windows.json
 ```
 
-每个场景先独立进程预热，再记录三次样本。每次实际样本仍新建实例。JSON 保留每次样本，不只保留最快值；--quick 用于工具冒烟，不替代完整矩阵。Windows CPU 使用 GetProcessTimes；Linux 使用进程 clock。短样本 CPU 计数受分辨率限制，零值不表示零成本。本地 CPU 只计测量循环，原生 CPU 包含连接、TLS 握手与关闭生命周期。
+Windows CPU 使用 GetProcessTimes，Linux 使用进程 clock。短样本有计时粒度限制，零不表示没有成本。本地只计循环 CPU；原生场景 CPU 包含连接和生命周期，xrudp NOTIFY 还包含接收排空等待。--quick 只用于冒烟。
 
-## 覆盖与结果
+## 本地与原生承载
 
-本地 296 种配置、888 个样本：Codec 编码+解码覆盖四种形态、六种 Body 和批量 1/8/32；Session 覆盖同样形态/Body/批量以及 RPC/PUSH/NOTIFY；另列八种可恢复 RPC/PUSH 场景。Body 为 16/64/256/1024/16384/65536 B。普通场景全部提交并完成，无拒绝或超时。
+本地296种配置、888个样本：四种 Command/Params 组合，16/64/256/1024/16384/65536 B Body，批量1/8/32，Codec、RPC/PUSH/NOTIFY及八种可恢复场景。全部提交目标完成，拒绝/超时均零。64 B、两项参数、每批八个RPC、每场景5000目标的三次中位数如下。延迟从提交开始包含排队；没有网络或加密。
 
-64 B Body、一次提交八条普通 RPC、两项参数、本地同步往返，中位数如下。Latency 从 API 提交起包含排队；不是一次 Decode 的成绩：
-
-| 组合 | RPC/s | P99 μs |
+| Command / Params | RPC/s | P99 μs |
 | --- | ---: | ---: |
-| ID + array | 239,809 | 46.9 |
-| name + array | 238,595 | 40.0 |
-| ID + table | 209,726 | 66.3 |
-| name + table | 233,322 | 42.7 |
+| ID / array | 294,017 | 45.4 |
+| name / array | 308,926 | 37.7 |
+| ID / table | 298,401 | 46.3 |
+| name / table | 293,858 | 42.2 |
 
-完整连续帧 Decode 不分配、不复制 Body；上述本地路径每个 Output 额外复制一次到测试承载缓冲，再 Advance/Input。Submit 与 Reply 的 Body 编码复制仍存在，普通 RPC 每次两个缓冲分配请求；ACK 不单独分配缓冲。JSON 的 host_copy_bytes 仅计测试承载复制，不能冒充全部复制。Allocator 次数是库的分配请求次数，非 OS malloc 次数。峰值为 XTP 自有预留账本，非进程 RSS，分配器自身元数据与内核网络缓冲另计。
+对应可恢复RPC为254314、258768、247281、262283 RPC/s，每次5000/5000完成、零拒绝。默认1024个完成记录使用滚动窗口，单元测试在同一保留时段连续完成12000次请求，原1024/60s约17次/秒的入场限制已移除。活跃请求不被淘汰；旧结果只明确退休，不能冒充成功消费。恢复仍增加32 B结果确认、缓存与预算，见 [Delivery](delivery.md)。
 
-原生回环 60 种配置、180 个样本：54 种闭环配置（TCP/TLS/WS × 六种 Body × 在途 1/8/32）及六种固定到达率配置。每个样本同时测试双向 RPC，各方向 2000 个提交目标，一个网络 worker。Native 场景使用数字命令/空参数；TLS 固定测试身份 pin，WS 从已完成 Upgrade 的 stream 接入。64 B、每端在途 32、闭环结果如下：
+原生60种配置、180个样本：TCP/TLS1.3/WS × 六种Body × 在途1/8/32，另测每方向10000/200000/s固定到达率。每方向2000目标、一个worker；TLS使用测试pin/ChaCha20，WS从已升级TCP接入。64 B、每方向在途32的闭环中位数：
 
-| 承载 | 双向合计 RPC/s | 两端较慢 P99 μs |
+| 承载 | 双向合计RPC/s | 每次较慢端P99的中位数 μs |
 | --- | ---: | ---: |
-| TCP | 142,400 | 768.5 |
-| TLS1.3 ChaCha20-Poly1305 | 82,390 | 1508.1 |
-| WS（已升级 TCP） | 133,806 | 855.4 |
+| TCP | 181,477 | 739.4 |
+| TLS 1.3 / ChaCha20 | 154,295 | 602.0 |
+| WS / 已升级TCP | 174,924 | 620.2 |
 
-表格每项先取每次运行两端合计吞吐或较慢端 P99，再取三次中位数；原始报告另有 P50/P95/P99/P99.9/最大值、字节、分配、峰值、CPU、读写事件和定时器计数。网络吞吐包含业务回调、编码、分帧、真实 socket 和承载处理；RPC 时间从首条提交起至双方业务完成，排除握手。TLS、WS、复制读写和 Reader 跨输入组装的额外复制均仍存在，不声称端到端零复制。
+每方向10000/s时三种承载所有重复均4000/4000完成。200000/s时客户端有限窗口拒绝全部超额到达：TCP三次各拒绝3616，TLS为3558/3616/3616，WS为3616/3552/3616。生成器是1ms worker定时器，实际最大滞后约2ms，单独记录；不能据此推算理想均匀到达极限。
 
-固定到达率为每方向 10000 与 200000/s。1ms worker 定时器按独立理想到达时钟计算新增请求；实际调度可能合并到达，max generator_lag_us 单列。客户端在途窗口满时拒绝所有超额到达，仍计入 offered/rejected，不能只观察成功请求。10000/s 场景三种承载全部 4000/4000 完成；200000/s 出现显著客户端窗口拒绝，具体三次计数留在收据。高负载结果同时受生成器分辨率和在途窗口影响，不能据此推算协议的理想均匀到达极限。
+## xrudp 与多连接
 
-native_sent_bytes/native_received_bytes 是开始关闭前的 TCP 并发快照，含 TLS 握手或 WS Mask/帧开销；最后写完成事件可能尚未退休。plaintext_bytes 是 XTP 线帧字节。两者均不包含 IP/TCP 包头、重传或链路层。事件/定时器计数不能替代内核唤醒和系统调用采样。
+xrudp有51种配置、153个样本，真实UDP + Noise IK/静态公钥pin/地址cookie，覆盖RPC/PUSH六种Body、NOTIFY的16/64/256 B、在途1/8/32，以及1%/20ms、10%/80ms损失/RTT。单执行者忙轮询，注入路径另有确定性抖动/重复。每方向500目标，64 B、在途32、无注入损失的中位数：
 
-可恢复 RPC 默认 1024 个结果回执槽保留 60s，长期只有约 17 次/秒的容量；测试在 5000 个提交目标中明确记录 1024 完成、3976 拒绝。没有提前淘汰回执或延长截止时间来获得漂亮数据。普通 RPC、可恢复 PUSH 与可恢复 RPC 必须分开解释，见 [Delivery](delivery.md)。
+| 模型 | 双向合计消息/s | 完成含义 |
+| --- | ---: | --- |
+| RPC | 81,189 | 收到RESPONSE |
+| 可靠PUSH | 169,866 | 收到接管ACK |
+| NOTIFY | 97,069 | 本地DATAGRAM受理 |
 
-## 体积
+以上无损代表场景每次合计1000目标均完成、实际接收1000。损失场景的NOTIFY接收数独立保留，不声称全部投递。500目标的P99.9只是有限次序统计量；大包受拥塞、分段和背压影响，全部原始结果保留。LATEST快照、独立资源流及MTU下降另见 [xrudp](xrudp.md)。
 
-自有 include/src 的 C/h 按 UTF-8/LF 计 116790 B（114.05 KiB），包括可选模块与必要公共/内部头；源码 40–80 KiB 的初始预算没有满足。分项为公共头 27748 B、Codec 15203 B、Reader 13168 B、Session（含可选 Delivery）50654 B、内部头 3237 B、承载适配 6780 B。生成单头不重复算；依赖、测试、示例、文档不混入此口径。
+多连接27种配置、81个样本：同一引擎，1/8/32连接，1/2/4 worker，TCP/TLS/WS。每条连接配临时listener，两端同worker，独立连接跨worker并行，初始化后一起开始；每方向500个RPC。32连接、64 B的三次中位数：
 
-GNU size 对自有 libxtp.a 的 text 指标：Codec 8088 B，基础 Codec+Reader+Session 36024 B，包含 Delivery 为 42912 B。data/bss 均为零；实例状态在堆内。它们不包括独立的 XRT/TLS/xws/xrudp 依赖或整个可执行文件，也不是原始源码字节。静态包分别构建依赖，不能把依赖从运行成本中消失。
+| 承载 | 1 worker RPC/s | 2 worker RPC/s | 4 worker RPC/s |
+| --- | ---: | ---: | ---: |
+| TCP | 344,063 | 345,638 | 410,212 |
+| TLS 1.3 | 145,389 | 292,590 | 293,146 |
+| WS | 206,252 | 255,135 | 257,517 |
 
-## 资格边界
+吞吐没有线性扩展；8连接WS的4 worker样本甚至低于2 worker。每条连接的完成数及尾延迟保留，不能用多个进程冒充共享引擎扩展。
 
-xrudp 目前有真实 UDP、Noise、60Hz 快照与独立资源流、丢失/乱序/重复、RTT 和 MTU 故障验收，尚未取得同口径饱和吞吐矩阵。完整 WSS/HTTP Upgrade、内核唤醒与所有复制的动态采样、多连接跨核扩展性、32位/大端、移动网络/NAT 和长稳仍需发布验收。当前结果不证明互联网时延、唯一游戏网络底座的全部生产资格或相对 HTTP 的固定性能倍数。
+## 复制、内存与持续压力
+
+默认BatchBytes=16KiB，立即聚合同一可靠lane已排队帧，不等凑满；STREAM跨帧短写，RECORD整批受理，不可靠数据报不聚合。暂存缓冲惰性分配、计入配额，多一次复制；规范帧独立保存，OOM退回单帧。ID/array本地5000个普通RPC发送1250次、聚合复制1025000 B；可恢复RPC发送1875次、聚合复制1185000 B。宿主暂存和原生writer复制/封装、TLS加密另计。Batches/BatchedFrames/BatchCopiedBytes包含构建后未发送的快照；writer次数不等于系统调用或内核唤醒，未宣称全链路零复制。
+
+Linux ASan/UBSan的8连接/4 worker持续TLS运行301秒、250轮、8000000次RPC，同一批连接/Session保持后正常退休，无sanitizer错误。Windows相同形态持续60秒、1371轮、43872000次RPC，31次OS内存采样和尾部区间保留在收据。OS内存包含整个进程，与XTP瞬时预留峰值不同。这些压力运行包含同时进行的验证/构建负载，不用作干净容量基线，不替代多日长稳。重建方法见 [部署资格](qualification.md)。
+
+自有生产include/src C/h按UTF-8/LF共122016 B（119.16KiB），包括全部可选模块及公共/内部头。用户已取消源码硬上限，优先简洁、安全和性能；生成单头不重复算，依赖/测试/例程/文档另计。GNU size自有静态库text为：Codec8120 B、Codec+Reader+基础Session38360 B、包含Delivery44992 B；data/bss均零，不包含独立XRT/TLS/xws/xrudp或整个可执行文件。
+
+## 质量门限和环境验收
+
+标准profile（20000次RPC、三次重复）的P99触发质量门限：shape2的MAD为27.3%、中心范围104.6%。另做一次七次重复检查样本不足，shape0/1/2的P99中心范围仍为33.6%/31.5%/65.1%，超过30%门限。两个失败报告均保留，没有放宽阈值或反复重跑直至通过；当前P99不能作为稳定回归基线。
+
+WSS真实TLS1.3/HTTP Upgrade、Windows x86、大端QEMU、包及宿主ABI已验证，特定优化编译告警记录于qualification.md。实体移动设备、运营商/NAT切换、休眠唤醒、多日长稳及全部复制/内核唤醒的动态归因仍需部署环境，当前没有这些资格证据。
