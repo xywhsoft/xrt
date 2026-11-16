@@ -33,6 +33,10 @@ typedef struct native_peer {
     double GeneratorLagUs;
     double* Begin;double* Latency;
 #endif
+#if defined(XTP_BENCH_PRODUCTION)
+    size_t AllocLive,AllocPeak,AllocBlocks;
+    uint64_t TotalPlaintext,TotalWrites;
+#endif
 } native_peer;
 struct native_test {
     unsigned Mode;bool Reject,Failure,Aes;native_peer Peers[2];xatomic32 Done,Failed,Closing;
@@ -46,6 +50,9 @@ struct native_test {
 #endif
 #if defined(XTP_BENCH_MULTI)
     xatomic32 Ready;
+#endif
+#if defined(XTP_BENCH_PRODUCTION)
+    xatomic32 Inspected;size_t LiveBytes,LiveBlocks,ReservedPeak;
 #endif
 };
 static uint64_t clock_us(void){return (uint64_t)(xrtTimer()*1000000.0);}
@@ -64,6 +71,9 @@ static void drain(native_peer* p)
     assert(r==XTP_OK||r==XTP_AGAIN);p->Flushing=false;
 #if defined(XTP_BENCH_NATIVE)
     p->PlaintextBytes+=progress.Bytes;p->WriteCalls+=progress.Calls;
+#if defined(XTP_BENCH_PRODUCTION)
+    p->TotalPlaintext+=progress.Bytes;p->TotalWrites+=progress.Calls;
+#endif
 #endif
 }
 #if defined(XTP_BENCH_NATIVE)
@@ -101,8 +111,23 @@ static void native_tick(xnetworker* worker,uint64_t id,xnetresult result,void* u
     if(p->Offered<native_count)assert(xrtNetEngineAfter(p->Test->Engine,0,1,native_tick,p));
 }
 #endif
+#if defined(XTP_BENCH_PRODUCTION)
+/* Test-only allocator instrumentation; excluded from ordinary capacity probes. */
+typedef union native_allocation {size_t Size;long double Align;void* Pointer;} native_allocation;
+static void* native_alloc(void* user,void* memory,size_t size)
+{
+    native_peer* p=user;bool fresh=memory==NULL;native_allocation* old=memory?(native_allocation*)memory-1:NULL;size_t oldn=old?old->Size:0;
+    if(!size){if(old){assert(p->AllocLive>=oldn&&p->AllocBlocks);p->AllocLive-=oldn;--p->AllocBlocks;xrtFree(old);}return NULL;}
+    assert(size<=SIZE_MAX-sizeof(native_allocation));++p->AllocationCalls;
+    native_allocation* grown=xrtRealloc(old,sizeof(*grown)+size);if(!grown)return NULL;
+    grown->Size=size;p->AllocLive=p->AllocLive-oldn+size;if(fresh)++p->AllocBlocks;
+    if(p->AllocLive>p->AllocPeak)p->AllocPeak=p->AllocLive;
+    return grown+1;
+}
+#else
 static void* native_alloc(void* user,void* memory,size_t size)
 {native_peer* p=user;if(size)++p->AllocationCalls;else{xrtFree(memory);return NULL;}return xrtRealloc(memory,size);}
+#endif
 #endif
 static xtpdecision business(xtpsession* s,const xtpmessageview* m,void* user)
 {

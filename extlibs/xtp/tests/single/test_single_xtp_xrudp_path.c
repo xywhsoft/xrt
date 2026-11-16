@@ -1,0 +1,12 @@
+#define XTP_MODULE_XTP_XRUDP
+#define XRT_MODULE_NET_SOCKET
+#define XRT_MODULE_THREAD
+#include <xtp/features.h>
+#include <xrudp/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XRUDP_IMPLEMENTATION
+#include "../../../../single/extlibs/xrudp.h"
+#define XTP_IMPLEMENTATION
+#include "../../../../single/extlibs/xtp.h"
+#include "../test_xrudp_path.c"

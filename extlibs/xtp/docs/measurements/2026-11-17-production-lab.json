@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "date_local": "2026-11-17",
+  "overall_status": "pending",
+  "production_source_unchanged_from": "cf24b0155bc5fabc958d5d10baf3e6e36d8e96bd",
+  "gates": {
+    "controlled_p99": "passed",
+    "instrumented_probe_four_transports_smoke": "passed",
+    "recorder_false_pass_tests": "passed",
+    "lab_udp_nat_blackout_key_rotation": "passed",
+    "continuous_72h": "pending",
+    "target_devices_and_carrier_network": "pending"
+  },
+  "controlled_p99": {
+    "count_per_shape_repeat": 1000000,
+    "repeats": 7,
+    "affinity_mask": 16,
+    "thresholds_unchanged": true,
+    "metrics": {
+      "xtp_shape_0": {
+        "messages_per_sec": 1194112.548,
+        "p99_us": 18.2,
+        "rejected": 0.0,
+        "peak_reserved_bytes": 1204096.0,
+        "p99_relative_central_range": 0.016483516483516328
+      },
+      "xtp_shape_1": {
+        "messages_per_sec": 1181406.923,
+        "p99_us": 18.1,
+        "rejected": 0.0,
+        "peak_reserved_bytes": 1204160.0,
+        "p99_relative_central_range": 0.016574585635359153
+      },
+      "xtp_shape_2": {
+        "messages_per_sec": 1100198.608,
+        "p99_us": 18.7,
+        "rejected": 0.0,
+        "peak_reserved_bytes": 1204192.0,
+        "p99_relative_central_range": 0.005347593582887587
+      },
+      "xtp_shape_3": {
+        "messages_per_sec": 1090173.244,
+        "p99_us": 18.7,
+        "rejected": 0.0,
+        "peak_reserved_bytes": 1204256.0,
+        "p99_relative_central_range": 0.005347593582887587
+      }
+    }
+  },
+  "evidence_sha256": {
+    "p99-windows.json": "46a4670bd65776f2753fd27dc94b66ec290b0c7dddb2296dec8fdb8fb4380ebd",
+    "p99-exit.json": "9a3d9610f5ef80ba69d674e0208fd776a1f720484006f3f1fbc6d1d0f973b448",
+    "smoke-tcp.json": "a61ad6606dde6004ad8f6bb0320da5a4a206234ebe94bd0d5321a54700ee873b",
+    "smoke-tls.json": "b04ea03d5ac474c9996395f5c00a307e512e20c17a90629ec56c69e6cacabf95",
+    "smoke-ws.json": "c2bb47482fba205247bfb4a35ad0a0690489ac65fad750b2717e6730b65cb334",
+    "smoke-wss.json": "d926ebc5f842de0204abe76276b8497ae189ad95d243a1cd06943d104b8d103a",
+    "smoke-wss-asan.json": "4870468cc0925c006b5cd86453551bb4b448cd4a040d5e8b0b705a29bed83735",
+    "recorder-tests-final.log": "a793ace89b4c1e6de5a57ac27ff723544c8df90b38d5661087422cf5926acae2",
+    "udp-path-keys-asan.log": "87ea9b1c6eff9a4247accc85edacd78657526067ccf034d6e909ee6b57dc38f0"
+  },
+  "device_inventory": "ADB found; devices -l reported no connected devices; user asked for target equipment/endpoints",
+  "long_run_conditions": {
+    "seconds": 259200,
+    "connections": 8,
+    "workers": 2,
+    "count_per_direction_per_round": 2000,
+    "max_rss_bytes": 3221225472,
+    "warmup_seconds": 300,
+    "live_growth_allowance_bytes_per_peer": 131072
+  },
+  "qualification_rule": "pending/running/failure never count as pass; physical mobile/carrier/NAT targets require actual target environment"
+}

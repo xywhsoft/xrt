@@ -445,13 +445,16 @@
       "sources": [],
       "tests": [
         "extlibs/xtp/tests/test_xrudp.c",
-        "extlibs/xtp/tests/test_xrudp_mtu.c"
+        "extlibs/xtp/tests/test_xrudp_mtu.c",
+        "extlibs/xtp/tests/test_xrudp_path.c"
       ],
       "single_tests": [
-        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c"
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c",
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp_path.c"
       ],
       "single_test_owners": {
-        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c": "xtp_xrudp"
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c": "xtp_xrudp",
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp_path.c": "xtp_xrudp"
       },
       "examples": [
         "extlibs/xtp/examples/game/main.c"
@@ -485,7 +488,9 @@
       "examples": [
         "extlibs/xtp/examples/wss/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xtp/bench/bench_production.c"
+      ],
       "docs": []
     }
   ],

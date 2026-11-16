@@ -1,0 +1,201 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xtp/config/modules.json",
+  "defaults": {
+    "repeats": 7,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "qualification-fixed-affinity-1m",
+    "cflags": [
+      "-O2"
+    ],
+    "ldflags": [],
+    "max_relative_mad": 0.2,
+    "max_relative_central_range": 0.3,
+    "regression": {
+      "higher": 0.1,
+      "lower": 0.2
+    }
+  },
+  "profiles": [
+    {
+      "name": "xtp_local",
+      "system": "session",
+      "description": "Synchronous in-process four-shape RPC echo; capacity test, no network or HTTP parity",
+      "benchmarks": [
+        {
+          "name": "xtp_shape_0",
+          "source": "extlibs/xtp/bench/bench_xtp.c",
+          "suite": "xtp,time",
+          "args": [
+            "1000000",
+            "0",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "smoke_args": [
+            "2000",
+            "0",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "metrics": {
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "messages"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "peak_reserved_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "name": "xtp_shape_1",
+          "source": "extlibs/xtp/bench/bench_xtp.c",
+          "suite": "xtp,time",
+          "args": [
+            "1000000",
+            "1",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "smoke_args": [
+            "2000",
+            "1",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "metrics": {
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "messages"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "peak_reserved_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "name": "xtp_shape_2",
+          "source": "extlibs/xtp/bench/bench_xtp.c",
+          "suite": "xtp,time",
+          "args": [
+            "1000000",
+            "2",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "smoke_args": [
+            "2000",
+            "2",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "metrics": {
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "messages"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "peak_reserved_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "name": "xtp_shape_3",
+          "source": "extlibs/xtp/bench/bench_xtp.c",
+          "suite": "xtp,time",
+          "args": [
+            "1000000",
+            "3",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "smoke_args": [
+            "2000",
+            "3",
+            "64",
+            "8",
+            "1",
+            "1",
+            "0",
+            "--kv"
+          ],
+          "metrics": {
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "messages"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "peak_reserved_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
