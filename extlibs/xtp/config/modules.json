@@ -344,6 +344,29 @@
       ]
     },
     {
+      "name": "xtp_xrudp",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_XRUDP",
+      "depends": [
+        "xtp_transport",
+        "rudp_session"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/xrudp.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/transport/xrudp.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/xrudp.md"
+      ]
+    },
+    {
       "name": "xtp_native_tests",
       "state": "developing",
       "feature": null,
@@ -369,9 +392,38 @@
       "collect_dependency_assets": [
         "examples"
       ]
+    },
+    {
+      "name": "xtp_xrudp_tests",
+      "state": "developing",
+      "feature": null,
+      "depends": [
+        "xtp_xrudp",
+        "net_socket",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_xrudp.c",
+        "extlibs/xtp/tests/test_xrudp_mtu.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c"
+      ],
+      "single_test_owners": {
+        "extlibs/xtp/tests/single/test_single_xtp_xrudp.c": "xtp_xrudp"
+      },
+      "examples": [
+        "extlibs/xtp/examples/game/main.c"
+      ],
+      "benchmarks": [],
+      "docs": []
     }
   ],
   "dependency_manifests": [
-    "extlibs/xws/config/modules.json"
+    "extlibs/xws/config/modules.json",
+    "extlibs/xrudp/config/modules.json"
   ]
 }

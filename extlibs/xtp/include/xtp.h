@@ -8,4 +8,5 @@
 #include <xtp/tcp.h>
 #include <xtp/tls.h>
 #include <xtp/ws.h>
+#include <xtp/xrudp.h>
 #endif

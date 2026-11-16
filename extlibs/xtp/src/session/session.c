@@ -61,6 +61,8 @@ xtpresult xtp__TransportWrite(xtpsession* s,const xtpoutput* out,
     s->Busy=true;xtpresult result=write(user,out,accepted);s->Busy=false;return result;
 }
 uint64_t xtp__SessionTime(const xtpsession* s){return s->LastNow;}
+xtpresult xtp__SessionObserve(xtpsession* s,uint64_t now)
+{if(s->Busy)return XTP_E_STATE;if(now<s->LastNow)return XTP_E_ARGUMENT;s->LastNow=now;return XTP_OK;}
 static uint64_t xtpSessionDue(uint64_t now,uint64_t delay)
 {return UINT64_MAX-now<delay?UINT64_MAX:now+delay;}
 static void xtpSessionFault(xtpsession* s,xtpresult reason,size_t lane,bool fatal)
@@ -176,11 +178,11 @@ static void xtpSessionComplete(xtpsession* s,size_t pi,xtpcompletion* c)
     c->Operation=(xtpoperationtoken){{s->Cookie[0],p.Serial}};c->Type=p.Type;c->MessageID=p.ID;c->Tag=p.Tag;
     ++s->Completed;if(s->Events.OnComplete){s->Callback=true;s->Events.OnComplete(s,c,s->User);s->Callback=false;}
 }
-static void xtpNotifyComplete(xtpsession* s,size_t i,xtpfinish reason)
+static void xtpNotifyComplete(xtpsession* s,size_t i,xtpfinish reason,xtpresult error)
 {
     xtptx t=s->Tx[i];xtpcompletion c={0};c.Operation=(xtpoperationtoken){{s->Cookie[0],t.Serial}};
     c.Type=XTP_NOTIFY;c.Tag=t.Tag;c.Reason=reason;c.Knowledge=t.Sent?XTP_KNOW_UNKNOWN:XTP_KNOW_NOT_SENT;
-    c.LocalResult=reason==XTP_FINISH_TIMEOUT?XTP_E_DEADLINE:XTP_OK;xtpTxFree(s,i);++s->Completed;
+    c.LocalResult=error;xtpTxFree(s,i);++s->Completed;
     if(s->Events.OnComplete){s->Callback=true;s->Events.OnComplete(s,&c,s->User);s->Callback=false;}
 }
 static xtpresult xtpSessionDrain(xtpsession* s)
@@ -190,7 +192,7 @@ static xtpresult xtpSessionDrain(xtpsession* s)
         xtpcompletion c={0};c.Reason=XTP_FINISH_CLOSED;c.Knowledge=s->Pending[i].Sent?XTP_KNOW_UNKNOWN:XTP_KNOW_NOT_SENT;
         xtpSessionComplete(s,i,&c);--budget;}
     for(size_t i=0;i<s->Config.MaxTxFrames&&budget;++i)if(s->Tx[i].Active){
-        if(s->Tx[i].Notify)xtpNotifyComplete(s,i,XTP_FINISH_CLOSED);else xtpTxFree(s,i);--budget;}
+        if(s->Tx[i].Notify)xtpNotifyComplete(s,i,XTP_FINISH_CLOSED,XTP_OK);else xtpTxFree(s,i);--budget;}
     if(s->TxCount||s->PendingCount)return XTP_AGAIN;
     for(size_t i=0;i<s->LaneCount;++i){xtpReaderDestroy(s->Lanes[i].Reader);s->Lanes[i].Reader=NULL;}
     s->LaneCount=0;s->Bound=false;s->Unbinding=false;
@@ -470,8 +472,19 @@ XTP_API xtpresult xtpAdvance(xtpsession* s,xtpoutputticket ticket,size_t accepte
     s->NextLane=(t->Lane+1)%s->LaneCount;
     t->Sent=true;t->Offset+=accepted;
     if(t->Pending!=XTP_NONE)s->Pending[t->Pending].Sent=true;
-    if(t->Offset==t->Size){if(t->Notify){--s->TurnFrames;xtpNotifyComplete(s,i,now>=t->Deadline?XTP_FINISH_TIMEOUT:XTP_FINISH_SENT);}
+    if(t->Offset==t->Size){if(t->Notify){--s->TurnFrames;xtpNotifyComplete(s,i,now>=t->Deadline?XTP_FINISH_TIMEOUT:XTP_FINISH_SENT,now>=t->Deadline?XTP_E_DEADLINE:XTP_OK);}
         else{if(t->Pending!=XTP_NONE)s->Pending[t->Pending].Tx=XTP_NONE;xtpTxFree(s,i);}}
+    return xtpSessionLeave(s,XTP_OK);
+}
+xtpresult xtp__DropNotify(xtpsession* s,const xtpoutputticket* ticket,xtpresult reason,uint64_t now)
+{
+    if(s->Busy||!s->Bound||s->CloseRequested||ticket->_Opaque[0]!=s->Binding||!ticket->_Opaque[1]||
+        ticket->_Opaque[1]>s->Config.MaxTxFrames||now<s->LastNow)return XTP_E_STATE;
+    size_t i=(size_t)ticket->_Opaque[1]-1;xtptx* t=&s->Tx[i];
+    if(!t->Active||!t->Notify||!t->Queued||t->Offset||s->Lanes[t->Lane].Head!=i||
+        t->Serial!=ticket->_Opaque[2]||ticket->_Opaque[3])return XTP_E_STATE;
+    s->LastNow=now;s->Busy=true;s->TurnFrames=s->Config.Reader.MaxFrames-1;
+    xtpNotifyComplete(s,i,reason==XTP_E_DEADLINE?XTP_FINISH_TIMEOUT:XTP_FINISH_LOCAL_ERROR,reason);
     return xtpSessionLeave(s,XTP_OK);
 }
 static void xtpDueMin(uint64_t* next,uint64_t due)
@@ -494,7 +507,7 @@ XTP_API xtpresult xtpDrive(xtpsession* s,uint64_t now,uint64_t* next)
         if(t->Deadline<=now){if(!s->TurnFrames){again=true;continue;}--s->TurnFrames;
             if(t->Offset)xtpSessionFault(s,XTP_E_DEADLINE,t->Lane,true);
             if(t->Waiting){if(!xtpControl(s,i,XTP_RESPONSE,t->ID,XTP_STATUS_DEADLINE_EXCEEDED))xtpSessionFault(s,XTP_E_STATE,t->Lane,true);}
-            else if(t->Notify)xtpNotifyComplete(s,i,XTP_FINISH_TIMEOUT);else xtpTxFree(s,i);
+            else if(t->Notify)xtpNotifyComplete(s,i,XTP_FINISH_TIMEOUT,XTP_E_DEADLINE);else xtpTxFree(s,i);
         }else xtpDueMin(&due,t->Deadline);}
     for(size_t i=0;i<s->LaneCount&&!s->CloseRequested;++i){uint64_t rd=0;
         xtpresult r=xtp__ReaderDriveBudget(s->Lanes[i].Reader,now,s->TurnFrames,&work,&rd);xtpDueMin(&due,rd);

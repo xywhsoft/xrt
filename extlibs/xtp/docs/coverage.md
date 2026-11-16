@@ -20,6 +20,12 @@ P4 已实现通用有界排空、已有 TCP、TLS stream 和 xws connection 的�
 
 P4 验证：Windows GCC -O2 模块化和单头真实回环，TCP/TLS1.3 ChaCha+AES/WS 双向三类消息、TLS 身份拒绝、TLS1.2 拒绝、短写、预算、RecordEnd、Text 拒绝及物理退休；WSL Clang ASan/UBSan 真实回环通过。Linux readiness 的同步 Read 重入曾导致示例复制前缀顺序被颠倒，已用宿主 Reading/Flushing 标志修复并在 sanitizer 下复验；XTP 线路解析没有改成 magic 扫描恢复。三个网络例程和单头运行相同断言；测试身份仅为固定 fixture pin，不替代生产 PKI 配置。
 
-P5 xrudp、P6 内存 Delivery 和 P7 XS 迁移/完整性能及生产验收尚未实现。当前 Session 不恢复网络中断、不在 BUSY 后自动重投、不缓存可恢复 RPC 结果；Replay 明确拒绝，RESULT_ACK 只由 Codec 支持线路校验。普通重复 RPC 不再次执行业务，活跃请求等待原响应，已结束请求报告 STATE_LOST；不能把此有限保护当成可恢复投递保证。恢复能力仍需单独验收。
+P6 内存 Delivery 和 P7 XS 迁移/完整性能及生产验收尚未实现。当前 Session 不恢复网络中断、不在 BUSY 后自动重投、不缓存可恢复 RPC 结果；Replay 明确拒绝，RESULT_ACK 只由 Codec 支持线路校验。普通重复 RPC 不再次执行业务，活跃请求等待原响应，已结束请求报告 STATE_LOST；不能把此有限保护当成可恢复投递保证。恢复能力仍需单独验收。
 
 P4 自有 C/头文件合计（UTF-8/LF）：94918 字节（92.69 KiB），依赖和示例另计。
+
+P5 已实现 xrudp 原生 BYTES/不可靠 DATAGRAM 写入适配，动态发送上限校验及单条超限通知的 LOCAL_ERROR/NOT_SENT 完成；拒绝超限通知不影响可靠 lane。
+
+P5 验证：Windows GCC 模块化和单头、WSL Clang ASan/UBSan 的真实 UDP + Noise IK/静态公钥 pin/地址 cookie。双向命令、60Hz 提交快照和独立低优先级资源流在 0/1/5/10% 丢包、20/80/200ms RTT 的12种组合完成；另测1200到512的PMTU变化、较大通知本地拒绝和小快照/可靠资源继续到达。资源使用4KiB应用块、30s操作及15s接收期限，快照有50ms发送排队期限和应用Tick去旧，不把这些配置当作默认或互联网时延承诺。PMTU用例使用注入时钟，其运行时长不作延迟数据。
+
+P5 自有 C/头文件合计（UTF-8/LF）：99384 字节（97.05 KiB），依赖和示例另计。

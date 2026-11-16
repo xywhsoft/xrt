@@ -2,6 +2,19 @@
 #ifndef XTP_FEATURES_H
 #define XTP_FEATURES_H
 
+/* xtp_xrudp 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_XRUDP)
+#ifndef XTP_FEATURE_XTP_XRUDP
+#define XTP_FEATURE_XTP_XRUDP
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRUDP_MODULE_RUDP_SESSION
+#define XRUDP_MODULE_RUDP_SESSION
+#endif
+#endif
+
 /* xtp_native 及其直接依赖。 */
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_NATIVE)
 #ifndef XTP_FEATURE_XTP_NATIVE

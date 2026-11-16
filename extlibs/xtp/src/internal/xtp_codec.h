@@ -47,6 +47,9 @@ struct xtpsession;
 struct xtpoutput;
 bool xtp__SessionAddress(const struct xtpsession* Session,uintptr_t Address,size_t Size);
 uint64_t xtp__SessionTime(const struct xtpsession* Session);
+xtpresult xtp__SessionObserve(struct xtpsession* Session,uint64_t Now);
+struct xtpoutputticket;
+xtpresult xtp__DropNotify(struct xtpsession* Session,const struct xtpoutputticket* Ticket,xtpresult Reason,uint64_t Now);
 bool xtp__RecordLane(struct xtpsession* Session,uint64_t Binding,uint32_t Lane);
 xtpresult xtp__TransportWrite(struct xtpsession* Session,const struct xtpoutput* Output,
     xtpresult (*Write)(void*,const struct xtpoutput*,size_t*),void* User,size_t* Accepted);

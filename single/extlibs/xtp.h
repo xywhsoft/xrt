@@ -59,6 +59,19 @@
 #ifndef XTP_FEATURES_H
 #define XTP_FEATURES_H
 
+/* xtp_xrudp 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_XRUDP)
+#ifndef XTP_FEATURE_XTP_XRUDP
+#define XTP_FEATURE_XTP_XRUDP
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRUDP_MODULE_RUDP_SESSION
+#define XRUDP_MODULE_RUDP_SESSION
+#endif
+#endif
+
 /* xtp_native 及其直接依赖。 */
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_NATIVE)
 #ifndef XTP_FEATURE_XTP_NATIVE
@@ -552,11 +565,13 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
  * Host retains transport ownership, events, input buffers and writable timers. */
 typedef xtpresult (*xtpwriteproc)(void* User,const xtpoutput* Output,size_t* Accepted);
 typedef struct xtpwritebudget {size_t Bytes,Frames,ChunkBytes;} xtpwritebudget;
-typedef struct xtpwriteprogress {size_t Bytes,Frames,Calls;} xtpwriteprogress;
+typedef struct xtpwriteprogress {size_t Bytes,Frames,Calls,Dropped;} xtpwriteprogress;
 XRT_EXTERN_C_BEGIN
 /* NULL budget:256KiB,64 frames,16KiB stream offers. RECORD is never split and
  * must fit Bytes; no waiting to form batches. AGAIN means budget/backpressure.
- * Error does not discard queued data; host reports transport failure via Unbind.
+ * Permanent LIMIT/DEADLINE on an unsent unreliable RECORD retires only that
+ * NOTIFY as LOCAL_ERROR/TIMEOUT + NOT_SENT, returns DROPPED, never SENT.
+ * Other errors retain data; host reports transport failure via Unbind.
  * Now is a fresh monotonic timestamp for this bounded synchronous drain turn. */
 XTP_API xtpresult xtpDrain(xtpsession* Session,uint32_t LaneID,xtpwriteproc Write,void* User,
     const xtpwritebudget* Budget,uint64_t NowUs,xtpwriteprogress* Progress);
@@ -621,6 +636,31 @@ XTP_API xtpresult xtpWsEnd(xtpwsinput* Input,uint64_t NowUs,xtpreadprogress* Pro
 /* xtpDrain writer; User is borrowed OPEN xwsconn, subprotocol must be xtp.v3.
  * Complete Binary RECORD only. Source is copied by native xws before return. */
 XTP_API xtpresult xtpWsWrite(void* Connection,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/xrudp.h */
+/* ========================================================================== */
+
+#ifndef XTP_XRUDP_H
+#define XTP_XRUDP_H
+#if defined(XTP_FEATURE_XTP_XRUDP)
+typedef struct xtpxrudpwriter {
+    xrudpsession* Session;uint32_t StreamID,ChannelID;uint64_t NowUs;
+} xtpxrudpwriter;
+XRT_EXTERN_C_BEGIN
+/* Borrow an authenticated/promoted xrudp session; never add TLS or another
+ * fragmenter. STREAM maps to raw BYTES StreamID (0=>1); unreliable RECORD maps
+ * to configured ChannelID and must contain one whole NOTIFY. Refresh NowUs
+ * before each Drain. Current DatagramSendLimit is checked on every offer.
+ * LIMIT is permanent for that payload: Drain drops only the unsent NOTIFY,
+ * completes it LOCAL_ERROR/NOT_SENT, and reports Dropped; no stream fallback.
+ * Host supplies readable stream bytes / whole datagrams to the matching XTP
+ * lane, and calls native Poll after work and at native Due. Own no events/keys. */
+XTP_API xtpresult xtpXrudpWrite(void* Writer,const xtpoutput* Output,size_t* Accepted);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -692,6 +732,9 @@ struct xtpsession;
 struct xtpoutput;
 bool xtp__SessionAddress(const struct xtpsession* Session,uintptr_t Address,size_t Size);
 uint64_t xtp__SessionTime(const struct xtpsession* Session);
+xtpresult xtp__SessionObserve(struct xtpsession* Session,uint64_t Now);
+struct xtpoutputticket;
+xtpresult xtp__DropNotify(struct xtpsession* Session,const struct xtpoutputticket* Ticket,xtpresult Reason,uint64_t Now);
 bool xtp__RecordLane(struct xtpsession* Session,uint64_t Binding,uint32_t Lane);
 xtpresult xtp__TransportWrite(struct xtpsession* Session,const struct xtpoutput* Output,
     xtpresult (*Write)(void*,const struct xtpoutput*,size_t*),void* User,size_t* Accepted);
@@ -1273,6 +1316,8 @@ xtpresult xtp__TransportWrite(xtpsession* s,const xtpoutput* out,
     s->Busy=true;xtpresult result=write(user,out,accepted);s->Busy=false;return result;
 }
 uint64_t xtp__SessionTime(const xtpsession* s){return s->LastNow;}
+xtpresult xtp__SessionObserve(xtpsession* s,uint64_t now)
+{if(s->Busy)return XTP_E_STATE;if(now<s->LastNow)return XTP_E_ARGUMENT;s->LastNow=now;return XTP_OK;}
 static uint64_t xtpSessionDue(uint64_t now,uint64_t delay)
 {return UINT64_MAX-now<delay?UINT64_MAX:now+delay;}
 static void xtpSessionFault(xtpsession* s,xtpresult reason,size_t lane,bool fatal)
@@ -1388,11 +1433,11 @@ static void xtpSessionComplete(xtpsession* s,size_t pi,xtpcompletion* c)
     c->Operation=(xtpoperationtoken){{s->Cookie[0],p.Serial}};c->Type=p.Type;c->MessageID=p.ID;c->Tag=p.Tag;
     ++s->Completed;if(s->Events.OnComplete){s->Callback=true;s->Events.OnComplete(s,c,s->User);s->Callback=false;}
 }
-static void xtpNotifyComplete(xtpsession* s,size_t i,xtpfinish reason)
+static void xtpNotifyComplete(xtpsession* s,size_t i,xtpfinish reason,xtpresult error)
 {
     xtptx t=s->Tx[i];xtpcompletion c={0};c.Operation=(xtpoperationtoken){{s->Cookie[0],t.Serial}};
     c.Type=XTP_NOTIFY;c.Tag=t.Tag;c.Reason=reason;c.Knowledge=t.Sent?XTP_KNOW_UNKNOWN:XTP_KNOW_NOT_SENT;
-    c.LocalResult=reason==XTP_FINISH_TIMEOUT?XTP_E_DEADLINE:XTP_OK;xtpTxFree(s,i);++s->Completed;
+    c.LocalResult=error;xtpTxFree(s,i);++s->Completed;
     if(s->Events.OnComplete){s->Callback=true;s->Events.OnComplete(s,&c,s->User);s->Callback=false;}
 }
 static xtpresult xtpSessionDrain(xtpsession* s)
@@ -1402,7 +1447,7 @@ static xtpresult xtpSessionDrain(xtpsession* s)
         xtpcompletion c={0};c.Reason=XTP_FINISH_CLOSED;c.Knowledge=s->Pending[i].Sent?XTP_KNOW_UNKNOWN:XTP_KNOW_NOT_SENT;
         xtpSessionComplete(s,i,&c);--budget;}
     for(size_t i=0;i<s->Config.MaxTxFrames&&budget;++i)if(s->Tx[i].Active){
-        if(s->Tx[i].Notify)xtpNotifyComplete(s,i,XTP_FINISH_CLOSED);else xtpTxFree(s,i);--budget;}
+        if(s->Tx[i].Notify)xtpNotifyComplete(s,i,XTP_FINISH_CLOSED,XTP_OK);else xtpTxFree(s,i);--budget;}
     if(s->TxCount||s->PendingCount)return XTP_AGAIN;
     for(size_t i=0;i<s->LaneCount;++i){xtpReaderDestroy(s->Lanes[i].Reader);s->Lanes[i].Reader=NULL;}
     s->LaneCount=0;s->Bound=false;s->Unbinding=false;
@@ -1682,8 +1727,19 @@ XTP_API xtpresult xtpAdvance(xtpsession* s,xtpoutputticket ticket,size_t accepte
     s->NextLane=(t->Lane+1)%s->LaneCount;
     t->Sent=true;t->Offset+=accepted;
     if(t->Pending!=XTP_NONE)s->Pending[t->Pending].Sent=true;
-    if(t->Offset==t->Size){if(t->Notify){--s->TurnFrames;xtpNotifyComplete(s,i,now>=t->Deadline?XTP_FINISH_TIMEOUT:XTP_FINISH_SENT);}
+    if(t->Offset==t->Size){if(t->Notify){--s->TurnFrames;xtpNotifyComplete(s,i,now>=t->Deadline?XTP_FINISH_TIMEOUT:XTP_FINISH_SENT,now>=t->Deadline?XTP_E_DEADLINE:XTP_OK);}
         else{if(t->Pending!=XTP_NONE)s->Pending[t->Pending].Tx=XTP_NONE;xtpTxFree(s,i);}}
+    return xtpSessionLeave(s,XTP_OK);
+}
+xtpresult xtp__DropNotify(xtpsession* s,const xtpoutputticket* ticket,xtpresult reason,uint64_t now)
+{
+    if(s->Busy||!s->Bound||s->CloseRequested||ticket->_Opaque[0]!=s->Binding||!ticket->_Opaque[1]||
+        ticket->_Opaque[1]>s->Config.MaxTxFrames||now<s->LastNow)return XTP_E_STATE;
+    size_t i=(size_t)ticket->_Opaque[1]-1;xtptx* t=&s->Tx[i];
+    if(!t->Active||!t->Notify||!t->Queued||t->Offset||s->Lanes[t->Lane].Head!=i||
+        t->Serial!=ticket->_Opaque[2]||ticket->_Opaque[3])return XTP_E_STATE;
+    s->LastNow=now;s->Busy=true;s->TurnFrames=s->Config.Reader.MaxFrames-1;
+    xtpNotifyComplete(s,i,reason==XTP_E_DEADLINE?XTP_FINISH_TIMEOUT:XTP_FINISH_LOCAL_ERROR,reason);
     return xtpSessionLeave(s,XTP_OK);
 }
 static void xtpDueMin(uint64_t* next,uint64_t due)
@@ -1706,7 +1762,7 @@ XTP_API xtpresult xtpDrive(xtpsession* s,uint64_t now,uint64_t* next)
         if(t->Deadline<=now){if(!s->TurnFrames){again=true;continue;}--s->TurnFrames;
             if(t->Offset)xtpSessionFault(s,XTP_E_DEADLINE,t->Lane,true);
             if(t->Waiting){if(!xtpControl(s,i,XTP_RESPONSE,t->ID,XTP_STATUS_DEADLINE_EXCEEDED))xtpSessionFault(s,XTP_E_STATE,t->Lane,true);}
-            else if(t->Notify)xtpNotifyComplete(s,i,XTP_FINISH_TIMEOUT);else xtpTxFree(s,i);
+            else if(t->Notify)xtpNotifyComplete(s,i,XTP_FINISH_TIMEOUT,XTP_E_DEADLINE);else xtpTxFree(s,i);
         }else xtpDueMin(&due,t->Deadline);}
     for(size_t i=0;i<s->LaneCount&&!s->CloseRequested;++i){uint64_t rd=0;
         xtpresult r=xtp__ReaderDriveBudget(s->Lanes[i].Reader,now,s->TurnFrames,&work,&rd);xtpDueMin(&due,rd);
@@ -1756,6 +1812,7 @@ XTP_API xtpresult xtpDrain(xtpsession* s,uint32_t lane,xtpwriteproc write,void* 
         (input&&(!xrtMemRangeValid(input,sizeof(*input))||xtp__Overlap(input,sizeof(*input),progress,sizeof(*progress)))))return XTP_E_ARGUMENT;
     xtpwritebudget b={262144,64,16384};if(input)b=*input;
     if(!b.Bytes||!b.Frames||!b.ChunkBytes||now<xtp__SessionTime(s))return XTP_E_ARGUMENT;
+    xtpresult observed=xtp__SessionObserve(s,now);if(observed!=XTP_OK)return observed;
     xtpwriteprogress p={0};xtpresult result=XTP_AGAIN;
     while(p.Frames<b.Frames&&p.Bytes<b.Bytes){xtpoutput out;result=xtpOutput(s,lane,&out);
         if(result==XTP_AGAIN){result=XTP_OK;break;}if(result!=XTP_OK)break;
@@ -1766,6 +1823,9 @@ XTP_API xtpresult xtpDrain(xtpsession* s,uint32_t lane,xtpwriteproc write,void* 
         if(n>out.Data.Size||(out.Mode==XTP_INPUT_RECORD&&n&&n!=whole)){result=XTP_E_STATE;break;}
         if(n){uint64_t latest=xtp__SessionTime(s);result=xtpAdvance(s,out.Ticket,n,now<latest?latest:now);p.Bytes+=n;if(n==whole)++p.Frames;
             if(result!=XTP_OK)break;}
+        if(!n&&!out.Reliable&&out.Mode==XTP_INPUT_RECORD&&(sent==XTP_E_LIMIT||sent==XTP_E_DEADLINE)){
+            uint64_t latest=xtp__SessionTime(s);result=xtp__DropNotify(s,&out.Ticket,sent,now<latest?latest:now);
+            if(result==XTP_OK){++p.Frames;++p.Dropped;result=XTP_DROPPED;}break;}
         if(sent!=XTP_OK){result=sent;break;}if(!n){result=XTP_AGAIN;break;}
         result=XTP_AGAIN;
     }
@@ -1851,6 +1911,39 @@ XTP_API xtpresult xtpWsWrite(void* connection,const xtpoutput* out,size_t* n)
     xnetresult r=xrtWsConnBinary(connection,out->Data);
     if(r==XNET_RESULT_OK){*n=out->Data.Size;return XTP_OK;}
     return r==XNET_RESULT_AGAIN?XTP_AGAIN:r==XNET_RESULT_CLOSED?XTP_CLOSED:XTP_E_STATE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xtp/src/transport/xrudp.c */
+/* ========================================================================== */
+
+#if defined(XTP_FEATURE_XTP_XRUDP)
+#if defined(XTP_FEATURE_XTP_XRUDP)
+static xtpresult xtpXrudpResult(xrudpresult r)
+{
+    return r==XRUDP_OK?XTP_OK:r==XRUDP_BACKPRESSURE?XTP_AGAIN:r==XRUDP_LIMIT?XTP_E_LIMIT:
+        r==XRUDP_NO_MEMORY?XTP_E_MEMORY:r==XRUDP_CLOSED||r==XRUDP_CANCELLED||r==XRUDP_DONE?XTP_CLOSED:XTP_E_STATE;
+}
+XTP_API xtpresult xtpXrudpWrite(void* user,const xtpoutput* out,size_t* accepted)
+{
+    xtpxrudpwriter* w=user;
+    if(!w||!w->Session||!out||!accepted)return XTP_E_ARGUMENT;
+    *accepted=0;
+    if(out->Mode==XTP_INPUT_STREAM&&out->Reliable)
+        return xtpXrudpResult(xrtRudpSessionStreamWrite(w->Session,w->StreamID?w->StreamID:1,out->Data.Data,out->Data.Size,accepted));
+    if(out->Mode!=XTP_INPUT_RECORD||out->Reliable||!w->ChannelID||out->Data.Size<32||out->Data.Data[16]!=XTP_NOTIFY)return XTP_E_ARGUMENT;
+    if(out->DeadlineUs<=w->NowUs)return XTP_E_DEADLINE;
+    if(out->DeadlineUs-w->NowUs>XRUDP_DATAGRAM_LIFETIME_MAX_US)return XTP_E_LIMIT;
+    xrudpsessionstate state;xrudpresult r=xrtRudpSessionState(w->Session,&state);
+    if(r!=XRUDP_OK)return xtpXrudpResult(r);
+    if(state.Reason!=XRUDP_OK)return XTP_CLOSED;
+    if(out->Data.Size>state.DatagramSendLimit)return XTP_E_LIMIT;
+    uint64_t sequence;r=xrtRudpSessionDatagramWrite(w->Session,w->ChannelID,out->Data.Data,out->Data.Size,w->NowUs,out->DeadlineUs,&sequence);
+    if(r==XRUDP_OK)*accepted=out->Data.Size;
+    return xtpXrudpResult(r);
 }
 #endif
 #endif
