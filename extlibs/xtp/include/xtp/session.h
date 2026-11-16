@@ -58,6 +58,7 @@ typedef struct xtpbinding {
 typedef struct xtpconfig {
     xtpreaderconfig Reader;
     size_t MaxPending,MaxIncomingRequests,MaxLanes,MaxTxFrames,MaxTxBytes;
+    size_t BatchBytes; /* 0 disables aggregation; default 16KiB, max 1MiB. */
     size_t ResponseReserveBytes,ResponseReserveFrames,MaxResponseBytes,MaxSessionBytes,DedupWindow;
     uint64_t DefaultOperationTimeoutUs,IncomingRequestTimeoutUs;
     xtpdeliveryconfig Delivery;
@@ -66,6 +67,7 @@ typedef struct xtpconfig {
 typedef struct xtpoutput {
     xbytesview Data;xtpoutputticket Ticket;uint64_t BindingID,DeadlineUs;
     uint32_t LaneID;xtpinputmode Mode;bool Reliable;uint8_t Priority;
+    size_t Frames; /* Frame suffixes in this offer; RECORD is all-or-none. */
 } xtpoutput;
 typedef struct xtpinfo {
     uint64_t BindingID,NextMessageID,Submitted,Completed,Messages,UnknownResults,Duplicates;
@@ -74,6 +76,7 @@ typedef struct xtpinfo {
     size_t Retained,Receipts;
     uint64_t ReceiveFloor,ResultFloor,Attempts,Retries,ResultAcks;
     bool Suspended,ReplayRequests;
+    uint64_t Batches,BatchedFrames,BatchCopiedBytes;
 } xtpinfo;
 XRT_EXTERN_C_BEGIN
 /* No IO/thread/global route state. NULL config uses finite defaults. Config and
@@ -103,10 +106,13 @@ XTP_API xtpresult xtpSubmit(xtpsession* Session,const xtpmessage* Message,
 XTP_API xtpresult xtpSubmitBatch(xtpsession* Session,const xtpmessage* Messages,size_t Count,
     const xtpsubmitoptions* Options,uint64_t NowUs,xtpoperationtoken* Operations);
 XTP_API xtpresult xtpReply(xtpsession* Session,xtprequesttoken Request,const xtpresponse* Response,uint64_t NowUs);
-/* One immutable frame suffix. STREAM permits short Advance; RECORD is all or
+/* One immutable offer, optionally combining queued frames on ONE reliable lane.
+ * STREAM permits short Advance across frame boundaries; RECORD is all or
  * zero. Zero Advance returns AGAIN. Ticket validates binding, slot, generation
  * and offset. No reentry between Output and lower-layer acceptance/Advance.
- * Output is borrowed until the next mutating call; host must copy if retaining.
+ * A new offer may replace a prior aggregate. Copy before retaining it or before
+ * callbacks that mutate the instance. No waiting to fill a batch. BatchBytes=0
+ * preserves single-frame output. Aggregation OOM falls back to one frame.
  * Output(any lane) rotates queue heads after successful Advance; select a lane to keep
  * independently writable lanes progressing under per-lane backpressure. */
 XTP_API xtpresult xtpOutput(xtpsession* Session,uint32_t LaneID,xtpoutput* Output);

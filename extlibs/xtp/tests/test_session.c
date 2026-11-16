@@ -73,7 +73,7 @@ static size_t transfer(session_test* a,session_test* b,size_t chunk,size_t max)
     while(count<max&&xtpOutput(a->Session,0,&out)==XTP_OK){
         unsigned char* wire=malloc(out.Data.Size);assert(wire);size_t n=out.Data.Size;memcpy(wire,out.Data.Data,n);
         assert(xtpAdvance(a->Session,out.Ticket,n,a->Now)>=0);
-        feed(b,wire,n,out.LaneID,out.Mode==XTP_INPUT_RECORD,chunk);free(wire);++count;}
+        feed(b,wire,n,out.LaneID,out.Mode==XTP_INPUT_RECORD,chunk);free(wire);count+=out.Frames;}
     return count;
 }
 static xtpinfo info(session_test* t)
@@ -311,7 +311,7 @@ static void lane_rotation_and_callback_deadline(void)
     assert(xtpAdvance(a.Session,out.Ticket,1,0)==XTP_OK);
     assert(xtpOutput(a.Session,0,&out)==XTP_OK&&out.LaneID==2);
     assert(xtpAdvance(a.Session,out.Ticket,out.Data.Size,0)==XTP_OK);
-    assert(xtpOutput(a.Session,0,&out)==XTP_OK&&out.LaneID==1&&out.Data.Size==31);
+    assert(xtpOutput(a.Session,0,&out)==XTP_OK&&out.LaneID==1&&out.Data.Size==63&&out.Frames==2);
     assert(xtpAdvance(a.Session,out.Ticket,31,0)==XTP_OK&&a.Completed==2);destroy(&a);
     memset(&a,0,sizeof(a));create(&a,NULL);bind_session(&a);a.SubmitInComplete=true;
     xtpmessage m=message(XTP_NOTIFY);xtpsubmitoptions o={0};o.DeadlineUs=1;

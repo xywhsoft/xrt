@@ -52,7 +52,7 @@ int LLVMFuzzerTestOneInput(const unsigned char* data,size_t size)
         case 0:case 1:{xtpmessage m={0};m.Type=(op&16)?XTP_REQUEST:(op&32)?XTP_PUSH:XTP_NOTIFY;
             m.Command=xtpCmdID(op);size_t n=size<32?size:32;m.Body=(xbytesview){data,n};xtpsubmitoptions opt={0};
             opt.Replay=m.Type!=XTP_NOTIFY&&(op&64);(void)xtpSubmit(a->Session,&m,&opt,now,NULL);break;}
-        case 2:{xtpoutput out;if(xtpOutput(a->Session,0,&out)==XTP_OK){unsigned char bytes[512];size_t n=out.Data.Size;assert(n<=512);
+        case 2:{xtpoutput out;if(xtpOutput(a->Session,0,&out)==XTP_OK){unsigned char bytes[8192];size_t n=out.Data.Size;assert(n<=sizeof(bytes));
             memcpy(bytes,out.Data.Data,n);(void)xtpAdvance(a->Session,out.Ticket,n,now);
             if(!(op&16)&&bi.Bound){xtpreadprogress p;(void)xtpInput(b->Session,b->Binding,1,(xbytesview){bytes,n},false,now,&p);}}break;}
         case 3:now+=op>>4;f[0].Now=f[1].Now=now;(void)xtpDrive(a->Session,now,&due);(void)xtpDrive(b->Session,now,&due);break;

@@ -16,7 +16,9 @@ OnMessage 只交付 REQUEST/PUSH/NOTIFY，Command.Kind 与 Params.Kind 独立。
 
 回调可同步 Submit/Reply/请求 Close；它们不递归派发完成回调。成功 Reply 后必须返回 Accept；其他返回值或非法 Action/Status 是致命的本地契约错误。Destroy、Bind、Input、Advance、Drive 不允许在回调中重入。分配器必须满足普通 realloc 对齐及失败保留语义，不重入实例；Size=0 释放。User、分配器上下文和回调代码须保持到 Destroy；Config/events 描述本身已复制，可以释放其原存储。
 
-宿主以 Output 获取借用的不可变数据和 Ticket，先让下层真正复制/接管，再以 Advance 报告受理字节。STREAM 可短写，RECORD 只能完整一条或零受理。零受理返回 AGAIN，不移动游标。成功 Advance 后旧 Ticket 失效；绑定代、槽代、偏移任一不符都拒绝。Output 借用不能跨越会改变输出状态的调用，发送与 Advance 之间不得递归进入 XTP；异步保留发送须由宿主先复制。Output 当前逐帧返回，SubmitBatch 已原子排队，但尚无自动发送聚合器；Codec EncodeBatch 可直接生成调用者自有的多帧缓冲。
+宿主以 Output 获取借用的不可变数据和 Ticket，先让下层真正复制/接管，再以 Advance 报告受理字节。STREAM 可短写并跨越多个帧边界，RECORD 只能完整受理当前输出或零受理。零受理返回 AGAIN，不移动游标。成功 Advance 后旧 Ticket 失效；绑定代、槽代、偏移或聚合快照任一不符都拒绝。Output 借用不能跨越会改变输出状态的调用，发送与 Advance 之间不得递归进入 XTP；异步保留发送须由宿主先复制。
+
+默认 BatchBytes=16384，立即组合同一可靠 lane 已排队的帧，不等待攒包；Output.Frames 是当前输出包含的帧后缀数。聚合受 BatchBytes、Codec/Reader 帧数预算、RECORD 长度和 Drain 的 Bytes/Frames/ChunkBytes 共同限制；不可靠 RECORD 不自动组合，大帧直接输出。BatchBytes=0 关闭聚合。规范帧独立保留，聚合额外复制到一个惰性分配、重复利用且计入 MaxSessionBytes 的缓冲，分配失败退回逐帧发送。重复获取未变化的输出复用快照；完成回调可提交新操作或请求关闭，Advance 先记完实际受理的全部前缀再执行延迟关闭。Info.Batches/BatchedFrames/BatchCopiedBytes 统计实际构建的聚合，包括构建后未发送的快照，不能将此路径宣称为零复制。
 
 宿主在业务提交、可写事件和 next_due 到期时调用 Drive 并排出数据。时钟为 UInt64 单调微秒，操作期限从 API 提交起计算，包含排队；零 DeadlineUs 使用有限默认值。维护和关闭每轮受 Reader.MaxFrames 限制，接收维护共享 MaxWorkBytes；返回 AGAIN 要再安排一轮。接收、输入和调用者拥有的网络缓冲之外，所有自有容量、表、响应预留及 realloc 的旧块加新块都计入 MaxSessionBytes。已知过期的队列头不再由 Output 提供，交给 Drive 退休；部分 STREAM 帧超时会报告 Fatal 并关闭，避免下一帧被拼到残帧中。
 

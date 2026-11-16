@@ -96,7 +96,7 @@ static void partial_resend_completion(void)
     xtpoutput o;assert(xtpOutput(a.Session,0,&o)==XTP_OK);unsigned char prefix[7];memcpy(prefix,o.Data.Data,7);
     assert(xtpAdvance(a.Session,o.Ticket,7,0)==XTP_OK);feed(&b,prefix,7,1,false,0);
     assert(transfer(&b,&a,0,1)==1&&a.Completed==1);assert(info(&a).Retained==1&&info(&a).TxFrames==2);
-    assert(xtpOutput(a.Session,0,&o)==XTP_OK&&o.Data.Size==37);assert(transfer(&a,&b,0,10)==2);
+    assert(xtpOutput(a.Session,0,&o)==XTP_OK&&o.Data.Size==69&&o.Frames==2);assert(transfer(&a,&b,0,10)==2);
     assert(!info(&a).Retained&&b.Requests==1&&!info(&b).Retained);destroy(&a);destroy(&b);
 }
 static void partial_cache_receipt(void)
@@ -211,11 +211,26 @@ static void sustained_replay_requests(void)
     assert(a.Completed==12000&&b.Requests==12000&&info(&a).Receipts==1024&&!info(&a).Retained&&!info(&b).Retained);
     destroy(&a);destroy(&b);
 }
+static void result_invalidates_unsent_batch(void)
+{
+    xtpconfig c=delivery_config();session_test a={0},b={0};b.AutoReply=true;pair_create(&a,&b,&c);
+    xtpmessage m[2]={message(XTP_REQUEST),message(XTP_REQUEST)};xtpsubmitoptions op[2]={{0}};op[0].Replay=op[1].Replay=true;
+    assert(xtpSubmitBatch(a.Session,m,2,op,0,NULL)==XTP_OK&&transfer(&a,&b,0,2)==2);
+    unsigned char lost[512];take_wire(&b,lost,sizeof(lost));reconnect(&a,&b);xtpoutput offered,response;
+    assert(xtpOutput(a.Session,1,&offered)==XTP_OK&&offered.Frames==2);
+    assert(xtpOutput(b.Session,1,&response)==XTP_OK&&response.Frames==2);
+    unsigned char first[38];memcpy(first,response.Data.Data,38);assert(xtpAdvance(b.Session,response.Ticket,38,0)==XTP_OK);
+    feed(&a,first,38,1,false,0);assert(a.Completed==1);
+    assert(xtpAdvance(a.Session,offered.Ticket,64,0)==XTP_E_ARGUMENT);
+    assert(transfer(&a,&b,0,2)==2&&transfer(&b,&a,0,1)==1&&transfer(&a,&b,0,1)==1);
+    assert(a.Completed==2&&b.Requests==2&&!info(&b).Retained);destroy(&a);destroy(&b);
+}
 int main(void)
 {
     assert(xtp_base_session_tests()==0);push_ack_loss();response_and_receipt_loss();async_and_failed_identity();
     busy_deadlines_and_tickets();partial_resend_completion();partial_cache_receipt();bounded_receipts_and_replay();
     delivery_oom();expiry_proofs_and_window();
     retired_and_unconsumed_results();pending_below_rolling_floor();sustained_replay_requests();
+    result_invalidates_unsent_batch();
     puts("xtp delivery: resume, lost ACK/result/receipt, async token, BUSY, bounds and partial lifetimes passed");return 0;
 }

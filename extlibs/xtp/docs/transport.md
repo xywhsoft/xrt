@@ -22,4 +22,4 @@ python tools/build.py --compiler gcc --manifest extlibs/xtp/config/modules.json 
 
 一个 STREAM lane 必须对应一条独立有序字节流。单个 TCP/TLS 连接只绑定一个 STREAM lane；不能把不同 lane 的半包交错写入同一个未复用的 TCP 流。多个 xrudp 流分别配置输入 lane 和输出 writer 的 StreamID，宿主在认证控制面确定双向映射。对多 lane 的 Session，按 LaneID 分别排空到各自承载；只在确实使用同一多路复用出口时采用通用 writer 与 LaneID=0。
 
-SubmitBatch 是原子受理多条描述，Output/原生 writer 仍逐帧推进；低层可以自行合并写入，Codec Encode 也可以一次输出多帧。没有宣称每个 SubmitBatch 只对应一次网络系统调用。
+SubmitBatch 原子受理多条描述；Output/Drain 自动组合同一可靠 lane 的已排队帧。聚合不等待凑满，受每轮字节、帧数与块大小预算约束，RECORD 不短写；Progress.Frames 按实际完整受理的帧计数，Calls 按 writer 调用计数。WS 一条 Binary 可包含多个 XTP 帧，接收 Reader 按固定头拆分。聚合需要一次额外暂存复制；下层仍可能拆成多个系统调用或 TLS 记录，不能把一次 writer 调用等同于一次网络系统调用。

@@ -180,10 +180,12 @@
         "extlibs/xtp/src/session/session.c"
       ],
       "tests": [
-        "extlibs/xtp/tests/test_session.c"
+        "extlibs/xtp/tests/test_session.c",
+        "extlibs/xtp/tests/test_batch.c"
       ],
       "single_tests": [
-        "extlibs/xtp/tests/single/test_single_xtp_session.c"
+        "extlibs/xtp/tests/single/test_single_xtp_session.c",
+        "extlibs/xtp/tests/single/test_single_xtp_batch.c"
       ],
       "examples": [
         "extlibs/xtp/examples/session/main.c"
@@ -330,12 +332,14 @@
         "extlibs/xtp/tests/test_codec.c",
         "extlibs/xtp/tests/test_reader.c",
         "extlibs/xtp/tests/test_session.c",
-        "extlibs/xtp/tests/test_transport.c"
+        "extlibs/xtp/tests/test_transport.c",
+        "extlibs/xtp/tests/test_batch.c"
       ],
       "single_tests": [
         "extlibs/xtp/tests/single/test_single_xtp_codec.c",
         "extlibs/xtp/tests/single/test_single_xtp_reader.c",
-        "extlibs/xtp/tests/single/test_single_xtp_session.c"
+        "extlibs/xtp/tests/single/test_single_xtp_session.c",
+        "extlibs/xtp/tests/single/test_single_xtp_batch.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -343,7 +347,8 @@
       "single_test_owners": {
         "extlibs/xtp/tests/single/test_single_xtp_codec.c": "xtp_codec",
         "extlibs/xtp/tests/single/test_single_xtp_reader.c": "xtp_reader",
-        "extlibs/xtp/tests/single/test_single_xtp_session.c": "xtp_session"
+        "extlibs/xtp/tests/single/test_single_xtp_session.c": "xtp_session",
+        "extlibs/xtp/tests/single/test_single_xtp_batch.c": "xtp_session"
       }
     },
     {

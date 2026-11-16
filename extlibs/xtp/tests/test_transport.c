@@ -68,5 +68,13 @@ int main(void)
     memset(&a,0,sizeof(a));left=create(&a,false,&ab);a.Resubmit=true;
     assert(xtpSubmit(left,&m,NULL,0,NULL)==XTP_OK);
     assert(xtpDrain(left,1,write_bytes,&a,NULL,0,&p)==XTP_OK&&p.Frames==2&&a.Completions==2);finish(left);
+    memset(&a,0,sizeof(a));left=create(&a,false,&ab);xtpmessage group[5];
+    for(size_t i=0;i<5;++i)group[i]=m;
+    assert(xtpSubmitBatch(left,group,5,NULL,0,NULL)==XTP_OK);budget=(xtpwritebudget){128,5,64};
+    assert(xtpDrain(left,1,write_bytes,&a,&budget,0,&p)==XTP_AGAIN&&p.Frames==4&&p.Calls==2&&p.Bytes==128&&a.Completions==4);
+    assert(xtpDrain(left,1,write_bytes,&a,&budget,0,&p)==XTP_OK&&p.Frames==1&&p.Calls==1&&a.Size==160);finish(left);
+    memset(&a,0,sizeof(a));left=create(&a,true,&ab);assert(xtpSubmitBatch(left,group,5,NULL,0,NULL)==XTP_OK);
+    budget=(xtpwritebudget){1024,2,1024};
+    assert(xtpDrain(left,1,write_bytes,&a,&budget,0,&p)==XTP_AGAIN&&p.Frames==2&&p.Calls==1&&p.Bytes==64&&a.Completions==2);finish(left);
     puts("xtp transport: budget/short-write/error/record/WS boundaries/TLS policy/local-drop/reentry clock PASS");return 0;
 }
