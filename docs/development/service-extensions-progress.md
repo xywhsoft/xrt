@@ -13646,3 +13646,45 @@ and out/service-extensions/xrpc-frame-20261112.
   compaction/group scheduling, controlled performance and native Windows/Linux
   >=72h qualification, plus the full Redis/RPC/Cron scope, remain active. All
   changes/tests use mainline master and preserve concurrent XTP work.
+
+
+## 2026-11-16 — quiet counted IP parsing and Redis/MQTT TLS identity inference
+
+- Fixed Git7ad1b32d Core/product amalgamations reproduce one new numeric-probe
+  diagnostic and one repeated old-error notification on each successful DNS TLS
+  factory. A separate fixed-base prototype proves Core already has a private
+  counted parser with no allocation/error effect. Added only public checked
+  xrtNetAddrTryParse over that existing grammar; no new runtime or state.
+- Redis/MQTT host inference now avoids diagnostic parsers and error-slot
+  exchanges entirely. DNS names infer SNI; numeric/colon forms omit inferred
+  SNI; explicit SNI/verification-name and inference-disabled policy retain their
+  meaning. After excluding colon forms, only <=15-byte IPv4 candidates need a
+  numeric probe. Host Dial retains its resolver contract for numeric text too.
+- New local real-TLS matrices cover16 Redis and32 MQTT5/311 cases per program:
+  DNS/IPv4/IPv6/long counted names x4 policies. Independent certificate pinning,
+  wire ClientHello SNI, verification name, exact resolver route, overwritten
+  caller buffers and complete Client/Resolver/Engine retirement all pass with0
+  caller diagnostic notifications. These fixtures do not prove public-PKI trust
+  or external Redis/MQTT broker interoperability.
+- Windows/WSL modular/single, root/stats-off, static/shared and standalone Core
+  declaration consumers pass; the new public Core export is checked in all
+  three package families. WSL ASan/UBSan/leaks pass. The pure parser is checked
+  against fixed address bytes, strict/scoped/invalid/alias cases, inaccessible
+  guard pages, a1-byte allocation budget and10000 seeded legacy-grammar cases
+  per program. Existing network/fuzz and TLS/QoS/partial-write/authentication/
+  verification/deadline/cancel/OOM/lifetime/open-loop correctness regressions pass.
+- Shared-host classification-only diagnostics compare exact old Redis/MQTT
+  probe logic with the quiet path for4 hot names,5x400000 samples plus separate
+  allocation runs. New probes show0 XRT heap allocations and0 notifications.
+  Unchanged quality limits fail12 Windows metrics and0 WSL metrics; neither
+  dataset qualifies TLS throughput, tails or production performance.
+- Initial fixture ownership/route assumptions and a benchmark formatting error
+  were corrected, retaining their raw failures. Fixed-commit source closure and
+  tested binaries establish the real old baseline. Disjoint XTP commit9f6dbc60
+  stopped post-run guards after successful work; exact compiler-input hashes
+  matched, so only remaining commands ran. Other-thread XTP work is preserved.
+- [Stage report](tls-host-inference-20261116.json) records exact receipts, source/
+  binary/runtime hashes and acceptance limits. MQTT23 and Redis31 developing
+  modules still fail strict release. RPC/Cron restoration, durable MQTT state/
+  worker/Inbox/ACK/namespace/compaction/group scheduling, full original four-lib
+  scope, controlled performance and native Windows/Linux >=72h remain active.

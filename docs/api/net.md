@@ -1709,6 +1709,33 @@ if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
 ```
 
 
+### `xrtNetAddrTryParse`
+
+按明确长度静默解析数字 IPv4/IPv6；可用于区分 IP 字面量与需要 DNS 的主机名。
+复用 Core 的严格地址解析器，不复制为 C 字符串，不分配内存、不访问错误槽、
+不通知错误处理器、不初始化网络、不调用 DNS 或接口查询。
+
+```c
+bool xrtNetAddrTryParse(xnetaddr* pAddr, xstrview IP, uint16 iPort);
+```
+
+输入是完整的可读视图，无需 NUL 结尾。输出必须是有效、与输入不重叠的
+`xnetaddr` 存储。成功填入地址和调用者给定端口；IPv6 可带 `%42` 这样的
+uint32 数字 Scope。接口名称 Scope 始终拒绝，即使启用了接口模块；需要接口
+名称解析时使用带诊断的 `xrtNetAddrParse`。不接受端点方括号、文本端口、
+前导零歧义、空白、嵌入 NUL 或 DNS 名。
+
+成功和失败都保留当前错误及其拥有权。空/无效跨度、重叠、非法文本等统一
+返回 false，并保持输出原值；不提供细分诊断，也不保证任意悬空指针可被探测。
+返回 false 只说明未解析为数字地址，并不证明输入是合法 DNS 名。
+
+```c
+xnetaddr Address;
+char Bytes[] = {'1','2','7','.','0','.','0','.','1'};
+bool Numeric = xrtNetAddrTryParse(&Address,
+    (xstrview){Bytes, sizeof(Bytes)}, 443);
+```
+
 ### `xrtNetAddrParseEndpoint`
 
 解析 `IPv4:port`、`[IPv6]:port` 或使用默认端口的裸地址。

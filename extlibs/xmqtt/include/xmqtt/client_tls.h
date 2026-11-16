@@ -19,6 +19,9 @@
  * join before unloading. Signers run on the connection Worker.
  * Defaults: native TLS policy/limits, Dial defaults,64 KiB metadata, infer SNI
  * and VerifyName from host; numeric literals infer VerifyName without IP SNI.
+ * The counted numeric probe never publishes a diagnostic or exchanges errors;
+ * colon-containing host forms omit inferred SNI. Dial/verification still check
+ * address/peer validity; this inference is not a DNS-name validator.
  * Prepared/numeric endpoints require an explicit Session peer identity.
  * MaxMetadataBytes bounds names, ALPN view descriptors and ALPN bytes together;
  * native Session/ciphertext storage uses its separate bounded Core limits.

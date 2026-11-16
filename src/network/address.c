@@ -536,6 +536,19 @@ bool __xrtNetAddrTryParse(
 
 
 
+/* Public pure view parser; preserve the internal parser's no-lookup contract. */
+XRT_API bool xrtNetAddrTryParse(xnetaddr* pAddr, xstrview IP, uint16 iPort)
+{
+	if ( !pAddr || !xrtMemRangeValid(pAddr, sizeof(*pAddr)) ||
+		!xrtMemRangeValid(IP.Data, IP.Size) ||
+		xrtMemRangesOverlap(pAddr, sizeof(*pAddr), IP.Data, IP.Size) ) {
+		return false;
+	}
+	return __xrtNetAddrTryParse(pAddr, IP, iPort);
+}
+
+
+
 /* 严格解析数字 IPv4 或 IPv6 地址。 */
 XRT_API bool xrtNetAddrParse(xnetaddr* pAddr, cstr sIP, uint16 iPort)
 {

@@ -1750,7 +1750,10 @@ XRT_EXTERN_C_END
  * Defaults: native TLS policy/stream limits, normal Dial defaults, 64 KiB
  * metadata, 64 KiB plaintext write work per client turn, infer DNS SNI/name.
  * Numeric hosts infer VerifyName only; prepared endpoints need an explicit
- * ServerName or VerifyName. Init's original deadline spans TLS too. */
+ * ServerName or VerifyName. Inference uses a counted, quiet numeric probe:
+ * no diagnostic/error-slot exchange for DNS names; colon-containing host forms
+ * omit inferred SNI, with address validity left to Dial and peer verification.
+ * Init's original deadline spans TLS too. */
 typedef struct xredisclienttlsconfig {
 	size_t Size;
 	xtlsclientconfig Session;
@@ -10409,8 +10412,8 @@ bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientaut
 		return xredisTlsArgument("invalid TLS descriptor, bounds or output overlap");
 	xtlsclientconfig Session = TLS->Session;
 	if (TLS->ServerNameFromHost && Session.ServerName.Size == 0 && Host.Size != 0) {
-		xerror* Saved = xrtTakeError(); xnetaddr Numeric;
-		bool Literal = xrtNetAddrParse(&Numeric, Host.Data, 1); xrtSetErrorTake(Saved);
+		xnetaddr Numeric;
+		bool Literal = memchr(Host.Data, ':', Host.Size) != NULL || (Host.Size <= 15 && xrtNetAddrTryParse(&Numeric, Host, 1));
 		if (!Literal) Session.ServerName = Host;
 		else if (Session.VerifyName.Size == 0) Session.VerifyName = Host;
 	}

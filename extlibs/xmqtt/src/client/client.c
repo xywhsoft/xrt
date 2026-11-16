@@ -2804,9 +2804,7 @@ static bool xmqttTlsPlanCreate(const xmqttclienttlsconfig* K,xstrview Host,xmqtt
         return xmqttClientError(XERR_ARGUMENT,"invalid TLS config, metadata bounds or output overlap");
     xtlsclientconfig S=K->Session;
     if(K->ServerNameFromHost && !S.ServerName.Size && Host.Size){
-        bool Numeric=memchr(Host.Data,':',Host.Size)!=NULL;
-        if(!Numeric && Host.Size<32){char Text[32];memcpy(Text,Host.Data,Host.Size);Text[Host.Size]=0;xnetaddr A;
-            xerror* Saved=xrtTakeError();Numeric=xrtNetAddrParse(&A,Text,1);xrtSetErrorTake(Saved);}
+        xnetaddr A;bool Numeric=memchr(Host.Data,':',Host.Size)!=NULL || (Host.Size<=15 && xrtNetAddrTryParse(&A,Host,1));
         if(Numeric){if(!S.VerifyName.Size)S.VerifyName=Host;}else S.ServerName=Host;
     }
     if(!S.ServerName.Size && !S.VerifyName.Size)return xmqttClientError(XERR_ARGUMENT,"TLS peer identity is required");

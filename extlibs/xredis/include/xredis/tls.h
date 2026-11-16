@@ -24,7 +24,10 @@
  * Defaults: native TLS policy/stream limits, normal Dial defaults, 64 KiB
  * metadata, 64 KiB plaintext write work per client turn, infer DNS SNI/name.
  * Numeric hosts infer VerifyName only; prepared endpoints need an explicit
- * ServerName or VerifyName. Init's original deadline spans TLS too. */
+ * ServerName or VerifyName. Inference uses a counted, quiet numeric probe:
+ * no diagnostic/error-slot exchange for DNS names; colon-containing host forms
+ * omit inferred SNI, with address validity left to Dial and peer verification.
+ * Init's original deadline spans TLS too. */
 typedef struct xredisclienttlsconfig {
 	size_t Size;
 	xtlsclientconfig Session;

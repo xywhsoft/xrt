@@ -39,10 +39,13 @@ COMMITTED and the advanced sequence/end despite the local ERROR. The future
 driver must preserve that physical fact, reopen/recover before reuse and withhold
 MQTT output until the durable state is usable; a generic local ERROR never proves
 NOT_COMMITTED. Native Windows/WSL file fixtures and fresh-process recovery cover
-that case. Existing client/Redis/RPC/Cron ambient-restoration patterns still need
-operation-specific adoption; callbacks, promises and accepted executor work may
-already have effects when error restoration fails. They are not covered by the
-codec/journal fixes.
+that case. Client/Redis TLS host inference now uses the minimal public counted
+`xrtNetAddrTryParse` over Core's existing private pure parser, avoiding internal
+DNS-probe diagnostics and error-slot exchanges entirely. It does not create a
+runtime or change the Host Dial resolver contract. RPC/Cron restoration still
+needs operation-specific adoption; callbacks, promises, accepted executor work
+and installed revisions may already have effects when restoration fails. These
+remaining paths are not covered by the codec/journal/TLS inference fixes.
 
 ## State and ownership
 

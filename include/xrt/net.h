@@ -891,6 +891,13 @@ XRT_API bool xrtNetAddrParse(xnetaddr* pAddr, cstr sIP, uint16 iPort);
 
 
 
+/* Quiet counted numeric IPv4/IPv6 parsing; numeric scopes only, no OS lookup.
+ * No allocation, error-slot access or handler notification on any result.
+ * Input/output spans must be valid and disjoint; false leaves output intact. */
+XRT_API bool xrtNetAddrTryParse(xnetaddr* pAddr, xstrview IP, uint16 iPort);
+
+
+
 /* 解析 IPv4:port、[IPv6]:port 或使用默认端口的裸地址。 */
 XRT_API bool xrtNetAddrParseEndpoint(xnetaddr* pAddr, cstr sEndpoint, uint16 iDefaultPort);
 

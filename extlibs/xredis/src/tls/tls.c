@@ -28,8 +28,8 @@ bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientaut
 		return xredisTlsArgument("invalid TLS descriptor, bounds or output overlap");
 	xtlsclientconfig Session = TLS->Session;
 	if (TLS->ServerNameFromHost && Session.ServerName.Size == 0 && Host.Size != 0) {
-		xerror* Saved = xrtTakeError(); xnetaddr Numeric;
-		bool Literal = xrtNetAddrParse(&Numeric, Host.Data, 1); xrtSetErrorTake(Saved);
+		xnetaddr Numeric;
+		bool Literal = memchr(Host.Data, ':', Host.Size) != NULL || (Host.Size <= 15 && xrtNetAddrTryParse(&Numeric, Host, 1));
 		if (!Literal) Session.ServerName = Host;
 		else if (Session.VerifyName.Size == 0) Session.VerifyName = Host;
 	}

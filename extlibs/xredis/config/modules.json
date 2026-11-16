@@ -724,14 +724,17 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
+        "extlibs/xredis/tests/test_tls_host.c",
         "extlibs/xredis/tests/test_tls.c",
         "extlibs/xredis/tests/test_tls_openloop.c"
       ],
       "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_tls_host.c",
         "extlibs/xredis/tests/single/test_single_xredis_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c"
       ],
       "single_test_owners": {
+        "extlibs/xredis/tests/single/test_single_xredis_tls_host.c": "xredis_tls",
         "extlibs/xredis/tests/single/test_single_xredis_tls.c": "xredis_tls",
         "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c": "xredis_tls"
       },

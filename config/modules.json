@@ -7624,6 +7624,19 @@
 			]
 		},
 		{
+			"name": "net_try_parse_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["net", "memory_stats"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/network/test_net_try_parse.c"],
+			"single_tests": ["tests/single/test_single_net_try_parse.c"],
+			"examples": [],
+			"docs": ["docs/api/net.md"]
+		},
+		{
 			"name": "net_address_protocol_fuzz_tests",
 			"state": "implemented",
 			"feature": null,

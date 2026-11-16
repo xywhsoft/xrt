@@ -1,0 +1,181 @@
+{
+  "status": "developing; original four-product goal active",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "7ad1b32d431fa66b1374e317478cdaf6eb35f7b4",
+  "validated_at_revision": "9f6dbc6082e1ab1866ac97998ccb1e5e643f945f",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "api": {
+    "added": "xrtNetAddrTryParse",
+    "module": "net",
+    "implementation": "checked public view wrapper over existing private numeric parser; no new runtime/state/parser grammar",
+    "contract": "valid disjoint spans; counted non-NUL IPv4/IPv6 with numeric uint32 scope; no interface/DNS/OS initialization, allocation or error-slot/handler access; false leaves output unchanged"
+  },
+  "product_changes": [
+    "Redis and MQTT TLS inference no longer emits a diagnostic for DNS or repeats an old diagnostic",
+    "Existing explicit SNI/VerifyName and inference-disabled policies preserved",
+    "Colon-containing host forms omit inferred SNI; only <=15-byte remaining IPv4 candidates call pure parser",
+    "Host Dial keeps existing resolver behavior even for numeric text; inference is not address/DNS validity or certificate trust proof"
+  ],
+  "baseline": {
+    "revision": "7ad1b32d431fa66b1374e317478cdaf6eb35f7b4",
+    "raw_proof": "fixed-baseline.json",
+    "test_source_closure": "fixed-baseline-test-source.json",
+    "private_parser_proof": "core-gap-proof.json",
+    "old_notifications_per_successful_dns_factory": 1,
+    "new_internal_probe_notifications_per_successful_dns_factory": 1,
+    "after_notifications": 0
+  },
+  "evidence": {
+    "directory": "out/service-extensions/tls-host-inference-20261116",
+    "source_map_sha256": "98801a7a8e062086ad3b6a7dee11f598752a2dae667fabb5b3f032b68276a21e",
+    "audit_sha256": "1263a303fdfbba21d2d38f0d3ce548c951f07ff220100a81b9740cb2030a5ba7",
+    "checkpoint": {
+      "files": 767,
+      "sha256": "b1e82b1ba04b28850b446a7bb659ba12fb7cf54b35b43134a8bb1d214d0cf06c",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "other_exclusions": [
+        "__pycache__",
+        "temp"
+      ],
+      "source_map_sha256": "98801a7a8e062086ad3b6a7dee11f598752a2dae667fabb5b3f032b68276a21e"
+    },
+    "preserved_binaries": 126,
+    "program_counts": {
+      "windows-suite": 21,
+      "windows-delivery": 16,
+      "windows-smoke": 4,
+      "windows-gates": 0,
+      "windows-benchmark": 84,
+      "wsl-suite": 15,
+      "wsl-delivery": 16,
+      "wsl-smoke": 4,
+      "wsl-gates": 0,
+      "wsl-benchmark": 84,
+      "wsl-legacy": 6
+    }
+  },
+  "validation": {
+    "platforms": [
+      "native Windows x64",
+      "WSL Ubuntu x64; not native Linux qualification"
+    ],
+    "forms": [
+      "modular",
+      "single",
+      "root selector",
+      "memory stats disabled",
+      "static",
+      "shared",
+      "complete standalone Core declarations"
+    ],
+    "core_exports": "xrtNetAddrTryParse verified in Core-only and both extension Core DLL/SO bundles",
+    "new_handshake_cases_per_program": {
+      "xredis": 16,
+      "xmqtt": 32
+    },
+    "handshake_matrix": "4 DNS/IPv4/IPv6/long counted hosts x4 explicit/inferred identity policies; MQTT5 and311; pinned certificate plus independent wire SNI and native VerifyName observations; overwritten caller buffer; exact resolver route; actual native retirement",
+    "core_cases": "literal independent address bytes; strict IPv4/IPv6/mapped/scoped forms; invalid spans/alias/embedded NUL/format; inaccessible guard page after non-NUL input;1-byte budget with0 peak/rejections;10000 seeded differential cases per program",
+    "sanitizers": "WSL modular/single suites with ASan/UBSan/detect_leaks=1",
+    "regressions": [
+      "legacy net and network-address protocol fuzzer",
+      "Redis full TLS plus open-loop correctness/OOM/lifetime",
+      "MQTT TLS QoS/prefix/verification/deadlines/DNS/physical retirement/auth composition"
+    ],
+    "gates": [
+      "Core NET family docs and generated reference",
+      "Core and both product amalgamations",
+      "both product features/API/docs/maturity",
+      "extension layout",
+      "NET-off expected compile refusal"
+    ]
+  },
+  "performance": {
+    "accepted": false,
+    "scope": "hot-name host-classification probe only; no TLS/session/DNS execution/network/queue/tail/production acceptance. noinline probe dispatch and actual public library calls; single Core static package, no LTO. Old code copies/scans/diagnostics/owning exchanges/handler costs retained; both old/new include benchmark dispatch/call cost.",
+    "profiles": 12,
+    "warmups": 1,
+    "repeats": 5,
+    "operations_per_sample": 400000,
+    "instrument_operations": 1000,
+    "new_probe_xrt_allocations": 0,
+    "new_probe_notifications": 0,
+    "quality_failures": {
+      "windows": 12,
+      "wsl": 0
+    },
+    "quality_thresholds": {
+      "relative_mad": 0.03,
+      "relative_central_range": 0.06
+    },
+    "metadata": {
+      "windows": "windows-probe-performance.json",
+      "wsl": "wsl-probe-performance.json"
+    },
+    "limits": "OS runs serialized on unpinned shared host; different compiler/OS/runtime, no OS ranking or production speedup claim; quality failures retained without retry-to-green"
+  },
+  "retained_issues": [
+    "early modular pre-fix run overlapped edits and failed a test-owner const qualifier; not treated as old-version evidence",
+    "fixed Git amalgamations and saved final fixture closure reproduce the actual old diagnostic behavior",
+    "first host fixture incorrectly assumed numeric Host Dial resolver bypass; fixed to existing resolver contract",
+    "one benchmark -Werror formatting failure corrected before measurements",
+    "disjoint XTP commit stopped WSL suite and Windows package after successful commands; compiler-input hashes identical and completed work not rerun"
+  ],
+  "concurrent_head_transitions": [
+    {
+      "base": "7ad1b32d431fa66b1374e317478cdaf6eb35f7b4",
+      "current": "9f6dbc6082e1ab1866ac97998ccb1e5e643f945f",
+      "paths": [
+        "docs/design/xtp3.md",
+        "extlibs/xtp/README.md",
+        "extlibs/xtp/config/modules.json",
+        "extlibs/xtp/docs/api/reference.md",
+        "extlibs/xtp/docs/coverage.md",
+        "extlibs/xtp/docs/transport.md",
+        "extlibs/xtp/examples/support/native_loopback.h",
+        "extlibs/xtp/examples/tcp/main.c",
+        "extlibs/xtp/examples/tls/main.c",
+        "extlibs/xtp/examples/ws/main.c",
+        "extlibs/xtp/include/xtp.h",
+        "extlibs/xtp/include/xtp/features.h",
+        "extlibs/xtp/include/xtp/tcp.h",
+        "extlibs/xtp/include/xtp/tls.h",
+        "extlibs/xtp/include/xtp/transport.h",
+        "extlibs/xtp/include/xtp/ws.h",
+        "extlibs/xtp/src/internal/xtp_codec.h",
+        "extlibs/xtp/src/session/session.c",
+        "extlibs/xtp/src/transport/tcp.c",
+        "extlibs/xtp/src/transport/tls.c",
+        "extlibs/xtp/src/transport/transport.c",
+        "extlibs/xtp/src/transport/ws.c",
+        "extlibs/xtp/tests/single/test_single_xtp_native.c",
+        "extlibs/xtp/tests/test_native.c",
+        "extlibs/xtp/tests/test_transport.c",
+        "single/extlibs/xtp.h",
+        "single/extlibs/xtp_decl.h",
+        "single/extlibs/xws_decl.h"
+      ],
+      "compiler_inputs_match": true,
+      "reason": "Other-thread XTP transport commit plus its regenerated xws declaration inventory; no Core/Redis/MQTT compiler input changed. WSL post-run guard stopped after successful tests; do not rerun unchanged suites."
+    }
+  ],
+  "remaining": {
+    "strict_release": {
+      "xmqtt": 23,
+      "xredis": 31
+    },
+    "ambient_restoration": "RPC callbacks/promises/executor admission and Cron revision publication require effect-aware restoration",
+    "mqtt": "durable state applier/async driver/Inbox and ACK ordering/namespace-lock-compaction/group scheduling/device and broker qualification",
+    "original_scope": "full Redis/RPC/MQTT5+311/Cron production and performance requirements remain unchanged",
+    "production_accepted": false,
+    "controlled_tail_throughput_accepted": false,
+    "native_windows_linux_72h_complete": false
+  }
+}

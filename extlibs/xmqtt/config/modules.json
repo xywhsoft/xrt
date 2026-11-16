@@ -554,10 +554,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
+        "extlibs/xmqtt/tests/test_client_tls_host.c",
         "extlibs/xmqtt/tests/test_client_tls.c",
         "extlibs/xmqtt/tests/test_client_tls_select.c"
       ],
       "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_host.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c"

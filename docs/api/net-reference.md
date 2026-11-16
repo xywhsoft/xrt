@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [net.md](net.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `517` 个函数、`288` 个常量或宏、
+当前登记 `518` 个函数、`288` 个常量或宏、
 `141` 个公共类型。
 
 ## `include/xrt/net.h`
 
 [查看带契约注释的公共头](../../include/xrt/net.h)
 
-### 函数 (211)
+### 函数 (212)
 
 - `xrtNetAddrAny`
 - `xrtNetAddrCompare`
@@ -40,6 +40,7 @@
 - `xrtNetAddrString`
 - `xrtNetAddrText`
 - `xrtNetAddrToNative`
+- `xrtNetAddrTryParse`
 - `xrtNetAddrUnmap`
 - `xrtNetBufAppend`
 - `xrtNetBufAppendBorrow`
