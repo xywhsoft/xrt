@@ -50,6 +50,9 @@ static bool __xrtWsOwnedCount(const void* data,size_t* result)
     #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
     if(s->WriteProgress)return false;
     #endif
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+    if(s->TlsTicket)return false;
+    #endif
     if(s->RuntimeHeld){
         if(!s->OwnershipEngineHeld||s->RuntimeOwner.Data!=s||!s->RuntimeOwner.Previous||
            s->RuntimeOwner.Engine!=s->OwnershipEngine||s->RuntimeOwner.Policy!=xrtWsStreamRuntimeOwnershipV1Get())return false;

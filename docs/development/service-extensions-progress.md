@@ -13419,3 +13419,39 @@ and out/service-extensions/xrpc-frame-20261112.
   qualification, controlled fixed-arrival performance and native Windows/Linux
   >=72h soak remain required. Original Redis/RPC/Cron scope stays active and the
   strict four-product release gate remains closed.
+
+
+## 2026-11-16: prerequisite WSS native TLS ticket observation on master
+
+- Continue directly from6305aa54 in D:/GIT/xrt master. Actual native Windows/WSL
+  prototypes show that genuine post-attachment TLS1.3 tickets reach the native
+  bounded queue while the WS TLS event table has no notification. Replacing an
+  owned event binding is refused. Prototype-only owner polling is evidence of
+  the gap, not the delivery mechanism.
+- Add optional Core websocket_stream_tls_ticket: one Worker-only callback setter
+  reuses existing WS Data/ownership and the native immutable credential queue.
+  No public config/event layout change, credential/payload copy, extra queue,
+  timer, thread or per-ticket work item. Registration does not replay a queued
+  credential. Unknown callbacks block owned-graph admission; claims reject new
+  observation. Closed/rebound/server/plain/wrong-worker cases preserve callback.
+- Actual native ticket-only records, reference handoff, one-byte allocation
+  budget, self-removal, Abort/caller-reference release, held callbacks/native
+  aliases, real claim/restore and native/Engine joins have separate tests.
+  Windows select/IOCP and WSL select/epoll, ASan/UBSan/leaks, independent TSan,
+  selected/unselected singles and separate static/shared real examples/declaration
+  consumers are source-bound. WSL evidence is distinct from native Linux acceptance.
+- A real fixture race in the server's batch-count reread was found by TSan.
+  Snapshot the command before publishing completions; rerun the affected modular,
+  single and native-backend programs against final fixture bytes. Initial owned
+  setter validation also needed the separate TLS EventData rather than original
+  session-context Data. All failed attempts and corrections remain in evidence.
+- ABI costs: Windows WS1064->1072, WSL1200->1208 with the same other features;
+  config128/events80/native TLS360 unchanged. Existing native client-resumption
+  queue/storage remains an additional selected dependency. The cold native-to-WS
+  callback and caller work are real; no controlled throughput/tail or production
+  acceptance is inferred. Isolated feature trimming/off API rejection is checked.
+- See [the source-bound report](websocket-tls-ticket-20261116.json). This Core
+  prerequisite does not yet wire MQTT's existing resume cache through WSS. That
+  integration, independent resumed/fallback/identity broker tests, durability,
+  broader load/controlled performance/native>=72h soak and remaining Redis/RPC/
+  Cron scope stay active. The four-product strict release gate remains closed.

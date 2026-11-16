@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [websocket.md](websocket.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `122` 个函数、`138` 个常量或宏、
-`43` 个公共类型。
+当前登记 `123` 个函数、`138` 个常量或宏、
+`44` 个公共类型。
 
 ## `include/xrt/websocket.h`
 
@@ -223,7 +223,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/websocket_stream.h)
 
-### 函数 (56)
+### 函数 (57)
 
 - `xrtWsStreamAbort`
 - `xrtWsStreamAttach`
@@ -264,6 +264,7 @@
 - `xrtWsStreamSendRef`
 - `xrtWsStreamSendSize`
 - `xrtWsStreamSendTake`
+- `xrtWsStreamSetTlsTicket`
 - `xrtWsStreamSetWriteProgress`
 - `xrtWsStreamState`
 - `xrtWsStreamTcp`
@@ -308,7 +309,7 @@
 - `XWS_STREAM_OPEN`
 - `XWS_STREAM_SEND_LIMIT_DEFAULT`
 
-### 类型 (10)
+### 类型 (11)
 
 - `xwsstream`
 - `xwsstreamclose`
@@ -318,6 +319,7 @@
 - `xwsstreamevents`
 - `xwsstreamownershipv1`
 - `xwsstreamstate`
+- `xwsstreamtlsticketproc`
 - `xwsstreamwriteproc`
 - `xwswriteprogress`
 

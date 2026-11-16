@@ -28,6 +28,12 @@
 	#error "XRT WebSocket TLS Stream requires WebSocket Stream and TLS Stream"
 #endif
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET) && \
+    (!defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
+     !defined(XRT_FEATURE_TLS_CLIENT_RESUME))
+    #error "WebSocket TLS ticket notification requires TLS Stream and client resumption"
+#endif
+
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) && \
 	(!defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
 	 !defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE))
@@ -395,6 +401,22 @@ XRT_API void xrtWsStreamPause(xwsstream* pStream);
 XRT_API bool xrtWsStreamResume(xwsstream* pStream);
 
 
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+/* Owning Worker, OPEN WSS client only. Direct bounded notification from the
+ * native TLS ticket callback, using the existing WS event Data/owner lifetime.
+ * Take credentials on this Worker via WsStreamTls -> TlsStreamSession ->
+ * TlsClientTakeResume; the bounded native queue remains authoritative. No
+ * credential/payload copy, allocation, timer or per-ticket work item is added.
+ * NULL removes observation. Registration never replays an existing queue.
+ * Callback may remove itself or Abort/Destroy its caller reference; retain the
+ * borrowed owner/code through actual native retirement. Never replace native
+ * events. An opaque observer prevents owned-graph admission until removed;
+ * an existing ownership claim rejects changes. Close clears it before Close.
+ * Failure leaves the current callback unchanged. */
+typedef void (*xwsstreamtlsticketproc)(xwsstream*, ptr);
+XRT_API bool xrtWsStreamSetTlsTicket(xwsstream*, xwsstreamtlsticketproc);
+#endif
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
 /* Owning Worker, live OPEN only. First success establishes a permanent cursor

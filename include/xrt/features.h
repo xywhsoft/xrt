@@ -2,6 +2,19 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* websocket_stream_tls_ticket 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#endif
+
 /* websocket_stream_tls_write_progress 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS

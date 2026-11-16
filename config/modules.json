@@ -16605,6 +16605,64 @@
 			"docs": [
 				"docs/api/websocket.md"
 			]
+		},
+		{
+			"state": "implemented",
+			"public_headers": [
+				"include/xrt/websocket_stream.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_stream.h"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md"
+			],
+			"name": "websocket_stream_tls_ticket",
+			"feature": "XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET",
+			"depends": [
+				"websocket_stream_tls",
+				"tls_client_resume"
+			],
+			"sources": [
+				"src/websocket/stream_tls_ticket.c"
+			]
+		},
+		{
+			"name": "websocket_stream_tls_ticket_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_stream_tls_ticket",
+				"websocket_stream_retire_tests",
+				"tls_server_resume",
+				"net_port_iocp",
+				"net_port_epoll"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_stream_retire.c",
+				"tests/websocket/test_stream_tls_ticket.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_stream_retire.c",
+				"tests/single/test_single_websocket_stream_tls_ticket.c",
+				"tests/single/test_single_websocket_stream_tls_ticket_off.c"
+			],
+			"single_test_owners": {
+                "tests/single/test_single_websocket_stream_tls_ticket_off.c": "websocket_stream_retire_tests",
+                "tests/single/test_single_websocket_stream_retire.c": "websocket_stream_retire_tests"
+            },
+			"examples": [
+				"examples/websocket/tls_ticket/main.c"
+			],
+			"docs": [
+				"docs/api/websocket.md"
+			]
 		}
 	]
 }

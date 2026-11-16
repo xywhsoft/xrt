@@ -5285,3 +5285,42 @@ native masking/crypto/copy costs remain real; no zero-overhead or throughput/tai
 acceptance is inferred. Unselected WS builds omit these paths and do not force
 TLS. See the [runnable attachment-stage example](../../examples/websocket/write_progress/README.md).
 This prerequisite does not by itself complete the MQTT WebSocket transport.
+
+
+## Native WSS TLS ticket notification
+
+The independent `websocket_stream_tls_ticket` leaf adds
+`xwsstreamtlsticketproc` and `xrtWsStreamSetTlsTicket` for an OPEN native WSS
+client. TLS1.3 credentials can arrive after attachment without any WS application
+bytes ([RFC8446 section4.6.1](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.6.1)).
+The native TLS ticket event directly invokes the bounded callback on the owning
+Worker with the existing WS event Data and its real owner lifetime. This is
+inside the native TLS frame; schedule business work elsewhere. Use
+`xrtWsStreamTls`, `xrtTlsStreamSession` and `xrtTlsClientTakeResume` on that Worker
+to transfer immutable native references. Do not replace transport events or
+create a second credential queue. Native trust/identity/expiry/ResumeLimit and
+queue eviction/disabled/OOM rules remain authoritative; a notification need not
+map one-to-one to received tickets. No TLS1.2 capture,0-RTT or MQTT replay follows.
+
+Registration does not replay an existing queue; explicitly drain it on owner
+when needed. NULL removes notification. Wrong worker, non-WSS/server/closed state,
+replaced native binding or existing owned claim refuses without changing the
+current callback. An owned TLS session retains its original session-context
+Data; the protocol EventData is checked separately. Unknown observers block
+owned-graph admission until removed. Terminal WS close clears notification
+before user Close. Callback removal, Abort or release of its caller reference
+is allowed; keep native aliases/context/code until actual physical retirement.
+
+The separately selected private callback pointer costs8 bytes per WS on the
+measured x64 ABIs; existing public config/event layouts remain unchanged. Setter
+and native reference handoff allocate no new storage/copies/timer/work item.
+Selecting the leaf also selects existing native client resumption and its real
+queue/storage costs. Ticket delivery adds one native-to-WS callback and guards,
+plus any caller work. Ordinary WS data does not acquire a new wrapper, timer or
+per-payload field; no controlled throughput/tail or production acceptance is
+inferred. Unselected builds omit the pointer/API/event handler entirely.
+
+See the [runnable local example](../../examples/websocket/tls_ticket/README.md)
+and the separate protocol, ownership, allocation and callback/native lifetime
+tests in `websocket_stream_tls_ticket_tests`. Full MQTT WSS credential integration
+and the broader four-product release gates remain separate required work.

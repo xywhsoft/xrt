@@ -1121,6 +1121,9 @@
 #if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
 #endif
+#if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET 1
+#endif
 #if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS 1
 #endif
@@ -2330,6 +2333,9 @@
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE 1
 #endif
+#if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET 1
+#endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS 1
 #endif
@@ -2458,6 +2464,19 @@
 /* 此文件由 tools/generate_features.py 生成，请勿直接修改。 */
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
+
+/* websocket_stream_tls_ticket 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#endif
 
 /* websocket_stream_tls_write_progress 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
@@ -35855,6 +35874,12 @@ XRT_EXTERN_C_END
 	#error "XRT WebSocket TLS Stream requires WebSocket Stream and TLS Stream"
 #endif
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET) && \
+    (!defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
+     !defined(XRT_FEATURE_TLS_CLIENT_RESUME))
+    #error "WebSocket TLS ticket notification requires TLS Stream and client resumption"
+#endif
+
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE) && \
 	(!defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
 	 !defined(XRT_FEATURE_TLS_STREAM_EVENT_EXCHANGE))
@@ -36222,6 +36247,22 @@ XRT_API void xrtWsStreamPause(xwsstream* pStream);
 XRT_API bool xrtWsStreamResume(xwsstream* pStream);
 
 
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+/* Owning Worker, OPEN WSS client only. Direct bounded notification from the
+ * native TLS ticket callback, using the existing WS event Data/owner lifetime.
+ * Take credentials on this Worker via WsStreamTls -> TlsStreamSession ->
+ * TlsClientTakeResume; the bounded native queue remains authoritative. No
+ * credential/payload copy, allocation, timer or per-ticket work item is added.
+ * NULL removes observation. Registration never replays an existing queue.
+ * Callback may remove itself or Abort/Destroy its caller reference; retain the
+ * borrowed owner/code through actual native retirement. Never replace native
+ * events. An opaque observer prevents owned-graph admission until removed;
+ * an existing ownership claim rejects changes. Close clears it before Close.
+ * Failure leaves the current callback unchanged. */
+typedef void (*xwsstreamtlsticketproc)(xwsstream*, ptr);
+XRT_API bool xrtWsStreamSetTlsTicket(xwsstream*, xwsstreamtlsticketproc);
+#endif
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_WRITE_PROGRESS)
 /* Owning Worker, live OPEN only. First success establishes a permanent cursor
@@ -49151,6 +49192,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+#undef XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #undef XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
@@ -50763,6 +50808,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_EXCHANGE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
+#undef XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)
 #undef XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS
@@ -50929,6 +50978,19 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_features.py 生成，请勿直接修改。 */
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
+
+/* websocket_stream_tls_ticket 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#define XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#endif
 
 /* websocket_stream_tls_write_progress 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS)

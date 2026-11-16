@@ -90,3 +90,11 @@ subscription/auth/replay/retirement and independent broker/gateway transport.
 No production runtime or new API is introduced. Post-Upgrade credential capture,
 durable state, broker-native clean close, controlled performance and native soak
 remain required; gateway and WSL evidence do not replace those gates.
+
+
+Native TLS-ticket prerequisite update 2026-11-16: the separately selected Core
+`xrtWsStreamSetTlsTicket` now supplies the missing post-handoff notification
+without replacing WS event ownership. See
+[websocket-tls-ticket-20261116.json](websocket-tls-ticket-20261116.json). It reuses
+native credential queues and existing callback Data/lifetimes; it does not yet
+wire the MQTT resume cache or complete the original full WebSocket checklist.

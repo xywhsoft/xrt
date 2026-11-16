@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-Core-WSS-TLS-ticket-prerequisite",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "6305aa546828d40a0b081d8d68d21718cc317d51",
+  "previous_goal_turn": "progress:6305aa54 committed automatic WS/WSS controller composition with480 broker cases and local checks",
+  "branch_operations": 0,
+  "remote_push": false,
+  "complete_four_product_goal": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "mqtt_resume_integration_delivered": false,
+  "new_public_API": "xrtWsStreamSetTlsTicket",
+  "new_public_type": "xwsstreamtlsticketproc",
+  "new_shared_runtime": false,
+  "architecture": "A separately selected native TLS ticket callback directly forwards to the existing WS Data/owner on its Worker. Reuse authoritative native immutable credential queue/refcounts/limits. No public config/event layout change, credential/payload copies, queue, timer, thread, per-ticket work item or second protocol runtime. Late registration requires explicit native queue drain.",
+  "prototype": {
+    "report": "*-prototype-receipts.json",
+    "base": "6305aa546828d40a0b081d8d68d21718cc317d51",
+    "scope": "Before implementation, actual TLS1.3/native WSS owned/unowned clients receive genuine server-issued post-handoff credentials into native queues without a WS event; owned native event replacement rejects. A transferred credential survives actual native/WS/Engine joins. Prototype-only polling is evidence, not the delivered mechanism.",
+    "raw_logs": [
+      "windows-gap-probe.log",
+      "wsl-gap-probe.log"
+    ]
+  },
+  "verification": {
+    "windows": {
+      "unaffected-full-suite-programs": 4,
+      "post_tests": 4,
+      "abi": 2,
+      "delivery": 4,
+      "total": 14
+    },
+    "wsl": {
+      "unaffected-full-suite-programs": 4,
+      "post_tests": 4,
+      "abi": 2,
+      "delivery": 4,
+      "tsan": 2,
+      "total": 16
+    }
+  },
+  "additional_verification": {
+    "package_tool_consumers_per_host": 2,
+    "gates_per_host": 8,
+    "off_api_expected_compile_rejection_per_host": 1,
+    "coverage": [
+      "Final native ticket-only records: no WS application bytes needed to wake caller",
+      "Owner/state/TLS role/plain/replaced-binding failure preserves current observer; NULL removes; no replay of previously queued credential",
+      "One-byte actual allocator budget and10000 register/remove iterations, zero allocation/rejections",
+      "Actual owned-graph freeze/count rejects opaque observer; after removal an actual adapter claim succeeds and rejects owner registration until Restore",
+      "Callback self-removal, Abort and caller-reference destruction; held native callback/TLS alias delays physical retirement; final credentials survive native/WS/Engine destruction",
+      "Final ten scenarios per native backend with ordinary/owned WS and two plain rejections; both final modular/single executables on Windows select/IOCP and WSL select/epoll",
+      "Original retirement module/single and unselected single, standalone example, separate real static/shared example and declaration consumer",
+      "WSL ASan/UBSan/leaks, independent final TSan select/epoll; compiler native atomic-fence TSan warning retained"
+    ],
+    "scope": "Counts distinguish actual ABI/declaration programs from protocol/lifetime programs; no usage-only examples. WSL is not native Linux production acceptance."
+  },
+  "ABI": {
+    "windows": {
+      "off": {
+        "ws": 1064,
+        "config": 128,
+        "events": 80,
+        "tls": 360
+      },
+      "on": {
+        "ws": 1072,
+        "config": 128,
+        "events": 80,
+        "tls": 360
+      }
+    },
+    "wsl": {
+      "off": {
+        "ws": 1200,
+        "config": 128,
+        "events": 80,
+        "tls": 360
+      },
+      "on": {
+        "ws": 1208,
+        "config": 128,
+        "events": 80,
+        "tls": 360
+      }
+    }
+  },
+  "costs": {
+    "selected_private_WS_pointer_bytes": 8,
+    "selection_cost": "Every WS instance in the selected build, including plain/server/never-observed instances; no field when off. Native TLS client resumption is an additional existing dependency and has its own queue/state/credential allocation costs.",
+    "hot_path": "No extra ordinary data wrapper/copy/post. Selected ticket publication adds a native-to-WS function call and state/observer/transport guards before caller work. Owned setter uses existing mutation/ref admission. No zero-overhead or accepted throughput/tail claim.",
+    "public_WS_config_bytes": 128,
+    "public_WS_events_bytes": 80,
+    "private_native_TLS_bytes_in_this_selection": 360
+  },
+  "source_identity": {
+    "final_source_map_sha256": "8e4450ecb3a1dcaddf2ad61682f4abc79a8ca8b98bc120f2c6b720092a375904",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "policy": "All selected production/header/configuration bytes match final source. The only older selected C-test delta is ticketIssue copying Batch; the four unaffected full-suite programs, ABI and package consumers never compile that test. Old positive module/single/native programs superseded by final exact-fixture reruns. Every original selected C binary preserved losslessly with original/compressed SHA256. Failed preliminary cohorts preserved. Initial common receipt captured map at completion; final harness captures start/end maps; compiled commands and snapshots retained."
+  },
+  "gates": {
+    "development": true,
+    "strict_four_product_release": {
+      "passed": false,
+      "reason": "19 explicitly developing MQTT modules; Core primitive is not four-product acceptance",
+      "log": "windows-strict-four-product-mqtt-attempt2.log"
+    }
+  },
+  "failures": [
+    {
+      "receipts": "windows-final_tests-receipts.json",
+      "label": "full-suite",
+      "exit_code": 1,
+      "log": "windows-full-suite.log",
+      "source_map_sha256": "f78aea458ff5f7096bd434e28652ddea5f551f5353aac33887c4f6872eb1eca4"
+    },
+    {
+      "receipts": "windows-gates-receipts.json",
+      "label": "api",
+      "exit_code": 1,
+      "log": "windows-api.log",
+      "source_map_sha256": "9df24468cb81cef78a2219dc4bf7a0a492e13c62d069524648a6832aee0d0562"
+    },
+    {
+      "receipts": "windows-off_api-receipts.json",
+      "label": "off-api-rejection",
+      "exit_code": 1,
+      "log": "windows-off-api-rejection.log",
+      "source_map_sha256": "8e4450ecb3a1dcaddf2ad61682f4abc79a8ca8b98bc120f2c6b720092a375904"
+    },
+    {
+      "receipts": "windows-positive-receipts.json",
+      "label": "positive-single-select",
+      "exit_code": 1,
+      "log": "windows-positive-single-select.log",
+      "source_map_sha256": "c002a46b5116794ca3cb68dc76e2b8e1742f5b263e7ebe91e35cc1895f63b001"
+    },
+    {
+      "receipts": "windows-prototype-receipts.json",
+      "label": "gap-probe-build",
+      "exit_code": 1,
+      "log": "windows-gap-probe-build.log",
+      "source_map_sha256": "3eb699186d4b3dcad068a7d82e1b2a447207904bad24017407c97815a297365b"
+    },
+    {
+      "receipts": "windows-prototype-receipts.json",
+      "label": "gap-probe-build",
+      "exit_code": 1,
+      "log": "windows-gap-probe-build-attempt2.log",
+      "source_map_sha256": "3eb699186d4b3dcad068a7d82e1b2a447207904bad24017407c97815a297365b"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-four-product-mqtt",
+      "exit_code": 1,
+      "log": "windows-strict-four-product-mqtt.log",
+      "source_map_sha256": "8e4450ecb3a1dcaddf2ad61682f4abc79a8ca8b98bc120f2c6b720092a375904"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-four-product-mqtt",
+      "exit_code": 1,
+      "log": "windows-strict-four-product-mqtt-attempt2.log",
+      "source_map_sha256": "8e4450ecb3a1dcaddf2ad61682f4abc79a8ca8b98bc120f2c6b720092a375904"
+    },
+    {
+      "receipts": "wsl-final_tests-receipts.json",
+      "label": "full-suite",
+      "exit_code": 1,
+      "log": "wsl-full-suite.log",
+      "source_map_sha256": "ea23d770d7f22323c960ffa668d6dc1a2cb11a21f8b365a4896dafb6c3da18ea"
+    },
+    {
+      "receipts": "wsl-off_api-receipts.json",
+      "label": "off-api-rejection",
+      "exit_code": 1,
+      "log": "wsl-off-api-rejection.log",
+      "source_map_sha256": "8e4450ecb3a1dcaddf2ad61682f4abc79a8ca8b98bc120f2c6b720092a375904"
+    },
+    {
+      "receipts": "wsl-tsan-receipts.json",
+      "label": "tsan-select",
+      "exit_code": 66,
+      "log": "wsl-tsan-select.log",
+      "source_map_sha256": "9df24468cb81cef78a2219dc4bf7a0a492e13c62d069524648a6832aee0d0562"
+    }
+  ],
+  "corrections": [
+    "Prototype omitted root include path; corrected. O1 whole-single GCC emits PSK count maybe-uninitialized diagnostics: canonical helpers assign counts on every successful path. Shipping O2/Werror used without warning suppression; raw attempt retained.",
+    "Owned TLS retains original session-context Data separately from protocol EventData. Initial setter accepted unowned cases but rejected owned cases; validate the actual EventPolicy/EventData binding while preserving original context.",
+    "Unselected single initially inherited the full test-root feature; explicitly assign its existing retirement owner and retain the compile-time absence guard.",
+    "Core API-doc gate requires all family prefixes; fix invocation. Strict release log decoding explicitly UTF8; expected incomplete-module rejection remains.",
+    "TSan found actual fixture Batch reread racing next command after completion publication. Snapshot the batch before publishing completions, rerun exact affected modular/single/native and TSan programs; no library/source state changed for this correction."
+  ],
+  "remaining": [
+    "Wire MQTT TLS-resume cache/info/take through ordinary WSS attachment/HTTP/URI/reconnect with original ownership/budget/proof contracts",
+    "Independent real TLS1.3 resumed/fallback/identity/cancellation/credential-cache qualification, including broker sessions, not just same-Core fixture",
+    "MQTT post-Upgrade credential integration, durable protocol/crash state and native broker clean-close policy",
+    "Controlled comparator/fixed-arrival throughput/tails/CPU/copy/native memory and native Windows/native Linux>=72h soak",
+    "Remaining Redis/RPC/Cron original scope and all four-product release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/websocket-tls-ticket-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "d0afa4764e05e0eaedbd83b1f63a3986efe3d32a123e04ccbe3fda28bcec42c8",
+    "regular_files": 340,
+    "sha256_verified": true,
+    "scope": "Canonical changed-source snapshots/cohorts, actual native gap prototypes, raw build/test/fault/TSan attempts, original binaries lossless gzip with original/compressed hashes, static/shared packages and standalone declarations, final selected receipts and measured native ABI. Compiler/object/temp caches and duplicate raw intermediate executables excluded; fixture uses existing tracked test identity, no external key files copied."
+  }
+}

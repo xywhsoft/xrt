@@ -2764,6 +2764,9 @@ static void __xrtWsStreamTransportClose(
             pConnection->WriteProgress = NULL;
             pConnection->WriteProgressPending = false;
         #endif
+		#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+			pConnection->TlsTicket = NULL;
+		#endif
 		__xrtWsStreamCloseSnapshot(pConnection, &Close);
 		if ( pConnection->Events.Close != NULL ) {
 			pConnection->Events.Close(
@@ -2955,7 +2958,13 @@ XRT_API const xtlsstreamownershipv1* xrtWsStreamTlsEventsOwnershipV1Get(void)
  static const xtlsstreamownershipv1 policy={sizeof(policy),
   {.Open=NULL,.Read=__xrtWsStreamTlsRead,.End=__xrtWsStreamTlsEnd,
    .Writable=__xrtWsStreamTlsWritable,.Drain=__xrtWsStreamTlsDrain,
-   .Close=__xrtWsStreamTlsClose,.Ticket=NULL},
+   .Close=__xrtWsStreamTlsClose,.Ticket=
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+   __xrtWsStreamTlsTicket
+#else
+   NULL
+#endif
+  },
   __xrtWsStreamOwnedTransportDrop,&__xrtWsStreamOwnershipOps};
  return &policy;
 }

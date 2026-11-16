@@ -212,6 +212,9 @@ struct xwsstream {
         uint64 WriteCompleted;
         bool WriteProgressEnabled,WriteProgressPending,WriteProgressOverflow;
     #endif
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+		xwsstreamtlsticketproc TlsTicket;
+	#endif
 	uint64 CloseTimer;
 	__xrt_net_engine_internal DriveCommand;
 	bool FrameActive;
@@ -237,6 +240,10 @@ struct xwsstream {
 		xnetstream* RetirementTcp;
 	#endif
 };
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET)
+void __xrtWsStreamTlsTicket(xtlsstream*, ptr);
+#endif
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
 /* Used by both ordinary and owned-operation releases. No Stream access may

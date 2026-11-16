@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `422` 个可运行示例。
+当前共登记 `423` 个可运行示例。
 
 ## asn1 (5)
 
@@ -495,7 +495,7 @@
 - [value/ownership](../examples/value/ownership/main.c) - `value`
 - [value/set_tour](../examples/value/set_tour/main.c) - `value`
 
-## websocket (15)
+## websocket (16)
 
 - [websocket/close](../examples/websocket/close/main.c) - `websocket_close`
 - [websocket/deflate](../examples/websocket/deflate/main.c) - `websocket_deflate`
@@ -509,6 +509,7 @@
 - [websocket/stream_ref](../examples/websocket/stream_ref/main.c) - `websocket_stream_ref`
 - [websocket/stream_retire](../examples/websocket/stream_retire/main.c) - `websocket_stream_retire`
 - [websocket/stream_tour](../examples/websocket/stream_tour/main.c) - `websocket_stream`
+- [websocket/tls_ticket](../examples/websocket/tls_ticket/main.c) - `websocket_stream_tls_ticket_tests`
 - [websocket/upgrade](../examples/websocket/upgrade/main.c) - `websocket_upgrade`
 - [websocket/upgrade_tour](../examples/websocket/upgrade_tour/main.c) - `websocket_upgrade`
 - [websocket/write_progress](../examples/websocket/write_progress/main.c) - `websocket_stream_write_progress`
