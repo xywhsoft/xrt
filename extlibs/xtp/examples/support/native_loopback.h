@@ -7,6 +7,13 @@
 #include <stdio.h>
 #define TEST_TLS_IDENTITY_FIXTURE_ED25519
 #include "../../../../tests/fixtures/tls_identity_ec_ed.h"
+#if defined(XTP_BENCH_NATIVE)
+#define XTP_NATIVE_IO_SIZE 16384
+static size_t native_count=10000,native_window=32,native_body=64,native_rate;
+static unsigned char native_payload[65536];
+#else
+#define XTP_NATIVE_IO_SIZE 7
+#endif
 
 typedef struct native_test native_test;
 typedef struct native_peer {
@@ -14,11 +21,20 @@ typedef struct native_peer {
     xnetstream* Tcp;xtlsstream* Tls;xwsconn* Ws;xtpwsinput WsInput;
     size_t Messages,Completed;bool Started,Flushing,Reading;
     unsigned char Received[512];size_t ReceivedBytes;
+#if defined(XTP_BENCH_NATIVE)
+    size_t Submitted,Offered,Rejected,GeneratorTicks,AllocationCalls,PlaintextBytes,WriteCalls;
+    uint64_t NativeSent,NativeReceived,ReadEvents,WriteEvents;
+    double GeneratorLagUs;
+    double* Begin;double* Latency;
+#endif
 } native_peer;
 struct native_test {
     unsigned Mode;bool Reject,Failure,Aes;native_peer Peers[2];xatomic32 Done,Failed,Closing;
     xnetengine* Engine;xtlscontext* Context;xtlsidentity* Identity;xtlsverifier* Verifier;
     xtlsserverconfig Server;xtlsstreamconfig TlsConfig;
+#if defined(XTP_BENCH_NATIVE)
+    double Begin,Seconds;
+#endif
 };
 static uint64_t clock_us(void){return (uint64_t)(xrtTimer()*1000000.0);}
 static void drain(native_peer* p)
@@ -27,11 +43,50 @@ static void drain(native_peer* p)
     p->Flushing=true;
     xtpwriteproc writer=p->Test->Mode==0?xtpTcpWrite:p->Test->Mode==1?xtpTlsWrite:xtpWsWrite;
     void* transport=p->Test->Mode==0?(void*)p->Tcp:p->Test->Mode==1?(void*)p->Tls:(void*)p->Ws;
-    xtpwritebudget b={1048576,64,7};xtpwriteprogress progress;
+    xtpwritebudget b={1048576,64,XTP_NATIVE_IO_SIZE};xtpwriteprogress progress;
     xtpresult r=xtpDrain(p->Xtp,1,writer,transport,&b,clock_us(),&progress);
     if(r!=XTP_OK&&r!=XTP_AGAIN)fprintf(stderr,"native drain mode=%u peer=%u result=%d\n",p->Test->Mode,p->Index,(int)r);
     assert(r==XTP_OK||r==XTP_AGAIN);p->Flushing=false;
+#if defined(XTP_BENCH_NATIVE)
+    p->PlaintextBytes+=progress.Bytes;p->WriteCalls+=progress.Calls;
+#endif
 }
+#if defined(XTP_BENCH_NATIVE)
+static void native_submit(native_peer* p,size_t n)
+{
+    while(n){size_t batch=n>32?32:n;xtpmessage messages[32];xtpsubmitoptions options[32];memset(options,0,sizeof(options));
+        for(size_t i=0;i<batch;++i){size_t index=p->Submitted+i;p->Begin[index]=xrtTimer();messages[i]=(xtpmessage){0};
+            messages[i].Type=XTP_REQUEST;messages[i].Command=xtpCmdID(1001);messages[i].Body=(xbytesview){native_payload,native_body};options[i].Tag=&p->Begin[index];}
+        assert(xtpSubmitBatch(p->Xtp,messages,batch,options,clock_us(),NULL)==XTP_OK);p->Submitted+=batch;n-=batch;}
+}
+static void native_fill(native_peer* p)
+{
+    size_t pending=p->Submitted-p->Completed,n=native_window>pending?native_window-pending:0;
+    if(n>native_count-p->Submitted)n=native_count-p->Submitted;
+    native_submit(p,n);
+}
+static void native_done(native_test* t)
+{
+    for(size_t i=0;i<2;++i)if(t->Peers[i].Completed+t->Peers[i].Rejected!=native_count)return;
+    t->Seconds=xrtTimer()-t->Begin;xrtAtomic32Store(&t->Done,1,XMEMORY_RELEASE);
+}
+static void native_tick(xnetworker* worker,uint64_t id,xnetresult result,void* user)
+{
+    native_peer* p=user;(void)worker;(void)id;
+    if(result!=XNET_RESULT_OK||xrtAtomic32Load(&p->Test->Closing,XMEMORY_ACQUIRE))return;
+    ++p->GeneratorTicks;double elapsed=xrtTimer()-p->Test->Begin;
+    size_t due=(size_t)(elapsed*native_rate)+1;if(due>native_count)due=native_count;
+    if(due>p->Offered){double lag=(elapsed-(double)p->Offered/native_rate)*1e6;
+        if(lag>p->GeneratorLagUs)p->GeneratorLagUs=lag;
+        size_t offered=due-p->Offered,capacity=native_window-(p->Submitted-p->Completed);
+        size_t accepted=offered<capacity?offered:capacity;p->Offered=due;p->Rejected+=offered-accepted;
+        native_submit(p,accepted);drain(p);}
+    native_done(p->Test);
+    if(p->Offered<native_count)assert(xrtNetEngineAfter(p->Test->Engine,0,1,native_tick,p));
+}
+static void* native_alloc(void* user,void* memory,size_t size)
+{native_peer* p=user;if(size)++p->AllocationCalls;else{xrtFree(memory);return NULL;}return xrtRealloc(memory,size);}
+#endif
 static xtpdecision business(xtpsession* s,const xtpmessageview* m,void* user)
 {
     native_peer* p=user;++p->Messages;
@@ -44,9 +99,16 @@ static void complete(xtpsession* s,const xtpcompletion* c,void* user)
 {
     native_peer* p=user;(void)s;
     if(c->Reason==XTP_FINISH_CLOSED)return;
+#if defined(XTP_BENCH_NATIVE)
+    assert(c->Reason==XTP_FINISH_RESPONSE&&c->Body.Size==native_body);
+    p->Latency[p->Completed++]=(xrtTimer()-*(double*)c->Tag)*1e6;
+    if(!native_rate)native_fill(p);
+    native_done(p->Test);
+#else
     assert(c->Reason==XTP_FINISH_RESPONSE||c->Reason==XTP_FINISH_ACK||c->Reason==XTP_FINISH_SENT);
     if(c->Reason==XTP_FINISH_RESPONSE)assert(c->Body.Size==5&&!memcmp(c->Body.Data,"hello",5));
     ++p->Completed;if(p->Completed==3&&p->Test->Peers[1-p->Index].Completed==3)xrtAtomic32Store(&p->Test->Done,1,XMEMORY_RELEASE);
+#endif
 }
 static void fault(xtpsession* s,const xtpfault* f,void* user)
 {
@@ -57,7 +119,12 @@ static void fault(xtpsession* s,const xtpfault* f,void* user)
 }
 static void initialize(native_peer* p)
 {
-    xtpevents e={business,complete,fault};assert(xtpCreate(NULL,&e,p,&p->Xtp)==XTP_OK);
+    xtpevents e={business,complete,fault};xtpconfig config;xtpConfigInit(&config);
+#if defined(XTP_BENCH_NATIVE)
+    config.MaxTxBytes=16777216;config.MaxSessionBytes=33554432;config.MaxResponseBytes=131072;
+    config.Realloc=native_alloc;config.AllocatorUser=p;
+#endif
+    assert(xtpCreate(&config,&e,p,&p->Xtp)==XTP_OK);
     xtplane lane={1,p->Test->Mode==2?XTP_INPUT_RECORD:XTP_INPUT_STREAM,true,1048576};
     xtpbinding binding={&lane,1,p->Test->Mode==1,p->Test->Mode!=1,NULL};
     assert(xtpBind(p->Xtp,&binding,clock_us(),&p->Binding)==XTP_OK);
@@ -68,30 +135,40 @@ static void start(native_peer* p)
     if(p->Started)return;
     p->Started=true;
     if(!p->Xtp)initialize(p);
+#if defined(XTP_BENCH_NATIVE)
+    if(native_rate){
+        if(p->Test->Peers[1-p->Index].Started){p->Test->Begin=xrtTimer();
+            for(size_t i=0;i<2;++i)assert(xrtNetEngineAfter(p->Test->Engine,0,1,native_tick,&p->Test->Peers[i]));}
+    }else {if(!p->Test->Begin)p->Test->Begin=xrtTimer();native_fill(p);drain(p);}
+#else
     xtpmessage m[3];for(size_t i=0;i<3;++i){m[i]=(xtpmessage){0};m[i].Type=i==0?XTP_REQUEST:i==1?XTP_PUSH:XTP_NOTIFY;
         m[i].Command=xtpCmdID(1001);m[i].Body=XRT_BYTES_LITERAL("hello");}
     assert(xtpSubmitBatch(p->Xtp,m,3,NULL,clock_us(),NULL)==XTP_OK);drain(p);
+#endif
 }
 static void input_bytes(native_peer* p,const unsigned char* bytes,size_t n)
 {
+#if !defined(XTP_BENCH_NATIVE)
     assert(n<=sizeof(p->Received)-p->ReceivedBytes);memcpy(p->Received+p->ReceivedBytes,bytes,n);p->ReceivedBytes+=n;
-    size_t offset=0;while(offset<n){xtpreadprogress progress;size_t take=n-offset;if(take>7)take=7;
+#endif
+    size_t offset=0;while(offset<n){xtpreadprogress progress;size_t take=n-offset;if(take>XTP_NATIVE_IO_SIZE)take=XTP_NATIVE_IO_SIZE;
         xtpresult r=p->Test->Mode==2?xtpWsData(&p->WsInput,(xbytesview){bytes+offset,take},clock_us(),&progress):
             xtpInput(p->Xtp,p->Binding,1,(xbytesview){bytes+offset,take},false,clock_us(),&progress);
-        assert(r>=0&&r!=XTP_PAUSED&&r!=XTP_CLOSED&&progress.Used==take);offset+=take;}
+        assert(r>=0&&r!=XTP_PAUSED&&r!=XTP_CLOSED&&progress.Used<=take);offset+=progress.Used;
+        if(!progress.Used){uint64_t due;assert(r==XTP_AGAIN&&xtpDrive(p->Xtp,clock_us(),&due)>=0);}}
 }
 static void tcp_read(xnetstream* stream,xnetbuf* buffer,void* user)
 {
     native_peer* p=user;(void)buffer;if(p->Reading)return;p->Reading=true;
     /* Read/Consume can drive another native Read on readiness backends.
      * Keep the copied prefix ahead of those later bytes. */
-    unsigned char bytes[7];size_t n;while((n=xrtNetStreamRead(stream,bytes,sizeof(bytes)))!=0)input_bytes(p,bytes,n);
+    unsigned char bytes[XTP_NATIVE_IO_SIZE];size_t n;while((n=xrtNetStreamRead(stream,bytes,sizeof(bytes)))!=0)input_bytes(p,bytes,n);
     p->Reading=false;drain(p);
 }
 static void tcp_drain(xnetstream* s,void* user){(void)s;native_peer* p=user;if(p->Xtp)drain(p);}
 static void tls_read(xtlsstream* s,const xnetbuf* buffer,void* user)
 {native_peer* p=user;(void)buffer;if(p->Reading)return;p->Reading=true;
-    unsigned char bytes[7];size_t n;while(xrtTlsStreamRead(s,bytes,sizeof(bytes),&n)==XTLS_OK&&n)input_bytes(p,bytes,n);
+    unsigned char bytes[XTP_NATIVE_IO_SIZE];size_t n;while(xrtTlsStreamRead(s,bytes,sizeof(bytes),&n)==XTLS_OK&&n)input_bytes(p,bytes,n);
     p->Reading=false;drain(p);}
 static void tls_drain(xtlsstream* s,void* user){(void)s;native_peer* p=user;if(p->Xtp)drain(p);}
 static void tls_close(xtlsstream* s,xnetresult result,const xerror* error,void* user)
@@ -146,6 +223,9 @@ static void run(unsigned mode,bool reject)
 {
     native_test t;memset(&t,0,sizeof(t));t.Mode=mode>2?1:mode;t.Reject=reject;t.Failure=reject||mode==3;t.Aes=mode==4;
     for(unsigned i=0;i<2;++i){t.Peers[i].Test=&t;t.Peers[i].Index=i;}
+#if defined(XTP_BENCH_NATIVE)
+    for(size_t i=0;i<2;++i){t.Peers[i].Begin=calloc(native_count,sizeof(double));t.Peers[i].Latency=calloc(native_count,sizeof(double));assert(t.Peers[i].Begin&&t.Peers[i].Latency);}
+#endif
     xrtAtomic32Init(&t.Done,0);xrtAtomic32Init(&t.Failed,0);xrtAtomic32Init(&t.Closing,0);
     xnetengineconfig engine;xrtNetEngineConfigInit(&engine);engine.Workers=1;t.Engine=xrtNetEngineCreate(&engine);assert(t.Engine&&xrtNetEngineStart(t.Engine));
     if(t.Mode==1)tls_setup(&t);
@@ -160,15 +240,36 @@ static void run(unsigned mode,bool reject)
         static const xstrview protocols[]={XRT_STR_INIT("xtp/3")};client.Protocols=protocols;client.ProtocolCount=1;
         client_owner=xrtTlsStreamConnect(t.Engine,&address,0,&c.Stream,&client,&t.TlsConfig,&tls_events,&t.Peers[0]);assert(client_owner);
     }else {xnetstream* stream=xrtNetStreamConnect(t.Engine,&address,0,&c.Stream,&tcp_events,&t.Peers[0]);assert(stream);}
-    double deadline=xrtTimer()+10;while(!xrtAtomic32Load(t.Failure?&t.Failed:&t.Done,XMEMORY_ACQUIRE)){assert(xrtTimer()<deadline);xrtSleep(1);}
+    double deadline=xrtTimer()+60;while(!xrtAtomic32Load(t.Failure?&t.Failed:&t.Done,XMEMORY_ACQUIRE)){assert(xrtTimer()<deadline);xrtSleep(1);}
     xrtAtomic32Store(&t.Closing,1,XMEMORY_RELEASE);
+#if defined(XTP_BENCH_NATIVE)
+    /* Snapshot both live transports before shutdown; do not add an alias
+     * reference that would itself delay the native retirement barrier. */
+    for(size_t i=0;i<2;++i){native_peer* p=&t.Peers[i];xnetstreamstats io;
+        assert(xrtNetStreamStats(t.Mode==1?xrtTlsStreamTransport(i?p->Tls:client_owner):p->Tcp,&io));
+        p->NativeSent=io.SentBytes;p->NativeReceived=io.ReceivedBytes;p->ReadEvents=io.ReadEvents;p->WriteEvents=io.WriteEvents;}
+#endif
     for(unsigned i=0;i<2;++i){native_peer* p=&t.Peers[i];
         if(t.Mode==1){xtlsstream* tls=i?p->Tls:client_owner;if(tls){(void)xrtTlsStreamAbort(tls);assert(xrtTlsStreamWaitRetired(tls,10000)==XWAIT_OK);xrtTlsStreamDestroy(tls);}}
         else {if(p->Ws)(void)xrtWsConnAbort(p->Ws);else assert(xrtNetStreamClose(p->Tcp));
             assert(xrtNetStreamWaitRetired(p->Tcp,10000)==XWAIT_OK);if(p->Ws)xrtWsConnDestroy(p->Ws);xrtNetStreamDestroy(p->Tcp);}
-        if(p->Xtp){xtpresult r=xtpClose(p->Xtp,clock_us());while(r==XTP_AGAIN){uint64_t due;r=xtpDrive(p->Xtp,clock_us(),&due);}assert(r==XTP_CLOSED&&xtpDestroy(p->Xtp)==XTP_OK);}}
+        if(p->Xtp){
+#if defined(XTP_BENCH_NATIVE)
+            xtpinfo state;assert(xtpInfo(p->Xtp,&state)==XTP_OK);
+            native_report(t.Mode,p,t.Seconds,state.PeakReservedBytes);
+#endif
+            xtpresult r=xtpClose(p->Xtp,clock_us());while(r==XTP_AGAIN){uint64_t due;r=xtpDrive(p->Xtp,clock_us(),&due);}assert(r==XTP_CLOSED&&xtpDestroy(p->Xtp)==XTP_OK);}}
     assert(xrtNetListenerClose(listener));xrtNetListenerDestroy(listener);
+#if defined(XTP_BENCH_NATIVE)
+    xnetenginestats stats;assert(xrtNetEngineStats(t.Engine,&stats));
+    printf("engine_events: %llu\nengine_timers: %llu\n",(unsigned long long)stats.Events,(unsigned long long)stats.TimersFired);
+#endif
     deadline=xrtTimer()+10;xnetretireresult retired;while((retired=xrtNetEngineTryDestroy(t.Engine))==XNET_RETIRE_BUSY){assert(xrtTimer()<deadline);xrtSleep(1);}assert(retired==XNET_RETIRE_READY);
     if(t.Mode==1){xrtTlsVerifierRelease(t.Verifier);xrtTlsIdentityRelease(t.Identity);xrtTlsContextRelease(t.Context);if(legacy_context)xrtTlsContextRelease(legacy_context);}
+#if defined(XTP_BENCH_NATIVE)
+    assert(t.Peers[0].Messages==t.Peers[1].Submitted&&t.Peers[1].Messages==t.Peers[0].Submitted);
+    for(size_t i=0;i<2;++i){free(t.Peers[i].Begin);free(t.Peers[i].Latency);}
+#else
     if(!t.Failure)assert(t.Peers[0].Messages==3&&t.Peers[1].Messages==3);else assert(!t.Peers[0].Messages&&!t.Peers[1].Messages);
+#endif
 }

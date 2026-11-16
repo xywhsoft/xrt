@@ -1,6 +1,6 @@
 # XTP 3.0 扩展库设计方案
 
-日期：2026-11-16。状态：P1 Codec、P2 Reader、P3 基础 Session、P4 TCP/TLS/WS、P5 xrudp 接入已实现并通过局部验证，其他阶段继续按本方案实施。适用产品：`extlibs/xtp`。实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
+日期：2026-11-16。状态：P1～P6 功能已实现，P7 已提供 XS 替换、包消费及可复现性能验收；生产资格缺口单独记录。适用产品：`extlibs/xtp`。实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
 
 XTP 3.0 是纯 C、有界、双向的二进制消息协议。固定头为 32 字节，支持字符串或 UInt32 命令、table 或 array 参数，以及请求应答、可靠推送、不可靠推送。业务自行路由；网络适配层提供字节、报文边界、可信连接状态及发送出口；XTP 完成分帧、校验、消息回调和待发数据管理。
 
@@ -228,7 +228,7 @@ NOTIFY 的应用 Tick、实体版本和序号放在参数或 Body，或使用 xr
 | REPLIED | 收到匹配 RESPONSE，业务结果由 Status 和内容说明 |
 | REJECTED | 对端明确未受理；不能套用于已经可能执行的本地超时 |
 
-发送受理、下层发送完成、传输 ACK、业务 ACK 和 RESPONSE 各自独立。超时、关闭和取消不能伪造未执行证明。首版取消只撤销未提交或尚未发送的数据，并停止后续恢复；不发送业务撤销协议。
+发送受理、下层发送完成、传输 ACK、业务 ACK 和 RESPONSE 各自独立。超时、关闭和取消不能伪造未执行证明。首版没有独立 Cancel API；应用可以在提交前取消，已受理操作由原期限或显式关闭终结，不发送业务撤销协议。
 
 STATE_LOST 始终以 UNKNOWN 完成，即使携带在一个语法合法的 ACK 或 RESPONSE 中。DEADLINE_EXCEEDED 是远端期限结果，不证明业务没有执行。
 
@@ -462,7 +462,7 @@ XTP 消息回调：
     由宿主决定重连；认证和恢复证明成立后才 Bind
 ```
 
-OnComplete 的结果视图默认只在回调期间借用；应用同步消费或复制到自己的受限存储。需要库持有结果时使用预留的结果槽，并在释放前持续计入配额。RESULT_ACK 必须在结果已安全交给本地消费者或结果槽之后生成。
+OnComplete 的结果视图默认只在回调期间借用；应用同步消费或复制到自己的受限存储。需要长期结果时，应用在回调返回前复制进自己的有界队列；首版没有公开的结果持有槽 API。RESULT_ACK 必须在结果已安全交给本地消费者或结果槽之后生成。
 
 ## 12 网络适配
 
@@ -540,7 +540,7 @@ Codec 可以解析任意来源字节，但解析成功不代表可信。Session 
 
 首版 XTP 自有生产源码、公共头和必要注释以 40～80 KiB 为设计预算；这不是已测结果、目标文件大小或运行内存。规范源码只计一次，生成单头不重复计数；XRT、TLS、xws、xrudp、测试和文档分别统计。
 
-P1～P3 当前实际约 81 KiB，已略超该预算；后续适配和 Delivery 的剩余预算不能视为已经满足。基础 Session 先采用固定槽、统一账本和接收前物理响应预留，优先保留安全与生命周期检查；进一步池化或缩减源码须以实测和行为不变为依据。
+P1～P3 历史基线约 81 KiB；完整 P1～P6 当前实际为 116790 字节（114.05 KiB），含公共/内部头及可选模块，超出此预算。基础 Session 先采用固定槽、统一账本和接收前物理响应预留，优先保留安全与生命周期检查；进一步池化或缩减源码须以实测和行为不变为依据。
 
 | 部分 | 预算方向 |
 | --- | --- |
@@ -568,14 +568,13 @@ extlibs/xtp/
   config/performance_profiles.json
   config/size_profiles.json
   include/xtp.h
-  include/xtp/{codec,session,delivery,transport,features,export}.h
+  include/xtp/{codec,reader,session,transport,tcp,tls,ws,xrudp,types,features,export}.h
   src/codec/
   src/session/
-  src/delivery/
   src/transport/
   src/internal/
-  tests/{single,package,support}/
-  examples/{codec,backend,tcp,tls,ws,xrudp,replay,game}/
+  tests/{single,package}/
+  examples/{codec,backend,session,delivery,tcp,tls,ws,game}/
   bench/
   docs/api/reference.md
 ```
@@ -584,7 +583,7 @@ extlibs/xtp/
 
 使用根目录既有 build、package、amalgamate、API 参考及测量工具。生成 `single/extlibs/xtp.h` 和 `xtp_decl.h`，单头只包含 XTP 自身代码；宿主提供同一份 XRT 和选择的扩展。
 
-XS 后续从 XRT 同步此扩展并直接导入公开 API，删除同功能的旧 XTP2 实现与构建选项，不保留两套底层。迁移独立提交，不改动其他扩展供应关系。
+XS 已选择性固定此扩展并直接导入 42 个公开 API，删除同功能的旧 XTP2 实现、头和符号，不保留两套底层。迁移独立提交，不改动其他扩展供应关系。
 
 ## 17 分阶段实施
 
@@ -657,3 +656,7 @@ P1～P3 不等待网络工厂或恢复控制面即可独立验收。每个通过
 ### P6 实施细化（2026-11-16）
 
 Delivery 已落地为可选编译模块，运行时默认关闭。恢复证明、协商寿命、原帧与逐轮 Ticket、结果缓存、紧凑回执的实际规则以 [Delivery 操作说明](../../extlibs/xtp/docs/delivery.md) 为准。回执槽不能淘汰未到期 DONE 记录，因此默认 1024 槽/60 秒只支持约 17 次/秒持续可恢复 RPC；普通 RPC 不承担这项保留，按业务缩短寿命/扩大窗口并处理容量拒绝。
+
+### P7 实施细化（2026-11-16）
+
+模块/单头、C99/C++11、静态/动态包、Windows/Linux 与 XS 外层/嵌套 TCC 已实际验证。性能工具分别输出 Codec/本地 Session 和真实 TCP/TLS1.3/WS 的原始重复样本；所有窗口拒绝与操作完成分开记录。当前网络性能包含闭环容量和 1ms 定时器采样的固定到达率，客户端窗口满的全部到达计为拒绝，生成器延迟单列；完整 WSS/HTTP Upgrade、xrudp 饱和吞吐、内核唤醒细分、移动网络与长稳资格仍列为发布验收缺口，不能由已通过的功能或回环测试替代。详见 [性能记录](../../extlibs/xtp/docs/performance.md)。

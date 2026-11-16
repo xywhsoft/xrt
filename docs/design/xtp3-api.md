@@ -452,6 +452,6 @@ ParamAt/Find/Next 只接受库产生且仍有效的 ParamsView。其参数区域
 
 ## 7 验证范围
 
-以文档中的声明原型和 C 示例进行编译期检查，核对四种模式可表达、回调签名、Reply 的无路由描述以及 C 工具链兼容性。该检查不实现 Session、参数解码或网络，不构成运行时功能和性能验收。
+以文档中的声明原型和 C 示例进行编译期检查，核对四种模式可表达、回调签名、Reply 的无路由描述以及 C 工具链兼容性。原型检查本身不构成运行时验收；现在 P1～P7 已补充实际实现、故障测试、包消费及 XS 跨编译器回调验证，详见实施与验收。
 
 正式 P1～P3 另外测试：零号 CommandID、错误 Kind、ParamFind 的 WRONG_MODE 与 MISSING、实际空值、动态字符串长度、非 NUL 结尾输入、非字典序 table 的原顺序保留、table 的 ParamAt/ParamFind 结果一致、ParamNext 顺序、重复 key 拒绝、批量失败原子性、Reply 令牌失效、Tag 寿命、回调重入及完成恰好一次。

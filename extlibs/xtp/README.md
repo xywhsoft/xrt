@@ -1,6 +1,6 @@
 # xtp
 
-纯 C XTP 3.0 扩展。当前已实现 P1 Codec、P2 Reader 和 P3 Session：32 字节固定头、两类命令、保留顺序的 table/array、批量编码、STREAM/RECORD 增量输入、请求匹配、可靠推送回执和不可靠推送。不兼容 1.0/2.0。
+纯 C XTP 3.0 扩展。已实现 Codec、Reader、Session、可选 Delivery 及已有 TCP/TLS/WS/xrudp 适配：32 字节固定头、两类命令、保留顺序的 table/array、批量编码、STREAM/RECORD 增量输入、请求匹配、可靠推送回执和不可靠推送。不兼容 1.0/2.0。
 
 Codec 不分配；Reader 对完整连续帧直接借用，仅为跨输入帧分配组装缓冲。无网络、线程和全局状态。字节流损坏的帧边界不可推测恢复，RECORD 可在可信记录边界恢复；可辨认长度的坏帧直接跳过 Body。配置始终限制工作量、缓冲及增长峰值、坏帧数和接收期限。
 
@@ -20,6 +20,8 @@ Session 使用同一 `xtpSubmit` 与 `OnMessage` 表达四种 Command/Params 组
 
 Session 的 Bind 接受宿主已验证的安全连接声明，自身不执行 TLS/Noise 认证。P4 已提供通用 `xtpDrain` 和已有 TCP/TLS/WS 写入适配，见 [承载接入](docs/transport.md)。选择相应模块才引入网络依赖，纯消息后端可继续直接使用 Input/Output/Advance。
 
-P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。P6 已提供可选 [Delivery](docs/delivery.md)：经认证的状态续接、原帧重放、BUSY 退避、结果缓存及 RESULT_ACK；默认关闭，按消息启用。XS 迁移与最终发布形态验收继续实施。
+P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。P6 已提供可选 [Delivery](docs/delivery.md)：经认证的状态续接、原帧重放、BUSY 退避、结果缓存及 RESULT_ACK；默认关闭，按消息启用。XS 已替换原 XTP2 并通过外层/嵌套 TCC 验证。模块/单头与静态/动态包已验收；[性能与体积记录](docs/performance.md) 分开列出已测结果和生产资格缺口。
 
 完整协议、交付语义和阶段验收见 [设计](../../docs/design/xtp3.md) 与 [API 方案](../../docs/design/xtp3-api.md)。[Codec 示例](examples/codec/main.c) 可直接运行；[覆盖与进度](docs/coverage.md) 明确尚未完成的阶段。
+
+可恢复 RPC 的默认 1024 槽/60s 保留约束会限制持续速率，默认不启用。自有源码/头共 114.05 KiB，超出初始源码预算；GCC 自有 Session 含 Delivery 的 text 约 41.9 KiB，依赖另计。生产部署资格不由本地功能/回环测试自动取得，详见验收记录。

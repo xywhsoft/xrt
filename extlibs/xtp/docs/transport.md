@@ -19,3 +19,7 @@ python tools/build.py --compiler gcc --manifest extlibs/xtp/config/modules.json 
 ```
 
 预期：原生 TCP、TLS 1.3 ChaCha/AES、WS 双向三类消息通过；证书拒绝和 TLS 1.2 拒绝均不交付业务；原生 stream/engine 实际退休后才释放宿主状态。模块和单头运行同一断言，例程分别输出 PASS。程序自动关闭连接与引擎，不监听固定端口、不联网、不留下服务进程。
+
+一个 STREAM lane 必须对应一条独立有序字节流。单个 TCP/TLS 连接只绑定一个 STREAM lane；不能把不同 lane 的半包交错写入同一个未复用的 TCP 流。多个 xrudp 流分别配置输入 lane 和输出 writer 的 StreamID，宿主在认证控制面确定双向映射。对多 lane 的 Session，按 LaneID 分别排空到各自承载；只在确实使用同一多路复用出口时采用通用 writer 与 LaneID=0。
+
+SubmitBatch 是原子受理多条描述，Output/原生 writer 仍逐帧推进；低层可以自行合并写入，Codec Encode 也可以一次输出多帧。没有宣称每个 SubmitBatch 只对应一次网络系统调用。

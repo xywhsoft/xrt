@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "production_xtp_commit": "d2b1aafc2fcd67faeddc02e85a83485cbc737094",
+  "measurement_head": "e4e76be7e5b40f06230a0b7b7fc72364371a0d6f",
+  "compiler": "gcc.EXE (GCC) 16.2.0",
+  "processor": "AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "scope": "local capacity and loopback measurements; no HTTP comparison, Internet or production certification",
+  "local_samples": 888,
+  "native_samples": 180,
+  "local_rpc_64B_batch8": [
+    {
+      "shape": 0,
+      "messages_per_sec": 239809.304,
+      "p50_us": 24.4,
+      "p95_us": 35.3,
+      "p99_us": 46.9,
+      "p999_us": 62.3,
+      "max_us": 72.9,
+      "hot_allocations": 10000,
+      "peak_reserved_bytes": 1198136
+    },
+    {
+      "shape": 1,
+      "messages_per_sec": 238595.151,
+      "p50_us": 24.7,
+      "p95_us": 34.8,
+      "p99_us": 40.0,
+      "p999_us": 78.6,
+      "max_us": 85.6,
+      "hot_allocations": 10000,
+      "peak_reserved_bytes": 1198168
+    },
+    {
+      "shape": 2,
+      "messages_per_sec": 209726.265,
+      "p50_us": 26.8,
+      "p95_us": 53.2,
+      "p99_us": 66.3,
+      "p999_us": 83.9,
+      "max_us": 91.5,
+      "hot_allocations": 10000,
+      "peak_reserved_bytes": 1198184
+    },
+    {
+      "shape": 3,
+      "messages_per_sec": 233322.134,
+      "p50_us": 25.5,
+      "p95_us": 35.4,
+      "p99_us": 42.7,
+      "p999_us": 67.6,
+      "max_us": 88.5,
+      "hot_allocations": 10000,
+      "peak_reserved_bytes": 1198216
+    }
+  ],
+  "native_rpc_64B_window32": [
+    {
+      "mode": 0,
+      "rpc_per_sec_both_directions": 142400.444,
+      "p99_us_slower_peer": 768.5
+    },
+    {
+      "mode": 1,
+      "rpc_per_sec_both_directions": 82390.308,
+      "p99_us_slower_peer": 1508.1
+    },
+    {
+      "mode": 2,
+      "rpc_per_sec_both_directions": 133806.116,
+      "p99_us_slower_peer": 855.4
+    }
+  ],
+  "offered_rate_64B_window32": [
+    {
+      "mode": 0,
+      "rate_per_direction": 10000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 4000,
+      "rejected_both_directions": 0
+    },
+    {
+      "mode": 0,
+      "rate_per_direction": 200000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 384,
+      "rejected_both_directions": 3616
+    },
+    {
+      "mode": 1,
+      "rate_per_direction": 10000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 4000,
+      "rejected_both_directions": 0
+    },
+    {
+      "mode": 1,
+      "rate_per_direction": 200000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 384,
+      "rejected_both_directions": 3616
+    },
+    {
+      "mode": 2,
+      "rate_per_direction": 10000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 4000,
+      "rejected_both_directions": 0
+    },
+    {
+      "mode": 2,
+      "rate_per_direction": 200000,
+      "offered_both_directions": 4000,
+      "completed_both_directions": 384,
+      "rejected_both_directions": 3616
+    }
+  ],
+  "source_bytes": {
+    "public_headers": 27748,
+    "codec": 15203,
+    "internal": 3237,
+    "reader": 13168,
+    "session": 50654,
+    "transport": 6780
+  },
+  "owned_artifact_size": {
+    "xtp_codec": {
+      "suite": "xtp_codec",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 8088,
+          "data": 0,
+          "bss": 0,
+          "members": 1,
+          "load": 8088,
+          "file": 10750,
+          "path": "release/gnu/native/xtp_codec/static/libxtp.a"
+        }
+      }
+    },
+    "xtp_session": {
+      "suite": "xtp_session",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 36024,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 36024,
+          "file": 46330,
+          "path": "release/gnu/native/xtp_session/static/libxtp.a"
+        }
+      }
+    },
+    "xtp_delivery": {
+      "suite": "xtp_delivery",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately",
+      "forbid_symbols": [],
+      "kinds": {
+        "static": {
+          "text": 42912,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 42912,
+          "file": 53434,
+          "path": "release/gnu/native/xtp_delivery/static/libxtp.a"
+        }
+      }
+    }
+  },
+  "raw_reports_sha256": {
+    "out/xtp3-bench/windows-matrix.json": "27847b7bd47bda2a4e044b588982849247ecdfedc3b27524daa3442d34c4f1d4",
+    "out/xtp3-bench/windows-native.json": "9e8c5b5269ddf6263588a81c3c81edcc902d8b0825a46b6d7d4a5090d4b25a0c",
+    "out/xtp3-bench/performance-windows.json": "2df8797e624a686816d746684ed661b8e95277ccc871cbd3c7d40d3c8af83140",
+    "out/xtp3-bench/size-windows.json": "872ad2d19934af4e17b8af7568aa2f20cbbe12e63883d0ee5ae3649e44499f86"
+  }
+}

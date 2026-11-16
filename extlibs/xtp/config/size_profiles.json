@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xtp/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xtp_codec",
+      "system": "xtp",
+      "suite": "xtp_codec",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp_reader",
+      "system": "xtp",
+      "suite": "xtp_reader",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp_session",
+      "system": "xtp",
+      "suite": "xtp_session",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp_delivery",
+      "system": "xtp",
+      "suite": "xtp_delivery",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp",
+      "system": "xtp",
+      "suite": "xtp",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp_native",
+      "system": "xtp",
+      "suite": "xtp_native",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    },
+    {
+      "name": "xtp_xrudp",
+      "system": "xtp",
+      "suite": "xtp_xrudp",
+      "description": "Selected XTP capability with its complete dependency closure; owned and dependency artifacts reported separately"
+    }
+  ]
+}

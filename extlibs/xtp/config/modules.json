@@ -87,7 +87,9 @@
       "tests": [],
       "single_tests": [],
       "examples": [],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xtp/bench/bench_xtp.c"
+      ],
       "docs": [
         "extlibs/xtp/README.md"
       ],
@@ -366,7 +368,9 @@
         "extlibs/xtp/examples/tls/main.c",
         "extlibs/xtp/examples/ws/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xtp/bench/bench_native.c"
+      ],
       "docs": [
         "extlibs/xtp/docs/transport.md"
       ]

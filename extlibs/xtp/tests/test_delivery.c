@@ -83,6 +83,7 @@ static void busy_deadlines_and_tickets(void)
     assert(!a.Completed&&info(&a).Retained==1&&!info(&b).Retained);assert(xtpOutput(a.Session,0,&o)==XTP_AGAIN);
     assert(xtpAdvance(a.Session,old.Ticket,1,0)==XTP_E_ARGUMENT);drive_at(&a,200);b.Now=200;
     assert(xtpOutput(a.Session,0,&o)==XTP_OK&&!memcmp(o.Data.Data,original,o.Data.Size));
+    assert(xtpAdvance(a.Session,old.Ticket,1,200)==XTP_E_ARGUMENT);
     assert(transfer(&a,&b,0,1)==1&&transfer(&b,&a,0,1)==1);drive_at(&a,500);
     assert(a.Completed==1&&a.Results[0].LocalResult==XTP_E_LIMIT&&a.Results[0].Knowledge==XTP_KNOW_REJECTED);
     assert(b.Requests==2&&!info(&a).Retained&&!info(&a).Receipts);destroy(&a);b.Now=500;destroy(&b);
