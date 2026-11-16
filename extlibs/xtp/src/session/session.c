@@ -41,7 +41,7 @@ static void* xtpSessionMemory(void* user,void* memory,size_t n)
     xtpmemory* p=s->Config.Realloc(s->Config.AllocatorUser,old,total);if(!p)return NULL;
     p->Size=total;s->Storage=s->Storage-oldn+total;return p+1;
 }
-static bool xtpSessionAddress(const xtpsession* s,uintptr_t address,size_t n)
+bool xtp__SessionAddress(const xtpsession* s,uintptr_t address,size_t n)
 {
     const void* p=(const void*)address;
     if(!xrtMemRangeValid(p,n)||xtp__Overlap(s,sizeof(*s),p,n)||
@@ -54,6 +54,13 @@ static bool xtpSessionAddress(const xtpsession* s,uintptr_t address,size_t n)
         xtp__Overlap(s->Tx[i].Bytes,s->Tx[i].Capacity,p,n))return false;
     return true;
 }
+xtpresult xtp__TransportWrite(xtpsession* s,const xtpoutput* out,
+    xtpresult (*write)(void*,const xtpoutput*,size_t*),void* user,size_t* accepted)
+{
+    if(s->Busy)return XTP_E_STATE;
+    s->Busy=true;xtpresult result=write(user,out,accepted);s->Busy=false;return result;
+}
+uint64_t xtp__SessionTime(const xtpsession* s){return s->LastNow;}
 static uint64_t xtpSessionDue(uint64_t now,uint64_t delay)
 {return UINT64_MAX-now<delay?UINT64_MAX:now+delay;}
 static void xtpSessionFault(xtpsession* s,xtpresult reason,size_t lane,bool fatal)
@@ -117,6 +124,11 @@ static size_t xtpSessionLane(xtpsession* s,uint32_t id)
     if(!id)return s->LaneCount?0:XTP_NONE;
     for(size_t i=0;i<s->LaneCount;++i)if(s->Lanes[i].Config.ID==id)return i;
     return XTP_NONE;
+}
+bool xtp__RecordLane(xtpsession* s,uint64_t binding,uint32_t lane)
+{
+    if(s->Busy||!s->Bound||binding!=s->Binding)return false;
+    size_t i=xtpSessionLane(s,lane);return i!=XTP_NONE&&s->Lanes[i].Config.Mode==XTP_INPUT_RECORD&&s->Lanes[i].Config.Reliable;
 }
 static size_t xtpPendingFind(xtpsession* s,uint64_t id)
 {
@@ -290,7 +302,7 @@ XTP_API xtpresult xtpBind(xtpsession* s,const xtpbinding* b,uint64_t now,uint64_
     if(!s||s->Busy||s->Bound||s->Closing||s->Closed||s->Unbinding||!b||
         !xrtMemRangeValid(b,sizeof(*b))||!b->Lanes||!b->LaneCount||b->LaneCount>s->Config.MaxLanes||
         !xrtMemRangeValid(b->Lanes,b->LaneCount*sizeof(*b->Lanes))||(!b->Authenticated&&!b->AllowPlaintext)||
-        !xtpSessionAddress(s,(uintptr_t)binding,sizeof(*binding))||xtp__Overlap(binding,sizeof(*binding),b,sizeof(*b))||
+        !xtp__SessionAddress(s,(uintptr_t)binding,sizeof(*binding))||xtp__Overlap(binding,sizeof(*binding),b,sizeof(*b))||
         xtp__Overlap(binding,sizeof(*binding),b->Lanes,b->LaneCount*sizeof(*b->Lanes))||s->Binding==UINT64_MAX||now<s->LastNow)return XTP_E_ARGUMENT;
     for(size_t i=0;i<b->LaneCount;++i){const xtplane* l=&b->Lanes[i];
         if(!l->ID||(l->Mode!=XTP_INPUT_STREAM&&l->Mode!=XTP_INPUT_RECORD)||
@@ -316,8 +328,8 @@ XTP_API xtpresult xtpUnbind(xtpsession* s,uint64_t binding,uint64_t now)
 XTP_API xtpresult xtpInput(xtpsession* s,uint64_t binding,uint32_t id,xbytesview in,bool end,uint64_t now,xtpreadprogress* p)
 {
     if(!s||s->Busy||!s->Bound||binding!=s->Binding||s->CloseRequested||now<s->LastNow)return XTP_E_STATE;
-    size_t li=xtpSessionLane(s,id);if(li==XTP_NONE||!xtpSessionAddress(s,(uintptr_t)p,sizeof(*p))||
-        !xtpSessionAddress(s,(uintptr_t)in.Data,in.Size))return XTP_E_ARGUMENT;
+    size_t li=xtpSessionLane(s,id);if(li==XTP_NONE||!xtp__SessionAddress(s,(uintptr_t)p,sizeof(*p))||
+        !xtp__SessionAddress(s,(uintptr_t)in.Data,in.Size))return XTP_E_ARGUMENT;
     s->Busy=true;s->LastNow=now;s->TurnFrames=s->Config.Reader.MaxFrames;
     xtpresult r=xtpReaderInput(s->Lanes[li].Reader,in,end,now,p);
     if(r<0&&r!=XTP_E_ARGUMENT)xtpSessionFault(s,r,li,true);
@@ -367,7 +379,7 @@ XTP_API xtpresult xtpSubmitBatch(xtpsession* s,const xtpmessage* messages,size_t
     if(!count||count>s->Config.Reader.Codec.MaxBatch||!messages||
         !xrtMemRangeValid(messages,count*sizeof(*messages))||
         (options&&!xrtMemRangeValid(options,count*sizeof(*options)))||
-        (operations&&!xtpSessionAddress(s,(uintptr_t)operations,count*sizeof(*operations))))return XTP_E_ARGUMENT;
+        (operations&&!xtp__SessionAddress(s,(uintptr_t)operations,count*sizeof(*operations))))return XTP_E_ARGUMENT;
     xtppacket packets[XTP_BATCH_MAX];size_t sizes[XTP_BATCH_MAX],lanes[XTP_BATCH_MAX],taken[XTP_BATCH_MAX];
     uint64_t due[XTP_BATCH_MAX],id=s->NextID;size_t reliable=0,total=0;
     for(size_t i=0;i<count;++i){const xtpmessage* m=&messages[i];xtpsubmitoptions o={0};if(options)o=options[i];
@@ -433,7 +445,7 @@ XTP_API xtpresult xtpReply(xtpsession* s,xtprequesttoken token,const xtpresponse
 XTP_API xtpresult xtpOutput(xtpsession* s,uint32_t id,xtpoutput* out)
 {
     if(!s||s->Busy||!s->Bound||s->Closing||s->CloseRequested)return XTP_E_STATE;
-    if(!xtpSessionAddress(s,(uintptr_t)out,sizeof(*out)))return XTP_E_ARGUMENT;
+    if(!xtp__SessionAddress(s,(uintptr_t)out,sizeof(*out)))return XTP_E_ARGUMENT;
     size_t i=XTP_NONE,li=xtpSessionLane(s,id);if(id&&li==XTP_NONE)return XTP_E_ARGUMENT;
     if(id)i=s->Lanes[li].Head;
     else for(size_t j=0;j<s->LaneCount;++j){size_t h=s->Lanes[(s->NextLane+j)%s->LaneCount].Head;
@@ -466,7 +478,7 @@ static void xtpDueMin(uint64_t* next,uint64_t due)
 {if(due&&(!*next||due<*next))*next=due;}
 XTP_API xtpresult xtpDrive(xtpsession* s,uint64_t now,uint64_t* next)
 {
-    if(!s||s->Busy||!xtpSessionAddress(s,(uintptr_t)next,sizeof(*next))||now<s->LastNow)return XTP_E_ARGUMENT;
+    if(!s||s->Busy||!xtp__SessionAddress(s,(uintptr_t)next,sizeof(*next))||now<s->LastNow)return XTP_E_ARGUMENT;
     s->LastNow=now;s->Busy=true;s->TurnFrames=s->Config.Reader.MaxFrames;
     uint64_t due=0;size_t work=s->Config.Reader.MaxWorkBytes;bool again=false;
     if(s->Closing||s->Unbinding||s->CloseRequested){xtpresult r=xtpSessionLeave(s,XTP_OK);*next=0;return r;}
@@ -510,7 +522,7 @@ XTP_API xtpresult xtpDestroy(xtpsession* s)
 }
 XTP_API xtpresult xtpInfo(const xtpsession* s,xtpinfo* info)
 {
-    if(!s||!xtpSessionAddress(s,(uintptr_t)info,sizeof(*info)))return XTP_E_ARGUMENT;
+    if(!s||!xtp__SessionAddress(s,(uintptr_t)info,sizeof(*info)))return XTP_E_ARGUMENT;
     *info=(xtpinfo){s->Binding,s->NextID,s->Submitted,s->Completed,s->Messages,s->Unknown,s->Duplicates,
         s->PendingCount,s->Incoming,s->TxCount,s->TxBytes,s->Storage,s->Peak,s->Bound,s->Closing||s->CloseRequested,s->Closed};return XTP_OK;
 }

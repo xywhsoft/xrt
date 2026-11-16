@@ -1239,8 +1239,44 @@
 #if !defined(XRT_FEATURE_XLON_WRITE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE 1
 #endif
+#if !defined(XRT_MODULE_NET_TCP)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
+#endif
+#if !defined(XRT_MODULE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
+#endif
 #if !defined(XRT_MODULE_RANDOM_SECURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE 1
+#endif
+#if !defined(XRT_MODULE_THREAD)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_THREAD 1
+#endif
+#if !defined(XRT_MODULE_TLS_CLIENT_VERIFY)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_VERIFY 1
+#endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_ED25519)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519 1
+#endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_P256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256 1
+#endif
+#if !defined(XRT_MODULE_TLS_KEY_EXCHANGE_X25519)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519 1
+#endif
+#if !defined(XRT_MODULE_TLS_RECORD_AES)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES 1
+#endif
+#if !defined(XRT_MODULE_TLS_RECORD_CHACHA)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA 1
+#endif
+#if !defined(XRT_MODULE_TLS_SCHEDULE_SHA256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE 1
 #endif
 #if !defined(XTP_FEATURE_XTP)
 #define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP 1
@@ -1248,11 +1284,26 @@
 #if !defined(XTP_FEATURE_XTP_CODEC)
 #define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_CODEC 1
 #endif
+#if !defined(XTP_FEATURE_XTP_NATIVE)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_NATIVE 1
+#endif
 #if !defined(XTP_FEATURE_XTP_READER)
 #define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER 1
 #endif
 #if !defined(XTP_FEATURE_XTP_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_SESSION 1
+#endif
+#if !defined(XTP_FEATURE_XTP_TCP)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TCP 1
+#endif
+#if !defined(XTP_FEATURE_XTP_TLS)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TLS 1
+#endif
+#if !defined(XTP_FEATURE_XTP_TRANSPORT)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TRANSPORT 1
+#endif
+#if !defined(XTP_FEATURE_XTP_WS)
+#define XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_WS 1
 #endif
 #if !defined(XTP_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL 1
@@ -1263,11 +1314,56 @@
 #if !defined(XTP_MODULE_XTP_CODEC)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_CODEC 1
 #endif
+#if !defined(XTP_MODULE_XTP_NATIVE)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_NATIVE 1
+#endif
 #if !defined(XTP_MODULE_XTP_READER)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER 1
 #endif
 #if !defined(XTP_MODULE_XTP_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_SESSION 1
+#endif
+#if !defined(XTP_MODULE_XTP_TCP)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TCP 1
+#endif
+#if !defined(XTP_MODULE_XTP_TLS)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TLS 1
+#endif
+#if !defined(XTP_MODULE_XTP_TRANSPORT)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TRANSPORT 1
+#endif
+#if !defined(XTP_MODULE_XTP_WS)
+#define XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_WS 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_TLS 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_WRITER)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE 1
+#endif
+#if !defined(XWS_FEATURE_WEBSOCKET_WRITER_REF)
+#define XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_REF 1
+#endif
+#if !defined(XWS_MODULE_WEBSOCKET_CONNECTION)
+#define XRT_DECLARATIONS_RESTORE_XWS_MODULE_WEBSOCKET_CONNECTION 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL)
 #define XTP_MODULE_ALL 1
@@ -2481,6 +2577,33 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE)
 #define XRT_FEATURE_XLON_WRITE 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_REF 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_TLS 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER)
+#define XWS_FEATURE_WEBSOCKET_WRITER 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
+#define XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_REF)
+#define XWS_FEATURE_WEBSOCKET_WRITER_REF 1
+#endif
 #undef XTP_FEATURES_H
 
 
@@ -2492,6 +2615,91 @@
 #ifndef XTP_FEATURES_H
 #define XTP_FEATURES_H
 
+/* xtp_native 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_NATIVE)
+#ifndef XTP_FEATURE_XTP_NATIVE
+#define XTP_FEATURE_XTP_NATIVE
+#endif
+#ifndef XTP_MODULE_XTP_TCP
+#define XTP_MODULE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TLS
+#define XTP_MODULE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_WS
+#define XTP_MODULE_XTP_WS
+#endif
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* xtp_ws 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_WS)
+#ifndef XTP_FEATURE_XTP_WS
+#define XTP_FEATURE_XTP_WS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
+#define XWS_MODULE_WEBSOCKET_CONNECTION
+#endif
+#endif
+
+/* xtp_tls 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TLS)
+#ifndef XTP_FEATURE_XTP_TLS
+#define XTP_FEATURE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#endif
+
+/* xtp_tcp 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TCP)
+#ifndef XTP_FEATURE_XTP_TCP
+#define XTP_FEATURE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#endif
+
 /* xtp 及其直接依赖。 */
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP)
 #ifndef XTP_FEATURE_XTP
@@ -2502,6 +2710,19 @@
 #endif
 #ifndef XTP_MODULE_XTP_READER
 #define XTP_MODULE_XTP_READER
+#endif
+#ifndef XTP_MODULE_XTP_SESSION
+#define XTP_MODULE_XTP_SESSION
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#endif
+
+/* xtp_transport 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TRANSPORT)
+#ifndef XTP_FEATURE_XTP_TRANSPORT
+#define XTP_FEATURE_XTP_TRANSPORT
 #endif
 #ifndef XTP_MODULE_XTP_SESSION
 #define XTP_MODULE_XTP_SESSION
@@ -2871,6 +3092,92 @@ static inline xtpdecision xtpAccept(void){xtpdecision d={XTP_ACTION_ACCEPT,0};re
 static inline xtpdecision xtpBusy(void){xtpdecision d={XTP_ACTION_BUSY,XTP_STATUS_BUSY};return d;}
 static inline xtpdecision xtpReject(int32_t status){xtpdecision d={XTP_ACTION_REJECT,status};return d;}
 static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};return d;}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/transport.h */
+/* ========================================================================== */
+
+#ifndef XTP_TRANSPORT_H
+#define XTP_TRANSPORT_H
+#if defined(XTP_FEATURE_XTP_TRANSPORT)
+/* Writer borrows Output only until return; copy/accept before reporting bytes.
+ * No reentry into Session. On an error, report any truly accepted prefix too.
+ * Host retains transport ownership, events, input buffers and writable timers. */
+typedef xtpresult (*xtpwriteproc)(void* User,const xtpoutput* Output,size_t* Accepted);
+typedef struct xtpwritebudget {size_t Bytes,Frames,ChunkBytes;} xtpwritebudget;
+typedef struct xtpwriteprogress {size_t Bytes,Frames,Calls;} xtpwriteprogress;
+XRT_EXTERN_C_BEGIN
+/* NULL budget:256KiB,64 frames,16KiB stream offers. RECORD is never split and
+ * must fit Bytes; no waiting to form batches. AGAIN means budget/backpressure.
+ * Error does not discard queued data; host reports transport failure via Unbind.
+ * Now is a fresh monotonic timestamp for this bounded synchronous drain turn. */
+XTP_API xtpresult xtpDrain(xtpsession* Session,uint32_t LaneID,xtpwriteproc Write,void* User,
+    const xtpwritebudget* Budget,uint64_t NowUs,xtpwriteprogress* Progress);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/tcp.h */
+/* ========================================================================== */
+
+#ifndef XTP_TCP_H
+#define XTP_TCP_H
+#if defined(XTP_FEATURE_XTP_TCP)
+XRT_EXTERN_C_BEGIN
+/* xtpDrain writer; User is a borrowed OPEN xnetstream, copies on acceptance.
+ * Only STREAM. Does not replace native events or retain/take its reference. */
+XTP_API xtpresult xtpTcpWrite(void* Stream,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/tls.h */
+/* ========================================================================== */
+
+#ifndef XTP_TLS_H
+#define XTP_TLS_H
+#if defined(XTP_FEATURE_XTP_TLS)
+XRT_EXTERN_C_BEGIN
+/* Static lifetime arrays: TLS1.3 only, ChaCha preferred, optional AES128-GCM;
+ * X25519, Ed25519/ECDSA-P256 signatures. No 0-RTT path. Set client/server ALPN
+ * to xtp/3; normal XRT verifier/name checks and server identity are mandatory.
+ * TLS policy restricts handshake signatures; chain verification stays in XRT. */
+XTP_API void xtpTlsPolicyInit(xtlspolicy* Policy,bool ChaChaOnly);
+/* Checks OPEN, TLS1.3, allowed cipher, ALPN xtp/3 before accepting XTP bytes.
+ * User is a borrowed xtlsstream on its owning Worker. Successful short writes
+ * report Written exactly. No event replacement, retain, or cleartext fallback. */
+XTP_API xtpresult xtpTlsWrite(void* Stream,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/ws.h */
+/* ========================================================================== */
+
+#ifndef XTP_WS_H
+#define XTP_WS_H
+#if defined(XTP_FEATURE_XTP_WS)
+/* Host maps MessageBegin/Data/End into this cursor; no native event takeover.
+ * On PAUSED/AGAIN retain unconsumed Data and defer MessageEnd/next message.
+ * Never recursively feed XTP in a writer. Compression is disabled by default. */
+typedef struct xtpwsinput {xtpsession* Session;uint64_t Binding;uint32_t Lane;bool Active;} xtpwsinput;
+XRT_EXTERN_C_BEGIN
+XTP_API xtpresult xtpWsBegin(xtpwsinput* Input,xwsopcode Opcode);
+XTP_API xtpresult xtpWsData(xtpwsinput* Input,xbytesview Data,uint64_t NowUs,xtpreadprogress* Progress);
+XTP_API xtpresult xtpWsEnd(xtpwsinput* Input,uint64_t NowUs,xtpreadprogress* Progress);
+/* xtpDrain writer; User is borrowed OPEN xwsconn, subprotocol must be xtp.v3.
+ * Complete Binary RECORD only. Source is copied by native xws before return. */
+XTP_API xtpresult xtpWsWrite(void* Connection,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
 #endif
 #endif
 
@@ -4494,9 +4801,57 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #undef XRT_FEATURE_XLON_WRITE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP)
+#undef XRT_MODULE_NET_TCP
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE)
+#undef XRT_MODULE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE)
 #undef XRT_MODULE_RANDOM_SECURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_THREAD)
+#undef XRT_MODULE_THREAD
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_THREAD
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_VERIFY)
+#undef XRT_MODULE_TLS_CLIENT_VERIFY
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519)
+#undef XRT_MODULE_TLS_IDENTITY_ED25519
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256)
+#undef XRT_MODULE_TLS_IDENTITY_P256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519)
+#undef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES)
+#undef XRT_MODULE_TLS_RECORD_AES
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA)
+#undef XRT_MODULE_TLS_RECORD_CHACHA
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256)
+#undef XRT_MODULE_TLS_SCHEDULE_SHA256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM)
+#undef XRT_MODULE_TLS_STREAM
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE)
+#undef XRT_MODULE_TLS_STREAM_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP)
 #undef XTP_FEATURE_XTP
@@ -4506,6 +4861,10 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #undef XTP_FEATURE_XTP_CODEC
 #undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_CODEC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_NATIVE)
+#undef XTP_FEATURE_XTP_NATIVE
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_NATIVE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER)
 #undef XTP_FEATURE_XTP_READER
 #undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_READER
@@ -4513,6 +4872,22 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_SESSION)
 #undef XTP_FEATURE_XTP_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TCP)
+#undef XTP_FEATURE_XTP_TCP
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TCP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TLS)
+#undef XTP_FEATURE_XTP_TLS
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TRANSPORT)
+#undef XTP_FEATURE_XTP_TRANSPORT
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_TRANSPORT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_WS)
+#undef XTP_FEATURE_XTP_WS
+#undef XRT_DECLARATIONS_RESTORE_XTP_FEATURE_XTP_WS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_ALL)
 #undef XTP_MODULE_ALL
@@ -4526,6 +4901,10 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #undef XTP_MODULE_XTP_CODEC
 #undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_CODEC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_NATIVE)
+#undef XTP_MODULE_XTP_NATIVE
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_NATIVE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER)
 #undef XTP_MODULE_XTP_READER
 #undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_READER
@@ -4533,6 +4912,62 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_SESSION)
 #undef XTP_MODULE_XTP_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TCP)
+#undef XTP_MODULE_XTP_TCP
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TCP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TLS)
+#undef XTP_MODULE_XTP_TLS
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TRANSPORT)
+#undef XTP_MODULE_XTP_TRANSPORT
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_TRANSPORT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_WS)
+#undef XTP_MODULE_XTP_WS
+#undef XRT_DECLARATIONS_RESTORE_XTP_MODULE_XTP_WS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION_REF
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
+#undef XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER)
+#undef XWS_FEATURE_WEBSOCKET_WRITER
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
+#undef XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_REF)
+#undef XWS_FEATURE_WEBSOCKET_WRITER_REF
+#undef XRT_DECLARATIONS_RESTORE_XWS_FEATURE_WEBSOCKET_WRITER_REF
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XWS_MODULE_WEBSOCKET_CONNECTION)
+#undef XWS_MODULE_WEBSOCKET_CONNECTION
+#undef XRT_DECLARATIONS_RESTORE_XWS_MODULE_WEBSOCKET_CONNECTION
 #endif
 
 #endif
@@ -4549,6 +4984,91 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #ifndef XTP_FEATURES_H
 #define XTP_FEATURES_H
 
+/* xtp_native 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_NATIVE)
+#ifndef XTP_FEATURE_XTP_NATIVE
+#define XTP_FEATURE_XTP_NATIVE
+#endif
+#ifndef XTP_MODULE_XTP_TCP
+#define XTP_MODULE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TLS
+#define XTP_MODULE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_WS
+#define XTP_MODULE_XTP_WS
+#endif
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* xtp_ws 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_WS)
+#ifndef XTP_FEATURE_XTP_WS
+#define XTP_FEATURE_XTP_WS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
+#define XWS_MODULE_WEBSOCKET_CONNECTION
+#endif
+#endif
+
+/* xtp_tls 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TLS)
+#ifndef XTP_FEATURE_XTP_TLS
+#define XTP_FEATURE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#endif
+
+/* xtp_tcp 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TCP)
+#ifndef XTP_FEATURE_XTP_TCP
+#define XTP_FEATURE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#endif
+
 /* xtp 及其直接依赖。 */
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP)
 #ifndef XTP_FEATURE_XTP
@@ -4559,6 +5079,19 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 #endif
 #ifndef XTP_MODULE_XTP_READER
 #define XTP_MODULE_XTP_READER
+#endif
+#ifndef XTP_MODULE_XTP_SESSION
+#define XTP_MODULE_XTP_SESSION
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#endif
+
+/* xtp_transport 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TRANSPORT)
+#ifndef XTP_FEATURE_XTP_TRANSPORT
+#define XTP_FEATURE_XTP_TRANSPORT
 #endif
 #ifndef XTP_MODULE_XTP_SESSION
 #define XTP_MODULE_XTP_SESSION

@@ -59,6 +59,91 @@
 #ifndef XTP_FEATURES_H
 #define XTP_FEATURES_H
 
+/* xtp_native 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_NATIVE)
+#ifndef XTP_FEATURE_XTP_NATIVE
+#define XTP_FEATURE_XTP_NATIVE
+#endif
+#ifndef XTP_MODULE_XTP_TCP
+#define XTP_MODULE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TLS
+#define XTP_MODULE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_WS
+#define XTP_MODULE_XTP_WS
+#endif
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* xtp_ws 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_WS)
+#ifndef XTP_FEATURE_XTP_WS
+#define XTP_FEATURE_XTP_WS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
+#define XWS_MODULE_WEBSOCKET_CONNECTION
+#endif
+#endif
+
+/* xtp_tls 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TLS)
+#ifndef XTP_FEATURE_XTP_TLS
+#define XTP_FEATURE_XTP_TLS
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#endif
+
+/* xtp_tcp 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TCP)
+#ifndef XTP_FEATURE_XTP_TCP
+#define XTP_FEATURE_XTP_TCP
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#endif
+
 /* xtp 及其直接依赖。 */
 #if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP)
 #ifndef XTP_FEATURE_XTP
@@ -69,6 +154,19 @@
 #endif
 #ifndef XTP_MODULE_XTP_READER
 #define XTP_MODULE_XTP_READER
+#endif
+#ifndef XTP_MODULE_XTP_SESSION
+#define XTP_MODULE_XTP_SESSION
+#endif
+#ifndef XTP_MODULE_XTP_TRANSPORT
+#define XTP_MODULE_XTP_TRANSPORT
+#endif
+#endif
+
+/* xtp_transport 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_TRANSPORT)
+#ifndef XTP_FEATURE_XTP_TRANSPORT
+#define XTP_FEATURE_XTP_TRANSPORT
 #endif
 #ifndef XTP_MODULE_XTP_SESSION
 #define XTP_MODULE_XTP_SESSION
@@ -443,6 +541,92 @@ static inline xtpdecision xtpPause(void){xtpdecision d={XTP_ACTION_PAUSE,0};retu
 
 
 /* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/transport.h */
+/* ========================================================================== */
+
+#ifndef XTP_TRANSPORT_H
+#define XTP_TRANSPORT_H
+#if defined(XTP_FEATURE_XTP_TRANSPORT)
+/* Writer borrows Output only until return; copy/accept before reporting bytes.
+ * No reentry into Session. On an error, report any truly accepted prefix too.
+ * Host retains transport ownership, events, input buffers and writable timers. */
+typedef xtpresult (*xtpwriteproc)(void* User,const xtpoutput* Output,size_t* Accepted);
+typedef struct xtpwritebudget {size_t Bytes,Frames,ChunkBytes;} xtpwritebudget;
+typedef struct xtpwriteprogress {size_t Bytes,Frames,Calls;} xtpwriteprogress;
+XRT_EXTERN_C_BEGIN
+/* NULL budget:256KiB,64 frames,16KiB stream offers. RECORD is never split and
+ * must fit Bytes; no waiting to form batches. AGAIN means budget/backpressure.
+ * Error does not discard queued data; host reports transport failure via Unbind.
+ * Now is a fresh monotonic timestamp for this bounded synchronous drain turn. */
+XTP_API xtpresult xtpDrain(xtpsession* Session,uint32_t LaneID,xtpwriteproc Write,void* User,
+    const xtpwritebudget* Budget,uint64_t NowUs,xtpwriteprogress* Progress);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/tcp.h */
+/* ========================================================================== */
+
+#ifndef XTP_TCP_H
+#define XTP_TCP_H
+#if defined(XTP_FEATURE_XTP_TCP)
+XRT_EXTERN_C_BEGIN
+/* xtpDrain writer; User is a borrowed OPEN xnetstream, copies on acceptance.
+ * Only STREAM. Does not replace native events or retain/take its reference. */
+XTP_API xtpresult xtpTcpWrite(void* Stream,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/tls.h */
+/* ========================================================================== */
+
+#ifndef XTP_TLS_H
+#define XTP_TLS_H
+#if defined(XTP_FEATURE_XTP_TLS)
+XRT_EXTERN_C_BEGIN
+/* Static lifetime arrays: TLS1.3 only, ChaCha preferred, optional AES128-GCM;
+ * X25519, Ed25519/ECDSA-P256 signatures. No 0-RTT path. Set client/server ALPN
+ * to xtp/3; normal XRT verifier/name checks and server identity are mandatory.
+ * TLS policy restricts handshake signatures; chain verification stays in XRT. */
+XTP_API void xtpTlsPolicyInit(xtlspolicy* Policy,bool ChaChaOnly);
+/* Checks OPEN, TLS1.3, allowed cipher, ALPN xtp/3 before accepting XTP bytes.
+ * User is a borrowed xtlsstream on its owning Worker. Successful short writes
+ * report Written exactly. No event replacement, retain, or cleartext fallback. */
+XTP_API xtpresult xtpTlsWrite(void* Stream,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xtp/include/xtp/ws.h */
+/* ========================================================================== */
+
+#ifndef XTP_WS_H
+#define XTP_WS_H
+#if defined(XTP_FEATURE_XTP_WS)
+/* Host maps MessageBegin/Data/End into this cursor; no native event takeover.
+ * On PAUSED/AGAIN retain unconsumed Data and defer MessageEnd/next message.
+ * Never recursively feed XTP in a writer. Compression is disabled by default. */
+typedef struct xtpwsinput {xtpsession* Session;uint64_t Binding;uint32_t Lane;bool Active;} xtpwsinput;
+XRT_EXTERN_C_BEGIN
+XTP_API xtpresult xtpWsBegin(xtpwsinput* Input,xwsopcode Opcode);
+XTP_API xtpresult xtpWsData(xtpwsinput* Input,xbytesview Data,uint64_t NowUs,xtpreadprogress* Progress);
+XTP_API xtpresult xtpWsEnd(xtpwsinput* Input,uint64_t NowUs,xtpreadprogress* Progress);
+/* xtpDrain writer; User is borrowed OPEN xwsconn, subprotocol must be xtp.v3.
+ * Complete Binary RECORD only. Source is copied by native xws before return. */
+XTP_API xtpresult xtpWsWrite(void* Connection,const xtpoutput* Output,size_t* Accepted);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xtp/include/xtp.h */
 /* ========================================================================== */
 
@@ -504,6 +688,13 @@ struct xtpreader;
 xtpresult xtp__ReaderConfig(const struct xtpreaderconfig* Config);
 xtpresult xtp__ReaderDriveBudget(struct xtpreader* Reader,uint64_t Now,
     size_t Frames,size_t* WorkBytes,uint64_t* NextDue);
+struct xtpsession;
+struct xtpoutput;
+bool xtp__SessionAddress(const struct xtpsession* Session,uintptr_t Address,size_t Size);
+uint64_t xtp__SessionTime(const struct xtpsession* Session);
+bool xtp__RecordLane(struct xtpsession* Session,uint64_t Binding,uint32_t Lane);
+xtpresult xtp__TransportWrite(struct xtpsession* Session,const struct xtpoutput* Output,
+    xtpresult (*Write)(void*,const struct xtpoutput*,size_t*),void* User,size_t* Accepted);
 #endif
 #endif
 
@@ -1062,7 +1253,7 @@ static void* xtpSessionMemory(void* user,void* memory,size_t n)
     xtpmemory* p=s->Config.Realloc(s->Config.AllocatorUser,old,total);if(!p)return NULL;
     p->Size=total;s->Storage=s->Storage-oldn+total;return p+1;
 }
-static bool xtpSessionAddress(const xtpsession* s,uintptr_t address,size_t n)
+bool xtp__SessionAddress(const xtpsession* s,uintptr_t address,size_t n)
 {
     const void* p=(const void*)address;
     if(!xrtMemRangeValid(p,n)||xtp__Overlap(s,sizeof(*s),p,n)||
@@ -1075,6 +1266,13 @@ static bool xtpSessionAddress(const xtpsession* s,uintptr_t address,size_t n)
         xtp__Overlap(s->Tx[i].Bytes,s->Tx[i].Capacity,p,n))return false;
     return true;
 }
+xtpresult xtp__TransportWrite(xtpsession* s,const xtpoutput* out,
+    xtpresult (*write)(void*,const xtpoutput*,size_t*),void* user,size_t* accepted)
+{
+    if(s->Busy)return XTP_E_STATE;
+    s->Busy=true;xtpresult result=write(user,out,accepted);s->Busy=false;return result;
+}
+uint64_t xtp__SessionTime(const xtpsession* s){return s->LastNow;}
 static uint64_t xtpSessionDue(uint64_t now,uint64_t delay)
 {return UINT64_MAX-now<delay?UINT64_MAX:now+delay;}
 static void xtpSessionFault(xtpsession* s,xtpresult reason,size_t lane,bool fatal)
@@ -1138,6 +1336,11 @@ static size_t xtpSessionLane(xtpsession* s,uint32_t id)
     if(!id)return s->LaneCount?0:XTP_NONE;
     for(size_t i=0;i<s->LaneCount;++i)if(s->Lanes[i].Config.ID==id)return i;
     return XTP_NONE;
+}
+bool xtp__RecordLane(xtpsession* s,uint64_t binding,uint32_t lane)
+{
+    if(s->Busy||!s->Bound||binding!=s->Binding)return false;
+    size_t i=xtpSessionLane(s,lane);return i!=XTP_NONE&&s->Lanes[i].Config.Mode==XTP_INPUT_RECORD&&s->Lanes[i].Config.Reliable;
 }
 static size_t xtpPendingFind(xtpsession* s,uint64_t id)
 {
@@ -1311,7 +1514,7 @@ XTP_API xtpresult xtpBind(xtpsession* s,const xtpbinding* b,uint64_t now,uint64_
     if(!s||s->Busy||s->Bound||s->Closing||s->Closed||s->Unbinding||!b||
         !xrtMemRangeValid(b,sizeof(*b))||!b->Lanes||!b->LaneCount||b->LaneCount>s->Config.MaxLanes||
         !xrtMemRangeValid(b->Lanes,b->LaneCount*sizeof(*b->Lanes))||(!b->Authenticated&&!b->AllowPlaintext)||
-        !xtpSessionAddress(s,(uintptr_t)binding,sizeof(*binding))||xtp__Overlap(binding,sizeof(*binding),b,sizeof(*b))||
+        !xtp__SessionAddress(s,(uintptr_t)binding,sizeof(*binding))||xtp__Overlap(binding,sizeof(*binding),b,sizeof(*b))||
         xtp__Overlap(binding,sizeof(*binding),b->Lanes,b->LaneCount*sizeof(*b->Lanes))||s->Binding==UINT64_MAX||now<s->LastNow)return XTP_E_ARGUMENT;
     for(size_t i=0;i<b->LaneCount;++i){const xtplane* l=&b->Lanes[i];
         if(!l->ID||(l->Mode!=XTP_INPUT_STREAM&&l->Mode!=XTP_INPUT_RECORD)||
@@ -1337,8 +1540,8 @@ XTP_API xtpresult xtpUnbind(xtpsession* s,uint64_t binding,uint64_t now)
 XTP_API xtpresult xtpInput(xtpsession* s,uint64_t binding,uint32_t id,xbytesview in,bool end,uint64_t now,xtpreadprogress* p)
 {
     if(!s||s->Busy||!s->Bound||binding!=s->Binding||s->CloseRequested||now<s->LastNow)return XTP_E_STATE;
-    size_t li=xtpSessionLane(s,id);if(li==XTP_NONE||!xtpSessionAddress(s,(uintptr_t)p,sizeof(*p))||
-        !xtpSessionAddress(s,(uintptr_t)in.Data,in.Size))return XTP_E_ARGUMENT;
+    size_t li=xtpSessionLane(s,id);if(li==XTP_NONE||!xtp__SessionAddress(s,(uintptr_t)p,sizeof(*p))||
+        !xtp__SessionAddress(s,(uintptr_t)in.Data,in.Size))return XTP_E_ARGUMENT;
     s->Busy=true;s->LastNow=now;s->TurnFrames=s->Config.Reader.MaxFrames;
     xtpresult r=xtpReaderInput(s->Lanes[li].Reader,in,end,now,p);
     if(r<0&&r!=XTP_E_ARGUMENT)xtpSessionFault(s,r,li,true);
@@ -1388,7 +1591,7 @@ XTP_API xtpresult xtpSubmitBatch(xtpsession* s,const xtpmessage* messages,size_t
     if(!count||count>s->Config.Reader.Codec.MaxBatch||!messages||
         !xrtMemRangeValid(messages,count*sizeof(*messages))||
         (options&&!xrtMemRangeValid(options,count*sizeof(*options)))||
-        (operations&&!xtpSessionAddress(s,(uintptr_t)operations,count*sizeof(*operations))))return XTP_E_ARGUMENT;
+        (operations&&!xtp__SessionAddress(s,(uintptr_t)operations,count*sizeof(*operations))))return XTP_E_ARGUMENT;
     xtppacket packets[XTP_BATCH_MAX];size_t sizes[XTP_BATCH_MAX],lanes[XTP_BATCH_MAX],taken[XTP_BATCH_MAX];
     uint64_t due[XTP_BATCH_MAX],id=s->NextID;size_t reliable=0,total=0;
     for(size_t i=0;i<count;++i){const xtpmessage* m=&messages[i];xtpsubmitoptions o={0};if(options)o=options[i];
@@ -1454,7 +1657,7 @@ XTP_API xtpresult xtpReply(xtpsession* s,xtprequesttoken token,const xtpresponse
 XTP_API xtpresult xtpOutput(xtpsession* s,uint32_t id,xtpoutput* out)
 {
     if(!s||s->Busy||!s->Bound||s->Closing||s->CloseRequested)return XTP_E_STATE;
-    if(!xtpSessionAddress(s,(uintptr_t)out,sizeof(*out)))return XTP_E_ARGUMENT;
+    if(!xtp__SessionAddress(s,(uintptr_t)out,sizeof(*out)))return XTP_E_ARGUMENT;
     size_t i=XTP_NONE,li=xtpSessionLane(s,id);if(id&&li==XTP_NONE)return XTP_E_ARGUMENT;
     if(id)i=s->Lanes[li].Head;
     else for(size_t j=0;j<s->LaneCount;++j){size_t h=s->Lanes[(s->NextLane+j)%s->LaneCount].Head;
@@ -1487,7 +1690,7 @@ static void xtpDueMin(uint64_t* next,uint64_t due)
 {if(due&&(!*next||due<*next))*next=due;}
 XTP_API xtpresult xtpDrive(xtpsession* s,uint64_t now,uint64_t* next)
 {
-    if(!s||s->Busy||!xtpSessionAddress(s,(uintptr_t)next,sizeof(*next))||now<s->LastNow)return XTP_E_ARGUMENT;
+    if(!s||s->Busy||!xtp__SessionAddress(s,(uintptr_t)next,sizeof(*next))||now<s->LastNow)return XTP_E_ARGUMENT;
     s->LastNow=now;s->Busy=true;s->TurnFrames=s->Config.Reader.MaxFrames;
     uint64_t due=0;size_t work=s->Config.Reader.MaxWorkBytes;bool again=false;
     if(s->Closing||s->Unbinding||s->CloseRequested){xtpresult r=xtpSessionLeave(s,XTP_OK);*next=0;return r;}
@@ -1531,11 +1734,124 @@ XTP_API xtpresult xtpDestroy(xtpsession* s)
 }
 XTP_API xtpresult xtpInfo(const xtpsession* s,xtpinfo* info)
 {
-    if(!s||!xtpSessionAddress(s,(uintptr_t)info,sizeof(*info)))return XTP_E_ARGUMENT;
+    if(!s||!xtp__SessionAddress(s,(uintptr_t)info,sizeof(*info)))return XTP_E_ARGUMENT;
     *info=(xtpinfo){s->Binding,s->NextID,s->Submitted,s->Completed,s->Messages,s->Unknown,s->Duplicates,
         s->PendingCount,s->Incoming,s->TxCount,s->TxBytes,s->Storage,s->Peak,s->Bound,s->Closing||s->CloseRequested,s->Closed};return XTP_OK;
 }
 #undef XTP_NONE
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xtp/src/transport/transport.c */
+/* ========================================================================== */
+
+#if defined(XTP_FEATURE_XTP_TRANSPORT)
+#if defined(XTP_FEATURE_XTP_TRANSPORT)
+XTP_API xtpresult xtpDrain(xtpsession* s,uint32_t lane,xtpwriteproc write,void* user,
+    const xtpwritebudget* input,uint64_t now,xtpwriteprogress* progress)
+{
+    if(!s||!write||!progress||!xtp__SessionAddress(s,(uintptr_t)progress,sizeof(*progress))||
+        (input&&(!xrtMemRangeValid(input,sizeof(*input))||xtp__Overlap(input,sizeof(*input),progress,sizeof(*progress)))))return XTP_E_ARGUMENT;
+    xtpwritebudget b={262144,64,16384};if(input)b=*input;
+    if(!b.Bytes||!b.Frames||!b.ChunkBytes||now<xtp__SessionTime(s))return XTP_E_ARGUMENT;
+    xtpwriteprogress p={0};xtpresult result=XTP_AGAIN;
+    while(p.Frames<b.Frames&&p.Bytes<b.Bytes){xtpoutput out;result=xtpOutput(s,lane,&out);
+        if(result==XTP_AGAIN){result=XTP_OK;break;}if(result!=XTP_OK)break;
+        size_t remaining=b.Bytes-p.Bytes,whole=out.Data.Size;
+        if(out.Mode==XTP_INPUT_RECORD){if(whole>remaining){result=p.Calls?XTP_AGAIN:XTP_E_LIMIT;break;}}
+        else {if(out.Data.Size>remaining)out.Data.Size=remaining;if(out.Data.Size>b.ChunkBytes)out.Data.Size=b.ChunkBytes;}
+        size_t n=0;xtpresult sent=xtp__TransportWrite(s,&out,write,user,&n);++p.Calls;
+        if(n>out.Data.Size||(out.Mode==XTP_INPUT_RECORD&&n&&n!=whole)){result=XTP_E_STATE;break;}
+        if(n){uint64_t latest=xtp__SessionTime(s);result=xtpAdvance(s,out.Ticket,n,now<latest?latest:now);p.Bytes+=n;if(n==whole)++p.Frames;
+            if(result!=XTP_OK)break;}
+        if(sent!=XTP_OK){result=sent;break;}if(!n){result=XTP_AGAIN;break;}
+        result=XTP_AGAIN;
+    }
+    *progress=p;return result;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xtp/src/transport/tcp.c */
+/* ========================================================================== */
+
+#if defined(XTP_FEATURE_XTP_TCP)
+#if defined(XTP_FEATURE_XTP_TCP)
+XTP_API xtpresult xtpTcpWrite(void* stream,const xtpoutput* out,size_t* n)
+{
+    if(!stream||!out||!n||out->Mode!=XTP_INPUT_STREAM||!out->Reliable)return XTP_E_ARGUMENT;
+    *n=0;size_t limit=xrtNetStreamWriteLimit(stream);
+    size_t take=out->Data.Size<limit?out->Data.Size:limit;if(!take)return XTP_E_LIMIT;
+    xnetresult r=xrtNetStreamSend(stream,out->Data.Data,take);
+    if(r==XNET_RESULT_OK){*n=take;return XTP_OK;}
+    return r==XNET_RESULT_AGAIN?XTP_AGAIN:r==XNET_RESULT_CLOSED?XTP_CLOSED:XTP_E_STATE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xtp/src/transport/tls.c */
+/* ========================================================================== */
+
+#if defined(XTP_FEATURE_XTP_TLS)
+#if defined(XTP_FEATURE_XTP_TLS)
+XTP_API void xtpTlsPolicyInit(xtlspolicy* p,bool only)
+{
+    static const xtlsversion versions[]={XTLS_VERSION_13};
+    static const xtlscipher ciphers[]={XTLS_CHACHA20_POLY1305_SHA256,XTLS_AES_128_GCM_SHA256};
+    static const uint16 groups[]={XTLS_GROUP_X25519};
+    static const xtlssignature signatures[]={XTLS_SIGNATURE_ED25519,XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256};
+    if(p)*p=(xtlspolicy){versions,1,ciphers,only?1u:2u,groups,1,signatures,2,XTLS_KEY_SHARE_PREFER_GROUP};
+}
+XTP_API xtpresult xtpTlsWrite(void* stream,const xtpoutput* out,size_t* n)
+{
+    if(!stream||!out||!n||out->Mode!=XTP_INPUT_STREAM||!out->Reliable)return XTP_E_ARGUMENT;
+    *n=0;if(xrtTlsStreamState(stream)!=XTLS_STREAM_OPEN)return XTP_CLOSED;
+    xtlssession* session=xrtTlsStreamSession(stream);xbytesview protocol={0};
+    xtlscipher cipher=xrtTlsSessionCipher(session);
+    if(xrtTlsSessionVersion(session)!=XTLS_VERSION_13||
+        (cipher!=XTLS_CHACHA20_POLY1305_SHA256&&cipher!=XTLS_AES_128_GCM_SHA256)||
+        !xrtTlsSessionProtocol(session,&protocol)||protocol.Size!=5||memcmp(protocol.Data,"xtp/3",5))return XTP_E_STATE;
+    xtlsresult r=xrtTlsStreamSend(stream,out->Data.Data,out->Data.Size,n);
+    return r==XTLS_OK?XTP_OK:r==XTLS_AGAIN?XTP_AGAIN:r==XTLS_CLOSED?XTP_CLOSED:XTP_E_STATE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xtp/src/transport/ws.c */
+/* ========================================================================== */
+
+#if defined(XTP_FEATURE_XTP_WS)
+#if defined(XTP_FEATURE_XTP_WS)
+XTP_API xtpresult xtpWsBegin(xtpwsinput* in,xwsopcode opcode)
+{if(!in||!in->Session||in->Active||!xtp__RecordLane(in->Session,in->Binding,in->Lane))return XTP_E_STATE;
+    if(opcode!=XWS_OPCODE_BINARY)return XTP_E_TYPE;
+    in->Active=true;return XTP_OK;}
+XTP_API xtpresult xtpWsData(xtpwsinput* in,xbytesview bytes,uint64_t now,xtpreadprogress* p)
+{if(!in||!in->Active)return XTP_E_STATE;return xtpInput(in->Session,in->Binding,in->Lane,bytes,false,now,p);}
+XTP_API xtpresult xtpWsEnd(xtpwsinput* in,uint64_t now,xtpreadprogress* p)
+{
+    if(!in||!in->Active)return XTP_E_STATE;
+    xtpresult r=xtpInput(in->Session,in->Binding,in->Lane,(xbytesview){NULL,0},true,now,p);
+    if(r!=XTP_AGAIN&&r!=XTP_PAUSED&&r>=0)in->Active=false;
+    return r;
+}
+XTP_API xtpresult xtpWsWrite(void* connection,const xtpoutput* out,size_t* n)
+{
+    if(!connection||!out||!n||out->Mode!=XTP_INPUT_RECORD||!out->Reliable)return XTP_E_ARGUMENT;
+    *n=0;xstrview protocol=xrtWsConnProtocol(connection);
+    if(protocol.Size!=6||memcmp(protocol.Data,"xtp.v3",6))return XTP_E_STATE;
+    xnetresult r=xrtWsConnBinary(connection,out->Data);
+    if(r==XNET_RESULT_OK){*n=out->Data.Size;return XTP_OK;}
+    return r==XNET_RESULT_AGAIN?XTP_AGAIN:r==XNET_RESULT_CLOSED?XTP_CLOSED:XTP_E_STATE;
+}
 #endif
 #endif
 

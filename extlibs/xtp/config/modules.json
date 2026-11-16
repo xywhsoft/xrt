@@ -56,6 +56,13 @@
         "source_roots": [
           "session"
         ]
+      },
+      {
+        "name": "transport",
+        "state": "retained",
+        "source_roots": [
+          "transport"
+        ]
       }
     ]
   },
@@ -67,7 +74,8 @@
       "depends": [
         "xtp_codec",
         "xtp_reader",
-        "xtp_session"
+        "xtp_session",
+        "xtp_transport"
       ],
       "public_headers": [
         "extlibs/xtp/include/xtp.h",
@@ -187,6 +195,98 @@
       ]
     },
     {
+      "name": "xtp_transport",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_TRANSPORT",
+      "depends": [
+        "xtp_session"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/transport.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/transport/transport.c"
+      ],
+      "tests": [
+        "extlibs/xtp/tests/test_transport.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xtp_tcp",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_TCP",
+      "depends": [
+        "xtp_transport",
+        "net_tcp"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/tcp.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/transport/tcp.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xtp_tls",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_TLS",
+      "depends": [
+        "xtp_transport",
+        "tls_stream",
+        "tls_client_verify",
+        "tls_identity_ed25519",
+        "tls_identity_p256",
+        "tls_record_chacha",
+        "tls_record_aes",
+        "tls_schedule_sha256",
+        "tls_key_exchange_x25519"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/tls.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/transport/tls.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xtp_ws",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_WS",
+      "depends": [
+        "xtp_transport",
+        "websocket_connection"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/ws.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/transport/ws.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
       "name": "xtp_tests",
       "state": "developing",
       "feature": null,
@@ -199,7 +299,8 @@
       "tests": [
         "extlibs/xtp/tests/test_codec.c",
         "extlibs/xtp/tests/test_reader.c",
-        "extlibs/xtp/tests/test_session.c"
+        "extlibs/xtp/tests/test_session.c",
+        "extlibs/xtp/tests/test_transport.c"
       ],
       "single_tests": [
         "extlibs/xtp/tests/single/test_single_xtp_codec.c",
@@ -214,6 +315,63 @@
         "extlibs/xtp/tests/single/test_single_xtp_reader.c": "xtp_reader",
         "extlibs/xtp/tests/single/test_single_xtp_session.c": "xtp_session"
       }
+    },
+    {
+      "name": "xtp_native",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_NATIVE",
+      "depends": [
+        "xtp_tcp",
+        "xtp_tls",
+        "xtp_ws",
+        "net_tcp_retire",
+        "tls_stream_retire",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xtp/examples/tcp/main.c",
+        "extlibs/xtp/examples/tls/main.c",
+        "extlibs/xtp/examples/ws/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/transport.md"
+      ]
+    },
+    {
+      "name": "xtp_native_tests",
+      "state": "developing",
+      "feature": null,
+      "depends": [
+        "xtp_native"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_transport.c",
+        "extlibs/xtp/tests/test_native.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_native.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [],
+      "single_test_owners": {
+        "extlibs/xtp/tests/single/test_single_xtp_native.c": "xtp_native"
+      },
+      "collect_dependency_assets": [
+        "examples"
+      ]
     }
+  ],
+  "dependency_manifests": [
+    "extlibs/xws/config/modules.json"
   ]
 }

@@ -18,6 +18,8 @@ Reader 回调返回 PAUSE 表示尚未消费该消息；完整借用帧仍在调
 
 Session 使用同一 `xtpSubmit` 与 `OnMessage` 表达四种 Command/Params 组合。`xtpReply` 接受请求令牌，结果和 ACK 通过 `OnComplete` 完成原操作。网络层按 `xtpOutput` 的 Ticket 获取数据，再以 `xtpAdvance` 报告实际受理前缀；`xtpDrive` 驱动期限和有界维护，无后台任务。见 [双端会话示例](examples/session/main.c) 与 [会话接入契约](docs/session.md)。
 
-Session 的 Bind 接受宿主已验证的安全连接声明，自身不执行 TLS/Noise 认证。当前无自动重放、RESULT_ACK 或安全续接；`Replay=true` 明确拒绝。专用 TCP/TLS/WS/xrudp 适配及 XS 迁移仍按设计后续阶段实施。
+Session 的 Bind 接受宿主已验证的安全连接声明，自身不执行 TLS/Noise 认证。P4 已提供通用 `xtpDrain` 和已有 TCP/TLS/WS 写入适配，见 [承载接入](docs/transport.md)。选择相应模块才引入网络依赖，纯消息后端可继续直接使用 Input/Output/Advance。
+
+当前无自动重放、RESULT_ACK 或安全续接；`Replay=true` 明确拒绝。xrudp、Delivery 及 XS 迁移继续按后续阶段实施。
 
 完整协议、交付语义和阶段验收见 [设计](../../docs/design/xtp3.md) 与 [API 方案](../../docs/design/xtp3-api.md)。[Codec 示例](examples/codec/main.c) 可直接运行；[覆盖与进度](docs/coverage.md) 明确尚未完成的阶段。

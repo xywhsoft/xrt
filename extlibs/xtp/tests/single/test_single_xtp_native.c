@@ -1,0 +1,10 @@
+#define XTP_MODULE_XTP_NATIVE
+#include <xtp/features.h>
+#include <xws/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XWS_IMPLEMENTATION
+#include "../../../../single/extlibs/xws.h"
+#define XTP_IMPLEMENTATION
+#include "../../../../single/extlibs/xtp.h"
+#include "../test_native.c"

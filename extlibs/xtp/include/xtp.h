@@ -4,4 +4,8 @@
 #include <xtp/codec.h>
 #include <xtp/reader.h>
 #include <xtp/session.h>
+#include <xtp/transport.h>
+#include <xtp/tcp.h>
+#include <xtp/tls.h>
+#include <xtp/ws.h>
 #endif
