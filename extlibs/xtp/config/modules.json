@@ -374,7 +374,8 @@
         "extlibs/xtp/examples/ws/main.c"
       ],
       "benchmarks": [
-        "extlibs/xtp/bench/bench_native.c"
+        "extlibs/xtp/bench/bench_native.c",
+        "extlibs/xtp/bench/bench_multi.c"
       ],
       "docs": [
         "extlibs/xtp/docs/transport.md"
@@ -454,6 +455,35 @@
       },
       "examples": [
         "extlibs/xtp/examples/game/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xtp/bench/bench_xrudp.c"
+      ],
+      "docs": []
+    },
+    {
+      "name": "xtp_wss_tests",
+      "state": "developing",
+      "feature": null,
+      "depends": [
+        "xtp_native",
+        "websocket_connection_tls",
+        "websocket_upgrade"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_wss.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_wss.c"
+      ],
+      "single_test_owners": {
+        "extlibs/xtp/tests/single/test_single_xtp_wss.c": "xtp_wss_tests"
+      },
+      "examples": [
+        "extlibs/xtp/examples/wss/main.c"
       ],
       "benchmarks": [],
       "docs": []

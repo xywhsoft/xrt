@@ -32,7 +32,7 @@ static size_t move(bench_peer* a,bench_peer* b,unsigned char* copy,size_t* wire,
     if(xtpAdvance(a->Session,o.Ticket,n,a->Now)!=XTP_OK)abort();
     xtpreadprogress p;
     if(xtpInput(b->Session,b->Binding,1,(xbytesview){copy,n},false,b->Now,&p)<0||p.Used!=n)abort();
-    *wire+=n;++*writes;++frames;}return frames;}
+    *wire+=n;++*writes;frames+=o.Frames;}return frames;}
 int main(int argc,char** argv)
 {
     size_t count=argc>1?strtoul(argv[1],NULL,10):10000,shape=argc>2?strtoul(argv[2],NULL,10):0;
@@ -47,7 +47,7 @@ int main(int argc,char** argv)
     for(size_t i=0;i<batch;++i){m[i]=(xtpmessage){0};m[i].Type=(xtpmessagekind)kind;m[i].Command=shape&1?xtpCmdName(XRT_STR_LITERAL("move")):xtpCmdID(7);
         m[i].Params=shape&2?xtpTable(fields,2):xtpArray(values,2);m[i].Body=(xbytesview){payload,body};opt[i].Replay=replay;
         packets[i].Type=m[i].Type;packets[i].Command=m[i].Command;packets[i].Params=m[i].Params;packets[i].Body=m[i].Body;packets[i].MessageID=kind==5?0:i+1;}
-    size_t submitted=0,rejected=0,totalwire=0,writes=0,cold=0,hot=0,peak=0,expired=0;double idle=0;
+    size_t submitted=0,rejected=0,totalwire=0,writes=0,cold=0,hot=0,peak=0,expired=0;double idle=0;uint64_t batchcopy=0,batches=0;
     bench_alloc allocation={0};bench_peer a={0},b={0};a.Latency=latency;b.Latency=latency;
     if(mode){xtpconfig c;xtpConfigInit(&c);c.MaxResponseBytes=131072;c.MaxTxBytes=8388608;c.MaxSessionBytes=33554432;
         c.Realloc=alloc;c.AllocatorUser=&allocation;if(replay){xtpDeliveryConfigInit(&c.Delivery);c.Delivery.AllowRequests=true;}
@@ -71,14 +71,15 @@ int main(int argc,char** argv)
     }
     double seconds=xrtTimer()-start,cpuseconds=xtp_bench_cpu()-cpu;
     if(mode){hot=allocation.Calls-cold;xtpinfo ai,bi;xtpInfo(a.Session,&ai);xtpInfo(b.Session,&bi);peak=ai.PeakReservedBytes+bi.PeakReservedBytes;expired=a.Timeouts;
+        batchcopy=ai.BatchCopiedBytes+bi.BatchCopiedBytes;batches=ai.Batches+bi.Batches;
         if(a.Completed!=submitted||b.Messages!=submitted)return 8;
         double t=xrtTimer();for(size_t i=0;i<1000;++i){uint64_t due;if(xtpDrive(a.Session,a.Now,&due)<0)return 9;}idle=(xrtTimer()-t)*1e6/1000;
         if(xtpClose(a.Session,a.Now)!=XTP_CLOSED||xtpClose(b.Session,b.Now)!=XTP_CLOSED||xtpDestroy(a.Session)!=XTP_OK||xtpDestroy(b.Session)!=XTP_OK||allocation.Live)return 10;}
     size_t completed=mode?a.Completed:submitted;if(completed)qsort(latency,completed,sizeof(*latency),compare);
-    printf("{\"mode\":%u,\"shape\":%zu,\"body\":%zu,\"batch\":%zu,\"kind\":%u,\"replay\":%u,\"offered\":%zu,\"submitted\":%zu,\"rejected\":%zu,\"completed\":%zu,\"timed_out\":%zu,\"seconds\":%.9f,\"cpu_seconds\":%.9f,\"messages_per_sec\":%.3f,\"useful_bytes\":%zu,\"wire_bytes\":%zu,\"host_copy_bytes\":%zu,\"writes\":%zu,\"cold_allocations\":%zu,\"hot_allocations\":%zu,\"peak_reserved_bytes\":%zu,\"idle_drive_us\":%.3f,\"p50_us\":%.3f,\"p95_us\":%.3f,\"p99_us\":%.3f,\"p999_us\":%.3f,\"max_us\":%.3f,\"checksum\":%" PRIu64 "}\n",
+    printf("{\"mode\":%u,\"shape\":%zu,\"body\":%zu,\"batch\":%zu,\"kind\":%u,\"replay\":%u,\"offered\":%zu,\"submitted\":%zu,\"rejected\":%zu,\"completed\":%zu,\"timed_out\":%zu,\"seconds\":%.9f,\"cpu_seconds\":%.9f,\"messages_per_sec\":%.3f,\"useful_bytes\":%zu,\"wire_bytes\":%zu,\"host_copy_bytes\":%zu,\"writes\":%zu,\"cold_allocations\":%zu,\"hot_allocations\":%zu,\"peak_reserved_bytes\":%zu,\"idle_drive_us\":%.3f,\"p50_us\":%.3f,\"p95_us\":%.3f,\"p99_us\":%.3f,\"p999_us\":%.3f,\"max_us\":%.3f,\"batch_copied_bytes\":%" PRIu64 ",\"batches\":%" PRIu64 ",\"checksum\":%" PRIu64 "}\n",
         mode,shape,body,batch,kind,(unsigned)replay,count,submitted,rejected,completed,expired,seconds,cpuseconds,submitted/seconds,
         submitted*body*(kind==1?2:1),totalwire,mode?totalwire:0,writes,cold,hot,peak,idle,
-        completed?latency[completed/2]:0,completed?latency[(completed-1)*95/100]:0,completed?latency[(completed-1)*99/100]:0,completed?latency[(completed-1)*999/1000]:0,completed?latency[completed-1]:0,checksum);
+        completed?latency[completed/2]:0,completed?latency[(completed-1)*95/100]:0,completed?latency[(completed-1)*99/100]:0,completed?latency[(completed-1)*999/1000]:0,completed?latency[completed-1]:0,batchcopy,batches,checksum);
     if(argc>8)printf("messages_per_sec: %.3f\nrejected: %zu\np99_us: %.3f\npeak_reserved_bytes: %zu\n",
         submitted/seconds,rejected,completed?latency[(completed-1)*99/100]:0,peak);
     free(payload);free(wire);free(latency);return 0;

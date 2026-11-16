@@ -1,0 +1,12 @@
+#define XTP_MODULE_XTP_NATIVE
+#define XWS_MODULE_WEBSOCKET_CONNECTION_TLS
+#define XRT_MODULE_WEBSOCKET_UPGRADE
+#include <xtp/features.h>
+#include <xws/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XWS_IMPLEMENTATION
+#include "../../../../single/extlibs/xws.h"
+#define XTP_IMPLEMENTATION
+#include "../../../../single/extlibs/xtp.h"
+#include "../test_wss.c"

@@ -14,6 +14,8 @@
 
 三个回环例程使用真实本地 TCP；TLS 例程使用固定测试 Ed25519 身份和精确证书 pin，展示 TLS 1.3 + ChaCha20。该 pin 只用于测试，不是生产 CA 配置。WS 例程接入已经完成 Upgrade 的连接，不包含 HTTP 握手工厂。
 
+[WSS 例程](../examples/wss/main.c) 另外使用真实 TLS 1.3 + `http/1.1` ALPN、HTTP Upgrade 请求/101 响应校验、`xtp.v3` 协商，再将已有 TLS stream 交给 xws。逐字节读到 HTTP 头边界，余下明文由 AttachTls 继续处理，覆盖首条 WS 消息与 101 合并到达的情况。它复用 XRT 的 HTTP/WebSocket 握手检查；HTTP 工厂属于宿主，XTP 无额外握手协议或路由层。启用 `websocket_connection_tls` 与 `websocket_upgrade`，运行 `--suite xtp_wss_tests`。负例检查错误证书、客户端旧子协议和伪造服务器子协议均不交付业务；宿主状态保持到原生引擎退休之后。
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xtp/config/modules.json --suite xtp_native_tests --cflag=-O2
 ```

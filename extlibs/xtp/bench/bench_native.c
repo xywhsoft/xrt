@@ -11,11 +11,12 @@ static void native_report(unsigned mode,native_peer* p,double seconds,size_t pea
 {
     qsort(p->Latency,p->Completed,sizeof(*p->Latency),native_compare);
     size_t n=p->Completed;
-    printf("{\"mode\":%u,\"peer\":%u,\"offered\":%zu,\"count\":%zu,\"rejected\":%zu,\"rate\":%zu,\"body\":%zu,\"window\":%zu,\"seconds\":%.9f,\"rpc_per_sec\":%.3f,\"p50_us\":%.3f,\"p95_us\":%.3f,\"p99_us\":%.3f,\"p999_us\":%.3f,\"max_us\":%.3f,\"generator_lag_us\":%.3f,\"generator_ticks\":%zu,\"xtp_allocations\":%zu,\"peak_reserved_bytes\":%zu,\"plaintext_bytes\":%zu,\"writer_calls\":%zu,\"native_sent_bytes\":%llu,\"native_received_bytes\":%llu,\"read_events\":%llu,\"write_events\":%llu}\n",
+    xtpinfo state;assert(xtpInfo(p->Xtp,&state)==XTP_OK);
+    printf("{\"mode\":%u,\"peer\":%u,\"offered\":%zu,\"count\":%zu,\"rejected\":%zu,\"rate\":%zu,\"body\":%zu,\"window\":%zu,\"seconds\":%.9f,\"rpc_per_sec\":%.3f,\"p50_us\":%.3f,\"p95_us\":%.3f,\"p99_us\":%.3f,\"p999_us\":%.3f,\"max_us\":%.3f,\"generator_lag_us\":%.3f,\"generator_ticks\":%zu,\"xtp_allocations\":%zu,\"peak_reserved_bytes\":%zu,\"plaintext_bytes\":%zu,\"writer_calls\":%zu,\"native_sent_bytes\":%llu,\"native_received_bytes\":%llu,\"read_events\":%llu,\"write_events\":%llu,\"batches\":%llu,\"batched_frames\":%llu,\"batch_copied_bytes\":%llu}\n",
         mode,p->Index,native_count,n,p->Rejected,native_rate,native_body,native_window,seconds,n/seconds,n?p->Latency[n/2]:0,
         n?p->Latency[(n-1)*95/100]:0,n?p->Latency[(n-1)*99/100]:0,n?p->Latency[(n-1)*999/1000]:0,n?p->Latency[n-1]:0,
         p->GeneratorLagUs,p->GeneratorTicks,p->AllocationCalls,peak,p->PlaintextBytes,p->WriteCalls,
-        (unsigned long long)p->NativeSent,(unsigned long long)p->NativeReceived,(unsigned long long)p->ReadEvents,(unsigned long long)p->WriteEvents);
+        (unsigned long long)p->NativeSent,(unsigned long long)p->NativeReceived,(unsigned long long)p->ReadEvents,(unsigned long long)p->WriteEvents,(unsigned long long)state.Batches,(unsigned long long)state.BatchedFrames,(unsigned long long)state.BatchCopiedBytes);
 }
 int main(int argc,char** argv)
 {
