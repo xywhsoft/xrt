@@ -138,7 +138,7 @@ MetadataSize=0 是无参数的唯一规范编码。非空参数区以 UInt16 Cou
 
 参数值和 Body 均为显式长度的二进制视图，允许零长度和嵌入 NUL。库不创建 xvalue、xdict、参数字符串或数字对象。值的类型、字节序及必需字段由应用 schema 定义。
 
-API 中的 ParamID 是 array 的零起始下标，不是另一个在线路上传输的稀疏数字 key。Command 与参数的四种组合及统一回调见 [消息 API 与回调设计](xtp3-api.md)。
+API 中的 ParamID 是 array 或 table 的零起始位置下标，不是另一个在线路上传输的稀疏数字 key。两种模式都保留发送时的输入顺序，均可使用 ParamAt；table 额外支持按字符串 key 查找。Command 与参数的四种组合及统一回调见 [消息 API 与回调设计](xtp3-api.md)。
 
 所有结束偏移相对于参数数据区起点，不包含 Count 和描述表。完整验证参数区后才交付消息。最后一个结束偏移必须等于数据区长度，拒绝隐藏尾字节、回退偏移和越界项。
 
@@ -168,18 +168,18 @@ Entry = KeySize:u16 + EndOffset:u32        每项恰好 6 字节
 数据项 = Key[KeySize] + Value
 ```
 
-数据项起点由上一结束偏移确定，ValueSize 为该项总长减 KeySize。Key 非空，只允许 `[a-z0-9_.-]`，按完整字节序严格升序排列，重复 key 非法。
+数据项起点由上一结束偏移确定，ValueSize 为该项总长减 KeySize。Key 非空，只允许 `[a-z0-9_.-]`，重复 key 非法。Entry 和数据项严格保留传入 xtpTable 的 fields 顺序，线上不要求 key 有序，编码器和解码器都不得重新排列参数。
 
-编码器接受任意顺序的输入参数。已经有序时直接编码；否则使用有界临时索引排序，不修改或复制调用者的值。首版最多 256 项，排序索引可固定在不超过 512 字节的栈空间中，不进行逐参数堆分配。
+ParamAt 对 table 直接定位第 i 项 Entry，从上一结束偏移取得该项起点，再跳过 KeySize 返回 Value，成本为 O(1)，不比较 key。ParamNext 按相同输入顺序返回 Index、Key 和 Value。依赖位置读取的业务负责约定参数顺序；XTP 不根据 Command 或 key 自动转换成另一种业务顺序。
 
-解码器校验相邻 key 的严格顺序。按 key 查找可利用描述表进行二分搜索，成本为 O(log Count) 次有界 key 比较；完整迭代为 O(Count)。Array 进一步消除这些 key 比较和 key 传输字节。
+ParamFind 按原顺序查找完整 key，首版成本为 O(Count) 次有界比较，不创建常驻字典或查找索引。编码与解码预检使用有界临时索引检查重复 key；可对至多 256 个 UInt16 索引作堆排序后检查相邻 key，索引不超过 512 字节，比较次数为 O(Count log Count)，不进行逐参数堆分配。临时索引仅用于校验，不改变 Entry、数据项或接收视图的顺序，校验后也不在每次访问时重新建立索引。Array 无 key 校验或去重成本。
 
-示例 `a=01`、`b=02 03`，参数区为 19 字节：
+示例输入顺序为 `b=02 03`、`a=01`，参数区为 19 字节；ParamAt(0) 返回 `02 03`，ParamAt(1) 返回 `01`，ParamFind("a") 与 ParamAt(1) 返回同一值：
 
 ```text
 02 00
-01 00 02 00 00 00 01 00 05 00 00 00
-61 01 62 02 03
+01 00 03 00 00 00 01 00 05 00 00 00
+62 02 03 61 01
 ```
 
 ## 5 请求与推送语义
@@ -370,7 +370,7 @@ RESULT_ACK 不再要求回执。确认丢失后，对端仍可重发缓存 RESPO
 | MaxMetadataBytes | 16 KiB | 包含 Count、描述表、key 和 value |
 | MaxCommandBytes | 256 B | 仅字符串模式 |
 | MaxParams | 64 | 首版实现硬上限 256 |
-| MaxKeyBytes | 64 B | table key 非空且有序 |
+| MaxKeyBytes | 64 B | table key 非空且唯一，保留输入顺序 |
 | MaxResponseBytes | 64 KiB | 完整 RESPONSE；宿主须让双方约定一致 |
 | MaxPending | 64 | 本地 REQUEST/PUSH 的共同上限 |
 | MaxIncomingRequests | 64 | 未应答 REQUEST；接纳时预留响应预算 |
@@ -416,7 +416,7 @@ MaxIncomingRequests×MaxResponseBytes 等预留也必须落在总配额内；资
 | Drive | 推进期限、背压恢复和可选重投，返回 next_due |
 | Close / Info | 有界终结、完成通知、资源和协议统计 |
 | EncodeSize / Encode / Decode | 独立无 IO Codec；Decode 恰好一个完整帧 |
-| ParamAt / ParamNext / ParamFind | array 下标、顺序迭代、table 二分查找 |
+| ParamAt / ParamNext / ParamFind | array/table 下标、原顺序迭代、table 按 key 顺序查找 |
 
 回调包括 OnMessage、OnComplete 和 OnFault。OnMessage 只做应用决策：ACCEPT、BUSY、REJECT、PAUSE。PAUSE 表示尚未产生业务效果，不发送成功 ACK；恢复后才可再次交付。REQUEST 的 ACCEPT 表示应用持有应答责任，PUSH 的 ACCEPT 表示投递接管，NOTIFY 的 BUSY/REJECT 均可丢弃。
 
@@ -551,7 +551,7 @@ Codec 可以解析任意来源字节，但解析成功不代表可信。Session 
 性能路径要求：
 
 - 完整连续输入 Decode 不分配、不复制 Body；组包仅复制跨输入帧，扩容搬移如实计数。
-- 数字命令不做字符串路由；array 直接下标访问。table 排序、key 校验与查找比较单独计数。
+- 数字命令不做字符串路由；array/table 均可直接下标访问。table 的 key 校验、临时去重索引排序和按名查找比较单独计数，不重新排列参数。
 - Body 是不透明数据，不自动遍历、计算哈希、压缩或转 JSON。
 - 稳态实例复用缓冲；业务保留和基础复制提交的真实复制不隐瞒。
 - 不重复 memmove 粘包后缀；不为每个参数、ACK 或定时器分配独立对象。
@@ -613,7 +613,8 @@ P1～P3 不等待网络工厂或恢复控制面即可独立验收。每个通过
 ### 18.2 功能与故障
 
 - 遍历小帧所有拆分位置；逐字节、随机分片、多包及坏包后恢复。
-- 帧长、区域长度、参数表、末偏移、严格 key 排序、所有整数边界和限制边界。
+- 帧长、区域长度、参数表、末偏移、原参数顺序保留、重复 key 拒绝、所有整数边界和限制边界。
+- table 的非字典序样本、ParamAt 与 ParamFind 结果一致、ParamNext 顺序及位置读取不执行 key 查找。
 - 数字零号命令、禁止双路由、未知 flags、ID 类型匹配、重复/迟到响应。
 - 回调暂停、同步 Reply/Close、旧令牌、旧绑定、销毁前异步任务加入。
 - 所有分配点失败、realloc 峰值、队列满、短写、拒绝输出及控制预算耗尽。

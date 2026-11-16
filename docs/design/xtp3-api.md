@@ -4,16 +4,16 @@
 
 四种形态共用一个消息描述、一个 Submit 入口和一个业务回调。Command 与 Params 分别带类型标签，库按标签生成线路 flags。调用者不填写原始 flags，不为四种组合维护四套发送或接收函数。
 
-本方案中的 ParamID 指从 0 开始的 array 下标，由业务 enum 定义名称，不是在线上发送的 UInt32 稀疏 key。例如 `MOVE_X=1` 指第 1 项；`ParamID=1001` 不会自动成为一项名为 1001 的参数。稀疏数字 key 是第三种参数格式，不纳入本版。
+本方案中的 ParamID 指从 0 开始的参数位置下标，由业务 enum 定义名称，array 和 table 都适用，不是在线上发送的 UInt32 稀疏 key。例如 `MOVE_X=1` 指第 1 项；`ParamID=1001` 不会自动成为一项名为 1001 的参数。稀疏数字 key 是第三种参数格式，不纳入本版。
 
 ## 1 调用形态
 
 | Command | Params | 构造方式 | 接收端访问 |
 | --- | --- | --- | --- |
 | UInt32 | array | CmdID + Array | Command.As.ID + ParamAt |
-| UInt32 | table | CmdID + Table | Command.As.ID + ParamFind |
+| UInt32 | table | CmdID + Table | Command.As.ID + ParamAt 或 ParamFind |
 | 字符串 | array | CmdName + Array | Command.As.Name + ParamAt |
-| 字符串 | table | CmdName + Table | Command.As.Name + ParamFind |
+| 字符串 | table | CmdName + Table | Command.As.Name + ParamAt 或 ParamFind |
 
 数字命令零值合法，必须通过 Kind 区别于无命令。零初始化的 Params 是空 table；零初始化的 Command 是 NONE，不能提交为有路由消息。
 
@@ -332,7 +332,7 @@ Submit 的 Options=NULL 使用实例默认的有限期限、默认 lane 和不�
 
 SubmitBatch 的 Messages 和非空 Options/Operations 均为 Count 项；Options=NULL 表示全部默认。Count 必须大于零且受批量上限约束。成功时整批被 Session 接管；任何失败保留所有输入与输出令牌，并且不发布部分操作。单条 Submit 与 Count=1 的 Batch 使用相同的校验与受理实现。
 
-调用者传入未排序的 fields，编码器在内部排序索引；不修改数组。空参数可以保持零初始化，也可以 Array(NULL,0) 表达空 array。两者均不创建 Count=0 的 Metadata，但 PARAM_ARRAY 标志仍能表达空 array 模式。
+调用者传入的 fields 顺序就是线上顺序和接收端的下标顺序，编码器不重新排列参数。预检可以使用临时索引检查重复 key，但该索引不影响消息顺序。空参数可以保持零初始化，也可以 Array(NULL,0) 表达空 array。两者均不创建 Count=0 的 Metadata，但 PARAM_ARRAY 标志仍能表达空 array 模式。
 
 XRT_STR_LITERAL/XRT_STR_INIT 只用于字符串字面量或真实字符数组；动态字符串指针使用显式 `{ptr, length}` 的 xstrview，不把指针 sizeof 当作字符串长度。所有接收字符串均不承诺 NUL 结尾。
 
@@ -357,17 +357,11 @@ static xtpdecision example_move(xtpsession* s, const xtpmessageview* m,
     if (m->Params.Count != MOVE_PARAM_COUNT)
         return xtpReject(XTP_STATUS_BAD_ARGUMENT);
 
-    if (m->Params.Kind == XTP_PARAMS_ARRAY) {
-        if (xtpParamAt(&m->Params, MOVE_TICK, &tick) != XTP_PARAM_FOUND ||
-            xtpParamAt(&m->Params, MOVE_DX, &dx) != XTP_PARAM_FOUND ||
-            xtpParamAt(&m->Params, MOVE_DY, &dy) != XTP_PARAM_FOUND)
-            return xtpReject(XTP_STATUS_BAD_ARGUMENT);
-    } else {
-        if (xtpParamFind(&m->Params, XRT_STR_LITERAL("tick"), &tick) != XTP_PARAM_FOUND ||
-            xtpParamFind(&m->Params, XRT_STR_LITERAL("dx"), &dx) != XTP_PARAM_FOUND ||
-            xtpParamFind(&m->Params, XRT_STR_LITERAL("dy"), &dy) != XTP_PARAM_FOUND)
-            return xtpReject(XTP_STATUS_BAD_ARGUMENT);
-    }
+    /* 两种参数模式按同一业务顺序读取，不需要分支。 */
+    if (xtpParamAt(&m->Params, MOVE_TICK, &tick) != XTP_PARAM_FOUND ||
+        xtpParamAt(&m->Params, MOVE_DX, &dx) != XTP_PARAM_FOUND ||
+        xtpParamAt(&m->Params, MOVE_DY, &dy) != XTP_PARAM_FOUND)
+        return xtpReject(XTP_STATUS_BAD_ARGUMENT);
     if (tick.Size != 4 || dx.Size != 2 || dy.Size != 2)
         return xtpReject(XTP_STATUS_BAD_ARGUMENT);
 
@@ -399,9 +393,9 @@ xtpdecision example_on_message(xtpsession* s, const xtpmessageview* m,
 }
 ```
 
-这个 handler 同时支持两种命令和两种参数，仅用于展示 API 的组合能力。实际高频 handler 可以只接纳数字命令和 array，并在入口检查 Params.Kind 和 Count 一次；无需建立通用路由、运行时 schema 或动态参数对象。
+这个 handler 同时支持两种命令和两种参数。发送示例中 args 和 fields 的顺序均为 tick、dx、dy，所以同一组 ParamAt 调用适用于四种组合。应用仍可按需限制 Params.Kind；无需建立通用路由、运行时 schema 或动态参数对象。
 
-ID=1001 和字符串 player.move 的关联是示例中的应用决定，XTP 不维护该映射。array 第 0 项与 table 的 tick key 的语义对应，也由 example_move 明确规定。
+ID=1001 和字符串 player.move 的关联是示例中的应用决定，XTP 不维护该映射。array/table 的第 0 项对应 tick，也由业务 schema 明确规定。ParamAt 只按实际位置取值，不隐含 key 匹配；如果业务需要同时校验 table 名称和顺序，可以通过 ParamNext 一次检查 Index/Key，或主动使用 ParamFind，不能要求 XTP 猜测命令 schema。
 
 ### 4.1 决策与所有权
 
@@ -432,17 +426,17 @@ RESPONSE 的 Params/Body 与 OnMessage 使用相同的视图和读取函数。�
 
 | 入口 | array | table | 成本 |
 | --- | --- | --- | --- |
-| ParamAt(params,index,out) | 按原业务顺序读取 | WRONG_MODE | 校验模式和边界后 O(1) |
-| ParamFind(params,key,out) | WRONG_MODE | 按完整 key 查找 | O(log Count) 次有界字节比较 |
-| Params + ParamNext | 原下标顺序，HasKey=false | 线路 key 排序，HasKey=true | 每项偏移读取 O(1)，整次 O(Count) |
+| ParamAt(params,index,out) | 按输入顺序读取 | 按输入顺序读取 Value，跳过 Key | 校验类型和边界后 O(1)，不比较 key |
+| ParamFind(params,key,out) | WRONG_MODE | 按输入顺序匹配完整 key | 最多 O(Count) 次有界字节比较 |
+| Params + ParamNext | 输入顺序，HasKey=false | 输入顺序，HasKey=true | 每项偏移读取 O(1)，整次 O(Count) |
 
-ParamAt 不把 table 的编码排序位置当作 ParamID，ParamFind 不把字符串数字转换成数组下标。不存在自动 key/index 转换或未找到时切换模式的行为。
+ParamAt 的 Index 始终是发送时的第几项，从零开始；table 和 array 使用同一语义。ParamFind 不把字符串数字转换成数组下标，也不在未找到 key 时回退为位置读取。
 
-FOUND 可以返回 Size=0 的实际空值；MISSING 才表示越界、未找到或迭代结束。WRONG_MODE 与 MISSING 分开，便于发现业务 schema 用错。所有非 FOUND 返回在输出指针有效时将输出清零。
+FOUND 可以返回 Size=0 的实际空值；MISSING 才表示越界、未找到或迭代结束。有效的 table 调用 ParamAt 不再返回 WRONG_MODE；ParamFind 用于 array 时仍返回 WRONG_MODE，并与 MISSING 分开。所有非 FOUND 返回在输出指针有效时将输出清零。
 
 ParamAt/Find/Next 只接受库产生且仍有效的 ParamsView。其参数区域已在交付前完整校验，不在每次查询时重复扫描整个表；仍保留模式、输出指针和索引范围等局部检查。
 
-迭代器与 ParamsView 的寿命相同。table 的 Index 只是遍历序号，没有业务参数 ID 含义；发送时的原始 table 顺序不保留。array 的 Index 才是业务定义的位置。
+迭代器与 ParamsView 的寿命相同。array 和 table 的 Index 都与发送时的输入位置一致，可由业务约定为 ParamID；它不是从 key 推导的 ID。库不执行参数重排，改变输入顺序就是改变位置语义。
 
 所有读取返回原始字节视图。数值解码按业务 schema 显式检查长度和字节序；第一版不生成 ParamIntByID、ParamIntByName、ParamFloatByID 等组合函数。
 
@@ -450,7 +444,7 @@ ParamAt/Find/Next 只接受库产生且仍有效的 ParamsView。其参数区域
 
 - 一套结构表达组合，不增加 SendIDArray、SendNameArray、SendIDTable、SendNameTable。
 - 一个 OnMessage 表达入站差异，业务自行决定是否接受一种或多种形态。
-- 四个按值构造 helper 不分配、不排序、不调用 strlen；实际校验和 table 排序发生在编码或提交预检中。
+- 四个按值构造 helper 不分配、不重排参数、不调用 strlen；实际校验发生在编码或提交预检中，临时去重索引不改变参数输入和线路顺序。
 - 零号 CommandID、空参数和空值都具有明确表达，不借用零值猜类型。
 - 发送 descriptor 和接收 view 分开，Response 与有路由消息分开，令牌与线路 MessageID 分开。
 - 不使用可变参数、void* 值装箱、字符串/数字隐式转换、协议内路由表或基于 Opcode 的通用调用器。
@@ -460,4 +454,4 @@ ParamAt/Find/Next 只接受库产生且仍有效的 ParamsView。其参数区域
 
 以文档中的声明原型和 C 示例进行编译期检查，核对四种模式可表达、回调签名、Reply 的无路由描述以及 C 工具链兼容性。该检查不实现 Session、参数解码或网络，不构成运行时功能和性能验收。
 
-正式 P1～P3 另外测试：零号 CommandID、错误 Kind、WRONG_MODE 与 MISSING、实际空值、动态字符串长度、非 NUL 结尾输入、参数排序、批量失败原子性、Reply 令牌失效、Tag 寿命、回调重入及完成恰好一次。
+正式 P1～P3 另外测试：零号 CommandID、错误 Kind、ParamFind 的 WRONG_MODE 与 MISSING、实际空值、动态字符串长度、非 NUL 结尾输入、非字典序 table 的原顺序保留、table 的 ParamAt/ParamFind 结果一致、ParamNext 顺序、重复 key 拒绝、批量失败原子性、Reply 令牌失效、Tag 寿命、回调重入及完成恰好一次。
