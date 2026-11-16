@@ -47,7 +47,8 @@ does not acknowledge MQTT packets. DONE changes the caller sequence only after:
 1. Full absolute writes of header, payload and footer.
 2. Data flush to establish the transaction body before publication.
 3. Full writes of **both** latest commit-witness pages.
-4. Publication flush, then cached state/output advancement.
+4. Publication flush, then cached state advancement and quiet error restoration
+   before caller output publication.
 
 It performs no heap allocation or extra payload copy on success. Cost for a
 nonempty payload is two payload CRC scans, three frame writes, two4096-byte
@@ -64,10 +65,24 @@ before caller success. `xmqttJournalInfo` reports cached committed sequence/end,
 attempted sequence/end, effect, state, memory and chain without I/O. It is not a
 durability check. Destroy frees the allocation and never closes/syncs the file.
 
+Checked error-slot entry failure returns ERROR before I/O or allocation and leaves
+the ambient error and caller outputs unchanged. If restoring that slot fails at
+exit, ERROR leaves caller outputs unchanged and poisons an existing owner. After
+a fully successful append publication, Info still reports COMMITTED and the new
+committed sequence/end: a local bookkeeping failure must not claim the write was
+rolled back or its durability unknown. Reopen/replay through a fresh owner before
+retrying. A constructor can similarly have initialized durable file bytes without
+returning an owner. Native error-slot failure can leave no diagnostic; no recursive
+error publication is attempted to recover from that failure. Saved and discarded
+error references are released on every path.
+
 One serialized caller owns the object. Synchronous backend callback reentry is
 rejected for Next/Append/Info/Destroy; concurrent calls remain invalid. Keep
 backend code/file alive through the call. All output/input/library spans must be
-disjoint. DONE/EMPTY/LIMIT preserve ambient errors. Failure diagnostics may
+disjoint. DONE/EMPTY/LIMIT preserve ambient error identity without notifying an
+old error's handler again. Successful isolated calls make two checked owning
+error-slot exchanges; provider diagnostics still notify when first published.
+Failure diagnostics may
 allocate; false-with-no-error backend failures cannot attach stale caller errors.
 
 ## Private version1 format

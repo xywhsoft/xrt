@@ -13608,3 +13608,41 @@ and out/service-extensions/xrpc-frame-20261112.
   namespace/locking/compaction/group scheduling, broker/device qualification,
   controlled performance and native >=72h runs remain. Original Redis/RPC/Cron
   scope and the full four-product objective remain unchanged and active.
+
+
+## 2026-11-16 — quiet journal error scopes and exact committed effects
+
+- Reproduced11 notifications of an old ambient error across successful journal
+  operations/normal refusals. Journal now uses checked quiet owning exchanges;
+  both protocol levels report0 repeated notifications. A provider diagnostic
+  still notifies once at first publication; saved/discarded owners are refunded.
+- Entry error-slot failure returns ERROR before I/O or allocation. Exit failure
+  leaves constructor/record/sequence outputs untouched and poisons an existing
+  owner. A fully synced append retains COMMITTED and its advanced cached sequence/
+  end; a local error cannot invent rollback or uncertainty. Suffix retirement
+  retains its actual resize/sync effect. Fresh recovery is required before reuse.
+- Windows/WSL modular/single, root/stats-off, static/shared, all7-API declaration
+  consumers, working create/recovery examples and typed-delta regressions pass.
+  WSL ASan/UBSan/leaks pass. Per platform48 actual native TLS/FLS setter failures
+  cover entry/exit, empty/populated ambient slots, constructors, replay, capacity,
+  suffix retirement and commit, with output/lifetime/refund checks.
+- Four real native-file append restoration failures (two OS environments x two
+  MQTT levels) return ERROR with unchanged caller sequence and COMMITTED Info.
+  Independent Python struct/zlib bytes match exactly; four fresh processes and
+  four opposite-OS readers recover both exact transactions. Twelve build forms
+  also pass84 forced child kills and84 fresh recoveries at7 native append/sync
+  barriers, plus72 ordinary opposite-OS fixture reads. No powerloss qualification.
+- [Stage evidence](xmqtt-journal-error-scope-20261116.json) retains raw receipts,
+  exact source/binary/runtime hashes, the original failing executable and source
+  cohorts. The first48-model binary predates only the later native CLI addition;
+  the final source reruns all48 models and native cases. No timed performance
+  qualification is added; existing zero-hot-allocation append checks pass. One
+  WSL cross-read runner failed on an unconverted Windows path; separators were
+  fixed and only the two affected cases rerun. The original failure is retained.
+- Client/Redis/RPC/Cron ambient-restoration candidates remain explicitly unfixed;
+  their already accepted callback/promise/executor/revision effects require
+  separate handling.23 developing MQTT modules still fail strict release as
+  expected. Durable state application/driver/Inbox/ACK ordering, namespace/locks/
+  compaction/group scheduling, controlled performance and native Windows/Linux
+  >=72h qualification, plus the full Redis/RPC/Cron scope, remain active. All
+  changes/tests use mainline master and preserve concurrent XTP work.

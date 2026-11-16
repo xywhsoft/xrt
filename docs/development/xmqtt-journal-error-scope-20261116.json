@@ -1,0 +1,155 @@
+{
+  "status": "developing; full four-product goal remains active",
+  "branch": "master",
+  "repository": "D:/GIT/xrt",
+  "base_revision": "3dcda96ba5bcb31a4e34e761d857af872e5ea1a4",
+  "verified_at_revision": "3dcda96ba5bcb31a4e34e761d857af872e5ea1a4",
+  "migration_ancestors_verified": [
+    "05dc625d",
+    "f0e0955c"
+  ],
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "scope": "Journal ambient-error isolation, checked native error-slot failures, caller output atomicity and exact already committed effects; no public ABI/API/format changes or new runtime",
+  "changes": [
+    "Replace journal take/restore with checked quiet owning Core exchange, avoiding repeated notification of old errors",
+    "Reject entry native-slot failure before IO/allocation; leave original slot and outputs untouched",
+    "Defer constructor/record/sequence output publication until quiet restoration succeeds",
+    "Poison existing owner on exit failure without overwriting actual synced effects; COMMITTED sequence/end stay advanced after both barriers",
+    "Keep ordinary IO/protocol diagnostics, normal LIMIT behavior and saved/discarded ownership refunds"
+  ],
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-journal-error-scope-20261116",
+    "source_map_sha256": "95892575296e5a2bc2922a4a420d4fa4c538082ac6947fbb960a401f9f9beeee",
+    "audit_sha256": "b622d06045b2ec569c651d3bfe9f01ada572520f081fb3c53467c6c8ec30440b",
+    "checkpoint": {
+      "files": 940,
+      "sha256": "d7b0e15c53640021787e28cdebe4738ee96b47ed739f00b6936957df78b2be56",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "other_exclusions": [
+        "__pycache__",
+        "temp"
+      ],
+      "source_map_sha256": "95892575296e5a2bc2922a4a420d4fa4c538082ac6947fbb960a401f9f9beeee"
+    },
+    "verified_preserved_binaries": 109,
+    "program_counts": {
+      "windows-suite": 20,
+      "windows-native_error": 5,
+      "windows-delivery": 14,
+      "windows-smoke": 4,
+      "windows-gates": 0,
+      "windows-native": 54,
+      "windows-interchange": 38,
+      "wsl-suite": 20,
+      "wsl-native_error": 5,
+      "wsl-delivery": 14,
+      "wsl-smoke": 4,
+      "wsl-gates": 0,
+      "wsl-native": 54,
+      "wsl-interchange": 36,
+      "wsl-slot_interchange": 2
+    }
+  },
+  "validation": {
+    "old_error_notifications_before": 11,
+    "old_error_notifications_after": 0,
+    "successful_backend_diagnostic_notifications": 1,
+    "protocol_levels": [
+      "5.0",
+      "3.1.1"
+    ],
+    "platforms": [
+      "Windows x64 native",
+      "WSL Ubuntu x64"
+    ],
+    "forms": [
+      "modular",
+      "single header",
+      "root selector",
+      "memory stats disabled",
+      "static library",
+      "shared library",
+      "all7API standalone declaration consumer"
+    ],
+    "sanitizers": "WSL suite and actual native-slot fault program: ASan, UBSan, detect_leaks=1",
+    "actual_native_slot_model_cases_per_platform": 48,
+    "model_cases_include": [
+      "create/open",
+      "record replay",
+      "EMPTY with suffix resize/sync",
+      "local replay capacity refusal",
+      "fully committed append",
+      "entry/exit setters",
+      "empty/populated ambient slots",
+      "unchanged caller outputs",
+      "fresh recovery",
+      "physical error/allocation refunds"
+    ],
+    "actual_synced_file_slot_failures": 4,
+    "fresh_process_slot_recoveries": 4,
+    "opposite_os_slot_fixture_reads": 4,
+    "forced_child_kills": 84,
+    "fresh_kill_recoveries": 84,
+    "ordinary_opposite_os_fixture_reads": 72,
+    "independent_oracle": "Python struct/zlib only; exact full descriptor/witness/frame bytes; native local-error fixtures match for both protocol levels",
+    "regressions": [
+      "journal partial IO/cache/sync uncertainty, strict corruption/truncation, failed reads, reentry, OOM/ownership",
+      "typed MQTT store batches and atomic journal groups",
+      "Core quiet exchange/refunds/handler reentry/40000 thread-local swaps/native TLS write failure"
+    ],
+    "metadata_gates": [
+      "feature/single generation",
+      "API documentation/reference",
+      "extension layout",
+      "example index",
+      "isolated dependency rejection"
+    ]
+  },
+  "retained_failures": [
+    {
+      "kind": "expected pre-fix regression",
+      "details": "original success/refusal trace notified old diagnostic11 times",
+      "receipt": "reproduced.json"
+    },
+    {
+      "kind": "runner path bug",
+      "details": "one WSL cross read passed Windows backslashes unchanged; no native file opened. Normalized paths, reran only two affected cases, both pass; original receipt/binary retained",
+      "receipt": "retained-runner-failure.json"
+    },
+    {
+      "kind": "expected strict release refusal",
+      "developing_modules": 23,
+      "receipt": "strict-release.json"
+    }
+  ],
+  "source_cohorts": "Canonical Core/MQTT C and generated header hashes match final inputs across successful cohorts. First native setter model binary predates only adding a native CLI; final source reruns all48 cases plus real-file cases. Manifest final edit changes indentation only; parsed manifests compare equal. Unrelated XTP files are outside actual compiler inputs.",
+  "performance": {
+    "new_timed_qualification": false,
+    "successful_append_xrt_heap_allocations": 0,
+    "allocation_evidence": "existing one-byte budget hot-append regression passes; diagnostic allocation/refund tests separate",
+    "costs": "two checked owning error-slot exchanges for isolated success; all original CRC scans, writes and sync barriers remain",
+    "accepted": false
+  },
+  "remaining": {
+    "pending_ambient_paths": "pending-ambient-paths.json; client/Redis/RPC/Cron explicitly unfixed; fresh failure publications must not be mechanically replaced",
+    "mqtt": [
+      "durable state applier and async worker driver",
+      "durable Inbox and network ACK ordering",
+      "durable namespace publication, locking and compaction",
+      "group commit scheduling",
+      "broker/device/powerloss qualification"
+    ],
+    "four_product_scope": "full original Redis/RPC/Cron and MQTT requirements remain",
+    "production_accepted": false,
+    "native_windows_linux_72h_complete": false,
+    "performance_accepted": false
+  },
+  "concurrency": "All edits/tests in mainline master. Other-thread XTP working changes preserved and excluded from this commit."
+}

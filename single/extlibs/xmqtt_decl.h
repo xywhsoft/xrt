@@ -5241,14 +5241,20 @@ XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* Journal,xmqttjournal
  * writes, two4096-byte witness writes and two flushes for nonempty payload.
  * Before witness write: IO means definitely not committed. From first witness
  * write: UNCERTAIN may be recovered. Both failures poison; reopen to resolve.
+ * If error-slot restoration fails after both barriers, ERROR poisons the owner
+ * but Info still reports COMMITTED and the advanced committed sequence/end.
  * A fully published transaction can survive even when its caller saw no success.
  * Sequence output changes only on DONE. LIMIT is normal refusal without I/O. */
 XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* Journal,xbytesview Data,uint64* Sequence);
 /* One serialized owner, no concurrent/reentrant operations. Reentry from a
  * synchronous file backend is rejected, including Info/Destroy. All caller
  * outputs must be disjoint from inputs and all Journal storage. DONE/EMPTY/LIMIT
- * preserve ambient errors; failure publishes an operation error. Diagnostics
- * may allocate. CRC detects accidental corruption, not forgery or rollback. */
+ * preserve ambient errors without notifying their handlers again. Checked
+ * error-slot failure returns ERROR and leaves caller outputs untouched; entry
+ * failure performs no I/O, exit failure poisons an existing owner. The slot may
+ * have no diagnostic when its native setter fails. Other failures publish an
+ * operation error. Diagnostics may allocate. CRC detects accidental corruption,
+ * not forgery or rollback. */
 XMQTT_API bool xmqttJournalInfo(xmqttjournal* Journal,xmqttjournalinfo* Info);
 XMQTT_API bool xmqttJournalDestroy(xmqttjournal* Journal);
 XRT_EXTERN_C_END

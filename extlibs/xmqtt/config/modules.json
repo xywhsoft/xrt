@@ -1764,12 +1764,15 @@
       "tests": [
         "extlibs/xmqtt/tests/test_journal.c",
         "extlibs/xmqtt/tests/test_journal_faults.c",
-        "extlibs/xmqtt/tests/test_journal_reads.c"
+        "extlibs/xmqtt/tests/test_journal_reads.c",
+        "extlibs/xmqtt/tests/test_journal_errors.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_faults.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_reads.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_reads.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_errors.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_error_failure.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/journal/main.c"

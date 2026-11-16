@@ -32,10 +32,17 @@ move a required durable ACK boundary past network output to fill a group.
 The delta prototype reproduced four notifications of an already existing error
 on one successful batch encode when restoring it through `xrtSetErrorTake`.
 Core now exposes checked, quiet `xrtTrySwapErrorTake` with native TLS-failure and
-ownership tests; this adds no runtime/state. The new codec uses it. Existing
-ambient-restoration patterns in journal/client/Redis/RPC/Cron still need a
-separate audit/adoption with each API's output/commit/error contract preserved;
-do not silently classify those older paths as covered by the new codec fix.
+ownership tests; this adds no runtime/state. The codec and journal use it. Journal
+entry failure precedes I/O; exit failure leaves caller outputs untouched and
+poisons an existing owner. If both append barriers completed, Info still records
+COMMITTED and the advanced sequence/end despite the local ERROR. The future
+driver must preserve that physical fact, reopen/recover before reuse and withhold
+MQTT output until the durable state is usable; a generic local ERROR never proves
+NOT_COMMITTED. Native Windows/WSL file fixtures and fresh-process recovery cover
+that case. Existing client/Redis/RPC/Cron ambient-restoration patterns still need
+operation-specific adoption; callbacks, promises and accepted executor work may
+already have effects when error restoration fails. They are not covered by the
+codec/journal fixes.
 
 ## State and ownership
 

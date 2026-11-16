@@ -35,9 +35,11 @@ static bool xmqttJCheck(const unsigned char* P)
 /* Isolate stale caller errors from callbacks that fail without setting one. */
 static xmqttjournalstatus xmqttJFinish(xmqttjournal* J,xerror* Saved,xmqttjournalstatus S)
 {
-    if(J)J->Busy=false;
-    if(S>=0)xrtSetErrorTake(Saved);
+    if(S>=0){xerror* Discard=NULL;
+        if(xrtTrySwapErrorTake(Saved,&Discard))xrtErrorFree(Discard);
+        else {xrtErrorFree(Saved);if(J)J->Info.State=XMQTT_JOURNAL_POISONED;S=XMQTT_JOURNAL_ERROR;}}
     else {xrtErrorFree(Saved);if(!xrtGetError())xrtSetErrorKind(XERR_IO);}
+    if(J)J->Busy=false;
     return S;
 }
 static xmqttjournalstatus xmqttJPoison(xmqttjournal* J,xmqttjournalstatus S,cstr Message)
@@ -104,7 +106,7 @@ static xmqttjournalstatus xmqttJConstruct(xfile File,const xmqttjournalconfig* C
         !xmqttJSeparate(Out,sizeof(*Out),C->Binding.Data,C->Binding.Size))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal file/config/output");
     size_t Bytes=sizeof(xmqttjournal)+XMQTT_J_PAGE+C->Binding.Size+C->MaxTransactionBytes;
     if(Bytes>C->MaxMemoryBytes)return XMQTT_JOURNAL_LIMIT;
-    xerror* Saved=xrtTakeError();
+    xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
     uint64 Caps=xrtFileCapabilities(File),Required=XFILE_CAP_READ_AT|XFILE_CAP_WRITE_AT|XFILE_CAP_STAT|XFILE_CAP_RESIZE|XFILE_CAP_FLUSH;
     uint32 Flags=xrtFileFlags(File);
     if((Caps&Required)!=Required||(Flags&(XFILE_APPEND|XFILE_ASYNC))){xmqttJError(XMQTT_JOURNAL_ERROR,"journal requires synchronous absolute read/write/stat/resize/flush");return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_ERROR);}
@@ -122,7 +124,8 @@ static xmqttjournalstatus xmqttJConstruct(xfile File,const xmqttjournalconfig* C
         if(!OK)S=XMQTT_JOURNAL_IO;else {J->Info.State=XMQTT_JOURNAL_READY;J->FileBytes=XMQTT_J_START;J->Cursor=XMQTT_J_START;}
     }else S=xmqttJLoad(J);
     if(S!=XMQTT_JOURNAL_DONE){xrtFree(J);return xmqttJFinish(NULL,Saved,S);}
-    *Out=J;return xmqttJFinish(NULL,Saved,S);
+    S=xmqttJFinish(NULL,Saved,S);if(S!=XMQTT_JOURNAL_DONE){xrtFree(J);return S;}
+    *Out=J;return S;
 }
 XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile F,const xmqttjournalconfig* C,xmqttjournal** J)
 {return xmqttJConstruct(F,C,J,true);}
@@ -132,7 +135,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord
 {
     if(!J||!xmqttJOutside(J,Out,sizeof(*Out)))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid replay output");
     if(J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED)return xmqttJError(XMQTT_JOURNAL_STATE,"journal unavailable or reentrant");
-    xerror* Saved=xrtTakeError();J->Busy=true;xmqttjournalstatus S=XMQTT_JOURNAL_DONE;
+    xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
+    J->Busy=true;xmqttjournalstatus S=XMQTT_JOURNAL_DONE;xmqttjournalrecord Record={0};
     if(J->Cursor==J->Info.CommittedEnd){
         if(J->ReadSequence!=J->Info.Sequence||J->ReadChain!=J->Info.Chain)S=xmqttJPoison(J,XMQTT_JOURNAL_CORRUPT,"committed final chain/sequence mismatch");
         else if(J->Info.State==XMQTT_JOURNAL_RECOVERING&&J->FileBytes>J->Info.CommittedEnd&&
@@ -153,8 +157,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord
     uint32 Chain=xrtCrc32Update(xrtCrc32(H,sizeof(H)),J->Buffer,(size_t)Length);
     if(memcmp(T,"XMQWEND\0",8)||xmqttJGet(T+12,4)||xmqttJGet(T+8,4)!=Chain||xmqttJGet(H+36,4)!=xrtCrc32(J->Buffer,(size_t)Length)){
         S=xmqttJPoison(J,XMQTT_JOURNAL_CORRUPT,"committed payload/footer checksum mismatch");goto End;}
-    J->Cursor+=Total;J->ReadChain=Chain;++J->ReadSequence;*Out=(xmqttjournalrecord){J->ReadSequence,{J->Buffer,(size_t)Length}};
-End:return xmqttJFinish(J,Saved,S);
+    J->Cursor+=Total;J->ReadChain=Chain;++J->ReadSequence;Record=(xmqttjournalrecord){J->ReadSequence,{J->Buffer,(size_t)Length}};
+End:S=xmqttJFinish(J,Saved,S);if(S==XMQTT_JOURNAL_DONE)*Out=Record;return S;
 }
 XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,uint64* Sequence)
 {
@@ -167,7 +171,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,
     memcpy(H,"XMQWTX1",7);xmqttJPut(H+8,XMQTT_J_OVERHEAD+Data.Size,8);xmqttJPut(H+16,W.Sequence,8);xmqttJPut(H+24,Data.Size,8);
     xmqttJPut(H+32,J->Info.Chain,4);xmqttJPut(H+36,xrtCrc32(Data.Data,Data.Size),4);xmqttJPut(H+44,xrtCrc32(H,44),4);
     W.Chain=xrtCrc32Update(xrtCrc32(H,sizeof(H)),Data.Data,Data.Size);memcpy(T,"XMQWEND",7);xmqttJPut(T+8,W.Chain,4);
-    xerror* Saved=xrtTakeError();J->Busy=true;J->Info.Effect=XMQTT_JOURNAL_NOT_COMMITTED;J->Info.AttemptSequence=W.Sequence;J->Info.AttemptEnd=W.End;
+    xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
+    J->Busy=true;J->Info.Effect=XMQTT_JOURNAL_NOT_COMMITTED;J->Info.AttemptSequence=W.Sequence;J->Info.AttemptEnd=W.End;
     uint64 At=J->Info.CommittedEnd;xmqttjournalstatus S=XMQTT_JOURNAL_DONE;
     if(!xmqttJWrite(J,At,H,sizeof(H))||(Data.Size&&!xmqttJWrite(J,At+48,Data.Data,Data.Size))||!xmqttJWrite(J,W.End-16,T,sizeof(T))||!xrtFlush(J->File)){
         S=xmqttJPoison(J,XMQTT_JOURNAL_IO,"transaction data write/sync failed");goto End;}
@@ -176,8 +181,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,
         S=xmqttJPoison(J,XMQTT_JOURNAL_UNCERTAIN,"commit witness write/sync failed");goto End;}
     J->Info.Sequence=W.Sequence;J->Info.CommittedEnd=W.End;J->Info.Chain=W.Chain;J->Info.Effect=XMQTT_JOURNAL_COMMITTED;J->FileBytes=W.End;
     /* Appended records are already applied by the owner, not replayed again. */
-    J->Cursor=W.End;J->ReadSequence=W.Sequence;J->ReadChain=W.Chain;*Sequence=W.Sequence;
-End:return xmqttJFinish(J,Saved,S);
+    J->Cursor=W.End;J->ReadSequence=W.Sequence;J->ReadChain=W.Chain;
+End:S=xmqttJFinish(J,Saved,S);if(S==XMQTT_JOURNAL_DONE)*Sequence=W.Sequence;return S;
 }
 XMQTT_API bool xmqttJournalInfo(xmqttjournal* J,xmqttjournalinfo* Out)
 {
