@@ -60,7 +60,9 @@ class PublicAbiTest(unittest.TestCase):
 				1,
 			):
 				if not inside and start.match(line):
-					inside = True
+					# Compact declarations can open and close on the same line.
+					# Do not attribute following feature gates to that structure.
+					inside = line.count("{") > line.count("}")
 					continue
 				if inside and re.match(r"^\s*#\s*(?:if|ifdef|ifndef)\b", line):
 					failures.append(f"{header.name}:{number}: {line.strip()}")
