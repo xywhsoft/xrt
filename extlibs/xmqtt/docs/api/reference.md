@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `152` 个函数、`246` 个常量或宏、
-`89` 个公共类型。
+当前登记 `156` 个函数、`269` 个常量或宏、
+`94` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -725,6 +725,51 @@
 ### 类型 (1)
 
 - `xmqttsessionimageconfig`
+
+## `extlibs/xmqtt/include/xmqtt/store_delta.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/store_delta.h)
+
+### 函数 (4)
+
+- `xmqttStoreDeltaConfigInit`
+- `xmqttStoreDeltaRead`
+- `xmqttStoreDeltaSize`
+- `xmqttStoreDeltaWrite`
+
+### 常量与宏 (23)
+
+- `XMQTT_FEATURE_XMQTT_STORE_DELTA`
+- `XMQTT_STORE_BIND`
+- `XMQTT_STORE_CLEAR`
+- `XMQTT_STORE_DELTA_ATTEMPTED`
+- `XMQTT_STORE_DELTA_CLEAN_START`
+- `XMQTT_STORE_DELTA_DONE`
+- `XMQTT_STORE_DELTA_ERROR`
+- `XMQTT_STORE_DELTA_LIMIT`
+- `XMQTT_STORE_DELTA_MALFORMED`
+- `XMQTT_STORE_DELTA_PROTOCOL`
+- `XMQTT_STORE_DELTA_SCHEMA`
+- `XMQTT_STORE_DELTA_SENT`
+- `XMQTT_STORE_DELTA_SESSION_PRESENT`
+- `XMQTT_STORE_END`
+- `XMQTT_STORE_INBOX_ACK`
+- `XMQTT_STORE_IN_ACCEPT`
+- `XMQTT_STORE_IN_COMPLETE`
+- `XMQTT_STORE_IN_PUBREL`
+- `XMQTT_STORE_OPEN`
+- `XMQTT_STORE_OUT_ATTEMPT`
+- `XMQTT_STORE_OUT_COMPLETE`
+- `XMQTT_STORE_OUT_PUBREL`
+- `XMQTT_STORE_OUT_PUT`
+
+### 类型 (5)
+
+- `xmqttstoredelta`
+- `xmqttstoredeltaconfig`
+- `xmqttstoredeltadocument`
+- `xmqttstoredeltastatus`
+- `xmqttstoredeltatype`
 
 ## `extlibs/xmqtt/include/xmqtt/wire.h`
 

@@ -16,6 +16,27 @@ rename/creation does not yet supply a complete directory publication durability
 contract. Resolve that reproduced boundary in the full store before claiming
 creation/replacement survives power loss; do not infer it from file flush alone.
 
+The developing `xmqtt_store_delta` now defines/validates the version1 MQTT-aware
+batch payload (schema `0x584d4401`) over that journal: identity/open/end/clear,
+outgoing PUT/attempt/PUBREL/completion, incoming acceptance/PUBREL/completion and
+independent application Inbox ACK. Incoming acceptance represents payload plus
+QoS2 identity in one record; protocol reset/completion must not discard accepted
+delivery payloads. Epochs and nonwrapping flow/delivery keys are explicit, with
+native MQTT5/311 packet validation and connection-only aliases forbidden.
+This codec is not a state applier: legal transition/key/clock order, stale-id
+protection, authenticated broker decisions, expiry rebasing, delivery leases,
+asynchronous queue/physical retirement and the Client ACK path still require
+implementation. Batches allow later bounded group commit; a driver must never
+move a required durable ACK boundary past network output to fill a group.
+
+The delta prototype reproduced four notifications of an already existing error
+on one successful batch encode when restoring it through `xrtSetErrorTake`.
+Core now exposes checked, quiet `xrtTrySwapErrorTake` with native TLS-failure and
+ownership tests; this adds no runtime/state. The new codec uses it. Existing
+ambient-restoration patterns in journal/client/Redis/RPC/Cron still need a
+separate audit/adoption with each API's output/commit/error contract preserved;
+do not silently classify those older paths as covered by the new codec fix.
+
 ## State and ownership
 
 - One store owns one broker/security-principal/logical-slot binding, immutable

@@ -26,6 +26,15 @@ int main(void)
 	testRequire((pPrevious == NULL) && (xrtGetError() == NULL), "first context initial state mismatch");
 	xrtSetError(pFirstError);
 	testRequire(xrtGetError() == pFirstError, "first context error mismatch");
+	{
+		xerror* Taken=NULL;
+		testRequire(!xrtTrySwapErrorTake(NULL,&tFirst.Error) && xrtGetError()==pFirstError,
+			"quiet swap rejects output aliasing its bound context");
+		testRequire(xrtTrySwapErrorTake(NULL,&Taken) && Taken==pFirstError && xrtGetError()==NULL,
+			"quiet swap selects the bound execution context");
+		testRequire(xrtTrySwapErrorTake(Taken,&Taken) && Taken==NULL && xrtGetError()==pFirstError,
+			"quiet context ownership restored without another reference");
+	}
 
 	pPrevious = __xrtErrorContextSwap(&tSecond);
 	testRequire((pPrevious == &tFirst) && (xrtGetError() == NULL), "second context initial state mismatch");

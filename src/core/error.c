@@ -987,6 +987,27 @@ XRT_API xerror* xrtTakeError(void)
 	return pError;
 }
 
+XRT_API bool xrtTrySwapErrorTake(xerror* pError,xerror** pPrevious)
+{
+	if (pPrevious==NULL || !xrtMemRangeValid(pPrevious,sizeof(*pPrevious))) return false;
+	if (!__xrtErrorTlsEnsure()) return false;
+	xerror* pOld=__xrtCurrentErrorGet();
+	xrt_error_context* pContext=__xrtBoundErrorContextGet();
+	if ((pError!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pError,sizeof(*pError))) ||
+		(pOld!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pOld,sizeof(*pOld))) ||
+		(pContext!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pContext,sizeof(*pContext)))) return false;
+	if (pContext!=NULL) pContext->Error=pError;
+	else {
+#if defined(_WIN32) || defined(_WIN64)
+		if (!FlsSetValue(__xrtErrorTlsError,pError)) return false;
+#else
+		if (pthread_setspecific(__xrtErrorTlsError,pError)!=0) return false;
+#endif
+	}
+	*pPrevious=pOld;
+	return true;
+}
+
 
 
 /* 将错误对象设置到当前执行上下文，函数会增加引用。 */

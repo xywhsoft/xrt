@@ -16691,6 +16691,34 @@
 			"docs": [
 				"docs/api/tls.md"
 			]
+		},
+		{
+			"name": "error_swap_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"core",
+				"memory_stats",
+				"thread",
+				"atomic"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/core/test_error_swap.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_error_swap.c",
+				"tests/single/test_single_error_swap_failure.c"
+			],
+			"single_test_owners": {
+				"tests/single/test_single_error_swap_failure.c": "core"
+			},
+			"examples": [],
+			"docs": [
+				"docs/api/error.md"
+			]
 		}
 	]
 }

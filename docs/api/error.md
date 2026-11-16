@@ -2,6 +2,31 @@
 
 Error 是全库统一的结构化错误对象与线程错误报告机制；本文件同时收录 core 并集的公共函数，与 [memory.md](memory.md)、[core.md](core.md) 共享头文件。
 
+## 静默交换错误所有权
+
+`xrtTrySwapErrorTake(Error, &Previous)` 在当前串行执行上下文交换两个 owning
+reference，成功时取得 Error，返回原错误的 owning reference；允许 NULL。
+它不增加/减少引用，不运行错误处理器，也不分配 XRT 对象。调用方之后负责释放
+或转移 Previous。不得把 `xrtGetError()` 的借用指针直接当作 owning reference
+传入；Previous 必须是独立调用方存储，不能与错误对象或当前上下文重叠。
+
+输出无效或原生 TLS 存储失败时返回 false：当前错误、传入所有权和 Previous
+均不变，不再尝试发布错误诊断。它支持线程错误槽和调度器绑定的执行上下文。
+与 `xrtSetErrorTake` 的区别是交换本身不重新通知既有错误；临时操作内部新发布的
+错误仍可能通知处理器，不能把该函数当成诊断屏蔽作用域。
+
+```c
+xerror* saved = NULL;
+if (!xrtTrySwapErrorTake(NULL, &saved)) return false;
+/* Run the isolated operation; keep its inputs/owners alive. */
+xerror* discarded = NULL;
+if (!xrtTrySwapErrorTake(saved, &discarded)) {
+    xrtErrorFree(saved); /* input ownership was not taken */
+    return false;
+}
+xrtErrorFree(discarded);
+```
+
 ## 精确诊断文本
 
 `xerrordescview` 与 `xerrorlocationview` 是 `xerrordesc` / `xerrorlocation`

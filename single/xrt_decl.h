@@ -8208,6 +8208,19 @@ XRT_API const xerror* xrtGetError(void);
 /* 取走当前执行上下文的错误对象。 */
 XRT_API xerror* xrtTakeError(void);
 
+/* Quiet owning-reference exchange in the current serialized execution context.
+ * Unlike SetError/SetErrorTake, never notifies the configured error handler.
+ * Success takes Error (NULL allowed), transfers the previous slot owner through
+ * Previous, and neither retains nor frees either object. Caller must free or
+ * transfer Previous afterwards. Previous is valid independent caller storage,
+ * disjoint from error/context storage; never pass a borrowed GetError pointer
+ * as Error without first acquiring an owning reference. False leaves the slot,
+ * input ownership and Previous unchanged (invalid output/native TLS failure).
+ * No new diagnostic, XRT allocation or user callback. This is not a diagnostic
+ * suppression scope: errors published during an isolated operation may still
+ * notify their handler before a later quiet restoration. */
+XRT_API bool xrtTrySwapErrorTake(xerror* Error,xerror** Previous);
+
 
 
 /* 将错误对象设置到当前执行上下文，函数会增加引用。 */

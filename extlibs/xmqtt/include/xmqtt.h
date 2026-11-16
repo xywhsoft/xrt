@@ -25,6 +25,10 @@
 #include <xmqtt/session.h>
 #include <xmqtt/session_image.h>
 #include <xmqtt/journal.h>
+#include <xmqtt/store_delta.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
+#error "MQTT root requires typed store deltas"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
 #error "MQTT root requires journal"
 #endif

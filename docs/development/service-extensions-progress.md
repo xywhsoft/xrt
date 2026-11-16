@@ -13569,3 +13569,42 @@ and out/service-extensions/xrpc-frame-20261112.
   live MQTT deltas/async driver/Inbox/ACK ordering, broker/device qualification and
   controlled native >=72h runs. Twenty-two developing MQTT modules keep strict
   release closed; original Redis/RPC/Cron scope and the four-product goal remain.
+
+## 2026-11-16 — typed MQTT store transactions and quiet error ownership (developing)
+
+- Added4 bounded StoreDelta APIs for MQTT5/311 with12 explicit record kinds,
+  logical session epochs, persistent flow/delivery keys and native canonical
+  PUBLISH validation. IN_ACCEPT binds payload/delivery and QoS2 identity in one
+  record; protocol completion/reset and application Inbox ACK stay distinct.
+  One batch fits one journal commit, but cannot bypass required network/sync
+  ordering. This codec does not yet apply state or drive a durable Client/Inbox.
+- A concrete prototype reproduced4 notifications of an old ambient error on
+  successful encode. Added minimal checked Core xrtTrySwapErrorTake; quiet
+  owning exchange neither retains/frees nor notifies, and native TLS-set failure
+  preserves all input/slot/output ownership. The new codec uses it and reports0
+  old-error notifications. Other restored-error paths still need separate audit.
+- Windows/WSL modular/single, root/stats-off, static/shared packages, complete
+  declaration consumers and runnable3-record example pass. WSL ASan/UBSan/leaks
+  pass. Per fault binary:986/890 fixture truncations and5000 seeded mutations per
+  protocol; no standalone checksum claim.224 journal models per version and168
+  real native child kills preserve0-or16 group visibility;168 fresh recoveries
+  and144 opposite-OS reads pass. Independent Python struct/zlib/literal MQTT
+  oracle checks exact whole journal/batch bytes. No state/ACK or powerloss claim.
+- Core tests cover native TLS failure, ownership/budget refunds, handler reentry,
+  bound context and40000 concurrent thread-local exchanges. Legacy errors/
+  context/threads/OOM and journal suites pass. New API exports and standalone
+  declaration consumers pass for both static/shared Core libraries.
+- Native in-memory Size/Write/Read diagnostics include64 packet validations,
+  actual metadata/string scans/error bookkeeping and Write body copies.5x10000
+  samples plus separate allocation runs measure0 hot XRT allocations/op;
+  unchanged quality gates fail12 Windows/8 WSL metrics. No performance acceptance.
+- [Stage report](xmqtt-store-delta-20261116.json) retains source/log/binary hashes,
+  failed/superseded attempts and limitations. Core-wide API inventory still has
+  exactly141 baseline missing selector/build symbols; the new function is fully
+  documented and adds0 missing symbols. This broad gate is not reported green.
+- Current mainline XTP work was preserved and its unrelated generated inventory
+  excluded from compiler-input checks.23 developing MQTT modules keep strict
+  release closed. State applier/async driver/durable Inbox/ACK ordering, file
+  namespace/locking/compaction/group scheduling, broker/device qualification,
+  controlled performance and native >=72h runs remain. Original Redis/RPC/Cron
+  scope and the full four-product objective remain unchanged and active.

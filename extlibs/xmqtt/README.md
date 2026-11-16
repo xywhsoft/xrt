@@ -10,6 +10,11 @@ records with two sync barriers and redundant latest commit witnesses on an
 explicitly supplied, already published XRT file. See the [storage-worker example](examples/journal/README.md).
 Full file publication/compaction, live transactional Inbox and acknowledgement
 durability remain pending.
+The developing [typed store-delta codec](docs/store_delta.md) validates bounded
+MQTT5/3.1.1 transaction batches with explicit flow/delivery keys, session epochs,
+canonical packets and distinct protocol/delivery completion records. See its
+[three-record receive example](examples/store_delta/README.md). It does not yet
+apply recovered state, drive live commits or emit MQTT acknowledgements.
 Optional [WSS credential handoff](docs/client_ws_tls_resume.md) now connects
 native ticket-only events to the existing bounded TLS resume cache across
 direct/HTTP/URI channels and ordinary reconnect factories. See the

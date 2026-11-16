@@ -5798,6 +5798,19 @@ XRT_API const xerror* xrtGetError(void);
 /* 取走当前执行上下文的错误对象。 */
 XRT_API xerror* xrtTakeError(void);
 
+/* Quiet owning-reference exchange in the current serialized execution context.
+ * Unlike SetError/SetErrorTake, never notifies the configured error handler.
+ * Success takes Error (NULL allowed), transfers the previous slot owner through
+ * Previous, and neither retains nor frees either object. Caller must free or
+ * transfer Previous afterwards. Previous is valid independent caller storage,
+ * disjoint from error/context storage; never pass a borrowed GetError pointer
+ * as Error without first acquiring an owning reference. False leaves the slot,
+ * input ownership and Previous unchanged (invalid output/native TLS failure).
+ * No new diagnostic, XRT allocation or user callback. This is not a diagnostic
+ * suppression scope: errors published during an isolated operation may still
+ * notify their handler before a later quiet restoration. */
+XRT_API bool xrtTrySwapErrorTake(xerror* Error,xerror** Previous);
+
 
 
 /* 将错误对象设置到当前执行上下文，函数会增加引用。 */
@@ -69736,6 +69749,27 @@ XRT_API xerror* xrtTakeError(void)
 
 	__xrtCurrentErrorSet(NULL);
 	return pError;
+}
+
+XRT_API bool xrtTrySwapErrorTake(xerror* pError,xerror** pPrevious)
+{
+	if (pPrevious==NULL || !xrtMemRangeValid(pPrevious,sizeof(*pPrevious))) return false;
+	if (!__xrtErrorTlsEnsure()) return false;
+	xerror* pOld=__xrtCurrentErrorGet();
+	xrt_error_context* pContext=__xrtBoundErrorContextGet();
+	if ((pError!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pError,sizeof(*pError))) ||
+		(pOld!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pOld,sizeof(*pOld))) ||
+		(pContext!=NULL && xrtMemRangesOverlap(pPrevious,sizeof(*pPrevious),pContext,sizeof(*pContext)))) return false;
+	if (pContext!=NULL) pContext->Error=pError;
+	else {
+#if defined(_WIN32) || defined(_WIN64)
+		if (!FlsSetValue(__xrtErrorTlsError,pError)) return false;
+#else
+		if (pthread_setspecific(__xrtErrorTlsError,pError)!=0) return false;
+#endif
+	}
+	*pPrevious=pOld;
+	return true;
 }
 
 

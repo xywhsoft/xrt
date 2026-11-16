@@ -145,7 +145,8 @@
         "xmqtt_client_ws_uri_tls",
         "xmqtt_client_ws_tls_resume",
         "xmqtt_session_image",
-        "xmqtt_journal"
+        "xmqtt_journal",
+        "xmqtt_store_delta"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -1778,6 +1779,62 @@
       ],
       "docs": [
         "extlibs/xmqtt/docs/journal.md"
+      ]
+    },
+    {
+      "name": "xmqtt_store_delta",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_STORE_DELTA",
+      "depends": [
+        "xmqtt_codec5",
+        "xmqtt_codec311"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/store_delta.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/session/store_delta.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/store_delta.md"
+      ]
+    },
+    {
+      "name": "xmqtt_store_delta_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_store_delta",
+        "xmqtt_journal",
+        "vfs",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_store_delta.c",
+        "extlibs/xmqtt/tests/test_store_delta_faults.c",
+        "extlibs/xmqtt/tests/test_store_delta_journal.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_delta.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_delta_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_delta_journal.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/store_delta/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_store_delta.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/store_delta.md"
       ]
     }
   ]
