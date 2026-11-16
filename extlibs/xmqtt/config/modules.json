@@ -142,7 +142,8 @@
         "xmqtt_reconnect_subscriptions",
         "xmqtt_client_ws_tls",
         "xmqtt_client_ws_connect_tls",
-        "xmqtt_client_ws_uri_tls"
+        "xmqtt_client_ws_uri_tls",
+        "xmqtt_client_ws_tls_resume"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -1572,6 +1573,75 @@
       "docs": [
         "extlibs/xmqtt/docs/reconnect.md"
       ]
+    },
+    {
+      "name": "xmqtt_client_ws_tls_resume",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME",
+      "depends": [
+        "xmqtt_client_ws_tls",
+        "xmqtt_client_tls_resume",
+        "websocket_stream_tls_ticket"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_ws.h",
+        "extlibs/xmqtt/include/xmqtt/client_tls_resume.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_tls_resume.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_tls_resume_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_ws_tls_resume",
+        "xmqtt_client_ws_uri_tls",
+        "xmqtt_reconnect_subscriptions",
+        "xmqtt_client_auth",
+        "tls_server_resume",
+        "tls_identity_rsa",
+        "tls_stream_retire",
+        "memory_stats",
+        "thread",
+        "net_port_iocp",
+        "net_port_epoll"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_ws_tls_resume.c",
+        "extlibs/xmqtt/tests/test_client_ws_tls_resume_faults.c",
+        "extlibs/xmqtt/tests/test_client_ws_tls_resume_auth.c",
+        "extlibs/xmqtt/tests/test_reconnect_ws_tls_resume.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_reconnect.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_stats_off.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/ws_tls_resume/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_ws_tls_resume.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_tls_resume.md"
+      ],
+      "single_test_owners": {
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_tls_resume_stats_off.c": "xmqtt_client_ws_tls_resume"
+      }
     }
   ]
 }

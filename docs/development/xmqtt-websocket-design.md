@@ -98,3 +98,15 @@ without replacing WS event ownership. See
 [websocket-tls-ticket-20261116.json](websocket-tls-ticket-20261116.json). It reuses
 native credential queues and existing callback Data/lifetimes; it does not yet
 wire the MQTT resume cache or complete the original full WebSocket checklist.
+
+WSS credential integration update 2026-11-16: the optional
+`xmqtt_client_ws_tls_resume` leaf now wires the native ticket callback and one-time
+pre-attachment queue drain into the existing MQTT one-entry cache. Direct native
+attachment needs an actual capacity snapshot; Count0 cannot distinguish empty
+from disabled. The minimal Core `xrtTlsClientResumeCapacity` query reads existing
+immutable state without allocating or mutating it. It adds no Core field/runtime.
+Ordinary Client/TLS/WS ownership, cache quotas, deferred Notify, MQTT auth proof,
+fresh CONNECT and controller Session/Inbox rules remain authoritative. See
+[xmqtt-wss-resume-20261116.json](xmqtt-wss-resume-20261116.json) and the dedicated
+example for evidence and real selected/cold costs. Independent OpenSSL gateway
+results do not qualify broker-native WS, controlled performance or native soak.

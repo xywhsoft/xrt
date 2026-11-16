@@ -37,7 +37,7 @@ capture-disabled leaf stays88; the private Client object itself does not grow.
 
 Native identity/ALPN/expiry/verifier policy applies to resumption. `ResumeOnly`
 requires PSK acceptance; otherwise native full-handshake fallback may apply. No
-0-RTT MQTT data, reconnect, persistence or protocol-request replay is introduced.
+0-RTT MQTT data, persistence or protocol-request replay is introduced by this cache.
 Each connection still performs CONNECT/CONNACK/authentication. Native credential
 handoff currently covers TLS1.3; TLS1.2 full handshakes remain supported.
 
@@ -52,3 +52,7 @@ The independent oracle checks the server's
 flag, fresh literal MQTT exchanges and authenticated shutdown.
 
 Stage evidence: [validation and measured limits](../tests/results/client-tls-resume-20261109.json).
+
+The separate [WSS credential handoff](client_ws_tls_resume.md) leaf composes this
+same cache with direct/HTTP/URI WSS attachment, ticket-only notifications and
+ordinary automatic recovery factories. It introduces no new MQTT cache API.

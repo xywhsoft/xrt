@@ -168,6 +168,14 @@ XRT_API const xx509cert* xrtTlsResumePeerCertificateV1(
 	const xtlsresume* pResume, size_t iIndex
 );
 
+/* Immutable configured native queue capacity, independent of its current
+ * Count. Zero means capture was disabled (including native ClientAuth policy).
+ * A capacity does not attest handshake readiness/version or promise a ticket.
+ * Borrow a live client Session under its normal synchronization. No allocation,
+ * queue mutation, copy or error change on valid input; invalid role/session
+ * follows the checked Count/Take diagnostics and returns zero. */
+XRT_API size_t xrtTlsClientResumeCapacity(const xtlssession* pSession);
+
 /* 返回等待调用方接管的恢复对象数量。 */
 XRT_API size_t xrtTlsClientResumeCount(const xtlssession* pSession);
 

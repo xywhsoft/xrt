@@ -38,6 +38,9 @@
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
 #error "MQTT root requires WS/WSS client"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+#error "MQTT root requires WSS credential handoff"
+#endif
 #include <xmqtt/client_ws.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
 #error "MQTT root requires native WS/WSS setup"

@@ -124,6 +124,25 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_TLS_RESUME
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_TLS_RESUME
+#endif
+#endif
+
+/* xmqtt_client_ws_tls_resume 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_WS_TLS_RESUME)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME
+#define XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET
+#endif
 #endif
 
 /* xmqtt_client_ws_uri_tls 及其直接依赖。 */
@@ -2180,6 +2199,9 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_WS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS))
 #error "MQTT WSS requires WS and native WSS write progress"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET))
+#error "MQTT WSS resume requires native WSS ticket observation and existing TLS cache"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
 struct xmqttclientinbox;struct xmqttsession;struct xmqttauthconfig;
 typedef struct xmqttclientwsconfig {
@@ -2397,6 +2419,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
 #error "MQTT root requires WS/WSS client"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+#error "MQTT root requires WSS credential handoff"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
 #error "MQTT root requires native WS/WSS setup"
@@ -5500,6 +5525,14 @@ static bool xmqttTlsResumeOutput(xmqttclient* C,ptr Out,size_t Bytes)
     if(!C || !Out || !xrtMemRangeValid(Out,Bytes) || !C->TLS ||
        xrtMemRangesOverlap(Out,Bytes,C,sizeof(*C)) || xrtMemRangesOverlap(Out,Bytes,C->TLS,sizeof(*C->TLS)))
         return xmqttClientError(XERR_ARGUMENT,"invalid TLS resume client/output or owner overlap");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
+    if(C->WS){xmqttwsstate* W=C->WS;
+        if(xrtMemRangesOverlap(Out,Bytes,W,sizeof(*W)))return xmqttClientError(XERR_ARGUMENT,"TLS resume output overlaps WS owner");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT)
+        if(W->Http && xrtMemRangesOverlap(Out,Bytes,W->Http,sizeof(*W->Http)))return xmqttClientError(XERR_ARGUMENT,"TLS resume output overlaps HTTP owner");
+#endif
+    }
+#endif
     size_t Scratch=(size_t)(C->Props-C->Scratch)+C->Config.Codec.MaxProperties;
     if(xrtMemRangesOverlap(Out,Bytes,C->Scratch,Scratch*sizeof(*C->Scratch)))return xmqttClientError(XERR_ARGUMENT,"TLS resume output overlaps client scratch");
     return true;
@@ -6248,8 +6281,22 @@ static void xmqttWsResume(xmqttclient* C)
     if(W->Capacity>W->Config.KeepStagedBytes){xrtSecureZero(W->Staged,W->Capacity);xrtFree(W->Staged);W->Staged=NULL;xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=W->Capacity;xrtMutexUnlock(&C->Gate);W->Capacity=0;}
     if(xrtWsStreamPaused(W->Stream)&&!xrtWsStreamResume(W->Stream))xmqttWsFailure(C,xrtGetError());
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+static void xmqttWsTlsTicket(xwsstream* S,ptr Data)
+{xmqttTlsTicket(xrtWsStreamTls(S),Data);}
+#endif
 static void xmqttWsActivate(xmqttclient* C)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+    if(C->TLS){xtlsstream* Native=xrtWsStreamTls(C->WS->Stream);bool Resumed=xrtTlsClientResumed(xrtTlsStreamSession(Native));
+        xrtMutexLock(&C->Gate);C->TLS->Resume.Info.Established=true;C->TLS->Resume.Info.Resumed=Resumed;bool Capture=C->TLS->Resume.Info.Enabled;xrtMutexUnlock(&C->Gate);
+        if(Capture && !xrtWsStreamSetTlsTicket(C->WS->Stream,xmqttWsTlsTicket)){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());xmqttClientWake(C);return;}
+        /* Registration does not replay old native tickets. This cold handoff
+         * runs after Started publication/outside Gate; cache Notify stays in
+         * the ordinary Client work rather than a native TLS/WS callback. */
+        if(xrtTlsClientResumeCount(xrtTlsStreamSession(Native)))xmqttTlsTicket(Native,C);
+    }
+#endif
     size_t Minimum=0;
     if(!xrtWsStreamSendSize(C->WS->Stream,1,&Minimum)){xmqttWsFailure(C,xrtGetError());xmqttClientWake(C);return;}
     if(Minimum>xrtWsStreamWriteLimit(C->WS->Stream)){xmqttClientError(XERR_RANGE,"WS native write budget cannot admit one MQTT byte");xmqttClientFail(C,XMQTT_STATUS_LIMIT,xrtGetError());xmqttClientWake(C);return;}
@@ -6998,7 +7045,12 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     (void)SessionPlan;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
-    const xmqtttlsplan* TLS=TlsPlan;if(TLS)TlsBytes=sizeof(xmqtttlsstate);
+    const xmqtttlsplan* TLS=TlsPlan;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+    xmqtttlsplan AttachedTLS={0};
+    if(!TLS && WS && WS->TLS && WS->Native){AttachedTLS.Capture=xrtTlsClientResumeCapacity(xrtTlsStreamSession(WS->Native))!=0;TLS=&AttachedTLS;}
+#endif
+    if(TLS)TlsBytes=sizeof(xmqtttlsstate);
 #else
     (void)TlsPlan;
 #endif
@@ -7215,7 +7267,7 @@ static bool xmqttTlsPlanCreate(const xmqttclienttlsconfig* K,xstrview Host,xmqtt
     if(!Plan->Session)return false;
     Plan->Config=K->Stream;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
-    Plan->Capture=K->Session.ResumeLimit!=0 && !K->ClientAuth;
+    Plan->Capture=xrtTlsClientResumeCapacity(Plan->Session)!=0;
 #endif
     return true;
 }
@@ -7727,7 +7779,11 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     if(W.Auth)return xmqttClientError(XERR_UNSUPPORTED,"WS Auth feature is not selected");
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
-    if(TLS){const xmqttclienttlsconfig* T=TLS;if(!xrtMemRangeValid(T,sizeof(*T))||xrtMemRangesOverlap(T,sizeof(*T),Out,sizeof(*Out))||T->Session.ResumeLimit)return xmqttClientError(XERR_ARGUMENT,"WSS requires valid TLS policy and zero post-handoff ResumeLimit");}
+    if(TLS){const xmqttclienttlsconfig* T=TLS;if(!xrtMemRangeValid(T,sizeof(*T))||xrtMemRangesOverlap(T,sizeof(*T),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"WSS requires valid TLS policy");
+#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME)
+        if(T->Session.ResumeLimit)return xmqttClientError(XERR_ARGUMENT,"WSS credential capture requires xmqtt_client_ws_tls_resume or zero ResumeLimit");
+#endif
+    }
 #else
     if(TLS)return xmqttClientError(XERR_UNSUPPORTED,"WSS connect feature is not selected");
 #endif

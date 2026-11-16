@@ -1,0 +1,616 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-optional-WSS-credential-cache-composition",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "09d543a3e29f3113d258b1f58718345de867e06e",
+  "historical_migration_commits_verified_ancestors": [
+    "05dc625d",
+    "f0e0955c"
+  ],
+  "branch_operations": 0,
+  "remote_push": false,
+  "complete_four_product_goal": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "mqtt_websocket_complete": false,
+  "new_Core_API": [
+    "xrtTlsClientResumeCapacity"
+  ],
+  "new_MQTT_APIs": 0,
+  "new_shared_runtime": false,
+  "feature": "xmqtt_client_ws_tls_resume (developing)",
+  "architecture": "One ordinary MQTT Client and its existing bounded latest TLS cache. Existing native immutable credentials and original native queues; direct attachment snapshots actual native capacity. One-time pre-attachment drain and optional native WS ticket-only callback feed the same collector. Coalesced existing work runs user Notify outside native callback frames. HTTP/URI factories and existing automatic controller preserve original readiness/proof/Session/Inbox/ownership duties.",
+  "prerequisite": {
+    "prototype": "capacity-gap.c / windows,wsl-prototype-receipts.json",
+    "observation": "Actual capacity0/1/4 constructors all expose Count0/Dropped0/Resumed0 before handshake; these scalars cannot identify configured capture. The baseline09d543a3 public header lacks a capacity query. Added query reads immutable existing ResumeLimit, with native ClientAuth actual capacity0, no new field/queue/allocation/lock/mutation.",
+    "checked": "Registered modular and single native tests verify snapshot0/1/4 after caller configuration mutation,10000 budget1 queries per configuration, ambient error preservation, actual ClientAuth constructor0 and typed server/null rejection."
+  },
+  "verification": {
+    "windows": {
+      "final_tests": 14,
+      "delivery": 10,
+      "regression": 14,
+      "abi": 3,
+      "root_smoke": 1,
+      "cli_build": 1,
+      "single_cli": 1,
+      "package_audit": 2,
+      "local_C_total": 46,
+      "usage_only_in_local_total": 5,
+      "independent_CLI": 16,
+      "diagnostic_benchmarks": 29,
+      "selected_C_total": 91
+    },
+    "wsl": {
+      "final_tests": 14,
+      "delivery": 10,
+      "regression": 14,
+      "abi": 3,
+      "root_smoke": 1,
+      "tsan": 1,
+      "cli_build": 1,
+      "single_cli": 1,
+      "package_audit": 2,
+      "local_C_total": 47,
+      "usage_only_in_local_total": 5,
+      "independent_CLI": 16,
+      "diagnostic_benchmarks": 29,
+      "selected_C_total": 92
+    }
+  },
+  "local_scope": [
+    "Both MQTT versions, seven direct/numeric/DNS/prepared/numeric-URI/encoded-DNS/escaped-IP routes; actual full then PSK-only handshakes confirmed by both native peers; every channel performs fresh MQTT CONNECT/CONNACK and QoS0/1/2",
+    "Already-queued direct-attachment credential drained after Started publication; real post-Upgrade ticket-only native records with no MQTT traffic; exact private data-byte replacement/refund after physical request retirement",
+    "Latest-cache replacement/refusal, configured capacity0 direct/HTTP policy, budget1 no-allocation Take after Client Wait, eight concurrent consumers/one winner, deferred Notify Take/Close reentrancy, six real constructor budget cases, including actual OOM/atomic retry and zero live owner/budget credits after joins",
+    "Explicit inferred URI identity mismatch, actual peer-refused credential full fallback and ResumeOnly rejection before HTTP/MQTT, caller aliases released after admission and saved credentials/peer chains/outcomes survive all native/Engine owners",
+    "MQTT5 initial challenge/local final proof/denial/held ticket/reauth remain independent of native credential capture; twelve automatic controller PSK plus retained Session recovery cases across versions/two routes/three outgoing ACK cuts with immutable old outcomes",
+    "Windows select/IOCP; WSL select/epoll with ASan/UBSan/leaks and separate TSan; root/stats-off and isolated-leaf dependency trimming. WSL does not substitute for native Linux qualification. GCC TSan atomic_thread_fence modeling warning is preserved."
+  ],
+  "distribution": {
+    "static_shared": true,
+    "standalone_declarations": true,
+    "exports": {
+      "windows": "windows-exports.json",
+      "wsl": "wsl-exports.json"
+    },
+    "verified_package_tool_consumers_per_host": 2,
+    "scope": "Separate XRT/MQTT static/shared libraries execute all four new protocol/fault/auth/controller programs plus standalone declarations. New Core query and existing MQTT resume APIs export; private MQTT/WSS bridges do not. Pre-existing Core Until helper exports are outside this phase; initial audit incorrectly rejected all __xrt names, fixed to the actual new bridge boundary.",
+    "feature_off": "Modular verified-TLS header omits the new Core query when native resume is unselected. Declaration amalgam is intentionally a complete inventory, so initial declaration-based off probe was invalid. WSS-off legacy live fault suite retains nonzero ResumeLimit rejection with all other selections identical."
+  },
+  "ABI": {
+    "windows": {
+      "off": {
+        "client": 1224,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 0,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 88,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      },
+      "tcp_resume": {
+        "client": 1224,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 48,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 160,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      },
+      "wss_resume": {
+        "client": 1224,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 48,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 160,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      }
+    },
+    "wsl": {
+      "off": {
+        "client": 1432,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 0,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 88,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      },
+      "tcp_resume": {
+        "client": 1432,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 48,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 160,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      },
+      "wss_resume": {
+        "client": 1432,
+        "config": 272,
+        "info": 160,
+        "tlsconfig": 200,
+        "resuminfo": 48,
+        "wsconfig": 176,
+        "cold": 296,
+        "tls": 160,
+        "http": 240,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "native_wsconfig": 128,
+        "native_events": 80
+      }
+    }
+  },
+  "costs": "With same other selections, Client1224Windows/1432WSL, public config272/info160, TLS config200, WS config176/state296, HTTP state240/config344/info80 and native WS config128/events80 stay unchanged. Existing TLS state88 without resume,160 with its cache; resume snapshot48. Direct attached WSS adds one charged160-byte cold state; HTTP WSS already owns TLS state and selects existing+72 cache storage. The native ticket-observation dependency has its real+8 native WS bytes documented in09d543a3. Native queue/credential/parsed-chain metadata remains separately bounded; cache charges saved ticket/secret/name/ALPN/identity/DER data. Native parser/crypto/queues/heap/masking and work/Notify/lease/cold scans and callbacks remain real; no zero-overhead claim.",
+  "independent_interop": {
+    "report": "independent-interop-matrix.json",
+    "cases": 32,
+    "forms": "Windows/WSL modular,single,static,shared; MQTT5/311; actual PSK or full fallback after server ticket-key/context loss",
+    "peer": "Pinned local Mosquitto2.0.22 TCP broker behind independent bounded stdlib/OpenSSL HTTP/WS gateway",
+    "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+    "gateway_sha256": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+    "ssl": "OpenSSL 3.5.5 27 Jan 2026",
+    "checked": "Native real CA/identity verification, independent SSLSocket.session_reused=false/true or false/false, new HTTP key/103/101/mqtt, masked Binary/continuation/Ping/Pong, real broker SessionPresent0/1, fresh CONNECT/CONNACK/QoS1 PUBACK, strict WS Close and TLS close_notify on both generations and all native/process/thread joins",
+    "limits": "Explicit two-channel documented example, not independent automatic-controller recovery. Gateway TLS tickets may arrive before HTTP; native literal-peer tests separately prove post-Upgrade-only events. Not broker-native WS or durable broker restart; earlier native Mosquitto missing returned WS Close remains unresolved.",
+    "public_CA_sha256": "9b7fc77202b18122b7bf03f6baf5ec4051421dcb85627e1a4fac0f949bbf81b8",
+    "public_leaf_sha256": "b31aed3063a9ccfe30c79bb057c37d5f125a602a17b541d5c44b83bb06f2d63d"
+  },
+  "performance": {
+    "accepted": false,
+    "OS_drivers_serialized": true,
+    "host": "Unpinned shared host; unrelated xlang compilation observed in WSL before measurements. No isolation/comparator/fixed-arrival/native acceptance claimed.",
+    "profiles": {
+      "windows": {
+        "accepted": false,
+        "quality_passed": false,
+        "quality_failure_count": 12,
+        "report": "windows-performance.json",
+        "profiles": {
+          "disabled": {
+            "publishes_per_sec": 26339.748,
+            "latency_p50_us": 1139.4,
+            "latency_p95_us": 1739.6,
+            "latency_p99_us": 2181.9,
+            "latency_p999_us": 2229.1,
+            "latency_max_us": 2254.0,
+            "process_cpu_ns_per_publish": 105468.75
+          },
+          "idle": {
+            "publishes_per_sec": 26347.368,
+            "latency_p50_us": 1148.4,
+            "latency_p95_us": 1993.2,
+            "latency_p99_us": 2175.9,
+            "latency_p999_us": 2343.1,
+            "latency_max_us": 2419.5,
+            "process_cpu_ns_per_publish": 102343.75
+          },
+          "cached": {
+            "publishes_per_sec": 25063.36,
+            "latency_p50_us": 1165.4,
+            "latency_p95_us": 1980.5,
+            "latency_p99_us": 2132.4,
+            "latency_p999_us": 2268.9,
+            "latency_max_us": 2443.9,
+            "process_cpu_ns_per_publish": 108593.75
+          },
+          "resumed": {
+            "publishes_per_sec": 23109.312,
+            "latency_p50_us": 1290.8,
+            "latency_p95_us": 2051.2,
+            "latency_p99_us": 2268.8,
+            "latency_p999_us": 2471.1,
+            "latency_max_us": 2544.6,
+            "process_cpu_ns_per_publish": 119531.25
+          }
+        },
+        "instrument": [
+          {
+            "name": "disabled",
+            "metrics": {
+              "publishes_per_sec": 31376.88,
+              "latency_p50_us": 934.8,
+              "latency_p95_us": 1744.8,
+              "latency_p99_us": 1957.1,
+              "latency_p999_us": 2297.6,
+              "latency_max_us": 2334.4,
+              "process_cpu_ns_per_publish": 87500.0,
+              "setup_us": 10011.5,
+              "cached_bytes": 0.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.5374,
+              "heap_bytes_per_publish": 1055.8848,
+              "setup_heap_blocks": 64.0,
+              "setup_heap_bytes": 42433.0
+            }
+          },
+          {
+            "name": "idle",
+            "metrics": {
+              "publishes_per_sec": 21607.214,
+              "latency_p50_us": 1458.4,
+              "latency_p95_us": 2088.2,
+              "latency_p99_us": 2203.0,
+              "latency_p999_us": 2288.9,
+              "latency_max_us": 2325.8,
+              "process_cpu_ns_per_publish": 137500.0,
+              "setup_us": 10627.1,
+              "cached_bytes": 0.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.7594,
+              "heap_bytes_per_publish": 1066.432,
+              "setup_heap_blocks": 66.0,
+              "setup_heap_bytes": 43105.0
+            }
+          },
+          {
+            "name": "cached",
+            "metrics": {
+              "publishes_per_sec": 19735.996,
+              "latency_p50_us": 1647.3,
+              "latency_p95_us": 2140.0,
+              "latency_p99_us": 2309.8,
+              "latency_p999_us": 2617.6,
+              "latency_max_us": 2690.6,
+              "process_cpu_ns_per_publish": 140625.0,
+              "setup_us": 10116.0,
+              "cached_bytes": 983.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.6896,
+              "heap_bytes_per_publish": 1063.1904,
+              "setup_heap_blocks": 66.0,
+              "setup_heap_bytes": 42561.0
+            }
+          },
+          {
+            "name": "resumed",
+            "metrics": {
+              "publishes_per_sec": 21970.335,
+              "latency_p50_us": 1420.8,
+              "latency_p95_us": 2031.8,
+              "latency_p99_us": 2275.3,
+              "latency_p999_us": 2307.5,
+              "latency_max_us": 2351.0,
+              "process_cpu_ns_per_publish": 128125.0,
+              "setup_us": 2062.4,
+              "cached_bytes": 983.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.7462,
+              "heap_bytes_per_publish": 1065.7984,
+              "setup_heap_blocks": 64.0,
+              "setup_heap_bytes": 38761.0
+            }
+          }
+        ]
+      },
+      "wsl": {
+        "accepted": false,
+        "quality_passed": false,
+        "quality_failure_count": 12,
+        "report": "wsl-performance.json",
+        "profiles": {
+          "disabled": {
+            "publishes_per_sec": 28221.419,
+            "latency_p50_us": 1070.7,
+            "latency_p95_us": 1587.8,
+            "latency_p99_us": 1963.9,
+            "latency_p999_us": 2452.8,
+            "latency_max_us": 2692.0,
+            "process_cpu_ns_per_publish": 94789.905
+          },
+          "idle": {
+            "publishes_per_sec": 28911.866,
+            "latency_p50_us": 1064.3,
+            "latency_p95_us": 1541.5,
+            "latency_p99_us": 1848.3,
+            "latency_p999_us": 2130.3,
+            "latency_max_us": 2224.7,
+            "process_cpu_ns_per_publish": 92935.175
+          },
+          "cached": {
+            "publishes_per_sec": 29147.805,
+            "latency_p50_us": 1056.6,
+            "latency_p95_us": 1556.6,
+            "latency_p99_us": 1959.1,
+            "latency_p999_us": 2142.5,
+            "latency_max_us": 2173.1,
+            "process_cpu_ns_per_publish": 92392.03
+          },
+          "resumed": {
+            "publishes_per_sec": 28850.366,
+            "latency_p50_us": 1057.7,
+            "latency_p95_us": 1526.801,
+            "latency_p99_us": 1910.0,
+            "latency_p999_us": 2111.6,
+            "latency_max_us": 2163.4,
+            "process_cpu_ns_per_publish": 92574.28
+          }
+        },
+        "instrument": [
+          {
+            "name": "disabled",
+            "metrics": {
+              "publishes_per_sec": 27609.056,
+              "latency_p50_us": 1107.5,
+              "latency_p95_us": 1664.1,
+              "latency_p99_us": 1786.5,
+              "latency_p999_us": 1916.1,
+              "latency_max_us": 1930.0,
+              "process_cpu_ns_per_publish": 95782.16,
+              "setup_us": 10747.4,
+              "cached_bytes": 0.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.6306,
+              "heap_bytes_per_publish": 1268.2496,
+              "setup_heap_blocks": 66.0,
+              "setup_heap_bytes": 44377.0
+            }
+          },
+          {
+            "name": "idle",
+            "metrics": {
+              "publishes_per_sec": 27395.038,
+              "latency_p50_us": 1065.2,
+              "latency_p95_us": 1981.3,
+              "latency_p99_us": 2153.7,
+              "latency_p999_us": 2226.0,
+              "latency_max_us": 2309.2,
+              "process_cpu_ns_per_publish": 96661.88,
+              "setup_us": 10839.3,
+              "cached_bytes": 0.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.6502,
+              "heap_bytes_per_publish": 1269.1904,
+              "setup_heap_blocks": 66.0,
+              "setup_heap_bytes": 44409.0
+            }
+          },
+          {
+            "name": "cached",
+            "metrics": {
+              "publishes_per_sec": 27535.784,
+              "latency_p50_us": 1107.4,
+              "latency_p95_us": 1641.9,
+              "latency_p99_us": 1985.1,
+              "latency_p999_us": 2137.4,
+              "latency_max_us": 2174.9,
+              "process_cpu_ns_per_publish": 96386.14,
+              "setup_us": 10942.5,
+              "cached_bytes": 983.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.617,
+              "heap_bytes_per_publish": 1267.7056,
+              "setup_heap_blocks": 65.0,
+              "setup_heap_bytes": 43817.0
+            }
+          },
+          {
+            "name": "resumed",
+            "metrics": {
+              "publishes_per_sec": 29399.019,
+              "latency_p50_us": 1054.201,
+              "latency_p95_us": 1369.1,
+              "latency_p99_us": 2081.4,
+              "latency_p999_us": 2112.8,
+              "latency_max_us": 2160.2,
+              "process_cpu_ns_per_publish": 90919.24,
+              "setup_us": 1573.7,
+              "cached_bytes": 983.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 9.6346,
+              "heap_bytes_per_publish": 1268.4416,
+              "setup_heap_blocks": 64.0,
+              "setup_heap_bytes": 40065.0
+            }
+          }
+        ]
+      }
+    },
+    "policy": "Five measured samples plus one warmup per mode; same selected native WSS QoS1,32-byte payload/window32 and exact packet-ID checksum. Four separate5000-message allocator diagnostics plus70000-message real resumed identifier-wrap run per host. Existing relative MAD0.03/central-range0.06 thresholds unchanged. Quality failures retained; no rerun-to-green. Cold native setup excludes fixture creation and is a noisy single observation per sample; warm/cache prep and physical final retirement are outside steady timing. Process CPU/XRT allocations include both peers, with Windows clock resolution and incomplete CRT/kernel/native memory coverage."
+  },
+  "gates": {
+    "development_passed": true,
+    "strict_release": {
+      "windows": {
+        "passed": false,
+        "expected": true,
+        "reason": "20 explicitly developing MQTT modules; strict release remains closed",
+        "log": "windows-strict-release.log"
+      },
+      "wsl": {
+        "passed": false,
+        "expected": true,
+        "reason": "20 explicitly developing MQTT modules; strict release remains closed",
+        "log": "wsl-strict-release.log"
+      }
+    },
+    "four_product_release_open": false
+  },
+  "source_identity": {
+    "final_source_map_sha256": "cc33425a468eb62a30cafd8036c93a6fe261bd2db0bcdab120bf4a6280063514",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "raw_receipts": 347,
+    "lossless_binary_snapshots_verified": 162,
+    "policy": "Selected successes match final canonical production/support headers and sources plus their actual C entry inputs; start/end source maps, exact commands/log hashes retained. Unrelated later benchmark/example/test-only edits do not relabel old programs; changed positive tests are refreshed in final suites/packages/root/TSan. Raw failures and original/compressed binary hashes retained."
+  },
+  "failures": [
+    {
+      "receipt": "windows-abi-receipts.json",
+      "label": "off-abi-build",
+      "exit_code": 1,
+      "log": "windows-off-abi-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-capacity-receipts.json",
+      "label": "capacity-test-build",
+      "exit_code": 1,
+      "log": "windows-capacity-test-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-final_tests-receipts.json",
+      "label": "all-native-suites",
+      "exit_code": 1,
+      "log": "windows-all-native-suites.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-modular-receipts.json",
+      "label": "modular",
+      "exit_code": 1,
+      "log": "windows-modular.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-off_api-receipts.json",
+      "label": "off-api-compile",
+      "exit_code": 1,
+      "log": "windows-off-api-compile-attempt2.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "windows-positive-receipts.json",
+      "label": "positive",
+      "exit_code": 1,
+      "log": "windows-positive.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-positive-receipts.json",
+      "label": "positive",
+      "exit_code": 1,
+      "log": "windows-positive-attempt2.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-positive-receipts.json",
+      "label": "positive",
+      "exit_code": 1,
+      "log": "windows-positive-attempt3.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-prototype-receipts.json",
+      "label": "capacity-gap-build",
+      "exit_code": 1,
+      "log": "windows-capacity-gap-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "windows-strict-release.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "wsl-abi-receipts.json",
+      "label": "off-abi-build",
+      "exit_code": 1,
+      "log": "wsl-off-abi-build.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-interop-receipts.json",
+      "label": "interop-windows-resume-5",
+      "exit_code": 1,
+      "log": "wsl-interop-windows-resume-5.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-interop-receipts.json",
+      "label": "interop-windows-resume-5",
+      "exit_code": 1,
+      "log": "wsl-interop-windows-resume-5-attempt2.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-off_api-receipts.json",
+      "label": "off-api-compile",
+      "exit_code": 1,
+      "log": "wsl-off-api-compile-attempt2.log",
+      "expected_negative": true
+    },
+    {
+      "receipt": "wsl-positive-receipts.json",
+      "label": "positive",
+      "exit_code": 1,
+      "log": "wsl-positive.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-positive-receipts.json",
+      "label": "positive",
+      "exit_code": 1,
+      "log": "wsl-positive-attempt2.log",
+      "expected_negative": false
+    },
+    {
+      "receipt": "wsl-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "wsl-strict-release.log",
+      "expected_negative": true
+    }
+  ],
+  "corrections": [
+    "Fixture checks accepted-peer count before subtracting/indexing its eight-element native array, satisfying optimized array-bounds diagnostics without changing production.",
+    "Exact cache accounting waits for physical Request and Startup owners, not just an already-resolved QoS Future; the initial remaining28-byte fence was a test barrier error.",
+    "Set ambient error before entering the one-byte allocation budget; diagnostic allocation inside that scope was an invalid probe.",
+    "Explicit SNI does not override URI verification-name inference. Positive cross-route fixtures explicitly set the same logical VerifyName; a separate negative case preserves cross-principal rejection.",
+    "Any-thread output validation only reads immutable WS/HTTP owner pointers; mutable staged/cache ranges were removed from the initial draft to avoid introducing a race. Selected single/root tests assert fixed-owner overlap rejection.",
+    "Documented persistent two-channel example must own its corresponding bounded local Session AND Inbox; initial commands failed with missing local state and then missing Inbox. Preserve both failed attempts, then rerun the final32-case matrix without relaxing product predicates.",
+    "ABI off probe uses size_t0 only to denote an unavailable optional result type, rather than an int placeholder with a size_t format. Declaration amalgams intentionally expose the complete inventory; feature absence is checked via modular headers.",
+    "Shared export audit narrows the private-symbol check to actual MQTT/new WSS bridge boundaries, rather than unrelated pre-existing Core Until exports."
+  ],
+  "remaining": [
+    "Durable MQTT protocol/crash state and explicit acknowledgement/persistence ordering",
+    "Broker-native WS clean-close qualification and further async-OOM/partial-write/slow-peer/adversarial/scale/load matrices; real enhanced-auth broker-plugin qualification",
+    "Controlled comparator/fixed-arrival throughput/queue-inclusive tails/CPU/copy/syscall/native memory, native Windows/native Linux >=72h soak",
+    "Remaining original Redis/RPC/Cron scope and complete four-product release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-wss-resume-20261116/checkpoint",
+    "physical_storage": "F:/xrt-agent-artifacts/service-extensions/mqtt-wss-resume-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "63c044b534d6d0af94852cd126e6d90a4cdacb75fbf91b3985ac8e941f298998",
+    "regular_files": 1201,
+    "sha256_verified": true,
+    "scope": "Canonical changed-source snapshots/cohorts, exact native prototypes and raw attempts, original binaries lossless gzip with original/compressed hashes, static/shared packages and standalone declarations, final selected receipts, ABI/performance diagnostics, independent gateway/Mosquitto logs and public fixture CA/certificate. No private keys or ticket/PSK contents copied. Compiler/object/temp caches and duplicate raw intermediate executables excluded."
+  }
+}

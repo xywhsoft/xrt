@@ -10,7 +10,9 @@ re-verify peer credentials or
 perform/attest earlier host network setup. The separate developing
 [native connection factories](client_ws_connect.md) perform numeric/DNS/prepared
 network setup and HTTP Upgrade; [URI factories](client_ws_uri.md) add strict URI
-routing. Reconnect integration remains required.
+routing. The existing controller has separate [automatic recovery](reconnect_ws.md)
+evidence. Optional [WSS credential handoff](client_ws_tls_resume.md) connects the
+same native ticket queue to the existing bounded TLS cache.
 
 One ordinary Client owns all existing packet/QoS/auth/Session/Inbox state. Binary
 bytes span arbitrary WS frames/messages; Text closes the transport. WS control

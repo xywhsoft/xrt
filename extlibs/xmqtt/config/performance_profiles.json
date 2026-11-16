@@ -4524,6 +4524,221 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_wss_tls_resume",
+      "system": "client",
+      "description": "Same-selected native WSS QoS1 capture disabled/idle/cached/actual resumed channels; shared-host closed-loop diagnostics, not accepted performance",
+      "benchmarks": [
+        {
+          "name": "wss_capture_disabled",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_tls_resume.c",
+          "suite": "xmqtt_client_ws_tls_resume_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_resume_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_capture_idle",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_tls_resume.c",
+          "suite": "xmqtt_client_ws_tls_resume_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_resume_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_capture_cached",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_tls_resume.c",
+          "suite": "xmqtt_client_ws_tls_resume_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_resume_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_capture_resumed",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_tls_resume.c",
+          "suite": "xmqtt_client_ws_tls_resume_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_resume_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "3",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

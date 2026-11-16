@@ -77,8 +77,11 @@ CRT/native/kernel costs are not fully counted. P50/P95/P99/P99.9, max, checksum 
 actual physical shutdown are recorded. Modes are closed-loop diagnostics, not
 fixed-arrival or native production acceptance; quality failures are never hidden.
 
-Post-Upgrade TLS credential capture (ResumeLimit currently must be zero), durable
-protocol state, additional broker-native/slow-peer/partial-write/load matrices,
+Optional [post-Upgrade TLS credential handoff](client_ws_tls_resume.md) composes
+the same factory/controller and existing cache APIs. The application owns any
+cross-generation credential and supplies it to a subsequent factory. Without
+that optional leaf, WSS ResumeLimit must be zero. Durable protocol state,
+additional broker-native/slow-peer/partial-write/load matrices,
 controlled comparator throughput/tails/CPU/copies and native Windows/Linux>=72h
 soak remain required. WSL sanitizer evidence is distinct from native Linux
 acceptance. The original Redis/RPC/Cron and complete four-product scope remain active.

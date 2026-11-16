@@ -41,10 +41,10 @@ credits. The borrowed Resolver remains alive through Client retirement; its own
 Destroy joins any detached lookup. The host separately joins Engine/code.
 
 WSS has no cleartext fallback. Its negotiated ALPN must be empty or http/1.1.
-A supplied native Resume can be used, but this stage does not expose newly issued
-credentials after WS event handoff: TLS.Session.ResumeLimit must explicitly be
-zero. Post-Upgrade credential capture remains required work, not a completed
-resumption/reconnect feature.
+A supplied native Resume can be used. Select the separate
+[WSS credential handoff](client_ws_tls_resume.md) leaf to capture newly issued
+credentials after WS event handoff with the existing bounded cache APIs.
+Without that leaf, TLS.Session.ResumeLimit must explicitly be zero.
 
 ## Resources and validation
 

@@ -1,0 +1,22 @@
+#include "support/ws_resume_peer.h"
+static void mrRounds(xmqttversion Version,xnetportbackend Backend)
+{
+    mrState State={0};xrtAtomic32Init(&State.Lookups,0);xtlsresume* Credential=NULL;
+    for(unsigned Route=0;Route<7;++Route){mrPeer P;mrInit(&P,&State,Version,Route,Backend);xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=Version;char Authority[128];xmqttclient* C=mrOpen(&P,Route,Credential,Route!=0,4,&K,Authority,sizeof(Authority));xrtTlsResumeRelease(Credential);Credential=NULL;
+        xfuture* Ready=xmqttClientReady(C);const xmqttreadyresult* R=mqttWsFuture(Ready);if(R->Status!=XMQTT_STATUS_OK)fprintf(stderr,"resume Ready route%u status%d cause%s\n",Route,R->Status,R->Cause?xrtErrorMessage(R->Cause):"none");testRequire(R->Status==XMQTT_STATUS_OK,"every resumed channel performs fresh MQTT CONNECT/CONNACK");
+        xmqttclienttlsresumeinfo I=mrInfo(C);testRequire(I.Enabled&&I.Established&&I.Resumed==(Route!=0),"actual full/resumed TLS independent of fresh MQTT readiness");if(!Route){I=mrCaptured(C,1);testRequire(I.CachedBytes,"pre-attach native queue explicitly drained after Started publication");}
+#if defined(XMQTT_IMPLEMENTATION)
+        testRequire(!xmqttClientTlsResumeInfo(C,(xmqttclienttlsresumeinfo*)C->WS)&&!xmqttClientTlsTakeResume(C,(xtlsresume**)C->WS),"resume outputs cannot overwrite the fixed WS owner");xrtClearError();
+        if(C->WS->Http){testRequire(!xmqttClientTlsResumeInfo(C,(xmqttclienttlsresumeinfo*)C->WS->Http)&&!xmqttClientTlsTakeResume(C,(xtlsresume**)C->WS->Http),"resume outputs cannot overwrite the fixed HTTP owner");xrtClearError();}
+#endif
+        for(unsigned Qos=0;Qos<3;++Qos)mrPublish(C,Qos);
+        xmqttclientinfo Before,After;double End=xrtTimer()+10;do{testRequire(xmqttClientInfo(C,&Before)&&xrtTimer()<End,"original startup references retired before byte accounting");if(Before.StartupBytes||Before.Requests)xrtSleep(1);}while(Before.StartupBytes||Before.Requests);
+        size_t Old=I.CachedBytes;uint64 Count=I.Captured;mrIssue(&P,1);I=mrCaptured(C,Count+1);testRequire(I.CachedBytes&&!I.Rejected&&xrtAtomic32Load(&P.ServerResumed,XMEMORY_ACQUIRE)==(Route!=0),"both native peers confirm real PSK acceptance and post-WS capture without application traffic");
+        testRequire(xmqttClientInfo(C,&After),"after-cache info");if(After.PrivateBytes!=Before.PrivateBytes-Old+I.CachedBytes)fprintf(stderr,"private route%u before%zu after%zu old%zu new%zu captured%llu startup%zu/%zu\n",Route,Before.PrivateBytes,After.PrivateBytes,Old,I.CachedBytes,(unsigned long long)I.Captured,Before.StartupBytes,After.StartupBytes);testRequire(After.PrivateBytes==Before.PrivateBytes-Old+I.CachedBytes,"one cached credential has exact charged data-byte replacement");mrClose(C);
+        xrtSetErrorInfo(XERR_STATE,"wss.resume.empty",1,"preserve");const xerror* Error=xrtGetError();xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&B)&&xrtAllocationBudgetEnter(B,&Scope),"one-byte native reference handoff budget");testRequire(xmqttClientTlsTakeResume(C,&Credential)&&Credential,"take immutable credential after physical Client wait");xtlsresume* Empty=(xtlsresume*)(uintptr_t)1;testRequire(!xmqttClientTlsTakeResume(C,&Empty)&&Empty==(xtlsresume*)(uintptr_t)1&&xrtGetError()==Error,"empty preserves output/error");testRequire(xrtAllocationBudgetLeave(&Scope),"leave native reference handoff budget");xallocationbudgetinfo BI={.Size=sizeof(BI)};testRequire(xrtAllocationBudgetInfo(B,&BI)&&!BI.PeakBytes&&!BI.Rejections,"take/info allocate/copy no credential");xrtAllocationBudgetFree(B);xrtClearError();testRequire(!mrInfo(C).CachedBytes&&xmqttClientDestroy(C),"take refunds cache charge and destroys original owner");
+        mqttWsConnectStop(&P.Peer);xtlsresumeinfo Native;testRequire(xrtTlsResumeInfo(Credential,&Native)&&Native.Ticket.Size&&Native.Secret.Size&&xrtTlsResumePeerCertificateCountV1(Credential)==1,"real credential survives Client/WS/TLS/TCP/Resolver/Engine");xrtFutureDestroy(Ready);printf("[PASS] WSS resume version%u route%u and actual native owner joins\n",Version,Route);
+    }
+    xrtTlsResumeRelease(Credential);xrtTlsResumeRelease(State.ServerTicket);
+}
+int main(int Argc,char** Argv)
+{setbuf(stdout,NULL);xnetportbackend B=Argc>1&&!strcmp(Argv[1],"iocp")?XNET_PORT_IOCP:Argc>1&&!strcmp(Argv[1],"epoll")?XNET_PORT_EPOLL:XNET_PORT_SELECT;mrRounds(XMQTT_VERSION_5,B);mrRounds(XMQTT_VERSION_311,B);return 0;}

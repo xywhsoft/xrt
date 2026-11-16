@@ -16663,6 +16663,34 @@
 			"docs": [
 				"docs/api/websocket.md"
 			]
+		},
+		{
+			"name": "tls_client_resume_capacity_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_client_resume",
+				"tls_client_auth",
+				"tls_server",
+				"tls_identity_rsa",
+				"tls_record_aes",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_resume_capacity.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_resume_capacity.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/tls.md"
+			]
 		}
 	]
 }

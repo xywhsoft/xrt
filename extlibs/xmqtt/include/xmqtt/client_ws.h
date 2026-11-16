@@ -10,6 +10,9 @@
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_WS) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_WRITE_PROGRESS))
 #error "MQTT WSS requires WS and native WSS write progress"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS_RESUME) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS_TICKET))
+#error "MQTT WSS resume requires native WSS ticket observation and existing TLS cache"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
 struct xmqttclientinbox;struct xmqttsession;struct xmqttauthconfig;
 typedef struct xmqttclientwsconfig {

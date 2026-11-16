@@ -1,0 +1,11 @@
+#define XRT_MODULE_TLS_SERVER
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_AUTH
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_IMPLEMENTATION
+#include "../../single/xrt.h"
+#include "../tls/test_tls_resume_capacity.c"

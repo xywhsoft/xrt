@@ -13979,3 +13979,12 @@ fixture-pinned TLS handshake. Tests separately hold actual close callbacks,
 TLS/TCP aliases and each predicate mutex, exercise concurrent waiters and timeout,
 certificate rejection, owned event handoff, exact context drops and allocation-
 free ambient-preserving poll. These local tests are not production/72h acceptance.
+
+
+`xrtTlsClientResumeCapacity` reads the actual immutable native client queue
+capacity, independently of `xrtTlsClientResumeCount`. Zero reflects disabled
+capture, including ClientAuth construction policy. It allocates/copies/consumes
+nothing, preserves ambient error for valid clients, and follows existing
+Count/Take checked role/null errors. Capacity is not a handshake/version/trust
+claim and does not promise ticket arrival. Borrow a live Session under its
+normal synchronization.

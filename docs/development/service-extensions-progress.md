@@ -13455,3 +13455,38 @@ and out/service-extensions/xrpc-frame-20261112.
   integration, independent resumed/fallback/identity broker tests, durability,
   broader load/controlled performance/native>=72h soak and remaining Redis/RPC/
   Cron scope stay active. The four-product strict release gate remains closed.
+
+
+## 2026-11-16: MQTT WSS credential handoff on master
+
+- Continue directly from09d543a3 in D:/GIT/xrt master. No branch operations or
+  remote push. The optional xmqtt_client_ws_tls_resume leaf reuses the existing
+  one-entry TLS cache and ordinary direct/HTTP/URI Client/controller factories.
+  A real native capacity prototype justifies one allocation-free Core query;
+  no new shared runtime, cache/result API or public configuration field is added.
+- Genuine tickets queued before attachment and ticket-only post-Upgrade records
+  reach the same bounded cache. Existing exact data-byte charging, optional
+  refusal, thread-safe reference transfer after Wait, deferred Notify, caller
+  credential lifetime, native fallback/ResumeOnly and identity/trust rules apply.
+  TLS establishment never substitutes for MQTT CONNACK/challenge/final proof.
+- Tests cover both MQTT versions/seven routes, full and actual PSK handshakes,
+  quota/replacement/disabled policy, constructor OOM, concurrent consumers,
+  reentrant Close, auth/reauth and twelve automatic PSK plus Session ACK cuts.
+  Modular/single/root/stats-off, native IO backends, WSL memory/thread checks,
+  static/shared protocol consumers and feature gates have separate receipts.
+- Thirty-two documented CLI cases across both hosts and four distribution forms
+  use an independent OpenSSL HTTP/WS gateway with a real Mosquitto TCP broker.
+  The oracle checks actual session_reused/full fallback, retained broker Session,
+  fresh MQTT exchanges, strict WS/TLS closes and all owner/process joins.
+  Gateway tickets may precede HTTP; literal native tests separately prove late
+  ticket-only delivery. Prior native-broker clean-close failures remain unresolved.
+- Same-selected capture disabled/idle/cached/resumed QoS1 benchmark profiles
+  record checksum, throughput, tail percentiles, process CPU, cold setup and XRT
+  allocator diagnostics. Shared-host measurements are diagnostic; unchanged
+  quality gates and all attempts are retained. No performance acceptance inferred.
+- Exact counts, source cohorts, failures/corrections and hashes are recorded in
+  [the stage report](xmqtt-wss-resume-20261116.json). Durable/crash state,
+  broker-native/async-OOM/partial-write/slow-peer/scale/load qualification,
+  controlled fixed-arrival performance, native Windows/Linux >=72h soak and the
+  original Redis/RPC/Cron scope remain outstanding. Twenty developing MQTT modules
+  keep the four-product strict release gate closed.

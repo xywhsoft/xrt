@@ -436,6 +436,17 @@ void __xrtTlsClientResumeClear(xtlsclientstate* pState)
 
 
 
+/* 配置容量不随排队、移交、淘汰或握手状态改变。 */
+XRT_API size_t xrtTlsClientResumeCapacity(const xtlssession* pSession)
+{
+    xtlsclientstate* pState = __xrtTlsClientResumeState(
+        pSession, "get-tls-client-resume-capacity"
+    );
+    return pState != NULL ? pState->ResumeLimit : 0;
+}
+
+
+
 /* 返回当前有界环中的票据数量。 */
 XRT_API size_t xrtTlsClientResumeCount(const xtlssession* pSession)
 {

@@ -1,6 +1,10 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+Optional [WSS credential handoff](docs/client_ws_tls_resume.md) now connects
+native ticket-only events to the existing bounded TLS resume cache across
+direct/HTTP/URI channels and ordinary reconnect factories. See the
+[two-channel trusted example](examples/ws_tls_resume/README.md).
 The developing [automatic WS/WSS recovery](docs/reconnect_ws.md) composes the
 existing controller and ordinary connection factories with retained Session/Inbox,
 generation leases, bounded outage clocks and physical retirement. See the
@@ -12,8 +16,8 @@ readiness under the original setup clock, with explicit TLS identity policy.
 See the [native URI CLI](examples/ws_uri/README.md).
 The developing [native WS/WSS connection factories](docs/client_ws_connect.md)
 now compose numeric/DNS/prepared native TCP/verified TLS, strict HTTP Upgrade and
-ordinary MQTT readiness under one original setup clock. New WSS
-credential capture, clean broker-close qualification and final production/
+ordinary MQTT readiness under one original setup clock. Clean broker-close
+qualification and final production/
 performance acceptance remain required. See the [native CLI](examples/ws_connect/README.md).
 
 The developing [WS/WSS attachment](docs/client_ws.md) now reuses the ordinary
@@ -47,8 +51,8 @@ with concurrent ordinary traffic. Optional [verified TLS](docs/client_tls.md)
 provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
 numeric, hostname and prepared-address factories. Optional
 [TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
-ticket for explicit subsequent connections. Durable sessions,
-cross-connection cache management and complete WebSocket delivery remain pending.
+ticket for explicit subsequent connections, including WSS with the separate leaf.
+Durable sessions, application cache policy and complete WebSocket acceptance remain pending.
 The developing WS/WSS stages above have separate evidence. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages

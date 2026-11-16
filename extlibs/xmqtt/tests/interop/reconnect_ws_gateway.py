@@ -40,7 +40,8 @@ def bind_front(host, windows_python):
 
 
 class WebSocketProxy(Proxy):
-    def __init__(self, backend, version, mode, host, *, tls, split, cert, key, drop_packets=True, windows_python=None):
+    def __init__(self, backend, version, mode, host, *, tls, split, cert, key, drop_packets=True, windows_python=None, tls_context_factory=None):
+        self.tls_context_factory = tls_context_factory
         self.front, self.front_port_candidates = bind_front(host, windows_python)
         try:
             super().__init__(backend, version, mode, host, drop_packets=drop_packets)
@@ -117,13 +118,17 @@ class WebSocketProxy(Proxy):
                    client_bytes=0, server_bytes=0, pings=0, pongs=0, close_sent=False, close_received=False)
         try:
             if self.tls:
-                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                ctx.load_cert_chain(self.cert, self.key)
-                ctx.minimum_version = ctx.maximum_version = ssl.TLSVersion.TLSv1_2 if self.tls == 12 else ssl.TLSVersion.TLSv1_3
-                ctx.set_servername_callback(lambda so, name, c: row.update(sni=name))
+                if self.tls_context_factory:
+                    ctx = self.tls_context_factory(row)
+                else:
+                    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    ctx.load_cert_chain(self.cert, self.key)
+                    ctx.minimum_version = ctx.maximum_version = ssl.TLSVersion.TLSv1_2 if self.tls == 12 else ssl.TLSVersion.TLSv1_3
+                    ctx.set_servername_callback(lambda so, name, c: row.update(sni=name))
                 s = ctx.wrap_socket(s, server_side=True)
                 self.front_sockets.append(s)
                 row['tls_version'] = s.version()
+                row['session_reused'] = s.session_reused
             # Read the request without consuming any hypothetical WS/MQTT prefix.
             head = bytearray()
             while not head.endswith(b'\r\n\r\n'):

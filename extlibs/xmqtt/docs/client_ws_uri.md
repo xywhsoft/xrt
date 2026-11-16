@@ -39,8 +39,9 @@ SNI override; empty SNI derives only for a name. IP literals therefore use IP
 verification without IP SNI, following [RFC6066 section3](https://www.rfc-editor.org/rfc/rfc6066.html#section-3).
 Nonempty verification/SNI overrides remain intentional caller policy. With the
 flag false, caller supplies native identity. This is not automatic IDNA handling.
-Existing WSS ResumeLimit=0 limitation remains: supplied Resume may be used, while
-new credentials after WS event handoff are not exposed by this stage.
+Supplied Resume follows native identity/trust policy. Select the separate
+[WSS credential handoff](client_ws_tls_resume.md) leaf to capture new credentials
+after WS event handoff. Without that leaf, ResumeLimit must be zero.
 
 ## Clocks, ownership and costs
 
