@@ -1,6 +1,6 @@
 # XTP 3.0 扩展库设计方案
 
-日期：2026-11-16。状态：P1 Codec、P2 Reader 已实现并通过局部验证，其他阶段继续按本方案实施。适用产品：`extlibs/xtp`。实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
+日期：2026-11-16。状态：P1 Codec、P2 Reader、P3 基础 Session 已实现并通过局部验证，其他阶段继续按本方案实施。适用产品：`extlibs/xtp`。实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
 
 XTP 3.0 是纯 C、有界、双向的二进制消息协议。固定头为 32 字节，支持字符串或 UInt32 命令、table 或 array 参数，以及请求应答、可靠推送、不可靠推送。业务自行路由；网络适配层提供字节、报文边界、可信连接状态及发送出口；XTP 完成分帧、校验、消息回调和待发数据管理。
 
@@ -377,6 +377,7 @@ RESULT_ACK 不再要求回执。确认丢失后，对端仍可重发缓存 RESPO
 | MaxLanes | 4 | 每 lane 独立接收状态 |
 | MaxTxBytes / MaxTxFrames | 1 MiB / 256 | 包含协议头和未完成发送 |
 | ResponseReserveBytes | 256 KiB | ACK/拒绝/响应发送保留额度，计入总配额 |
+| ResponseReserveFrames | 16 | 同时为控制发送保留槽位，包含在 MaxTxFrames 内 |
 | MaxSessionBytes | 16 MiB | 容量、活跃结果、发件箱、接收缓冲和临时增长峰值 |
 | RetainRxBytes | 64 KiB/lane | 帧间复用阈值，不是额外免责额度 |
 | MaxReplayMessages | 256 | 可选 Delivery；另受字节和窗口限制 |
@@ -538,6 +539,8 @@ Codec 可以解析任意来源字节，但解析成功不代表可信。Session 
 ## 15 源码与性能预算
 
 首版 XTP 自有生产源码、公共头和必要注释以 40～80 KiB 为设计预算；这不是已测结果、目标文件大小或运行内存。规范源码只计一次，生成单头不重复计数；XRT、TLS、xws、xrudp、测试和文档分别统计。
+
+P1～P3 当前实际约 81 KiB，已略超该预算；后续适配和 Delivery 的剩余预算不能视为已经满足。基础 Session 先采用固定槽、统一账本和接收前物理响应预留，优先保留安全与生命周期检查；进一步池化或缩减源码须以实测和行为不变为依据。
 
 | 部分 | 预算方向 |
 | --- | --- |

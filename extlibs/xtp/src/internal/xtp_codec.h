@@ -38,4 +38,9 @@ xtpresult xtp__CodecConfig(const xtpcodecconfig* Input,xtpcodecconfig* Config);
  * allocating/copying their bodies. Returned views are not delivered yet. */
 xtpresult xtp__DecodePrefix(const unsigned char* Data,size_t Size,
     const xtpcodecconfig* Config,xtpframeview* Frame);
+struct xtpreaderconfig;
+struct xtpreader;
+xtpresult xtp__ReaderConfig(const struct xtpreaderconfig* Config);
+xtpresult xtp__ReaderDriveBudget(struct xtpreader* Reader,uint64_t Now,
+    size_t Frames,size_t* WorkBytes,uint64_t* NextDue);
 #endif

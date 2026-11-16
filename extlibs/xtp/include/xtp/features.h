@@ -13,6 +13,22 @@
 #ifndef XTP_MODULE_XTP_READER
 #define XTP_MODULE_XTP_READER
 #endif
+#ifndef XTP_MODULE_XTP_SESSION
+#define XTP_MODULE_XTP_SESSION
+#endif
+#endif
+
+/* xtp_session 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_SESSION)
+#ifndef XTP_FEATURE_XTP_SESSION
+#define XTP_FEATURE_XTP_SESSION
+#endif
+#ifndef XTP_MODULE_XTP_READER
+#define XTP_MODULE_XTP_READER
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
 #endif
 
 /* xtp_reader 及其直接依赖。 */

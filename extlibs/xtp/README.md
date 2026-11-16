@@ -1,6 +1,6 @@
 # xtp
 
-纯 C XTP 3.0 扩展。当前已实现 P1 Codec 与 P2 Reader：32 字节固定头、两类命令、保留顺序的 table/array、批量编码、完整帧借用解码、STREAM/RECORD 增量输入和有界异常包丢弃。不兼容 1.0/2.0。
+纯 C XTP 3.0 扩展。当前已实现 P1 Codec、P2 Reader 和 P3 Session：32 字节固定头、两类命令、保留顺序的 table/array、批量编码、STREAM/RECORD 增量输入、请求匹配、可靠推送回执和不可靠推送。不兼容 1.0/2.0。
 
 Codec 不分配；Reader 对完整连续帧直接借用，仅为跨输入帧分配组装缓冲。无网络、线程和全局状态。字节流损坏的帧边界不可推测恢复，RECORD 可在可信记录边界恢复；可辨认长度的坏帧直接跳过 Body。配置始终限制工作量、缓冲及增长峰值、坏帧数和接收期限。
 
@@ -12,8 +12,12 @@ python tools/build.py --compiler gcc --manifest extlibs/xtp/config/modules.json 
 python tools/package.py --compiler gcc --manifest extlibs/xtp/config/modules.json --suite xtp --kind static --verify
 ```
 
-选择 `XTP_MODULE_XTP_CODEC` 或 `XTP_MODULE_XTP_READER`，声明入口 `<xtp.h>`。扩展单头只包含本库，先提供同一份 XRT；单个编译单元定义 `XTP_IMPLEMENTATION`。
+选择 `XTP_MODULE_XTP_CODEC`、`XTP_MODULE_XTP_READER` 或 `XTP_MODULE_XTP_SESSION`，声明入口 `<xtp.h>`。扩展单头只包含本库，先提供同一份 XRT；单个编译单元定义 `XTP_IMPLEMENTATION`。
 
 Reader 回调返回 PAUSE 表示尚未消费该消息；完整借用帧仍在调用者的未消费后缀，已组装帧由 Reader 保留。调用 Resume 后重交未消费后缀；AGAIN 按 Used 继续，空 Input 不代表 EOF。已有网络后端只需传入字节和边界，见 [增量后端示例](examples/backend/main.c)。
+
+Session 使用同一 `xtpSubmit` 与 `OnMessage` 表达四种 Command/Params 组合。`xtpReply` 接受请求令牌，结果和 ACK 通过 `OnComplete` 完成原操作。网络层按 `xtpOutput` 的 Ticket 获取数据，再以 `xtpAdvance` 报告实际受理前缀；`xtpDrive` 驱动期限和有界维护，无后台任务。见 [双端会话示例](examples/session/main.c) 与 [会话接入契约](docs/session.md)。
+
+Session 的 Bind 接受宿主已验证的安全连接声明，自身不执行 TLS/Noise 认证。当前无自动重放、RESULT_ACK 或安全续接；`Replay=true` 明确拒绝。专用 TCP/TLS/WS/xrudp 适配及 XS 迁移仍按设计后续阶段实施。
 
 完整协议、交付语义和阶段验收见 [设计](../../docs/design/xtp3.md) 与 [API 方案](../../docs/design/xtp3-api.md)。[Codec 示例](examples/codec/main.c) 可直接运行；[覆盖与进度](docs/coverage.md) 明确尚未完成的阶段。

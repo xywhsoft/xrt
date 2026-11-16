@@ -153,5 +153,15 @@ static void deferred_complete(void)
     assert(xtpReaderEnd(r,10000000)==XTP_END);
     assert(xtpReaderDestroy(r)==XTP_OK);
 }
+static void bad_frame_budget(void)
+{
+    unsigned char wire[256],bad[768];size_t n=make_frame(wire,sizeof(wire),1);
+    for(size_t i=0;i<3;++i){memcpy(bad+i*n,wire,n);bad[i*n+17]|=0x80;}
+    reader_test t={0};xtpreaderconfig c;xtpReaderConfigInit(&c);c.MaxFrames=1;
+    xtpreader* r=create(&t,&c);size_t offset=0,turns=0;xtpreadprogress p;
+    while(offset<3*n){assert(xtpReaderInput(r,(xbytesview){bad+offset,3*n-offset},false,0,&p)>=0);
+        assert(p.Frames+p.Dropped<=1);offset+=p.Used;assert(++turns<16);}
+    assert(t.Drops==3&&!t.Accepted&&xtpReaderEnd(r,0)==XTP_END);assert(xtpReaderDestroy(r)==XTP_OK);
+}
 int main(void)
-{splits();coalesced();record_and_pause();allocation_and_budget();malformed_and_clock();deferred_complete();puts("xtp reader: splits/coalescing/pause/records/budgets/OOM/deadlines PASS");return 0;}
+{splits();coalesced();record_and_pause();allocation_and_budget();malformed_and_clock();deferred_complete();bad_frame_budget();puts("xtp reader: splits/coalescing/pause/records/budgets/OOM/deadlines PASS");return 0;}

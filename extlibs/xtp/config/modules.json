@@ -49,6 +49,13 @@
         "source_roots": [
           "reader"
         ]
+      },
+      {
+        "name": "session",
+        "state": "retained",
+        "source_roots": [
+          "session"
+        ]
       }
     ]
   },
@@ -59,7 +66,8 @@
       "feature": "XTP_FEATURE_XTP",
       "depends": [
         "xtp_codec",
-        "xtp_reader"
+        "xtp_reader",
+        "xtp_session"
       ],
       "public_headers": [
         "extlibs/xtp/include/xtp.h",
@@ -146,6 +154,39 @@
       ]
     },
     {
+      "name": "xtp_session",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_SESSION",
+      "depends": [
+        "xtp_reader",
+        "random_secure"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/session.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xtp/src/session/session.c"
+      ],
+      "tests": [
+        "extlibs/xtp/tests/test_session.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_session.c"
+      ],
+      "examples": [
+        "extlibs/xtp/examples/session/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/coverage.md",
+        "extlibs/xtp/docs/session.md"
+      ],
+      "fuzz_sources": [
+        "extlibs/xtp/tests/fuzz_session.c"
+      ]
+    },
+    {
       "name": "xtp_tests",
       "state": "developing",
       "feature": null,
@@ -157,18 +198,21 @@
       "sources": [],
       "tests": [
         "extlibs/xtp/tests/test_codec.c",
-        "extlibs/xtp/tests/test_reader.c"
+        "extlibs/xtp/tests/test_reader.c",
+        "extlibs/xtp/tests/test_session.c"
       ],
       "single_tests": [
         "extlibs/xtp/tests/single/test_single_xtp_codec.c",
-        "extlibs/xtp/tests/single/test_single_xtp_reader.c"
+        "extlibs/xtp/tests/single/test_single_xtp_reader.c",
+        "extlibs/xtp/tests/single/test_single_xtp_session.c"
       ],
       "examples": [],
       "benchmarks": [],
       "docs": [],
       "single_test_owners": {
         "extlibs/xtp/tests/single/test_single_xtp_codec.c": "xtp_codec",
-        "extlibs/xtp/tests/single/test_single_xtp_reader.c": "xtp_reader"
+        "extlibs/xtp/tests/single/test_single_xtp_reader.c": "xtp_reader",
+        "extlibs/xtp/tests/single/test_single_xtp_session.c": "xtp_session"
       }
     }
   ]

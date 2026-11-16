@@ -7,7 +7,8 @@ typedef struct xtpreader xtpreader;
 typedef enum xtpinputmode { XTP_INPUT_STREAM=0,XTP_INPUT_RECORD=1 } xtpinputmode;
 typedef enum xtpflow { XTP_FLOW_ACCEPT=1,XTP_FLOW_PAUSE=2,XTP_FLOW_STOP=3 } xtpflow;
 /* Normal realloc alignment/preservation; Size=0 frees and returns NULL.
- * Context/code live until Destroy. NULL selects public XRT memory functions. */
+ * Context/code live until Destroy. NULL selects public XRT memory functions.
+ * Allocator callbacks must not reenter the instance. */
 typedef void* (*xtpreallocproc)(void* User,void* Memory,size_t Size);
 typedef struct xtpreaderconfig {
     xtpcodecconfig Codec;xtpinputmode Mode;

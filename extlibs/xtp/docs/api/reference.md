@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `0` 个函数、`60` 个常量或宏、
-`25` 个公共类型。
+当前登记 `0` 个函数、`76` 个常量或宏、
+`43` 个公共类型。
 
 ## `extlibs/xtp/include/xtp/codec.h`
 
@@ -51,11 +51,60 @@
 - `xtpreadprogress`
 - `xtpreallocproc`
 
+## `extlibs/xtp/include/xtp/session.h`
+
+[查看带契约注释的公共头](../../include/xtp/session.h)
+
+### 常量与宏 (17)
+
+- `XTP_ACTION_ACCEPT`
+- `XTP_ACTION_BUSY`
+- `XTP_ACTION_PAUSE`
+- `XTP_ACTION_REJECT`
+- `XTP_FEATURE_XTP_SESSION`
+- `XTP_FINISH_ACK`
+- `XTP_FINISH_CLOSED`
+- `XTP_FINISH_LOCAL_ERROR`
+- `XTP_FINISH_RESPONSE`
+- `XTP_FINISH_SENT`
+- `XTP_FINISH_TIMEOUT`
+- `XTP_KNOW_ACCEPTED`
+- `XTP_KNOW_NOT_SENT`
+- `XTP_KNOW_REJECTED`
+- `XTP_KNOW_REPLIED`
+- `XTP_KNOW_UNKNOWN`
+- `XTP_STATUS_BUSY`
+
+### 类型 (22)
+
+- `xtpaction`
+- `xtpbinding`
+- `xtpcommand`
+- `xtpcompletion`
+- `xtpconfig`
+- `xtpdecision`
+- `xtpevents`
+- `xtpfault`
+- `xtpfinish`
+- `xtpinfo`
+- `xtpknowledge`
+- `xtplane`
+- `xtpmessage`
+- `xtpmessagekind`
+- `xtpmessageview`
+- `xtpoperationtoken`
+- `xtpoutput`
+- `xtpoutputticket`
+- `xtprequesttoken`
+- `xtpresponse`
+- `xtpsession`
+- `xtpsubmitoptions`
+
 ## `extlibs/xtp/include/xtp/types.h`
 
 [查看带契约注释的公共头](../../include/xtp/types.h)
 
-### 常量与宏 (52)
+### 常量与宏 (51)
 
 - `XTP_ACK`
 - `XTP_AGAIN`
@@ -99,7 +148,6 @@
 - `XTP_REQUEST`
 - `XTP_RESPONSE`
 - `XTP_STATUS_BAD_ARGUMENT`
-- `XTP_STATUS_BUSY`
 - `XTP_STATUS_DEADLINE_EXCEEDED`
 - `XTP_STATUS_INTERNAL`
 - `XTP_STATUS_NOT_FOUND`
@@ -110,14 +158,10 @@
 - `XTP_STATUS_UNSUPPORTED`
 - `XTP_WIRE_VERSION`
 
-### 类型 (9)
+### 类型 (5)
 
-- `xtpcommand`
 - `xtpcommandkind`
 - `xtpfield`
-- `xtpmessage`
-- `xtpmessagekind`
 - `xtpparamkind`
 - `xtpparams`
-- `xtpresponse`
 - `xtpstatus`

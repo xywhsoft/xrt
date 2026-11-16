@@ -1,6 +1,6 @@
 # XTP 3.0 消息 API 与回调设计
 
-日期：2026-11-16。状态：P1 Codec、P2 Reader 已实现；本页 Session 提交与回调部分继续按设计实施。线路格式和生命周期以 [XTP 3.0 扩展库设计方案](xtp3.md) 为准，实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
+日期：2026-11-16。状态：P1 Codec、P2 Reader、P3 基础 Session 已实现；Delivery 及专用承载适配继续按设计实施。实际声明见 [session.h](../../extlibs/xtp/include/xtp/session.h)，接入规则见 [会话契约](../../extlibs/xtp/docs/session.md)。线路格式和生命周期以 [XTP 3.0 扩展库设计方案](xtp3.md) 为准，实际覆盖见 [实施与验收](../../extlibs/xtp/docs/coverage.md)。
 
 四种形态共用一个消息描述、一个 Submit 入口和一个业务回调。Command 与 Params 分别带类型标签，库按标签生成线路 flags。调用者不填写原始 flags，不为四种组合维护四套发送或接收函数。
 
@@ -21,7 +21,7 @@
 
 ## 2 数据类型和声明
 
-本节是可进行语法检查的声明原型。公开字段采用 XRT 的 Data/Size 视图；以下类型不代表线路结构，不使用其 sizeof 计算包长。带下划线的字段由库初始化，应用不得构造、修改或跨失效期使用。
+本节保留用于说明语义的声明原型；实际公开头已补充 Codec/Reader 错误枚举和会话生命周期接口，以公开头为编译依据。公开字段采用 XRT 的 Data/Size 视图；以下类型不代表线路结构，不使用其 sizeof 计算包长。带下划线的字段由库初始化，应用不得构造、修改或跨失效期使用。
 
 ```c
 #include <xrt/core.h>

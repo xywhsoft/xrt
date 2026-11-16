@@ -22,17 +22,22 @@ XTP_API void xtpReaderConfigInit(xtpreaderconfig* c)
 }
 XTP_API xtpresult xtpReaderCreate(const xtpreaderconfig* input,const xtpreaderevents* events,void* user,xtpreader** out)
 {
-    xtpreaderconfig c;xtpcodecconfig checked;
+    xtpreaderconfig c;
     if(!out||!events||!events->Frame||!xrtMemRangeValid(out,sizeof(*out))||
         !xrtMemRangeValid(events,sizeof(*events))||xtp__Overlap(out,sizeof(*out),events,sizeof(*events)))return XTP_E_ARGUMENT;
     if(input){if(!xrtMemRangeValid(input,sizeof(*input))||xtp__Overlap(out,sizeof(*out),input,sizeof(*input)))return XTP_E_ARGUMENT;c=*input;}
     else xtpReaderConfigInit(&c);
-    if(xtp__CodecConfig(&c.Codec,&checked)!=XTP_OK || c.Mode>XTP_INPUT_RECORD || c.Mode<XTP_INPUT_STREAM ||
-        c.MaxStorageBytes<sizeof(xtpreader)+32 || !c.MaxFrames || !c.MaxBad || !c.MaxConsecutiveBad ||
-        !c.ReceiveTimeoutUs || c.MaxWorkBytes<(uint64_t)32+c.Codec.MaxCommandBytes+c.Codec.MaxMetadataBytes)return XTP_E_ARGUMENT;
+    if(xtp__ReaderConfig(&c)!=XTP_OK)return XTP_E_ARGUMENT;
     if(!c.Realloc)c.Realloc=xtpReaderMemory;
     xtpreader* r=c.Realloc(c.AllocatorUser,NULL,sizeof(*r));if(!r)return XTP_E_MEMORY;
     memset(r,0,sizeof(*r));r->Config=c;r->Events=*events;r->User=user;r->Peak=sizeof(*r);*out=r;return XTP_OK;
+}
+xtpresult xtp__ReaderConfig(const xtpreaderconfig* c)
+{
+    xtpcodecconfig checked;
+    return xtp__CodecConfig(&c->Codec,&checked)!=XTP_OK || c->Mode>XTP_INPUT_RECORD || c->Mode<XTP_INPUT_STREAM ||
+        c->MaxStorageBytes<sizeof(xtpreader)+32 || !c->MaxFrames || !c->MaxBad || !c->MaxConsecutiveBad ||
+        !c->ReceiveTimeoutUs || c->MaxWorkBytes<(uint64_t)32+c->Codec.MaxCommandBytes+c->Codec.MaxMetadataBytes?XTP_E_ARGUMENT:XTP_OK;
 }
 static void xtpReaderRelease(xtpreader* r)
 {if(r->Buffer)r->Config.Realloc(r->Config.AllocatorUser,r->Buffer,0);r->Buffer=NULL;r->Capacity=0;}
@@ -40,6 +45,7 @@ XTP_API xtpresult xtpReaderDestroy(xtpreader* r)
 {
     if(!r)return XTP_OK;
     if(r->Busy)return XTP_E_STATE;
+    r->Busy=true;
     xtpreallocproc f=r->Config.Realloc;void* u=r->Config.AllocatorUser;xtpReaderRelease(r);f(u,r,0);return XTP_OK;
 }
 static xtpresult xtpReaderReserve(xtpreader* r,size_t need)
@@ -94,7 +100,7 @@ static xtpresult xtpReaderRun(xtpreader* r,xbytesview in,bool end,uint64_t now,x
     if(r->Paused){if(end&&!in.Size)r->PendingEnd=true;return XTP_PAUSED;}
     if(r->PendingEnd && in.Size)return XTP_E_STATE;
     bool boundary=end||r->PendingEnd;
-    while(p->Frames<r->Config.MaxFrames && p->WorkBytes<r->Config.MaxWorkBytes){
+    while(p->Frames<r->Config.MaxFrames && p->Dropped<r->Config.MaxFrames-p->Frames && p->WorkBytes<r->Config.MaxWorkBytes){
         size_t available=in.Size-p->Used,budget=r->Config.MaxWorkBytes-p->WorkBytes;
         const unsigned char* input=available?in.Data+p->Used:NULL;
         if(r->DropRecord){size_t take=available<budget?available:budget;p->Used+=take;p->WorkBytes+=take;break;}
@@ -202,8 +208,9 @@ XTP_API xtpresult xtpReaderEnd(xtpreader* r,uint64_t now)
 XTP_API xtpresult xtpReaderReset(xtpreader* r)
 {
     if(!r||r->Busy)return XTP_E_STATE;
+    r->Busy=true;
     xtpReaderClear(r);r->Failure=XTP_OK;r->Paused=r->Ended=r->DropRecord=r->PendingEnd=false;
-    r->Frames=r->Dropped=0;r->Consecutive=0;return XTP_OK;
+    r->Frames=r->Dropped=0;r->Consecutive=0;r->Busy=false;return XTP_OK;
 }
 XTP_API xtpresult xtpReaderDrive(xtpreader* r,uint64_t now,uint64_t* due)
 {
@@ -211,6 +218,18 @@ XTP_API xtpresult xtpReaderDrive(xtpreader* r,uint64_t now,uint64_t* due)
     xtpreadprogress p={0};r->Busy=true;
     xtpresult result=xtpReaderRun(r,(xbytesview){NULL,0},false,now,&p);
     r->Busy=false;*due=r->Deadline;return result==XTP_MORE?XTP_OK:result;
+}
+/* Session maintenance shares one work budget across independent lanes. */
+xtpresult xtp__ReaderDriveBudget(xtpreader* r,uint64_t now,size_t frames,size_t* work,uint64_t* due)
+{
+    size_t oldframes=r->Config.MaxFrames,oldwork=r->Config.MaxWorkBytes;
+    r->Config.MaxFrames=frames<oldframes?frames:oldframes;
+    r->Config.MaxWorkBytes=*work<oldwork?*work:oldwork;
+    xtpreadprogress p={0};r->Busy=true;
+    xtpresult result=xtpReaderRun(r,(xbytesview){NULL,0},false,now,&p);
+    r->Busy=false;*due=r->Deadline;*work-=p.WorkBytes;
+    r->Config.MaxFrames=oldframes;r->Config.MaxWorkBytes=oldwork;
+    return result==XTP_MORE?XTP_OK:result;
 }
 XTP_API xtpresult xtpReaderInfo(const xtpreader* r,xtpreaderinfo* info)
 {
