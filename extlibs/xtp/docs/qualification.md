@@ -12,7 +12,7 @@ python tools/build.py --manifest extlibs/xtp/config/modules.json --suite xtp_nat
 python tools/build.py --manifest extlibs/xtp/config/modules.json --suite xtp_tests,xtp_delivery --compiler clang --cflag=-std=c99 --cflag=-O1 --cflag=-fsanitize=address,undefined --ldflag=-fsanitize=address,undefined
 ```
 
-Windows x86 使用 `i686-w64-mingw32-gcc` 和 `--cflag=-D_WIN32_WINNT=0x0601`。本次模块化在 `-O2` 通过；模块/单头全套在 `-O0` 通过。该工具链的 `-O2` 单头测试触发 GCC maybe-uninitialized 告警，`-O1` 还触发测试 key 格式化的 format-truncation 告警；原日志保留，没有关闭这些诊断或声称该组合全绿。生产源码和 Windows x64/PowerPC64 的 `-O2` 验证另列。
+Windows x86 使用 `i686-w64-mingw32-gcc` 和 `--cflag=-D_WIN32_WINNT=0x0601`。最终模块/单头全套均在 `-O2 -Werror` 通过，也保留早期 `-O0` 结果。初次单头优化编译触发 GCC maybe-uninitialized，定位为内部输出地址检查将可写缓冲声明成 const；修正私有参数语义，未关闭诊断或删除检查。重新编译后的 Windows x64 GCC -O2 Codec 对象 SHA256 与测量时逐字节相同，目标码体积不变；源码减少18 B。早期 `-O1` 测试key格式化的 format-truncation 告警仍保留为历史结果，最终验收采用已通过的 -O2，不将旧日志改成成功。
 
 Linux PowerPC64 大端使用真实交叉编译及 QEMU 执行，包含独立黄金字节、状态机、恢复和单头测试：
 

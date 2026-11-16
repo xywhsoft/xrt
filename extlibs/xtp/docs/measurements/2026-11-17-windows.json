@@ -636,5 +636,32 @@
     "r4-package-shared.log": "a8903fc24b9bbdcff97fd8c362c65d20df993a189e8e56b264759c89a6477907",
     "r4-xrudp-asan.log": "a826fb50715da755b5ed360aeb17dc3c486f7f330705ded48bab11c6d93eb6ec",
     "r4-soak-asan.log": "c7201ddef3ec71e06c6aad244c43c2770cc3f7d92e18a03bcb3fa0ce1dff3222"
+  },
+  "post_measurement_validation": {
+    "change": "private writable output pointer qualifiers only; no public ABI change",
+    "current_source_bytes_lf": 121998,
+    "source_delta_bytes": -18,
+    "x86_O2_modular_single_Werror": "pass",
+    "object_equivalence": {
+      "before": {
+        "out\\xtp3-bench\\bench_obj\\extlibs__xtp__src__codec__codec.o": "f131893f28ee9323f78d7158642452d39ea5894e39b52b911575a31d419fb6b5",
+        "out\\xtp3-bench\\native_obj\\extlibs__xtp__src__codec__codec.o": "f131893f28ee9323f78d7158642452d39ea5894e39b52b911575a31d419fb6b5"
+      },
+      "after": {
+        "out\\xtp3-bench\\bench_obj\\extlibs__xtp__src__codec__codec.o": "f131893f28ee9323f78d7158642452d39ea5894e39b52b911575a31d419fb6b5",
+        "out\\xtp3-bench\\native_obj\\extlibs__xtp__src__codec__codec.o": "f131893f28ee9323f78d7158642452d39ea5894e39b52b911575a31d419fb6b5"
+      },
+      "local_O2_object_identical": true
+    },
+    "owned_text_bytes_unchanged": {
+      "codec": 8120,
+      "session": 38360,
+      "delivery": 44992
+    },
+    "logs_sha256": {
+      "out\\xtp3-api-check\\r6-x86-o2.log": "e67a1c8bacc3f807e953c3f5d63826f35a133159b87c4d9e411b1d39eeb9fb71",
+      "out\\xtp3-api-check\\r6-object-equivalence.log": "c7e0bc0c578d1cb4a9c1259b74cb99e95afe177764868587bb03b91e079c86e6",
+      "out\\xtp3-api-check\\r6-size.log": "d0f5512f65948f1872b0eb8bc7fbf8b6b5366ad3b67ef13fb760831c9d187846"
+    }
   }
 }

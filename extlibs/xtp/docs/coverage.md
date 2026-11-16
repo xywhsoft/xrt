@@ -50,3 +50,5 @@ P7 当时未取得 WSS/HTTP Upgrade、xrudp 饱和矩阵、多连接、32位/大
 收尾 R3：真实 TLS1.3 + HTTP Upgrade + xtp.v3 WSS 双向三类消息、错误 pin、两端旧子协议拒绝在 Windows 模块/单头及 Linux ASan/UBSan 通过；新增可运行 WSS 例程。PowerPC64 大端交叉编译/QEMU 的模块/单头全套通过；Windows x86 模块 -O2、模块/单头 -O0 全套通过，特定优化下的测试编译告警如实列于 qualification.md。Windows 全套 native/xrudp 测试、独立静态/动态包校验及公共 ABI 3 项/声明 7 项通过。
 
 收尾 R4：新增真实 UDP/Noise 三模型饱和探针、同引擎多连接/多 worker 探针及持续连接 soak 工具，保留每连接尾延迟、NOTIFY 实际接收数、所有完成、聚合复制和内存。Linux ASan/UBSan 8 连接/4 worker 的持续 TLS 测试运行 301 秒、250 轮、8000000 次 RPC 后正常回收；Windows 相同形态 60 秒完成 43872000 次 RPC，OS 内存采样独立保留。它们是有界压力检查，不冒充移动公网或多日长稳。完整矩阵的收据见 performance.md。
+
+收尾 R6：修正两个内部检查函数的可写输出参数声明，解决 GCC x86 单头优化编译的未初始化告警；Windows x86 模块/单头全套 -O2 -Werror 最终通过。Windows x64 GCC -O2 重新编译 Codec 对象与测量对象 SHA256 完全相同，静态库 text 不变。源码现为121998 B（119.14 KiB）；早期失败与复验日志均保留。

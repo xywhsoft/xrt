@@ -67,10 +67,10 @@ xrudp有51种配置、153个样本，真实UDP + Noise IK/静态公钥pin/地址
 
 Linux ASan/UBSan的8连接/4 worker持续TLS运行301秒、250轮、8000000次RPC，同一批连接/Session保持后正常退休，无sanitizer错误。Windows相同形态持续60秒、1371轮、43872000次RPC，31次OS内存采样和尾部区间保留在收据。OS内存包含整个进程，与XTP瞬时预留峰值不同。这些压力运行包含同时进行的验证/构建负载，不用作干净容量基线，不替代多日长稳。重建方法见 [部署资格](qualification.md)。
 
-自有生产include/src C/h按UTF-8/LF共122016 B（119.16KiB），包括全部可选模块及公共/内部头。用户已取消源码硬上限，优先简洁、安全和性能；生成单头不重复算，依赖/测试/例程/文档另计。GNU size自有静态库text为：Codec8120 B、Codec+Reader+基础Session38360 B、包含Delivery44992 B；data/bss均零，不包含独立XRT/TLS/xws/xrudp或整个可执行文件。
+测量时自有生产include/src C/h按UTF-8/LF共122016 B（119.16KiB），包括全部可选模块及公共/内部头。用户已取消源码硬上限，优先简洁、安全和性能；生成单头不重复算，依赖/测试/例程/文档另计。GNU size自有静态库text为：Codec8120 B、Codec+Reader+基础Session38360 B、包含Delivery44992 B；data/bss均零，不包含独立XRT/TLS/xws/xrudp或整个可执行文件。
 
 ## 质量门限和环境验收
 
 标准profile（20000次RPC、三次重复）的P99触发质量门限：shape2的MAD为27.3%、中心范围104.6%。另做一次七次重复检查样本不足，shape0/1/2的P99中心范围仍为33.6%/31.5%/65.1%，超过30%门限。两个失败报告均保留，没有放宽阈值或反复重跑直至通过；当前P99不能作为稳定回归基线。
 
-WSS真实TLS1.3/HTTP Upgrade、Windows x86、大端QEMU、包及宿主ABI已验证，特定优化编译告警记录于qualification.md。实体移动设备、运营商/NAT切换、休眠唤醒、多日长稳及全部复制/内核唤醒的动态归因仍需部署环境，当前没有这些资格证据。
+测量后仅修正两个私有输出缓冲检查函数的参数可写性：源码减少18 B，现为121998 B（119.14 KiB）；Windows x64 GCC -O2 Codec 对象重编译后与测量时 SHA256 完全相同，自有目标码尺寸不变。Windows x86 模块/单头 -O2 -Werror 全套也已通过。完整 WSS/HTTP Upgrade、大端QEMU、包及宿主ABI验证和早期告警历史见qualification.md。实体移动设备、运营商/NAT切换、休眠唤醒、多日长稳及全部复制/内核唤醒的动态归因仍需部署环境，当前没有这些资格证据。

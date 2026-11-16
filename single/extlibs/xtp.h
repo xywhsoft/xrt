@@ -906,7 +906,7 @@ static xtpresult xtpMeasure(const xtppacket* p,const xtpcodecconfig* c,xtpmeasur
     f->Command=(uint16_t)cmd;f->Meta=(uint32_t)meta;f->Size=(uint32_t)(32+cmd+meta+p->Body.Size);return XTP_OK;
 }
 static xtpresult xtpPreflight(const xtppacket* p,size_t n,const xtpcodecconfig* input,
-    xtpmeasure* frames,size_t* total,const void* out,size_t outn,const void* scalar,size_t scalarn)
+    xtpmeasure* frames,size_t* total,void* out,size_t outn,void* scalar,size_t scalarn)
 {
     xtpcodecconfig c;xtpresult r=xtp__CodecConfig(input,&c);if(r!=XTP_OK)return r;
     if(!n||n>c.MaxBatch||!xrtMemRangeValid(p,n*sizeof(*p)))return XTP_E_ARGUMENT;
@@ -1005,7 +1005,7 @@ XTP_API xtpresult xtpDecode(xbytesview in,const xtpcodecconfig* input,xtpframevi
     if(in.Size>size)return XTP_E_LENGTH;
     return xtp__DecodePrefix(in.Data,size,&c,frame);
 }
-static bool xtpParamOutput(const xtpparamsview* p,const void* out,size_t bytes)
+static bool xtpParamOutput(const xtpparamsview* p,void* out,size_t bytes)
 {
     return p&&xrtMemRangeValid(p,sizeof(*p))&&xrtMemRangeValid(out,bytes)&&
         xtp__Bytes(p->_Wire)&&!xtp__Overlap(out,bytes,p,sizeof(*p))&&!xtp__Overlap(out,bytes,p->_Wire.Data,p->_Wire.Size);
