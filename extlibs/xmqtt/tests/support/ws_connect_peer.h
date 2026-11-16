@@ -3,13 +3,13 @@
 #include "ws_peer.h"
 #include <xmqtt/client_ws_connect.h>
 typedef struct mqttWsConnectPeer {
-    mqttWsPeer Base;xnetresolver* Resolver;unsigned Mode;bool SplitResponse,HoldResponse,BlockDns;
+    mqttWsPeer Base;char UriAuthority[128];xstrview ExpectedHost,ExpectedTarget,ExpectedLookup;xnetresolver* Resolver;unsigned Mode;bool SplitResponse,HoldResponse,BlockDns;
     xatomic32 Header,Attached,Cleanup,DnsEntered,DnsRelease;bool Responded;char Response[1024];size_t ResponseBytes;
     xnetpost UpgradePost,CleanupPost,ReplyPost;unsigned char HttpInput[16384];size_t HttpUsed;
 } mqttWsConnectPeer;
 static inline xnetaddrlist* mqttWsConnectLookup(cstr Host,xnetfamily Family,ptr Data)
 {
-    (void)Family;mqttWsConnectPeer* P=Data;testRequire(!strcmp(Host,"example.com"),"counted WS DNS host snapshot");xrtAtomic32Store(&P->DnsEntered,1,XMEMORY_RELEASE);if(P->BlockDns)mqttWsWait(&P->DnsRelease,1,"release independent WS DNS job");xnetaddr A=P->Base.Address;A.Port=0;return xrtNetAddrListCreate(&A,1);
+    (void)Family;mqttWsConnectPeer* P=Data;testRequire(strlen(Host)==P->ExpectedLookup.Size&&!memcmp(Host,P->ExpectedLookup.Data,P->ExpectedLookup.Size),"counted WS DNS host snapshot");xrtAtomic32Store(&P->DnsEntered,1,XMEMORY_RELEASE);if(P->BlockDns)mqttWsWait(&P->DnsRelease,1,"release independent WS DNS job");xnetaddr A=P->Base.Address;A.Port=0;return xrtNetAddrListCreate(&A,1);
 }
 static inline bool mqttWsConnectSend(mqttWsConnectPeer* P,const void* Data,size_t N)
 {
@@ -44,9 +44,9 @@ static inline void mqttWsConnectHeader(mqttWsConnectPeer* P,const xnetbuf* B)
 #endif
         testRequire(xrtNetStreamConsume(P->Base.Native[1],N)==N,"advance fixture TCP HTTP input");return;}
     testRequire(R==XHTTP1_READY&&H.Bytes>=Old,"strict HTTP request parse");
-    testRequire(H.Target.Size==11&&!memcmp(H.Target.Data,"/mqtt?x=%00",11),"exact HTTP target snapshot");
+    testRequire(H.Target.Size==P->ExpectedTarget.Size&&!memcmp(H.Target.Data,P->ExpectedTarget.Data,H.Target.Size),"exact HTTP target snapshot");
     const xhttpfield* Host=xrtHttp1Field(&H,XRT_STR_LITERAL("Host"));const xhttpfield* Protocol=xrtHttp1Field(&H,XRT_STR_LITERAL("Sec-WebSocket-Protocol"));const xhttpfield* Key=xrtHttp1Field(&H,XRT_STR_LITERAL("Sec-WebSocket-Key"));
-    testRequire(Host&&Host->Value.Size==11&&!memcmp(Host->Value.Data,"example.com",11)&&Protocol&&Protocol->Value.Size==4&&!memcmp(Protocol->Value.Data,"mqtt",4)&&Key,"exact authority/protocol and native fresh key");
+    testRequire(Host&&Host->Value.Size==P->ExpectedHost.Size&&!memcmp(Host->Value.Data,P->ExpectedHost.Data,Host->Value.Size)&&Protocol&&Protocol->Value.Size==4&&!memcmp(Protocol->Value.Data,"mqtt",4)&&Key,"exact authority/protocol and native fresh key");
     char Accept[XWS_ACCEPT_CAPACITY];testRequire(xrtWsAccept(Key->Value,Accept,sizeof(Accept)),"response accept digest");
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
     if(P->Base.TLS)testRequire(xrtTlsStreamConsume(P->Base.Native[1],H.Bytes-Old),"consume only HTTP request head");else
@@ -74,7 +74,7 @@ static inline void mqttWsConnectNative(mqttWsPeer* Base,ptr Native)
 }
 static inline void mqttWsConnectInit(mqttWsConnectPeer* P,bool TLS,xmqttversion V,xnetportbackend B)
 {
-    memset(P,0,sizeof(*P));mqttWsInit(&P->Base,TLS,V,B);P->Base.NativeServerOpen=mqttWsConnectNative;xrtAtomic32Init(&P->Header,0);xrtAtomic32Init(&P->Attached,0);xrtAtomic32Init(&P->Cleanup,0);xrtAtomic32Init(&P->DnsEntered,0);xrtAtomic32Init(&P->DnsRelease,0);xnetresolverconfig R;xrtNetResolverConfigInit(&R);R.Workers=1;R.Lookup=mqttWsConnectLookup;R.LookupData=P;P->Resolver=xrtNetResolverCreate(&R);testRequire(P->Resolver!=NULL,"WS host resolver");
+    memset(P,0,sizeof(*P));P->ExpectedHost=P->ExpectedLookup=XRT_STR_LITERAL("example.com");P->ExpectedTarget=XRT_STR_LITERAL("/mqtt?x=%00");mqttWsInit(&P->Base,TLS,V,B);P->Base.NativeServerOpen=mqttWsConnectNative;xrtAtomic32Init(&P->Header,0);xrtAtomic32Init(&P->Attached,0);xrtAtomic32Init(&P->Cleanup,0);xrtAtomic32Init(&P->DnsEntered,0);xrtAtomic32Init(&P->DnsRelease,0);xnetresolverconfig R;xrtNetResolverConfigInit(&R);R.Workers=1;R.Lookup=mqttWsConnectLookup;R.LookupData=P;P->Resolver=xrtNetResolverCreate(&R);testRequire(P->Resolver!=NULL,"WS host resolver");
 }
 static inline void mqttWsConnectCleanup(xnetworker* W,ptr Data)
 {

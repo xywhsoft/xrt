@@ -121,6 +121,45 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT_TLS
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS
+#endif
+#endif
+
+/* xmqtt_client_ws_uri_tls 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS
+#define XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_URI
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_URI
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT_TLS
+#endif
+#endif
+
+/* xmqtt_client_ws_uri 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_WS_URI)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_WS_URI
+#define XMQTT_FEATURE_XMQTT_CLIENT_WS_URI
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WS_URI_PARSE
+#define XMQTT_MODULE_XMQTT_WS_URI_PARSE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_CONNECT
+#endif
+#endif
+
+/* xmqtt_ws_uri_parse 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_WS_URI_PARSE)
+#ifndef XMQTT_FEATURE_XMQTT_WS_URI_PARSE
+#define XMQTT_FEATURE_XMQTT_WS_URI_PARSE
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
 #endif
 
 /* xmqtt_client_ws_connect_tls 及其直接依赖。 */
@@ -2265,6 +2304,74 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_ws_uri.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_WS_URI_H
+#define XMQTT_CLIENT_WS_URI_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_WS_URI_PARSE) && !defined(XRT_FEATURE_HTTP_TARGET)
+#error "MQTT WS URI parsing requires HTTP target"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI) && (!defined(XMQTT_FEATURE_XMQTT_WS_URI_PARSE) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT))
+#error "MQTT WS URI requires URI parsing and native HTTP connection setup"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS))
+#error "MQTT WSS URI requires URI setup and verified TLS"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_WS_URI_PARSE)
+#define XMQTT_WS_URI_MAX_BYTES 8192u
+#define XMQTT_WS_URI_MAX_AUTHORITY 1024u
+#define XMQTT_WS_URI_MAX_TARGET 4096u
+typedef enum xmqttwsurihostkind {XMQTT_WS_URI_NAME=0,XMQTT_WS_URI_IPV4,XMQTT_WS_URI_IPV6,XMQTT_WS_URI_IPVFUTURE} xmqttwsurihostkind;
+typedef struct xmqttwsuri {
+    size_t Size;bool Secure,HasQuery;uint16 Port;xmqttwsurihostkind HostKind;
+    xstrview Authority,Host,Path,Query;size_t RouteBytes,TargetBytes;
+} xmqttwsuri;
+XRT_EXTERN_C_BEGIN
+/* Strict absolute case-insensitive ws/wss, positive uint16 network port, default
+ * 80/443 for absent/empty port. No userinfo, fragment, raw non-ASCII or malformed
+ * escaping. Borrowed raw views; Host excludes brackets/port. Empty path maps to
+ * /; only a nonempty query adds ? to the eventual resource-name (RFC6455).
+ * HasQuery also records a present empty query. Valid IPvFuture is inspectable;
+ * factories reject its unsupported routing mechanism. RouteBytes is decoded
+ * host octets, not IDNA size. Valid parsing has no heap allocation. Checked Size
+ * and disjoint complete output/input; failure preserves every output byte. */
+XMQTT_API bool xmqttWsUriParse(xstrview URI,xmqttwsuri* Output);
+XRT_EXTERN_C_END
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
+XRT_EXTERN_C_BEGIN
+/* ws:// only. URI replaces WebSocket.Host/Target; NULL WebSocket selects defaults.
+ * Remaining HTTP/native WS/Dial and optional Auth/Session/Inbox policies apply.
+ * Host decodes once to valid UTF-8, rejecting ASCII controls and routing
+ * delimiters. Encoded path/query stay byte-exact. Strict numeric IP bypasses
+ * Resolver; names borrow Resolver under its existing lifetime contract. No
+ * IRI/IDNA conversion; host name-service policy belongs to Resolver. All inputs
+ * snapshot before return. Original Client.SetupTimeout begins at URI API entry;
+ * no extra clock, runtime, URI heap owner, redirects/retry/downgrade or replay.
+ * Output changes only on success; input/output spans must be disjoint. Normal
+ * Client Ready/Close/Wait/Destroy still cover all protocol/native duties. */
+XMQTT_API bool xmqttClientWsConnectUri(xnetengine* Engine,xnetresolver* Resolver,xstrview URI,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientwsconnectconfig* WebSocket,const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+/* wss:// only, explicit TLS trust policy required. With ServerNameFromHost true,
+ * empty VerifyName derives from decoded URI host; empty SNI derives only for a
+ * name, not an IP. Explicit nonempty identity/SNI overrides remain caller policy.
+ * With false, caller supplies native identity. Existing metadata/resumption/
+ * client-auth limits remain; ResumeLimit must currently be zero, and newly issued
+ * post-Upgrade credentials are not exposed. A supplied Resume remains allowed.
+ * No cleartext fallback. */
+XMQTT_API bool xmqttClientWssConnectUri(xnetengine* Engine,xnetresolver* Resolver,xstrview URI,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientwsconnectconfig* WebSocket,const xmqttclienttlsconfig* TLS,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -2293,6 +2400,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
 #error "MQTT root requires native WS/WSS setup"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+#error "MQTT root requires WS/WSS URI setup"
 #endif
 #endif
 
@@ -9040,6 +9150,82 @@ XMQTT_API bool xmqttClientWssDial(xnetengine* E,xnetresolver* R,xstrview H,uint1
 {double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,R,NULL,NULL,H,P,A,C,W,T,Q,O,At);}
 XMQTT_API bool xmqttClientWssDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
 {double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,NULL,L,NULL,(xstrview){0},0,A,C,W,T,Q,O,At);}
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/client_ws_uri/parse.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_WS_URI_PARSE)
+#include <string.h>
+#if defined(XMQTT_FEATURE_XMQTT_WS_URI_PARSE)
+static bool xmqttWsUriError(xerrkind Kind,cstr Message)
+{xrtSetErrorInfo(Kind,"xrt.mqtt.ws.uri",1,Message);return false;}
+XMQTT_API bool xmqttWsUriParse(xstrview Input,xmqttwsuri* Out)
+{
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||Out->Size!=sizeof(*Out)||!xrtMemRangeValid(Input.Data,Input.Size)||xrtMemRangesOverlap(Input.Data,Input.Size,Out,sizeof(*Out)))return xmqttWsUriError(XERR_ARGUMENT,"invalid URI view/output/Size/overlap");
+    if(Input.Size>XMQTT_WS_URI_MAX_BYTES)return xmqttWsUriError(XERR_RANGE,"WS URI exceeds byte limit");
+    xhttptarget T={0};if(!xrtHttpTargetParse(XRT_STR_LITERAL("GET"),Input,&T))return false;
+    bool Secure=xrtHttpTokenEqual(T.Scheme,XRT_STR_LITERAL("wss"));
+    if(T.Form!=XHTTP_TARGET_ABSOLUTE||!(T.Flags&XHTTP_TARGET_HAS_AUTHORITY)||(!Secure&&!xrtHttpTokenEqual(T.Scheme,XRT_STR_LITERAL("ws"))))return xmqttWsUriError(XERR_ARGUMENT,"absolute ws/wss URI with authority required");
+    uint16 Port=0;if(!xrtHttpAuthorityPort(&T.Host,Secure?443:80,&Port)||!Port)return xmqttWsUriError(XERR_ARGUMENT,"WS URI requires a positive network port");
+    size_t Target=(T.Path.Size?T.Path.Size:1)+(T.Query.Size?T.Query.Size+1:0);
+    if(T.Authority.Size>XMQTT_WS_URI_MAX_AUTHORITY||Target>XMQTT_WS_URI_MAX_TARGET)return xmqttWsUriError(XERR_RANGE,"WS URI authority/resource exceeds bound");
+    xmqttwsurihostkind Kind=XMQTT_WS_URI_NAME;
+    if(T.Host.Flags&XHTTP_AUTHORITY_IP_LITERAL)Kind=xrtHttpIpv6Valid(T.Host.Host)?XMQTT_WS_URI_IPV6:XMQTT_WS_URI_IPVFUTURE;
+    else if(xrtHttpIpv4Valid(T.Host.Host))Kind=XMQTT_WS_URI_IPV4;
+    size_t Route=T.Host.Host.Size;for(size_t I=0;I<T.Host.Host.Size;++I)if(T.Host.Host.Data[I]=='%'){Route-=2;I+=2;}
+    *Out=(xmqttwsuri){.Size=sizeof(*Out),.Secure=Secure,.HasQuery=(T.Flags&XHTTP_TARGET_HAS_QUERY)!=0,.Port=Port,.HostKind=Kind,.Authority=T.Authority,.Host=T.Host.Host,.Path=T.Path,.Query=T.Query,.RouteBytes=Route,.TargetBytes=Target};return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/client_ws_uri/uri.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
+#include <string.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
+static bool xmqttWsUriSetupError(xerrkind Kind,cstr Message)
+{xrtSetErrorInfo(Kind,"xrt.mqtt.ws.uri",2,Message);return false;}
+static int xmqttWsUriHex(unsigned char C)
+{return C>='0'&&C<='9'?C-'0':C>='a'&&C<='f'?C-'a'+10:C>='A'&&C<='F'?C-'A'+10:-1;}
+static bool xmqttWsUriCreate(xnetengine* E,xnetresolver* R,xstrview URI,uint64 Affinity,const xmqttclientconfig* Config,
+    const xmqttclientwsconnectconfig* WebSocket,const void* TLS,bool Secure,const xmqttpacket* Connect,xmqttclient** Out,double Entered)
+{
+    if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!xrtMemRangeValid(URI.Data,URI.Size)||xrtMemRangesOverlap(URI.Data,URI.Size,Out,sizeof(*Out)))return xmqttWsUriSetupError(XERR_ARGUMENT,"invalid URI/output range or overlap");
+    xmqttwsuri U={.Size=sizeof(U)};if(!xmqttWsUriParse(URI,&U))return false;
+    if(U.Secure!=Secure)return xmqttWsUriSetupError(XERR_ARGUMENT,"URI scheme does not match explicit plain/secure factory");
+    if(U.HostKind==XMQTT_WS_URI_IPVFUTURE)return xmqttWsUriSetupError(XERR_UNSUPPORTED,"IPvFuture routing is unsupported");
+    char Decoded[XMQTT_WS_URI_MAX_AUTHORITY];xstrview Route=U.Host;
+    if(memchr(Route.Data,'%',Route.Size)){
+        size_t N=0;for(size_t I=0;I<Route.Size;++I){unsigned char C=(unsigned char)Route.Data[I];if(C=='%'){C=(unsigned char)(xmqttWsUriHex((unsigned char)Route.Data[I+1])*16+xmqttWsUriHex((unsigned char)Route.Data[I+2]));I+=2;}
+            if(C<=32||C==127||C=='/'||C=='\\'||C==':'||C=='?'||C=='#'||C=='@'||C=='['||C==']')return xmqttWsUriSetupError(XERR_ARGUMENT,"decoded URI host contains forbidden routing byte");
+            Decoded[N++]=(char)C;}
+        Route=(xstrview){Decoded,N};if(!xrtUtf8Valid(Route,NULL))return xmqttWsUriSetupError(XERR_ARGUMENT,"decoded URI host is not UTF-8");}
+    bool Numeric=U.HostKind==XMQTT_WS_URI_IPV4||U.HostKind==XMQTT_WS_URI_IPV6||xrtHttpIpv4Valid(Route);xnetaddr Address;
+    if(Numeric){char IP[64];if(Route.Size>=sizeof(IP))return xmqttWsUriSetupError(XERR_ARGUMENT,"URI IP literal exceeds bound");memcpy(IP,Route.Data,Route.Size);IP[Route.Size]=0;if(!xrtNetAddrParse(&Address,IP,U.Port))return false;}
+    xmqttclientwsconnectconfig W;if(WebSocket){if(!xrtMemRangeValid(WebSocket,sizeof(*WebSocket))||WebSocket->Size!=sizeof(*WebSocket)||xrtMemRangesOverlap(WebSocket,sizeof(*WebSocket),Out,sizeof(*Out)))return xmqttWsUriSetupError(XERR_ARGUMENT,"invalid URI WebSocket policy/output");W=*WebSocket;}else xmqttClientWsConnectConfigInit(&W);
+    char Resource[XMQTT_WS_URI_MAX_TARGET];W.Host=U.Authority;
+    if(!U.Path.Size&&U.Query.Size){Resource[0]='/';Resource[1]='?';memcpy(Resource+2,U.Query.Data,U.Query.Size);W.Target=(xstrview){Resource,U.TargetBytes};}else W.Target=U.Path.Size?(xstrview){U.Path.Data,U.TargetBytes}:XRT_STR_LITERAL("/");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+    xmqttclienttlsconfig T;
+    if(Secure){if(!TLS||!xrtMemRangeValid(TLS,sizeof(T))||xrtMemRangesOverlap(TLS,sizeof(T),Out,sizeof(*Out)))return xmqttWsUriSetupError(XERR_ARGUMENT,"WSS URI requires explicit TLS trust policy");T=*(const xmqttclienttlsconfig*)TLS;
+        if(T.ServerNameFromHost){if(!T.Session.VerifyName.Size)T.Session.VerifyName=Route;if(!T.Session.ServerName.Size&&!Numeric)T.Session.ServerName=Route;}
+        TLS=&T;}
+#endif
+    return xmqttInternalClientWsConnect(E,Numeric?NULL:R,NULL,Numeric?&Address:NULL,Numeric?(xstrview){0}:Route,Numeric?0:U.Port,Affinity,Config,&W,TLS,Connect,Out,Entered);
+}
+XMQTT_API bool xmqttClientWsConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttpacket* Q,xmqttclient** O)
+{return xmqttWsUriCreate(E,R,URI,A,C,W,NULL,false,Q,O,xrtTimer());}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+XMQTT_API bool xmqttClientWssConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
+{return xmqttWsUriCreate(E,R,URI,A,C,W,T,true,Q,O,xrtTimer());}
 #endif
 #endif
 #endif

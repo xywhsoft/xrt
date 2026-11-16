@@ -1,0 +1,1557 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-MQTT-URI-connection-stage",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "d32d8a76392c3e5dec500937fe41160947c6f0df",
+  "previous_goal_turn": "progress: native HTTP WS/WSS factories committed and reverified",
+  "branch_operations": 0,
+  "remote_push": false,
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "complete_four_product_goal": false,
+  "mqtt_websocket_complete": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "new_modules": [
+    "xmqtt_ws_uri_parse",
+    "xmqtt_client_ws_uri",
+    "xmqtt_client_ws_uri_tls"
+  ],
+  "new_functions": [
+    "xmqttWsUriParse",
+    "xmqttClientWsConnectUri",
+    "xmqttClientWssConnectUri"
+  ],
+  "architecture": "Independent pure-C thin URI policy and routing over public Core strict HTTP target/authority, UTF-8 and native address APIs. One existing native HTTP MQTT Client; original URI API-entry clock passes to the shared factory. No new runtime, URI heap owner or resident Client field. Parse-only is independently selectable.",
+  "contract": [
+    "Case-insensitive absolute ws/wss; no userinfo/fragment/raw non-ASCII/malformed escaping; positive uint16 port and default80/443, including empty explicit port. URI8192/authority1024/resource4096 bounds; atomic output, borrowed raw parser views. IPvFuture inspectable, routing explicitly unsupported.",
+    "Separate and decode host once; reject ASCII controls/routing delimiters and invalid UTF-8; preserve exact encoded path/query. Empty path is /; empty query does not add ?, while HasQuery records its syntax. Strict IPv4/IPv6 and escaped strict IPv4 bypass Resolver; names use its existing host policy, no implicit IDNA.",
+    "URI replaces only policy Host/Target. Snapshot complete HTTP wire, network host, CONNECT/Auth and TLS metadata before return; NULL WS policy uses defaults. Explicit ws/wss factories reject mismatched schemes. With ServerNameFromHost, empty VerifyName derives from URI independently of intentional SNI override; empty SNI derives only for names. Explicit nonempty identities and disabling automatic inference remain caller policy.",
+    "Existing Auth/Session/Inbox, QoS/aliases, admission/fences and physical native owner/alias duties continue. Original setup and queued request clocks never reset. Existing WSS ResumeLimit0 restriction remains; no new post-handoff credential capture or automatic replay/reconnect."
+  ],
+  "verification": {
+    "windows": {
+      "final_tests": 22,
+      "delivery": 4,
+      "regression": 9,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "python_interop": 12,
+      "total_C_executions": 52,
+      "usage_only_executions": 2
+    },
+    "wsl": {
+      "final_tests": 22,
+      "delivery": 4,
+      "regression": 9,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "tsan": 6,
+      "python_interop": 12,
+      "total_C_executions": 58,
+      "usage_only_executions": 2
+    }
+  },
+  "additional_checks": {
+    "expected_wrong_SAN_C_executions_per_host": 2,
+    "package_tool_verified_consumers_per_host": 2,
+    "linux_runtime": "WSL x64 ASan/UBSan/leak checks and independent TSan; not native Linux production acceptance",
+    "backends": "Windows select/IOCP; WSL select/epoll",
+    "cases": [
+      "13 route/resource/identity modes times both MQTT versions across actual WS/WSS sockets: numeric/DNS/encoded name/escaped IP/IPv6/UTF-8 with explicit TLS identity/double-decode control/empty path and query/explicit SNI and inference-off policies",
+      "Gate native owner until caller URI/policy overwrite; independently observe raw Host, exact encoded resource, decoded DNS route, verifier peer name and server ClientHello SNI. Tiny work quotas and split/interim/read-ahead use existing native HTTP fixtures.",
+      "10000 parser generated properties/mutations, standards fixtures, exact caps/aliases and20000 actual budget1 parses with zero heap allocation/rejections",
+      "Typed initial AUTH/local final proof/reauth and explicit Session/Inbox replay over fresh URI-established connections, plus excluded optional-feature refusals",
+      "Original setup/queued request deadlines, detached DNS timeout/cancel/close, no output after stopped lookup, constructor budget ladder and balanced credits after actual Engine/Resolver joins",
+      "Same-input plain numeric raw-versus-URI constructor allocation calls and bytes match under held owner; existing zero setup deadline remains active",
+      "Nine legacy TCP/Auth/Session/TLS/raw WS and native HTTP setup tests with URI selected; plain/full/root/stat-off singles; independent static/shared real protocol and standalone declaration consumers"
+    ]
+  },
+  "ABI": {
+    "windows": {
+      "off": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      },
+      "plain": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "full": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      }
+    },
+    "wsl": {
+      "off": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240
+      },
+      "plain": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "full": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      }
+    }
+  },
+  "costs": "Public URI view96 bytes on both tested x64 hosts. Selecting URI does not change measured private Client1216Windows/1424WSL or existing public config272/info160, cold WS296, HTTP240, connect config344/info80. Bounded stack host1024/resource4096 plus parser/config locals; no URI heap owner. Cold target/authority/port/IP validation, percent search/optional decode+UTF8 walk, optional resource assembly and native IP parse remain real CPU work. Existing HTTP writer/name/CONNECT/TLS snapshots and native frame/TLS/allocator costs remain; no zero-CPU-overhead or end-to-end zero-copy claim.",
+  "interop": {
+    "positive": {
+      "cases": [
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "sni": null,
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 0,
+          "version": "5",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 0,
+          "version": "311",
+          "peer": {
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 12,
+          "version": "5",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 12,
+          "version": "311",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.2",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 13,
+          "version": "5",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "tls": 13,
+          "version": "311",
+          "peer": {
+            "sni": "localhost",
+            "tls_version": "TLSv1.3",
+            "close_echoed": true,
+            "connect": true,
+            "publish": true,
+            "disconnect": true
+          }
+        }
+      ],
+      "ssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "stdlib": true,
+      "request_accept_sha1_independent_of_XRT": true,
+      "real_CA": true
+    },
+    "negative_identity": {
+      "cases": [
+        {
+          "host": "windows",
+          "route": "127.0.0.1",
+          "expected_client_exit": 1,
+          "peer": {
+            "alert": "[SSL: TLSV1_ALERT_DECRYPT_ERROR] tlsv1 alert decrypt error (_ssl.c:1081)"
+          },
+          "log": "wsl-negative-windows-ip-attempt2.log"
+        },
+        {
+          "host": "windows",
+          "route": "local%68ost",
+          "expected_client_exit": 1,
+          "peer": {
+            "alert": "[SSL: TLSV1_ALERT_DECRYPT_ERROR] tlsv1 alert decrypt error (_ssl.c:1081)"
+          },
+          "log": "wsl-negative-windows-dns.log"
+        },
+        {
+          "host": "wsl",
+          "route": "127.0.0.1",
+          "expected_client_exit": 1,
+          "peer": {
+            "alert": "[SSL: TLSV1_ALERT_DECRYPT_ERROR] tlsv1 alert decrypt error (_ssl.c:1081)"
+          },
+          "log": "wsl-negative-wsl-ip.log"
+        },
+        {
+          "host": "wsl",
+          "route": "local%68ost",
+          "expected_client_exit": 1,
+          "peer": {
+            "alert": "[SSL: TLSV1_ALERT_DECRYPT_ERROR] tlsv1 alert decrypt error (_ssl.c:1081)"
+          },
+          "log": "wsl-negative-wsl-dns.log"
+        }
+      ],
+      "good_CA_wrong_SAN": true,
+      "no_application_bytes": true
+    },
+    "certificate_identity": {
+      "ca_sha256": "9b7fc77202b18122b7bf03f6baf5ec4051421dcb85627e1a4fac0f949bbf81b8",
+      "good_server_sha256": "b31aed3063a9ccfe30c79bb057c37d5f125a602a17b541d5c44b83bb06f2d63d",
+      "bad_name_server_sha256": "5616947c9ce130fa67a8fa7dad460930c725ed6988deafd42f3e8476cbeea314",
+      "generated_local_only": true,
+      "private_keys_not_copied": true
+    },
+    "implementation": "Independent stdlib/OpenSSL literal HTTP/WS/MQTT peer; SHA1 Accept computed outside XRT,103/101,fragmented Binary CONNACK,Ping/Pong,QoS1 ACK,Close echo/TLS shutdown and actual client/Resolver/Engine joins. Actual IP and encoded localhost routes, original HTTP Host and decoded SNI verified.",
+    "negative": "Same trusted CA signs different.invalid certificate. Four native CLI processes reject IP/DNS URI identity before application data, return expected1 and join; independent peer records TLS alert. Retained raw Windows stdio interleaving required a harness correction, not a product predicate change. Positive24 cases were not rerun.",
+    "broker": "Previous d32d8a76 Mosquitto data/physical-join success with strict clean-close failure remains unresolved. This URI stage does not rerun or relabel it as clean broker acceptance."
+  },
+  "distribution": {
+    "exports": {
+      "windows": [
+        "xmqttClientWsConnectUri",
+        "xmqttClientWssConnectUri",
+        "xmqttWsUriParse"
+      ],
+      "wsl": [
+        "xmqttClientWsConnectUri",
+        "xmqttClientWssConnectUri",
+        "xmqttWsUriParse"
+      ]
+    },
+    "internal_bridge_exported": false,
+    "example": "Documented ws/wss URI CLI, actual optional MQTT version and required real CA for WSS; DATA and physical JOIN distinct; incomplete Disconnect remains failure. No-argument executions only print usage and are separately counted."
+  },
+  "performance": {
+    "accepted": false,
+    "diagnostics": {
+      "windows": {
+        "schema": 2,
+        "product": "xmqtt",
+        "generated_at": "2026-11-16T00:34:03.509303+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 3,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "d32d8a76392c3e5dec500937fe41160947c6f0df",
+        "source_dirty": true,
+        "source_fingerprint": "3a1fbf4e5f80897d7d38e63d6068ddf6d03a57d9497355c087ccbc9e3a0dfedb",
+        "benchmark_fingerprint": "299733afeebd11ce485f249f16c57a6ed22857de33645a28775a27f68b29b1f0",
+        "profiles": {
+          "xmqtt_ws_uri_parse": {
+            "description": "Actual bounded URI views and network/resource policy checks; valid path no heap; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_ws_uri_parse": {
+                "source": "extlibs/xmqtt/bench/bench_ws_uri_parse.c",
+                "inputs": [],
+                "suite": "xmqtt_ws_uri_parse_tests,time",
+                "args": [
+                  "1000000"
+                ],
+                "facts": {},
+                "metrics": {
+                  "parses_per_sec": {
+                    "samples": [
+                      6179350.711,
+                      6003420.749,
+                      5994898.343
+                    ],
+                    "median": 6003420.749,
+                    "mean": 6059223.267666667,
+                    "min": 5994898.343,
+                    "max": 6179350.711,
+                    "mad": 8522.405999999493,
+                    "relative_mad": 0.0014195916555438972,
+                    "range": 184452.36799999978,
+                    "relative_range": 0.03072454450751671,
+                    "central_range": 184452.36799999978,
+                    "relative_central_range": 0.03072454450751671,
+                    "direction": "higher",
+                    "unit": "parse/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xmqtt_client_ws_uri": {
+            "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_client_ws_uri": {
+                "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+                "inputs": [
+                  "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+                  "extlibs/xmqtt/tests/support/ws_peer.h",
+                  "tests/fixtures/tls_server.h"
+                ],
+                "suite": "xmqtt_client_ws_uri_tests",
+                "args": [
+                  "16",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "cycles_per_sec": {
+                    "samples": [
+                      16.248,
+                      17.762,
+                      16.387
+                    ],
+                    "median": 16.387,
+                    "mean": 16.799000000000003,
+                    "min": 16.248,
+                    "max": 17.762,
+                    "mad": 0.13899999999999935,
+                    "relative_mad": 0.008482333557087895,
+                    "range": 1.5139999999999993,
+                    "relative_range": 0.09239030939159085,
+                    "central_range": 1.5139999999999993,
+                    "relative_central_range": 0.09239030939159085,
+                    "direction": "higher",
+                    "unit": "cycle/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p50_us": {
+                    "samples": [
+                      445.9,
+                      431.1,
+                      421.9
+                    ],
+                    "median": 431.1,
+                    "mean": 432.9666666666667,
+                    "min": 421.9,
+                    "max": 445.9,
+                    "mad": 9.200000000000045,
+                    "relative_mad": 0.021340756205056936,
+                    "range": 24.0,
+                    "relative_range": 0.05567153792623521,
+                    "central_range": 24.0,
+                    "relative_central_range": 0.05567153792623521,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p99_us": {
+                    "samples": [
+                      1163.6,
+                      1006.1,
+                      14518.7
+                    ],
+                    "median": 1163.6,
+                    "mean": 5562.8,
+                    "min": 1006.1,
+                    "max": 14518.7,
+                    "mad": 157.4999999999999,
+                    "relative_mad": 0.13535579236851142,
+                    "range": 13512.6,
+                    "relative_range": 11.612753523547612,
+                    "central_range": 13512.6,
+                    "relative_central_range": 11.612753523547612,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_max_us": {
+                    "samples": [
+                      16492.5,
+                      16000.8,
+                      29857.4
+                    ],
+                    "median": 16492.5,
+                    "mean": 20783.566666666666,
+                    "min": 16000.8,
+                    "max": 29857.4,
+                    "mad": 491.7000000000007,
+                    "relative_mad": 0.02981355161437021,
+                    "range": 13856.600000000002,
+                    "relative_range": 0.840175837501895,
+                    "central_range": 13856.600000000002,
+                    "relative_central_range": 0.840175837501895,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "retire_latency_mean_us": {
+                    "samples": [
+                      59186.275,
+                      54038.206,
+                      56986.956
+                    ],
+                    "median": 56986.956,
+                    "mean": 56737.14566666667,
+                    "min": 54038.206,
+                    "max": 59186.275,
+                    "mad": 2199.319000000003,
+                    "relative_mad": 0.0385933756489819,
+                    "range": 5148.069000000003,
+                    "relative_range": 0.09033767306328844,
+                    "central_range": 5148.069000000003,
+                    "relative_central_range": 0.09033767306328844,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "cold_peak_bytes": {
+                    "samples": [
+                      4530.0,
+                      4530.0,
+                      4530.0
+                    ],
+                    "median": 4530.0,
+                    "mean": 4530.0,
+                    "min": 4530.0,
+                    "max": 4530.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "bytes",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xmqtt_client_ws_uri_tls": {
+            "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_client_ws_uri_tls": {
+                "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+                "inputs": [
+                  "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+                  "extlibs/xmqtt/tests/support/ws_peer.h",
+                  "tests/fixtures/tls_server.h"
+                ],
+                "suite": "xmqtt_client_ws_uri_tls_tests",
+                "args": [
+                  "16",
+                  "1"
+                ],
+                "facts": {},
+                "metrics": {
+                  "cycles_per_sec": {
+                    "samples": [
+                      13.646,
+                      13.42,
+                      13.437
+                    ],
+                    "median": 13.437,
+                    "mean": 13.501,
+                    "min": 13.42,
+                    "max": 13.646,
+                    "mad": 0.01699999999999946,
+                    "relative_mad": 0.0012651633549154917,
+                    "range": 0.22600000000000087,
+                    "relative_range": 0.01681923048299478,
+                    "central_range": 0.22600000000000087,
+                    "relative_central_range": 0.01681923048299478,
+                    "direction": "higher",
+                    "unit": "cycle/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p50_us": {
+                    "samples": [
+                      9176.9,
+                      9111.6,
+                      9445.9
+                    ],
+                    "median": 9176.9,
+                    "mean": 9244.800000000001,
+                    "min": 9111.6,
+                    "max": 9445.9,
+                    "mad": 65.29999999999927,
+                    "relative_mad": 0.007115692663099661,
+                    "range": 334.2999999999993,
+                    "relative_range": 0.0364284235417188,
+                    "central_range": 334.2999999999993,
+                    "relative_central_range": 0.0364284235417188,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p99_us": {
+                    "samples": [
+                      9675.7,
+                      9666.1,
+                      9830.8
+                    ],
+                    "median": 9675.7,
+                    "mean": 9724.199999999999,
+                    "min": 9666.1,
+                    "max": 9830.8,
+                    "mad": 9.600000000000364,
+                    "relative_mad": 0.000992176276651856,
+                    "range": 164.6999999999989,
+                    "relative_range": 0.017022024246307648,
+                    "central_range": 164.6999999999989,
+                    "relative_central_range": 0.017022024246307648,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_max_us": {
+                    "samples": [
+                      9929.1,
+                      9791.4,
+                      9901.1
+                    ],
+                    "median": 9901.1,
+                    "mean": 9873.866666666667,
+                    "min": 9791.4,
+                    "max": 9929.1,
+                    "mad": 28.0,
+                    "relative_mad": 0.002827968609548434,
+                    "range": 137.70000000000073,
+                    "relative_range": 0.013907545626243622,
+                    "central_range": 137.70000000000073,
+                    "relative_central_range": 0.013907545626243622,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "retire_latency_mean_us": {
+                    "samples": [
+                      55970.881,
+                      57066.975,
+                      56787.987
+                    ],
+                    "median": 56787.987,
+                    "mean": 56608.61433333333,
+                    "min": 55970.881,
+                    "max": 57066.975,
+                    "mad": 278.98799999999756,
+                    "relative_mad": 0.004912799603197725,
+                    "range": 1096.0939999999973,
+                    "relative_range": 0.019301511779242983,
+                    "central_range": 1096.0939999999973,
+                    "relative_central_range": 0.019301511779242983,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "cold_peak_bytes": {
+                    "samples": [
+                      4530.0,
+                      4530.0,
+                      4530.0
+                    ],
+                    "median": 4530.0,
+                    "mean": 4530.0,
+                    "min": 4530.0,
+                    "max": 4530.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "bytes",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "wsl": {
+        "schema": 2,
+        "product": "xmqtt",
+        "generated_at": "2026-11-16T00:34:41.065591+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 3,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "d32d8a76392c3e5dec500937fe41160947c6f0df",
+        "source_dirty": true,
+        "source_fingerprint": "3a1fbf4e5f80897d7d38e63d6068ddf6d03a57d9497355c087ccbc9e3a0dfedb",
+        "benchmark_fingerprint": "299733afeebd11ce485f249f16c57a6ed22857de33645a28775a27f68b29b1f0",
+        "profiles": {
+          "xmqtt_ws_uri_parse": {
+            "description": "Actual bounded URI views and network/resource policy checks; valid path no heap; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_ws_uri_parse": {
+                "source": "extlibs/xmqtt/bench/bench_ws_uri_parse.c",
+                "inputs": [],
+                "suite": "xmqtt_ws_uri_parse_tests,time",
+                "args": [
+                  "1000000"
+                ],
+                "facts": {},
+                "metrics": {
+                  "parses_per_sec": {
+                    "samples": [
+                      6078565.237,
+                      6584964.553,
+                      5983917.408
+                    ],
+                    "median": 6078565.237,
+                    "mean": 6215815.732666667,
+                    "min": 5983917.408,
+                    "max": 6584964.553,
+                    "mad": 94647.82899999991,
+                    "relative_mad": 0.015570751535885823,
+                    "range": 601047.1450000005,
+                    "relative_range": 0.09887977204578623,
+                    "central_range": 601047.1450000005,
+                    "relative_central_range": 0.09887977204578623,
+                    "direction": "higher",
+                    "unit": "parse/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xmqtt_client_ws_uri": {
+            "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_client_ws_uri": {
+                "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+                "inputs": [
+                  "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+                  "extlibs/xmqtt/tests/support/ws_peer.h",
+                  "tests/fixtures/tls_server.h"
+                ],
+                "suite": "xmqtt_client_ws_uri_tests",
+                "args": [
+                  "16",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "cycles_per_sec": {
+                    "samples": [
+                      117.431,
+                      117.333,
+                      116.084
+                    ],
+                    "median": 117.333,
+                    "mean": 116.94933333333334,
+                    "min": 116.084,
+                    "max": 117.431,
+                    "mad": 0.09799999999999898,
+                    "relative_mad": 0.000835229645538757,
+                    "range": 1.3469999999999942,
+                    "relative_range": 0.011480146250415435,
+                    "central_range": 1.3469999999999942,
+                    "relative_central_range": 0.011480146250415435,
+                    "direction": "higher",
+                    "unit": "cycle/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p50_us": {
+                    "samples": [
+                      285.4,
+                      301.7,
+                      284.8
+                    ],
+                    "median": 285.4,
+                    "mean": 290.6333333333333,
+                    "min": 284.8,
+                    "max": 301.7,
+                    "mad": 0.5999999999999659,
+                    "relative_mad": 0.0021023125437980585,
+                    "range": 16.899999999999977,
+                    "relative_range": 0.05921513665031527,
+                    "central_range": 16.899999999999977,
+                    "relative_central_range": 0.05921513665031527,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p99_us": {
+                    "samples": [
+                      321.1,
+                      373.7,
+                      322.2
+                    ],
+                    "median": 322.2,
+                    "mean": 339.0,
+                    "min": 321.1,
+                    "max": 373.7,
+                    "mad": 1.099999999999966,
+                    "relative_mad": 0.003414028553693252,
+                    "range": 52.599999999999966,
+                    "relative_range": 0.16325263811297322,
+                    "central_range": 52.599999999999966,
+                    "relative_central_range": 0.16325263811297322,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_max_us": {
+                    "samples": [
+                      1312.2,
+                      1342.899,
+                      1326.599
+                    ],
+                    "median": 1326.599,
+                    "mean": 1327.2326666666665,
+                    "min": 1312.2,
+                    "max": 1342.899,
+                    "mad": 14.398999999999887,
+                    "relative_mad": 0.01085407120011389,
+                    "range": 30.69899999999984,
+                    "relative_range": 0.02314113006266388,
+                    "central_range": 30.69899999999984,
+                    "relative_central_range": 0.02314113006266388,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "retire_latency_mean_us": {
+                    "samples": [
+                      7676.43,
+                      7678.193,
+                      7787.355
+                    ],
+                    "median": 7678.193,
+                    "mean": 7713.992666666666,
+                    "min": 7676.43,
+                    "max": 7787.355,
+                    "mad": 1.76299999999992,
+                    "relative_mad": 0.00022961131610001466,
+                    "range": 110.92499999999927,
+                    "relative_range": 0.014446758501642154,
+                    "central_range": 110.92499999999927,
+                    "relative_central_range": 0.014446758501642154,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "cold_peak_bytes": {
+                    "samples": [
+                      4530.0,
+                      4530.0,
+                      4530.0
+                    ],
+                    "median": 4530.0,
+                    "mean": 4530.0,
+                    "min": 4530.0,
+                    "max": 4530.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "bytes",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xmqtt_client_ws_uri_tls": {
+            "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+            "benchmarks": {
+              "xmqtt_client_ws_uri_tls": {
+                "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+                "inputs": [
+                  "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+                  "extlibs/xmqtt/tests/support/ws_peer.h",
+                  "tests/fixtures/tls_server.h"
+                ],
+                "suite": "xmqtt_client_ws_uri_tls_tests",
+                "args": [
+                  "16",
+                  "1"
+                ],
+                "facts": {},
+                "metrics": {
+                  "cycles_per_sec": {
+                    "samples": [
+                      38.196,
+                      38.967,
+                      38.992
+                    ],
+                    "median": 38.967,
+                    "mean": 38.718333333333334,
+                    "min": 38.196,
+                    "max": 38.992,
+                    "mad": 0.02499999999999858,
+                    "relative_mad": 0.0006415685066851074,
+                    "range": 0.7959999999999994,
+                    "relative_range": 0.020427541252854963,
+                    "central_range": 0.7959999999999994,
+                    "relative_central_range": 0.020427541252854963,
+                    "direction": "higher",
+                    "unit": "cycle/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p50_us": {
+                    "samples": [
+                      9236.6,
+                      8946.3,
+                      9179.7
+                    ],
+                    "median": 9179.7,
+                    "mean": 9120.866666666667,
+                    "min": 8946.3,
+                    "max": 9236.6,
+                    "mad": 56.899999999999636,
+                    "relative_mad": 0.0061984596446506566,
+                    "range": 290.3000000000011,
+                    "relative_range": 0.031624127150124845,
+                    "central_range": 290.3000000000011,
+                    "relative_central_range": 0.031624127150124845,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_p99_us": {
+                    "samples": [
+                      11281.4,
+                      10051.8,
+                      11036.701
+                    ],
+                    "median": 11036.701,
+                    "mean": 10789.966999999999,
+                    "min": 10051.8,
+                    "max": 11281.4,
+                    "mad": 244.69900000000052,
+                    "relative_mad": 0.022171389802079493,
+                    "range": 1229.6000000000004,
+                    "relative_range": 0.11141010343580028,
+                    "central_range": 1229.6000000000004,
+                    "relative_central_range": 0.11141010343580028,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ready_latency_max_us": {
+                    "samples": [
+                      12347.9,
+                      11949.9,
+                      12313.9
+                    ],
+                    "median": 12313.9,
+                    "mean": 12203.9,
+                    "min": 11949.9,
+                    "max": 12347.9,
+                    "mad": 34.0,
+                    "relative_mad": 0.002761107366472036,
+                    "range": 398.0,
+                    "relative_range": 0.032321197995760886,
+                    "central_range": 398.0,
+                    "relative_central_range": 0.032321197995760886,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "retire_latency_mean_us": {
+                    "samples": [
+                      8225.544,
+                      8140.725,
+                      7846.544
+                    ],
+                    "median": 8140.725,
+                    "mean": 8070.937666666668,
+                    "min": 7846.544,
+                    "max": 8225.544,
+                    "mad": 84.8189999999995,
+                    "relative_mad": 0.010419096579235818,
+                    "range": 379.0,
+                    "relative_range": 0.04655604998326316,
+                    "central_range": 379.0,
+                    "relative_central_range": 0.04655604998326316,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "cold_peak_bytes": {
+                    "samples": [
+                      4530.0,
+                      4530.0,
+                      4530.0
+                    ],
+                    "median": 4530.0,
+                    "mean": 4530.0,
+                    "min": 4530.0,
+                    "max": 4530.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "bytes",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scope": "Three repeats and one warmup, concurrent Windows/WSL diagnostic drivers on an unpinned shared host, actual parse/checksum and URI-to-Ready native HTTP/MQTT cycles plus real host cleanup/checksum. Cold setup fixture uses native TLS with a synthetic local verifier; real CA interoperability is separate. No controlled throughput/tail/CPU/comparator or native Linux acceptance; existing hot steady profiles remain from the prior stage. No threshold relaxation or rerun-to-green."
+  },
+  "sizes": {
+    "windows": {
+      "schema": 2,
+      "platform": "win32",
+      "machine": "amd64",
+      "compiler_family": "gnu",
+      "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+      "compiler_version": "gcc.exe (GCC) 16.2.0",
+      "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+      "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+      "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+      "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+      "arch": "native",
+      "optimization": "O2",
+      "stripped": false,
+      "source_revision": "d32d8a76392c3e5dec500937fe41160947c6f0df",
+      "source_dirty": true,
+      "source_fingerprint": "d0d35c874a615bf51dff56ad110df7a57541f0457f45a74970a48bfc2f77894b",
+      "growth_limits": {
+        "text": 0.1,
+        "data": 0.2,
+        "bss": 0.2,
+        "file": 0.15
+      },
+      "profiles": {
+        "xmqtt_client_ws_uri": {
+          "suite": "xmqtt_client_ws_uri",
+          "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state",
+          "forbid_symbols": [
+            "xmqttClientWssConnect",
+            "xmqttClientConnectAuth",
+            "xmqttSessionCreate",
+            "xrtTlsClientCreate"
+          ],
+          "kinds": {
+            "single": {
+              "text": 638732,
+              "data": 2384,
+              "bss": 11136,
+              "members": 1,
+              "load": 641116,
+              "file": 884596,
+              "path": "out/size/gnu/native/xmqtt_client_ws_uri/single/xmqtt_single.o",
+              "compile_seconds": 14.96953309996752,
+              "forbidden_symbol_count": 0
+            }
+          }
+        },
+        "xmqtt_client_ws_uri_tls": {
+          "suite": "xmqtt_client_ws_uri_tls",
+          "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state",
+          "forbid_symbols": [],
+          "kinds": {
+            "single": {
+              "text": 1298312,
+              "data": 2384,
+              "bss": 11168,
+              "members": 1,
+              "load": 1300696,
+              "file": 1700038,
+              "path": "out/size/gnu/native/xmqtt_client_ws_uri_tls/single/xmqtt_single.o",
+              "compile_seconds": 27.630070499959402
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "schema": 2,
+      "platform": "linux",
+      "machine": "x86_64",
+      "compiler_family": "gnu",
+      "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+      "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+      "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+      "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+      "arch": "x64",
+      "optimization": "O2",
+      "stripped": false,
+      "source_revision": "d32d8a76392c3e5dec500937fe41160947c6f0df",
+      "source_dirty": true,
+      "source_fingerprint": "d0d35c874a615bf51dff56ad110df7a57541f0457f45a74970a48bfc2f77894b",
+      "growth_limits": {
+        "text": 0.1,
+        "data": 0.2,
+        "bss": 0.2,
+        "file": 0.15
+      },
+      "profiles": {
+        "xmqtt_client_ws_uri": {
+          "suite": "xmqtt_client_ws_uri",
+          "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state",
+          "forbid_symbols": [
+            "xmqttClientWssConnect",
+            "xmqttClientConnectAuth",
+            "xmqttSessionCreate",
+            "xrtTlsClientCreate"
+          ],
+          "kinds": {
+            "single": {
+              "text": 648446,
+              "data": 5912,
+              "bss": 10908,
+              "members": 1,
+              "load": 654358,
+              "file": 1132280,
+              "path": "out/size/gnu/x64/xmqtt_client_ws_uri/single/xmqtt_single.o",
+              "compile_seconds": 11.810014613999556,
+              "forbidden_symbol_count": 0
+            }
+          }
+        },
+        "xmqtt_client_ws_uri_tls": {
+          "suite": "xmqtt_client_ws_uri_tls",
+          "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state",
+          "forbid_symbols": [],
+          "kinds": {
+            "single": {
+              "text": 1321613,
+              "data": 7244,
+              "bss": 10940,
+              "members": 1,
+              "load": 1328857,
+              "file": 2162552,
+              "path": "out/size/gnu/x64/xmqtt_client_ws_uri_tls/single/xmqtt_single.o",
+              "compile_seconds": 22.329418624000027
+            }
+          }
+        }
+      }
+    }
+  },
+  "gates": {
+    "development_maturity": true,
+    "strict_release": {
+      "passed": false,
+      "reason": "19 explicitly developing MQTT modules; strict release remains closed",
+      "log": "windows-strict-release.log"
+    },
+    "note": "Generation/API/reference/layout/index and development checks pass. URI setup leaves remain developing. Full four-product release remains closed."
+  },
+  "source_identity": {
+    "final_source_map_sha256": "80c11bb57ac70af5569279856814356b184e03a7a6960fb2ce038184859a1aae",
+    "selected": "selected-functional.json",
+    "negative": "selected-negative.json",
+    "cohorts": "source-cohorts.json",
+    "policy": "Selected passing and expected-negative C programs match final production src/include/single bytes. Actual original binaries preserved as lossless gzip with both original and compressed SHA256. Earlier prototypes and failed attempts stay distinct."
+  },
+  "failures": [
+    {
+      "receipts": "windows-final_tests-receipts.json",
+      "label": "xmqtt_client_ws_uri_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_client_ws_uri_tests-attempt3.log",
+      "source_map_sha256": "f5e9a7b8dc146860cbfb2145cbad1339e3b3e4a91d846b36000e749c595a0889"
+    },
+    {
+      "receipts": "windows-gates-receipts.json",
+      "label": "maturity",
+      "exit_code": 1,
+      "log": "windows-maturity.log",
+      "source_map_sha256": "032f69055375b533b3679960174b09c12a2dfff5f6db8a6a2d9ede6eec01442b"
+    },
+    {
+      "receipts": "windows-measure-receipts.json",
+      "label": "measure-uri",
+      "exit_code": 1,
+      "log": "windows-measure-uri.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "windows-strict-release.log",
+      "source_map_sha256": "80c11bb57ac70af5569279856814356b184e03a7a6960fb2ce038184859a1aae"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_uri_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_client_ws_uri_tests.log",
+      "source_map_sha256": "55493af405704d0a23f0255a812ba0ecb11f39c108a96cc6946722a4364f6f8d"
+    },
+    {
+      "receipts": "wsl-measure-receipts.json",
+      "label": "measure-uri",
+      "exit_code": 1,
+      "log": "wsl-measure-uri.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "wsl-python_interop-receipts.json",
+      "label": "negative-windows-ip",
+      "exit_code": 1,
+      "log": "wsl-negative-windows-ip.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "wsl-python_interop-receipts.json",
+      "label": "negative-windows-ip",
+      "exit_code": 1,
+      "log": "wsl-negative-windows-ip-attempt2.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "wsl-python_interop-receipts.json",
+      "label": "negative-windows-dns",
+      "exit_code": 1,
+      "log": "wsl-negative-windows-dns.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "wsl-python_interop-receipts.json",
+      "label": "negative-wsl-ip",
+      "exit_code": 1,
+      "log": "wsl-negative-wsl-ip.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    },
+    {
+      "receipts": "wsl-python_interop-receipts.json",
+      "label": "negative-wsl-dns",
+      "exit_code": 1,
+      "log": "wsl-negative-wsl-dns.log",
+      "source_map_sha256": "0f9054a2ecde42f687abf0663021fb4cc0c252a7fde8237942b1e6f0e03f549e"
+    }
+  ],
+  "corrections": [
+    "Fix test-only misleading-indentation warnings and use opaque struct spelling when Session feature is excluded.",
+    "Correct the newly registered size profile system name; the failed maturity attempt is retained.",
+    "Correct the cold parser benchmark literal resource-length/checksum before its first execution.",
+    "Windows stdio across WSL interop interleaved the stderr Ready prefix with stdout JOIN; negative harness now checks expected exit1/JOIN/no DATA plus independent TLS alert/no application bytes, retaining the raw attempt. No product predicate weakened."
+  ],
+  "remaining": [
+    "Automatic WS/WSS reconnect transport factories with generation leases and original clocks",
+    "Post-Upgrade TLS credential capture, resumption/cache surface and durable protocol state",
+    "Strict clean broker-close qualification/compatibility policy, additional brokers and remaining async-OOM/partial-write/adversarial/load matrices",
+    "Controlled throughput/tails/CPU/copy/allocation and native Windows/native Linux>=72h soak",
+    "Remaining original Redis/RPC/Cron scope and complete four-product acceptance"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-websocket-uri-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "3249587b2a0642950d74f74327c992f8b00d75a2d3056dd720850a810acfb250",
+    "regular_files": 544,
+    "sha256_verified": true,
+    "scope": "Final source maps/cohorts/changed-source snapshots, lossless gzip original C binaries with original/compressed hashes, packages/declarations, raw attempts including failures and expected wrong-identity rejection, actual URI parse/setup benchmark executables, size objects, independent stdlib/OpenSSL scripts and public certificate fixtures. Private keys stay in the previous ignored local fixture and are not copied. Compiler/object caches and temporary files excluded. Windows/WSL measurement drivers ran concurrently on a shared unpinned host; these are diagnostic samples and not a controlled comparison."
+  }
+}

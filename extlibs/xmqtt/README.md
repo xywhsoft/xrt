@@ -1,9 +1,13 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The developing [WS/WSS URI factories](docs/client_ws_uri.md) now compose strict
+ws/wss parsing, numeric/decoded-DNS routing, native Upgrade and ordinary MQTT
+readiness under the original setup clock, with explicit TLS identity policy.
+See the [native URI CLI](examples/ws_uri/README.md).
 The developing [native WS/WSS connection factories](docs/client_ws_connect.md)
 now compose numeric/DNS/prepared native TCP/verified TLS, strict HTTP Upgrade and
-ordinary MQTT readiness under one original setup clock. URI/reconnect, new WSS
+ordinary MQTT readiness under one original setup clock. Automatic reconnect, new WSS
 credential capture, clean broker-close qualification and final production/
 performance acceptance remain required. See the [native CLI](examples/ws_connect/README.md).
 
@@ -11,8 +15,8 @@ The developing [WS/WSS attachment](docs/client_ws.md) now reuses the ordinary
 Client for Binary MQTT traffic, QoS, subscriptions, selected enhanced auth and
 explicit Session/Inbox recovery. The host supplies an already checked Upgrade
 and native OPEN connection to these attachment APIs; the connection factories
-above perform native network/HTTP setup. URI input and automatic reconnect
-integration remain required. See the [local runnable example](examples/ws/README.md).
+above perform native network/HTTP setup. URI input uses the separate factory;
+automatic reconnect integration remains required. See the [local runnable example](examples/ws/README.md).
 The independent [in-memory session state](docs/session.md) leaf now implements
 bounded QoS state, cross-connection replay decisions, incoming identity retention
 and expiry. The optional [Client Session factory](docs/client_session.md) now attaches it

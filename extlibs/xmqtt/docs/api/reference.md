@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `137` 个函数、`218` 个常量或宏、
-`79` 个公共类型。
+当前登记 `140` 个函数、`228` 个常量或宏、
+`81` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -295,6 +295,34 @@
 
 - `xmqttclientwsconnectconfig`
 - `xmqttclientwsconnectinfo`
+
+## `extlibs/xmqtt/include/xmqtt/client_ws_uri.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_ws_uri.h)
+
+### 函数 (3)
+
+- `xmqttClientWsConnectUri`
+- `xmqttClientWssConnectUri`
+- `xmqttWsUriParse`
+
+### 常量与宏 (10)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI`
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS`
+- `XMQTT_FEATURE_XMQTT_WS_URI_PARSE`
+- `XMQTT_WS_URI_IPV4`
+- `XMQTT_WS_URI_IPV6`
+- `XMQTT_WS_URI_IPVFUTURE`
+- `XMQTT_WS_URI_MAX_AUTHORITY`
+- `XMQTT_WS_URI_MAX_BYTES`
+- `XMQTT_WS_URI_MAX_TARGET`
+- `XMQTT_WS_URI_NAME`
+
+### 类型 (2)
+
+- `xmqttwsuri`
+- `xmqttwsurihostkind`
 
 ## `extlibs/xmqtt/include/xmqtt/codec311.h`
 

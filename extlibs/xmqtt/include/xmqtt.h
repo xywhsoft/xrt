@@ -43,6 +43,10 @@
 #error "MQTT root requires native WS/WSS setup"
 #endif
 #include <xmqtt/client_ws_connect.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+#error "MQTT root requires WS/WSS URI setup"
+#endif
+#include <xmqtt/client_ws_uri.h>
 #include <xmqtt/reconnect.h>
 #include <xmqtt/reconnect_subscriptions.h>
 #endif

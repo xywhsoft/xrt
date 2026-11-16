@@ -73,3 +73,11 @@ now perform strict native HTTP Upgrade under the original Client clock. See
 [xmqtt-websocket-connect-20261116.json](xmqtt-websocket-connect-20261116.json).
 URI/reconnect, credential capture after WSS handoff, durability, clean broker-close
 qualification and production/performance acceptance remain outstanding.
+
+
+URI setup update 2026-11-16: strict ws/wss parsing and native IP/decoded-name URI
+factories now have source-bound evidence in
+[xmqtt-websocket-uri-20261116.json](xmqtt-websocket-uri-20261116.json). Original
+clocks, explicit TLS verification/SNI policy and optional Auth/Session/Inbox
+remain on the ordinary Client. Automatic reconnect, post-handoff credential
+capture, durability, clean broker-close and final performance/soak gates remain.

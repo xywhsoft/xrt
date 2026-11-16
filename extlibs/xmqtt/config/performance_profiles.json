@@ -4043,6 +4043,132 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_ws_uri_parse",
+      "system": "client_ws_uri",
+      "description": "Actual bounded URI views and network/resource policy checks; valid path no heap; unpinned diagnostics",
+      "benchmarks": [
+        {
+          "name": "xmqtt_ws_uri_parse",
+          "source": "extlibs/xmqtt/bench/bench_ws_uri_parse.c",
+          "suite": "xmqtt_ws_uri_parse_tests,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "parses_per_sec": {
+              "direction": "higher",
+              "unit": "parse/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri",
+      "system": "client_ws_uri",
+      "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_uri",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+          "suite": "xmqtt_client_ws_uri_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "16",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycle/s"
+            },
+            "ready_latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "retire_latency_mean_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cold_peak_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri_tls",
+      "system": "client_ws_uri",
+      "description": "Actual URI-to-Ready native HTTP/MQTT cycles and physical host joins; local synthetic TLS fixture; unpinned diagnostics",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws_uri_tls",
+          "source": "extlibs/xmqtt/bench/bench_client_ws_uri.c",
+          "suite": "xmqtt_client_ws_uri_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "16",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycle/s"
+            },
+            "ready_latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ready_latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "retire_latency_mean_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cold_peak_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
     }
   ]
 }

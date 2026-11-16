@@ -9,7 +9,8 @@ These attachment factories enforce the metadata and OPEN/client native state; th
 re-verify peer credentials or
 perform/attest earlier host network setup. The separate developing
 [native connection factories](client_ws_connect.md) perform numeric/DNS/prepared
-network setup and HTTP Upgrade. URI input and reconnect integration remain required.
+network setup and HTTP Upgrade; [URI factories](client_ws_uri.md) add strict URI
+routing. Reconnect integration remains required.
 
 One ordinary Client owns all existing packet/QoS/auth/Session/Inbox state. Binary
 bytes span arbitrary WS frames/messages; Text closes the transport. WS control
@@ -70,7 +71,7 @@ All new leaves remain developing. See the source-bound
 [stage report](../../../docs/development/xmqtt-websocket-20261116.json).
 The later [native connection stage](client_ws_connect.md) separately records
 numeric/DNS/prepared HTTP Upgrade and independent peer/broker evidence.
-URI input, automatic reconnect transport factories, durable state, strict clean
+Automatic reconnect transport factories, durable state, strict clean
 broker interoperability, broader async-OOM/slow-peer/
 malformed/load tests, controlled throughput/tails/CPU and native Linux/Windows
 soak qualification remain required. No complete WS/WSS product acceptance is claimed.

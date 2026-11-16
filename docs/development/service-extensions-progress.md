@@ -52,8 +52,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   authentication composition are locally verified. Plain Dial/Auth Session and
   the developing reconnect controller have dated local evidence below. Native
   WS/WSS attachment and numeric/DNS/prepared HTTP connection factories are now
-  locally verified with selected Auth/Session/Inbox recovery. URI/reconnect
-  transport composition, post-Upgrade TLS credential capture, durable storage,
+  locally verified with selected Auth/Session/Inbox recovery. Strict ws/wss URI
+  parsing and IP/decoded-name setup are also locally verified. Automatic WS/WSS
+  reconnect composition, post-Upgrade TLS credential capture, durable storage,
   strict broker-close and full performance/production qualification remain pending.
 - Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
@@ -13343,3 +13344,43 @@ and out/service-extensions/xrpc-frame-20261112.
   capture (new ResumeLimit must be zero here), durability, additional broker-close/
   adversarial/load qualification, controlled performance, native>=72h soak and all
   remaining original Redis/RPC/Cron requirements stay active.
+
+
+## 2026-11-16: native MQTT WS/WSS URI factories on master
+
+- Continue directly from d32d8a76 on D:/GIT/xrt master, no branch/merge/worktree
+  operation or remote push. Independently selectable strict parser plus explicit
+  WS and WSS URI factories reuse Core target/authority/UTF-8/address APIs and
+  the existing native HTTP Client. No Core production change or shared runtime.
+- Bound URI8192/authority1024/resource4096, reject userinfo/fragments/malformed
+  escaping, preserve exact encoded resource and raw authority, decode host once.
+  IP/escaped IP bypass Resolver; names retain its host policy. WSS infers empty
+  verification name separately from SNI override, omits IP SNI and preserves
+  intentional explicit identities/inference-off policy. Original clocks and all
+  native owner/alias duties remain; URI input snapshots before return.
+- Windows select/IOCP and WSL select/epoll pass plain/full modular/single suites,
+  protocol/fault/atomicity/deadline/detached-DNS/OOM/state tests, root/stat-off,
+  nine legacy regression executables, separate static/shared real protocol and
+  standalone declaration consumers. WSL ASan/UBSan/leaks and independent TSan
+  pass; WSL is not native Linux acceptance. Package-tool consumers are counted
+  separately; no-argument example usage is not protocol coverage.
+- Thirteen route/resource/identity scenarios across MQTT5/3.1.1 and real WS/WSS
+  sockets independently check Host/resource/DNS route/verifier name/wire SNI.
+  Parser checks10000 properties/mutations and20000 budget1 zero-heap parses.
+  Held-owner plain numeric raw/URI constructors show equal allocation counts/bytes. New URI
+  view96 bytes; measured Client/public/cold layouts do not grow with selection.
+- Independent stdlib/OpenSSL peer completes24 real-CA CLI cases: IP/encoded
+  localhost, both platforms/versions and WS/TLS1.2/TLS1.3, independent Accept,
+  fragmented Binary, Ping/Pong, clean close and physical joins. Four additional
+  valid-CA/wrong-SAN cases reject before application bytes and physically join.
+  Preserve the initial Windows/WSL stdio-interleaving harness failure; no product
+  success condition is changed. Prior Mosquitto strict close failure remains.
+- Actual parser/cold-setup/checksum/retirement profiles and plain/TLS object sizes
+  are recorded. Concurrent shared-host Windows/WSL measurement drivers fail
+  quality checks; no thresholds change or rerun-to-green. These are diagnostics,
+  not a controlled comparison or accepted performance. Strict release stays closed.
+- Source cohorts, original/compressed binary hashes, raw attempts and exact
+  counts are in [the stage report](xmqtt-websocket-uri-20261116.json). Automatic
+  reconnect transport factories, post-Upgrade credential capture, durability,
+  broker-close/adversarial/load qualification, controlled performance and native
+  >=72h soak remain required, along with original Redis/RPC/Cron work.

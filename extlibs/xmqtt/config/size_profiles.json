@@ -159,6 +159,24 @@
       "system": "client_ws_connect",
       "suite": "xmqtt_client_ws_connect_tls",
       "description": "Ordinary Client, numeric/DNS/prepared HTTP Upgrade, bounded cold state and physical WS/TCP retirement; native verified TLS added"
+    },
+    {
+      "name": "xmqtt_client_ws_uri",
+      "system": "client_ws_uri",
+      "suite": "xmqtt_client_ws_uri",
+      "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state",
+      "forbid_symbols": [
+        "xmqttClientWssConnect",
+        "xmqttClientConnectAuth",
+        "xmqttSessionCreate",
+        "xrtTlsClientCreate"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri_tls",
+      "system": "client_ws_uri",
+      "suite": "xmqtt_client_ws_uri_tls",
+      "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state"
     }
   ]
 }

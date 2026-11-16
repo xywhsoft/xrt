@@ -89,6 +89,13 @@
         "source_roots": [
           "client_ws_connect"
         ]
+      },
+      {
+        "name": "client_ws_uri",
+        "state": "retained",
+        "source_roots": [
+          "client_ws_uri"
+        ]
       }
     ]
   },
@@ -134,7 +141,8 @@
         "xmqtt_reconnect",
         "xmqtt_reconnect_subscriptions",
         "xmqtt_client_ws_tls",
-        "xmqtt_client_ws_connect_tls"
+        "xmqtt_client_ws_connect_tls",
+        "xmqtt_client_ws_uri_tls"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -1330,6 +1338,168 @@
       ],
       "docs": [
         "extlibs/xmqtt/docs/client_ws_connect.md"
+      ]
+    },
+    {
+      "name": "xmqtt_ws_uri_parse",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_WS_URI_PARSE",
+      "depends": [
+        "http_target"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/client_ws_uri/parse.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_WS_URI",
+      "depends": [
+        "xmqtt_ws_uri_parse",
+        "xmqtt_client_ws_connect"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/client_ws_uri/uri.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri_tls",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS",
+      "depends": [
+        "xmqtt_client_ws_uri",
+        "xmqtt_client_ws_connect_tls"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_ws_uri.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
+      ]
+    },
+    {
+      "name": "xmqtt_ws_uri_parse_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_ws_uri_parse",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_ws_uri_parse.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_ws_uri_parse.c"
+      ],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_ws_uri_parse.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_ws_uri",
+        "memory_stats",
+        "thread",
+        "xmqtt_client_auth",
+        "xmqtt_client_session"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_ws_uri.c",
+        "extlibs/xmqtt/tests/test_client_ws_uri_faults.c",
+        "extlibs/xmqtt/tests/test_client_ws_uri_state.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri_state.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/ws_uri/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_ws_uri.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_ws_uri_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_ws_uri_tls",
+        "memory_stats",
+        "thread",
+        "tls_server",
+        "tls_identity_rsa",
+        "tls_stream_retire",
+        "xmqtt_client_auth",
+        "xmqtt_client_session"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_ws_uri.c",
+        "extlibs/xmqtt/tests/test_client_ws_uri_faults.c",
+        "extlibs/xmqtt/tests/test_client_ws_uri_state.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri_tls_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_ws_uri_tls_state.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/ws_uri/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_ws_uri.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client_ws_uri.md"
       ]
     }
   ]
