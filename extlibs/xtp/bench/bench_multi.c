@@ -26,6 +26,7 @@ int main(int argc,char** argv)
     unsigned duration=argc>6?(unsigned)strtoul(argv[6],NULL,10):0;
 #if defined(XTP_BENCH_PRODUCTION)
     if(!connections||connections>64||!workers||workers>16||!native_count||native_count>100000||mode>3||native_body>65536||duration>604800)return 1;
+    if(native_body<24||native_count>67108864/native_body)return 1;
 #else
     if(!connections||connections>64||!workers||workers>16||!native_count||native_count>100000||mode>2||native_body>65536||duration>86400)return 1;
 #endif
@@ -36,10 +37,14 @@ int main(int argc,char** argv)
     for(size_t k=0;k<connections;++k){native_test* t=&tests[k];t->Mode=mode;t->Engine=engine;
 #if defined(XTP_BENCH_PRODUCTION)
         if(mode==3){t->Mode=1;t->Wss=true;}
+        t->PairOrdinal=k+1;
         xrtAtomic32Init(&t->Inspected,0);
 #endif
         xrtAtomic32Init(&t->Ready,0);xrtAtomic32Init(&t->Done,0);xrtAtomic32Init(&t->Failed,0);xrtAtomic32Init(&t->Closing,0);
         for(unsigned i=0;i<2;++i){native_peer* p=&t->Peers[i];p->Test=t;p->Index=i;p->Begin=calloc(native_count,sizeof(double));p->Latency=calloc(native_count,sizeof(double));assert(p->Begin&&p->Latency);}
+#if defined(XTP_BENCH_PRODUCTION)
+        for(size_t i=0;i<2;++i){t->Peers[i].Payloads=calloc(native_count,native_body);assert(t->Peers[i].Payloads);}
+#endif
         if(t->Mode==1)tls_setup(t);
         xnetlistenconfig c;xrtNetListenConfigInit(&c);c.Affinity=k;c.Distribution=XNET_ACCEPT_LOCAL;
         assert(xrtNetAddrParse(&c.Address,"127.0.0.1",0));xnetlistenerevents e={accept_peer,NULL,NULL};
@@ -95,6 +100,7 @@ int main(int argc,char** argv)
             assert(xtpClose(p->Xtp,clock_us())==XTP_CLOSED&&xtpDestroy(p->Xtp)==XTP_OK);
 #if defined(XTP_BENCH_PRODUCTION)
             assert(!p->AllocLive&&!p->AllocBlocks);
+            free(p->Payloads);
 #endif
             free(p->Begin);free(p->Latency);}
         if(t->Mode==1){xrtTlsVerifierRelease(t->Verifier);xrtTlsIdentityRelease(t->Identity);xrtTlsContextRelease(t->Context);}}

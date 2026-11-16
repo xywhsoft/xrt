@@ -32,7 +32,9 @@ python extlibs/xtp/bench/production_soak.py --exe out/xtp3-production/production
 python extlibs/xtp/bench/production_soak.py --exe out/xtp3-production/production-full-asan --seconds 259200 --connections 8 --workers 2 --mode 3 --count 2000 --report out/xtp3-production/full-wss-72h-asan.json
 ```
 
-mode0/1/2/3分别为TCP/TLS1.3/WS/WSS。报告路径必须是新的，避免覆盖历史证据。最长7天，默认72小时。每轮在所属worker检查 pending、incoming、tx 和 retained 均清空，实际自有分配字节与Session账本一致；分配计数和总完成数用64位，持续运行不因32位计数回绕而假通过。退出在原生退休后Close/Destroy，并断言自有分配块及字节归零。
+mode0/1/2/3分别为TCP/TLS1.3/WS/WSS。报告路径必须是新的，避免覆盖历史证据。最长7天，默认72小时。每条请求携带完整64位序号、连接编号和发送方向构成的确定性内容；服务端逐字节校验，客户端将响应与原Tag对应的独立保存内容比较，避免全零payload掩盖串包或错误关联。仅用于诊断的 `--inject-test-corruption` 构建会故意破坏echo响应，必须失败；不能用于正式长稳。
+
+每轮在所属worker检查 pending、incoming、tx 和 retained 均清空，实际自有分配字节与Session账本一致；分配计数和总完成数用64位，持续运行不因32位计数回绕而假通过。退出在原生退休后Close/Destroy，并断言自有分配块及字节归零。探针禁止NDEBUG，不能编译掉这些检查。
 
 子进程每秒发布检查点；父进程每两秒采样OS内存、追加JSONL事件并原子更新状态。默认RSS硬上限3GiB，300秒预热后的静止自有内存增长余量为每peer128KiB；记录150秒无完成进度与总时长加180秒退出宽限。阈值在运行前写入报告，不随结果放宽。OS内存包含网络/运行时/sanitizer，和XTP账本不同。
 

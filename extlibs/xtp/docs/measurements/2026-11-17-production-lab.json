@@ -11,7 +11,8 @@
     "continuous_72h": "pending",
     "target_devices_and_carrier_network": "pending",
     "real_tls_resume_and_failure": "passed",
-    "extended_fuzz": "pending"
+    "extended_fuzz": "pending",
+    "payload_identity_and_corruption_detection": "passed"
   },
   "controlled_p99": {
     "count_per_shape_repeat": 1000000,
@@ -63,7 +64,10 @@
     "tls-recovery-asan.log": "9fb1199ee6fd2ab80e19b011c30dd1f095ff5a27c1127f42701e7d006c408df6",
     "smoke-full-tls.json": "5099b34edbd493b2a01cef7a2ac1489d3d1723f1d49cb7e72c45007bf4b9506d",
     "smoke-full-wss-asan.json": "4d9d2d69cc14a26cd5df4865ce21831c14871a67f76c98f20f570d4bd25cd820",
-    "fuzz-seeded-preflight.json": "f1656eb67fca133f60c706763d8c1fa272358f2ba9cb9d31352fef96411f47ee"
+    "fuzz-seeded-preflight.json": "f1656eb67fca133f60c706763d8c1fa272358f2ba9cb9d31352fef96411f47ee",
+    "pattern-full-tls.json": "9406bf1706edc3815b3e0c80bc8308de85932a134f1f659238f0f1f20d1c92c6",
+    "pattern-full-wss-asan.json": "73f9d072b6b7216081815c7e8f206be3364f2926b280fb571bdd773a7f5e46b8",
+    "pattern-negative.json": "db98449690edad143dad2c9e765b8ae23c2ff61826573bd1ec07492dd0e2a9e3"
   },
   "device_inventory": "ADB found; devices -l reported no connected devices; user asked for target equipment/endpoints",
   "long_run_conditions": {

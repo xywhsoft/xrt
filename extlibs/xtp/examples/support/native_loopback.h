@@ -36,6 +36,7 @@ typedef struct native_peer {
 #if defined(XTP_BENCH_PRODUCTION)
     size_t AllocLive,AllocPeak,AllocBlocks;
     uint64_t TotalPlaintext,TotalWrites;
+    uint64_t TotalSubmitted;unsigned char* Payloads;
 #endif
 } native_peer;
 struct native_test {
@@ -53,6 +54,7 @@ struct native_test {
 #endif
 #if defined(XTP_BENCH_PRODUCTION)
     xatomic32 Inspected;size_t LiveBytes,LiveBlocks,ReservedPeak;
+    uint64_t PairOrdinal;
 #endif
 };
 static uint64_t clock_us(void){return (uint64_t)(xrtTimer()*1000000.0);}
@@ -77,12 +79,31 @@ static void drain(native_peer* p)
 #endif
 }
 #if defined(XTP_BENCH_NATIVE)
+#if defined(XTP_BENCH_PRODUCTION)
+static unsigned char native_pattern(uint64_t ordinal,uint64_t pair,unsigned side,size_t index)
+{
+    if(index<8)return (unsigned char)(ordinal>>(index*8));
+    if(index<16)return (unsigned char)(pair>>((index-8)*8));
+    if(index==16)return (unsigned char)side;
+    return (unsigned char)((ordinal>>((index%8)*8))^(pair*29)^((uint64_t)side*71)^(index*37));
+}
+#endif
 static void native_submit(native_peer* p,size_t n)
 {
     while(n){size_t batch=n>32?32:n;xtpmessage messages[32];xtpsubmitoptions options[32];memset(options,0,sizeof(options));
         for(size_t i=0;i<batch;++i){size_t index=p->Submitted+i;p->Begin[index]=xrtTimer();messages[i]=(xtpmessage){0};
-            messages[i].Type=XTP_REQUEST;messages[i].Command=xtpCmdID(1001);messages[i].Body=(xbytesview){native_payload,native_body};options[i].Tag=&p->Begin[index];}
-        assert(xtpSubmitBatch(p->Xtp,messages,batch,options,clock_us(),NULL)==XTP_OK);p->Submitted+=batch;n-=batch;}
+            messages[i].Type=XTP_REQUEST;messages[i].Command=xtpCmdID(1001);messages[i].Body=(xbytesview){native_payload,native_body};options[i].Tag=&p->Begin[index];
+#if defined(XTP_BENCH_PRODUCTION)
+            unsigned char* payload=p->Payloads+index*native_body;
+            for(size_t j=0;j<native_body;++j)payload[j]=native_pattern(p->TotalSubmitted+i+1,p->Test->PairOrdinal,p->Index,j);
+            messages[i].Body=(xbytesview){payload,native_body};
+#endif
+        }
+        assert(xtpSubmitBatch(p->Xtp,messages,batch,options,clock_us(),NULL)==XTP_OK);p->Submitted+=batch;n-=batch;
+#if defined(XTP_BENCH_PRODUCTION)
+        p->TotalSubmitted+=batch;
+#endif
+    }
 }
 static void native_fill(native_peer* p)
 {
@@ -133,7 +154,14 @@ static xtpdecision business(xtpsession* s,const xtpmessageview* m,void* user)
 {
     native_peer* p=user;++p->Messages;
     assert(m->Command.Kind==XTP_COMMAND_ID&&m->Command.As.ID==1001);
+#if defined(XTP_BENCH_PRODUCTION)
+    assert(m->Body.Size==native_body);
+    for(size_t j=0;j<native_body;++j)assert(m->Body.Data[j]==native_pattern(m->MessageID,p->Test->PairOrdinal,1-p->Index,j));
+#endif
     if(m->Type==XTP_REQUEST){xtpresponse response={0};response.Body=m->Body;
+#if defined(XTP_PRODUCTION_TEST_CORRUPT)
+        unsigned char wrong[64];assert(native_body==sizeof(wrong));memcpy(wrong,m->Body.Data,sizeof(wrong));wrong[0]^=1;response.Body=(xbytesview){wrong,sizeof(wrong)};
+#endif
         assert(xtpReply(s,m->Request,&response,clock_us())==XTP_OK);}
     return xtpAccept();
 }
@@ -143,6 +171,11 @@ static void complete(xtpsession* s,const xtpcompletion* c,void* user)
     if(c->Reason==XTP_FINISH_CLOSED)return;
 #if defined(XTP_BENCH_NATIVE)
     assert(c->Reason==XTP_FINISH_RESPONSE&&c->Body.Size==native_body);
+#if defined(XTP_BENCH_PRODUCTION)
+    uintptr_t tag=(uintptr_t)c->Tag,begin=(uintptr_t)p->Begin;
+    assert(tag>=begin&&tag-begin<native_count*sizeof(double)&&(tag-begin)%sizeof(double)==0);
+    size_t index=(tag-begin)/sizeof(double);assert(!memcmp(c->Body.Data,p->Payloads+index*native_body,native_body));
+#endif
     p->Latency[p->Completed++]=(xrtTimer()-*(double*)c->Tag)*1e6;
     if(!native_rate)native_fill(p);
     native_done(p->Test);
