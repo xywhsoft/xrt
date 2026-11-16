@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "product": "xtp",
+  "module_prefix": "XTP_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XTP_API",
+  "single_header": "single/extlibs/xtp.h",
+  "declaration_header": "single/extlibs/xtp_decl.h",
+  "implementation_macro": "XTP_IMPLEMENTATION",
+  "implementation_once_macro": "XTP_IMPLEMENTATION_ONCE",
+  "single_guard": "XTP_SINGLE_HEADER_H",
+  "single_marker": "XTP_SINGLE_HEADER",
+  "declaration_guard": "XTP_DECLARATIONS_H",
+  "declaration_marker": "XTP_DECLARATIONS",
+  "package_consumer": "extlibs/xtp/tests/package/test_consumer.c",
+  "product_root": "extlibs/xtp",
+  "features_guard": "XTP_FEATURES_H",
+  "features_header": "extlibs/xtp/include/xtp/features.h",
+  "include_dirs": [
+    "extlibs/xtp/include"
+  ],
+  "header_roots": [
+    "extlibs/xtp/include",
+    "extlibs/xtp/src/internal"
+  ],
+  "umbrella_header": "xtp.h",
+  "api_reference": {
+    "title": "xtp public API reference",
+    "function_prefix": "xtp",
+    "constant_prefix": "XTP_",
+    "type_prefix": "xtp",
+    "guide": "../../README.md",
+    "output": "extlibs/xtp/docs/api/reference.md"
+  },
+  "scope": {
+    "product": "xtp",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "codec",
+        "state": "retained",
+        "source_roots": [
+          "codec"
+        ]
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "xtp",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP",
+      "depends": [
+        "xtp_codec"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp.h",
+        "extlibs/xtp/include/xtp/features.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/README.md"
+      ],
+      "collect_dependency_assets": [
+        "examples"
+      ]
+    },
+    {
+      "name": "xtp_codec",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_CODEC",
+      "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xtp/include/xtp/codec.h",
+        "extlibs/xtp/include/xtp/export.h",
+        "extlibs/xtp/include/xtp/types.h"
+      ],
+      "internal_headers": [
+        "extlibs/xtp/src/internal/xtp_codec.h"
+      ],
+      "sources": [
+        "extlibs/xtp/src/codec/codec.c"
+      ],
+      "tests": [
+        "extlibs/xtp/tests/test_codec.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_codec.c"
+      ],
+      "examples": [
+        "extlibs/xtp/examples/codec/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/coverage.md",
+        "extlibs/xtp/docs/api/reference.md"
+      ],
+      "fuzz_sources": [
+        "extlibs/xtp/tests/fuzz_codec.c"
+      ]
+    },
+    {
+      "name": "xtp_tests",
+      "state": "developing",
+      "feature": null,
+      "depends": [
+        "xtp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_codec.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_codec.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [],
+      "single_test_owners": {
+        "extlibs/xtp/tests/single/test_single_xtp_codec.c": "xtp_codec"
+      }
+    }
+  ]
+}

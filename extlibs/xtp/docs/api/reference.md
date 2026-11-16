@@ -1,0 +1,99 @@
+# xtp public API reference
+
+此文件由 `tools/generate_api_reference.py` 从 `extlibs/xtp/config/modules.json` 与公共头生成。
+不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
+[../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
+
+当前登记 `0` 个函数、`54` 个常量或宏、
+`17` 个公共类型。
+
+## `extlibs/xtp/include/xtp/codec.h`
+
+[查看带契约注释的公共头](../../include/xtp/codec.h)
+
+### 常量与宏 (2)
+
+- `XTP_API`
+- `XTP_FEATURE_XTP_CODEC`
+
+### 类型 (8)
+
+- `xtpcodecconfig`
+- `xtpframeview`
+- `xtppacket`
+- `xtpparamentry`
+- `xtpparamiter`
+- `xtpparamresult`
+- `xtpparamsview`
+- `xtpresult`
+
+## `extlibs/xtp/include/xtp/types.h`
+
+[查看带契约注释的公共头](../../include/xtp/types.h)
+
+### 常量与宏 (52)
+
+- `XTP_ACK`
+- `XTP_AGAIN`
+- `XTP_BATCH_MAX`
+- `XTP_CLOSED`
+- `XTP_COMMAND_ID`
+- `XTP_COMMAND_NAME`
+- `XTP_COMMAND_NONE`
+- `XTP_DROPPED`
+- `XTP_END`
+- `XTP_E_ARGUMENT`
+- `XTP_E_CAPACITY`
+- `XTP_E_DEADLINE`
+- `XTP_E_LENGTH`
+- `XTP_E_LIMIT`
+- `XTP_E_MAGIC`
+- `XTP_E_MEMORY`
+- `XTP_E_STATE`
+- `XTP_E_TRUNCATED`
+- `XTP_E_TYPE`
+- `XTP_E_VALUE`
+- `XTP_E_VERSION`
+- `XTP_FLAG_PARAM_ARRAY`
+- `XTP_FLAG_REPLAYABLE`
+- `XTP_FLAG_RESULT_ACK`
+- `XTP_FLAG_ROUTE_ID`
+- `XTP_HEADER_SIZE`
+- `XTP_MESSAGE`
+- `XTP_MORE`
+- `XTP_NOTIFY`
+- `XTP_OK`
+- `XTP_PARAMS_ARRAY`
+- `XTP_PARAMS_MAX`
+- `XTP_PARAMS_TABLE`
+- `XTP_PARAM_ARGUMENT`
+- `XTP_PARAM_FOUND`
+- `XTP_PARAM_MISSING`
+- `XTP_PARAM_WRONG_MODE`
+- `XTP_PAUSED`
+- `XTP_PUSH`
+- `XTP_REQUEST`
+- `XTP_RESPONSE`
+- `XTP_STATUS_BAD_ARGUMENT`
+- `XTP_STATUS_BUSY`
+- `XTP_STATUS_DEADLINE_EXCEEDED`
+- `XTP_STATUS_INTERNAL`
+- `XTP_STATUS_NOT_FOUND`
+- `XTP_STATUS_OK`
+- `XTP_STATUS_REJECTED`
+- `XTP_STATUS_RESULT_TOO_LARGE`
+- `XTP_STATUS_STATE_LOST`
+- `XTP_STATUS_UNSUPPORTED`
+- `XTP_WIRE_VERSION`
+
+### 类型 (9)
+
+- `xtpcommand`
+- `xtpcommandkind`
+- `xtpfield`
+- `xtpmessage`
+- `xtpmessagekind`
+- `xtpparamkind`
+- `xtpparams`
+- `xtpresponse`
+- `xtpstatus`
