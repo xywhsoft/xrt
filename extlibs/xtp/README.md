@@ -25,3 +25,5 @@ P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。P6 �
 完整协议、交付语义和阶段验收见 [设计](../../docs/design/xtp3.md) 与 [API 方案](../../docs/design/xtp3-api.md)。[Codec 示例](examples/codec/main.c) 可直接运行；[覆盖与进度](docs/coverage.md) 明确尚未完成的阶段。
 
 可恢复 RPC 的默认 1024 槽/60s 保留约束会限制持续速率，默认不启用。自有源码/头共 114.05 KiB，超出初始源码预算；GCC 自有 Session 含 Delivery 的 text 约 41.9 KiB，依赖另计。生产部署资格不由本地功能/回环测试自动取得，详见验收记录。
+
+许可证沿用 XRT 仓库的 MIT 声明，独立快照包含 [LICENSE](LICENSE)。
