@@ -42,6 +42,9 @@ int main(int Argc,char** Argv)
     xnetengineconfig EC;xrtNetEngineConfigInit(&EC);EC.Workers=2;xnetengine* E=xrtNetEngineCreate(&EC);managedCheck(E && xrtNetEngineStart(E),"Engine");xtaskpoolconfig TC={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&TC);managedCheck(Pool!=NULL,"cleanup Pool");
     xnetaddr Address;managedCheck(xrtNetAddrParse(&Address,Host,(uint16)Port),"proxy address");xmqttreconnectconfig K;managedCheck(xmqttReconnectConfigInit(&K),"controller defaults");K.Factory=managedFactory;K.FactoryData=&Address;K.Client.Version=Version;K.Client.SetupTimeout=10000;K.InitialDelay=5;K.MaxDelay=20;K.JitterPermille=0;K.RetryStatuses|=UINT32_C(1)<<XMQTT_STATUS_CLOSED;
     if(Fragment){K.Client.ReadBytes=37;K.Client.WriteBytes=41;K.Client.WriteChunkBytes=13;K.Client.WorkPackets=4;}
+    #if defined(XMQTT_RECONNECT_BROKER_FACTORY)
+    K.Factory=XMQTT_RECONNECT_BROKER_FACTORY;
+    #endif
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.CleanStart=false;Q.Body.Connect.KeepAlive=5;Q.Body.Connect.ClientId=XRT_STR_LITERAL("xrt-session-recovery");
     xmqttproperty P[2]={{XMQTT_PROPERTY_SESSION_EXPIRY,XMQTT_PROPERTY_UINT32,{0}},{XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM,XMQTT_PROPERTY_UINT16,{0}}};P[0].Value.Number=60;P[1].Value.Number=4;if(Version==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){P,2};
     xmqttreconnect* R=NULL;managedCheck(xmqttReconnectCreate(E,Pool,1,&K,&Q,&R),"automatic controller");xmqttclientlease L={0};xfuture* R1=managedOnline(R,1,false,&L);xstrview Topic=XRT_STR_LITERAL("xrt/qual/session/binary");managedSubscribe(L.Client,Topic);
@@ -63,7 +66,11 @@ int main(int Argc,char** Argv)
         ++Count;if(!xmqttReconnectTakeMessage(R,&M))break;}
     managedCheck(!Mode || Count==1,"QoS2 one local delivery");xfuture* Closed=NULL;managedCheck(xmqttClientDisconnectAsync(L.Client,NULL,10000,&Closed)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)managedOutcome(Closed))->Status==XMQTT_STATUS_OK,"normal final DISCONNECT");
     managedCheck(xmqttReconnectRelease(&L) && xmqttReconnectClose(R) && xmqttReconnectWaitFor(R,15000)==XWAIT_OK,"controller stopped");xmqttreconnectinfo Info;managedCheck(xmqttReconnectInfo(R,&Info) && Info.Attempts==2 && Info.Connections==2,"exactly two automatic generations");
-    managedCheck(xmqttReconnectDestroy(R) && xrtTaskPoolClose(Pool) && xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(Pool) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"all physical owners joined");
+    managedCheck(xmqttReconnectDestroy(R) && xrtTaskPoolClose(Pool) && xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(Pool)
+    #if defined(XMQTT_RECONNECT_BROKER_BEFORE_ENGINE_DESTROY)
+        && XMQTT_RECONNECT_BROKER_BEFORE_ENGINE_DESTROY()
+    #endif
+        && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"all physical owners joined");
     managedCheck(Old==xrtFutureValue(F) && xmqttMessagePacket(Held)->Body.Publish.Payload.Size==Bytes && ((const xmqttreadyresult*)xrtFutureValue(R2))->Negotiated.SessionPresent,"retained outcomes after all owners");
     xmqttMessageRelease(Held);xrtFutureDestroy(F);xrtFutureDestroy(R1);xrtFutureDestroy(R2);xrtFutureDestroy(Closed);printf("[PASS] automatic broker MQTT%lu mode%u fragmented%u messages%u\n",V,Mode,Fragment?1u:0u,Count);return 0;
 }

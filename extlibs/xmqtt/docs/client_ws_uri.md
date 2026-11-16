@@ -88,7 +88,8 @@ and actual plain/TLS object sizes are distinct from controlled performance
 acceptance. Previous Mosquitto clean-close failures remain unresolved and are not
 relabeled successful by this URI stage.
 
-All URI connection leaves remain developing. Automatic WS/WSS reconnect factories,
+All URI connection leaves remain developing. The later [automatic recovery
+stage](reconnect_ws.md) qualifies existing controller/factory composition. Remaining:
 post-Upgrade credential capture, durable state, broader async-OOM/partial-write/
 load and broker-close qualification, controlled throughput/tails/CPU and native
 Windows/Linux >=72h soak remain required, along with the other three products.

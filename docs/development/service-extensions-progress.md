@@ -54,7 +54,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   WS/WSS attachment and numeric/DNS/prepared HTTP connection factories are now
   locally verified with selected Auth/Session/Inbox recovery. Strict ws/wss URI
   parsing and IP/decoded-name setup are also locally verified. Automatic WS/WSS
-  reconnect composition, post-Upgrade TLS credential capture, durable storage,
+  reconnect composition has its own qualification stage. Post-Upgrade TLS
+  credential capture, durable storage,
   strict broker-close and full performance/production qualification remain pending.
 - Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
@@ -13384,3 +13385,37 @@ and out/service-extensions/xrpc-frame-20261112.
   reconnect transport factories, post-Upgrade credential capture, durability,
   broker-close/adversarial/load qualification, controlled performance and native
   >=72h soak remain required, along with original Redis/RPC/Cron work.
+
+
+## 2026-11-16: automatic MQTT WS/WSS recovery on master
+
+- Continue directly from a8e51e86 in D:/GIT/xrt master. No branch operations or
+  remote push. Existing reconnect/subscription controller composes ordinary
+  numeric/DNS/prepared/URI WS/WSS factories with the exact private Session/Inbox
+  and borrowed Engine/Affinity/Pool. No production source, public API or extra
+  Client resident field changes. The endpoint example owns immutable URI/policy,
+  Resolver/trust/callback lifetime through controller Destroy.
+- Separate positive/fault/auth suites and plain/full singles verify both MQTT
+  versions, six factory routes, three outgoing ACK cuts, retained/lost state,
+  subscription recovery, Inbox and immutable old outcomes, held leases/native
+  aliases/auth tickets, reauth/proof quarantine, original HTTP/DNS clocks, typed
+  denial, actual allocation-budget failures and zero remaining owner credits.
+  Windows select/IOCP and WSL select/epoll, ASan/UBSan/leaks, independent TSan,
+  root/stats-off and separate static/shared consumers are source-bound.
+- Independent bounded stdlib/OpenSSL HTTP/WS gateway fronts a pinned real
+  Mosquitto TCP broker and the independent MQTT ACK-cut proxy. Eight native C
+  forms cover WS/TLS1.2/TLS1.3, MQTT5/311, five ACK cuts and normal/tiny budgets.
+  This qualifies gateway transport with real retained broker sessions; prior
+  broker-native missing-WS-Close remains unresolved. Actual documented CLI has
+  separate two-generation modular/static/shared WS/WSS broker cases.
+- Same-selected manual/batch-lease/per-call-lease QoS1 profiles report throughput,
+  P50/P95/P99/P99.9/max, actual identifier checksum and process CPU. OS measurement
+  runs are serialized; closed-loop shared-host results remain diagnostics and
+  quality failures are preserved without threshold changes. No performance or
+  production acceptance is inferred.
+- Exact final counts, hashes, raw attempts, corrections and evidence are in
+  [the stage report](xmqtt-websocket-reconnect-20261116.json). Post-Upgrade TLS
+  credential capture, durable protocol/crash state, native-broker/adversarial/load
+  qualification, controlled fixed-arrival performance and native Windows/Linux
+  >=72h soak remain required. Original Redis/RPC/Cron scope stays active and the
+  strict four-product release gate remains closed.

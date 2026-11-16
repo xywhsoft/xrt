@@ -103,3 +103,14 @@ authentication fixtures establish protocol/lifetime behavior, not a real algorit
 or enhanced-auth broker-plugin interoperability. Production source/ABI/closures
 are unchanged; broader performance, real system DNS, broker-native TLS/other brokers,
 native Linux and soak acceptance remain open.
+
+
+## Automatic WS/WSS composition evidence
+
+[Automatic WS/WSS recovery](reconnect_ws.md) reuses this controller with ordinary
+numeric/DNS/prepared and URI WS/WSS factories, exact private Session/Inbox owners,
+bounded subscriptions and one borrowed Engine/cleanup Pool. It adds protocol,
+fault, enhanced-auth, alias/lifetime, single/package and actual broker/gateway
+qualification, plus a [two-generation CLI](../examples/reconnect_ws/README.md).
+No production source or public API changes. Gateway evidence is distinct from
+broker-native WebSocket and controlled performance/native Linux/soak acceptance.

@@ -71,7 +71,8 @@ All new leaves remain developing. See the source-bound
 [stage report](../../../docs/development/xmqtt-websocket-20261116.json).
 The later [native connection stage](client_ws_connect.md) separately records
 numeric/DNS/prepared HTTP Upgrade and independent peer/broker evidence.
-Automatic reconnect transport factories, durable state, strict clean
+The later [automatic recovery stage](reconnect_ws.md) composes ordinary factories
+with existing generation leases and Session/Inbox. Durable state, strict clean
 broker interoperability, broader async-OOM/slow-peer/
 malformed/load tests, controlled throughput/tails/CPU and native Linux/Windows
 soak qualification remain required. No complete WS/WSS product acceptance is claimed.

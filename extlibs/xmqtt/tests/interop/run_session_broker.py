@@ -61,7 +61,7 @@ def packet(sock):
 
 
 class Proxy:
-    def __init__(self, backend, version, mode, host='127.0.0.1'):
+    def __init__(self, backend, version, mode, host='127.0.0.1', *, drop_packets=True):
         self.backend, self.version, self.mode = backend, version, mode
         self.listener = socket.socket()
         self.listener.bind((host, 0))
@@ -72,6 +72,7 @@ class Proxy:
         self.stop = threading.Event()
         self.rows, self.errors, self.connections, self.threads = [], [], [], []
         self.dropped = False
+        self.drop_packets = drop_packets
         self.acceptor = threading.Thread(target=self.accept, daemon=True)
         self.acceptor.start()
 
@@ -148,7 +149,7 @@ class Proxy:
                         row['reason'] = body[2] if len(body) >= 3 else 0
                 drop_direction, drop_type = [('sc', 4), ('sc', 5), ('sc', 7), ('cs', 5), ('cs', 7)][self.mode]
                 with self.cv:
-                    if generation == 1 and direction == drop_direction and kind == drop_type and not self.dropped:
+                    if self.drop_packets and generation == 1 and direction == drop_direction and kind == drop_type and not self.dropped:
                         row['forwarded'] = False
                         self.dropped = True
                 if row['forwarded']:
@@ -270,6 +271,9 @@ def case(broker_path, client, version, mode, fragmented, directory, name, window
                     assert time.monotonic() < end, 'broker listen deadline'
                     time.sleep(.05)
             proxy = (proxy_factory or Proxy)(port, version, mode, proxy_host)
+            row['proxy_port'] = proxy.port
+            if hasattr(proxy, 'front_port_candidates'):
+                row['front_port_candidates'] = proxy.front_port_candidates
             if client.suffix.lower() == '.exe' and os.name != 'nt':
                 assert windows_python, 'native Windows Python is required to verify WSL loopback forwarding readiness'
                 # WSL publishes new localhost listeners asynchronously. Verify

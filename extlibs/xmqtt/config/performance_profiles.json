@@ -4169,6 +4169,361 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_reconnect_ws",
+      "system": "client",
+      "description": "Same native URI/HTTP WS/WSS QoS1 workload: manual Session, one batch lease, per-call leases; no fixture Notify/initial message; no production or controlled acceptance",
+      "benchmarks": [
+        {
+          "name": "ws_manual",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "ws_batch_lease",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "ws_per_call_lease",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "2",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_manual",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_batch_lease",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        },
+        {
+          "name": "wss_per_call_lease",
+          "source": "extlibs/xmqtt/bench/bench_reconnect_ws.c",
+          "suite": "xmqtt_reconnect_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_reconnect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_connect_peer.h",
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h",
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0",
+            "2",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "0",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_publish": {
+              "direction": "lower",
+              "unit": "ns/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

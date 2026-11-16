@@ -1,0 +1,14 @@
+#define XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#define XRT_MODULE_TLS_SERVER
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_reconnect_ws_faults.c"

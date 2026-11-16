@@ -81,3 +81,12 @@ factories now have source-bound evidence in
 clocks, explicit TLS verification/SNI policy and optional Auth/Session/Inbox
 remain on the ordinary Client. Automatic reconnect, post-handoff credential
 capture, durability, clean broker-close and final performance/soak gates remain.
+
+
+Automatic recovery update 2026-11-16: [reconnect_ws.md](../../extlibs/xmqtt/docs/reconnect_ws.md)
+and [the source-bound report](xmqtt-websocket-reconnect-20261116.json) qualify
+ordinary WS/WSS factories with existing controller/private Session/Inbox, leases,
+subscription/auth/replay/retirement and independent broker/gateway transport.
+No production runtime or new API is introduced. Post-Upgrade credential capture,
+durable state, broker-native clean close, controlled performance and native soak
+remain required; gateway and WSL evidence do not replace those gates.

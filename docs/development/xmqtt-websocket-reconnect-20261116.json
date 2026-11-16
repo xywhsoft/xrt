@@ -1,0 +1,1441 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-automatic-WS-WSS-controller-composition",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "a8e51e8697ac3bdb69c5e598d0d41ae9da533ccd",
+  "previous_goal_turn": "progress: automatic WS/WSS protocol/auth/lifetime integration and final local validation; verified build wait",
+  "branch_operations": 0,
+  "remote_push": false,
+  "complete_four_product_goal": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "mqtt_websocket_complete": false,
+  "new_public_APIs": 0,
+  "new_shared_runtime": false,
+  "production_equivalence": {
+    "base": "a8e51e8697ac3bdb69c5e598d0d41ae9da533ccd",
+    "production_changed_paths": [],
+    "source_scope": [
+      "include",
+      "src",
+      "single",
+      "extlibs/xmqtt/src",
+      "extlibs/xmqtt/include"
+    ],
+    "private_runtime_or_public_API_changes": false,
+    "proof": "git diff against actual base/current master: canonical Core/extension production and generated delivery bytes unchanged; test/module selections are separately recorded"
+  },
+  "architecture": "Reuse ordinary native WS/WSS numeric/DNS/prepared/URI Client factories with exact existing private Session/Inbox and borrowed Engine/Affinity/cleanup Pool. Caller-owned endpoint adapter snapshots each attempt; URI/trust/Resolver/callback code live through controller Destroy. No payload/Future wrapper, production runtime change or duplicate protocol state.",
+  "verification": {
+    "windows": {
+      "final_tests": 20,
+      "delivery": 4,
+      "regression": 13,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "real_cli": 18,
+      "total_C_executions": 60,
+      "usage_only_executions": 2
+    },
+    "wsl": {
+      "final_tests": 20,
+      "delivery": 4,
+      "regression": 13,
+      "root_smoke": 1,
+      "stats_off": 1,
+      "abi": 3,
+      "tsan": 6,
+      "real_cli": 18,
+      "total_C_executions": 66,
+      "usage_only_executions": 2
+    }
+  },
+  "additional_verification": {
+    "real_broker_C_executions": 480,
+    "real_broker_per_host": 240,
+    "package_tool_verified_consumers_per_host": 2,
+    "scope": "Windows select/IOCP and WSL select/epoll; WSL ASan/UBSan/leaks and independent TSan. No-argument examples separately identified as usage only. Additional real-broker executions are not included in the local C count.",
+    "cases": [
+      "Six numeric/DNS/prepared/numeric-URI/decoded-name-URI/escaped-IP-URI factories across MQTT5/3.1.1 WS/WSS; three outgoing ACK cuts, original identifier/DUP/PUBREL replay and immutable old delivery/ACK outcomes",
+      "Old application leases prevent replacement; single-header native WS aliases also block physical retirement after lease release; real old owners retire before next factory",
+      "Shared Inbox and retained old messages/results through Client/controller/Resolver/Pool/Engine destruction",
+      "Initial subscription restoration before ONLINE, retained versus lost session decisions, explicit always-clean311 policy and managed removal after recovery",
+      "Initial challenge/final-proof quarantine, two authenticated generations, ordinary traffic during reauth, held auth ticket retirement, stopped stale ticket rejection, default no retry on proof denial",
+      "One outage clock through held HTTP and detached DNS, explicit close, closed-Pool external cleanup assistance, typed HTTP/TLS rejection and actual factory allocation-budget failures with zero live credits after joins",
+      "Thirteen legacy TCP/Auth/Session/TLS/native WS/HTTP/URI/reconnect/subscription/transport tests; the last transport probe separately selects its existing TLS Session leaf via canonical client.c, without changing source or other objects",
+      "Plain/full/root/stats-off singles and independent static/shared real protocol/standalone declaration consumers"
+    ],
+    "diagnostic_benchmark_executions_per_host": 8
+  },
+  "ABI": {
+    "windows": {
+      "off": {
+        "client": 1216,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "plain": {
+        "client": 1224,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "full": {
+        "client": 1224,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      }
+    },
+    "wsl": {
+      "off": {
+        "client": 1424,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "plain": {
+        "client": 1432,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      },
+      "full": {
+        "client": 1432,
+        "config": 272,
+        "info": 160,
+        "wsconfig": 176,
+        "cold": 296,
+        "fence": 24,
+        "connectconfig": 344,
+        "connectinfo": 80,
+        "http": 240,
+        "uri": 96
+      }
+    }
+  },
+  "costs": "Existing generic reconnect selection adds one8-byte private Client lifecycle pointer (measured1224Windows/1432WSL with it,1216/1424 without). The WS integration introduces no additional private/public field. Existing WS296/HTTP240/config344/info80/URI96 and public Client config272/info160 remain measured. Controller/Session/Inbox storage and native URI/HTTP/masking/TLS/allocator copies/allocations remain real. No new hot data notification wrapper; batch or per-call leases incur actual mutex/check/release costs.",
+  "broker": {
+    "report": "broker-matrix.json",
+    "version": "2.0.22",
+    "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+    "certificate_sha256": "b31aed3063a9ccfe30c79bb057c37d5f125a602a17b541d5c44b83bb06f2d63d",
+    "ca_sha256": "9b7fc77202b18122b7bf03f6baf5ec4051421dcb85627e1a4fac0f949bbf81b8",
+    "forms": {
+      "windows-modular": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/broker-programs/windows/modular.exe",
+        "sha256": "dc7795c81dbb70f2a5c873473e0669804cf4bb193a562318ff7f88da57f106af"
+      },
+      "windows-single": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/broker-programs/windows/single.exe",
+        "sha256": "46781e77b316dfc5e27ac2ad8424dfc04df2b85a1efb5196ba6d0ace8997707c"
+      },
+      "windows-static": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/packages/windows/static/broker-probe.exe",
+        "sha256": "3df433b227325cfc885259275d1394de1714e4d235fc8033dd0d24e07483e7ff"
+      },
+      "windows-shared": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/packages/windows/shared/broker-probe.exe",
+        "sha256": "7c0df025131a517ebed7240f12f05c1388377fd06767ebf5851b5ac0b36006f6"
+      },
+      "wsl-modular": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/broker-programs/wsl/modular",
+        "sha256": "45cffae5886555b44e92dd7669ea15daf2edd168f9b03e36ce077cfac45c9a5a"
+      },
+      "wsl-single": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/broker-programs/wsl/single",
+        "sha256": "2c8d3926e0b3c6963b3765ffcd56baae5759382db17981806ff5e33f614b1ae3"
+      },
+      "wsl-static": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/packages/wsl/static/broker-probe",
+        "sha256": "be932eba1c9211e2bd8a58266da9f07b43f90295931d1a9c1ce04f6f3218dba0"
+      },
+      "wsl-shared": {
+        "path": "/mnt/d/GIT/xrt/out/local-service-extensions/mqtt-websocket-reconnect-20261116/packages/wsl/shared/broker-probe",
+        "sha256": "adf4217e56b2af8d97073db20601f80b3fda85ddf2fdcfb85d5ad4b73027a675"
+      }
+    },
+    "cases": 480,
+    "complete": true,
+    "peer": "Real Mosquitto TCP broker retains MQTT sessions. Independent bounded stdlib/OpenSSL HTTP/WS gateway and independent MQTT ACK-cut proxy; no reference client implementation imports.",
+    "scope": "Eight native build forms: Windows/WSL modular,single,static,shared; WS/TLS1.2/TLS1.3, MQTT5/3.1.1, five outgoing/incoming ACK cuts, normal/tiny work budgets. Actual client masking, fresh key per generation,103/101/mqtt, Binary continuation/Ping/Pong, real CA trust, canonical replay/alias removal, incoming duplicate identity/PUBCOMP0x92, close echo/TLS notify and physical joins. All broker/probe/readers/gateway/proxy processes/threads reaped.",
+    "limitation": "Gateway over a real TCP broker, not broker-native WS. Previous pinned native Mosquitto missing returned WS Close remains unresolved, not relabeled success. No broker restart or durable recovery.",
+    "port_selection": "Actual WSL listener socket bound first, same native Windows port checked before listen; candidates recorded. No protocol retries. All final480 cases rerun with final gateway.",
+    "earlier_attempts": [
+      "broker-matrix-first-attempt.json",
+      "broker-matrix-second-attempt.json",
+      "broker-matrix-third-attempt.json"
+    ],
+    "native_port_bind_rejections": 1
+  },
+  "examples": {
+    "report": "cli-interop.json",
+    "cases": 36,
+    "complete": true,
+    "scope": "Actual documented two-generation CLI linked modular/static/shared on both OSes with both MQTT versions and WS/TLS1.2/TLS1.3;2 DATA observations and real controller/generation/Resolver/Pool/Engine JOIN. First application-close retry explicitly enabled; second generation requires retained broker Session. Strict final Disconnect remains mandatory."
+  },
+  "performance": {
+    "accepted": false,
+    "host_runs_serialized": true,
+    "report": {
+      "windows": "windows-performance_profiles.json",
+      "wsl": "wsl-performance_profiles.json"
+    },
+    "quality": {
+      "windows": {
+        "accepted": false,
+        "quality_passed": false,
+        "log": "windows-measure-reconnect-ws.log"
+      },
+      "wsl": {
+        "accepted": false,
+        "quality_passed": false,
+        "log": "wsl-measure-reconnect-ws.log"
+      }
+    },
+    "workload": "Same selected URI/HTTP/native WS/WSS/Session QoS1 workload,32-byte payload,window32,20000 messages. Manual Session, held batch lease and per-call leases; fixture Notify/initial incoming publication disabled. P50/P95/P99/P99.9/max and full packet-ID checksum. Timed completion is caller-observed PUBACK; actual final retirement outside timed phase.",
+    "scope": "Unpinned closed-loop shared-host diagnostics, not fixed-arrival/controlled comparator/native production acceptance. Process CPU and optional XRT allocation counters include both peers; CRT/native/kernel costs not fully counted. Windows GetProcessTimes resolution and WSL differ. No threshold relaxation or rerun-to-green.",
+    "instrumentation": {
+      "windows": {
+        "identifier_wrap": [
+          {
+            "transport": "ws",
+            "publications": 70000,
+            "checksum": 2157421225,
+            "receipt_label": "identifier-wrap-ws"
+          },
+          {
+            "transport": "wss",
+            "publications": 70000,
+            "checksum": 2157421225,
+            "receipt_label": "identifier-wrap-wss"
+          }
+        ],
+        "accepted": false,
+        "scope": "Actual whole-process XRT allocator counters and CPU, both native peers included. CRT/native/kernel allocations not complete;5000-message closed-loop workload, not production performance.",
+        "cases": [
+          {
+            "name": "ws_manual",
+            "metrics": {
+              "publishes_per_sec": 27261.773,
+              "latency_p50_us": 1168.8,
+              "latency_p99_us": 1406.9,
+              "latency_max_us": 1648.8,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.9584,
+              "heap_bytes_per_publish": 1347.7104,
+              "latency_p95_us": 1263.2,
+              "latency_p999_us": 1510.8,
+              "process_cpu_ns_per_publish": 68750.0
+            },
+            "receipt_label": "instrument-ws_manual"
+          },
+          {
+            "name": "ws_batch_lease",
+            "metrics": {
+              "publishes_per_sec": 26190.64,
+              "latency_p50_us": 1214.0,
+              "latency_p99_us": 1955.9,
+              "latency_max_us": 2134.2,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.8084,
+              "heap_bytes_per_publish": 1341.3424,
+              "latency_p95_us": 1615.0,
+              "latency_p999_us": 2099.3,
+              "process_cpu_ns_per_publish": 103125.0
+            },
+            "receipt_label": "instrument-ws_batch_lease"
+          },
+          {
+            "name": "ws_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": 26372.574,
+              "latency_p50_us": 1194.2,
+              "latency_p99_us": 1594.4,
+              "latency_max_us": 1870.8,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.9232,
+              "heap_bytes_per_publish": 1345.6048,
+              "latency_p95_us": 1445.4,
+              "latency_p999_us": 1694.6,
+              "process_cpu_ns_per_publish": 93750.0
+            },
+            "receipt_label": "instrument-ws_per_call_lease"
+          },
+          {
+            "name": "wss_manual",
+            "metrics": {
+              "publishes_per_sec": 25192.077,
+              "latency_p50_us": 1172.8,
+              "latency_p99_us": 2280.8,
+              "latency_max_us": 3030.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.7458,
+              "heap_bytes_per_publish": 1338.888,
+              "latency_p95_us": 2028.4,
+              "latency_p999_us": 2968.5,
+              "process_cpu_ns_per_publish": 115625.0
+            },
+            "receipt_label": "instrument-wss_manual"
+          },
+          {
+            "name": "wss_batch_lease",
+            "metrics": {
+              "publishes_per_sec": 25531.059,
+              "latency_p50_us": 1189.1,
+              "latency_p99_us": 1864.7,
+              "latency_max_us": 2177.6,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.8896,
+              "heap_bytes_per_publish": 1345.7904,
+              "latency_p95_us": 1587.0,
+              "latency_p999_us": 2144.7,
+              "process_cpu_ns_per_publish": 106250.0
+            },
+            "receipt_label": "instrument-wss_batch_lease"
+          },
+          {
+            "name": "wss_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": 24513.373,
+              "latency_p50_us": 1311.2,
+              "latency_p99_us": 2157.6,
+              "latency_max_us": 2277.1,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.6986,
+              "heap_bytes_per_publish": 1336.6224,
+              "latency_p95_us": 1958.0,
+              "latency_p999_us": 2268.6,
+              "process_cpu_ns_per_publish": 106250.0
+            },
+            "receipt_label": "instrument-wss_per_call_lease"
+          }
+        ]
+      },
+      "wsl": {
+        "identifier_wrap": [
+          {
+            "transport": "ws",
+            "publications": 70000,
+            "checksum": 2157421225,
+            "receipt_label": "identifier-wrap-ws"
+          },
+          {
+            "transport": "wss",
+            "publications": 70000,
+            "checksum": 2157421225,
+            "receipt_label": "identifier-wrap-wss"
+          }
+        ],
+        "accepted": false,
+        "scope": "Actual whole-process XRT allocator counters and CPU, both native peers included. CRT/native/kernel allocations not complete;5000-message closed-loop workload, not production performance.",
+        "cases": [
+          {
+            "name": "ws_manual",
+            "metrics": {
+              "publishes_per_sec": 23278.194,
+              "latency_p50_us": 1364.7,
+              "latency_p99_us": 1749.9,
+              "latency_max_us": 1876.8,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.6658,
+              "heap_bytes_per_publish": 1547.4896,
+              "latency_p95_us": 1585.1,
+              "latency_p999_us": 1813.9,
+              "process_cpu_ns_per_publish": 96644.4
+            },
+            "receipt_label": "instrument-ws_manual"
+          },
+          {
+            "name": "ws_batch_lease",
+            "metrics": {
+              "publishes_per_sec": 22827.756,
+              "latency_p50_us": 1375.3,
+              "latency_p99_us": 1867.8,
+              "latency_max_us": 2160.7,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.675,
+              "heap_bytes_per_publish": 1545.4352,
+              "latency_p95_us": 1698.0,
+              "latency_p999_us": 2092.7,
+              "process_cpu_ns_per_publish": 98571.72
+            },
+            "receipt_label": "instrument-ws_batch_lease"
+          },
+          {
+            "name": "ws_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": 23651.822,
+              "latency_p50_us": 1343.4,
+              "latency_p99_us": 1666.8,
+              "latency_max_us": 1878.5,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.66,
+              "heap_bytes_per_publish": 1544.2992,
+              "latency_p95_us": 1509.3,
+              "latency_p999_us": 1841.2,
+              "process_cpu_ns_per_publish": 95225.16
+            },
+            "receipt_label": "instrument-ws_per_call_lease"
+          },
+          {
+            "name": "wss_manual",
+            "metrics": {
+              "publishes_per_sec": 27251.045,
+              "latency_p50_us": 1115.9,
+              "latency_p99_us": 2239.9,
+              "latency_max_us": 2293.3,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.667,
+              "heap_bytes_per_publish": 1543.1056,
+              "latency_p95_us": 2050.0,
+              "latency_p999_us": 2267.7,
+              "process_cpu_ns_per_publish": 97347.22
+            },
+            "receipt_label": "instrument-wss_manual"
+          },
+          {
+            "name": "wss_batch_lease",
+            "metrics": {
+              "publishes_per_sec": 27892.789,
+              "latency_p50_us": 1124.2,
+              "latency_p99_us": 1804.8,
+              "latency_max_us": 2155.0,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.6474,
+              "heap_bytes_per_publish": 1542.056,
+              "latency_p95_us": 1486.4,
+              "latency_p999_us": 2085.9,
+              "process_cpu_ns_per_publish": 94960.68
+            },
+            "receipt_label": "instrument-wss_batch_lease"
+          },
+          {
+            "name": "wss_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": 29784.296,
+              "latency_p50_us": 1070.8,
+              "latency_p99_us": 1586.9,
+              "latency_max_us": 1787.8,
+              "checksum": 12502500.0,
+              "heap_blocks_per_publish": 10.6048,
+              "heap_bytes_per_publish": 1540.0112,
+              "latency_p95_us": 1364.6,
+              "latency_p999_us": 1696.0,
+              "process_cpu_ns_per_publish": 89512.46
+            },
+            "receipt_label": "instrument-wss_per_call_lease"
+          }
+        ]
+      }
+    },
+    "diagnostic_summary": {
+      "windows": {
+        "accepted": false,
+        "benchmark_medians": [
+          {
+            "name": "ws_manual",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 28278.372,
+                "unit": "publish/s",
+                "quality_passed": false,
+                "relative_mad": 0.0015243805407185382,
+                "relative_central_range": 0.08079574029226297
+              },
+              "latency_p50_us": {
+                "median": 1160.4,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.0004308859014133057,
+                "relative_central_range": 0.03619441571871768
+              },
+              "latency_p99_us": {
+                "median": 1481.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.0779720515763181,
+                "relative_central_range": 0.35414838317693925
+              },
+              "latency_max_us": {
+                "median": 1872.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.1269561501896064,
+                "relative_central_range": 0.9383111680820383
+              },
+              "latency_p95_us": {
+                "median": 1336.5,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.06509539842873176,
+                "relative_central_range": 0.2783389450056117
+              },
+              "latency_p999_us": {
+                "median": 1781.6,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.12427031881454866,
+                "relative_central_range": 0.8565334530758868
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 85156.25,
+                "unit": "ns/publish",
+                "quality_passed": false,
+                "relative_mad": 0.027522935779816515,
+                "relative_central_range": 0.10091743119266056
+              }
+            }
+          },
+          {
+            "name": "ws_batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 28383.393,
+                "unit": "publish/s",
+                "quality_passed": false,
+                "relative_mad": 0.013593124683860014,
+                "relative_central_range": 0.06811416098138788
+              },
+              "latency_p50_us": {
+                "median": 1121.0,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.0070472792149867,
+                "relative_central_range": 0.014451382694023233
+              },
+              "latency_p99_us": {
+                "median": 1432.6,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.026664805249197298,
+                "relative_central_range": 0.057238587184140724
+              },
+              "latency_max_us": {
+                "median": 1622.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.00597916538248169,
+                "relative_central_range": 0.10817974480675584
+              },
+              "latency_p95_us": {
+                "median": 1287.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.009861779779468897,
+                "relative_central_range": 0.03432209970492316
+              },
+              "latency_p999_us": {
+                "median": 1556.2,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.021334018763655087,
+                "relative_central_range": 0.08437218866469602
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 80468.75,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.009708737864077669,
+                "relative_central_range": 0.019417475728155338
+              }
+            }
+          },
+          {
+            "name": "ws_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 28109.335,
+                "unit": "publish/s",
+                "quality_passed": false,
+                "relative_mad": 0.014600274250529309,
+                "relative_central_range": 0.06299928475718128
+              },
+              "latency_p50_us": {
+                "median": 1126.0,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.012078152753108267,
+                "relative_central_range": 0.06625222024866777
+              },
+              "latency_p99_us": {
+                "median": 1364.0,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.001759530791788923,
+                "relative_central_range": 0.11334310850439892
+              },
+              "latency_max_us": {
+                "median": 1613.9,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.03519424995352883,
+                "relative_central_range": 0.13674948881591178
+              },
+              "latency_p95_us": {
+                "median": 1257.2,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.017896913776646515,
+                "relative_central_range": 0.08057588291441294
+              },
+              "latency_p999_us": {
+                "median": 1541.0,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.025697598961713114,
+                "relative_central_range": 0.13348475016223219
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 82031.25,
+                "unit": "ns/publish",
+                "quality_passed": false,
+                "relative_mad": 0.01904761904761905,
+                "relative_central_range": 0.06666666666666667
+              }
+            }
+          },
+          {
+            "name": "wss_manual",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 26672.214,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.00021276823888707823,
+                "relative_central_range": 0.04314527470422961
+              },
+              "latency_p50_us": {
+                "median": 1122.6,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.0010689470871190257,
+                "relative_central_range": 0.016746837698200567
+              },
+              "latency_p99_us": {
+                "median": 2184.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.01643170999633838,
+                "relative_central_range": 0.03808128890516286
+              },
+              "latency_max_us": {
+                "median": 2300.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.007301808066759269,
+                "relative_central_range": 0.03720445062586922
+              },
+              "latency_p95_us": {
+                "median": 1704.5,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.044059841595775834,
+                "relative_central_range": 0.2279847462599002
+              },
+              "latency_p999_us": {
+                "median": 2274.7,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.00276959599068017,
+                "relative_central_range": 0.033367037411526836
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 103906.25,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.007518796992481203
+              }
+            }
+          },
+          {
+            "name": "wss_batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 26464.576,
+                "unit": "publish/s",
+                "quality_passed": false,
+                "relative_mad": 0.030383785479880764,
+                "relative_central_range": 0.23705941859790233
+              },
+              "latency_p50_us": {
+                "median": 1139.8,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.00701877522372346,
+                "relative_central_range": 0.09563081242323215
+              },
+              "latency_p99_us": {
+                "median": 2128.9,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.02423786932218512,
+                "relative_central_range": 0.06289633143877124
+              },
+              "latency_max_us": {
+                "median": 2424.5,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.0435141266240462,
+                "relative_central_range": 0.173767787172613
+              },
+              "latency_p95_us": {
+                "median": 1710.8,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.019639934533551503,
+                "relative_central_range": 0.18231236848258117
+              },
+              "latency_p999_us": {
+                "median": 2297.1,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.018022724304557963,
+                "relative_central_range": 0.10957293979365298
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 104687.5,
+                "unit": "ns/publish",
+                "quality_passed": false,
+                "relative_mad": 0.014925373134328358,
+                "relative_central_range": 0.19402985074626866
+              }
+            }
+          },
+          {
+            "name": "wss_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 26811.862,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.008164781692521036,
+                "relative_central_range": 0.017424190830163264
+              },
+              "latency_p50_us": {
+                "median": 1131.2,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.008574964639321114,
+                "relative_central_range": 0.022984441301272984
+              },
+              "latency_p99_us": {
+                "median": 2088.6,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.009623671358804898,
+                "relative_central_range": 0.10025854639471421
+              },
+              "latency_max_us": {
+                "median": 2332.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.008487654320987732,
+                "relative_central_range": 0.027477709190672113
+              },
+              "latency_p95_us": {
+                "median": 1595.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.015357612988152698,
+                "relative_central_range": 0.0860653168683006
+              },
+              "latency_p999_us": {
+                "median": 2321.9,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.0003014772384684173,
+                "relative_central_range": 0.01136999870795473
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 103906.25,
+                "unit": "ns/publish",
+                "quality_passed": false,
+                "relative_mad": 0.022556390977443608,
+                "relative_central_range": 0.06766917293233082
+              }
+            }
+          }
+        ],
+        "diagnostic_ratios": [
+          {
+            "transport": "ws",
+            "mode": "batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 1.003713827655991,
+                "paired_quality_passed": false
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9671234726253966,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 0.944954128440367,
+                "paired_quality_passed": false
+              }
+            }
+          },
+          {
+            "transport": "ws",
+            "mode": "per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 0.9940223928025277,
+                "paired_quality_passed": false
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9208127995679471,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 0.963302752293578,
+                "paired_quality_passed": false
+              }
+            }
+          },
+          {
+            "transport": "wss",
+            "mode": "batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 0.9922151944341778,
+                "paired_quality_passed": false
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9744141340168436,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 1.0075187969924813,
+                "paired_quality_passed": false
+              }
+            }
+          },
+          {
+            "transport": "wss",
+            "mode": "per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 1.0052357108412522,
+                "paired_quality_passed": true
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9559685097034052,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 1.0,
+                "paired_quality_passed": false
+              }
+            }
+          }
+        ],
+        "scope": "Serialized shared-host closed-loop20k/window32 measurements,3 samples+1 warmup. Paired quality only describes sample stability; it is not controlled-comparator or production acceptance. No repeat-to-green or threshold changes."
+      },
+      "wsl": {
+        "accepted": false,
+        "benchmark_medians": [
+          {
+            "name": "ws_manual",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 23779.381,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.015382990835632033,
+                "relative_central_range": 0.031705955676474516
+              },
+              "latency_p50_us": {
+                "median": 1326.3,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.014551760536831753,
+                "relative_central_range": 0.03671869109552895
+              },
+              "latency_p99_us": {
+                "median": 1775.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.008446897173105079,
+                "relative_central_range": 0.037504223448586504
+              },
+              "latency_max_us": {
+                "median": 2130.0,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.024366197183098633,
+                "relative_central_range": 0.08779342723004695
+              },
+              "latency_p95_us": {
+                "median": 1560.5,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.018263377122717077,
+                "relative_central_range": 0.055174623518103115
+              },
+              "latency_p999_us": {
+                "median": 2027.2,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.0005919494869771337,
+                "relative_central_range": 0.01085240726124704
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 93099.895,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.012206995507352625,
+                "relative_central_range": 0.034480597427096984
+              }
+            }
+          },
+          {
+            "name": "ws_batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 24113.631,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.0017955819262556877,
+                "relative_central_range": 0.005956133275822285
+              },
+              "latency_p50_us": {
+                "median": 1318.5,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 7.584376185051881e-05,
+                "relative_central_range": 0.004929844520288207
+              },
+              "latency_p99_us": {
+                "median": 1673.1,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.020560635945251385,
+                "relative_central_range": 0.06622437391668158
+              },
+              "latency_max_us": {
+                "median": 2028.6,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.14832889677610167
+              },
+              "latency_p95_us": {
+                "median": 1489.2,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.014840182648401918,
+                "relative_central_range": 0.04089443996776799
+              },
+              "latency_p999_us": {
+                "median": 1894.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.024125006598743625,
+                "relative_central_range": 0.14274402153829915
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 91494.425,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.0009350296479813159,
+                "relative_central_range": 0.0025361108067512702
+              }
+            }
+          },
+          {
+            "name": "ws_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 23603.012,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.0032278931180477425,
+                "relative_central_range": 0.04198942914573789
+              },
+              "latency_p50_us": {
+                "median": 1336.6,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 7.481669908733835e-05,
+                "relative_central_range": 0.027981445458626436
+              },
+              "latency_p99_us": {
+                "median": 1765.6,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.039476665156320825,
+                "relative_central_range": 0.13706388763026733
+              },
+              "latency_max_us": {
+                "median": 2136.6,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.0755873818215857,
+                "relative_central_range": 0.1541701769165965
+              },
+              "latency_p95_us": {
+                "median": 1586.8,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.029871439374842507,
+                "relative_central_range": 0.12162843458532897
+              },
+              "latency_p999_us": {
+                "median": 2058.9,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.07504006994025936,
+                "relative_central_range": 0.1906843460100054
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 94039.74,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.0099929030003698,
+                "relative_central_range": 0.052046613484894755
+              }
+            }
+          },
+          {
+            "name": "wss_manual",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 30740.141,
+                "unit": "publish/s",
+                "quality_passed": false,
+                "relative_mad": 0.027528143088218136,
+                "relative_central_range": 0.1352748837424005
+              },
+              "latency_p50_us": {
+                "median": 973.3,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.002568581115791637,
+                "relative_central_range": 0.03873420322613793
+              },
+              "latency_p99_us": {
+                "median": 2089.2,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.11573808156232039,
+                "relative_central_range": 0.28297913076775794
+              },
+              "latency_max_us": {
+                "median": 2733.2,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.14492170349773156,
+                "relative_central_range": 1.6324454851456167
+              },
+              "latency_p95_us": {
+                "median": 1565.5,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.16646438837432123,
+                "relative_central_range": 0.39195145320983704
+              },
+              "latency_p999_us": {
+                "median": 2520.7,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.10750981870115445,
+                "relative_central_range": 1.6464077438806684
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 87777.27,
+                "unit": "ns/publish",
+                "quality_passed": false,
+                "relative_mad": 0.014852877060314245,
+                "relative_central_range": 0.09795781983194511
+              }
+            }
+          },
+          {
+            "name": "wss_batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 31237.861,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.022152124948632064,
+                "relative_central_range": 0.04455974114232728
+              },
+              "latency_p50_us": {
+                "median": 973.6,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.008627773212818383,
+                "relative_central_range": 0.020747740345110975
+              },
+              "latency_p99_us": {
+                "median": 1875.1,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.019412298010772686,
+                "relative_central_range": 0.2158284891472455
+              },
+              "latency_max_us": {
+                "median": 2217.1,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.013711605250101526,
+                "relative_central_range": 0.13292138378963525
+              },
+              "latency_p95_us": {
+                "median": 1435.7,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.04060736922755447,
+                "relative_central_range": 0.19718604165215567
+              },
+              "latency_p999_us": {
+                "median": 2199.9,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.020500931860539074,
+                "relative_central_range": 0.09927723987453958
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 86739.855,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.016273142259691335,
+                "relative_central_range": 0.03892599313199218
+              }
+            }
+          },
+          {
+            "name": "wss_per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "median": 31598.068,
+                "unit": "publish/s",
+                "quality_passed": true,
+                "relative_mad": 0.00379108621451163,
+                "relative_central_range": 0.04282746021054208
+              },
+              "latency_p50_us": {
+                "median": 974.8,
+                "unit": "us",
+                "quality_passed": true,
+                "relative_mad": 0.01559294214197789,
+                "relative_central_range": 0.03467377923676647
+              },
+              "latency_p99_us": {
+                "median": 1563.0,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.04484964811260391,
+                "relative_central_range": 0.2993602047344849
+              },
+              "latency_max_us": {
+                "median": 1980.9,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.042707860063607515,
+                "relative_central_range": 0.16553081932454938
+              },
+              "latency_p95_us": {
+                "median": 1252.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.07218717559690177,
+                "relative_central_range": 0.15507466262077782
+              },
+              "latency_p999_us": {
+                "median": 1943.3,
+                "unit": "us",
+                "quality_passed": false,
+                "relative_mad": 0.051355940925230256,
+                "relative_central_range": 0.18638398600319037
+              },
+              "process_cpu_ns_per_publish": {
+                "median": 86461.015,
+                "unit": "ns/publish",
+                "quality_passed": true,
+                "relative_mad": 0.0002945258044911514,
+                "relative_central_range": 0.036649581317082555
+              }
+            }
+          }
+        ],
+        "diagnostic_ratios": [
+          {
+            "transport": "ws",
+            "mode": "batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 1.0140562952416634,
+                "paired_quality_passed": true
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9421669106881405,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 0.9827554048261816,
+                "paired_quality_passed": true
+              }
+            }
+          },
+          {
+            "transport": "ws",
+            "mode": "per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 0.9925831122349231,
+                "paired_quality_passed": true
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.9942561099222885,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 1.0100950167559266,
+                "paired_quality_passed": true
+              }
+            }
+          },
+          {
+            "transport": "wss",
+            "mode": "batch_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 1.0161912074508703,
+                "paired_quality_passed": false
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.8975205820409726,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 0.988181279732213,
+                "paired_quality_passed": false
+              }
+            }
+          },
+          {
+            "transport": "wss",
+            "mode": "per_call_lease",
+            "metrics": {
+              "publishes_per_sec": {
+                "managed_over_manual": 1.0279090131694582,
+                "paired_quality_passed": false
+              },
+              "latency_p99_us": {
+                "managed_over_manual": 0.7481332567489949,
+                "paired_quality_passed": false
+              },
+              "process_cpu_ns_per_publish": {
+                "managed_over_manual": 0.985004603127894,
+                "paired_quality_passed": false
+              }
+            }
+          }
+        ],
+        "scope": "Serialized shared-host closed-loop20k/window32 measurements,3 samples+1 warmup. Paired quality only describes sample stability; it is not controlled-comparator or production acceptance. No repeat-to-green or threshold changes."
+      }
+    }
+  },
+  "gates": {
+    "development": true,
+    "strict_release": {
+      "passed": false,
+      "reason": "19 explicitly developing MQTT modules; strict release remains closed",
+      "log": "windows-strict-release.log"
+    }
+  },
+  "source_identity": {
+    "final_source_map_sha256": "3eb699186d4b3dcad068a7d82e1b2a447207904bad24017407c97815a297365b",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "policy": "Selected passing local C programs match final canonical production AND C test/helper/benchmark/example bytes. Actual original binaries preserved losslessly as gzip with both original and compressed SHA256. Broker/CLI forms and independent scripts retain their own report hashes. Earlier failed source cohorts stay distinct.",
+    "broker_script_hashes": {
+      "runner_sha256": "f0da61e4a9580a6ecaba26734629eb87f619c04f32e0ab29766f1424c45f3ea5",
+      "gateway_sha256": "cea8ad343e37f0391a479884721043bca823675964330a421b3b7a4498d279ca",
+      "mqtt_proxy_sha256": "130b15092f6d888d71c283477c8844c6191d7c5feb81957501be7a6ba39d9f36"
+    }
+  },
+  "failures": [
+    {
+      "receipts": "windows-measure-receipts.json",
+      "label": "measure-reconnect-ws",
+      "exit_code": 1,
+      "log": "windows-measure-reconnect-ws.log",
+      "source_map_sha256": "3eb699186d4b3dcad068a7d82e1b2a447207904bad24017407c97815a297365b"
+    },
+    {
+      "receipts": "windows-regression-receipts.json",
+      "label": "test_reconnect_transports-build",
+      "exit_code": 1,
+      "log": "windows-test_reconnect_transports-build.log",
+      "source_map_sha256": "b644f8814ef6580a5e092eeea76bbae5f64ab345c238c39753091a929ac05ccb"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "exit_code": 1,
+      "log": "windows-strict-release.log",
+      "source_map_sha256": "d69d18a30bf58544fe8a9b103e8137935648ae74a407d238d1a52e949970fc16"
+    },
+    {
+      "receipts": "windows-syntax-receipts.json",
+      "label": "test_reconnect_ws-syntax",
+      "exit_code": 1,
+      "log": "windows-test_reconnect_ws-syntax.log",
+      "source_map_sha256": "2c48393a6833c543aec1ca625b0862777506d2daefa077d3c68dd9bf6f069326"
+    },
+    {
+      "receipts": "windows-syntax-receipts.json",
+      "label": "test_reconnect_ws-syntax",
+      "exit_code": 1,
+      "log": "windows-test_reconnect_ws-syntax-attempt2.log",
+      "source_map_sha256": "d06d0c17a41b792c7b881288f68596991ef4ac864798cd840d5917a56caf8904"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests.log",
+      "source_map_sha256": "2c48393a6833c543aec1ca625b0862777506d2daefa077d3c68dd9bf6f069326"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt2.log",
+      "source_map_sha256": "d06d0c17a41b792c7b881288f68596991ef4ac864798cd840d5917a56caf8904"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt3.log",
+      "source_map_sha256": "287e27b40ec11ec2e92a9ef269674e2b143bf7c2294b38b754d642dda19d4002"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt4.log",
+      "source_map_sha256": "350aa9241b307fec39690e87b365b8e92bbb1ad327838a4c0e66404df241aa68"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt5.log",
+      "source_map_sha256": "6a3b2a1ffdff8f9f0a3bac616084964feca0898262ea00731418c5e9dde244c3"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt6.log",
+      "source_map_sha256": "e6b5c72b6d727a4f188f3aae6d5308dd94247ac60ba24078f1840eda619e240c"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_reconnect_ws_tests",
+      "exit_code": 1,
+      "log": "windows-xmqtt_reconnect_ws_tests-attempt8.log",
+      "source_map_sha256": "045126120f3094a5d8505de7cf637806d1c7111ea6ce5dfe9dbbb8851d147731"
+    },
+    {
+      "receipts": "wsl-broker_continue_receipt-receipts.json",
+      "label": "broker-matrix-continue",
+      "exit_code": 1,
+      "log": "wsl-broker-matrix-continue.log",
+      "source_map_sha256": "d69d18a30bf58544fe8a9b103e8137935648ae74a407d238d1a52e949970fc16"
+    },
+    {
+      "receipts": "wsl-broker_matrix-receipts.json",
+      "label": "broker-matrix",
+      "exit_code": 1,
+      "log": "wsl-broker-matrix.log",
+      "source_map_sha256": "66a2adb414f09e1721f5ac33c5217c184669f3bc901d56d455b56e73ad39a5cc"
+    },
+    {
+      "receipts": "wsl-broker_matrix-receipts.json",
+      "label": "broker-matrix",
+      "exit_code": 1,
+      "log": "wsl-broker-matrix-attempt2.log",
+      "source_map_sha256": "b491c95f4c7228fd0b81f5f2c55efc6269c9124771222696563d56330dfc3719"
+    },
+    {
+      "receipts": "wsl-broker_matrix-receipts.json",
+      "label": "broker-matrix",
+      "exit_code": 1,
+      "log": "wsl-broker-matrix-attempt3.log",
+      "source_map_sha256": "c964193f6712aa822056f354330fd29016ad261e912e72a9fd4c5b37d87b4494"
+    },
+    {
+      "receipts": "wsl-measure-receipts.json",
+      "label": "measure-reconnect-ws",
+      "exit_code": 1,
+      "log": "wsl-measure-reconnect-ws.log",
+      "source_map_sha256": "3eb699186d4b3dcad068a7d82e1b2a447207904bad24017407c97815a297365b"
+    }
+  ],
+  "corrections": [
+    "Fix fixture enum spelling and a scoped text replacement that accidentally matched Authority.",
+    "Server cleanup runs on its owner; already closed peers do not require a new Abort success. Engine join covers all native callbacks/owners.",
+    "311 persistent recovery requires false Clean Session from attempt1; stateless lost-subscription tests explicitly choose always-clean. Do not claim deleted311 state can replay.",
+    "Closed cleanup Pool reports initialization failure while external Wait assists actual cleanup; test expectation corrected.",
+    "Literal authenticated CONNACK now copies SessionPresent into its independent mutable reply, including generation2 proof.",
+    "Legacy TLS Session regression explicitly adds its separate existing leaf, recompiling canonical client.c only; failed missing-selection compile retained.",
+    "Two pre-client Windows-to-WSL forwarding readiness timeouts are preserved. Windows excluded ports are recorded; their exact original front ports were not recorded so exclusion causality is not claimed. Windows-only port allocation then hit a WSL address-in-use before any C probe. Final gateway binds its actual WSL socket and checks the same Windows port before listen; bounded32 fixture-only candidates, actual readiness still mandatory, no MQTT retry. Three original reports and prior logs retained. An intermediate runner JSON Path serialization failure is also preserved in raw command logs; no product code changed."
+  ],
+  "remaining": [
+    "Post-Upgrade TLS credential capture/resumption surface; current WSS ResumeLimit must be0, supplied Resume can be used",
+    "Durable MQTT protocol state with explicit acknowledgement ordering and crash recovery",
+    "Broker-native clean-close qualification, further async-OOM/partial-write/slow-peer/scale/load and real enhanced-auth broker-plugin qualification",
+    "Controlled comparator/fixed-arrival throughput/tails/CPU/copy/syscall/native memory and native Windows/native Linux>=72h soak",
+    "Remaining original Redis/RPC/Cron scope and complete four-product release gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-websocket-reconnect-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "e36d7c110ce1db303adcb70c7f712f9569883512401a489c10c699e90faa614f",
+    "regular_files": 2648,
+    "sha256_verified": true,
+    "scope": "Final source maps/cohorts/changed-source snapshots; lossless gzip original C binaries with original and compressed SHA256; actual static/shared packages, broker and CLI forms; raw attempts including fixture/selection/port failures; actual diagnostic benchmark executables; broker configs/logs and independent gateway wire traces; public certificate fixtures. Private keys remain only in the previous ignored local fixture. Compiler/object caches/temp files excluded. Serialized unpinned shared-host performance diagnostics are not controlled production acceptance."
+  }
+}

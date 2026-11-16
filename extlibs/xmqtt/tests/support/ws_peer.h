@@ -13,6 +13,7 @@ typedef struct mqttWsPeer {
     xmqttclientconfig ClientConfig;xmqttclientwsconfig WsConfig;xmqttpacket Connect;
     xnetpost Attach[2];ptr Native[2];
     void (*NativeServerOpen)(struct mqttWsPeer*,ptr);
+    bool (*Control)(xwsstream*,struct mqttWsPeer*,unsigned char,const unsigned char*,size_t);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
     xtlscontext* Context;xtlsidentity* Identity;xtlsverifier* Verifier;xtlsserverconfig NativeServer;
 #endif
@@ -26,10 +27,10 @@ static inline void mqttWsSend(xwsstream* S,const unsigned char* Data,size_t Size
 static inline void mqttWsConnack(xwsstream* S,mqttWsPeer* P)
 {
     unsigned char A5[]={0x20,6,0,0,3,0x22,0,2},A311[]={0x20,2,0,0};
-    static const unsigned char Auth[]={0x20,11,0,0,8,0x15,0,1,'m',0x16,0,1,0x43};
+    unsigned char Auth[]={0x20,11,0,0,8,0x15,0,1,'m',0x16,0,1,0x43};
     if(P->Text){testRequire(xrtWsStreamText(S,XRT_STR_LITERAL("bad"))==XNET_RESULT_OK,"bad Text fixture");return;}
     if(P->Silent)return;
-    if(P->SessionPresent){A5[2]=1;A311[2]=1;}
+    if(P->SessionPresent){A5[2]=1;A311[2]=1;Auth[2]=1;}
     const unsigned char* Bytes=P->Auth?Auth:P->Version==XMQTT_VERSION_5?A5:A311;size_t Count=P->Auth?sizeof(Auth):P->Version==XMQTT_VERSION_5?sizeof(A5):sizeof(A311);
     if(P->Coalesced){unsigned char Joined[32];memcpy(Joined,Bytes,Count);static const unsigned char In5[]={0x30,8,0,2,'i','n',0,'x',0,'z'},In311[]={0x30,7,0,2,'i','n','x',0,'z'};const unsigned char* In=P->Version==XMQTT_VERSION_5?In5:In311;size_t N=P->Version==XMQTT_VERSION_5?sizeof(In5):sizeof(In311);memcpy(Joined+Count,In,N);mqttWsSend(S,Joined,Count+N);}
     else if(P->Split){for(size_t I=0;I<Count;++I)mqttWsSend(S,Bytes+I,1);}
@@ -37,6 +38,7 @@ static inline void mqttWsConnack(xwsstream* S,mqttWsPeer* P)
 }
 static inline void mqttWsFrame(xwsstream* S,mqttWsPeer* P,unsigned char Flags,const unsigned char* B,size_t N)
 {
+    if(P->Control&&P->Control(S,P,Flags,B,N))return;
     unsigned Type=Flags>>4;
     if(Type==1){if(P->Auth){static const unsigned char A[]={0xf0,10,0x18,8,0x15,0,1,'m',0x16,0,1,0x42};mqttWsSend(S,A,sizeof(A));}else mqttWsConnack(S,P);}
     else if(Type==15){testRequire(P->Auth && N>=2,"expected auth frame");

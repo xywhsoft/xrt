@@ -95,7 +95,8 @@ retained message/result traffic remain real. See the source-bound
 ## Remaining delivery
 
 The later [URI factories](client_ws_uri.md) compose strict ws/wss authority and
-resource mapping. Automatic reconnect factories/generation leases,
+resource mapping. [Automatic WS/WSS recovery](reconnect_ws.md) now has separate
+controller/generation-lease and actual broker/gateway evidence. Remaining delivery:
 post-Upgrade credential capture, durable protocol state, remaining asynchronous
 OOM/partial-write/load cases, broker-close qualification/compatibility policy,
 controlled throughput/tails/CPU and native Windows/Linux soak remain required.

@@ -1501,6 +1501,77 @@
       "docs": [
         "extlibs/xmqtt/docs/client_ws_uri.md"
       ]
+    },
+    {
+      "name": "xmqtt_reconnect_ws_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_reconnect_subscriptions",
+        "xmqtt_client_ws_uri",
+        "xmqtt_client_auth",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect_ws.c",
+        "extlibs/xmqtt/tests/test_reconnect_ws_faults.c",
+        "extlibs/xmqtt/tests/test_reconnect_ws_auth.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws_auth.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/reconnect_ws/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_reconnect_ws.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/reconnect.md"
+      ]
+    },
+    {
+      "name": "xmqtt_reconnect_ws_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_reconnect_subscriptions",
+        "xmqtt_client_ws_uri_tls",
+        "xmqtt_client_auth",
+        "memory_stats",
+        "thread",
+        "tls_server",
+        "tls_identity_rsa",
+        "tls_stream_retire"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect_ws.c",
+        "extlibs/xmqtt/tests/test_reconnect_ws_faults.c",
+        "extlibs/xmqtt/tests/test_reconnect_ws_auth.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws_tls_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_ws_tls_auth.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/reconnect_ws/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_reconnect_ws.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/reconnect.md"
+      ]
     }
   ]
 }
