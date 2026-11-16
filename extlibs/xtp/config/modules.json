@@ -75,7 +75,8 @@
         "xtp_codec",
         "xtp_reader",
         "xtp_session",
-        "xtp_transport"
+        "xtp_transport",
+        "xtp_delivery"
       ],
       "public_headers": [
         "extlibs/xtp/include/xtp.h",
@@ -192,6 +193,33 @@
       ],
       "fuzz_sources": [
         "extlibs/xtp/tests/fuzz_session.c"
+      ]
+    },
+    {
+      "name": "xtp_delivery",
+      "state": "developing",
+      "feature": "XTP_FEATURE_XTP_DELIVERY",
+      "depends": [
+        "xtp_session"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xtp/tests/test_delivery.c"
+      ],
+      "single_tests": [
+        "extlibs/xtp/tests/single/test_single_xtp_delivery.c"
+      ],
+      "examples": [
+        "extlibs/xtp/examples/delivery/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xtp/docs/delivery.md"
+      ],
+      "fuzz_sources": [
+        "extlibs/xtp/tests/fuzz_delivery.c"
       ]
     },
     {

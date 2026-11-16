@@ -20,6 +20,6 @@ Session 使用同一 `xtpSubmit` 与 `OnMessage` 表达四种 Command/Params 组
 
 Session 的 Bind 接受宿主已验证的安全连接声明，自身不执行 TLS/Noise 认证。P4 已提供通用 `xtpDrain` 和已有 TCP/TLS/WS 写入适配，见 [承载接入](docs/transport.md)。选择相应模块才引入网络依赖，纯消息后端可继续直接使用 Input/Output/Advance。
 
-P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。当前尚无 Delivery 自动重放、RESULT_ACK 或安全续接；`Replay=true` 明确拒绝。Delivery 及 XS 迁移继续实施。
+P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。P6 已提供可选 [Delivery](docs/delivery.md)：经认证的状态续接、原帧重放、BUSY 退避、结果缓存及 RESULT_ACK；默认关闭，按消息启用。XS 迁移与最终发布形态验收继续实施。
 
 完整协议、交付语义和阶段验收见 [设计](../../docs/design/xtp3.md) 与 [API 方案](../../docs/design/xtp3-api.md)。[Codec 示例](examples/codec/main.c) 可直接运行；[覆盖与进度](docs/coverage.md) 明确尚未完成的阶段。

@@ -117,6 +117,19 @@
 #ifndef XTP_MODULE_XTP_TRANSPORT
 #define XTP_MODULE_XTP_TRANSPORT
 #endif
+#ifndef XTP_MODULE_XTP_DELIVERY
+#define XTP_MODULE_XTP_DELIVERY
+#endif
+#endif
+
+/* xtp_delivery 及其直接依赖。 */
+#if defined(XTP_MODULE_ALL) || defined(XTP_MODULE_XTP_DELIVERY)
+#ifndef XTP_FEATURE_XTP_DELIVERY
+#define XTP_FEATURE_XTP_DELIVERY
+#endif
+#ifndef XTP_MODULE_XTP_SESSION
+#define XTP_MODULE_XTP_SESSION
+#endif
 #endif
 
 /* xtp_transport 及其直接依赖。 */

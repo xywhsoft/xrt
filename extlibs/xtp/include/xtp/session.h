@@ -35,15 +35,32 @@ typedef struct xtplane {
     uint32_t ID;xtpinputmode Mode;bool Reliable;
     size_t RecordLimit; /* RECORD complete-frame limit; required, even on WS. */
 } xtplane;
+/* Host-authenticated, canonical public identities; never credentials. Each
+ * array must contain a nonzero byte. SessionID is exchanged by the host. */
+typedef struct xtpdeliveryidentity {
+    unsigned char SessionID[16],Domain[16],Local[32],Peer[32];
+} xtpdeliveryidentity;
+typedef struct xtpdeliveryproof {
+    xtpdeliveryidentity Identity;
+    uint64_t UntilUs,LifetimeUs,PeerReceiveFloor,PeerResultFloor;
+    bool Resume,StateRetained,OldBindingDetached,AllowRequests;
+} xtpdeliveryproof;
+typedef struct xtpdeliveryconfig {
+    bool Enabled,AllowRequests;
+    size_t MaxReplayMessages,MaxAttempts;
+    uint64_t MaxLifetimeUs,RetryMinUs,RetryMaxUs;
+} xtpdeliveryconfig;
 typedef struct xtpbinding {
     const xtplane* Lanes;size_t LaneCount;
     bool Authenticated,AllowPlaintext; /* Explicit trusted-local/test exception. */
+    const xtpdeliveryproof* Delivery; /* Borrowed only during Bind. */
 } xtpbinding;
 typedef struct xtpconfig {
     xtpreaderconfig Reader;
     size_t MaxPending,MaxIncomingRequests,MaxLanes,MaxTxFrames,MaxTxBytes;
     size_t ResponseReserveBytes,ResponseReserveFrames,MaxResponseBytes,MaxSessionBytes,DedupWindow;
     uint64_t DefaultOperationTimeoutUs,IncomingRequestTimeoutUs;
+    xtpdeliveryconfig Delivery;
     xtpreallocproc Realloc;void* AllocatorUser;
 } xtpconfig;
 typedef struct xtpoutput {
@@ -54,6 +71,9 @@ typedef struct xtpinfo {
     uint64_t BindingID,NextMessageID,Submitted,Completed,Messages,UnknownResults,Duplicates;
     size_t Pending,IncomingRequests,TxFrames,TxBytes,StorageBytes,PeakReservedBytes;
     bool Bound,Closing,Closed;
+    size_t Retained,Receipts;
+    uint64_t ReceiveFloor,ResultFloor,Attempts,Retries,ResultAcks;
+    bool Suspended,ReplayRequests;
 } xtpinfo;
 XRT_EXTERN_C_BEGIN
 /* No IO/thread/global route state. NULL config uses finite defaults. Config and
@@ -65,8 +85,8 @@ XTP_API xtpresult xtpCreate(const xtpconfig* Config,const xtpevents* Events,void
 XTP_API xtpresult xtpDestroy(xtpsession* Session);
 /* No transport ownership/event replacement. Copies lanes, nonzero unique IDs;
  * LaneID=0 in Submit/Output selects default/any lane. Generation never wraps.
- * P3 has no resume: Unbind completes all operations and invalidates requests.
- * Bind on a suspended instance keeps ID sequence and retired-message guards. */
+ * Delivery uses a host-verified proof, never a wire login command. Rebind after
+ * Unbind retains only opted-in work. Otherwise Unbind completes all work. */
 XTP_API xtpresult xtpBind(xtpsession* Session,const xtpbinding* Binding,uint64_t NowUs,uint64_t* BindingID);
 XTP_API xtpresult xtpUnbind(xtpsession* Session,uint64_t BindingID,uint64_t NowUs);
 XTP_API xtpresult xtpInput(xtpsession* Session,uint64_t BindingID,uint32_t LaneID,
@@ -75,7 +95,9 @@ XTP_API xtpresult xtpEnd(xtpsession* Session,uint64_t BindingID,uint32_t LaneID,
 XTP_API xtpresult xtpResume(xtpsession* Session,uint64_t BindingID,uint32_t LaneID,uint64_t NowUs);
 /* Success copies all input. Batch: all accepted or none; outputs preserved on
  * failure. Optional Options/Operations arrays have Count entries. No callback
- * dispatch during Submit/Reply. Replay is rejected until Delivery is enabled. */
+ * dispatch during Submit/Reply. Replay requires enabled, authenticated Delivery;
+ * requests additionally require negotiated AllowRequests. Original deadline
+ * must fit the agreed replay lifetime and authenticated identity expiry. */
 XTP_API xtpresult xtpSubmit(xtpsession* Session,const xtpmessage* Message,
     const xtpsubmitoptions* Options,uint64_t NowUs,xtpoperationtoken* Operation);
 XTP_API xtpresult xtpSubmitBatch(xtpsession* Session,const xtpmessage* Messages,size_t Count,
@@ -100,6 +122,9 @@ XTP_API xtpresult xtpDrive(xtpsession* Session,uint64_t NowUs,uint64_t* NextDue)
 XTP_API xtpresult xtpClose(xtpsession* Session,uint64_t NowUs);
 XTP_API xtpresult xtpInfo(const xtpsession* Session,xtpinfo* Info);
 XRT_EXTERN_C_END
+static inline void xtpDeliveryConfigInit(xtpdeliveryconfig* c)
+{if(c){memset(c,0,sizeof(*c));c->Enabled=true;c->MaxReplayMessages=256;c->MaxAttempts=5;
+    c->MaxLifetimeUs=60000000;c->RetryMinUs=100000;c->RetryMaxUs=2000000;}}
 static inline xtpdecision xtpAccept(void){xtpdecision d={XTP_ACTION_ACCEPT,0};return d;}
 static inline xtpdecision xtpBusy(void){xtpdecision d={XTP_ACTION_BUSY,XTP_STATUS_BUSY};return d;}
 static inline xtpdecision xtpReject(int32_t status){xtpdecision d={XTP_ACTION_REJECT,status};return d;}

@@ -22,7 +22,7 @@ int main(void)
 #if defined(XTP_FEATURE_XTP_SESSION)
     xtpsession* session=NULL;int messages=0;xtpevents events={consume_message,NULL,NULL};
     if(xtpCreate(NULL,&events,&messages,&session)!=XTP_OK)return 5;
-    xtplane lane={1,XTP_INPUT_STREAM,true,0};xtpbinding binding={&lane,1,false,true};uint64_t generation;
+    xtplane lane={1,XTP_INPUT_STREAM,true,0};xtpbinding binding={&lane,1,false,true,NULL};uint64_t generation;
     if(xtpBind(session,&binding,0,&generation)!=XTP_OK)return 6;
     xtpreadprogress used;if(xtpInput(session,generation,1,(xbytesview){wire,n},false,0,&used)!=XTP_OK||messages!=1)return 7;
     if(xtpClose(session,0)!=XTP_CLOSED||xtpDestroy(session)!=XTP_OK)return 8;

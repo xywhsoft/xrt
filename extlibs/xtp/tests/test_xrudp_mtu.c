@@ -29,7 +29,7 @@ int main(void)
         xrudpdatagramchannel channel;xrtRudpDatagramChannelInit(&channel);channel.Id=1;assert(xrtRudpSessionDatagramConfigure(p->Rudp,&channel)==XRUDP_OK);
         xtpconfig config;xtpConfigInit(&config);config.Reader.ReceiveTimeoutUs=15000000;
         xtpevents events={mtu_business,game_complete,game_fault};assert(xtpCreate(&config,&events,p,&p->Xtp)==XTP_OK);
-        xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200}};xtpbinding b={lanes,2,true,false};assert(xtpBind(p->Xtp,&b,0,&p->Binding)==XTP_OK);}
+        xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200}};xtpbinding b={lanes,2,true,false,NULL};assert(xtpBind(p->Xtp,&b,0,&p->Binding)==XTP_OK);}
     bool warm=false;for(t.Now=1000;t.Now<8000000;t.Now+=1000){game_udp(&t);for(size_t i=0;i<2;++i)game_io(&t.Peers[i]);
         xrudpsessionstate a,b;assert(xrtRudpSessionState(t.Peers[0].Rudp,&a)==XRUDP_OK&&xrtRudpSessionState(t.Peers[1].Rudp,&b)==XRUDP_OK);
         if(a.Mtu.Effective==1200&&b.Mtu.Effective==1200){warm=true;break;}}

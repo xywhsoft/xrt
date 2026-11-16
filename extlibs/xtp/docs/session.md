@@ -24,4 +24,4 @@ RESPONSE/ACK 只通过 OnComplete 关联原 pending，同时校验 ID、原类�
 
 Close 可以在回调内请求；回调返回后分轮清空操作，完成结果保持 NOT_SENT/UNKNOWN。反复 Close/Drive 到 CLOSED 后才能 Destroy。Unbind 使绑定立即失效，分轮终结基础操作、清除接收状态和请求令牌，随后可以再次 Bind；旧网络事件和输出 Ticket 不影响新绑定。主机必须先停止输入并加入所有异步业务，再释放 Session。
 
-P3 不提供安全续接、自动重放、BUSY 退避、结果缓存或 RESULT_ACK 处理；Replay=true 明确拒绝。当前有界窗口只防止已受理 PUSH/请求重复执行业务，低于退休下界返回 STATE_LOST；它不是持久化或恢复承诺。P4～P7 的网络适配、Delivery、XS 迁移和端到端性能验收另行实施。
+单独选择 xtp_session 时没有恢复能力，Replay=true 明确拒绝。完整 xtp 包可启用 [Delivery](delivery.md)，只有显式 Replay 的操作和请求令牌跨有效续接保留。基础去重窗口仍有退休下界；它不构成持久化承诺。网络适配见 [transport](transport.md) 与 [xrudp](xrudp.md)。

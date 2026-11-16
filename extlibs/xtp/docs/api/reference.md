@@ -5,7 +5,7 @@
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
 当前登记 `0` 个函数、`79` 个常量或宏、
-`48` 个公共类型。
+`51` 个公共类型。
 
 ## `extlibs/xtp/include/xtp/codec.h`
 
@@ -75,7 +75,7 @@
 - `XTP_KNOW_UNKNOWN`
 - `XTP_STATUS_BUSY`
 
-### 类型 (22)
+### 类型 (25)
 
 - `xtpaction`
 - `xtpbinding`
@@ -83,6 +83,9 @@
 - `xtpcompletion`
 - `xtpconfig`
 - `xtpdecision`
+- `xtpdeliveryconfig`
+- `xtpdeliveryidentity`
+- `xtpdeliveryproof`
 - `xtpevents`
 - `xtpfault`
 - `xtpfinish`

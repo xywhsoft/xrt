@@ -163,7 +163,7 @@ static void game_run(unsigned loss,unsigned rtt)
         assert(xrtRudpSessionDatagramConfigure(p->Rudp,&channel)==XRUDP_OK);
         xtpconfig config;xtpConfigInit(&config);config.DefaultOperationTimeoutUs=config.IncomingRequestTimeoutUs=30000000;config.Reader.ReceiveTimeoutUs=15000000;
         xtpevents events={game_business,game_complete,game_fault};assert(xtpCreate(&config,&events,p,&p->Xtp)==XTP_OK);
-        xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200},{3,XTP_INPUT_STREAM,true,0}};xtpbinding binding={lanes,3,true,false};
+        xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200},{3,XTP_INPUT_STREAM,true,0}};xtpbinding binding={lanes,3,true,false,NULL};
         assert(xtpBind(p->Xtp,&binding,0,&p->Binding)==XTP_OK);
         xtpmessage m={0};m.Type=XTP_REQUEST;m.Command=xtpCmdID(1);m.Body=XRT_BYTES_LITERAL("rpc");
         assert(xtpSubmit(p->Xtp,&m,NULL,0,NULL)==XTP_OK);m.Type=XTP_PUSH;m.Command=xtpCmdID(3);m.Body=XRT_BYTES_LITERAL("cmd");assert(xtpSubmit(p->Xtp,&m,NULL,0,NULL)==XTP_OK);

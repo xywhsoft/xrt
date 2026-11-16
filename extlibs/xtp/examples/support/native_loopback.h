@@ -59,7 +59,7 @@ static void initialize(native_peer* p)
 {
     xtpevents e={business,complete,fault};assert(xtpCreate(NULL,&e,p,&p->Xtp)==XTP_OK);
     xtplane lane={1,p->Test->Mode==2?XTP_INPUT_RECORD:XTP_INPUT_STREAM,true,1048576};
-    xtpbinding binding={&lane,1,p->Test->Mode==1,p->Test->Mode!=1};
+    xtpbinding binding={&lane,1,p->Test->Mode==1,p->Test->Mode!=1,NULL};
     assert(xtpBind(p->Xtp,&binding,clock_us(),&p->Binding)==XTP_OK);
     p->WsInput=(xtpwsinput){p->Xtp,p->Binding,1,false};
 }

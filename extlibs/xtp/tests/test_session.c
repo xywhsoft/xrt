@@ -51,7 +51,7 @@ static void create(session_test* t,xtpconfig* c)
 static void bind_session(session_test* t)
 {
     xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200},{3,XTP_INPUT_RECORD,true,1048576}};
-    xtpbinding b={lanes,3,true,false};assert(xtpBind(t->Session,&b,t->Now,&t->Binding)==XTP_OK);
+    xtpbinding b={lanes,3,true,false,NULL};assert(xtpBind(t->Session,&b,t->Now,&t->Binding)==XTP_OK);
 }
 static void destroy(session_test* t)
 {
@@ -215,7 +215,7 @@ static void allocation_and_atomic_batch(void)
     for(size_t fail=1;fail<=3;++fail){allocator alloc={0};xtpconfig c;xtpConfigInit(&c);c.Realloc=test_realloc;c.AllocatorUser=&alloc;
         session_test a={0};create(&a,&c);size_t base=alloc.Bytes;alloc.FailAt=alloc.Calls+fail;
         xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,1200},{3,XTP_INPUT_STREAM,true,0}};
-        xtpbinding binding={lanes,3,true,false};uint64_t generation=999;
+        xtpbinding binding={lanes,3,true,false,NULL};uint64_t generation=999;
         assert(xtpBind(a.Session,&binding,0,&generation)==XTP_E_MEMORY&&generation==999);
         assert(alloc.Bytes==base&&!info(&a).Bound&&info(&a).BindingID==0);
         alloc.FailAt=0;bind_session(&a);destroy(&a);assert(!alloc.Live&&!alloc.Bytes);}

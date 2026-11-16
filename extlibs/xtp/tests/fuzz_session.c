@@ -36,7 +36,7 @@ int LLVMFuzzerTestOneInput(const unsigned char* data,size_t size)
     xtpevents e={fuzz_message,fuzz_complete,NULL};xtpsession* s=NULL;
     if(xtpCreate(&c,&e,&f,&s)!=XTP_OK)return 0;
     xtplane lanes[]={{1,XTP_INPUT_STREAM,true,0},{2,XTP_INPUT_RECORD,false,512}};
-    xtpbinding b={lanes,2,true,false};uint64_t binding;
+    xtpbinding b={lanes,2,true,false,NULL};uint64_t binding;
     assert(xtpBind(s,&b,0,&binding)==XTP_OK);
     for(size_t turn=0;size&&turn<128;++turn){unsigned char op=*data++;--size;uint64_t due=0;xtpinfo in;
         assert(xtpInfo(s,&in)==XTP_OK&&in.StorageBytes<=c.MaxSessionBytes&&in.PeakReservedBytes<=c.MaxSessionBytes);

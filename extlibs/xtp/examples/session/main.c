@@ -26,7 +26,7 @@ int main(void)
 {
     uint64_t now=1,ab,bb;xtpsession *a=NULL,*b=NULL;xtpevents e={receive,complete,NULL};
     if(xtpCreate(NULL,&e,&now,&a)!=XTP_OK||xtpCreate(NULL,&e,&now,&b)!=XTP_OK)return 1;
-    xtplane lane={1,XTP_INPUT_STREAM,true,0};xtpbinding binding={&lane,1,false,true};
+    xtplane lane={1,XTP_INPUT_STREAM,true,0};xtpbinding binding={&lane,1,false,true,NULL};
     if(xtpBind(a,&binding,now,&ab)!=XTP_OK||xtpBind(b,&binding,now,&bb)!=XTP_OK)return 2;
     xtpmessage m={0};m.Type=XTP_REQUEST;m.Command=xtpCmdID(1001);
     if(xtpSubmit(a,&m,NULL,now,NULL)!=XTP_OK||pump(a,b,bb,now)||pump(b,a,ab,now))return 3;

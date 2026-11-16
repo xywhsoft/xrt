@@ -24,7 +24,7 @@ static xtpresult write_bytes(void* user,const xtpoutput* o,size_t* n)
 static xtpsession* create(transport_test* t,bool record,uint64_t* binding)
 {
     xtpsession* s=NULL;xtpevents e={receive,completed,NULL};assert(xtpCreate(NULL,&e,t,&s)==XTP_OK);
-    xtplane lane={1,record?XTP_INPUT_RECORD:XTP_INPUT_STREAM,!t->Unreliable,1048576};xtpbinding b={&lane,1,false,true};
+    xtplane lane={1,record?XTP_INPUT_RECORD:XTP_INPUT_STREAM,!t->Unreliable,1048576};xtpbinding b={&lane,1,false,true,NULL};
     assert(xtpBind(s,&b,0,binding)==XTP_OK);t->Protected=s;return s;
 }
 static void finish(xtpsession* s)
