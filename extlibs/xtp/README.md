@@ -26,4 +26,6 @@ P5 已提供 xrudp BYTES/DATAGRAM 适配及 [游戏例程](docs/xrudp.md)。P6 �
 
 可恢复 RPC 的完成回执采用滚动窗口；活跃请求精确保留，窗口外旧结果明确退休，已移除按 60s 占槽造成的持续速率限制。Delivery 默认不启用。同一可靠 lane 默认立即聚合已排队帧，不等待攒包；BatchBytes=0 可关闭，额外复制与内存明确统计。自有源码/头共 121998 B（119.14 KiB），源码不设硬上限；GCC 自有 Session 含 Delivery 的 text 为 44992 B，依赖另计。WSS、跨架构、多连接及有界压力验证见 [部署资格](docs/qualification.md)，实体移动网络与多日长稳仍需对应环境验收。
 
+生产验收接手请先读 [生产验收与跨线程交接手册](docs/production-acceptance.md)：包含连续24小时标准、逐阶段验证命令、证据和汇报模板，以及已通过、人工中断和未执行项。功能完成不等于生产验收已签发。
+
 许可证沿用 XRT 仓库的 MIT 声明，独立快照包含 [LICENSE](LICENSE)。

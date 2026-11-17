@@ -8,11 +8,13 @@
     "instrumented_probe_four_transports_smoke": "passed",
     "recorder_false_pass_tests": "passed",
     "lab_udp_nat_blackout_key_rotation": "passed",
-    "continuous_72h": "pending",
+    "continuous_72h": "superseded_by_user_24h; previous runs interrupted, not passed",
     "target_devices_and_carrier_network": "pending",
     "real_tls_resume_and_failure": "passed",
-    "extended_fuzz": "pending",
-    "payload_identity_and_corruption_detection": "passed"
+    "extended_fuzz": "partial; xrt allocator 4 x 600 seconds passed; system allocator formal 4 x 600 seconds pending",
+    "payload_identity_and_corruption_detection": "passed",
+    "continuous_24h": "pending",
+    "kernel_counters": "partial; wakeup positive control invalid; complete copy attribution pending"
   },
   "controlled_p99": {
     "count_per_shape_repeat": 1000000,
@@ -67,22 +69,172 @@
     "fuzz-seeded-preflight.json": "f1656eb67fca133f60c706763d8c1fa272358f2ba9cb9d31352fef96411f47ee",
     "pattern-full-tls.json": "9406bf1706edc3815b3e0c80bc8308de85932a134f1f659238f0f1f20d1c92c6",
     "pattern-full-wss-asan.json": "73f9d072b6b7216081815c7e8f206be3364f2926b280fb571bdd773a7f5e46b8",
-    "pattern-negative.json": "db98449690edad143dad2c9e765b8ae23c2ff61826573bd1ec07492dd0e2a9e3"
+    "pattern-negative.json": "db98449690edad143dad2c9e765b8ae23c2ff61826573bd1ec07492dd0e2a9e3",
+    "full-tls-72h.json": "8c6602305de580034118053a61f8767bacc314f921432ae9ad9f370ef8f0bf75",
+    "full-wss-72h-asan.json": "56157906d5f13c2262191c10231870f26d3f0a436ac1f31744a5a159d7aad5be",
+    "user-stop.json": "c65207adf259ee8b2db483a70c3aa97c04355b829f3a2f2401349245c721d4fe",
+    "fuzz-600.json": "27928905fc86502279d056482836cba08d4a97ae52ae1e6191f25e6484230b00",
+    "fuzz-system-preflight.json": "b7b25f57c05833717b4addb715fcb028f919681aa22e5ff1eed92f35caafd2c4",
+    "system-smoke-wss-asan.json": "cb03c62c2a255fb9adcbdcc4046634f8914e9e0519118531425986421d504b48",
+    "kernel-counters-wss.json": "6ee53ea2793ac6778d4d5da067c022e00fc6990b2043612c94d45bca490c9e4a",
+    "kernel-counters-wss-raw.json": "8eaad552470138bafa8f476074fc08d647816c444e1d8645fe172df522391951"
   },
-  "device_inventory": "ADB found; devices -l reported no connected devices; user asked for target equipment/endpoints",
+  "device_inventory": "Historical ADB inventory found no connected devices; not refreshed during documentation handoff; receiving thread must verify actual targets",
   "long_run_conditions": {
-    "seconds": 259200,
+    "seconds": 86400,
     "connections": 8,
     "workers": 2,
     "count_per_direction_per_round": 2000,
     "max_rss_bytes": 3221225472,
     "warmup_seconds": 300,
-    "live_growth_allowance_bytes_per_peer": 131072
+    "live_growth_allowance_bytes_per_peer": 131072,
+    "basis": "User confirmed continuous 24 hours; pass --seconds 86400 explicitly because supervisor default remains 72 hours",
+    "planned_scenarios": [
+      "Windows TLS O2 xrt allocator",
+      "Linux WSS ASan+UBSan xrt allocator",
+      "Linux WSS ASan+UBSan system allocator"
+    ]
   },
   "qualification_rule": "pending/running/failure never count as pass; physical mobile/carrier/NAT targets require actual target environment",
   "full_build_includes_delivery": true,
   "preflight_interruptions": {
     "classification": "operator stopped minimal native variant before formal long run; interrupted reports remain failed and their runtime is not accumulated",
     "evidence_sha256": "b9fc797f48dc395ac6ddc49c801ad184ada5e10001659a9767cecbd61ab89d77"
-  }
+  },
+  "execution_status": "deferred_by_user; documentation handoff only; no new tests in the handoff step",
+  "required_continuous_seconds": 86400,
+  "interrupted_long_runs": [
+    {
+      "report": "out/xtp3-production/full-tls-72h.json",
+      "raw_status": "failed",
+      "classification": "interrupted_by_user_not_a_pass",
+      "original_required_seconds": 259200,
+      "elapsed_seconds": 44645.42099999997,
+      "exit_code": 4294967295,
+      "failure": "child incomplete/failed: 4294967295",
+      "last_checkpoint": {
+        "checkpoint": true,
+        "seconds": 44644.4565589,
+        "rounds": 547167,
+        "completed": 17509344000,
+        "live_xtp_bytes": 1271168,
+        "live_xtp_blocks": 128,
+        "peak_xtp_bytes": 68388224,
+        "ledger_match": true,
+        "quiescent": true
+      },
+      "normal_teardown_verified": false
+    },
+    {
+      "report": "out/xtp3-production/full-wss-72h-asan.json",
+      "raw_status": "failed",
+      "classification": "interrupted_by_user_not_a_pass",
+      "original_required_seconds": 259200,
+      "elapsed_seconds": 44619.747398423,
+      "exit_code": -15,
+      "failure": "child incomplete/failed: -15",
+      "last_checkpoint": {
+        "checkpoint": true,
+        "seconds": 44616.210315907,
+        "rounds": 47582,
+        "completed": 1522624000,
+        "live_xtp_bytes": 1272064,
+        "live_xtp_blocks": 136,
+        "peak_xtp_bytes": 68389120,
+        "ledger_match": true,
+        "quiescent": true
+      },
+      "normal_teardown_verified": false
+    }
+  ],
+  "operator_stop_record": {
+    "date_local": "2026-11-17T15:03:38.7675136+08:00",
+    "reason": "User requested skipping tests",
+    "disposition": "interrupted by user; not a qualification pass",
+    "windows_report": "out/xtp3-production/full-tls-72h.json",
+    "linux_report": "out/xtp3-production/full-wss-72h-asan.json",
+    "windows_elapsed_before_stop": 44643.40600000002
+  },
+  "fuzz_xrt_600": {
+    "report": "out/xtp3-production/fuzz-600.json",
+    "status": "passed",
+    "allocator": "xrt (legacy runner before allocator selector; allocator field absent)",
+    "targets": [
+      {
+        "target": "codec",
+        "status": "passed",
+        "returncode": 0,
+        "real_seconds": 601.320644639,
+        "final_statistics": [
+          "Done 348558031 runs in 601 second(s)",
+          "stat::number_of_executed_units: 348558031",
+          "stat::average_exec_per_sec:     579963",
+          "stat::new_units_added:          69",
+          "stat::slowest_unit_time_sec:    0",
+          "stat::peak_rss_mb:              515"
+        ],
+        "exe_sha256": "b075a5663c3aef75ca9041daab039b02dae127ab9bd1d4a7b7b0d91e98856240",
+        "log_sha256": "237e78f403533974df58e82a0bfc1ff4016afb5c28605ffcc8da02caf2010aa4"
+      },
+      {
+        "target": "reader",
+        "status": "passed",
+        "returncode": 0,
+        "real_seconds": 601.7949580940001,
+        "final_statistics": [
+          "Done 4305463 runs in 601 second(s)",
+          "stat::number_of_executed_units: 4305463",
+          "stat::average_exec_per_sec:     7163",
+          "stat::new_units_added:          4829",
+          "stat::slowest_unit_time_sec:    0",
+          "stat::peak_rss_mb:              472"
+        ],
+        "exe_sha256": "4882fe82c6b701c10ba0ae468f1f38632a8b3ba91779f80389588610bc48075a",
+        "log_sha256": "67c6d817ab6137277815b38b2140ce9fa718db6749a9658bc39be9ae87a6ceb9"
+      },
+      {
+        "target": "session",
+        "status": "passed",
+        "returncode": 0,
+        "real_seconds": 602.0353359579999,
+        "final_statistics": [
+          "Done 3085844 runs in 601 second(s)",
+          "stat::number_of_executed_units: 3085844",
+          "stat::average_exec_per_sec:     5134",
+          "stat::new_units_added:          6951",
+          "stat::slowest_unit_time_sec:    0",
+          "stat::peak_rss_mb:              422"
+        ],
+        "exe_sha256": "26d35de0005248b84cbde5e05be9977ef6f6ed10fe4e401bdc0e46fdabb9b972",
+        "log_sha256": "8f7cea91e40bd277b20f7810e4d2618ce46cf353b447ff48d7aaa43ddf623260"
+      },
+      {
+        "target": "delivery",
+        "status": "passed",
+        "returncode": 0,
+        "real_seconds": 602.1607970559999,
+        "final_statistics": [
+          "Done 1152372 runs in 601 second(s)",
+          "stat::number_of_executed_units: 1152372",
+          "stat::average_exec_per_sec:     1917",
+          "stat::new_units_added:          5276",
+          "stat::slowest_unit_time_sec:    0",
+          "stat::peak_rss_mb:              390"
+        ],
+        "exe_sha256": "c77af71dfc856ddd418afb3b2581fa9534011a1b6400102bd8b6064c7fd40323",
+        "log_sha256": "1f8396d546f111edf77dec91190991d78d0afc0ff6149c3075d5e57235afc003"
+      }
+    ]
+  },
+  "kernel_diagnostic": {
+    "report": "out/xtp3-production/kernel-counters-wss.json",
+    "status": "partial",
+    "limitations": [
+      "sched_wakeup returned zero; an independent sleeping-child positive control also returned zero; wakeup attribution is not validated",
+      "software task clock, context-switch, fault and per-thread syscall totals retained; no payloads/stacks captured",
+      "all memcpy instructions and compiler-generated copy loops have not been dynamically counted"
+    ],
+    "final_collector_revision_retested": false
+  },
+  "handoff_document": "extlibs/xtp/docs/production-acceptance.md"
 }
