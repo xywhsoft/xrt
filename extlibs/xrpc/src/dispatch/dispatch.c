@@ -9,7 +9,7 @@ typedef struct xrpcdispatchcontext {
 	xrpcdispatchemit Emit;
 	ptr EmitUser;
 	xerror* Failure;
-	bool Failed;
+	bool Failed, ErrorSlotFailed;
 } xrpcdispatchcontext;
 
 struct xrpcreply {
@@ -23,20 +23,40 @@ static bool xrpcDispatchReport(xerrkind Kind, xrpcdispatcherror Code, cstr Messa
 	xrtSetErrorInfo(Kind, "xrt.rpc", (int32)Code, Message); return false;
 }
 
+/* Re-exposing an already reported diagnostic must neither notify again nor
+ * lose the context's owning edge when a retain or native slot write fails. */
+static bool xrpcDispatchExpose(xrpcdispatchcontext* Context)
+{
+	if (!Context->ErrorSlotFailed && Context->Failure != NULL) {
+		xerror* Owned = xrtErrorRef(Context->Failure);
+		if (Owned != NULL) {
+			xerror* Previous = NULL;
+			if (!xrtTrySwapErrorTake(Owned, &Previous)) {
+				Context->ErrorSlotFailed = true; xrtErrorFree(Owned);
+			} else xrtErrorFree(Previous);
+		}
+	}
+	return false;
+}
+
 static bool xrpcDispatchRemember(xrpcdispatchcontext* Context)
 {
 	if (!Context->Failed) {
-		Context->Failed = true; Context->Failure = xrtTakeError();
+		Context->Failed = true;
+		if (!xrtTrySwapErrorTake(NULL, &Context->Failure)) {
+			Context->ErrorSlotFailed = true; return false;
+		}
 		if (Context->Failure == NULL) {
 			xrpcDispatchReport(XERR_INTERNAL, XRPC_DISPATCH_STATE, "RPC operation failed without a diagnostic");
-			Context->Failure = xrtTakeError();
+			if (!xrtTrySwapErrorTake(NULL, &Context->Failure)) {
+				Context->ErrorSlotFailed = true; return false;
+			}
 		}
 	}
 	/* Transfer the first owning edge into the stack context rather than making
 	 * a successful error Ref the failure sentinel. Diagnostic publication can
 	 * need another reference; failure state and final transfer do not depend on it. */
-	xrtSetError(Context->Failure);
-	return false;
+	return xrpcDispatchExpose(Context);
 }
 
 static bool xrpcDispatchFail(xrpcdispatchcontext* Context, xerrkind Kind,
@@ -44,7 +64,7 @@ static bool xrpcDispatchFail(xrpcdispatchcontext* Context, xerrkind Kind,
 {
 	if (!Context->Failed) {
 		xrpcDispatchReport(Kind, Code, Message); xrpcDispatchRemember(Context);
-	} else xrtSetError(Context->Failure);
+	} else xrpcDispatchExpose(Context);
 	return false;
 }
 
@@ -60,7 +80,7 @@ XRPC_API bool xrpcDispatchConfigInit(xrpcdispatchconfig* Config)
 
 static bool xrpcDispatchEmit(xrpcdispatchcontext* Context, const xrpcoutgoing* Response)
 {
-	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (Context->Failed) return xrpcDispatchExpose(Context);
 	size_t Bytes = 0;
 	if (!xrpcEncodeSize(Response, 1, false, &Context->Config.Reply, &Bytes)) return xrpcDispatchRemember(Context);
 	size_t Overhead = Context->Info.Batch ? (Context->Info.Replies ? 1u : 2u) : 0u;
@@ -72,7 +92,7 @@ static bool xrpcDispatchEmit(xrpcdispatchcontext* Context, const xrpcoutgoing* R
 	/* A sink can reenter the current Reply and trigger a sticky failure. Its
 	 * outer successful emission still counts as accepted physical output. */
 	++Context->Info.Replies; Context->Info.OutputBytes += Bytes + Overhead;
-	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (Context->Failed) return xrpcDispatchExpose(Context);
 	return true;
 }
 
@@ -81,7 +101,7 @@ static bool xrpcDispatchReply(xrpcreply* Reply, xrpcoutgoing* Response)
 	if (Reply == NULL || !xrtMemRangeValid(Reply, sizeof(*Reply)))
 		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC reply handle");
 	xrpcdispatchcontext* Context = Reply->Context;
-	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (Context->Failed) return xrpcDispatchExpose(Context);
 	if (!Reply->Active || Reply->Attempted)
 		return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_STATE, "RPC reply is inactive or already attempted");
 	Reply->Attempted = true;
@@ -108,7 +128,7 @@ XRPC_API bool xrpcReplyAbort(xrpcreply* Reply, const xerror* Error)
 	if (Reply == NULL || !xrtMemRangeValid(Reply, sizeof(*Reply)))
 		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC abort handle");
 	xrpcdispatchcontext* Context = Reply->Context;
-	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (Context->Failed) return xrpcDispatchExpose(Context);
 	if (!Reply->Active)
 		return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_STATE, "RPC abort handle is inactive");
 	if (Error == NULL)
@@ -117,7 +137,10 @@ XRPC_API bool xrpcReplyAbort(xrpcreply* Reply, const xerror* Error)
 		xerror* Owned = xrtErrorRef(Error);
 		if (Owned == NULL)
 			return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_ABORTED, "RPC abort diagnostic cannot be retained");
-		xrtSetErrorTake(Owned);
+		/* An explicit borrowed error can be retained directly in the context;
+		 * installing it only to take it back would add an unnecessary slot write. */
+		Context->Failed = true; Context->Failure = Owned;
+		return xrpcDispatchExpose(Context);
 	}
 	return xrpcDispatchRemember(Context);
 }
@@ -174,7 +197,9 @@ XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
 	xrpcdispatchcontext Context = {0};
 	if (!xrpcDispatchInputs(&Context, Input, Config, Scratch, Capacity, Emit, Info)) return false;
 	Context.Emit = Emit; Context.EmitUser = EmitUser;
-	xerror* Ambient = xrtTakeError(); xrpcdocument Document = {0};
+	xerror* Ambient = NULL;
+	if (!xrtTrySwapErrorTake(NULL, &Ambient)) return false;
+	xrpcdocument Document = {0};
 	xrpcdecodestatus Decoded = xrpcDecode(Input, &Context.Config.Decode, Scratch, Capacity, &Document);
 	if (Decoded == XRPC_DECODE_LOCAL_ERROR) { xrtErrorFree(Ambient); return false; }
 	if (Decoded == XRPC_DECODE_PARSE_ERROR) {
@@ -214,8 +239,14 @@ XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
 	}
 	*Info = Context.Info;
 	if (Context.Failed) {
-		xrtSetErrorTake(Context.Failure); xrtErrorFree(Ambient); return false;
+		xerror* Previous = NULL;
+		if (Context.ErrorSlotFailed || !xrtTrySwapErrorTake(Context.Failure, &Previous))
+			xrtErrorFree(Context.Failure);
+		xrtErrorFree(Previous); xrtErrorFree(Ambient); return false;
 	}
-	xrtSetErrorTake(Ambient); return true;
+	xerror* Previous = NULL;
+	bool Restored = xrtTrySwapErrorTake(Ambient, &Previous);
+	if (!Restored) xrtErrorFree(Ambient);
+	xrtErrorFree(Previous); return Restored;
 }
 #endif

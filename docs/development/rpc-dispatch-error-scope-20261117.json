@@ -1,0 +1,155 @@
+{
+  "status": "developing; original four-product goal active",
+  "date": "2026-11-17",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "c784d06c18b4980af106c52bb295f16d18cb6318",
+  "verified_at_revision": "c784d06c18b4980af106c52bb295f16d18cb6318",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "changes": [
+    "Use existing public xrtTrySwapErrorTake for checked quiet entry, sticky capture/exposure and final owning transfer",
+    "Keep a stack-only known-failed-slot flag; stop callbacks and never retry that slot",
+    "Retain borrowed Abort diagnostics directly without an install/take round trip",
+    "Entry failure leaves Info unchanged; after admission preserve actual irreversible business/output effects even when final restoration fails",
+    "Preserve existing public ABI, successful-path zero-heap behavior and Core diagnostic-publication contracts"
+  ],
+  "baseline": {
+    "revision": "c784d06c18b4980af106c52bb295f16d18cb6318",
+    "old_notifications": 1,
+    "fixed_notifications": 0,
+    "proof": "reproduced.json",
+    "fixed_core_product_headers": true
+  },
+  "evidence": {
+    "directory": "out/service-extensions/rpc-dispatch-error-scope-20261117",
+    "source_map_sha256": "e16d50bfaff94071eb2d77197599a282e5030cf05d734561df253a1805a2b3b7",
+    "audit_sha256": "0e31be366cedb0ac26e50230b2e106e754de1558955789cf3e224b7d615d0940",
+    "checkpoint": {
+      "files": 321,
+      "sha256": "d8e0763948fcce96bd7cbd37d757749bc8ec8ed9bb9aa5759f93041194970573",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "source_map_sha256": "e16d50bfaff94071eb2d77197599a282e5030cf05d734561df253a1805a2b3b7"
+    },
+    "preserved_compressed_binaries": 77,
+    "program_counts": {
+      "windows": 25,
+      "wsl": 25
+    },
+    "counts_note": "Counts include selected executed tests/examples/direct consumers; package --verify runs two additional consumer programs per platform."
+  },
+  "validation": {
+    "platforms": [
+      "native Windows x64 GCC",
+      "WSL Linux x64 GCC; not native Linux acceptance"
+    ],
+    "native_error_key_failure_cases_per_platform": 56,
+    "bound_nested_contexts_per_platform": 2,
+    "artificial_retain_saturation_boundaries_per_platform": 1,
+    "forms": [
+      "modular",
+      "single",
+      "full-root selection",
+      "memory statistics off",
+      "separate Core/XRPC static",
+      "separate Core/XRPC shared",
+      "standalone declaration consumers"
+    ],
+    "existing_regressions": [
+      "10000 dispatch properties and allocation-free success",
+      "one-byte budget / diagnostic OOM",
+      "method-index immutable ownership and concurrency",
+      "server cancellation,2048 allocation prefixes,context erasure and physical joins",
+      "duplex partial sends,4096 OOM prefixes,bidirectional matching,concurrent producers and close"
+    ],
+    "sanitizers": [
+      "WSL ASan",
+      "WSL UBSan",
+      "WSL leak detection"
+    ],
+    "metadata": [
+      "generated features",
+      "generated amalgamations",
+      "API docs",
+      "API reference",
+      "development maturity",
+      "extension layout"
+    ],
+    "all_selected_final_checks_passed": true,
+    "skips": [],
+    "retained_failed_attempts": [
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "dispatch-suite",
+        "exit_code": 1,
+        "log": "windows-dispatch-suite.log",
+        "log_sha256": "bfbb0f754c68a8abeda147e768935e63028691dccb09d433d83c64cb8901145f"
+      },
+      {
+        "mode": "windows",
+        "stage": "regression",
+        "label": "dispatch-consumers",
+        "exit_code": 2,
+        "log": "windows-dispatch-consumers.log",
+        "log_sha256": "aeba41433be2d57abdaacab9b100d28bff6dc478ae9efbdd8c0fcc1916b2c358"
+      },
+      {
+        "mode": "windows",
+        "stage": "regression",
+        "label": "dispatch-consumers-modular",
+        "exit_code": 1,
+        "log": "windows-dispatch-consumers-modular.log",
+        "log_sha256": "ce07149a9e14ffa0f6238b9186e7cf5cc0acb47b5ba4a06855c4a9d2d402d4cb"
+      },
+      {
+        "mode": "windows",
+        "stage": "regression",
+        "label": "dispatch-consumer-single-duplex",
+        "exit_code": 1,
+        "log": "windows-dispatch-consumer-single-duplex.log",
+        "log_sha256": "84175456397b95bacefc88b4c8ba68637746e8777333ef9763cf17e1e4367409"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "dispatch-suite",
+        "exit_code": 1,
+        "log": "wsl-dispatch-suite.log",
+        "log_sha256": "cacfbc70edbe5a0ae0760b641c35c640b2bf2dc39221a5848b87cf7a5c193f76"
+      },
+      {
+        "mode": "wsl",
+        "stage": "regression",
+        "label": "dispatch-consumer-single-duplex",
+        "exit_code": 1,
+        "log": "wsl-dispatch-consumer-single-duplex.log",
+        "log_sha256": "ed8e2f9275622f2b5988f6e42f10149c102e09d3be68f25e22626596a49f912e"
+      }
+    ],
+    "strict_release": {
+      "passed": false,
+      "developing_modules": 18,
+      "proof": "strict-release.json"
+    }
+  },
+  "limits": [
+    "Native shims target dispatch owning error exchanges, not arbitrary OS failures or Core/user void diagnostic setters",
+    "Post-admission failure cannot roll back business/accepted output and may leave no diagnostic; do not blindly replay",
+    "No new timing, production throughput/tail-latency or native Linux/72h qualification",
+    "The original four-library scope remains incomplete"
+  ],
+  "remaining": [
+    "RPC/Cron service callback error scopes",
+    "MQTT durable state applier/driver/Inbox/ACK/namespace/compaction/group scheduling",
+    "Complete original Redis/RPC/MQTT5/Cron functionality",
+    "Controlled production performance and native Windows/native Linux >=72h qualification"
+  ],
+  "preserved_other_work": "Other-thread XTP files remain outside this commit; retired historical worktree untouched"
+}

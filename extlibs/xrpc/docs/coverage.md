@@ -266,6 +266,17 @@ Credential negotiation/lifecycle, mTLS and final native/comparator/72-hour
 production qualification remain pending.
 
 
+## Dispatch error ownership
+
+The synchronous dispatcher also checks its owning error-slot exchanges. Native
+error-key injections cover entry, capture, re-exposure and final restoration,
+including a successful outer sink that aborts reentrantly. Post-admission Info
+retains real effects even when the final boolean is false; success and retained
+errors restore quietly. Ordinary dispatch still passes zero-heap/quota and
+10000 seeded wire properties. These are focused functional/delivery regressions,
+not full-runtime performance or native endurance qualification; see
+[dispatch](dispatch.md) for ownership and retry limits.
+
 ## Explicit stream framing
 
 The [frame leaf](frame.md) handles Content-Length and explicit binary32 lengths,

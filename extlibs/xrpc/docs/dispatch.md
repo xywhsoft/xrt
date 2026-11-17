@@ -72,6 +72,31 @@ allocations are added. Cold diagnostics can allocate; parse diagnostic OOM is a
 local failure rather than a fabricated Parse error response. Ordinary success
 restores ambient error identity even if the business callback changed it.
 
+Dispatch uses the existing checked, quiet owning error exchange at entry,
+first-failure capture, failure re-exposure and final restoration. Restoring an
+existing diagnostic does not notify the error handler again; creating a fresh
+diagnostic still uses Core's normal notification contract. An explicit borrowed
+abort error is retained directly by the stack context, avoiding an install/take
+round trip. Final transfer of the context's owning edge needs no further retain.
+
+If entry cannot write the error slot, dispatch returns false before decoding or
+calling business/sink callbacks and leaves Info unchanged. If capture,
+re-exposure or final restoration fails after admission, dispatch returns false
+with the actual partial effects in Info. Even a failure after all replies were
+accepted cannot undo those effects. Do not replay the request based only on the
+boolean result. The saved error edge is released exactly once; an existing
+published error remains owned by the slot, which may also be empty. Dispatch
+does not retry a known failed slot or create a synthetic diagnostic through it.
+These checks cover dispatch's owning error exchanges. User callbacks and the
+creation/publication of fresh diagnostics retain their respective Core contracts.
+
+Regression coverage includes exact ambient identity and notification counts for
+success/batches/notifications/nesting, real Windows/POSIX error-key setter faults
+at entry/capture/re-exposure/restoration, accepted reentrant sink effects,
+borrowed abort ownership, caller allocation-ledger refunds, existing bound
+execution contexts and an artificial retain-saturation boundary. The setter
+fault shim is test-only and does not replace the rest of the native TLS keys.
+
 Costs are explicit: complete input JSON is scanned once; each emitted response
 is validated by `xrpcEncodeSize`; an encoding sink independently validates it
 again during Write before copying raw values. String quoting has the encoder's

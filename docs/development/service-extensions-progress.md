@@ -13732,3 +13732,47 @@ and out/service-extensions/xrpc-frame-20261112.
   durable MQTT state/driver/Inbox/ACK/namespace/compaction/group scheduling,
   complete original four-library functionality, controlled performance and
   native Windows/Linux >=72h qualification remain active.
+
+
+## 2026-11-17 — checked, quiet RPC dispatch error ownership on master
+
+- Fixed-base c784d06c Core/XRPC headers reproduce one repeated ambient-error
+  notification on the first successful dispatch. The checked quiet exchanges
+  preserve exact ambient identity without repeated notices across16 public
+  success/batch/notification/nesting/handler-diagnostic combinations. Fresh
+  callback/dispatcher diagnostics keep their existing notification contract.
+- Entry slot failure precedes decode/callbacks and leaves Info unchanged.
+  Capturing/re-exposing/finally transferring the first sticky error is checked;
+  the stack context stops writing after a known native slot failure. A borrowed
+  Abort diagnostic is retained directly instead of installed and taken again.
+  No public ABI, Core runtime, executor, lock or successful-path allocation is
+  added. Retain failure cannot discard the context's final owning edge.
+- Once admitted, an exit failure returns false with the real Info, including
+  already accepted output and business effects. It cannot undo or authorize
+  blind replay of those effects, and the diagnostic slot may remain empty.
+  These checks cover dispatch's owning exchanges, not arbitrary failures in
+  user callbacks or Core's separate void diagnostic-publication setters.
+- Actual Windows/WSL error-key shims pass56 cases per platform: entry, successful
+  exit, sticky capture/exposure/final transfer, borrowed Abort exposure and abort
+  during a physically accepted outer emission; populated/empty ambient slots,
+  one-shot/persistent failures and cleared/retained final sticky publication.
+  Allocation ledgers verify all saved/retained/provisional diagnostic owners
+  are refunded. Two bound nested contexts avoid native error-slot writes; one
+  artificial saturated-reference fixture proves final transfer needs no Ref.
+- Modular/single/root/stats-off, separate Core/XRPC static/shared and standalone
+  declaration consumers pass. The regenerated declarations also catch up with
+  three already-committed Core WebSocket feature guards. Existing dispatch
+  10000-property/zero-heap/OOM checks and method-index/server/duplex concurrency,
+  cancellation, quota, lifetime and physical-join regressions pass in both
+  modular and single forms. WSL ASan/UBSan/leaks pass.
+- Initial test-fixture keyword and unsupported CLI/asset selectors are retained
+  in raw failure receipts. The final duplex single uses its actual owning
+  xrpc_duplex suite; successful checks were not rerun for that selector fix.
+  Mainline source hashes and tested binaries are retained in
+  [stage evidence](rpc-dispatch-error-scope-20261117.json). Other-thread XTP work
+  is preserved. No branch/worktree operation or remote push is performed.
+- Strict release still rejects18 developing RPC modules. No new performance or
+  native Linux/72h qualification is claimed. Remaining RPC/Cron service callback
+  scopes, durable MQTT state/driver/Inbox/ACK/namespace/compaction/group scheduling,
+  complete original four-library functionality and controlled production
+  throughput/tail-latency/endurance acceptance remain active.

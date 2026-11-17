@@ -77,8 +77,15 @@ XRPC_API bool xrpcDispatchConfigInit(xrpcdispatchconfig* Config);
  * Independent dispatches can reenter/run concurrently with independent scratch
  * and contexts. Callbacks must not block an I/O worker; this leaf does no
  * executor/async/deadline/transport work. Ordinary success restores the caller's
- * ambient error even if a handler changed it. Local failure retains its first
- * diagnostic despite callbacks clearing/replacing ambient error. */
+ * ambient error even if a handler changed it, without notifying it again.
+ * Existing failure diagnostics are also re-exposed quietly. A checked error-
+ * slot entry failure invokes no callbacks and leaves Info unchanged. A slot
+ * failure after admission returns false with actual partial effects in Info;
+ * it cannot roll back business/output effects and may leave no diagnostic.
+ * Dispatch never retries a known failed slot. Local failure retains its first
+ * diagnostic despite callbacks clearing/replacing ambient error, provided the
+ * error slot remains writable. User/diagnostic-creation setters retain their
+ * own Core contracts; these checks cover dispatch's owning error exchanges. */
 XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
 	xrpcmessage* Scratch, size_t Capacity, xrpcdispatchcall Call, ptr CallUser,
 	xrpcdispatchemit Emit, ptr EmitUser, xrpcdispatchinfo* Info);

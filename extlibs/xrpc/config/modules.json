@@ -372,10 +372,13 @@
         "extlibs/xrpc/src/dispatch/dispatch.c"
       ],
       "tests": [
-        "extlibs/xrpc/tests/test_dispatch.c"
+        "extlibs/xrpc/tests/test_dispatch.c",
+        "extlibs/xrpc/tests/test_dispatch_errors.c"
       ],
       "single_tests": [
-        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_errors.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_error_failure.c"
       ],
       "examples": [
         "extlibs/xrpc/examples/dispatch/main.c"
@@ -815,7 +818,8 @@
         "extlibs/xrpc/tests/test_ws_post.c",
         "extlibs/xrpc/tests/test_ws_http.c",
         "extlibs/xrpc/tests/test_ws_http_prebuffer.c",
-        "extlibs/xrpc/tests/test_ws_deflate.c"
+        "extlibs/xrpc/tests/test_ws_deflate.c",
+        "extlibs/xrpc/tests/test_dispatch_errors.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -847,7 +851,9 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_prebuffer.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_deflate.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_deflate.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_deflate.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_errors.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_error_failure.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -884,7 +890,9 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_tls.c": "xrpc_ws_http_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_http_prebuffer.c": "xrpc_ws_http_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws_deflate.c": "xrpc_ws_http_deflate_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_deflate.c": "xrpc_ws_http_tls_deflate_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_deflate.c": "xrpc_ws_http_tls_deflate_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_errors.c": "xrpc_dispatch",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch_error_failure.c": "xrpc_dispatch"
       }
     },
     {
