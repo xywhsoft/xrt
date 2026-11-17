@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--seconds',type=int,default=600,help='real libFuzzer seconds per target')
     parser.add_argument('--report',type=Path,required=True)
     parser.add_argument('--target',choices=('all','codec','reader','session','delivery'),default='all')
+    parser.add_argument('--allocator',choices=('system','xrt'),default='system')
     args=parser.parse_args()
     if not 1<=args.seconds<=86400:parser.error('bounded seconds required')
     report=args.report.resolve()
@@ -31,7 +32,7 @@ def main():
                 head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
                 working_status=subprocess.check_output(['git','status','--short'],cwd=ROOT,text=True).strip(),
                 compiler=subprocess.check_output([compiler,'--version'],text=True).splitlines()[0],
-                seconds_per_target=args.seconds,targets=[],sources={p.relative_to(ROOT).as_posix():digest(p) for directory in ('include','src','tests')
+                seconds_per_target=args.seconds,allocator=args.allocator,targets=[],sources={p.relative_to(ROOT).as_posix():digest(p) for directory in ('include','src','tests')
                 for p in (ROOT/'extlibs/xtp'/directory).rglob('*') if p.suffix in ('.c','.h')})
     result['amalgamated_sha256']={p:digest(ROOT/p) for p in ('single/xrt.h','single/extlibs/xtp.h')}
     def save():report.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
@@ -44,12 +45,21 @@ def main():
         for name,kind,identity,flags,status,size in [('request',1,1,1,0,32),('notify',5,0,1,0,32),
                 ('ack',4,1,0,0,32),('retired-result',4,1,4,-8,32),('huge',1,1,1,0,0xffffffff)]:
             (corpus/name).write_bytes(struct.pack('<4sIQBBHIiI',b'xtp\x03',size,identity,kind,flags,0,0,status,0))
+        allocation=''
+        if args.allocator=='system' and target!='codec':
+            kind,init=('xtpreaderconfig','xtpReaderConfigInit') if target=='reader' else ('xtpconfig','xtpConfigInit')
+            allocation=f'''#include <stdlib.h>
+static void* qa_realloc(void* user,void* data,size_t bytes){{(void)user;if(!bytes){{free(data);return NULL;}}return realloc(data,bytes);}}
+static void qa_init({kind}* c){{{init}(c);c->Realloc=qa_realloc;}}
+#define {init} qa_init
+'''
         source.write_text(f'''#define XTP_MODULE_XTP_{target.upper()}
 #include <xtp/features.h>
 #define XRT_IMPLEMENTATION
 #include "{(ROOT/'single/xrt.h').as_posix()}"
 #define XTP_IMPLEMENTATION
 #include "{(ROOT/'single/extlibs/xtp.h').as_posix()}"
+{allocation}
 #include "{(ROOT/'extlibs/xtp/tests'/('fuzz_'+target+'.c')).as_posix()}"
 ''',encoding='utf-8')
         compile_command=[compiler,'-std=c99','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=fuzzer,address,undefined',

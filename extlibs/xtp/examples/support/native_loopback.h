@@ -138,9 +138,20 @@ typedef union native_allocation {size_t Size;long double Align;void* Pointer;} n
 static void* native_alloc(void* user,void* memory,size_t size)
 {
     native_peer* p=user;bool fresh=memory==NULL;native_allocation* old=memory?(native_allocation*)memory-1:NULL;size_t oldn=old?old->Size:0;
-    if(!size){if(old){assert(p->AllocLive>=oldn&&p->AllocBlocks);p->AllocLive-=oldn;--p->AllocBlocks;xrtFree(old);}return NULL;}
+    if(!size){if(old){assert(p->AllocLive>=oldn&&p->AllocBlocks);p->AllocLive-=oldn;--p->AllocBlocks;
+#if defined(XTP_PRODUCTION_SYSTEM_ALLOC)
+        free(old);
+#else
+        xrtFree(old);
+#endif
+    }return NULL;}
     assert(size<=SIZE_MAX-sizeof(native_allocation));++p->AllocationCalls;
-    native_allocation* grown=xrtRealloc(old,sizeof(*grown)+size);if(!grown)return NULL;
+#if defined(XTP_PRODUCTION_SYSTEM_ALLOC)
+    native_allocation* grown=realloc(old,sizeof(*grown)+size);
+#else
+    native_allocation* grown=xrtRealloc(old,sizeof(*grown)+size);
+#endif
+    if(!grown)return NULL;
     grown->Size=size;p->AllocLive=p->AllocLive-oldn+size;if(fresh)++p->AllocBlocks;
     if(p->AllocLive>p->AllocPeak)p->AllocPeak=p->AllocLive;
     return grown+1;
