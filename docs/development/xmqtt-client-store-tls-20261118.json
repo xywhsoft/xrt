@@ -1,0 +1,149 @@
+{
+  "branch": "master",
+  "parent": "88a94b54d12d3c3fd086c8b183d90f80cf89ee56",
+  "artifact_root": "out/service-extensions/mqtt-client-store-tls-20261118",
+  "source_map": {
+    "path": "source.json",
+    "sha256": "d1f2f5073832de652f3776cad5be6ff9a92dfb6b76f155d5d160e18ed30ce98c"
+  },
+  "results": {
+    "windows": {
+      "programs": {
+        "tls-final": 3,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_session_tls_tests": 3,
+        "xmqtt_client_dial": 4
+      },
+      "suites": {
+        "path": "windows-receipts.json",
+        "sha256": "3d9739bbaba6880fff3c936f44348f212b9d2354a0ebe95f6942862d588387dd"
+      },
+      "root_coexistence": {
+        "path": "windows-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      },
+      "packages": {
+        "path": "windows-packages.json",
+        "sha256": "428a1275112b904e9efe886794716e421663d3ba4baf9c195f1ef92c42339584"
+      },
+      "exports": {
+        "path": "windows-exports.json",
+        "sha256": "32d84ba0a210f5142f9a17ff6c091030ba51a88a2a46da08486c8a84aa977b08"
+      },
+      "public_consumers": {
+        "path": "windows-consumer-receipts.json",
+        "sha256": "b959092b050f240ddd985ab78c2e10f885b66e5cdab05cbe34212a2c2037606c"
+      },
+      "first_modular": {
+        "path": "windows-first.log",
+        "sha256": "8d3df2ea7d04398329eb9970f15079ba1d55d73d6b87ec54d914a76cf96371c3"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "tls-final": 3,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_session_tls_tests": 3,
+        "xmqtt_client_dial": 4
+      },
+      "suites": {
+        "path": "wsl-receipts.json",
+        "sha256": "7ee223edaecff78acdce90f1eb814db8b34eb61359c62ae5eb6635748bc682a9"
+      },
+      "root_coexistence": {
+        "path": "wsl-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      },
+      "packages": {
+        "path": "wsl-packages.json",
+        "sha256": "398948d98bd9e33b6f8c8a257e8337ed770ac7a4fe0d092293d5ce309daf806e"
+      },
+      "exports": {
+        "path": "wsl-exports.json",
+        "sha256": "0ae5e907f870bb482d5b18a1da4e121083787d8f3cd7809418688819bdb496aa"
+      },
+      "public_consumers": {
+        "path": "wsl-consumer-receipts.json",
+        "sha256": "3d66f65505d10027b988b1a9909be96f12533aa8a7e7b4136e599d4678dc068e"
+      },
+      "first_modular": {
+        "path": "wsl-first.log",
+        "sha256": "def1ded5be8eba28b3a7629303315250ef87839e69b21d4b13d906d55661d221"
+      }
+    }
+  },
+  "developing_feature": "xmqtt_client_store_tls",
+  "new_public_apis": [
+    "xmqttClientTlsConnectStore",
+    "xmqttClientTlsDialStore",
+    "xmqttClientTlsDialAddressesStore"
+  ],
+  "scenario_count_each_modular_or_single": 12,
+  "sanitizer": {
+    "wsl": [
+      "ASan",
+      "UBSan",
+      "leak detection",
+      "Clang 21 TSan"
+    ],
+    "asan_scope": {
+      "label": "tls-final",
+      "receipts": {
+        "path": "wsl-receipts.json",
+        "sha256": "7ee223edaecff78acdce90f1eb814db8b34eb61359c62ae5eb6635748bc682a9"
+      }
+    },
+    "tsan_receipts": {
+      "path": "wsl-tsan-receipts.json",
+      "sha256": "12098ce42912eb61021728fc96b2f79c5c315a213e2cbb72d8df692233e06c8f"
+    }
+  },
+  "gates": {
+    "ordinary": {
+      "path": "windows-gates-receipts.json",
+      "sha256": "cc9d0eae63421f1b8d26e5d870c94870ec01cf418431df6ec7d05c07c3d51e11"
+    },
+    "strict": {
+      "path": "windows-strict-release.log",
+      "sha256": "7dc84ac636b54326ebac37e6c7709fac4cb2f4d7980e7e27d17fa8d8661ea4cc"
+    },
+    "strict_exit_code": 1,
+    "developing_modules": 30
+  },
+  "pilot": {
+    "exit_code": 1,
+    "scope": "Four static examples reached expected subscriber and journal checks",
+    "failure": "Pilot expected two negative hostname cases reserved for the modular cohort",
+    "broker_log": {
+      "path": "broker-static-runtime.log",
+      "sha256": "6d7bbcfc584d7018da867f6462b5b9f6ae91b1677ba8c697cb51fc7e530dadd0"
+    }
+  },
+  "interoperation": {
+    "broker": "Mosquitto 2.0.22",
+    "TLS": "1.3",
+    "MQTT": [
+      "5.0",
+      "3.1.1"
+    ],
+    "subscriber_deliveries": 12,
+    "wrong_hostname_rejections": 2,
+    "receipts": [
+      {
+        "path": "broker-package.json",
+        "sha256": "e9f63c1a1c6d73191005a782240fb555d16f638a968fe942ed8676fe1e3698dd"
+      },
+      {
+        "path": "broker-modular.json",
+        "sha256": "ab57b00493084f8de2a4b62e77235cad2dfa7fa612c51a3ec5e7a1d5e2a38d91"
+      }
+    ]
+  },
+  "open_acceptance": [
+    "Durable reconnect and subscription intent integration",
+    "Durable MQTT enhanced authentication and WebSocket transports",
+    "Cross-host fencing and compaction",
+    "Fixed-arrival throughput and tail latency",
+    "Native Linux and long-duration deployment qualification"
+  ]
+}

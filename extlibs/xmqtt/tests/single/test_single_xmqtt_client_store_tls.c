@@ -1,0 +1,11 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#define XRT_MODULE_TLS_SERVER
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_VFS
+#define XRT_MODULE_FILE_TEMP
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_client_store_tls.c"

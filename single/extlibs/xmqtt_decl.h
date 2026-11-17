@@ -57,6 +57,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_TLS 1
 #endif
@@ -167,6 +170,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_STORE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_TLS 1
@@ -2854,8 +2860,24 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
 #define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#endif
+
+/* xmqtt_client_store_tls 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
+#define XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS
 #endif
 #endif
 
@@ -5913,6 +5935,43 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_store_tls.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_STORE_TLS_H
+#define XMQTT_CLIENT_STORE_TLS_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS))
+#error "MQTT durable TLS Client requires durable Client and verified TLS"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+XRT_EXTERN_C_BEGIN
+/* Durable Client over verified TLS for MQTT 5.0 and 3.1.1. Ownership,
+ * matching Session/Writer, wall clock and Ready/END follow Client Store.
+ * The original SetupTimeout includes native Dial/TLS and the durable OPEN.
+ * Verification and identity follow Client TLS. Numeric/prepared endpoints need
+ * an explicit peer name. Hostname dialing can infer it. Keep the Resolver and
+ * native retained callback contexts live through physical retirement.
+ * CONNACK and MQTT protocol state require a verified TLS connection.
+ * Successful graceful Disconnect waits for authenticated TLS close and
+ * committed END. Outcome separates storage status from network status.
+ * TLS credentials, session tickets and endpoint addresses stay outside the
+ * MQTT journal. Use a Writer bound to the same logical broker/principal/slot.
+ * Client output changes only on success. */
+XMQTT_API bool xmqttClientTlsConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientTlsDialStore(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientTlsDialAddressesStore(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -6005,6 +6064,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 #undef XMQTT_FEATURE_XMQTT_CLIENT_STORE
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#undef XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_TLS)
 #undef XMQTT_FEATURE_XMQTT_CLIENT_TLS
@@ -6153,6 +6216,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE)
 #undef XMQTT_MODULE_XMQTT_CLIENT_STORE
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS)
+#undef XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_TLS)
 #undef XMQTT_MODULE_XMQTT_CLIENT_TLS
@@ -8089,8 +8156,24 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS
+#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
 #define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#endif
+
+/* xmqtt_client_store_tls 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_STORE_TLS)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
+#define XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS
 #endif
 #endif
 

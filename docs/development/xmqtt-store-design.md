@@ -380,3 +380,23 @@ settle and retains the first local failure when a durable effect settles late.
 The durable adapters for other transports, authentication and reconnect,
 coordinated fencing, compaction and production performance qualification remain
 open. [Stage evidence](xmqtt-client-store-tcp-20261118.json).
+
+
+## 2026-11-18 Verified TLS transport for the durable Client
+
+Numeric, hostname and prepared-address factories use the existing native TLS
+setup and peer identity checks. The Session and Inbox-mode Writer stay claimed
+through physical retirement. The MQTT storage driver still enters OPEN after
+accepted CONNACK and keeps Ready pending through the final sync. Failed peer
+verification produces no journal transaction.
+
+The TLS close callback captures the wall time and classifies END at the native
+close edge. Authenticated close after the final MQTT DISCONNECT can commit its
+requested reason and expiry. Truncation after an expiry-changing DISCONNECT
+preserves the live-at-cut record for recovery. The Disconnect result stays
+pending until END settles and reports the same separate network and storage
+effects as the numeric TCP Client.
+
+TLS configuration, credentials and resumption artifacts remain at the existing
+TLS ownership boundary. The MQTT journal covers application protocol state.
+[Stage evidence](xmqtt-client-store-tls-20261118.json).

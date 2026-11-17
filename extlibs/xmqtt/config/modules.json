@@ -152,6 +152,7 @@
         "xmqtt_journal_worker",
         "xmqtt_store_write",
         "xmqtt_client_store",
+        "xmqtt_client_store_tls",
         "xmqtt_store_inbox"
       ],
       "collect_dependency_assets": [
@@ -714,6 +715,7 @@
         "xmqtt_client_session_tests",
         "xmqtt_client_session_tls_tests",
         "xmqtt_client_session_dial_tests",
+        "xmqtt_client_store_tls_tests",
         "xmqtt_reconnect_tests",
         "xmqtt_reconnect_transport_tests",
         "xmqtt_reconnect_subscriptions",
@@ -742,6 +744,7 @@
         "extlibs/xmqtt/tests/test_client_inbox.c",
         "extlibs/xmqtt/tests/test_client_session.c",
         "extlibs/xmqtt/tests/test_client_session_tls.c",
+        "extlibs/xmqtt/tests/test_client_store_tls.c",
         "extlibs/xmqtt/tests/test_client_session_dial.c",
         "extlibs/xmqtt/tests/test_reconnect.c",
         "extlibs/xmqtt/tests/test_reconnect_transports.c",
@@ -782,6 +785,7 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c",
@@ -841,6 +845,7 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c": "xmqtt_client_inbox_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c": "xmqtt_client_session_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c": "xmqtt_client_session_tls_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c": "xmqtt_client_store_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c": "xmqtt_client_session_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c": "xmqtt_client_session_dial_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c": "xmqtt_client_session_dial_tests",
@@ -2217,6 +2222,56 @@
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/client_store/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/examples/client_store/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_store_tls",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS",
+      "depends": [
+        "xmqtt_client_store",
+        "xmqtt_client_tls"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_store_tls.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_store_tls.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_store_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_store_tls",
+        "tls_server",
+        "tls_identity_rsa",
+        "vfs",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_store_tls.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/client_store/main.c"

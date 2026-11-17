@@ -17,3 +17,11 @@ and deleting the temporary file.
 See the [Client storage contract](../../docs/client_store.md) for recovery
 and the [durable Inbox example](../store_inbox/README.md) for application
 delivery leases.
+
+## Verified TLS
+
+Build the same example via the `xmqtt_client_store_tls_tests` suite. Run it
+with `localhost 8883 5 SERVER_CA.pem` or use `311` for MQTT 3.1.1. The named
+CA file is the example's trust store. The server certificate must match the
+given hostname. The result includes a committed END after authenticated TLS
+closure. [TLS API and lifetime contract](../../docs/client_store_tls.md).

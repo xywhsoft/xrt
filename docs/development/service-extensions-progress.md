@@ -14139,3 +14139,25 @@ Ordinary integrity gates passed. Strict release still reports 29 developing
 modules. Durable transport adapters, native Linux deployment acceptance and
 controlled throughput and tail-latency acceptance remain open.
 [Stage evidence](xmqtt-client-store-tcp-20261118.json).
+
+
+## 2026-11-18 Durable MQTT over verified TLS
+
+The developing adapter adds numeric, hostname and prepared-address TLS
+factories for the durable MQTT 5.0 and 3.1.1 Client. Authentication and MQTT
+CONNACK precede durable OPEN. TLS truncation and authenticated close yield
+different END classifications. Tests cover certificate refusal, held OPEN
+and END, QoS 1 write-before-wire and exact recovery of truncated state.
+
+Windows passed 13 selected test and example programs and Linux under
+WSL passed 13. The durable TLS fixture passed modular and single-header
+ASan, UBSan and leak checks under WSL. The modular fixture also passed Clang
+21 TSan. Static and shared package consumers ran on both systems. An independent
+subscriber received all 12 expected publications through Mosquitto
+2.0.22 with TLS 1.3. Both platforms rejected a hostname mismatch before MQTT
+CONNECT.
+
+Ordinary integrity checks passed. The strict gate still lists 30 developing
+modules. Durable enhanced authentication, reconnect and WebSocket integration
+and production performance qualification remain open.
+[Stage evidence](xmqtt-client-store-tls-20261118.json).

@@ -87,6 +87,7 @@ MaxPrivateBytes. The staged CONNACK transfers into Ready using the existing
 object quota. Encoded transaction bytes are copied under the Writer/worker's
 bounded admission contract.
 
-Hostname, TLS, WebSocket, enhanced authentication and automatic reconnect
-adapters for the durable Client are pending. Cross-host fencing, compaction
+The [verified TLS adapter](client_store_tls.md) supports hostname dialing.
+Cleartext hostname dialing, WebSocket, enhanced authentication and automatic
+reconnect adapters for the durable Client are pending. Cross-host fencing, compaction
 and throughput/tail-latency qualification are also pending.

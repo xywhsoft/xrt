@@ -1,6 +1,10 @@
 #include <xmqtt/client_store.h>
 #include <xrt/memory.h>
 #include <xrt/time.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#include <xmqtt/client_store_tls.h>
+#include "../tls/material.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,16 +27,25 @@ static const void* result(xfuture* Future)
 
 int main(int Argc,char** Argv)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    bool UseTLS=Argc==5;
+    if(Argc!=4&&!UseTLS){
+        puts("Usage: examples_client_store_main HOST PORT 5|311 [SERVER_CA.pem]");
+        return Argc==1?0:2;
+    }
+#else
     if(Argc!=4){
         puts("Usage: examples_client_store_main NUMERIC_ADDRESS PORT 5|311");
         return Argc==1?0:2;
     }
+    bool UseTLS=false;
+#endif
     const bool V5=strcmp(Argv[3],"5")==0;
     char* End;
     unsigned long Port=strtoul(Argv[2],&End,10);
     xnetaddr Remote;
     if(End==Argv[2]||*End||Port==0||Port>65535||(!V5&&strcmp(Argv[3],"311"))||
-       !xrtNetAddrParse(&Remote,Argv[1],(uint16)Port))return 2;
+       (!UseTLS&&!xrtNetAddrParse(&Remote,Argv[1],(uint16)Port)))return 2;
 
     xmqttversion Version=V5?XMQTT_VERSION_5:XMQTT_VERSION_311;
     const xstrview Id=XRT_STR_LITERAL("xrt-durable-demo");
@@ -61,6 +74,11 @@ int main(int Argc,char** Argv)
     xtaskpool* Pool=NULL;
     xnetengine* Engine=NULL;
     bool EngineStarted=false;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    xx509store* Trust=NULL;
+    xtlsverifier* Verifier=NULL;
+    xnetresolver* Resolver=NULL;
+#endif
     xfuture* Future=NULL;
     if(!File||!wall(&Wall,&SC.WallMilliseconds)||
        xmqttJournalCreate(File,&JC,&Journal)!=XMQTT_JOURNAL_DONE||
@@ -94,10 +112,37 @@ int main(int Argc,char** Argv)
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
     Connect.Body.Connect.ClientId=Id;
     Connect.Body.Connect.CleanStart=true;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    if(UseTLS){
+        size_t Size=0;
+        bytes CA=xmqttExampleTlsRead(Argv[4],65536,&Size);
+        if(!CA)goto Cleanup;
+        Trust=xrtX509StoreCreate();
+        bool Added=Trust&&xrtX509StoreAddData(Trust,(xbytesview){CA,Size},NULL);
+        xrtFree(CA);
+        if(!Added)goto Cleanup;
+        xtlsverifierconfig VC;
+        xrtTlsVerifierConfigInit(&VC);
+        VC.Store=Trust;
+        xtlsverifylimits VL;
+        xrtTlsVerifyLimitsInit(&VL);
+        Verifier=xrtTlsVerifierCreateLimited(&VC,&VL);
+        Resolver=xrtNetResolverCreate(NULL);
+        if(!Verifier||!Resolver)goto Cleanup;
+        xmqttclienttlsconfig TLS;
+        xmqttClientTlsConfigInit(&TLS);
+        TLS.Session.Verifier=Verifier;
+        if(!xmqttClientTlsDialStore(Engine,Resolver,(xstrview){Argv[1],strlen(Argv[1])},(uint16)Port,
+                                    0,&CK,&TLS,Session,&DK,&Connect,&Client))goto Cleanup;
+    }else
+#endif
     if(!xmqttClientConnectStore(Engine,&Remote,0,&CK,Session,&DK,&Connect,&Client))goto Cleanup;
     Future=xmqttClientReady(Client);
     const xmqttreadyresult* Ready=result(Future);
-    if(!Ready||Ready->Status!=XMQTT_STATUS_OK)goto Cleanup;
+    if(!Ready||Ready->Status!=XMQTT_STATUS_OK){
+        if(Ready&&Ready->Cause)fprintf(stderr,"Connection failed: %s\n",xrtErrorMessage(Ready->Cause));
+        goto Cleanup;
+    }
     xrtFutureDestroy(Future);
     Future=NULL;
 
@@ -128,6 +173,11 @@ int main(int Argc,char** Argv)
 Cleanup:
     xrtFutureDestroy(Future);
     if(Client&&!xmqttClientDestroy(Client))return 1;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    if(Resolver&&!xrtNetResolverDestroy(Resolver))return 1;
+    xrtTlsVerifierRelease(Verifier);
+    xrtX509StoreFree(Trust);
+#endif
     if(Session&&!xmqttSessionDestroy(Session))return 1;
     if(Writer&&!xmqttStoreWriteDestroy(Writer))return 1;
     if(EngineStarted&&!xrtNetEngineStop(Engine))return 1;

@@ -280,8 +280,10 @@ and separate adversarial/OOM/crash/ownership/performance workloads are included.
 Direct [State-to-Session import](docs/store_session.md) and bounded
 [Journal submission](docs/journal_worker.md) on a borrowed host task pool are
 now developing components, with [runnable worker example](examples/journal_worker/README.md).
-Live durable Client/ACK integration, delivery leases, namespace publication,
-compaction and controlled production acceptance remain open.
+The developing [durable Client](docs/client_store.md) gates MQTT protocol
+progress on journal commits. [Inbox leases](docs/store_inbox.md) govern
+application delivery. Namespace publication, compaction and controlled
+production acceptance remain open.
 
 The developing [mutable typed store](docs/store_write.md) now stages legal changes
 on that borrowed host pool and atomically installs committed metadata before
@@ -290,6 +292,9 @@ ACKs a recovered Inbox record and verifies fresh recovery. Final selected Window
 and WSL unit,legacy,delivery,ABI,process-cut and cross-OS checks pass; WSL ASan/
 UBSan/leaks and Clang21 TSan also pass. The
 [follow-up evidence](../../docs/development/xmqtt-store-write-revalidation-20261118.json)
-retains diagnostic noise failures and actual allocation costs. Live durable
-Client/ACK and delivery-lease integration and controlled performance/native72h
-acceptance remain required.
+retains diagnostic noise failures and actual allocation costs.
+
+The [durable TLS adapter](docs/client_store_tls.md) adds verified numeric,
+hostname and prepared-address connections for MQTT 5.0 and 3.1.1. Graceful
+Disconnect observes both authenticated transport closure and the committed END.
+Controlled performance and 72-hour native acceptance remain open.
