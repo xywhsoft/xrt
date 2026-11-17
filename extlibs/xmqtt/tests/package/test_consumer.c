@@ -6,6 +6,12 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+    xmqttjournalworkerconfig WC;xmqttjournalworker* Worker=(xmqttjournalworker*)(uintptr_t)1;xfuture* WF=(xfuture*)(uintptr_t)1;
+    if(!xmqttJournalWorkerConfigInit(&WC)||WC.Size!=sizeof(WC)||WC.MaxRequests!=128||WC.MaxTasks!=2||WC.WorkTransactions!=32)return 56;
+    if(xmqttJournalWorkerCreate(NULL,NULL,&WC,&Worker)||Worker!=(xmqttjournalworker*)(uintptr_t)1||xmqttJournalWorkerAppendAsync(NULL,(xbytesview){0},1000,&WF)!=XMQTT_JWORK_ERROR||WF!=(xfuture*)(uintptr_t)1||!xmqttJournalWorkerDestroy(NULL))return 57;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
     xmqttstoresessionconfig Import;xmqttsessionconfig ImportSession;xmqttsession* Imported=(xmqttsession*)(uintptr_t)1;
     if(!xmqttStoreSessionConfigInit(&Import)||Import.Size!=sizeof(Import)||Import.MaxScratchBytes!=16384||!xmqttSessionConfigInit(&ImportSession))return 53;

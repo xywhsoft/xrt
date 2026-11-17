@@ -201,6 +201,19 @@
         "xrtVfsCreate",
         "xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xmqtt_journal_worker",
+      "system": "session",
+      "suite": "xmqtt_journal_worker",
+      "description": "Borrowed-pool bounded opaque Journal append; no native MQTT transport,State,Session,Engine,VFS or test code",
+      "forbid_symbols": [
+        "xmqttStoreStateRecover",
+        "xmqttSessionCreate",
+        "xmqttClientConnect",
+        "xrtNetEngineCreate",
+        "xrtVfsCreate"
+      ]
     }
   ]
 }

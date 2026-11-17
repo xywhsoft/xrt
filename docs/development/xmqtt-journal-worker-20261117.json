@@ -1,0 +1,1467 @@
+{
+  "status": "developing; original four-product goal active",
+  "date": "2026-11-17",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "8edbcfe1ae9827aef68ff15eabbca05f442484e4",
+  "verified_at_revision": "804cc769de3030118c2b46ef7af69543d1b82d9d",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "changes": [
+    "Seven public APIs for exclusive READY Journal ownership and bounded opaque immutable transaction submission on a borrowed host XRT pool",
+    "No thread/pool/shared runtime or new Core API; no native file IO on submitting thread",
+    "FIFO by successful admission; original deadline; raw/Future cooperative cancellation; late timeout/cancel/Close retains COMMITTED or uncertain effects",
+    "Separate request/object/byte/native-tail/transaction/turn caps; zero is a real cap; default32 lifetime admissions per pump includes replenishment",
+    "Normal scheduling/turn/retirement backpressure; host rejection rolls back all reservations and publishes no Future",
+    "One owned job/result input copy; contiguous allocation currently calloc-zeroes payload and final release securely wipes it",
+    "TLS stack protects all enclosing owners through nested diagnostic/TaskSubmit cancelled-neighbour destruction; no self Wait/Destroy",
+    "Checked quiet ambient error transfer; stale errors cannot become fresh Cause; fatal storage/local initialization stops later appends",
+    "Physical extension DataDrop/task Future retirement; remaining executor bookkeeping owned by host pool join",
+    "Results may outlive worker/Journal/file/pool with only an inert ledger and immutable payload; transferred Journal still borrows externally published exclusive file/provider"
+  ],
+  "validation": {
+    "platforms": [
+      "native Windows x64 GCC",
+      "WSL Linux x64 GCC; not native Linux production acceptance"
+    ],
+    "forms": [
+      "modular",
+      "single",
+      "full-root selection",
+      "statistics off",
+      "separate Core/XMQTT static",
+      "separate Core/XMQTT shared",
+      "standalone declarations"
+    ],
+    "runnable_native_file_example": true,
+    "actual_linked_admission_allocator_prefix_failures_per_platform": 7,
+    "constructor_real_budget_failure": true,
+    "zero_cap_refusals": 6,
+    "actual_postsync_native_error_key_failures_per_platform": 4,
+    "native_error_fixture": "Dedicated native FlsSetValue/pthread_setspecific shim; actual host task bound error context temporarily detached during final real sync and rebound immediately at failed native setter; target1 Journal final restore,target2 worker final restore,both versions. Normal task path has a bound context and no native setter at these sites.",
+    "storage_failure_models_per_integration_program": 448,
+    "concurrency": {
+      "producers": 8,
+      "host_workers": 4,
+      "exact_commits": 256,
+      "native_overlapping_writes": 0
+    },
+    "bounded_turn_shared_pool_progress": true,
+    "nested_native_pruned_neighbour_destructor_protection": true,
+    "retained_results_and_blocked_observers": true,
+    "physical_native_tail_credits_and_full_refunds": true,
+    "killed_children_per_platform": 84,
+    "cut_forms": 6,
+    "versions": [
+      "MQTT5",
+      "MQTT3.1.1"
+    ],
+    "native_write_sync_barriers": 7,
+    "fresh_typed_recovery_operations": [
+      0,
+      16
+    ],
+    "independent_oracle": "Python literal-packet/struct/zlib exact writer/reader; no native implementation imports",
+    "cross_os_file_reads_per_platform": 12,
+    "powerloss_qualified": false,
+    "legacy_programs_per_platform": 29,
+    "legacy_suites": [
+      "Journal",
+      "committed State",
+      "Store-to-Session"
+    ],
+    "legacy_later_input_equivalence": "Corrected actual feature closure preprocessing asserts selected function declarations and definitions; exact legacy single implementation equality after later inactive worker changes",
+    "initial_preprocessor_probes": "Invalid aggregate-suite macro selected no extension implementation; initial scripts,JSON and command logs retained; replaced with real closure definitions and explicit presence assertions",
+    "sanitizers": [
+      "WSL ASan",
+      "WSL UBSan",
+      "WSL leak detection",
+      "Clang21 WSL TSan real concurrency"
+    ],
+    "gcc15_tsan": "Original atomic_thread_fence/-Werror=tsan compiler rejection retained; no warning downgrade or sanitizer suppression",
+    "public_exports": 7,
+    "hidden_extension_private_helpers": 4,
+    "public_layout": "56 8 48 64 40 56 144 88",
+    "three_forms_and_two_os_abi_match": true,
+    "trim_single_static_shared": true,
+    "trim_excludes": [
+      "Store State",
+      "Session",
+      "Client",
+      "Engine",
+      "VFS"
+    ],
+    "all_selected_final_functional_checks_passed": true,
+    "skips": []
+  },
+  "performance": {
+    "qualified": false,
+    "cohorts": {
+      "windows": {
+        "qualified": false,
+        "cohort_noise_gate_passed": false,
+        "quality_failure_count": 26,
+        "quality_failures": [
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/operations_per_sec: relative_mad=6.7%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/operations_per_sec: relative_central_range=12.7%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p50_us: relative_mad=8.1%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p50_us: relative_central_range=8.2%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p95_us: relative_mad=15.6%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p95_us: relative_central_range=16.7%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p99_us: relative_mad=10.6%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p99_us: relative_central_range=23.8%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p999_us: relative_mad=5.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p999_us: relative_central_range=8.6%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_max_us: relative_mad=8.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_max_us: relative_central_range=16.5%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/process_cpu_ns_per_op: relative_mad=12.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/process_cpu_ns_per_op: relative_central_range=20.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p50_us: relative_mad=5.9%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p50_us: relative_central_range=9.2%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p95_us: relative_mad=9.7%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p95_us: relative_central_range=26.4%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p99_us: relative_mad=9.1%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p99_us: relative_central_range=18.2%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p999_us: relative_mad=4.5%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p999_us: relative_central_range=20.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_max_us: relative_mad=5.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_max_us: relative_central_range=6.8%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/process_cpu_ns_per_op: relative_mad=3.7%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/process_cpu_ns_per_op: relative_central_range=11.1%"
+        ],
+        "medians": {
+          "journal_direct_native": {
+            "operations_per_sec": 23.453,
+            "latency_p50_us": 41675.8,
+            "latency_p95_us": 50033.2,
+            "latency_p99_us": 74761.0,
+            "latency_p999_us": 96455.2,
+            "latency_max_us": 99992.1,
+            "process_cpu_ns_per_op": 390625.0
+          },
+          "journal_worker_native": {
+            "operations_per_sec": 21.177,
+            "latency_p50_us": 47193.1,
+            "latency_p95_us": 55541.3,
+            "latency_p99_us": 91665.3,
+            "latency_p999_us": 97451.4,
+            "latency_max_us": 122817.2,
+            "process_cpu_ns_per_op": 421875.0
+          }
+        }
+      },
+      "wsl": {
+        "qualified": false,
+        "cohort_noise_gate_passed": false,
+        "quality_failure_count": 16,
+        "quality_failures": [
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p99_us: relative_mad=7.8%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p99_us: relative_central_range=15.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p999_us: relative_mad=11.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_p999_us: relative_central_range=19.6%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_max_us: relative_mad=3.6%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/latency_max_us: relative_central_range=6.5%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/process_cpu_ns_per_op: relative_mad=3.5%",
+          "[quality-fail] xmqtt_journal_worker/journal_direct_native/process_cpu_ns_per_op: relative_central_range=41.9%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p95_us: relative_mad=8.9%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p95_us: relative_central_range=12.5%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p99_us: relative_mad=6.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p99_us: relative_central_range=8.4%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p999_us: relative_mad=11.3%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_p999_us: relative_central_range=17.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_max_us: relative_mad=27.0%",
+          "[quality-fail] xmqtt_journal_worker/journal_worker_native/latency_max_us: relative_central_range=63.7%"
+        ],
+        "medians": {
+          "journal_direct_native": {
+            "operations_per_sec": 221.724,
+            "latency_p50_us": 3895.5,
+            "latency_p95_us": 6631.3,
+            "latency_p99_us": 11916.4,
+            "latency_p999_us": 22627.6,
+            "latency_max_us": 27752.9,
+            "process_cpu_ns_per_op": 151682.8
+          },
+          "journal_worker_native": {
+            "operations_per_sec": 221.417,
+            "latency_p50_us": 3933.4,
+            "latency_p95_us": 6534.2,
+            "latency_p99_us": 11273.7,
+            "latency_p999_us": 18815.499,
+            "latency_max_us": 24578.9,
+            "process_cpu_ns_per_op": 229304.2
+          }
+        }
+      }
+    },
+    "allocation_probes": {
+      "windows": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 22.643,
+            "latency_p50_us": 48915.6,
+            "latency_p95_us": 50024.7,
+            "latency_p99_us": 50044.0,
+            "latency_p999_us": 50044.0,
+            "latency_max_us": 58357.5,
+            "transaction_bytes": 256.0,
+            "committed_bytes": 44288.0,
+            "heap_blocks_per_op": 0.0,
+            "heap_bytes_per_op": 0.0,
+            "process_cpu_ns_per_op": 625000.0,
+            "native_tasks_per_op": 0.0,
+            "admission_overloads_per_op": 0.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 23.292,
+            "latency_p50_us": 41676.5,
+            "latency_p95_us": 50021.8,
+            "latency_p99_us": 50041.0,
+            "latency_p999_us": 50041.0,
+            "latency_max_us": 66251.4,
+            "transaction_bytes": 256.0,
+            "committed_bytes": 44288.0,
+            "heap_blocks_per_op": 7.0,
+            "heap_bytes_per_op": 1096.0,
+            "process_cpu_ns_per_op": 312500.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 114.969,
+            "latency_p50_us": 5284.2,
+            "latency_p95_us": 20803.6,
+            "latency_p99_us": 27960.7,
+            "latency_p999_us": 27960.7,
+            "latency_max_us": 29397.901,
+            "transaction_bytes": 256.0,
+            "committed_bytes": 44288.0,
+            "heap_blocks_per_op": 0.0,
+            "heap_bytes_per_op": 0.0,
+            "process_cpu_ns_per_op": 216703.0,
+            "native_tasks_per_op": 0.0,
+            "admission_overloads_per_op": 0.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 59.979,
+            "latency_p50_us": 18075.3,
+            "latency_p95_us": 26407.6,
+            "latency_p99_us": 33917.1,
+            "latency_p999_us": 33917.1,
+            "latency_max_us": 42133.0,
+            "transaction_bytes": 256.0,
+            "committed_bytes": 44288.0,
+            "heap_blocks_per_op": 7.0,
+            "heap_bytes_per_op": 1512.0,
+            "process_cpu_ns_per_op": 359737.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0
+          }
+        }
+      ]
+    },
+    "wsl_filesystem": {
+      "path": "/var/tmp/xrt-mqtt-journal-worker-bench-20261117",
+      "filesystem": "ext2/ext3",
+      "mount": "/dev/sdd ext4 /",
+      "scope": "First and only WSL timing cohort for this stage; actual Linux local-filesystem native sync; source and tool cwd remain /mnt/d/GIT/xrt"
+    },
+    "scope": "Native256-byte opaque transactions,1000 closed-loop operations,one outstanding; direct Journal vs borrowed2-thread pool. Both use same native three-frame/two-witness/two-sync Journal. Five measured repetitions and one warmup each; original3% MAD/6% central gates.",
+    "timing": "File publication/initialization,caller mallocs,Journal and host-pool creation outside timing. Input copy/admission/Promise/cancel/result/wait/release plus final Close/physical extension task drain inside throughput and process CPU. Per-operation latency ends at physical append result,not final task destructor. Unaccepted overload retries yield under one original10s per-operation deadline and are timed/counted.",
+    "costs": [
+      "Whole contiguous job/result allocation zero initialization,one retained input memcpy and final secure wipe",
+      "One job/result allocation and Core Promise/token ownership per admitted operation",
+      "One pump context and native task/Future per idle-to-active turn; pumping may amortize across contiguous queued requests",
+      "Gate/atomic/TLS/counter/queue/error ownership,synchronous watch and physical native task retirement",
+      "Two CRC payload scans,three frame writes,two4096-byte witnesses,two native file syncs for every accepted commit",
+      "Counts include XRT allocations across threads; CRT/kernel/provider/diagnostic allocations and caller timing memory additional"
+    ],
+    "limits": [
+      "Shared unpinned host; no controlled fixed-arrival queue-inclusive load or pinned product comparator",
+      "Raw quality failures retained; no threshold weakened and no repeat cohort for green",
+      "WSL native timing file resides on local ext4; source/build cwd stays actual mainline mounted drive",
+      "CPU quantization and device/cache/virtualization/scheduling affect observations",
+      "No zero-overhead,performance parity,physical powerloss or production acceptance claim"
+    ]
+  },
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 26,
+    "proof": "strict-release.json"
+  },
+  "remaining": [
+    "Live bounded mutable legal-transition owner,prepare/commit/network ACK/completion driver and delivery leases",
+    "Old-transport fencing and physical retirement integration before reopen",
+    "File namespace publication/locking,compaction and group-commit policy",
+    "Full original Redis/RPC/MQTT5+311/Cron product scope",
+    "Controlled throughput/tails/pinned comparators and native Windows/native Linux >=72h"
+  ],
+  "concurrent_work": {
+    "preserved_revision": "804cc769de3030118c2b46ef7af69543d1b82d9d",
+    "description": "Other-thread Core value strict-data mainline commit preserved; no Core paths included in this commit",
+    "provenance": "Final selected functional runs use current Core. Additional before/after feature-closure preprocessing excludes value and normalizes only four void source-location debug casts in worker/root implementations; raw hashes differ and are retained."
+  },
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-journal-worker-20261117",
+    "source_map_sha256": "f6aaa373675086f9da1846536b37e66e1472d62b2959d11ae3d7301d88fd3822",
+    "audit_sha256": "bcec7d3a1451c95e9850483f17111bd8d9d3ca54c8a303d0ee147e0ea5c1927c",
+    "preserved_compressed_binary_records": 306,
+    "program_counts": {
+      "windows-suite": 12,
+      "windows-linked_oom": 1,
+      "windows-regression": 29,
+      "windows-delivery": 14,
+      "windows-smoke": 2,
+      "windows-abi": 3,
+      "windows-size": 0,
+      "windows-exports": 0,
+      "windows-cuts": 108,
+      "windows-cross": 12,
+      "windows-instrument": 2,
+      "windows-legacy_equivalence": 0,
+      "windows-core_equivalence": 0,
+      "windows-gates": 0,
+      "wsl-suite": 12,
+      "wsl-linked_oom": 1,
+      "wsl-regression": 29,
+      "wsl-delivery": 14,
+      "wsl-smoke": 2,
+      "wsl-abi": 3,
+      "wsl-size": 0,
+      "wsl-exports": 0,
+      "wsl-cuts": 108,
+      "wsl-cross": 12,
+      "wsl-instrument": 2,
+      "wsl-legacy_equivalence": 0,
+      "wsl-core_equivalence": 0,
+      "wsl-clang_tsan": 1
+    },
+    "superseded_attempts": [
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "windows-journal-worker-suite.log",
+        "log_sha256": "2dc75556113390a916a00ed36cc010d7bfbcbbda273e893dc4b919478850543c"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "windows-journal-worker-suite-attempt2.log",
+        "log_sha256": "d2ceee16abbe067fe5689fd108ee930179632d690363632b974a631c1341768f"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "windows-journal-worker-suite-attempt3.log",
+        "log_sha256": "853b50a33d044d64887a426ea457f789b49f20ab30e083dd9efe26715b230290"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "windows-journal-worker-suite-attempt4.log",
+        "log_sha256": "239932e97b1f73c7caded1b93665d657aa98fa5dff150ad6e2c1506d8e59faa2"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "windows-journal-worker-suite-attempt5.log",
+        "log_sha256": "a537b2e518c6aaef72ba2880e417fe3d15093570d6098f6bca721672229f36b3"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "windows-journal-worker-suite-attempt6.log",
+        "log_sha256": "21b94792723d4f62e0c1b3ea81a5d3b033a2a986cb8f9c1ec41135d17e70059f"
+      },
+      {
+        "mode": "windows",
+        "stage": "linked_oom",
+        "label": "linked-oom-build",
+        "exit_code": 0,
+        "log": "windows-linked-oom-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "linked_oom",
+        "label": "linked-oom",
+        "exit_code": 0,
+        "log": "windows-linked-oom.log",
+        "log_sha256": "5ba66d176028fdeb4cf82335ba1fefcd9d31ede52ca2d1cf53db751f37184aaa"
+      },
+      {
+        "mode": "windows",
+        "stage": "linked_oom",
+        "label": "linked-oom-build",
+        "exit_code": 0,
+        "log": "windows-linked-oom-build-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "linked_oom",
+        "label": "linked-oom",
+        "exit_code": 0,
+        "log": "windows-linked-oom-attempt2.log",
+        "log_sha256": "5ba66d176028fdeb4cf82335ba1fefcd9d31ede52ca2d1cf53db751f37184aaa"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "package-static",
+        "exit_code": 0,
+        "log": "windows-package-static.log",
+        "log_sha256": "fc8a45f006558f7d1276d130afb490bc98c7106ad4fe4a7b9d65634ce4a0d7bc"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker-build",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker.log",
+        "log_sha256": "63f3a34d210c0716f39e21334d06f24e7535a3cd01674373bd7c1aed283b2a43"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_lifetime-build",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_lifetime-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_lifetime",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_lifetime.log",
+        "log_sha256": "e5a2408fefd9504928c92fc3bdc3263625bffad46c10b6a4df8fe2b6ecd547a1"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_faults-build",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_faults-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_faults",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_faults.log",
+        "log_sha256": "70007e48a1973554587cef8e66eab69a4457ede61a8081aa117453821b4b333a"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_concurrent-build",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_concurrent-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_concurrent",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_concurrent.log",
+        "log_sha256": "855620d14da1f2deef0de2c1c9aee93e75a5a9fdc1ddb432f05a58334ac40bc7"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_file-build",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_file-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_file",
+        "exit_code": 0,
+        "log": "windows-static-test_journal_worker_file.log",
+        "log_sha256": "5086ebacdba3d63e138b5bdc5d84bdb371ac6f2e17eaddf0044ecc89ab3c0435"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-example-build",
+        "exit_code": 0,
+        "log": "windows-static-example-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-example",
+        "exit_code": 0,
+        "log": "windows-static-example.log",
+        "log_sha256": "7791173b7a60fd7aacec958820ac403e5c743443ff0c67b25e9d0396156ebc00"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-declarations-build",
+        "exit_code": 0,
+        "log": "windows-static-declarations-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "static-declarations",
+        "exit_code": 0,
+        "log": "windows-static-declarations.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "package-shared",
+        "exit_code": 0,
+        "log": "windows-package-shared.log",
+        "log_sha256": "759216fd10b1c589f0c9a07a7016a20cd0645e486b8cb678270dd999a721b652"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker-build",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker.log",
+        "log_sha256": "63f3a34d210c0716f39e21334d06f24e7535a3cd01674373bd7c1aed283b2a43"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_lifetime-build",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_lifetime-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_lifetime",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_lifetime.log",
+        "log_sha256": "e5a2408fefd9504928c92fc3bdc3263625bffad46c10b6a4df8fe2b6ecd547a1"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_faults-build",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_faults-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_faults",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_faults.log",
+        "log_sha256": "70007e48a1973554587cef8e66eab69a4457ede61a8081aa117453821b4b333a"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_concurrent-build",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_concurrent-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_concurrent",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_concurrent.log",
+        "log_sha256": "855620d14da1f2deef0de2c1c9aee93e75a5a9fdc1ddb432f05a58334ac40bc7"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_file-build",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_file-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_file",
+        "exit_code": 0,
+        "log": "windows-shared-test_journal_worker_file.log",
+        "log_sha256": "5086ebacdba3d63e138b5bdc5d84bdb371ac6f2e17eaddf0044ecc89ab3c0435"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-example-build",
+        "exit_code": 0,
+        "log": "windows-shared-example-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-example",
+        "exit_code": 0,
+        "log": "windows-shared-example.log",
+        "log_sha256": "7791173b7a60fd7aacec958820ac403e5c743443ff0c67b25e9d0396156ebc00"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-declarations-build",
+        "exit_code": 0,
+        "log": "windows-shared-declarations-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "delivery",
+        "label": "shared-declarations",
+        "exit_code": 0,
+        "log": "windows-shared-declarations.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "smoke",
+        "label": "root-build",
+        "exit_code": 0,
+        "log": "windows-root-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "smoke",
+        "label": "root",
+        "exit_code": 0,
+        "log": "windows-root.log",
+        "log_sha256": "5086ebacdba3d63e138b5bdc5d84bdb371ac6f2e17eaddf0044ecc89ab3c0435"
+      },
+      {
+        "mode": "windows",
+        "stage": "smoke",
+        "label": "stats_off-build",
+        "exit_code": 0,
+        "log": "windows-stats_off-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "smoke",
+        "label": "stats_off",
+        "exit_code": 0,
+        "log": "windows-stats_off.log",
+        "log_sha256": "5086ebacdba3d63e138b5bdc5d84bdb371ac6f2e17eaddf0044ecc89ab3c0435"
+      },
+      {
+        "mode": "windows",
+        "stage": "size",
+        "label": "size-delivery",
+        "exit_code": 0,
+        "log": "windows-size-delivery.log",
+        "log_sha256": "7166a2fcea2418d1f7271a412312a5ce7722348e1c466f1884b95a4d20cbb5c7"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_journal_tests-old",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_journal_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_journal_tests-current",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_journal_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_state_tests-old",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_store_state_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_state_tests-current",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_store_state_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_session_tests-old",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_store_session_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_session_tests-current",
+        "exit_code": 0,
+        "log": "windows-legacy-equivalence-xmqtt_store_session_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-old-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-current-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-old-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "windows-value-equivalence-XMQTT-current-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "windows-features.log",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "windows-single.log",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "windows-api.log",
+        "log_sha256": "5f9aacf9d7479932fc348be197cc4feaa6a9f36da2776d48c9038673f2e28b79"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "windows-reference.log",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "windows-maturity.log",
+        "log_sha256": "39ac494a667379ea48e913ae69cf4f26ddb225a91163298e3c51f6ac18f13003"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "windows-layout.log",
+        "log_sha256": "5ee6a09f4d7f23d72b37fe93eca32a1a8fb08171faca1b6cd8bf23a71b0dce86"
+      },
+      {
+        "mode": "windows",
+        "stage": "postsync",
+        "label": "post-sync-native-build",
+        "exit_code": 0,
+        "log": "windows-post-sync-native-build.log",
+        "reason": "Earlier manually built native error fixture; final registered source is checked by suite."
+      },
+      {
+        "mode": "windows",
+        "stage": "postsync",
+        "label": "post-sync-native",
+        "exit_code": 0,
+        "log": "windows-post-sync-native.log",
+        "reason": "Earlier manually built native error fixture; final registered source is checked by suite."
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "wsl-journal-worker-suite.log",
+        "log_sha256": "7161f56f38958a2270a89661a95eb4f227e46f1cea5f5f2ba50f1714871dc2d3"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "wsl-journal-worker-suite-attempt2.log",
+        "log_sha256": "bc65bcdb3c077ae5299cc788df9a779e5e91c85cda5aa68213fcd974c2d0d0dd"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "wsl-journal-worker-suite-attempt3.log",
+        "log_sha256": "23ec1a0dffa4941453fa854eb906da74387fe59f76b4bfae983c1c610e9bed99"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 1,
+        "log": "wsl-journal-worker-suite-attempt4.log",
+        "log_sha256": "fa583d3a202ddf6440ed61b14063a467d14361964bec6e12272d60a984d9a2c8"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "wsl-journal-worker-suite-attempt5.log",
+        "log_sha256": "559a8d5d67b95d7a7edcd30f4a47ae5fca349f99d029471cafb2ecc8caae780c"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "journal-worker-suite",
+        "exit_code": 0,
+        "log": "wsl-journal-worker-suite-attempt6.log",
+        "log_sha256": "a8d1bf2b938ad76203dce9ace08b003e57e5e3d3582d50efebaf4d2882941c6e"
+      },
+      {
+        "mode": "wsl",
+        "stage": "linked_oom",
+        "label": "linked-oom-build",
+        "exit_code": 0,
+        "log": "wsl-linked-oom-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "linked_oom",
+        "label": "linked-oom",
+        "exit_code": 0,
+        "log": "wsl-linked-oom.log",
+        "log_sha256": "27b23b703073e5f6c77d0c630ba7928a9fddc8526f80cd0617ff435e9d8a577e"
+      },
+      {
+        "mode": "wsl",
+        "stage": "linked_oom",
+        "label": "linked-oom-build",
+        "exit_code": 0,
+        "log": "wsl-linked-oom-build-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "linked_oom",
+        "label": "linked-oom",
+        "exit_code": 0,
+        "log": "wsl-linked-oom-attempt2.log",
+        "log_sha256": "27b23b703073e5f6c77d0c630ba7928a9fddc8526f80cd0617ff435e9d8a577e"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "package-static",
+        "exit_code": 0,
+        "log": "wsl-package-static.log",
+        "log_sha256": "dc99f4fcf300dedc374ced76498e47a77c91abf3977ed8f6959655bb10b4093e"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker-build",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker.log",
+        "log_sha256": "5af52cb49039f17c20fa7ea6c08b44865713f4737deebde6b6fbbbea34444fda"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_lifetime-build",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_lifetime-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_lifetime",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_lifetime.log",
+        "log_sha256": "bc4c3be4b54e38e7475c4e48190d1aa430c5a0b7439c3f09d680df70025b0690"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_faults-build",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_faults-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_faults",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_faults.log",
+        "log_sha256": "6f56d96b88b6b6bc4dbddacfaf2a58baa30156e5bae1acaedfabb7c40d8b4d70"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_concurrent-build",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_concurrent-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_concurrent",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_concurrent.log",
+        "log_sha256": "3e1fb179c4c3bb554d57b7899465dab9c9a24b6f0d51d4360bed5665e73276e0"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_file-build",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_file-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-test_journal_worker_file",
+        "exit_code": 0,
+        "log": "wsl-static-test_journal_worker_file.log",
+        "log_sha256": "584aa81141c91448c3358e5a5a62f523ca635296de5d129dd2c8ebaacad4a812"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-example-build",
+        "exit_code": 0,
+        "log": "wsl-static-example-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-example",
+        "exit_code": 0,
+        "log": "wsl-static-example.log",
+        "log_sha256": "e4917ab7ec676faad464cdc262c00fb47bd13a64d92df7fb616c29927f97d0ed"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-declarations-build",
+        "exit_code": 0,
+        "log": "wsl-static-declarations-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "static-declarations",
+        "exit_code": 0,
+        "log": "wsl-static-declarations.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "package-shared",
+        "exit_code": 0,
+        "log": "wsl-package-shared.log",
+        "log_sha256": "c9bf319afc9af1fef8c1a552767ba1b07bdd84e18648715e7fc4612694ef0054"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker-build",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker.log",
+        "log_sha256": "5af52cb49039f17c20fa7ea6c08b44865713f4737deebde6b6fbbbea34444fda"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_lifetime-build",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_lifetime-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_lifetime",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_lifetime.log",
+        "log_sha256": "bc4c3be4b54e38e7475c4e48190d1aa430c5a0b7439c3f09d680df70025b0690"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_faults-build",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_faults-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_faults",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_faults.log",
+        "log_sha256": "6f56d96b88b6b6bc4dbddacfaf2a58baa30156e5bae1acaedfabb7c40d8b4d70"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_concurrent-build",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_concurrent-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_concurrent",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_concurrent.log",
+        "log_sha256": "3e1fb179c4c3bb554d57b7899465dab9c9a24b6f0d51d4360bed5665e73276e0"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_file-build",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_file-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-test_journal_worker_file",
+        "exit_code": 0,
+        "log": "wsl-shared-test_journal_worker_file.log",
+        "log_sha256": "584aa81141c91448c3358e5a5a62f523ca635296de5d129dd2c8ebaacad4a812"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-example-build",
+        "exit_code": 0,
+        "log": "wsl-shared-example-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-example",
+        "exit_code": 0,
+        "log": "wsl-shared-example.log",
+        "log_sha256": "e4917ab7ec676faad464cdc262c00fb47bd13a64d92df7fb616c29927f97d0ed"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-declarations-build",
+        "exit_code": 0,
+        "log": "wsl-shared-declarations-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "delivery",
+        "label": "shared-declarations",
+        "exit_code": 0,
+        "log": "wsl-shared-declarations.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "smoke",
+        "label": "root-build",
+        "exit_code": 0,
+        "log": "wsl-root-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "smoke",
+        "label": "root",
+        "exit_code": 0,
+        "log": "wsl-root.log",
+        "log_sha256": "584aa81141c91448c3358e5a5a62f523ca635296de5d129dd2c8ebaacad4a812"
+      },
+      {
+        "mode": "wsl",
+        "stage": "smoke",
+        "label": "stats_off-build",
+        "exit_code": 0,
+        "log": "wsl-stats_off-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "smoke",
+        "label": "stats_off",
+        "exit_code": 0,
+        "log": "wsl-stats_off.log",
+        "log_sha256": "584aa81141c91448c3358e5a5a62f523ca635296de5d129dd2c8ebaacad4a812"
+      },
+      {
+        "mode": "wsl",
+        "stage": "size",
+        "label": "size-delivery",
+        "exit_code": 0,
+        "log": "wsl-size-delivery.log",
+        "log_sha256": "98d494096e0ae89bfc5bea29cc24e8675b894d2d06377adf9fe8859510effa8c"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_journal_tests-old",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_journal_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_journal_tests-current",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_journal_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_state_tests-old",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_store_state_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_state_tests-current",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_store_state_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_session_tests-old",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_store_session_tests-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "legacy_equivalence",
+        "label": "legacy-equivalence-xmqtt_store_session_tests-current",
+        "exit_code": 0,
+        "log": "wsl-legacy-equivalence-xmqtt_store_session_tests-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-old.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-current.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-old-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-current-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-old-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT_JOURNAL_WORKER_TESTS-current-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-old",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-old-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "core_equivalence",
+        "label": "value-equivalence-XMQTT-current",
+        "exit_code": 0,
+        "log": "wsl-value-equivalence-XMQTT-current-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "clang_tsan",
+        "label": "clang-tsan-concurrent",
+        "exit_code": 0,
+        "log": "wsl-clang-tsan-concurrent.log",
+        "log_sha256": "43a4e5e140d2a1fc475a0ab6ed0235c8d17d43becfbcb004c0875f030e3e906a"
+      },
+      {
+        "mode": "wsl",
+        "stage": "postsync",
+        "label": "post-sync-native-build",
+        "exit_code": 0,
+        "log": "wsl-post-sync-native-build.log",
+        "reason": "Earlier manually built native error fixture; final registered source is checked by suite."
+      },
+      {
+        "mode": "wsl",
+        "stage": "postsync",
+        "label": "post-sync-native",
+        "exit_code": 0,
+        "log": "wsl-post-sync-native.log",
+        "reason": "Earlier manually built native error fixture; final registered source is checked by suite."
+      }
+    ],
+    "notes": [
+      "Initial compiler/fixture/expectation failures and obsolete post-sync probes retained; final cohort and logs/binary archive audited",
+      "Process cuts and real-file example qualify network-free storage; no live MQTT durable ACK/lease driver inference",
+      "Existing file/backend must remain exclusively live through extension retirement/destruction; host joins remaining native executor ownership"
+    ],
+    "checkpoint": {
+      "files": 2086,
+      "sha256": "f89d4bf7643b96bbab1458a6db176636de0d0bb0ce3d578a2664c635612398ae",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "source_map_sha256": "f6aaa373675086f9da1846536b37e66e1472d62b2959d11ae3d7301d88fd3822"
+    }
+  }
+}

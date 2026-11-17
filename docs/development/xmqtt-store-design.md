@@ -158,3 +158,25 @@ ordering, delivery leases and physical retirement before reopening storage.
 See [stage evidence](xmqtt-store-session-20261117.json). Earlier prototype
 paragraphs above retain their historical scope; RPC/Cron error-restoration
 followups have separate dated commits and do not supply this live driver.
+
+
+## Bounded host-pool journal owner delivered (2026-11-17)
+
+`xmqtt_journal_worker` now consumes one exclusive READY Journal and submits
+opaque transactions to a borrowed XRT task pool. Request/object/byte/task/turn
+budgets include real ownership tails; every result preserves local status and
+actual append effect independently. A32-admission lifetime pump turn prevents
+callback replenishment from monopolizing one host thread indefinitely. Native
+file operations are serialized off the submitting thread. Cancellation/timeout/
+Close do not interrupt running IO or authorize blind retries. Physical extension
+retirement includes DataDrop and terminal native Future destruction; the host
+still joins its own remaining executor bookkeeping. Results can outlive all
+live owners with only an inert ledger and immutable copied bytes.
+
+This component validates no MQTT state transitions and emits no network ACK.
+The real-file example appends a recovered Inbox application ACK and verifies it
+through fresh typed recovery. That is storage qualification, not a live durable
+Client driver. The next phase still needs the bounded mutable semantic owner,
+prepare/commit/network-output ordering, delivery leases and old-transport fencing.
+Namespace publication/locking, compaction/group commit and controlled/native72h
+acceptance also remain open. See [stage evidence](xmqtt-journal-worker-20261117.json).

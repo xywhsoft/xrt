@@ -25,6 +25,10 @@
 #include <xmqtt/session.h>
 #include <xmqtt/session_image.h>
 #include <xmqtt/journal.h>
+#include <xmqtt/journal_worker.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+#error "MQTT root requires journal worker"
+#endif
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
 #include <xmqtt/store_session.h>

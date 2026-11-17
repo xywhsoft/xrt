@@ -5096,6 +5096,109 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_journal_worker",
+      "system": "session",
+      "description": "Matched direct native Journal and borrowed-pool append with256-byte transactions/two syncs; unpinned diagnostics only",
+      "benchmarks": [
+        {
+          "name": "journal_direct_native",
+          "source": "extlibs/xmqtt/bench/bench_journal_worker.c",
+          "suite": "xmqtt_journal_worker_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "journal_worker_native",
+          "source": "extlibs/xmqtt/bench/bench_journal_worker.c",
+          "suite": "xmqtt_journal_worker_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        }
+      ]
     }
   ]
 }

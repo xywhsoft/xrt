@@ -148,7 +148,8 @@
         "xmqtt_journal",
         "xmqtt_store_delta",
         "xmqtt_store_state",
-        "xmqtt_store_session"
+        "xmqtt_store_session",
+        "xmqtt_journal_worker"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -714,7 +715,8 @@
         "xmqtt_reconnect_transport_tests",
         "xmqtt_reconnect_subscriptions",
         "xmqtt_store_state_tests",
-        "xmqtt_store_session_tests"
+        "xmqtt_store_session_tests",
+        "xmqtt_journal_worker_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -747,7 +749,12 @@
         "extlibs/xmqtt/tests/test_store_state_journal.c",
         "extlibs/xmqtt/tests/test_store_state_identity.c",
         "extlibs/xmqtt/tests/test_store_session.c",
-        "extlibs/xmqtt/tests/test_store_session_faults.c"
+        "extlibs/xmqtt/tests/test_store_session_faults.c",
+        "extlibs/xmqtt/tests/test_journal_worker.c",
+        "extlibs/xmqtt/tests/test_journal_worker_lifetime.c",
+        "extlibs/xmqtt/tests/test_journal_worker_file.c",
+        "extlibs/xmqtt/tests/test_journal_worker_concurrent.c",
+        "extlibs/xmqtt/tests/test_journal_worker_faults.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -789,13 +796,21 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_state_io.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_faults.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_errors.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_errors.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_lifetime.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_file.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_concurrent.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c"
       ],
       "examples": [
-        "extlibs/xmqtt/examples/store_session/main.c"
+        "extlibs/xmqtt/examples/store_session/main.c",
+        "extlibs/xmqtt/examples/journal_worker/main.c"
       ],
       "benchmarks": [
-        "extlibs/xmqtt/bench/bench_store_session.c"
+        "extlibs/xmqtt/bench/bench_store_session.c",
+        "extlibs/xmqtt/bench/bench_journal_worker.c"
       ],
       "docs": [
         "extlibs/xmqtt/README.md"
@@ -837,7 +852,13 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_state_io.c": "xmqtt_store_state_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session.c": "xmqtt_store_session_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_faults.c": "xmqtt_store_session_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_errors.c": "xmqtt_store_session_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_session_errors.c": "xmqtt_store_session_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_lifetime.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_file.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_concurrent.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c": "xmqtt_journal_worker_tests"
       }
     },
     {
@@ -1778,7 +1799,8 @@
         "extlibs/xmqtt/include/xmqtt/journal.h"
       ],
       "internal_headers": [
-        "extlibs/xmqtt/src/internal/xmqtt_journal_replay.h"
+        "extlibs/xmqtt/src/internal/xmqtt_journal_replay.h",
+        "extlibs/xmqtt/src/internal/xmqtt_journal_worker.h"
       ],
       "sources": [
         "extlibs/xmqtt/src/session/journal.c"
@@ -2007,6 +2029,73 @@
       "docs": [
         "extlibs/xmqtt/docs/store_session.md",
         "extlibs/xmqtt/examples/store_session/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_journal_worker",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_JOURNAL_WORKER",
+      "depends": [
+        "xmqtt_journal",
+        "task_pool",
+        "cond",
+        "atomic"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/journal_worker.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_journal_worker.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/session/journal_worker.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/journal_worker.md"
+      ]
+    },
+    {
+      "name": "xmqtt_journal_worker_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_journal_worker",
+        "vfs",
+        "memory_stats",
+        "xmqtt_store_state",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_journal_worker.c",
+        "extlibs/xmqtt/tests/test_journal_worker_lifetime.c",
+        "extlibs/xmqtt/tests/test_journal_worker_file.c",
+        "extlibs/xmqtt/tests/test_journal_worker_concurrent.c",
+        "extlibs/xmqtt/tests/test_journal_worker_faults.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_lifetime.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_file.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_concurrent.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/journal_worker/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_journal_worker.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/journal_worker.md",
+        "extlibs/xmqtt/examples/journal_worker/README.md"
       ]
     }
   ]

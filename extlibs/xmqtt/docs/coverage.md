@@ -615,5 +615,41 @@ Session indices, allocations,Info and Destroy. Separate instrumentation counts
 65 property-free/scratch0 or66 two-property/default-scratch XRT allocations.
 Raw noise-gate failures remain; no controlled performance acceptance is claimed.
 The stage report is `docs/development/xmqtt-store-session-20261117.json`.
-Live durable ACK/Inbox leases/commit worker, physical retirement integration,
+Bounded asynchronous Journal submission now has separate qualification below.
+Live durable ACK/Inbox leases, physical retirement integration,
+namespace/locking/compaction/group commit and native Windows/Linux72h remain open.
+
+
+## Bounded asynchronous Journal owner qualification (2026-11-17)
+
+The developing [Journal worker](journal_worker.md) transfers one READY Journal
+to a borrowed host pool and adds7 APIs. It serializes opaque commits, bounds
+requests/retained objects/bytes/native tails/lifetime pump admissions, preserves
+late COMMITTED outcomes, and joins physical extension ownership. No thread/pool,
+Core API, automatic retry or MQTT ACK/semantic-state driver is added.
+
+Windows/WSL modular/single/root/stats-off/static/shared/declarations and a
+[runnable real-file example](../examples/journal_worker/README.md) pass. Tests
+cover8 producers/4 workers/256 exact commits, seven actual linked admission
+allocator-prefix failures plus constructor OOM, six zero caps, shared-pool turn
+progress, rejection rollback, nested pruned-neighbour callback protection,
+retained results and physical observer/task retirement. Four actual post-sync
+native error-key failures/platform preserve commit effects with fresh typed
+recovery; this dedicated harness temporarily detaches and restores the native
+task's real bound error context. Each integration program checks448 storage
+failure models. Two versions x six forms x seven native barriers produce84
+killed children/fresh typed recovery cases/platform. Independent Python literal
+oracle bytes and cross-OS file readers pass; power loss remains unqualified.
+WSL ASan/UBSan/leaks and Clang21 TSan concurrency pass. The GCC15 TSan compiler
+fence failure is retained, without suppressing warnings. Legacy29-program
+regressions/platform pass. Corrected preprocessor equivalence explicitly checks
+real selected definitions; earlier empty-selection probes are invalid evidence.
+
+Seven exports/four hidden helpers, identical three-form two-OS ABI and trimmed
+single/static/shared pass; worker-only excludes State/Session/Client/Engine/VFS.
+The matched direct/borrowed-pool256-byte two-sync native-file diagnostics count
+copy/whole-allocation zeroing/final secure wipe, allocations/tasks/synchronization
+and physical retirement. Noise failures remain; there is no controlled performance
+acceptance. The report is `docs/development/xmqtt-journal-worker-20261117.json`.
+The legal live mutable owner, durable prepare/commit/ACK ordering, delivery leases,
 namespace/locking/compaction/group commit and native Windows/Linux72h remain open.

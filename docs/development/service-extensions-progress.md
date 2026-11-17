@@ -13883,3 +13883,60 @@ commit, full original Redis/RPC/MQTT/Cron scope, controlled queue-inclusive
 throughput/tails/comparators and native Windows/Linux >=72h remain required.
 Strict release rejects25 developing MQTT modules. All work and tests use
 `D:/GIT/xrt/master`; no branch/worktree operation or remote push was performed.
+
+
+## Bounded Journal submission on the host pool (2026-11-17)
+
+The developing `xmqtt_journal_worker` adds7 APIs and transfers one exclusive
+READY Journal to a borrowed XRT pool. It creates no thread/pool/shared runtime
+or Core API. Submissions copy immutable input, reserve request/object/byte/task
+credits, and either publish one typed Future or refund the entire admission.
+Successful admission order is FIFO. The default32-admission lifetime pump budget
+includes callback replenishment; new turns queue at the host tail. Zero caps
+are real limits. No native file write/sync runs in the submitting thread.
+
+Local cancellation, timeout and Close remain distinct from the physical append
+effect, including late COMMITTED and MAY_BE_COMMITTED outcomes. A storage or
+native local-error failure stops later writes; capacity refusal cannot inherit
+a previous commit. A TLS scope stack prevents nested admission/pruned-neighbour
+callback self joins. Retirement waits for native DataDrop and terminal task
+Future destruction; remaining executor bookkeeping belongs to the host join.
+Held results retain only immutable payloads and an inert credit ledger.
+
+Windows/WSL modular/single/root/stats-off/static/shared, runnable real-file
+example and standalone declarations pass. Tests include8 producers/4 workers
+with256 exact commits, seven actual linked admission allocator-prefix failures,
+constructor OOM, six zero-cap refusals, late outcomes, blocked observers, host
+rejection, shared-pool progress and full refunds. Four real post-sync native
+error-key failures/platform preserve actual COMMITTED effects and fresh typed
+recovery; the dedicated shim temporarily detaches/restores the actual task's
+bound error context to reach that native edge. Each integration program checks
+448 storage-failure models. Both protocol versions, six delivery forms and
+seven native barriers give84 killed children/fresh-process recoveries/platform.
+An independent literal Python oracle verifies exact journal bytes; cross-OS
+file readers also pass. Process kill does not qualify physical power loss.
+WSL ASan/UBSan/leaks and Clang21 TSan concurrency pass. GCC15 TSan's original
+atomic-fence compiler failure remains; no warning or sanitizer was suppressed.
+
+Legacy Journal/State/Session-import29-program regression selections pass on
+each platform. Corrected preprocessor probes explicitly select real production
+features and assert definitions are present: legacy implementations are exactly
+identical across later inactive worker changes. The other thread's Core value
+commit is preserved. Its selected worker/root implementations differ only in
+four void debug source-location casts, whose narrow normalization is recorded.
+Initial empty-selection probes are retained as invalid evidence, not relied on.
+Seven exports/four hidden helpers, three-form two-OS ABI and trimmed delivery
+checks pass. Worker-only delivery excludes State/Session/Client/Engine/VFS.
+
+Native two-sync256-byte direct-versus-worker baselines report throughput/tails/
+process CPU; separate probes count actual allocations/tasks/overload retries.
+They include zero initialization, input copy, final secure wipe, Core ownership,
+task scheduling and retirement. Raw noise-gate failures remain and no controlled
+performance qualification is claimed. Linux timing uses local ext4 storage;
+Windows native files use the recorded artifact volume. See
+[stage evidence](xmqtt-journal-worker-20261117.json) for exact scope and results.
+Strict release still rejects26 developing MQTT modules. The live legal mutable
+owner, prepare/commit/ACK ordering, Inbox leases, namespace/locking/compaction/
+group commit, original four-product scope and controlled throughput/tails/native
+Windows/Linux >=72h acceptance remain required. All work stays on master with
+no branch/worktree operation or remote push. The original goal remains active.

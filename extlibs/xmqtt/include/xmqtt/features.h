@@ -85,6 +85,28 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_SESSION
 #define XMQTT_MODULE_XMQTT_STORE_SESSION
 #endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_WORKER
+#define XMQTT_MODULE_XMQTT_JOURNAL_WORKER
+#endif
+#endif
+
+/* xmqtt_journal_worker 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_WORKER)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_WORKER
+#define XMQTT_FEATURE_XMQTT_JOURNAL_WORKER
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#ifndef XRT_MODULE_TASK_POOL
+#define XRT_MODULE_TASK_POOL
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
 #endif
 
 /* xmqtt_store_session 及其直接依赖。 */

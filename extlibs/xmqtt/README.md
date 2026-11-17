@@ -275,5 +275,8 @@ Inbox views. It rejects stale epochs/keys and illegal transitions, stages the
 whole committed prefix before publication, and keeps accepted delivery payloads
 through protocol reset/expiry. A [real-file example](examples/store_state/README.md)
 and separate adversarial/OOM/crash/ownership/performance workloads are included.
-Session import, live durable Client/ACK integration, application delivery leases,
-namespace publication, compaction and controlled production acceptance remain open.
+Direct [State-to-Session import](docs/store_session.md) and bounded
+[Journal submission](docs/journal_worker.md) on a borrowed host task pool are
+now developing components, with [runnable worker example](examples/journal_worker/README.md).
+Live durable Client/ACK integration, delivery leases, namespace publication,
+compaction and controlled production acceptance remain open.

@@ -1,0 +1,225 @@
+#include <xmqtt/journal_worker.h>
+#include "../internal/xmqtt_journal_worker.h"
+#include <xrt/atomic.h>
+#include <xrt/memory.h>
+#include <xrt/sync.h>
+#include <xrt/time.h>
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+typedef struct xmqttjwitem {
+    struct xmqttjwitem *Next,*OwnedNext,*OwnedPrevious;
+    xmqttjournalworker* Owner;size_t Allocation;double Deadline;xpromise* Promise;xcancel* Cancel;
+    xmqttcommitresult Result;
+} xmqttjwitem;
+typedef struct xmqttjwpump {
+    struct xmqttjwpump* Next;xmqttjournalworker* Owner;xfuture* Future;bool Ran,Dropped;
+} xmqttjwpump;
+struct xmqttjournalworker {
+    xmqttjournalworkerconfig Config;xmqttjournalworkerinfo Info;
+    xtaskpool* Pool;xmqttjournal* Journal;xmutex Gate;xcond Ready;xatomic32 Refs;
+    xmqttjwitem *Head,*Tail,*Owned;xmqttjwpump* Pumps;bool Running;size_t TurnAccepted;
+    uintptr_t Low,High;
+};
+typedef struct xmqttjwscope {struct xmqttjwscope* Previous;xmqttjournalworker* Owner;} xmqttjwscope;
+static _Thread_local xmqttjwscope* xmqttJWCurrent;
+static bool xmqttJWInside(const xmqttjournalworker* W)
+{for(xmqttjwscope* S=xmqttJWCurrent;S;S=S->Previous)if(S->Owner==W)return true;return false;}
+static bool xmqttJWError(xerrkind K,cstr M){xrtSetErrorInfo(K,"xrt.mqtt.journal.worker",6600+(int32)K,M);return false;}
+static bool xmqttJWSpan(const void* P,size_t N){return (P||!N)&&xrtMemRangeValid(P,N);}
+static bool xmqttJWSeparate(const void* P,size_t N,const void* Q,size_t M){return !N||!M||!xrtMemRangesOverlap(P,N,Q,M);}
+static void xmqttJWRef(xmqttjournalworker* W){xrtAtomic32FetchAdd(&W->Refs,1,XMEMORY_RELAXED);}
+static void xmqttJWDrop(xmqttjournalworker* W)
+{if(xrtAtomic32FetchSub(&W->Refs,1,XMEMORY_ACQ_REL)==1){xrtCondUnit(&W->Ready);xrtMutexUnit(&W->Gate);xrtFree(W);}}
+static void xmqttJWCount(uint64* N){if(*N!=UINT64_MAX)++*N;}
+static void xmqttJWRange(xmqttjournalworker* W,const void* P,size_t N)
+{uintptr_t A=(uintptr_t)P;if(A<W->Low)W->Low=A;if(A+N>W->High)W->High=A+N;}
+/* Gate held. Conservative envelope keeps ordinary stack outputs O(1). */
+static bool xmqttJWOutput(xmqttjournalworker* W,void* P,size_t N)
+{
+    if(!xmqttJWSpan(P,N))return false;
+    uintptr_t A=(uintptr_t)P;
+    if(A>=W->High||A+N<=W->Low)return true;
+    if(!xmqttJWSeparate(P,N,W,sizeof(*W)))return false;
+    for(xmqttjwitem* J=W->Owned;J;J=J->OwnedNext)if(!xmqttJWSeparate(P,N,J,J->Allocation))return false;
+    for(xmqttjwpump* T=W->Pumps;T;T=T->Next)if(!xmqttJWSeparate(P,N,T,sizeof(*T)))return false;
+    return true;
+}
+static void xmqttJWUncharge(xmqttjournalworker* W,size_t N,bool Request)
+{
+    xrtMutexLock(&W->Gate);--W->Info.Objects;W->Info.Bytes-=N;if(Request)--W->Info.Requests;
+    xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);xmqttJWDrop(W);
+}
+static void xmqttJWResultFree(ptr Value,ptr Data)
+{
+    (void)Value;xmqttjwitem* J=Data;xmqttjournalworker* W=J->Owner;size_t N=J->Allocation;
+    xrtMutexLock(&W->Gate);if(J->OwnedPrevious)J->OwnedPrevious->OwnedNext=J->OwnedNext;else W->Owned=J->OwnedNext;
+    if(J->OwnedNext)J->OwnedNext->OwnedPrevious=J->OwnedPrevious;
+    xrtMutexUnlock(&W->Gate);
+    xrtErrorFree((xerror*)J->Result.Cause);xrtSecureZero(J,N);xrtFree(J);xmqttJWUncharge(W,N,false);
+}
+/* Native Future becomes terminal only after Data Drop has returned. Reap
+ * outside the gate; credits survive actual Core Future/context destruction. */
+static void xmqttJWReap(xmqttjournalworker* W)
+{
+    xmqttjwpump* List=NULL;xrtMutexLock(&W->Gate);xmqttjwpump** At=&W->Pumps;
+    while(*At){xmqttjwpump* T=*At;if(T->Dropped&&T->Future&&xrtFutureDone(T->Future)){*At=T->Next;T->Next=List;List=T;}else At=&T->Next;}
+    xrtMutexUnlock(&W->Gate);
+    while(List){xmqttjwpump* T=List;List=T->Next;xrtFutureDestroy(T->Future);xrtFree(T);
+        xrtMutexLock(&W->Gate);--W->Info.Tasks;W->Info.Bytes-=sizeof(*T);xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);xmqttJWDrop(W);}
+}
+static xmqttcommitstatus xmqttJWStop(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native)
+{
+    if(W->Info.Failed)return XMQTT_COMMIT_INITIALIZATION;
+    if(xrtCancelRequested(Native)){W->Info.Failed=W->Info.Closed=true;return XMQTT_COMMIT_CANCELLED;}
+    if(W->Info.Closed)return XMQTT_COMMIT_CLOSED;
+    if(xrtCancelRequested(J->Cancel))return XMQTT_COMMIT_CANCELLED;
+    return xrtTimer()>=J->Deadline?XMQTT_COMMIT_TIMEOUT:XMQTT_COMMIT_OK;
+}
+static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
+{
+    xpromise* P=J->Promise;xcancel* C=J->Cancel;J->Promise=NULL;J->Cancel=NULL;xrtCancelDestroy(C);
+    xrtMutexLock(&W->Gate);--W->Info.Requests;xmqttJWCount(&W->Info.Completed);xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);
+    /* Only this owner can complete P. Publication invokes arbitrary watches
+     * outside Gate; their retained result still owns the exact object credits. */
+    if(!xrtPromiseResolveOwned(P,&J->Result,xmqttJWResultFree,J))abort();
+    xrtPromiseDestroy(P); /* may free J: no access afterwards */
+}
+static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
+{
+    (void)Value;xmqttjwpump* T=Data;xmqttjournalworker* W=T->Owner;xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;
+    xrtMutexLock(&W->Gate);while(W->Info.Scheduling)xrtCondWait(&W->Ready,&W->Gate);T->Ran=true;xrtMutexUnlock(&W->Gate);
+    for(;;){
+        xrtMutexLock(&W->Gate);xmqttjwitem* J=W->Head;
+        if(!J){W->Running=false;W->Info.Busy=false;xrtMutexUnlock(&W->Gate);break;}
+        W->Head=J->Next;if(!W->Head)W->Tail=NULL;--W->Info.Queued;W->Info.Busy=true;
+        J->Result.Status=xmqttJWStop(W,J,Cancel);xmqttjournalinfo Before=W->Info.Journal;xrtMutexUnlock(&W->Gate);
+        if(J->Result.Status==XMQTT_COMMIT_OK){
+            xerror* Saved=NULL;bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
+            xmqttjournalstatus S=XMQTT_JOURNAL_ERROR;xmqttjournalinfo After=Before;
+            if(!LocalFailure){uint64 Sequence=0;J->Result.AppendCalled=true;S=xmqttInternalJournalWorkerAppend(W->Journal,W,J->Result.Data,&Sequence);
+                if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
+                if(After.AttemptSequence>Before.Sequence){J->Result.AttemptSequence=After.AttemptSequence;J->Result.Effect=After.Effect;
+                    if(After.Effect==XMQTT_JOURNAL_COMMITTED)J->Result.Sequence=After.Sequence;}
+                if(S>=0){xerror* Discard=NULL;if(!xrtTrySwapErrorTake(Saved,&Discard)){xrtErrorFree(Saved);LocalFailure=true;}xrtErrorFree(Discard);}
+                else {J->Result.Cause=xrtErrorRef(xrtGetError());xrtErrorFree(Saved);}
+            }
+            J->Result.AppendStatus=S;
+            xrtMutexLock(&W->Gate);W->Info.Journal=After;
+            if(LocalFailure||S<0){W->Info.Failed=W->Info.Closed=true;J->Result.Status=LocalFailure?XMQTT_COMMIT_INITIALIZATION:XMQTT_COMMIT_STORAGE;}
+            else if(S==XMQTT_JOURNAL_LIMIT)J->Result.Status=XMQTT_COMMIT_LIMIT;
+            else J->Result.Status=xmqttJWStop(W,J,Cancel);
+            xrtMutexUnlock(&W->Gate);
+        }
+        xmqttJWFinish(W,J);
+    }
+    xmqttJWCurrent=Scope.Previous;return XTASK_SUCCESS;
+}
+static void xmqttJWPumpDrop(ptr Data,ptr Context)
+{
+    (void)Context;xmqttjwpump* T=Data;xmqttjournalworker* W=T->Owner;xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;
+    xrtMutexLock(&W->Gate);while(W->Info.Scheduling)xrtCondWait(&W->Ready,&W->Gate);
+    if(!T->Ran){W->Info.Failed=W->Info.Closed=true;
+        for(;;){xmqttjwitem* J=W->Head;if(!J)break;W->Head=J->Next;--W->Info.Queued;J->Result.Status=XMQTT_COMMIT_INITIALIZATION;
+            xrtMutexUnlock(&W->Gate);xmqttJWFinish(W,J);xrtMutexLock(&W->Gate);}
+        W->Tail=NULL;W->Running=false;W->Info.Busy=false;}
+    T->Dropped=true;xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);xmqttJWCurrent=Scope.Previous;
+}
+XMQTT_API bool xmqttJournalWorkerConfigInit(xmqttjournalworkerconfig* C)
+{
+    if(!xmqttJWSpan(C,sizeof(*C)))return xmqttJWError(XERR_ARGUMENT,"invalid journal worker config output");
+    *C=(xmqttjournalworkerconfig){sizeof(*C),128,256,4194304,2,1048576,32};return true;
+}
+XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,const xmqttjournalworkerconfig* C,xmqttjournalworker** Out)
+{
+    if(!Pool||!Journal||!xmqttJWSpan(C,sizeof(*C))||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),C,sizeof(*C))||C->Size!=sizeof(*C)||
+       C->MaxObjects>UINT32_MAX/2u||C->MaxTasks>UINT32_MAX/2u||C->MaxBytes<sizeof(xmqttjournalworker))return xmqttJWError(XERR_ARGUMENT,"invalid journal worker inputs/limits");
+    xtaskpoolstats Stats;if(!xrtTaskPoolGet(Pool,&Stats))return false;if(Stats.Closed)return xmqttJWError(XERR_STATE,"host storage pool is closed");
+    xmqttjournalworker* W=xrtCalloc(1,sizeof(*W));if(!W)return false;bool Gate=xrtMutexInit(&W->Gate),Ready=false;
+    if(Gate)Ready=xrtCondInit(&W->Ready);
+    if(!Ready){if(Gate)xrtMutexUnit(&W->Gate);xrtFree(W);return false;}
+    W->Config=*C;W->Pool=Pool;W->Journal=Journal;W->Info.Size=sizeof(W->Info);W->Info.BaseBytes=W->Info.Bytes=sizeof(*W);W->Low=(uintptr_t)W;W->High=W->Low+sizeof(*W);xrtAtomic32Init(&W->Refs,1);
+    if(!xmqttInternalJournalWorkerClaim(Journal,W,Out,sizeof(*Out),&W->Info.Journal)){xmqttJWDrop(W);return false;}
+    *Out=W;return true;
+}
+XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker* W,xbytesview Data,int64 Timeout,xfuture** Out)
+{
+    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
+    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
+        xmqttJWError(XERR_ARGUMENT,"invalid append admission span/deadline");return XMQTT_JWORK_ERROR;}
+    xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;xmqttJWReap(W);xmqttjournaladmission A=XMQTT_JWORK_ERROR;
+    size_t N=0;xmqttjwitem* J=NULL;xmqttjwpump* T=NULL;xfuture* F=NULL;bool Reserved=false,PumpReserved=false,Linked=false;
+    xrtMutexLock(&W->Gate);
+    if(!xmqttJWOutput(W,Out,sizeof(*Out))||!xmqttJWSeparate(Data.Data,Data.Size,W,sizeof(*W))){xrtMutexUnlock(&W->Gate);xmqttJWError(XERR_ARGUMENT,"append output overlaps owned state/result");goto End;}
+    if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
+    if(Data.Size>W->Config.MaxTransactionBytes||Data.Size>SIZE_MAX-sizeof(*J)||W->Info.Requests>=W->Config.MaxRequests||W->Info.Objects>=W->Config.MaxObjects||W->Info.Scheduling||!W->Config.WorkTransactions||(W->Running&&W->TurnAccepted>=W->Config.WorkTransactions))goto Overload;
+    N=sizeof(*J)+Data.Size;if(N>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
+    ++W->Info.Requests;++W->Info.Objects;W->Info.Bytes+=N;xmqttJWRef(W);Reserved=true;xrtMutexUnlock(&W->Gate);
+    J=xrtCalloc(1,N);if(!J)goto End;J->Owner=W;J->Allocation=N;J->Deadline=Deadline;J->Result.Data=(xbytesview){(const unsigned char*)(J+1),Data.Size};if(Data.Size)memcpy(J+1,Data.Data,Data.Size);
+    J->Promise=xrtPromiseCreate(&F,NULL);if(!J->Promise)goto End;J->Cancel=xrtPromiseCancelToken(J->Promise);if(!J->Cancel)goto End;
+    xrtMutexLock(&W->Gate);
+    if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
+    if(W->Info.Scheduling||(W->Running&&W->TurnAccepted>=W->Config.WorkTransactions))goto Overload;
+    if(!W->Running){
+        if(W->Info.Tasks>=W->Config.MaxTasks||sizeof(*T)>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
+        ++W->Info.Tasks;W->Info.Bytes+=sizeof(*T);xmqttJWRef(W);PumpReserved=true;W->TurnAccepted=0;W->Info.Scheduling=W->Running=true;xrtMutexUnlock(&W->Gate);
+        T=xrtCalloc(1,sizeof(*T));if(!T)goto End;T->Owner=W;xrtMutexLock(&W->Gate);
+        if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
+    }
+    J->OwnedNext=W->Owned;if(W->Owned)W->Owned->OwnedPrevious=J;W->Owned=J;xmqttJWRange(W,J,N);Linked=true;
+    if(W->Tail)W->Tail->Next=J;else W->Head=J;W->Tail=J;++W->Info.Queued;
+    if(!PumpReserved){++W->TurnAccepted;xmqttJWCount(&W->Info.Accepted);xrtMutexUnlock(&W->Gate);A=XMQTT_JWORK_ACCEPTED;goto End;}
+    T->Next=W->Pumps;W->Pumps=T;xmqttJWRange(W,T,sizeof(*T));xrtMutexUnlock(&W->Gate);
+    xtaskargs Args={0};Args.Destroy=xmqttJWPumpDrop;xfuture* Native=xrtTaskSubmit(W->Pool,xmqttJWPump,T,&Args);
+    xrtMutexLock(&W->Gate);
+    if(Native){T->Future=Native;++W->TurnAccepted;W->Info.Scheduling=false;xmqttJWCount(&W->Info.Accepted);xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);A=XMQTT_JWORK_ACCEPTED;goto End;}
+    /* Other submissions refuse while Scheduling; no accepted sibling can be
+     * stranded by native rejection. Proc/Drop cannot run on rejection. */
+    W->Head=W->Tail=NULL;--W->Info.Queued;W->Pumps=T->Next;W->Owned=J->OwnedNext;if(W->Owned)W->Owned->OwnedPrevious=NULL;Linked=false;xmqttJWCount(&W->Info.Rejected);
+    xrtMutexUnlock(&W->Gate);goto End;
+Overload:A=XMQTT_JWORK_OVERLOADED;
+Refuse:xmqttJWCount(&W->Info.Rejected);xrtMutexUnlock(&W->Gate);
+End:
+    if(A==XMQTT_JWORK_ACCEPTED){*Out=F;xmqttJWCurrent=Scope.Previous;return A;}
+    if(Linked)abort();
+    if(PumpReserved){xrtFree(T);xrtMutexLock(&W->Gate);--W->Info.Tasks;W->Info.Bytes-=sizeof(*T);W->Info.Scheduling=W->Running=false;xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);xmqttJWDrop(W);}
+    if(J){xrtCancelDestroy(J->Cancel);xrtPromiseDestroy(J->Promise);xrtSecureZero(J,N);xrtFree(J);}xrtFutureDestroy(F);
+    if(Reserved)xmqttJWUncharge(W,N,true);
+    xmqttJWCurrent=Scope.Previous;return A;
+}
+XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
+{
+    if(!W)return xmqttJWError(XERR_ARGUMENT,"NULL journal worker");
+    xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;xmqttJWReap(W);xrtMutexLock(&W->Gate);
+    bool OK=xmqttJWOutput(W,I,sizeof(*I));if(OK)*I=W->Info;xrtMutexUnlock(&W->Gate);
+    if(!OK)xmqttJWError(XERR_ARGUMENT,"invalid/overlapping worker info output");
+    xmqttJWCurrent=Scope.Previous;return OK;
+}
+XMQTT_API bool xmqttJournalWorkerClose(xmqttjournalworker* W)
+{if(!W)return xmqttJWError(XERR_ARGUMENT,"NULL journal worker");xrtMutexLock(&W->Gate);W->Info.Closed=true;xrtCondBroadcast(&W->Ready);xrtMutexUnlock(&W->Gate);return true;}
+XMQTT_API xwaitresult xmqttJournalWorkerWaitFor(xmqttjournalworker* W,int64 Timeout)
+{
+    if(!W||Timeout<XRT_WAIT_FOREVER){xmqttJWError(XERR_ARGUMENT,"invalid worker wait");return XWAIT_ERROR;}
+    if(xmqttJWInside(W)||xrtTaskPoolIsCurrentWorkerV1(W->Pool)){xmqttJWError(XERR_STATE,"cannot wait from own pool/callback/admission");return XWAIT_ERROR;}
+    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
+    for(;;){xmqttJWReap(W);xrtMutexLock(&W->Gate);
+        if(!W->Info.Closed){xrtMutexUnlock(&W->Gate);xmqttJWError(XERR_STATE,"Close required before physical wait");return XWAIT_ERROR;}
+        if(!W->Info.Requests&&!W->Info.Tasks&&!W->Info.Scheduling){xrtMutexUnlock(&W->Gate);return XWAIT_OK;}
+        double Left=ceil((Deadline-xrtTimer())*1000.0);if(Left<=0){xrtMutexUnlock(&W->Gate);return XWAIT_TIMEOUT;}
+        /* Sleep during native IO/reservations. Drop signals before the Core
+         * Future terminal edge: only that final tail needs bounded1ms polling. */
+        bool Tail=false;for(xmqttjwpump* T=W->Pumps;T;T=T->Next)if(T->Dropped){Tail=true;break;}
+        int64 Delay=isinf(Left)?XRT_WAIT_FOREVER:Left>=(double)INT64_MAX?INT64_MAX:(int64)Left;if(Tail&&(Delay<0||Delay>1))Delay=1;
+        xwaitresult R=xrtCondWaitFor(&W->Ready,&W->Gate,Delay);xrtMutexUnlock(&W->Gate);if(R==XWAIT_ERROR)return R;
+    }
+}
+XMQTT_API bool xmqttJournalWorkerDestroy(xmqttjournalworker* W)
+{
+    if(!W)return true;
+    if(xmqttJWInside(W)||xrtTaskPoolIsCurrentWorkerV1(W->Pool))return xmqttJWError(XERR_STATE,"cannot destroy from own pool/callback/admission");
+    if(!xmqttJournalWorkerClose(W)||xmqttJournalWorkerWaitFor(W,XRT_WAIT_FOREVER)!=XWAIT_OK)return false;
+    if(!xmqttInternalJournalWorkerDestroy(W->Journal,W))return false;
+    W->Journal=NULL;W->Pool=NULL;xmqttJWDrop(W);return true;
+}
+#endif

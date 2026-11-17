@@ -1,5 +1,6 @@
 #include <xmqtt/journal.h>
 #include "../internal/xmqtt_journal_replay.h"
+#include "../internal/xmqtt_journal_worker.h"
 #include <xrt/crc32.h>
 #include <xrt/memory.h>
 #include <string.h>
@@ -7,9 +8,20 @@
 enum {XMQTT_J_PAGE=4096,XMQTT_J_START=12288,XMQTT_J_HEAD=48,XMQTT_J_OVERHEAD=64};
 struct xmqttjournal {
     xfile File;xmqttjournalconfig Config;xmqttjournalinfo Info;
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+    const void* Worker;
+#endif
     uint64 Cursor,ReadSequence,FileBytes;uint32 ReadChain;bool Busy;
     unsigned char* Page;unsigned char* Buffer;
 };
+static bool xmqttJOwner(const xmqttjournal* J,const void* Owner)
+{
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+    return J->Worker==Owner;
+#else
+    (void)J;return !Owner;
+#endif
+}
 typedef struct xmqttjwitness {uint64 Sequence,End;uint32 Chain;} xmqttjwitness;
 static xmqttjournalstatus xmqttJError(xmqttjournalstatus S,cstr Message)
 {
@@ -135,7 +147,7 @@ XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile F,const xmqttjournalconfig* 
 XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord* Out)
 {
     if(!J||!xmqttJOutside(J,Out,sizeof(*Out)))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid replay output");
-    if(J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED)return xmqttJError(XMQTT_JOURNAL_STATE,"journal unavailable or reentrant");
+    if(!xmqttJOwner(J,NULL)||J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED)return xmqttJError(XMQTT_JOURNAL_STATE,"journal unavailable or reentrant");
     xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
     J->Busy=true;xmqttjournalstatus S=XMQTT_JOURNAL_DONE;xmqttjournalrecord Record={0};
     if(J->Cursor==J->Info.CommittedEnd){
@@ -161,11 +173,11 @@ XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord
     J->Cursor+=Total;J->ReadChain=Chain;++J->ReadSequence;Record=(xmqttjournalrecord){J->ReadSequence,{J->Buffer,(size_t)Length}};
 End:S=xmqttJFinish(J,Saved,S);if(S==XMQTT_JOURNAL_DONE)*Out=Record;return S;
 }
-XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,uint64* Sequence)
+static xmqttjournalstatus xmqttJAppendOwned(xmqttjournal* J,const void* Owner,xbytesview Data,uint64* Sequence)
 {
     if(!J||!xmqttJOutside(J,Data.Data,Data.Size)||!xmqttJOutside(J,Sequence,sizeof(*Sequence))||
         !xmqttJSeparate(Sequence,sizeof(*Sequence),Data.Data,Data.Size))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid/overlapping append spans");
-    if(J->Busy||J->Info.State!=XMQTT_JOURNAL_READY)return xmqttJError(XMQTT_JOURNAL_STATE,"journal not recovered/ready or reentrant");
+    if(!xmqttJOwner(J,Owner)||J->Busy||J->Info.State!=XMQTT_JOURNAL_READY)return xmqttJError(XMQTT_JOURNAL_STATE,"journal not recovered/ready or reentrant");
     if(Data.Size>J->Config.MaxTransactionBytes||J->Info.Sequence==UINT64_MAX||
         J->Info.CommittedEnd>J->Config.MaxFileBytes-XMQTT_J_OVERHEAD||Data.Size>J->Config.MaxFileBytes-J->Info.CommittedEnd-XMQTT_J_OVERHEAD)return XMQTT_JOURNAL_LIMIT;
     unsigned char H[XMQTT_J_HEAD]={0},T[16]={0};xmqttjwitness W={J->Info.Sequence+1,J->Info.CommittedEnd+XMQTT_J_OVERHEAD+Data.Size,0};
@@ -185,21 +197,35 @@ XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,
     J->Cursor=W.End;J->ReadSequence=W.Sequence;J->ReadChain=W.Chain;
 End:S=xmqttJFinish(J,Saved,S);if(S==XMQTT_JOURNAL_DONE)*Sequence=W.Sequence;return S;
 }
-XMQTT_API bool xmqttJournalInfo(xmqttjournal* J,xmqttjournalinfo* Out)
+static bool xmqttJInfoOwned(xmqttjournal* J,const void* Owner,xmqttjournalinfo* Out)
 {
     if(!J||!xmqttJOutside(J,Out,sizeof(*Out))){xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal info output");return false;}
-    if(J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"reentrant journal info");return false;}*Out=J->Info;return true;
+    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal info");return false;}*Out=J->Info;return true;
 }
-XMQTT_API bool xmqttJournalDestroy(xmqttjournal* J)
+static bool xmqttJDestroyOwned(xmqttjournal* J,const void* Owner)
 {
     if(!J)return true;
-    if(J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"reentrant journal destroy");return false;}xrtFree(J);return true;
+    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal destroy");return false;}xrtFree(J);return true;
 }
+XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,uint64* Sequence)
+{return xmqttJAppendOwned(J,NULL,Data,Sequence);}
+XMQTT_API bool xmqttJournalInfo(xmqttjournal* J,xmqttjournalinfo* I){return xmqttJInfoOwned(J,NULL,I);}
+XMQTT_API bool xmqttJournalDestroy(xmqttjournal* J){return xmqttJDestroyOwned(J,NULL);}
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
+XMQTT_INTERNAL bool xmqttInternalJournalWorkerClaim(xmqttjournal* J,const void* Owner,void* Output,size_t Bytes,xmqttjournalinfo* Info)
+{
+    if(!J||!Owner||!xmqttJOutside(J,Output,Bytes)||J->Worker||J->Busy||J->Info.State!=XMQTT_JOURNAL_READY){xmqttJError(XMQTT_JOURNAL_STATE,"worker requires exclusive READY Journal and disjoint output");return false;}
+    *Info=J->Info;J->Worker=Owner;return true;
+}
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalWorkerAppend(xmqttjournal* J,const void* O,xbytesview D,uint64* S){return xmqttJAppendOwned(J,O,D,S);}
+XMQTT_INTERNAL bool xmqttInternalJournalWorkerInfo(xmqttjournal* J,const void* O,xmqttjournalinfo* I){return xmqttJInfoOwned(J,O,I);}
+XMQTT_INTERNAL bool xmqttInternalJournalWorkerDestroy(xmqttjournal* J,const void* O){return xmqttJDestroyOwned(J,O);}
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
 bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,
     uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions)
 {
-    if(!J||!xmqttJOutside(J,Output,Bytes)||J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED||
+    if(!J||!xmqttJOutside(J,Output,Bytes)||!xmqttJOwner(J,NULL)||J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED||
        J->Cursor!=XMQTT_J_START||J->ReadSequence||J->Config.Version!=Version||
        J->Config.PayloadSchema!=UINT32_C(0x584d4401)||J->Config.Generation!=Generation||
        J->Config.Binding.Size!=Binding.Size||memcmp(J->Config.Binding.Data,Binding.Data,Binding.Size)){

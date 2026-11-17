@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `164` 个函数、`281` 个常量或宏、
-`101` 个公共类型。
+当前登记 `171` 个函数、`293` 个常量或宏、
+`107` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -413,6 +413,44 @@
 - `xmqttjournalrecord`
 - `xmqttjournalstate`
 - `xmqttjournalstatus`
+
+## `extlibs/xmqtt/include/xmqtt/journal_worker.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/journal_worker.h)
+
+### 函数 (7)
+
+- `xmqttJournalWorkerAppendAsync`
+- `xmqttJournalWorkerClose`
+- `xmqttJournalWorkerConfigInit`
+- `xmqttJournalWorkerCreate`
+- `xmqttJournalWorkerDestroy`
+- `xmqttJournalWorkerInfo`
+- `xmqttJournalWorkerWaitFor`
+
+### 常量与宏 (12)
+
+- `XMQTT_COMMIT_CANCELLED`
+- `XMQTT_COMMIT_CLOSED`
+- `XMQTT_COMMIT_INITIALIZATION`
+- `XMQTT_COMMIT_LIMIT`
+- `XMQTT_COMMIT_OK`
+- `XMQTT_COMMIT_STORAGE`
+- `XMQTT_COMMIT_TIMEOUT`
+- `XMQTT_FEATURE_XMQTT_JOURNAL_WORKER`
+- `XMQTT_JWORK_ACCEPTED`
+- `XMQTT_JWORK_CLOSED`
+- `XMQTT_JWORK_ERROR`
+- `XMQTT_JWORK_OVERLOADED`
+
+### 类型 (6)
+
+- `xmqttcommitresult`
+- `xmqttcommitstatus`
+- `xmqttjournaladmission`
+- `xmqttjournalworker`
+- `xmqttjournalworkerconfig`
+- `xmqttjournalworkerinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/negotiation.h`
 
