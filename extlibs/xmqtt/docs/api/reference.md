@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `179` 个函数、`295` 个常量或宏、
-`110` 个公共类型。
+当前登记 `183` 个函数、`296` 个常量或宏、
+`111` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -810,6 +810,31 @@
 - `xmqttstoredeltastatus`
 - `xmqttstoredeltatype`
 
+## `extlibs/xmqtt/include/xmqtt/store_inbox.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/store_inbox.h)
+
+### 函数 (4)
+
+- `xmqttStoreInboxAckAsync`
+- `xmqttStoreInboxCreate`
+- `xmqttStoreInboxRelease`
+- `xmqttStoreInboxTake`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_STORE_INBOX`
+- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
+
+### 类型 (6)
+
+- `xmqttstorelease`
+- `xmqttstorestate`
+- `xmqttstorestatus`
+- `xmqttstoreview`
+- `xmqttstorewrite`
+- `xmqttstorewriteconfig`
+
 ## `extlibs/xmqtt/include/xmqtt/store_session.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/store_session.h)
@@ -825,10 +850,9 @@
 - `XMQTT_FEATURE_XMQTT_STORE_SESSION`
 - `XMQTT_FEATURE_XMQTT_STORE_STATE`
 
-### 类型 (2)
+### 类型 (1)
 
 - `xmqttstoresessionconfig`
-- `xmqttstorestate`
 
 ## `extlibs/xmqtt/include/xmqtt/store_state.h`
 
@@ -855,12 +879,10 @@
 - `XMQTT_STORE_OUTGOING`
 - `XMQTT_STORE_STATE_ERROR`
 
-### 类型 (5)
+### 类型 (3)
 
 - `xmqttstorestateconfig`
 - `xmqttstorestateinfo`
-- `xmqttstorestatus`
-- `xmqttstoreview`
 - `xmqttstoreviewkind`
 
 ## `extlibs/xmqtt/include/xmqtt/store_write.h`
@@ -878,14 +900,8 @@
 - `xmqttStoreWriteRead`
 - `xmqttStoreWriteWaitFor`
 
-### 常量与宏 (1)
+### 类型 (1)
 
-- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
-
-### 类型 (3)
-
-- `xmqttstorewrite`
-- `xmqttstorewriteconfig`
 - `xmqttstorewriteinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/wire.h`

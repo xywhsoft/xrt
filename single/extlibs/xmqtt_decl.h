@@ -120,6 +120,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION 1
 #endif
@@ -227,6 +230,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_SESSION 1
@@ -1478,6 +1484,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP_RETIRE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
+#endif
+#if !defined(XRT_MODULE_RANDOM_SECURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE 1
 #endif
 #if !defined(XRT_MODULE_TASK_POOL)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TASK_POOL 1
@@ -2844,6 +2853,22 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
+#define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#endif
+
+/* xmqtt_store_inbox 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_INBOX
+#define XMQTT_FEATURE_XMQTT_STORE_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
 #endif
 #endif
 
@@ -5784,6 +5809,54 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/store_inbox.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_STORE_INBOX_H
+#define XMQTT_STORE_INBOX_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX) && (!defined(XMQTT_FEATURE_XMQTT_STORE_WRITE) || !defined(XRT_FEATURE_RANDOM_SECURE))
+#error "MQTT durable Inbox requires the semantic writer and secure randomness"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+/* Copyable opaque reservation. Initialize with Take and pass unchanged.
+ * Contains no resource pointer. Its authority ends with this Writer instance
+ * or on accepted Ack/Release, whichever comes first. */
+typedef struct xmqttstorelease {uint64 Opaque[4];} xmqttstorelease;
+XRT_EXTERN_C_BEGIN
+/* Same transfer and native lifetime as StoreWriteCreate, with durable Inbox
+ * leases enabled. A new incarnation fences tokens from earlier Writers.
+ * All raw INBOX_ACK deltas submitted to this Writer are refused before IO.
+ * Existing pending deliveries enter the ready queue in persistent key order. */
+XMQTT_API bool xmqttStoreInboxCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqttstorestate* State,
+    const xmqttstorewriteconfig* Config,xmqttstorewrite** Writer);
+/* Exclusive FIFO ready claim. Copy canonical bytes into caller Buffer; View
+ * then borrows Buffer. Lease, View and Required publish only on DONE, except
+ * LIMIT for short Buffer writes only Required. EMPTY includes the case where
+ * all deliveries are already leased/acknowledging. Closed/failed or legacy
+ * Writer returns STATE_ERROR. Outputs must be writable, mutually disjoint
+ * and caller-owned. No allocation, decode, sync or wait for IO. Claims and
+ * retries share MaxInbox credit with pending durable deliveries. */
+XMQTT_API xmqttstorestatus xmqttStoreInboxTake(xmqttstorewrite* Writer,ptr Buffer,size_t Capacity,
+    xmqttstorelease* Lease,xmqttstoreview* View,size_t* Required);
+/* Release the exact live claim and append its delivery to the ready tail.
+ * No IO. Stale, foreign or acknowledging leases are refused. */
+XMQTT_API bool xmqttStoreInboxRelease(xmqttstorewrite* Writer,xmqttstorelease Lease);
+/* Call after application effects. ACCEPTED consumes the live claim; Future
+ * resolves to xmqttcommitresult even after cancellation, Close or timeout.
+ * COMMITTED removes delivery; definite NOT_COMMITTED requeues it with a
+ * fresh claim on next Take if the Writer is usable. Uncertain/fatal results
+ * suspend further claims until recovery. A refusal leaves Lease live and
+ * output untouched. Releasing/destroying the Future does not cancel the ACK.
+ * Take/Release/Ack are thread-safe and may coexist with a claimed Client.
+ * Stop API entrants before destroying Writer, as for StoreWriteDestroy. */
+XMQTT_API xmqttjournaladmission xmqttStoreInboxAckAsync(xmqttstorewrite* Writer,xmqttstorelease Lease,
+    int64 Timeout,xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -5961,6 +6034,10 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_STORE_DELTA
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX)
+#undef XMQTT_FEATURE_XMQTT_STORE_INBOX
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #undef XMQTT_FEATURE_XMQTT_STORE_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION
@@ -6104,6 +6181,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA)
 #undef XMQTT_MODULE_XMQTT_STORE_DELTA
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX)
+#undef XMQTT_MODULE_XMQTT_STORE_INBOX
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_SESSION)
 #undef XMQTT_MODULE_XMQTT_STORE_SESSION
@@ -7773,6 +7854,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_TCP_RETIRE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE)
+#undef XRT_MODULE_RANDOM_SECURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TASK_POOL)
 #undef XRT_MODULE_TASK_POOL
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TASK_POOL
@@ -7947,6 +8032,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
+#define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#endif
+
+/* xmqtt_store_inbox 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_INBOX
+#define XMQTT_FEATURE_XMQTT_STORE_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
 #endif
 #endif
 

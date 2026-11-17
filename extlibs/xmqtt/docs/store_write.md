@@ -142,9 +142,10 @@ new-wire copy and atomic installation. There is no hidden whole-State image or
 zero-overhead claim. Closed-loop shared-host diagnostics do not qualify fixed-
 arrival throughput/tails, product parity or native Windows/Linux72h operation.
 
-A live prepare/commit/network-output driver, durable delivery leases, transport
-fencing, namespace/locking, compaction/group-commit policy and original four-
-product controlled production acceptance remain required work.
+The [durable Inbox](store_inbox.md) supplies application delivery claims on an
+explicit Writer mode. The developing numeric TCP Client uses the Writer for
+receive ACKs. Outgoing durability, transport fencing, namespace and locking,
+compaction, group commit and four-product production acceptance remain open.
 
 The [dated revalidation](../../../docs/development/xmqtt-store-write-revalidation-20261118.json)
 records final Windows/WSL feature,legacy,delivery,ABI,process-cut and cross-OS

@@ -312,3 +312,25 @@ The private driver still needs durable leases, outgoing flows, and the full
 transport and authentication integration. Controlled throughput and tail latency
 and the native 72-hour acceptance remain outstanding.
 See [stage evidence](xmqtt-client-store-receive-20261118.json).
+
+
+## 2026-11-18 Durable application delivery leases
+
+The Writer now offers an explicit lease mode for MQTT 5.0 and 3.1.1. Its ready
+queue grows only with committed deliveries and shares the existing MaxInbox
+bound. Application buffers own the copied bytes. An opaque value fences stale
+claims and earlier Writer instances without holding the file, pool or Writer alive.
+An accepted ACK consumes the claim and publishes its actual durable effect. A
+definite non-commit makes the record eligible for another claim. Recovery restores
+unacknowledged deliveries in acceptance order.
+
+The same Writer sequences application ACKs and live protocol transitions. The
+fixture holds an application ACK at its final file sync and queues an incoming
+PUBREL on the actual TCP Client. The application effect commits first. PUBCOMP
+follows independent receive-identity retirement. Raw Inbox ACK deltas remain
+available on the legacy Writer and cannot bypass leases in the explicit mode.
+
+See the native file example and stage evidence. Outgoing durability, full
+transport and authentication integration, namespace and locking, compaction,
+controlled throughput and tail latency, and native 72-hour acceptance remain open.
+[Stage evidence](xmqtt-store-inbox-20261118.json).

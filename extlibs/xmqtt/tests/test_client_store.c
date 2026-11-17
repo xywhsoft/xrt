@@ -1,5 +1,6 @@
 #include "support/store_write_peer.h"
 #include <xmqtt/store_session.h>
+#include <xmqtt/store_inbox.h>
 #include "../src/internal/xmqtt_client_store.h"
 #include "../examples/common/client_peer.h"
 typedef struct cgdrive {jwdrive IO;xatomicptr Client;xatomic32 Checked;} cgdrive;
@@ -207,7 +208,12 @@ static void cgReceivePublish(cg_receive_peer* Peer,unsigned Qos,bool Duplicate,b
     cgReceiveSend(Peer,B,N);
 }
 
-typedef enum cg_receive_mode {CG_FLOW,CG_ACCEPT_CLOSE,CG_RELEASE_CLOSE,CG_WRITE_FAIL,CG_INBOX_LIMIT} cg_receive_mode;
+typedef enum cg_receive_mode {
+    CG_FLOW,CG_ACCEPT_CLOSE,CG_RELEASE_CLOSE,CG_WRITE_FAIL,CG_INBOX_LIMIT
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+    ,CG_LIVE_LEASE
+#endif
+} cg_receive_mode;
 
 static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
 {
@@ -229,10 +235,18 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* W=NULL;
-    testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+    if(Mode==CG_LIVE_LEASE)
+        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"receive store with live Inbox leases");
+    else
+#endif
+        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
     D.IO.Base.Calls=0;
     if(Mode==CG_FLOW||Mode==CG_ACCEPT_CLOSE)D.IO.Hold=14;
     if(Mode==CG_RELEASE_CLOSE)D.IO.Hold=21;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+    if(Mode==CG_LIVE_LEASE)D.IO.Hold=21;
+#endif
     if(Mode==CG_WRITE_FAIL)D.IO.Base.Fail=8;
 
     xmqttsessionconfig SK;
@@ -311,6 +325,36 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         while(swInfo(W).State.Transactions!=6){testRequire(xrtTimer()<Deadline,"QoS0 durable acceptance");xrtSleep(1);}
         FinalTx=7;FinalInbox=4;FinalIncoming=1;FinalAcks=6;
         testRequire(xmqttClientClose(C),"close after entire receive sequence");
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+    }else if(Mode==CG_LIVE_LEASE){
+        cgReceiveAck(&Peer,1,0x50,9,false,2);
+        xmqttstorelease Lease;
+        xmqttstoreview View;
+        unsigned char Buffer[64];
+        size_t Bytes=0;
+        stStatus(xmqttStoreInboxTake(W,Buffer,sizeof(Buffer),&Lease,&View,&Bytes),XMQTT_STORE_DONE,
+                 "lease acquired while actual TCP Client owns Writer");
+        testRequire(View.Key==1&&View.Qos==2&&View.Wire.Data==Buffer&&Bytes==View.Wire.Size,"live delivery snapshot");
+        xfuture* Ack=NULL;
+        testRequire(xmqttStoreInboxAckAsync(W,Lease,10000,&Ack)==XMQTT_JWORK_ACCEPTED,"application ACK admitted alongside Client");
+        jwAwait(&D.IO.Entered);
+        cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
+        double Deadline=xrtTimer()+10;
+        while(!swInfo(W).Worker.Queued){
+            testRequire(xrtTimer()<Deadline,"PUBREL transaction queues concurrently with in-flight lease ACK");
+            xrtSleep(1);
+        }
+        testRequire(swInfo(W).State.Inbox==1&&swInfo(W).State.Incoming==1,"staged ACK has no visible effect");
+        cgReceiveNoAck(&Peer,1);
+        xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
+        const xmqttcommitresult* R=jwOutcome(Ack);
+        testRequire(R->Status==XMQTT_COMMIT_OK&&R->Sequence==3&&R->Effect==XMQTT_JOURNAL_COMMITTED,"application ACK commits first");
+        cgReceiveAck(&Peer,2,0x70,9,false,4);
+        testRequire(!swInfo(W).State.Inbox&&!swInfo(W).State.Incoming,"protocol retirement leaves no delivery or receive identity");
+        xrtFutureDestroy(Ack);
+        testRequire(xmqttClientClose(C),"close after independent app and protocol ACKs");
+        FinalTx=5;FinalAcks=2;
+#endif
     }else if(Mode==CG_RELEASE_CLOSE){
         cgReceiveAck(&Peer,1,0x50,9,false,2);
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
@@ -414,6 +458,11 @@ int main(void)
     for(unsigned V=0;V<2;++V)
         for(cg_receive_mode Mode=CG_FLOW;Mode<=CG_INBOX_LIMIT;++Mode)
             cgReceiveCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
+#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
+    cgReceiveCase(XMQTT_VERSION_311,CG_LIVE_LEASE);
+    cgReceiveCase(XMQTT_VERSION_5,CG_LIVE_LEASE);
+    puts("[PASS] live QoS2 protocol retirement queues behind an application ACK while file sync is held");
+#endif
     puts("[PASS] live receive persists before ACK, deduplicates across actual reconnect, retires QoS2 before PUBCOMP and recovers canonical delivery");
     puts("[PASS] actual TCP CONNACK waits for durable BIND/OPEN; late Close/deadline retain IO and END duties,both MQTT levels; storage/clock refusal and exclusive Writer ownership");return 0;
 }

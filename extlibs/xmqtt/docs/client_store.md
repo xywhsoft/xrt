@@ -11,8 +11,8 @@ The receive driver journals each accepted PUBLISH, including QoS 0. It queues
 PUBACK or PUBREC only after commit. MQTT 5 alias binds and lookups follow the
 existing connection rules; the persisted packet has a full topic and no alias
 property. Durable payloads are available to the committed store and never enter
-the volatile Inbox. A later delivery lease will supply application consumption
-and acknowledgement.
+the volatile Inbox. Use a Writer created in [durable Inbox mode](store_inbox.md)
+to claim and acknowledge these deliveries while the Client is connected.
 
 For QoS 2, a duplicate PUBLISH repeats PUBREC without another acceptance.
 A known PUBREL commits the release and identifier retirement together before

@@ -1,0 +1,156 @@
+{
+  "date": "2026-11-18",
+  "stage": "MQTT durable Inbox application leases",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "ff578f1afa5ac545b22eddbeea406b5d0adc28c0",
+  "maturity": "developing",
+  "source_map_sha256": "1ca45467fd9c7215bcc31e18fb8f368e6e81875ebefa2a00ccc6b7c18c87e877",
+  "evidence_directory": "out/service-extensions/mqtt-store-inbox-20261118",
+  "behavior": [
+    "Explicit durable Inbox mode with four public APIs. Writer consumes the exact recovered State and READY Journal.",
+    "Allocation-free Take copies the canonical wire to caller storage. Bounded FIFO of ready records, no additional queue allocation.",
+    "Nonwrapping per-incarnation lease identifiers fence stale or foreign copies. Return requeues at the ready tail.",
+    "Accepted application ACK consumes the claim. Physical COMMITTED removes delivery, including late cancellation/Close. Definite non-commit requeues with a new claim.",
+    "Raw Inbox ACK is refused before IO in lease mode. It remains available on the legacy writer.",
+    "Protocol QoS2 identity and application delivery retire independently, through the same exact writer queue."
+  ],
+  "validation": {
+    "windows": {
+      "programs": {
+        "inbox-final": 5,
+        "xmqtt_journal_worker_tests": 12,
+        "xmqtt_store_write_tests": 20,
+        "xmqtt_client_store_tests": 2
+      },
+      "public_package_examples": 2,
+      "public_exports": [
+        "xmqttStoreInboxCreate",
+        "xmqttStoreInboxTake",
+        "xmqttStoreInboxRelease",
+        "xmqttStoreInboxAckAsync"
+      ],
+      "hidden_internal_symbols": [
+        "xmqttInternalStoreInboxEnable",
+        "xmqttInternalStoreInboxTake",
+        "xmqttInternalStoreInboxRelease",
+        "xmqttInternalStoreInboxBegin",
+        "xmqttInternalStoreInboxUndo",
+        "xmqttInternalClientConnectStore"
+      ],
+      "private_x64_layout_delta_bytes": {
+        "entry": 16,
+        "overlay_entry": 16,
+        "state": 24,
+        "writer": 32,
+        "worker": 8,
+        "job": 8,
+        "public_config": 0,
+        "public_snapshot": 0,
+        "public_result": 0
+      },
+      "receipt_files": {
+        "windows-receipts.json": "8a6c089933d7f306ab1451caca381c1b24b0c11899ce0e71a21cf8d7caf06727",
+        "windows-consumer-receipts.json": "83f3ca4956b1cd207b61a046c11b8885acede964c61f6b4a0a51620dec8383b0",
+        "windows-packages.json": "b3a22cb8dcb2f9ceb938a54e9c0f4f8f4812fd073465e73629799f0c856f2da4",
+        "windows-exports.json": "8759354715593ce1127445e853ed90a4b93a5ad30789e35023d5c65f7d86fe7f",
+        "windows-sizes.json": "93e7c6fc958613c20eed2bd4dd50d203888f9cf3fbf60719adb87b396971ebf4"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "inbox-final": 5,
+        "xmqtt_journal_worker_tests": 12,
+        "xmqtt_store_write_tests": 20,
+        "xmqtt_client_store_tests": 2,
+        "tsan-test_store_inbox": 1,
+        "tsan-test_client_store": 1
+      },
+      "public_package_examples": 2,
+      "public_exports": [
+        "xmqttStoreInboxCreate",
+        "xmqttStoreInboxTake",
+        "xmqttStoreInboxRelease",
+        "xmqttStoreInboxAckAsync"
+      ],
+      "hidden_internal_symbols": [
+        "xmqttInternalStoreInboxEnable",
+        "xmqttInternalStoreInboxTake",
+        "xmqttInternalStoreInboxRelease",
+        "xmqttInternalStoreInboxBegin",
+        "xmqttInternalStoreInboxUndo",
+        "xmqttInternalClientConnectStore"
+      ],
+      "private_x64_layout_delta_bytes": {
+        "entry": 16,
+        "overlay_entry": 16,
+        "state": 24,
+        "writer": 32,
+        "worker": 8,
+        "job": 8,
+        "public_config": 0,
+        "public_snapshot": 0,
+        "public_result": 0
+      },
+      "receipt_files": {
+        "wsl-receipts.json": "66ba0d3636daa954ec2e2d4c1498af941668cb9211c451c73abd5820eba1b6bc",
+        "wsl-consumer-receipts.json": "0556aa9d9badd1c07673028261f622f14f92510cbd85635f8fb5a7006606644d",
+        "wsl-packages.json": "3057bba8a926b7ccaa8d9e8dcd29c79676c6debbb1f3560e8bfae312adbbd331",
+        "wsl-exports.json": "7eb4846e04ff7f9a10fde2480e971ebf1d16ad2b3f02c7bf417a4de3eba55d21",
+        "wsl-sizes.json": "498db63f7a89eabf14beebbfbd00e61fb291e1117df725e6789d2ccdd70c25c7"
+      }
+    }
+  },
+  "evidence_counts": {
+    "verified_logs": 34,
+    "verified_binary_archives": 86
+  },
+  "new_fixture": [
+    "16 offline lease cases/program across MQTT 5.0 and 3.1.1, including four consumers and 32 native durable acknowledgements per protocol.",
+    "Two actual TCP scenarios/program queue PUBREL behind a held application ACK, one per protocol, plus existing 26 Client scenarios.",
+    "Definite timeout, quota/output refusal, actual one-byte allocation cap, uncertain sync, Close/cancel during flush and cancelled native pump.",
+    "Native temp-file example reopens the journal and checks no pending delivery. Same real application runs linked against static and shared packages.",
+    "WSL ASan/UBSan/leak detection on full new suite and Clang 21 TSan on the lease and actual TCP modular scenarios."
+  ],
+  "retained_failures": {
+    "initial_recovery_wall_fixture": {
+      "windows": {
+        "log": "windows-suite.log",
+        "log_sha256": "e4923be540e57b0eaf81b905053ef7acf86cfe451af9b74eee02ce924af57222",
+        "binary_sha256": "9939f81c1d93198831e8ffe3a19d06a640681ed955a34a367af43925224770cb"
+      },
+      "wsl": {
+        "log": "wsl-suite.log",
+        "log_sha256": "ed01ea2ef0d708b6df448a0ab7ca94492e3f5631f76055f613ea3413b27cccca",
+        "binary_sha256": "104a734a37a3d69a12260521f636dbb2ca409fe87e9411f82f46ff141d0d7cca"
+      }
+    },
+    "later_single_wrapper": "First final cohort compiled the nested single-header test with duplicate feature defines. The wrapper now declares its own full feature selection. Logs and tested modular binaries from the failed cohort were retained.",
+    "declaration_consumer": "Initial package consumer omitted the required preceding Core declaration header. The corrected public example passed against the same verified shared libraries. Both compile logs are retained."
+  },
+  "normal_gates": [
+    "features",
+    "single",
+    "api",
+    "reference",
+    "maturity",
+    "layout"
+  ],
+  "strict_release": {
+    "passed": false,
+    "expected": true,
+    "developing_modules": 29,
+    "log": "windows-strict-release-final.log",
+    "log_sha256": "be614e2f9d617050fadc6622ad5b103ca46346f6b9f6624ee39a549f4f25072c"
+  },
+  "costs": [
+    "One canonical wire copy per Take, no per-claim heap object. ACK follows native admission, semantic prepare and two syncs.",
+    "Committed ready queue operations are constant time. Borrowed-output address validation may scan the bounded model.",
+    "The sampled old public writer configuration, snapshot and commit result sizes stay unchanged with the feature selected."
+  ],
+  "remaining": [
+    "Outgoing durable packet scheduling and ACK ordering, full transports and authentication, and the public durable Client factory.",
+    "Storage namespace locking, compaction and group commit, measured throughput and tail latency, real broker interoperability and native 72-hour qualification.",
+    "Leases do not arbitrate external application effects; reconciliation or idempotency belongs to the application."
+  ]
+}
