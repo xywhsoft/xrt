@@ -177,6 +177,18 @@
       "system": "client_ws_uri",
       "suite": "xmqtt_client_ws_uri_tls",
       "description": "Native URI, strict HTTP setup and ordinary MQTT Client; no additional resident URI state"
+    },
+    {
+      "name": "xmqtt_store_state",
+      "system": "session",
+      "suite": "xmqtt_store_state",
+      "description": "Typed journal recovery and immutable QoS/Inbox views; no Session,Client,VFS,test threads or statistics",
+      "forbid_symbols": [
+        "xmqttSessionCreate",
+        "xmqttClientConnect",
+        "xrtVfsCreate",
+        "xrtEngineCreate"
+      ]
     }
   ]
 }

@@ -1,0 +1,9 @@
+#define XMQTT_MODULE_XMQTT_STORE_STATE
+#define XRT_MODULE_VFS
+#define XRT_MODULE_MEMORY_STATS
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_store_state_journal.c"

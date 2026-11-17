@@ -1,4 +1,5 @@
 #include <xmqtt/journal.h>
+#include "../internal/xmqtt_journal_replay.h"
 #include <xrt/crc32.h>
 #include <xrt/memory.h>
 #include <string.h>
@@ -194,4 +195,17 @@ XMQTT_API bool xmqttJournalDestroy(xmqttjournal* J)
     if(!J)return true;
     if(J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"reentrant journal destroy");return false;}xrtFree(J);return true;
 }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
+bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,
+    uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions)
+{
+    if(!J||!xmqttJOutside(J,Output,Bytes)||J->Busy||J->Info.State==XMQTT_JOURNAL_POISONED||
+       J->Cursor!=XMQTT_J_START||J->ReadSequence||J->Config.Version!=Version||
+       J->Config.PayloadSchema!=UINT32_C(0x584d4401)||J->Config.Generation!=Generation||
+       J->Config.Binding.Size!=Binding.Size||memcmp(J->Config.Binding.Data,Binding.Data,Binding.Size)){
+        xmqttJError(XMQTT_JOURNAL_STATE,"recovery requires exact typed descriptor and original journal cursor");return false;
+    }
+    *Transactions=J->Info.Sequence;return true;
+}
+#endif
 #endif

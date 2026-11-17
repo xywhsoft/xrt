@@ -79,6 +79,22 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_DELTA
 #define XMQTT_MODULE_XMQTT_STORE_DELTA
 #endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_STATE
+#define XMQTT_MODULE_XMQTT_STORE_STATE
+#endif
+#endif
+
+/* xmqtt_store_state 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_STATE)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_STATE
+#define XMQTT_FEATURE_XMQTT_STORE_STATE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_DELTA
+#define XMQTT_MODULE_XMQTT_STORE_DELTA
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
 #endif
 
 /* xmqtt_store_delta 及其直接依赖。 */

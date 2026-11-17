@@ -13776,3 +13776,60 @@ and out/service-extensions/xrpc-frame-20261112.
   scopes, durable MQTT state/driver/Inbox/ACK/namespace/compaction/group scheduling,
   complete original four-library functionality and controlled production
   throughput/tail-latency/endurance acceptance remain active.
+
+
+## 2026-11-17 — bounded committed MQTT state recovery on master
+
+- Added developing xmqtt_store_state with5 public APIs: immutable offline
+  outgoing-QoS/incoming-QoS2/pending-Inbox recovery, inspection and unique-owner
+  destruction. The actual Journal descriptor/version/typed schema/binding/
+  generation/original cursor are checked through one extension-private helper.
+  No new Core API, worker, Engine, lock or shared runtime is introduced.
+- The12-operation applier validates BIND/OPEN/END/CLEAR and flow/application
+  transitions across whole transactions. Logical epochs and global keys never
+  wrap/reuse; completions require matching original epoch/key/id/stage. Resumed
+  epochs retain PUBREL. Closed expiry charges downtime; live cuts never invent
+  an actual disconnect. Accepted Inbox payloads survive protocol reset/expiry/
+  completion until INBOX_ACK, including after their original epoch is replaced.
+- Every committed transaction and final Journal EMPTY is verified before output
+  publication. Later corruption/IO/limit/OOM/error-slot failure frees the whole
+  candidate and leaves output unchanged. Recovery can consume/retire a Journal
+  suffix; reopen before retry. Count/byte/operation/transaction/replay-work caps
+  include scratch and all retained allocations. Each owned wire is copied once;
+  hash matching and final ordered indices avoid whole-Session copies per commit.
+- Windows/WSL evidence includes88 prefix and8 expiry cuts,44 invalid histories,
+  26 resource/identity limits,9 actual allocation-prefix failures,368 actual
+  native error-key write failures plus2 bound contexts per platform, assigned-id
+  and4 resume cases,6 early application-ACK cuts and independent QoS1 deliveries.
+  48 public-read boundary failures and2 final suffix resize/sync failures prove
+  earlier valid payloads are not published before recovered readiness.
+- Each integration program checks448 storage-failure models. On each platform,
+  two versions x six forms x seven successful native I/O/sync barriers produce
+  84 actual child kills followed by fresh-process state/Inbox recovery. An
+  independent Python literal-packet/struct/zlib oracle supplies/checks exact
+  bytes. Windows/WSL file interchange passes. Process kill is not power loss.
+- Modular/single/root/stats-off, separate Core/XMQTT static/shared, real-file
+  example and standalone declaration consumers pass. Three ABI forms have
+  identical public layouts on Windows/WSL x64. Five new exports are present;
+  private cursor/descriptor access stays hidden. Trimmed single/static/shared
+  size probes pass; single-object checks exclude Client/Session/VFS/Engine.
+  Existing journal/delta regressions pass. WSL ASan/UBSan/leaks and TSan pass;
+  8 readers perform8000 Info+24000 payload reads after Journal/file release,
+  with one-byte budgets, no getter allocations and physical joins.
+- New native cached-file recovery and Info+64-view baselines record throughput,
+  tails, process CPU and requested memory. Separate instrumentation observes69
+  XRT allocations per64-delivery recovery and0 per getter iteration. Original
+  Windows/WSL mounted-temp cohorts retain10/4 noise quality failures. A distinct
+  WSL local-filesystem cohort retains11 failures; it does not replace those
+  results. Initial artifact-junction config fingerprint rejection is preserved.
+  No thresholds were weakened and no performance acceptance is claimed.
+- Initial fixture registration, GCC output-pointer warning, example indentation
+  and unused native-test variable failures remain in raw receipts. Final runtime
+  source cohorts and archived binaries are audited in
+  [stage evidence](xmqtt-store-state-20261117.json). Concurrent XTP mainline
+  commits were preserved; no branch/worktree operation or remote push was used.
+- Strict release still rejects24 developing MQTT modules. Direct Session import,
+  live commit/ACK/Inbox/lease driver and physical retirement, namespace/locking/
+  compaction/group commit, full original Redis/RPC/MQTT/Cron functionality,
+  controlled production throughput/tails and native Windows/Linux >=72h remain
+  required. The original four-product goal remains active.

@@ -259,3 +259,12 @@ the final optional flag defaults to zero (single-filter updates). Setting it to
 one updates a full batch; filters must be divisible by batch. Heap measurements
 cover the entire loopback process. The existing 3% MAD/6% central-span gates apply;
 closed-loop observations do not qualify fixed-arrival production tails.
+
+The developing [committed-state recovery](docs/store_state.md) now applies typed
+journal history into bounded immutable outgoing-QoS, incoming-QoS2 and pending
+Inbox views. It rejects stale epochs/keys and illegal transitions, stages the
+whole committed prefix before publication, and keeps accepted delivery payloads
+through protocol reset/expiry. A [real-file example](examples/store_state/README.md)
+and separate adversarial/OOM/crash/ownership/performance workloads are included.
+Session import, live durable Client/ACK integration, application delivery leases,
+namespace publication, compaction and controlled production acceptance remain open.

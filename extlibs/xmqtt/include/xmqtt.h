@@ -26,6 +26,10 @@
 #include <xmqtt/session_image.h>
 #include <xmqtt/journal.h>
 #include <xmqtt/store_delta.h>
+#include <xmqtt/store_state.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
+#error "MQTT root requires store recovery"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
 #error "MQTT root requires typed store deltas"
 #endif

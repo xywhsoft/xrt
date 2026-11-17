@@ -1,0 +1,614 @@
+{
+  "status": "developing; original four-product goal active",
+  "date": "2026-11-17",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "2d4c757ddb275a0e1e313b767c871d436ba40e9c",
+  "verified_at_revision": "2d4c757ddb275a0e1e313b767c871d436ba40e9c",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "changes": [
+    "Five public APIs for bounded immutable committed-state recovery and independent outgoing/QoS2/Inbox views",
+    "Extension-private exact Journal descriptor and original replay cursor verification; no new Core API/runtime",
+    "Legal cross-record identity/epoch/key/id/QoS/clock order and stale completion protection across all12 delta kinds",
+    "All committed transactions plus final Journal EMPTY verified before publication; late corruption/IO/OOM/limits/slot failure discard the entire candidate",
+    "Accepted Inbox data retained across reset/expiry/protocol completion; application ACK and QoS2 receive completion retain independent ownership",
+    "Bounded scratch/retained memory and total transactions/operations/replay bytes; hash matching, one retained-wire copy and final direct view indices"
+  ],
+  "validation": {
+    "platforms": [
+      "native Windows x64 GCC",
+      "WSL Linux x64 GCC; not native Linux production acceptance"
+    ],
+    "forms": [
+      "modular",
+      "single",
+      "full-root selection",
+      "statistics off",
+      "separate Core/XMQTT static",
+      "separate Core/XMQTT shared",
+      "standalone declarations"
+    ],
+    "prefix_cuts": 88,
+    "expiry_cuts": 8,
+    "illegal_histories": 44,
+    "resource_and_identity_limits": 26,
+    "actual_allocation_prefixes": 9,
+    "native_error_key_failures_per_platform": 368,
+    "bound_contexts_per_platform": 2,
+    "public_read_failure_boundaries": 48,
+    "final_suffix_resize_sync_failures": 2,
+    "storage_failure_models_per_integration_program": 448,
+    "actual_process_kills_per_platform": 84,
+    "independent_oracle": "extlibs/xmqtt/tests/interop/store_state_oracle.py; Python literal packets/struct/zlib, no C imports",
+    "cross_os_file_interchange": true,
+    "assigned_identity_and_resume": true,
+    "early_application_ack_ownership": true,
+    "concurrent_readers": 8,
+    "info_reads_per_reader_program": 8000,
+    "payload_reads_per_reader_program": 24000,
+    "sanitizers": [
+      "WSL ASan",
+      "WSL UBSan",
+      "WSL leak detection",
+      "WSL TSan"
+    ],
+    "public_exports": 5,
+    "private_replay_helper_hidden": true,
+    "public_layout": "200 136 40 8 8 8 192 112 24",
+    "three_forms_and_two_os_abi_match": true,
+    "existing_journal_delta_regressions": true,
+    "all_selected_final_functional_checks_passed": true,
+    "skips": []
+  },
+  "performance": {
+    "qualified": false,
+    "initial_cohorts": {
+      "windows": {
+        "exit_code": 1,
+        "quality_failures": [
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_p99_us: relative_mad=3.4%",
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_p999_us: relative_mad=11.0%",
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_p999_us: relative_central_range=15.2%",
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_max_us: relative_mad=9.4%",
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_max_us: relative_central_range=16.4%",
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/process_cpu_ns_per_op: relative_central_range=7.1%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_p99_us: relative_central_range=20.0%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_p999_us: relative_central_range=16.7%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_max_us: relative_mad=13.3%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_max_us: relative_central_range=78.2%"
+        ],
+        "quality_failure_count": 10,
+        "medians": {
+          "store_state_recover_native": {
+            "operations_per_sec": 4459.591,
+            "latency_p50_us": 216.8,
+            "latency_p95_us": 260.5,
+            "latency_p99_us": 281.6,
+            "latency_p999_us": 333.4,
+            "latency_max_us": 376.9,
+            "process_cpu_ns_per_op": 218750.0
+          },
+          "store_state_immutable_views": {
+            "operations_per_sec": 3334311.396,
+            "latency_p50_us": 0.3,
+            "latency_p95_us": 0.3,
+            "latency_p99_us": 0.5,
+            "latency_p999_us": 0.6,
+            "latency_max_us": 112.2,
+            "process_cpu_ns_per_op": 312.5
+          }
+        },
+        "source_fingerprint": "4287b53df88d946cfdbb2b4d90ac39794271b67e48b64eb80a01dd5a25ceebae",
+        "benchmark_fingerprint": "bc9340e41fb7ee68b1fa440c5c889bdb56c6dcecb549b5fe9924c3aa0079d41f",
+        "controlled_acceptance": false
+      },
+      "wsl": {
+        "exit_code": 1,
+        "quality_failures": [
+          "[quality-fail] xmqtt_store_state/store_state_recover_native/latency_p999_us: relative_central_range=6.4%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_p99_us: relative_central_range=33.3%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_max_us: relative_mad=41.8%",
+          "[quality-fail] xmqtt_store_state/store_state_immutable_views/latency_max_us: relative_central_range=64.4%"
+        ],
+        "quality_failure_count": 4,
+        "medians": {
+          "store_state_recover_native": {
+            "operations_per_sec": 1024.128,
+            "latency_p50_us": 959.0,
+            "latency_p95_us": 1170.5,
+            "latency_p99_us": 1284.7,
+            "latency_p999_us": 1372.6,
+            "latency_max_us": 1453.9,
+            "process_cpu_ns_per_op": 376684.8
+          },
+          "store_state_immutable_views": {
+            "operations_per_sec": 3962718.585,
+            "latency_p50_us": 0.2,
+            "latency_p95_us": 0.3,
+            "latency_p99_us": 0.3,
+            "latency_p999_us": 0.5,
+            "latency_max_us": 39.0,
+            "process_cpu_ns_per_op": 252.453
+          }
+        },
+        "source_fingerprint": "4287b53df88d946cfdbb2b4d90ac39794271b67e48b64eb80a01dd5a25ceebae",
+        "benchmark_fingerprint": "bc9340e41fb7ee68b1fa440c5c889bdb56c6dcecb549b5fe9924c3aa0079d41f",
+        "controlled_acceptance": false
+      }
+    },
+    "separate_wsl_local_filesystem": {
+      "medians": {
+        "store_state_recover_native": {
+          "operations_per_sec": 4721.614,
+          "latency_p50_us": 207.3,
+          "latency_p95_us": 226.1,
+          "latency_p99_us": 279.0,
+          "latency_p999_us": 316.9,
+          "latency_max_us": 358.8,
+          "process_cpu_ns_per_op": 211806.8
+        },
+        "store_state_immutable_views": {
+          "operations_per_sec": 3781132.903,
+          "latency_p50_us": 0.2,
+          "latency_p95_us": 0.3,
+          "latency_p99_us": 0.4,
+          "latency_p999_us": 0.5,
+          "latency_max_us": 75.4,
+          "process_cpu_ns_per_op": 264.556
+        }
+      },
+      "quality_failure_count": 11,
+      "proof": "wsl-native-fs-performance.json",
+      "filesystem": {
+        "configured_temp": "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-state-20261117/temp/wsl",
+        "configured_temp_filesystem": "v9fs",
+        "native_temp": "/var/tmp/xrt-mqtt-store-state-bench-20261117",
+        "native_temp_filesystem": "ext2/ext3",
+        "rationale": "Original TMPDIR comes from compiler artifact storage on a mounted drive. Retain its diagnostic results; add a distinct recovery-only Linux-filesystem cohort, without superseding quality failures or claiming production acceptance."
+      }
+    },
+    "allocation_probes": {
+      "windows": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 4353.088,
+            "latency_p50_us": 217.6,
+            "latency_p95_us": 275.8,
+            "latency_p99_us": 306.7,
+            "latency_p999_us": 306.7,
+            "latency_max_us": 328.3,
+            "process_cpu_ns_per_op": 156250.0,
+            "retained_bytes": 26270.0,
+            "recovery_peak_bytes": 43678.0,
+            "checksum": 1968000.0,
+            "heap_blocks_per_op": 69.0,
+            "heap_bytes_per_op": 80753.0
+          },
+          "binary": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\store_state_recover_native.exe",
+              "sha256": "08600cb2734adb40bd3cf98f3f68d004d7c129d3c98e0738a640e4040797299e",
+              "preserved": "validated-binaries/direct/windows/08600cb2734adb40bd3cf98f3f68d004d7c129d3c98e0738a640e4040797299e.exe.gz",
+              "compression": "gzip",
+              "preserved_sha256": "0d8bb643e9ad22d7f6992ec9800749db2fc060cd2fddda8419e1340ab0bc97e2"
+            }
+          ]
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 2823263.537,
+            "latency_p50_us": 0.3,
+            "latency_p95_us": 0.4,
+            "latency_p99_us": 0.4,
+            "latency_p999_us": 0.4,
+            "latency_max_us": 4.0,
+            "process_cpu_ns_per_op": 0.0,
+            "retained_bytes": 26270.0,
+            "recovery_peak_bytes": 43678.0,
+            "checksum": 19680000.0,
+            "heap_blocks_per_op": 0.0,
+            "heap_bytes_per_op": 0.0
+          },
+          "binary": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\store_state_immutable_views.exe",
+              "sha256": "08600cb2734adb40bd3cf98f3f68d004d7c129d3c98e0738a640e4040797299e",
+              "preserved": "validated-binaries/direct/windows/08600cb2734adb40bd3cf98f3f68d004d7c129d3c98e0738a640e4040797299e.exe.gz",
+              "compression": "gzip",
+              "preserved_sha256": "0d8bb643e9ad22d7f6992ec9800749db2fc060cd2fddda8419e1340ab0bc97e2"
+            }
+          ]
+        }
+      ],
+      "wsl": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 996.949,
+            "latency_p50_us": 957.4,
+            "latency_p95_us": 1217.3,
+            "latency_p99_us": 1343.1,
+            "latency_p999_us": 1343.1,
+            "latency_max_us": 1878.7,
+            "process_cpu_ns_per_op": 391941.0,
+            "retained_bytes": 26270.0,
+            "recovery_peak_bytes": 43678.0,
+            "checksum": 1968000.0,
+            "heap_blocks_per_op": 69.0,
+            "heap_bytes_per_op": 80753.0
+          },
+          "binary": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/store_state_recover_native",
+              "sha256": "f8b6ba5e4e971f53996321ac8de19a70169f1c8600526ca6b160537cc6a2c5a0",
+              "preserved": "validated-binaries/direct/wsl/f8b6ba5e4e971f53996321ac8de19a70169f1c8600526ca6b160537cc6a2c5a0.bin.gz",
+              "compression": "gzip",
+              "preserved_sha256": "d79941ef47e5d43a2b04d9c5fae513fafd04b7a9b6dc5de12c36f81e7ca4fe9e"
+            }
+          ]
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 4177109.439,
+            "latency_p50_us": 0.2,
+            "latency_p95_us": 0.3,
+            "latency_p99_us": 0.3,
+            "latency_p999_us": 0.3,
+            "latency_max_us": 0.3,
+            "process_cpu_ns_per_op": 247.5,
+            "retained_bytes": 26270.0,
+            "recovery_peak_bytes": 43678.0,
+            "checksum": 19680000.0,
+            "heap_blocks_per_op": 0.0,
+            "heap_bytes_per_op": 0.0
+          },
+          "binary": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/store_state_immutable_views",
+              "sha256": "f8b6ba5e4e971f53996321ac8de19a70169f1c8600526ca6b160537cc6a2c5a0",
+              "preserved": "validated-binaries/direct/wsl/f8b6ba5e4e971f53996321ac8de19a70169f1c8600526ca6b160537cc6a2c5a0.bin.gz",
+              "compression": "gzip",
+              "preserved_sha256": "d79941ef47e5d43a2b04d9c5fae513fafd04b7a9b6dc5de12c36f81e7ca4fe9e"
+            }
+          ]
+        }
+      ]
+    },
+    "limits": [
+      "Shared-host diagnostic baselines, no pinned comparator or queue-inclusive network measurements",
+      "Initial WSL TMPDIR is the compiler artifact directory on mounted9p; separate local-filesystem cohort is retained independently",
+      "No threshold weakened; original10/4 and separate11 quality failures remain",
+      "Initial file creation and two commit syncs are outside timing; native cached-file replay is not live durable commit latency",
+      "Getter timing is short and affected by clock quantization; XRT heap counts exclude CRT/kernel overhead"
+    ]
+  },
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 24,
+    "proof": "strict-release.json"
+  },
+  "remaining": [
+    "Direct recovered-state import into a disconnected Session",
+    "Live bounded commit driver, durable ACK ordering, Inbox delivery leases and physical retirement",
+    "File namespace publication/locking, compaction and group-commit policy",
+    "Original complete Redis/RPC/MQTT5+311/Cron product scope",
+    "Controlled throughput/tail-latency/comparator and native Windows/native Linux >=72h qualification"
+  ],
+  "concurrent_work": "Preserved other-thread XTP commits e67a4541 and2d4c757d; retired worktree untouched",
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-store-state-20261117",
+    "source_map_sha256": "5236e44c2a9fcf776232fda362e15d695101e5027ac2f4eebb1300cbecd080fb",
+    "audit_sha256": "58fab7c0e97785b503a1e601c0ad66e2a2ff34b87c7960ee80a2e17bb1fedcbc",
+    "preserved_compressed_binary_records": 181,
+    "program_counts": {
+      "windows-suite": 8,
+      "windows-integration": 2,
+      "windows-identity": 2,
+      "windows-io": 1,
+      "windows-delivery": 10,
+      "windows-integration_delivery": 2,
+      "windows-regression": 17,
+      "windows-smoke": 2,
+      "windows-gates": 0,
+      "windows-size": 0,
+      "windows-native": 4,
+      "windows-cuts": 108,
+      "windows-abi": 3,
+      "windows-instrument": 2,
+      "windows-cross": 2,
+      "wsl-suite": 8,
+      "wsl-integration": 2,
+      "wsl-identity": 2,
+      "wsl-io": 1,
+      "wsl-delivery": 10,
+      "wsl-integration_delivery": 2,
+      "wsl-regression": 17,
+      "wsl-smoke": 2,
+      "wsl-gates": 0,
+      "wsl-size": 0,
+      "wsl-native": 6,
+      "wsl-cuts": 108,
+      "wsl-abi": 3,
+      "wsl-instrument": 2,
+      "wsl-tsan": 1
+    },
+    "superseded_attempts": [
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "windows-store-state-suite.log",
+        "log_sha256": "6df5310c8373fbe9c84221325ff409bad0c12128bacbe0ca92a5f79a6c784be2"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "windows-store-state-suite-attempt2.log",
+        "log_sha256": "0c922ab10201a2986bec42b83de6f3c615fdb9c0c2bf8043d37a3dcb36685688"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "windows-store-state-suite-attempt3.log",
+        "log_sha256": "1eb52ac64f085534c734a0e72bb9539fca61fc85a10efe5c07e290f0fb14eccd"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "windows-store-state-suite-attempt4.log",
+        "log_sha256": "15870617940bd96bac6e64d27dc84e46d85a970a12ff38e03f41511029c58bae"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "windows-features.log",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "windows-single.log",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "windows-api.log",
+        "log_sha256": "2b1544743f2b7e91d214a6bbf42213f677b38d446b143c69c5b139e1193bad75"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "windows-reference.log",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "windows-maturity.log",
+        "log_sha256": "35cc71c7cc34f6ca76fb5dfd0569900fff12d2e3485368a11a5101c0eaf4073f"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "windows-layout.log",
+        "log_sha256": "4e03226ee98dfad44ced05a97822fbbd1615322eb05412ad94733253648a2088"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "windows-features-attempt2.log",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "windows-single-attempt2.log",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "windows-api-attempt2.log",
+        "log_sha256": "2b1544743f2b7e91d214a6bbf42213f677b38d446b143c69c5b139e1193bad75"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "windows-reference-attempt2.log",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "windows-maturity-attempt2.log",
+        "log_sha256": "35cc71c7cc34f6ca76fb5dfd0569900fff12d2e3485368a11a5101c0eaf4073f"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "windows-layout-attempt2.log",
+        "log_sha256": "100bb61e3bf86eeb83e5f541a296ece0524a07de0554290bafa46228f158b90a"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "windows-features-attempt3.log",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "windows-single-attempt3.log",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "windows-api-attempt3.log",
+        "log_sha256": "2b1544743f2b7e91d214a6bbf42213f677b38d446b143c69c5b139e1193bad75"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "windows-reference-attempt3.log",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "windows-maturity-attempt3.log",
+        "log_sha256": "35cc71c7cc34f6ca76fb5dfd0569900fff12d2e3485368a11a5101c0eaf4073f"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "windows-layout-attempt3.log",
+        "log_sha256": "47b4ee3f34f6d5fabc496f893c6df25cf76edb3e54d0ea2ba1bd82ae98b045d1"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 0,
+        "log": "wsl-store-state-suite.log",
+        "log_sha256": "cba615b160cf8fa3165d66d95306f193ac08bfde3e437ac9b6e82823f9df2f65"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "wsl-store-state-suite-attempt2.log",
+        "log_sha256": "2f18f585378ca6de107d252b61008a6ce6202991eaf2a402c3ee27bc02591fbb"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-state-suite",
+        "exit_code": 1,
+        "log": "wsl-store-state-suite-attempt3.log",
+        "log_sha256": "b4549e97598cb91afb12b4d267c0e2893cf307e771a4d818d8505e71637bf199"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "wsl-features.log",
+        "log_sha256": "96e3fe9adb892eb8fe60c298dbd24d910417c3c736a29a1f48779276b62b61b0"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "wsl-single.log",
+        "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "wsl-api.log",
+        "log_sha256": "beb208052578e909791ca9e6632ddd8fe3eaa16fd92ac70fe67f339f648c6c9c"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "wsl-reference.log",
+        "log_sha256": "a71e9c259e192c679cf23045e0b42f7b7d1e1b8145c4718d19c914143fc9fc67"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "wsl-maturity.log",
+        "log_sha256": "4f9eedaf126396fbe81a48bf3ff712445d77e15452b568aeaa7f394de2b0017a"
+      },
+      {
+        "mode": "wsl",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "wsl-layout.log",
+        "log_sha256": "cb67ae288199e92ccb72fcab6c63b1e19145e4aeeb16a101e75c8cd2db0fab33"
+      }
+    ],
+    "retained_setup_failures": [
+      {
+        "stage": "benchmark_fs",
+        "log": "wsl-native-fs-performance.log",
+        "reason": "artifact-junction config correctly rejected by fingerprint boundary"
+      }
+    ],
+    "notes": [
+      "Only selected final receipts qualify current runtime source; superseded attempts remain preserved",
+      "Program counts exclude the separately recorded84 killed children/platform and package --verify consumer calls",
+      "Process termination proves process-recovery behavior, not physical power-loss survival"
+    ],
+    "checkpoint": {
+      "files": 1650,
+      "sha256": "e5660ce8c99b37da5ef413f0b914fabbae32ae8dc431fa3d23bbf0081a7e4ef4",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "source_map_sha256": "5236e44c2a9fcf776232fda362e15d695101e5027ac2f4eebb1300cbecd080fb"
+    }
+  }
+}

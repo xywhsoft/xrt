@@ -1,8 +1,9 @@
 # MQTT durable storage execution plan
 
-Status2026-11-16: the bounded Session image component is implemented and locally
-verified separately. The file store, live transaction driver, durable Inbox and
-crash recovery below remain required work. This plan preserves the original
+Status2026-11-17: bounded Session images, the journal, typed delta codec and
+committed-state recovery applier are implemented and locally verified separately.
+The complete file store, live transaction driver, durable Inbox/lease API and
+full recovery integration below remain required work. This plan preserves the original
 four-product objective and does not label a protocol checkpoint as durable MQTT.
 
 The developing `xmqtt_journal` now supplies a bounded, versioned transaction
@@ -46,6 +47,18 @@ runtime or change the Host Dial resolver contract. RPC/Cron restoration still
 needs operation-specific adoption; callbacks, promises, accepted executor work
 and installed revisions may already have effects when restoration fails. These
 remaining paths are not covered by the codec/journal/TLS inference fixes.
+
+The developing `xmqtt_store_state` now applies the complete typed committed
+prefix into immutable offline outgoing/QoS2-identity/Inbox views. It checks the
+actual journal descriptor and original cursor, legal record order and monotonic
+epoch/key/clock transitions, and enforces recovery memory/work limits. No partial
+candidate is published before journal EMPTY; accepted application payloads survive
+protocol reset/completion/expiry until their recorded INBOX_ACK. Native process
+cuts and independent Python bytes verify the real application of recovered state,
+not just delta decoding. Recovered views are not connected Sessions or delivery
+leases. Direct Session import, live prepare/commit/publish ordering, worker
+tickets, physical retirement, namespace/compaction and group scheduling remain
+the next required integration steps. No new Core API/runtime was added.
 
 ## State and ownership
 

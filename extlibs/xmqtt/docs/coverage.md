@@ -560,3 +560,31 @@ provided. Evidence records actual final runs and preparatory failures; no releas
 or performance parity is implied by those assets alone. Automatic TLS/DNS/Auth
 subscription composition, durable/crash/WebSocket/offline-publication scope,
 native Linux, fixed-arrival/contention/CPU/RSS and >=72h acceptance remain open.
+
+
+## Committed state recovery qualification (2026-11-17)
+
+The developing [store-state applier](store_state.md) validates all12 typed
+operations across transactions and publishes an immutable offline state only
+after journal EMPTY. State is bound to the exact descriptor/version/schema/
+generation/identity, with increasing epochs/keys, stale-id protection, legal QoS
+stages, closed expiry and independent pending Inbox ownership.
+
+Windows/WSL modular/single/root/stats-off/static/shared and standalone declaration
+consumers pass. Evidence includes88 prefix cuts,8 expiry cuts,44 illegal
+histories,26 resource/identity limits,9 actual allocation-prefix failures,
+368 real native error-key write failures per platform, two bound contexts,
+late-prefix atomicity and8 concurrent readers after Journal/file release.
+Each integration program checks448 storage-failure models. Six forms x two
+protocol levels x seven real child-process cuts give84 fresh-process recoveries
+per platform. An independent Python literal-packet/struct/zlib oracle supplies
+and checks exact bytes. These process cuts do not qualify physical power loss.
+Assigned-identity/version refusals, four resumed epochs, six early application-
+ACK cuts and independent QoS1 deliveries pass. All48 public-read boundaries and
+the two final suffix resize/sync failures reject early state publication and
+refund earlier payloads. WSL ASan/UBSan/leaks and a separate TSan reader run pass.
+
+Trimmed size probes, five public exports and three-form public ABI probes pass;
+the private replay descriptor/cursor helper remains hidden. Session import, live
+durable ACK/Inbox/lease/driver integration, namespace/compaction/group commit,
+controlled throughput/tail latency and native72h qualification remain required.

@@ -5,6 +5,10 @@ the existing opaque journal. It validates every record's representation and
 native PUBLISH semantics. It is not the state applier, asynchronous commit queue,
 durable Inbox/Client or a proof that any network ACK is ordered correctly.
 Those remain required in the [full store plan](../../../docs/development/xmqtt-store-design.md).
+The separate [recovery applier](store_state.md) now validates cross-record order
+and reconstructs immutable protocol/Inbox views from the complete committed
+prefix. Live transaction scheduling, Session import and ACK/delivery integration
+remain required; this codec's own no-state contract is unchanged.
 
 ## API, bounds and lifetime
 

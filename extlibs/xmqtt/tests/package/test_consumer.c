@@ -6,6 +6,15 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
+    xmqttstorestateconfig StateConfig;xmqttstorestate* State=(xmqttstorestate*)(uintptr_t)1;
+    xmqttstorestateinfo StateInfo;xmqttstoreview StateView;
+    if(!xmqttStoreStateConfigInit(&StateConfig))return 51;
+    StateConfig.Binding=XRT_BYTES_LITERAL("package/broker/principal/slot");StateConfig.Generation=1;
+    if(xmqttStoreStateRecover(NULL,&StateConfig,&State)!=XMQTT_STORE_STATE_ERROR||State!=(xmqttstorestate*)(uintptr_t)1||
+       xmqttStoreStateInfo(NULL,&StateInfo)||xmqttStoreStateView(NULL,XMQTT_STORE_INBOX,0,&StateView)!=XMQTT_STORE_ERROR)return 52;
+    xmqttStoreStateDestroy(NULL);xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
     xmqttclientwsconfig WS;xmqttclient* WSC=(xmqttclient*)(uintptr_t)1;
     if(!xmqttClientWsConfigInit(&WS)||WS.Size!=sizeof(WS)||WS.Stream.Role!=XWS_ROLE_CLIENT||WS.MaxStagedBytes!=1048576||xmqttClientWsAttachTcp(NULL,NULL,NULL,&WS,NULL,&WSC)||WSC!=(xmqttclient*)(uintptr_t)1)return 31;

@@ -4890,6 +4890,109 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_store_state",
+      "system": "session",
+      "description": "Bounded native cached-journal recovery and immutable ordered Info+64-view reads; initial sync,queue,network and production qualification excluded",
+      "benchmarks": [
+        {
+          "name": "store_state_recover_native",
+          "source": "extlibs/xmqtt/bench/bench_store_state.c",
+          "suite": "xmqtt_store_state_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "store_state_immutable_views",
+          "source": "extlibs/xmqtt/bench/bench_store_state.c",
+          "suite": "xmqtt_store_state_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "100000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        }
+      ]
     }
   ]
 }
