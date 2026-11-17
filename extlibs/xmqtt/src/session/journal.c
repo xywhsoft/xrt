@@ -233,5 +233,16 @@ bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Bin
     }
     *Transactions=J->Info.Sequence;return true;
 }
+
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+XMQTT_INTERNAL bool xmqttJournalWriteStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,uint64 Generation,uint64 Sequence,uint32 Chain,uint64 End,void* Output,size_t Bytes)
+{
+    if(!J||!xmqttJOutside(J,Output,Bytes)||!xmqttJOwner(J,NULL)||J->Busy||J->Info.State!=XMQTT_JOURNAL_READY||J->Cursor!=J->Info.CommittedEnd||
+       J->ReadSequence!=J->Info.Sequence||J->Info.Sequence!=Sequence||J->Info.Chain!=Chain||J->Info.CommittedEnd!=End||J->Config.Version!=Version||
+       J->Config.PayloadSchema!=UINT32_C(0x584d4401)||J->Config.Generation!=Generation||J->Config.Binding.Size!=Binding.Size||memcmp(J->Config.Binding.Data,Binding.Data,Binding.Size)){
+        xmqttJError(XMQTT_JOURNAL_STATE,"writer State does not match actual complete typed READY Journal");return false;}
+    return true;
+}
+#endif
 #endif
 #endif

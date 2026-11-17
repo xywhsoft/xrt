@@ -149,7 +149,8 @@
         "xmqtt_store_delta",
         "xmqtt_store_state",
         "xmqtt_store_session",
-        "xmqtt_journal_worker"
+        "xmqtt_journal_worker",
+        "xmqtt_store_write"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -2096,6 +2097,79 @@
       "docs": [
         "extlibs/xmqtt/docs/journal_worker.md",
         "extlibs/xmqtt/examples/journal_worker/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_store_write",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_STORE_WRITE",
+      "depends": [
+        "xmqtt_store_state",
+        "xmqtt_journal_worker"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/store_write.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_store_write.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/session/store_write.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/store_write.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_store_write_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_store_write",
+        "vfs",
+        "memory_stats",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_store_write.c",
+        "extlibs/xmqtt/tests/test_store_write_transactions.c",
+        "extlibs/xmqtt/tests/test_store_write_faults.c",
+        "extlibs/xmqtt/tests/test_store_write_file.c",
+        "extlibs/xmqtt/tests/test_store_write_lifetime.c",
+        "extlibs/xmqtt/tests/test_store_write_concurrent.c",
+        "extlibs/xmqtt/tests/test_store_write_work.c",
+        "extlibs/xmqtt/tests/test_store_write_progress.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_transactions.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_file.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_oom.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_lifetime.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_errors.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_concurrent.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_work.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_progress.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_write_allocator.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/store_write/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_store_write.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/store_write.md",
+        "extlibs/xmqtt/examples/store_write/README.md"
       ]
     }
   ]

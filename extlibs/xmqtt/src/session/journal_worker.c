@@ -1,5 +1,6 @@
 #include <xmqtt/journal_worker.h>
 #include "../internal/xmqtt_journal_worker.h"
+#include "../internal/xmqtt_store_write.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -21,6 +22,9 @@ struct xmqttjournalworker {
     xtaskpool* Pool;xmqttjournal* Journal;xmutex Gate;xcond Ready;xatomic32 Refs;
     xmqttjwitem *Head,*Tail,*Owned;xmqttjwpump* Pumps;bool Running;size_t TurnAccepted;
     uintptr_t Low,High;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+    xmqttcommitstatus (*Prepare)(ptr,xbytesview);void (*Finish)(ptr,const xmqttcommitresult*);ptr Store;
+#endif
 };
 typedef struct xmqttjwscope {struct xmqttjwscope* Previous;xmqttjournalworker* Owner;} xmqttjwscope;
 static _Thread_local xmqttjwscope* xmqttJWCurrent;
@@ -97,9 +101,17 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
         J->Result.Status=xmqttJWStop(W,J,Cancel);xmqttjournalinfo Before=W->Info.Journal;xrtMutexUnlock(&W->Gate);
         if(J->Result.Status==XMQTT_COMMIT_OK){
             xerror* Saved=NULL;bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
-            xmqttjournalstatus S=XMQTT_JOURNAL_ERROR;xmqttjournalinfo After=Before;
-            if(!LocalFailure){uint64 Sequence=0;J->Result.AppendCalled=true;S=xmqttInternalJournalWorkerAppend(W->Journal,W,J->Result.Data,&Sequence);
-                if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
+            xmqttjournalstatus S=XMQTT_JOURNAL_ERROR;xmqttjournalinfo After=Before;bool PolicyRefused=false;
+            if(!LocalFailure){uint64 Sequence=0;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+                if(W->Prepare){
+                    J->Result.Status=W->Prepare(W->Store,J->Result.Data);PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;
+                    if(PolicyRefused&&(J->Result.Status==XMQTT_COMMIT_INVALID||J->Result.Status==XMQTT_COMMIT_INITIALIZATION))J->Result.Cause=xrtErrorRef(xrtGetError());
+                    if(!PolicyRefused){xrtMutexLock(&W->Gate);J->Result.Status=xmqttJWStop(W,J,Cancel);xrtMutexUnlock(&W->Gate);PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;}
+                }
+#endif
+                if(PolicyRefused)S=XMQTT_JOURNAL_EMPTY;
+                else {J->Result.AppendCalled=true;S=xmqttInternalJournalWorkerAppend(W->Journal,W,J->Result.Data,&Sequence);if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();}
                 if(After.AttemptSequence>Before.Sequence){J->Result.AttemptSequence=After.AttemptSequence;J->Result.Effect=After.Effect;
                     if(After.Effect==XMQTT_JOURNAL_COMMITTED)J->Result.Sequence=After.Sequence;}
                 if(S>=0){xerror* Discard=NULL;if(!xrtTrySwapErrorTake(Saved,&Discard)){xrtErrorFree(Saved);LocalFailure=true;}xrtErrorFree(Discard);}
@@ -107,11 +119,16 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
             }
             J->Result.AppendStatus=S;
             xrtMutexLock(&W->Gate);W->Info.Journal=After;
-            if(LocalFailure||S<0){W->Info.Failed=W->Info.Closed=true;J->Result.Status=LocalFailure?XMQTT_COMMIT_INITIALIZATION:XMQTT_COMMIT_STORAGE;}
+            if(LocalFailure||S<0||(PolicyRefused&&J->Result.Status==XMQTT_COMMIT_INITIALIZATION)){W->Info.Failed=W->Info.Closed=true;J->Result.Status=LocalFailure?XMQTT_COMMIT_INITIALIZATION:S<0?XMQTT_COMMIT_STORAGE:J->Result.Status;}
+            else if(PolicyRefused){} /* typed semantic/normal refusal, no append */
             else if(S==XMQTT_JOURNAL_LIMIT)J->Result.Status=XMQTT_COMMIT_LIMIT;
             else J->Result.Status=xmqttJWStop(W,J,Cancel);
             xrtMutexUnlock(&W->Gate);
         }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+        if(W->Finish){W->Finish(W->Store,&J->Result);
+            if(J->Result.Status==XMQTT_COMMIT_OK){xrtMutexLock(&W->Gate);J->Result.Status=xmqttJWStop(W,J,Cancel);xrtMutexUnlock(&W->Gate);}}
+#endif
         xmqttJWFinish(W,J);
     }
     xmqttJWCurrent=Scope.Previous;return XTASK_SUCCESS;
@@ -143,10 +160,9 @@ XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,co
     if(!xmqttInternalJournalWorkerClaim(Journal,W,Out,sizeof(*Out),&W->Info.Journal)){xmqttJWDrop(W);return false;}
     *Out=W;return true;
 }
-XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker* W,xbytesview Data,int64 Timeout,xfuture** Out)
+static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out)
 {
-    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
-    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
+    if(!W||isnan(Deadline)||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
         xmqttJWError(XERR_ARGUMENT,"invalid append admission span/deadline");return XMQTT_JWORK_ERROR;}
     xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;xmqttJWReap(W);xmqttjournaladmission A=XMQTT_JWORK_ERROR;
     size_t N=0;xmqttjwitem* J=NULL;xmqttjwpump* T=NULL;xfuture* F=NULL;bool Reserved=false,PumpReserved=false,Linked=false;
@@ -188,6 +204,16 @@ End:
     if(Reserved)xmqttJWUncharge(W,N,true);
     xmqttJWCurrent=Scope.Previous;return A;
 }
+XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker* W,xbytesview Data,int64 Timeout,xfuture** Out)
+{
+    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
+    if(Timeout<XRT_WAIT_FOREVER){xmqttJWError(XERR_ARGUMENT,"invalid append timeout");return XMQTT_JWORK_ERROR;}
+    return xmqttJWAppendAt(W,Data,Deadline,Out);
+}
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out)
+{return xmqttJWAppendAt(W,Data,Deadline,Out);}
+#endif
 XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
 {
     if(!W)return xmqttJWError(XERR_ARGUMENT,"NULL journal worker");
@@ -222,4 +248,13 @@ XMQTT_API bool xmqttJournalWorkerDestroy(xmqttjournalworker* W)
     if(!xmqttInternalJournalWorkerDestroy(W->Journal,W))return false;
     W->Journal=NULL;W->Pool=NULL;xmqttJWDrop(W);return true;
 }
+
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* W,xmqttcommitstatus (*Prepare)(ptr,xbytesview),void (*Finish)(ptr,const xmqttcommitresult*),ptr Context)
+{
+    if(!W||!Prepare||!Finish||!Context)return xmqttJWError(XERR_ARGUMENT,"invalid private semantic owner hooks");
+    xrtMutexLock(&W->Gate);bool OK=!W->Prepare&&!W->Info.Accepted&&!W->Info.Closed&&!W->Info.Requests&&!W->Info.Tasks;
+    if(OK){W->Prepare=Prepare;W->Finish=Finish;W->Store=Context;}xrtMutexUnlock(&W->Gate);return OK;
+}
+#endif
 #endif

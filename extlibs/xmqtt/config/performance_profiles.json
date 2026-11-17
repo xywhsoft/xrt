@@ -5199,6 +5199,109 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_store_write",
+      "description": "Matched native two-sync typed256-byte accept+ACK transactions: opaque worker vs staged legal model; component diagnostics only",
+      "benchmarks": [
+        {
+          "name": "typed_worker_native",
+          "source": "extlibs/xmqtt/bench/bench_store_write.c",
+          "suite": "xmqtt_store_write_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "typed_store_write_native",
+          "source": "extlibs/xmqtt/bench/bench_store_write.c",
+          "suite": "xmqtt_store_write_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        }
+      ],
+      "system": "session"
     }
   ]
 }

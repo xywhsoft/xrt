@@ -1,0 +1,213 @@
+{
+  "date": "2026-11-18",
+  "status": "developing; Windows phase verified; final Linux and diagnostics pending; original four-product goal active",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "cc8e70ef186af631ddf895c3fce26ae69c94ba17",
+  "verified_at_revision": "cc8e70ef186af631ddf895c3fce26ae69c94ba17",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "changes": [
+    "Eight public APIs for exclusive matching recovered State + READY Journal ownership on the existing bounded borrowed host pool",
+    "Decode and legal transition/resource preflight before IO; touched-entry hash overlay retains existing wires, copies new payloads and avoids whole-State payload snapshots",
+    "Atomically install COMMITTED model before result/watch even for late local failure; discard NOT/MAY candidates, stop on uncertainty/local initialization failures",
+    "INVALID and normal LIMIT preserve old model and later valid admission; recovered live model requires a new recorded authenticated OPEN before protocol flows",
+    "Original absolute deadline through admission/preparation/IO and semantic cleanup; no interrupted syscall or new Core API/runtime/thread",
+    "Separate bounded metadata scratch reserves worst configured reset capacity so exact valid recovered memory cap can still ACK/free records",
+    "Reuse owned expected ClientId at matching BIND without extra allocation; abort retains original expected identity",
+    "Publish metadata under the model gate; actual payload/plan frees outside gate; public allocator Free callback can inspect complete state and Close; payload credits refunded after physical free, late Close preserves COMMITTED",
+    "Allocation-free copied reads; retained ordinary commit results survive live owners with only inert worker ledger/input; serialized destruction and borrowed-file/pool physical lifetime remain required"
+  ],
+  "validation": {
+    "current_windows_functional_pass": true,
+    "windows_program_counts": {
+      "suite": 20,
+      "allocator_final": 1,
+      "regression": 41,
+      "delivery": 20,
+      "smoke": 2,
+      "abi": 3,
+      "size": 0,
+      "exports": 0,
+      "cuts": 108,
+      "legacy_equivalence": 0,
+      "gates": 0
+    },
+    "suite_programs": 20,
+    "additional_final_allocator_callback_close_program": 1,
+    "separate_static_shared_programs": 20,
+    "forms": [
+      "modular",
+      "single",
+      "root",
+      "statistics off",
+      "Core + extension static",
+      "Core + extension shared",
+      "standalone declarations"
+    ],
+    "versions": [
+      "MQTT5",
+      "MQTT3.1.1"
+    ],
+    "illegal_histories": 44,
+    "quota_refusals": 22,
+    "real_constructor_allocation_prefix_failures": 3,
+    "real_native_preparation_allocation_prefix_failures": 6,
+    "real_postsync_native_error_key_failures": 4,
+    "error_fixture": "Actual native error-key shim temporarily detaches and immediately restores the real host task error context to reach the native setter edge; COMMITTED and installed state/fresh recovery preserved",
+    "storage_failure_models_per_integration_program": 448,
+    "concurrency": {
+      "producers": 4,
+      "allocation_free_readers": 2,
+      "host_workers": 4,
+      "exact_typed_commits": 128,
+      "native_overlapping_writes": 0
+    },
+    "tight_recovery_ack_headroom_bytes": [
+      216,
+      58
+    ],
+    "actual_backing_allocator_reentry": true,
+    "payload_credits_until_actual_free": true,
+    "late_allocator_close_preserves_committed": true,
+    "process_kills": 84,
+    "process_cut_forms": 6,
+    "real_native_barriers": 7,
+    "independent_literal_python_oracle": true,
+    "powerloss_qualified": false,
+    "legacy_programs": 41,
+    "legacy_equivalence": {
+      "original_map_sha256": "bb25df6ff1fca95afee2dd5c374ae0e8cd2f817ad92966ce79421807a30eb411",
+      "current_map_sha256": "bac38ac25cdf60b8aa2b87f687848a72dd54e8cf64f2e414c71bcc0a1430e913",
+      "rows": [
+        {
+          "suite": "xmqtt_journal_tests",
+          "preprocessed_sha256": "cb8c87f7b310ba37601d9ce52c92551accb56cd9dd1cb044892e9b0f3774ac60",
+          "raw_sha256": [
+            "f500da3d3846971fd129450b7ce86dd37383e4250a1b29f96e295245b007f7b8",
+            "f500da3d3846971fd129450b7ce86dd37383e4250a1b29f96e295245b007f7b8"
+          ],
+          "exact_free_line_join_counts": [
+            0,
+            0
+          ],
+          "writer_selected": false,
+          "selected_function": "xmqttJournalAppend",
+          "selected_function_occurrences": 2
+        },
+        {
+          "suite": "xmqtt_store_state_tests",
+          "preprocessed_sha256": "86b7bae3fdcf0ac30035d4924695d4c4b77739ccbc1bc313bf6ffa213d85014e",
+          "raw_sha256": [
+            "176c43452df519e9bfed17ab5ea521c783431debd5a149036f979c31a4b49b64",
+            "414008503becae35083f032f67dc480daeeaa354bdcceecc5d74c71540802877"
+          ],
+          "exact_free_line_join_counts": [
+            0,
+            1
+          ],
+          "writer_selected": false,
+          "selected_function": "xmqttStoreStateRecover",
+          "selected_function_occurrences": 2
+        },
+        {
+          "suite": "xmqtt_store_session_tests",
+          "preprocessed_sha256": "10b05dae6cd79c162c9d82ee0f9c71bb4f7ac1a8d237e8db96d1317afed3d1f7",
+          "raw_sha256": [
+            "bed86b2b85578fbab2ad4418fb2eb864b94e17e6ae50432361f0a14e616d77dd",
+            "8d4b0a9db3d6ddec84e73c5c704ea6a596e6943398befbeac2a9318a113a2139"
+          ],
+          "exact_free_line_join_counts": [
+            0,
+            1
+          ],
+          "writer_selected": false,
+          "selected_function": "xmqttStoreSessionRestore",
+          "selected_function_occurrences": 2
+        },
+        {
+          "suite": "xmqtt_journal_worker_tests",
+          "preprocessed_sha256": "ee291531e38102803c4400ea2bc74e92a1f66071c6ff455930087390ef7ae3b0",
+          "raw_sha256": [
+            "4bd0a97c35c5db306361800387134bd1e4b520731321b8a16017b7a8e3df43ab",
+            "633be1348b7dbfb1e74f788fdaf8a62d1913c1fa895f2129b6c19b61ed324c8c"
+          ],
+          "exact_free_line_join_counts": [
+            0,
+            1
+          ],
+          "writer_selected": false,
+          "selected_function": "xmqttJournalWorkerAppendAsync",
+          "selected_function_occurrences": 2
+        }
+      ]
+    },
+    "public_exports": 8,
+    "private_helpers_hidden": 17,
+    "public_layout": "80 8 16 24 296 16 152 64",
+    "three_forms_match": true,
+    "trim_single_static_shared": true,
+    "trim_excludes": [
+      "Session",
+      "Client",
+      "Engine",
+      "VFS",
+      "Session image"
+    ],
+    "skips": [],
+    "final_linux_revalidated": false,
+    "linux": "Queued final suite is waiting for WSL startup while an external Ubuntu storage migration is active. Earlier19-program ASan/UBSan/leak and Clang21 TSan results precede callback-safe retirement and are historical,not final-source validation.",
+    "cross_os_readback": "pending final Linux delivery/native cuts"
+  },
+  "performance": {
+    "qualified": false,
+    "status": "Windows canonical matched two-sync diagnostic cohort running at checkpoint; no result used; Linux local-ext4 cohort and allocation probes pending",
+    "scope": "Same256-byte accept+Inbox-ACK transactions through opaque JournalWorker versus semantic StoreWrite,1000 closed-loop operations,one outstanding,two host workers,two native sync barriers per commit,five repetitions plus one warmup; original3% MAD/6% central gates",
+    "costs": [
+      "Input whole-job calloc zero initialization,retained input copy and final secure wipe",
+      "Core Promise/token/task/native-tail ownership and synchronization",
+      "Semantic native decode/legal validation,touched metadata hash plan,new-wire allocation/copy,atomic install and lock-free retirement callbacks",
+      "No zero-overhead,product parity,fixed-arrival,controlled throughput/tails or native72h claim"
+    ],
+    "environment": "Shared unpinned Windows host; external WSL VHD migration is active and can affect filesystem timings"
+  },
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 27,
+    "proof": "strict-release.json"
+  },
+  "pending": [
+    "Observe the already-submitted Linux suite; do not duplicate it or stop the external WSL migration",
+    "Final Linux ASan/UBSan/leak,Clang21 TSan,static/shared/root/stats-off/ABI/exports/trim,legacy41,native84 cuts and cross-OS12 readers/platform",
+    "Observe the running Windows diagnostic cohort,retain noise/failure evidence; actual allocation probes and Linux local-ext4 diagnostic cohort",
+    "Live Client prepare/commit/network-output and delivery leases,old-transport fencing",
+    "Namespace publication/locking,compaction/group-commit policy",
+    "Remaining original four-product scope,controlled throughput/tails and native Windows/native Linux >=72h"
+  ],
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-store-write-20261117",
+    "source_map_sha256": "c769b512544ce77ef1616644a0768564db0e76250998866bfc2523c19531a337",
+    "audit": "windows-evidence-audit.json",
+    "audit_sha256": "dedfc345b7ccc669d521da134b43fb531239bc29d8c16cde75293093507ba6f3",
+    "preserved_compressed_binary_records": 450,
+    "historical_linux_final_runtime_qualified": false,
+    "negative_reproductions": [
+      "control-headroom-reproduction.json: actual old shared library could not ACK at its exact valid recovery memory cap",
+      "windows-allocator-repro.log: actual public backing Free occurred inside nonrecursive model gate"
+    ],
+    "initial_failures_retained": true,
+    "pending_process_evidence": "pending-native-processes.json",
+    "pending_linux_exec_session": 23837,
+    "checkpoint": {
+      "kind": "Immutable copy of Windows stage evidence; running benchmark/final Linux outputs are excluded",
+      "directory": "checkpoint/windows-20261118",
+      "files": 2026,
+      "sha256": "c3ed4dab618f0978f875dcc907e114c955d873bb623e5948cf0cfa16228ec24a",
+      "source_map_sha256": "c769b512544ce77ef1616644a0768564db0e76250998866bfc2523c19531a337"
+    }
+  },
+  "concurrent_work": {
+    "preserved_revision": "804cc769de3030118c2b46ef7af69543d1b82d9d",
+    "description": "Preserved other-thread Core value mainline commit; no Core path in this change; external WSL migration not interrupted"
+  }
+}

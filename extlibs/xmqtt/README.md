@@ -280,3 +280,21 @@ Direct [State-to-Session import](docs/store_session.md) and bounded
 now developing components, with [runnable worker example](examples/journal_worker/README.md).
 Live durable Client/ACK integration, delivery leases, namespace publication,
 compaction and controlled production acceptance remain open.
+
+The developing [mutable typed store](docs/store_write.md) now stages legal changes
+on that borrowed host pool and atomically installs committed metadata before
+result publication,with allocation-free copied reads. Its [real-file example](examples/store_write/README.md)
+ACKs a recovered Inbox record and verifies fresh recovery. Windows stage checks
+pass; final Linux revalidation currently waits for an external WSL disk migration.
+The [dated evidence](../../docs/development/xmqtt-store-write-20261118.json) records
+that pending qualification explicitly. Live durable Client/ACK and delivery-lease
+integration and production performance/native72h acceptance remain required.
+
+The developing [mutable typed store](docs/store_write.md) now stages legal changes
+on that borrowed host pool and atomically installs committed metadata before
+result publication,with allocation-free copied reads. Its [real-file example](examples/store_write/README.md)
+ACKs a recovered Inbox record and verifies fresh recovery. Windows stage checks
+pass; final Linux revalidation currently waits for an external WSL disk migration.
+The [dated evidence](../../docs/development/xmqtt-store-write-20261118.json) records
+that pending qualification explicitly. Live durable Client/ACK and delivery-lease
+integration and production performance/native72h acceptance remain required.

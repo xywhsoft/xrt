@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `171` 个函数、`293` 个常量或宏、
-`107` 个公共类型。
+当前登记 `179` 个函数、`295` 个常量或宏、
+`110` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -428,11 +428,12 @@
 - `xmqttJournalWorkerInfo`
 - `xmqttJournalWorkerWaitFor`
 
-### 常量与宏 (12)
+### 常量与宏 (13)
 
 - `XMQTT_COMMIT_CANCELLED`
 - `XMQTT_COMMIT_CLOSED`
 - `XMQTT_COMMIT_INITIALIZATION`
+- `XMQTT_COMMIT_INVALID`
 - `XMQTT_COMMIT_LIMIT`
 - `XMQTT_COMMIT_OK`
 - `XMQTT_COMMIT_STORAGE`
@@ -861,6 +862,31 @@
 - `xmqttstorestatus`
 - `xmqttstoreview`
 - `xmqttstoreviewkind`
+
+## `extlibs/xmqtt/include/xmqtt/store_write.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/store_write.h)
+
+### 函数 (8)
+
+- `xmqttStoreWriteAppendAsync`
+- `xmqttStoreWriteClose`
+- `xmqttStoreWriteConfigInit`
+- `xmqttStoreWriteCreate`
+- `xmqttStoreWriteDestroy`
+- `xmqttStoreWriteInfo`
+- `xmqttStoreWriteRead`
+- `xmqttStoreWriteWaitFor`
+
+### 常量与宏 (1)
+
+- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
+
+### 类型 (3)
+
+- `xmqttstorewrite`
+- `xmqttstorewriteconfig`
+- `xmqttstorewriteinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/wire.h`
 

@@ -214,6 +214,19 @@
         "xrtNetEngineCreate",
         "xrtVfsCreate"
       ]
+    },
+    {
+      "name": "xmqtt_store_write",
+      "system": "session",
+      "suite": "xmqtt_store_write",
+      "description": "Bounded legal typed transactions on a borrowed host pool; no Session,Client,Engine,VFS or image serialization",
+      "forbid_symbols": [
+        "xmqttSessionCreate",
+        "xmqttClientConnect",
+        "xrtNetEngineCreate",
+        "xrtVfsCreate",
+        "xmqttSessionImageRestore"
+      ]
     }
   ]
 }

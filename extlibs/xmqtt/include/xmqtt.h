@@ -26,6 +26,10 @@
 #include <xmqtt/session_image.h>
 #include <xmqtt/journal.h>
 #include <xmqtt/journal_worker.h>
+#include <xmqtt/store_write.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+#error "MQTT root requires semantic store writer"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #error "MQTT root requires journal worker"
 #endif

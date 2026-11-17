@@ -8,7 +8,7 @@
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 typedef struct xmqttjournalworker xmqttjournalworker;
 typedef enum xmqttjournaladmission {XMQTT_JWORK_ERROR=-1,XMQTT_JWORK_ACCEPTED=0,XMQTT_JWORK_OVERLOADED,XMQTT_JWORK_CLOSED} xmqttjournaladmission;
-typedef enum xmqttcommitstatus {XMQTT_COMMIT_OK=0,XMQTT_COMMIT_TIMEOUT,XMQTT_COMMIT_CANCELLED,XMQTT_COMMIT_CLOSED,XMQTT_COMMIT_LIMIT,XMQTT_COMMIT_STORAGE,XMQTT_COMMIT_INITIALIZATION} xmqttcommitstatus;
+typedef enum xmqttcommitstatus {XMQTT_COMMIT_OK=0,XMQTT_COMMIT_TIMEOUT,XMQTT_COMMIT_CANCELLED,XMQTT_COMMIT_CLOSED,XMQTT_COMMIT_LIMIT,XMQTT_COMMIT_STORAGE,XMQTT_COMMIT_INITIALIZATION,XMQTT_COMMIT_INVALID} xmqttcommitstatus;
 typedef struct xmqttjournalworkerconfig {size_t Size,MaxRequests,MaxObjects,MaxBytes,MaxTasks,MaxTransactionBytes,WorkTransactions;} xmqttjournalworkerconfig;
 typedef struct xmqttcommitresult {
     xmqttcommitstatus Status;xmqttjournalstatus AppendStatus;xmqttjournaleffect Effect;

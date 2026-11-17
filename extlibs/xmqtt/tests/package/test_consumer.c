@@ -175,6 +175,15 @@ int main(void)
 	{xmqttstoredeltaconfig C;xmqttstoredeltadocument D;unsigned char B[32];size_t N=0;
 	if(!xmqttStoreDeltaConfigInit(&C)||xmqttStoreDeltaSize(&C,NULL,0,NULL,0,&N)!=XMQTT_STORE_DELTA_DONE||N!=32||xmqttStoreDeltaWrite(&C,NULL,0,NULL,0,B,sizeof(B),&N)!=XMQTT_STORE_DELTA_DONE||xmqttStoreDeltaRead(&C,(xbytesview){B,N},NULL,0,NULL,0,&D)!=XMQTT_STORE_DELTA_DONE||D.Count)return 41;}
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+    {xmqttstorewriteconfig C;xmqttstorewrite* W=(xmqttstorewrite*)(uintptr_t)1;xfuture* F=(xfuture*)(uintptr_t)1;size_t Need=99;
+    if(!xmqttStoreWriteConfigInit(&C)||C.MaxScratchBytes!=1048576||C.MaxModelWork!=65536||C.Worker.WorkTransactions!=32||
+       xmqttStoreWriteCreate(NULL,NULL,NULL,&C,&W)||W!=(xmqttstorewrite*)(uintptr_t)1||
+       xmqttStoreWriteAppendAsync(NULL,XRT_BYTES_LITERAL("x"),100,&F)!=XMQTT_JWORK_ERROR||F!=(xfuture*)(uintptr_t)1||
+       xmqttStoreWriteInfo(NULL,NULL)||xmqttStoreWriteRead(NULL,1,NULL,0,NULL,&Need)!=XMQTT_STORE_ERROR||Need!=99||
+       xmqttStoreWriteClose(NULL)||xmqttStoreWriteWaitFor(NULL,0)!=XWAIT_ERROR||!xmqttStoreWriteDestroy(NULL))return 45;
+    xrtClearError();}
+#endif
 	if (xmqttFrameRead((xbytesview){NULL,1},NULL,&Frame) != XMQTT_WIRE_ERROR || xrtErrorDomain(xrtGetError()) == NULL ||
 		strcmp(xrtErrorDomain(xrtGetError()),"xrt.mqtt") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 3;
 	xrtClearError(); return 0;
