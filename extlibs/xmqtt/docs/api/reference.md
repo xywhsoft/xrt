@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `183` 个函数、`296` 个常量或宏、
-`111` 个公共类型。
+当前登记 `185` 个函数、`297` 个常量或宏、
+`115` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -216,6 +216,29 @@
 
 - `xmqttclienttlsconfig`
 
+## `extlibs/xmqtt/include/xmqtt/client_store.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_store.h)
+
+### 函数 (2)
+
+- `xmqttClientConnectStore`
+- `xmqttClientStoreOutcome`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_STORE`
+- `XMQTT_FEATURE_XMQTT_STORE_INBOX`
+
+### 类型 (6)
+
+- `xmqttclientstorecheckpoint`
+- `xmqttclientstoreclock`
+- `xmqttclientstoreconfig`
+- `xmqttclientstoreoutcome`
+- `xmqttjournaleffect`
+- `xmqttstorewrite`
+
 ## `extlibs/xmqtt/include/xmqtt/client_tls.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/client_tls.h)
@@ -404,11 +427,10 @@
 - `XMQTT_JOURNAL_STATE`
 - `XMQTT_JOURNAL_UNCERTAIN`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xmqttjournal`
 - `xmqttjournalconfig`
-- `xmqttjournaleffect`
 - `xmqttjournalinfo`
 - `xmqttjournalrecord`
 - `xmqttjournalstate`
@@ -821,18 +843,16 @@
 - `xmqttStoreInboxRelease`
 - `xmqttStoreInboxTake`
 
-### 常量与宏 (2)
+### 常量与宏 (1)
 
-- `XMQTT_FEATURE_XMQTT_STORE_INBOX`
 - `XMQTT_FEATURE_XMQTT_STORE_WRITE`
 
-### 类型 (6)
+### 类型 (5)
 
 - `xmqttstorelease`
 - `xmqttstorestate`
 - `xmqttstorestatus`
 - `xmqttstoreview`
-- `xmqttstorewrite`
 - `xmqttstorewriteconfig`
 
 ## `extlibs/xmqtt/include/xmqtt/store_session.h`

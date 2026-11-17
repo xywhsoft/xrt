@@ -243,7 +243,10 @@ static xmqttstorestatus xmqttSApply(xmqttstorestate* S,const xmqttstoredelta* D)
     }else {
         if(D->Epoch!=S->Info.Epoch)return xmqttSError(XMQTT_STORE_CORRUPT,"stale protocol epoch");
         if(D->Type==XMQTT_STORE_END){
-            if(!S->Live||(!(D->Flags&1u)&&D->Expiry!=S->Expiry)||(!S->Expiry&&D->Expiry)||
+            /* A graceful END asserts a validated complete DISCONNECT. Only
+             * the live packet owner knows the original CONNECT expiry (the
+             * OPEN record holds the effective CONNACK value). */
+            if(!S->Live||(!(D->Flags&1u)&&D->Expiry!=S->Expiry)||
                (S->Config.Delta.Version==XMQTT_VERSION_311&&D->Expiry!=S->Expiry))return xmqttSError(XMQTT_STORE_CORRUPT,"invalid connection-end expiry transition");
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
             if(S->Plan)S->WriteEstablished=false;

@@ -355,3 +355,28 @@ durable factory, the remaining transport and authentication adapters,
 subscription intents, coordinated namespace fencing, compaction, throughput
 and tail latency acceptance, and native 72-hour qualification remain open.
 [Stage evidence](xmqtt-client-store-send-20261118.json).
+
+
+## 2026-11-18 Public durable TCP Client and graceful END
+
+The public numeric TCP factory attaches a matching disconnected Session to an
+Inbox-mode Writer. The Client exclusively claims its protocol driver until
+physical destroy. Applications retain independent Inbox leases on that Writer.
+The ordinary broker subscribe and unsubscribe operations are available. After a
+broker session reset the application reconciles its desired subscriptions.
+
+Durable Publish and Disconnect results have a quota-charged private extension
+for storage effects. The public write result layout stays fixed. Applications
+can copy the checkpoint sequences and actual effects while the Future value
+lives, including uncertain commits and late completion after a local timeout.
+
+Graceful close records END at confirmed native closure using the supplied
+clock. Complete local DISCONNECT records the reason and effective expiry.
+Abnormal termination preserves the original expiry. If the complete packet
+carried an expiry change and transport completion is uncertain, recovery starts
+from the live-at-cut prefix. The owning Disconnect result waits for END to
+settle and retains the first local failure when a durable effect settles late.
+
+The durable adapters for other transports, authentication and reconnect,
+coordinated fencing, compaction and production performance qualification remain
+open. [Stage evidence](xmqtt-client-store-tcp-20261118.json).

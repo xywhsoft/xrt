@@ -72,7 +72,7 @@ state and are not inferred by a syntax codec.
 | --- | --- |
 |BIND|Data=nonempty valid UTF-8 ClientId, wall; other fields0. Covers explicit assigned-id binding after real authenticated acceptance.|
 |OPEN|clean-start/session-present flag bits1/2, negotiated effective Expiry seconds, wall. Both flag bits together invalid.311 clean=>0 expiry, persistent=>UINT32_MAX.|
-|END|flag1=complete client DISCONNECT and its valid reason, else reason0; effective Expiry and actual disconnect wall.311 expiry0 or infinite.|
+|END|flag1 attests to a complete client DISCONNECT and records its reason, otherwise reason0. Records effective Expiry and the actual disconnect wall. Abnormal END preserves OPEN expiry. A graceful MQTT 5 END can carry a valid expiry override, checked against the original CONNECT by the live Client. MQTT 3.1.1 preserves OPEN expiry.|
 |CLEAR|reason0 admin/1 expiry/2 broker reset, wall. Clears protocol state in the future applier; it must not discard already accepted Inbox deliveries.|
 |OUT_PUT|Key/id, canonical QoS1/2 wire, attempted/sent flag bits1/2. Sent implies attempted.|
 |OUT_ATTEMPT|Key/id; store before the first possible native output when required.|

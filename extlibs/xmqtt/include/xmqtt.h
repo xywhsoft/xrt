@@ -28,6 +28,7 @@
 #include <xmqtt/journal_worker.h>
 #include <xmqtt/store_write.h>
 #include <xmqtt/store_inbox.h>
+#include <xmqtt/client_store.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 #error "MQTT root requires semantic store writer"
 #endif

@@ -227,11 +227,11 @@ static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,
 XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
 {return xmqttSWAppend(W,NULL,Data,Timeout,Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0,Future);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,bool RequireInbox,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
-    bool OK=!W->Driver&&!W->Admissions;
+    bool OK=!W->Driver&&!W->Admissions&&(!RequireInbox||(W->InboxEnabled&&!W->InboxClosed));
     if(OK)W->Driver=Owner;
     xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
     /* Reap native tails outside the model gate: backing frees can reenter Info. */

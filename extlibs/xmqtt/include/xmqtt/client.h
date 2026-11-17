@@ -35,7 +35,8 @@ typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCE
  * A negative PUBCOMP (including id-not-found) does not prove non-delivery.
  * Negative PUBREC ends with REJECTED; otherwise completion requires PUBCOMP and
  * any partial repeated PUBREL frame. No timer-based PUBLISH/PUBREL retransmission,
- * reconnect or persistence. AcceptedBytes counts only the original PUBLISH.
+ * reconnect or persistence in the ordinary Client. See client_store.h for the
+ * developing durable Client. AcceptedBytes counts only the original PUBLISH.
  * The original four-field/Puback prefixes stay fixed; callers must rebuild for
  * the appended QoS2 metadata (write result 40 -> 64 bytes on supported x64). */
 typedef struct xmqttwriteresult {
@@ -158,7 +159,7 @@ XMQTT_API xfuture* xmqttClientReady(xmqttclient* Client);
  * Cancelling/timing out an already accepted prefix retires the connection. */
 XMQTT_API xmqttclientadmission xmqttClientPublishAsync(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
-/* Same operation/deadline; rejects ANY worker of the same Engine. */
+/* Same operation/deadline; rejects workers of the Engine or attached store pool. */
 XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Immutable encoded SUBSCRIBE/UNSUBSCRIBE snapshot, with the same deadline,
@@ -176,7 +177,7 @@ XMQTT_API xmqttclientadmission xmqttClientSubscribeAsync(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 XMQTT_API xmqttclientadmission xmqttClientUnsubscribeAsync(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
-/* Blocking wrappers reject every worker of the same Engine. */
+/* Blocking wrappers reject workers of the Engine or attached store pool. */
 XMQTT_API xmqttclientadmission xmqttClientSubscribe(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 XMQTT_API xmqttclientadmission xmqttClientUnsubscribe(xmqttclient* Client,
@@ -192,14 +193,15 @@ XMQTT_API xmqttclientadmission xmqttClientUnsubscribe(xmqttclient* Client,
  * 0 expires immediately. Cancellation/Close/errors abort without reopening.
  * ACCEPTED returns a typed xmqttwriteresult Future: OK means the native queue
  * drained and the selected transport closed normally (authenticated close for
- * TLS), NOT a broker ACK/Will-suppression guarantee.
+ * TLS). The durable Client also requires a committed END. The broker gives no
+ * acknowledgement of DISCONNECT or guarantee of Will suppression.
  * AcceptedBytes and MAY_HAVE_REACHED_PEER are uncertain even on OK; Reason is
  * the requested reason, Identifier=0 and Puback=NULL. Failure preserves first
  * error and any accepted prefix. The result may outlive Client/Engine. WaitFor
  * additionally observes all actual references. Counters include this request. */
 XMQTT_API xmqttclientadmission xmqttClientDisconnectAsync(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
-/* Same operation/deadline; blocking wrapper rejects every same-Engine worker. */
+/* Same operation/deadline; rejects workers of the Engine or attached store pool. */
 XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Transfer one queued message reference, false/unchanged on empty. Overfull

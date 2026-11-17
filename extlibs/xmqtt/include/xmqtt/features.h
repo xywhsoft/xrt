@@ -99,6 +99,19 @@
 #endif
 #endif
 
+/* xmqtt_client_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_STORE
+#define XMQTT_FEATURE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
+#define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#endif
+
 /* xmqtt_store_inbox 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
 #ifndef XMQTT_FEATURE_XMQTT_STORE_INBOX
@@ -109,19 +122,6 @@
 #endif
 #ifndef XRT_MODULE_RANDOM_SECURE
 #define XRT_MODULE_RANDOM_SECURE
-#endif
-#endif
-
-/* xmqtt_client_store 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_STORE)
-#ifndef XMQTT_FEATURE_XMQTT_CLIENT_STORE
-#define XMQTT_FEATURE_XMQTT_CLIENT_STORE
-#endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
-#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
-#endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
-#define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
 #endif
 

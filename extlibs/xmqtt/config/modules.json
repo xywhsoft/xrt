@@ -2180,9 +2180,11 @@
       "feature": "XMQTT_FEATURE_XMQTT_CLIENT_STORE",
       "depends": [
         "xmqtt_client_session",
-        "xmqtt_store_write"
+        "xmqtt_store_inbox"
       ],
-      "public_headers": [],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_store.h"
+      ],
       "internal_headers": [
         "extlibs/xmqtt/src/internal/xmqtt_client_store.h"
       ],
@@ -2192,7 +2194,8 @@
       "examples": [],
       "benchmarks": [],
       "docs": [
-        "extlibs/xmqtt/docs/client_store.md"
+        "extlibs/xmqtt/docs/client_store.md",
+        "extlibs/xmqtt/docs/api/reference.md"
       ]
     },
     {
@@ -2215,9 +2218,13 @@
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store.c"
       ],
-      "examples": [],
+      "examples": [
+        "extlibs/xmqtt/examples/client_store/main.c"
+      ],
       "benchmarks": [],
-      "docs": []
+      "docs": [
+        "extlibs/xmqtt/examples/client_store/README.md"
+      ]
     },
     {
       "name": "xmqtt_store_inbox",

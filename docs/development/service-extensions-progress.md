@@ -14115,3 +14115,27 @@ durable factory, the remaining transport and authentication adapters,
 subscription intents, coordinated namespace fencing, compaction, throughput
 and tail latency acceptance, and native 72-hour qualification remain open.
 [Stage evidence](xmqtt-client-store-send-20261118.json).
+
+
+## 2026-11-18 Public durable TCP Client and graceful END
+
+The developing Client exposes a numeric TCP factory for MQTT 5.0 and 3.1.1
+with the Inbox-mode Writer. Application PUBLISH and DISCONNECT results expose
+durable checkpoint effects separately from local status and network delivery.
+Graceful completion waits for END at the native close edge. Broker subscription
+operations use their existing acknowledgements. The application reconciles
+desired subscriptions after a session reset.
+
+The mainline passed 55 selected test and example programs on native
+Windows and 55 on Linux under WSL. This covers ordinary Client/Session,
+StoreWriter, State recovery, public durable TCP and Inbox leases in modular
+and single-header builds. The Linux durable fixture also passed ASan,
+UBSan, leak detection and Clang 21 TSan. Static and shared consumers linked
+and ran on both systems. Mosquitto 2.0.22 delivered all 12 independent
+subscriber observations from the public example across the three link forms
+and both protocol levels.
+
+Ordinary integrity gates passed. Strict release still reports 29 developing
+modules. Durable transport adapters, native Linux deployment acceptance and
+controlled throughput and tail-latency acceptance remain open.
+[Stage evidence](xmqtt-client-store-tcp-20261118.json).
