@@ -7,12 +7,32 @@ It records END at the actual native close edge. The borrowed Engine and task poo
 remain running through Client retirement; Writer,file/provider and callback code
 outlive their physical duties. All ordinary Client selections remain independent.
 
-The rest of the online transaction driver is still required: outgoing snapshots/
-attempts/PUBREC/completion,batched incoming acceptance/PUBREL/PUBCOMP retirement,
-durable delivery leases,old-transport fencing and adapters for all transports/auth.
-The private bootstrap fails closed on application flow instead of exposing a
-partially durable public Client. It is not production or performance acceptance.
-No new Core API,thread,pool or shared runtime is added.
+The receive driver journals each accepted PUBLISH, including QoS 0. It queues
+PUBACK or PUBREC only after commit. MQTT 5 alias binds and lookups follow the
+existing connection rules; the persisted packet has a full topic and no alias
+property. Durable payloads are available to the committed store and never enter
+the volatile Inbox. A later delivery lease will supply application consumption
+and acknowledgement.
+
+For QoS 2, a duplicate PUBLISH repeats PUBREC without another acceptance.
+A known PUBREL commits the release and identifier retirement together before
+PUBCOMP, retaining the unacknowledged delivery. If the connection closes after
+that commit but before PUBCOMP, the next connection answers retried PUBREL with
+0x92 in MQTT 5 or the four-byte PUBCOMP in MQTT 3.1.1. A fresh PUBLISH can then
+reuse the identifier. See [MQTT 5.0 Sections 3.7.2.1 and 4.3.3](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1 Section 4.3.3](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
+
+One receive transaction can be pending per Client. Existing committed ACKs and
+keepalive may progress during storage. The current private path gives the
+received frame a commit budget of CloseTimeout from dispatch. A close or local
+failure suppresses the pending network response, while any actual commit still
+updates the corresponding Session state before it closes. Recover and import a
+fresh Session before reattachment. The Writer and native Client must already
+have retired.
+
+Outgoing operations remain unavailable through this path. The next integration
+steps are durable application leases, outgoing snapshots and ACK transitions,
+old transport fencing and the remaining transport and authentication adapters.
 
 
 Run the private integration fixture from the repository root:

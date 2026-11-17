@@ -2200,6 +2200,7 @@
       "feature": null,
       "depends": [
         "xmqtt_client_store",
+        "xmqtt_store_session",
         "vfs",
         "memory_stats",
         "file_temp"

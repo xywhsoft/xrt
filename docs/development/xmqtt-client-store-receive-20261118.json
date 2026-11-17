@@ -1,0 +1,104 @@
+{
+  "stage": "MQTT Client incoming durable checkpoints",
+  "date": "2026-11-18",
+  "branch": "master",
+  "previous_commit": "c1da3ec9231443a680b9f027264b1480864acb13",
+  "source_map_sha256": "e1e9a2d18bb7604b54c0698c23aee4faecbba2c395a21fb8387ac83f31b5442b",
+  "source_map_note": "Compiled input files were unchanged throughout the final runs. The map also includes documentation updated after the initial receive builds started.",
+  "evidence_directory": "out/service-extensions/mqtt-client-store-receive-20261118",
+  "scope": "Private numeric TCP Client, MQTT 5.0 and 3.1.1, current release maturity developing",
+  "ordering": [
+    "Accept PUBLISH atomically with persisted durable delivery, plus QoS2 receive identity before PUBREC.",
+    "QoS2 duplicate repeats PUBREC without another durable delivery.",
+    "Known PUBREL batches transition and identifier retirement before PUBCOMP. Delivery persists.",
+    "After physical Client and Writer retirement and fresh recovery/import, resumed session responds to retried PUBREL and permits reuse of retired id.",
+    "Close while a receive operation is pending suppresses its ACK but retains actual file duty and applies committed effects before Session end."
+  ],
+  "tests": {
+    "windows": {
+      "programs": {
+        "receive": 2,
+        "xmqtt_client": 11,
+        "xmqtt_client_session_tests": 3,
+        "xmqtt_store_write_tests": 20
+      },
+      "receive_scenarios_per_program": 10,
+      "connection_regression_scenarios_per_program": 16,
+      "standard_package_consumers": 2,
+      "shared_exports": 110,
+      "private_symbols_verified_hidden": [
+        "xmqttInternalClientConnectStore",
+        "xmqttInternalStoreWriteIncomingKey",
+        "xmqttInternalStoreWriteDriverIncoming"
+      ],
+      "receipts": "windows-receipts.json",
+      "receipts_sha256": "6c5587630d714362ca957a8fa450f455020c0bb3c91320b49d79ddf33e050e5e",
+      "package_receipts": "windows-packages.json",
+      "package_receipts_sha256": "312a77602981b5581d2de37354c121f1d123721eec69312d9a64701d561577f5"
+    },
+    "wsl": {
+      "programs": {
+        "receive": 2,
+        "xmqtt_client": 11,
+        "xmqtt_client_session_tests": 3,
+        "xmqtt_store_write_tests": 20,
+        "tsan": 1
+      },
+      "receive_scenarios_per_program": 10,
+      "connection_regression_scenarios_per_program": 16,
+      "standard_package_consumers": 2,
+      "shared_exports": 110,
+      "private_symbols_verified_hidden": [
+        "xmqttInternalClientConnectStore",
+        "xmqttInternalStoreWriteIncomingKey",
+        "xmqttInternalStoreWriteDriverIncoming"
+      ],
+      "receipts": "wsl-receipts.json",
+      "receipts_sha256": "fcd90d92f7f642a3462cf858080ed79c795df579d6729569fc4f2667bfdeaf4e",
+      "package_receipts": "wsl-packages.json",
+      "package_receipts_sha256": "1f63578f4b836bcd4c8d78c46d8d7ae00e7e81cc21622a700f72246bd9f00c10"
+    }
+  },
+  "fixture": [
+    "Actual TCP with literal peer bytes, one-byte ACK write chunks and model sequence recorded by peer at ACK reception.",
+    "Held final file sync during PUBLISH acceptance or identifier retirement. No ACK escapes the hold.",
+    "Real native temporary journal and separate fault-injected VFS journal. Reopen, replay and use a fresh Session and Client.",
+    "QoS0/1/2 acceptance, alias binding and empty-topic resolution, duplicate QoS2, identifier reuse, write refusal and Inbox quota refusal.",
+    "Retained delivery uses canonical full topic and has no connection alias. No duplicate delivery through volatile Inbox."
+  ],
+  "sanitizers": {
+    "wsl_receive_modular_and_single": [
+      "ASan",
+      "UBSan",
+      "leak detection"
+    ],
+    "wsl_receive_modular_clang_21": [
+      "TSan"
+    ]
+  },
+  "normal_gates": [
+    "generated features",
+    "generated single header",
+    "API documentation",
+    "API reference",
+    "normal maturity",
+    "extension layout"
+  ],
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 28,
+    "expected": true,
+    "log": "windows-strict-release.log",
+    "log_sha256": "b9916d8354d780e0c5f7dd734503bbecf1d6c9cd3d29beb52e8b8bda62aec6df"
+  },
+  "retained_attempts": [
+    "Initial WSL wrapper failed to pass its shell redirection cleanly and ran no tests. The corrected direct WSL invocation produced the recorded results."
+  ],
+  "limits": [
+    "No public durable Client factory or application delivery lease yet.",
+    "Outgoing PUBLISH scheduling and durable ACK mutation, other transports and authentication remain outstanding.",
+    "The private receive path serializes one storage transaction at a time per Client with a CloseTimeout commit budget and the existing native sync policy.",
+    "Static and shared qualification runs standard public package consumers. Private live driver runs in modular and single-header fixtures.",
+    "No controlled performance, physical power-loss, full four-product release or native 72-hour acceptance is claimed."
+  ]
+}

@@ -4,6 +4,7 @@
 #include "../internal/xmqtt_internal.h"
 #include "../internal/xmqtt_store_session_source.h"
 #include "../internal/xmqtt_store_write.h"
+#include "../internal/xmqtt_client_store.h"
 #include <stdlib.h>
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
@@ -37,8 +38,15 @@ static size_t xmqttSIdBucket(const xmqttstorestate* S,uint16 Id,bool Out)
 {return ((size_t)Id*2654435761u+(Out?1u:0u))&(S->Buckets-1u);}
 static xmqttstoreentry* xmqttSFindBase(const xmqttstorestate* S,uint64 Key)
 {if(S->Buckets)for(xmqttstoreentry* E=S->Keys[xmqttSKeyBucket(S,Key)];E;E=E->KeyNext)if(E->View.Key==Key)return E;return NULL;}
+static const xmqttstoreentry* xmqttSIdFindBase(const xmqttstorestate* S,uint16 Id,bool Out)
+{
+    if(S->Buckets)
+        for(const xmqttstoreentry* E=S->Ids[xmqttSIdBucket(S,Id,Out)];E;E=E->IdNext)
+            if(E->View.Identifier==Id&&E->Out==Out)return E;
+    return NULL;
+}
 static bool xmqttSIdUsedBase(const xmqttstorestate* S,uint16 Id,bool Out)
-{if(S->Buckets)for(xmqttstoreentry* E=S->Ids[xmqttSIdBucket(S,Id,Out)];E;E=E->IdNext)if(E->View.Identifier==Id&&E->Out==Out)return true;return false;}
+{return xmqttSIdFindBase(S,Id,Out)!=NULL;}
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 typedef struct xmqttstorechange {
     xmqttstoreentry Value;struct xmqttstorechange *KeyNext,*IdNext;
@@ -389,6 +397,12 @@ Finish:
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteIncomingKey(xmqttstorestate* S,const void* Owner,uint16 Id)
+{
+    if(!S||S->WriteOwner!=Owner||S->Plan)abort();
+    const xmqttstoreentry* E=xmqttSIdFindBase(S,Id,false);
+    return E?E->View.Key:0;
+}
 XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* S,const void* Owner)
 {if(!S||S->WriteOwner!=Owner)abort();return S->Opened;}
 #endif

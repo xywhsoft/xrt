@@ -106,6 +106,14 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     else {W->Driver=NULL;OK=false;}
     xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
 }
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Id)
+{
+    if(!xrtMutexLock(&W->Gate))abort();
+    if(!Owner||W->Driver!=Owner||W->Pending)abort();
+    uint64 Key=xmqttInternalStoreWriteIncomingKey(W->State,W,Id);
+    if(!xrtMutexUnlock(&W->Gate))abort();
+    return Key;
+}
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable)
 {
     if(!W||!xrtMutexLock(&W->Gate))abort();

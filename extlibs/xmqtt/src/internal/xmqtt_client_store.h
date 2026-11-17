@@ -7,7 +7,8 @@
 /* Private integration under development. No public factory until all online
  * transitions and durable delivery capabilities are implemented. Callers stop
  * all Writer API entries before attaching. Engine/pool stay running through
- * Client physical retirement; file/backend outlive Writer destruction. */
+ * Client physical retirement; file/backend outlive Writer destruction.
+ * Reattach with a Session imported from the authoritative committed prefix. */
 typedef bool (*xmqttstorewall)(ptr User,uint64* Milliseconds);
 typedef struct xmqttclientstoreplan {xmqttstorewrite* Writer;xmqttstorewall Wall;ptr User;} xmqttclientstoreplan;
 XMQTT_INTERNAL bool xmqttInternalClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
@@ -17,6 +18,8 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool);
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable);
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Identifier);
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteIncomingKey(xmqttstorestate* State,const void* Owner,uint16 Identifier);
 XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* State,const void* Owner);
 #endif
 #endif

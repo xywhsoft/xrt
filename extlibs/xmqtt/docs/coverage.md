@@ -763,3 +763,25 @@ noise/watchdog failures, namespace/locking, compaction/group commit, full four-
 product scope and native Windows/native Linux >=72h qualification remain open.
 All development and tests use D:/GIT/xrt master; no branch/worktree action or push.
 See [stage evidence](../../../docs/development/xmqtt-client-store-open-20261118.json).
+
+
+## 2026-11-18: live receive commit and ACK ordering
+
+The developing numeric TCP Client now persists each accepted PUBLISH before ACK
+on MQTT 5.0 and 3.1.1. QoS 2 duplicates reuse committed receive identities.
+PUBREL and identifier retirement commit atomically before PUBCOMP. The delivery
+remains in the durable store until explicit application acknowledgement. The
+next connection can repeat the appropriate PUBCOMP for a lost response and
+reuse the retired packet identifier. This follows the broker retry ordering in
+[MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
+
+The live fixture checks literal packets at the TCP peer and stops actual file
+operations at the final sync. It verifies no premature ACK, late Close across
+both acceptance and retirement, native file recovery, fresh Session import and
+resumption, MQTT 5 alias canonicalization, storage refusal and full Inbox refusal.
+One transaction per received message or known PUBREL is the current policy.
+The private driver still needs durable leases, outgoing flows, and the full
+transport and authentication integration. Controlled throughput and tail latency
+and the native 72-hour acceptance remain outstanding.
+See [stage evidence](../../../docs/development/xmqtt-client-store-receive-20261118.json).
