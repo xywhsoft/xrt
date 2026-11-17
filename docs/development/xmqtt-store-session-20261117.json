@@ -1,0 +1,497 @@
+{
+  "status": "developing; original four-product goal active",
+  "date": "2026-11-17",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "8f5fcdafd35caae6c953c6c8fd9320f3da8ef996",
+  "verified_at_revision": "8f5fcdafd35caae6c953c6c8fd9320f3da8ef996",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "changes": [
+    "Three public APIs for exact-bound passive committed-State import into an independent disconnected Session",
+    "Preserve outgoing id/order/attempt/sent/PUBLISH-or-PUBREL and incoming QoS2 identity stage; connection generation starts0",
+    "Exact version/broker-principal-slot/storage generation/client identity and explicit MQTT5 assigned-id recovery",
+    "Charge additional trusted-wall time since State recovery, refuse rollback, retain live-cut candidate pending new broker decision",
+    "New owner MaxBytes/count/codec caps and separate bounded property scratch; no partial publication before checked quiet ambient restoration",
+    "One native parse and retained wire copy per outgoing plus property descriptor copying/rebasing; private packet/index/expiry constructor shared with image restore",
+    "No new Core API/runtime; independent source Inbox remains pending; host must retire old transport; no old Future recreation or live commit/ACK fencing"
+  ],
+  "validation": {
+    "platforms": [
+      "native Windows x64 GCC",
+      "WSL Linux x64 GCC; not native Linux production acceptance"
+    ],
+    "forms": [
+      "modular",
+      "single",
+      "full-root selection",
+      "statistics off",
+      "separate Core/XMQTT static",
+      "separate Core/XMQTT shared",
+      "standalone declarations"
+    ],
+    "normal_and_assigned_imports": 5,
+    "expiry_cuts": 3,
+    "config_identity_clock_and_resource_refusals": 40,
+    "actual_allocation_prefixes": 9,
+    "actual_error_key_failures_per_platform": 24,
+    "bound_contexts_per_platform": 2,
+    "held_packet_lifetime_after_source_and_Session_destruction": true,
+    "independent_actual_Client_Engine_wire_cases_per_platform": 4,
+    "wire_fixture": "Complete committed typed transaction on test VFS; independent literal Python TCP peer with no native implementation imports; both versions and full/fragmented IO",
+    "separate_real_native_file_example": true,
+    "legacy_regressions": [
+      "Session image",
+      "actual Client image replacement",
+      "Session state",
+      "committed State"
+    ],
+    "legacy_later_input_equivalence": "Exact GCC preprocessed single implementations for three selections before/after inactive test selection and comment changes",
+    "sanitizers": [
+      "WSL ASan",
+      "WSL UBSan",
+      "WSL leak detection"
+    ],
+    "public_exports": 3,
+    "hidden_extension_private_helpers": 3,
+    "public_layout": "56 8 8 24 32 40 48 112 88",
+    "three_forms_and_two_os_abi_match": true,
+    "trim_single_static_shared": true,
+    "trim_excludes": [
+      "Client",
+      "Engine",
+      "VFS",
+      "Session image serialization"
+    ],
+    "all_selected_final_functional_checks_passed": true,
+    "skips": []
+  },
+  "performance": {
+    "qualified": false,
+    "cohorts": {
+      "windows": {
+        "qualified": false,
+        "quality_failure_count": 14,
+        "quality_failures": [
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/operations_per_sec: relative_mad=3.0%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p95_us: relative_mad=4.2%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p95_us: relative_central_range=51.6%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p99_us: relative_mad=17.2%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p99_us: relative_central_range=23.0%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_max_us: relative_central_range=24.8%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p95_us: relative_central_range=25.6%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p99_us: relative_mad=4.6%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p99_us: relative_central_range=11.7%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p999_us: relative_mad=4.7%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p999_us: relative_central_range=6.2%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_max_us: relative_mad=5.4%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_max_us: relative_central_range=9.7%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/process_cpu_ns_per_op: relative_central_range=100.0%"
+        ],
+        "medians": {
+          "store_session_propertyfree": {
+            "operations_per_sec": 61763.471,
+            "latency_p50_us": 14.7,
+            "latency_p95_us": 19.2,
+            "latency_p99_us": 24.4,
+            "latency_p999_us": 31.4,
+            "latency_max_us": 31.8,
+            "process_cpu_ns_per_op": 15625.0
+          },
+          "store_session_properties": {
+            "operations_per_sec": 47115.14,
+            "latency_p50_us": 19.9,
+            "latency_p95_us": 25.4,
+            "latency_p99_us": 36.7,
+            "latency_p999_us": 46.7,
+            "latency_max_us": 49.6,
+            "process_cpu_ns_per_op": 15625.0
+          }
+        }
+      },
+      "wsl": {
+        "qualified": false,
+        "quality_failure_count": 16,
+        "quality_failures": [
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p95_us: relative_mad=3.7%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p95_us: relative_central_range=10.0%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p99_us: relative_mad=7.6%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p99_us: relative_central_range=13.6%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p999_us: relative_mad=25.1%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_p999_us: relative_central_range=39.9%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_max_us: relative_mad=14.6%",
+          "[quality-fail] xmqtt_store_session/store_session_propertyfree/latency_max_us: relative_central_range=22.8%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p95_us: relative_mad=19.6%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p95_us: relative_central_range=48.8%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p99_us: relative_mad=11.1%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p99_us: relative_central_range=17.3%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p999_us: relative_mad=12.8%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_p999_us: relative_central_range=16.7%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_max_us: relative_mad=17.0%",
+          "[quality-fail] xmqtt_store_session/store_session_properties/latency_max_us: relative_central_range=26.6%"
+        ],
+        "medians": {
+          "store_session_propertyfree": {
+            "operations_per_sec": 61764.993,
+            "latency_p50_us": 14.6,
+            "latency_p95_us": 19.0,
+            "latency_p99_us": 30.1,
+            "latency_p999_us": 98.6,
+            "latency_max_us": 115.4,
+            "process_cpu_ns_per_op": 16201.5
+          },
+          "store_session_properties": {
+            "operations_per_sec": 47913.832,
+            "latency_p50_us": 19.9,
+            "latency_p95_us": 25.0,
+            "latency_p99_us": 30.7,
+            "latency_p999_us": 46.8,
+            "latency_max_us": 59.5,
+            "process_cpu_ns_per_op": 20880.9
+          }
+        }
+      }
+    },
+    "allocation_probes": {
+      "windows": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 49549.103,
+            "latency_p50_us": 19.8,
+            "latency_p95_us": 20.0,
+            "latency_p99_us": 27.3,
+            "latency_p999_us": 27.3,
+            "latency_max_us": 37.9,
+            "process_cpu_ns_per_op": 156250.0,
+            "retained_bytes": 44691.0,
+            "import_peak_upper_bound_bytes": 44691.0,
+            "checksum": 4475500.0,
+            "heap_blocks_per_op": 65.0,
+            "heap_bytes_per_op": 44691.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 40451.438,
+            "latency_p50_us": 21.3,
+            "latency_p95_us": 37.7,
+            "latency_p99_us": 40.6,
+            "latency_p999_us": 40.6,
+            "latency_max_us": 63.5,
+            "process_cpu_ns_per_op": 156250.0,
+            "retained_bytes": 51347.0,
+            "import_peak_upper_bound_bytes": 61587.0,
+            "checksum": 5141100.0,
+            "heap_blocks_per_op": 66.0,
+            "heap_bytes_per_op": 57307.0
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 51424.457,
+            "latency_p50_us": 19.9,
+            "latency_p95_us": 20.1,
+            "latency_p99_us": 26.7,
+            "latency_p999_us": 26.7,
+            "latency_max_us": 30.5,
+            "process_cpu_ns_per_op": 19540.0,
+            "retained_bytes": 44763.0,
+            "import_peak_upper_bound_bytes": 44763.0,
+            "checksum": 4482700.0,
+            "heap_blocks_per_op": 65.0,
+            "heap_bytes_per_op": 44763.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 36080.242,
+            "latency_p50_us": 26.4,
+            "latency_p95_us": 36.8,
+            "latency_p99_us": 45.1,
+            "latency_p999_us": 45.1,
+            "latency_max_us": 65.7,
+            "process_cpu_ns_per_op": 27820.0,
+            "retained_bytes": 51419.0,
+            "import_peak_upper_bound_bytes": 61659.0,
+            "checksum": 5148300.0,
+            "heap_blocks_per_op": 66.0,
+            "heap_bytes_per_op": 57379.0
+          }
+        }
+      ]
+    },
+    "scope": "64 QoS1 outgoing obligations with256-byte payload each; property-free/scratch0 or user+binary properties/default scratch. Timing includes fresh import,Info and Destroy; initial native file create/sync/recover outside timing.",
+    "costs": [
+      "One native decode and wire copy per outgoing",
+      "Property descriptor copies and rebasing",
+      "One Session allocation,64 packet allocations,at most one scratch allocation",
+      "Checks,hash/id/receive index construction,two quiet error ownership transfers",
+      "Source State plus CRT/kernel and caller timing memory additional"
+    ],
+    "limits": [
+      "Shared unpinned host, no pinned comparator, no fixed-arrival queue-inclusive workload",
+      "Retain original14 Windows and16 WSL noise failures; no threshold weakened or repeats for green",
+      "WSL temporary source setup on mounted drive; source creation and IO outside measured importer loop",
+      "Process CPU quantization and short cold calls affect diagnostics",
+      "No zero-overhead,performance parity or production acceptance claim"
+    ]
+  },
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 25,
+    "proof": "strict-release.json"
+  },
+  "remaining": [
+    "Live bounded prepare/commit/network ACK/completion driver, delivery leases and physical retirement",
+    "File namespace publication/locking,compaction and group-commit policy",
+    "Full original Redis/RPC/MQTT5+311/Cron product scope",
+    "Controlled throughput/tails/comparators and native Windows/native Linux >=72h"
+  ],
+  "concurrent_work": "Other-thread XTP commits preserved; actual master used throughout; retired worktree untouched",
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-store-session-20261117",
+    "source_map_sha256": "0acba4703aa82eac3f7ee0c62d6ebfe0bbce15cc58f51ff2b01880934e3a5458",
+    "audit_sha256": "eb562ee2682be89e47ae7371c1509100b598afd6a4e5ad97788fa271389d8176",
+    "preserved_compressed_binary_records": 150,
+    "program_counts": {
+      "windows-suite": 6,
+      "windows-new_probes": 1,
+      "windows-regression": 22,
+      "windows-delivery": 8,
+      "windows-smoke": 2,
+      "windows-abi": 3,
+      "windows-size": 0,
+      "windows-exports": 0,
+      "windows-compat": 0,
+      "windows-instrument": 2,
+      "windows-gates": 0,
+      "wsl-suite": 6,
+      "wsl-new_probes": 1,
+      "wsl-regression": 22,
+      "wsl-delivery": 8,
+      "wsl-smoke": 2,
+      "wsl-abi": 3,
+      "wsl-size": 0,
+      "wsl-exports": 0,
+      "wsl-compat": 0,
+      "wsl-instrument": 2
+    },
+    "superseded_attempts": [
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 0,
+        "log": "windows-store-session-suite.log",
+        "log_sha256": "fca89a885e8753cf01fde5c74224dc1835213ed8683d9f0a6b1575526d114cf5"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 0,
+        "log": "windows-store-session-suite-attempt2.log",
+        "log_sha256": "b3b9240bfd1b3e9ee3e80b5652daf0fefccdeebd532380729b8b49140f82c1e1"
+      },
+      {
+        "mode": "windows",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 1,
+        "log": "windows-store-session-suite-attempt3.log",
+        "log_sha256": "a1d16a6a329e967739611db4b6e6d4decc715def03b86694e8afa46fb60499dc"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "new-errors-build",
+        "exit_code": 1,
+        "log": "windows-new-errors-build.log",
+        "log_sha256": "16f60d51a295d7afb2592f070c61191bd54729dea647add8556b942b84925ffb"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "new-errors-build",
+        "exit_code": 0,
+        "log": "windows-new-errors-build-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "new-errors",
+        "exit_code": 0,
+        "log": "windows-new-errors.log",
+        "log_sha256": "3bc9348f11b66be10ccce806c630820a593846b5bf349792e20638816ef1183c"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "native-client-build",
+        "exit_code": 1,
+        "log": "windows-native-client-build.log",
+        "log_sha256": "b22e1eaa5044676d6d59ff6670ca953ce0e1948593e88fbcd87f8005eb2f3452"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "new-errors-build",
+        "exit_code": 0,
+        "log": "windows-new-errors-build-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "new-errors",
+        "exit_code": 0,
+        "log": "windows-new-errors-attempt2.log",
+        "log_sha256": "3bc9348f11b66be10ccce806c630820a593846b5bf349792e20638816ef1183c"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "native-client-build",
+        "exit_code": 0,
+        "log": "windows-native-client-build-attempt2.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "windows",
+        "stage": "new_probes",
+        "label": "native-client-wire",
+        "exit_code": 1,
+        "log": "windows-native-client-wire.log",
+        "log_sha256": "04c4be97e30a2129b26b2dc13231a171286abe86f314bededbfe51d7e8e5b511"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "features",
+        "exit_code": 0,
+        "log": "windows-features.log",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "single",
+        "exit_code": 0,
+        "log": "windows-single.log",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "api",
+        "exit_code": 0,
+        "log": "windows-api.log",
+        "log_sha256": "1387e159638b4f68f3766e3cb692ca40facf1c36832751a9c73d76fbe609cbb9"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "reference",
+        "exit_code": 0,
+        "log": "windows-reference.log",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "maturity",
+        "exit_code": 0,
+        "log": "windows-maturity.log",
+        "log_sha256": "a28fc679daee921ff6573395c3f60e9eef241bb174d33958b210876c8add7da9"
+      },
+      {
+        "mode": "windows",
+        "stage": "gates",
+        "label": "layout",
+        "exit_code": 0,
+        "log": "windows-layout.log",
+        "log_sha256": "8b7df4f4a25fc5466cbead22af349eaa2c77bbc2812f1d213484be4860bb161a"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 0,
+        "log": "wsl-store-session-suite.log",
+        "log_sha256": "5593a397a2f2239d08a0546302876d710b5327c9caec4842c7d7902a4f4dbb53"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 0,
+        "log": "wsl-store-session-suite-attempt2.log",
+        "log_sha256": "4180bd18af670e1d63d88aec94a71ca5a41fac3571d1acd3930074ba3dda85da"
+      },
+      {
+        "mode": "wsl",
+        "stage": "suite",
+        "label": "store-session-suite",
+        "exit_code": 1,
+        "log": "wsl-store-session-suite-attempt3.log",
+        "log_sha256": "7734d7283805ab02945e05ce8f1759278137dcbd7ad6dcdded2f90650b5fdafb"
+      },
+      {
+        "mode": "wsl",
+        "stage": "new_probes",
+        "label": "new-errors-build",
+        "exit_code": 0,
+        "log": "wsl-new-errors-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "new_probes",
+        "label": "new-errors",
+        "exit_code": 0,
+        "log": "wsl-new-errors.log",
+        "log_sha256": "41695df34cbf11a6e8c1bf09cd2273b2459b37ae05169e19530c558b5f38373d"
+      },
+      {
+        "mode": "wsl",
+        "stage": "new_probes",
+        "label": "native-client-build",
+        "exit_code": 0,
+        "log": "wsl-native-client-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "wsl",
+        "stage": "new_probes",
+        "label": "native-client-wire",
+        "exit_code": 1,
+        "log": "wsl-native-client-wire.log",
+        "log_sha256": "004327ac7ad701b3f1059bee1df161dc8a084f1b9ba56aea54b3c9887c249f10"
+      }
+    ],
+    "notes": [
+      "Raw initial compiler/fixture/scheduling-expectation failures retained; final receipts and archived binaries audited",
+      "Native Client retains its scheduling; passive SessionNext PUBREL priority is separately tested",
+      "Independent wire proof does not infer live durable driver or combined file/ACK transaction behavior"
+    ],
+    "checkpoint": {
+      "files": 641,
+      "sha256": "c1c45fada94ee21c99e6d49ac96ef0251542c1e4deeaa6f711b20033ad29a84e",
+      "excluded": [
+        "sealed-files.json",
+        "seal-info.json",
+        "precommit-work.json",
+        "commit-receipt.json",
+        "postcommit.json"
+      ],
+      "source_map_sha256": "0acba4703aa82eac3f7ee0c62d6ebfe0bbce15cc58f51ff2b01880934e3a5458"
+    }
+  }
+}

@@ -6,6 +6,15 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+    xmqttstoresessionconfig Import;xmqttsessionconfig ImportSession;xmqttsession* Imported=(xmqttsession*)(uintptr_t)1;
+    if(!xmqttStoreSessionConfigInit(&Import)||Import.Size!=sizeof(Import)||Import.MaxScratchBytes!=16384||!xmqttSessionConfigInit(&ImportSession))return 53;
+    Import.Binding=XRT_BYTES_LITERAL("package/broker/principal/slot");Import.Generation=1;ImportSession.ClientId=XRT_STR_LITERAL("package-session");
+    if(xmqttStoreSessionRestore(NULL,&ImportSession,&Import,&Imported)!=XMQTT_SESSION_ERROR||Imported!=(xmqttsession*)(uintptr_t)1)return 54;
+    ImportSession.ClientId=(xstrview){0};
+    if(xmqttStoreSessionRestoreAssigned(NULL,&ImportSession,&Import,&Imported)!=XMQTT_SESSION_ERROR||Imported!=(xmqttsession*)(uintptr_t)1)return 55;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
     xmqttstorestateconfig StateConfig;xmqttstorestate* State=(xmqttstorestate*)(uintptr_t)1;
     xmqttstorestateinfo StateInfo;xmqttstoreview StateView;

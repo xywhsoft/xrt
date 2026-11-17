@@ -2,6 +2,7 @@
 #include <xrt/memory.h>
 #include "../internal/xmqtt_journal_replay.h"
 #include "../internal/xmqtt_internal.h"
+#include "../internal/xmqtt_store_session_source.h"
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
 typedef struct xmqttstoreentry {
@@ -173,6 +174,16 @@ static bool xmqttSConfig(const xmqttstorestateconfig* C,xmqttstorestateconfig* K
     if(!xmqttInternalCodecSettings(XMQTT_CLIENT_TO_SERVER,&K->Delta.Codec,&K->Delta.Codec))return false;
     return !K->ClientId.Size||xmqttUtf8StringCheck(K->ClientId,K->Delta.Codec.Utf8Flags,NULL);
 }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreSessionSource(const xmqttstorestate* S,
+    xbytesview Binding,uint64 Generation,void* Output,size_t Bytes,uint64* RecoveryWall)
+{
+    if(!xmqttSOutput(S,Output,Bytes))return xmqttSError(XMQTT_STORE_ERROR,"import output overlaps recovered state");
+    if(S->Config.Generation!=Generation||S->Config.Binding.Size!=Binding.Size||memcmp(S->Config.Binding.Data,Binding.Data,Binding.Size))
+        return xmqttSError(XMQTT_STORE_STATE_ERROR,"import broker/principal/slot or storage generation differs");
+    *RecoveryWall=S->Config.WallMilliseconds;return XMQTT_STORE_DONE;
+}
+#endif
 XMQTT_API xmqttstorestatus xmqttStoreStateRecover(xmqttjournal* J,const xmqttstorestateconfig* Config,xmqttstorestate** Out)
 {
     xmqttstorestateconfig K;

@@ -588,3 +588,32 @@ Trimmed size probes, five public exports and three-form public ABI probes pass;
 the private replay descriptor/cursor helper remains hidden. Session import, live
 durable ACK/Inbox/lease/driver integration, namespace/compaction/group commit,
 controlled throughput/tail latency and native72h qualification remain required.
+
+
+## Direct State-to-Session import qualification (2026-11-17)
+
+The developing [store-session importer](store_session.md) copies immutable
+recovered protocol obligations into an independent disconnected owner. It
+checks exact binding/generation/version/identity, further wall elapsed time,
+codec/count/byte/scratch limits and checked quiet error ownership. Explicit
+MQTT5 assigned-id import is separate. Source Inbox payloads stay independent.
+
+Windows/WSL modular/single/root/statistics-off/static/shared/declarations and
+real-file passive example pass, including5 imports,3 expiry cuts,40 refusals,
+9 actual allocation-prefix failures,24 native error-slot failures plus2 bound
+contexts/platform. Legacy Session/image/State regressions pass; preprocessed
+regression selections are identical across later test/comment registration.
+WSL ASan/UBSan/leaks pass. An actual Client+Engine handles exact recovered
+PUBLISH/PUBREL and incoming replay/dedup against an independent literal Python
+TCP peer in4 MQTT5/311 full/fragmented cases/platform. The source journal in
+that wire fixture uses test VFS; native-file recovery/import is separately
+exercised by the runnable example. No combined live durable driver is inferred.
+
+Three exports/three hidden helpers, x64 three-form ABI and trimmed delivery pass.
+64-packet benchmarks include validation, scratch, wire/property copies/rebasing,
+Session indices, allocations,Info and Destroy. Separate instrumentation counts
+65 property-free/scratch0 or66 two-property/default-scratch XRT allocations.
+Raw noise-gate failures remain; no controlled performance acceptance is claimed.
+The stage report is `docs/development/xmqtt-store-session-20261117.json`.
+Live durable ACK/Inbox leases/commit worker, physical retirement integration,
+namespace/locking/compaction/group commit and native Windows/Linux72h remain open.

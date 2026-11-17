@@ -139,6 +139,22 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_STATE
 #define XMQTT_MODULE_XMQTT_STORE_STATE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_SESSION
+#define XMQTT_MODULE_XMQTT_STORE_SESSION
+#endif
+#endif
+
+/* xmqtt_store_session 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_SESSION)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_SESSION
+#define XMQTT_FEATURE_XMQTT_STORE_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_STATE
+#define XMQTT_MODULE_XMQTT_STORE_STATE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SESSION
+#define XMQTT_MODULE_XMQTT_SESSION
+#endif
 #endif
 
 /* xmqtt_store_state 及其直接依赖。 */
@@ -2795,6 +2811,65 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/store_session.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_STORE_SESSION_H
+#define XMQTT_STORE_SESSION_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_STORE_STATE) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
+#error "MQTT store Session import requires recovered state and Session"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+typedef struct xmqttstoresessionconfig {
+    size_t Size;xbytesview Binding;uint64 Generation;
+    double MonotonicTime;uint64 WallMilliseconds;size_t MaxScratchBytes;
+} xmqttstoresessionconfig;
+XRT_EXTERN_C_BEGIN
+/* Defaults:16KiB temporary property scratch, zero clocks/Generation and empty
+ * Binding. Set the exact broker/principal/slot and storage generation, finite
+ * nonnegative monotonic time and trusted wall milliseconds<=INT64_MAX. */
+XMQTT_API bool xmqttStoreSessionConfigInit(xmqttstoresessionconfig* Config);
+/* Construct one independent disconnected Session from an immutable, bound
+ * recovered view. Version/ClientId/Binding/Generation must match exactly.
+ * No input is retained; State can be destroyed after return. Incoming QoS2
+ * identities and canonical outgoing id/order/PUBLISH-or-PUBREL/attempt metadata
+ * survive. Connection generation starts at0, selection/windows/aliases/old
+ * Futures are not restored; normal authenticated Open/CONNACK is still required.
+ * Session does not hold Inbox payloads or acknowledge application completion.
+ * Caller must preserve/use the separate recovered Inbox until durable ACK.
+ * Additional wall time since recovery consumes closed finite expiry; rollback
+ * is STATE_ERROR. Unknown disconnect time at a live cut retains the candidate
+ * until a fresh broker decision. Expiry during import publishes an empty Session
+ * with RESET, after validating all outgoing packets under the new codec/caps.
+ * Already empty protocol state publishes DONE. Unbound empty journals cannot
+ * supply an identity and return STATE_ERROR; use normal Session creation first.
+ * SessionConfig.MaxBytes bounds the new owner's requested allocations. Caller
+ * State storage is additional; Config.MaxScratchBytes separately bounds reusable
+ * temporary property descriptors. Zero scratch permits property-free packets.
+ * One native parse and one retained wire copy per outgoing packet, descriptor
+ * rebasing instead of a second parse, no whole-image serialization/CRC/buffer.
+ * Inputs borrow only for the call; stable State lifetime is required, and all
+ * outputs must be disjoint from inputs/config views/every State-owned allocation.
+ * DONE/RESET/LIMIT restore ambient errors quietly. Native decoder limit notices
+ * may occur before being discarded. Checked error-slot failure returns ERROR
+ * without publishing Session; all partial allocations are released. This is
+ * passive import, not live durable Client/ACK/Inbox/lease/commit integration.
+ * Join/destroy the previous Client/transport before replacing its owner; this
+ * function cannot fence a still-live old connection. */
+XMQTT_API xmqttsessionstatus xmqttStoreSessionRestore(const xmqttstorestate* State,
+    const xmqttsessionconfig* SessionConfig,const xmqttstoresessionconfig* Config,xmqttsession** Session);
+/* Explicit MQTT5 assigned-id recovery: SessionConfig.ClientId must be empty.
+ * Copy the already bound identity only after exact slot/generation verification.
+ * Query SessionClientId before the next CONNECT; no implicit identity adoption
+ * is performed by ordinary Restore. Other contracts and limits are identical. */
+XMQTT_API xmqttsessionstatus xmqttStoreSessionRestoreAssigned(const xmqttstorestate* State,
+    const xmqttsessionconfig* SessionConfig,const xmqttstoresessionconfig* Config,xmqttsession** Session);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -2814,6 +2889,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_NEGOTIATION"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#error "MQTT root requires store Session import"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
 #error "MQTT root requires store recovery"
@@ -2978,7 +3056,7 @@ struct xmqttsession {
      * from an arbitrarily large monotonic clock. Native negotiated integer
      * intervals remain exactly representable. No public layout depends on it. */
     bool Connected,HasState,Persistent,InfiniteExpiry;
-#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE)
+#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
     double Expiry;
 #else
     uint32 Expiry;
@@ -2997,6 +3075,28 @@ static inline size_t xmqttSessionStorageSize(const xmqttsessionconfig* C,size_t 
     if(Buckets)*Buckets=B;
     return sizeof(xmqttsession)+B*sizeof(xmqttsessionpacket*)+(C->MaxOutgoing?XMQTT_SESSION_ID_BYTES:0u)+(C->MaxIncoming?XMQTT_SESSION_RX_BYTES:0u)+(AssignedCapacity?AssignedCapacity:C->ClientId.Size);
 }
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xmqtt/src/internal/xmqtt_session_restore.h */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_SESSION) || \
+	defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || \
+	defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#ifndef XMQTT_INTERNAL_SESSION_RESTORE_H
+#define XMQTT_INTERNAL_SESSION_RESTORE_H
+#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+/* Sole unpublished Session owner. Parsed is NULL for native decode directly
+ * into the owned packet (image), or one complete native-decoded PUBLISH whose
+ * views all borrow Wire (store import). No public descriptor adoption API. */
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionRestorePacket(xmqttsession* Session,
+    xbytesview Wire,size_t Properties,uint8 Stage,uint8 Flags,uint8 Reason,const xmqttpacket* Parsed);
+XMQTT_INTERNAL void xmqttInternalSessionRestoreExpiry(xmqttsession* Session,
+    double Now,bool HasState,bool Infinite,uint64 RemainingMilliseconds);
 #endif
 #endif
 #endif
@@ -3078,6 +3178,23 @@ XRT_EXTERN_C_END
 /* Extension-private descriptor/cursor check. No public borrowed Journal layout. */
 XMQTT_INTERNAL bool xmqttJournalReplayStart(xmqttjournal* Journal,xmqttversion Version,
     xbytesview Binding,uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xmqtt/src/internal/xmqtt_store_session_source.h */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_STORE_STATE) || \
+	defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#ifndef XMQTT_INTERNAL_STORE_SESSION_SOURCE_H
+#define XMQTT_INTERNAL_STORE_SESSION_SOURCE_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+/* Immutable source: check expected slot and all State-owned output aliases. */
+XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreSessionSource(const xmqttstorestate* State,
+    xbytesview Binding,uint64 Generation,void* Output,size_t Bytes,uint64* RecoveryWall);
 #endif
 #endif
 #endif
@@ -8777,6 +8894,58 @@ XMQTT_API xmqttsessionstatus xmqttSessionSent(xmqttsession* S,const xmqttsession
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSent(xmqttsession* S,const void* Owner,const xmqttsessionframe* F)
 {return xmqttSessionSentOwned(S,Owner,F);}
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+static xstrview xmqttRestoreText(xstrview V,const unsigned char* Old,const unsigned char* New)
+{if(V.Data)V.Data=(const char*)(New+((const unsigned char*)V.Data-Old));return V;}
+static xbytesview xmqttRestoreBytes(xbytesview V,const unsigned char* Old,const unsigned char* New)
+{if(V.Data)V.Data=New+(V.Data-Old);return V;}
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionRestorePacket(xmqttsession* S,
+    xbytesview Wire,size_t Count,uint8 Stage,uint8 Flags,uint8 Reason,const xmqttpacket* Parsed)
+{
+    size_t N=Wire.Size;
+    if(!N||(Wire.Data[0]>>4)!=XMQTT_PACKET_PUBLISH||Stage>1||(Flags&~3u)||((Flags&2u)&&!(Flags&1u))||
+       (Stage?(Flags!=3u||(Reason&&Reason!=0x10)||(S->Config.Version==XMQTT_VERSION_311&&Reason)):Reason!=0))return XMQTT_SESSION_PROTOCOL_ERROR;
+    if(N>S->Config.Codec.MaxPacketBytes||Count>S->Config.Codec.MaxProperties||Count>(SIZE_MAX-sizeof(xmqttsessionpacket))/sizeof(xmqttproperty))return XMQTT_SESSION_LIMIT;
+    size_t Allocation=sizeof(xmqttsessionpacket)+Count*sizeof(xmqttproperty);
+    if(N>SIZE_MAX-Allocation||Allocation+N>S->Config.MaxBytes-S->LiveBytes)return XMQTT_SESSION_LIMIT;
+    Allocation+=N;xmqttsessionpacket* P=xrtMalloc(Allocation);if(!P)return XMQTT_SESSION_ERROR;memset(P,0,sizeof(*P));
+    unsigned char* Saved=(unsigned char*)(P->Properties+Count);memcpy(Saved,Wire.Data,N);
+    xmqttcodecstatus Read=XMQTT_CODEC_DONE;
+    if(Parsed){
+        P->Packet=*Parsed;if(Parsed->Wire.Data!=Wire.Data||Parsed->Wire.Size!=N||Parsed->Properties.Count!=Count){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+        if(Count)memcpy(P->Properties,Parsed->Properties.Data,Count*sizeof(*P->Properties));
+        P->Packet.Wire=(xbytesview){Saved,N};P->Packet.Properties.Data=Count?P->Properties:NULL;
+        P->Packet.Body.Publish.Topic=xmqttRestoreText(Parsed->Body.Publish.Topic,Wire.Data,Saved);
+        P->Packet.Body.Publish.Payload=xmqttRestoreBytes(Parsed->Body.Publish.Payload,Wire.Data,Saved);
+        for(size_t I=0;I<Count;++I){xmqttproperty* V=P->Properties+I;
+            if(V->Type==XMQTT_PROPERTY_STRING)V->Value.Text=xmqttRestoreText(V->Value.Text,Wire.Data,Saved);
+            else if(V->Type==XMQTT_PROPERTY_BINARY)V->Value.Binary=xmqttRestoreBytes(V->Value.Binary,Wire.Data,Saved);
+            else if(V->Type==XMQTT_PROPERTY_STRING_PAIR){V->Value.Pair.Name=xmqttRestoreText(V->Value.Pair.Name,Wire.Data,Saved);V->Value.Pair.Value=xmqttRestoreText(V->Value.Pair.Value,Wire.Data,Saved);}}
+    }else {
+        xmqttcodecbuffers Buffers={P->Properties,Count,NULL,0};xmqttcodecissue Issue={0};
+        Read=S->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue):xmqttPacketRead311((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue);
+        if(Read==XMQTT_CODEC_LOCAL_ERROR&&Issue.Error==XMQTT_CODEC_LIMIT){xrtFree(P);return XMQTT_SESSION_LIMIT;}
+    }
+    unsigned Qos=(P->Packet.Flags>>1)&3u;bool Valid=Read==XMQTT_CODEC_DONE&&P->Packet.Type==XMQTT_PACKET_PUBLISH&&P->Packet.Wire.Size==N&&P->Packet.Properties.Count==Count&&
+        P->Packet.Identifier&&P->Packet.Body.Publish.Topic.Size&&!(P->Packet.Flags&8u)&&(Qos==1||Qos==2)&&(!Stage||Qos==2);
+    for(size_t I=0;Valid&&I<Count;++I)if(P->Properties[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)Valid=false;
+    if(!Valid){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+    uint16 Id=P->Packet.Identifier;if(S->Ids[Id>>3]&(1u<<(Id&7u))){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+    P->Owner=S;P->Allocation=Allocation;P->Bytes=N;P->Identifier=Id;P->Qos=(uint8)Qos;P->Stage=(xmqttsessionstage)Stage;P->Active=true;P->Attempted=(Flags&1u)!=0;P->Sent=(Flags&2u)!=0;
+    P->PubrecReceived=Stage!=0;P->PubrecReason=Reason;P->Duplicate=(unsigned char)(Saved[0]|8u);P->Release[0]=0x62;P->Release[1]=2;P->Release[2]=(unsigned char)(Id>>8);P->Release[3]=(unsigned char)Id;xrtAtomic32Init(&P->Refs,1);
+    P->Previous=S->Tail;if(S->Tail)S->Tail->Next=P;else S->Head=P;S->Tail=P;
+    size_t Bucket=xmqttSessionHash(S,Id);P->HashNext=S->Hash[Bucket];S->Hash[Bucket]=P;S->Ids[Id>>3]|=(unsigned char)(1u<<(Id&7u));++S->Active;++S->Objects;S->LiveBytes+=Allocation;(void)xrtAtomic32FetchAdd(&S->Refs,1,XMEMORY_RELAXED);return XMQTT_SESSION_DONE;
+}
+XMQTT_INTERNAL void xmqttInternalSessionRestoreExpiry(xmqttsession* S,double Now,bool Keep,bool Infinite,uint64 Remaining)
+{
+    S->LastNow=S->ClosedAt=Now;S->HasState=S->Persistent=Keep;S->InfiniteExpiry=Infinite;
+    if(Keep&&!Infinite){S->Expiry=(double)Remaining/1000.0;
+        /* A millisecond duration can round upward when represented as binary
+         * seconds. Move one ULP down for fractional seconds, never add life. */
+        if(Remaining%1000u)S->Expiry=nextafter(S->Expiry,0.0);
+        S->ExpiresAt=Now+S->Expiry;}
+}
+#endif
 XMQTT_API xmqttsessionstatus xmqttSessionAcknowledge(xmqttsession* S,const xmqttpacket* Ack)
 {return xmqttSessionAcknowledgeOwned(S,NULL,Ack);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
@@ -9862,22 +10031,6 @@ static xmqttsessionstatus xmqttImageReadHeader(xmqttsessionconfig* K,const xmqtt
     unsigned Previous=0;for(uint32 I=0;I<H->Incoming;++I){unsigned IdValue=(unsigned)xmqttImageGet(B+At,2),State=B[At+2];if(IdValue<=Previous||(State!=2&&State!=3))return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"invalid image incoming order/state");Previous=IdValue;At+=3;}
     return XMQTT_SESSION_DONE;
 }
-static xmqttsessionstatus xmqttImageRestorePacket(xmqttsession* S,const unsigned char* Entry)
-{
-    size_t N=(size_t)xmqttImageGet(Entry+4,4),Count=(size_t)xmqttImageGet(Entry+8,4);const unsigned char* Wire=Entry+XMQTT_IMAGE_PACKET;
-    if((Wire[0]>>4)!=XMQTT_PACKET_PUBLISH)return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"image outgoing entry is not PUBLISH");
-    if(N>S->Config.Codec.MaxPacketBytes||Count>S->Config.Codec.MaxProperties||Count>(SIZE_MAX-sizeof(xmqttsessionpacket))/sizeof(xmqttproperty))return XMQTT_SESSION_LIMIT;
-    size_t Allocation=sizeof(xmqttsessionpacket)+Count*sizeof(xmqttproperty);if(N>SIZE_MAX-Allocation||Allocation+N>S->Config.MaxBytes-S->LiveBytes)return XMQTT_SESSION_LIMIT;Allocation+=N;
-    xmqttsessionpacket* P=xrtMalloc(Allocation);if(!P)return XMQTT_SESSION_ERROR;memset(P,0,sizeof(*P));unsigned char* Saved=(unsigned char*)(P->Properties+Count);memcpy(Saved,Wire,N);xmqttcodecbuffers Buffers={P->Properties,Count,NULL,0};xmqttcodecissue Issue={0};
-    xmqttcodecstatus Read=S->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue):xmqttPacketRead311((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue);
-    if(Read==XMQTT_CODEC_LOCAL_ERROR&&Issue.Error==XMQTT_CODEC_LIMIT){xrtFree(P);return XMQTT_SESSION_LIMIT;}
-    unsigned Qos=(P->Packet.Flags>>1)&3u;bool Valid=Read==XMQTT_CODEC_DONE&&P->Packet.Wire.Size==N&&P->Packet.Properties.Count==Count&&P->Packet.Identifier&&P->Packet.Body.Publish.Topic.Size&&!(P->Packet.Flags&8u)&&(Qos==1||Qos==2)&&(!Entry[0]||Qos==2);
-    for(size_t I=0;Valid&&I<P->Packet.Properties.Count;++I)if(P->Properties[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)Valid=false;
-    if(!Valid){xrtFree(P);return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"invalid canonical image PUBLISH/properties");}
-    uint16 Id=P->Packet.Identifier;if(S->Ids[Id>>3]&(1u<<(Id&7u))){xrtFree(P);return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"duplicate image outgoing identifier");}
-    P->Owner=S;P->Allocation=Allocation;P->Bytes=N;P->Identifier=Id;P->Qos=(uint8)Qos;P->Stage=(xmqttsessionstage)Entry[0];P->Active=true;P->Attempted=(Entry[1]&1u)!=0;P->Sent=(Entry[1]&2u)!=0;P->PubrecReceived=P->Stage==XMQTT_SESSION_PUBREL;P->PubrecReason=Entry[2];P->Duplicate=(unsigned char)(Saved[0]|8u);P->Release[0]=0x62;P->Release[1]=2;P->Release[2]=(unsigned char)(Id>>8);P->Release[3]=(unsigned char)Id;xrtAtomic32Init(&P->Refs,1);
-    P->Previous=S->Tail;if(S->Tail)S->Tail->Next=P;else S->Head=P;S->Tail=P;size_t Bucket=((uint32)Id*2654435761u)&(S->Buckets-1u);P->HashNext=S->Hash[Bucket];S->Hash[Bucket]=P;S->Ids[Id>>3]|=(unsigned char)(1u<<(Id&7u));++S->Active;++S->Objects;S->LiveBytes+=Allocation;(void)xrtAtomic32FetchAdd(&S->Refs,1,XMEMORY_RELAXED);return XMQTT_SESSION_DONE;
-}
 static xmqttsessionstatus xmqttImageRestoreImpl(const xmqttsessionconfig* SessionConfig,const xmqttsessionimageconfig* Config,xbytesview Image,xmqttsession** Out,bool Assigned)
 {
     xmqttsessionimageconfig C;
@@ -9889,15 +10042,15 @@ static xmqttsessionstatus xmqttImageRestoreImpl(const xmqttsessionconfig* Sessio
     xmqttimageheader H;xmqttsessionstatus Status=xmqttImageReadHeader(&K,&C,Image,&H,Assigned);if(Status!=XMQTT_SESSION_DONE)return Status;
     if(xmqttSessionStorageSize(&K,0,NULL)>K.MaxBytes)return XMQTT_SESSION_LIMIT;
     xmqttsession* S=NULL;if(!xmqttSessionCreate(&K,&S))return XMQTT_SESSION_ERROR;
-    S->Generation=H.Generation;S->Next=H.Next;S->LastNow=S->ClosedAt=C.MonotonicTime;bool Keep=(H.Flags&XMQTT_IMAGE_STATE)!=0;bool Infinite=(H.Flags&(XMQTT_IMAGE_LIVE|XMQTT_IMAGE_INFINITE))!=0;uint64 Remaining=H.Remaining;
+    S->Generation=H.Generation;S->Next=H.Next;bool Keep=(H.Flags&XMQTT_IMAGE_STATE)!=0;bool Infinite=(H.Flags&(XMQTT_IMAGE_LIVE|XMQTT_IMAGE_INFINITE))!=0;uint64 Remaining=H.Remaining;
     bool Expired=Keep&&!Infinite&&C.WallMilliseconds-H.Wall>=Remaining;
     /* Expired images still undergo full semantic validation. A stale timestamp
      * cannot turn CRC-valid corrupted packets into an accepted empty state. */
     size_t At=H.Packets;
-    for(uint32 I=0;I<H.Outgoing;++I){Status=xmqttImageRestorePacket(S,Image.Data+At);if(Status!=XMQTT_SESSION_DONE){(void)xmqttSessionDestroy(S);return Status;}At+=XMQTT_IMAGE_PACKET+(size_t)xmqttImageGet(Image.Data+At+4,4);}
+    for(uint32 I=0;I<H.Outgoing;++I){Status=xmqttInternalSessionRestorePacket(S,(xbytesview){Image.Data+At+XMQTT_IMAGE_PACKET,(size_t)xmqttImageGet(Image.Data+At+4,4)},(size_t)xmqttImageGet(Image.Data+At+8,4),Image.Data[At],Image.Data[At+1],Image.Data[At+2],NULL);if(Status==XMQTT_SESSION_PROTOCOL_ERROR)xmqttImageError(Status,"invalid canonical image PUBLISH/properties/identifier");if(Status!=XMQTT_SESSION_DONE){(void)xmqttSessionDestroy(S);return Status;}At+=XMQTT_IMAGE_PACKET+(size_t)xmqttImageGet(Image.Data+At+4,4);}
     for(uint32 I=0;I<H.Incoming;++I){uint16 Id=(uint16)xmqttImageGet(Image.Data+At,2);unsigned State=Image.Data[At+2],Shift=(Id&3u)*2u;S->Receive[Id>>2]|=(unsigned char)(State<<Shift);++S->RxCount;At+=3;}
-    S->HasState=Keep;S->Persistent=Keep;S->InfiniteExpiry=Infinite;
-    if(Keep&&!Infinite&&!Expired){Remaining-=C.WallMilliseconds-H.Wall;S->Expiry=(double)Remaining/1000.0;S->ExpiresAt=C.MonotonicTime+S->Expiry;}
+    if(Keep&&!Infinite&&!Expired)Remaining-=C.WallMilliseconds-H.Wall;
+    xmqttInternalSessionRestoreExpiry(S,C.MonotonicTime,Keep,Infinite,Remaining);
     if(Expired){(void)xmqttSessionReset(S);Status=XMQTT_SESSION_RESET;}else Status=XMQTT_SESSION_DONE;
     *Out=S;return Status;
 }
@@ -10456,6 +10609,16 @@ static bool xmqttSConfig(const xmqttstorestateconfig* C,xmqttstorestateconfig* K
     if(!xmqttInternalCodecSettings(XMQTT_CLIENT_TO_SERVER,&K->Delta.Codec,&K->Delta.Codec))return false;
     return !K->ClientId.Size||xmqttUtf8StringCheck(K->ClientId,K->Delta.Codec.Utf8Flags,NULL);
 }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreSessionSource(const xmqttstorestate* S,
+    xbytesview Binding,uint64 Generation,void* Output,size_t Bytes,uint64* RecoveryWall)
+{
+    if(!xmqttSOutput(S,Output,Bytes))return xmqttSError(XMQTT_STORE_ERROR,"import output overlaps recovered state");
+    if(S->Config.Generation!=Generation||S->Config.Binding.Size!=Binding.Size||memcmp(S->Config.Binding.Data,Binding.Data,Binding.Size))
+        return xmqttSError(XMQTT_STORE_STATE_ERROR,"import broker/principal/slot or storage generation differs");
+    *RecoveryWall=S->Config.WallMilliseconds;return XMQTT_STORE_DONE;
+}
+#endif
 XMQTT_API xmqttstorestatus xmqttStoreStateRecover(xmqttjournal* J,const xmqttstorestateconfig* Config,xmqttstorestate** Out)
 {
     xmqttstorestateconfig K;
@@ -10507,6 +10670,93 @@ Finish:
     }else xrtErrorFree(Saved);
     if(Result==XMQTT_STORE_DONE)*Out=S;else xmqttStoreStateDestroy(S);return Result;
 }
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/session/store_session.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#include <math.h>
+#include <string.h>
+#if defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+static xmqttsessionstatus xmqttSIError(xmqttsessionstatus Status,cstr Message)
+{
+    xrtSetErrorInfo(Status==XMQTT_SESSION_STATE_ERROR?XERR_STATE:Status==XMQTT_SESSION_PROTOCOL_ERROR?XERR_PROTOCOL:XERR_ARGUMENT,
+        "xrt.mqtt.store.session",6500-(int32)Status,Message);return Status;
+}
+static bool xmqttSISpan(const void* P,size_t N){return (P||!N)&&xrtMemRangeValid(P,N);}
+static bool xmqttSISeparate(const void* A,size_t N,const void* B,size_t M)
+{return !N||!M||!xrtMemRangesOverlap(A,N,B,M);}
+XMQTT_API bool xmqttStoreSessionConfigInit(xmqttstoresessionconfig* C)
+{
+    if(!xmqttSISpan(C,sizeof(*C))){xmqttSIError(XMQTT_SESSION_ERROR,"invalid store Session config output");return false;}
+    *C=(xmqttstoresessionconfig){0};C->Size=sizeof(*C);C->MaxScratchBytes=16384;return true;
+}
+static xmqttsessionstatus xmqttSIRead(const xmqttsessionconfig* K,xbytesview Wire,xmqttproperty* Properties,size_t Capacity,xmqttpacket* Packet)
+{
+    xmqttcodecbuffers B={Properties,Capacity,NULL,0};xmqttcodecissue Issue={0};
+    xmqttcodecstatus S=K->Version==XMQTT_VERSION_5?xmqttPacketRead5(Wire,XMQTT_CLIENT_TO_SERVER,&K->Codec,&B,Packet,&Issue):xmqttPacketRead311(Wire,XMQTT_CLIENT_TO_SERVER,&K->Codec,&B,Packet,&Issue);
+    if(S==XMQTT_CODEC_DONE)return XMQTT_SESSION_DONE;
+    if(S==XMQTT_CODEC_LOCAL_ERROR&&(Issue.Error==XMQTT_CODEC_LIMIT||Issue.Error==XMQTT_CODEC_CAPACITY))return XMQTT_SESSION_LIMIT;
+    return xmqttSIError(XMQTT_SESSION_PROTOCOL_ERROR,"invalid canonical recovered outgoing packet");
+}
+static xmqttsessionstatus xmqttSIRestore(const xmqttstorestate* State,const xmqttsessionconfig* SessionConfig,
+    const xmqttstoresessionconfig* Config,xmqttsession** Out,bool Assigned)
+{
+    if(!xmqttSISpan(Config,sizeof(*Config))||!xmqttSISpan(SessionConfig,sizeof(*SessionConfig))||!xmqttSISpan(Out,sizeof(*Out)))return xmqttSIError(XMQTT_SESSION_ERROR,"invalid store Session input/output spans");
+    xmqttstoresessionconfig C=*Config;xmqttsessionconfig K=*SessionConfig;
+    if(C.Size!=sizeof(C)||!C.Binding.Size||C.Binding.Size>1024||!xmqttSISpan(C.Binding.Data,C.Binding.Size)||!C.Generation||
+       !isfinite(C.MonotonicTime)||C.MonotonicTime<0||C.WallMilliseconds>INT64_MAX||
+       K.Size!=sizeof(K)||(K.Version!=XMQTT_VERSION_5&&K.Version!=XMQTT_VERSION_311)||K.ClientId.Size>65535||!xmqttSISpan(K.ClientId.Data,K.ClientId.Size)||
+       (Assigned?(K.Version!=XMQTT_VERSION_5||K.ClientId.Size):!K.ClientId.Size)||K.MaxOutgoing>65535||K.MaxIncoming>65535||
+       !xmqttSISeparate(Out,sizeof(*Out),Config,sizeof(*Config))||!xmqttSISeparate(Out,sizeof(*Out),SessionConfig,sizeof(*SessionConfig))||
+       !xmqttSISeparate(Out,sizeof(*Out),C.Binding.Data,C.Binding.Size)||!xmqttSISeparate(Out,sizeof(*Out),K.ClientId.Data,K.ClientId.Size))return xmqttSIError(XMQTT_SESSION_ERROR,"invalid store Session identity/config or overlapping output");
+    xmqttcodecconfig Codec;if(!xmqttInternalCodecSettings(XMQTT_CLIENT_TO_SERVER,&K.Codec,&Codec))return XMQTT_SESSION_ERROR;K.Codec=Codec;
+    uint64 RecoveryWall=0;xmqttstorestatus Checked=xmqttInternalStoreSessionSource(State,C.Binding,C.Generation,Out,sizeof(*Out),&RecoveryWall);
+    if(Checked!=XMQTT_STORE_DONE)return Checked==XMQTT_STORE_STATE_ERROR?XMQTT_SESSION_STATE_ERROR:XMQTT_SESSION_ERROR;
+    xmqttstorestateinfo I={0};if(!xmqttStoreStateInfo(State,&I))return XMQTT_SESSION_ERROR;
+    if(I.Version!=K.Version||!I.ClientId.Size||C.WallMilliseconds<RecoveryWall||(!Assigned&&(I.ClientId.Size!=K.ClientId.Size||memcmp(I.ClientId.Data,K.ClientId.Data,I.ClientId.Size))))
+        return xmqttSIError(XMQTT_SESSION_STATE_ERROR,"recovered version/identity or trusted wall clock differs");
+    if(Assigned)K.ClientId=I.ClientId;
+    if(I.Outgoing>K.MaxOutgoing||I.Incoming>K.MaxIncoming||xmqttSessionStorageSize(&K,0,NULL)>K.MaxBytes)return XMQTT_SESSION_LIMIT;
+    size_t Capacity=K.Version==XMQTT_VERSION_5&&I.Outgoing?K.Codec.MaxProperties:0;
+    if(Capacity>C.MaxScratchBytes/sizeof(xmqttproperty))Capacity=C.MaxScratchBytes/sizeof(xmqttproperty);
+    size_t Largest=0;for(size_t N=0;N<I.Outgoing;++N){xmqttstoreview V={0};if(xmqttStoreStateView(State,XMQTT_STORE_OUTGOING,N,&V)!=XMQTT_STORE_DONE)return XMQTT_SESSION_ERROR;if(V.Wire.Size>Largest)Largest=V.Wire.Size;}
+    if(Capacity>Largest/2u)Capacity=Largest/2u;
+    xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_SESSION_ERROR;
+    xmqttsessionstatus Result=XMQTT_SESSION_ERROR;xmqttsession* S=NULL;xmqttproperty* Properties=NULL;
+    if(Capacity){Properties=xrtMalloc(Capacity*sizeof(*Properties));if(!Properties)goto Finish;}
+    if(!xmqttSessionCreate(&K,&S))goto Finish;
+    for(size_t N=0;N<I.Outgoing;++N){
+        xmqttstoreview V={0};if(xmqttStoreStateView(State,XMQTT_STORE_OUTGOING,N,&V)!=XMQTT_STORE_DONE){Result=XMQTT_SESSION_ERROR;goto Finish;}
+        xmqttpacket P={0};xmqttsessionstatus Step=xmqttSIRead(&K,V.Wire,Properties,Capacity,&P);if(Step!=XMQTT_SESSION_DONE){Result=Step;goto Finish;}
+        if(P.Identifier!=V.Identifier||((P.Flags>>1)&3u)!=V.Qos){Result=xmqttSIError(XMQTT_SESSION_PROTOCOL_ERROR,"recovered outgoing metadata differs from packet");goto Finish;}
+        uint8 Flags=(uint8)((V.Attempted?1u:0u)|(V.Sent?2u:0u));Step=xmqttInternalSessionRestorePacket(S,V.Wire,P.Properties.Count,V.Pubrel?1:0,Flags,V.PubrecReason,&P);
+        if(Step==XMQTT_SESSION_PROTOCOL_ERROR)xmqttSIError(Step,"invalid recovered outgoing stage/properties");
+        if(Step!=XMQTT_SESSION_DONE){Result=Step;goto Finish;}
+    }
+    for(size_t N=0;N<I.Incoming;++N){xmqttstoreview V={0};if(xmqttStoreStateView(State,XMQTT_STORE_INCOMING,N,&V)!=XMQTT_STORE_DONE){Result=XMQTT_SESSION_ERROR;goto Finish;}
+        unsigned Shift=(V.Identifier&3u)*2u;S->Receive[V.Identifier>>2]|=(unsigned char)((V.Pubrel?3u:2u)<<Shift);++S->RxCount;}
+    bool Keep=I.HasSession,Infinite=I.RemainingMilliseconds==UINT64_MAX;
+    uint64 Remaining=I.RemainingMilliseconds,Elapsed=C.WallMilliseconds-RecoveryWall;bool Expired=Keep&&!Infinite&&Elapsed>=Remaining;
+    if(Keep&&!Infinite)Remaining=Expired?0:Remaining-Elapsed;
+    xmqttInternalSessionRestoreExpiry(S,C.MonotonicTime,Keep,Infinite,Remaining);
+    if(Expired){(void)xmqttSessionReset(S);Result=XMQTT_SESSION_RESET;}else Result=XMQTT_SESSION_DONE;
+Finish:
+    xrtFree(Properties);
+    if(Result==XMQTT_SESSION_DONE||Result==XMQTT_SESSION_RESET||Result==XMQTT_SESSION_LIMIT){xerror* Previous=NULL;
+        if(!xrtTrySwapErrorTake(Saved,&Previous)){xrtErrorFree(Saved);Result=XMQTT_SESSION_ERROR;}xrtErrorFree(Previous);
+    }else xrtErrorFree(Saved);
+    if(Result==XMQTT_SESSION_DONE||Result==XMQTT_SESSION_RESET)*Out=S;else if(S)(void)xmqttSessionDestroy(S);
+    return Result;
+}
+XMQTT_API xmqttsessionstatus xmqttStoreSessionRestore(const xmqttstorestate* State,const xmqttsessionconfig* K,const xmqttstoresessionconfig* C,xmqttsession** S)
+{return xmqttSIRestore(State,K,C,S,false);}
+XMQTT_API xmqttsessionstatus xmqttStoreSessionRestoreAssigned(const xmqttstorestate* State,const xmqttsessionconfig* K,const xmqttstoresessionconfig* C,xmqttsession** S)
+{return xmqttSIRestore(State,K,C,S,true);}
 #endif
 #endif
 

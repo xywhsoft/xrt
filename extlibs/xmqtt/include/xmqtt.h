@@ -27,6 +27,10 @@
 #include <xmqtt/journal.h>
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
+#include <xmqtt/store_session.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#error "MQTT root requires store Session import"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
 #error "MQTT root requires store recovery"
 #endif

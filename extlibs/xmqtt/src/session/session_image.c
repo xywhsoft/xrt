@@ -2,6 +2,7 @@
 #include <xrt/crc32.h>
 #include <xrt/memory.h>
 #include "../internal/xmqtt_session_state.h"
+#include "../internal/xmqtt_session_restore.h"
 #include "../internal/xmqtt_internal.h"
 #include <math.h>
 #include <string.h>
@@ -116,22 +117,6 @@ static xmqttsessionstatus xmqttImageReadHeader(xmqttsessionconfig* K,const xmqtt
     unsigned Previous=0;for(uint32 I=0;I<H->Incoming;++I){unsigned IdValue=(unsigned)xmqttImageGet(B+At,2),State=B[At+2];if(IdValue<=Previous||(State!=2&&State!=3))return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"invalid image incoming order/state");Previous=IdValue;At+=3;}
     return XMQTT_SESSION_DONE;
 }
-static xmqttsessionstatus xmqttImageRestorePacket(xmqttsession* S,const unsigned char* Entry)
-{
-    size_t N=(size_t)xmqttImageGet(Entry+4,4),Count=(size_t)xmqttImageGet(Entry+8,4);const unsigned char* Wire=Entry+XMQTT_IMAGE_PACKET;
-    if((Wire[0]>>4)!=XMQTT_PACKET_PUBLISH)return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"image outgoing entry is not PUBLISH");
-    if(N>S->Config.Codec.MaxPacketBytes||Count>S->Config.Codec.MaxProperties||Count>(SIZE_MAX-sizeof(xmqttsessionpacket))/sizeof(xmqttproperty))return XMQTT_SESSION_LIMIT;
-    size_t Allocation=sizeof(xmqttsessionpacket)+Count*sizeof(xmqttproperty);if(N>SIZE_MAX-Allocation||Allocation+N>S->Config.MaxBytes-S->LiveBytes)return XMQTT_SESSION_LIMIT;Allocation+=N;
-    xmqttsessionpacket* P=xrtMalloc(Allocation);if(!P)return XMQTT_SESSION_ERROR;memset(P,0,sizeof(*P));unsigned char* Saved=(unsigned char*)(P->Properties+Count);memcpy(Saved,Wire,N);xmqttcodecbuffers Buffers={P->Properties,Count,NULL,0};xmqttcodecissue Issue={0};
-    xmqttcodecstatus Read=S->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue):xmqttPacketRead311((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue);
-    if(Read==XMQTT_CODEC_LOCAL_ERROR&&Issue.Error==XMQTT_CODEC_LIMIT){xrtFree(P);return XMQTT_SESSION_LIMIT;}
-    unsigned Qos=(P->Packet.Flags>>1)&3u;bool Valid=Read==XMQTT_CODEC_DONE&&P->Packet.Wire.Size==N&&P->Packet.Properties.Count==Count&&P->Packet.Identifier&&P->Packet.Body.Publish.Topic.Size&&!(P->Packet.Flags&8u)&&(Qos==1||Qos==2)&&(!Entry[0]||Qos==2);
-    for(size_t I=0;Valid&&I<P->Packet.Properties.Count;++I)if(P->Properties[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)Valid=false;
-    if(!Valid){xrtFree(P);return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"invalid canonical image PUBLISH/properties");}
-    uint16 Id=P->Packet.Identifier;if(S->Ids[Id>>3]&(1u<<(Id&7u))){xrtFree(P);return xmqttImageError(XMQTT_SESSION_PROTOCOL_ERROR,"duplicate image outgoing identifier");}
-    P->Owner=S;P->Allocation=Allocation;P->Bytes=N;P->Identifier=Id;P->Qos=(uint8)Qos;P->Stage=(xmqttsessionstage)Entry[0];P->Active=true;P->Attempted=(Entry[1]&1u)!=0;P->Sent=(Entry[1]&2u)!=0;P->PubrecReceived=P->Stage==XMQTT_SESSION_PUBREL;P->PubrecReason=Entry[2];P->Duplicate=(unsigned char)(Saved[0]|8u);P->Release[0]=0x62;P->Release[1]=2;P->Release[2]=(unsigned char)(Id>>8);P->Release[3]=(unsigned char)Id;xrtAtomic32Init(&P->Refs,1);
-    P->Previous=S->Tail;if(S->Tail)S->Tail->Next=P;else S->Head=P;S->Tail=P;size_t Bucket=((uint32)Id*2654435761u)&(S->Buckets-1u);P->HashNext=S->Hash[Bucket];S->Hash[Bucket]=P;S->Ids[Id>>3]|=(unsigned char)(1u<<(Id&7u));++S->Active;++S->Objects;S->LiveBytes+=Allocation;(void)xrtAtomic32FetchAdd(&S->Refs,1,XMEMORY_RELAXED);return XMQTT_SESSION_DONE;
-}
 static xmqttsessionstatus xmqttImageRestoreImpl(const xmqttsessionconfig* SessionConfig,const xmqttsessionimageconfig* Config,xbytesview Image,xmqttsession** Out,bool Assigned)
 {
     xmqttsessionimageconfig C;
@@ -143,15 +128,15 @@ static xmqttsessionstatus xmqttImageRestoreImpl(const xmqttsessionconfig* Sessio
     xmqttimageheader H;xmqttsessionstatus Status=xmqttImageReadHeader(&K,&C,Image,&H,Assigned);if(Status!=XMQTT_SESSION_DONE)return Status;
     if(xmqttSessionStorageSize(&K,0,NULL)>K.MaxBytes)return XMQTT_SESSION_LIMIT;
     xmqttsession* S=NULL;if(!xmqttSessionCreate(&K,&S))return XMQTT_SESSION_ERROR;
-    S->Generation=H.Generation;S->Next=H.Next;S->LastNow=S->ClosedAt=C.MonotonicTime;bool Keep=(H.Flags&XMQTT_IMAGE_STATE)!=0;bool Infinite=(H.Flags&(XMQTT_IMAGE_LIVE|XMQTT_IMAGE_INFINITE))!=0;uint64 Remaining=H.Remaining;
+    S->Generation=H.Generation;S->Next=H.Next;bool Keep=(H.Flags&XMQTT_IMAGE_STATE)!=0;bool Infinite=(H.Flags&(XMQTT_IMAGE_LIVE|XMQTT_IMAGE_INFINITE))!=0;uint64 Remaining=H.Remaining;
     bool Expired=Keep&&!Infinite&&C.WallMilliseconds-H.Wall>=Remaining;
     /* Expired images still undergo full semantic validation. A stale timestamp
      * cannot turn CRC-valid corrupted packets into an accepted empty state. */
     size_t At=H.Packets;
-    for(uint32 I=0;I<H.Outgoing;++I){Status=xmqttImageRestorePacket(S,Image.Data+At);if(Status!=XMQTT_SESSION_DONE){(void)xmqttSessionDestroy(S);return Status;}At+=XMQTT_IMAGE_PACKET+(size_t)xmqttImageGet(Image.Data+At+4,4);}
+    for(uint32 I=0;I<H.Outgoing;++I){Status=xmqttInternalSessionRestorePacket(S,(xbytesview){Image.Data+At+XMQTT_IMAGE_PACKET,(size_t)xmqttImageGet(Image.Data+At+4,4)},(size_t)xmqttImageGet(Image.Data+At+8,4),Image.Data[At],Image.Data[At+1],Image.Data[At+2],NULL);if(Status==XMQTT_SESSION_PROTOCOL_ERROR)xmqttImageError(Status,"invalid canonical image PUBLISH/properties/identifier");if(Status!=XMQTT_SESSION_DONE){(void)xmqttSessionDestroy(S);return Status;}At+=XMQTT_IMAGE_PACKET+(size_t)xmqttImageGet(Image.Data+At+4,4);}
     for(uint32 I=0;I<H.Incoming;++I){uint16 Id=(uint16)xmqttImageGet(Image.Data+At,2);unsigned State=Image.Data[At+2],Shift=(Id&3u)*2u;S->Receive[Id>>2]|=(unsigned char)(State<<Shift);++S->RxCount;At+=3;}
-    S->HasState=Keep;S->Persistent=Keep;S->InfiniteExpiry=Infinite;
-    if(Keep&&!Infinite&&!Expired){Remaining-=C.WallMilliseconds-H.Wall;S->Expiry=(double)Remaining/1000.0;S->ExpiresAt=C.MonotonicTime+S->Expiry;}
+    if(Keep&&!Infinite&&!Expired)Remaining-=C.WallMilliseconds-H.Wall;
+    xmqttInternalSessionRestoreExpiry(S,C.MonotonicTime,Keep,Infinite,Remaining);
     if(Expired){(void)xmqttSessionReset(S);Status=XMQTT_SESSION_RESET;}else Status=XMQTT_SESSION_DONE;
     *Out=S;return Status;
 }

@@ -189,6 +189,18 @@
         "xrtVfsCreate",
         "xrtEngineCreate"
       ]
+    },
+    {
+      "name": "xmqtt_store_session",
+      "system": "session",
+      "suite": "xmqtt_store_session",
+      "description": "Direct immutable State import into independent Session; no Client,Engine,VFS or image serialization",
+      "forbid_symbols": [
+        "xmqttSessionImageRestore",
+        "xmqttClientConnect",
+        "xrtVfsCreate",
+        "xrtNetEngineCreate"
+      ]
     }
   ]
 }

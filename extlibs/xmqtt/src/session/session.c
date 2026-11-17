@@ -5,6 +5,7 @@
 #include "../internal/xmqtt_internal.h"
 #include "../internal/xmqtt_session_client.h"
 #include "../internal/xmqtt_session_state.h"
+#include "../internal/xmqtt_session_restore.h"
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -498,6 +499,58 @@ XMQTT_API xmqttsessionstatus xmqttSessionSent(xmqttsession* S,const xmqttsession
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSent(xmqttsession* S,const void* Owner,const xmqttsessionframe* F)
 {return xmqttSessionSentOwned(S,Owner,F);}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+static xstrview xmqttRestoreText(xstrview V,const unsigned char* Old,const unsigned char* New)
+{if(V.Data)V.Data=(const char*)(New+((const unsigned char*)V.Data-Old));return V;}
+static xbytesview xmqttRestoreBytes(xbytesview V,const unsigned char* Old,const unsigned char* New)
+{if(V.Data)V.Data=New+(V.Data-Old);return V;}
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionRestorePacket(xmqttsession* S,
+    xbytesview Wire,size_t Count,uint8 Stage,uint8 Flags,uint8 Reason,const xmqttpacket* Parsed)
+{
+    size_t N=Wire.Size;
+    if(!N||(Wire.Data[0]>>4)!=XMQTT_PACKET_PUBLISH||Stage>1||(Flags&~3u)||((Flags&2u)&&!(Flags&1u))||
+       (Stage?(Flags!=3u||(Reason&&Reason!=0x10)||(S->Config.Version==XMQTT_VERSION_311&&Reason)):Reason!=0))return XMQTT_SESSION_PROTOCOL_ERROR;
+    if(N>S->Config.Codec.MaxPacketBytes||Count>S->Config.Codec.MaxProperties||Count>(SIZE_MAX-sizeof(xmqttsessionpacket))/sizeof(xmqttproperty))return XMQTT_SESSION_LIMIT;
+    size_t Allocation=sizeof(xmqttsessionpacket)+Count*sizeof(xmqttproperty);
+    if(N>SIZE_MAX-Allocation||Allocation+N>S->Config.MaxBytes-S->LiveBytes)return XMQTT_SESSION_LIMIT;
+    Allocation+=N;xmqttsessionpacket* P=xrtMalloc(Allocation);if(!P)return XMQTT_SESSION_ERROR;memset(P,0,sizeof(*P));
+    unsigned char* Saved=(unsigned char*)(P->Properties+Count);memcpy(Saved,Wire.Data,N);
+    xmqttcodecstatus Read=XMQTT_CODEC_DONE;
+    if(Parsed){
+        P->Packet=*Parsed;if(Parsed->Wire.Data!=Wire.Data||Parsed->Wire.Size!=N||Parsed->Properties.Count!=Count){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+        if(Count)memcpy(P->Properties,Parsed->Properties.Data,Count*sizeof(*P->Properties));
+        P->Packet.Wire=(xbytesview){Saved,N};P->Packet.Properties.Data=Count?P->Properties:NULL;
+        P->Packet.Body.Publish.Topic=xmqttRestoreText(Parsed->Body.Publish.Topic,Wire.Data,Saved);
+        P->Packet.Body.Publish.Payload=xmqttRestoreBytes(Parsed->Body.Publish.Payload,Wire.Data,Saved);
+        for(size_t I=0;I<Count;++I){xmqttproperty* V=P->Properties+I;
+            if(V->Type==XMQTT_PROPERTY_STRING)V->Value.Text=xmqttRestoreText(V->Value.Text,Wire.Data,Saved);
+            else if(V->Type==XMQTT_PROPERTY_BINARY)V->Value.Binary=xmqttRestoreBytes(V->Value.Binary,Wire.Data,Saved);
+            else if(V->Type==XMQTT_PROPERTY_STRING_PAIR){V->Value.Pair.Name=xmqttRestoreText(V->Value.Pair.Name,Wire.Data,Saved);V->Value.Pair.Value=xmqttRestoreText(V->Value.Pair.Value,Wire.Data,Saved);}}
+    }else {
+        xmqttcodecbuffers Buffers={P->Properties,Count,NULL,0};xmqttcodecissue Issue={0};
+        Read=S->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue):xmqttPacketRead311((xbytesview){Saved,N},XMQTT_CLIENT_TO_SERVER,&S->Config.Codec,&Buffers,&P->Packet,&Issue);
+        if(Read==XMQTT_CODEC_LOCAL_ERROR&&Issue.Error==XMQTT_CODEC_LIMIT){xrtFree(P);return XMQTT_SESSION_LIMIT;}
+    }
+    unsigned Qos=(P->Packet.Flags>>1)&3u;bool Valid=Read==XMQTT_CODEC_DONE&&P->Packet.Type==XMQTT_PACKET_PUBLISH&&P->Packet.Wire.Size==N&&P->Packet.Properties.Count==Count&&
+        P->Packet.Identifier&&P->Packet.Body.Publish.Topic.Size&&!(P->Packet.Flags&8u)&&(Qos==1||Qos==2)&&(!Stage||Qos==2);
+    for(size_t I=0;Valid&&I<Count;++I)if(P->Properties[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)Valid=false;
+    if(!Valid){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+    uint16 Id=P->Packet.Identifier;if(S->Ids[Id>>3]&(1u<<(Id&7u))){xrtFree(P);return XMQTT_SESSION_PROTOCOL_ERROR;}
+    P->Owner=S;P->Allocation=Allocation;P->Bytes=N;P->Identifier=Id;P->Qos=(uint8)Qos;P->Stage=(xmqttsessionstage)Stage;P->Active=true;P->Attempted=(Flags&1u)!=0;P->Sent=(Flags&2u)!=0;
+    P->PubrecReceived=Stage!=0;P->PubrecReason=Reason;P->Duplicate=(unsigned char)(Saved[0]|8u);P->Release[0]=0x62;P->Release[1]=2;P->Release[2]=(unsigned char)(Id>>8);P->Release[3]=(unsigned char)Id;xrtAtomic32Init(&P->Refs,1);
+    P->Previous=S->Tail;if(S->Tail)S->Tail->Next=P;else S->Head=P;S->Tail=P;
+    size_t Bucket=xmqttSessionHash(S,Id);P->HashNext=S->Hash[Bucket];S->Hash[Bucket]=P;S->Ids[Id>>3]|=(unsigned char)(1u<<(Id&7u));++S->Active;++S->Objects;S->LiveBytes+=Allocation;(void)xrtAtomic32FetchAdd(&S->Refs,1,XMEMORY_RELAXED);return XMQTT_SESSION_DONE;
+}
+XMQTT_INTERNAL void xmqttInternalSessionRestoreExpiry(xmqttsession* S,double Now,bool Keep,bool Infinite,uint64 Remaining)
+{
+    S->LastNow=S->ClosedAt=Now;S->HasState=S->Persistent=Keep;S->InfiniteExpiry=Infinite;
+    if(Keep&&!Infinite){S->Expiry=(double)Remaining/1000.0;
+        /* A millisecond duration can round upward when represented as binary
+         * seconds. Move one ULP down for fractional seconds, never add life. */
+        if(Remaining%1000u)S->Expiry=nextafter(S->Expiry,0.0);
+        S->ExpiresAt=Now+S->Expiry;}
+}
 #endif
 XMQTT_API xmqttsessionstatus xmqttSessionAcknowledge(xmqttsession* S,const xmqttpacket* Ack)
 {return xmqttSessionAcknowledgeOwned(S,NULL,Ack);}

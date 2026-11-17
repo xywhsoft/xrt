@@ -1,7 +1,8 @@
 # MQTT durable storage execution plan
 
 Status2026-11-17: bounded Session images, the journal, typed delta codec and
-committed-state recovery applier are implemented and locally verified separately.
+committed-state recovery applier and direct disconnected Session import are
+implemented and locally verified separately.
 The complete file store, live transaction driver, durable Inbox/lease API and
 full recovery integration below remain required work. This plan preserves the original
 four-product objective and does not label a protocol checkpoint as durable MQTT.
@@ -131,3 +132,29 @@ arrival throughput/tails/CPU/memory/copies/synchronization/syscalls/recovery wit
 equivalent broker/QoS/TLS/sync policy and pinned comparators. Existing shared-host
 image microbenchmarks are diagnostics. Native Windows/Linux >=72h mixed load and
 the original Redis/RPC/Cron and four-product release gates remain outstanding.
+
+
+## Disconnected Session import delivered (2026-11-17)
+
+`xmqtt_store_session` now imports an immutable complete-prefix State into one
+independent ordinary Session. Exact slot/generation/version/bound identity,
+additional trusted-wall downtime, new local resource/codec limits and checked
+quiet error restoration precede publication. Explicit MQTT5 assigned identity
+is a separate operation. Outgoing id/order/attempt/PUBREL and incoming QoS2
+identity stages survive; connection generation/readiness/aliases/old Futures
+are not reconstructed. Independent Inbox payloads remain with State.
+
+The private packet/index/expiry construction is shared with image restore.
+Store import uses one native parse, one retained wire copy and descriptor
+rebasing per outgoing, plus one Session and at most one bounded scratch
+allocation. It avoids serializing a whole intermediate image and its CRC
+passes. These remain measured cold-path costs, not a zero-overhead claim.
+
+The actual Client/Engine literal-peer and separate real-file passive tests
+qualify only this offline bridge. A host must retire the old transport owner;
+the bridge cannot fence a live Client or persist new ACK/completion transitions.
+The following phase still requires bounded live prepare/commit/network-output
+ordering, delivery leases and physical retirement before reopening storage.
+See [stage evidence](xmqtt-store-session-20261117.json). Earlier prototype
+paragraphs above retain their historical scope; RPC/Cron error-restoration
+followups have separate dated commits and do not supply this live driver.

@@ -13833,3 +13833,53 @@ and out/service-extensions/xrpc-frame-20261112.
   compaction/group commit, full original Redis/RPC/MQTT/Cron functionality,
   controlled production throughput/tails and native Windows/Linux >=72h remain
   required. The original four-product goal remains active.
+
+
+## Direct committed-state Session import (2026-11-17)
+
+The developing `xmqtt_store_session` now imports a bound immutable State into an
+independent disconnected Session without image serialization. The exact
+version/identity/broker-principal-slot/storage generation are checked; explicit
+MQTT5 assigned-id recovery requires an empty expected ClientId. Outgoing packet
+order/id/attempt metadata/PUBLISH-or-PUBREL and incoming QoS2 stages survive.
+Additional closed downtime consumes finite expiry; rollback fails. A live cut
+retains only a candidate pending a fresh broker decision. Transport generation
+starts at0 and new authentication/CONNACK is required before replay.
+
+There is one native decode and one retained wire copy per outgoing packet,
+reusable bounded property scratch, descriptor rebasing and shared private
+packet/index construction with image restore. No new Core API or runtime is
+introduced. Session memory and scratch are separately bounded. Candidate
+publication follows checked quiet ambient-error restoration. Partial owners
+are refunded on errors/limits; source State and its independent pending Inbox
+are unchanged. The old Client/transport must be physically retired by the host.
+Import does not fence an old connection or recreate its Futures.
+
+Windows/WSL modular/single/root/stats-off/static/shared, real-file passive example
+and standalone declarations pass. Tests cover5 normal/assigned imports,3 expiry
+cuts,40 argument/identity/cap refusals,9 actual allocator-prefix failures,24 real
+native error-slot failures and2 bound contexts per platform. WSL ASan/UBSan/leak
+checks pass. Legacy image, actual Client image replacement, Session and State
+regressions pass; the later registration/comment changes have identical
+preprocessed implementations for those three regression selections.
+
+An actual Client+Engine attaches the recovered typed-VFS-journal State against
+an independent literal Python TCP peer: MQTT5/311 and complete/fragmented IO,
+exact canonical DUP1/DUP0 PUBLISH and PUBREL, old incoming deduplication, repeated
+unknown PUBREL and physical joins. This is4 cases per platform. Passive
+SessionNext's PUBREL priority is tested separately; the native Client retains
+its existing scheduling. No network handshake is fabricated in this proof.
+Separate real-file examples sync/reopen/recover/import without network output.
+
+Three public exports and three hidden extension-private helpers, identical
+three-form Windows/WSL x64 public ABI and trimmed single/static/shared size pass.
+Selecting store import excludes Client/Engine/VFS/image serialization. Cold
+64-packet import baselines and separate allocation instrumentation are
+reported in [stage evidence](xmqtt-store-session-20261117.json); shared-host
+noise failures are retained and no controlled performance claim is made.
+
+The live commit/ACK/Inbox/lease driver, file namespace/locking/compaction/group
+commit, full original Redis/RPC/MQTT/Cron scope, controlled queue-inclusive
+throughput/tails/comparators and native Windows/Linux >=72h remain required.
+Strict release rejects25 developing MQTT modules. All work and tests use
+`D:/GIT/xrt/master`; no branch/worktree operation or remote push was performed.

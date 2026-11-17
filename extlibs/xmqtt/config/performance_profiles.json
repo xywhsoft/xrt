@@ -4993,6 +4993,109 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_store_session",
+      "system": "session",
+      "description": "Passive direct Session import and destruction of64 outgoing QoS1 obligations; shared-host diagnostics only",
+      "benchmarks": [
+        {
+          "name": "store_session_propertyfree",
+          "source": "extlibs/xmqtt/bench/bench_store_session.c",
+          "suite": "xmqtt_store_session_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        },
+        {
+          "name": "store_session_properties",
+          "source": "extlibs/xmqtt/bench/bench_store_session.c",
+          "suite": "xmqtt_store_session_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            }
+          }
+        }
+      ]
     }
   ]
 }

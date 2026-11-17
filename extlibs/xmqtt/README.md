@@ -1,6 +1,15 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The developing [committed state recovery](docs/store_state.md) validates the
+whole typed journal prefix before publishing independent QoS/Inbox views.
+[Direct Session import](docs/store_session.md) now constructs a disconnected
+ordinary Session with one retained wire copy and native parse per outgoing
+packet. Slot/generation/identity and trusted clocks are checked; fresh
+CONNACK is required. The host must retire the previous transport first and
+preserve pending Inbox payloads separately. See the [real-file passive example](examples/store_session/README.md).
+Live durable ACK/commit/lease integration and controlled performance/72h
+qualification remain required.
 The developing [Session image codec](docs/session_image.md) checkpoints bounded
 outgoing QoS/committed incoming identities under an explicit broker/principal/slot
 binding, validates corruption and quotas, and restores independent clock epochs

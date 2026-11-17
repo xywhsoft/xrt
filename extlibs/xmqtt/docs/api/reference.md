@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `161` 个函数、`280` 个常量或宏、
-`100` 个公共类型。
+当前登记 `164` 个函数、`281` 个常量或宏、
+`101` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -771,6 +771,26 @@
 - `xmqttstoredeltastatus`
 - `xmqttstoredeltatype`
 
+## `extlibs/xmqtt/include/xmqtt/store_session.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/store_session.h)
+
+### 函数 (3)
+
+- `xmqttStoreSessionConfigInit`
+- `xmqttStoreSessionRestore`
+- `xmqttStoreSessionRestoreAssigned`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_STORE_SESSION`
+- `XMQTT_FEATURE_XMQTT_STORE_STATE`
+
+### 类型 (2)
+
+- `xmqttstoresessionconfig`
+- `xmqttstorestate`
+
 ## `extlibs/xmqtt/include/xmqtt/store_state.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/store_state.h)
@@ -783,9 +803,8 @@
 - `xmqttStoreStateRecover`
 - `xmqttStoreStateView`
 
-### 常量与宏 (11)
+### 常量与宏 (10)
 
-- `XMQTT_FEATURE_XMQTT_STORE_STATE`
 - `XMQTT_STORE_CORRUPT`
 - `XMQTT_STORE_DONE`
 - `XMQTT_STORE_EMPTY`
@@ -797,9 +816,8 @@
 - `XMQTT_STORE_OUTGOING`
 - `XMQTT_STORE_STATE_ERROR`
 
-### 类型 (6)
+### 类型 (5)
 
-- `xmqttstorestate`
 - `xmqttstorestateconfig`
 - `xmqttstorestateinfo`
 - `xmqttstorestatus`

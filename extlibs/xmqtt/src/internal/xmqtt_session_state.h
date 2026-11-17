@@ -22,7 +22,7 @@ struct xmqttsession {
      * from an arbitrarily large monotonic clock. Native negotiated integer
      * intervals remain exactly representable. No public layout depends on it. */
     bool Connected,HasState,Persistent,InfiniteExpiry;
-#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE)
+#if defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE) || defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
     double Expiry;
 #else
     uint32 Expiry;
