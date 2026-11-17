@@ -20,6 +20,10 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,cons
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Identifier);
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteIncomingKey(xmqttstorestate* State,const void* Owner,uint16 Identifier);
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverOutgoing(xmqttstorewrite* W,const void* Owner,
+    uint16 Identifier,xbytesview Wire,bool Pubrel,bool Sent,uint8 PubrecReason,bool* Attempted);
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteOutgoingKey(xmqttstorestate* State,const void* Owner,
+    uint16 Identifier,xbytesview Wire,bool Pubrel,bool Sent,uint8 PubrecReason,bool* Attempted);
 XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* State,const void* Owner);
 #endif
 #endif

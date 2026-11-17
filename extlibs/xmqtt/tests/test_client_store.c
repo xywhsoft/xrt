@@ -76,8 +76,9 @@ static void cgCase(xmqttversion V,unsigned Mode)
     }
     if(!Mode){
         testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK&&swInfo(W).State.Transactions==1&&swInfo(W).State.LiveAtCut,"successful Ready observes committed broker OPEN");
-        xmqttpacket P;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&P);P.Body.Publish.Topic=XRT_STR_LITERAL("unexposed");xfuture* F=(xfuture*)(uintptr_t)1;
-        testRequire(xmqttClientPublishAsync(C,&P,1000,&F)==XMQTT_ADMISSION_ERROR&&F==(xfuture*)(uintptr_t)1,"unimplemented durable flow is never exposed as success");xrtClearError();
+        xmqttpacket P;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&P);xfuture* F=(xfuture*)(uintptr_t)1;
+        testRequire(xmqttClientSubscribeAsync(C,&P,1000,&F)==XMQTT_ADMISSION_ERROR&&F==(xfuture*)(uintptr_t)1,
+                    "durable subscription intents remain unavailable");xrtClearError();
         if(Observe)jwAwait(&Observer.Entered);
         xrtAtomic64Store(&Clock.Value,200100,XMEMORY_RELEASE);testRequire(xmqttClientClose(C),"close live native connection");
         if(Observe){testRequire(xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"blocked synchronous Ready observer retains actual Client duty");xrtAtomic32Store(&Observer.Released,1,XMEMORY_RELEASE);}
@@ -99,8 +100,8 @@ static void cgCase(xmqttversion V,unsigned Mode)
 typedef struct cg_receive_peer {
     mqttExamplePeer Net;
     xmqttstorewrite* Writer;
-    bool Resume;
-    unsigned char Ack[8][5];
+    bool Resume, CapturePublish, EarlyPuback, Alias;
+    unsigned char Ack[8][32];
     size_t AckSize[8];
     uint64 AckTransaction[8];
     unsigned Count;
@@ -122,12 +123,22 @@ static void cgReceivePeerRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
         if(R==XMQTT_WIRE_MORE)break;
         testRequire(R==XMQTT_WIRE_DONE,"literal receive peer framing");
         if(F.Header.Type==XMQTT_PACKET_CONNECT){
-            const unsigned char Ack[]={0x20,Net->Version==XMQTT_VERSION_5?3:2,Peer->Resume?1:0,0,0};
-            testRequire(xrtNetStreamSend(S,Ack,(size_t)Ack[1]+2)==XNET_RESULT_OK,"literal CONNACK");
+            unsigned char Ack[13]={0x20,Net->Version==XMQTT_VERSION_5?3:2,Peer->Resume?1:0,0,0};
+            if(Peer->Alias){
+                Ack[1]=6;Ack[4]=3;Ack[5]=0x22;Ack[6]=0;Ack[7]=1;
+            }
+            size_t Size=Ack[1]+2u;
+            if(Peer->EarlyPuback){
+                const unsigned char P[]={0x40,2,0,9};
+                memcpy(Ack+Size,P,sizeof(P));Size+=sizeof(P);
+            }
+            testRequire(xrtNetStreamSend(S,Ack,Size)==XNET_RESULT_OK,"literal CONNACK and optional coalesced PUBACK");
         }else{
-            testRequire(Peer->Count<8 && F.Wire.Size<=5 &&
-                        (F.Header.Type==XMQTT_PACKET_PUBACK||F.Header.Type==XMQTT_PACKET_PUBREC||F.Header.Type==XMQTT_PACKET_PUBCOMP),
-                        "only expected acknowledgments leave the private Client");
+            bool Expected=Peer->CapturePublish
+                ? F.Header.Type==XMQTT_PACKET_PUBLISH||F.Header.Type==XMQTT_PACKET_PUBREL
+                : F.Header.Type==XMQTT_PACKET_PUBACK||F.Header.Type==XMQTT_PACKET_PUBREC||F.Header.Type==XMQTT_PACKET_PUBCOMP;
+            testRequire(Peer->Count<8&&F.Wire.Size<=sizeof(Peer->Ack[0])&&Expected,
+                        "only expected frames leave the private Client");
             unsigned I=Peer->Count++;
             memcpy(Peer->Ack[I],F.Wire.Data,F.Wire.Size);
             Peer->AckSize[I]=F.Wire.Size;
@@ -147,11 +158,15 @@ static bool cgReceiveAccept(xnetlistener* L,xnetstream* S,ptr Data)
     xrtAtomicPtrStore(&Net->Stream,S,XMEMORY_RELEASE);
     return true;
 }
-static void cgReceiveStart(cg_receive_peer* Peer,xmqttversion V,xmqttstorewrite* W,bool Resume)
+enum {CG_RESUME=1,CG_CAPTURE_PUBLISH=2,CG_EARLY_PUBACK=4,CG_ALIAS=8};
+static void cgPeerStart(cg_receive_peer* Peer,xmqttversion V,xmqttstorewrite* W,unsigned Flags)
 {
     memset(Peer,0,sizeof(*Peer));
     Peer->Writer=W;
-    Peer->Resume=Resume;
+    Peer->Resume=(Flags&CG_RESUME)!=0;
+    Peer->CapturePublish=(Flags&CG_CAPTURE_PUBLISH)!=0;
+    Peer->EarlyPuback=(Flags&CG_EARLY_PUBACK)!=0;
+    Peer->Alias=(Flags&CG_ALIAS)!=0;
     mqttExamplePeer* Net=&Peer->Net;
     Net->Version=V;
     xnetengineconfig E;
@@ -167,6 +182,8 @@ static void cgReceiveStart(cg_receive_peer* Peer,xmqttversion V,xmqttstorewrite*
     Net->Listener=xrtNetListen(Net->Engine,&L,&Events,NULL,Net);
     testRequire(Net->Listener&&xrtNetListenerLocal(Net->Listener,&Net->Address),"receive listener");
 }
+static void cgReceiveStart(cg_receive_peer* Peer,xmqttversion V,xmqttstorewrite* W,bool Resume)
+{cgPeerStart(Peer,V,W,Resume?CG_RESUME:0);}
 static void cgReceiveSend(cg_receive_peer* Peer,const unsigned char* Bytes,size_t Size)
 {
     xnetstream* S=xrtAtomicPtrLoad(&Peer->Net.Stream,XMEMORY_ACQUIRE);
@@ -452,8 +469,368 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
 }
 
 
+typedef enum cg_send_mode {
+    CG_SEND_FIRST, CG_SEND_PUT_CLOSE, CG_SEND_PUT_TIMEOUT, CG_SEND_ACK_CLOSE, CG_SEND_EARLY_ACK,
+    CG_SEND_PUBREC_CLOSE, CG_SEND_TWO, CG_SEND_ACK_LIMIT, CG_SEND_UNATTEMPTED,
+    CG_SEND_PUT_REFUSAL, CG_SEND_ACK_UNCERTAIN, CG_SEND_REJECTED
+} cg_send_mode;
+
+static void cgSentFrame(cg_receive_peer* Peer,unsigned Count,unsigned Qos,bool Duplicate,bool Alias,uint64 Tx)
+{
+    if(!Qos){cgReceiveAck(Peer,Count,0x62,9,false,Tx);return;}
+    double End=xrtTimer()+10;
+    while(xrtAtomic32Load(&Peer->Net.Acks,XMEMORY_ACQUIRE)<Count){
+        testRequire(xrtTimer()<End,"durable PUBLISH reaches actual TCP peer");
+        xrtSleep(1);
+    }
+    unsigned char Wire[16];
+    size_t N=2;
+    Wire[0]=(unsigned char)(0x30|(Qos<<1)|(Duplicate?8u:0u));
+    Wire[N++]=0;Wire[N++]=1;Wire[N++]='t';
+    Wire[N++]=0;Wire[N++]=9;
+    if(Peer->Net.Version==XMQTT_VERSION_5){
+        Wire[N++]=Alias?3:0;
+        if(Alias){Wire[N++]=0x23;Wire[N++]=0;Wire[N++]=1;}
+    }
+    Wire[N++]='x';
+    Wire[1]=(unsigned char)(N-2u);
+    testRequire(Peer->AckSize[Count-1]==N&&!memcmp(Peer->Ack[Count-1],Wire,N)&&
+                Peer->AckTransaction[Count-1]==Tx,"literal PUBLISH follows expected attempt commit");
+}
+static const xmqttwriteresult* cgWriteResult(xfuture* F,xmqttclientstatus Status,xmqttdelivery Delivery)
+{
+    testRequire(xrtFutureWaitFor(F,15000)==XWAIT_OK&&xrtFutureState(F)==XFUTURE_RESOLVED,"typed original publication outcome");
+    const xmqttwriteresult* V=xrtFutureValue(F);
+    if(V->Status!=Status||V->Delivery!=Delivery)
+        fprintf(stderr,"write outcome status %d expected %d, delivery %d expected %d\n",V->Status,Status,V->Delivery,Delivery);
+    testRequire(V->Status==Status&&V->Delivery==Delivery&&V->Identifier==9,"original Future reports its exact connection and peer outcome");
+    return V;
+}
+static void cgTransactions(xmqttstorewrite* W,uint64 Tx,size_t Outgoing)
+{
+    double End=xrtTimer()+10;
+    xmqttstorestateinfo Info;
+    do{
+        Info=swInfo(W).State;
+        testRequire(Info.Transactions<=Tx&&xrtTimer()<End,"bounded expected journal progress");
+        if(Info.Transactions!=Tx)xrtSleep(1);
+    }while(Info.Transactions!=Tx);
+    testRequire(Info.Outgoing==Outgoing,"correct outstanding durable identifiers");
+}
+static xmqttsession* cgImportSend(xmqttstorestate* Store,const xmqttsessionconfig* SK,const xmqttstorestateconfig* SC)
+{
+    xmqttstoresessionconfig Import;
+    xmqttStoreSessionConfigInit(&Import);
+    Import.Binding=SC->Binding;
+    Import.Generation=SC->Generation;
+    Import.WallMilliseconds=SC->WallMilliseconds;
+    Import.MonotonicTime=xrtTimer();
+    xmqttsession* Session=NULL;
+    testRequire(xmqttStoreSessionRestore(Store,SK,&Import,&Session)==XMQTT_SESSION_DONE,"restore exact committed outgoing Session");
+    return Session;
+}
+static void cgSendCase(xmqttversion V,cg_send_mode Mode)
+{
+    cgdrive D={0};
+    str NativePath=NULL;
+    if(Mode==CG_SEND_TWO){
+        D.IO.Base.Native=xrtFileTemp(NULL,"xmqtt-client-outgoing-",NULL,&NativePath);
+        testRequire(D.IO.Base.Native!=NULL,"true native outgoing journal");
+    }
+    bool Seeded=Mode==CG_SEND_UNATTEMPTED;
+    bool Qos2=Mode==CG_SEND_TWO||Mode==CG_SEND_PUBREC_CLOSE||Mode==CG_SEND_REJECTED;
+    bool Alias=V==XMQTT_VERSION_5&&Mode==CG_SEND_TWO;
+    unsigned Qos=Qos2?2:1;
+    bool PutHeld=Seeded||Mode<=CG_SEND_PUT_TIMEOUT;
+    bool AckHeld=Mode==CG_SEND_ACK_CLOSE||Mode==CG_SEND_PUBREC_CLOSE;
+    bool Resume=Mode==CG_SEND_PUT_CLOSE||Mode==CG_SEND_PUT_TIMEOUT||Mode==CG_SEND_EARLY_ACK||Mode==CG_SEND_PUBREC_CLOSE;
+    const unsigned char Puback[]={0x40,2,0,9},Pubrec[]={0x50,2,0,9},Pubcomp[]={0x70,2,0,9};
+    const unsigned char Reject[]={0x50,3,0,9,0x80};
+    jpfile File=cgFile(&D);
+    xmqttjournalconfig JC=stJournalConfig(V);
+    xmqttstorestateconfig SC=stConfig(V);
+    SC.WallMilliseconds=Seeded?200000:0;
+    xmqttjournal* J=NULL;
+    if(Seeded){
+        unsigned char Wire[]={0x32,7,0,1,'t',0,9,0,'x'};
+        size_t Bytes=sizeof(Wire);
+        if(V==XMQTT_VERSION_311){--Bytes;Wire[1]=6;Wire[7]='x';}
+        uint32 Expiry=V==XMQTT_VERSION_5?60:UINT32_MAX;
+        const xmqttstoredelta Ops[]={
+            {.Type=XMQTT_STORE_BIND,.Epoch=1,.WallMilliseconds=199900,.Data=XRT_BYTES_LITERAL("delta-client")},
+            {.Type=XMQTT_STORE_OPEN,.Epoch=1,.WallMilliseconds=199901,.Expiry=Expiry},
+            {.Type=XMQTT_STORE_OUT_PUT,.Epoch=1,.Key=1,.Identifier=9,.Data={Wire,Bytes}},
+            {.Type=XMQTT_STORE_END,.Epoch=1,.WallMilliseconds=199902,.Expiry=Expiry}
+        };
+        J=stWrite(File,V,Ops,4,false);
+    }else J=jpCreate(File,&JC);
+    xmqttstorestate* Store=NULL;
+    stStatus(xmqttStoreStateRecover(J,&SC,&Store),XMQTT_STORE_DONE,"outgoing commit prefix");
+    xmqttsessionconfig SK;
+    xmqttSessionConfigInit(&SK);
+    SK.Version=V;
+    SK.ClientId=SC.ClientId;
+    xmqttsession* Session=NULL;
+    if(Seeded)Session=cgImportSend(Store,&SK,&SC);
+    else testRequire(xmqttSessionCreate(&SK,&Session),"empty outgoing Session");
+
+    xtaskpool* Pool=jwPool(1);
+    D.IO.Pool=Pool;
+    xmqttstorewriteconfig WC;
+    xmqttStoreWriteConfigInit(&WC);
+    xmqttstorewrite* W=NULL;
+    testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"outgoing writer consumes journal");
+    D.IO.Base.Calls=0;
+    if(PutHeld)D.IO.Hold=14;
+    if(AckHeld)D.IO.Hold=21;
+    if(Mode==CG_SEND_PUT_REFUSAL)D.IO.Base.Fail=8;
+    if(Mode==CG_SEND_ACK_UNCERTAIN){D.IO.Base.Fail=21;D.IO.Base.FlushOnFailure=true;}
+
+    xmqttclientinboxconfig IK;
+    xmqttClientInboxConfigInit(&IK);
+    IK.Version=V;
+    if(Mode==CG_SEND_ACK_LIMIT)IK.MaxObjects=3; /* Ready+CONNACK+write result. */
+    xmqttclientinbox* Inbox=NULL;
+    testRequire(xmqttClientInboxCreate(&IK,&Inbox),"bounded Client Inbox");
+    xmqttclientconfig Cfg;
+    xmqttClientConfigInit(&Cfg);
+    Cfg.Version=V;
+    Cfg.MaxObjects=IK.MaxObjects;
+    Cfg.MaxObjectBytes=IK.MaxObjectBytes;
+    Cfg.MaxMessages=IK.MaxMessages;
+    Cfg.MaxMessageBytes=IK.MaxMessageBytes;
+    Cfg.WriteChunkBytes=1;
+    xmqttpacket Connect;
+    xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
+    Connect.Body.Connect.ClientId=SK.ClientId;
+    xmqttproperty Expiry={.Id=XMQTT_PROPERTY_SESSION_EXPIRY,.Type=XMQTT_PROPERTY_UINT32,.Value.Number=60};
+    if(V==XMQTT_VERSION_5)Connect.Properties=(xmqttpropertylist){&Expiry,1};
+    cgclock Clock={0};
+    xrtAtomic64Init(&Clock.Value,200010);
+    xmqttclientstoreplan Plan={W,cgWall,&Clock};
+    cg_receive_peer Peer;
+    cgPeerStart(&Peer,V,W,CG_CAPTURE_PUBLISH|(Seeded?CG_RESUME:0)|(Alias?CG_ALIAS:0));
+    xmqttclient* C=NULL;
+    testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"actual persistent publishing Client");
+    xrtAtomicPtrStore(&D.Client,C,XMEMORY_RELEASE);
+    xfuture* Ready=xmqttClientReady(C);
+    testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"persistent sending after OPEN");
+    xfuture* Written=NULL;
+    if(!Seeded){
+        xmqttpacket Pub;
+        xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Pub);
+        Pub.Flags=(uint8)(Qos<<1);
+        Pub.Identifier=9;
+        Pub.Body.Publish.Topic=XRT_STR_LITERAL("t");
+        Pub.Body.Publish.Payload=XRT_BYTES_LITERAL("x");
+        xmqttproperty TopicAlias={.Id=XMQTT_PROPERTY_TOPIC_ALIAS,.Type=XMQTT_PROPERTY_UINT16,.Value.Number=1};
+        if(Alias)Pub.Properties=(xmqttpropertylist){&TopicAlias,1};
+        testRequire(xmqttClientPublishAsync(C,&Pub,Mode==CG_SEND_PUT_TIMEOUT?700:10000,&Written)==XMQTT_ADMISSION_ACCEPTED,"normal publish API admits durable send");
+    }
+
+    bool BeforeWire=Mode==CG_SEND_PUT_CLOSE||Mode==CG_SEND_PUT_TIMEOUT;
+    uint64 SendTx=Seeded?3:2;
+    uint64 FinalTx=0;
+    unsigned FinalFrames=0;
+    if(PutHeld){
+        jwAwait(&D.IO.Entered);
+        testRequire(swInfo(W).State.Transactions==SendTx-1,"held attempt has no committed effect");
+        cgReceiveNoAck(&Peer,0);
+        if(Written)testRequire(xrtFutureState(Written)==XFUTURE_PENDING,"application cannot complete during first checkpoint");
+        if(Mode==CG_SEND_PUT_CLOSE)
+            testRequire(xmqttClientClose(C)&&xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"close retains attempt IO");
+        if(Mode==CG_SEND_PUT_TIMEOUT){
+            double End=xrtTimer()+5;
+            xmqttclientinfo Info;
+            do{
+                testRequire(xmqttClientInfo(C,&Info)&&xrtTimer()<End,"original send deadline expires during real sync");
+                if(Info.State<XMQTT_CLIENT_CLOSING)xrtSleep(5);
+            }while(Info.State<XMQTT_CLIENT_CLOSING);
+            testRequire(Info.CloseStatus==XMQTT_STATUS_TIMEOUT&&xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"timeout closes without dropping store duty");
+        }
+        xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
+    }
+    if(Mode==CG_SEND_PUT_REFUSAL){
+        cgWriteResult(Written,XMQTT_STATUS_INITIALIZATION,XMQTT_NOT_SENT);
+        FinalTx=1;
+    }else if(BeforeWire){
+        cgWriteResult(Written,Mode==CG_SEND_PUT_TIMEOUT?XMQTT_STATUS_TIMEOUT:XMQTT_STATUS_CLOSED,XMQTT_NOT_SENT);
+        FinalTx=3;
+    }else{
+        cgSentFrame(&Peer,1,Qos,false,Alias,SendTx);
+        testRequire(swInfo(W).State.Outgoing==1,"wire has a committed durable obligation");
+        FinalFrames=1;
+        if(Mode==CG_SEND_EARLY_ACK){
+            testRequire(xmqttClientClose(C),"disconnect after PUBLISH before broker ACK");
+            cgWriteResult(Written,XMQTT_STATUS_CLOSED,XMQTT_MAY_HAVE_REACHED_PEER);
+            FinalTx=3;
+        }else if(Mode==CG_SEND_REJECTED){
+            cgReceiveSend(&Peer,Reject,sizeof(Reject));
+            const xmqttwriteresult* R=cgWriteResult(Written,XMQTT_STATUS_REJECTED,XMQTT_PEER_REJECTED);
+            testRequire(R->PubrecReceived&&R->PubrecReason==0x80&&!R->PubcompReceived,"negative PUBREC retires flow without PUBREL");
+            cgTransactions(W,3,0);
+            FinalTx=4;
+        }else{
+            cgReceiveSend(&Peer,Qos2?Pubrec:Puback,4);
+            if(Mode==CG_SEND_ACK_UNCERTAIN){
+                const xmqttwriteresult* R=cgWriteResult(Written,XMQTT_STATUS_INITIALIZATION,XMQTT_MAY_HAVE_REACHED_PEER);
+                testRequire(!R->Puback&&swInfo(W).Worker.Failed&&swInfo(W).State.Outgoing==1,
+                            "uncertain ACK effect advertises no completed model or peer result");
+                FinalTx=3; /* Fresh recovery sees the fault fixture's written witness. */
+            }else if(AckHeld){
+                jwAwait(&D.IO.Entered);
+                testRequire(xrtFutureState(Written)==XFUTURE_PENDING&&swInfo(W).State.Outgoing==1&&
+                            swInfo(W).State.Transactions==2,"held broker ACK does not complete local result");
+                cgReceiveNoAck(&Peer,1);
+                xmqttpacket Same;
+                xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Same);
+                Same.Flags=(uint8)(Qos<<1);
+                Same.Identifier=9;
+                Same.Body.Publish.Topic=XRT_STR_LITERAL("t");
+                xfuture* Unchanged=(xfuture*)(uintptr_t)1;
+                testRequire(xmqttClientPublishAsync(C,&Same,1000,&Unchanged)==XMQTT_ADMISSION_OVERLOADED&&
+                            Unchanged==(xfuture*)(uintptr_t)1,"identifier stays reserved until durable broker acknowledgement");
+                testRequire(xmqttClientClose(C)&&xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"close retains observed ACK IO");
+                xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
+                const xmqttwriteresult* R=cgWriteResult(Written,XMQTT_STATUS_CLOSED,Qos2?XMQTT_MAY_HAVE_REACHED_PEER:XMQTT_PEER_ACCEPTED);
+                testRequire(Qos2?R->PubrecReceived&&!R->PubcompReceived:R->Puback!=NULL,
+                            "committed ACK facts survive late logical close");
+                FinalTx=4;
+            }else if(Qos2){
+                cgSentFrame(&Peer,2,0,false,false,3);
+                cgReceiveSend(&Peer,Pubrec,sizeof(Pubrec));
+                cgSentFrame(&Peer,3,0,false,false,3);
+                testRequire(xrtFutureState(Written)==XFUTURE_PENDING,"duplicate PUBREC is a protocol retry, not completion");
+                cgReceiveSend(&Peer,Pubcomp,sizeof(Pubcomp));
+                const xmqttwriteresult* R=cgWriteResult(Written,XMQTT_STATUS_OK,XMQTT_PEER_ACCEPTED);
+                testRequire(R->PubrecReceived&&R->PubcompReceived&&R->Pubrec&&R->Pubcomp,"typed QoS2 ACK metadata");
+                cgTransactions(W,4,0);
+                FinalFrames=3;
+                FinalTx=5;
+            }else{
+                if(Written){
+                    const xmqttwriteresult* R=cgWriteResult(Written,Mode==CG_SEND_ACK_LIMIT?XMQTT_STATUS_LIMIT:XMQTT_STATUS_OK,XMQTT_PEER_ACCEPTED);
+                    testRequire((R->Puback!=NULL)==(Mode!=CG_SEND_ACK_LIMIT),"metadata limit retains durable scalar peer decision");
+                }
+                if(Mode!=CG_SEND_ACK_LIMIT)cgTransactions(W,SendTx+1,0);
+                FinalTx=SendTx+2;
+            }
+        }
+    }
+
+    if(Mode==CG_SEND_FIRST){
+        xmqttpacket Pub;
+        xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Pub);
+        Pub.Body.Publish.Topic=XRT_STR_LITERAL("t");
+        Pub.Body.Publish.Payload=XRT_BYTES_LITERAL("x");
+        xfuture* F=NULL;
+        testRequire(xmqttClientPublishAsync(C,&Pub,10000,&F)==XMQTT_ADMISSION_ACCEPTED&&
+                    xrtFutureWaitFor(F,10000)==XWAIT_OK&&xrtFutureState(F)==XFUTURE_RESOLVED,
+                    "QoS0 uses the native write completion");
+        const xmqttwriteresult* Value=xrtFutureValue(F);
+        testRequire(Value->Status==XMQTT_STATUS_OK&&!Value->Identifier,"QoS0 has no identifier obligation");
+        double Wait=xrtTimer()+10;
+        while(xrtAtomic32Load(&Peer.Net.Acks,XMEMORY_ACQUIRE)<2){
+            testRequire(xrtTimer()<Wait,"QoS0 native peer bytes");
+            xrtSleep(1);
+        }
+        const unsigned char Wire5[]={0x30,5,0,1,'t',0,'x'},Wire311[]={0x30,4,0,1,'t','x'};
+        const unsigned char* Wire=V==XMQTT_VERSION_5?Wire5:Wire311;
+        size_t N=V==XMQTT_VERSION_5?sizeof(Wire5):sizeof(Wire311);
+        testRequire(Peer.AckSize[1]==N&&!memcmp(Peer.Ack[1],Wire,N)&&Peer.AckTransaction[1]==3,
+                    "literal QoS0 without a new journal checkpoint");
+        xrtFutureDestroy(F);
+        F=NULL;
+
+        Pub.Identifier=9;
+        Pub.Flags=2;
+        Wait=xrtTimer()+10;
+        xmqttclientadmission Admission;
+        do{
+            Admission=xmqttClientPublishAsync(C,&Pub,10000,&F);
+            if(Admission==XMQTT_ADMISSION_OVERLOADED)xrtSleep(1);
+        }while(Admission==XMQTT_ADMISSION_OVERLOADED&&xrtTimer()<Wait);
+        testRequire(Admission==XMQTT_ADMISSION_ACCEPTED,"same identifier reusable after committed ACK and native retirement");
+        cgSentFrame(&Peer,3,1,false,false,4);
+        xmqttstorewriteinfo Info=swInfo(W);
+        testRequire(Info.State.LastKey==2&&Info.State.Outgoing==1,"identifier reuse gets a new persistent key");
+        cgReceiveSend(&Peer,Puback,sizeof(Puback));
+        (void)cgWriteResult(F,XMQTT_STATUS_OK,XMQTT_PEER_ACCEPTED);
+        xrtFutureDestroy(F);
+        FinalFrames=3;
+        FinalTx=6;
+    }
+
+    testRequire(xmqttClientClose(C)&&xmqttClientWaitFor(C,15000)==XWAIT_OK,"retire outgoing Client, request native tails and end checkpoint");
+    xrtAtomicPtrStore(&D.Client,NULL,XMEMORY_RELEASE);
+    testRequire(xmqttClientDestroy(C),"destroy original publishing Client");
+    mqttExampleStop(&Peer.Net);
+    testRequire(xrtAtomic32Load(&Peer.Net.Acks,XMEMORY_ACQUIRE)==FinalFrames,"no unauthorized PUBLISH or PUBREL left the Client");
+    testRequire(xmqttSessionDestroy(Session)&&xmqttStoreWriteDestroy(W),"physical owners retired before recovery");
+    xrtFutureDestroy(Ready);
+
+    D.IO.Base.Fail=D.IO.Hold=0;
+    J=jpReopen(File,&JC);
+    SC.WallMilliseconds=201000;
+    Store=NULL;
+    stStatus(xmqttStoreStateRecover(J,&SC,&Store),XMQTT_STORE_DONE,"recover real durable outgoing state");
+    xmqttstorestateinfo S=stInfo(Store);
+    testRequire(S.Transactions==FinalTx&&S.Outgoing==(Resume?1u:0u),"fresh store reproduces outgoing ACK cut");
+    if(Resume){
+        xmqttstoreview Record=stView(Store,XMQTT_STORE_OUTGOING,0);
+        testRequire(Record.Key==1&&Record.Identifier==9&&Record.Attempted&&Record.Pubrel==Qos2&&
+                    Record.Sent==Qos2&&Record.Wire.Data[0]==(0x30u|(Qos<<1)),"canonical persistent attempt and PUBREL state");
+        Session=cgImportSend(Store,&SK,&SC);
+        W=NULL;
+        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"reopened outgoing writer");
+        Plan.Writer=W;
+        xrtAtomic64Store(&Clock.Value,201001,XMEMORY_RELEASE);
+        bool Early=Mode==CG_SEND_EARLY_ACK;
+        cgPeerStart(&Peer,V,W,CG_RESUME|CG_CAPTURE_PUBLISH|(Early?CG_EARLY_PUBACK:0));
+        C=NULL;
+        testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"actual resumed publishing Client");
+        Ready=xmqttClientReady(C);
+        testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"resume surviving broker epoch");
+        if(!Early){
+            cgSentFrame(&Peer,1,Qos2?0:1,true,false,FinalTx+1);
+            cgReceiveSend(&Peer,Qos2?Pubcomp:Puback,4);
+        }
+        cgTransactions(W,FinalTx+2,0);
+        testRequire(xmqttClientDestroy(C),"retire resumed publishing connection");
+        mqttExampleStop(&Peer.Net);
+        testRequire(xrtAtomic32Load(&Peer.Net.Acks,XMEMORY_ACQUIRE)==(Early?0u:1u),"replay sends only the outstanding protocol stage");
+        testRequire(xmqttSessionDestroy(Session)&&xmqttStoreWriteDestroy(W),"release resumed owners");
+        xrtFutureDestroy(Ready);
+        J=jpReopen(File,&JC);
+        Store=NULL;
+        SC.WallMilliseconds=202000;
+        stStatus(xmqttStoreStateRecover(J,&SC,&Store),XMQTT_STORE_DONE,"replay final resumed acknowledgement");
+        testRequire(!stInfo(Store).Outgoing&&stInfo(Store).Transactions==FinalTx+3,"replayed completion and end persist");
+    }
+    xmqttStoreStateDestroy(Store);
+    testRequire(xmqttJournalDestroy(J)&&xmqttClientInboxDestroy(Inbox),"release recovered state, file and independent Inbox");
+    jwPoolDone(Pool);
+    jpFileClose(File);
+    if(NativePath){
+        testRequire(xrtClose(D.IO.Base.Native)&&xrtFileDelete(NativePath),"release only the native temporary journal");
+        xrtFree(NativePath);
+    }
+    if(Written){
+        testRequire(xrtFutureState(Written)==XFUTURE_RESOLVED&&((const xmqttwriteresult*)xrtFutureValue(Written))->Identifier==9,
+                    "original result remains valid without any old or resumed Client owner");
+        xrtFutureDestroy(Written);
+    }
+}
+
+
 int main(void)
 {
+    for(unsigned I=0;I<2;++I){
+        xmqttversion V=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
+        for(cg_send_mode Mode=CG_SEND_FIRST;Mode<=CG_SEND_ACK_UNCERTAIN;++Mode)cgSendCase(V,Mode);
+    }
+    cgSendCase(XMQTT_VERSION_5,CG_SEND_REJECTED);
+    puts("[PASS] outgoing attempt-before-PUBLISH, ACK-before-result, PUBREC-before-PUBREL and exact durable replay for both protocol levels");
     for(unsigned V=0;V<2;++V)for(unsigned Mode=0;Mode<8;++Mode)cgCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
     for(unsigned V=0;V<2;++V)
         for(cg_receive_mode Mode=CG_FLOW;Mode<=CG_INBOX_LIMIT;++Mode)

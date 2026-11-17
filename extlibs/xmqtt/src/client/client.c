@@ -104,7 +104,13 @@ struct xmqttrequest {
     unsigned char Wire[];
 };
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-typedef struct xmqttsessionrequest {const xmqttsessionpacket* Packet;} xmqttsessionrequest;
+typedef struct xmqttsessionrequest {
+    const xmqttsessionpacket* Packet;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    uint64 StoreKey;
+    bool StoreAttempted,PriorAttempt;
+#endif
+} xmqttsessionrequest;
 typedef struct xmqttsharedalias {size_t PropertiesAt;uint8 PrefixBytes;unsigned char Prefix[16];} xmqttsharedalias;
 typedef struct xmqttsessiondriver {
     xmqttsession* State;xmqttrequest* Selected;xmqttsessionframe Frame;xmutex AliasGate;
@@ -118,7 +124,11 @@ typedef struct xmqttclientstorestate {
     xtaskpool* Pool;xfuture* Future;xfuturewatch Watch;xatomic32 Watching;
     xmqttmessage* Message;unsigned char* Buffer;size_t Capacity;
     uint64 Epoch,EndWall;uint32 Expiry;double EndDeadline;
-    xmqttstoredeltatype Action;uint16 Identifier;uint8 AcceptQos;
+    xmqttrequest* Transmit; /* Retained in the request list through actual IO. */
+    xmqttstoredeltatype Action;
+    xmqttclientstatus AckMetadata;
+    uint16 Identifier;
+    uint8 AcceptQos,AckType,AckReason;
     bool Claimed,EverOpened,Applying,OpenCommitted,Ending,EndCommitted,Broken,Fallback,EndWallValid;
 } xmqttclientstorestate;
 #endif
@@ -209,6 +219,7 @@ static void xmqttClientSchedule(xmqttclient* C,double At);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 static void xmqttStoreClientClosed(xmqttclient* C);
 static void xmqttStoreClientReceiveResult(xmqttclient* C,bool Committed,bool Send);
+static void xmqttStoreClientTransmitResult(xmqttclient* C,bool Committed,bool Active);
 #endif
 static void xmqttClientWake(xmqttclient* C);
 static void xmqttClientFail(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause);
@@ -429,9 +440,9 @@ static bool xmqttStoreClientAttach(xmqttclient* C,const xmqttclientstoreplan* P)
     if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
     D->Claimed=true;xmqttsessioninfo I;xstrview Id;
     if(!xmqttSessionInfo(C->Session->State,&I)||!xmqttSessionClientId(C->Session->State,&Id))return false;
-    if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing||I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
+    if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing!=I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
        (D->Initial.ClientId.Size&&(Id.Size!=D->Initial.ClientId.Size||memcmp(Id.Data,D->Initial.ClientId.Data,Id.Size))))
-        return xmqttClientError(XERR_STATE,"private store bootstrap requires matching imported receiver state");
+        return xmqttClientError(XERR_STATE,"private store Client requires matching imported protocol state");
     return true;
 }
 static void xmqttStoreWatchNotify(ptr Data){(void)Data;}
@@ -534,7 +545,15 @@ static void xmqttStoreClientProgress(xmqttclient* C)
 {
     xmqttclientstorestate* D=C->Store;
     if(D->Future){
-        if(!D->Ending&&xmqttClientClosing(C))(void)xrtFutureCancel(D->Future);
+        if(D->Transmit){
+            xmqttrequest* Request=D->Transmit;
+            if(xrtCancelRequested(Request->Cancel))xmqttClientFail(C,XMQTT_STATUS_CANCELLED,NULL);
+            else if(xrtTimer()>=Request->Deadline)xmqttClientFail(C,XMQTT_STATUS_TIMEOUT,NULL);
+        }
+        /* Once a broker ACK has been observed, retain its storage duty even
+         * if that connection's application Future will finish locally. */
+        bool ObservedAck=D->Action==XMQTT_STORE_OUT_PUBREL||D->Action==XMQTT_STORE_OUT_COMPLETE;
+        if(!D->Ending&&!ObservedAck&&xmqttClientClosing(C))(void)xrtFutureCancel(D->Future);
         if(xrtAtomic32Load(&D->Watching,XMEMORY_ACQUIRE)||xrtFutureState(D->Future)==XFUTURE_PENDING){
             if(D->Fallback)xmqttClientSchedule(C,xrtTimer()+0.001);
             return;
@@ -556,7 +575,8 @@ static void xmqttStoreClientProgress(xmqttclient* C)
                     D->Applying=true;(void)xmqttClientFrame(C,&D->Message->Packet);D->Applying=false;
                 }
                 if(D->Message){xmqttMessageRelease(D->Message);D->Message=NULL;}
-            }else xmqttStoreClientReceiveResult(C,Committed,Active);
+            }else if(D->Transmit)xmqttStoreClientTransmitResult(C,Committed,Active);
+            else xmqttStoreClientReceiveResult(C,Committed,Active);
         }
         xrtFutureDestroy(F);xmqttClientDrop(C); /* Actual IO duty ends here. */
     }
@@ -569,7 +589,8 @@ static void xmqttStoreClientProgress(xmqttclient* C)
 }
 static void xmqttStoreClientFree(xmqttclient* C)
 {
-    xmqttclientstorestate* D=C->Store;if(D->Future||xrtAtomic32Load(&D->Watching,XMEMORY_ACQUIRE))abort();
+    xmqttclientstorestate* D=C->Store;
+    if(D->Future||D->Transmit||xrtAtomic32Load(&D->Watching,XMEMORY_ACQUIRE))abort();
     if(D->Claimed)xmqttInternalStoreWriteDriverRelease(D->Plan.Writer,C,!D->Broken&&(!D->OpenCommitted||D->EndCommitted));
     xmqttMessageRelease(D->Message);xrtFree(D->Buffer);xrtFree(D);C->Store=NULL;
 }
@@ -1534,7 +1555,11 @@ static void xmqttClientSessionEnd(xmqttclient* C)
 static void xmqttClientSessionFinish(xmqttclient* C,xmqttrequest* R)
 {
     xmqttsessiondriver* D=C->Session;xmqttsessionrequest* B=xmqttSessionRequest(R);if(!B->Packet)return;
-    if(!(R->Capabilities&XMQTT_TX_BORROW) && !R->Offset){xmqttsessionpacketinfo I;
+    if(!(R->Capabilities&XMQTT_TX_BORROW) && !R->Offset
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+       && !B->StoreKey
+#endif
+    ){xmqttsessionpacketinfo I;
         if(!xmqttSessionPacketInfo(B->Packet,&I))abort();
         if(I.Active && !I.Sent && xmqttInternalSessionWithdraw(D->State,C,B->Packet)!=XMQTT_SESSION_DONE)abort();
     }
@@ -1568,11 +1593,20 @@ static xmqttclientstatus xmqttClientSessionSelect(xmqttclient* C,xmqttrequest* R
 static bool xmqttClientSessionEarlierSent(xmqttrequest* R)
 {
     if(!(R->Capabilities&XMQTT_TX_BORROW))return false;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(R->Client->Store&&xmqttSessionRequest(R)->PriorAttempt)return true;
+#endif
     xmqttsessionpacketinfo I;return xmqttSessionPacketInfo(xmqttSessionRequest(R)->Packet,&I) && I.Sent;
 }
-static bool xmqttClientSessionAck(xmqttclient* C,const xmqttpacket* P)
+static bool xmqttClientSessionAck(xmqttclient* C,const xmqttpacket* P,xmqttrequest* R)
 {
-    xmqttsessionstatus S=xmqttInternalSessionAcknowledge(C->Session->State,C,P);
+    bool PriorAttempt=false;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    PriorAttempt=C->Store&&xmqttSessionRequest(R)->PriorAttempt;
+#else
+    (void)R;
+#endif
+    xmqttsessionstatus S=xmqttInternalSessionAcknowledge(C->Session->State,C,P,PriorAttempt);
     if(S==XMQTT_SESSION_DONE || S==XMQTT_SESSION_DUPLICATE || S==XMQTT_SESSION_REJECTED)return true;
     xmqttClientFail(C,S==XMQTT_SESSION_ERROR && xrtErrorKind(xrtGetError())==XERR_MEMORY?XMQTT_STATUS_MEMORY:XMQTT_STATUS_PROTOCOL,xrtGetError());return false;
 }
@@ -1583,6 +1617,19 @@ static bool xmqttClientSessionRestore(xmqttclient* C)
         if(S==XMQTT_SESSION_EMPTY)break;
         if(S!=XMQTT_SESSION_DONE){xmqttClientFail(C,XMQTT_STATUS_LIMIT,xrtGetError());return false;}
         xmqttsessionpacketinfo I;xmqttSessionPacketInfo(Packet,&I);size_t Bytes=I.Stage==XMQTT_SESSION_PUBREL?0:I.WireBytes;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+        uint64 StoreKey=0;
+        bool Attempted=false;
+        if(C->Store){
+            StoreKey=xmqttInternalStoreWriteDriverOutgoing(C->Store->Plan.Writer,C,I.Identifier,
+                xmqttSessionPacket(Packet)->Wire,I.Stage==XMQTT_SESSION_PUBREL,I.Sent,I.PubrecReason,&Attempted);
+            if(!StoreKey){
+                xmqttSessionPacketRelease(Packet);
+                xmqttClientFail(C,XMQTT_STATUS_SESSION,NULL);
+                return false;
+            }
+        }
+#endif
         bool TLS=xmqttClientUsesFence(C);
         size_t Extra=xmqttRequestExtra(0,false,TLS)+xmqttSessionRequestExtra(Bytes,false,TLS,true);uint16 Id=0;
         xrtMutexLock(&C->Gate);xmqttclientadmission A=Extra>C->Config.MaxPrivateBytes-C->Info.PrivateBytes?XMQTT_ADMISSION_OVERLOADED:xmqttIdentifierReserveImpl(C,I.Identifier,&Id,true);
@@ -1593,6 +1640,11 @@ static bool xmqttClientSessionRestore(xmqttclient* C)
         if(!R){xrtMutexLock(&C->Gate);xmqttIdentifierReleaseLocked(C,Id);--C->Info.Requests;C->Info.OutgoingBytes-=Bytes;C->Info.PrivateBytes-=Extra;xrtMutexUnlock(&C->Gate);xmqttClientDrop(C);xmqttSessionPacketRelease(Packet);xmqttClientFail(C,XMQTT_STATUS_MEMORY,xrtGetError());return false;}
         R->Client=C;R->Bytes=Bytes;R->Identifier=Id;R->Qos=I.Qos;R->Retain=(xmqttSessionPacket(Packet)->Flags&1u)!=0;R->Type=XMQTT_PACKET_PUBLISH;R->Capabilities=XMQTT_TX_SESSION|XMQTT_TX_BORROW|(TLS?XMQTT_TX_FENCE:0);R->Deadline=INFINITY;
         xrtAtomic32Init(&R->Refs,1);xrtAtomic32Init(&R->NativeRefs,0);xmqttsessionrequest* B=xmqttSessionRequest(R);B->Packet=Packet;R->Result.Write=(xmqttwritebox*)(B+1);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+        B->StoreKey=StoreKey;
+        B->StoreAttempted=Attempted;
+        B->PriorAttempt=Attempted;
+#endif
         R->Result.Write->Value.PubrecReceived=I.PubrecReceived;R->Result.Write->Value.PubrecReason=I.PubrecReason;
         if(I.Qos==2){R->State.Release.Pending=I.Stage==XMQTT_SESSION_PUBREL;R->State.Release.Wire[0]=0x62;R->State.Release.Wire[1]=2;R->State.Release.Wire[2]=(unsigned char)(Id>>8);R->State.Release.Wire[3]=(unsigned char)Id;}
         R->Next=Last?Last->Next:C->Requests;R->Previous=Last;
@@ -1774,6 +1826,138 @@ Done:
     return Accepted;
 }
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+/* A native Session selection fixes the first-send header and credit. The
+ * actual transport never sees it until the current attempt is durable. */
+static bool xmqttStoreClientBeforePublish(xmqttclient* C,xmqttrequest* R)
+{
+    xmqttclientstorestate* D=C->Store;
+    xmqttsessionrequest* Request=xmqttSessionRequest(R);
+    if(Request->StoreAttempted)return true;
+    if(D->Future)return false;
+    if(C->Session->Selected!=R||C->Session->Frame.Type!=XMQTT_PACKET_PUBLISH||
+       R->Offset||!Request->Packet)abort();
+
+    xmqttstoredelta Op={.Type=XMQTT_STORE_OUT_ATTEMPT,.Epoch=D->Epoch,
+                       .Key=Request->StoreKey,.Identifier=R->Identifier};
+    if(!Op.Key){
+        if(D->Initial.LastKey==UINT64_MAX){
+            xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);
+            return false;
+        }
+        /* OUT_PUT's attempted flag records the snapshot and first possible
+         * attempt in one commit. Its already-selected first frame has DUP=0. */
+        Op.Type=XMQTT_STORE_OUT_PUT;
+        Op.Flags=XMQTT_STORE_DELTA_ATTEMPTED;
+        Op.Key=D->Initial.LastKey+1u;
+        Op.Data=xmqttSessionPacket(Request->Packet)->Wire;
+    }
+    if(xmqttStoreClientSubmit(C,&Op,1,R->Deadline))D->Transmit=R;
+    return false;
+}
+
+/* Called after the existing protocol, identifier and transport checks.
+ * 1=staged, 0=already durable duplicate, -1=connection failed. */
+static int xmqttStoreClientPublishAck(xmqttclient* C,xmqttrequest* R,const xmqttpacket* P)
+{
+    xmqttclientstorestate* D=C->Store;
+    xmqttsessionrequest* Request=xmqttSessionRequest(R);
+    if(!Request->StoreAttempted||!Request->StoreKey){
+        xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);
+        return -1;
+    }
+
+    bool Continue=P->Type==XMQTT_PACKET_PUBREC&&P->Reason<0x80;
+    if(P->Type==XMQTT_PACKET_PUBREC&&R->Result.Write->Value.PubrecReceived){
+        if(Continue)return 0;
+        xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);
+        return -1;
+    }
+    if(D->Transmit||D->Message)abort();
+    double Deadline=xmqttClientDeadline(xrtTimer(),C->Config.CloseTimeout);
+    D->AckMetadata=XMQTT_STATUS_OK;
+    if(!(R->Capabilities&XMQTT_TX_BORROW)){
+        xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
+        D->Message=xmqttMessageCopy(C,P,&Failure,NULL);
+        if(!D->Message)D->AckMetadata=Failure;
+    }
+    xmqttstoredelta Op={.Type=Continue?XMQTT_STORE_OUT_PUBREL:XMQTT_STORE_OUT_COMPLETE,
+                       .Flags=Continue?0:(uint8)P->Type,.Reason=P->Reason,
+                       .Epoch=D->Epoch,.Key=Request->StoreKey,.Identifier=P->Identifier};
+    if(!xmqttStoreClientSubmit(C,&Op,1,Deadline)){
+        xmqttMessageRelease(D->Message);
+        D->Message=NULL;
+        return -1;
+    }
+    D->Transmit=R;
+    D->AckType=(uint8)P->Type;
+    D->AckReason=P->Reason;
+    return 1;
+}
+
+static void xmqttStoreClientTransmitResult(xmqttclient* C,bool Committed,bool Active)
+{
+    xmqttclientstorestate* D=C->Store;
+    xmqttrequest* R=D->Transmit;
+    D->Transmit=NULL;
+    if(D->Action==XMQTT_STORE_OUT_PUT||D->Action==XMQTT_STORE_OUT_ATTEMPT){
+        if(Committed){
+            xmqttsessionrequest* Request=xmqttSessionRequest(R);
+            if(D->Action==XMQTT_STORE_OUT_PUT)Request->StoreKey=++D->Initial.LastKey;
+            Request->StoreAttempted=true;
+        }
+        return;
+    }
+
+    xmqttmessage* M=D->Message;
+    D->Message=NULL;
+    if(!Committed){xmqttMessageRelease(M);return;}
+    xmqttpacket Ack;
+    xmqttPacketInit((xmqttpackettype)D->AckType,&Ack);
+    Ack.Identifier=D->Identifier;
+    Ack.Reason=D->AckReason;
+    if(!xmqttClientSessionAck(C,M?&M->Packet:&Ack,R)){
+        xmqttMessageRelease(M);
+        return;
+    }
+
+    xmqttwriteresult* Value=&R->Result.Write->Value;
+    Value->Reason=Ack.Reason;
+    if(Ack.Type==XMQTT_PACKET_PUBACK)Value->Puback=M;
+    else if(Ack.Type==XMQTT_PACKET_PUBREC){
+        Value->PubrecReceived=true;
+        Value->PubrecReason=Ack.Reason;
+        Value->Pubrec=M;
+    }else if(Ack.Type==XMQTT_PACKET_PUBCOMP){
+        Value->PubcompReceived=true;
+        Value->Pubcomp=M;
+    }else abort();
+
+    bool Finished=D->Action==XMQTT_STORE_OUT_COMPLETE;
+    R->Acknowledged=Finished;
+    /* An ACK for an earlier attempt can preempt this TCP replay. It is safe
+     * to retain its durable effect and close, but never interleave new bytes
+     * with the selected stale PUBLISH. */
+    if(C->Session->Selected==R&&C->Session->Frame.Type==XMQTT_PACKET_PUBLISH&&
+       R->Offset<xmqttRequestWireBytes(R)){
+        xmqttClientFail(C,XMQTT_STATUS_SESSION,NULL);
+        return;
+    }
+    if(D->AckMetadata!=XMQTT_STATUS_OK){
+        xmqttClientFail(C,D->AckMetadata,NULL);
+        return;
+    }
+    if(!Active)return;
+    if(!Finished){
+        if(xmqttSessionRequest(R)->PriorAttempt)R->Offset=R->Bytes;
+        R->State.Release.Pending=true;
+        return;
+    }
+    if(R->Qos==2&&R->State.Release.Offset&&R->State.Release.Offset<4)return;
+    xmqttrequest** Link=R->Previous?&R->Previous->Next:&C->Requests;
+    xmqttRequestFinish(C,Link,Ack.Reason<0x80?XMQTT_STATUS_OK:XMQTT_STATUS_REJECTED);
+}
+#endif
 static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
 {
     xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
@@ -1784,8 +1968,10 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
         }else if(xmqttClientProtocolReady(C)&&P->Type!=XMQTT_PACKET_PINGRESP&&P->Type!=XMQTT_PACKET_DISCONNECT){
             if(P->Type==XMQTT_PACKET_PUBLISH||P->Type==XMQTT_PACKET_PUBREL)
                 return xmqttStoreClientReceive(C,P);
-            /* Outgoing durable flows are still unavailable. */
-            xmqttClientFail(C,XMQTT_STATUS_UNSUPPORTED,NULL);return false;
+            if(P->Type!=XMQTT_PACKET_PUBACK&&P->Type!=XMQTT_PACKET_PUBREC&&P->Type!=XMQTT_PACKET_PUBCOMP){
+                xmqttClientFail(C,XMQTT_STATUS_UNSUPPORTED,NULL);
+                return false;
+            }
         }
     }
 #endif
@@ -1892,7 +2078,15 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
 #endif
         if(!R || R->Type!=XMQTT_PACKET_PUBLISH || R->Qos!=1 || ((!R->Credit || R->Offset!=xmqttRequestWireBytes(R)) && !Earlier)){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-        if(C->Session && (R->Capabilities&XMQTT_TX_SESSION)){if(R->Acknowledged)return true;if(!xmqttClientSessionAck(C,P))return false;
+        if(C->Session && (R->Capabilities&XMQTT_TX_SESSION)){
+            if(R->Acknowledged)return true;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+            if(C->Store){
+                int Staged=xmqttStoreClientPublishAck(C,R,P);
+                if(Staged)return Staged>0;
+            }
+#endif
+            if(!xmqttClientSessionAck(C,P,R))return false;
             /* The ACK can belong to a fully sent prior-generation packet. A
              * partial replay cannot be retracted or followed by another frame;
              * commit the observed ACK, then retire this transport. */
@@ -1924,7 +2118,15 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
 #endif
         if(!R || R->Type!=XMQTT_PACKET_PUBLISH || R->Qos!=2 || ((!R->Credit || R->Offset!=xmqttRequestWireBytes(R)) && !Earlier)){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-        if(C->Session && (R->Capabilities&XMQTT_TX_SESSION)){if(R->Acknowledged)return true;if(!xmqttClientSessionAck(C,P))return false;
+        if(C->Session && (R->Capabilities&XMQTT_TX_SESSION)){
+            if(R->Acknowledged)return true;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+            if(C->Store){
+                int Staged=xmqttStoreClientPublishAck(C,R,P);
+                if(Staged)return Staged>0;
+            }
+#endif
+            if(!xmqttClientSessionAck(C,P,R))return false;
             if(C->Session->Selected==R && C->Session->Frame.Type==XMQTT_PACKET_PUBLISH && R->Offset && R->Offset<xmqttRequestWireBytes(R)){xmqttClientFail(C,XMQTT_STATUS_SESSION,NULL);return false;}
             if(Earlier && C->Session->Selected!=R)R->Offset=R->Bytes;
         }
@@ -2538,6 +2740,9 @@ static bool xmqttClientSendAliasRequest(xmqttclient* C,xmqttrequest* R,size_t* B
 }
 static bool xmqttClientSendRequest(xmqttclient* C,xmqttrequest* R,size_t* Budget)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store&&R->Qos&&!xmqttStoreClientBeforePublish(C,R))return false;
+#endif
     if(R->Capabilities&XMQTT_TX_ALIAS){bool Done=xmqttClientSendAliasRequest(C,R,Budget);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
         if(Done && (R->Capabilities&XMQTT_TX_SESSION))Done=xmqttClientSessionSent(C,R);
@@ -2606,6 +2811,9 @@ static void xmqttClientSendPump(xmqttclient* C)
     /* Finish the one partial packet before inserting any other packet, even
      * when a formerly blocked earlier request has just gained send credit. */
     if(C->Partial){xmqttrequest* R=C->Partial;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+        if(C->Store&&C->Store->Transmit==R)return;
+#endif
         bool Release=R->Qos==2 && R->Result.Write->Value.PubrecReceived;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
         if(C->Session && C->Session->Selected==R)Release=C->Session->Frame.Type==XMQTT_PACKET_PUBREL;
@@ -2623,7 +2831,11 @@ static void xmqttClientSendPump(xmqttclient* C)
     }
 #endif
     if(!(C->ReceiveTwo?xmqttClientSendReceiveAcks(C,&Budget):xmqttClientSendAcks(C,&Budget,false)))return;
-    if(!C->Info.Ready){if(xrtTimer()>=C->NextPing)(void)xmqttClientSendPing(C,&Budget);return;}
+    if(!C->Info.Ready
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+       || (C->Store&&C->Store->Future)
+#endif
+    ){if(xrtTimer()>=C->NextPing)(void)xmqttClientSendPing(C,&Budget);return;}
     for(xmqttrequest** Link=&C->Requests;*Link && !xmqttClientClosing(C);){
         xmqttrequest* R=*Link;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
@@ -2793,6 +3005,11 @@ static void xmqttClientStop(xmqttclient* C)
         xmqttClientNotify(C); /* CLOSING is observable; reentrant Close may abort. */
     }
     if(C->Draining)xmqttClientDrainError(C);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    /* Close the transport immediately. Request/result ownership stays live
+     * until its exact store transition has physically resolved. */
+    if(C->Store&&C->Store->Transmit)return;
+#endif
     size_t Count=0;
     while(C->Requests && Count++<C->Config.WorkPackets)xmqttRequestFinish(C,&C->Requests,C->Info.CloseStatus);
     if(C->Requests){xmqttClientWake(C);return;}
@@ -2819,9 +3036,9 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    /* Apply any actual committed receive transition before ending Session. */
+    /* Apply a committed protocol transition before ending Session. */
     if(!(C->Store&&C->Store->Future&&
-         (C->Store->Action==XMQTT_STORE_IN_ACCEPT||C->Store->Action==XMQTT_STORE_IN_COMPLETE)))
+         (C->Store->Transmit||C->Store->Action==XMQTT_STORE_IN_ACCEPT||C->Store->Action==XMQTT_STORE_IN_COMPLETE)))
 #endif
         xmqttClientSessionEnd(C);
 #endif
@@ -2855,7 +3072,21 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
     if(!C->ApplicationFinal && C->PingOutstanding && xmqttClientProtocolReady(C) && Now>=C->PingDeadline)xmqttClientFail(C,XMQTT_STATUS_TIMEOUT,NULL);
     for(xmqttrequest** Link=&C->Requests;*Link && !xmqttClientClosing(C);){xmqttrequest* R=*Link;
         xmqttclientstatus S=xrtCancelRequested(R->Cancel)?XMQTT_STATUS_CANCELLED:Now>=R->Deadline?XMQTT_STATUS_TIMEOUT:XMQTT_STATUS_OK;
-        if(S!=XMQTT_STATUS_OK){bool Partial=R->Offset!=0;xmqttRequestFinish(C,Link,S);if(Partial)xmqttClientFail(C,S,NULL);continue;}
+        if(S!=XMQTT_STATUS_OK){
+            bool Retire=R->Offset!=0;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+            if(C->Store){
+                if(C->Store->Transmit==R){
+                    xmqttClientFail(C,S,NULL);
+                    break;
+                }
+                if(R->Qos&&xmqttSessionRequest(R)->StoreKey)Retire=true;
+            }
+#endif
+            xmqttRequestFinish(C,Link,S);
+            if(Retire)xmqttClientFail(C,S,NULL);
+            continue;
+        }
         if(R->Type==XMQTT_PACKET_PUBLISH && !R->Qos && R->Offset==xmqttRequestWireBytes(R) && !xrtAtomic32Load(&R->NativeRefs,XMEMORY_ACQUIRE)){
             if(!xmqttTransportOpen(C) || C->ReadEnded){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,NULL);break;}
             xmqttRequestFinish(C,Link,XMQTT_STATUS_OK);continue;
@@ -3380,7 +3611,10 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     if(!C || !P || !Out || !xrtMemRangeValid(P,sizeof(*P)) || !xrtMemRangeValid(Out,sizeof(*Out)) || Timeout<XRT_WAIT_FOREVER ||
        P->Type!=Type || (Type==XMQTT_PACKET_PUBLISH && (((P->Flags>>1)&3u)>2 || (P->Flags&8u)))){xmqttClientError(XERR_ARGUMENT,"invalid MQTT request arguments");return XMQTT_ADMISSION_ERROR;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    if(C->Store){xmqttClientError(XERR_STATE,"live store flow integration is not yet exposed");return XMQTT_ADMISSION_ERROR;}
+    if(C->Store&&Type!=XMQTT_PACKET_PUBLISH){
+        xmqttClientError(XERR_STATE,"durable subscription intents are not yet exposed");
+        return XMQTT_ADMISSION_ERROR;
+    }
 #endif
     bool Subscription=Type!=XMQTT_PACKET_PUBLISH;uint8 Qos=Subscription?0:(uint8)((P->Flags>>1)&3u);bool NeedId=Subscription || Qos;uint16 Identifier=0;xmqttpacket Adapted;const xmqttpacket* Packet=P;
     if(NeedId){Adapted=*P;if(!Adapted.Identifier)Adapted.Identifier=1;Packet=&Adapted;} /* sizing only */
@@ -3420,7 +3654,7 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
 #endif
     if(Alias){R->Capabilities|=XMQTT_TX_ALIAS;xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);memset(A,0,sizeof(*A));A->Alias=AliasId;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    if(Session)xmqttSessionRequest(R)->Packet=NULL;
+    if(Session)*xmqttSessionRequest(R)=(xmqttsessionrequest){0};
 #endif
     if(Subscription){
         R->Result.Subscription=xmqttBoxAllocate(C->Quota,sizeof(*R->Result.Subscription),&Failure);

@@ -26,7 +26,7 @@ XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSnapshot(xmqttsession* S,c
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSelect(xmqttsession* S,const void* Owner,
     const xmqttsessionpacket* Packet,xmqttsessionframe* Frame);
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSent(xmqttsession* S,const void* Owner,const xmqttsessionframe* Frame);
-XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionAcknowledge(xmqttsession* S,const void* Owner,const xmqttpacket* Ack);
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionAcknowledge(xmqttsession* S,const void* Owner,const xmqttpacket* Ack,bool PriorAttempt);
 /* Withdraw only a driver-owned, new-on-this-connection PUBLISH for which the
  * Client has accepted zero native bytes. Imported obligations cannot use this. */
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionWithdraw(xmqttsession* S,const void* Owner,const xmqttsessionpacket* Packet);

@@ -422,6 +422,16 @@ XMQTT_INTERNAL uint64 xmqttInternalStoreWriteIncomingKey(xmqttstorestate* S,cons
     const xmqttstoreentry* E=xmqttSIdFindBase(S,Id,false);
     return E?E->View.Key:0;
 }
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteOutgoingKey(xmqttstorestate* S,const void* Owner,
+    uint16 Id,xbytesview Wire,bool Pubrel,bool Sent,uint8 PubrecReason,bool* Attempted)
+{
+    if(!S||S->WriteOwner!=Owner||S->Plan)abort();
+    const xmqttstoreentry* E=xmqttSIdFindBase(S,Id,true);
+    if(!E||E->View.Pubrel!=Pubrel||E->View.Sent!=Sent||E->View.PubrecReason!=PubrecReason||
+       E->View.Wire.Size!=Wire.Size||memcmp(E->View.Wire.Data,Wire.Data,Wire.Size))return 0;
+    *Attempted=E->View.Attempted;
+    return E->View.Key;
+}
 XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* S,const void* Owner)
 {if(!S||S->WriteOwner!=Owner)abort();return S->Opened;}
 #endif

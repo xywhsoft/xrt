@@ -348,14 +348,14 @@ static xmqttsessionstatus xmqttSessionSentOwned(xmqttsession* S,const void* Owne
     if(P->Active && P->Need)xmqttSessionReadyAdd(S,P);
     xrtMutexUnlock(&S->Gate);xmqttSessionPacketRelease(P);return XMQTT_SESSION_DONE;
 }
-static xmqttsessionstatus xmqttSessionAcknowledgeOwned(xmqttsession* S,const void* Owner,const xmqttpacket* Ack)
+static xmqttsessionstatus xmqttSessionAcknowledgeOwned(xmqttsession* S,const void* Owner,const xmqttpacket* Ack,bool PriorAttempt)
 {
     if(!S || !xmqttSessionSpan(Ack,sizeof(*Ack)) || (Ack->Type!=XMQTT_PACKET_PUBACK && Ack->Type!=XMQTT_PACKET_PUBREC && Ack->Type!=XMQTT_PACKET_PUBCOMP))return xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session acknowledgement");
     size_t Bytes;if(!xmqttSessionSizePacket(S,Owner,Ack,XMQTT_SERVER_TO_CLIENT,&Bytes))return XMQTT_SESSION_ERROR;
     xrtMutexLock(&S->Gate);if(!xmqttSessionOwner(S,Owner)){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_STATE_ERROR;}if(!S->Connected){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"acknowledgement while offline");}
     xmqttsessionpacket* P=xmqttSessionFind(S,Ack->Identifier);
     if(Ack->Type==XMQTT_PACKET_PUBCOMP && (!P || P->Qos!=2 || P->Stage!=XMQTT_SESSION_PUBREL || !P->ReleaseSent)){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DUPLICATE;}
-    if(!P || !P->Sent || (Ack->Type==XMQTT_PACKET_PUBACK && P->Qos!=1) || (Ack->Type==XMQTT_PACKET_PUBREC && P->Qos!=2) || (Ack->Type==XMQTT_PACKET_PUBCOMP && !P->ReleaseSent)){
+    if(!P || !(P->Sent||(PriorAttempt&&P->Attempted)) || (Ack->Type==XMQTT_PACKET_PUBACK && P->Qos!=1) || (Ack->Type==XMQTT_PACKET_PUBREC && P->Qos!=2) || (Ack->Type==XMQTT_PACKET_PUBCOMP && !P->ReleaseSent)){
         xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_PROTOCOL_ERROR,"acknowledgement does not match a sent flow");}
     if(Ack->Type==XMQTT_PACKET_PUBREC && P->Stage==XMQTT_SESSION_PUBREL){
         if(Ack->Reason>=0x80){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_PROTOCOL_ERROR,"negative PUBREC after accepted PUBREC");}
@@ -363,7 +363,7 @@ static xmqttsessionstatus xmqttSessionAcknowledgeOwned(xmqttsession* S,const voi
         xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DUPLICATE;
     }
     if(Ack->Type==XMQTT_PACKET_PUBREC){P->PubrecReceived=true;P->PubrecReason=Ack->Reason;
-        if(Ack->Reason<0x80){xmqttSessionReadyRemove(S,P);P->Stage=XMQTT_SESSION_PUBREL;P->ReleaseSent=false;xmqttSessionReadyAdd(S,P);xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DONE;}}
+        if(Ack->Reason<0x80){xmqttSessionReadyRemove(S,P);P->Sent=true;P->Stage=XMQTT_SESSION_PUBREL;P->ReleaseSent=false;xmqttSessionReadyAdd(S,P);xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DONE;}}
     P->Reason=Ack->Reason;P->Stage=XMQTT_SESSION_COMPLETE;xmqttSessionUnlink(S,P);
     if(S->Quota<S->InitialQuota)++S->Quota;
     xrtMutexUnlock(&S->Gate);xmqttSessionPacketRelease(P);
@@ -553,10 +553,10 @@ XMQTT_INTERNAL void xmqttInternalSessionRestoreExpiry(xmqttsession* S,double Now
 }
 #endif
 XMQTT_API xmqttsessionstatus xmqttSessionAcknowledge(xmqttsession* S,const xmqttpacket* Ack)
-{return xmqttSessionAcknowledgeOwned(S,NULL,Ack);}
+{return xmqttSessionAcknowledgeOwned(S,NULL,Ack,false);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionAcknowledge(xmqttsession* S,const void* Owner,const xmqttpacket* Ack)
-{return xmqttSessionAcknowledgeOwned(S,Owner,Ack);}
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionAcknowledge(xmqttsession* S,const void* Owner,const xmqttpacket* Ack,bool PriorAttempt)
+{return xmqttSessionAcknowledgeOwned(S,Owner,Ack,PriorAttempt);}
 #endif
 XMQTT_API xmqttsessionstatus xmqttSessionNext(xmqttsession* S,xmqttsessionframe* Out)
 {return xmqttSessionNextOwned(S,NULL,NULL,Out);}

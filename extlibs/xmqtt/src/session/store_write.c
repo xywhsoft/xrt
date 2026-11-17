@@ -249,6 +249,15 @@ XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,c
     if(!xrtMutexUnlock(&W->Gate))abort();
     return Key;
 }
+XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverOutgoing(xmqttstorewrite* W,const void* Owner,
+    uint16 Id,xbytesview Wire,bool Pubrel,bool Sent,uint8 PubrecReason,bool* Attempted)
+{
+    if(!xrtMutexLock(&W->Gate))abort();
+    if(!Owner||W->Driver!=Owner)abort();
+    uint64 Key=xmqttInternalStoreWriteOutgoingKey(W->State,W,Id,Wire,Pubrel,Sent,PubrecReason,Attempted);
+    if(!xrtMutexUnlock(&W->Gate))abort();
+    return Key;
+}
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable)
 {
     if(!W||!xrtMutexLock(&W->Gate))abort();

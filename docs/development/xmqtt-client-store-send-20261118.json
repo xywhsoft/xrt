@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-18",
+  "branch": "master",
+  "base_revision": "d6ff280f0bc65f887abd03f11bb677a3cb958e2c",
+  "stage": "MQTT Client durable outgoing PUBLISH and ACK transitions",
+  "maturity": "developing",
+  "source_map_sha256": "71a6c961604f7f4b2e8587e6bbe1d8858ecb358d742ebdd106f3dac157e29645",
+  "evidence_directory": "out/service-extensions/mqtt-client-store-send-20261118",
+  "behavior": [
+    "Private numeric TCP Client accepts QoS0, QoS1 and QoS2 through the existing PublishAsync admission. QoS0 uses volatile native output.",
+    "QoS1/2 snapshot and attempt are atomic before any PUBLISH output. First output uses DUP clear.",
+    "Known prior attempt authorizes same-session duplicate PUBLISH and an early ACK. Unattempted recovered snapshot commits OUT_ATTEMPT before its first output.",
+    "Positive PUBREC commits before PUBREL. Duplicate positive PUBREC can repeat PUBREL without another commit. PUBACK, negative PUBREC and PUBCOMP commit before local completion/identifier reuse.",
+    "Requests pin the actual native attempt/ACK duty. A late Close or timeout keeps physical effects and peer facts. Uncertain storage withholds local success and requires recovery.",
+    "Recovery checks canonical wire, MQTT id and phase against the Writer snapshot. No old application Future is fabricated."
+  ],
+  "validation": {
+    "windows": {
+      "programs": {
+        "send-final": 5,
+        "xmqtt_client": 11,
+        "xmqtt_client_session_tests": 3,
+        "xmqtt_store_write_tests": 20,
+        "xmqtt_client_store_tests": 2
+      },
+      "outgoing_scenarios_per_client_program": 23,
+      "package_public_examples": 2,
+      "private_x64_layout_delta_bytes": {
+        "session_request": 16,
+        "durable_context": 16,
+        "request": 0,
+        "public_result": 0,
+        "public_config": 0,
+        "public_session_info": 0
+      },
+      "receipt_files": {
+        "windows-receipts.json": "dbc8a6c6dea0d21b2a4d1622ab98a1898052459d020cb3904911b2a6b8ace21e",
+        "windows-consumer-receipts.json": "f6c3144bd827f0982cfaa3eb9d9ada69e5d33f7df05374911abb90c4ab724745",
+        "windows-packages.json": "9075865cd03cd0da2a02a702133560c963949a2be5b1cf1911dec9626cb625e7",
+        "windows-exports.json": "3321f1b1df352e06f03626cbde3eab8355fdedb9f3f2c90319b2ac383cdf7447",
+        "windows-sizes.json": "86bde22038cd9f3d34b585a4b01778b5703c87d50bfb688a128b204bc5b62cfc"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "send-final": 5,
+        "xmqtt_client": 11,
+        "xmqtt_client_session_tests": 3,
+        "xmqtt_store_write_tests": 20,
+        "xmqtt_client_store_tests": 2,
+        "tsan-test_client_store": 1
+      },
+      "outgoing_scenarios_per_client_program": 23,
+      "package_public_examples": 2,
+      "private_x64_layout_delta_bytes": {
+        "session_request": 16,
+        "durable_context": 16,
+        "request": 0,
+        "public_result": 0,
+        "public_config": 0,
+        "public_session_info": 0
+      },
+      "receipt_files": {
+        "wsl-receipts.json": "289b33ccf3056ac52f2aa0af1825b7466403724086c52a4ee6637b6f5b397123",
+        "wsl-consumer-receipts.json": "f7e3dd93723377d7597a74ad5035c632638512bad51a5d1d33d4731609939f3f",
+        "wsl-packages.json": "6a382fce9330c6398b7dc8ee48f418f072b2ad0b7e91e4ae1aeb626cd2e5ca08",
+        "wsl-exports.json": "002d3ac35b9b2e6b53bfe9ea7153ff8c7a6d85e90a801839dea6767d629ee310",
+        "wsl-sizes.json": "d444e27500ecf102ab45409a6e05e407d2bde79a301ac33f881bb708a301380b"
+      }
+    }
+  },
+  "evidence_counts": {
+    "receipt_logs_verified": 30,
+    "binary_archives_verified": 83
+  },
+  "fixture": [
+    "Literal TCP peer sees exact PUBLISH and PUBREL bytes and committed model sequence at peer reception.",
+    "Actual held final sync during first attempt or ACK with no premature wire/Future output, original timeout and Close.",
+    "Real native files, explicit close/reopen and same-session recovery, preserved id and DUP, PUBREL-only replay, coalesced early PUBACK, and pre-existing unattempted records.",
+    "Negative PUBREC in MQTT5, metadata quota refusal, pre-IO first write refusal, failed publication sync with written witness, identifier reuse, and QoS0 no-store.",
+    "Concurrent application Inbox ACK plus live receive retained from preceding stage."
+  ],
+  "real_broker_smoke": {
+    "broker_platform": "WSL",
+    "version": "mosquitto version 2.0.22",
+    "package_version": "2.0.22-5build1",
+    "protocols": [
+      "5",
+      "311"
+    ],
+    "fresh_connections": 8,
+    "subscriber_deliveries": 16,
+    "client_platforms": {
+      "wsl": {
+        "fresh_connections": 4,
+        "subscriber_deliveries": 8,
+        "receipt": "wsl-broker-smoke.json",
+        "receipt_sha256": "2efacb7ab23b193f4bcb1b5c159e227dc60cca038faec81229079daaddce966e",
+        "harness_sha256": "c84579c960480adc8eaa48331dde6066953c1e87026a1e6d3093813f3c4a97a6"
+      },
+      "windows": {
+        "fresh_connections": 4,
+        "subscriber_deliveries": 8,
+        "receipt": "windows-broker-smoke.json",
+        "receipt_sha256": "d8af57eb377049f34295d196c975a917d19dc174ced807e3a71b7ddf824b7941",
+        "harness_sha256": "b9bb2a44d28e1f9492acebeed491747b8dc4a8f1d93793248797aa8205e31ec9"
+      }
+    },
+    "source_sha256": "d2cb047653513cfcb6fe7a484cd4b9795857fa5b49ef89c659e9d4dc88fe05ff",
+    "scope": "Continuously running numeric loopback broker, completed QoS1/2 in two generations per protocol per platform. Independent literal subscriber. Native Windows Client reaches WSL through localhost forwarding. No broker ACK cuts, broker restart or native Linux performance."
+  },
+  "retained_failure": {
+    "reason": "Initial probe used a recovery wall time older than the second connection end record. Recovery correctly refused. The fixture advanced its trusted clock.",
+    "log": "windows-first.log",
+    "log_sha256": "5174004e668a5e618b03de461f29134d64b5a632a6a7be7cffa89b1526d64d4f",
+    "binary_sha256": "449f7eafeab58b87910d6061f0382619eb789377045d1bbb77a2a56ce946f105"
+  },
+  "strict_release": {
+    "passed": false,
+    "expected": true,
+    "developing_modules": 29,
+    "log": "windows-strict-release.log",
+    "log_sha256": "be614e2f9d617050fadc6622ad5b103ca46346f6b9f6624ee39a549f4f25072c"
+  },
+  "boundaries": [
+    "Durable factory is private. Subscribe/unsubscribe intents and durable graceful disconnect are not yet integrated.",
+    "Each outgoing checkpoint is a native commit. No group-commit, throughput or tail-latency acceptance from these pass/fail checks.",
+    "NOT_SENT still describes bytes accepted by the original connection. A recorded attempt may be pending for later session resumption.",
+    "Remaining transport/authentication adapters, coordinated storage/transport fencing, crash/compaction and native 72-hour production qualification remain open."
+  ]
+}

@@ -30,9 +30,32 @@ updates the corresponding Session state before it closes. Recover and import a
 fresh Session before reattachment. The Writer and native Client must already
 have retired.
 
-Outgoing operations remain unavailable through this path. The next integration
-steps are durable application leases, outgoing snapshots and ACK transitions,
-old transport fencing and the remaining transport and authentication adapters.
+QoS 1 and QoS 2 PUBLISH use the existing Session snapshot and native output
+queue. A new packet's canonical full topic, identifier and attempt are committed
+together before first output. Its first frame has DUP clear. On same-session
+resume, a recorded attempt has DUP set. A restored packet with no attempt first
+commits OUT_ATTEMPT and sends with DUP clear. QoS 0 uses ordinary volatile output.
+See [MQTT 5.0 Sections 3.3.1.1 and 4.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1 Section 4.4](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
+
+Successful PUBREC advances the durable flow to PUBREL. PUBACK, negative PUBREC
+and PUBCOMP commit retirement before the request completes or releases its id.
+Observed broker ACKs use the bounded CloseTimeout storage budget. A request's
+original deadline and cancellation still determine its local outcome while the
+native write settles. If commit completes late, the confirmed broker facts
+survive. If metadata cannot be copied, the durable transition and scalar reason
+survive while the connection reports the local error.
+
+The private API reports network delivery on the original connection. In this
+stage, a NOT_SENT result can accompany a committed obligation when Close or
+timeout wins before the first byte. Resume the authoritative journal rather
+than automatically submitting another application request. Uncertain/failed
+storage stops the owner for recovery. A recovered protocol obligation never
+creates a replacement application Future.
+
+The public durable factory, subscription intents, durable graceful disconnect,
+full transport and authentication support, and transport fencing across
+independent hosts remain open.
 
 
 Run the private integration fixture from the repository root:

@@ -14094,3 +14094,24 @@ See the native file example and stage evidence. Outgoing durability, full
 transport and authentication integration, namespace and locking, compaction,
 controlled throughput and tail latency, and native 72-hour acceptance remain open.
 [Stage evidence](xmqtt-store-inbox-20261118.json).
+
+
+## 2026-11-18 Durable outbound Client checkpoints
+
+The private numeric TCP Client now persists the canonical QoS 1 or QoS 2
+PUBLISH and its attempt before first output. Broker ACKs update the committed
+protocol state before advancing PUBREL or completing the local request.
+Resumptive OPEN verifies recovered outgoing wire bytes and stages against the
+Writer's committed prefix. Recovery preserves the identifier and selects a
+first PUBLISH, duplicate PUBLISH or PUBREL according to the saved stage.
+An original application Future stays scoped to its original connection.
+
+The fixture holds real file syncs on both sides of the send and observes literal
+TCP frames. It covers timeout and Close before the first output, Close during
+broker acknowledgement, metadata budget refusal, storage failure and uncertain
+commit visibility, identifier reuse, and recovery with both MQTT wire levels.
+Durable outbound traffic still uses individual native commits. The public
+durable factory, the remaining transport and authentication adapters,
+subscription intents, coordinated namespace fencing, compaction, throughput
+and tail latency acceptance, and native 72-hour qualification remain open.
+[Stage evidence](xmqtt-client-store-send-20261118.json).
