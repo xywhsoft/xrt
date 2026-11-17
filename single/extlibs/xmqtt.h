@@ -148,6 +148,22 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#endif
+#endif
+
+/* xmqtt_client_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_STORE
+#define XMQTT_FEATURE_XMQTT_CLIENT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
+#endif
 #endif
 
 /* xmqtt_store_write 及其直接依赖。 */
@@ -3460,6 +3476,33 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* Worker,xm
 
 
 /* ========================================================================== */
+/* internal: extlibs/xmqtt/src/internal/xmqtt_client_store.h */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+#ifndef XMQTT_INTERNAL_CLIENT_STORE_H
+#define XMQTT_INTERNAL_CLIENT_STORE_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+/* Private integration under development. No public factory until all online
+ * transitions and durable delivery capabilities are implemented. Callers stop
+ * all Writer API entries before attaching. Engine/pool stay running through
+ * Client physical retirement; file/backend outlive Writer destruction. */
+typedef bool (*xmqttstorewall)(ptr User,uint64* Milliseconds);
+typedef struct xmqttclientstoreplan {xmqttstorewrite* Writer;xmqttstorewall Wall;ptr User;} xmqttclientstoreplan;
+XMQTT_INTERNAL bool xmqttInternalClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttpacket* Connect,const xmqttclientstoreplan* Store,xmqttclient** Client);
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,
+    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool);
+XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable);
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
+XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* State,const void* Owner);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* source: extlibs/xmqtt/src/wire/wire.c */
 /* ========================================================================== */
 
@@ -5321,6 +5364,14 @@ XMQTT_API xmqttnegotiationstatus xmqttNegotiatedPacketCheck(const xmqttnegotiate
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+#define XMQTT_CLIENT_STORE_PARAM ,const void* StorePlan
+#define XMQTT_CLIENT_STORE_ARG(P) ,P
+#else
+#define XMQTT_CLIENT_STORE_PARAM
+#define XMQTT_CLIENT_STORE_ARG(P)
+#endif
+
 /* The host worker is the sole protocol owner. Gate protects admission, public
  * snapshots and the receive queue; no user callback runs while it is held. */
 typedef struct xmqttquota {xatomic32 Refs;xmutex Gate;size_t Count,Bytes,MaxCount,MaxBytes;} xmqttquota;
@@ -5402,6 +5453,15 @@ typedef struct xmqttsessiondriver {
     bool Opened,EndExpiry;uint32 Expiry;double EndAt;
 } xmqttsessiondriver;
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+typedef struct xmqttclientstorestate {
+    xmqttclientstoreplan Plan;xmqttstoredeltaconfig Delta;xmqttstorestateinfo Initial;
+    xtaskpool* Pool;xfuture* Future;xfuturewatch Watch;xatomic32 Watching;
+    xmqttmessage* Message;unsigned char* Buffer;size_t Capacity;
+    uint64 Epoch,EndWall;uint32 Expiry;double EndDeadline;
+    bool Claimed,EverOpened,Applying,OpenCommitted,Ending,EndCommitted,Broken,Fallback,EndWallValid;
+} xmqttclientstorestate;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 typedef struct xmqttauthbox {xmqttauthresult Value;xmqttbox Box;} xmqttauthbox;
 typedef struct xmqttauthwire {xatomic32 Refs;xmqttclient* Client;size_t Bytes,Offset;unsigned char Wire[];} xmqttauthwire;
@@ -5455,6 +5515,9 @@ struct xmqttclient {
     uint64 Timer;unsigned PingOffset;bool PingOutstanding;
     xmqttrequest* Disconnect;bool DisconnectReserved,ApplicationClose,ApplicationFinal,ApplicationNativeClosing;
     xmutex RetirementLock;xcond RetirementReady;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    xmqttclientstorestate* Store;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
     const xmqttclientlifecycle* Lifecycle;
 #endif
@@ -5481,6 +5544,11 @@ struct xmqttclient {
 static void xmqttClientWork(xnetworker* Worker,ptr Data);
 static bool xmqttClientWakeLocked(xmqttclient* C);
 static bool xmqttClientProtocolReady(const xmqttclient* C);
+static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P);
+static void xmqttClientSchedule(xmqttclient* C,double At);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+static void xmqttStoreClientClosed(xmqttclient* C);
+#endif
 static void xmqttClientWake(xmqttclient* C);
 static void xmqttClientFail(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
@@ -5686,6 +5754,138 @@ static xmqttmessage* xmqttMessageCopy(xmqttclient* C,const xmqttpacket* P,xmqttc
     }
     return M;
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+/* Included once by the actual Client implementation. This is an Engine-owner
+ * continuation,not another executor/runtime. The unique in-flight Future duty
+ * pins Client through late IO and the mandatory connection-end checkpoint. */
+static bool xmqttStoreClientAttach(xmqttclient* C,const xmqttclientstoreplan* P)
+{
+    if(!C->Session||!C->Inbox||!P||!P->Writer||!P->Wall)return xmqttClientError(XERR_ARGUMENT,"store requires Session,Inbox,Writer and trusted clock");
+    size_t Bytes=sizeof(xmqttclientstorestate);
+    if(Bytes>C->Config.MaxPrivateBytes-C->Info.PrivateBytes)return xmqttClientError(XERR_RANGE,"store continuation exceeds private budget");
+    xmqttclientstorestate* D=xrtCalloc(1,Bytes);if(!D)return false;
+    C->Store=D;D->Plan=*P;xrtAtomic32Init(&D->Watching,0);C->Info.PrivateBytes+=Bytes;
+    if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
+    D->Claimed=true;xmqttsessioninfo I;xstrview Id;
+    if(!xmqttSessionInfo(C->Session->State,&I)||!xmqttSessionClientId(C->Session->State,&Id))return false;
+    if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing||I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
+       (D->Initial.ClientId.Size&&(Id.Size!=D->Initial.ClientId.Size||memcmp(Id.Data,D->Initial.ClientId.Data,Id.Size))))
+        return xmqttClientError(XERR_STATE,"private store bootstrap requires matching imported receiver state");
+    return true;
+}
+static void xmqttStoreWatchNotify(ptr Data){(void)Data;}
+static void xmqttStoreWatchDrop(ptr Data)
+{
+    xmqttclient* C=Data;
+    /* Core has cleared Watch.Calling before Release and never touches Watch
+     * storage afterwards. The old callback keeps its actual Client reference
+     * through its final Drop,even if this wake starts another transaction. */
+    xrtAtomic32Store(&C->Store->Watching,0,XMEMORY_RELEASE);
+    xmqttClientWake(C);xmqttClientDrop(C);
+}
+static bool xmqttStoreClientSubmit(xmqttclient* C,const xmqttstoredelta* Ops,size_t Count,double Deadline)
+{
+    xmqttclientstorestate* D=C->Store;if(D->Future)abort();size_t N=0;
+    xmqttstoredeltastatus S=xmqttStoreDeltaSize(&D->Delta,Ops,Count,NULL,0,&N);
+    if(S!=XMQTT_STORE_DELTA_DONE){xmqttClientFail(C,S==XMQTT_STORE_DELTA_LIMIT?XMQTT_STATUS_LIMIT:XMQTT_STATUS_INITIALIZATION,NULL);return false;}
+    if(N>D->Capacity){
+        xrtMutexLock(&C->Gate);bool Fits=N<=C->Config.MaxPrivateBytes-C->Info.PrivateBytes;
+        if(Fits)C->Info.PrivateBytes+=N;
+        xrtMutexUnlock(&C->Gate);
+        if(!Fits){xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);return false;}
+        unsigned char* B=xrtMalloc(N);
+        if(!B){xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=N;xrtMutexUnlock(&C->Gate);xmqttClientFail(C,XMQTT_STATUS_MEMORY,NULL);return false;}
+        xrtFree(D->Buffer);xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=D->Capacity;xrtMutexUnlock(&C->Gate);D->Buffer=B;D->Capacity=N;
+    }
+    S=xmqttStoreDeltaWrite(&D->Delta,Ops,Count,NULL,0,D->Buffer,D->Capacity,&N);
+    if(S!=XMQTT_STORE_DELTA_DONE){xmqttClientFail(C,XMQTT_STATUS_INITIALIZATION,NULL);return false;}
+    xfuture* F=NULL;xmqttjournaladmission A=xmqttInternalStoreWriteDriverAppend(D->Plan.Writer,C,(xbytesview){D->Buffer,N},Deadline,&F);
+    if(A!=XMQTT_JWORK_ACCEPTED){xmqttClientFail(C,A==XMQTT_JWORK_OVERLOADED?XMQTT_STATUS_LIMIT:XMQTT_STATUS_INITIALIZATION,NULL);return false;}
+    D->Future=F;xmqttClientRef(C); /* Actual IO duty,independent of Watch. */
+    xmqttClientRef(C);xrtAtomic32Store(&D->Watching,1,XMEMORY_RELEASE);
+    xfuturewatchresult W=xrtFutureWatchInit(&D->Watch,xmqttStoreWatchNotify,xmqttStoreWatchDrop,C)?xrtFutureWatchAdd(F,&D->Watch):XFUTURE_WATCH_ERROR;
+    if(W!=XFUTURE_WATCH_PENDING){
+        xrtAtomic32Store(&D->Watching,0,XMEMORY_RELEASE);xmqttClientDrop(C);
+        if(W==XFUTURE_WATCH_ERROR){D->Fallback=true;xmqttClientFail(C,XMQTT_STATUS_INITIALIZATION,NULL);}
+        xmqttClientWake(C);
+    }
+    return true;
+}
+/* 1=consumed/deferred,-1=failed,0=let the ordinary rejected/invalid path run. */
+static int xmqttStoreClientOpen(xmqttclient* C,const xmqttpacket* P)
+{
+    xmqttclientstorestate* D=C->Store;
+    if(!C->Startup||C->SetupOffset!=C->Startup->Bytes)return 0;
+    xmqttnegotiationconfig K;xmqttNegotiationConfigInit(&K);K.Version=C->Config.Version;K.Codec=C->Config.Codec;K.HasSessionState=true;
+    xmqttnegotiated N;xmqttnegotiationissue Issue;
+    if(xmqttNegotiate(&C->SetupPacket,P,&K,&N,&Issue)!=XMQTT_NEGOTIATION_DONE||!N.Accepted)return 0;
+    uint64 Wall=0;if(!D->Plan.Wall(D->Plan.User,&Wall)||Wall>INT64_MAX){xmqttClientFail(C,XMQTT_STATUS_INITIALIZATION,NULL);return -1;}
+    /* Negotiated expiry fields are MQTT5-only. 311 persistence is determined
+     * by Clean Session,not the zero-valued MQTT5 property field. */
+    uint32 Expiry=C->Config.Version==XMQTT_VERSION_311?(C->SetupPacket.Body.Connect.CleanStart?0:UINT32_MAX):N.SessionExpiry;
+    uint64 Epoch=D->Initial.Epoch?D->Initial.Epoch:1;
+    if(D->EverOpened&&!N.SessionPresent){if(Epoch==UINT64_MAX){xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);return -1;}++Epoch;}
+    xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;D->Message=xmqttMessageCopy(C,P,&Failure,NULL);
+    if(!D->Message){xmqttClientFail(C,Failure,NULL);return -1;}
+    xmqttstoredelta Ops[2];size_t Count=0;
+    if(!D->Initial.ClientId.Size)Ops[Count++]=(xmqttstoredelta){.Type=XMQTT_STORE_BIND,.Epoch=Epoch,.WallMilliseconds=Wall,.Data={(const unsigned char*)N.ClientId.Data,N.ClientId.Size}};
+    Ops[Count++]=(xmqttstoredelta){.Type=XMQTT_STORE_OPEN,.Flags=(C->SetupPacket.Body.Connect.CleanStart?1u:0u)|(N.SessionPresent?2u:0u),.Epoch=Epoch,.WallMilliseconds=Wall,.Expiry=Expiry};
+    D->Epoch=Epoch;D->Expiry=Expiry;
+    if(!xmqttStoreClientSubmit(C,Ops,Count,C->SetupDeadline)){xmqttMessageRelease(D->Message);D->Message=NULL;return -1;}
+    return 1;
+}
+static void xmqttStoreClientClosed(xmqttclient* C)
+{
+    if(!C->Store)return;
+    xmqttclientstorestate* D=C->Store;
+    D->EndWallValid=D->Plan.Wall(D->Plan.User,&D->EndWall)&&D->EndWall<=INT64_MAX;
+    D->EndDeadline=xmqttClientDeadline(xrtTimer(),C->Config.CloseTimeout);
+}
+static xmqttclientstatus xmqttStoreClientStatus(xmqttcommitstatus S)
+{
+    return S==XMQTT_COMMIT_TIMEOUT?XMQTT_STATUS_TIMEOUT:S==XMQTT_COMMIT_CANCELLED?XMQTT_STATUS_CANCELLED:
+        S==XMQTT_COMMIT_CLOSED?XMQTT_STATUS_CLOSED:S==XMQTT_COMMIT_LIMIT?XMQTT_STATUS_LIMIT:
+        S==XMQTT_COMMIT_INVALID?XMQTT_STATUS_SESSION:XMQTT_STATUS_INITIALIZATION;
+}
+static void xmqttStoreClientProgress(xmqttclient* C)
+{
+    xmqttclientstorestate* D=C->Store;
+    if(D->Future){
+        if(!D->Ending&&xmqttClientClosing(C))(void)xrtFutureCancel(D->Future);
+        if(xrtAtomic32Load(&D->Watching,XMEMORY_ACQUIRE)||xrtFutureState(D->Future)==XFUTURE_PENDING){
+            if(D->Fallback)xmqttClientSchedule(C,xrtTimer()+0.001);
+            return;
+        }
+        xfuture* F=D->Future;D->Future=NULL;D->Fallback=false;
+        const xmqttcommitresult* R=xrtFutureState(F)==XFUTURE_RESOLVED?xrtFutureValue(F):NULL;
+        bool Committed=R&&R->Effect==XMQTT_JOURNAL_COMMITTED;
+        if(D->Ending){D->EndCommitted=Committed;if(!Committed||!R||R->Status!=XMQTT_COMMIT_OK)D->Broken=true;}
+        else {
+            D->OpenCommitted=Committed;
+            if(!R||R->Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED||R->Status==XMQTT_COMMIT_STORAGE||R->Status==XMQTT_COMMIT_INITIALIZATION)D->Broken=true;
+            if(!R||R->Status!=XMQTT_COMMIT_OK||!Committed)xmqttClientFail(C,R?xmqttStoreClientStatus(R->Status):XMQTT_STATUS_INITIALIZATION,R?R->Cause:NULL);
+            if(Committed&&R->Status==XMQTT_COMMIT_OK&&!xmqttClientClosing(C)){
+                D->Applying=true;(void)xmqttClientFrame(C,&D->Message->Packet);D->Applying=false;
+            }
+            if(D->Message){xmqttMessageRelease(D->Message);D->Message=NULL;}
+        }
+        xrtFutureDestroy(F);xmqttClientDrop(C); /* Actual IO duty ends here. */
+    }
+    if(C->NativeClosed&&D->OpenCommitted&&!D->Ending){
+        D->Ending=true;
+        if(D->Broken||!D->EndWallValid){D->Broken=true;return;}
+        xmqttstoredelta End={.Type=XMQTT_STORE_END,.Epoch=D->Epoch,.WallMilliseconds=D->EndWall,.Expiry=D->Expiry};
+        if(!xmqttStoreClientSubmit(C,&End,1,D->EndDeadline))D->Broken=true;
+    }
+}
+static void xmqttStoreClientFree(xmqttclient* C)
+{
+    xmqttclientstorestate* D=C->Store;if(D->Future||xrtAtomic32Load(&D->Watching,XMEMORY_ACQUIRE))abort();
+    if(D->Claimed)xmqttInternalStoreWriteDriverRelease(D->Plan.Writer,C,!D->Broken&&(!D->OpenCommitted||D->EndCommitted));
+    xmqttMessageRelease(D->Message);xrtFree(D->Buffer);xrtFree(D);C->Store=NULL;
+}
+#endif
+
 XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* M)
 {return M?&M->Packet:NULL;}
 XMQTT_API bool xmqttMessageRetain(const xmqttmessage* Message)
@@ -6329,7 +6529,11 @@ static void xmqttClientLow(xnetstream* S,size_t Bytes,ptr Data)
 static void xmqttClientDrain(xnetstream* S,ptr Data)
 {(void)S;xmqttClientWake(Data);}
 static void xmqttClientClosed(xnetstream* S,xnetresult Result,const xerror* Cause,ptr Data)
-{(void)S;xmqttclient* C=Data;C->NativeClosed=true;
+{(void)S;xmqttclient* C=Data;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    xmqttStoreClientClosed(C);
+#endif
+    C->NativeClosed=true;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(C->Session)C->Session->EndAt=xrtTimer();
 #endif
@@ -6740,12 +6944,29 @@ static void xmqttClientSessionDisconnect(xmqttclient* C,xmqttrequest* R)
 static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
 {
     xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store&&!C->Store->Applying){
+        if(P->Type==XMQTT_PACKET_CONNACK&&!xmqttClientProtocolReady(C)){
+            int Gate=xmqttStoreClientOpen(C,P);if(Gate)return Gate>0;
+        }else if(xmqttClientProtocolReady(C)&&P->Type!=XMQTT_PACKET_PINGRESP){
+            /* Fail closed until all live transitions are integrated; no public
+             * durable factory exposes this private development entry point. */
+            xmqttClientFail(C,XMQTT_STATUS_UNSUPPORTED,NULL);return false;
+        }
+    }
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(P->Type==XMQTT_PACKET_AUTH)return xmqttAuthFrame(C,P);
 #endif
     if(!xmqttClientProtocolReady(C)){
         if(P->Type!=XMQTT_PACKET_CONNACK || !C->Startup || C->SetupOffset!=C->Startup->Bytes){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
-        xmqttmessage* M=xmqttMessageCopy(C,P,&Failure,NULL);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
+        xmqttmessage* M;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+        if(C->Store&&C->Store->Applying&&C->Store->Message&&P==&C->Store->Message->Packet){M=C->Store->Message;C->Store->Message=NULL;}
+        else
+#endif
+        M=xmqttMessageCopy(C,P,&Failure,NULL);
+        if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
         xmqttnegotiationconfig K;xmqttNegotiationConfigInit(&K);K.Version=C->Config.Version;K.Codec=C->Config.Codec;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
         /* Retained-state validity is checked by Session Open. Authenticated
@@ -6971,6 +7192,9 @@ static void xmqttClientReadPump(xmqttclient* C)
 {
     size_t Read=0,Packets=0;
     while(!xmqttClientClosing(C) && Packets<C->Config.WorkPackets){
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+        if(C->Store&&C->Store->Future)return;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH) && defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
         /* A post-CONNACK frame may already be buffered. Backpressure it until
          * local proof accepts opening/resetting the attached protocol Session.
@@ -7752,6 +7976,9 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
 #endif
     xrtMutexUnlock(&C->Gate);
     if(!Started){xmqttClientDrop(C);return;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store)xmqttStoreClientProgress(C);
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     xmqttClientSessionEnd(C);
 #endif
@@ -7804,7 +8031,11 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
         /* Startup must be queued before an immediate/coalesced CONNACK. */
         if(!C->Info.Ready){size_t Budget=C->Config.WriteBytes;(void)xmqttClientSendStartup(C,&Budget);}
         if(!xmqttClientClosing(C))xmqttClientReadPump(C);
-        if(!xmqttClientClosing(C) && !C->ReadEnded)xmqttClientSendPump(C);
+        if(!xmqttClientClosing(C) && !C->ReadEnded
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+           && !(C->Store&&C->Store->Future)
+#endif
+        )xmqttClientSendPump(C);
         if(xmqttClientProtocolReady(C) && !C->PingOutstanding && xrtTimer()>=C->NextPing){
             if((C->ReceiveFlow && C->ReceiveFlow->Offset) || (C->ReceiveTwo && C->ReceiveTwo->Offset))xmqttClientFail(C,XMQTT_STATUS_TIMEOUT,NULL);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
@@ -7833,6 +8064,9 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
     }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
     if(C->WS){xmqttWsResume(C);xmqttWsRetire(C);}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store)xmqttStoreClientProgress(C);
 #endif
     xmqttClientDrop(C);
 }
@@ -7870,6 +8104,9 @@ static void xmqttClientFree(xmqttclient* C)
 #endif
         xrtFree(C->WS);}
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store)xmqttStoreClientFree(C);
+#endif
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
     if(C->SendAliases){for(size_t Page=0;Page<256;++Page){xmqttsendaliasslot* Slots=C->SendAliases->Pages[Page];if(!Slots)continue;
         for(size_t I=0;I<256;++I){xmqttSendTopicDropLocked(C,Slots[I].Planned);xmqttSendTopicDropLocked(C,Slots[I].Actual);}xrtFree(Slots);}xrtFree(C->SendAliases);}
@@ -7883,7 +8120,7 @@ static void xmqttClientFree(xmqttclient* C)
 #endif
     (void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
-static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan,void* InboxPlan,void* SessionPlan,const void* WsPlan)
+static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan,void* InboxPlan,void* SessionPlan,const void* WsPlan XMQTT_CLIENT_STORE_PARAM)
 {
     bool Planned=false;size_t HostBytes=0,TlsBytes=0,SessionBytes=0,WsBytes=0;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
@@ -8012,6 +8249,9 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     C->ReadyPromise=xrtPromiseCreate(&C->ReadyFuture,NULL);if(!C->ReadyPromise)goto Fail;
     xmqttClientRef(C);if(!xrtPromiseProducerBindTakeV2(C->ReadyPromise,(xrtownershipref){C,&xmqttPrivateOps},&xmqttReadyProducer,&xmqttReadyCancellation)){xmqttClientDrop(C);goto Fail;}
     C->ReadyCancel=xrtPromiseCancelToken(C->ReadyPromise);if(!C->ReadyCancel || !xrtNetPostInit(&C->Post))goto Fail;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(StorePlan&&!xmqttStoreClientAttach(C,StorePlan))goto Fail;
+#endif
     /* Serialize startup publication against immediate native callbacks. */
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     if(HostBytes){HostCopy=xrtMalloc(HostBytes);if(!HostCopy)goto Fail;memcpy(HostCopy,D->Host.Data,D->Host.Size);HostCopy[D->Host.Size]=0;}
@@ -8051,14 +8291,14 @@ Fail:
     xrtPromiseDestroy(C->ReadyPromise);C->ReadyPromise=NULL;if(C->ReadyBox)xmqttReadyFree(C->ReadyBox,NULL);xmqttStartupRetire(C);xmqttClientFree(C);return false;
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,NULL,NULL,NULL);}
+{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
 XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();if(!Inbox)return xmqttClientError(XERR_ARGUMENT,"Inbox is NULL");return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,Inbox,NULL,NULL);}
+{double Now=xrtTimer();if(!Inbox)return xmqttClientError(XERR_ARGUMENT,"Inbox is NULL");return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,Inbox,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XMQTT_API bool xmqttClientConnectSession(xnetengine* E,const xnetaddr* A,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** Out)
-{double Now=xrtTimer();if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");return xmqttClientConnectImpl(E,A,Affinity,K,Q,Out,NULL,Now,NULL,NULL,I,S,NULL);}
+{double Now=xrtTimer();if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");return xmqttClientConnectImpl(E,A,Affinity,K,Q,Out,NULL,Now,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
@@ -8070,7 +8310,7 @@ static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Out)
 {
     double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL,NULL,NULL);
+    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttauthconfig* Auth,
@@ -8078,7 +8318,7 @@ XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* E,const xnetaddr* R,uin
 {
     double At=xrtTimer();xmqttauthconfig K;if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");
     if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(E,R,A,C,Q,O,&K,At,NULL,NULL,I,S,NULL);
+    return xmqttClientConnectImpl(E,R,A,C,Q,O,&K,At,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 #endif
@@ -8149,11 +8389,11 @@ static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnet
     P.Config.Family=K.Family;P.Config.Timeout=K.Timeout;P.Config.FallbackDelay=K.FallbackDelay;P.Config.MaxAttempts=K.MaxAttempts;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
     xmqtttlsplan T={0};if(TLS && !xmqttTlsPlanCreate(TLS,Host,Out,&T))return false;
-    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL,Inbox,Session,WsPlan);
+    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL,Inbox,Session,WsPlan XMQTT_CLIENT_STORE_ARG(NULL));
     if(!OK)xrtTlsSessionDestroy(T.Session);
     return OK;
 #else
-    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS,Inbox,Session,WsPlan);
+    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS,Inbox,Session,WsPlan XMQTT_CLIENT_STORE_ARG(NULL));
 #endif
 }
 XMQTT_API bool xmqttClientDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
@@ -8296,6 +8536,9 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     double Deadline=xmqttClientDeadline(xrtTimer(),Timeout);
     if(!C || !P || !Out || !xrtMemRangeValid(P,sizeof(*P)) || !xrtMemRangeValid(Out,sizeof(*Out)) || Timeout<XRT_WAIT_FOREVER ||
        P->Type!=Type || (Type==XMQTT_PACKET_PUBLISH && (((P->Flags>>1)&3u)>2 || (P->Flags&8u)))){xmqttClientError(XERR_ARGUMENT,"invalid MQTT request arguments");return XMQTT_ADMISSION_ERROR;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store){xmqttClientError(XERR_STATE,"live store flow integration is not yet exposed");return XMQTT_ADMISSION_ERROR;}
+#endif
     bool Subscription=Type!=XMQTT_PACKET_PUBLISH;uint8 Qos=Subscription?0:(uint8)((P->Flags>>1)&3u);bool NeedId=Subscription || Qos;uint16 Identifier=0;xmqttpacket Adapted;const xmqttpacket* Packet=P;
     if(NeedId){Adapted=*P;if(!Adapted.Identifier)Adapted.Identifier=1;Packet=&Adapted;} /* sizing only */
     bool Alias=false;uint16 AliasId=0;
@@ -8428,6 +8671,10 @@ XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* C,const xmqttpack
 }
 XMQTT_API xmqttclientadmission xmqttClientDisconnectAsync(xmqttclient* C,const xmqttpacket* Packet,int64 Timeout,xfuture** Out)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C&&C->Store){xmqttClientError(XERR_STATE,"durable disconnect integration not exposed");return XMQTT_ADMISSION_ERROR;}
+#endif
+
     double Deadline=Timeout?xmqttClientDeadline(xrtTimer(),Timeout):-INFINITY;xmqttpacket Default;
     if(!C || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || Timeout<0 || (Packet && !xrtMemRangeValid(Packet,sizeof(*Packet)))){xmqttClientError(XERR_ARGUMENT,"invalid graceful disconnect arguments");return XMQTT_ADMISSION_ERROR;}
     if(!Packet){xmqttPacketInit(XMQTT_PACKET_DISCONNECT,&Default);Packet=&Default;}
@@ -8532,6 +8779,9 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 {
     if(!C || Timeout<XRT_WAIT_FOREVER){xmqttClientError(XERR_ARGUMENT,"invalid client wait");return XWAIT_ERROR;}
     if(xrtNetEngineCurrent(C->Engine)){xmqttClientError(XERR_STATE,"cannot wait from an Engine worker");return XWAIT_ERROR;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store&&xrtTaskPoolIsCurrentWorkerV1(C->Store->Pool)){xmqttClientError(XERR_STATE,"cannot wait from store host pool");return XWAIT_ERROR;}
+#endif
     double Deadline=xmqttClientDeadline(xrtTimer(),Timeout);
     if(!xrtMutexLock(&C->RetirementLock))return XWAIT_ERROR;
     xwaitresult Result=XWAIT_OK;
@@ -8577,6 +8827,9 @@ XMQTT_API bool xmqttClientDestroy(xmqttclient* C)
 {
     if(!C)return true;
     if(xrtNetEngineCurrent(C->Engine))return xmqttClientError(XERR_STATE,"cannot destroy from an Engine worker");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(C->Store&&xrtTaskPoolIsCurrentWorkerV1(C->Store->Pool))return xmqttClientError(XERR_STATE,"cannot destroy from store host pool");
+#endif
     if(!xmqttClientClose(C) || xmqttClientWaitFor(C,XRT_WAIT_FOREVER)!=XWAIT_OK)return false;
     xmqttClientFree(C);return true;
 }
@@ -8608,7 +8861,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
     if(K.Auth)return xmqttClientError(XERR_UNSUPPORTED,"Auth feature is not selected");
 #endif
     xmqttwsplan P={.Native=Native,.TLS=TLS,.Initial=Initial,.Config=K};xnetengine* Engine=xrtNetWorkerEngine(Worker);
-    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,K.Inbox,K.Session,&P);
+    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,K.Inbox,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 
@@ -8650,6 +8903,15 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
 }
 #endif
 
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL bool xmqttInternalClientConnectStore(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* K,
+    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,const xmqttclientstoreplan* P,xmqttclient** Out)
+{
+    double At=xrtTimer();if(!S||!I||!P||!xrtMemRangeValid(P,sizeof(*P))||!P->Writer||!P->Wall)return xmqttClientError(XERR_ARGUMENT,"invalid private store plan");
+    return xmqttClientConnectImpl(E,R,A,K,Q,Out,NULL,At,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(P));
+}
 #endif
 #endif
 
@@ -11117,6 +11379,10 @@ Finish:
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* S,const void* Owner)
+{if(!S||S->WriteOwner!=Owner)abort();return S->Opened;}
+#endif
 XMQTT_INTERNAL bool xmqttInternalStoreWriteClaim(xmqttstorestate* S,xmqttjournal* J,const void* Owner,void* Output,size_t Bytes,xmqttstoredeltaconfig* Delta,size_t* MinimumPlanBytes)
 {
     if(!S||!Owner||S->WriteOwner||!xmqttSOutput(S,Output,Bytes)){
@@ -11576,6 +11842,9 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* W,xmqttco
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 struct xmqttstorewrite {
     xmqttstorewriteconfig Config;xmqttstoredeltaconfig Delta;xmqttstorestate* State;xmqttjournalworker* Worker;
+    #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    const void* Driver;size_t Admissions;xtaskpool* Pool;
+#endif
     xmutex Gate;ptr Scratch;size_t ScratchBytes,PlanLimit;xmqttstoredelta* Operations;xmqttproperty* Properties;xmqttstoreplan* Pending;
 };
 static bool xmqttSWError(xerrkind Kind,cstr Text)
@@ -11613,7 +11882,11 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     if(!Pool||!Journal||!State||!xmqttSWSpan(C,sizeof(*C))||C->Size!=sizeof(*C)||!xmqttSWSpan(Out,sizeof(*Out))||!xmqttSWSeparate(Out,sizeof(*Out),C,sizeof(*C)))return xmqttSWError(XERR_ARGUMENT,"invalid store-writer constructor inputs");
     if(C->MaxScratchBytes<sizeof(xmqttstorewrite))return xmqttSWError(XERR_ARGUMENT,"store-writer fixed budget is too small");
     xmqttstorewrite* W=xrtCalloc(1,sizeof(*W));if(!W)return false;
-    W->Config=*C;W->State=State;if(!xrtMutexInit(&W->Gate)){xrtFree(W);return false;}
+    W->Config=*C;W->State=State;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    W->Pool=Pool;
+#endif
+    if(!xrtMutexInit(&W->Gate)){xrtFree(W);return false;}
     size_t MinimumPlan=0;
     if(!xmqttInternalStoreWriteClaim(State,Journal,W,Out,sizeof(*Out),&W->Delta,&MinimumPlan)){xrtMutexUnit(&W->Gate);xrtFree(W);return false;}
     size_t Ops=W->Delta.MaxOperations,Props=W->Delta.Codec.MaxProperties;
@@ -11630,15 +11903,52 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     *Out=W;return true;
 Failure:xmqttInternalStoreWriteRelease(State,W,false);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return false;
 }
-XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
+static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,int64 Timeout,double Deadline,xfuture** Future)
 {
-    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
     if(!W||Timeout<XRT_WAIT_FOREVER){xmqttSWError(XERR_ARGUMENT,"invalid store writer/deadline");return XMQTT_JWORK_ERROR;}
     if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
-    bool OK=xmqttSWOutput(W,Future,sizeof(*Future));xrtMutexUnlock(&W->Gate);
+    bool OK=xmqttSWOutput(W,Future,sizeof(*Future));
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    OK=OK&&W->Driver==Owner;if(OK)++W->Admissions;
+#else
+    (void)Owner;
+#endif
+    xrtMutexUnlock(&W->Gate);
     if(!OK){xmqttSWError(XERR_ARGUMENT,"append Future overlaps store-writer ownership");return XMQTT_JWORK_ERROR;}
-    return xmqttInternalJournalWorkerAppendAt(W->Worker,Data,Deadline,Future);
+    xmqttjournaladmission A=xmqttInternalJournalWorkerAppendAt(W->Worker,Data,Deadline,Future);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xrtMutexLock(&W->Gate))abort();
+    --W->Admissions;if(!xrtMutexUnlock(&W->Gate))abort();
+#endif
+    return A;
 }
+XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
+{return xmqttSWAppend(W,NULL,Data,Timeout,Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0,Future);}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+{
+    if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
+    bool OK=!W->Driver&&!W->Admissions&&!W->Pending;
+    if(OK)W->Driver=Owner;
+    xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
+    /* Reap native tails outside the model gate: backing frees can reenter Info. */
+    xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Requests&&!I.Tasks&&!I.Failed&&!I.Closed;
+    if(!xrtMutexLock(&W->Gate))abort();
+    if(OK&&!W->Pending){*Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);*Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;}
+    else {W->Driver=NULL;OK=false;}
+    xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
+}
+XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable)
+{
+    if(!W||!xrtMutexLock(&W->Gate))abort();
+    if(W->Driver!=Owner||W->Admissions)abort();
+    W->Driver=NULL;xrtMutexUnlock(&W->Gate);if(!Reusable)(void)xmqttJournalWorkerClose(W->Worker);
+}
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future)
+{return xmqttSWAppend(W,Owner,Data,XRT_WAIT_FOREVER,Deadline,Future);}
+static bool xmqttSWUnclaimed(xmqttstorewrite* W)
+{if(!W||!xrtMutexLock(&W->Gate))return false;bool OK=!W->Driver;xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"Client owns store writer until physical destruction");}
+#endif
 XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
 {
     if(!W)return xmqttSWError(XERR_ARGUMENT,"NULL store writer");
@@ -11658,12 +11968,23 @@ XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr
     xrtMutexUnlock(&W->Gate);if(S==XMQTT_STORE_ERROR)xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer read output/key");return S;
 }
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* W)
-{return W?xmqttJournalWorkerClose(W->Worker):xmqttSWError(XERR_ARGUMENT,"NULL store writer");}
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(W&&!xmqttSWUnclaimed(W))return false;
+#endif
+    return W?xmqttJournalWorkerClose(W->Worker):xmqttSWError(XERR_ARGUMENT,"NULL store writer");}
 XMQTT_API xwaitresult xmqttStoreWriteWaitFor(xmqttstorewrite* W,int64 Timeout)
-{if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XWAIT_ERROR;}return xmqttJournalWorkerWaitFor(W->Worker,Timeout);}
+{if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XWAIT_ERROR;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xmqttSWUnclaimed(W))return XWAIT_ERROR;
+#endif
+    return xmqttJournalWorkerWaitFor(W->Worker,Timeout);}
 XMQTT_API bool xmqttStoreWriteDestroy(xmqttstorewrite* W)
 {
     if(!W)return true;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xmqttSWUnclaimed(W))return false;
+#endif
     if(!xmqttJournalWorkerDestroy(W->Worker))return false;
     if(W->Pending)abort();
     xmqttInternalStoreWriteRelease(W->State,W,true);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return true;

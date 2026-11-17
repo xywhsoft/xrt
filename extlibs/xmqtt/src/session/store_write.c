@@ -1,5 +1,6 @@
 #include <xmqtt/store_write.h>
 #include "../internal/xmqtt_store_write.h"
+#include "../internal/xmqtt_client_store.h"
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <xrt/time.h>
@@ -9,6 +10,9 @@
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 struct xmqttstorewrite {
     xmqttstorewriteconfig Config;xmqttstoredeltaconfig Delta;xmqttstorestate* State;xmqttjournalworker* Worker;
+    #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    const void* Driver;size_t Admissions;xtaskpool* Pool;
+#endif
     xmutex Gate;ptr Scratch;size_t ScratchBytes,PlanLimit;xmqttstoredelta* Operations;xmqttproperty* Properties;xmqttstoreplan* Pending;
 };
 static bool xmqttSWError(xerrkind Kind,cstr Text)
@@ -46,7 +50,11 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     if(!Pool||!Journal||!State||!xmqttSWSpan(C,sizeof(*C))||C->Size!=sizeof(*C)||!xmqttSWSpan(Out,sizeof(*Out))||!xmqttSWSeparate(Out,sizeof(*Out),C,sizeof(*C)))return xmqttSWError(XERR_ARGUMENT,"invalid store-writer constructor inputs");
     if(C->MaxScratchBytes<sizeof(xmqttstorewrite))return xmqttSWError(XERR_ARGUMENT,"store-writer fixed budget is too small");
     xmqttstorewrite* W=xrtCalloc(1,sizeof(*W));if(!W)return false;
-    W->Config=*C;W->State=State;if(!xrtMutexInit(&W->Gate)){xrtFree(W);return false;}
+    W->Config=*C;W->State=State;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    W->Pool=Pool;
+#endif
+    if(!xrtMutexInit(&W->Gate)){xrtFree(W);return false;}
     size_t MinimumPlan=0;
     if(!xmqttInternalStoreWriteClaim(State,Journal,W,Out,sizeof(*Out),&W->Delta,&MinimumPlan)){xrtMutexUnit(&W->Gate);xrtFree(W);return false;}
     size_t Ops=W->Delta.MaxOperations,Props=W->Delta.Codec.MaxProperties;
@@ -63,15 +71,52 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     *Out=W;return true;
 Failure:xmqttInternalStoreWriteRelease(State,W,false);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return false;
 }
-XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
+static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,int64 Timeout,double Deadline,xfuture** Future)
 {
-    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
     if(!W||Timeout<XRT_WAIT_FOREVER){xmqttSWError(XERR_ARGUMENT,"invalid store writer/deadline");return XMQTT_JWORK_ERROR;}
     if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
-    bool OK=xmqttSWOutput(W,Future,sizeof(*Future));xrtMutexUnlock(&W->Gate);
+    bool OK=xmqttSWOutput(W,Future,sizeof(*Future));
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    OK=OK&&W->Driver==Owner;if(OK)++W->Admissions;
+#else
+    (void)Owner;
+#endif
+    xrtMutexUnlock(&W->Gate);
     if(!OK){xmqttSWError(XERR_ARGUMENT,"append Future overlaps store-writer ownership");return XMQTT_JWORK_ERROR;}
-    return xmqttInternalJournalWorkerAppendAt(W->Worker,Data,Deadline,Future);
+    xmqttjournaladmission A=xmqttInternalJournalWorkerAppendAt(W->Worker,Data,Deadline,Future);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xrtMutexLock(&W->Gate))abort();
+    --W->Admissions;if(!xrtMutexUnlock(&W->Gate))abort();
+#endif
+    return A;
 }
+XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
+{return xmqttSWAppend(W,NULL,Data,Timeout,Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0,Future);}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+{
+    if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
+    bool OK=!W->Driver&&!W->Admissions&&!W->Pending;
+    if(OK)W->Driver=Owner;
+    xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
+    /* Reap native tails outside the model gate: backing frees can reenter Info. */
+    xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Requests&&!I.Tasks&&!I.Failed&&!I.Closed;
+    if(!xrtMutexLock(&W->Gate))abort();
+    if(OK&&!W->Pending){*Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);*Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;}
+    else {W->Driver=NULL;OK=false;}
+    xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
+}
+XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable)
+{
+    if(!W||!xrtMutexLock(&W->Gate))abort();
+    if(W->Driver!=Owner||W->Admissions)abort();
+    W->Driver=NULL;xrtMutexUnlock(&W->Gate);if(!Reusable)(void)xmqttJournalWorkerClose(W->Worker);
+}
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future)
+{return xmqttSWAppend(W,Owner,Data,XRT_WAIT_FOREVER,Deadline,Future);}
+static bool xmqttSWUnclaimed(xmqttstorewrite* W)
+{if(!W||!xrtMutexLock(&W->Gate))return false;bool OK=!W->Driver;xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"Client owns store writer until physical destruction");}
+#endif
 XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
 {
     if(!W)return xmqttSWError(XERR_ARGUMENT,"NULL store writer");
@@ -91,12 +136,23 @@ XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr
     xrtMutexUnlock(&W->Gate);if(S==XMQTT_STORE_ERROR)xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer read output/key");return S;
 }
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* W)
-{return W?xmqttJournalWorkerClose(W->Worker):xmqttSWError(XERR_ARGUMENT,"NULL store writer");}
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(W&&!xmqttSWUnclaimed(W))return false;
+#endif
+    return W?xmqttJournalWorkerClose(W->Worker):xmqttSWError(XERR_ARGUMENT,"NULL store writer");}
 XMQTT_API xwaitresult xmqttStoreWriteWaitFor(xmqttstorewrite* W,int64 Timeout)
-{if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XWAIT_ERROR;}return xmqttJournalWorkerWaitFor(W->Worker,Timeout);}
+{if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XWAIT_ERROR;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xmqttSWUnclaimed(W))return XWAIT_ERROR;
+#endif
+    return xmqttJournalWorkerWaitFor(W->Worker,Timeout);}
 XMQTT_API bool xmqttStoreWriteDestroy(xmqttstorewrite* W)
 {
     if(!W)return true;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+    if(!xmqttSWUnclaimed(W))return false;
+#endif
     if(!xmqttJournalWorkerDestroy(W->Worker))return false;
     if(W->Pending)abort();
     xmqttInternalStoreWriteRelease(W->State,W,true);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return true;

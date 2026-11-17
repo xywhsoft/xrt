@@ -728,3 +728,38 @@ claimed. The live Client prepare/commit/network-ACK driver,delivery leases,
 transport fencing,namespace/locking,compaction/group commit and the original
 four-product production scope remain required. All work stays on master.
 See [follow-up evidence](../../../docs/development/xmqtt-store-write-revalidation-20261118.json).
+
+
+## 2026-11-18: first live Client storage checkpoint integration
+
+A private developing path now joins the actual numeric TCP Client to the bounded
+store Writer. Accepted CONNACK stages BIND/OPEN before Session mutation and Ready;
+actual native close captures wall time and writes END. The original setup deadline
+includes storage. Late Close/timeout preserve the physical IO duty and committed
+history; Writer ownership lasts until Client destruction. Synchronous Ready
+observers and callbacks on the storage pool cannot cause premature retirement or
+same-pool blocking joins. No Core API, executor, thread or shared runtime is added.
+
+The integration fixture runs16 scenarios per program across MQTT3.1.1 and5.0,
+including a native temporary file and fresh recovery, held final sync, late Close,
+setup timeout, blocked Ready observer, native write refusal, trusted-clock rollback,
+closed host-pool submission, and an actual native allocation-budget rejection.
+Windows and WSL modular/single, root/statistics-off, ASan/UBSan/leaks and Clang21
+TSan are recorded in the stage evidence. Existing Client/Session/Writer regressions
+and standard static/shared public consumers are recorded separately. Package
+consumer tests do not exercise the hidden private connection factory.
+
+No public durable Client factory is exposed. The private bootstrap refuses all
+application traffic until outgoing/incoming ACK ordering, durable delivery leases,
+old-transport fencing and all auth/transport adapters are implemented. The host
+Engine and storage pool must remain running through Client retirement. Native
+Future-watch registration failure fallback and END clock failure are not directly
+fault-injected in this stage. Enabling the developing integration adds8 bytes to
+the private Client and24 to the private Writer on both tested x64 platforms;
+the four sampled public result/info layouts remain unchanged. This is neither a
+zero-overhead claim nor a throughput/tail-latency or production acceptance result.
+Strict release correctly refuses28 developing MQTT modules. Prior performance
+noise/watchdog failures, namespace/locking, compaction/group commit, full four-
+product scope and native Windows/native Linux >=72h qualification remain open.
+All development and tests use D:/GIT/xrt master; no branch/worktree action or push.
+See [stage evidence](../../../docs/development/xmqtt-client-store-open-20261118.json).

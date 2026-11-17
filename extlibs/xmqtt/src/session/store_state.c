@@ -388,6 +388,10 @@ Finish:
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteEverOpened(xmqttstorestate* S,const void* Owner)
+{if(!S||S->WriteOwner!=Owner)abort();return S->Opened;}
+#endif
 XMQTT_INTERNAL bool xmqttInternalStoreWriteClaim(xmqttstorestate* S,xmqttjournal* J,const void* Owner,void* Output,size_t Bytes,xmqttstoredeltaconfig* Delta,size_t* MinimumPlanBytes)
 {
     if(!S||!Owner||S->WriteOwner||!xmqttSOutput(S,Output,Bytes)){

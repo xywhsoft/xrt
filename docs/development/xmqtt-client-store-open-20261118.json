@@ -1,0 +1,132 @@
+{
+  "schema": "xrt-stage-evidence-v1",
+  "date": "2026-11-18",
+  "stage": "private live Client BIND/OPEN readiness and native-close END integration",
+  "state": "developing; first online checkpoint only",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "89868f5af076ed49e3d2a7c0063f2c6c5ad33925",
+  "tested_source_map_sha256": "9392de2d063f3ac63dc3638fd750348ad229b93595800a0b88bd393b3e1efa38",
+  "evidence_directory": "out/service-extensions/mqtt-client-store-open-20261118",
+  "audit_sha256": "2ea32d82a90173fdd750cd4444c26c227cbe2680d25c948684e03d9157c110f7",
+  "migration": {
+    "source_worktree_retired": true,
+    "mainline_migration_commit": "05dc625d",
+    "migration_revalidation_commit": "f0e0955c",
+    "both_are_ancestors_of_tested_head": true,
+    "branch_switch_create_merge_or_push": false
+  },
+  "implemented": [
+    "Private numeric TCP Client factory joins existing Session/Inbox and bounded Writer; no public durable Client API",
+    "Accepted CONNACK BIND/OPEN commits before mutable Session open and Ready; staged CONNACK ownership transfers without another message copy",
+    "Existing setup absolute deadline covers storage; late Close/timeout retains actual IO and Future-watch references",
+    "Native TCP Closed captures wall time and END deadline; committed OPEN is followed by END before physical Client retirement",
+    "Writer mutation/close/wait/destroy aliases refused while attached; Client waits/destroys refused on all storage-pool workers",
+    "Private bootstrap rejects application dataflow until full durable transaction driver exists; no protocol ACK escapes the incomplete integration"
+  ],
+  "validation": {
+    "windows": {
+      "final_modular_single_programs": 2,
+      "scenarios_per_program": 16,
+      "final_root_stats_off_programs": 2,
+      "earlier_narrow_regression_programs": 34,
+      "static_shared_standard_public_consumers": 2,
+      "shared_exported_names": 107
+    },
+    "linux_wsl": {
+      "final_modular_single_asan_ubsan_leak_programs": 2,
+      "scenarios_per_program": 16,
+      "final_clang21_tsan_programs": 1,
+      "final_root_stats_off_programs": 2,
+      "earlier_narrow_asan_ubsan_regression_programs": 34,
+      "static_shared_standard_public_consumers": 2,
+      "shared_exported_names": 107
+    },
+    "scenarios": [
+      "MQTT3.1.1 and5.0; final native sync held before Ready/Session mutation",
+      "Late logical Close and original setup timeout while actual sync remains held",
+      "Blocked synchronous Ready observer retains physical Client ownership",
+      "Actual native write refusal, trusted-clock rollback and closed host-pool submission",
+      "Actual Engine-worker allocation-budget rejection and full requested-byte refund",
+      "Native temporary file sync, fresh typed replay and cleanup of own fixture",
+      "Late actual OPEN followed by END; retained Ready result outlives all live owners"
+    ],
+    "normal_gates": [
+      "features",
+      "single",
+      "api",
+      "reference",
+      "maturity",
+      "layout"
+    ],
+    "strict_release": {
+      "passed": false,
+      "expected": true,
+      "developing_modules": 28
+    },
+    "required_public_exports": 6,
+    "hidden_new_private_symbols": 5,
+    "public_api_reference": {
+      "functions": 179,
+      "constants": 295,
+      "types": 110,
+      "new_public_functions": 0
+    },
+    "sampled_public_abi": {
+      "types": [
+        "xmqttwriteresult",
+        "xmqttreadyresult",
+        "xmqttclientinfo",
+        "xmqttstorewriteinfo"
+      ],
+      "bytes": [
+        64,
+        136,
+        160,
+        296
+      ],
+      "unchanged": true,
+      "scope": "same x64 single-header selections with feature disabled/enabled; not a complete cross-form ABI qualification"
+    },
+    "narrow_regression_reuse": {
+      "source_map_sha256": "09655d402312ad006ac3f138a316cd848ddfad17a441b83ea6c94b5d99ea84de",
+      "compiled_input_changes": "exact removal of one redundant feature-conditional read-pump guard; this feature is disabled in narrow legacy selections",
+      "changed_map_paths": [
+        "extlibs/xmqtt/docs/client_store.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/src/client/client.c",
+        "single/extlibs/xmqtt.h"
+      ]
+    },
+    "receipts_and_archives": {
+      "logs": 71,
+      "gzip_binary_archives": 97,
+      "retained_nonzero_receipts": 10
+    },
+    "package_consumer_scope": "standard public consumer only; hidden private factory is not exercised through the shared-library API"
+  },
+  "costs": {
+    "private_client_bytes_added_x64": 8,
+    "private_writer_bytes_added_x64": 24,
+    "private_context_and_encoded_buffer": "charged to MaxPrivateBytes; bounded staging copies retained",
+    "zero_copy_or_zero_overhead_claim": false,
+    "throughput_or_tail_latency_acceptance": false
+  },
+  "retained_failures": [
+    "Initial constructor/fixture compile errors and budget-info member spelling corrected before qualification",
+    "MQTT3.1.1 bootstrap initially used MQTT5-only negotiated expiry field; actual typed preflight refused it; fixed using Clean Session semantics",
+    "Single-header integration initially emitted implementation helpers before Client types; helpers moved into actual Client implementation",
+    "Initial root documentation gate lacked developing root dependency; dependency corrected, normal checks pass",
+    "Root/stats-off helper initially omitted FILE_TEMP; helper fixed, failed logs retained",
+    "Export helper initially expected old objdump table format; parser fixed, raw output and failure metadata retained",
+    "Strict release failure remains intentional; earlier controlled performance noise/watchdog failures are not overwritten"
+  ],
+  "limits": [
+    "No public durable Client factory or production/performance claim",
+    "No live outgoing snapshot/attempt/PUBREC/completion or incoming acceptance/PUBREL/PUBCOMP transaction ordering yet",
+    "No durable application delivery leases, old-transport fencing or all auth/transport adapters yet",
+    "No targeted failure injection for native Future-watch registration fallback or END clock failure",
+    "Borrowed Engine and task pool must remain running through Client physical retirement",
+    "Namespace/locking, compaction/group commit, remaining four-product scope and controlled/native Windows+Linux >=72h acceptance remain required"
+  ]
+}

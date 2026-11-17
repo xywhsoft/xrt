@@ -150,7 +150,8 @@
         "xmqtt_store_state",
         "xmqtt_store_session",
         "xmqtt_journal_worker",
-        "xmqtt_store_write"
+        "xmqtt_store_write",
+        "xmqtt_client_store"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -2171,6 +2172,50 @@
         "extlibs/xmqtt/docs/store_write.md",
         "extlibs/xmqtt/examples/store_write/README.md"
       ]
+    },
+    {
+      "name": "xmqtt_client_store",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_STORE",
+      "depends": [
+        "xmqtt_client_session",
+        "xmqtt_store_write"
+      ],
+      "public_headers": [],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_client_store.h"
+      ],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_store.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_store_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_store",
+        "vfs",
+        "memory_stats",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_store.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     }
   ]
 }
