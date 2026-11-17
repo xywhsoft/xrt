@@ -52,17 +52,17 @@ Invalid:
     xmqttWsConnectError("invalid WS connect HTTP policy, ranges or output overlap");return NULL;
 }
 XMQTT_API bool xmqttClientWsConnect(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttInternalClientWsConnect(E,NULL,NULL,R,(xstrview){0},0,A,C,W,NULL,Q,O,xrtTimer());}
+{return xmqttInternalClientWsConnect(E,NULL,NULL,R,(xstrview){0},0,A,C,W,NULL,Q,O,xrtTimer(),NULL,NULL);}
 XMQTT_API bool xmqttClientWsDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttInternalClientWsConnect(E,R,NULL,NULL,H,P,A,C,W,NULL,Q,O,xrtTimer());}
+{return xmqttInternalClientWsConnect(E,R,NULL,NULL,H,P,A,C,W,NULL,Q,O,xrtTimer(),NULL,NULL);}
 XMQTT_API bool xmqttClientWsDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttInternalClientWsConnect(E,NULL,L,NULL,(xstrview){0},0,A,C,W,NULL,Q,O,xrtTimer());}
+{return xmqttInternalClientWsConnect(E,NULL,L,NULL,(xstrview){0},0,A,C,W,NULL,Q,O,xrtTimer(),NULL,NULL);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
 XMQTT_API bool xmqttClientWssConnect(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
-{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,NULL,NULL,R,(xstrview){0},0,A,C,W,T,Q,O,At);}
+{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,NULL,NULL,R,(xstrview){0},0,A,C,W,T,Q,O,At,NULL,NULL);}
 XMQTT_API bool xmqttClientWssDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
-{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,R,NULL,NULL,H,P,A,C,W,T,Q,O,At);}
+{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,R,NULL,NULL,H,P,A,C,W,T,Q,O,At,NULL,NULL);}
 XMQTT_API bool xmqttClientWssDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
-{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,NULL,L,NULL,(xstrview){0},0,A,C,W,T,Q,O,At);}
+{double At=xrtTimer();if(!T)return xmqttWsConnectError("WSS requires explicit TLS policy");return xmqttInternalClientWsConnect(E,NULL,L,NULL,(xstrview){0},0,A,C,W,T,Q,O,At,NULL,NULL);}
 #endif
 #endif

@@ -153,6 +153,7 @@
         "xmqtt_store_write",
         "xmqtt_client_store",
         "xmqtt_client_store_tls",
+        "xmqtt_client_store_ws",
         "xmqtt_store_inbox"
       ],
       "collect_dependency_assets": [
@@ -717,6 +718,7 @@
         "xmqtt_client_session_dial_tests",
         "xmqtt_client_store_tls_tests",
         "xmqtt_client_store_auth_tests",
+        "xmqtt_client_store_ws_tests",
         "xmqtt_reconnect_tests",
         "xmqtt_reconnect_transport_tests",
         "xmqtt_reconnect_subscriptions",
@@ -747,6 +749,7 @@
         "extlibs/xmqtt/tests/test_client_session_tls.c",
         "extlibs/xmqtt/tests/test_client_store_tls.c",
         "extlibs/xmqtt/tests/test_client_store_auth.c",
+        "extlibs/xmqtt/tests/test_client_store_ws.c",
         "extlibs/xmqtt/tests/test_client_session_dial.c",
         "extlibs/xmqtt/tests/test_reconnect.c",
         "extlibs/xmqtt/tests/test_reconnect_transports.c",
@@ -790,6 +793,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_ws.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_wss.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c",
@@ -852,6 +857,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c": "xmqtt_client_store_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_auth.c": "xmqtt_client_store_auth_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls_auth.c": "xmqtt_client_store_auth_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_ws.c": "xmqtt_client_store_ws_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_wss.c": "xmqtt_client_store_ws_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c": "xmqtt_client_session_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c": "xmqtt_client_session_dial_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c": "xmqtt_client_session_dial_tests",
@@ -2317,6 +2324,60 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xmqtt/examples/client_store_auth/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_store_ws",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS",
+      "depends": [
+        "xmqtt_client_store",
+        "xmqtt_client_ws_uri"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_store_ws.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_store_ws.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_store_ws_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_store_ws",
+        "xmqtt_client_ws_uri_tls",
+        "xmqtt_client_auth",
+        "tls_server",
+        "tls_identity_rsa",
+        "memory_stats",
+        "vfs",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_store_ws.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_ws.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_wss.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/client_store/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/examples/client_store/README.md"
       ]
     },
     {

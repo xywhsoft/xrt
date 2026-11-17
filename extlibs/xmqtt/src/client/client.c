@@ -2499,11 +2499,15 @@ static void xmqttWsError(xwsstream* S,const xerror* Error,ptr Data)
 {(void)S;xmqttWsFailure(Data,Error);xmqttClientWake(Data);}
 static void xmqttWsClosed(xwsstream* S,const xwsstreamclose* Info,ptr Data)
 {
-    (void)S;xmqttclient* C=Data;C->NativeClosed=true;
+    xmqttclient* C=Data;
+    xrtMutexLock(&C->Gate);bool Expected=C->ApplicationClose&&C->ApplicationNativeClosing&&(Info->Flags&XWS_STREAM_CLOSE_CLEAN)&&Info->Transport==XNET_RESULT_OK;xrtMutexUnlock(&C->Gate);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+    xmqttStoreClientClosed(C,Expected);
+#endif
+    C->NativeClosed=true;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(C->Session)C->Session->EndAt=xrtTimer();
 #endif
-    xrtMutexLock(&C->Gate);bool Expected=C->ApplicationClose&&C->ApplicationNativeClosing&&(Info->Flags&XWS_STREAM_CLOSE_CLEAN)&&Info->Transport==XNET_RESULT_OK;xrtMutexUnlock(&C->Gate);
     if(!Expected){xmqttWsFailure(C,xrtWsStreamError(S));}xmqttClientWake(C);
 }
 static const xwsstreamownershipv1 XmqttWsEvents={sizeof(xwsstreamownershipv1),{.MessageBegin=xmqttWsBegin,.MessageData=xmqttWsData,.Writable=xmqttWsWritableEvent,.Drain=xmqttWsWritten,.Error=xmqttWsError,.Close=xmqttWsClosed},xmqttClientDrop,&xmqttPrivateOps,NULL};
@@ -4096,8 +4100,12 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
 #endif
 
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+static bool xmqttStorePlanCreate(xmqttsession*,const xmqttclientstoreconfig*,xmqttclient**,xmqttclientstoreplan*);
+#endif
 XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* Addresses,const xnetaddr* Address,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientwsconnectconfig* Policy,const void* TLS,const xmqttpacket* Q,xmqttclient** Out,double Entered)
+    const xmqttclientconfig* Config,const xmqttclientwsconnectconfig* Policy,const void* TLS,const xmqttpacket* Q,xmqttclient** Out,double Entered,
+    struct xmqttsession* StoreSession,const struct xmqttclientstoreconfig* Store)
 {
     if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!Policy||!xrtMemRangeValid(Policy,sizeof(*Policy))||xrtMemRangesOverlap(Policy,sizeof(*Policy),Out,sizeof(*Out))||!Q||!xrtMemRangeValid(Q,sizeof(*Q))||xrtMemRangesOverlap(Q,sizeof(*Q),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid WS connect input/output");
     xmqttclientwsconnectconfig K=*Policy;xmqttclientwsconfig W=K.WebSocket;
@@ -4107,6 +4115,16 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
 #endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(W.Session)return xmqttClientError(XERR_UNSUPPORTED,"WS Session feature is not selected");
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+    xmqttclientstoreplan Durable;
+    if(StoreSession||Store){
+        if(W.Session||W.Inbox)return xmqttClientError(XERR_ARGUMENT,"durable WS policy cannot carry a volatile Session or Inbox");
+        if(!xmqttStorePlanCreate(StoreSession,Store,Out,&Durable))return false;
+        W.Session=StoreSession;
+    }else
+#else
+    (void)StoreSession;(void)Store;
 #endif
     if(W.Session&&!W.Inbox)return xmqttClientError(XERR_ARGUMENT,"WS Session requires Inbox");
     const void* Auth=NULL;
@@ -4128,7 +4146,13 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     xmqttwshttp* H=xmqttInternalWsHttpCreate(&K,Out);if(!H)return false;H->Info.Secure=TLS!=NULL;
     W.Stream.Protocol=XRT_STR_LITERAL("mqtt");xmqttwsplan P={.Config=W,.Http=H};xnetaddrlist* Temporary=NULL;
     if(Address){Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary){xmqttInternalWsHttpDrop(H);return false;}Addresses=Temporary;}
-    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,W.Inbox,W.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
+    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,W.Inbox,W.Session,&P
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+        XMQTT_CLIENT_STORE_ARG(Store?&Durable:NULL)
+#else
+        XMQTT_CLIENT_STORE_ARG(NULL)
+#endif
+    );
     xrtNetAddrListDestroy(Temporary);if(!OK)xmqttInternalWsHttpDrop(H);return OK;
 }
 #endif

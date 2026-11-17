@@ -89,6 +89,7 @@ bounded admission contract.
 
 The [verified TLS adapter](client_store_tls.md) supports hostname dialing.
 The [enhanced authentication adapter](client_store_auth.md) supports MQTT 5
-over numeric TCP or verified TLS. Cleartext hostname dialing, WebSocket and
-automatic reconnect adapters for the durable Client are pending. Cross-host fencing, compaction
+over numeric TCP or verified TLS. The [durable WebSocket adapter](client_store_ws.md) supports both WS and WSS
+URI endpoints. Cleartext hostname dialing for raw TCP and automatic reconnect
+adapters for the durable Client are pending. Cross-host fencing, compaction
 and throughput/tail-latency qualification are also pending.

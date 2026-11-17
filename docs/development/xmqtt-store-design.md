@@ -423,3 +423,24 @@ normal transport/storage effects.
 The exercised proofs are fixture data. Deployment algorithms and external
 broker enhanced-auth interoperability remain open.
 [Stage evidence](xmqtt-client-store-auth-20261118.json).
+
+
+## 2026-11-18 Durable WebSocket URI connections
+
+The durable constructors reuse URI routing, the native HTTP Upgrade, and the
+ordinary MQTT Client. The Session and Inbox-mode Writer remain claimed as in the
+TCP factories. The optional enhanced-auth proof is accepted before BIND/OPEN.
+HTTP rejection publishes no journal operation. Coalesced MQTT input remains
+ordered behind OPEN, including one delivery that enters the durable Inbox.
+
+The existing native WebSocket close status gates END. A clean WS handshake and
+transport close allow the requested MQTT expiry to be recorded. WSS includes
+authenticated TLS closure. If an expiry-changing DISCONNECT may have been
+received before truncation, recovery sees the live-at-cut prefix. The same
+write result continues to expose transport status and journal effect.
+
+Independent OpenSSL/WS gateway cases use Mosquitto as the actual MQTT broker.
+Direct Mosquitto WS/WSS listener observations are recorded independently so
+that successful broker delivery and a committed abnormal END cannot mask an
+incomplete transport shutdown.
+[Stage evidence](xmqtt-client-store-ws-20261118.json).

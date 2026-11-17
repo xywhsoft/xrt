@@ -1,4 +1,7 @@
 #include <xmqtt/client_ws_uri.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#include <xmqtt/client_store_ws.h>
+#endif
 #include <xrt/memory.h>
 #include <xrt/error.h>
 #include <string.h>
@@ -11,7 +14,7 @@ static bool xmqttWsUriSetupError(xerrkind Kind,cstr Message)
 static int xmqttWsUriHex(unsigned char C)
 {return C>='0'&&C<='9'?C-'0':C>='a'&&C<='f'?C-'a'+10:C>='A'&&C<='F'?C-'A'+10:-1;}
 static bool xmqttWsUriCreate(xnetengine* E,xnetresolver* R,xstrview URI,uint64 Affinity,const xmqttclientconfig* Config,
-    const xmqttclientwsconnectconfig* WebSocket,const void* TLS,bool Secure,const xmqttpacket* Connect,xmqttclient** Out,double Entered)
+    const xmqttclientwsconnectconfig* WebSocket,const void* TLS,bool Secure,const xmqttpacket* Connect,xmqttclient** Out,double Entered,struct xmqttsession* Session,const struct xmqttclientstoreconfig* Store)
 {
     if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!xrtMemRangeValid(URI.Data,URI.Size)||xrtMemRangesOverlap(URI.Data,URI.Size,Out,sizeof(*Out)))return xmqttWsUriSetupError(XERR_ARGUMENT,"invalid URI/output range or overlap");
     xmqttwsuri U={.Size=sizeof(U)};if(!xmqttWsUriParse(URI,&U))return false;
@@ -34,12 +37,32 @@ static bool xmqttWsUriCreate(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A
         if(T.ServerNameFromHost){if(!T.Session.VerifyName.Size)T.Session.VerifyName=Route;if(!T.Session.ServerName.Size&&!Numeric)T.Session.ServerName=Route;}
         TLS=&T;}
 #endif
-    return xmqttInternalClientWsConnect(E,Numeric?NULL:R,NULL,Numeric?&Address:NULL,Numeric?(xstrview){0}:Route,Numeric?0:U.Port,Affinity,Config,&W,TLS,Connect,Out,Entered);
+    return xmqttInternalClientWsConnect(E,Numeric?NULL:R,NULL,Numeric?&Address:NULL,Numeric?(xstrview){0}:Route,Numeric?0:U.Port,Affinity,Config,&W,TLS,Connect,Out,Entered,Session,Store);
 }
 XMQTT_API bool xmqttClientWsConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttWsUriCreate(E,R,URI,A,C,W,NULL,false,Q,O,xrtTimer());}
+{return xmqttWsUriCreate(E,R,URI,A,C,W,NULL,false,Q,O,xrtTimer(),NULL,NULL);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
 XMQTT_API bool xmqttClientWssConnectUri(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttWsUriCreate(E,R,URI,A,C,W,T,true,Q,O,xrtTimer());}
+{return xmqttWsUriCreate(E,R,URI,A,C,W,T,true,Q,O,xrtTimer(),NULL,NULL);}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+XMQTT_API bool xmqttClientWsConnectUriStore(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientwsconnectconfig* W,xmqttsession* Session,const xmqttclientstoreconfig* Store,
+    const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();
+    if(!Session||!Store)return xmqttWsUriSetupError(XERR_ARGUMENT,"durable WS requires Session and Store");
+    return xmqttWsUriCreate(E,R,URI,A,C,W,NULL,false,Q,O,At,Session,Store);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+XMQTT_API bool xmqttClientWssConnectUriStore(xnetengine* E,xnetresolver* R,xstrview URI,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientwsconnectconfig* W,const xmqttclienttlsconfig* T,xmqttsession* Session,const xmqttclientstoreconfig* Store,
+    const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();
+    if(!Session||!Store)return xmqttWsUriSetupError(XERR_ARGUMENT,"durable WSS requires Session and Store");
+    return xmqttWsUriCreate(E,R,URI,A,C,W,T,true,Q,O,At,Session,Store);
+}
+#endif
 #endif
 #endif

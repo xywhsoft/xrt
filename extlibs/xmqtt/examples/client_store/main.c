@@ -1,8 +1,14 @@
 #include <xmqtt/client_store.h>
 #include <xrt/memory.h>
 #include <xrt/time.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#include <xmqtt/client_store_ws.h>
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
 #include <xmqtt/client_store_tls.h>
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS) || (defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS) && defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS))
+#define XMQTT_EXAMPLE_STORE_TLS
 #include "../tls/material.h"
 #endif
 #include <stdio.h>
@@ -27,25 +33,44 @@ static const void* result(xfuture* Future)
 
 int main(int Argc,char** Argv)
 {
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
-    bool UseTLS=Argc==5;
-    if(Argc!=4&&!UseTLS){
-        puts("Usage: examples_client_store_main HOST PORT 5|311 [SERVER_CA.pem]");
-        return Argc==1?0:2;
-    }
-#else
-    if(Argc!=4){
+    if(Argc==1){
         puts("Usage: examples_client_store_main NUMERIC_ADDRESS PORT 5|311");
-        return Argc==1?0:2;
-    }
-    bool UseTLS=false;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+        puts("       examples_client_store_main HOST PORT 5|311 SERVER_CA.pem");
 #endif
-    const bool V5=strcmp(Argv[3],"5")==0;
-    char* End;
-    unsigned long Port=strtoul(Argv[2],&End,10);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+        puts("       examples_client_store_main ws://HOST:PORT/mqtt 5|311");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+        puts("       examples_client_store_main wss://HOST:PORT/mqtt 5|311 SERVER_CA.pem");
+#endif
+#endif
+        return 0;
+    }
+
+    bool UseWS=false,UseTLS=false;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+    UseWS=!strncmp(Argv[1],"ws://",5)||!strncmp(Argv[1],"wss://",6);
+    UseTLS=!strncmp(Argv[1],"wss://",6);
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    if(!UseWS)UseTLS=Argc==5;
+#endif
+    int Level=UseWS?2:3;
+    if(Argc!=Level+(UseTLS?2:1))return 2;
+#if !defined(XMQTT_EXAMPLE_STORE_TLS)
+    if(UseTLS)return 2;
+#endif
+    bool V5=!strcmp(Argv[Level],"5");
+    if(!V5&&strcmp(Argv[Level],"311"))return 2;
+    uint16 Port=0;
     xnetaddr Remote;
-    if(End==Argv[2]||*End||Port==0||Port>65535||(!V5&&strcmp(Argv[3],"311"))||
-       (!UseTLS&&!xrtNetAddrParse(&Remote,Argv[1],(uint16)Port)))return 2;
+    if(!UseWS){
+        char* End;
+        unsigned long Number=strtoul(Argv[2],&End,10);
+        if(End==Argv[2]||*End||!Number||Number>65535)return 2;
+        Port=(uint16)Number;
+        if(!UseTLS&&!xrtNetAddrParse(&Remote,Argv[1],Port))return 2;
+    }
 
     xmqttversion Version=V5?XMQTT_VERSION_5:XMQTT_VERSION_311;
     const xstrview Id=XRT_STR_LITERAL("xrt-durable-demo");
@@ -74,9 +99,11 @@ int main(int Argc,char** Argv)
     xtaskpool* Pool=NULL;
     xnetengine* Engine=NULL;
     bool EngineStarted=false;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#if defined(XMQTT_EXAMPLE_STORE_TLS)
     xx509store* Trust=NULL;
     xtlsverifier* Verifier=NULL;
+#endif
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
     xnetresolver* Resolver=NULL;
 #endif
     xfuture* Future=NULL;
@@ -112,10 +139,18 @@ int main(int Argc,char** Argv)
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
     Connect.Body.Connect.ClientId=Id;
     Connect.Body.Connect.CleanStart=true;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+    bool Connected=false;
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+    if(UseWS||UseTLS){
+        Resolver=xrtNetResolverCreate(NULL);
+        if(!Resolver)goto Cleanup;
+    }
+    xstrview Endpoint={Argv[1],strlen(Argv[1])};
+#endif
+#if defined(XMQTT_EXAMPLE_STORE_TLS)
     if(UseTLS){
         size_t Size=0;
-        bytes CA=xmqttExampleTlsRead(Argv[4],65536,&Size);
+        bytes CA=xmqttExampleTlsRead(Argv[Level+1],65536,&Size);
         if(!CA)goto Cleanup;
         Trust=xrtX509StoreCreate();
         bool Added=Trust&&xrtX509StoreAddData(Trust,(xbytesview){CA,Size},NULL);
@@ -127,16 +162,29 @@ int main(int Argc,char** Argv)
         xtlsverifylimits VL;
         xrtTlsVerifyLimitsInit(&VL);
         Verifier=xrtTlsVerifierCreateLimited(&VC,&VL);
-        Resolver=xrtNetResolverCreate(NULL);
-        if(!Verifier||!Resolver)goto Cleanup;
+        if(!Verifier)goto Cleanup;
         xmqttclienttlsconfig TLS;
         xmqttClientTlsConfigInit(&TLS);
         TLS.Session.Verifier=Verifier;
-        if(!xmqttClientTlsDialStore(Engine,Resolver,(xstrview){Argv[1],strlen(Argv[1])},(uint16)Port,
-                                    0,&CK,&TLS,Session,&DK,&Connect,&Client))goto Cleanup;
-    }else
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS) && defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
+        if(UseWS){
+            TLS.Session.ResumeLimit=0;
+            Connected=xmqttClientWssConnectUriStore(Engine,Resolver,Endpoint,0,&CK,NULL,&TLS,Session,&DK,&Connect,&Client);
+        }
 #endif
-    if(!xmqttClientConnectStore(Engine,&Remote,0,&CK,Session,&DK,&Connect,&Client))goto Cleanup;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+        if(!UseWS)Connected=xmqttClientTlsDialStore(Engine,Resolver,Endpoint,Port,0,&CK,&TLS,Session,&DK,&Connect,&Client);
+#endif
+    }
+#endif
+    if(!UseTLS){
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+        if(UseWS)Connected=xmqttClientWsConnectUriStore(Engine,Resolver,Endpoint,0,&CK,NULL,Session,&DK,&Connect,&Client);
+        else
+#endif
+        Connected=xmqttClientConnectStore(Engine,&Remote,0,&CK,Session,&DK,&Connect,&Client);
+    }
+    if(!Connected)goto Cleanup;
     Future=xmqttClientReady(Client);
     const xmqttreadyresult* Ready=result(Future);
     if(!Ready||Ready->Status!=XMQTT_STATUS_OK){
@@ -158,23 +206,28 @@ int main(int Argc,char** Argv)
        !xmqttClientStoreOutcome(Published,&Outcome)||Outcome.Attempt.Effect!=XMQTT_JOURNAL_COMMITTED||
        Outcome.Completion.Effect!=XMQTT_JOURNAL_COMMITTED)goto Cleanup;
     printf("MQTT %s committed PUBLISH at %llu and PUBACK at %llu.\n",
-           Argv[3],(unsigned long long)Outcome.Attempt.Sequence,
+           Argv[Level],(unsigned long long)Outcome.Attempt.Sequence,
            (unsigned long long)Outcome.Completion.Sequence);
     xrtFutureDestroy(Future);
     Future=NULL;
 
     if(xmqttClientDisconnectAsync(Client,NULL,10000,&Future)!=XMQTT_ADMISSION_ACCEPTED)goto Cleanup;
     const xmqttwriteresult* Closed=result(Future);
-    if(!Closed||Closed->Status!=XMQTT_STATUS_OK||
-       !xmqttClientStoreOutcome(Closed,&Outcome)||Outcome.End.Effect!=XMQTT_JOURNAL_COMMITTED)goto Cleanup;
+    if(!Closed||!xmqttClientStoreOutcome(Closed,&Outcome))goto Cleanup;
+    if(Closed->Status!=XMQTT_STATUS_OK||Outcome.End.Effect!=XMQTT_JOURNAL_COMMITTED){
+        fprintf(stderr,"Disconnect status %d, journal END effect %d.\n",(int)Closed->Status,(int)Outcome.End.Effect);
+        goto Cleanup;
+    }
     printf("Committed graceful END at %llu.\n",(unsigned long long)Outcome.End.Sequence);
     OK=true;
 
 Cleanup:
     xrtFutureDestroy(Future);
     if(Client&&!xmqttClientDestroy(Client))return 1;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
     if(Resolver&&!xrtNetResolverDestroy(Resolver))return 1;
+#endif
+#if defined(XMQTT_EXAMPLE_STORE_TLS)
     xrtTlsVerifierRelease(Verifier);
     xrtX509StoreFree(Trust);
 #endif
@@ -187,6 +240,6 @@ Cleanup:
     if(Journal&&!xmqttJournalDestroy(Journal))return 1;
     if(File&&(!xrtClose(File)||!xrtFileDelete(Path)))OK=false;
     xrtFree(Path);
-    if(!OK)fputs("Durable TCP exchange failed.\n",stderr);
+    if(!OK)fputs("Durable MQTT exchange failed.\n",stderr);
     return OK?0:1;
 }

@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `192` 个函数、`298` 个常量或宏、
+当前登记 `194` 个函数、`299` 个常量或宏、
 `115` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -257,6 +257,25 @@
 
 - `XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS`
 
+## `extlibs/xmqtt/include/xmqtt/client_store_ws.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_store_ws.h)
+
+### 函数 (2)
+
+- `xmqttClientWsConnectUriStore`
+- `xmqttClientWssConnectUriStore`
+
+### 常量与宏 (3)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS`
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI`
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS`
+
+### 类型 (1)
+
+- `xmqttclientwsconnectconfig`
+
 ## `extlibs/xmqtt/include/xmqtt/client_tls.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/client_tls.h)
@@ -333,9 +352,8 @@
 - `XMQTT_WS_CONNECT_HEAD_MAX`
 - `XMQTT_WS_CONNECT_WRITE_MAX`
 
-### 类型 (2)
+### 类型 (1)
 
-- `xmqttclientwsconnectconfig`
 - `xmqttclientwsconnectinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/client_ws_uri.h`
@@ -348,10 +366,8 @@
 - `xmqttClientWssConnectUri`
 - `xmqttWsUriParse`
 
-### 常量与宏 (10)
+### 常量与宏 (8)
 
-- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI`
-- `XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS`
 - `XMQTT_FEATURE_XMQTT_WS_URI_PARSE`
 - `XMQTT_WS_URI_IPV4`
 - `XMQTT_WS_URI_IPV6`

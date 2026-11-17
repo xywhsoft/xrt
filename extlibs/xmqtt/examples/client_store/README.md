@@ -25,3 +25,18 @@ with `localhost 8883 5 SERVER_CA.pem` or use `311` for MQTT 3.1.1. The named
 CA file is the example's trust store. The server certificate must match the
 given hostname. The result includes a committed END after authenticated TLS
 closure. [TLS API and lifetime contract](../../docs/client_store_tls.md).
+
+## WebSocket
+
+Build through the `xmqtt_client_store_ws_tests` suite. Pass the complete URI
+and protocol level instead of a separate port. Use the broker's trusted CA
+file for WSS.
+
+```text
+examples_client_store_main ws://127.0.0.1:9001/mqtt 5
+examples_client_store_main wss://localhost:9002/mqtt 311 SERVER_CA.pem
+```
+
+The example expects a complete WebSocket close handshake. Its failure output
+includes the independent local Disconnect status and journal END effect.
+[Durable WebSocket contract](../../docs/client_store_ws.md).

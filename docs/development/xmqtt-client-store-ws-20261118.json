@@ -1,0 +1,153 @@
+{
+  "branch": "master",
+  "parent": "82db82581e38ae1965c99997dcb74ea07ccff5bd",
+  "artifact_root": "out/service-extensions/mqtt-client-store-ws-20261118",
+  "source_map": {
+    "path": "source.json",
+    "sha256": "cd90dd0eec5a58ea81c9047660758776475d9780fb42e48706e12eca3e00069e"
+  },
+  "results": {
+    "windows": {
+      "programs": {
+        "ws-final": 4,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_ws_uri_tests": 7,
+        "xmqtt_client_ws_uri_tls_tests": 7
+      },
+      "tests": {
+        "path": "windows-receipts.json",
+        "sha256": "bb8e3031204ffa5078829a888e5d1e7599d97d7a8dca9aa191697e63c3a6a887"
+      },
+      "packages": {
+        "path": "windows-packages.json",
+        "sha256": "fff9f6ba0a25601fca359f9653cb81a3c3fc82fcf2524567d97312d98a30c02b"
+      },
+      "package_examples": {
+        "path": "windows-consumer-receipts.json",
+        "sha256": "08c09ffa4f2e3057b0ee50b73eabe9dd61ebe667d35ad305c0ed4570c00a592e"
+      },
+      "exports": {
+        "path": "windows-exports.json",
+        "sha256": "815acdddad04b6a4ed73fa4b752efd0f40cc4588f6ef204becb1d331e9ed1134"
+      },
+      "root_syntax": {
+        "path": "windows-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      },
+      "preliminary_modular": {
+        "path": "windows-first.log",
+        "sha256": "c96df0f3cfaeaf5712cbc173834f72eaddc33863a35565d5af37d11adefba78f"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "ws-final": 4,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_ws_uri_tests": 7,
+        "xmqtt_client_ws_uri_tls_tests": 7
+      },
+      "tests": {
+        "path": "wsl-receipts.json",
+        "sha256": "8aebd6085bd8b46a6feac66721c4ba277715ab9ce82f0ef4e5e8fdadb78956f7"
+      },
+      "packages": {
+        "path": "wsl-packages.json",
+        "sha256": "d0b2f2d64cd6c101ef23675f1189469ab568e902faf2cb43bd75ff47f050d6d4"
+      },
+      "package_examples": {
+        "path": "wsl-consumer-receipts.json",
+        "sha256": "3d21e180e7ed944222abea4dab34354f2ff5c32bed8aa22c21961936831266d1"
+      },
+      "exports": {
+        "path": "wsl-exports.json",
+        "sha256": "f428780eaa55da9277891e0e35d78763873d9c67886f588b42da0d4af0d9e3ae"
+      },
+      "root_syntax": {
+        "path": "wsl-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      },
+      "preliminary_modular": {
+        "path": "wsl-first.log",
+        "sha256": "bde53432b0240083a24360beeb8508353e906e014384cdfaf525a38e6a72cc50"
+      }
+    }
+  },
+  "public_apis": [
+    "xmqttClientWsConnectUriStore",
+    "xmqttClientWssConnectUriStore"
+  ],
+  "scenario_counts": {
+    "plain_single_header": 6,
+    "mixed_modular_or_single_header": 13
+  },
+  "sanitizers": {
+    "wsl_ASan_UBSan_and_leak_detection": {
+      "label": "ws-final",
+      "receipts": {
+        "path": "wsl-receipts.json",
+        "sha256": "8aebd6085bd8b46a6feac66721c4ba277715ab9ce82f0ef4e5e8fdadb78956f7"
+      }
+    },
+    "wsl_Clang21_TSan": {
+      "path": "wsl-tsan-receipts.json",
+      "sha256": "c8f6bcb896eec42bf5c77a174230c13f2645515d51fac628a99af880331c7ff3"
+    }
+  },
+  "ordinary_gate_receipts": {
+    "path": "windows-gates-receipts.json",
+    "sha256": "5ce59e4b96ec82d9907420e0846e8a48631fe662f02c98f9d8fb535b07bd5c79"
+  },
+  "plain_example_syntax": {
+    "path": "windows-plain-example-syntax.log",
+    "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+  },
+  "strict_release": {
+    "log": {
+      "path": "windows-strict-release.log",
+      "sha256": "02d4b6c31f4a95e98bfc5267e8d5060a206be8de79320ab5dc0a0306a52c8421"
+    },
+    "exit_code": 1,
+    "developing_modules": 31
+  },
+  "interoperation": {
+    "broker": "Mosquitto 2.0.22",
+    "mqtt_versions": [
+      "5.0",
+      "3.1.1"
+    ],
+    "gateway_secure": "Independent OpenSSL TLS 1.3",
+    "cohorts": {
+      "modular": {
+        "subscriber_deliveries": 8,
+        "graceful": 8,
+        "evidence": {
+          "path": "broker-modular.json",
+          "sha256": "30cba20e2bfdc60d78dff715ecafa114b94c21093bc6088259cef72a754eb7df"
+        }
+      },
+      "package": {
+        "subscriber_deliveries": 16,
+        "graceful": 16,
+        "evidence": {
+          "path": "broker-package.json",
+          "sha256": "b997ed723201339bbaa03ccf81534f55f404851b3d39660d5b9e2e1059a4847f"
+        }
+      },
+      "native": {
+        "subscriber_deliveries": 8,
+        "graceful": 0,
+        "evidence": {
+          "path": "broker-native.json",
+          "sha256": "972db2d5511a6cd13baeca142285b8e3d093984a27ad3300f71b87435465a0c9"
+        }
+      }
+    }
+  },
+  "acceptance_open": [
+    "Broker-native clean WebSocket close",
+    "Durable automatic reconnect and subscription intents",
+    "External enhanced-auth interoperability",
+    "Controlled fixed-arrival throughput and tail latency",
+    "Native Linux and long-duration production qualification"
+  ]
+}

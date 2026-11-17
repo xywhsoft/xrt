@@ -14189,3 +14189,28 @@ Ordinary integrity checks passed. Strict release still reports 30 developing
 modules. Real broker enhanced-auth, durable WebSocket and automatic reconnect,
 and controlled performance remain pending.
 [Stage evidence](xmqtt-client-store-auth-20261118.json).
+
+
+## 2026-11-18 Durable MQTT WebSocket URI clients
+
+Two URI factories compose MQTT 5.0 and 3.1.1 durability with existing WS and
+verified WSS setup. Upgrade failure leaves the journal untouched. OPEN gates
+coalesced Inbox delivery and protocol readiness. The fixture also checks MQTT
+enhanced authentication over WSS, journal checkpoints around QoS 1, and the
+difference between a clean END and a truncated expiry-changing DISCONNECT.
+
+Windows passed 21 and Linux under WSL passed 21 selected programs,
+including plain/secure single headers. ASan, UBSan, leak detection and TSan
+passed on the selected WSL scopes. Separate static and shared packages link
+the new public factories and preserve hidden internal symbols.
+
+Real Mosquitto 2.0.22 delivered 24 publications through an independent
+WebSocket/OpenSSL gateway with graceful END. The direct native WS/WSS listeners
+also delivered all 8 publications, with 0 clean closes. Each
+direct connection reported the journal effect independently from the local
+transport result. The strict transport close requirement remains in place.
+
+Ordinary integrity gates passed. Strict release still reports 31 developing
+modules. Broker-native graceful close, durable reconnect and subscription
+intents, production throughput and tail latency remain open.
+[Stage evidence](xmqtt-client-store-ws-20261118.json).

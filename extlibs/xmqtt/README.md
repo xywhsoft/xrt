@@ -302,3 +302,7 @@ Controlled performance and 72-hour native acceptance remain open.
 [Durable MQTT 5 enhanced authentication](docs/client_store_auth.md) gates
 session changes on application proof acceptance and committed OPEN. It supports
 numeric TCP and the three verified TLS endpoint forms.
+
+[Durable WS/WSS URI connections](docs/client_store_ws.md) reuse the existing
+Upgrade and verification paths. Graceful Disconnect waits for native
+WebSocket/TLS closure and committed END.
