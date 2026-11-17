@@ -400,3 +400,26 @@ effects as the numeric TCP Client.
 TLS configuration, credentials and resumption artifacts remain at the existing
 TLS ownership boundary. The MQTT journal covers application protocol state.
 [Stage evidence](xmqtt-client-store-tls-20261118.json).
+
+
+## 2026-11-18 Enhanced authentication before durable OPEN
+
+The existing MQTT 5 authentication mailbox now composes with the durable numeric
+TCP and verified TLS factories. Verify-config validation, challenge exchanges,
+and successful CONNACK precede the local final-proof decision. The retained
+CONNACK stays in the Ready owner while the store driver commits BIND/OPEN.
+Only the logical protocol binding and negotiated session fields are journaled.
+The in-memory Session opens after the durable commit, preserving the prior
+epoch and outgoing obligations when the local application refuses proof.
+
+The original setup deadline spans the entire chain. Cancellation before proof
+preserves the journal. Cancellation during an admitted OPEN observes the real
+storage effect, and a late committed OPEN is followed by END. A coalesced
+application frame stays in order during both gates. A PINGRESP or DISCONNECT at
+the head of input can progress. Negotiated Keep Alive starts after CONNACK on
+enhanced-auth connections. Reauthentication keeps the live durable epoch and
+normal transport/storage effects.
+
+The exercised proofs are fixture data. Deployment algorithms and external
+broker enhanced-auth interoperability remain open.
+[Stage evidence](xmqtt-client-store-auth-20261118.json).

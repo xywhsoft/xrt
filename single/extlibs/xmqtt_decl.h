@@ -4302,11 +4302,11 @@ XMQTT_API xmqttclientadmission xmqttAuthComplete(xmqttauthticket* Ticket,bool Ac
  * OVERLOADED while authentication is active. Cancellation/timeout/rejection closes
  * the connection; no replay. Success-only output is typed xmqttauthresult and
  * independent from Client/Engine after resolution. AcceptedBytes is the sum of
- * this exchange's AUTH prefixes accepted by TCP, not authentication success.
+ * this exchange's AUTH plaintext prefixes accepted by the transport, not authentication success.
  * Retaining old tickets/results remains charged through actual retirement. */
 XMQTT_API xmqttclientadmission xmqttClientReauthenticateAsync(xmqttclient* Client,
     const xmqttpacket* Start,int64 Timeout,xfuture** Future);
-/* Same operation, rejects every worker of the host Engine before waiting. */
+/* Same operation, rejects workers of the host Engine or attached store pool before waiting. */
 XMQTT_API xmqttclientadmission xmqttClientReauthenticate(xmqttclient* Client,
     const xmqttpacket* Start,int64 Timeout,xfuture** Future);
 XRT_EXTERN_C_END
@@ -5929,6 +5929,16 @@ XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote
  * and Key identify the protocol obligation once its attempt may be durable.
  * End has Epoch and no Key. QoS0 uses the ordinary network-only result. */
 XMQTT_API bool xmqttClientStoreOutcome(const xmqttwriteresult* Result,xmqttclientstoreoutcome* Outcome);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* MQTT 5 enhanced authentication before durable BIND/OPEN. The application
+ * must accept final server proof before file or Session effects. Ready also
+ * waits for committed OPEN. Post-CONNACK application frames stay ordered
+ * behind these gates. Proof and credentials stay outside the store log.
+ * Same Session/Writer ownership and original setup deadline as ConnectStore. */
+XMQTT_API bool xmqttClientConnectStoreAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -5966,6 +5976,20 @@ XMQTT_API bool xmqttClientTlsDialStore(xnetengine* Engine,xnetresolver* Resolver
 XMQTT_API bool xmqttClientTlsDialAddressesStore(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* Verified TLS followed by MQTT 5 enhanced authentication and durable OPEN.
+ * TLS peer verification and final MQTT proof are independent prerequisites.
+ * Auth and CONNECT are copied at admission. Use the existing auth ticket API. */
+XMQTT_API bool xmqttClientTlsConnectStoreAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientTlsDialStoreAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientTlsDialAddressesStoreAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif

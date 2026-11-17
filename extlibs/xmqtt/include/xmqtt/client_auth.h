@@ -59,11 +59,11 @@ XMQTT_API xmqttclientadmission xmqttAuthComplete(xmqttauthticket* Ticket,bool Ac
  * OVERLOADED while authentication is active. Cancellation/timeout/rejection closes
  * the connection; no replay. Success-only output is typed xmqttauthresult and
  * independent from Client/Engine after resolution. AcceptedBytes is the sum of
- * this exchange's AUTH prefixes accepted by TCP, not authentication success.
+ * this exchange's AUTH plaintext prefixes accepted by the transport, not authentication success.
  * Retaining old tickets/results remains charged through actual retirement. */
 XMQTT_API xmqttclientadmission xmqttClientReauthenticateAsync(xmqttclient* Client,
     const xmqttpacket* Start,int64 Timeout,xfuture** Future);
-/* Same operation, rejects every worker of the host Engine before waiting. */
+/* Same operation, rejects workers of the host Engine or attached store pool before waiting. */
 XMQTT_API xmqttclientadmission xmqttClientReauthenticate(xmqttclient* Client,
     const xmqttpacket* Start,int64 Timeout,xfuture** Future);
 XRT_EXTERN_C_END

@@ -88,6 +88,7 @@ object quota. Encoded transaction bytes are copied under the Writer/worker's
 bounded admission contract.
 
 The [verified TLS adapter](client_store_tls.md) supports hostname dialing.
-Cleartext hostname dialing, WebSocket, enhanced authentication and automatic
-reconnect adapters for the durable Client are pending. Cross-host fencing, compaction
+The [enhanced authentication adapter](client_store_auth.md) supports MQTT 5
+over numeric TCP or verified TLS. Cleartext hostname dialing, WebSocket and
+automatic reconnect adapters for the durable Client are pending. Cross-host fencing, compaction
 and throughput/tail-latency qualification are also pending.

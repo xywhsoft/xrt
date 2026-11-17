@@ -1,0 +1,169 @@
+{
+  "branch": "master",
+  "parent": "1a38d555c2d5ddab87bc0aa7666588d44ae7cb00",
+  "artifact_root": "out/service-extensions/mqtt-client-store-auth-20261118",
+  "source_map": {
+    "path": "source.json",
+    "sha256": "aa4192d5c9eafccffb59353a36f1848b0fbe963bb6acf253e0b9acf8df355669"
+  },
+  "results": {
+    "windows": {
+      "programs": {
+        "auth-final": 4,
+        "xmqtt_client_auth": 5,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_session_tls_tests": 3
+      },
+      "tests": {
+        "path": "windows-receipts.json",
+        "sha256": "f4e967f8902644d567bd75d16dbfae3e5b6fede4f70d6bc87d342945928a865e"
+      },
+      "packages": {
+        "path": "windows-packages.json",
+        "sha256": "5d06d4010c8dda66f63dc77cc30a776f4c9aa51d5eb4b24e80dff44699591d9f"
+      },
+      "exports": {
+        "path": "windows-exports.json",
+        "sha256": "7d95bd4812d8016e4df6f15a2a2d0d44249732b1ac1083afa6ce6756768030c4"
+      },
+      "package_example": {
+        "path": "windows-consumer-receipts.json",
+        "sha256": "88d25e535825a9fc8db5918b112936bf98c25f17e4f3f1b49ee2d12789cb377c"
+      },
+      "wire": {
+        "receipts": {
+          "path": "windows-wire-receipts.json",
+          "sha256": "08b344479d24384260fc09df9d6bdba2dd1968f2a56dfed4ffbe1046795e3745"
+        },
+        "results": {
+          "path": "windows-wire.json",
+          "sha256": "aebe2a5f56a3c2fd4062fcb1ffe3b5009bf7dcb3579410243fe7e0d5a7c49147"
+        },
+        "case_count": 23
+      },
+      "root_syntax": {
+        "path": "windows-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "auth-final": 4,
+        "xmqtt_client_auth": 5,
+        "xmqtt_client_store_tests": 3,
+        "xmqtt_client_session_tls_tests": 3
+      },
+      "tests": {
+        "path": "wsl-receipts.json",
+        "sha256": "fe4234eda789701fb926e270e5106e935aa70b762eab5919f6b4b3905ca60692"
+      },
+      "packages": {
+        "path": "wsl-packages.json",
+        "sha256": "00d4664112be4ba1f271f22ac3a4d3236498e217c60a6cf205a86d2fdaffc8f6"
+      },
+      "exports": {
+        "path": "wsl-exports.json",
+        "sha256": "045bd7a8405dfae782cf48474a11559bd0b4523b72d2affc42a7bd93689a502c"
+      },
+      "package_example": {
+        "path": "wsl-consumer-receipts.json",
+        "sha256": "286b8cf5ad8e90dd0f6f0724f08d9e8962318144e24a23088e69239631ef16d5"
+      },
+      "wire": {
+        "receipts": {
+          "path": "wsl-wire-receipts.json",
+          "sha256": "e3fa0118579448914a3236e2d50041e8c7d5215b273a00c4fe2c635fea01b0b5"
+        },
+        "results": {
+          "path": "wsl-wire.json",
+          "sha256": "67656666ee7dec13201e0c613febcfab85b49eaaea2f9789d5c379b4cd347d8b"
+        },
+        "case_count": 23
+      },
+      "root_syntax": {
+        "path": "wsl-root-syntax.log",
+        "sha256": "2095d5302e465922147e220c0389f7a923ea0c1509a23097f04b3c220798aef8"
+      }
+    }
+  },
+  "new_public_apis": [
+    "xmqttClientConnectStoreAuth",
+    "xmqttClientTlsConnectStoreAuth",
+    "xmqttClientTlsDialStoreAuth",
+    "xmqttClientTlsDialAddressesStoreAuth"
+  ],
+  "scenario_counts": {
+    "tcp_only_single_header": 5,
+    "mixed_modular_or_single_header": 8,
+    "independent_wire_each_host": 23
+  },
+  "sanitizer": {
+    "wsl_ASan_UBSan_and_leaks": {
+      "label": "auth-final",
+      "receipts": {
+        "path": "wsl-receipts.json",
+        "sha256": "fe4234eda789701fb926e270e5106e935aa70b762eab5919f6b4b3905ca60692"
+      }
+    },
+    "wsl_Clang21_TSan": {
+      "path": "wsl-tsan-receipts.json",
+      "sha256": "67785075676b02bf97199cc70c09fdb2cf707c27ad0fce7b0a4cd2d10b89a1be"
+    }
+  },
+  "ordinary_gate_receipts": {
+    "path": "windows-gates-receipts.json",
+    "sha256": "a283352df97bb6b7d2a1172adc5cbc771d729a8f4e13b0872f731d9228c693a9"
+  },
+  "strict_release": {
+    "log": {
+      "path": "windows-strict-release.log",
+      "sha256": "f2b240290ac7f6703ad5759665329f6de08fd1edbde92f4805114f5462ef0009"
+    },
+    "exit_code": 1,
+    "developing_modules": 30
+  },
+  "preflight_compile_failures": [
+    {
+      "host": "windows",
+      "exit_code": 1,
+      "reason": "Unused local in the refactored OPEN wrapper",
+      "log": {
+        "path": "windows-first.log",
+        "sha256": "c24d0791fce4965a45c3e5f46376f2736d5cbe8075a11f85921fec454922b428"
+      }
+    },
+    {
+      "host": "windows",
+      "exit_code": 1,
+      "reason": "Unused helper in the expanded test fixture",
+      "log": {
+        "path": "windows-second.log",
+        "sha256": "fa211824b36af18b77cdc9ac1d8b50501b5eafaf9c1cf3510458d5ae3d1d9028"
+      }
+    },
+    {
+      "host": "wsl",
+      "exit_code": 1,
+      "reason": "Unused local in the refactored OPEN wrapper",
+      "log": {
+        "path": "wsl-first.log",
+        "sha256": "33ac1b0c66053c452b1c863582da74cfb76e2d3d9a8df6d191ffdc4ae80ab858"
+      }
+    },
+    {
+      "host": "wsl",
+      "exit_code": 1,
+      "reason": "Unused helper in the expanded test fixture",
+      "log": {
+        "path": "wsl-second.log",
+        "sha256": "cbff1704d5dc0e19aa33df98dfb26bd9098c3c0d92c9687f369f024254f40f3b"
+      }
+    }
+  ],
+  "acceptance_open": [
+    "External broker enhanced-auth interoperability using a deployed algorithm",
+    "Durable WebSocket and automatic reconnect/admission",
+    "Controlled fixed-arrival throughput and tail latency",
+    "Native Linux and long duration production qualification"
+  ]
+}

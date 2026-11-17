@@ -63,15 +63,10 @@ def serve(listener, case, errors):
             s.sendall(auth(0x18))
             if case == "initial_timeout":
                 closed(s);return
-            if case == "initial_keepalive":
-                # Before successful CONNACK, server control output is AUTH only.
-                # Defer PINGRESP while the application handles its challenge.
-                assert read_packet(s) == (0xc0, b"")
-                assert read_packet(s) == (0xc0, b"")
+            # A delayed challenge response with Keep Alive=1 must still be
+            # the next frame. MQTT-3.1.2-30 forbids an early PINGREQ.
             expect_auth(s, 0x18)
             wire = connack(props=SERVER + (b"\x13\0\x01" if case == "verify_keepalive" else b""))
-            if case == "initial_keepalive":
-                wire += b"\xd0\0\xd0\0"
             if case == "coalesced":
                 wire += packet(0x30, string(b"early") + b"\0seen")
             if case == "tiny":

@@ -45,6 +45,16 @@ XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote
  * and Key identify the protocol obligation once its attempt may be durable.
  * End has Epoch and no Key. QoS0 uses the ordinary network-only result. */
 XMQTT_API bool xmqttClientStoreOutcome(const xmqttwriteresult* Result,xmqttclientstoreoutcome* Outcome);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* MQTT 5 enhanced authentication before durable BIND/OPEN. The application
+ * must accept final server proof before file or Session effects. Ready also
+ * waits for committed OPEN. Post-CONNACK application frames stay ordered
+ * behind these gates. Proof and credentials stay outside the store log.
+ * Same Session/Writer ownership and original setup deadline as ConnectStore. */
+XMQTT_API bool xmqttClientConnectStoreAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif

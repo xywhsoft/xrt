@@ -14161,3 +14161,31 @@ Ordinary integrity checks passed. The strict gate still lists 30 developing
 modules. Durable enhanced authentication, reconnect and WebSocket integration
 and production performance qualification remain open.
 [Stage evidence](xmqtt-client-store-tls-20261118.json).
+
+
+## 2026-11-18 Durable MQTT 5 enhanced authentication
+
+Four public Auth factories cover numeric TCP and verified TLS over numeric,
+hostname and prepared endpoints. They wait for application proof acceptance
+before writing BIND/OPEN. Ready, coalesced application frames and Session
+replay wait for the committed step. Rejected proof preserves a previously
+recovered outgoing publication and its epoch. A cancellation during an
+already admitted sync preserves the actual storage effect and closes with END.
+Reauthentication retains the same durable epoch.
+
+The enhanced-auth path sends no PINGREQ before CONNACK. Tests defer a
+challenge past the advertised Keep Alive and independently check the next
+wire frame. The Session fixture observes successive PINGRESPs while proof or
+OPEN is pending. The physical journal checks find no CONNECT token or final
+proof in the fixture transactions.
+
+Windows passed 15 selected test and example programs and Linux under WSL
+passed 15. The independent auth byte peer passed 23 scenarios on each
+platform. ASan, UBSan and leak detection passed on the WSL modular and single
+fixtures. Clang 21 TSan passed on the WSL modular fixture. Both platforms
+verified static/shared packages and ran the local file example.
+
+Ordinary integrity checks passed. Strict release still reports 30 developing
+modules. Real broker enhanced-auth, durable WebSocket and automatic reconnect,
+and controlled performance remain pending.
+[Stage evidence](xmqtt-client-store-auth-20261118.json).

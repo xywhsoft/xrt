@@ -7,7 +7,8 @@ follows [OASIS MQTT 5 sections 3.15 and 4.12](https://docs.oasis-open.org/mqtt/m
 Authentication Method/Data are protocol fields; this API intentionally delegates
 the agreed algorithm, credential generation and server-proof validation to the
 application. The offline example uses fixed assertion tokens and provides no
-cryptographic authentication. TLS, reconnect and durable sessions remain pending.
+cryptographic authentication. The ticket API also composes with
+[verified TLS](client_tls.md) and [durable sessions](client_store_auth.md).
 
 ## Application decisions
 
@@ -36,13 +37,13 @@ The shared Ready Future remains pending until the application accepts final
 initial proof. Queued application sends remain gated. A broker can coalesce
 CONNACK and PUBLISH: the bounded message queue quarantines these publications,
 TakeMessage returns empty until verification, while ACKs/keepalive progress.
-Initial rejection never exposes these queued messages. During earlier AUTH rounds,
-CONNECT Keep Alive also progresses. Multiple PINGREQs may be sent while CONNACK
-is pending; the server cannot send PINGRESP before successful CONNACK. Its response
-budget therefore starts at CONNACK, while the original setup deadline still bounds
-the whole exchange. A Server Keep Alive override uses the last control-output
-time; final-proof computation does not suspend heartbeat processing. On successful readiness,
-Negotiated.AuthMethod borrows the retained CONNACK, not erased startup storage.
+Initial rejection never exposes these queued messages. With an Authentication
+Method, only AUTH and DISCONNECT can be sent before CONNACK. After CONNACK the
+broker's Keep Alive settings apply while the final proof decision is pending.
+Session-bearing clients preserve frame order behind the proof gate and can
+process PINGRESP or DISCONNECT at the head of input. On successful readiness,
+Negotiated.AuthMethod borrows the retained CONNACK. See
+[MQTT 5.0 sections 3.1.2.10 and 4.12](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
 
 `xmqttClientReauthenticateAsync` accepts one AUTH `0x19` exchange on an already
 verified connection. Its independent typed result contains Status, sum of AUTH
@@ -138,7 +139,7 @@ python extlibs/xmqtt/tests/interop/run_auth_wire.py --probe out/auth_probe.exe -
 
 It exercises 23 literal-byte scenarios: initial and reauth method/sequence errors,
 server-only direction, abbreviated success, refusal, EOF, decision/whole timeouts,
-local proof rejection, delayed offloaded challenges/final proofs across Keep Alive,
+local proof rejection, delayed challenges without premature PINGREQ and delayed final proof across Keep Alive,
 Request Problem Information, one-byte writes and a coalesced
 publication, final proof and post-auth publication observations.
 

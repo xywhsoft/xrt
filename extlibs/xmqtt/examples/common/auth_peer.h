@@ -15,7 +15,7 @@ enum {MQTT_AUTH_DIRECT=1,MQTT_AUTH_EARLY=2,MQTT_AUTH_BAD_METHOD=4,
 typedef struct mqttAuthPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Closed,ListenerClosed,Auths,Publishes,Acks,Pings;
-    unsigned Mode,Round,RoundTarget;bool Reauth,Connected;uint32 PendingPings;char Method[64];size_t MethodBytes;
+    unsigned Mode,Round,RoundTarget;bool Reauth,Connected;char Method[64];size_t MethodBytes;
     unsigned char Input[16384];size_t Used;
 } mqttAuthPeer;
 static void mqttAuthCheck(bool OK,cstr What)
@@ -47,10 +47,7 @@ static void mqttAuthReply(mqttAuthPeer* P,xmqttpackettype Type,uint8 Reason)
         mqttAuthCheck(xmqttPacketWrite5(Wire+N,sizeof(Wire)-N,&Q,XMQTT_SERVER_TO_CLIENT,NULL,&Extra),"early publication");N+=Extra;
     }
     mqttAuthSend(P,Wire,N);
-    if(Type==XMQTT_PACKET_CONNACK && !Reason){
-        P->Connected=true;const unsigned char Pong[]={0xd0,0};
-        while(P->PendingPings){mqttAuthSend(P,Pong,sizeof(Pong));--P->PendingPings;}
-    }
+    if(Type==XMQTT_PACKET_CONNACK && !Reason)P->Connected=true;
 }
 static void mqttAuthRead(xnetstream* S,xnetbuf* B,ptr User)
 {
@@ -80,7 +77,9 @@ static void mqttAuthRead(xnetstream* S,xnetbuf* B,ptr User)
             xrtAtomic32FetchAdd(&P->Auths,1,XMEMORY_RELEASE);
         }else if(Q.Type==XMQTT_PACKET_PUBLISH){mqttAuthSend(P,F.Wire.Data,F.Wire.Size);xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);}
         else if(Q.Type==XMQTT_PACKET_PUBACK)xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);
-        else if(Q.Type==XMQTT_PACKET_PINGREQ){const unsigned char W[]={0xd0,0};if(P->Connected)mqttAuthSend(P,W,2);else ++P->PendingPings;xrtAtomic32FetchAdd(&P->Pings,1,XMEMORY_RELEASE);}
+        else if(Q.Type==XMQTT_PACKET_PINGREQ){static const unsigned char Pong[]={0xd0,0};
+            mqttAuthCheck(P->Connected,"no PINGREQ before successful enhanced-auth CONNACK");
+            mqttAuthSend(P,Pong,sizeof(Pong));xrtAtomic32FetchAdd(&P->Pings,1,XMEMORY_RELEASE);}
         else if(Q.Type==XMQTT_PACKET_DISCONNECT)mqttAuthCheck(xrtNetStreamClose(S),"diagnostic close");
         else mqttAuthCheck(false,"unexpected client packet");
         P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
@@ -127,7 +126,7 @@ static inline xmqttauthticket* mqttAuthTicket(xmqttclient* C)
     xmqttauthticket* T=NULL;double End=xrtTimer()+10;
     while(!xmqttClientTakeAuth(C,&T)){mqttAuthCheck(xrtTimer()<End,"authentication ticket wait");xrtSleep(1);}return T;
 }
-static void mqttAuthAnswer(xmqttauthticket* T,bool Empty)
+static inline void mqttAuthAnswer(xmqttauthticket* T,bool Empty)
 {
     mqttAuthCheck(xmqttAuthMessage(T)!=NULL,"owned authentication message");
     if(xmqttAuthPhase(T)==XMQTT_AUTH_CHALLENGE){xmqttproperty Props[2];xmqttpacket Q=mqttAuthPacket(XMQTT_PACKET_AUTH,0x18,Props,Empty);mqttAuthCheck(xmqttAuthRespond(T,&Q)==XMQTT_ADMISSION_ACCEPTED,"challenge response");}

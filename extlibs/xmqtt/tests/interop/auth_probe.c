@@ -53,7 +53,7 @@ int main(int Argc,char** Argv)
     apCheck(xrtNetAddrParse(&Address,"127.0.0.1",(uint16)atoi(Argv[1])) && xmqttClientConnectAuth(Engine,&Address,1,&K,NULL,&P,&C),"factory");xfuture* Ready=xmqttClientReady(C);
     if(InitialKeep || VerifyKeep){double End=xrtTimer()+3;xmqttauthticket* T=NULL;
         while(!(T=xrtAtomicPtrLoad(&A.Held,XMEMORY_ACQUIRE))){apCheck(xrtTimer()<End,"offloaded auth decision");xrtSleep(1);}
-        xrtSleep(InitialKeep?2200:1200);apCheck(xrtFutureState(Ready)==XFUTURE_PENDING,"IO heartbeats progress without accepting local proof");
+        xrtSleep(InitialKeep?2200:1200);apCheck(xrtFutureState(Ready)==XFUTURE_PENDING,"initial setup stays pending during offloaded decision");
         P=apPacket(XMQTT_PACKET_AUTH,0x18,Props,false);apCheck((InitialKeep?xmqttAuthRespond(T,&P):xmqttAuthComplete(T,true))==XMQTT_ADMISSION_ACCEPTED,"offloaded decision remains live across Keep Alive");xmqttAuthRelease(T);
     }
     xmqttclientstatus Want=!strcmp(A.Case,"initial_timeout")?XMQTT_STATUS_TIMEOUT:!strcmp(A.Case,"initial_reject")?XMQTT_STATUS_REJECTED:!strcmp(A.Case,"initial_eof")?XMQTT_STATUS_TRANSPORT:!strcmp(A.Case,"local_reject_initial")?XMQTT_STATUS_AUTHENTICATION:((!InitialKeep && !strncmp(A.Case,"initial_",8)) || !strcmp(A.Case,"problem_reason"))?XMQTT_STATUS_PROTOCOL:XMQTT_STATUS_OK;

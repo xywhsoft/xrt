@@ -1,0 +1,11 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#define XMQTT_MODULE_XMQTT_STORE_SESSION
+#define XRT_MODULE_VFS
+#define XRT_MODULE_FILE_TEMP
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_client_store_auth.c"

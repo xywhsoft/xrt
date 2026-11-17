@@ -31,3 +31,7 @@ python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt
 ```
 
 [Run against a TLS broker](../examples/client_store/README.md#verified-tls).
+
+With the MQTT enhanced-auth module selected, the Auth variants require the
+application to verify final broker proof before durable OPEN. See
+[durable enhanced authentication](client_store_auth.md).

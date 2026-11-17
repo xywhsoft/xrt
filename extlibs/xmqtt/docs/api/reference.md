@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `188` 个函数、`298` 个常量或宏、
+当前登记 `192` 个函数、`298` 个常量或宏、
 `115` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -220,9 +220,10 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/client_store.h)
 
-### 函数 (2)
+### 函数 (3)
 
 - `xmqttClientConnectStore`
+- `xmqttClientConnectStoreAuth`
 - `xmqttClientStoreOutcome`
 
 ### 常量与宏 (2)
@@ -243,11 +244,14 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/client_store_tls.h)
 
-### 函数 (3)
+### 函数 (6)
 
 - `xmqttClientTlsConnectStore`
+- `xmqttClientTlsConnectStoreAuth`
 - `xmqttClientTlsDialAddressesStore`
+- `xmqttClientTlsDialAddressesStoreAuth`
 - `xmqttClientTlsDialStore`
+- `xmqttClientTlsDialStoreAuth`
 
 ### 常量与宏 (1)
 

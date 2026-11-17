@@ -298,3 +298,7 @@ The [durable TLS adapter](docs/client_store_tls.md) adds verified numeric,
 hostname and prepared-address connections for MQTT 5.0 and 3.1.1. Graceful
 Disconnect observes both authenticated transport closure and the committed END.
 Controlled performance and 72-hour native acceptance remain open.
+
+[Durable MQTT 5 enhanced authentication](docs/client_store_auth.md) gates
+session changes on application proof acceptance and committed OPEN. It supports
+numeric TCP and the three verified TLS endpoint forms.
