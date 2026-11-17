@@ -1,0 +1,341 @@
+{
+  "date": "2026-11-18",
+  "status": "developing; final component revalidation complete; original four-product goal active",
+  "repository": "D:/GIT/xrt",
+  "branch": "master",
+  "runtime_revision": "e52d7fcff7eee77fa4ea90313f7b92efc25252b9",
+  "implementation_commit": "e52d7fcff7eee77fa4ea90313f7b92efc25252b9",
+  "branch_or_worktree_operations": false,
+  "push_performed": false,
+  "validation": {
+    "platforms": [
+      "native Windows x64 GCC",
+      "WSL Linux x64 GCC; not native Linux production acceptance"
+    ],
+    "program_counts": {
+      "wsl-suite": 20,
+      "wsl-delivery": 20,
+      "wsl-smoke": 2,
+      "wsl-abi": 3,
+      "wsl-size": 0,
+      "wsl-exports": 0,
+      "wsl-regression": 41,
+      "wsl-clang_tsan": 1,
+      "wsl-legacy_equivalence": 0,
+      "wsl-cuts": 108,
+      "wsl-cross": 12,
+      "wsl-instrument": 2,
+      "windows-cross": 12,
+      "windows-instrument": 2,
+      "windows-gates": 0
+    },
+    "windows_checkpoint_program_counts": {
+      "suite": 20,
+      "allocator_final": 1,
+      "regression": 41,
+      "delivery": 20,
+      "smoke": 2,
+      "abi": 3,
+      "size": 0,
+      "exports": 0,
+      "cuts": 108,
+      "legacy_equivalence": 0,
+      "gates": 0
+    },
+    "modular_single_example_programs_per_os": 20,
+    "separate_static_shared_programs_per_os": 20,
+    "legacy_programs_per_os": 41,
+    "root_statistics_off_declarations": true,
+    "public_layout": "80 8 16 24 296 16 152 64",
+    "three_forms_two_os_match": true,
+    "exports": 8,
+    "hidden_private_helpers": 17,
+    "trim_single_static_shared": true,
+    "real_oom_prefixes": {
+      "constructor": 3,
+      "native_semantic_prepare": 6
+    },
+    "illegal_histories": 44,
+    "quota_refusals": 22,
+    "actual_native_postsync_error_key_failures_per_os": 4,
+    "post_sync_fixture": "Temporarily detach the actual host-task bound error context only at real final sync to reach native FlsSetValue/pthread_setspecific setter failures; restore immediately. Both versions preserve COMMITTED,installed state and fresh replay.",
+    "storage_failure_models_per_integration_program": 448,
+    "concurrency": {
+      "producers": 4,
+      "allocation_free_readers": 2,
+      "host_workers": 4,
+      "exact_typed_commits": 128
+    },
+    "actual_backing_allocator_free_callback_reentry": true,
+    "physical_payload_credits_until_free_returns": true,
+    "late_free_callback_close_preserves_committed": true,
+    "process_kills_per_os": 84,
+    "versions": [
+      "MQTT5",
+      "MQTT3.1.1"
+    ],
+    "native_cut_forms": 6,
+    "native_barriers": 7,
+    "independent_literal_python_oracle": true,
+    "opposite_os_readers_per_os": 12,
+    "powerloss_qualified": false,
+    "sanitizers": [
+      "WSL ASan",
+      "WSL UBSan",
+      "WSL leak detection",
+      "WSL Clang21 TSan"
+    ],
+    "skips": [],
+    "all_selected_functional_checks_pass": true
+  },
+  "performance": {
+    "qualified": false,
+    "cohorts": {
+      "windows": {
+        "qualified": false,
+        "completed": true,
+        "noise_gate_passed": false,
+        "quality_failures": [
+          "[quality-fail] xmqtt_store_write/typed_worker_native/operations_per_sec: relative_mad=4.8%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p50_us: relative_mad=9.1%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p50_us: relative_central_range=9.1%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p95_us: relative_mad=7.0%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p95_us: relative_central_range=9.1%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p99_us: relative_mad=5.3%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p99_us: relative_central_range=27.2%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p999_us: relative_mad=19.8%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_p999_us: relative_central_range=37.2%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_max_us: relative_mad=25.9%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/latency_max_us: relative_central_range=46.8%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/process_cpu_ns_per_op: relative_mad=31.6%",
+          "[quality-fail] xmqtt_store_write/typed_worker_native/process_cpu_ns_per_op: relative_central_range=42.1%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/operations_per_sec: relative_mad=8.4%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/operations_per_sec: relative_central_range=22.4%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p50_us: relative_mad=6.4%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p50_us: relative_central_range=12.0%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p95_us: relative_mad=9.1%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p95_us: relative_central_range=15.8%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p99_us: relative_mad=8.8%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p99_us: relative_central_range=29.8%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p999_us: relative_mad=20.8%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_p999_us: relative_central_range=45.2%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_max_us: relative_mad=35.1%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/latency_max_us: relative_central_range=56.4%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/process_cpu_ns_per_op: relative_mad=11.5%",
+          "[quality-fail] xmqtt_store_write/typed_store_write_native/process_cpu_ns_per_op: relative_central_range=15.4%"
+        ],
+        "medians": {
+          "typed_worker_native": {
+            "operations_per_sec": 10.463,
+            "latency_p50_us": 91675.7,
+            "latency_p95_us": 127697.8,
+            "latency_p99_us": 158302.6,
+            "latency_p999_us": 207805.5,
+            "latency_max_us": 225007.1,
+            "process_cpu_ns_per_op": 296875.0
+          },
+          "typed_store_write_native": {
+            "operations_per_sec": 19.239,
+            "latency_p50_us": 47007.5,
+            "latency_p95_us": 91691.1,
+            "latency_p99_us": 165352.0,
+            "latency_p999_us": 241704.5,
+            "latency_max_us": 333322.9,
+            "process_cpu_ns_per_op": 406250.0
+          }
+        }
+      },
+      "wsl": {
+        "qualified": false,
+        "completed": false,
+        "noise_gate_passed": null,
+        "quality_failures": [],
+        "operational_failure": "performance benchmark timed out: typed_store_write_native",
+        "original_single_run_timeout_seconds": 120,
+        "completed_measured_repetitions": {
+          "typed_worker_native": 5,
+          "typed_store_write_native": 0
+        },
+        "completed_warmups": {
+          "typed_worker_native": 1,
+          "typed_store_write_native": 1
+        },
+        "medians": null,
+        "receipt": {
+          "label": "performance-localfs",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xmqtt/config/performance_profiles.json",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--profiles",
+            "xmqtt_store_write",
+            "--repeats",
+            "5",
+            "--warmups",
+            "1",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-write-20261117/wsl-performance.json"
+          ],
+          "start_revision": "e52d7fcff7eee77fa4ea90313f7b92efc25252b9",
+          "end_revision": "e52d7fcff7eee77fa4ea90313f7b92efc25252b9",
+          "exit_code": 1,
+          "seconds": 939.314,
+          "source_map_sha256": "c769b512544ce77ef1616644a0768564db0e76250998866bfc2523c19531a337",
+          "source_map_sha256_at_end": "c769b512544ce77ef1616644a0768564db0e76250998866bfc2523c19531a337",
+          "log": "wsl-performance-localfs.log",
+          "log_sha256": "8eaee40ffb3063ee7ca2b734a7840aa32e951a7453f632a149fa78926fad1e81",
+          "programs": 0,
+          "binaries": []
+        }
+      }
+    },
+    "allocation_probes": {
+      "windows": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 17.947,
+            "latency_p50_us": 50009.9,
+            "latency_p95_us": 97410.1,
+            "latency_p99_us": 185377.1,
+            "latency_p999_us": 185377.1,
+            "latency_max_us": 195067.2,
+            "process_cpu_ns_per_op": 312500.0,
+            "transaction_bytes": 401.0,
+            "model_bytes": 0.0,
+            "model_peak_bytes": 0.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0,
+            "heap_blocks_per_op": 7.0,
+            "heap_bytes_per_op": 1241.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 18.128,
+            "latency_p50_us": 58313.1,
+            "latency_p95_us": 75038.7,
+            "latency_p99_us": 100037.1,
+            "latency_p999_us": 100037.1,
+            "latency_max_us": 108054.1,
+            "process_cpu_ns_per_op": 156250.0,
+            "transaction_bytes": 401.0,
+            "model_bytes": 662.0,
+            "model_peak_bytes": 1023.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0,
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 2602.0
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "mode": 0,
+          "metrics": {
+            "operations_per_sec": 5.021,
+            "latency_p50_us": 108339.001,
+            "latency_p95_us": 708299.9,
+            "latency_p99_us": 758195.5,
+            "latency_p999_us": 758195.5,
+            "latency_max_us": 791896.744,
+            "process_cpu_ns_per_op": 293397.0,
+            "transaction_bytes": 401.0,
+            "model_bytes": 0.0,
+            "model_peak_bytes": 0.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0,
+            "heap_blocks_per_op": 7.0,
+            "heap_bytes_per_op": 1657.0
+          }
+        },
+        {
+          "mode": 1,
+          "metrics": {
+            "operations_per_sec": 9.632,
+            "latency_p50_us": 100407.903,
+            "latency_p95_us": 116692.703,
+            "latency_p99_us": 141817.6,
+            "latency_p999_us": 141817.6,
+            "latency_max_us": 147649.004,
+            "process_cpu_ns_per_op": 285954.0,
+            "transaction_bytes": 401.0,
+            "model_bytes": 662.0,
+            "model_peak_bytes": 1023.0,
+            "native_tasks_per_op": 1.0,
+            "admission_overloads_per_op": 0.0,
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 3018.0
+          }
+        }
+      ]
+    },
+    "wsl_filesystem": {
+      "path": "/var/tmp/xrt-mqtt-store-write-bench-20261117",
+      "filesystem": "ext2/ext3",
+      "mount": "/dev/sdd ext4 /",
+      "scope": "First and only WSL timing cohort for this stage; actual Linux local-filesystem native sync; source and tool cwd remain /mnt/d/GIT/xrt"
+    },
+    "scope": "Two modes of the same401-byte encoded acceptance+application-ACK transaction,256-byte payload,one outstanding,1000 closed-loop operations,two host workers,two native syncs per commit,five measured repetitions and one warmup per mode; original3% MAD/6% central-span gates",
+    "timing": "File/recovery/constructor/host-pool/resumptive OPEN and initial native task outside timing. Encode/admit/input calloc zeroing+copy,wait/resolve/release/secure wipe,Core ownership/retries/native tails and final extension Close/drain inside throughput and process CPU. Per-operation latency ends at typed physical append result; remaining executor bookkeeping belongs to host join.",
+    "costs": [
+      "One retained input snapshot with whole-job zeroing and final secure wipe",
+      "Semantic mode additionally decodes/validates typed records,stages touched metadata/hash indices and copies new wires; no whole-State payload clone",
+      "Metadata plan and new-wire allocations,model gates and final publication/retirement/refund",
+      "Allocation probes count actual XRT blocks/bytes across native threads,not all CRT/kernel/provider/diagnostic allocations; constructor/cold ownership is outside this workload and separately bounded/documented"
+    ],
+    "limits": [
+      "One original cohort per OS; quality failures retained without weakening gates or repeating for green",
+      "Windows baselines straddled external WSL VHD migration and concurrent compiler activity; mode medians cannot establish a causal speedup/cost ratio",
+      "Linux timing uses local ext4 inside WSL after other stage compiler jobs completed; virtualization and uncontrolled shared host remain",
+      "Closed-loop1 outstanding is not fixed-arrival queue-inclusive throughput/tail qualification",
+      "No zero-overhead,performance parity,physical powerloss or native Windows/native Linux >=72h claim"
+    ]
+  },
+  "strict_release": {
+    "passed": false,
+    "developing_modules": 27,
+    "proof": "strict-release.json"
+  },
+  "migration": {
+    "external_wsl_storage_move": "Observed complete; not stopped or modified here",
+    "queued_final_suite": "Observed original queued run to completion; not duplicated",
+    "mainline_only": true
+  },
+  "remaining": [
+    "Live Client prepare/commit/network-output driver and durable delivery leases",
+    "Old-transport fencing and physical retirement integration",
+    "Namespace publication/locking,compaction/group-commit policy",
+    "Full original Redis/RPC/MQTT5+311/Cron scope",
+    "Complete controlled Linux timing after retained operational timeout; no completed Linux cohort claimed",
+    "Controlled throughput/tails,pinned comparators and native Windows/native Linux >=72h"
+  ],
+  "evidence": {
+    "directory": "out/service-extensions/mqtt-store-write-20261117",
+    "source_map_sha256": "90dc02ea1a9d8a5f99f11083be5c0bedcdbecdd46a6b8b26fb37357cecebbfe7",
+    "audit_sha256": "0a291edad55c05921968dbbafbebd74f59aefb3c8058db4f68a4d9b160786003",
+    "audit": "evidence-audit.json",
+    "initial_immutable_windows_checkpoint_sha256": "c3ed4dab618f0978f875dcc907e114c955d873bb623e5948cf0cfa16228ec24a",
+    "new_preserved_binary_records": 259,
+    "initial_checkpoint_binary_records": 450,
+    "initial_failures_and_negative_reproductions_retained": true,
+    "checkpoint": {
+      "directory": "checkpoint/final-20261118",
+      "files": 3105,
+      "sha256": "9f7a0f9d2bc2873c8272b6e2ef7dcc7305787db8ea013de76260c9c4d29c3a6b",
+      "source_map_sha256": "90dc02ea1a9d8a5f99f11083be5c0bedcdbecdd46a6b8b26fb37357cecebbfe7",
+      "initial_checkpoint_preserved": true
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "date": "2026-11-18",
-  "status": "developing; Windows phase verified; final Linux and diagnostics pending; original four-product goal active",
+  "status": "developing; initial Windows checkpoint; final revalidation recorded separately",
   "repository": "D:/GIT/xrt",
   "branch": "master",
   "base_revision": "cc8e70ef186af631ddf895c3fce26ae69c94ba17",
@@ -166,7 +166,7 @@
     "costs": [
       "Input whole-job calloc zero initialization,retained input copy and final secure wipe",
       "Core Promise/token/task/native-tail ownership and synchronization",
-      "Semantic native decode/legal validation,touched metadata hash plan,new-wire allocation/copy,atomic install and lock-free retirement callbacks",
+      "Semantic native decode/legal validation,touched metadata hash plan,new-wire allocation/copy,atomic install and retirement outside the model gate",
       "No zero-overhead,product parity,fixed-arrival,controlled throughput/tails or native72h claim"
     ],
     "environment": "Shared unpinned Windows host; external WSL VHD migration is active and can affect filesystem timings"
@@ -209,5 +209,6 @@
   "concurrent_work": {
     "preserved_revision": "804cc769de3030118c2b46ef7af69543d1b82d9d",
     "description": "Preserved other-thread Core value mainline commit; no Core path in this change; external WSL migration not interrupted"
-  }
+  },
+  "followup": "xmqtt-store-write-revalidation-20261118.json"
 }

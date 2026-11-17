@@ -13987,48 +13987,31 @@ Work stays on `D:/GIT/xrt` master; no branch/worktree operation or remote push.
 See [stage evidence](xmqtt-store-write-20261118.json) and the
 [component guide](../../extlibs/xmqtt/docs/store_write.md).
 
-## 2026-11-18: typed mutable store on the borrowed host pool
+### 2026-11-18 follow-up: final Linux and cross-OS revalidation
 
-The developing `xmqtt_store_write` now consumes a matching recovered State and
-READY Journal and applies encoded legal transactions on the existing bounded
-host-pool worker. Decode and resource preparation precede file IO. A touched-entry
-metadata overlay retains existing wires, stages only new payloads, and installs
-the complete model before result/watch publication when the physical result is
-COMMITTED, including late local failures. INVALID and normal limits refuse before
-append without changing the committed model. No Core API/runtime/thread is added.
+The external WSL storage migration completed without intervention here. The
+already-queued final suite ran once after startup and passes20 programs with
+ASan/UBSan/leak checks. Clang21 TSan concurrency,41 legacy regression programs,
+20 static/shared clients/examples/declarations,root/statistics-off,three-form ABI,
+eight exports/seventeen hidden helpers,and trimmed delivery pass. Both Windows
+and WSL now pass84 killed-child recovery cases plus12 opposite-OS file readers
+per platform. This supersedes the pending-Linux status at the earlier Windows
+checkpoint; that immutable checkpoint and historical failures remain retained.
 
-Two reproduced gaps were fixed: metadata scratch has a separate reserved budget
-so a model recovered at its exact payload-memory peak can still ACK/free entries;
-and backing allocator Free callbacks run outside the model gate after complete
-publication, with payload credits retained until physical destruction returns.
-A late Close from that actual callback preserves COMMITTED and is sampled before
-result resolution. Reads copy committed canonical bytes without allocating.
-
-Windows final verification passes20 modular/single/example programs,20 separate
-static/shared clients/examples/declarations,root/statistics-off,three-form ABI,
-eight exports/seventeen hidden helpers,and trimmed single/static/shared delivery.
-Coverage includes44 illegal histories,22 quota refusals,3 constructor and6 native
-preparation real allocation-prefix failures,4 actual post-sync native error-key
-failures,448 storage-failure models/integration program,and128 typed commits with
-four producers/two allocation-free readers/four host workers. Independent literal
-Python bytes and84 real native process cuts across six forms/two protocol levels
-pass. Legacy41-program Windows results remain applicable by real feature-closure
-CPP equivalence,with only one exact free-statement line join normalized in State
-and import selections; raw hashes and the initial failed comparison are retained.
-
-Final Linux revalidation is pending: an external `wsl --manage Ubuntu --move`
-operation prevents WSL startup. The submitted final Linux suite is retained and
-must be observed,not duplicated; do not stop that migration. Earlier19-program
-WSL ASan/UBSan/leak and Clang21 TSan successes precede the callback-retirement fix
-and are historical evidence only. Final Linux unit/sanitizer/delivery/ABI/trim/
-legacy/process-cut,cross-OS and local-ext4 performance checks remain required.
-Windows diagnostic performance measurement is also pending at this checkpoint;
-no production throughput/tail/CPU or allocator-cost result is claimed here.
-
-Strict release still rejects27 developing MQTT modules. This is a storage owner,
-not the live Client prepare/commit/network-ACK driver. Delivery leases,transport
-fencing,namespace publication/locking,compaction/group commit,the remaining four-
-product scope,and controlled/native Windows+Linux >=72h acceptance remain open.
-Work stays on `D:/GIT/xrt` master; no branch/worktree operation or remote push.
-See [stage evidence](xmqtt-store-write-20261118.json) and the
-[component guide](../../extlibs/xmqtt/docs/store_write.md).
+Windows completed one matched native two-sync diagnostic cohort with five
+repetitions and one warmup per mode,with27 metric noise-gate failures.
+Linux attempted the same cohort on local ext4; all five baseline repetitions
+and the semantic warmup completed,but the first semantic measured repetition
+hit the original single-run watchdog. No completed Linux timing report or
+median is inferred from that failed attempt. The timeout and unchanged3% MAD/
+6% central-span gates are retained; no timing cohort was repeated for green.
+Actual100-operation allocation probes ran separately on both OSes. Windows timing
+straddled external VHD migration and concurrent compiler activity; it cannot
+establish a causal throughput comparison. Linux attempted timing on local ext4,after
+other stage compiler jobs completed. Actual allocation probes separately count
+Core/extension heap blocks/bytes,tasks and overloads. No zero-overhead,controlled
+performance,physical-power-loss or native Windows/native Linux72h acceptance is
+claimed. The live Client prepare/commit/network-ACK driver,delivery leases,
+transport fencing,namespace/locking,compaction/group commit and the original
+four-product production scope remain required. All work stays on master.
+See [follow-up evidence](xmqtt-store-write-revalidation-20261118.json).

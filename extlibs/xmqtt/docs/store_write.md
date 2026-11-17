@@ -145,3 +145,10 @@ arrival throughput/tails, product parity or native Windows/Linux72h operation.
 A live prepare/commit/network-output driver, durable delivery leases, transport
 fencing, namespace/locking, compaction/group-commit policy and original four-
 product controlled production acceptance remain required work.
+
+The [dated revalidation](../../../docs/development/xmqtt-store-write-revalidation-20261118.json)
+records final Windows/WSL feature,legacy,delivery,ABI,process-cut and cross-OS
+checks,WSL ASan/UBSan/leaks and Clang21 TSan. Its matched benchmarks use a256-byte
+payload (401 encoded delta bytes in this workload),not a256-byte transaction.
+Actual allocation costs are reported separately; diagnostic noise failures are
+retained and do not qualify production throughput or tails.

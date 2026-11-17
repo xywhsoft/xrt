@@ -284,17 +284,10 @@ compaction and controlled production acceptance remain open.
 The developing [mutable typed store](docs/store_write.md) now stages legal changes
 on that borrowed host pool and atomically installs committed metadata before
 result publication,with allocation-free copied reads. Its [real-file example](examples/store_write/README.md)
-ACKs a recovered Inbox record and verifies fresh recovery. Windows stage checks
-pass; final Linux revalidation currently waits for an external WSL disk migration.
-The [dated evidence](../../docs/development/xmqtt-store-write-20261118.json) records
-that pending qualification explicitly. Live durable Client/ACK and delivery-lease
-integration and production performance/native72h acceptance remain required.
-
-The developing [mutable typed store](docs/store_write.md) now stages legal changes
-on that borrowed host pool and atomically installs committed metadata before
-result publication,with allocation-free copied reads. Its [real-file example](examples/store_write/README.md)
-ACKs a recovered Inbox record and verifies fresh recovery. Windows stage checks
-pass; final Linux revalidation currently waits for an external WSL disk migration.
-The [dated evidence](../../docs/development/xmqtt-store-write-20261118.json) records
-that pending qualification explicitly. Live durable Client/ACK and delivery-lease
-integration and production performance/native72h acceptance remain required.
+ACKs a recovered Inbox record and verifies fresh recovery. Final selected Windows
+and WSL unit,legacy,delivery,ABI,process-cut and cross-OS checks pass; WSL ASan/
+UBSan/leaks and Clang21 TSan also pass. The
+[follow-up evidence](../../docs/development/xmqtt-store-write-revalidation-20261118.json)
+retains diagnostic noise failures and actual allocation costs. Live durable
+Client/ACK and delivery-lease integration and controlled performance/native72h
+acceptance remain required.
