@@ -1,0 +1,27 @@
+{
+  "complete": true,
+  "passed": true,
+  "sourceParent": "8edbcfe1ae9827aef68ff15eabbca05f442484e4",
+  "sourceHashes": {
+    "include/xrt/value.h": "39f74dfd6e98e7a475a17e17015705be323257e99b565ed0cee77baad1d0fa56",
+    "src/value/value_graph.c": "9a389ae45fec21179fe10e5b1c3aa3e0234544ef70b1afb943b317c1440dd1b4",
+    "config/modules.json": "f17295c1f48124fcac44cd95549c9f20b9e5c27dd504f4c6b21bc4f0dece2b4e",
+    "single/xrt.h": "7dd32c65c0779e94e630768902cc3e6eb79e25c7ddbc2d264603d36bae7220b0",
+    "single/xrt_decl.h": "67c8dd99f6725075fb0275876817597e2cc7223ddb7155e93b7e99c8aa1b30b7",
+    "tests/value/test_value_graph_strict_data.c": "ae5a9e5861c521c8efb95099cf7123963295d3160dd06c660cc867be0f4f14b5",
+    "tests/single/test_single_value_graph_strict_data.c": "7e123b9cad4761d6b416096561173f0f5ed39e870d4594b122a06cc2e2552825",
+    "docs/validation/value-graph-strict-data-20261117.md": "5ec04fb3e795f9cbb6b2b5864c6bf7a34f07a59b7088f363e2e77d40242ee5d8"
+  },
+  "evidence": {
+    "win": {
+      "path": "F:\\xlang-validation\\xge-full-20261110\\strict-data-xrt-win-r3\\results.json",
+      "sha256": "b866e239b016b7f1868b5ae14d5eecc38d0ed2253dfa23375ec6feb1beb7f95f"
+    },
+    "linux": {
+      "path": "F:\\xlang-validation\\xge-full-20261110\\strict-data-xrt-linux-r3\\results.json",
+      "sha256": "748ae28f44bf88f1b34f977c281f71ac73c35fa33010de4131736d0074e2f4a0"
+    }
+  },
+  "scope": "Native strict DATA graph flag only; language attribute remains pending",
+  "publication": false
+}

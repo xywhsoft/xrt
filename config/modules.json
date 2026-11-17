@@ -13724,10 +13724,12 @@
 				"tests/value/test_value_scalar_domain.c",
 				"tests/value/test_value_graph_contract.c",
 				"tests/value/test_value_graph_oom.c",
+				"tests/value/test_value_graph_strict_data.c",
 				"tests/value/test_value_key_callback_errors.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_value_graph.c",
+				"tests/single/test_single_value_graph_strict_data.c",
 				"tests/single/test_single_value_scalar_domain.c",
 				"tests/single/test_single_value_key_callback_errors.c"
 			],

@@ -17244,7 +17244,12 @@ enum {
 	/* Data snapshots copy container data, not logical identities/lifecycle.
 	 * Unhandled opaque handles are retained, NOT cloned: the downstream
 	 * serializer/consumer still owns its unsupported-value policy. */
-	XVALUE_GRAPH_COPY_DATA_V1 = 1u
+	XVALUE_GRAPH_COPY_DATA_V1 = 1u,
+	/* Requires DATA. Reject raw pointers and unhandled opaque handles during
+	 * the same traversal, without invoking their Clone callbacks. Explicit
+	 * CopyHandle/CopyObject adapters remain trusted data projections and must
+	 * recurse through Next so nested unsupported values fail and roll back. */
+	XVALUE_GRAPH_COPY_STRICT_DATA_V1 = 2u
 };
 typedef struct xvaluegraphcopyv1 {
 	size_t Size;

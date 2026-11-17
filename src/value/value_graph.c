@@ -713,6 +713,10 @@ static xvalue* __xrtValueDeepClone(
 		return NULL;
 	}
 	Type = (xvaluetype)pSource->Type;
+	if (Type == XVALUE_POINTER &&
+		(pContext->Config.Flags & XVALUE_GRAPH_COPY_STRICT_DATA_V1)) {
+		__xrtErrorSetUnsupported(); return NULL;
+	}
 	for (size_t i = 0; i < pContext->Config.SequenceCount; ++i) {
 		const xvaluegraphsequencev1* pSequence = &pContext->Config.Sequences[i];
 		if (pSource->TypeId != pSequence->TypeId) continue;
@@ -745,6 +749,9 @@ static xvalue* __xrtValueDeepClone(
 		}
 		/* A listed native sequence has no opaque-handle retention fallback. */
 		if (bSequence) { __xrtErrorSetType(); return NULL; }
+		if (pContext->Config.Flags & XVALUE_GRAPH_COPY_STRICT_DATA_V1) {
+			__xrtErrorSetUnsupported(); return NULL;
+		}
 		if (pContext->Config.Flags & XVALUE_GRAPH_COPY_DATA_V1) {
 			pTarget = xrtValueRetain(pSource);
 			if (pTarget && (!__xrtValueCloneStart(pContext, pSource, pTarget) ||
@@ -833,7 +840,9 @@ static xvalue* __xrtOwnershipBody_ValueGraphCopy(const xvalue* pValue,
 	}
 	memset(&Context, 0, sizeof(Context));
 	if (pConfig != NULL) memcpy(&Context.Config, pConfig, iConfigSize);
-	if ((Context.Config.Flags & ~XVALUE_GRAPH_COPY_DATA_V1) != 0 ||
+	if ((Context.Config.Flags & ~(XVALUE_GRAPH_COPY_DATA_V1 | XVALUE_GRAPH_COPY_STRICT_DATA_V1)) != 0 ||
+		((Context.Config.Flags & XVALUE_GRAPH_COPY_STRICT_DATA_V1) &&
+		 !(Context.Config.Flags & XVALUE_GRAPH_COPY_DATA_V1)) ||
 		Context.Config.SequenceCount > SIZE_MAX / sizeof(xvaluegraphsequencev1) ||
 		(Context.Config.SequenceCount != 0 &&
 		(!(Context.Config.Flags & XVALUE_GRAPH_COPY_DATA_V1) ||
