@@ -98,14 +98,16 @@ bool xcronTzdbLoadSource(xcrontzdb* D,xstrview Version,const xcrontzdbsource* So
     if(!xcronTzdbVersion(Version))return xcronTzdbFail(XCRON_TZDB_VERSION,Issue);
     size_t Bytes=sizeof(xcrontzdbsnapshot)+Count*sizeof(xcrontzdbrow)+Version.Size+1;
     for(size_t I=0;I<Count;++I){xstrview Name=xcronTzdbSourceName(Source,I);if(!xcronTzdbName(Name))return xcronTzdbReport(xcronTzdbWork(XCRON_TZDB_NAME,I),Issue);Bytes+=Name.Size+1;}
-    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xerror* Ambient=NULL;
+    if(!xrtTrySwapErrorTake(NULL,&Ambient)){if(Issue)*Issue=xcronTzdbWork(XCRON_TZDB_SYSTEM,XCRON_TZDB_NO_INDEX);return false;}
+    if(!xrtMutexLock(&D->Mutex)){xrtErrorFree(Ambient);return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);}
     xcrontzdberror Code=xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED)?XCRON_TZDB_CLOSED:
         (Expected!=XCRON_TZDB_ANY_REVISION && Expected!=D->Revision)?XCRON_TZDB_STALE:
         (D->Loading>=D->Config.LoadLimit || D->Revision==UINT64_MAX-1)?XCRON_TZDB_LIMIT:XCRON_TZDB_OK;
     if(Code==XCRON_TZDB_OK)++D->Loading;
-    (void)xrtMutexUnlock(&D->Mutex);if(Code!=XCRON_TZDB_OK)return xcronTzdbFail(Code,Issue);
-    xerror* Ambient=xrtTakeError();
+    (void)xrtMutexUnlock(&D->Mutex);if(Code!=XCRON_TZDB_OK){xrtErrorFree(Ambient);return xcronTzdbFail(Code,Issue);}
     xcrontzdbissue Work=xcronTzdbWork(XCRON_TZDB_OK,XCRON_TZDB_NO_INDEX);xallocationscope Scope={0};xcrontzdbsnapshot *S=NULL,*Old=NULL;uint64 Published=0;
+    xerror* Discard=NULL;bool RestoreFailed=false;
     bool Entered=xrtAllocationBudgetEnter(D->Budget,&Scope);
     if(!Entered)Work.Code=XCRON_TZDB_MEMORY;
     else {
@@ -127,6 +129,12 @@ bool xcronTzdbLoadSource(xcrontzdb* D,xstrview Version,const xcrontzdbsource* So
         }
     }
     if(Entered && Scope.Rejections && (Work.Code==XCRON_TZDB_MEMORY || (Work.Code==XCRON_TZDB_ZONE && Work.Zone.Code==XCRON_ZONE_MEMORY))){Work.Code=XCRON_TZDB_LIMIT;Work.Cause=XERR_MEMORY;}
+    /* Restore before taking the publication lock: no callback, error-slot
+     * system call or fallible restoration belongs after candidate publication. */
+    if(Work.Code==XCRON_TZDB_OK){
+        if(!xrtTrySwapErrorTake(Ambient,&Discard)){RestoreFailed=true;Work=xcronTzdbWork(XCRON_TZDB_SYSTEM,XCRON_TZDB_NO_INDEX);}
+        else Ambient=NULL;
+    }
     if(Work.Code==XCRON_TZDB_OK){
         if(!xrtMutexLock(&D->Mutex))Work.Code=XCRON_TZDB_SYSTEM;
         else {
@@ -136,11 +144,13 @@ bool xcronTzdbLoadSource(xcrontzdb* D,xstrview Version,const xcrontzdbsource* So
             (void)xrtMutexUnlock(&D->Mutex);
         }
     }
-    xcronTzdbSnapshotRelease(S);xcronTzdbSnapshotRelease(Old);
+    xrtErrorFree(Discard);xcronTzdbSnapshotRelease(S);xcronTzdbSnapshotRelease(Old);
     if(Entered)(void)xrtAllocationBudgetLeave(&Scope);
     (void)xrtMutexLock(&D->Mutex);--D->Loading;(void)xrtMutexUnlock(&D->Mutex);
-    if(Work.Code!=XCRON_TZDB_OK){xrtErrorFree(Ambient);return xcronTzdbReport(Work,Issue);}
-    xrtSetErrorTake(Ambient);*Revision=Published;xcronTzdbOK(Issue);return true;
+    if(Work.Code!=XCRON_TZDB_OK){xrtErrorFree(Ambient);
+        if(RestoreFailed){if(Issue)*Issue=Work;return false;}
+        return xcronTzdbReport(Work,Issue);}
+    *Revision=Published;xcronTzdbOK(Issue);return true;
 }
 XCRON_API bool xcronTzdbLoad(xcrontzdb* D,xstrview Version,const xcrontzdbentry* Entries,size_t Count,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue)
 {xcrontzdbsource Source={.Entries=Entries,.Count=Count};return xcronTzdbLoadSource(D,Version,&Source,Expected,Revision,Issue);}

@@ -13688,3 +13688,47 @@ and out/service-extensions/xrpc-frame-20261112.
   modules still fail strict release. RPC/Cron restoration, durable MQTT state/
   worker/Inbox/ACK/namespace/compaction/group scheduling, full original four-lib
   scope, controlled performance and native Windows/Linux >=72h remain active.
+
+
+## 2026-11-17 — atomic TZDB reloads with checked quiet error restoration
+
+- Fixed-base64b785d0 Core/product amalgamations reproduce3 old-error handler
+  notifications across3 successful initial/replacement/empty memory loads.
+  Load/LoadRoot now use the existing checked quiet exchange, returning0 repeated
+  notices while preserving exact ambient ownership. No new Core API/runtime or
+  manager layout. Ordinary source/parser/close/CAS/quota failures stay typed.
+- Entry slot failure returns false/SYSTEM before builder admission, candidate
+  allocation or source reads. Restoration runs outside the publication mutex
+  before the final close/CAS/revision check. Failed restoration cannot publish a
+  candidate or change the caller Revision; candidate memory and load credit are
+  released. No diagnostic setter is retried through a failed slot. A provisional
+  source diagnostic remains independently owned/charged until the caller clears it.
+- Windows/WSL native-key shims pass128 entry/restore failures per platform across
+  memory/empty/real-root/source-diagnostic candidates, first/replacement loads,
+  empty/populated ambient slots, one-shot/persistent failures and optional Issue.
+  Two bound-context cases and2 actual concurrent rollback/CAS/close races pass
+  per platform, with physical joins, identical old snapshots and successful retry
+  without skipped revisions. No error-slot system call was added under the
+  publication lock. These injections target the error key, not every OS failure.
+- Modular/single/root/stats-off, static/shared and standalone11-API declaration
+  consumers pass; private builders remain hidden. Static tests also exercise the
+  private source fixture; the shared consumer uses public memory/root APIs.
+  Both trimmed TZDB and full-root packages verify real consumers. The partial
+  consumer now selects TZDB APIs instead of unconditionally demanding full xcron.
+- WSL ASan/UBSan/leaks pass. Legacy tests cover286 actual allocation-prefix
+  boundaries per program, old generations/independent zones,250 publications
+  with8000 concurrent reads and zero-heap warm lookups. Six real-IO fault modes
+  pass. Five Windows symbolic-link fixture skips (native error1314) remain
+  explicit; POSIX link checks run. Initial counter/selector/consumer failures
+  remain preserved, including the corrected callback-protection write count and
+  required thread_key selection for the bundled thread tour.
+- After the explicit pause/resume, compiler inputs were byte-identical; refreshed
+  metadata checks pass. Concurrent XTP commits and the earlier Core C99 opaque
+  declaration fix were preserved; actual-mainline validation was refreshed for
+  the latter. [Stage evidence](cron-tzdb-error-scope-20261117.json) retains150
+  compressed binary/runtime identities and raw source/log/cohort evidence.
+- No new timing or production qualification is claimed.13 developing Cron
+  modules still reject strict release. RPC/Cron service callback restoration,
+  durable MQTT state/driver/Inbox/ACK/namespace/compaction/group scheduling,
+  complete original four-library functionality, controlled performance and
+  native Windows/Linux >=72h qualification remain active.

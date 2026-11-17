@@ -1,3 +1,29 @@
+#if defined(XCRON_FEATURE_XCRON_TZDB) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
+/* A trimmed TZDB package must be checked through its own public surface, not
+ * enable and link unrelated scheduler/executor/service APIs in its consumer. */
+#include <xcron.h>
+static unsigned consumerTzdbNotices;
+static void consumerTzdbNotice(const xerror* Error,ptr Context)
+{(void)Error;(void)Context;++consumerTzdbNotices;}
+int main(void)
+{
+    xcrontzdbconfig Config={8,1,65536};xcrontzdb* DB=NULL;xcrontzdbsnapshot* S=NULL;
+    xcrontzdbsnapshotinfo Info;xcrontzdbstats Stats;xcronzone* Missing=NULL;uint64 Revision=0;
+    if(!xcronTzdbCreate(&Config,&DB,NULL))return 1;
+    xrtSetErrorInfo(XERR_STATE,"package.cron.tzdb",1,"caller diagnostic");const xerror* Ambient=xrtGetError();
+    if(!Ambient){return 2;}
+    xrtSetErrorHandler(consumerTzdbNotice,NULL);
+    if(!xcronTzdbLoad(DB,XRT_STR_LITERAL("package-empty"),NULL,0,0,&Revision,NULL)||Revision!=1||
+        !xcronTzdbAcquire(DB,&S,NULL)||!xcronTzdbSnapshotRetain(S)||
+        !xcronTzdbSnapshotInfo(S,&Info,NULL)||Info.Revision!=1||Info.Names||
+        xcronTzdbFind(S,XRT_STR_LITERAL("UTC"),&Missing,NULL)!=XCRON_TZDB_NONE||Missing||
+        !xcronTzdbInspect(DB,&Stats,NULL)||Stats.Loading||!xcronTzdbClose(DB,NULL)||!xcronTzdbDestroy(DB,NULL))return 3;
+    xcronTzdbSnapshotRelease(S);
+    if(!xcronTzdbSnapshotInfo(S,&Info,NULL)||Info.Revision!=1||Info.Names)return 4;
+    xcronTzdbSnapshotRelease(S);bool Quiet=xrtGetError()==Ambient&&!consumerTzdbNotices;
+    xrtSetErrorHandler(NULL,NULL);xrtClearError();return Quiet?0:5;
+}
+#else
 #define XCRON_MODULE_XCRON
 #include <xcron.h>
 #include <string.h>
@@ -155,3 +181,5 @@ int main(void)
 	if(!consumerSelectedService())return 32;
 	return 0;
 }
+
+#endif /* trimmed TZDB or complete xcron package consumer */

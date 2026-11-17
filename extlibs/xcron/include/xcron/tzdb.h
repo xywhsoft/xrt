@@ -46,7 +46,7 @@ XRT_EXTERN_C_BEGIN
  * ambient quota while constructing database-owned data (XRT innermost rule).
  * Invalid spans/aliases preserve every output; other failures publish typed
  * Issue even under diagnostic OOM and preserve other outputs. Success/NONE
- * preserve ambient error. Outputs cannot overlap manager/snapshot arena, each
+ * preserve ambient error without notifying its handler again. Outputs cannot overlap manager/snapshot arena, each
  * other or inputs; caller keeps them disjoint from all borrowed/retained zones
  * and any other retained snapshots. Error domain: xrt.cron.tzdb. */
 XCRON_API bool xcronTzdbCreate(const xcrontzdbconfig* Config,xcrontzdb** Database,xcrontzdbissue* Issue);
@@ -63,6 +63,12 @@ XCRON_API bool xcronTzdbCreate(const xcrontzdbconfig* Config,xcrontzdb** Databas
  * Revision output intact. LoadLimit bounds admitted concurrent builders; excess
  * calls fail LIMIT rather than wait for a builder slot. Close stops subsequent
  * build entries/publication; it cannot interrupt a current syscall/decode.
+ * Checked error-slot entry/restoration failure returns false with SYSTEM Issue
+ * (if supplied), unchanged Revision and no candidate publication. Entry fails
+ * before admission/allocation/source reads; restoration precedes the final
+ * publication lock/check. No diagnostic is published through that failed slot:
+ * entry keeps the old error, exit can leave a provisional diagnostic or NULL.
+ * Admitted-builder credit and all candidate storage are released on failure.
  * This is cold work: run it outside a latency-sensitive scheduler owner. */
 XCRON_API bool xcronTzdbLoad(xcrontzdb* Database,xstrview Version,const xcrontzdbentry* Entries,size_t Count,
     uint64 ExpectedRevision,uint64* Revision,xcrontzdbissue* Issue);

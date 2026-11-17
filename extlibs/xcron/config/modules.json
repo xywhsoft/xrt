@@ -658,6 +658,31 @@
       ]
     },
     {
+      "name": "xcron_tzdb_error_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xcron_tzdb_file",
+        "thread",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xcron/tests/test_tzdb_errors.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_errors.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_error_failure.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xcron/docs/tzdb.md"
+      ]
+    },
+    {
       "name": "xcron_tests",
       "state": "implemented",
       "feature": null,
@@ -679,6 +704,7 @@
         "extlibs/xcron/tests/test_executor.c",
         "extlibs/xcron/tests/test_service.c",
         "extlibs/xcron/tests/test_tzdb.c",
+        "extlibs/xcron/tests/test_tzdb_errors.c",
         "extlibs/xcron/tests/test_tzdb_file.c",
         "extlibs/xcron/tests/test_delivery.c",
         "extlibs/xcron/tests/test_occurrence.c",
@@ -697,6 +723,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_service.c",
         "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c",
         "extlibs/xcron/tests/single/test_single_xcron_tzdb.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_errors.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_error_failure.c",
         "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c",
         "extlibs/xcron/tests/single/test_single_xcron_delivery.c",
         "extlibs/xcron/tests/single/test_single_xcron_occurrence.c",
@@ -711,6 +739,8 @@
         "extlibs/xcron/README.md"
       ],
       "single_test_owners": {
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_errors.c": "xcron_tzdb_file",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_error_failure.c": "xcron_tzdb_file",
         "extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression",
         "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "xcron_calendar",
         "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "xcron_timezone",

@@ -37,6 +37,22 @@ Any failed/closed/stale load leaves both current snapshot and Revision output
 unchanged. Index identifies an original input position, even after sorting.
 Zone preserves typed parser errors independently of diagnostic allocation.
 
+Load uses checked quiet owning error exchanges. Successful calls preserve the
+ambient error identity without notifying an old handler again. A failed native
+error-slot entry returns false/SYSTEM before builder admission, candidate memory
+or source reads. A failed restoration discards the complete candidate without
+changing the current snapshot or Revision output; admitted-builder credit and
+candidate allocations are refunded. Issue remains available even when NULL was
+the prior diagnostic or diagnostic allocation would fail. Supply Issue to obtain
+the typed cause: no diagnostic publication is retried through the failed slot.
+Entry leaves the old error intact; exit may leave a provisional source diagnostic
+or an empty slot. Such a diagnostic retains its own quota charge until released.
+
+Error restoration, callbacks, candidate cleanup and retired-snapshot release all
+occur outside the publication mutex. The final lock rechecks close/CAS/revision
+limits and installs the candidate only after restoration succeeded. Concurrent
+publications still have their own effects; a failed call contributes no revision.
+
 LoadLimit counts admitted builders. Excess work fails LIMIT rather than joining
 an internal queue. Load is cold, potentially expensive work and should run on an
 application control/executor thread outside a latency-sensitive scheduler owner.
