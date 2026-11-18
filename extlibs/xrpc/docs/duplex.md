@@ -105,6 +105,11 @@ messages in memory and joins the shared server after both endpoints drain.
 It does not implement a production socket/process driver. Framing can be supplied
 by the independent [frame leaf](frame.md); WebSocket itself provides messages.
 
+Applications can explicitly [negotiate remote cancellation](cancellation.md).
+A fully sent operation can then abandon its remote executor job after its
+local timeout or cancellation, with ordinary JSON-RPC behavior before the
+capability is agreed.
+
 ## Complete-document admission
 
 Receive validates the entire document in DUPLEX mode before any business entry

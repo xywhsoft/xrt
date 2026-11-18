@@ -15633,3 +15633,45 @@ Timing includes the independent Python peer. The strict gate still lists
 sustained production qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/stdio-process-20261119.json).
+
+## 2026-11-19 xrpc negotiated cancellation
+
+The duplex and framed stdio owner now supports an explicit directional offer.
+A positive reply enables abandonment of subsequently sent calls and batches.
+The receiver checks a bounded per-connection ID index, requests cancellation
+on the existing handler Future, suppresses any reply it has yet to queue,
+and keeps the job tracked through physical retirement. A wire credit
+failure seals the endpoint. A partial send still retires the transport.
+Optional state leaves the public config layout and ordinary JSON-RPC
+messages intact.
+
+Windows and WSL passed 63 aggregate test programs each and four final
+focused modular/single programs per platform. Both framing profiles pass
+through actual subprocess pipes. The standalone example observes remote
+handler cancellation and then exchanges new calls. Eight root and duplex-leaf
+static/shared package consumers ran the example. WSL ASan/UBSan with leak
+checking and focused TSan passed. GCC leaves atomic_thread_fence uninstrumented
+under TSan. Three single-object profiles on both platforms contain no
+forbidden symbols.
+
+| Environment | Framing | Baseline / candidate calls/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Content-Length | 87,622 / 87,860 | 381.4 / 377.2 | 510.0 / 508.4 |
+| Windows | UINT32_BE | 93,277 / 92,776 | 328.0 / 351.5 | 464.9 / 451.0 |
+| WSL | Content-Length | 71,249 / 70,856 | 600.5 / 580.5 | 794.0 / 774.8 |
+| WSL | UINT32_BE | 73,811 / 73,835 | 555.0 / 552.8 | 765.2 / 781.2 |
+
+The table reports medians from eight interleaved 32,768-call runs at window
+32. The initial 8,192-call runs showed roughly 10% higher P99.9 for Windows
+Content-Length and WSL UINT32_BE. In the longer runs, those two differences
+were about -0.3% and +2.1%. Windows UINT32_BE recorded P99 of 328.0 / 351.5
+us in the longer comparison. Twelve additional 65,536-call runs on Windows
+UINT32_BE measured 93,177 / 93,835 calls/s, P99 of
+341.3 / 333.4 us, and P99.9 of 456.5 / 443.0 us.
+
+All runs use the independent Python subprocess with cancellation disabled.
+The stage evidence retains every round. The strict gate still lists 20
+developing modules. Remote deadline propagation, opt-in for network
+adapters and native production qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/cancellation-20261119.json).

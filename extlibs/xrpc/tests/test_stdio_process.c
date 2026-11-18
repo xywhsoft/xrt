@@ -52,6 +52,20 @@ static int processTestChild(cstr Mode,bool Binary)
         return fputs("Content-Length: 50\r\n\r\n{",stdout)>=0?0:33;
     }
 
+    if(!strcmp(Mode,"cancel")){
+        char Body[512];
+        if(!processTestFrameRead(Binary,Body) || !strstr(Body,"\"method\":\"rpc.xrt.cancel.v1\"") ||
+           !strstr(Body,"\"id\":\"1\"") ||
+           !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":true}"))return 40;
+        if(!processTestFrameRead(Binary,Body) || !strstr(Body,"\"method\":\"hold\"") ||
+           !strstr(Body,"\"id\":\"2\""))return 41;
+        if(!processTestFrameRead(Binary,Body) ||
+           strcmp(Body,"{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.cancel\",\"params\":[\"2\"]}"))return 42;
+        if(!processTestFrameRead(Binary,Body) || !strstr(Body,"\"method\":\"call\"") ||
+           !strstr(Body,"\"id\":\"3\"") ||
+           !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":7}"))return 43;
+        return 0;
+    }
     if(!processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"method\":\"reverse\",\"params\":[11],\"id\":9}"))
         return 34;
     if(!strcmp(Mode,"reverse-idle")){
@@ -300,6 +314,49 @@ static void processTestHandlerTail(cstr Bin)
     testRequire(xrpcServerDestroy(Server),"independent executor retires after transport");
 }
 
+static void processTestNegotiatedCancellation(cstr Bin,xrpcframeformat Format)
+{
+    xrpcstdioconfig C;
+    xrpcStdioConfigInit(&C);
+    C.Frame.Format=Format;
+    xprocess* Child=NULL;
+    xrpcstdioprocess* P=NULL;
+    processTestSpawn(Bin,"cancel",&C,&Child,&P);
+    xrpcstdio* RPC=xrpcStdioProcessEndpoint(P);
+    xfuture* Offer=NULL;
+    testRequire(xrpcStdioEnableCancellation(RPC) &&
+        xrpcStdioNegotiateCancellation(RPC,5000,&Offer)==XRPC_DUPLEX_ACCEPTED,
+        "negotiate through real redirected stdio");
+    xrpcstdioinfo Info={.Size=sizeof(Info)};
+    processTestDrive(P,Offer,&Info);
+    const xrpccallresult* Accepted=xrtFutureValue(Offer);
+    testRequire(Accepted && Accepted->Status==XRPC_CALL_OK,"native peer acknowledges capability");
+    xrtFutureDestroy(Offer);
+
+    xfuture* Held=NULL;
+    testRequire(xrpcStdioCall(RPC,XRT_STR_LITERAL("hold"),(xstrview){0},5000,&Held)==
+        XRPC_DUPLEX_ACCEPTED,"send cancellable request");
+    double Until=xrtTimer()+8;
+    for(;;){
+        processTestStep(P,&Info);
+        if(Info.Duplex.PendingCalls==1 && !Info.Duplex.Outputs && !Info.Duplex.Selected)break;
+        testRequire(xrpcStdioProcessWait(P,500)==XWAIT_OK && xrtTimer()<Until,
+            "wait for complete original send");
+    }
+    xfuture* Following=NULL;
+    testRequire(xrtFutureCancel(Held) &&
+        xrpcStdioCall(RPC,XRT_STR_LITERAL("call"),(xstrview){0},5000,&Following)==XRPC_DUPLEX_ACCEPTED,
+        "cancel original and continue on same native channel");
+    processTestDrive(P,Following,&Info);
+    const xrpccallresult* Cancelled=xrtFutureValue(Held);
+    const xrpccallresult* Replied=xrtFutureValue(Following);
+    testRequire(Cancelled && Cancelled->Status==XRPC_CALL_CANCELLED &&
+        Cancelled->Delivery==XRPC_MAY_HAVE_EXECUTED && Replied && Replied->Status==XRPC_CALL_OK,
+        "native peer checks ordered control before following request");
+    processTestFinish(P,Child,XRPC_STDIO_EOF,false);
+    xrtFutureDestroy(Held);xrtFutureDestroy(Following);
+}
+
 static void processTestTruncated(cstr Bin,xrpcframeformat Format)
 {
     xrpcstdioconfig C;
@@ -347,10 +404,11 @@ int main(int Argc,char** Argv)
     for(unsigned I=1;I<=2;++I){
         processTestDuplex(Argv[0],(xrpcframeformat)I);
         processTestTruncated(Argv[0],(xrpcframeformat)I);
+        processTestNegotiatedCancellation(Argv[0],(xrpcframeformat)I);
     }
     processTestDeadline(Argv[0]);
     processTestBlocked(Argv[0]);
     processTestHandlerTail(Argv[0]);
-    puts("[PASS] xrpc stdio process: duplex, wake, deadline, cancellation, EOF, reentry, handler tail and rollback");
+    puts("[PASS] xrpc stdio process: duplex, wake, deadline, cancellation, EOF, reentry, handler tail, rollback and negotiated cancellation");
     return 0;
 }

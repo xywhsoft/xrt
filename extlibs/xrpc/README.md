@@ -27,7 +27,9 @@ independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
 bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. [WS/WSS dial](docs/ws_dial.md) and [URI input](docs/ws_uri.md) compose native setup. [Framed stdio](docs/stdio.md) supports host-driven pipes.
 The [subprocess adapter](docs/stdio_process.md) launches a child through XRT and
-drives its framed I/O. Deadline/cancellation negotiation and production acceptance remain pending.
+drives its framed I/O. Duplex and stdio support explicitly
+[negotiated cancellation](docs/cancellation.md). Remote deadline propagation
+and production acceptance remain pending.
 
 Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
 thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.

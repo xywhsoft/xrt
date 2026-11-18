@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `181` 个函数、`268` 个常量或宏、
+当前登记 `185` 个函数、`268` 个常量或宏、
 `127` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
@@ -141,7 +141,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/duplex.h)
 
-### 函数 (16)
+### 函数 (18)
 
 - `xrpcDuplexBatch`
 - `xrpcDuplexCall`
@@ -149,7 +149,9 @@
 - `xrpcDuplexConfigInit`
 - `xrpcDuplexCreate`
 - `xrpcDuplexDestroy`
+- `xrpcDuplexEnableCancellation`
 - `xrpcDuplexInfo`
+- `xrpcDuplexNegotiateCancellation`
 - `xrpcDuplexNext`
 - `xrpcDuplexNotify`
 - `xrpcDuplexOutputRelease`
@@ -594,7 +596,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/stdio.h)
 
-### 函数 (9)
+### 函数 (11)
 
 - `xrpcStdioBatch`
 - `xrpcStdioCall`
@@ -602,7 +604,9 @@
 - `xrpcStdioConfigInit`
 - `xrpcStdioCreate`
 - `xrpcStdioDestroy`
+- `xrpcStdioEnableCancellation`
 - `xrpcStdioInfo`
+- `xrpcStdioNegotiateCancellation`
 - `xrpcStdioNotify`
 - `xrpcStdioStep`
 

@@ -23,15 +23,19 @@ typedef struct xrpcduplexjob {
     xrpcduplex* Duplex;
     xfuture* Future;
     xfuturewatch Watch;
-    bool CancelIssued;
+    bool CancelIssued,Tracked,Abandoned;
 } xrpcduplexjob;
+typedef struct xrpcduplextrackedjob {
+    xrpcduplexjob Job;
+    xrpcpendingtoken Token;
+} xrpcduplextrackedjob;
 struct xrpcduplexoutput {
     xatomic32 References;
     struct xrpcduplexoutput *Next,*Prev;
     xrpcduplexrequest* Request; /* Owner-only; cleared before request retirement. */
     xfuture* Response;
     xstrview Wire;
-    bool Linked,Started;
+    bool Linked,Started,CancelAck;
 };
 struct xrpcduplexrequest {
     xatomic32 References;
@@ -42,7 +46,7 @@ struct xrpcduplexrequest {
     xrpcresponses* Responses;
     size_t Count,Replies;
     double Deadline;
-    bool Batch,Started,Sent,Finishing,Finished;
+    bool Batch,Started,Sent,Finishing,Finished,TrackCancel;
     xrpccallstatus Status;
     uint32 DeadlineSlot;
     xrpcduplexentry Entries[];
@@ -52,7 +56,8 @@ struct xrpcduplex {
     xmutex Gate;
     xatomic32 References;
     xrpcresultquota *Control,*Wire,*Results;
-    xrpcpending* Pending;
+    xrpcpending *Pending,*CancelJobs;
+    xfuture* CancelOffer;
     xrpcduplexrequest *SubmitHead,*SubmitTail,*Head,*Tail,*Scan,*ScanEnd;
     xrpcduplexrequest** Deadlines;
     xrpcduplexjob *Jobs,*ReadyHead,*ReadyTail,*CancelScan,*FallbackHead,*FallbackTail;
@@ -62,6 +67,7 @@ struct xrpcduplex {
     uint64 Serial,SelectionSerial,SelectedToken;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     bool Closing,Busy,More,CancelStarted,PreferScan,InputEnded;
+    bool CancelEnabled,SendCancel,ReceiveCancel;
     unsigned Turn;
     xrpccallstatus Reason;
     xrpcmessage* Scratch;
@@ -261,6 +267,125 @@ XRPC_API bool xrpcDuplexClose(xrpcduplex* D,xrpccallstatus Reason)
 }
 static void xrpcDuplexQueue(xrpcduplex* D,xrpcduplexoutput* O)
 {O->Linked=true;O->Prev=D->OutputTail;if(O->Prev)O->Prev->Next=O;else D->OutputHead=O;D->OutputTail=O;}
+/* The two reserved v1 methods describe a connection-local abandonment
+ * extension. Legacy sessions never spend allocation or wire credit on it. */
+static const char xrpcCancelOfferMethod[]="rpc.xrt.cancel.v1";
+static const char xrpcCancelNoticeMethod[]="rpc.xrt.cancel";
+
+XRPC_API bool xrpcDuplexEnableCancellation(xrpcduplex* D)
+{
+    if(!xrpcDuplexEnter(D))return false;
+    bool OK=false;
+    if(D->InputEnded || xrpcDuplexIsClosing(D)){
+        xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"cancellation enable on closed RPC duplex");
+        goto Done;
+    }
+    if(!D->CancelEnabled && D->Config.Server){
+        xrpcpendingconfig C;
+        xrpcPendingConfigInit(&C);
+        C.MaxCalls=D->Config.MaxIncoming;
+        C.MaxOwnedBytes=D->Config.MaxFixedBytes-D->FixedBytes;
+        C.Id.MaxInputBytes=22;C.Id.MaxStringBytes=20;C.Id.MaxKeyBytes=21;
+        if(!C.MaxOwnedBytes){
+            xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"no fixed storage for RPC cancellation index");
+            goto Done;
+        }
+        if(!xrpcPendingCreate(&C,&D->CancelJobs))goto Done;
+        xrpcpendinginfo I={.Size=sizeof(I)};
+        xrpcPendingInfo(D->CancelJobs,&I);
+        D->FixedBytes+=I.OwnedBytes;
+    }
+    D->CancelEnabled=true;
+    OK=true;
+Done:
+    D->Busy=false;
+    return OK;
+}
+
+static void xrpcDuplexObserveCancelOffer(xrpcduplex* D)
+{
+    if(!D->CancelOffer || !xrtFutureDone(D->CancelOffer))return;
+    const xrpccallresult* R=xrtFutureValue(D->CancelOffer);
+    xrpcresponseinfo I={.Size=sizeof(I)};
+    if(R && R->Status==XRPC_CALL_OK && xrpcResponsesInfo(R->Responses,&I) && I.Count==1){
+        const xrpcvalue* V=&I.Messages[0].Result;
+        D->SendCancel=V->Kind==XRPC_VALUE_BOOLEAN && V->Raw.Size==4 &&
+            !memcmp(V->Raw.Data,"true",4);
+    }
+    xrtFutureDestroy(D->CancelOffer);
+    D->CancelOffer=NULL;
+}
+
+XRPC_API xrpcduplexadmission xrpcDuplexNegotiateCancellation(xrpcduplex* D,int64 Timeout,xfuture** Future)
+{
+    double Entered=xrtTimer();
+    if(!D || !Future || Timeout<XRT_WAIT_FOREVER || !xrpcDuplexSpan(D,Future,sizeof(*Future))){
+        xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC cancellation offer");
+        return XRPC_DUPLEX_ERROR;
+    }
+    if(!xrpcDuplexEnter(D))return XRPC_DUPLEX_ERROR;
+    xrpcDuplexObserveCancelOffer(D);
+    xrpcduplexadmission Result=XRPC_DUPLEX_ERROR;
+    if(!D->CancelEnabled || D->SendCancel || D->CancelOffer)
+        xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC cancellation offer is disabled, pending or agreed");
+    else{
+        xrpcduplexitem Item={false,XRT_STR_LITERAL(xrpcCancelOfferMethod),{0}};
+        xfuture* F=NULL;
+        Result=xrpcDuplexSubmit(D,&Item,1,false,Timeout,&F,Entered);
+        if(Result==XRPC_DUPLEX_ACCEPTED){
+            D->CancelOffer=xrtFutureRef(F);
+            *Future=F;
+        }
+    }
+    D->Busy=false;
+    return Result;
+}
+
+static xrpcduplexoutput* xrpcDuplexMakeControl(xrpcduplex* D,const xrpcoutgoing* Message,bool* Limited)
+{
+    size_t Size;
+    if(!xrpcEncodeSize(Message,1,false,&D->Config.Encode,&Size))return NULL;
+    xrpcduplexoutput* O=xrpcDuplexOutputCreate(D,Size,Size,Limited);
+    if(!O){
+        if(!*Limited)xrpcDuplexReport(XERR_MEMORY,XRPC_DUPLEX_MEMORY,"RPC control output allocation failed");
+        return NULL;
+    }
+    if(!xrpcEncodeWrite(O+1,Size,Message,1,false,&D->Config.Encode,NULL)){
+        xrpcDuplexOutputRelease(O);
+        return NULL;
+    }
+    O->Wire=(xstrview){(cstr)(O+1),Size};
+    return O;
+}
+
+static void xrpcDuplexAbandonSent(xrpcduplex* D,const xrpcduplexrequest* R)
+{
+    if(!R->TrackCancel || !R->Sent || !R->Replies || D->InputEnded || xrpcDuplexIsClosing(D))return;
+    size_t I=0;
+    while(!R->Entries[I].Id)++I; /* A fully sent operation has at least one call. */
+    char Arg[26];
+    xstrview Id=xrpcDuplexId(R->Entries[I].Id,Arg+1);
+    Arg[0]='[';Arg[Id.Size+1]=']';
+    xrpcoutgoing Message={.Kind=XRPC_MESSAGE_NOTIFICATION,
+        .Method=XRT_STR_LITERAL(xrpcCancelNoticeMethod),.Params={Arg,Id.Size+2}};
+    bool Limited=false;
+    xrpcduplexoutput* O=xrpcDuplexMakeControl(D,&Message,&Limited);
+    if(!O){
+        /* The local Future is already terminal. A failed wire obligation seals
+         * the transport, which lets the peer retire its connection-local work. */
+        xrpcDuplexSeal(D,Limited?XRPC_CALL_LIMIT:
+            xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT);
+        return;
+    }
+    /* Control precedes unsent application work without disturbing a selected
+     * output or revisiting the physical borrow already held by the transport. */
+    O->Linked=true;
+    O->Prev=D->Selection;
+    O->Next=O->Prev?O->Prev->Next:D->OutputHead;
+    if(O->Prev)O->Prev->Next=O;else D->OutputHead=O;
+    if(O->Next)O->Next->Prev=O;else D->OutputTail=O;
+}
+
 static void xrpcDuplexUnqueue(xrpcduplex* D,xrpcduplexoutput* O)
 {
     if(D->Selection==O){D->Selection=NULL;D->SelectedToken=0;}
@@ -353,27 +478,99 @@ static void xrpcDuplexJobRetire(xrpcduplex* D,xrpcduplexjob* J)
 {
     if(D->CancelScan==J)D->CancelScan=J->Next;
     if(J->Prev)J->Prev->Next=J->Next;else D->Jobs=J->Next;if(J->Next)J->Next->Prev=J->Prev;
+    if(J->Tracked){xrpcpendingcall Removed;
+        xrpcPendingTakeToken(D->CancelJobs,((xrpcduplextrackedjob*)J)->Token,&Removed);}
     xrtFutureDestroy(J->Future);xrpcResultQuotaFree(J);
     xrtMutexLock(&D->Gate);--D->Operations;--D->Incoming;++D->Completed;xrtMutexUnlock(&D->Gate);
 }
 static xrpcduplexadmission xrpcDuplexProtocol(xrpcduplex* D)
 {++D->ProtocolFailures;xrpcDuplexSeal(D,XRPC_CALL_PROTOCOL);return XRPC_DUPLEX_PROTOCOL;}
-static xstrview xrpcDuplexCorrelationId(const xrpcmessage* M,char* Text)
+/* Validated JSON string tokens only. Zero means outside our generated ID domain. */
+static uint64 xrpcDuplexNumericId(xstrview Raw,size_t* Count)
 {
-    /* The complete response is already valid. Only canonical nonzero uint64
-     * string values can equal an ID we issue; other valid IDs are unknown.
-     * Interpret escapes without changing the retained original response bytes. */
-    if(M->Id.Kind!=XRPC_VALUE_STRING)return XRT_STR_LITERAL("null");
-    xstrview Raw=M->Id.Raw;xrpcstringiterator It={Raw,1,{0},0,0};unsigned char Byte;
+    xrpcstringiterator It={Raw,1,{0},0,0};unsigned char Byte;
     uint64 Value=0;size_t Digits=0;
     while(xrpcStringNext(&It,&Byte)){
         if(Byte<'0' || Byte>'9' || (!Digits && Byte=='0') || Digits==20 || Value>(UINT64_MAX-(Byte-'0'))/10u)
-            return XRT_STR_LITERAL("null");
+            return 0;
         Value=Value*10u+(Byte-'0');++Digits;
     }
-    if(!Digits)return XRT_STR_LITERAL("null");
+    if(Count)*Count=Digits;
+    return Value;
+}
+
+static xstrview xrpcDuplexCorrelationId(const xrpcmessage* M,char* Text)
+{
+    if(M->Id.Kind!=XRPC_VALUE_STRING)return XRT_STR_LITERAL("null");
+    xstrview Raw=M->Id.Raw;size_t Digits=0;
+    uint64 Value=xrpcDuplexNumericId(Raw,&Digits);
+    if(!Value)return XRT_STR_LITERAL("null");
     return Raw.Size==Digits+2u?Raw:xrpcDuplexId(Value,Text);
 }
+
+typedef enum xrpccancelcontrol {XRPC_CONTROL_NONE=0,XRPC_CONTROL_OFFER,XRPC_CONTROL_ABANDON} xrpccancelcontrol;
+
+static bool xrpcDuplexMethodIs(xstrview Raw,cstr Method)
+{
+    xrpcstringiterator It={Raw,1,{0},0,0};unsigned char Byte;
+    while(*Method)if(!xrpcStringNext(&It,&Byte) || Byte!=(unsigned char)*Method++)return false;
+    return !xrpcStringNext(&It,&Byte);
+}
+
+static xrpccancelcontrol xrpcDuplexControlKind(const xrpcmessage* M)
+{
+    if(!(M->Flags&XRPC_METHOD_RESERVED))return XRPC_CONTROL_NONE;
+    if(xrpcDuplexMethodIs(M->Method.Raw,xrpcCancelOfferMethod))return XRPC_CONTROL_OFFER;
+    if(xrpcDuplexMethodIs(M->Method.Raw,xrpcCancelNoticeMethod))return XRPC_CONTROL_ABANDON;
+    return XRPC_CONTROL_NONE;
+}
+
+static xjsonvisitaction xrpcDuplexReadCancelId(const xjsonscanevent* E,ptr User)
+{
+    if(E->Depth==1 && E->Index==0 && E->Type==XJSON_SCAN_STRING)
+        *(uint64*)User=xrpcDuplexNumericId(E->Raw,NULL);
+    return XJSON_VISIT_NEXT;
+}
+
+static xrpcduplexadmission xrpcDuplexReceiveControl(xrpcduplex* D,xrpccancelcontrol Kind,const xrpcmessage* M)
+{
+    if(Kind==XRPC_CONTROL_OFFER){
+        if(M->Kind!=XRPC_MESSAGE_CALL || M->Params.Kind!=XRPC_VALUE_MISSING)return xrpcDuplexProtocol(D);
+        xrpcoutgoing Reply={.Kind=XRPC_MESSAGE_RESULT,.Id=M->Id.Raw,
+            .Result=D->CancelJobs?XRT_STR_LITERAL("true"):XRT_STR_LITERAL("false")};
+        bool Limited=false;
+        xrpcduplexoutput* O=xrpcDuplexMakeControl(D,&Reply,&Limited);
+        if(!O){
+            if(!Limited)return XRPC_DUPLEX_ERROR;
+            xrtMutexLock(&D->Gate);++D->Rejected;xrtMutexUnlock(&D->Gate);
+            return XRPC_DUPLEX_OVERLOADED;
+        }
+        O->CancelAck=D->CancelJobs!=NULL;
+        xrpcDuplexQueue(D,O);
+        return XRPC_DUPLEX_ACCEPTED;
+    }
+    if(M->Kind!=XRPC_MESSAGE_NOTIFICATION || M->Params.Kind!=XRPC_VALUE_ARRAY)
+        return xrpcDuplexProtocol(D);
+    if(!D->ReceiveCancel)return XRPC_DUPLEX_ACCEPTED;
+    if(M->Params.Raw.Size>256)return xrpcDuplexProtocol(D);
+    xjsonreadconfig C;
+    xrtJsonReadConfigInit(&C);
+    C.MaxInputBytes=256;C.MaxDepth=2;C.MaxContainerItems=1;C.MaxValues=2;C.MaxStringBytes=20;
+    uint64 Id=0;
+    if(xrtJsonScan(M->Params.Raw,&C,xrpcDuplexReadCancelId,&Id)!=XJSON_VISIT_DONE || !Id)
+        return xrpcDuplexProtocol(D);
+    char Raw[24];
+    xstrview Key=xrpcDuplexId(Id,Raw);
+    xrpcpendingresolution Match;
+    if(!xrpcPendingProbeBatch(D->CancelJobs,&Key,1,&Match))return XRPC_DUPLEX_ERROR;
+    if(Match.Status==XRPC_PENDING_MATCHED){
+        xrpcduplexjob* J=Match.Call.User;
+        J->Abandoned=true;
+        if(!J->CancelIssued){J->CancelIssued=true;xrtFutureCancel(J->Future);}
+    }
+    return XRPC_DUPLEX_ACCEPTED;
+}
+
 static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
 {
     xrpcresponses* Responses=NULL;
@@ -412,25 +609,62 @@ static xrpcduplexadmission xrpcDuplexReceiveImpl(xrpcduplex* D,xstrview Input,xb
     xrpcdecodestatus S=xrpcDecode(Input,&C,D->Scratch,C.MaxMessages,&Doc);
     if(S==XRPC_DECODE_LOCAL_ERROR)goto Done;
     bool Requests=false,Responses=false;
+    xrpccancelcontrol Control=XRPC_CONTROL_NONE;
     if(S==XRPC_DECODE_DONE)for(size_t I=0;I<Doc.Count;++I){xrpcmessage* M=D->Scratch+I;
+        if(D->CancelEnabled && (Control=xrpcDuplexControlKind(M))!=XRPC_CONTROL_NONE){
+            if(Doc.Batch || Doc.Count!=1){Result=xrpcDuplexProtocol(D);goto Done;}
+            Result=xrpcDuplexReceiveControl(D,Control,M);
+            if(Result==XRPC_DUPLEX_ACCEPTED)++D->Received;
+            goto Done;
+        }
         bool Response=M->Kind==XRPC_MESSAGE_RESULT || M->Kind==XRPC_MESSAGE_ERROR ||
             M->Result.Kind!=XRPC_VALUE_MISSING || M->Error.Kind!=XRPC_VALUE_MISSING;
         bool Request=M->Method.Kind!=XRPC_VALUE_MISSING || !Response;
         Requests|=Request;Responses|=Response;
     }
     if(Requests && Responses){Result=xrpcDuplexProtocol(D);goto Done;}
-    if(Responses){Result=xrpcDuplexResponse(D,Input);if(Result==XRPC_DUPLEX_ACCEPTED)++D->Received;goto Done;}
+    if(Responses){
+        Result=xrpcDuplexResponse(D,Input);
+        if(Result==XRPC_DUPLEX_ACCEPTED)++D->Received;
+        xrpcDuplexObserveCancelOffer(D);
+        goto Done;
+    }
+    uint64 IncomingId=0;
+    if(D->ReceiveCancel && S==XRPC_DECODE_DONE && !Doc.InvalidCount){
+        for(size_t I=0;I<Doc.Count;++I){const xrpcmessage* M=D->Scratch+I;
+            if(M->Kind!=XRPC_MESSAGE_CALL)continue;
+            if(M->Id.Kind==XRPC_VALUE_STRING)IncomingId=xrpcDuplexNumericId(M->Id.Raw,NULL);
+            break;
+        }
+    }
     xrtMutexLock(&D->Gate);
     if(D->Closing){xrtMutexUnlock(&D->Gate);Result=XRPC_DUPLEX_CLOSED;goto Done;}
     if(!D->Config.Server || D->Operations==D->Config.MaxOperations || D->Incoming==D->Config.MaxIncoming){
         ++D->Rejected;xrtMutexUnlock(&D->Gate);Result=XRPC_DUPLEX_OVERLOADED;goto Done;}
-    bool Limited=false;xrpcduplexjob* J=xrpcResultQuotaAlloc(D->Control,sizeof(*J),&Limited);
+    size_t Bytes=IncomingId?sizeof(xrpcduplextrackedjob):sizeof(xrpcduplexjob);
+    bool Limited=false;xrpcduplexjob* J=xrpcResultQuotaAlloc(D->Control,Bytes,&Limited);
     if(!J){if(Limited){++D->Rejected;Result=XRPC_DUPLEX_OVERLOADED;}else xrpcDuplexReport(XERR_MEMORY,XRPC_DUPLEX_MEMORY,"RPC duplex incoming job allocation failed");
         xrtMutexUnlock(&D->Gate);goto Done;}
     memset(J,0,sizeof(*J));J->Duplex=D;
+    if(IncomingId){
+        char Raw[24];
+        xrpcpendingstatus P=xrpcPendingInsert(D->CancelJobs,xrpcDuplexId(IncomingId,Raw),
+            UINT64_MAX,J,&((xrpcduplextrackedjob*)J)->Token);
+        if(P!=XRPC_PENDING_OK){
+            xrpcResultQuotaFree(J);xrtMutexUnlock(&D->Gate);
+            if(P==XRPC_PENDING_DUPLICATE)Result=xrpcDuplexProtocol(D);
+            goto Done;
+        }
+        J->Tracked=true;
+    }
     xrpcserveradmission A=xrpcServerSubmitContextEntered(D->Config.Server,Input,Context,D->Config.IncomingTimeout,&J->Future,Entered);
-    if(A!=XRPC_SERVER_ACCEPTED){xrpcResultQuotaFree(J);if(A!=XRPC_SERVER_ADMISSION_ERROR){++D->Rejected;Result=XRPC_DUPLEX_OVERLOADED;}
-        xrtMutexUnlock(&D->Gate);goto Done;}
+    if(A!=XRPC_SERVER_ACCEPTED){
+        if(J->Tracked){xrpcpendingcall Removed;
+            xrpcPendingTakeToken(D->CancelJobs,((xrpcduplextrackedjob*)J)->Token,&Removed);}
+        xrpcResultQuotaFree(J);
+        if(A!=XRPC_SERVER_ADMISSION_ERROR){++D->Rejected;Result=XRPC_DUPLEX_OVERLOADED;}
+        xrtMutexUnlock(&D->Gate);goto Done;
+    }
     ++D->Operations;++D->Incoming;++D->Accepted;++D->Received;xrtMutexUnlock(&D->Gate);
     J->Next=D->Jobs;if(J->Next)J->Next->Prev=J;D->Jobs=J;
     xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED);
@@ -470,6 +704,7 @@ static bool xrpcDuplexWorkJob(xrpcduplex* D,bool* Blocked)
     xrtMutexLock(&D->Gate);xrpcduplexjob* J=D->ReadyHead;
     if(J){D->ReadyHead=J->ReadyNext;if(!D->ReadyHead)D->ReadyTail=NULL;J->ReadyNext=NULL;}
     xrtMutexUnlock(&D->Gate);if(!J)return false;
+    if(J->Abandoned){xrpcDuplexJobRetire(D,J);return true;}
     bool Closing=xrpcDuplexIsClosing(D);xfutureresult F={0};
     if(!Closing && (!xrtFutureResult(J->Future,&F) || F.State!=XFUTURE_RESOLVED || !F.Value)){
         xrpcDuplexSeal(D,XRPC_CALL_TRANSPORT);Closing=true;}
@@ -525,7 +760,10 @@ static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK,double Now)
     if(R==D->Scan)xrpcDuplexAdvanceScan(D);
     if(!R->Finishing){if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
         else {xrpccallfinish P=xrpcCallPoll(R->Call);if(P==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
-            if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
+            if(P!=XRPC_CALL_PENDING){
+                if(P==XRPC_CALL_FINISHED)xrpcDuplexAbandonSent(D,R);
+                xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
+            }
             /* A started frame must reach its boundary or the whole output
              * direction must be discarded. Unstarted requests need no write. */
             else if(D->InputEnded && (!R->Started || R->Sent))
@@ -538,7 +776,7 @@ static bool xrpcDuplexWorkClose(xrpcduplex* D)
     if(!xrpcDuplexIsClosing(D))return false;
     if(!D->CancelStarted){D->CancelStarted=true;D->CancelScan=D->Jobs;}
     if(D->CancelScan){xrpcduplexjob* J=D->CancelScan;D->CancelScan=J->Next;
-        J->CancelIssued=true;xrtFutureCancel(J->Future);return true;}
+        if(!J->CancelIssued){J->CancelIssued=true;xrtFutureCancel(J->Future);}return true;}
     if(D->OutputHead){if(D->OutputHead->Request)D->OutputHead->Request->Output=NULL;
         xrpcDuplexUnqueue(D,D->OutputHead);return true;}
     return false;
@@ -571,7 +809,9 @@ XRPC_API bool xrpcDuplexStep(xrpcduplex* D)
     D->More|=D->Scan!=NULL || (D->DeadlineCount && D->Deadlines[0]->Deadline<=Now);
     xrtMutexLock(&D->Gate);D->More|=D->SubmitHead!=NULL || (!Blocked && D->ReadyHead!=NULL) || (!FallbackBlocked && D->FallbackHead!=NULL);
     if(D->Closing)D->More|=D->OutputHead!=NULL || !D->CancelStarted || D->CancelScan!=NULL;
-    xrtMutexUnlock(&D->Gate);D->Busy=false;return OK;
+    xrtMutexUnlock(&D->Gate);
+    xrpcDuplexObserveCancelOffer(D);
+    D->Busy=false;return OK;
 }
 XRPC_API int xrpcDuplexNext(xrpcduplex* D,xrpcduplexoutput** Output,uint64* Token)
 {
@@ -595,7 +835,9 @@ XRPC_API bool xrpcDuplexStarted(xrpcduplex* D,uint64 Token)
     if(Token && Token==D->SelectedToken && D->Selection && !xrpcDuplexIsClosing(D)){
         xrpcduplexrequest* R=D->Selection->Request;
         if(!R)OK=true;
-        else if(!R->Started && !D->InputEnded && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){OK=xrpcCallMarkSent(R->Call);R->Started=OK;}
+        else if(!R->Started && !D->InputEnded && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){
+            OK=xrpcCallMarkSent(R->Call);R->Started=OK;R->TrackCancel=OK && D->SendCancel;
+        }
         else OK=R->Started;
     }
     if(OK)D->Selection->Started=true;
@@ -608,6 +850,7 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* D,uint64 Token)
     if(Token && Token==D->SelectedToken && O && !xrpcDuplexIsClosing(D)){
         xrpcduplexrequest* R=O->Request;
         if(O->Started && (!R || R->Started)){if(R){R->Sent=true;R->Output=NULL;}
+            if(O->CancelAck)D->ReceiveCancel=true;
             xrpcDuplexUnqueue(D,O);OK=true;
             if(R && (!R->Replies || D->InputEnded)){
                 xrpcDuplexPrepareFinish(D,R,R->Replies?XRPC_CALL_TRANSPORT:XRPC_CALL_NOTIFY_DONE);
@@ -643,6 +886,7 @@ XRPC_API bool xrpcDuplexDestroy(xrpcduplex* D)
     if(D->Busy)return xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC duplex destruction during owner callback");
     xrpcduplexinfo I={0};I.Size=sizeof(I);if(!xrpcDuplexInfo(D,&I))return false;
     if(!I.Drained)return xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC duplex close duties still live");
+    xrtFutureDestroy(D->CancelOffer);xrpcPendingDestroy(D->CancelJobs);
     xrpcPendingDestroy(D->Pending);xrpcResultQuotaRelease(D->Control);xrpcResultQuotaRelease(D->Wire);xrpcResultQuotaRelease(D->Results);
     xrtMutexUnit(&D->Gate);xrtFree(D);return true;
 }

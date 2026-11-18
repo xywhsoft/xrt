@@ -1,0 +1,1565 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "903ac84241dfee1639f06341ce20c7e2073e58fc",
+  "source_lf_sha256": {
+    "extlibs/xrpc/config/modules.json": "4e5f279e93716abe24b824e0e3f40fb8c2ef16fcc63b375c10d38516c3787011",
+    "extlibs/xrpc/include/xrpc/duplex.h": "36ab532079ddb1a7920174e838412dfb437c411c0ed7bfa6ec05170ab6bf5a82",
+    "extlibs/xrpc/include/xrpc/stdio.h": "e615cd6858b9594db4faadbb1bd9b6a1fd40482ff3b34d3f4966f1ac5f408afa",
+    "extlibs/xrpc/src/duplex/duplex.c": "8b1b1a85dcf7507e3aee5a9a427087235d7a58ecf15d93821c7e01ec0f8fbfb3",
+    "extlibs/xrpc/src/stdio/stdio.c": "e0d3a2ce0d12f35fa611cd1acea53b8684201cc28a2bb6f0e673d90516c332bb",
+    "extlibs/xrpc/examples/duplex/main.c": "c51631642c82f0a8074560ce46bdea257e5d659fa746a3e5e6b5b8ec8f5bd653",
+    "extlibs/xrpc/tests/test_duplex.c": "73c8b14961ce08807087ec87085c9ab11694f8a9bd574e77333a333db020c461",
+    "extlibs/xrpc/tests/test_stdio_process.c": "21dfc0dc540dcd680e96c7e1b0d0b3db4e944555da2dc8c4fef0a54102524896",
+    "extlibs/xrpc/tests/package/test_consumer.c": "75adc92d626b694fcb2b748d5eac7f58e8c63553d1a3b99c934aa800fb0a32ec",
+    "extlibs/xrpc/tests/interop/run_stdio_process.py": "14f200249b4832f07e367c7e08e08308533fa7bda8f270abda4b06775a8814bb",
+    "single/extlibs/xrpc.h": "ce45da356125a5c535c20327586e59dd8b6f977bbeaa48bab658275910aa16a4",
+    "single/extlibs/xrpc_decl.h": "619826468633448b44239350c6c57e41d00c772db3395e530300f464f08f01f6"
+  },
+  "raw_directory": "out/service-extensions/xrpc-cancel-20261119",
+  "scope": "Opt-in connection-local v1 cooperative abandonment on duplex and framed stdio.",
+  "verified_cases": [
+    "One ordered capability offer, true acknowledgement, standard legacy error and pre-ack control ignored.",
+    "Whole-batch cancellation, local deadline abandonment, escaped and repeated IDs, known and unknown targets.",
+    "Queue priority, incomplete send teardown, cancellation wire-quota failure, real subprocess checks in both frame formats.",
+    "Duplicate live ID and control mixed into a batch rejected before business. Cancellation index allocation rollback."
+  ],
+  "platforms": {
+    "windows": {
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "aggregate": {
+        "file": "root-windows.log",
+        "sha256": "c2c9748b46002d7f99c270ca853fe24f49f9c6fd1a4b6960b421f5db80cc36c2",
+        "programs_passed": 63
+      },
+      "final_selected_cancellation": {
+        "file": "final-target-windows.log",
+        "sha256": "2546f5a249b06bc3d3b943537fbeb39baca63b50721016db2af9f28b4bda0c45",
+        "programs_passed": 4
+      },
+      "example": {
+        "file": "example-windows.log",
+        "sha256": "0f07e3bce6bfa1534a7371840ae4129f2a1110bf022a9742f3a893029b0464a1",
+        "programs_passed": 1
+      },
+      "native_peer_example": {
+        "file": "candidate-windows.log",
+        "sha256": "3836cd61bc4c83439e977bd41a3a2d48acbe536c96dbff566b031a0777e0302d",
+        "programs_passed": 2
+      },
+      "packages": {
+        "xrpc_duplex_static": {
+          "file": "package-windows-xrpc_duplex-static.log",
+          "sha256": "35af7af4d2b113681cabb1df26b6dbfc218278069d28977677bcedcc769f516a"
+        },
+        "xrpc_duplex_shared": {
+          "file": "package-windows-xrpc_duplex-shared.log",
+          "sha256": "f8aa45fdb90fa27fd4d67c62120ecd04be0f9e3e2cb09e2d4993b26dc572bd0e"
+        },
+        "xrpc_static": {
+          "file": "package-windows-xrpc-static.log",
+          "sha256": "24b885f29bd035a7406baaf5812d7cc9ab4fb42e83290ec5f4d4e4160caeafb5"
+        },
+        "xrpc_shared": {
+          "file": "package-windows-xrpc-shared.log",
+          "sha256": "038b47bedbbf8a357820337dfaf7afa369543a5aa431a0070a364c8280b71021"
+        }
+      },
+      "trim": {
+        "artifact": {
+          "file": "size-windows.json",
+          "sha256": "6d46f7a62b1d76cfe5bf134a4dec2639364919e606a71aef94c93202f62adf27"
+        },
+        "single_object_sections": {
+          "xrpc_duplex": {
+            "text": 392464,
+            "data": 2712,
+            "bss": 11136,
+            "file": 584149,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio": {
+            "text": 410812,
+            "data": 2712,
+            "bss": 11136,
+            "file": 606790,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 447108,
+            "data": 2712,
+            "bss": 11168,
+            "file": 657397,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "ordinary_path_ab": {
+        "artifact": {
+          "file": "perf-windows.json",
+          "sha256": "422c38f8da3e0b3438e3091d6715f3ef9f4e6dabe2c6aea5559b292b905c7fa6"
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.12.10",
+        "executable_sha256": {
+          "baseline": "bc8d096d2ed8bcb5c7a227dccf5cf1391dcdb4c104d950a1e10a6711472fb21a",
+          "candidate": "1d3e456a77c2268023d31d2f934fbd62b479097e48cbdd0c465866a6dc17c34c"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 85335.556,
+                "p50_us": 216.0,
+                "p95_us": 328.0,
+                "p99_us": 394.0,
+                "p999_us": 441.2
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 86093.648,
+                "p50_us": 211.5,
+                "p95_us": 320.4,
+                "p99_us": 403.7,
+                "p999_us": 454.2
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 84605.811,
+                "p50_us": 219.2,
+                "p95_us": 333.7,
+                "p99_us": 401.2,
+                "p999_us": 468.7
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 87606.822,
+                "p50_us": 209.2,
+                "p95_us": 309.3,
+                "p99_us": 369.0,
+                "p999_us": 445.5
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 82958.558,
+                "p50_us": 222.5,
+                "p95_us": 353.6,
+                "p99_us": 421.0,
+                "p999_us": 548.4
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 87105.013,
+                "p50_us": 211.8,
+                "p95_us": 310.5,
+                "p99_us": 379.7,
+                "p999_us": 496.5
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 84282.437,
+                "p50_us": 214.4,
+                "p95_us": 332.2,
+                "p99_us": 399.9,
+                "p999_us": 482.7
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 81236.396,
+                "p50_us": 227.0,
+                "p95_us": 354.9,
+                "p99_us": 428.3,
+                "p999_us": 607.9
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 88196.124,
+                "p50_us": 208.5,
+                "p95_us": 305.0,
+                "p99_us": 370.3,
+                "p999_us": 460.1
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 74423.337,
+                "p50_us": 244.0,
+                "p95_us": 426.0,
+                "p99_us": 587.3,
+                "p999_us": 699.6
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 91806.865,
+                "p50_us": 202.0,
+                "p95_us": 296.2,
+                "p99_us": 364.6,
+                "p999_us": 555.7
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 90929.777,
+                "p50_us": 203.1,
+                "p95_us": 299.4,
+                "p99_us": 377.9,
+                "p999_us": 430.5
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 90971.48,
+                "p50_us": 201.8,
+                "p95_us": 301.0,
+                "p99_us": 378.0,
+                "p999_us": 487.2
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 92217.878,
+                "p50_us": 199.7,
+                "p95_us": 294.1,
+                "p99_us": 366.1,
+                "p999_us": 414.6
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 89607.519,
+                "p50_us": 204.4,
+                "p95_us": 311.1,
+                "p99_us": 375.0,
+                "p999_us": 415.3
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 88758.198,
+                "p50_us": 206.6,
+                "p95_us": 331.7,
+                "p99_us": 397.4,
+                "p999_us": 490.8
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 91502.815,
+                "p50_us": 201.9,
+                "p95_us": 295.5,
+                "p99_us": 362.4,
+                "p999_us": 410.4
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 90289.374,
+                "p50_us": 203.8,
+                "p95_us": 304.7,
+                "p99_us": 379.1,
+                "p999_us": 446.0
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 91298.858,
+                "p50_us": 201.5,
+                "p95_us": 298.9,
+                "p99_us": 363.5,
+                "p999_us": 407.7
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 86621.742,
+                "p50_us": 211.8,
+                "p95_us": 339.2,
+                "p99_us": 484.9,
+                "p999_us": 672.9
+              }
+            ]
+          }
+        }
+      },
+      "ordinary_path_ab_extended": {
+        "artifact": {
+          "file": "perf-extended-windows.json",
+          "sha256": "68965b9ba9fe3d020d885da22fde2d1d25594955149dd31652c33291edd91996"
+        },
+        "median": {
+          "text": {
+            "calls_per_sec": {
+              "baseline": 87621.83350000001,
+              "candidate": 87860.4485
+            },
+            "p99_us": {
+              "baseline": 381.4,
+              "candidate": 377.25
+            },
+            "p999_us": {
+              "baseline": 510.0,
+              "candidate": 508.4
+            }
+          },
+          "be": {
+            "calls_per_sec": {
+              "baseline": 93277.182,
+              "candidate": 92775.5175
+            },
+            "p99_us": {
+              "baseline": 328.04999999999995,
+              "candidate": 351.54999999999995
+            },
+            "p999_us": {
+              "baseline": 464.95,
+              "candidate": 450.95000000000005
+            }
+          }
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.12.10",
+        "executable_sha256": {
+          "baseline": "bc8d096d2ed8bcb5c7a227dccf5cf1391dcdb4c104d950a1e10a6711472fb21a",
+          "candidate": "1d3e456a77c2268023d31d2f934fbd62b479097e48cbdd0c465866a6dc17c34c"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 85857.826,
+                "p50_us": 209.0,
+                "p95_us": 326.8,
+                "p99_us": 464.9,
+                "p999_us": 566.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89214.1,
+                "p50_us": 207.4,
+                "p95_us": 302.7,
+                "p99_us": 355.2,
+                "p999_us": 433.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89087.756,
+                "p50_us": 207.7,
+                "p95_us": 302.1,
+                "p99_us": 377.2,
+                "p999_us": 446.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89134.502,
+                "p50_us": 207.4,
+                "p95_us": 301.9,
+                "p99_us": 371.1,
+                "p999_us": 504.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 87459.604,
+                "p50_us": 209.7,
+                "p95_us": 308.1,
+                "p99_us": 385.6,
+                "p999_us": 524.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 87784.063,
+                "p50_us": 209.3,
+                "p95_us": 307.9,
+                "p99_us": 366.8,
+                "p999_us": 463.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 86290.983,
+                "p50_us": 211.5,
+                "p95_us": 316.0,
+                "p99_us": 398.1,
+                "p999_us": 579.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 86222.979,
+                "p50_us": 213.4,
+                "p95_us": 325.0,
+                "p99_us": 402.1,
+                "p999_us": 516.0
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88631.678,
+                "p50_us": 208.5,
+                "p95_us": 303.8,
+                "p99_us": 366.3,
+                "p999_us": 476.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89441.713,
+                "p50_us": 207.3,
+                "p95_us": 302.5,
+                "p99_us": 389.3,
+                "p999_us": 579.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88106.556,
+                "p50_us": 210.3,
+                "p95_us": 305.5,
+                "p99_us": 371.8,
+                "p999_us": 505.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 87068.976,
+                "p50_us": 209.8,
+                "p95_us": 315.8,
+                "p99_us": 390.6,
+                "p999_us": 510.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89348.501,
+                "p50_us": 207.8,
+                "p95_us": 302.0,
+                "p99_us": 347.5,
+                "p999_us": 430.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84035.467,
+                "p50_us": 223.2,
+                "p95_us": 336.8,
+                "p99_us": 410.5,
+                "p999_us": 587.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 87614.341,
+                "p50_us": 211.0,
+                "p95_us": 308.9,
+                "p99_us": 373.6,
+                "p999_us": 520.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 87355.22,
+                "p50_us": 209.3,
+                "p95_us": 309.8,
+                "p99_us": 380.9,
+                "p999_us": 460.1
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 93595.795,
+                "p50_us": 196.6,
+                "p95_us": 286.2,
+                "p99_us": 325.4,
+                "p999_us": 487.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 93124.879,
+                "p50_us": 194.7,
+                "p95_us": 289.2,
+                "p99_us": 306.7,
+                "p999_us": 403.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 93429.485,
+                "p50_us": 193.9,
+                "p95_us": 287.7,
+                "p99_us": 312.6,
+                "p999_us": 392.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 85660.718,
+                "p50_us": 213.9,
+                "p95_us": 348.5,
+                "p99_us": 472.7,
+                "p999_us": 620.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92888.481,
+                "p50_us": 197.3,
+                "p95_us": 287.2,
+                "p99_us": 355.1,
+                "p999_us": 530.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 93519.852,
+                "p50_us": 194.6,
+                "p95_us": 286.1,
+                "p99_us": 330.7,
+                "p999_us": 444.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92020.595,
+                "p50_us": 199.8,
+                "p95_us": 290.9,
+                "p99_us": 353.7,
+                "p999_us": 485.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 94103.484,
+                "p50_us": 195.2,
+                "p95_us": 284.7,
+                "p99_us": 325.1,
+                "p999_us": 423.0
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92711.11,
+                "p50_us": 198.2,
+                "p95_us": 288.6,
+                "p99_us": 349.4,
+                "p999_us": 442.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92839.925,
+                "p50_us": 199.0,
+                "p95_us": 288.9,
+                "p99_us": 337.4,
+                "p999_us": 412.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92922.83,
+                "p50_us": 198.4,
+                "p95_us": 287.7,
+                "p99_us": 353.7,
+                "p999_us": 459.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 91020.882,
+                "p50_us": 202.9,
+                "p95_us": 294.1,
+                "p99_us": 356.3,
+                "p999_us": 469.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 91095.073,
+                "p50_us": 200.8,
+                "p95_us": 291.1,
+                "p99_us": 416.2,
+                "p999_us": 657.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 92856.499,
+                "p50_us": 197.3,
+                "p95_us": 288.1,
+                "p99_us": 345.0,
+                "p999_us": 412.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 91832.954,
+                "p50_us": 200.1,
+                "p95_us": 291.4,
+                "p99_us": 356.0,
+                "p999_us": 467.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 93480.02,
+                "p50_us": 194.7,
+                "p95_us": 287.5,
+                "p99_us": 311.8,
+                "p999_us": 403.4
+              }
+            ]
+          }
+        }
+      },
+      "ordinary_path_ab_uint32_be_retest": {
+        "artifact": {
+          "file": "perf-confirm-windows-be.json",
+          "sha256": "d1344938ba0e78e10f21a173ff788fa0682e700e7206d28546c2845cfd51b9f8"
+        },
+        "median": {
+          "be": {
+            "calls_per_sec": {
+              "baseline": 93176.89199999999,
+              "candidate": 93835.0185
+            },
+            "p99_us": {
+              "baseline": 341.29999999999995,
+              "candidate": 333.4
+            },
+            "p999_us": {
+              "baseline": 456.5,
+              "candidate": 443.0
+            }
+          }
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.12.10",
+        "executable_sha256": {
+          "baseline": "bc8d096d2ed8bcb5c7a227dccf5cf1391dcdb4c104d950a1e10a6711472fb21a",
+          "candidate": "1d3e456a77c2268023d31d2f934fbd62b479097e48cbdd0c465866a6dc17c34c"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "be": {
+            "baseline": [
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93403.2,
+                "p50_us": 194.6,
+                "p95_us": 287.1,
+                "p99_us": 329.7,
+                "p999_us": 445.0
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93348.852,
+                "p50_us": 194.8,
+                "p95_us": 287.6,
+                "p99_us": 331.6,
+                "p999_us": 424.7
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93424.464,
+                "p50_us": 196.8,
+                "p95_us": 286.2,
+                "p99_us": 346.7,
+                "p999_us": 450.6
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 89370.494,
+                "p50_us": 203.6,
+                "p95_us": 313.6,
+                "p99_us": 441.8,
+                "p999_us": 771.6
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 89407.376,
+                "p50_us": 204.1,
+                "p95_us": 314.3,
+                "p99_us": 398.0,
+                "p999_us": 676.4
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94478.686,
+                "p50_us": 193.2,
+                "p95_us": 283.6,
+                "p99_us": 314.7,
+                "p999_us": 405.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93004.932,
+                "p50_us": 194.3,
+                "p95_us": 288.7,
+                "p99_us": 333.0,
+                "p999_us": 414.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 91751.738,
+                "p50_us": 200.9,
+                "p95_us": 296.5,
+                "p99_us": 376.3,
+                "p999_us": 530.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 92704.487,
+                "p50_us": 197.2,
+                "p95_us": 288.3,
+                "p99_us": 358.5,
+                "p999_us": 473.0
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94925.438,
+                "p50_us": 194.0,
+                "p95_us": 281.9,
+                "p99_us": 327.8,
+                "p999_us": 407.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 92350.635,
+                "p50_us": 195.8,
+                "p95_us": 290.6,
+                "p99_us": 335.9,
+                "p999_us": 462.4
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93648.892,
+                "p50_us": 195.0,
+                "p95_us": 284.9,
+                "p99_us": 348.6,
+                "p999_us": 508.0
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93727.819,
+                "p50_us": 194.1,
+                "p95_us": 285.6,
+                "p99_us": 318.7,
+                "p999_us": 414.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94405.723,
+                "p50_us": 194.2,
+                "p95_us": 283.3,
+                "p99_us": 328.9,
+                "p999_us": 448.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94057.713,
+                "p50_us": 192.8,
+                "p95_us": 285.0,
+                "p99_us": 306.6,
+                "p999_us": 437.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 92904.111,
+                "p50_us": 198.3,
+                "p95_us": 287.2,
+                "p99_us": 357.2,
+                "p999_us": 462.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93828.368,
+                "p50_us": 195.7,
+                "p95_us": 285.3,
+                "p99_us": 335.7,
+                "p999_us": 421.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93841.669,
+                "p50_us": 193.4,
+                "p95_us": 285.5,
+                "p99_us": 331.1,
+                "p999_us": 438.4
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94361.016,
+                "p50_us": 194.3,
+                "p95_us": 283.9,
+                "p99_us": 328.3,
+                "p999_us": 422.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 94250.783,
+                "p50_us": 195.4,
+                "p95_us": 283.4,
+                "p99_us": 345.6,
+                "p999_us": 469.4
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 91661.062,
+                "p50_us": 201.5,
+                "p95_us": 294.6,
+                "p99_us": 363.4,
+                "p999_us": 519.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93967.045,
+                "p50_us": 195.3,
+                "p95_us": 284.6,
+                "p99_us": 342.0,
+                "p999_us": 447.6
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 93353.559,
+                "p50_us": 194.8,
+                "p95_us": 287.7,
+                "p99_us": 315.2,
+                "p999_us": 403.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 92916.941,
+                "p50_us": 196.2,
+                "p95_us": 287.9,
+                "p99_us": 346.3,
+                "p999_us": 474.5
+              }
+            ]
+          }
+        }
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "aggregate": {
+        "file": "root-wsl.log",
+        "sha256": "c182555badce3c104265b70f0db49abeb1856fa71885120cae7bc25f615a4e6a",
+        "programs_passed": 63
+      },
+      "final_selected_cancellation": {
+        "file": "final-target-wsl.log",
+        "sha256": "622f2c87e867ec9d91be62a87408305595401bce49f632e0ffd5074328892966",
+        "programs_passed": 4
+      },
+      "example": {
+        "file": "example-wsl.log",
+        "sha256": "12cb83a3fc526fc37cbd0cfbe154c0df739fd4c56a6cd3b172b028dc70b7e594",
+        "programs_passed": 1
+      },
+      "native_peer_example": {
+        "file": "candidate-wsl.log",
+        "sha256": "d7417fea49f6659d4462c8635e3beb90023fd21dafdf9bdf38bc31c81791e0c2",
+        "programs_passed": 2
+      },
+      "packages": {
+        "xrpc_duplex_static": {
+          "file": "package-wsl-xrpc_duplex-static.log",
+          "sha256": "84e8a354bc54cabadf0614bb6e698e69f6340fbd2fb5f2d200f92c644c45e464"
+        },
+        "xrpc_duplex_shared": {
+          "file": "package-wsl-xrpc_duplex-shared.log",
+          "sha256": "c1a562665a59fd48e4063fc01f0af0a69a4b4f7ceb8be384d5d438a2ed959ac5"
+        },
+        "xrpc_static": {
+          "file": "package-wsl-xrpc-static.log",
+          "sha256": "821337ab88ae22498d32f92c537d0cd7c5acd74a7ae0147cbfa4796ae9fc8faf"
+        },
+        "xrpc_shared": {
+          "file": "package-wsl-xrpc-shared.log",
+          "sha256": "d9cce15e56cc236a0b80302c857f39695acd9aec5bb0cd9ea5d2bcdcd55f230b"
+        }
+      },
+      "trim": {
+        "artifact": {
+          "file": "size-wsl.json",
+          "sha256": "17c910863ef05a3d9362389f3f2673a6e16b78ab1e6281eea4e7665c6b97bfac"
+        },
+        "single_object_sections": {
+          "xrpc_duplex": {
+            "text": 409555,
+            "data": 4472,
+            "bss": 10948,
+            "file": 726672,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio": {
+            "text": 428702,
+            "data": 4472,
+            "bss": 10948,
+            "file": 754168,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 460760,
+            "data": 4552,
+            "bss": 10948,
+            "file": 813672,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "ordinary_path_ab": {
+        "artifact": {
+          "file": "perf-wsl.json",
+          "sha256": "c7a6583eb8819e4950e05d9f1168acdc183f2eb7416d104fba40b21ea637e6c0"
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.14.4",
+        "executable_sha256": {
+          "baseline": "09f9db398235788cd7e428eec599fc7fa7efeeba096b15bbb8be15a21c2ab2bb",
+          "candidate": "b374ed4bedfd83de9c74d003701ce568fda7c929184ecf9e9d3e278baecd951a"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 69257.859,
+                "p50_us": 251.1,
+                "p95_us": 436.3,
+                "p99_us": 618.6,
+                "p999_us": 706.8
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 73000.113,
+                "p50_us": 242.7,
+                "p95_us": 393.1,
+                "p99_us": 669.5,
+                "p999_us": 1105.9
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 70405.404,
+                "p50_us": 241.9,
+                "p95_us": 438.9,
+                "p99_us": 648.3,
+                "p999_us": 767.6
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 70050.02,
+                "p50_us": 253.4,
+                "p95_us": 448.1,
+                "p99_us": 630.6,
+                "p999_us": 758.4
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 69605.407,
+                "p50_us": 248.6,
+                "p95_us": 393.8,
+                "p99_us": 628.0,
+                "p999_us": 970.8
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 74376.373,
+                "p50_us": 240.8,
+                "p95_us": 396.4,
+                "p99_us": 546.3,
+                "p999_us": 722.4
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 72021.884,
+                "p50_us": 249.4,
+                "p95_us": 405.5,
+                "p99_us": 630.2,
+                "p999_us": 752.8
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 69432.846,
+                "p50_us": 251.9,
+                "p95_us": 432.1,
+                "p99_us": 640.3,
+                "p999_us": 808.9
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 66473.216,
+                "p50_us": 248.2,
+                "p95_us": 433.5,
+                "p99_us": 648.1,
+                "p999_us": 901.1
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 69554.11,
+                "p50_us": 252.7,
+                "p95_us": 432.9,
+                "p99_us": 623.3,
+                "p999_us": 755.3
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 76847.378,
+                "p50_us": 237.4,
+                "p95_us": 377.5,
+                "p99_us": 497.6,
+                "p999_us": 673.6
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 75624.834,
+                "p50_us": 236.9,
+                "p95_us": 382.0,
+                "p99_us": 581.1,
+                "p999_us": 728.2
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 70314.878,
+                "p50_us": 247.2,
+                "p95_us": 434.2,
+                "p99_us": 625.4,
+                "p999_us": 740.5
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 74242.505,
+                "p50_us": 241.1,
+                "p95_us": 410.1,
+                "p99_us": 569.7,
+                "p999_us": 692.1
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 71686.278,
+                "p50_us": 244.2,
+                "p95_us": 412.9,
+                "p99_us": 590.8,
+                "p999_us": 712.1
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 74298.191,
+                "p50_us": 241.3,
+                "p95_us": 379.1,
+                "p99_us": 587.5,
+                "p999_us": 877.1
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 73556.676,
+                "p50_us": 247.7,
+                "p95_us": 416.0,
+                "p99_us": 588.0,
+                "p999_us": 780.701
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 77719.491,
+                "p50_us": 236.0,
+                "p95_us": 361.1,
+                "p99_us": 498.8,
+                "p999_us": 984.2
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 81457.156,
+                "p50_us": 224.5,
+                "p95_us": 352.9,
+                "p99_us": 481.1,
+                "p999_us": 756.5
+              },
+              {
+                "calls": 8192.0,
+                "window": 32.0,
+                "calls_per_sec": 72623.66,
+                "p50_us": 241.0,
+                "p95_us": 411.3,
+                "p99_us": 617.0,
+                "p999_us": 781.2
+              }
+            ]
+          }
+        }
+      },
+      "ordinary_path_ab_extended": {
+        "artifact": {
+          "file": "perf-extended-wsl.json",
+          "sha256": "bf3d2340bcd6bc228f45b7820ac07975dabf26f32776af13104537a3e808d8e3"
+        },
+        "median": {
+          "text": {
+            "calls_per_sec": {
+              "baseline": 71249.187,
+              "candidate": 70855.8215
+            },
+            "p99_us": {
+              "baseline": 600.5,
+              "candidate": 580.5
+            },
+            "p999_us": {
+              "baseline": 794.05,
+              "candidate": 774.8
+            }
+          },
+          "be": {
+            "calls_per_sec": {
+              "baseline": 73811.2665,
+              "candidate": 73834.661
+            },
+            "p99_us": {
+              "baseline": 555.0,
+              "candidate": 552.8
+            },
+            "p999_us": {
+              "baseline": 765.2,
+              "candidate": 781.2
+            }
+          }
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.14.4",
+        "executable_sha256": {
+          "baseline": "09f9db398235788cd7e428eec599fc7fa7efeeba096b15bbb8be15a21c2ab2bb",
+          "candidate": "b374ed4bedfd83de9c74d003701ce568fda7c929184ecf9e9d3e278baecd951a"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71513.935,
+                "p50_us": 247.4,
+                "p95_us": 415.1,
+                "p99_us": 605.7,
+                "p999_us": 766.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71614.323,
+                "p50_us": 249.5,
+                "p95_us": 418.3,
+                "p99_us": 620.0,
+                "p999_us": 795.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70875.291,
+                "p50_us": 242.9,
+                "p95_us": 410.7,
+                "p99_us": 600.7,
+                "p999_us": 1110.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69149.095,
+                "p50_us": 251.6,
+                "p95_us": 423.6,
+                "p99_us": 597.7,
+                "p999_us": 792.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70984.439,
+                "p50_us": 250.8,
+                "p95_us": 420.1,
+                "p99_us": 600.3,
+                "p999_us": 809.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73438.953,
+                "p50_us": 259.9,
+                "p95_us": 386.7,
+                "p99_us": 521.0,
+                "p999_us": 727.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73021.764,
+                "p50_us": 246.5,
+                "p95_us": 396.2,
+                "p99_us": 504.1,
+                "p999_us": 746.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69834.074,
+                "p50_us": 251.5,
+                "p95_us": 420.0,
+                "p99_us": 621.6,
+                "p999_us": 797.8
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71319.187,
+                "p50_us": 244.8,
+                "p95_us": 412.9,
+                "p99_us": 528.3,
+                "p999_us": 749.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69745.964,
+                "p50_us": 252.7,
+                "p95_us": 429.4,
+                "p99_us": 629.3,
+                "p999_us": 807.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73980.204,
+                "p50_us": 244.7,
+                "p95_us": 391.1,
+                "p99_us": 499.6,
+                "p999_us": 741.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69978.71,
+                "p50_us": 254.6,
+                "p95_us": 417.6,
+                "p99_us": 616.2,
+                "p999_us": 912.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71634.597,
+                "p50_us": 245.3,
+                "p95_us": 407.1,
+                "p99_us": 600.7,
+                "p999_us": 778.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72949.261,
+                "p50_us": 253.2,
+                "p95_us": 398.8,
+                "p99_us": 560.3,
+                "p999_us": 760.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70392.456,
+                "p50_us": 245.4,
+                "p95_us": 415.1,
+                "p99_us": 520.4,
+                "p999_us": 771.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70253.626,
+                "p50_us": 249.7,
+                "p95_us": 422.0,
+                "p99_us": 619.9,
+                "p999_us": 910.0
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72069.853,
+                "p50_us": 249.0,
+                "p95_us": 401.6,
+                "p99_us": 567.7,
+                "p999_us": 749.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 75568.609,
+                "p50_us": 247.5,
+                "p95_us": 386.7,
+                "p99_us": 506.6,
+                "p999_us": 679.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72707.811,
+                "p50_us": 242.5,
+                "p95_us": 388.5,
+                "p99_us": 550.7,
+                "p999_us": 915.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73888.404,
+                "p50_us": 240.0,
+                "p95_us": 395.3,
+                "p99_us": 543.4,
+                "p999_us": 750.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 74524.386,
+                "p50_us": 237.3,
+                "p95_us": 394.9,
+                "p99_us": 605.9,
+                "p999_us": 834.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72911.084,
+                "p50_us": 246.7,
+                "p95_us": 392.5,
+                "p99_us": 596.7,
+                "p999_us": 779.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73801.349,
+                "p50_us": 239.7,
+                "p95_us": 388.1,
+                "p99_us": 559.3,
+                "p999_us": 788.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73821.184,
+                "p50_us": 246.1,
+                "p95_us": 381.401,
+                "p99_us": 525.6,
+                "p999_us": 721.1
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73706.017,
+                "p50_us": 248.4,
+                "p95_us": 387.9,
+                "p99_us": 544.9,
+                "p999_us": 806.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 74344.803,
+                "p50_us": 246.8,
+                "p95_us": 382.7,
+                "p99_us": 560.7,
+                "p999_us": 825.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73963.305,
+                "p50_us": 244.5,
+                "p95_us": 380.5,
+                "p99_us": 536.9,
+                "p999_us": 726.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73367.282,
+                "p50_us": 253.0,
+                "p95_us": 399.4,
+                "p99_us": 587.6,
+                "p999_us": 814.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72636.67,
+                "p50_us": 256.9,
+                "p95_us": 395.8,
+                "p99_us": 593.6,
+                "p999_us": 807.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72809.247,
+                "p50_us": 248.4,
+                "p95_us": 394.6,
+                "p99_us": 570.8,
+                "p999_us": 749.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 75548.569,
+                "p50_us": 237.7,
+                "p95_us": 376.9,
+                "p99_us": 471.1,
+                "p999_us": 702.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 76079.399,
+                "p50_us": 240.1,
+                "p95_us": 377.6,
+                "p99_us": 516.0,
+                "p999_us": 756.2
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "wsl_sanitizers": {
+    "asan_ubsan_leaks": {
+      "file": "final-asan-wsl.log",
+      "sha256": "e38c06593946472ab8eab107ce8695c96c4db6cd1faf38d31ed85be456254678",
+      "programs_passed": 4
+    },
+    "tsan": {
+      "file": "final-tsan-wsl.log",
+      "sha256": "5656f0bdffd27d883f1082bc76c32acf45315c0befdfb0c7b08156b3e280f8fa",
+      "programs_passed": 1,
+      "compiler_option": "-Wno-error=tsan",
+      "limitation": "GCC does not instrument atomic_thread_fence."
+    }
+  },
+  "tooling": {
+    "file": "tooling.log",
+    "sha256": "8fa035e8308d2cd119fd7e0406fb5c5745bb95e926985d7dd500412e808b5591",
+    "tests": 26,
+    "api_functions": 185,
+    "missing_api_documents": 0
+  },
+  "strict_release": {
+    "file": "release-gate.log",
+    "sha256": "c4d17c783b778e9a82a5a3323307f424f431e723e49fd108fbc96df8854ab954",
+    "developing_modules": 20,
+    "passed": false
+  },
+  "measurement_scope": [
+    "Identical ordinary RPC fixture with no cancellation enabled on either side of either build.",
+    "Alternating A/B at window 32. Initial 5 x 8192, follow-up 8 x 32768 per profile and binary, plus 12 x 65536 for Windows UINT32_BE.",
+    "One C client and one Python child. Excludes process launch and first group. Measures owner collection and peer JSON/pipe time.",
+    "Short-run Windows and WSL samples with no production performance gate; no claim about negotiated workload overhead."
+  ],
+  "open": [
+    "Remote deadline propagation",
+    "adapter opt-in for TCP, TLS, WebSocket and HTTP",
+    "native Linux and sustained production qualification"
+  ]
+}

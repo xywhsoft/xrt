@@ -39,7 +39,7 @@ static bool rpcConsumerStdio(void)
     Config.Read=rpcConsumerStdioEof;
     Config.Write=rpcConsumerStdioWrite;
     xrpcstdio* S=NULL;
-    if(!xrpcStdioCreate(&Config,&S))return false;
+    if(!xrpcStdioCreate(&Config,&S) || !xrpcStdioEnableCancellation(S))return false;
     xrpcstdioinfo Info={.Size=sizeof(Info)};
     for(unsigned N=0;N<4;++N){
         if(!xrpcStdioStep(S) || !xrpcStdioInfo(S,&Info))return false;
@@ -47,6 +47,11 @@ static bool rpcConsumerStdio(void)
     }
     return false;
 }
+#endif
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+#define main cancelDuplexPackageExample
+#include "../../examples/duplex/main.c"
+#undef main
 #endif
 #if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
 #define main stdioProcessPackageExample
@@ -60,6 +65,9 @@ int main(int Argc,char** Argv)
     if(stdioProcessPackageExample(Argc,Argv))return 32;
 #else
     (void)Argc;(void)Argv;
+#endif
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+    if(cancelDuplexPackageExample())return 33;
 #endif
 #if defined(XRPC_FEATURE_XRPC_FRAME)
     if(framePackageExample())return 1;

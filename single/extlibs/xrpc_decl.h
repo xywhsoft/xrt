@@ -5056,6 +5056,16 @@ XRT_EXTERN_C_BEGIN
  * engine, timer, listener or shared runtime. NULL Server is client-only. */
 XRPC_API bool xrpcDuplexConfigInit(xrpcduplexconfig* Config);
 XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Result);
+/* Opt in on the serialized owner. A server endpoint reserves its bounded
+ * cancellation index from MaxFixedBytes. Disabled endpoints keep baseline
+ * JSON-RPC behavior. Enable is idempotent and a failed enable changes nothing. */
+XRPC_API bool xrpcDuplexEnableCancellation(xrpcduplex* Duplex);
+/* Owner-only, after Enable. One ordinary rpc.xrt.cancel.v1 call per attempt.
+ * A timely successful result of true authorizes outbound cancellation for
+ * requests whose first send starts afterward. Unsupported peers give a normal
+ * RPC error or false. At most one offer is pending and an agreed capability
+ * lasts through this connection. Only ACCEPTED writes the owned Future. */
+XRPC_API xrpcduplexadmission xrpcDuplexNegotiateCancellation(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
  * lock/validation/encoding. Only counter/range reservation and publication hold
@@ -5069,7 +5079,9 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
  * Dropping a Future does not cancel. Use native FutureCancel from any thread.
  * Batch has 1..Encode.MaxMessages items; notification indices are SIZE_MAX.
  * Success Future holds native call/batch result, independent of endpoint/server.
- * No replay. No remote cancellation/deadline extension is silently emitted. */
+ * No replay. Opted-in, negotiated cancellation abandons a fully sent call or
+ * batch when its local Future is cancelled or expires. No wire cancellation
+ * is sent for unsent requests, incomplete frames or notifications. */
 XRPC_API xrpcduplexadmission xrpcDuplexCall(xrpcduplex* Duplex,xstrview Method,
     xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcDuplexNotify(xrpcduplex* Duplex,xstrview Method,
@@ -5185,6 +5197,10 @@ XRT_EXTERN_C_BEGIN
  * Server and callback context must remain alive through Destroy. */
 XRPC_API bool xrpcStdioConfigInit(xrpcstdioconfig* Config);
 XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result);
+/* Serialized owner. Applies the duplex cancellation opt-in and offer to this
+ * framed channel, including a borrowed endpoint from the subprocess adapter. */
+XRPC_API bool xrpcStdioEnableCancellation(xrpcstdio* Stdio);
+XRPC_API xrpcduplexadmission xrpcStdioNegotiateCancellation(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
 /* Concurrent. Only ACCEPTED writes Future. Deadlines start at entry. The
  * transport stops accepting submissions when input EOF is observed. */
 XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);

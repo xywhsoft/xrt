@@ -48,6 +48,10 @@ XRT_EXTERN_C_BEGIN
  * Server and callback context must remain alive through Destroy. */
 XRPC_API bool xrpcStdioConfigInit(xrpcstdioconfig* Config);
 XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result);
+/* Serialized owner. Applies the duplex cancellation opt-in and offer to this
+ * framed channel, including a borrowed endpoint from the subprocess adapter. */
+XRPC_API bool xrpcStdioEnableCancellation(xrpcstdio* Stdio);
+XRPC_API xrpcduplexadmission xrpcStdioNegotiateCancellation(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
 /* Concurrent. Only ACCEPTED writes Future. Deadlines start at entry. The
  * transport stops accepting submissions when input EOF is observed. */
 XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);

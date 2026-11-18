@@ -79,6 +79,21 @@ XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result)
     return true;
 }
 
+XRPC_API bool xrpcStdioEnableCancellation(xrpcstdio* S)
+{
+    if(!S || S->Busy)return xrpcStdioReport(XERR_STATE,"invalid stdio cancellation owner entry");
+    return xrpcDuplexEnableCancellation(S->Duplex);
+}
+
+XRPC_API xrpcduplexadmission xrpcStdioNegotiateCancellation(xrpcstdio* S,int64 Timeout,xfuture** Future)
+{
+    if(!S || S->Busy || !Future || !xrpcStdioSpan(S,Future,sizeof(*Future))){
+        xrpcStdioReport(XERR_ARGUMENT,"invalid stdio cancellation offer");
+        return XRPC_DUPLEX_ERROR;
+    }
+    return xrpcDuplexNegotiateCancellation(S->Duplex,Timeout,Future);
+}
+
 static xrpcduplexadmission xrpcStdioSubmit(xrpcstdio* S,const xrpcduplexitem* Items,size_t Count,
     bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
