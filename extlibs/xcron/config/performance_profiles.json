@@ -3985,6 +3985,48 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_pause",
+      "system": "service",
+      "description": "Serial alternating pause/resume command round trips on a future UTC job",
+      "benchmarks": [
+        {
+          "name": "xcron_service_pause",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "10000",
+            "pause"
+          ],
+          "smoke_args": [
+            "1000",
+            "pause"
+          ],
+          "metrics": {
+            "pauses_per_sec": {
+              "direction": "higher",
+              "unit": "commands/s"
+            },
+            "pause_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pause_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pause_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pause_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -14864,3 +14864,52 @@ power-loss qualification remain open. The strict xcron release gate reports
 16 developing modules.
 [Service checkpoint contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-checkpoint-20261118.json).
+
+## 2026-11-18 Per-job pause and paused checkpoint recovery
+
+Pull and live schedulers now hold new leases for one job through an
+explicit pause. Outstanding leases and recurrence searches keep their
+existing duties. The held cursor leaves the heap and ready or overlap
+queues after any search finishes. On resume, configured misfire and
+overlap policies apply to its original position. Paused restore installs
+the hold inside owner-side admission, before an overdue cursor can
+dispatch. The hold is runtime state and preserves the existing wire format.
+
+The Windows and WSL tests verify unrelated job progress, no idle spin,
+selected search completion under a hold, saturated overlap, allocation
+refusal, stale and terminal jobs, and due successors remaining held after
+physical completion. Both restart runs restore a due job in the paused
+state, release it explicitly, and hold further leases when saving. The
+resulting files match the previous stage byte for byte. Module, single-header,
+static/shared and WSL address, undefined-behavior and leak checks pass.
+
+The local command profile uses alternating pause/resume on one future
+UTC job and five repeats of 10,000 serial commands. It measures command
+admission through collection. The table uses the median of each reported
+run statistic.
+
+| Host | Commands/s | P50 (us) | P95 (us) | P99 (us) | P99.9 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 507,053 | 1.500 | 9.500 | 9.600 | 13.300 |
+| WSL | 40,547 | 23.800 | 29.600 | 42.300 | 64.100 |
+
+Local command measurements exceeded configured repeatability limits.
+
+A paired pull-scheduler comparison uses the same compiler, XRT core,
+workload, and machine for the previous and current extension headers.
+Six alternating pairs per workload track ordinary lease publication
+and completion.
+
+| Host | Simultaneous jobs | Median paired throughput change | Median paired p99 change |
+| --- | ---: | ---: | ---: |
+| Windows | 1 | +0.1% | +0.0% |
+| Windows | 64 | +0.6% | -1.2% |
+| WSL | 1 | +0.0% | +0.0% |
+| WSL | 64 | +1.2% | +0.0% |
+
+These unpinned comparisons are exploratory. Automatic checkpoint
+scheduling, atomic multi-job persistence, power-loss qualification
+and native endurance remain open. The strict gate lists 16 developing
+xcron modules.
+[Service checkpoint contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-pause-checkpoint-20261118.json).

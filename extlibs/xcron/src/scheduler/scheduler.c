@@ -27,7 +27,7 @@ typedef struct xcronjobslot {
     uint64 Generation;
     uint32 Next,Previous,Position;
     xcronlocation Location;
-    bool Used,Initial;
+    bool Used,Initial,Paused;
 } xcronjobslot;
 typedef struct xcronrunslot {uint64 Generation;uint32 Job,Next;bool Used;} xcronrunslot;
 struct xcronscheduler {
@@ -192,6 +192,7 @@ static void xcronSchedulerPlace(xcronscheduler* S,uint32 I)
     if(J->Info.State==XCRON_JOB_SEARCHING){xcronSchedulerSearchAdd(S,I);return;}
     if(J->Initial){J->Location=XCRON_LOC_RUNNING;return;}
     if(J->Info.State!=XCRON_JOB_SCHEDULED){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);return;}
+    if(J->Paused){J->Location=XCRON_LOC_RUNNING;return;}
     if(J->Config.Overlap!=XCRON_OVERLAP_SKIP && J->Info.Running>=J->Config.RunningLimit){J->Location=XCRON_LOC_BLOCKED;++S->Stats.Blocked;}
     else if(S->Stats.HasClock && J->Info.Next<=S->Stats.LastClock.Wall)xcronSchedulerQueueAdd(S,I,false);
     else xcronSchedulerHeapAdd(S,I);
@@ -316,7 +317,7 @@ static bool xcronSchedulerAdmissionArgs(xcronscheduler* S,const xcronjobconfig* 
 }
 static uint32 xcronSchedulerAllocateJob(xcronscheduler* S,const xcronjobconfig* Config,bool Initial)
 {
-    uint32 I=S->FreeJob;xcronjobslot* J=&S->Jobs[I];S->FreeJob=J->Next;J->Used=true;J->Initial=Initial;J->Location=XCRON_LOC_RUNNING;J->Config=*Config;memset(&J->Info,0,sizeof(J->Info));
+    uint32 I=S->FreeJob;xcronjobslot* J=&S->Jobs[I];S->FreeJob=J->Next;J->Used=true;J->Initial=Initial;J->Paused=false;J->Location=XCRON_LOC_RUNNING;J->Config=*Config;memset(&J->Info,0,sizeof(J->Info));
     ++S->Stats.Jobs;if(S->Stats.Jobs>S->Stats.PeakJobs)S->Stats.PeakJobs=S->Stats.Jobs;return I;
 }
 static void xcronSchedulerFreeJob(xcronscheduler* S,uint32 I)
@@ -439,6 +440,23 @@ XCRON_API bool xcronSchedulerComplete(xcronscheduler* S,xcronrunid Id,xcronrunre
     if(!xcronSchedulerLive(J->Info.State)){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);}
     else if(J->Location==XCRON_LOC_BLOCKED && J->Info.Running<J->Config.RunningLimit){--S->Stats.Blocked;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
+}
+XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* S,xcronjobid Id,bool Paused,xcronschedulerissue* Issue)
+{
+    if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
+    uint32 I;
+    if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+    xcronjobslot* J=&S->Jobs[I];
+    if(xcronSchedulerLive(J->Info.State) && J->Paused!=Paused){
+        J->Paused=Paused;
+        if(J->Info.State==XCRON_JOB_SCHEDULED){
+            xcronSchedulerDetach(S,I);
+            xcronSchedulerPlace(S,I);
+        }
+    }
+    xcronSchedulerOK(Issue);
+    return true;
 }
 XCRON_API bool xcronSchedulerCancel(xcronscheduler* S,xcronjobid Id,xcronschedulerissue* Issue)
 {
@@ -635,8 +653,8 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid I
     return true;
 }
 
-XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* S,const xcronjobconfig* Config,
-    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Id,xcronschedulerissue* Issue)
+static bool xcronSchedulerRestoreMode(xcronscheduler* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,bool Paused,xcronjobid* Id,xcronschedulerissue* Issue)
 {
     void* O[]={Id,Issue};size_t N[]={sizeof(*Id),Issue?sizeof(*Issue):0};
     if(!S || !Key.Job || !Key.Revision || !Id ||
@@ -668,6 +686,7 @@ XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* S,const xcronjobc
     uint32 I=xcronSchedulerAllocateJob(S,Config,false);
     xcronjobslot* J=&S->Jobs[I];
     J->Info=Saved;
+    J->Paused=Saved.HasNext && Paused;
     if(S->Selected){
         if(Saved.HasNext)S->Selections[I]=Selection;
         else S->Selections[I]=(xcronoccurrencevalue){.Policy=Policy,.Status=XCRON_OCCURRENCE_NONE,.Work={.Field=XCRON_FIELD_NONE}};
@@ -677,5 +696,13 @@ XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* S,const xcronjobc
     xcronSchedulerOK(Issue);
     return true;
 }
+
+XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Id,xcronschedulerissue* Issue)
+{return xcronSchedulerRestoreMode(S,Config,Key,Checkpoint,false,Id,Issue);}
+
+XCRON_API bool xcronSchedulerRestorePausedCheckpoint(xcronscheduler* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Id,xcronschedulerissue* Issue)
+{return xcronSchedulerRestoreMode(S,Config,Key,Checkpoint,true,Id,Issue);}
 #endif
 #endif

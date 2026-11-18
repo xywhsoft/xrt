@@ -14,7 +14,8 @@ typedef bool (*xcronclockproc)(xcronclock* Clock,ptr Context);
 typedef enum xcronservicestate {XCRON_SERVICE_STARTING=0,XCRON_SERVICE_RUNNING,XCRON_SERVICE_STOPPING,XCRON_SERVICE_STOPPED,XCRON_SERVICE_FAILED} xcronservicestate;
 typedef enum xcronrequestkind {
     XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
-    XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT
+    XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT,
+    XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT
 } xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
@@ -126,6 +127,12 @@ XCRON_API bool xcronServiceCreate(const xcronserviceconfig* Config,xcronservice*
  * is published before transactional commit. Generation tickets remain occupied
  * until exactly one Collect. */
 XCRON_API bool xcronServiceAddAsync(xcronservice* Service,const xcronjobconfig* Config,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Uses ordinary tickets and collection in either mode. A successful pause
+ * reply fences new leases for this job. Previously published leases can still
+ * start, retry or finish; wait for their physical receipts before capture.
+ * Resume makes the preserved cursor eligible under the configured policies.
+ * Calls for terminal jobs leave their terminal state intact. */
+XCRON_API bool xcronServiceSetPausedAsync(xcronservice* Service,xcronjobid Job,bool Paused,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceCancelAsync(xcronservice* Service,xcronjobid Job,bool CancelRuns,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceInfoAsync(xcronservice* Service,xcronjobid Job,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceReapAsync(xcronservice* Service,xcronrequestid* Request,xcronserviceissue* Issue);

@@ -34,6 +34,60 @@ static void schedulerClean(xcronscheduler* S)
 static void schedulerError(bool Result,xcronschedulerissue* I,xcronschedulererror Code,cstr Text)
 {testRequire(!Result && I->Code==Code && xrtErrorCode(xrtGetError())==(int32)Code && !strcmp(xrtErrorDomain(xrtGetError()),"xrt.cron.scheduler"),Text);xrtClearError();}
 #include "scheduler_budget_cases.h"
+static void testSchedulerPause(void)
+{
+    xcronscheduler* S=schedulerCreate(2,2,32);
+    xcronzone* Z=schedulerZone("UTC0");
+    xcronjobconfig C=schedulerConfig(Z,0,10000);
+    C.Misfire=XCRON_MISFIRE_COALESCE;
+    xcronjobid Held=schedulerAdd(S,&C);
+    xcronrun R[2];
+    xcronpoll P=schedulerPoll(S,0,1,R,2);
+    testRequire(P.Count==1 && R[0].Job==Held,"first lease occupies the per-job limit");
+    xcronrunid Active=R[0].Id;
+    testRequire(xcronSchedulerSetPaused(S,Held,true,NULL) && xcronSchedulerSetPaused(S,Held,true,NULL),
+                "pause removes blocked cursor idempotently");
+    C=schedulerConfig(Z,2000,2000);
+    xcronjobid Other=schedulerAdd(S,&C);
+    P=schedulerPoll(S,4000,2,R,2);
+    testRequire(P.Count==1 && R[0].Job==Other,"pause leaves other jobs runnable");
+    schedulerComplete(S,R[0].Id);
+    schedulerComplete(S,Active);
+    P=schedulerPoll(S,4000,3,R,2);
+    xcronjobinfo Info=schedulerInfo(S,Held);
+    xcronwake Wake;
+    testRequire(P.Count==0 && !P.More && Info.HasNext && Info.Next==1000 && Info.Succeeded==1 &&
+                !Info.CoalescedRanges && !Info.SkippedRanges &&
+                xcronSchedulerWake(S,(xcronclock){4000,3},2000,&Wake,NULL) && !Wake.Immediate &&
+                Wake.DelayMilliseconds==2000,"pause preserves cursor and allows idle wait after physical completion");
+    xallocationbudget* Budget=NULL;
+    xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"pause transition allocation guard");
+    testRequire(xcronSchedulerSetPaused(S,Held,false,NULL) && xcronSchedulerSetPaused(S,Held,false,NULL),
+                "resume is idempotent and allocation free");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"leave pause transition budget");
+    xrtAllocationBudgetFree(Budget);
+    P=schedulerPoll(S,4000,4,R,2);
+    testRequire(P.Count==1 && R[0].Job==Held && R[0].ScheduledAt==1000 && R[0].Through==4000 &&
+                R[0].Flags==XCRON_RUN_COALESCED,"resume applies misfire policy to the preserved cursor");
+    testRequire(xcronSchedulerSetPaused(S,Held,true,NULL) && xcronSchedulerCancel(S,Held,NULL),
+                "cancel held cursor without disturbing lease");
+    schedulerComplete(S,R[0].Id);
+    testRequire(schedulerReap(S).Id==Other && schedulerReap(S).Id==Held,"both jobs return original receipt");
+    xcronschedulerissue Issue;
+    schedulerError(xcronSchedulerSetPaused(S,Held,false,&Issue),&Issue,XCRON_SCHEDULER_STALE,"stale held ID cannot resume");
+    C=schedulerConfig(Z,5000,5000);
+    xcronjobid Reused=schedulerAdd(S,&C);
+    P=schedulerPoll(S,5000,5,R,2);
+    testRequire(P.Count==1 && R[0].Job==Reused,"slot reuse clears the old hold");
+    schedulerComplete(S,R[0].Id);
+    testRequire(xcronSchedulerSetPaused(S,Reused,false,NULL) && schedulerReap(S).Info.State==XCRON_JOB_EXHAUSTED,
+                "resume cannot resurrect a tombstone");
+    testRequire(xcronSchedulerClose(S,NULL),"closed pause fixture");
+    schedulerError(xcronSchedulerSetPaused(S,Reused,false,&Issue),&Issue,XCRON_SCHEDULER_CLOSED,"closed owner rejects resume");
+    testRequire(xcronSchedulerDestroy(S,NULL),"destroy pause fixture");
+    xcronZoneRelease(Z);
+}
 static void testSchedulerLifetime(void)
 {
     xcronscheduler* S=schedulerCreate(1,2,64);xcronzone* Z=schedulerZone("UTC0");int Data=37;
@@ -201,7 +255,7 @@ static void testSchedulerWarm(void)
 }
 int main(void)
 {
-    testSchedulerLifetime();testSchedulerMisfires();testSchedulerOverlapAndFairness();testSchedulerClocks();testSchedulerFaults();testSchedulerHeapOrder();testSchedulerModel();testSchedulerZones();testSchedulerArgumentsAndOOM();testSchedulerWarm();
-    SchedulerBudgetModel=true;testSchedulerModel();SchedulerBudgetModel=false;testSchedulerBudgetFairness();testSchedulerAdmission();testSchedulerBudgetArguments();testSchedulerBudgetFaultsAndWarm();testSchedulerBudgetCredit();
+    testSchedulerPause();testSchedulerLifetime();testSchedulerMisfires();testSchedulerOverlapAndFairness();testSchedulerClocks();testSchedulerFaults();testSchedulerHeapOrder();testSchedulerModel();testSchedulerZones();testSchedulerArgumentsAndOOM();testSchedulerWarm();
+    SchedulerBudgetModel=true;testSchedulerModel();testSchedulerPause();SchedulerBudgetModel=false;testSchedulerBudgetFairness();testSchedulerAdmission();testSchedulerBudgetArguments();testSchedulerBudgetFaultsAndWarm();testSchedulerBudgetCredit();
     puts("[PASS] scheduler: bounded leases/misfires/overlap/fairness/clocks/92160 model samples/faults/OOM/zero-heap");return 0;
 }

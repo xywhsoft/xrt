@@ -26,8 +26,12 @@ diagnostic. Caller Data remains borrowed until that failure reply is collected,
 or a successfully admitted job produces a retirement receipt. ReapAsync returns
 the receipt while running; ReapStopped provides serialized kernel handoff after
 owner stop. An empty successful reap preserves Retired and sets Found=false.
-Cancelling a job stops future occurrences; `CancelRuns=true` additionally requests
-cooperative accepted tokens and completes its unsent leases as cancelled.
+SetPausedAsync temporarily holds new leases for one job with the original
+cursor intact. Wait for the ordinary command reply to establish the hold.
+Existing leases still follow their submission, retry and completion
+contracts. Resume makes the cursor eligible under its original policies.
+Cancelling a job ends future occurrences. With CancelRuns=true the service
+also requests cooperative cancellation and completes its unsent leases.
 
 `Collect` takes a finite nonnegative millisecond timeout. Ready wins before the
 timeout/self-wait check. A timed-out accepted request remains live; its output and

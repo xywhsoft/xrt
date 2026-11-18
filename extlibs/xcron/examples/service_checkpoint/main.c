@@ -34,6 +34,16 @@ static bool checkpointDemoCollect(xcronservice* Service,xcronrequestid Request,x
     return Reply->Code==XCRON_SERVICE_OK;
 }
 
+static bool checkpointDemoPause(xcronservice* Service,xcronjobid Job,bool Paused)
+{
+    xcronrequestid Request;
+    xcronreply Reply;
+    if(!xcronServiceSetPausedAsync(Service,Job,Paused,&Request,NULL) ||
+       xcronServiceCollect(Service,Request,10000,&Reply,NULL)!=XWAIT_OK)return false;
+    xrtErrorFree(Reply.Error);
+    return Reply.Code==XCRON_SERVICE_OK && Reply.Job==Job;
+}
+
 static int checkpointDemoPhase(xroot Root,cstr Mode)
 {
     bool Create=!strcmp(Mode,"init"),Interrupt=!strcmp(Mode,"interrupt"),Advance=!strcmp(Mode,"advance");
@@ -43,7 +53,7 @@ static int checkpointDemoPhase(xroot Root,cstr Mode)
     xcroncheckpointstore* Store=NULL;
     if(xcronCheckpointStoreOpen(Root,"job.xcs",Key,Create,&Store)!=XCRON_CHECKPOINT_STORE_OK)return 3;
     checkpointdemo Demo={0};
-    xrtAtomic64Init(&Demo.Wall,0);
+    xrtAtomic64Init(&Demo.Wall,Create?0:4000);
     if(!xrtEventInit(&Demo.Started,true,false) || !xrtEventInit(&Demo.Release,true,!Interrupt))return 4;
     xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
     xcronserviceconfig Limits={
@@ -67,7 +77,7 @@ static int checkpointDemoPhase(xroot Root,cstr Mode)
            xcronServiceCollect(Service,Request,10000,&Reply,NULL)!=XWAIT_OK || Reply.Code)return 5;
     }else{
         if(xcronCheckpointStoreRead(Store,&Record,&Stored)!=XCRON_CHECKPOINT_STORE_OK ||
-           !xcronServiceRestoreCheckpointAsync(Service,&Job,Key,&Record,&Request,NULL) ||
+           !xcronServiceRestorePausedCheckpointAsync(Service,&Job,Key,&Record,&Request,NULL) ||
            !checkpointDemoCollect(Service,Request,&Reply,NULL))return 5;
     }
     xcronZoneRelease(Job.Zone);
@@ -78,11 +88,14 @@ static int checkpointDemoPhase(xroot Root,cstr Mode)
     printf("GEN %llu NEXT %lld SUCCEEDED %llu\n",(unsigned long long)Stored.Generation,
            (long long)Reply.Info.Next,(unsigned long long)Reply.Info.Succeeded);
     fflush(stdout);
+    if(!Create && xrtEventWaitFor(&Demo.Started,30)!=XWAIT_TIMEOUT)return 7;
     if(Interrupt || Advance){
+        /* Set the example clock to one occurrence, then resume explicitly. */
         xrtAtomic64Store(&Demo.Wall,(uint64)Reply.Info.Next,XMEMORY_RELEASE);
-        if(!xcronServiceWake(Service,NULL))return 7;
+        if(!checkpointDemoPause(Service,Id,false))return 7;
+        if(xrtEventWaitFor(&Demo.Started,10000)!=XWAIT_OK)return 7;
+        if(!checkpointDemoPause(Service,Id,true))return 7;
         if(Interrupt){
-            if(xrtEventWaitFor(&Demo.Started,10000)!=XWAIT_OK)return 7;
             puts("LEASE ACTIVE");fflush(stdout);
             (void)getchar();
             if(!xrtEventSet(&Demo.Release))return 7;
@@ -91,10 +104,12 @@ static int checkpointDemoPhase(xroot Root,cstr Mode)
         size_t Count=0;
         if(xcronServiceWaitReadable(Service,10000,NULL)!=XWAIT_OK ||
            !xcronServiceDrain(Service,&Done,1,&Count,NULL) ||
-           Count!=1 || Done.Code!=XCRON_COMPLETION_NORMAL || Done.Result!=XCRON_RUN_SUCCEEDED)return 7;
+           Count!=1 || Done.Job!=Id || Done.ScheduledAt!=Reply.Info.Next ||
+           Done.Code!=XCRON_COMPLETION_NORMAL || Done.Result!=XCRON_RUN_SUCCEEDED)return 7;
         xrtErrorFree(Done.Error);
     }
     if(Create || Advance){
+        if(Create && !checkpointDemoPause(Service,Id,true))return 8;
         if(!xcronServiceSaveCheckpointAsync(Service,Id,Key,&Request,NULL) ||
            !checkpointDemoCollect(Service,Request,&Reply,&Record) ||
            xcronCheckpointStoreCommit(Store,Stored.Generation,&Record)!=XCRON_CHECKPOINT_STORE_OK)return 8;

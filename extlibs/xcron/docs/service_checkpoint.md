@@ -23,6 +23,22 @@ calling or separate storage thread. Use one ordered producer for a key
 when publishing generations. The application owns the order between
 business effects, snapshot requests and durable commits. After a process
 interruption, execution can repeat work following the last committed
-snapshot. The service can run again as soon as a restore commits on its
-owner thread. Paused dispatch, automatic snapshots and batching are
-outside the scope of these commands.
+snapshot.
+
+Use SetPausedAsync with true and collect the ordinary pause ticket to
+fence new leases for one job. Previously published leases can still
+start, retry and complete. Drain their physical receipts and allow any
+pending search to finish before capturing the record. The hold remains
+in force across capture and file synchronization. Resume the job only
+once the caller has accepted that boundary. Other jobs keep their
+existing schedule, including delays from their own completion and
+executor limits.
+
+Use RestorePausedCheckpointAsync to stage a recovered job before
+starting it. A due cursor is held from the instant the owner admits it.
+The record contains the same counters and schedule state as a regular
+snapshot. Resume is an explicit runtime operation. On resume the
+preserved cursor is subject to the job's normal misfire and overlap
+policies at the current sample. Ordinary RestoreCheckpointAsync allows
+dispatch immediately after admission. Automatic snapshots and grouped
+durable commits remain follow-up work.

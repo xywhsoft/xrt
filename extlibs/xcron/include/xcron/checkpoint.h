@@ -38,6 +38,11 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcro
  * record does not itself make the record durable or commit business effects. */
 XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
     xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
+/* Same admission and record validation as RestoreCheckpoint. Scheduled jobs
+ * enter with lease publication paused atomically. The wire format is shared
+ * with normal restore. Release the hold with SchedulerSetPaused. */
+XCRON_API bool xcronSchedulerRestorePausedCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

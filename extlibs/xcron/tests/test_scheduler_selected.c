@@ -42,10 +42,41 @@ static void testSelectedFoldAndGap(void)
     for(unsigned T=0;T<64;++T){xcronselectedpoll P=selectedPoll(S,Gap,T,(xcronoccurrencebudget){1,1,1,1,1},NULL,0,1);Faults+=P.Poll.Faults;if(!P.Searching)break;testRequire(T<63,"bounded gap retirement");}
     xcronselectedretired Retired=selectedReap(S);testRequire(Faults==1 && Retired.Info.LastIssue.Code==XCRON_OCCURRENCE_MISSING && Retired.Info.LastIssue.When==Gap && Retired.Info.LastIssue.Local.Hour==2 && Retired.Info.LastIssue.Local.Minute==30,"missing tie rejects before any actual lease and preserves full issue");selectedClean(S);xcronZoneRelease(Z);
 }
+static void testSelectedPauseSearch(void)
+{
+    xcronzone* Z=selectedZone("UTC0");
+    xcronscheduler* S=selectedCreate(1,1,1);
+    xcronjobconfig C=selectedConfig(Z,"* * * * * *",1000,1000);
+    xcronjobid Id=selectedAdd(S,&C,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT});
+    testRequire(selectedInfo(S,Id).State==XCRON_JOB_SEARCHING && xcronSchedulerSetPaused(S,Id,true,NULL),
+                "pause selected job before initial search");
+    xcronselectedrun R;
+    const xcronoccurrencebudget Budget={1,1,1,1,1};
+    for(unsigned Turn=0;;++Turn){
+        xcronselectedpoll P=selectedPoll(S,1000,0,Budget,&R,1,1);
+        testRequire(!P.Poll.Count && Turn<32,"held selected search never publishes the overdue lease");
+        if(!P.Searching){testRequire(!P.Poll.More,"completed held search is idle");break;}
+    }
+    xcronselectedjobinfo Info=selectedInfo(S,Id);
+    testRequire(Info.State==XCRON_JOB_SCHEDULED && Info.HasNext && Info.Next==1000 && !Info.Dispatched,
+                "held selected search retains its exact successful cursor");
+    testRequire(xcronSchedulerSetPaused(S,Id,false,NULL),"resume selected cursor");
+    xcronselectedpoll P=selectedPoll(S,1000,1,Budget,&R,1,1);
+    testRequire(P.Poll.Count==1 && R.Run.Job==Id && R.Run.ScheduledAt==1000 && R.Candidates==1,
+                "resumed lease retains selected metadata");
+    testRequire(xcronSchedulerComplete(S,R.Run.Id,XCRON_RUN_SUCCEEDED,NULL),"physical selected completion");
+    for(unsigned Turn=0;P.Searching;++Turn){
+        testRequire(Turn<32,"finish resumed successor search");
+        P=selectedPoll(S,1000,1,Budget,NULL,0,1);
+    }
+    testRequire(selectedReap(S).Info.Succeeded==1,"selected pause preserves completion");
+    selectedClean(S);
+    xcronZoneRelease(Z);
+}
 #include "scheduler_selected_cases.h"
 #include "scheduler_selected_model.h"
 int main(void)
-{testSelectedFoldAndGap();testSelectedFaultLifetime();testSelectedBudgetsAndFairness();testSelectedArgumentsAndWarm();testSelectedPolicyParity();testSelectedEndpointsAndDiscard();testSelectedHistoryModel();
+{testSelectedPauseSearch();testSelectedFoldAndGap();testSelectedFaultLifetime();testSelectedBudgetsAndFairness();testSelectedArgumentsAndWarm();testSelectedPolicyParity();testSelectedEndpointsAndDiscard();testSelectedHistoryModel();
 #if defined(XRT_FEATURE_THREAD)
 testSelectedHandoff();
 #endif

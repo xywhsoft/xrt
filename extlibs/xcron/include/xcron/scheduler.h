@@ -135,6 +135,11 @@ XCRON_API bool xcronSchedulerPollBudgeted(xcronscheduler* Scheduler,xcronclock N
  * Worker threads must deliver completions to the serialized scheduler owner.
  * Execution outcomes are counted; they do not implicitly stop future triggers. */
 XCRON_API bool xcronSchedulerComplete(xcronscheduler* Scheduler,xcronrunid Id,xcronrunresult Result,xcronschedulerissue* Issue);
+/* Hold or release future lease publication for a live job. Existing leases
+ * and recurrence searches continue. A paused job preserves its cursor and
+ * accumulates no skips until resume makes its normal policies applicable.
+ * Terminal jobs are unaffected. Closed or stale IDs fail. */
+XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* Scheduler,xcronjobid Id,bool Paused,xcronschedulerissue* Issue);
 /* Cancels future dispatch only. Live leases remain valid and retain job storage.
  * Cancel is idempotent while the job exists; an already terminal reason remains. */
 XCRON_API bool xcronSchedulerCancel(xcronscheduler* Scheduler,xcronjobid Id,xcronschedulerissue* Issue);

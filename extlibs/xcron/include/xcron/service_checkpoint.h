@@ -26,7 +26,11 @@ XCRON_API bool xcronServiceSaveCheckpointAsync(xcronservice* Service,xcronjobid 
  * must prevent multiple live restores of the same persistent identity. */
 XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* Service,const xcronjobconfig* Config,
     xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue);
-/* Collects either checkpoint kind in either service mode. Record is required
+/* Restores a scheduled job with new lease publication held before admission.
+ * Use SetPausedAsync to release it after the caller is ready. */
+XCRON_API bool xcronServiceRestorePausedCheckpointAsync(xcronservice* Service,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Collects checkpoint commands in either service mode. Record is required
  * for save and is assigned only on successful save. Restore returns Job or
  * the original Data on failure. Error transfers as in ServiceCollect.
  * Ordinary collectors reject these tickets and preserve them. This call

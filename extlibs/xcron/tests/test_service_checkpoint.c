@@ -92,6 +92,22 @@ static xcronjobid liveAdd(xcronservice* S,bool Selected,const xcronjobconfig* J)
     return R.Job;
 }
 
+static void liveSetPaused(xcronservice* S,bool Selected,xcronjobid Job,bool Paused)
+{
+    xcronrequestid Q;
+    xcronrequestkind Kind=Paused?XCRON_REQUEST_PAUSE:XCRON_REQUEST_RESUME;
+    testRequire(xcronServiceSetPausedAsync(S,Job,Paused,&Q,NULL),"queue pause or resume");
+    if(Selected){
+        xcronselectedreply R;
+        testRequire(xcronServiceCollectSelected(S,Q,10000,&R,NULL)==XWAIT_OK &&
+                    !R.Code && !R.Error && R.Job==Job && R.Kind==Kind,"selected pause or resume reply");
+    }else{
+        xcronreply R;
+        testRequire(xcronServiceCollect(S,Q,10000,&R,NULL)==XWAIT_OK &&
+                    !R.Code && !R.Error && R.Job==Job && R.Kind==Kind,"actual pause or resume reply");
+    }
+}
+
 static void liveCapture(xcronservice* S,xcronjobid Job,xcroncheckpoint* Record)
 {
     double Until=xrtTimer()+10.0;
@@ -167,6 +183,7 @@ static void liveRoundtrip(bool Selected)
     liveStop(S,Selected,Job,&F,0);
     xcronZoneRelease(J.Zone);
 
+    xrtAtomic64Store(&F.Wall,1000,XMEMORY_RELEASE);
     testRequire(xrtEventReset(&F.ClockEntered) && xrtEventReset(&F.ClockGate) &&
                 liveCreate(Selected,true,&C,&S,NULL) && xrtEventWaitFor(&F.ClockEntered,10000)==XWAIT_OK,
                 "new live owner pauses before reading queued restore");
@@ -174,7 +191,7 @@ static void liveRoundtrip(bool Selected)
     xcroncheckpoint Copy=First;
     xcronrequestid B;
     testRequire(xcronServiceRestoreCheckpointAsync(S,&J,(xcroncheckpointkey){97,4},&First,&B,NULL) &&
-                xcronServiceRestoreCheckpointAsync(S,&J,liveKey,&Copy,&Q,NULL),"queue two bounded restores");
+                xcronServiceRestorePausedCheckpointAsync(S,&J,liveKey,&Copy,&Q,NULL),"queue two bounded restores");
     xcronZoneRelease(J.Zone);
     memset(&J,0,sizeof(J));
     memset(&Copy,0,sizeof(Copy));
@@ -199,7 +216,9 @@ static void liveRoundtrip(bool Selected)
                 "wrong key returns original data duty with typed status");
     xrtErrorFree(Reply.Error);
     Reply=liveCollect(S,Q,&Copy);
-    testRequire(Reply.Job && !Reply.Code && !Reply.Error && !Reply.Data && Copy.Bytes[0]==0,"copied restore succeeds and preserves record output");
+    testRequire(Reply.Job && Reply.Kind==XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT &&
+                !Reply.Code && !Reply.Error && !Reply.Data && Copy.Bytes[0]==0,
+                "copied paused restore succeeds and preserves record output");
     Job=Reply.Job;
     testRequire(xcronServiceCollectCheckpoint(S,Q,0,&Reply,NULL,&Issue)==XWAIT_ERROR && Issue.Code==XCRON_SERVICE_STALE,
                 "restore ticket is transferred exactly once");
@@ -217,9 +236,14 @@ static void liveRoundtrip(bool Selected)
     }else testRequire(xcronServiceCollect(S,Q,10000,&Reply,NULL)==XWAIT_OK && !Reply.Code && !Reply.Error &&
                       Reply.Info.HasNext && Reply.Info.Next==1000,"restored actual next occurrence");
 
-    xrtAtomic64Store(&F.Wall,1000,XMEMORY_RELEASE);
-    testRequire(xcronServiceWake(S,NULL) && xrtEventWaitFor(&F.RunEntered,10000)==XWAIT_OK &&
-                xcronServiceSaveCheckpointAsync(S,Job,liveKey,&Q,NULL),"queue save during active lease");
+    testRequire(xrtEventWaitFor(&F.RunEntered,30)==XWAIT_TIMEOUT,"overdue restored job cannot start before resume");
+    liveCapture(S,Job,&Copy);
+    testRequire(!memcmp(&Copy,&First,sizeof(First)),"hold remains outside the checkpoint wire bytes");
+    liveSetPaused(S,Selected,Job,false);
+    testRequire(xrtEventWaitFor(&F.RunEntered,10000)==XWAIT_OK,"resume publishes the held cursor");
+    liveSetPaused(S,Selected,Job,true);
+    xrtAtomic64Store(&F.Wall,2000,XMEMORY_RELEASE);
+    testRequire(xcronServiceSaveCheckpointAsync(S,Job,liveKey,&Q,NULL),"queue save during active held lease");
     testRequire(xcronServiceCollectCheckpoint(S,Q,0,&Reply,NULL,&Issue)==XWAIT_ERROR && Issue.Code==XCRON_SERVICE_ARGUMENT,
                 "save requires the record output");
     xrtClearError();
@@ -238,7 +262,9 @@ static void liveRoundtrip(bool Selected)
     }else testRequire(xcronServiceDrain(S,&Done,1,&Count,NULL) && Count==1,"actual restored completion");
     testRequire(Done.Result==XCRON_RUN_SUCCEEDED && Done.Job==Job && !Done.Error,"successful physical completion");
     liveCapture(S,Job,&Copy);
-    testRequire(memcmp(&Copy,&First,sizeof(First))!=0,"new snapshot advances after completion");
+    testRequire(memcmp(&Copy,&First,sizeof(First))!=0 &&
+                xcronServiceWaitReadable(S,30,NULL)==XWAIT_TIMEOUT,
+                "held owner advances checkpoint after physical completion without publishing the due successor");
     liveStop(S,Selected,Job,&F,1);
 
     testRequire(xrtEventReset(&F.ClockEntered) && xrtEventReset(&F.ClockGate) &&

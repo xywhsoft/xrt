@@ -3427,6 +3427,11 @@ XCRON_API bool xcronSchedulerPollBudgeted(xcronscheduler* Scheduler,xcronclock N
  * Worker threads must deliver completions to the serialized scheduler owner.
  * Execution outcomes are counted; they do not implicitly stop future triggers. */
 XCRON_API bool xcronSchedulerComplete(xcronscheduler* Scheduler,xcronrunid Id,xcronrunresult Result,xcronschedulerissue* Issue);
+/* Hold or release future lease publication for a live job. Existing leases
+ * and recurrence searches continue. A paused job preserves its cursor and
+ * accumulates no skips until resume makes its normal policies applicable.
+ * Terminal jobs are unaffected. Closed or stale IDs fail. */
+XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* Scheduler,xcronjobid Id,bool Paused,xcronschedulerissue* Issue);
 /* Cancels future dispatch only. Live leases remain valid and retain job storage.
  * Cancel is idempotent while the job exists; an already terminal reason remains. */
 XCRON_API bool xcronSchedulerCancel(xcronscheduler* Scheduler,xcronjobid Id,xcronschedulerissue* Issue);
@@ -3586,7 +3591,8 @@ typedef bool (*xcronclockproc)(xcronclock* Clock,ptr Context);
 typedef enum xcronservicestate {XCRON_SERVICE_STARTING=0,XCRON_SERVICE_RUNNING,XCRON_SERVICE_STOPPING,XCRON_SERVICE_STOPPED,XCRON_SERVICE_FAILED} xcronservicestate;
 typedef enum xcronrequestkind {
     XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
-    XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT
+    XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT,
+    XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT
 } xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
@@ -3698,6 +3704,12 @@ XCRON_API bool xcronServiceCreate(const xcronserviceconfig* Config,xcronservice*
  * is published before transactional commit. Generation tickets remain occupied
  * until exactly one Collect. */
 XCRON_API bool xcronServiceAddAsync(xcronservice* Service,const xcronjobconfig* Config,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Uses ordinary tickets and collection in either mode. A successful pause
+ * reply fences new leases for this job. Previously published leases can still
+ * start, retry or finish; wait for their physical receipts before capture.
+ * Resume makes the preserved cursor eligible under the configured policies.
+ * Calls for terminal jobs leave their terminal state intact. */
+XCRON_API bool xcronServiceSetPausedAsync(xcronservice* Service,xcronjobid Job,bool Paused,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceCancelAsync(xcronservice* Service,xcronjobid Job,bool CancelRuns,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceInfoAsync(xcronservice* Service,xcronjobid Job,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceReapAsync(xcronservice* Service,xcronrequestid* Request,xcronserviceissue* Issue);
@@ -4288,6 +4300,11 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcro
  * record does not itself make the record durable or commit business effects. */
 XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
     xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
+/* Same admission and record validation as RestoreCheckpoint. Scheduled jobs
+ * enter with lease publication paused atomically. The wire format is shared
+ * with normal restore. Release the hold with SchedulerSetPaused. */
+XCRON_API bool xcronSchedulerRestorePausedCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -4374,7 +4391,11 @@ XCRON_API bool xcronServiceSaveCheckpointAsync(xcronservice* Service,xcronjobid 
  * must prevent multiple live restores of the same persistent identity. */
 XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* Service,const xcronjobconfig* Config,
     xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue);
-/* Collects either checkpoint kind in either service mode. Record is required
+/* Restores a scheduled job with new lease publication held before admission.
+ * Use SetPausedAsync to release it after the caller is ready. */
+XCRON_API bool xcronServiceRestorePausedCheckpointAsync(xcronservice* Service,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Collects checkpoint commands in either service mode. Record is required
  * for save and is assigned only on successful save. Restore returns Job or
  * the original Data on failure. Error transfers as in ServiceCollect.
  * Ordinary collectors reject these tickets and preserve them. This call

@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `102` 个函数、`222` 个常量或宏、
+当前登记 `106` 个函数、`225` 个常量或宏、
 `101` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
@@ -54,9 +54,10 @@
 
 [查看带契约注释的公共头](../../include/xcron/checkpoint.h)
 
-### 函数 (2)
+### 函数 (3)
 
 - `xcronSchedulerRestoreCheckpoint`
+- `xcronSchedulerRestorePausedCheckpoint`
 - `xcronSchedulerSaveCheckpoint`
 
 ### 常量与宏 (3)
@@ -315,7 +316,7 @@
 
 [查看带契约注释的公共头](../../include/xcron/scheduler.h)
 
-### 函数 (12)
+### 函数 (13)
 
 - `xcronSchedulerAdd`
 - `xcronSchedulerCancel`
@@ -328,6 +329,7 @@
 - `xcronSchedulerPoll`
 - `xcronSchedulerPollBudgeted`
 - `xcronSchedulerReap`
+- `xcronSchedulerSetPaused`
 - `xcronSchedulerWake`
 
 ### 常量与宏 (26)
@@ -398,7 +400,7 @@
 
 [查看带契约注释的公共头](../../include/xcron/service.h)
 
-### 函数 (15)
+### 函数 (16)
 
 - `xcronServiceAddAsync`
 - `xcronServiceCancelAsync`
@@ -412,11 +414,12 @@
 - `xcronServiceInspect`
 - `xcronServiceReapAsync`
 - `xcronServiceReapStopped`
+- `xcronServiceSetPausedAsync`
 - `xcronServiceWaitFor`
 - `xcronServiceWaitReadable`
 - `xcronServiceWake`
 
-### 常量与宏 (29)
+### 常量与宏 (32)
 
 - `XCRON_COMPLETION_CANCELLED`
 - `XCRON_COMPLETION_EXPIRED`
@@ -427,8 +430,11 @@
 - `XCRON_REQUEST_ADD`
 - `XCRON_REQUEST_CANCEL`
 - `XCRON_REQUEST_INFO`
+- `XCRON_REQUEST_PAUSE`
 - `XCRON_REQUEST_REAP`
 - `XCRON_REQUEST_RESTORE_CHECKPOINT`
+- `XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT`
+- `XCRON_REQUEST_RESUME`
 - `XCRON_REQUEST_SAVE_CHECKPOINT`
 - `XCRON_SERVICE_ARGUMENT`
 - `XCRON_SERVICE_BUSY`
@@ -467,12 +473,13 @@
 
 [查看带契约注释的公共头](../../include/xcron/service_checkpoint.h)
 
-### 函数 (5)
+### 函数 (6)
 
 - `xcronServiceCollectCheckpoint`
 - `xcronServiceCreateCheckpointed`
 - `xcronServiceCreateSelectedCheckpointed`
 - `xcronServiceRestoreCheckpointAsync`
+- `xcronServiceRestorePausedCheckpointAsync`
 - `xcronServiceSaveCheckpointAsync`
 
 ### 常量与宏 (2)

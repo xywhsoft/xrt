@@ -2,6 +2,7 @@
 #include <xrt/time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static bool checkpointBenchClock(xcronclock* Out,ptr Context)
 {
@@ -25,7 +26,8 @@ static int compareCheckpointSamples(const void* A,const void* B)
 int main(int Argc,char** Argv)
 {
     size_t Count=Argc>1?(size_t)strtoull(Argv[1],NULL,10):10000;
-    if(Argc>2 || !Count || Count>200000)return 2;
+    bool Pause=Argc==3 && !strcmp(Argv[2],"pause");
+    if((Argc>2 && !Pause) || !Count || Count>200000)return 2;
     double* Samples=malloc(Count*sizeof(*Samples));
     if(!Samples)return 3;
     xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
@@ -49,9 +51,14 @@ int main(int Argc,char** Argv)
     double Begin=xrtTimer();
     for(size_t I=0;I<Count;++I){
         double Start=xrtTimer();
-        if(!xcronServiceSaveCheckpointAsync(S,Job,Key,&Q,NULL) ||
-           xcronServiceCollectCheckpoint(S,Q,10000,&Reply,&Record,NULL)!=XWAIT_OK || Reply.Code ||
-           Reply.Job!=Job || Reply.Error || Record.Bytes[0]!='X')return 5;
+        if(Pause){
+            bool Hold=(I&1)==0;
+            if(!xcronServiceSetPausedAsync(S,Job,Hold,&Q,NULL) ||
+               xcronServiceCollect(S,Q,10000,&Reply,NULL)!=XWAIT_OK || Reply.Code || Reply.Job!=Job ||
+               Reply.Error || Reply.Kind!=(Hold?XCRON_REQUEST_PAUSE:XCRON_REQUEST_RESUME))return 5;
+        }else if(!xcronServiceSaveCheckpointAsync(S,Job,Key,&Q,NULL) ||
+                 xcronServiceCollectCheckpoint(S,Q,10000,&Reply,&Record,NULL)!=XWAIT_OK || Reply.Code ||
+                 Reply.Job!=Job || Reply.Error || Record.Bytes[0]!='X')return 5;
         Samples[I]=(xrtTimer()-Start)*1000000;
     }
     double Elapsed=xrtTimer()-Begin;
@@ -62,9 +69,10 @@ int main(int Argc,char** Argv)
        !xcronServiceDestroy(S,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK ||
        !xrtExecutorDestroy(Pool) || Elapsed<=0)return 6;
     qsort(Samples,Count,sizeof(*Samples),compareCheckpointSamples);
-    printf("captures_per_sec: %.3f\ncapture_p50_us: %.3f\ncapture_p95_us: %.3f\ncapture_p99_us: %.3f\ncapture_p999_us: %.3f\n",
-           Count/Elapsed,Samples[(Count+1)/2-1],Samples[(Count*95+99)/100-1],
-           Samples[(Count*99+99)/100-1],Samples[(Count*999+999)/1000-1]);
+    const char* Metric=Pause?"pause":"capture";
+    printf("%ss_per_sec: %.3f\n%s_p50_us: %.3f\n%s_p95_us: %.3f\n%s_p99_us: %.3f\n%s_p999_us: %.3f\n",
+           Metric,Count/Elapsed,Metric,Samples[(Count+1)/2-1],Metric,Samples[(Count*95+99)/100-1],
+           Metric,Samples[(Count*99+99)/100-1],Metric,Samples[(Count*999+999)/1000-1]);
     free(Samples);
     return 0;
 }

@@ -308,7 +308,8 @@ static void xcronServiceCommandSelected(xcronservice* S,uint32 I)
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
 static bool xcronServiceCheckpointKind(xcronrequestkind Kind)
-{return Kind==XCRON_REQUEST_SAVE_CHECKPOINT || Kind==XCRON_REQUEST_RESTORE_CHECKPOINT;}
+{return Kind==XCRON_REQUEST_SAVE_CHECKPOINT || Kind==XCRON_REQUEST_RESTORE_CHECKPOINT ||
+        Kind==XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT;}
 
 static void xcronServiceCommandCheckpoint(xcronservice* S,uint32 I)
 {
@@ -318,7 +319,7 @@ static void xcronServiceCommandCheckpoint(xcronservice* S,uint32 I)
     xrtMutexLock(&S->Mutex);
     bool Closing=S->Closing;
     xrtMutexUnlock(&S->Mutex);
-    bool OK=false,Restore=R.Kind==XCRON_REQUEST_RESTORE_CHECKPOINT;
+    bool OK=false,Restore=R.Kind!=XCRON_REQUEST_SAVE_CHECKPOINT;
     xrtClearError();
     if(Closing){
         R.Code=XCRON_SERVICE_CLOSED;
@@ -326,7 +327,9 @@ static void xcronServiceCommandCheckpoint(xcronservice* S,uint32 I)
     }else{
         if(Restore){
             xbytesview Wire={X->Record.Bytes,sizeof(X->Record.Bytes)};
-            OK=xcronSchedulerRestoreCheckpoint(S->Kernel,&C->Add,X->Key,Wire,&R.Job,&R.Scheduler);
+            if(R.Kind==XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT)
+                OK=xcronSchedulerRestorePausedCheckpoint(S->Kernel,&C->Add,X->Key,Wire,&R.Job,&R.Scheduler);
+            else OK=xcronSchedulerRestoreCheckpoint(S->Kernel,&C->Add,X->Key,Wire,&R.Job,&R.Scheduler);
         }else OK=xcronSchedulerSaveCheckpoint(S->Kernel,C->Job,X->Key,&X->Record,&R.Scheduler);
         if(!OK)R.Code=XCRON_SERVICE_KERNEL;
     }
@@ -365,7 +368,11 @@ static void xcronServiceCommand(xcronservice* S,uint32 I)
     if(S->Checkpoints && xcronServiceCheckpointKind(S->Commands[I].Reply.Kind)){xcronServiceCommandCheckpoint(S,I);return;}
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
-    if(S->Selected && S->Commands[I].Reply.Kind!=XCRON_REQUEST_CANCEL){xcronServiceCommandSelected(S,I);return;}
+    xcronrequestkind Kind=S->Commands[I].Reply.Kind;
+    if(S->Selected && (Kind==XCRON_REQUEST_ADD || Kind==XCRON_REQUEST_INFO || Kind==XCRON_REQUEST_REAP)){
+        xcronServiceCommandSelected(S,I);
+        return;
+    }
 #endif
     xcroncommand* C=&S->Commands[I];xcronreply R={.Request=C->Reply.Request,.Kind=C->Reply.Kind};bool OK=false;
     xrtClearError();
@@ -377,6 +384,16 @@ static void xcronServiceCommand(xcronservice* S,uint32 I)
             else {xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_ADMITTING;xrtMutexUnlock(&S->Mutex);xcronServiceAdmissionAdd(S,I);return;}}
         if(!OK)R.Data=C->Add.Data;
         xcronZoneRelease(C->Add.Zone);C->Add.Zone=NULL;break;}
+    case XCRON_REQUEST_PAUSE:
+    case XCRON_REQUEST_RESUME:{
+        xrtMutexLock(&S->Mutex);bool Closing=S->Closing;xrtMutexUnlock(&S->Mutex);
+        R.Job=C->Job;
+        if(Closing){R.Code=XCRON_SERVICE_CLOSED;xcronServiceFail(R.Code,XERR_NONE,NULL);}
+        else{
+            OK=xcronSchedulerSetPaused(S->Kernel,C->Job,R.Kind==XCRON_REQUEST_PAUSE,&R.Scheduler);
+            if(!OK)R.Code=XCRON_SERVICE_KERNEL;
+        }
+        break;}
     case XCRON_REQUEST_CANCEL:
         R.Job=C->Job;OK=xcronSchedulerCancel(S->Kernel,C->Job,&R.Scheduler);if(!OK)R.Code=XCRON_SERVICE_KERNEL;
         if(OK && C->Cancel){uint32 Requested=0;OK=xcronExecutorCancelJob(S->Bridge,C->Job,&Requested,&R.Executor);if(!OK)R.Code=XCRON_SERVICE_EXECUTOR;xcronServiceCancelUnsent(S,C->Job);}break;
@@ -695,8 +712,8 @@ XCRON_API bool xcronServiceSaveCheckpointAsync(xcronservice* S,xcronjobid Job,xc
     return xcronServiceEnqueue(S,XCRON_REQUEST_SAVE_CHECKPOINT,NULL,&Input,Job,false,Request,Issue);
 }
 
-XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* S,const xcronjobconfig* Config,
-    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue)
+static bool xcronServiceRestoreAsync(xcronservice* S,const xcronjobconfig* Config,xcroncheckpointkey Key,
+    const xcroncheckpoint* Record,xcronrequestkind Kind,xcronrequestid* Request,xcronserviceissue* Issue)
 {
     void* O[]={Request,Issue};size_t N[]={sizeof(*Request),Issue?sizeof(*Issue):0};
     if(!S || !Config || !Record || !Key.Job || !Key.Revision || !Request ||
@@ -705,9 +722,22 @@ XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* S,const xcronjob
        !Config->Zone || !xcronZoneOutputs(Config->Zone,Config,sizeof(*Config),O,N,2))
         return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
     const xcronservicecheckpointinput Input={Key,Record};
-    return xcronServiceEnqueue(S,XCRON_REQUEST_RESTORE_CHECKPOINT,Config,&Input,0,false,Request,Issue);
+    return xcronServiceEnqueue(S,Kind,Config,&Input,0,false,Request,Issue);
 }
+
+XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue)
+{return xcronServiceRestoreAsync(S,Config,Key,Record,XCRON_REQUEST_RESTORE_CHECKPOINT,Request,Issue);}
+
+XCRON_API bool xcronServiceRestorePausedCheckpointAsync(xcronservice* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue)
+{return xcronServiceRestoreAsync(S,Config,Key,Record,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT,Request,Issue);}
 #endif
+XCRON_API bool xcronServiceSetPausedAsync(xcronservice* S,xcronjobid Job,bool Paused,xcronrequestid* Request,xcronserviceissue* Issue)
+{
+    if(!Job || !Request || !xcronServiceArgs(S,Request,sizeof(*Request),Issue))return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+    return xcronServiceEnqueue(S,Paused?XCRON_REQUEST_PAUSE:XCRON_REQUEST_RESUME,NULL,NULL,Job,false,Request,Issue);
+}
 XCRON_API bool xcronServiceCancelAsync(xcronservice* S,xcronjobid Job,bool Cancel,xcronrequestid* Request,xcronserviceissue* Issue)
 {
     if(!Job || !Request || !xcronServiceArgs(S,Request,sizeof(*Request),Issue))return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
