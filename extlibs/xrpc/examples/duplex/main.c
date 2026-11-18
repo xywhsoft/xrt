@@ -12,8 +12,10 @@ static bool duplexExampleEcho(const xrpcmessage* Request,xrpcreply* Reply,
     const xrpcservercontext* Context,ptr User)
 {
     duplexExampleCancellation* C=User;
-    if(Request->Method.Raw.Size==6 && !memcmp(Request->Method.Raw.Data,"\"hold\"",6)){
-        xrtAtomic32Store(&C->Entered,1,XMEMORY_RELEASE);
+    bool Hold=Request->Method.Raw.Size==6 && !memcmp(Request->Method.Raw.Data,"\"hold\"",6);
+    bool Expire=Request->Method.Raw.Size==8 && !memcmp(Request->Method.Raw.Data,"\"expire\"",8);
+    if(Hold || Expire){
+        if(Hold)xrtAtomic32Store(&C->Entered,1,XMEMORY_RELEASE);
         while(!xrtCancelRequested(Context->Cancel) && xrtTimer()<Context->Deadline)xrtSleep(1);
         if(xrtCancelRequested(Context->Cancel))xrtAtomic32Store(&C->Cancelled,1,XMEMORY_RELEASE);
         return false;
@@ -35,28 +37,57 @@ static bool duplexExamplePump(xrpcduplex* A,xrpcduplex* B)
         duplexExampleTransfer(A,B) && duplexExampleTransfer(B,A);
 }
 
-static bool duplexExampleCancel(xrpcduplex* A,xrpcduplex* B,duplexExampleCancellation* State)
+static bool duplexExampleAwait(xrpcduplex* A,xrpcduplex* B,xfuture* Future)
 {
-    xfuture* Offer=NULL;
-    if(!xrpcDuplexEnableCancellation(A) || !xrpcDuplexEnableCancellation(B) ||
-       xrpcDuplexNegotiateCancellation(A,5000,&Offer)!=XRPC_DUPLEX_ACCEPTED)return false;
-    double Until=xrtTimer()+5;
-    while(!xrtFutureDone(Offer)){
-        if(xrtTimer()>=Until || !duplexExamplePump(A,B)){xrtFutureDestroy(Offer);return false;}
+    double Until=xrtTimer()+5.;
+    while(!xrtFutureDone(Future)){
+        if(xrtTimer()>=Until || !duplexExamplePump(A,B))return false;
         xrtSleep(1);
     }
-    const xrpccallresult* Agreed=xrtFutureValue(Offer);
+    return true;
+}
+
+static bool duplexExampleAgreed(xrpcduplex* A,xrpcduplex* B,xfuture* Offer)
+{
+    bool Ready=duplexExampleAwait(A,B,Offer);
+    const xrpccallresult* Agreed=Ready?xrtFutureValue(Offer):NULL;
     xrpcresponseinfo R={.Size=sizeof(R)};
     bool OK=Agreed && Agreed->Status==XRPC_CALL_OK && xrpcResponsesInfo(Agreed->Responses,&R) &&
         R.Count==1 && R.Messages[0].Result.Raw.Size==4 &&
         !memcmp(R.Messages[0].Result.Raw.Data,"true",4);
     xrtFutureDestroy(Offer);
-    if(!OK)return false;
+    return OK;
+}
+
+static bool duplexExampleDeadline(xrpcduplex* A,xrpcduplex* B)
+{
+    xfuture* Future=NULL;
+    if(!xrpcDuplexEnableDeadline(A) || !xrpcDuplexEnableDeadline(B) ||
+       xrpcDuplexNegotiateDeadline(A,5000,&Future)!=XRPC_DUPLEX_ACCEPTED ||
+       !duplexExampleAgreed(A,B,Future))return false;
+    if(xrpcDuplexCall(A,XRT_STR_LITERAL("expire"),(xstrview){0},5000,&Future)!=XRPC_DUPLEX_ACCEPTED)
+        return false;
+    bool Ready=duplexExampleAwait(A,B,Future);
+    const xrpccallresult* Result=Ready?xrtFutureValue(Future):NULL;
+    xrpcresponseinfo R={.Size=sizeof(R)};
+    bool OK=Result && Result->Status==XRPC_CALL_REMOTE_ERROR && Result->Delivery==XRPC_REPLIED &&
+        xrpcResponsesInfo(Result->Responses,&R) && R.Count==1 &&
+        R.Messages[0].ErrorCode.Raw.Size==6 && !memcmp(R.Messages[0].ErrorCode.Raw.Data,"-32001",6);
+    xrtFutureDestroy(Future);
+    return OK;
+}
+
+static bool duplexExampleCancel(xrpcduplex* A,xrpcduplex* B,duplexExampleCancellation* State)
+{
+    xfuture* Offer=NULL;
+    if(!xrpcDuplexEnableCancellation(A) || !xrpcDuplexEnableCancellation(B) ||
+       xrpcDuplexNegotiateCancellation(A,5000,&Offer)!=XRPC_DUPLEX_ACCEPTED)return false;
+    if(!duplexExampleAgreed(A,B,Offer))return false;
 
     xfuture* Call=NULL;
     if(xrpcDuplexCall(A,XRT_STR_LITERAL("hold"),(xstrview){0},5000,&Call)!=XRPC_DUPLEX_ACCEPTED)
         return false;
-    Until=xrtTimer()+5;
+    double Until=xrtTimer()+5.;
     while(!xrtAtomic32Load(&State->Entered,XMEMORY_ACQUIRE)){
         if(xrtTimer()>=Until || !duplexExamplePump(A,B)){xrtFutureDestroy(Call);return false;}
         xrtSleep(1);
@@ -67,7 +98,7 @@ static bool duplexExampleCancel(xrpcduplex* A,xrpcduplex* B,duplexExampleCancell
         xrtSleep(1);
     }
     const xrpccallresult* Stopped=xrtFutureValue(Call);
-    OK=Stopped && Stopped->Status==XRPC_CALL_CANCELLED && Stopped->Delivery==XRPC_MAY_HAVE_EXECUTED;
+    bool OK=Stopped && Stopped->Status==XRPC_CALL_CANCELLED && Stopped->Delivery==XRPC_MAY_HAVE_EXECUTED;
     xrtFutureDestroy(Call);
     return OK;
 }
@@ -78,10 +109,12 @@ int main(void)
     xrpcserverconfig SConfig;xrpcServerConfigInit(&SConfig);SConfig.Call=duplexExampleEcho;SConfig.User=&Cancel;
     xrpcserver* Server=NULL;
     if(!xrpcServerCreate(&SConfig,&Server))return 1;
-    xrpcduplexconfig Config;xrpcDuplexConfigInit(&Config);Config.Server=Server;xrpcduplex *A=NULL,*B=NULL;
+    xrpcduplexconfig Config;xrpcDuplexConfigInit(&Config);Config.Server=Server;Config.IncomingTimeout=500;xrpcduplex *A=NULL,*B=NULL;
     if(!xrpcDuplexCreate(&Config,&A) || !xrpcDuplexCreate(&Config,&B))return 2;
     if(!duplexExampleCancel(A,B,&Cancel))return 10;
     puts("the peer observed negotiated cancellation");
+    if(!duplexExampleDeadline(A,B))return 11;
+    puts("the peer returned the negotiated deadline error");
     xfuture *Left=NULL,*Right=NULL;
     if(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[1,2]"),5000,&Left)!=XRPC_DUPLEX_ACCEPTED ||
        xrpcDuplexCall(B,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("{\"reverse\":true}"),5000,&Right)!=XRPC_DUPLEX_ACCEPTED)return 3;

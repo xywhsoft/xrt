@@ -52,6 +52,9 @@ XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result);
  * framed channel, including a borrowed endpoint from the subprocess adapter. */
 XRPC_API bool xrpcStdioEnableCancellation(xrpcstdio* Stdio);
 XRPC_API xrpcduplexadmission xrpcStdioNegotiateCancellation(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
+/* Serialized owner. Applies duplex deadline negotiation to a framed channel. */
+XRPC_API bool xrpcStdioEnableDeadline(xrpcstdio* Stdio);
+XRPC_API xrpcduplexadmission xrpcStdioNegotiateDeadline(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
 /* Concurrent. Only ACCEPTED writes Future. Deadlines start at entry. The
  * transport stops accepting submissions when input EOF is observed. */
 XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);

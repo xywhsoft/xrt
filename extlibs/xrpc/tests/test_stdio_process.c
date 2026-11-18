@@ -66,6 +66,27 @@ static int processTestChild(cstr Mode,bool Binary)
            !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":7}"))return 43;
         return 0;
     }
+    if(!strcmp(Mode,"deadline")){
+        char Body[512];
+        static const char Prefix[]="{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline\",\"params\":[\"";
+        if(!processTestFrameRead(Binary,Body) || !strstr(Body,"\"method\":\"rpc.xrt.deadline.v1\"") ||
+           !strstr(Body,"\"id\":\"1\"") ||
+           !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":true}"))return 44;
+        if(!processTestFrameRead(Binary,Body) || strncmp(Body,Prefix,sizeof(Prefix)-1u))return 45;
+        const char* Budget=Body+sizeof(Prefix)-1u;
+        unsigned Millis=0;
+        for(size_t I=0;I<19;++I){
+            if(Budget[I]<'0' || Budget[I]>'9' || Millis>5000)return 46;
+            Millis=Millis*10u+(unsigned)(Budget[I]-'0');
+        }
+        if(!Millis || Millis>4970 || strncmp(Budget+19,"\",",2) ||
+           !strstr(Budget+21,"\"method\":\"expire\"") || !strstr(Budget+21,"\"id\":\"2\"") ||
+           !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"error\":{\"code\":-32001,\"message\":\"Deadline exceeded\"}}"))return 47;
+        if(!processTestFrameRead(Binary,Body) || strstr(Body,"rpc.xrt.deadline") ||
+           !strstr(Body,"\"method\":\"call\"") || !strstr(Body,"\"id\":\"3\"") ||
+           !processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":7}"))return 48;
+        return 0;
+    }
     if(!processTestFrameWrite(Binary,"{\"jsonrpc\":\"2.0\",\"method\":\"reverse\",\"params\":[11],\"id\":9}"))
         return 34;
     if(!strcmp(Mode,"reverse-idle")){
@@ -397,6 +418,47 @@ static void processTestRollback(void)
     }
 }
 
+
+static void processTestNegotiatedDeadline(cstr Bin,xrpcframeformat Format)
+{
+    xrpcstdioconfig C;
+    xrpcStdioConfigInit(&C);
+    C.Frame.Format=Format;
+    xprocess* Child=NULL;
+    xrpcstdioprocess* P=NULL;
+    processTestSpawn(Bin,"deadline",&C,&Child,&P);
+    xrpcstdio* RPC=xrpcStdioProcessEndpoint(P);
+    xfuture* F=NULL;
+    testRequire(xrpcStdioEnableDeadline(RPC) &&
+        xrpcStdioNegotiateDeadline(RPC,5000,&F)==XRPC_DUPLEX_ACCEPTED,
+        "stdio deadline handshake over real redirected pipes");
+    xrpcstdioinfo Info={.Size=sizeof(Info)};
+    processTestDrive(P,F,&Info);
+    const xrpccallresult* R=xrtFutureValue(F);
+    testRequire(R && R->Status==XRPC_CALL_OK,"independent peer accepts deadline offer");
+    xrtFutureDestroy(F);
+    testRequire(xrpcStdioCall(RPC,XRT_STR_LITERAL("expire"),(xstrview){0},5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"enqueue finite call for remaining budget");
+    double Entered=xrtTimer();
+    while(xrtTimer()<Entered+.05)xrtSleep(1);
+    processTestDrive(P,F,&Info);
+    R=xrtFutureValue(F);
+    xrpcresponseinfo Reply={.Size=sizeof(Reply)};
+    testRequire(R && R->Status==XRPC_CALL_REMOTE_ERROR && R->Delivery==XRPC_REPLIED &&
+        xrpcResponsesInfo(R->Responses,&Reply) && Reply.Count==1 &&
+        Reply.Messages[0].ErrorCode.Raw.Size==6 && !memcmp(Reply.Messages[0].ErrorCode.Raw.Data,"-32001",6),
+        "remote deadline is an RPC error with reply delivery");
+    xrtFutureDestroy(F);
+    testRequire(xrpcStdioCall(RPC,XRT_STR_LITERAL("call"),(xstrview){0},XRT_WAIT_FOREVER,&F)==
+        XRPC_DUPLEX_ACCEPTED,"unwrapped follow-up after remote deadline");
+    processTestDrive(P,F,&Info);
+    R=xrtFutureValue(F);
+    testRequire(R && R->Status==XRPC_CALL_OK && R->Delivery==XRPC_REPLIED,
+        "same pipe remains usable after remote deadline error");
+    xrtFutureDestroy(F);
+    processTestFinish(P,Child,XRPC_STDIO_EOF,false);
+}
+
 int main(int Argc,char** Argv)
 {
     if(Argc==4 && !strcmp(Argv[1],"--process-child"))return processTestChild(Argv[2],!strcmp(Argv[3],"be"));
@@ -405,10 +467,11 @@ int main(int Argc,char** Argv)
         processTestDuplex(Argv[0],(xrpcframeformat)I);
         processTestTruncated(Argv[0],(xrpcframeformat)I);
         processTestNegotiatedCancellation(Argv[0],(xrpcframeformat)I);
+        processTestNegotiatedDeadline(Argv[0],(xrpcframeformat)I);
     }
     processTestDeadline(Argv[0]);
     processTestBlocked(Argv[0]);
     processTestHandlerTail(Argv[0]);
-    puts("[PASS] xrpc stdio process: duplex, wake, deadline, cancellation, EOF, reentry, handler tail, rollback and negotiated cancellation");
+    puts("[PASS] xrpc stdio process: duplex, wake, deadline, cancellation, EOF, reentry, handler tail, rollback and negotiated cancellation/deadline");
     return 0;
 }

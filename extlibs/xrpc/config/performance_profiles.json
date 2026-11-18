@@ -4327,6 +4327,95 @@
       ]
     },
     {
+      "name": "xrpc_duplex_propagation",
+      "system": "duplex",
+      "description": "Matched finite calls through two in-process endpoints and the shared executor, with and without negotiated deadline envelopes",
+      "benchmarks": [
+        {
+          "name": "xrpc_duplex_deadline_off",
+          "source": "extlibs/xrpc/bench/bench_duplex.c",
+          "suite": "xrpc_duplex,memory_stats",
+          "args": [
+            "20000",
+            "3",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "3",
+            "0"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_deadline_on",
+          "source": "extlibs/xrpc/bench/bench_duplex.c",
+          "suite": "xrpc_duplex,memory_stats",
+          "args": [
+            "20000",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "4",
+            "0"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xrpc_duplex_deadlines",
       "system": "duplex",
       "description": "DuplexInfo with fully sent finite-deadline calls awaiting replies; p99 of 64-query block means",

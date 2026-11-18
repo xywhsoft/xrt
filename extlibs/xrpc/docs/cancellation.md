@@ -79,5 +79,6 @@ retire connection-local work through normal transport teardown.
 The [duplex example](../examples/duplex/README.md) observes cancellation on
 the executor and then makes new calls on the same connection. The
 subprocess regression exercises this wire exchange under Content-Length and
-UINT32_BE with an independent wire fixture. Remote deadline propagation
-and transport-specific opt-in on TCP, TLS, WebSocket and HTTP remain open.
+UINT32_BE with an independent wire fixture. [Remote deadline negotiation](deadline.md)
+is independent of cancellation. Transport-specific opt-in on TCP, TLS,
+WebSocket and HTTP remains open.

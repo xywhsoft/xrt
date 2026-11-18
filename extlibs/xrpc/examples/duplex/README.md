@@ -9,8 +9,10 @@ python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json
 
 The example opts both peers into negotiated cancellation. One peer sends a
 call, cancels its Future when the handler enters, and observes the other
-peer's cancellation token. The same connection then carries calls in both
-directions. The owner transports complete immutable messages in memory,
+peer's cancellation token. It then negotiates a remote deadline and checks
+the error produced by the receiver's shorter incoming budget. The same
+connection carries calls in both directions. The owner transports complete
+immutable messages in memory,
 drains both endpoints, joins the shared executor and releases the independent
 results. Windows can pass a full GCC executable path and
 `--arch native`. A network/stdio adapter must implement the send and close

@@ -327,16 +327,61 @@ static void stdioTestOwnership(void)
     testRequire(xrtAllocationBudgetInfo(B,&I) && !I.LiveBytes,"stdio parser failure returns allocations");
     xrtAllocationBudgetFree(B);
 }
+
+static void stdioTestFragmentDeadline(xrpcframeformat Format)
+{
+    stdioTestPipe In={0},Out={.Limit=sizeof(Out.Bytes)};
+    stdioTestIO IO={.In=&In,.Out=&Out};
+    stdioTestHandler H={0};
+    xrpcserver* Server=stdioTestServer(&H);
+    xrpcstdioconfig C=stdioTestConfig(&IO,Server,Format);
+    C.Duplex.IncomingTimeout=XRT_WAIT_FOREVER;
+    xrpcstdio* S=stdioTestCreate(&C);
+    stdioTestFrame(&In,Format,"{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline.v1\",\"id\":8}");
+    testRequire(xrpcStdioEnableDeadline(S),"enable framed deadline receiver");
+    double End=xrtTimer()+8.;
+    do {
+        testRequire(xrpcStdioStep(S) && xrtTimer()<End,"drive framed deadline offer reply");
+    } while(In.Size || !Out.Size || stdioTestInfo(S).Duplex.Outputs);
+
+    Out.Size=0;
+    stdioTestFrame(&In,Format,"{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline\","
+        "\"params\":[\"0000000000000000020\",{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":9}]}");
+    size_t Cut=In.Size/2u,TailBytes=In.Size-Cut;
+    unsigned char Tail[sizeof(In.Bytes)];
+    memcpy(Tail,In.Bytes+Cut,TailBytes);
+    In.Size=Cut;
+    testRequire(xrpcStdioStep(S) && !In.Size && !Out.Size,"first span of a deadline frame");
+    double Begun=xrtTimer();
+    while(xrtTimer()<Begun+.045)xrtSleep(1);
+    memcpy(In.Bytes,Tail,TailBytes);
+    In.Size=TailBytes;
+    End=xrtTimer()+8.;
+    while(!Out.Size){
+        testRequire(xrpcStdioStep(S) && xrtTimer()<End,"dispatch after fragmented deadline expiry");
+        xrtSleep(1);
+    }
+    xstrview Expected=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"error\":"
+        "{\"code\":-32001,\"message\":\"Deadline exceeded\"},\"id\":9}");
+    testRequire(Out.Size>Expected.Size && !memcmp(Out.Bytes+Out.Size-Expected.Size,Expected.Data,Expected.Size) &&
+        !xrtAtomic32Load(&H.Calls,XMEMORY_ACQUIRE) && stdioTestInfo(S).Reason==XRPC_STDIO_OPEN,
+        "frame assembly consumes the received budget before entering business");
+    testRequire(xrpcStdioClose(S,XRPC_CALL_CLOSED),"stdio deadline fixture close");
+    stdioTestDrain(S,XRPC_STDIO_CLOSED);
+    testRequire(xrpcServerDestroy(Server),"stdio deadline server retirement");
+}
+
 int main(void)
 {
     for(unsigned Format=1;Format<=2;++Format){
         stdioTestPair((xrpcframeformat)Format);
         stdioTestReadAfterWriteCompletion((xrpcframeformat)Format);
         stdioTestBackpressure((xrpcframeformat)Format);
+        stdioTestFragmentDeadline((xrpcframeformat)Format);
     }
     for(unsigned Mode=0;Mode<4;++Mode)stdioTestEOF(Mode);
     stdioTestFailure();
     stdioTestOwnership();
-    puts("[PASS] xrpc stdio: profiles, bidirectional calls, partial writes, backpressure, read EOF drain, I/O errors, constructor rollback");
+    puts("[PASS] xrpc stdio: profiles, bidirectional calls, partial writes, backpressure, read EOF drain, I/O errors, constructor rollback and negotiated frame deadline");
     return 0;
 }

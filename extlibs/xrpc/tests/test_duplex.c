@@ -26,6 +26,15 @@ static bool duplexTestBusiness(const xrpcmessage* R,xrpcreply* Reply,const xrpcs
             xrtSleep(1);
         }
     }
+    if(duplexTestMethod(R,"deadline-hold")){
+        double End=xrtTimer()+6.;
+        while(xrtTimer()<Context->Deadline){
+            testRequire(xrtTimer()<End,"negotiated handler has a bounded deadline");
+            xrtSleep(1);
+        }
+        xrtAtomic32Store(&C->RemoteStop,1,XMEMORY_RELEASE);
+        return false;
+    }
     if(duplexTestMethod(R,"context"))testRequire(Context->Data.Size==4 && !memcmp(Context->Data.Data,"data",4),"duplex context was not copied");
     if(duplexTestMethod(R,"error"))return xrpcReplyError(Reply,XRT_STR_LITERAL("-100"),XRT_STR_LITERAL("error"),(xstrview){0});
     if(duplexTestMethod(R,"missing"))return false;
@@ -524,5 +533,200 @@ static void testDuplexCancellationReceivePolicy(void)
     }
 }
 
+
+#define DUPLEX_TEST_DEADLINE_PREFIX "{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline\",\"params\":[\""
+#define DUPLEX_TEST_DEADLINE_OFFER "{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline.v1\",\"id\":9}"
+#define DUPLEX_TEST_CALL "{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":\"1\"}"
+
+static void duplexTestDeadlineCode(xrpcvalue Code)
+{
+    testRequire(Code.Kind==XRPC_VALUE_NUMBER && Code.Raw.Size==6 && !memcmp(Code.Raw.Data,"-32001",6),
+        "response carries the negotiated deadline error");
+}
+
+static void testDuplexNegotiatedDeadline(void)
+{
+    for(unsigned Mode=0;Mode<3;++Mode){
+        duplexTestContext C;
+        duplexTestInit(&C);
+        xrpcserver* S=duplexTestServer(&C);
+        xrpcduplexconfig Limits;
+        xrpcDuplexConfigInit(&Limits);
+        Limits.IncomingTimeout=120;
+        xrpcduplexconfig Sender;
+        xrpcDuplexConfigInit(&Sender);
+        Sender.Encode.MaxOutputBytes=1024;
+        xrpcduplex* A=duplexTestCreate(NULL,&C,&Sender);
+        xrpcduplex* B=duplexTestCreate(Mode==1?NULL:S,&C,&Limits);
+        xfuture* Offer=NULL;
+        xfuture* Unchanged=(xfuture*)(uintptr_t)1;
+        testRequire(xrpcDuplexNegotiateDeadline(A,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
+            Unchanged==(xfuture*)(uintptr_t)1,"disabled offer does not publish a Future");
+        xrtClearError();
+        testRequire(xrpcDuplexEnableDeadline(A) && xrpcDuplexEnableDeadline(A) &&
+            (!Mode || xrpcDuplexEnableDeadline(B)) &&
+            xrpcDuplexNegotiateDeadline(A,5000,&Offer)==XRPC_DUPLEX_ACCEPTED,
+            "negotiate remote deadline");
+        testRequire(xrpcDuplexNegotiateDeadline(A,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
+            Unchanged==(xfuture*)(uintptr_t)1,"one pending deadline offer");
+        xrtClearError();
+        duplexTestUntil(A,B,&Offer,1);
+        const xrpccallresult* R=duplexTestResult(Offer,Mode?XRPC_CALL_OK:XRPC_CALL_REMOTE_ERROR,XRPC_REPLIED);
+        xrpcresponseinfo Reply={.Size=sizeof(Reply)};
+        testRequire(xrpcResponsesInfo(R->Responses,&Reply) && Reply.Count==1,"deadline offer reply");
+        xrpcvalue V=Mode?Reply.Messages[0].Result:Reply.Messages[0].ErrorCode;
+        const char* Expected=Mode==0?"-32601":Mode==1?"false":"true";
+        testRequire(V.Raw.Size==strlen(Expected) && !memcmp(V.Raw.Data,Expected,V.Raw.Size),
+            "positive, negative and legacy acknowledgements");
+        xrtFutureDestroy(Offer);
+
+        xfuture* First=NULL;
+        testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[42]"),4000,&First)==
+            XRPC_DUPLEX_ACCEPTED,"admit finite call");
+        double Now=xrtTimer();
+        while(xrtTimer()<Now+.06)xrtSleep(1);
+        uint64 Token=0;
+        xrpcduplexoutput* Wire=duplexTestSend(A,&Token);
+        xstrview View=xrpcDuplexOutputWire(Wire);
+        xstrview Prefix=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX);
+        bool Wrapped=View.Size>Prefix.Size+21 && !memcmp(View.Data,Prefix.Data,Prefix.Size);
+        testRequire(Wrapped==(Mode==2),"only positive negotiation enables propagation");
+        if(Wrapped){
+            int64 Budget=0;
+            for(size_t I=0;I<19;++I){
+                char Digit=View.Data[Prefix.Size+I];
+                testRequire(Digit>='0' && Digit<='9',"exact fixed-width budget");
+                Budget=Budget*10+(Digit-'0');
+            }
+            testRequire(Budget>0 && Budget<3950,"budget excludes time waiting in the owner queue");
+        }
+        if(Mode!=1){
+            testRequire(xrpcDuplexReceive(B,View,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+                "finite call reaches a legacy or negotiated server");
+            duplexTestUntil(A,B,&First,1);
+            duplexTestResult(First,XRPC_CALL_OK,XRPC_REPLIED);
+        }
+        xrpcDuplexOutputRelease(Wire);
+        xrtFutureDestroy(First);
+        if(Mode==2){
+            char Params[925];
+            memset(Params,' ',sizeof(Params));
+            Params[0]='[';
+            Params[sizeof(Params)-1]=']';
+            xstrview Large={Params,sizeof(Params)};
+            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),Large,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
+                xrtErrorCode(xrtGetError())==XRPC_DUPLEX_LIMIT && Unchanged==(xfuture*)(uintptr_t)1 &&
+                !duplexTestInfo(A).Operations && !duplexTestInfo(A).Outputs,
+                "deadline envelope consumes wire limit and rolls back admission");
+            xrtClearError();
+            xfuture* Plain=NULL;
+            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),Large,XRT_WAIT_FOREVER,&Plain)==
+                XRPC_DUPLEX_ACCEPTED && xrtFutureCancel(Plain) && xrpcDuplexStep(A),
+                "same unwrapped payload fits the wire limit");
+            duplexTestResult(Plain,XRPC_CALL_CANCELLED,XRPC_NOT_SENT);
+            xrtFutureDestroy(Plain);
+            xrpcduplexitem Batch[]={
+                {true,XRT_STR_LITERAL("notice"),{0}},
+                {false,XRT_STR_LITERAL("echo"),{0}},
+                {false,XRT_STR_LITERAL("deadline-hold"),{0}},
+                {false,XRT_STR_LITERAL("unreached"),{0}},
+            };
+            xfuture* Future=NULL;
+            testRequire(xrpcDuplexBatch(A,Batch,4,4000,&Future)==XRPC_DUPLEX_ACCEPTED,
+                "single propagated budget for a mixed batch");
+            duplexTestUntil(A,B,&Future,1);
+            const xrpcbatchcallresult* BR=(const xrpcbatchcallresult*)
+                duplexTestResult(Future,XRPC_CALL_BATCH_DONE,XRPC_REPLIED);
+            testRequire(BR->Count==4 && BR->Indices[0]==SIZE_MAX &&
+                xrpcResponsesInfo(BR->Call.Responses,&Reply) && Reply.Batch && Reply.Count==3,
+                "expired batch has a reply for each call only");
+            for(size_t I=1;I<4;++I){
+                testRequire(BR->Indices[I]<Reply.Count,"original batch IDs remain mapped");
+                duplexTestDeadlineCode(Reply.Messages[BR->Indices[I]].ErrorCode);
+            }
+            testRequire(xrtAtomic32Load(&C.RemoteStop,XMEMORY_ACQUIRE) &&
+                xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE)==4 && !duplexTestInfo(B).Closing,
+                "server clamp stops the handler and discards partial batch output");
+            xrtFutureDestroy(Future);
+
+            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),(xstrview){0},XRT_WAIT_FOREVER,&Future)==
+                XRPC_DUPLEX_ACCEPTED,"infinite call after expiration");
+            Wire=duplexTestSend(A,&Token);
+            View=xrpcDuplexOutputWire(Wire);
+            testRequire(View.Size<Prefix.Size || memcmp(View.Data,Prefix.Data,Prefix.Size),
+                "no envelope for infinite timeout");
+            testRequire(xrpcDuplexReceive(B,View,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+                "server accepts plain call following timed out work");
+            duplexTestUntil(A,B,&Future,1);
+            duplexTestResult(Future,XRPC_CALL_OK,XRPC_REPLIED);
+            xrpcDuplexOutputRelease(Wire);
+            xrtFutureDestroy(Future);
+        }
+        duplexTestClose(A);
+        duplexTestClose(B);
+        testRequire(xrpcServerDestroy(S),"deadline test server retirement");
+    }
+}
+
+static void testDuplexDeadlineWirePolicy(void)
+{
+    static const char* Bad[]={
+        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\"," DUPLEX_TEST_CALL "]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "9223372036854775808\"," DUPLEX_TEST_CALL "]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "000000000000000000x\"," DUPLEX_TEST_CALL "]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000001\",{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":true}]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\",[" DUPLEX_TEST_CALL ",null]]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\"," DUPLEX_TEST_DEADLINE_OFFER "]}",
+        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\"," DUPLEX_TEST_CALL "," DUPLEX_TEST_CALL "]}",
+    };
+    duplexTestContext C;
+    duplexTestInit(&C);
+    xrpcserver* S=duplexTestServer(&C);
+    xstrview Offer=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_OFFER);
+    for(size_t I=0;I<sizeof(Bad)/sizeof(*Bad);++I){
+        xrpcduplex* D=duplexTestCreate(S,&C,NULL);
+        testRequire(xrpcDuplexEnableDeadline(D) && xrpcDuplexReceive(D,Offer,(xbytesview){0})==
+            XRPC_DUPLEX_ACCEPTED,"accept independent deadline offer");
+        uint64 Token=0;
+        if(I)xrpcDuplexOutputRelease(duplexTestSend(D,&Token));
+        testRequire(xrpcDuplexReceive(D,(xstrview){Bad[I],strlen(Bad[I])},(xbytesview){0})==
+            XRPC_DUPLEX_PROTOCOL,"reject pre-ack or malformed envelope without partial execution");
+        duplexTestClose(D);
+    }
+    xrpcduplexconfig Config;
+    xrpcDuplexConfigInit(&Config);
+    Config.IncomingTimeout=XRT_WAIT_FOREVER;
+    xrpcduplex* D=duplexTestCreate(S,&C,&Config);
+    testRequire(xrpcDuplexEnableDeadline(D) && xrpcDuplexReceive(D,Offer,(xbytesview){0})==
+        XRPC_DUPLEX_ACCEPTED,"accept standalone wire offer");
+    uint64 Token=0;
+    xrpcDuplexOutputRelease(duplexTestSend(D,&Token));
+    xstrview Expired=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\"," DUPLEX_TEST_CALL "]}");
+    testRequire(xrpcDuplexReceive(D,Expired,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+        "zero budget expires before business admission to a worker");
+    double End=xrtTimer()+8.;
+    while(duplexTestInfo(D).Incoming){
+        testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"retire expired document");
+        xrtSleep(1);
+    }
+    xrpcduplexoutput* O=duplexTestSend(D,&Token);
+    xstrview Expected=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32001,\"message\":\"Deadline exceeded\"},\"id\":\"1\"}");
+    xstrview Actual=xrpcDuplexOutputWire(O);
+    testRequire(Actual.Size==Expected.Size && !memcmp(Actual.Data,Expected.Data,Expected.Size),
+        "independent peer receives exact expired wire response");
+    xrpcDuplexOutputRelease(O);
+    xstrview Notice=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\",{\"jsonrpc\":\"2.0\",\"method\":\"echo\"}]}");
+    testRequire(xrpcDuplexReceive(D,Notice,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+        "finite notification uses the same expiry");
+    while(duplexTestInfo(D).Incoming){
+        testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"retire expired notification");
+        xrtSleep(1);
+    }
+    testRequire(!duplexTestInfo(D).Closing && xrpcDuplexNext(D,&O,&Token)==0 &&
+        !xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE),"expired notifications have no reply or handler effect");
+    duplexTestClose(D);
+    testRequire(xrpcServerDestroy(S),"deadline wire policy server retirement");
+}
+
 int main(void)
-{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();testDuplexIndexedDeadlines();testDuplexNegotiatedCancellation();testDuplexCancellationReceivePolicy();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel/negotiated-wire-cancel");return 0;}
+{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();testDuplexIndexedDeadlines();testDuplexNegotiatedCancellation();testDuplexCancellationReceivePolicy();testDuplexNegotiatedDeadline();testDuplexDeadlineWirePolicy();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel/negotiated-wire-cancel/negotiated-wire-deadline");return 0;}

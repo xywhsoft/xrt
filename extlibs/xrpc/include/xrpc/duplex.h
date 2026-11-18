@@ -68,6 +68,12 @@ XRPC_API bool xrpcDuplexEnableCancellation(xrpcduplex* Duplex);
  * RPC error or false. At most one offer is pending and an agreed capability
  * lasts through this connection. Only ACCEPTED writes the owned Future. */
 XRPC_API xrpcduplexadmission xrpcDuplexNegotiateCancellation(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
+/* Owner-only opt-in for connection-local deadline propagation. A successful
+ * rpc.xrt.deadline.v1 reply enables finite admissions after owner processing.
+ * The remaining budget is stamped before Next exposes the immutable wire.
+ * Enabling and negotiating are independent of cancellation. */
+XRPC_API bool xrpcDuplexEnableDeadline(xrpcduplex* Duplex);
+XRPC_API xrpcduplexadmission xrpcDuplexNegotiateDeadline(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
  * lock/validation/encoding. Only counter/range reservation and publication hold

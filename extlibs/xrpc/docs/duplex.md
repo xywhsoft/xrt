@@ -232,6 +232,9 @@ interposition. Info gained three size_t fields; recompile consumers for its
 checked Size/layout change. Large-window raw cancellation scans and
 final native production qualification remain open.
 
+The owner can also opt in to [remote deadline propagation](deadline.md).
+An affirmative reply enables finite budgets on subsequent admissions.
+
 ## Deadline lookup benchmark
 
 `bench/bench_duplex_deadlines.c` measures Info with 1, 1,024 or 8,192 sent

@@ -1,0 +1,1777 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "23fc504ae668f1270725696fc797335b2d4eba4c",
+  "raw_directory": "out/service-extensions/xrpc-deadline-20261119",
+  "source_lf_sha256": {
+    "extlibs/xrpc/config/modules.json": "a9e47000688906c230c5535a50004d5e67d0af4999c992ef10debe65a2e74962",
+    "extlibs/xrpc/config/performance_profiles.json": "acf8d86b9725cb9f8de615a9379bd4efc3640f36637d0ab13b0493fc74db1fd5",
+    "extlibs/xrpc/include/xrpc/duplex.h": "bce6cb45907655cc80b677b508b94598ab022f9af8c99228b7750ad0dca3d548",
+    "extlibs/xrpc/include/xrpc/stdio.h": "324bfe9170cb6bf254ae46115f4675f53be6a9496c3075ca3d88163dc93cafa8",
+    "extlibs/xrpc/src/duplex/duplex.c": "96797609da77bda64ca9b97e0071ea89d4d0346d9f4f41c7ed7198a576ab4e4a",
+    "extlibs/xrpc/src/server/server.c": "596685d5a076132bba4501ff8f14f7e8a2a8921484e9187af42c2a1cc1cdbb41",
+    "extlibs/xrpc/src/internal/xrpc_server_internal.h": "d593a4e72668378a9a184d8cfc23bf70fce3d68c87e9102e49dccaa17f62afe9",
+    "extlibs/xrpc/src/stdio/stdio.c": "83815e941b0adebae8aa8c840b83cbaa3335b5e32f73e331454f10998371256f",
+    "extlibs/xrpc/examples/duplex/main.c": "c87fbd2a1768c0584ce4091f6e847285330cd8f485a9e58410a0a812572a365c",
+    "extlibs/xrpc/examples/stdio_process/main.c": "9afa56e8eb1d8d6223ea5be3ffe18c55ba114ce0f070f8624bc1087a966da1f5",
+    "extlibs/xrpc/tests/test_duplex.c": "17af942328532dad3026116388dc3de65b99cbb199fcc881571a33df15bdffe3",
+    "extlibs/xrpc/tests/test_stdio.c": "a2bd149232e2a967805595bead96f0171a3a877ed6df05f8423b9b68134dee3f",
+    "extlibs/xrpc/tests/test_stdio_process.c": "cf1c9f64348ee789d4e321911cde86a2d7bcdfbd8dac30f188afd43cb2c244c2",
+    "extlibs/xrpc/tests/package/test_consumer.c": "4604c78e333d648736e1711960b7f1590aa22012b9e08d268cf3bdb2b64801b6",
+    "extlibs/xrpc/tests/interop/run_stdio_process.py": "14f200249b4832f07e367c7e08e08308533fa7bda8f270abda4b06775a8814bb",
+    "extlibs/xrpc/bench/bench_duplex.c": "b65bcb2709840f9167fc1f75159b7b5614ada8dde055e812d532833d28b060ea",
+    "single/extlibs/xrpc.h": "02cfb1fc36bdc69ff868ca1b9a6e92c4be9a4b2dcce75c1d0907890d89fbd81a",
+    "single/extlibs/xrpc_decl.h": "00938bca8ca9c60e02d9896ddef0b891f6b62cf1d65120ee769a29773576dd76"
+  },
+  "scope": "Negotiated connection-local deadline propagation for duplex and framed stdio.",
+  "verified": [
+    "Independent positive negotiation, false and Method Not Found fallback, unchanged output on failed offer.",
+    "Stamp exact fixed-width duration after outbound queuing, preserve plain format for infinite timeouts.",
+    "Subtract first-fragment assembly and enforce receiver cap, worker queue, and deadline-aware handler execution.",
+    "One batch budget, complete per-ID expiration response after discarding partial output, silent expired notifications.",
+    "Reject pre-ack, overflow, malformed, enclosed responses and nested controls before dispatch, recover after wire-limit refusal.",
+    "Real subprocess tests for Content-Length and UINT32_BE, continued ordinary calls after a remote error."
+  ],
+  "platforms": {
+    "windows": {
+      "compiler": {
+        "path": "E:/software/w64devkit/bin/gcc.exe",
+        "version": "gcc.exe (GCC) 16.2.0"
+      },
+      "aggregate": {
+        "programs_passed": 63,
+        "file": "final-root-windows.log",
+        "sha256": "1cb9abaa2239538cee8b8f535de34854cda93c5662af172ad364b71669af7944"
+      },
+      "selected": {
+        "programs_passed": 6,
+        "file": "final-focused-windows.log",
+        "sha256": "1fd39e2c6ed1c4674b9c488dcb9e5bde80a5367ad776a996028fea83b0174fcb"
+      },
+      "packages": {
+        "xrpc_duplex_static": {
+          "file": "package-windows-xrpc_duplex-static.log",
+          "sha256": "9a951bea2a9a069675a19e4c315119ca5ad05170315e531bd93fce5b8cce777a"
+        },
+        "xrpc_duplex_shared": {
+          "file": "package-windows-xrpc_duplex-shared.log",
+          "sha256": "df85b3e6ef4f7e42c70c34c9be68276cf032d47f555108f380e8dd0736ae1c89"
+        },
+        "xrpc_static": {
+          "file": "package-windows-xrpc-static.log",
+          "sha256": "7eb9add22154a7ca86d36e3e628ab056346fd9bb3402eedaa0862095ad3ec0e4"
+        },
+        "xrpc_shared": {
+          "file": "package-windows-xrpc-shared.log",
+          "sha256": "7739b575de8d79d651d7af969043e58bd77f966bb31e18d41294dde77fed2b4c"
+        }
+      },
+      "runnable_examples": {
+        "xrpc_duplex": {
+          "file": "example-windows-xrpc_duplex.log",
+          "sha256": "181f797c22124639a2b555821463704def7077fe39046554abb44015f83ec84f"
+        },
+        "xrpc_stdio_process": {
+          "file": "example-windows-xrpc_stdio_process.log",
+          "sha256": "d3075b6a9d6f13e496f1857f7a4c1e79ff96a6fd669481c1b70e260f18e697bb"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-windows.json",
+          "sha256": "ebb9cc764e27654e6d22c664f73acef93b49a7941da111d4f32b125b62799685"
+        },
+        "single_object_sections": {
+          "xrpc_duplex": {
+            "text": 395820,
+            "data": 2712,
+            "bss": 11136,
+            "file": 588615,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio": {
+            "text": 414272,
+            "data": 2712,
+            "bss": 11136,
+            "file": 611563,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 450600,
+            "data": 2712,
+            "bss": 11168,
+            "file": 662202,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "ordinary_wire_ab": {
+        "artifact": {
+          "file": "perf-ordinary-windows.json",
+          "sha256": "d79c29ae5070a566b050ea842f95b5a982334619ca8f5c2bec0d0bdd20156637"
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.12.10",
+        "executable_sha256": {
+          "baseline": "1d3e456a77c2268023d31d2f934fbd62b479097e48cbdd0c465866a6dc17c34c",
+          "candidate": "9858c7bdb913cf0e8f857f0b26cb32e59a6b96fc20ac67a5c391d7d789fbfb04"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 82731.346,
+                "p50_us": 221.5,
+                "p95_us": 333.8,
+                "p99_us": 428.6,
+                "p999_us": 645.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 83537.516,
+                "p50_us": 216.8,
+                "p95_us": 332.6,
+                "p99_us": 404.9,
+                "p999_us": 498.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 83800.504,
+                "p50_us": 216.7,
+                "p95_us": 325.3,
+                "p99_us": 395.0,
+                "p999_us": 516.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 85977.042,
+                "p50_us": 213.7,
+                "p95_us": 316.1,
+                "p99_us": 381.1,
+                "p999_us": 440.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84159.916,
+                "p50_us": 216.1,
+                "p95_us": 325.3,
+                "p99_us": 399.9,
+                "p999_us": 606.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 82561.253,
+                "p50_us": 219.9,
+                "p95_us": 335.6,
+                "p99_us": 414.9,
+                "p999_us": 576.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84614.288,
+                "p50_us": 217.7,
+                "p95_us": 321.7,
+                "p99_us": 386.2,
+                "p999_us": 477.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 83668.141,
+                "p50_us": 216.6,
+                "p95_us": 326.9,
+                "p99_us": 402.3,
+                "p999_us": 469.1
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84250.343,
+                "p50_us": 215.7,
+                "p95_us": 323.4,
+                "p99_us": 395.5,
+                "p999_us": 470.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84306.181,
+                "p50_us": 215.3,
+                "p95_us": 321.9,
+                "p99_us": 395.3,
+                "p999_us": 481.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 83750.129,
+                "p50_us": 216.7,
+                "p95_us": 325.8,
+                "p99_us": 403.5,
+                "p999_us": 599.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 82858.266,
+                "p50_us": 217.7,
+                "p95_us": 329.5,
+                "p99_us": 420.5,
+                "p999_us": 629.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 77116.945,
+                "p50_us": 236.9,
+                "p95_us": 401.7,
+                "p99_us": 565.3,
+                "p999_us": 701.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 82821.533,
+                "p50_us": 223.2,
+                "p95_us": 330.4,
+                "p99_us": 409.5,
+                "p999_us": 543.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 83890.182,
+                "p50_us": 217.1,
+                "p95_us": 323.0,
+                "p99_us": 393.2,
+                "p999_us": 620.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 82474.953,
+                "p50_us": 225.2,
+                "p95_us": 339.6,
+                "p99_us": 424.4,
+                "p999_us": 542.8
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89379.136,
+                "p50_us": 205.7,
+                "p95_us": 300.6,
+                "p99_us": 360.9,
+                "p999_us": 509.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89069.207,
+                "p50_us": 207.2,
+                "p95_us": 304.7,
+                "p99_us": 370.2,
+                "p999_us": 463.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89891.561,
+                "p50_us": 205.4,
+                "p95_us": 299.7,
+                "p99_us": 373.3,
+                "p999_us": 547.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 90457.966,
+                "p50_us": 205.0,
+                "p95_us": 297.4,
+                "p99_us": 348.3,
+                "p999_us": 410.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 86046.398,
+                "p50_us": 214.4,
+                "p95_us": 329.5,
+                "p99_us": 419.3,
+                "p999_us": 603.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 84147.468,
+                "p50_us": 218.6,
+                "p95_us": 344.1,
+                "p99_us": 474.2,
+                "p999_us": 623.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89697.171,
+                "p50_us": 205.3,
+                "p95_us": 298.9,
+                "p99_us": 369.0,
+                "p999_us": 495.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89427.897,
+                "p50_us": 206.3,
+                "p95_us": 301.0,
+                "p99_us": 366.8,
+                "p999_us": 484.8
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 89274.987,
+                "p50_us": 206.4,
+                "p95_us": 302.6,
+                "p99_us": 370.3,
+                "p999_us": 437.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88821.569,
+                "p50_us": 206.6,
+                "p95_us": 307.8,
+                "p99_us": 375.0,
+                "p999_us": 457.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88029.039,
+                "p50_us": 208.2,
+                "p95_us": 308.6,
+                "p99_us": 380.0,
+                "p999_us": 441.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 86834.116,
+                "p50_us": 209.8,
+                "p95_us": 319.2,
+                "p99_us": 389.4,
+                "p999_us": 499.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 86847.165,
+                "p50_us": 209.1,
+                "p95_us": 324.0,
+                "p99_us": 427.9,
+                "p999_us": 770.7
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88645.441,
+                "p50_us": 207.0,
+                "p95_us": 308.2,
+                "p99_us": 380.6,
+                "p999_us": 520.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 88696.237,
+                "p50_us": 206.7,
+                "p95_us": 304.9,
+                "p99_us": 380.8,
+                "p999_us": 499.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 90398.348,
+                "p50_us": 204.7,
+                "p95_us": 297.8,
+                "p99_us": 355.8,
+                "p999_us": 425.5
+              }
+            ]
+          }
+        },
+        "median": {
+          "text": {
+            "baseline": {
+              "calls_per_sec": 83734.32250000001,
+              "p99_us": 401.1,
+              "p999_us": 507.5
+            },
+            "candidate": {
+              "calls_per_sec": 83304.19750000001,
+              "p99_us": 406.5,
+              "p999_us": 571.8499999999999
+            }
+          },
+          "be": {
+            "baseline": {
+              "calls_per_sec": 89403.5165,
+              "p99_us": 369.6,
+              "p999_us": 502.3
+            },
+            "candidate": {
+              "calls_per_sec": 88670.839,
+              "p99_us": 380.3,
+              "p999_us": 478.05
+            }
+          }
+        }
+      },
+      "propagation_ab": {
+        "artifact": {
+          "file": "perf-propagation-windows.json",
+          "sha256": "23096ae03f2f051d7938624a18eb07747addeaae290577290f01ce8c4910fcb0"
+        },
+        "scope": "One binary, two in-process endpoints, original finite timeouts, pipeline 1.",
+        "executable_sha256": "8c2ae91c9e6fc21380c2d8eec183d8952e017123e1694e53330567647b7e175c",
+        "calls_per_run": 32768,
+        "rounds": 8,
+        "samples": {
+          "off": [
+            {
+              "calls_per_sec": 71255.679114,
+              "ns_per_call": 14033.969116,
+              "process_cpu_ns_per_call": 21934.509277,
+              "p50_us": 13.099983,
+              "p99_us": 22.999942,
+              "p999_us": 32.800017
+            },
+            {
+              "calls_per_sec": 72465.242429,
+              "ns_per_call": 13799.719238,
+              "process_cpu_ns_per_call": 20503.997803,
+              "p50_us": 13.099983,
+              "p99_us": 21.500047,
+              "p999_us": 33.299904
+            },
+            {
+              "calls_per_sec": 73801.602334,
+              "ns_per_call": 13549.841309,
+              "process_cpu_ns_per_call": 20503.997803,
+              "p50_us": 12.900098,
+              "p99_us": 19.800034,
+              "p999_us": 31.600008
+            },
+            {
+              "calls_per_sec": 69814.200211,
+              "ns_per_call": 14323.733524,
+              "process_cpu_ns_per_call": 21457.672119,
+              "p50_us": 13.099983,
+              "p99_us": 24.800072,
+              "p999_us": 34.800032
+            },
+            {
+              "calls_per_sec": 70718.201512,
+              "ns_per_call": 14140.631105,
+              "process_cpu_ns_per_call": 22411.346436,
+              "p50_us": 13.099983,
+              "p99_us": 20.900043,
+              "p999_us": 29.29999
+            },
+            {
+              "calls_per_sec": 70642.339096,
+              "ns_per_call": 14155.81665,
+              "process_cpu_ns_per_call": 20503.997803,
+              "p50_us": 13.099983,
+              "p99_us": 21.799933,
+              "p999_us": 30.6
+            },
+            {
+              "calls_per_sec": 70415.21077,
+              "ns_per_call": 14201.477054,
+              "process_cpu_ns_per_call": 21934.509277,
+              "p50_us": 13.1001,
+              "p99_us": 21.300046,
+              "p999_us": 31.400006
+            },
+            {
+              "calls_per_sec": 68187.441394,
+              "ns_per_call": 14665.457151,
+              "process_cpu_ns_per_call": 19550.323486,
+              "p50_us": 13.299985,
+              "p99_us": 22.199936,
+              "p999_us": 32.100012
+            }
+          ],
+          "on": [
+            {
+              "calls_per_sec": 70330.953405,
+              "ns_per_call": 14218.490602,
+              "process_cpu_ns_per_call": 21457.672119,
+              "p50_us": 13.199984,
+              "p99_us": 21.999935,
+              "p999_us": 32.500015
+            },
+            {
+              "calls_per_sec": 68100.770347,
+              "ns_per_call": 14684.121705,
+              "process_cpu_ns_per_call": 21934.509277,
+              "p50_us": 13.299985,
+              "p99_us": 22.100052,
+              "p999_us": 32.900018
+            },
+            {
+              "calls_per_sec": 74385.24008,
+              "ns_per_call": 13443.527223,
+              "process_cpu_ns_per_call": 22411.346436,
+              "p50_us": 12.999983,
+              "p99_us": 19.500032,
+              "p999_us": 30.399999
+            },
+            {
+              "calls_per_sec": 71163.309877,
+              "ns_per_call": 14052.185062,
+              "process_cpu_ns_per_call": 22411.346436,
+              "p50_us": 13.099983,
+              "p99_us": 21.899934,
+              "p999_us": 31.90001
+            },
+            {
+              "calls_per_sec": 70296.025031,
+              "ns_per_call": 14225.555422,
+              "process_cpu_ns_per_call": 22411.346436,
+              "p50_us": 13.199984,
+              "p99_us": 21.39993,
+              "p999_us": 31.300006
+            },
+            {
+              "calls_per_sec": 71962.8274,
+              "ns_per_call": 13896.063233,
+              "process_cpu_ns_per_call": 21934.509277,
+              "p50_us": 13.1001,
+              "p99_us": 20.899926,
+              "p999_us": 29.799994
+            },
+            {
+              "calls_per_sec": 69216.197534,
+              "ns_per_call": 14447.485352,
+              "process_cpu_ns_per_call": 23365.020752,
+              "p50_us": 13.799989,
+              "p99_us": 22.400054,
+              "p999_us": 32.300013
+            },
+            {
+              "calls_per_sec": 67896.067296,
+              "ns_per_call": 14728.393555,
+              "process_cpu_ns_per_call": 20980.834961,
+              "p50_us": 13.199984,
+              "p99_us": 24.899957,
+              "p999_us": 32.799901
+            }
+          ]
+        },
+        "median": {
+          "off": {
+            "calls_per_sec": 70680.270304,
+            "ns_per_call": 14148.2238775,
+            "process_cpu_ns_per_call": 20980.834961,
+            "p50_us": 13.099983,
+            "p99_us": 21.64999,
+            "p999_us": 31.850009999999997
+          },
+          "on": {
+            "calls_per_sec": 70313.489218,
+            "ns_per_call": 14222.023012,
+            "process_cpu_ns_per_call": 22172.9278565,
+            "p50_us": 13.199984,
+            "p99_us": 21.949934499999998,
+            "p999_us": 32.1000115
+          }
+        },
+        "allocation_probe": {
+          "off": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2369.341553
+          },
+          "on": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2448.342285
+          }
+        }
+      },
+      "registered_benchmark_smoke": {
+        "file": "bench-smoke-windows.json",
+        "sha256": "311071687a66f0c5bce558b640b0f155c089366a4d056aff693920b7abddbfe3"
+      },
+      "ordinary_text_retest": {
+        "artifact": {
+          "file": "perf-confirm-ordinary-windows.json",
+          "sha256": "91e134d4522d8f8212126964a0191b60eeedd757deaaa7953678287f5c0d2544"
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.12.10",
+        "executable_sha256": {
+          "baseline": "1d3e456a77c2268023d31d2f934fbd62b479097e48cbdd0c465866a6dc17c34c",
+          "candidate": "9858c7bdb913cf0e8f857f0b26cb32e59a6b96fc20ac67a5c391d7d789fbfb04"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 82518.943,
+                "p50_us": 221.7,
+                "p95_us": 335.2,
+                "p99_us": 412.7,
+                "p999_us": 533.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83550.893,
+                "p50_us": 217.9,
+                "p95_us": 328.4,
+                "p99_us": 402.2,
+                "p999_us": 492.0
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 80496.668,
+                "p50_us": 228.4,
+                "p95_us": 356.0,
+                "p99_us": 499.5,
+                "p999_us": 694.3
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84707.162,
+                "p50_us": 215.4,
+                "p95_us": 320.0,
+                "p99_us": 393.8,
+                "p999_us": 499.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84514.119,
+                "p50_us": 215.9,
+                "p95_us": 322.6,
+                "p99_us": 403.5,
+                "p999_us": 525.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83765.415,
+                "p50_us": 217.3,
+                "p95_us": 325.3,
+                "p99_us": 402.3,
+                "p999_us": 543.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84272.943,
+                "p50_us": 216.9,
+                "p95_us": 324.1,
+                "p99_us": 400.7,
+                "p999_us": 511.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 82597.86,
+                "p50_us": 220.7,
+                "p95_us": 332.5,
+                "p99_us": 418.6,
+                "p999_us": 552.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 81773.299,
+                "p50_us": 223.2,
+                "p95_us": 341.4,
+                "p99_us": 430.1,
+                "p999_us": 583.3
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84111.018,
+                "p50_us": 215.9,
+                "p95_us": 322.1,
+                "p99_us": 400.0,
+                "p999_us": 556.0
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83826.262,
+                "p50_us": 216.9,
+                "p95_us": 323.8,
+                "p99_us": 394.9,
+                "p999_us": 504.2
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83980.105,
+                "p50_us": 216.7,
+                "p95_us": 326.4,
+                "p99_us": 405.9,
+                "p999_us": 561.4
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83626.322,
+                "p50_us": 216.8,
+                "p95_us": 325.6,
+                "p99_us": 406.3,
+                "p999_us": 614.9
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 85205.015,
+                "p50_us": 215.0,
+                "p95_us": 318.1,
+                "p99_us": 385.5,
+                "p999_us": 514.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84393.826,
+                "p50_us": 215.9,
+                "p95_us": 321.8,
+                "p99_us": 395.7,
+                "p999_us": 486.7
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 85171.009,
+                "p50_us": 213.9,
+                "p95_us": 318.0,
+                "p99_us": 391.1,
+                "p999_us": 545.1
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84484.593,
+                "p50_us": 215.3,
+                "p95_us": 320.8,
+                "p99_us": 396.3,
+                "p999_us": 526.0
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84104.887,
+                "p50_us": 216.8,
+                "p95_us": 324.0,
+                "p99_us": 402.1,
+                "p999_us": 526.7
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84666.092,
+                "p50_us": 215.9,
+                "p95_us": 320.3,
+                "p99_us": 384.2,
+                "p999_us": 493.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84331.632,
+                "p50_us": 216.3,
+                "p95_us": 323.3,
+                "p99_us": 402.4,
+                "p999_us": 593.1
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 84188.253,
+                "p50_us": 215.5,
+                "p95_us": 323.1,
+                "p99_us": 395.9,
+                "p999_us": 496.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83968.14,
+                "p50_us": 217.8,
+                "p95_us": 326.8,
+                "p99_us": 398.3,
+                "p999_us": 460.5
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 83425.953,
+                "p50_us": 218.1,
+                "p95_us": 333.1,
+                "p99_us": 418.9,
+                "p999_us": 519.8
+              },
+              {
+                "calls": 65536.0,
+                "window": 32.0,
+                "calls_per_sec": 85137.716,
+                "p50_us": 214.1,
+                "p95_us": 317.8,
+                "p99_us": 390.2,
+                "p999_us": 523.4
+              }
+            ]
+          }
+        },
+        "median": {
+          "text": {
+            "baseline": {
+              "calls_per_sec": 83795.8385,
+              "p99_us": 402.9,
+              "p999_us": 538.65
+            },
+            "candidate": {
+              "calls_per_sec": 84362.72899999999,
+              "p99_us": 396.1,
+              "p999_us": 521.5999999999999
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "compiler": {
+        "path": "/usr/bin/gcc",
+        "version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+      },
+      "aggregate": {
+        "programs_passed": 63,
+        "file": "final-root-wsl.log",
+        "sha256": "ead9a207f8dc1bde3c3c5eac1f4d888f2bc2d5c578483c9a10d0059883432bab"
+      },
+      "selected": {
+        "programs_passed": 6,
+        "file": "final-focused-wsl.log",
+        "sha256": "5e0a1e095d3b615370924ef7611d8e626b81ef2f2ddc3915074bde88502e0791"
+      },
+      "packages": {
+        "xrpc_duplex_static": {
+          "file": "package-wsl-xrpc_duplex-static.log",
+          "sha256": "43b53e4b752761d4d8dad4a3c34e130e565e15786dfac34095e7a32e6628fa26"
+        },
+        "xrpc_duplex_shared": {
+          "file": "package-wsl-xrpc_duplex-shared.log",
+          "sha256": "d751b9330530ce2878e91a718fe3fc1c544e3761328bb6dcbb969b5c7b03a5b4"
+        },
+        "xrpc_static": {
+          "file": "package-wsl-xrpc-static.log",
+          "sha256": "043efaab813982eabfa076c63c48e5a914853679aeb3def8c85600a25a418284"
+        },
+        "xrpc_shared": {
+          "file": "package-wsl-xrpc-shared.log",
+          "sha256": "26dd3c0badd16c8c13a893b2ddd4727c67b37aac47fb69a45642b86d1a542755"
+        }
+      },
+      "runnable_examples": {
+        "xrpc_duplex": {
+          "file": "example-wsl-xrpc_duplex.log",
+          "sha256": "cc80c351a1e5572597bd918817a06ffd18969d29d02fb1f4bb48c67d54e9ade5"
+        },
+        "xrpc_stdio_process": {
+          "file": "example-wsl-xrpc_stdio_process.log",
+          "sha256": "69898b2bce9f2b7b64e30dac9eecf6ad59e02a56ed14106030ba32f511916572"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-wsl.json",
+          "sha256": "71650769da371f331a5cd77fcbf01d7517b82c8f45142820601136e38312ef6e"
+        },
+        "single_object_sections": {
+          "xrpc_duplex": {
+            "text": 412913,
+            "data": 4472,
+            "bss": 10948,
+            "file": 731648,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio": {
+            "text": 432361,
+            "data": 4472,
+            "bss": 10948,
+            "file": 759768,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 464483,
+            "data": 4552,
+            "bss": 10948,
+            "file": 819336,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "ordinary_wire_ab": {
+        "artifact": {
+          "file": "perf-ordinary-wsl.json",
+          "sha256": "610c985a3cee08815b8110afdfab797ce9a03f7ef841788b73684d1fbabfe8b2"
+        },
+        "scope": "Unnegotiated ordinary RPC. Native C parent and independent Python child, interleaved A/B.",
+        "python": "3.14.4",
+        "executable_sha256": {
+          "baseline": "b374ed4bedfd83de9c74d003701ce568fda7c929184ecf9e9d3e278baecd951a",
+          "candidate": "4ab4cf4b147d29251ddffde308338c34ce30bc6ecfa7040a96ffeb484162a299"
+        },
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "profiles": {
+          "text": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70633.339,
+                "p50_us": 256.3,
+                "p95_us": 423.3,
+                "p99_us": 631.4,
+                "p999_us": 794.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69560.609,
+                "p50_us": 256.4,
+                "p95_us": 427.8,
+                "p99_us": 655.8,
+                "p999_us": 1065.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 66899.436,
+                "p50_us": 269.4,
+                "p95_us": 476.3,
+                "p99_us": 691.0,
+                "p999_us": 911.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69282.27,
+                "p50_us": 254.7,
+                "p95_us": 423.3,
+                "p99_us": 635.0,
+                "p999_us": 792.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 68723.778,
+                "p50_us": 258.9,
+                "p95_us": 452.8,
+                "p99_us": 655.5,
+                "p999_us": 831.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70380.257,
+                "p50_us": 275.7,
+                "p95_us": 430.1,
+                "p99_us": 637.8,
+                "p999_us": 772.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71674.222,
+                "p50_us": 258.0,
+                "p95_us": 411.9,
+                "p99_us": 611.3,
+                "p999_us": 757.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 68925.652,
+                "p50_us": 257.7,
+                "p95_us": 432.6,
+                "p99_us": 650.6,
+                "p999_us": 808.9
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 68895.321,
+                "p50_us": 249.3,
+                "p95_us": 419.2,
+                "p99_us": 627.8,
+                "p999_us": 825.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70735.619,
+                "p50_us": 263.0,
+                "p95_us": 417.1,
+                "p99_us": 615.4,
+                "p999_us": 794.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 68925.55,
+                "p50_us": 267.3,
+                "p95_us": 445.0,
+                "p99_us": 647.7,
+                "p999_us": 805.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71256.095,
+                "p50_us": 255.5,
+                "p95_us": 408.9,
+                "p99_us": 573.5,
+                "p999_us": 705.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 67810.61,
+                "p50_us": 254.7,
+                "p95_us": 424.4,
+                "p99_us": 637.8,
+                "p999_us": 915.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69973.866,
+                "p50_us": 254.8,
+                "p95_us": 424.2,
+                "p99_us": 646.1,
+                "p999_us": 905.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70332.159,
+                "p50_us": 255.6,
+                "p95_us": 429.9,
+                "p99_us": 651.7,
+                "p999_us": 805.9
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70965.175,
+                "p50_us": 253.0,
+                "p95_us": 416.3,
+                "p99_us": 641.1,
+                "p999_us": 795.7
+              }
+            ]
+          },
+          "be": {
+            "baseline": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71557.193,
+                "p50_us": 261.8,
+                "p95_us": 427.2,
+                "p99_us": 615.8,
+                "p999_us": 951.4
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73999.683,
+                "p50_us": 243.7,
+                "p95_us": 389.9,
+                "p99_us": 572.7,
+                "p999_us": 756.401
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73369.481,
+                "p50_us": 252.9,
+                "p95_us": 388.9,
+                "p99_us": 564.8,
+                "p999_us": 743.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73294.729,
+                "p50_us": 247.1,
+                "p95_us": 385.8,
+                "p99_us": 571.1,
+                "p999_us": 868.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73713.012,
+                "p50_us": 251.0,
+                "p95_us": 393.4,
+                "p99_us": 585.7,
+                "p999_us": 728.3
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72318.361,
+                "p50_us": 250.0,
+                "p95_us": 405.8,
+                "p99_us": 589.801,
+                "p999_us": 773.5
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70401.896,
+                "p50_us": 282.4,
+                "p95_us": 441.3,
+                "p99_us": 685.2,
+                "p999_us": 1011.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72313.079,
+                "p50_us": 248.0,
+                "p95_us": 401.1,
+                "p99_us": 638.6,
+                "p999_us": 1210.6
+              }
+            ],
+            "candidate": [
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 70477.364,
+                "p50_us": 252.8,
+                "p95_us": 415.8,
+                "p99_us": 656.7,
+                "p999_us": 1281.1
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 72463.35,
+                "p50_us": 248.2,
+                "p95_us": 410.0,
+                "p99_us": 611.5,
+                "p999_us": 783.6
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73802.032,
+                "p50_us": 255.3,
+                "p95_us": 389.6,
+                "p99_us": 562.1,
+                "p999_us": 768.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71194.432,
+                "p50_us": 245.0,
+                "p95_us": 419.9,
+                "p99_us": 619.1,
+                "p999_us": 784.8
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71770.752,
+                "p50_us": 258.1,
+                "p95_us": 410.4,
+                "p99_us": 604.9,
+                "p999_us": 821.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 73479.927,
+                "p50_us": 253.3,
+                "p95_us": 391.6,
+                "p99_us": 583.2,
+                "p999_us": 744.2
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 69108.216,
+                "p50_us": 294.0,
+                "p95_us": 434.4,
+                "p99_us": 666.5,
+                "p999_us": 1049.0
+              },
+              {
+                "calls": 32768.0,
+                "window": 32.0,
+                "calls_per_sec": 71589.835,
+                "p50_us": 256.6,
+                "p95_us": 401.6,
+                "p99_us": 589.7,
+                "p999_us": 793.3
+              }
+            ]
+          }
+        },
+        "median": {
+          "text": {
+            "baseline": {
+              "calls_per_sec": 69421.43950000001,
+              "p99_us": 644.2,
+              "p999_us": 801.7
+            },
+            "candidate": {
+              "calls_per_sec": 70153.0125,
+              "p99_us": 639.45,
+              "p999_us": 805.5
+            }
+          },
+          "be": {
+            "baseline": {
+              "calls_per_sec": 72806.54500000001,
+              "p99_us": 587.7505000000001,
+              "p999_us": 820.9
+            },
+            "candidate": {
+              "calls_per_sec": 71680.2935,
+              "p99_us": 608.2,
+              "p999_us": 789.05
+            }
+          }
+        }
+      },
+      "propagation_ab": {
+        "artifact": {
+          "file": "perf-propagation-wsl.json",
+          "sha256": "ba70188c70ba3fa961597d7280751cd853f38d073689b80865fdcc384b302b82"
+        },
+        "scope": "One binary, two in-process endpoints, original finite timeouts, pipeline 1.",
+        "executable_sha256": "4f563f1c49925aa47d63b1deaf5376ce39d18d4d78932f13268bbe2fa0ebb614",
+        "calls_per_run": 32768,
+        "rounds": 8,
+        "samples": {
+          "off": [
+            {
+              "calls_per_sec": 41284.963443,
+              "ns_per_call": 24221.893799,
+              "process_cpu_ns_per_call": 30890.167236,
+              "p50_us": 22.3,
+              "p99_us": 43.2,
+              "p999_us": 66.1
+            },
+            {
+              "calls_per_sec": 41662.877957,
+              "ns_per_call": 24002.182495,
+              "process_cpu_ns_per_call": 30560.974121,
+              "p50_us": 22.2,
+              "p99_us": 42.5,
+              "p999_us": 64.3
+            },
+            {
+              "calls_per_sec": 40425.224009,
+              "ns_per_call": 24737.030518,
+              "process_cpu_ns_per_call": 31762.420654,
+              "p50_us": 22.4,
+              "p99_us": 45.9,
+              "p999_us": 68.8
+            },
+            {
+              "calls_per_sec": 41174.161379,
+              "ns_per_call": 24287.076324,
+              "process_cpu_ns_per_call": 30863.983154,
+              "p50_us": 22.3,
+              "p99_us": 42.2,
+              "p999_us": 63.7
+            },
+            {
+              "calls_per_sec": 38612.626597,
+              "ns_per_call": 25898.264069,
+              "process_cpu_ns_per_call": 32913.024902,
+              "p50_us": 22.8,
+              "p99_us": 46.0,
+              "p999_us": 64.9
+            },
+            {
+              "calls_per_sec": 38084.482647,
+              "ns_per_call": 26257.413269,
+              "process_cpu_ns_per_call": 33473.754883,
+              "p50_us": 23.1,
+              "p99_us": 46.9,
+              "p999_us": 69.3
+            },
+            {
+              "calls_per_sec": 39407.899343,
+              "ns_per_call": 25375.623077,
+              "process_cpu_ns_per_call": 32474.273682,
+              "p50_us": 22.4,
+              "p99_us": 50.7,
+              "p999_us": 71.1
+            },
+            {
+              "calls_per_sec": 39757.315995,
+              "ns_per_call": 25152.603363,
+              "process_cpu_ns_per_call": 31969.421387,
+              "p50_us": 22.8,
+              "p99_us": 43.1,
+              "p999_us": 62.6
+            }
+          ],
+          "on": [
+            {
+              "calls_per_sec": 40081.615554,
+              "ns_per_call": 24949.094147,
+              "process_cpu_ns_per_call": 31921.966553,
+              "p50_us": 22.7,
+              "p99_us": 46.3,
+              "p999_us": 105.6
+            },
+            {
+              "calls_per_sec": 37682.237946,
+              "ns_per_call": 26537.701965,
+              "process_cpu_ns_per_call": 33864.471436,
+              "p50_us": 23.1,
+              "p99_us": 47.5,
+              "p999_us": 81.1
+            },
+            {
+              "calls_per_sec": 39272.682716,
+              "ns_per_call": 25462.991852,
+              "process_cpu_ns_per_call": 32459.197998,
+              "p50_us": 22.5,
+              "p99_us": 48.5,
+              "p999_us": 74.3
+            },
+            {
+              "calls_per_sec": 39008.348126,
+              "ns_per_call": 25635.538239,
+              "process_cpu_ns_per_call": 32551.940918,
+              "p50_us": 23.0,
+              "p99_us": 47.5,
+              "p999_us": 66.9
+            },
+            {
+              "calls_per_sec": 39317.689447,
+              "ns_per_call": 25433.844513,
+              "process_cpu_ns_per_call": 32380.737305,
+              "p50_us": 22.8,
+              "p99_us": 45.3,
+              "p999_us": 63.3
+            },
+            {
+              "calls_per_sec": 40508.486535,
+              "ns_per_call": 24686.185181,
+              "process_cpu_ns_per_call": 31551.300049,
+              "p50_us": 22.3,
+              "p99_us": 47.8,
+              "p999_us": 67.9
+            },
+            {
+              "calls_per_sec": 36977.891787,
+              "ns_per_call": 27043.185852,
+              "process_cpu_ns_per_call": 34277.038574,
+              "p50_us": 23.0,
+              "p99_us": 50.2,
+              "p999_us": 75.0
+            },
+            {
+              "calls_per_sec": 38068.293943,
+              "ns_per_call": 26268.579346,
+              "process_cpu_ns_per_call": 33363.922119,
+              "p50_us": 22.8,
+              "p99_us": 49.5,
+              "p999_us": 105.5
+            }
+          ]
+        },
+        "median": {
+          "off": {
+            "calls_per_sec": 40091.270002,
+            "ns_per_call": 24944.8169405,
+            "process_cpu_ns_per_call": 31865.921020499998,
+            "p50_us": 22.4,
+            "p99_us": 44.55,
+            "p999_us": 65.5
+          },
+          "on": {
+            "calls_per_sec": 39140.515421000004,
+            "ns_per_call": 25549.2650455,
+            "process_cpu_ns_per_call": 32505.569457999998,
+            "p50_us": 22.8,
+            "p99_us": 47.65,
+            "p999_us": 74.65
+          }
+        },
+        "allocation_probe": {
+          "off": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2785.341553
+          },
+          "on": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2864.342285
+          }
+        }
+      },
+      "registered_benchmark_smoke": {
+        "file": "bench-smoke-wsl.json",
+        "sha256": "94224cf4b3ffe0e50078adbca10071ab7f7c567b9aa04fb3487d9a822ca43312"
+      },
+      "propagation_retest": {
+        "artifact": {
+          "file": "perf-confirm-propagation-wsl.json",
+          "sha256": "52f0873e29dc762d401ae3473d698c2b80687649abce77e34c12b00d7e3ffa3d"
+        },
+        "scope": "One binary, two in-process endpoints, original finite timeouts, pipeline 1.",
+        "executable_sha256": "4f563f1c49925aa47d63b1deaf5376ce39d18d4d78932f13268bbe2fa0ebb614",
+        "calls_per_run": 65536,
+        "rounds": 12,
+        "samples": {
+          "off": [
+            {
+              "calls_per_sec": 39549.544305,
+              "ns_per_call": 25284.741394,
+              "process_cpu_ns_per_call": 32041.534424,
+              "p50_us": 22.5,
+              "p99_us": 44.1,
+              "p999_us": 62.2
+            },
+            {
+              "calls_per_sec": 41883.269238,
+              "ns_per_call": 23875.882141,
+              "process_cpu_ns_per_call": 30630.53894,
+              "p50_us": 22.3,
+              "p99_us": 42.4,
+              "p999_us": 65.2
+            },
+            {
+              "calls_per_sec": 40821.449144,
+              "ns_per_call": 24496.925537,
+              "process_cpu_ns_per_call": 31340.057373,
+              "p50_us": 22.6,
+              "p99_us": 42.8,
+              "p999_us": 63.5
+            },
+            {
+              "calls_per_sec": 39989.872853,
+              "ns_per_call": 25006.33107,
+              "process_cpu_ns_per_call": 31903.884888,
+              "p50_us": 22.5,
+              "p99_us": 46.1,
+              "p999_us": 68.6
+            },
+            {
+              "calls_per_sec": 37441.806103,
+              "ns_per_call": 26708.113312,
+              "process_cpu_ns_per_call": 33926.330566,
+              "p50_us": 22.8,
+              "p99_us": 50.1,
+              "p999_us": 73.6
+            },
+            {
+              "calls_per_sec": 39390.743486,
+              "ns_per_call": 25386.674927,
+              "process_cpu_ns_per_call": 32137.619019,
+              "p50_us": 22.6,
+              "p99_us": 44.8,
+              "p999_us": 63.2
+            },
+            {
+              "calls_per_sec": 39676.475274,
+              "ns_per_call": 25203.85173,
+              "process_cpu_ns_per_call": 32063.827515,
+              "p50_us": 22.5,
+              "p99_us": 45.2,
+              "p999_us": 67.3
+            },
+            {
+              "calls_per_sec": 40115.65173,
+              "ns_per_call": 24927.926056,
+              "process_cpu_ns_per_call": 31879.302979,
+              "p50_us": 22.9,
+              "p99_us": 44.3,
+              "p999_us": 67.5
+            },
+            {
+              "calls_per_sec": 40905.080685,
+              "ns_per_call": 24446.840912,
+              "process_cpu_ns_per_call": 31283.401489,
+              "p50_us": 22.4,
+              "p99_us": 43.4,
+              "p999_us": 61.3
+            },
+            {
+              "calls_per_sec": 38169.455645,
+              "ns_per_call": 26198.958908,
+              "process_cpu_ns_per_call": 33234.191895,
+              "p50_us": 22.5,
+              "p99_us": 49.1,
+              "p999_us": 69.1
+            },
+            {
+              "calls_per_sec": 40308.24773,
+              "ns_per_call": 24808.818451,
+              "process_cpu_ns_per_call": 31780.380249,
+              "p50_us": 22.7,
+              "p99_us": 44.4,
+              "p999_us": 69.8
+            },
+            {
+              "calls_per_sec": 40739.593047,
+              "ns_per_call": 24546.146027,
+              "process_cpu_ns_per_call": 31301.818848,
+              "p50_us": 22.5,
+              "p99_us": 42.7,
+              "p999_us": 62.4
+            }
+          ],
+          "on": [
+            {
+              "calls_per_sec": 37241.380347,
+              "ns_per_call": 26851.851105,
+              "process_cpu_ns_per_call": 34041.152954,
+              "p50_us": 23.1,
+              "p99_us": 51.0,
+              "p999_us": 73.9
+            },
+            {
+              "calls_per_sec": 38905.490666,
+              "ns_per_call": 25703.312897,
+              "process_cpu_ns_per_call": 32500.106812,
+              "p50_us": 22.7,
+              "p99_us": 47.3,
+              "p999_us": 109.3
+            },
+            {
+              "calls_per_sec": 40428.825547,
+              "ns_per_call": 24734.826859,
+              "process_cpu_ns_per_call": 31724.487305,
+              "p50_us": 22.7,
+              "p99_us": 43.8,
+              "p999_us": 65.5
+            },
+            {
+              "calls_per_sec": 39636.562119,
+              "ns_per_call": 25229.231461,
+              "process_cpu_ns_per_call": 32197.296143,
+              "p50_us": 22.8,
+              "p99_us": 44.4,
+              "p999_us": 64.6
+            },
+            {
+              "calls_per_sec": 41305.36414,
+              "ns_per_call": 24209.930618,
+              "process_cpu_ns_per_call": 30923.797607,
+              "p50_us": 22.5,
+              "p99_us": 44.0,
+              "p999_us": 80.6
+            },
+            {
+              "calls_per_sec": 38447.061065,
+              "ns_per_call": 26009.790405,
+              "process_cpu_ns_per_call": 33291.320801,
+              "p50_us": 23.1,
+              "p99_us": 49.2,
+              "p999_us": 78.4
+            },
+            {
+              "calls_per_sec": 38935.323558,
+              "ns_per_call": 25683.618591,
+              "process_cpu_ns_per_call": 32823.043823,
+              "p50_us": 22.7,
+              "p99_us": 48.8,
+              "p999_us": 72.4
+            },
+            {
+              "calls_per_sec": 40521.576098,
+              "ns_per_call": 24678.210876,
+              "process_cpu_ns_per_call": 31424.804688,
+              "p50_us": 22.4,
+              "p99_us": 45.0,
+              "p999_us": 74.6
+            },
+            {
+              "calls_per_sec": 40241.728729,
+              "ns_per_call": 24849.827072,
+              "process_cpu_ns_per_call": 31718.215942,
+              "p50_us": 22.5,
+              "p99_us": 43.1,
+              "p999_us": 64.7
+            },
+            {
+              "calls_per_sec": 41729.785041,
+              "ns_per_call": 23963.698807,
+              "process_cpu_ns_per_call": 30551.071167,
+              "p50_us": 22.3,
+              "p99_us": 41.5,
+              "p999_us": 63.5
+            },
+            {
+              "calls_per_sec": 39892.245965,
+              "ns_per_call": 25067.528183,
+              "process_cpu_ns_per_call": 31872.268677,
+              "p50_us": 22.6,
+              "p99_us": 44.7,
+              "p999_us": 66.9
+            },
+            {
+              "calls_per_sec": 39869.525469,
+              "ns_per_call": 25081.813446,
+              "process_cpu_ns_per_call": 31791.549683,
+              "p50_us": 22.7,
+              "p99_us": 44.5,
+              "p999_us": 65.7
+            }
+          ]
+        },
+        "median": {
+          "off": {
+            "calls_per_sec": 40052.762291499996,
+            "ns_per_call": 24967.128563,
+            "process_cpu_ns_per_call": 31891.5939335,
+            "p50_us": 22.5,
+            "p99_us": 44.349999999999994,
+            "p999_us": 66.25
+          },
+          "on": {
+            "calls_per_sec": 39880.885717,
+            "ns_per_call": 25074.6708145,
+            "process_cpu_ns_per_call": 31831.909180000002,
+            "p50_us": 22.7,
+            "p99_us": 44.6,
+            "p999_us": 69.65
+          }
+        },
+        "allocation_probe": {
+          "off": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2785.341553
+          },
+          "on": {
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2864.342285
+          }
+        }
+      }
+    }
+  },
+  "wsl_sanitizers": {
+    "asan_ubsan_leaks": {
+      "programs_passed": 8,
+      "file": "asan-wsl.log",
+      "sha256": "4a49e43dfe176859f22698395fca1760a3a3e8f7befff2c2730937c10f2b9d30"
+    },
+    "tsan": {
+      "programs_passed": 1,
+      "file": "tsan-wsl.log",
+      "sha256": "28883433e982d8f37a9882790a4bb14395aae8a01bbd00940fe44f8639d0dea6",
+      "compiler_note": "GCC atomic_thread_fence is not instrumented."
+    }
+  },
+  "documentation": {
+    "file": "api-docs.log",
+    "sha256": "b374d4e4190ca5b5945c4c512a92ca6ec3f82e072ec95ee46f335dc69b4c0f49"
+  },
+  "maturity": {
+    "file": "maturity.log",
+    "sha256": "ef4475271f35c3ca25df77efffd050554fcdbeb4f7c88759feb358c1d31f6a1f"
+  },
+  "strict": {
+    "artifact": {
+      "file": "strict.log",
+      "sha256": "017d192fdd43f63140efc262bc8eb6fe53d35ed20e0edb8227fa0371332b213c"
+    },
+    "xrpc_developing": 20,
+    "baseline_same_refusals": true,
+    "passes": false
+  },
+  "tooling": {
+    "file": "tooling.log",
+    "sha256": "8239cf2fa01d102f04cdac3a2cdbf95ecd03703222b71f99cfcd76bb68f79224",
+    "test_functions": 48,
+    "strict_gate_failures": 5,
+    "products": [
+      "xcron",
+      "xmqtt",
+      "xredis",
+      "xrpc",
+      "xtp"
+    ]
+  },
+  "preliminary_failures": [
+    {
+      "file": "duplex-module-windows.log",
+      "sha256": "973a92e212d677d0651ccfdb4ce9d0aa6673e536e4fcfa0d0a29572ca49320c8",
+      "cause": "Test fixture used value member syntax on a pointer."
+    },
+    {
+      "file": "focused-windows.log",
+      "sha256": "b34e9335778eb086c481f0b05805b20072b63198cdded0f335ca92eb5ff4a535",
+      "cause": "Test expected error fields in a different valid JSON order."
+    },
+    {
+      "file": "selected-windows.log",
+      "sha256": "cccdcb9f1b05adc3b353d55775eaf422cd8cdffd5c53507c49b1c12a0b3a57f4",
+      "cause": "A fixture assumed one owner turn would already flush the capability reply."
+    }
+  ],
+  "performance_scope": [
+    "Ordinary wire A/B compares original stage revision and current stage, both without deadline negotiation.",
+    "Ordinary wire interleaves two framed profiles and both arms over redirected pipes with an independent Python child.",
+    "Propagation A/B uses the same binary, finite timeouts, one shared executor, and one in-flight in-process call.",
+    "Eight 32768-call runs per arm and profile, with process startup and warmup outside timed loops.",
+    "Allocation probe uses separate 4096-call runs with native stats enabled.",
+    "Follow-up repeats Windows normal Content-Length and WSL active propagation with 12 x 65536 calls per arm."
+  ],
+  "open": [
+    "network transport opt-in",
+    "native Linux, mixed-load and sustained production qualification"
+  ]
+}

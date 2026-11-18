@@ -5066,6 +5066,12 @@ XRPC_API bool xrpcDuplexEnableCancellation(xrpcduplex* Duplex);
  * RPC error or false. At most one offer is pending and an agreed capability
  * lasts through this connection. Only ACCEPTED writes the owned Future. */
 XRPC_API xrpcduplexadmission xrpcDuplexNegotiateCancellation(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
+/* Owner-only opt-in for connection-local deadline propagation. A successful
+ * rpc.xrt.deadline.v1 reply enables finite admissions after owner processing.
+ * The remaining budget is stamped before Next exposes the immutable wire.
+ * Enabling and negotiating are independent of cancellation. */
+XRPC_API bool xrpcDuplexEnableDeadline(xrpcduplex* Duplex);
+XRPC_API xrpcduplexadmission xrpcDuplexNegotiateDeadline(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
  * lock/validation/encoding. Only counter/range reservation and publication hold
@@ -5201,6 +5207,9 @@ XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result);
  * framed channel, including a borrowed endpoint from the subprocess adapter. */
 XRPC_API bool xrpcStdioEnableCancellation(xrpcstdio* Stdio);
 XRPC_API xrpcduplexadmission xrpcStdioNegotiateCancellation(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
+/* Serialized owner. Applies duplex deadline negotiation to a framed channel. */
+XRPC_API bool xrpcStdioEnableDeadline(xrpcstdio* Stdio);
+XRPC_API xrpcduplexadmission xrpcStdioNegotiateDeadline(xrpcstdio* Stdio,int64 Timeout,xfuture** Future);
 /* Concurrent. Only ACCEPTED writes Future. Deadlines start at entry. The
  * transport stops accepting submissions when input EOF is observed. */
 XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);

@@ -28,7 +28,7 @@ typedef struct xrpcserverjob {
     xrpcserverbox* Box;
     size_t InputBytes,OwnedBytes,OutputBytes,InitialBoxBytes;
     double Deadline;
-    bool Finished,ResultOwned,Entered;
+    bool Finished,ResultOwned,Entered,ReplyTimeout;
     xrpcserverstatus OutputFailure;
     xrpcdispatchinfo Dispatch;
     unsigned char Input[];
@@ -95,9 +95,9 @@ static bool xrpcServerGrow(xrpcserverjob* J,size_t Need)
     if(!New){xrtMutexLock(&Q->Gate);Q->Info.ResultBytes-=NewBytes;xrtMutexUnlock(&Q->Gate);J->OutputFailure=XRPC_SERVER_MEMORY;return false;}
     New->Capacity=Capacity;J->Box=New;xrtMutexLock(&Q->Gate);Q->Info.ResultBytes-=OldBytes;xrtMutexUnlock(&Q->Gate);return true;
 }
-static bool xrpcServerEmit(const xrpcoutgoing* Response,bool Batch,size_t Bytes,ptr Data)
+static bool xrpcServerEmitWire(const xrpcoutgoing* Response,bool Batch,size_t Bytes,ptr Data)
 {
-    xrpcserverjob* J=Data;if(xrpcServerStop(J)!=XRPC_SERVER_DONE)return false;
+    xrpcserverjob* J=Data;
     size_t Extra=Batch?(J->OutputBytes?1u:2u):0u,Limit=J->Server->Config.Dispatch.MaxOutputBytes;
     if(Extra>Limit-J->OutputBytes || Bytes>Limit-J->OutputBytes-Extra){J->OutputFailure=XRPC_SERVER_LIMIT;return false;}
     size_t Need=J->OutputBytes+Extra+Bytes;if(!xrpcServerGrow(J,Need))return false;
@@ -106,6 +106,11 @@ static bool xrpcServerEmit(const xrpcoutgoing* Response,bool Batch,size_t Bytes,
     size_t Written=0;if(!xrpcEncodeWrite(P+At,Bytes,Response,1,false,&J->Server->Config.Dispatch.Reply,&Written) || Written!=Bytes)return false;
     At+=Bytes;if(Batch)P[At++]=']';J->OutputBytes=At;return true;
 }
+static bool xrpcServerEmit(const xrpcoutgoing* Response,bool Batch,size_t Bytes,ptr Data)
+{
+    return xrpcServerStop(Data)==XRPC_SERVER_DONE && xrpcServerEmitWire(Response,Batch,Bytes,Data);
+}
+
 static bool xrpcServerInvoke(const xrpcmessage* Request,xrpcreply* Reply,ptr Data)
 {
     xrpcserverjob* J=Data;if(xrpcServerStop(J)!=XRPC_SERVER_DONE){(void)xrpcReplyAbort(Reply,NULL);return true;}
@@ -126,21 +131,48 @@ static void xrpcServerFinish(xrpcserverjob* J,xrpcserverstatus Status)
         J->Box=B;J->ResultOwned=true;xrtMutexLock(&Q->Gate);++Q->Info.PublicationFailures;xrtMutexUnlock(&Q->Gate);
     }
 }
+static xrpcserverstatus xrpcServerDispatchFailure(const xrpcserverjob* J)
+{
+    if(J->OutputFailure!=XRPC_SERVER_DONE)return J->OutputFailure;
+    const xerror* Error=xrtGetError();
+    if(xrtErrorKind(Error)==XERR_MEMORY)return XRPC_SERVER_MEMORY;
+    int32 Code=xrtErrorCode(Error);
+    if(Code==XRPC_DISPATCH_LIMIT || Code==XRPC_CODEC_LIMIT || Code==XRPC_CODEC_CAPACITY)
+        return XRPC_SERVER_LIMIT;
+    return XRPC_SERVER_LOCAL_ERROR;
+}
+
+static bool xrpcServerReplyExpired(const xrpcmessage* Request,xrpcreply* Reply,ptr Data)
+{
+    (void)Request;
+    (void)Data;
+    (void)xrpcReplyError(Reply,XRT_STR_LITERAL("-32001"),XRT_STR_LITERAL("Deadline exceeded"),(xstrview){0});
+    return true;
+}
+
 static void xrpcServerRun(ptr Data)
 {
     xrpcserverjob* J=Data;xrpcserver* S=J->Server;xrpcserverquota* Q=S->Quota;
     xrtMutexLock(&Q->Gate);size_t Slot=S->FreeSlot;S->FreeSlot=S->Slots[Slot].Next;++Q->Info.Running;xrtMutexUnlock(&Q->Gate);
     xrpcserverstatus Status=xrpcServerStop(J);
+    xstrview Input={(cstr)J->Input,J->InputBytes};
+    xrpcmessage* Scratch=S->Slots[Slot].Scratch;
+    size_t Capacity=S->Config.Dispatch.Decode.MaxMessages;
     if(Status==XRPC_SERVER_DONE){
-        xrtClearError();bool OK=xrpcDispatch((xstrview){(cstr)J->Input,J->InputBytes},&S->Config.Dispatch,S->Slots[Slot].Scratch,S->Config.Dispatch.Decode.MaxMessages,
+        xrtClearError();bool OK=xrpcDispatch(Input,&S->Config.Dispatch,Scratch,Capacity,
             S->Config.Call?xrpcServerInvoke:NULL,J,xrpcServerEmit,J,&J->Dispatch);
         Status=xrpcServerStop(J);
-        if(Status==XRPC_SERVER_DONE && !OK){
-            if(J->OutputFailure!=XRPC_SERVER_DONE)Status=J->OutputFailure;
-            else if(xrtErrorKind(xrtGetError())==XERR_MEMORY)Status=XRPC_SERVER_MEMORY;
-            else if(xrtErrorCode(xrtGetError())==XRPC_DISPATCH_LIMIT || xrtErrorCode(xrtGetError())==XRPC_CODEC_LIMIT || xrtErrorCode(xrtGetError())==XRPC_CODEC_CAPACITY)Status=XRPC_SERVER_LIMIT;
-            else Status=XRPC_SERVER_LOCAL_ERROR;
-        }
+        if(Status==XRPC_SERVER_DONE && !OK)Status=xrpcServerDispatchFailure(J);
+    }
+    if(Status==XRPC_SERVER_TIMEOUT && J->ReplyTimeout && !xrtCancelRequested(J->Cancel)){
+        /* Discard any partial reply and emit a complete deadline response.
+         * Dispatch keeps the original IDs and batch shape without rerunning business. */
+        J->OutputBytes=0;
+        J->OutputFailure=XRPC_SERVER_DONE;
+        xrtClearError();
+        bool OK=xrpcDispatch(Input,&S->Config.Dispatch,Scratch,Capacity,
+            xrpcServerReplyExpired,NULL,xrpcServerEmitWire,J,&J->Dispatch);
+        Status=OK?XRPC_SERVER_DONE:xrpcServerDispatchFailure(J);
     }
     xrtMutexLock(&Q->Gate);S->Slots[Slot].Next=S->FreeSlot;S->FreeSlot=Slot;--Q->Info.Running;xrtMutexUnlock(&Q->Gate);
     xrpcServerFinish(J,Status);
@@ -186,7 +218,8 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Resul
 Argument:
     return xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server configuration/output span");
 }
-xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* S,xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future,double Entered)
+static xrpcserveradmission xrpcServerSubmitImpl(xrpcserver* S,xstrview Input,xbytesview Context,
+    int64 Timeout,xfuture** Future,double Entered,bool ReplyTimeout)
 {
     if(!S || !Future || Timeout<XRT_WAIT_FOREVER || !xrtMemRangeValid(Future,sizeof(*Future)) || !xrtMemRangeValid(Input.Data,Input.Size) ||
         !xrtMemRangeValid(Context.Data,Context.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),Context.Data,Context.Size) ||
@@ -211,7 +244,8 @@ xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* S,xstrview Input,
     xrpcserverjob* J=xrtMalloc(JobBytes);xfuture* F=NULL;
     if(!J){xrpcServerResultRefund(Q,BoxBytes);xrpcServerOperationDrop(S,JobBytes,Context.Size);goto NoJob;}
     *J=(xrpcserverjob){0};J->Server=S;J->OwnedBytes=JobBytes;J->InputBytes=Input.Size;J->InitialBoxBytes=BoxBytes;J->ResultOwned=true;
-    J->Deadline=xrpcServerDeadline(Entered,Timeout);J->Dispatch.Size=sizeof(J->Dispatch);xrtAtomic32Init(&J->References,1);
+    J->Deadline=xrpcServerDeadline(Entered,Timeout);J->ReplyTimeout=ReplyTimeout;
+    J->Dispatch.Size=sizeof(J->Dispatch);xrtAtomic32Init(&J->References,1);
     if(Input.Size)memcpy(J->Input,Input.Data,Input.Size);
     if(Context.Size)memcpy((unsigned char*)J+ContextAt,Context.Data,Context.Size);
     J->Box=xrtCalloc(1,BoxBytes);if(!J->Box)goto Error;J->Box->Quota=Q;J->Box->Capacity=Capacity;
@@ -231,6 +265,16 @@ NoJob:
     if(A==XRPC_SERVER_OVERLOADED || A==XRPC_SERVER_CLOSED){xrtClearError();xrtSetErrorTake(Ambient);return A;}
     xrtErrorFree(Ambient);return XRPC_SERVER_ADMISSION_ERROR;
 }
+xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* S,xstrview Input,xbytesview Context,
+    int64 Timeout,xfuture** Future,double Entered)
+{return xrpcServerSubmitImpl(S,Input,Context,Timeout,Future,Entered,false);}
+
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+xrpcserveradmission xrpcServerSubmitDeadlineEntered(xrpcserver* S,xstrview Input,xbytesview Context,
+    int64 Timeout,xfuture** Future,double Entered)
+{return xrpcServerSubmitImpl(S,Input,Context,Timeout,Future,Entered,true);}
+#endif
+
 xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future,double Entered)
 {return xrpcServerSubmitContextEntered(S,Input,(xbytesview){0},Timeout,Future,Entered);}
 XRPC_API xrpcserveradmission xrpcServerSubmitWithContext(xrpcserver* S,xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future)

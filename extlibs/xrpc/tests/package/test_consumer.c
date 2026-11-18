@@ -39,7 +39,7 @@ static bool rpcConsumerStdio(void)
     Config.Read=rpcConsumerStdioEof;
     Config.Write=rpcConsumerStdioWrite;
     xrpcstdio* S=NULL;
-    if(!xrpcStdioCreate(&Config,&S) || !xrpcStdioEnableCancellation(S))return false;
+    if(!xrpcStdioCreate(&Config,&S) || !xrpcStdioEnableCancellation(S) || !xrpcStdioEnableDeadline(S))return false;
     xrpcstdioinfo Info={.Size=sizeof(Info)};
     for(unsigned N=0;N<4;++N){
         if(!xrpcStdioStep(S) || !xrpcStdioInfo(S,&Info))return false;

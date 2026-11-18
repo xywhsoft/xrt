@@ -49,8 +49,8 @@ preserves uncertainty on partial send, timeout or cancellation.
 [Process-pipe contracts](../../../docs/api/process_pipe.md).
 
 
-The serialized owner can enable and [negotiate remote cancellation](cancellation.md)
-through the borrowed stdio endpoint before sending eligible work.
+The serialized owner can negotiate [remote cancellation](cancellation.md) and
+[deadline propagation](deadline.md) through the borrowed stdio endpoint.
 
 ## Example and independent peer
 

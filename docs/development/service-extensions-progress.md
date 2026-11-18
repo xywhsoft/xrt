@@ -15675,3 +15675,48 @@ developing modules. Remote deadline propagation, opt-in for network
 adapters and native production qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/cancellation-20261119.json).
+
+## 2026-11-19 xrpc negotiated deadlines
+
+Duplex and framed stdio negotiate deadline propagation per direction. A
+selected finite document carries the remaining caller budget in the same
+charged wire allocation. The receiver uses its own monotonic clock and
+its configured limit. Framed input starts that clock at the first
+fragment. Expiry bypasses further business and produces bounded errors
+for the original call IDs. A mixed batch keeps one deadline and one
+response shape. The connection can carry more work after expiry.
+
+Windows and WSL each passed 63 aggregate and six selected test programs.
+The selected runs cover modular and single-header builds, fragmented
+arrival and both native subprocess framing profiles. The duplex example
+and eight static/shared package consumers return the remote deadline
+error and continue using the connection. WSL ASan/UBSan with leak checks
+and focused TSan passed. GCC leaves atomic_thread_fence uninstrumented
+under TSan. Three single-object variants contain no forbidden symbols
+on either platform. The strict gate still lists the same 20 developing
+xrpc modules.
+
+| Environment | Workload | Calls/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Content-Length | 83,734 / 83,304 | 401.1 / 406.5 | 507.5 / 571.8 |
+| Windows | UINT32_BE | 89,404 / 88,671 | 369.6 / 380.3 | 502.3 / 478.1 |
+| Windows | In-process finite calls | 70,680 / 70,313 | 21.6 / 21.9 | 31.9 / 32.1 |
+| WSL | Content-Length | 69,421 / 70,153 | 644.2 / 639.5 | 801.7 / 805.5 |
+| WSL | UINT32_BE | 72,807 / 71,680 | 587.8 / 608.2 | 820.9 / 789.0 |
+| WSL | In-process finite calls | 40,091 / 39,141 | 44.5 / 47.6 | 65.5 / 74.7 |
+
+Each cell shows the median pair from eight interleaved 32,768-call runs.
+Pipe rows compare the previous and current builds with deadline
+negotiation disabled at window 32. In-process rows compare propagation
+disabled and enabled within the same binary at window one. Separate
+allocation probes measure 14.00 / 14.00 blocks and
+2,369.34 / 2,448.34 bytes per call on Windows, and
+14.00 / 14.00 blocks and 2,785.34 / 2,864.34 bytes on WSL.
+The original Windows Content-Length and WSL propagation comparisons
+showed higher P99.9 medians, so both were repeated at 65,536 calls and
+12 pairs. The Windows Content-Length retest measured P99.9 of
+538.6 / 521.6 us. The WSL propagation retest measured P99 of 44.3 / 44.6 us
+and P99.9 of 66.2 / 69.7 us. Both sets of samples are retained.
+Network transports and native sustained release qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/deadline-20261119.json).

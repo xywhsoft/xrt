@@ -8,6 +8,11 @@ xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* Server,xstrview Input,
 /* Copied context with the same transport-origin deadline. */
 xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* Server,xstrview Input,
     xbytesview Context,int64 Timeout,xfuture** Future,double Entered);
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+/* Decoded negotiated documents can return a bounded wire timeout response. */
+xrpcserveradmission xrpcServerSubmitDeadlineEntered(xrpcserver* Server,xstrview Input,
+    xbytesview Context,int64 Timeout,xfuture** Future,double Entered);
+#endif
 /* Transport work borrows the existing executor. Caller embeds this node and
  * transfers one Data reference only on ACCEPTED. Cancel is owned by Data. Drop
  * runs once after Call returns or queued cancellation; Core tracks its physical

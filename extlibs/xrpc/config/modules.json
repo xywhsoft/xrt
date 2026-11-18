@@ -1361,6 +1361,7 @@
       "docs": [
         "extlibs/xrpc/docs/duplex.md",
         "extlibs/xrpc/docs/cancellation.md",
+        "extlibs/xrpc/docs/deadline.md",
         "extlibs/xrpc/examples/duplex/README.md"
       ]
     },

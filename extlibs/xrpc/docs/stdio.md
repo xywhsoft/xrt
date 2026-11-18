@@ -71,8 +71,8 @@ named-pipe completion, with an executor wake and a deadline in both loops.
 The Windows driver waits for physical write completion before reporting
 progress and retires pending operations on shutdown. The optional
 [subprocess adapter](stdio_process.md) handles child launch and native I/O.
-Optional [remote cancellation negotiation](cancellation.md) uses this same
-framed channel. Remote deadline propagation and production qualification remain open.
+Optional [remote cancellation](cancellation.md) and [deadline negotiation](deadline.md)
+use this same framed channel. Production qualification remains open.
 
 ## Measuring the adapter
 
