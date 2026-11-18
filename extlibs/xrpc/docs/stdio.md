@@ -69,9 +69,9 @@ an independent Python peer using the integration script in tests/interop.
 The example waits for Linux descriptor readiness and Windows overlapped
 named-pipe completion, with an executor wake and a deadline in both loops.
 The Windows driver waits for physical write completion before reporting
-progress and retires pending operations on shutdown. Automatic process
-attachment, negotiated deadline and cancellation, and production
-qualification remain open.
+progress and retires pending operations on shutdown. The optional
+[subprocess adapter](stdio_process.md) handles child launch and native I/O.
+Negotiated deadline and cancellation and production qualification remain open.
 
 ## Measuring the adapter
 

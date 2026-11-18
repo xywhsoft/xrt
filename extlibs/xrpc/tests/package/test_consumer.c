@@ -48,8 +48,19 @@ static bool rpcConsumerStdio(void)
     return false;
 }
 #endif
-int main(void)
+#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
+#define main stdioProcessPackageExample
+#include "../../examples/stdio_process/main.c"
+#undef main
+#endif
+int main(int Argc,char** Argv)
 {
+#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
+    if(Argc>1)return stdioProcessPackageExample(Argc,Argv);
+    if(stdioProcessPackageExample(Argc,Argv))return 32;
+#else
+    (void)Argc;(void)Argv;
+#endif
 #if defined(XRPC_FEATURE_XRPC_FRAME)
     if(framePackageExample())return 1;
 #endif

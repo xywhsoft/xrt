@@ -26,7 +26,8 @@ notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
 bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. [WS/WSS dial](docs/ws_dial.md) and [URI input](docs/ws_uri.md) compose native setup. [Framed stdio](docs/stdio.md) supports host-driven pipes.
-Automatic process attachment, deadline/cancellation negotiation and production acceptance remain pending.
+The [subprocess adapter](docs/stdio_process.md) launches a child through XRT and
+drives its framed I/O. Deadline/cancellation negotiation and production acceptance remain pending.
 
 Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
 thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.
@@ -251,10 +252,8 @@ Remaining recovery/transport features and full acceptance remain pending.
 Optional [stream framing](docs/frame.md) supplies explicit Content-Length and
 uint32 big-endian profiles, incremental bounded buffers, complete-input borrowed
 views, atomic writers and typed EOF/failure. [The example](examples/frame/README.md)
-uses five-byte fragments; independent stdin/stdout tests compose the production
-framer with dispatch. The duplex runtime and framed TCP/TLS adapters are available;
-a production process adapter remains required. The framing leaf adds no thread,
-Future, JSON or transport.
+uses five-byte fragments. Independent stdin/stdout tests compose the production
+framer with dispatch. The framing leaf adds no thread, Future, JSON or transport.
 
 The optional [WS/WSS dial leaf](docs/ws_dial.md) creates one peer directly from a
 numeric endpoint, borrowed asynchronous Resolver or retained prepared endpoints.
@@ -274,5 +273,6 @@ production and performance acceptance are separate outstanding gates.
 The [stdio adapter](docs/stdio.md) runs calls, notifications and batches over
 host-owned stdin/stdout with Content-Length or an explicitly selected four-byte
 length. It handles partial I/O, input backpressure and clean EOF response drain.
-The [pipe example](examples/stdio/README.md) uses event-driven native pipes on
-Windows and Linux. The host supplies process launch and pipe handles.
+The [host-driver example](examples/stdio/README.md) uses event-driven native
+pipes on Windows and Linux. The optional [subprocess adapter](docs/stdio_process.md)
+also owns child launch and parent pipe readiness.

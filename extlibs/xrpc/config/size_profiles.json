@@ -148,6 +148,18 @@
       ]
     },
     {
+      "name": "xrpc_stdio_process",
+      "system": "stdio",
+      "suite": "xrpc_stdio_process",
+      "description": "Native framed stdio with XRT Process and bounded pipe I/O",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket"
+      ]
+    },
+    {
       "name": "xrpc_tcp",
       "system": "tcp",
       "suite": "xrpc_tcp",

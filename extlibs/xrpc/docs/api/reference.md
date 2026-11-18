@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `176` 个函数、`267` 个常量或宏、
-`126` 个公共类型。
+当前登记 `181` 个函数、`268` 个常量或宏、
+`127` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -633,6 +633,26 @@
 - `xrpcstdioread`
 - `xrpcstdioreason`
 - `xrpcstdiowrite`
+
+## `extlibs/xrpc/include/xrpc/stdio_process.h`
+
+[查看带契约注释的公共头](../../include/xrpc/stdio_process.h)
+
+### 函数 (5)
+
+- `xrpcStdioProcessDestroy`
+- `xrpcStdioProcessEndpoint`
+- `xrpcStdioProcessSpawn`
+- `xrpcStdioProcessStep`
+- `xrpcStdioProcessWait`
+
+### 常量与宏 (1)
+
+- `XRPC_FEATURE_XRPC_STDIO_PROCESS`
+
+### 类型 (1)
+
+- `xrpcstdioprocess`
 
 ## `extlibs/xrpc/include/xrpc/tcp.h`
 

@@ -61,6 +61,9 @@
 #ifndef XRPC_MODULE_XRPC_STDIO
 #define XRPC_MODULE_XRPC_STDIO
 #endif
+#ifndef XRPC_MODULE_XRPC_STDIO_PROCESS
+#define XRPC_MODULE_XRPC_STDIO_PROCESS
+#endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
 #endif
@@ -345,6 +348,19 @@
 #endif
 #ifndef XRT_MODULE_NET_TCP_RETIRE
 #define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#endif
+
+/* xrpc_stdio_process 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_STDIO_PROCESS)
+#ifndef XRPC_FEATURE_XRPC_STDIO_PROCESS
+#define XRPC_FEATURE_XRPC_STDIO_PROCESS
+#endif
+#ifndef XRPC_MODULE_XRPC_STDIO
+#define XRPC_MODULE_XRPC_STDIO
+#endif
+#ifndef XRT_MODULE_PROCESS_PIPE
+#define XRT_MODULE_PROCESS_PIPE
 #endif
 #endif
 

@@ -90,6 +90,9 @@
 #if !defined(XRPC_FEATURE_XRPC_STDIO)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_STDIO 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_STDIO_PROCESS 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP 1
 #endif
@@ -197,6 +200,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_STDIO)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_STDIO_PROCESS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO_PROCESS 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TCP 1
@@ -1499,6 +1505,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP_RETIRE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
+#endif
+#if !defined(XRT_MODULE_PROCESS_PIPE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_PROCESS_PIPE 1
 #endif
 #if !defined(XRT_MODULE_TIME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME 1
@@ -2863,6 +2872,9 @@
 #ifndef XRPC_MODULE_XRPC_STDIO
 #define XRPC_MODULE_XRPC_STDIO
 #endif
+#ifndef XRPC_MODULE_XRPC_STDIO_PROCESS
+#define XRPC_MODULE_XRPC_STDIO_PROCESS
+#endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
 #endif
@@ -3147,6 +3159,19 @@
 #endif
 #ifndef XRT_MODULE_NET_TCP_RETIRE
 #define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#endif
+
+/* xrpc_stdio_process 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_STDIO_PROCESS)
+#ifndef XRPC_FEATURE_XRPC_STDIO_PROCESS
+#define XRPC_FEATURE_XRPC_STDIO_PROCESS
+#endif
+#ifndef XRPC_MODULE_XRPC_STDIO
+#define XRPC_MODULE_XRPC_STDIO
+#endif
+#ifndef XRT_MODULE_PROCESS_PIPE
+#define XRT_MODULE_PROCESS_PIPE
 #endif
 #endif
 
@@ -5185,6 +5210,51 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/stdio_process.h */
+/* ========================================================================== */
+
+#ifndef XRPC_STDIO_PROCESS_H
+#define XRPC_STDIO_PROCESS_H
+
+#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS) && \
+    (!defined(XRPC_FEATURE_XRPC_STDIO) || !defined(XRT_FEATURE_PROCESS_PIPE))
+#error "xrpc stdio process requires stdio and XRT process_pipe"
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
+typedef struct xrpcstdioprocess xrpcstdioprocess;
+
+XRT_EXTERN_C_BEGIN
+/* Synchronously launch a child with blocking stdin/stdout. Stdio is a borrowed
+ * configuration from xrpcStdioConfigInit, or NULL for defaults. The adapter
+ * supplies Read, Write, User and Duplex.Wake/User. Those fields must be NULL.
+ * Process and Adapter receive independent ownership only on success. Terminal
+ * and stderr merge are invalid. Separate captured stderr is the host's duty. */
+XRPC_API bool xrpcStdioProcessSpawn(const xprocessconfig* Config,const xrpcstdioconfig* Stdio,
+    xprocess** Process,xrpcstdioprocess** Adapter);
+/* Borrowed through Adapter destruction. Use it for concurrent Call, Notify,
+ * Batch and Close. The Adapter is the exclusive I/O and lifetime owner. */
+XRPC_API xrpcstdio* xrpcStdioProcessEndpoint(xrpcstdioprocess* Adapter);
+/* Drive one bounded owner turn and snapshot its state. Info->Size is required.
+ * A terminal transport closes child stdin, retiring any pending native write.
+ * Keep driving until Info->Drained, even if the child already exited. */
+XRPC_API bool xrpcStdioProcessStep(xrpcstdioprocess* Adapter,xrpcstdioinfo* Info);
+/* Owner-only. XWAIT_OK requests a Step after I/O, a wake, immediate work or an
+ * RPC deadline. XWAIT_TIMEOUT is the caller's relative millisecond budget,
+ * with -1 meaning no outer limit. XWAIT_CLOSED means Step observed Drained.
+ * Native wait failure seals the endpoint with TRANSPORT and returns ERROR. */
+XRPC_API xwaitresult xrpcStdioProcessWait(xrpcstdioprocess* Adapter,int64 Timeout);
+/* Caller stops concurrent submissions and Close before destroying. Requires
+ * the protocol to be Drained. Success also retires all remaining native pipe
+ * I/O. False retains ownership. NULL succeeds. The independent child remains
+ * available for status, wait or explicit termination. */
+XRPC_API bool xrpcStdioProcessDestroy(xrpcstdioprocess* Adapter);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc/tcp.h */
 /* ========================================================================== */
 
@@ -5994,6 +6064,10 @@ XRT_EXTERN_C_END
 #undef XRPC_FEATURE_XRPC_STDIO
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_STDIO
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_STDIO_PROCESS)
+#undef XRPC_FEATURE_XRPC_STDIO_PROCESS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_STDIO_PROCESS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP)
 #undef XRPC_FEATURE_XRPC_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP
@@ -6137,6 +6211,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO)
 #undef XRPC_MODULE_XRPC_STDIO
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO_PROCESS)
+#undef XRPC_MODULE_XRPC_STDIO_PROCESS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_STDIO_PROCESS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TCP)
 #undef XRPC_MODULE_XRPC_TCP
@@ -7874,6 +7952,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_TCP_RETIRE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_PROCESS_PIPE)
+#undef XRT_MODULE_PROCESS_PIPE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_PROCESS_PIPE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME)
 #undef XRT_MODULE_TIME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME
@@ -8051,6 +8133,9 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_STDIO
 #define XRPC_MODULE_XRPC_STDIO
+#endif
+#ifndef XRPC_MODULE_XRPC_STDIO_PROCESS
+#define XRPC_MODULE_XRPC_STDIO_PROCESS
 #endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
@@ -8336,6 +8421,19 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_NET_TCP_RETIRE
 #define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#endif
+
+/* xrpc_stdio_process 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_STDIO_PROCESS)
+#ifndef XRPC_FEATURE_XRPC_STDIO_PROCESS
+#define XRPC_FEATURE_XRPC_STDIO_PROCESS
+#endif
+#ifndef XRPC_MODULE_XRPC_STDIO
+#define XRPC_MODULE_XRPC_STDIO
+#endif
+#ifndef XRT_MODULE_PROCESS_PIPE
+#define XRT_MODULE_PROCESS_PIPE
 #endif
 #endif
 

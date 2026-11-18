@@ -15598,3 +15598,38 @@ preserves the existing per-turn progress budget. Windows and WSL
 modular/single-header tests passed in both framing profiles. The initial
 failure and both passing builds are in
 out/service-extensions/xrpc-stdio-process-20261119/stdio-order-*.log.
+
+## 2026-11-19 xrpc native subprocess stdio
+
+The stdio process leaf launches an ordinary blocking subprocess through the
+existing XRT process pipes. The host owns each bounded Step and Wait. Wait
+combines native read/write readiness, cross-thread signals, cached RPC
+deadlines and the caller's earlier wait budget. At a terminal protocol
+snapshot the adapter closes child stdin and retires any pending native
+write. Destroy requires the duplex state to be drained and then retires
+remaining native I/O. The process reference and typed call results have
+independent lifetimes.
+
+Windows and WSL each passed 63 aggregate programs and 30 examples. The
+final focused suite on each platform also verifies retirement while an
+executing handler still holds an endpoint reference. It passed under WSL
+ASan/UBSan with leak detection. The focused modular TSan run passed
+with GCC's existing warning that atomic_thread_fence is uninstrumented.
+The xrpc root and subprocess-leaf consumers used real static and shared
+packages on both platforms. The independent Python peer and the
+existing host-driven child examples passed both framing profiles. Single
+objects for both stdio leaves found zero forbidden symbols.
+
+| Environment | Framing | Calls/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Content-Length | 83,671 | 414.1 | 559.5 |
+| Windows | UINT32_BE | 88,939 | 380.6 | 486.7 |
+| WSL | Content-Length | 70,521 | 663.0 | 837.6 |
+| WSL | UINT32_BE | 75,796 | 583.7 | 814.0 |
+
+Values are medians of three 4096-call runs at window 32 over one subprocess.
+Timing includes the independent Python peer. The strict gate still lists
+20 developing modules. Negotiated deadline/cancellation, native Linux and
+sustained production qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/stdio-process-20261119.json).

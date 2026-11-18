@@ -263,6 +263,7 @@
         "xrpc_frame",
         "xrpc_duplex",
         "xrpc_stdio",
+        "xrpc_stdio_process",
         "xrpc_tcp",
         "xrpc_tls",
         "xrpc_tcp_dial",
@@ -841,6 +842,7 @@
         "extlibs/xrpc/tests/test_frame.c",
         "extlibs/xrpc/tests/test_duplex.c",
         "extlibs/xrpc/tests/test_stdio.c",
+        "extlibs/xrpc/tests/test_stdio_process.c",
         "extlibs/xrpc/tests/test_tcp.c",
         "extlibs/xrpc/tests/test_tls.c",
         "extlibs/xrpc/tests/test_tcp_dial.c",
@@ -871,6 +873,7 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio_process.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c",
@@ -911,6 +914,7 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c": "xrpc_duplex_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c": "xrpc_stdio",
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio_process.c": "xrpc_stdio_process",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c": "xrpc_tcp_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c": "xrpc_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c": "xrpc_tcp_dial_tests",
@@ -1414,6 +1418,31 @@
         "extlibs/xrpc/docs/stdio.md",
         "extlibs/xrpc/examples/stdio/README.md"
       ]
+    },
+    {
+      "name": "xrpc_stdio_process",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_STDIO_PROCESS",
+      "depends": [
+        "xrpc_stdio",
+        "process_pipe"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/stdio_process.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/stdio_process/stdio_process.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_stdio_process.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio_process.c"
+      ],
+      "examples": ["extlibs/xrpc/examples/stdio_process/main.c"],
+      "benchmarks": [],
+      "docs": ["extlibs/xrpc/docs/stdio_process.md"]
     },
     {
       "name": "xrpc_tcp",

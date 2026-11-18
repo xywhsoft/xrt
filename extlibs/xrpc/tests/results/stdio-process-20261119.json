@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "a43e6d7cd9842f9e537939085e4865c0c21c85ca",
+  "source_lf_sha256": {
+    ".github/workflows/service-extensions.yml": "fb51f27869276ee34085cf36d2603d88ad1e18569604babc38ad72e89535e001",
+    "extlibs/xrpc/config/modules.json": "8d2c1284fd7d65599bf607a8eca3cb790c578fd0e5e67dea7e95d0d1abed3c98",
+    "extlibs/xrpc/config/size_profiles.json": "6ef1ad6c64fe8cf093315744da84dd2efa8359a349b1c79bcea7c78b79554f61",
+    "extlibs/xrpc/include/xrpc.h": "425537724f4a6670405aab6ed78d5092ff2d796b022f54d5aeede9006975617d",
+    "extlibs/xrpc/include/xrpc/features.h": "91d21f8b0c946568851ddc88f4c99c597bc64d1fe23571d8f991ad3142d9a26c",
+    "extlibs/xrpc/include/xrpc/stdio_process.h": "fcabf5891bc9739095e4f371ff4c08bd2937944d4a8cf1ae72581638d2abf547",
+    "extlibs/xrpc/src/stdio/stdio.c": "dc8ed2e828471f32c840fad3a096ec7a6bb570af0dd6aeb4d07f63df5dc81689",
+    "extlibs/xrpc/src/stdio_process/stdio_process.c": "e245f91e76c7153aad40738d7dd98bf2014f22694f10f9c2a14a6d0b029bbd4a",
+    "extlibs/xrpc/tests/test_stdio.c": "5a4a1169d7c123ad183dd3152e3f50370d5289742bceb203a9ac61de81de5e2d",
+    "extlibs/xrpc/tests/test_stdio_process.c": "b060d254901082e254121f9ef2a8ff7cc0ef971100f9543a5c65b2414c83655d",
+    "extlibs/xrpc/tests/single/test_single_xrpc_stdio_process.c": "17f2561911e045c6f2a94871e267cab9ba5513e3b790353c4affd33c321f9750",
+    "extlibs/xrpc/tests/package/test_consumer.c": "a010e9881f7b558010770618c1e905e55039e02c291280d98a533b5fcda0f18e",
+    "extlibs/xrpc/tests/interop/run_stdio_process.py": "14f200249b4832f07e367c7e08e08308533fa7bda8f270abda4b06775a8814bb",
+    "extlibs/xrpc/examples/stdio_process/main.c": "9afa56e8eb1d8d6223ea5be3ffe18c55ba114ce0f070f8624bc1087a966da1f5",
+    "single/extlibs/xrpc.h": "ed91ee8a770c9d3382bac28776a1f38f8ba339889e5eaf6c95931381583895a4",
+    "single/extlibs/xrpc_decl.h": "4439c3f5a1c3e34fcb63fe103a1986e726be16049e78236c0e4492244c10a4d2"
+  },
+  "raw_directory": "out/service-extensions/xrpc-stdio-process-20261119",
+  "scope": "Child launch plus host-owned framed RPC, built solely over the public XRT process-pipe and xrpc stdio APIs.",
+  "write_completion_order": {
+    "before": {
+      "file": "stdio-order-before.log",
+      "sha256": "0c3ec8c7ff6063b557abc08d582301b347bad3cef492ddc05ae1bd83cf54906b"
+    },
+    "after": [
+      {
+        "file": "stdio-order-windows.log",
+        "sha256": "d3b795e27e1d74a2ff26f86eb41307f2e48f39ae317665d329ef786132348256",
+        "programs_passed": 3
+      },
+      {
+        "file": "stdio-order-wsl.log",
+        "sha256": "ae6628ddbbf9d71feb5d5378465a557e9bb7c63d0ca1715b7341b081f2d69c4d",
+        "programs_passed": 3
+      }
+    ]
+  },
+  "platforms": {
+    "windows": {
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "aggregate": {
+        "file": "root-windows.log",
+        "sha256": "41da589ad2a08c0100247c4f51a0ab4e096d904649fb0fe2bd19209e1cf73fbf",
+        "programs_passed": 63,
+        "contains_final_handler_tail_case": true
+      },
+      "examples": {
+        "file": "examples-windows.log",
+        "sha256": "5f93f22a8205c1ee71d93b247d20cb57001a887f8ec6ed4d76fdf893fe034ebb",
+        "programs_passed": 30
+      },
+      "final_stdio_process": {
+        "file": "leaf-final-windows.log",
+        "sha256": "308d142b428fab243fd759eda66787afd7e0c3c6f6d108fabdd65c7a312c15d3",
+        "programs_passed": 3
+      },
+      "host_callback_interop": {
+        "file": "host-interop-windows.json",
+        "sha256": "62c0d4b26b28703fb2acdd9eec015206b5c50609d2f2e6d67d1d249c214eade1"
+      },
+      "subprocess_interop": {
+        "file": "ci-interop-windows.json",
+        "sha256": "920a17ce09fd9539da41e0db4fe0169cf5b512d40b48c612587c527d0bbd68c8"
+      },
+      "packages": {
+        "xrpc_static": {
+          "file": "package-windows-xrpc-static.log",
+          "sha256": "f99f2fa572eabc99fef43434504fd41105e48fb01bed33c0313b901f48d4f958"
+        },
+        "xrpc_shared": {
+          "file": "package-windows-xrpc-shared.log",
+          "sha256": "40068033adbeda32d4e2441e7f7af4c211cf467e4152e0fdf96a07faa4a83cf3"
+        },
+        "xrpc_stdio_process_static": {
+          "file": "package-windows-xrpc_stdio_process-static.log",
+          "sha256": "d0d3e50b3b99bd3fe3133322cd2143b23881b34267900c1d7526edbfa0a958b6"
+        },
+        "xrpc_stdio_process_shared": {
+          "file": "package-windows-xrpc_stdio_process-shared.log",
+          "sha256": "17cda4a9b62d620646f50eb39d5e103b5dd6982ec0e2dd88db13030a853c49fd"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-final-windows.json",
+          "sha256": "0b863c6e3c42ebd8a24603ebcd671afa71c101d1b62af057262dfe29f1e60c4d"
+        },
+        "single_object_sections": {
+          "xrpc_stdio": {
+            "text": 405512,
+            "data": 2712,
+            "bss": 11136,
+            "file": 600167,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 441712,
+            "data": 2712,
+            "bss": 11168,
+            "file": 650678,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "performance": {
+        "artifact": {
+          "file": "perf-windows.json",
+          "sha256": "3382338ebba750150546c9ff76ba3b6e975c4184020ca66cc88b5f1101f05c81"
+        },
+        "executable_sha256": "bc8d096d2ed8bcb5c7a227dccf5cf1391dcdb4c104d950a1e10a6711472fb21a",
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "python": "3.12.10",
+        "profiles": {
+          "text": {
+            "smoke": {
+              "calls": 17.0,
+              "window": 8.0,
+              "calls_per_sec": 55555.555,
+              "p50_us": 92.4,
+              "p95_us": 124.6,
+              "p99_us": 124.6,
+              "p999_us": 124.6
+            },
+            "runs": [
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 85377.979,
+                "p50_us": 214.8,
+                "p95_us": 323.3,
+                "p99_us": 414.1,
+                "p999_us": 501.6
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 83670.555,
+                "p50_us": 219.4,
+                "p95_us": 348.8,
+                "p99_us": 414.0,
+                "p999_us": 559.5
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 82121.197,
+                "p50_us": 223.0,
+                "p95_us": 362.1,
+                "p99_us": 544.3,
+                "p999_us": 732.2
+              }
+            ]
+          },
+          "be": {
+            "smoke": {
+              "calls": 17.0,
+              "window": 8.0,
+              "calls_per_sec": 57471.257,
+              "p50_us": 91.2,
+              "p95_us": 116.7,
+              "p99_us": 116.7,
+              "p999_us": 116.7
+            },
+            "runs": [
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 88939.458,
+                "p50_us": 206.3,
+                "p95_us": 306.3,
+                "p99_us": 380.6,
+                "p999_us": 486.7
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 89829.289,
+                "p50_us": 204.3,
+                "p95_us": 300.9,
+                "p99_us": 364.4,
+                "p999_us": 460.9
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 83324.349,
+                "p50_us": 214.7,
+                "p95_us": 380.7,
+                "p99_us": 545.5,
+                "p999_us": 662.3
+              }
+            ]
+          }
+        }
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "aggregate": {
+        "file": "root-wsl.log",
+        "sha256": "4f3c1cce4673328aa7a87dd19ce6016623c31fd31fc984db9455c433eb7381c7",
+        "programs_passed": 63,
+        "contains_final_handler_tail_case": true
+      },
+      "examples": {
+        "file": "examples-wsl.log",
+        "sha256": "2df85ce09fe15a8a865c75ccc7270d3e0be33892fdba961e5ba5360f7b4c0f3b",
+        "programs_passed": 30
+      },
+      "final_stdio_process": {
+        "file": "leaf-final-wsl.log",
+        "sha256": "593d887d67658fff7de3a9eaa0a01b330a24498cf42609e7474346782ebaeffa",
+        "programs_passed": 3
+      },
+      "host_callback_interop": {
+        "file": "host-interop-wsl.json",
+        "sha256": "5e1179d9302021bfd26a87402f7107868bab868a70c2d35b0667c68165d46323"
+      },
+      "subprocess_interop": {
+        "file": "ci-interop-wsl.json",
+        "sha256": "8725f54cfc8c75d39008102765cefaa15f3746f16d5e837eaf93d0c1dc0231d7"
+      },
+      "packages": {
+        "xrpc_static": {
+          "file": "package-wsl-xrpc-static.log",
+          "sha256": "eb0d4dfd011589ffda6f64564aaeab1dea06f973128ffbd33b22857a874caf0a"
+        },
+        "xrpc_shared": {
+          "file": "package-wsl-xrpc-shared.log",
+          "sha256": "d3d7d2f024350067a3dd29934d5caa13a0809da7d40c7ead20008927891d41b2"
+        },
+        "xrpc_stdio_process_static": {
+          "file": "package-wsl-xrpc_stdio_process-static.log",
+          "sha256": "a894392c6fdd41765f230ef0f81bb28ea776e8668518c9cc54d0f187cf2f2d80"
+        },
+        "xrpc_stdio_process_shared": {
+          "file": "package-wsl-xrpc_stdio_process-shared.log",
+          "sha256": "d97eb73ebfec07153fcc744874eacdbbb067ed7209509b2c9215ce4afe4514a2"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-final-wsl.json",
+          "sha256": "fb0aa54ef96a69d0999f21631f8e38313641850bbba572f57ff21ea76883f32c"
+        },
+        "single_object_sections": {
+          "xrpc_stdio": {
+            "text": 423206,
+            "data": 4472,
+            "bss": 10948,
+            "file": 745432,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_stdio_process": {
+            "text": 455264,
+            "data": 4552,
+            "bss": 10948,
+            "file": 804936,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "performance": {
+        "artifact": {
+          "file": "perf-wsl.json",
+          "sha256": "f763c53d96197e8cd576918bd53321c131e1327afd8197d008e7a1e463248b55"
+        },
+        "executable_sha256": "09f9db398235788cd7e428eec599fc7fa7efeeba096b15bbb8be15a21c2ab2bb",
+        "peer_sha256": "08a583ea4f893c8d77d46484f2febf814b92c097bf787fd90fa8a3c229048636",
+        "python": "3.14.4",
+        "profiles": {
+          "text": {
+            "smoke": {
+              "calls": 17.0,
+              "window": 8.0,
+              "calls_per_sec": 39397.451,
+              "p50_us": 117.4,
+              "p95_us": 174.2,
+              "p99_us": 174.2,
+              "p999_us": 174.2
+            },
+            "runs": [
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 67408.222,
+                "p50_us": 263.4,
+                "p95_us": 457.5,
+                "p99_us": 692.9,
+                "p999_us": 906.3
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 71682.328,
+                "p50_us": 240.8,
+                "p95_us": 433.0,
+                "p99_us": 650.5,
+                "p999_us": 771.5
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 70521.473,
+                "p50_us": 241.3,
+                "p95_us": 440.9,
+                "p99_us": 663.0,
+                "p999_us": 837.6
+              }
+            ]
+          },
+          "be": {
+            "smoke": {
+              "calls": 17.0,
+              "window": 8.0,
+              "calls_per_sec": 46883.618,
+              "p50_us": 114.0,
+              "p95_us": 127.6,
+              "p99_us": 127.6,
+              "p999_us": 127.6
+            },
+            "runs": [
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 71443.148,
+                "p50_us": 245.2,
+                "p95_us": 434.2,
+                "p99_us": 668.9,
+                "p999_us": 814.0
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 75796.407,
+                "p50_us": 270.9,
+                "p95_us": 388.501,
+                "p99_us": 583.701,
+                "p999_us": 719.0
+              },
+              {
+                "calls": 4096.0,
+                "window": 32.0,
+                "calls_per_sec": 78015.777,
+                "p50_us": 278.5,
+                "p95_us": 372.8,
+                "p99_us": 445.001,
+                "p999_us": 995.3
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "wsl_sanitizers": {
+    "asan_ubsan": {
+      "build": {
+        "file": "asan-final-wsl.log",
+        "sha256": "8f70c5939cb65cef25fac662e6f39ea147a8f8b3033c7eb081509acbc55dde01",
+        "programs_passed": 3
+      },
+      "interop": {
+        "file": "smoke-asan-wsl-final.json",
+        "sha256": "116479d46034412933704bf632de0d55ef9e0a95cf7464d3eb345b9670511082"
+      },
+      "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+      "UBSAN_OPTIONS": "halt_on_error=1"
+    },
+    "tsan": {
+      "initial_compiler_diagnostic": {
+        "file": "tsan-wsl.log",
+        "sha256": "820a2a89e7a0e5deef7c43166d07efb68bb0b95125686cb76e6f9a3076b4680c"
+      },
+      "retry": {
+        "file": "tsan-retry-wsl.log",
+        "sha256": "19e2e74adeb5b2ef31adcdbde3b73ec72522077f0552276c36ce9d02705a2b31"
+      },
+      "retry_option": "-Wno-error=tsan",
+      "passed": true,
+      "detail": "The focused modular run passed. GCC warns that atomic_thread_fence has no TSan support."
+    }
+  },
+  "tooling": {
+    "file": "tooling.log",
+    "sha256": "5dbd25d7b3768ec793be1c81b7a351c9a10a9076cdaf6f862744c1905e0d4236",
+    "tests": 26,
+    "public_api_missing": 0,
+    "functions": 181,
+    "constants": 268,
+    "types": 127
+  },
+  "strict_release": {
+    "file": "release-gate.log",
+    "sha256": "c4d17c783b778e9a82a5a3323307f424f431e723e49fd108fbc96df8854ab954",
+    "developing_modules": 20,
+    "passed": false
+  },
+  "measurement_scope": [
+    "4096 calls per run in closed-loop groups of 32, three runs per framing profile on each platform.",
+    "One C client and one independent Python process; embedded child launch and the first group are excluded from the timing.",
+    "Includes per-call admission, event-driven pipe transfer, peer JSON processing and synchronous owner-side completion collection.",
+    "Short-run observations only. Native Linux, mixed-load qualification and remote deadline/cancellation negotiation remain open."
+  ]
+}

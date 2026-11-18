@@ -70,6 +70,7 @@
 #error "XRPC_FEATURE_XRPC requires stdio"
 #endif
 #include <xrpc/stdio.h>
+#include <xrpc/stdio_process.h>
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP)
 #error "XRPC_FEATURE_XRPC requires tcp"
 #endif
