@@ -22,8 +22,11 @@ still pass Nodes authority and exact transport/port rules. Cold node setup can
 temporarily rotate into fallback before a discovered pool becomes ready.
 The optional [command adapter](cluster_command.md) calculates complete routing
 keys from a caller-owned catalogue before admission, with explicit keyless
-policy. Automatic command metadata/cache/fallback and replica reads remain work;
-optional synchronous facades are described below.
+policy. Automatic replica selection and command metadata cache/fallback remain
+work. Applications that already select a replica endpoint can configure its
+direct client or maintained pool factory with
+[`XREDIS_INIT_CLUSTER_READONLY`](client-init.md).
+Optional synchronous facades are described below.
 
 Each operation inherits one Call-entry deadline through allocation, queue,
 bootstrap, provider waits and native redirects. Cancellation stops only that

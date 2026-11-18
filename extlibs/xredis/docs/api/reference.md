@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `229` 个函数、`362` 个常量或宏、
+当前登记 `229` 个函数、`364` 个常量或宏、
 `165` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
@@ -27,7 +27,7 @@
 - `xredisClientRetain`
 - `xredisClientTakePush`
 
-### 常量与宏 (54)
+### 常量与宏 (56)
 
 - `XREDIS_ADMISSION_ACCEPTED`
 - `XREDIS_ADMISSION_CLOSED`
@@ -47,11 +47,13 @@
 - `XREDIS_INIT_AUTH`
 - `XREDIS_INIT_AUTHENTICATE`
 - `XREDIS_INIT_AUTO`
+- `XREDIS_INIT_CLUSTER_READONLY`
 - `XREDIS_INIT_DATABASE`
 - `XREDIS_INIT_DONE`
 - `XREDIS_INIT_HELLO`
 - `XREDIS_INIT_NAME`
 - `XREDIS_INIT_NONE`
+- `XREDIS_INIT_READONLY`
 - `XREDIS_INIT_RESP2`
 - `XREDIS_INIT_RESP3`
 - `XREDIS_INIT_ROLE`

@@ -9,8 +9,9 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
   TCP/TLS async/sync request connection, bounded hostname/address dialing and
   explicit HELLO/AUTH/name/database setup are locally verified, including Redis
-  8.0.5 interoperability. Initial client-certificate signing/authentication is
-  locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
+  8.0.5 interoperability. Managed READONLY is verified for explicitly selected
+  Cluster replicas and maintained shared pools. Initial client-certificate
+  signing/authentication is locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
   acceptance remain pending.
@@ -15254,3 +15255,47 @@ Device power-loss and native mixed-load qualification remain open.
 The strict release gate lists 18 developing xcron modules.
 [Periodic contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-checkpoint-periodic-20261119.json).
+
+## 2026-11-19 xredis managed Cluster replica setup
+
+The retired branch tip, migration commit and migration verification are all
+ancestors of D:/GIT/xrt master. Windows and WSL reran xredis client, ROLE and
+shared pool suites, plus representative xrpc Duplex, xmqtt reconnect and xcron
+service checkpoint tests on that checkout.
+
+`XREDIS_INIT_CLUSTER_READONLY` adds a final connection setup step after
+optional ROLE verification and consumes 18 bytes of the existing setup wire
+budget. The successful acknowledgment releases the readiness barrier. Failure
+reports the setup step and stops queued business before send. The setup suite
+checks RESP2 fallback, malformed and error replies, timing, byte limits and
+mode-change admission. The ROLE suite exercises setup over TCP and TLS,
+including hostname and prepared address dialing. ROLE failure prevents
+READONLY from being sent.
+
+The Redis 8.0.5 fixture ran three primaries and one replica under WSL. Both
+Windows and WSL static-package consumers verified actual MOVED replies on
+ordinary connections, exact binary replica reads over RESP2 and RESP3 with
+managed READONLY, and repeated reads across two maintained pool members.
+Both platforms verified modular and single-header tests, the setup example
+and independent static/shared packages. The WSL GCC client suite passed
+ASan, UBSan and leak detection. An initial Clang full-suite build stopped on an
+existing open-loop fixture warning. GCC completed the full sanitizer run.
+
+The local scripted-peer benchmark measured three repeats of 256 connections
+per mode. Each cell is the median of the corresponding per-run percentile.
+
+| Host | READONLY | P50 (µs) | P95 (µs) | P99 (µs) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Off | 272.8 | 338.3 | 397.6 |
+| Windows | On | 287.4 | 345.4 | 403.9 |
+| WSL | Off | 209.3 | 273.6 | 326.9 |
+| WSL | On | 260.8 | 313.6 | 373.4 |
+
+Both hosts had tail repeatability failures. These are local cold connection
+measurements. The wire cost is one 18-byte command and one round trip per
+opted-in connection.
+
+Automatic replica selection, deployment tail latency and strict release
+qualification remain open. The strict gate lists 32 developing xredis modules.
+[Connection contract](../../extlibs/xredis/docs/client-init.md).
+[Stage evidence](xredis-cluster-readonly-20261119.json).

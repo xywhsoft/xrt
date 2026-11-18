@@ -82,11 +82,12 @@ typedef enum xredisinitmode {
 #define XREDIS_INIT_USERNAME 0x02u
 #define XREDIS_INIT_SETNAME 0x04u
 #define XREDIS_INIT_SELECT 0x08u
+#define XREDIS_INIT_CLUSTER_READONLY 0x80u
 #define XREDIS_PROTOCOL_UNKNOWN ((xredisprotocol)0)
 
 typedef enum xredisinitstep {
 	XREDIS_INIT_NONE = 0, XREDIS_INIT_HELLO, XREDIS_INIT_AUTHENTICATE,
-	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE, XREDIS_INIT_ROLE
+	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE, XREDIS_INIT_ROLE, XREDIS_INIT_READONLY
 } xredisinitstep;
 
 typedef enum xredisreadystatus {
@@ -101,6 +102,12 @@ typedef enum xredisreadystatus {
  * AUTH but no USERNAME use the default user (legacy AUTH password on RESP2).
  * Unselected nonempty fields, USERNAME without AUTH, and a nonzero Database
  * without SELECT are invalid. Server validates client-name/database semantics.
+ * CLUSTER_READONLY appends READONLY after authentication, protocol, name,
+ * database and any ROLE verification. Require a simple OK before Ready;
+ * the 18 encoded bytes share the setup wire/frame limits and deadline.
+ * Managed READONLY/READWRITE controls are reserved on this connection.
+ * The option permits potentially stale replica reads. Query selection and
+ * role/slot checks are independent from this connection setting.
  * Timeout includes factory encoding, worker wait, TCP setup and all steps.
  * MaxWireBytes bounds ALL preencoded setup commands, including AUTO fallback.
  * Default strict RESP3, no optional steps, 5000 ms, 64 KiB. */

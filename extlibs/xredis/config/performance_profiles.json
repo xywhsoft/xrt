@@ -150,7 +150,7 @@
     {
       "name": "xredis_client_init",
       "system": "client",
-      "description": "Serial cold HELLO3 AUTH plus SELECT against a local fixture; handshake includes encoding/worker/TCP/reply observation, lifecycle rate also includes peer/engine create/retire; not production throughput or parity",
+      "description": "Serial cold HELLO3 AUTH and SELECT with paired managed READONLY configuration against a local fixture; handshake includes encoding/worker/TCP/reply observation, lifecycle rate also includes peer/engine create/retire; not production throughput or parity",
       "benchmarks": [
         {
           "name": "xredis_client_init",
@@ -166,6 +166,46 @@
           "smoke_args": [
             "16"
           ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "direction": "higher",
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_client_init_readonly",
+      "system": "client",
+      "description": "Serial cold HELLO3 AUTH, SELECT and READONLY against the same local fixture; compare to xredis_client_init under the same host conditions",
+      "benchmarks": [
+        {
+          "name": "xredis_client_init_readonly",
+          "source": "extlibs/xredis/bench/bench_client_init.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h"
+          ],
+          "suite": "xredis_client",
+          "args": ["256", "readonly"],
+          "smoke_args": ["16", "readonly"],
           "metrics": {
             "lifecycle_per_sec": {
               "direction": "higher",

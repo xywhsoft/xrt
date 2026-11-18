@@ -372,8 +372,102 @@ static void initReentry(void)
 	}
 }
 
+static void initReadonly(void)
+{
+	const struct {cstr Wire;xredisreadystatus Status;} Cases[] = {
+		{"+OK\r\n", XREDIS_READY_OK},
+		{"$2\r\nOK\r\n", XREDIS_READY_PROTOCOL},
+		{"+PONG\r\n", XREDIS_READY_PROTOCOL},
+		{"-ERR unknown command 'readonly', with args beginning with: synthetic\r\n", XREDIS_READY_UNSUPPORTED},
+		{"-NOAUTH synthetic\r\n", XREDIS_READY_AUTH_FAILED},
+		{"-NOPERM synthetic\r\n", XREDIS_READY_SERVER_ERROR},
+		{"", XREDIS_READY_TIMEOUT}
+	};
+	for (size_t Trial = 0; Trial < sizeof(Cases)/sizeof(*Cases); ++Trial) {
+		bool Fallback = Trial == 0;
+		redisinitpeerstep Steps[3] = {
+			{{INIT_B("HELLO"), INIT_B("3"), INIT_B("AUTH"), INIT_B("default"), INIT_B("fixture")},
+				5, INIT_B("-NOPROTO unsupported protocol\r\n"), false, false},
+			{{INIT_B("AUTH"), INIT_B("fixture")}, 2, INIT_B("+OK\r\n"), false, false},
+			{{INIT_B("READONLY")}, 1, {(cbytes)Cases[Trial].Wire, strlen(Cases[Trial].Wire)}, true, false}
+		};
+		redisinitpeer Peer;
+		redisInitPeerStart(&Peer, Fallback ? Steps : Steps + 2, Fallback ? 3 : 1);
+		xredisclientinitconfig Init;
+		xredisClientInitConfigInit(&Init);
+		Init.Mode = Fallback ? XREDIS_INIT_AUTO : XREDIS_INIT_RESP2;
+		Init.Flags = XREDIS_INIT_CLUSTER_READONLY | (Fallback ? XREDIS_INIT_AUTH : 0);
+		if (Fallback) Init.Password = (xbytesview)INIT_B("fixture");
+		if (Cases[Trial].Status == XREDIS_READY_TIMEOUT) Init.Timeout = 500;
+		xredisclientconfig Config;
+		xredisClientConfigInit(&Config);
+		Config.ReadBytes = 1;
+		Config.WorkRequests = 1;
+		xredisclient* C = initConnect(&Peer, &Config, &Init);
+		xfuture* Ready = xredisClientReady(C), *Ping = initPing(C, 10000);
+		uint32 Commands = Fallback ? 3u : 1u;
+		redisInitPeerStepWait(&Peer, Commands);
+		testRequire(xrtFutureWaitFor(Ping, 0) == XWAIT_TIMEOUT && xrtFutureWaitFor(Ready, 0) == XWAIT_TIMEOUT,
+			"READONLY holds readiness and business");
+		xredisclientinfo Info = {.Size = sizeof(Info)};
+		testRequire(xredisClientInfo(C, &Info) && Info.InitStep == XREDIS_INIT_READONLY && Info.InitBytes >= 18 && !Info.Ready,
+			"READONLY phase and live setup wire accounting");
+		const xbytesview Toggle[] = {INIT_B("readwrite"), INIT_B("READONLY")};
+		for (unsigned I = 0; I < 2; ++I) {
+			xfuture* Refused = (xfuture*)(uintptr_t)1;
+			testRequire(xredisClientCallAsync(C, &Toggle[I], 1, 5000, &Refused) == XREDIS_ADMISSION_ERROR &&
+				Refused == (xfuture*)(uintptr_t)1 && xrtErrorCode(xrtGetError()) == XREDIS_CLIENT_COMMAND_MODE,
+				"managed cluster connection rejects direct read-mode changes");
+			xrtClearError();
+		}
+		if (Cases[Trial].Status != XREDIS_READY_TIMEOUT) redisPeerReleaseBlocked(&Peer.Peer);
+		const xredisreadyresult* R = initWait(Ready);
+		const xredisrequestresult* B = initWait(Ping);
+		testRequire(R->Status == Cases[Trial].Status && !R->Hello &&
+			R->Step == (Fallback ? XREDIS_INIT_DONE : XREDIS_INIT_READONLY) && R->Downgraded == Fallback &&
+			B->Status == (Fallback ? XREDIS_REQUEST_OK : XREDIS_REQUEST_INITIALIZATION) &&
+			B->Delivery == (Fallback ? XREDIS_REPLIED : XREDIS_NOT_SENT), "readonly result and queued delivery");
+		if (!Fallback)
+			testRequire(xrtAtomic32Load(&Peer.Peer.Commands, XMEMORY_ACQUIRE) == Commands &&
+				(!R->Cause || !strstr(xrtErrorMessage(R->Cause), "synthetic")), "failed READONLY blocks business and redacts peer text");
+		initClose(&Peer, C);
+		xrtFutureDestroy(Ping);
+		xrtFutureDestroy(Ready);
+	}
+
+	const redisinitpeerstep Step = {{INIT_B("READONLY")}, 1, INIT_B("+OK\r\n"), false, false};
+	redisinitpeer Peer;
+	redisInitPeerStart(&Peer, &Step, 1);
+	xredisclientinitconfig Init;
+	xredisClientInitConfigInit(&Init);
+	Init.Mode = XREDIS_INIT_RESP2;
+	Init.Flags = XREDIS_INIT_CLUSTER_READONLY;
+	Init.MaxWireBytes = 17;
+	xredisclient* C = (xredisclient*)(uintptr_t)1;
+	testRequire(!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, NULL, &Init, &C) &&
+		C == (xredisclient*)(uintptr_t)1, "bounded READONLY setup wire");
+	xrtClearError();
+	Init.MaxWireBytes = 18;
+	xredisclientconfig Config;
+	xredisClientConfigInit(&Config);
+	Config.MaxCommandBytes = 17;
+	Config.Stream.WriteLowWater = 8;
+	Config.Stream.WriteHighWater = 16;
+	Config.Stream.WriteLimit = 17;
+	testRequire(!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, &Config, &Init, &C) &&
+		C == (xredisclient*)(uintptr_t)1, "READONLY setup obeys native stream cap");
+	xrtClearError();
+	Config.Stream.WriteLimit = 18;
+	C = initConnect(&Peer, &Config, &Init);
+	xfuture* Ready = xredisClientReady(C);
+	initExpectReady(Ready, XREDIS_RESP2, false);
+	initClose(&Peer, C);
+	xrtFutureDestroy(Ready);
+}
+
 int main(void)
 {
+	initReadonly();
 	initSuccess(); initBarrier(); initRejected(); initInterrupted(); initInvalid(); initAllocations(); initWorkerOOM(); initReentry();
-	printf("[PASS] xredis managed setup: HELLO3/AUTH/ACL/name/database/RESP2/fallback/barrier/deadline/OOM/close/reentry\n"); return 0;
+	printf("[PASS] xredis managed setup: HELLO3/AUTH/ACL/name/database/RESP2/fallback/READONLY/barrier/deadline/OOM/close/reentry\n"); return 0;
 }

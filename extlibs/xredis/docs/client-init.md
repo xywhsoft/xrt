@@ -26,6 +26,24 @@ connection; call Close to do that.
 | AUTO (explicit) | Same, or legacy fallback only for unknown HELLO/NOPROTO | Validated RESP3, or new connection's default RESP2 plus required legacy steps |
 | RESP2 (explicit) | Optional AUTH, CLIENT SETNAME and SELECT | All selected legacy steps acknowledged; HELLO not required |
 
+Set `XREDIS_INIT_CLUSTER_READONLY` when connecting to a selected Redis Cluster
+replica. It adds one 18-byte RESP command and one setup round trip. The command
+runs after negotiation, authentication, naming, database selection and any
+requested [ROLE verification](role_client.md). Readiness requires an exact
+simple-string `+OK`. An explicit unknown-command error reports
+`XREDIS_READY_UNSUPPORTED`; authentication errors keep their typed status
+and other Redis errors report `XREDIS_READY_SERVER_ERROR`. A failure identifies
+`XREDIS_INIT_READONLY` as the setup step. RESP2 fallback still
+runs this required step. The usual setup deadline and wire caps include it.
+Each replacement connection created by a pool factory repeats the setup.
+
+Use database zero for Cluster. Redis may return stale data from a replica
+and redirects keys outside the upstream primary's slot range. The flag records
+connection mode. Add `XREDIS_INIT_REQUIRE_REPLICA` to verify the role during
+setup. Replication lag, read authorization, and selection of the target
+replica remain application concerns for an explicitly configured connection.
+[Redis Cluster replica reads](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/#scaling-reads-using-replica-nodes)
+
 An AUTH flag distinguishes an empty password from no authentication. USERNAME
 requires AUTH; without USERNAME, HELLO uses `default` and legacy AUTH uses the
 single-password form. SETNAME permits an explicitly empty name, and SELECT an
@@ -58,7 +76,8 @@ start at API entry and are never restarted after initialization. None is sent
 until every step succeeds. A setup rejection completes surviving requests as
 INITIALIZATION/NOT_SENT. Native transport/parser/resource failures keep their
 own typed categories. Managed connections reject later HELLO/AUTH/SELECT/CLIENT
-SETNAME controls so their recorded setup state remains meaningful. The original
+SETNAME controls so their recorded setup state remains meaningful. Opting into
+managed READONLY also reserves READONLY and READWRITE for the initializer. The original
 raw Connect API permits manual controls and reports transport readiness with
 UNKNOWN protocol and no negotiation.
 
@@ -98,7 +117,7 @@ remain real costs. No zero-overhead or production-performance claim is made.
 ## Runnable evidence
 
 The [self-contained example](../examples/client_init/main.c) needs no external
-service. It asserts AUTH/name/SELECT ordering, a queued request, immediate
+service. It asserts AUTH/name/SELECT/READONLY ordering, a queued request, immediate
 caller credential cleanup, physical close and metadata after engine teardown.
 
 ```sh
@@ -132,10 +151,31 @@ platform. This check is opt-in because an external Redis executable is not a
 library build dependency. Linux commands above use default native output paths;
 Windows needs native Redis and the appropriate socket libraries/compiler.
 
-The separate cold setup workload records ConnectInit-entry-to-ready-observation
-P50/P95/P99/P99.9 for HELLO AUTH plus SELECT. Its lifecycle rate also includes
-fixture/engine creation and destruction. Smoke uses only 16 samples, so these
-percentiles verify execution and metric plumbing, not tail-latency acceptance.
+The separate managed READONLY fixture starts three loopback Cluster primaries
+and one replica. The native probe checks RESP2/RESP3 MOVED on connections
+without READONLY, binary GET on managed READONLY connections and pipelined reads
+through a maintained two-connection pool. The runner waits for replication
+before testing and saves server identity, binary hashes and per-process logs.
+
+```sh
+python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_role_client,xredis_pool_shared_connect --kind static --verify
+lib=release/gnu/native/xredis_role_client,xredis_pool_shared_connect/static
+mkdir -p out/service-extensions
+gcc -std=c11 -Wall -Wextra -Werror -O2 -pthread -Iinclude -Iextlibs/xredis/include extlibs/xredis/tests/interop/redis_cluster_readonly.c "$lib/libxredis.a" "$lib/libxrt.a" -lm -o out/service-extensions/redis-cluster-readonly
+python extlibs/xredis/tests/interop/run_redis_cluster_readonly.py --client out/service-extensions/redis-cluster-readonly --report out/service-extensions/evidence/redis-cluster-readonly.json
+```
+
+The cold setup workloads `xredis_client_init` and `xredis_client_init_readonly`
+record ConnectInit-entry-to-ready-observation P50/P95/P99/P99.9 against the
+same scripted peer. Both use HELLO AUTH and SELECT. The second adds READONLY.
+The lifecycle rate also includes fixture/engine creation and destruction.
+The default 256 samples per repeat are a local comparison. Larger runs on
+pinned deployment hosts are needed for tail-latency acceptance.
+
+```sh
+python tools/measure_performance.py --compiler gcc --manifest extlibs/xredis/config/modules.json --config extlibs/xredis/config/performance_profiles.json --profiles xredis_client_init,xredis_client_init_readonly --warmups 1 --repeats 3 --report out/service-extensions/evidence/redis-readonly-cold.json
+```
+
 The ordinary client workload still measures a closed-loop pipeline. Pinned
 open-loop baselines, native Linux/Windows long runs, larger peer/version
 matrices, TLS, reconnect, pools, dedicated modes, HA and Tracking remain pending.

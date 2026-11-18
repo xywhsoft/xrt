@@ -12,6 +12,7 @@
  * deadline and MaxWireBytes/Stream.WriteLimit; the role command adds14 bytes.
  * Reply limits are the existing Replies.Reader MaxValues/MaxFrameBytes bounds.
  * No Role reply is retained in Ready; Hello stays the negotiated HELLO map.
+ * If CLUSTER_READONLY is selected, its command follows successful ROLE.
  * Mismatch returns READY_ROLE_MISMATCH at INIT_ROLE; other setup failures keep
  * their existing typed statuses and redacted diagnostics. Config/result/native
  * object layouts and all old enum values stay unchanged.

@@ -1,0 +1,566 @@
+{
+  "schema": 1,
+  "scope": "Managed READONLY on explicitly selected Redis Cluster replica connections",
+  "workdir": "D:/GIT/xrt",
+  "branch": "master",
+  "base": "6a5e85c7a8cb131dcb61843f27dd79f42557d300",
+  "qualification_head": "6a5e85c7a8cb131dcb61843f27dd79f42557d300",
+  "verified_mainline_ancestry": {
+    "retired_tip": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+    "migration": "05dc625df2a0c6c0f34f8f79b612777dd09e0d17",
+    "verification": "f0e0955c7609d8bc1015874596c6c0208196292c"
+  },
+  "files": [
+    {
+      "path": "extlibs/xredis/README.md",
+      "sha256": "dc14813511b05a39e809940ff62bcafb7258a34b47a04b98f9b8e27449342581"
+    },
+    {
+      "path": "extlibs/xredis/bench/bench_client_init.c",
+      "sha256": "9879ecabadff22f7ffa0054710e26fc4a09b33496eedd04ba9ed60203a3ac3b7"
+    },
+    {
+      "path": "extlibs/xredis/config/performance_profiles.json",
+      "sha256": "a284b7ea0e4b9f5a47dc871eaa83572e5c01d87de29eea1dbd116026ade2e202"
+    },
+    {
+      "path": "extlibs/xredis/docs/api/reference.md",
+      "sha256": "0ef83eb562da7e3ab4f08b07ff6ec76923407fc6d4175dc96c059bfdabf9acf1"
+    },
+    {
+      "path": "extlibs/xredis/docs/client-init.md",
+      "sha256": "f2db9401edf6c91a2457f6914939b25df91c730b6679283ef3c398f3601b4758"
+    },
+    {
+      "path": "extlibs/xredis/docs/cluster_client.md",
+      "sha256": "2047e5233f05fc3f6a542b20c6fa75278c9bac95a56c6ed3917c9b5f1e8eea24"
+    },
+    {
+      "path": "extlibs/xredis/examples/client_init/main.c",
+      "sha256": "afc4b1d7b0dd8b92f4fc6a6a6f1fd05ac2e565f935e5bfb7782d54ab0b7b13f6"
+    },
+    {
+      "path": "extlibs/xredis/include/xredis/client.h",
+      "sha256": "5205fe2f08ae7fec60465ab1b48faaad1401c5968ce102b54e7610298cfaa304"
+    },
+    {
+      "path": "extlibs/xredis/include/xredis/role_client.h",
+      "sha256": "c999a07891b57490be6710547da7b2522245c78899397dd7bae40baacbd1f2c9"
+    },
+    {
+      "path": "extlibs/xredis/src/client/client.c",
+      "sha256": "7e32e32db4bfee3c63f6277c2c87baece121c8499fed2af543a72883bbd857e9"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/redis_cluster_readonly.c",
+      "sha256": "012f597d3e8994e4536ea1219c9ba34f7e94cfaed00e956f065b89c776a934eb"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/run_redis_cluster_readonly.py",
+      "sha256": "df58ebc3205e952b03129fc131f0eec94b5006fc3e0108d511e1fc2fa0152940"
+    },
+    {
+      "path": "extlibs/xredis/tests/test_client_init.c",
+      "sha256": "98f3c32627315ece2edc6a15f89f9c5b9808136c1e0a6b706712fe65615ef2c3"
+    },
+    {
+      "path": "extlibs/xredis/tests/test_role_client.c",
+      "sha256": "e1b4ba1cdae49bd91bcc913d72def9100d31a53a0d9907fcf0682b645f42ed7e"
+    },
+    {
+      "path": "single/extlibs/xredis.h",
+      "sha256": "b8d93d5b60a4d66910cfad3411d52a4ca960880c1f7fdca0600bcf8f1644dbc8"
+    },
+    {
+      "path": "single/extlibs/xredis_decl.h",
+      "sha256": "852a27d5b43a29e069b9c3ecd555530afb44cdb5d7df58ff0247aa47bf358916"
+    }
+  ],
+  "checks": {
+    "windows": {
+      "xredis_client-final": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xredis_client-final.log",
+        "sha256": "cf6313c1fabcd9b1f0c1cfbbb08bd45d49204669ec714c6c100a37723c725e1b",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xredis_client\\test_client.exe",
+          "[test] out\\gcc\\native\\xredis_client\\test_client_init.exe",
+          "[test] out\\gcc\\native\\xredis_client\\test_openloop.exe",
+          "[test] out\\gcc\\native\\xredis_client\\examples_client_main.exe",
+          "[test] out\\gcc\\native\\xredis_client\\examples_client_init_main.exe",
+          "[test] out\\gcc\\native\\xredis_client\\test_single_xredis_client.exe",
+          "[test] out\\gcc\\native\\xredis_client\\test_single_xredis_client_init.exe",
+          "[test] out\\gcc\\native\\xredis_client\\test_single_xredis_openloop.exe"
+        ]
+      },
+      "xredis_role_client_tests-final": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xredis_role_client_tests-final.log",
+        "sha256": "c87589d10cf771d7dacfc9407b43303de133d1323bf69012788b6edced6729f7",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xredis_role_client_tests\\test_role_client.exe",
+          "[test] out\\gcc\\native\\xredis_role_client_tests\\test_single_xredis_role_client_tls.exe"
+        ]
+      },
+      "xredis_pool_shared_connect_tests": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xredis_pool_shared_connect_tests.log",
+        "sha256": "fe32fb43d1806fd807819fa63c82918b482c6baef3becfd8f118690646043df0",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xredis_pool_shared_connect_tests\\test_pool_shared_connect.exe",
+          "[test] out\\gcc\\native\\xredis_pool_shared_connect_tests\\test_single_xredis_pool_shared_connect_tls.exe"
+        ]
+      },
+      "xrpc-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xrpc-mainline.log",
+        "sha256": "ac43acc02f13c43411a6dac93b03c1c4e118815d5c5f18c67a6a391806ab354f",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xrpc_duplex_tests\\test_duplex.exe"
+        ]
+      },
+      "xmqtt-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xmqtt-mainline.log",
+        "sha256": "6e3a9db236b71ae3ce8e064c3b73615057844a1e95c634d1312dc650f1b1661b",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xmqtt_reconnect_tests\\test_reconnect.exe"
+        ]
+      },
+      "xcron-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-xcron-mainline.log",
+        "sha256": "b669639fcff8a807e2dd648af2e5024181561810f09b57a24a3059de0d4d438c",
+        "run_programs": [
+          "[test] out\\gcc\\native\\xcron_service_checkpoint\\test_service_checkpoint.exe"
+        ]
+      },
+      "package-static": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-package-static.log",
+        "sha256": "611a528491593e69561f042b237a6fe8bc41219ff4465bc4d755a8c52f037ba8",
+        "run_programs": [
+          "[verify] release\\gnu\\native\\xredis_role_client,xredis_pool_shared_connect\\static\\test_package_xredis.exe"
+        ]
+      },
+      "package-shared": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-package-shared.log",
+        "sha256": "12ecbcc662967346e1b8444bde09c1ee007c241ee6a6c0f77b6eedf489856eb9",
+        "run_programs": [
+          "[verify] release\\gnu\\native\\xredis_role_client,xredis_pool_shared_connect\\shared\\test_package_xredis.exe"
+        ]
+      }
+    },
+    "wsl": {
+      "xredis_client-final": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xredis_client-final.log",
+        "sha256": "ed26a5c06f4cce8203f368f17d3e8b522dac29045c899bb9a2781a460485be73",
+        "run_programs": [
+          "[test] out/gcc/x64/xredis_client/test_client",
+          "[test] out/gcc/x64/xredis_client/test_client_init",
+          "[test] out/gcc/x64/xredis_client/test_openloop",
+          "[test] out/gcc/x64/xredis_client/examples_client_main",
+          "[test] out/gcc/x64/xredis_client/examples_client_init_main",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_client",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_client_init",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_openloop"
+        ]
+      },
+      "xredis_role_client_tests-final": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xredis_role_client_tests-final.log",
+        "sha256": "55353ec5e7860b0882e8b435a3beaee6e0167334816ab5709e064764d3db581f",
+        "run_programs": [
+          "[test] out/gcc/x64/xredis_role_client_tests/test_role_client",
+          "[test] out/gcc/x64/xredis_role_client_tests/test_single_xredis_role_client_tls"
+        ]
+      },
+      "xredis_pool_shared_connect_tests": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xredis_pool_shared_connect_tests.log",
+        "sha256": "646921a8aa3f69ca7fac7c313ce77e98b25fb793008800cd3717d8f20725667c",
+        "run_programs": [
+          "[test] out/gcc/x64/xredis_pool_shared_connect_tests/test_pool_shared_connect",
+          "[test] out/gcc/x64/xredis_pool_shared_connect_tests/test_single_xredis_pool_shared_connect_tls"
+        ]
+      },
+      "xrpc-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xrpc-mainline.log",
+        "sha256": "ee5284a8c4ab55caa4f26e434a78c8f6e436dd2a6bb3c8a247bc204928178e8f",
+        "run_programs": [
+          "[test] out/gcc/x64/xrpc_duplex_tests/test_duplex"
+        ]
+      },
+      "xmqtt-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xmqtt-mainline.log",
+        "sha256": "239feaaab9d20469d63ec7808418a5a951891afee6c72cf9b469d0df4d2c2434",
+        "run_programs": [
+          "[test] out/gcc/x64/xmqtt_reconnect_tests/test_reconnect"
+        ]
+      },
+      "xcron-mainline": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xcron-mainline.log",
+        "sha256": "c8f14a42eb9ef737927ae9582c894ccf1c6577daffd02da2f343e6cd3426c29f",
+        "run_programs": [
+          "[test] out/gcc/x64/xcron_service_checkpoint/test_service_checkpoint"
+        ]
+      },
+      "package-static": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-package-static.log",
+        "sha256": "3a82d0ee8f2d3cb0cdf695d72f0c459665806039df9ec116de2a5be210ceaa8c",
+        "run_programs": [
+          "[verify] release/gnu/x64/xredis_role_client,xredis_pool_shared_connect/static/test_package_xredis"
+        ]
+      },
+      "package-shared": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-package-shared.log",
+        "sha256": "fdff495624185dc6fe83e2cc8f9d6bc94d8d5c4604ff17e8d1d2f5c4cd28149e",
+        "run_programs": [
+          "[verify] release/gnu/x64/xredis_role_client,xredis_pool_shared_connect/shared/test_package_xredis"
+        ]
+      },
+      "gcc-asan-ubsan-leaks": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-xredis_client-gcc-sanitized.log",
+        "sha256": "a58fc95356c06834e65828fde3631b129278101144b86bba458ec74fc3606745",
+        "run_programs": [
+          "[test] out/gcc/x64/xredis_client/test_client",
+          "[test] out/gcc/x64/xredis_client/test_client_init",
+          "[test] out/gcc/x64/xredis_client/test_openloop",
+          "[test] out/gcc/x64/xredis_client/examples_client_main",
+          "[test] out/gcc/x64/xredis_client/examples_client_init_main",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_client",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_client_init",
+          "[test] out/gcc/x64/xredis_client/test_single_xredis_openloop"
+        ]
+      }
+    }
+  },
+  "gates": {
+    "generated_api_layout": {
+      "path": "out/service-extensions/xredis-cluster-readonly-20261119/gates.log",
+      "sha256": "fec78ef3239a8e990ee3d1ca812f364d4a519d727d608af8c7dbf08f245b4cb2",
+      "run_programs": []
+    },
+    "maturity": {
+      "path": "out/service-extensions/xredis-cluster-readonly-20261119/gate-maturity.log",
+      "sha256": "1fc2bcbf1f8b743f4e9a5d383011d5370f1ea0673a38f4b6e114c244db671003",
+      "run_programs": []
+    },
+    "strict_release": {
+      "path": "out/service-extensions/xredis-cluster-readonly-20261119/gate-release.log",
+      "sha256": "b50df104d2ae913106c1fc2b5004207f50d56355176d93b2db863de509ebce64",
+      "run_programs": [],
+      "exit_code": 1,
+      "developing": 32
+    }
+  },
+  "interop": {
+    "complete": true,
+    "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+    "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+    "runner_sha256": "df58ebc3205e952b03129fc131f0eec94b5006fc3e0108d511e1fc2fa0152940",
+    "nodes": [
+      {
+        "port": 25527,
+        "pid": 2057,
+        "run_id": "74df1e00e1a980ae377256ad953902d52bf7ff96",
+        "node_id": "8ff9be90f0d65b70a9e657b8cfac1a6c8f2451f4"
+      },
+      {
+        "port": 23873,
+        "pid": 2063,
+        "run_id": "21b0062136da5f6741db6b035140ad4d5c3c1a93",
+        "node_id": "edac947806cefaeaac4328a57dec59f9cf3fb115"
+      },
+      {
+        "port": 28804,
+        "pid": 2069,
+        "run_id": "b549d1babcbc07fd12e0dc5bd2c4d3ba178963e8",
+        "node_id": "80270310250a135d660b9754ca78f08dd7b464bb"
+      },
+      {
+        "port": 16645,
+        "pid": 2075,
+        "run_id": "dcbcb1d4a45aec4b015707e30b39417476637c2d",
+        "node_id": "e3b7f1bb2bd208bcb9118e17d141093d39ec3332"
+      }
+    ],
+    "cases": [
+      {
+        "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-readonly-20261119/redis-cluster-readonly-wsl",
+        "sha256": "bcda3070e04484188aa41f57114206b886d5a3c24ba9c45ef1184d382a57854f",
+        "exit_code": 0,
+        "output": "[PASS] real Cluster READONLY: RESP2/RESP3 MOVED controls, binary reads and shared pool\n"
+      },
+      {
+        "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-readonly-20261119/redis-cluster-readonly-windows.exe",
+        "sha256": "003f7b6da0fa62b5202a609e08cbd6bbb731fb63d058107bfa38c37c16a7bce1",
+        "exit_code": 0,
+        "output": "[PASS] real Cluster READONLY: RESP2/RESP3 MOVED controls, binary reads and shared pool\n"
+      }
+    ],
+    "slot": 6056,
+    "primary": 23873,
+    "replica": 16645,
+    "expected_moved": "MOVED 6056 127.0.0.1:23873",
+    "processes_terminal": true,
+    "report": {
+      "path": "out/service-extensions/xredis-cluster-readonly-20261119/redis-cluster-readonly.json",
+      "sha256": "0ead143fc18fc6c90a0149f47db0a38521037e797d52061fb61bb7ea6928cc46"
+    }
+  },
+  "performance": {
+    "windows": {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-perf.json",
+        "sha256": "a655e14579fadb261372e1103309dc6ac3842249cf1403426b234a61b2549ca4"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/windows-perf.log",
+        "sha256": "36cce53d3efe9e23a820352a82e6b3eb1de6ff0f408ee05d151dda9a7e0ded7b"
+      },
+      "exit_code": 1,
+      "quality_failures": [
+        "xredis_client_init/xredis_client_init/handshake_p95_us: relative_central_range=9.4%",
+        "xredis_client_init/xredis_client_init/handshake_p99_us: relative_mad=7.1%",
+        "xredis_client_init/xredis_client_init/handshake_p99_us: relative_central_range=16.4%",
+        "xredis_client_init/xredis_client_init/handshake_p999_us: relative_central_range=16.0%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p99_us: relative_mad=4.4%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p99_us: relative_central_range=9.8%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p999_us: relative_mad=4.8%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p999_us: relative_central_range=21.4%"
+      ],
+      "cases": {
+        "xredis_client_init": {
+          "args": [
+            "256"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "median": 1397.863,
+              "samples": [
+                1439.406,
+                1387.777,
+                1397.863
+              ],
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "median": 272.8,
+              "samples": [
+                269.4,
+                275.9,
+                272.8
+              ],
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "median": 338.3,
+              "samples": [
+                306.6,
+                338.3,
+                338.5
+              ],
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "median": 397.6,
+              "samples": [
+                360.6,
+                397.6,
+                425.8
+              ],
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "median": 433.4,
+              "samples": [
+                372.5,
+                433.4,
+                441.7
+              ],
+              "unit": "us"
+            }
+          }
+        },
+        "xredis_client_init_readonly": {
+          "args": [
+            "256",
+            "readonly"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "median": 1364.813,
+              "samples": [
+                1369.164,
+                1364.813,
+                1364.014
+              ],
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "median": 287.4,
+              "samples": [
+                284.6,
+                291.8,
+                287.4
+              ],
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "median": 345.4,
+              "samples": [
+                345.4,
+                339.7,
+                356.4
+              ],
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "median": 403.9,
+              "samples": [
+                421.8,
+                382.2,
+                403.9
+              ],
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "median": 461.3,
+              "samples": [
+                537.9,
+                439.2,
+                461.3
+              ],
+              "unit": "us"
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-perf.json",
+        "sha256": "15023019bef114761adf1c4cbd48594c8ad7bc4eec712d96d3a7b92cec1215f4"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-readonly-20261119/wsl-perf.log",
+        "sha256": "01686c48ed0b01a0abec94aca4e120c5bb9302efc52985203a6458393f0a4e2a"
+      },
+      "exit_code": 1,
+      "quality_failures": [
+        "xredis_client_init/xredis_client_init/handshake_p95_us: relative_central_range=9.6%",
+        "xredis_client_init/xredis_client_init/handshake_p99_us: relative_central_range=8.2%",
+        "xredis_client_init/xredis_client_init/handshake_p999_us: relative_central_range=12.2%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p95_us: relative_central_range=15.1%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p99_us: relative_mad=6.7%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p99_us: relative_central_range=13.4%",
+        "xredis_client_init_readonly/xredis_client_init_readonly/handshake_p999_us: relative_central_range=18.0%"
+      ],
+      "cases": {
+        "xredis_client_init": {
+          "args": [
+            "256"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "median": 1972.792,
+              "samples": [
+                1989.583,
+                1972.792,
+                1965.824
+              ],
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "median": 209.3,
+              "samples": [
+                208.6,
+                209.3,
+                210.0
+              ],
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "median": 273.6,
+              "samples": [
+                249.2,
+                273.6,
+                275.5
+              ],
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "median": 326.9,
+              "samples": [
+                346.4,
+                319.6,
+                326.9
+              ],
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "median": 351.7,
+              "samples": [
+                387.5,
+                351.7,
+                344.5
+              ],
+              "unit": "us"
+            }
+          }
+        },
+        "xredis_client_init_readonly": {
+          "args": [
+            "256",
+            "readonly"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "median": 1815.755,
+              "samples": [
+                1822.923,
+                1815.755,
+                1808.312
+              ],
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "median": 260.8,
+              "samples": [
+                260.5,
+                261.4,
+                260.8
+              ],
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "median": 313.6,
+              "samples": [
+                307.0,
+                313.6,
+                354.4
+              ],
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "median": 373.4,
+              "samples": [
+                373.4,
+                348.2,
+                398.3
+              ],
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "median": 422.3,
+              "samples": [
+                422.3,
+                411.5,
+                487.6
+              ],
+              "unit": "us"
+            }
+          }
+        }
+      }
+    }
+  },
+  "limits": [
+    "TLS/DNS/prepared dialing use deterministic peers. The Redis 8.0.5 Cluster server runs on WSL and both native consumers exercise its plaintext loopback replica.",
+    "The caller supplies the replica endpoint. Automatic replica policy and Cluster failover are outside this stage.",
+    "Cold setup only. Three repeats per configuration, unpinned hosts, a local scripted peer, 256 serial connections per repeat. Quality diagnostics are reported without establishing a production latency baseline.",
+    "An initial Clang sanitizer build stopped at a pre-existing sometimes-uninitialized warning in the open-loop fixture. The complete client suite was rerun with GCC ASan/UBSan and leak detection."
+  ]
+}
