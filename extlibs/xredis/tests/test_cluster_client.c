@@ -149,6 +149,39 @@ static void ccQueueBounds(void)
     for(unsigned Kind=0;Kind<2;++Kind){F=rfStart(3);xredisClusterClientConfigInit(&K);if(Kind)K.MaxStorageBytes=1;else K.MaxCommandBytes=1;C=cfCreate(F,&K);cfReady(C);Rejected=(void*)(uintptr_t)1;
         testRequire(xredisClusterClientCall(C,1,A,2,5000,&Rejected)==XREDIS_ADMISSION_OVERLOADED && Rejected==(void*)(uintptr_t)1 && !cfInfo(C).Requests && !cfInfo(C).StorageBytes,"managed aggregate byte quotas");cfStop(F,C);}
 }
+static void ccBusyPoolDoesNotRefresh(void)
+{
+    rffixture* F=rfStart(3);
+    nnClose(F->Base);
+    xredisClusterNodesRelease(F->Base->Cache);
+    xredisclusternodesconfig NC;nnConfig(F->Base,&NC);
+    NC.Pool.MaxRequests=1;
+    NC.Authorize=rfAuthorize;NC.Connect=rfConnect;NC.Drop=rfDrop;NC.Data=F;
+    nnCreate(F->Base,&NC);
+    xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);K.Route.MaxWaits=0;
+    xredisclusterclient* C=cfCreate(F,&K);cfReady(C);
+    xredisclusteraddress Address=nnAddress(F->Base,0);xredispool* Pool=NULL;
+    testRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"busy pool warm lookup");
+    double Deadline=xrtTimer()+5;
+    for(;;){
+        xredispoolinfo Info={.Size=sizeof(Info)};
+        testRequire(xredisPoolInfo(Pool,&Info) && xrtTimer()<Deadline,"bootstrap quota released");
+        if(Info.Idle && !Info.Requests)break;
+        xrtSleep(1);
+    }
+    xredisPoolRelease(Pool);
+    xredisclusterclientinfo Before=cfInfo(C);
+    xrtAtomic32Store(&F->Base->HoldBusiness,1,XMEMORY_RELEASE);
+    xfuture* Held=cfEcho(C,5000);redisPeerWait(&F->Base->Business,1);
+    xfuture* Rejected=cfEcho(C,5000);const xredisclusterclientresult* V=cfWait(Rejected);
+    xredisclusterclientinfo After=cfInfo(C);
+    testRequire(V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved &&
+        V->Route.Status==XREDIS_CLUSTER_ROUTE_OVERLOADED && !V->Route.Attempts && !V->Native &&
+        After.Generation==Before.Generation && After.Refreshes==Before.Refreshes && !After.Dirty,
+        "saturated healthy pool preserves overload without topology recovery");
+    cfStop(F,C);
+    xrtFutureDestroy(Rejected);xrtFutureDestroy(Held);
+}
 static void ccStops(void)
 {
     for(unsigned Kind=0;Kind<3;++Kind){rffixture* F=rfStart(3);xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);xrtAtomic32Store(&F->Base->HoldBusiness,1,XMEMORY_RELEASE);xfuture* R=cfEcho(C,Kind==0?200:5000);redisPeerWait(&F->Base->Business,1);
@@ -252,7 +285,7 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
+{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccBusyPoolDoesNotRefresh();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 ccDeadline();
 #endif

@@ -89,6 +89,48 @@ static void ctShapes(void)
     for(size_t K=0;K<sizeof(Bad)/sizeof(*Bad);++K){xredisreply* R=ctParse(Bad[K].Wire,strlen(Bad[K].Wire),1);xredisclustertopology* T=(xredisclustertopology*)(uintptr_t)1;
         xrtSetErrorKind(XERR_MEMORY);const xerror* Error=xrtGetError();testRequire(xredisClusterTopologyCreate(R,Bad[K].Format,NULL,&T)==Bad[K].Status && T==(void*)(uintptr_t)1 && xrtGetError()==Error,"invalid shape atomic/non-diagnostic");xrtClearError();xredisReplyRelease(R);}
 }
+static void ctPromotion(void)
+{
+    const struct {cstr First,Second;uint16 Port;} Cases[]={
+        {"fail","online",6380},
+        {"online","fail",6379},
+        {"failed","online",6380},
+        {"online","online",0},
+        {"fail","loading",0},
+        {"fail","future-health",0},
+        {"fail","failed",0},
+        {"fail",NULL,6379},
+    };
+    for(unsigned Resp3=0;Resp3<2;++Resp3)for(size_t I=0;I<sizeof(Cases)/sizeof(*Cases);++I){
+        char Wire[512];
+        int Size=snprintf(Wire,sizeof(Wire),"*1\r\n%s+slots\r\n*2\r\n:0\r\n:16383\r\n+nodes\r\n*%u\r\n",
+            Resp3?"%2\r\n":"*4\r\n",Cases[I].Second?2u:1u);
+        testRequire(Size>0 && (size_t)Size<sizeof(Wire),"promotion shape prefix");
+        for(unsigned Node=0;Node<(Cases[I].Second?2u:1u);++Node){
+            int Tail=snprintf(Wire+Size,sizeof(Wire)-(size_t)Size,
+                "%s+id\r\n+%c\r\n+endpoint\r\n+h\r\n+ip\r\n+h\r\n+port\r\n:%u\r\n+role\r\n+master\r\n+replication-offset\r\n:0\r\n+health\r\n+%s\r\n",
+                Resp3?"%7\r\n":"*14\r\n",(int)('a'+Node),6379u+Node,Node?Cases[I].Second:Cases[I].First);
+            testRequire(Tail>0 && (size_t)Tail<sizeof(Wire)-(size_t)Size,"promotion shape node");
+            Size+=Tail;
+        }
+        xredisreply* Reply=ctParse(Wire,(size_t)Size,1);
+        xredisclustertopology* Topology=(void*)(uintptr_t)1;
+        xredisclusterstatus Status=xredisClusterTopologyCreate(Reply,XREDIS_CLUSTER_SHARDS,NULL,&Topology);
+        xredisReplyRelease(Reply);
+        if(!Cases[I].Port){
+            testRequire(Status==XREDIS_CLUSTER_MALFORMED && Topology==(void*)(uintptr_t)1,"ambiguous successors reject atomically");
+            continue;
+        }
+        xredisclusternode Owner,Predecessor;
+        testRequire(Status==XREDIS_CLUSTER_VALUE && xredisClusterTopologyLookup(Topology,16383,&Owner)==XREDIS_CLUSTER_VALUE &&
+            Owner.Port==Cases[I].Port && Owner.Health==(Cases[I].Second?XREDIS_CLUSTER_ONLINE:XREDIS_CLUSTER_FAILED),
+            "unique online successor owns the slots");
+        size_t Failed=Cases[I].Port==6379 && Cases[I].Second?1:0;
+        testRequire(xredisClusterTopologyNode(Topology,Failed,&Predecessor) && Predecessor.Role==XREDIS_CLUSTER_MASTER &&
+            Predecessor.Health==XREDIS_CLUSTER_FAILED,"failed predecessor remains visible");
+        xredisClusterTopologyRelease(Topology);
+    }
+}
 static void ctLimitsOwnership(void)
 {
     xredisreply* R=ctParse(CT_SHARDS3,strlen(CT_SHARDS3),1);xredisclustertopology* T=NULL;xredisclusterlimits K;testRequire(xredisClusterLimitsInit(&K),"cluster defaults");
@@ -129,7 +171,7 @@ static void ctThreads(void)
 {xredisreply* R=ctParse(CT_SHARDS3,strlen(CT_SHARDS3),1);xredisclustertopology* T=NULL;testRequire(xredisClusterTopologyCreate(R,XREDIS_CLUSTER_SHARDS,NULL,&T)==XREDIS_CLUSTER_VALUE,"thread topology");xredisReplyRelease(R);ctthread State[4]={{0}};xthread* Threads[4];for(unsigned I=0;I<4;++I){testRequire(xredisClusterTopologyRetain(T),"thread retain");State[I].Topology=T;Threads[I]=xrtThreadCreate(ctThread,State+I,0);testRequire(Threads[I]!=NULL,"routing reader thread");}xredisClusterTopologyRelease(T);for(unsigned I=0;I<4;++I){testRequire(xrtThreadWait(Threads[I])==XWAIT_OK && xrtThreadExitCode(Threads[I])==0 && State[I].Sum==63790000,"immutable concurrent routing");xrtThreadDestroy(Threads[I]);}}
 #endif
 int main(void)
-{ctKeys();ctRedirects();ctShapes();ctLimitsOwnership();
+{ctKeys();ctRedirects();ctShapes();ctPromotion();ctLimitsOwnership();
 #if defined(XRT_FEATURE_THREAD)
 ctThreads();
 #endif

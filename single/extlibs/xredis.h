@@ -2776,7 +2776,9 @@ XREDIS_API xredisclusterstatus xredisClusterRedirectRead(const xredisreply* Repl
  * coverage allowed. Zero is a limit. MaxNodes<=65535; shards/ranges<=16384. */
 XREDIS_API bool xredisClusterLimitsInit(xredisclusterlimits* Limits);
 /* Complete two-pass shape validation; detects overlapping/out-of-range slots,
- * duplicate known map fields and missing/multiple masters. SHARDS accepts RESP2
+ * duplicate known map fields and missing/ambiguous masters. After a promotion,
+ * SHARDS can report failed predecessor records beside one online master.
+ * Both `fail` and `failed` designate failed health. SHARDS accepts RESP2
  * alternating arrays or RESP3 maps, preserves unknown fields in the owner,
  * and preserves unknown role/health text. SLOTS accepts old 2-field endpoints,
  * optional node IDs and metadata; duplicate per-range node tuples remain so.
@@ -3375,8 +3377,11 @@ XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* C
 /* Ready resolves on the first valid map, or typed stop; metadata failures are
  * visible in Info while bootstrap retries. Acquired views are retained Maps.
  * MOVED from the current generation invalidates once per generation and starts
- * coalesced full-map refresh; ASK never changes the shared map. Old valid maps
- * remain usable during failed refresh. */
+ * coalesced full-map refresh. A terminal disconnected native attempt also
+ * requests refresh while preserving its outcome. An initial primary pool
+ * without dispatchable members after a transport failure can trigger one
+ * refresh before any native attempt. ASK never changes the shared map.
+ * Old valid maps remain usable during failed refresh. */
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* Client);
 XREDIS_API xredisclusterstatus xredisClusterClientSnapshot(xredisclusterclient* Client,
     xredisclustermap** Map,bool* Stale);
@@ -3947,6 +3952,9 @@ bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 #if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
 xredisadmission __xredisSharedPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
     const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result, bool Readonly);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+bool __xredisSharedPoolDisconnected(xredispool* Pool);
+#endif
 #endif
 #endif
 #endif
@@ -9361,6 +9369,9 @@ struct xredispoolconnectstate {
     uint64 Random, Timer;
     double TimerDeadline;
     bool Dropped, Readonly;
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    bool DisconnectedMember;
+#endif
 };
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
 enum { XREDIS_PC_DISCOVERING = 5 };
@@ -9539,7 +9550,15 @@ static void xredisPoolConnectFailed(xredispool* Pool, size_t Item, xredisrequest
 {
     xredispoolconnectstate* State = Pool->Connector; xredispoolconnectentry* Entry = &State->Entries[Item];
     if (Entry->Failures < 31) ++Entry->Failures;
-    xrtMutexLock(&Pool->Gate); xredisPoolConnectIncrement(&State->Info.Failures); State->Info.LastFailure = Status; xrtMutexUnlock(&Pool->Gate);
+    xrtMutexLock(&Pool->Gate);
+    xredisPoolConnectIncrement(&State->Info.Failures); State->Info.LastFailure = Status;
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    /* Retry construction can fail synchronously with INITIALIZATION even
+     * after an established member was disconnected. Keep the outage evidence
+     * until a replacement actually becomes ready. */
+    if (Entry->Phase == XREDIS_PC_ONLINE && Status == XREDIS_REQUEST_DISCONNECTED) State->DisconnectedMember = true;
+#endif
+    xrtMutexUnlock(&Pool->Gate);
 }
 static double xredisPoolConnectRetry(xredispool* Pool, size_t Item)
 {
@@ -9616,6 +9635,9 @@ static bool xredisPoolConnectProcess(xredispool* Pool, xredispoolslot* Slot)
                  * retire, before ProcessSlot publishes the ready-list entry. */
                 if (!Pool->Config.LeaseTimeout && Pool->Info.State == XREDIS_POOL_OPEN)
                     xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_ACTIVE, XMEMORY_RELEASE);
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+                State->DisconnectedMember = false;
 #endif
                 --State->Info.Connecting; ++Pool->Info.Live; xredisPoolConnectIncrement(&State->Info.Connected); xrtMutexUnlock(&Pool->Gate);
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
@@ -10389,6 +10411,16 @@ xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t 
 xredisadmission __xredisSharedPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
     const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result, bool Readonly)
 { return xredisPoolConnectAdmit(Engine, Affinity, Count, Config, Connect, Result, true, Readonly); }
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+bool __xredisSharedPoolDisconnected(xredispool* Pool)
+{
+    xrtMutexLock(&Pool->Gate);
+    bool Disconnected = Pool->Connector && Pool->Info.State == XREDIS_POOL_OPEN && !Pool->Info.Idle &&
+        (Pool->Connector->DisconnectedMember || Pool->Connector->Info.LastFailure == XREDIS_REQUEST_DISCONNECTED);
+    xrtMutexUnlock(&Pool->Gate);
+    return Disconnected;
+}
+#endif
 #endif
 bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info)
 {
@@ -12834,7 +12866,9 @@ static xredisclusterstatus xredisClusterReadNode(xredisclusterbuild* B,size_t In
         if(F[4]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[4]),&N->Port))return XREDIS_CLUSTER_MALFORMED;
         if(F[5]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[5]),&N->TlsPort))return XREDIS_CLUSTER_MALFORMED;
         N->Role=xredisClusterWord(N->RoleText,"master")?XREDIS_CLUSTER_MASTER:xredisClusterWord(N->RoleText,"replica")?XREDIS_CLUSTER_REPLICA:XREDIS_CLUSTER_ROLE_OTHER;
-        N->Health=xredisClusterWord(N->HealthText,"online")?XREDIS_CLUSTER_ONLINE:xredisClusterWord(N->HealthText,"failed")?XREDIS_CLUSTER_FAILED:xredisClusterWord(N->HealthText,"loading")?XREDIS_CLUSTER_LOADING:XREDIS_CLUSTER_HEALTH_OTHER;
+        N->Health=xredisClusterWord(N->HealthText,"online")?XREDIS_CLUSTER_ONLINE:
+            (xredisClusterWord(N->HealthText,"fail") || xredisClusterWord(N->HealthText,"failed"))?XREDIS_CLUSTER_FAILED:
+            xredisClusterWord(N->HealthText,"loading")?XREDIS_CLUSTER_LOADING:XREDIS_CLUSTER_HEALTH_OTHER;
     }
     N->Endpoint=xredisClusterEndpoint(N->Host);return XREDIS_CLUSTER_VALUE;
 }
@@ -12854,7 +12888,10 @@ static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyv
     if(!xredisClusterArray(Root))return XREDIS_CLUSTER_MALFORMED;
     for(size_t Row=Root.FirstChild;Row!=XREDIS_REPLY_NONE;){
         if(B->Shards==B->Limits->MaxShards)return XREDIS_CLUSTER_LIMIT;
-        xredisreplyvalue Item=xredisClusterGet(B->Reply,Row),Ranges={0},Nodes={0};size_t Node,Count;size_t Master=SIZE_MAX;
+        xredisreplyvalue Item=xredisClusterGet(B->Reply,Row),Ranges={0},Nodes={0};size_t Node,Count;
+        size_t Master=SIZE_MAX,FailedMaster=SIZE_MAX;
+        xredisclusterhealth MasterHealth=XREDIS_CLUSTER_HEALTH_OTHER;
+        bool SeveralFailed=false;
         if(Legacy){if(!xredisClusterArray(Item) || Item.ChildCount<3)return XREDIS_CLUSTER_MALFORMED;
             xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild),Last=xredisClusterGet(B->Reply,First.Next);Node=Last.Next;Count=Item.ChildCount-2;
         }else{static const cstr Names[]={"slots","nodes"};size_t F[2];
@@ -12866,10 +12903,19 @@ static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyv
         if(Count>B->Limits->MaxNodes-B->Nodes)return XREDIS_CLUSTER_LIMIT;
         if(B->Output)B->Output->ShardStarts[B->Shards]=(uint16)B->Nodes;
         for(size_t K=0;K<Count;++K){xredisclusternode N;xredisclusterstatus S=xredisClusterReadNode(B,Node,Legacy,K==0,&N);if(S!=XREDIS_CLUSTER_VALUE)return S;
-            if(N.Role==XREDIS_CLUSTER_MASTER){if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;}
+            if(N.Role==XREDIS_CLUSTER_MASTER){
+                if(N.Health==XREDIS_CLUSTER_FAILED){SeveralFailed|=FailedMaster!=SIZE_MAX;FailedMaster=B->Nodes;}
+                else {if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;MasterHealth=N.Health;}
+            }
             if(B->Output)B->Output->Nodes[B->Nodes]=N;
             ++B->Nodes;Node=xredisClusterGet(B->Reply,Node).Next;
         }
+        /* A completed election can leave failed predecessor records with the
+         * master role. Select a unique online replacement in this shape. */
+        if(Master==SIZE_MAX){
+            if(SeveralFailed)return XREDIS_CLUSTER_MALFORMED;
+            Master=FailedMaster;
+        }else if(FailedMaster!=SIZE_MAX && MasterHealth!=XREDIS_CLUSTER_ONLINE)return XREDIS_CLUSTER_MALFORMED;
         if(Master==SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;
         if(Legacy){xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild);xredisclusterstatus S=xredisClusterBuildRange(B,First,xredisClusterGet(B->Reply,First.Next),Master);if(S!=XREDIS_CLUSTER_VALUE)return S;}
         else for(size_t Pair=Ranges.FirstChild;Pair!=XREDIS_REPLY_NONE;){xredisreplyvalue First=xredisClusterGet(B->Reply,Pair),Last=xredisClusterGet(B->Reply,First.Next);xredisclusterstatus S=xredisClusterBuildRange(B,First,Last,Master);if(S!=XREDIS_CLUSTER_VALUE)return S;Pair=Last.Next;}
@@ -13018,7 +13064,11 @@ struct xredisclusterroute {
     xredisclusterrouteresult Result;
     xfuture* Future; xbytesview* Arguments; unsigned char *Host, *AttemptHost, *HostHeap;
     size_t Count, StorageBytes, HostCapacity; double Entered, Deadline, Due;
-    uint32 PrimaryHostSize; uint16 PrimaryPort; uint8 Phase; bool NativeAsking;
+    uint32 PrimaryHostSize; uint16 PrimaryPort; uint8 Phase;
+    bool NativeAsking:1;
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    bool Managed:1;
+#endif
 };
 static bool xredisRouteError(xerrkind Kind, cstr Text)
 {xrtSetErrorInfo(Kind,"xrt.redis",Kind==XERR_STATE?XREDIS_CLIENT_STATE:XREDIS_CLIENT_ARGUMENT,Text);return false;}
@@ -13098,7 +13148,7 @@ static xredisclusteraddress xredisRouteReplica(const xredisclustertopology* T,si
 }
 static xredisadmission xredisRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,uint32 Cursor,
     const xbytesview* A,size_t Count,const xredisclusterrouteconfig* Config,xredisclusterroute** Out,double Entered,xredisclusterroutestatus* Failure,
-    size_t Prefix,ptr* Context)
+    size_t Prefix,ptr* Context,bool Managed)
 {
     if(Failure)*Failure=XREDIS_CLUSTER_ROUTE_MEMORY;
     xredisclusterrouteconfig C;
@@ -13131,6 +13181,11 @@ static xredisadmission xredisRouteCreate(const xredisclustertopology* T,xbytesvi
     unsigned char* Block=xrtCalloc(1,Prefix+Bytes);if(!Block)return XREDIS_ADMISSION_ERROR;
     xredisclusterroute* R=(xredisclusterroute*)(Block+Prefix);if(Prefix)C.Data=Block;
     R->Config=C;R->Entered=Entered;R->Deadline=xredisRouteDue(Entered,C.Timeout);R->StorageBytes=Bytes;R->Count=Count;R->Arguments=(xbytesview*)(R+1);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    R->Managed=Managed;
+#else
+    (void)Managed;
+#endif
     unsigned char* P=(unsigned char*)(R->Arguments+Count);
     for(size_t I=0;I<Count;++I){R->Arguments[I]=(xbytesview){P,A[I].Size};if(A[I].Size)memcpy(P,A[I].Data,A[I].Size);P+=A[I].Size;}
     R->Host=P;R->HostCapacity=HostCapacity;R->AttemptHost=P+HostCapacity;R->Result.Size=sizeof(R->Result);R->Result.StorageBytes=Bytes;R->Result.Address=Address;R->Result.Admission=XREDIS_ADMISSION_ACCEPTED;
@@ -13147,16 +13202,16 @@ static xredisadmission xredisRouteCreate(const xredisclustertopology* T,xbytesvi
 }
 xredisadmission __xredisClusterRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,uint32 Cursor,
     const xbytesview* A,size_t Count,const xredisclusterrouteconfig* C,xredisclusterroute** Out,double Entered,xredisclusterroutestatus* Failure)
-{return xredisRouteCreate(T,Origin,Slot,Cursor,A,Count,C,Out,Entered,Failure,0,NULL);}
+{return xredisRouteCreate(T,Origin,Slot,Cursor,A,Count,C,Out,Entered,Failure,0,NULL,true);}
 xredisadmission __xredisClusterRouteCreateContext(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,uint32 Cursor,
     const xbytesview* A,size_t Count,const xredisclusterrouteconfig* C,size_t Prefix,ptr* Context,xredisclusterroute** Out,double Entered)
 {
     if(!Prefix || Prefix>128u*1024u*1024u || Prefix%_Alignof(max_align_t) || !Context){xredisRouteError(XERR_ARGUMENT,"invalid Cluster route context prefix");return XREDIS_ADMISSION_ERROR;}
-    return xredisRouteCreate(T,Origin,Slot,Cursor,A,Count,C,Out,Entered,NULL,Prefix,Context);
+    return xredisRouteCreate(T,Origin,Slot,Cursor,A,Count,C,Out,Entered,NULL,Prefix,Context,true);
 }
 XREDIS_API xredisadmission xredisClusterRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
     const xbytesview* A,size_t Count,const xredisclusterrouteconfig* Config,xredisclusterroute** Out)
-{return __xredisClusterRouteCreate(T,Origin,Slot,0,A,Count,Config,Out,xrtTimer(),NULL);}
+{return xredisRouteCreate(T,Origin,Slot,0,A,Count,Config,Out,xrtTimer(),NULL,0,NULL,false);}
 xredisadmission __xredisClusterRouteRetryMissing(xredisclusterroute* R,const xredisclustertopology* T,
     xbytesview Origin,uint32 Cursor,const xredisclusterrouteconfig* C,xredisclusterroute** Out,xredisclusterroutestatus* Failure)
 {
@@ -13198,6 +13253,12 @@ static void xredisRouteResolve(xredisclusterroute* R)
     R->Result.AdmissionObserved=true;
     R->Result.Admission=Asking?__xredisSharedPoolAsking(Pool,R->Arguments,R->Count,R->Config.Timeout,&F,R->Entered,false):
         __xredisSharedPoolCall(Pool,R->Arguments,R->Count,R->Config.Timeout,&F,R->Entered,false);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    /* Ask only for a refused, initial primary admission. Busy members and
+     * ordinary cold setup remain in the existing bounded wait path. */
+    bool Unreachable=R->Managed && R->Result.Admission==XREDIS_ADMISSION_OVERLOADED &&
+        !R->Result.Attempts && !R->Result.Address.Reason && __xredisSharedPoolDisconnected(Pool);
+#endif
     xredisPoolRelease(Pool);
     if(R->Result.Admission==XREDIS_ADMISSION_ACCEPTED){
         xrtFutureDestroy(R->Future);R->Future=F;R->NativeAsking=Asking;R->Result.UsedAsking=Asking;
@@ -13207,6 +13268,9 @@ static void xredisRouteResolve(xredisclusterroute* R)
         ++R->Result.Attempts;R->Phase=XCR_NATIVE;R->Due=R->Deadline;
         if(xrtTimer()>=R->Deadline)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_TIMEOUT);
     }else if(xrtTimer()>=R->Deadline)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_TIMEOUT);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+    else if(Unreachable)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_NO_ROUTE);
+#endif
     else if((R->Result.Admission==XREDIS_ADMISSION_OVERLOADED || R->Result.Admission==XREDIS_ADMISSION_CLOSED) &&
         xredisRouteFallback(R))return;
     else if(R->Result.Admission==XREDIS_ADMISSION_OVERLOADED)xredisRouteWait(R);
@@ -13893,6 +13957,8 @@ static void xredisClusterOperationStep(xredisclusterclient* C,xredisclusteropera
     }
     xredisclusterroutestep S=xredisClusterRouteStep(O->Route);xredisclusterrouteresult R={0};R.Size=sizeof(R);xredisClusterRouteResult(O->Route,&R);
     if(R.Moved>O->Moved){xrtMutexLock(&C->Gate);C->Info.Moved+=R.Moved-O->Moved;xrtMutexUnlock(&C->Gate);O->Moved=R.Moved;xredisClusterInvalidateGeneration(C,O->Result.Generation);}
+    if(S==XREDIS_CLUSTER_ROUTE_DONE && R.RequestObserved && R.Query.Status==XREDIS_REQUEST_DISCONNECTED)
+        xredisClusterInvalidateGeneration(C,O->Result.Generation);
     if(xredisClusterClosing(C)){xredisClusterStopOperation(C,O,C->Info.StopStatus);return;}
     if(xrtTimer()>=O->Deadline && (S!=XREDIS_CLUSTER_ROUTE_DONE || R.Status==XREDIS_CLUSTER_ROUTE_COMPLETE)){xredisClusterStopOperation(C,O,XREDIS_CLUSTER_CLIENT_TIMEOUT);return;}
     if(S==XREDIS_CLUSTER_ROUTE_DONE){

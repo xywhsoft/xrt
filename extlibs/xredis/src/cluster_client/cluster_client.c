@@ -193,6 +193,8 @@ static void xredisClusterOperationStep(xredisclusterclient* C,xredisclusteropera
     }
     xredisclusterroutestep S=xredisClusterRouteStep(O->Route);xredisclusterrouteresult R={0};R.Size=sizeof(R);xredisClusterRouteResult(O->Route,&R);
     if(R.Moved>O->Moved){xrtMutexLock(&C->Gate);C->Info.Moved+=R.Moved-O->Moved;xrtMutexUnlock(&C->Gate);O->Moved=R.Moved;xredisClusterInvalidateGeneration(C,O->Result.Generation);}
+    if(S==XREDIS_CLUSTER_ROUTE_DONE && R.RequestObserved && R.Query.Status==XREDIS_REQUEST_DISCONNECTED)
+        xredisClusterInvalidateGeneration(C,O->Result.Generation);
     if(xredisClusterClosing(C)){xredisClusterStopOperation(C,O,C->Info.StopStatus);return;}
     if(xrtTimer()>=O->Deadline && (S!=XREDIS_CLUSTER_ROUTE_DONE || R.Status==XREDIS_CLUSTER_ROUTE_COMPLETE)){xredisClusterStopOperation(C,O,XREDIS_CLUSTER_CLIENT_TIMEOUT);return;}
     if(S==XREDIS_CLUSTER_ROUTE_DONE){

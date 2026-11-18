@@ -57,11 +57,109 @@ def identity(port, process):
     return fields[b"run_id"].decode()
 
 
+def check_primary_loss(clients, children, metadata, master, replica, slot, report):
+    by_port = dict(children)
+    run_ids = {node["port"]: node["run_id"] for node in metadata["nodes"]}
+    node_ids = {node["port"]: node["node_id"].encode() for node in metadata["nodes"]}
+    surviving = [port for port in by_port if port != master]
+    witness = next(port for port in surviving if port != replica)
+    signal = report.with_name(f"{report.stem}-promoted")
+    evidence = dict(witness=witness, cases=[])
+    metadata["primary_loss"] = evidence
+    probes = []
+    cases = [(client, f"c{index}-{kind}", kind) for index, client in enumerate(clients)
+             for kind in ("inflight", "unsent")]
+    try:
+        for port, process in children:
+            assert identity(port, process) == run_ids[port]
+        with socket.create_connection(("127.0.0.1", master), timeout=8) as connection, connection.makefile("rb") as reply:
+            for _, label, _ in cases:
+                send(connection, ["SET", f"xrt-owned:failover:{{fixed}}:{label}", 0])
+                assert frame(reply)[0] == b"OK"
+            send(connection, ["WAIT", 1, 5000])
+            assert frame(reply)[0] == 1
+
+        for client, label, kind in cases:
+            log = report.with_name(f"{report.stem}-{label}.log")
+            signal_path = str(signal)
+            if client.suffix.lower() == ".exe":
+                signal_path = subprocess.check_output(["wslpath", "-w", signal_path], text=True).strip()
+            with log.open("wb") as output:
+                process = subprocess.Popen(
+                    [str(client), "promotion", str(master), str(replica), str(witness), kind, label, signal_path],
+                    stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                )
+            probes.append((client, label, kind, process, log))
+
+        def clients_ready():
+            ready = True
+            for _, label, kind, process, log in probes:
+                output = log.read_text(encoding="utf-8")
+                assert process.poll() is None, (label, output)
+                ready = ready and f"READY {kind} {label}" in output
+            return ready
+
+        def blocked_clients():
+            text, _ = exchange(master, ["CLIENT", "LIST"])
+            return sum(b"cmd=blpop" in line for line in text.splitlines())
+
+        wait_until(clients_ready, 20, "all native clients observed the old topology")
+        wait_until(lambda: blocked_clients() == len(clients), 5, "all blocking requests reached the old primary")
+        evidence["observed_blpop"] = blocked_clients()
+        assert identity(master, by_port[master]) == run_ids[master]
+        began = time.monotonic()
+        by_port[master].kill()
+        evidence["old_primary_exit_code"] = by_port[master].wait(timeout=5)
+
+        def ownership_changed():
+            if exchange(replica, ["ROLE"])[0][0] != b"master":
+                return False
+            for port in surviving:
+                slots, _ = exchange(port, ["CLUSTER", "SLOTS"])
+                if not any(first <= slot <= last and owner[1:3] == [replica, node_ids[replica]]
+                           for first, last, owner, *_ in slots):
+                    return False
+            return True
+
+        wait_until(ownership_changed, 25, "survivors converge on automatic election")
+        assert identity(replica, by_port[replica]) == run_ids[replica]
+        evidence["kill_to_survivor_convergence_ms"] = (time.monotonic() - began) * 1000
+        evidence["promoted_role"] = exchange(replica, ["ROLE"])[0][0].decode()
+        evidence["metadata_wire"] = {
+            name: exchange(witness, ["CLUSTER", name], protocol=3)[1].decode("ascii")
+            for name in ("SHARDS", "SLOTS")
+        }
+        signal.touch()
+        failures = []
+        for client, label, kind, process, log in probes:
+            exit_code = process.wait(timeout=15)
+            output = log.read_text(encoding="utf-8")
+            case = dict(client=str(client), label=label, kind=kind, exit_code=exit_code, output=output)
+            evidence["cases"].append(case)
+            counter, _ = exchange(replica, ["GET", f"xrt-owned:failover:{{fixed}}:{label}"])
+            case["server_counter"] = None if counter is None else int(counter)
+            passed = exit_code == 0 and f"[PASS] real Cluster primary loss: {kind} {label}" in output and counter == b"1"
+            if kind == "inflight":
+                passed = passed and "DISCONNECTED MAY_HAVE_EXECUTED attempts=1" in output
+            if passed:
+                print(client.name, kind, "primary-loss recovery passed", flush=True)
+            else:
+                failures.append(case)
+        assert not failures, failures
+    finally:
+        for _, _, _, process, _ in probes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+        evidence["probes_terminal"] = all(process.poll() is not None for _, _, _, process, _ in probes)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--client", type=Path, action="append", required=True)
     parser.add_argument("--server", type=Path, default=Path(shutil.which("redis-server") or "redis-server"))
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--primary-loss", action="store_true", help="kill the owned primary and observe automatic election")
     args = parser.parse_args()
     server = args.server.absolute()
     clients = [client.absolute() for client in args.client]
@@ -164,6 +262,8 @@ def main():
                 assert run.returncode == 0 and "[PASS] real Cluster READONLY:" in run.stdout and \
                     "[PASS] real Cluster replica routing:" in run.stdout, run.stdout
                 print(client.name, "passed", flush=True)
+            if args.primary_loss:
+                check_primary_loss(clients, children, result, master, replica, slot, report)
             result["complete"] = True
         except BaseException:
             result["failure"] = traceback.format_exc()

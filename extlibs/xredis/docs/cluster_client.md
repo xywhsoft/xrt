@@ -20,6 +20,19 @@ eligible masters, the actual query origin and original bootstrap fallback stay
 under explicit caps. Failed cohorts advance their starting seed. All candidates
 still pass Nodes authority and exact transport/port rules. Cold node setup can
 temporarily rotate into fallback before a discovered pool becomes ready.
+
+An accepted native attempt that reports DISCONNECTED also invalidates its map
+generation. Its typed result preserves the original delivery state and the
+client refreshes topology in the background. For a call that has yet to make
+any native attempt, an unavailable initial primary pool can use the same
+one-refresh path as a missing slot. This requires an open maintained pool
+with zero dispatchable members and a recorded transport disconnect. A live
+pool at its request quota keeps its ordinary bounded wait or overload outcome.
+The outage evidence survives failed replacement construction and clears when
+a replacement becomes ready.
+The fresh route inherits the original deadline. The pool check takes one
+gate on this refused admission path. Recovery depends on a reachable,
+authorized metadata node reporting the promotion.
 The optional [command adapter](cluster_command.md) calculates complete routing
 keys from a caller-owned catalogue before admission, with explicit keyless
 policy. Command metadata cache and server-assisted metadata fallback remain
@@ -59,8 +72,8 @@ existing allocation. Replica admission scans at most the selected shard's
 node count and copies the eligible primary host into the same route allocation
 when needed for fallback. It reuses the admission gate. Benchmark cases in
 `xredis_cluster_replica_warm` measure prewarmed primary and replica requests
-over loopback with pipeline depth 32. Cluster failover, wider replication lag
-policies and native deployment performance remain qualification work.
+over loopback with pipeline depth 32. Wider replication lag policies and native
+deployment performance remain qualification work.
 
 ```sh
 python tools/measure_performance.py --compiler gcc --manifest extlibs/xredis/config/modules.json --config extlibs/xredis/config/performance_profiles.json --profiles xredis_cluster_replica_warm --warmups 1 --repeats 3

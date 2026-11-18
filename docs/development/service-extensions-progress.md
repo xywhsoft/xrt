@@ -10,7 +10,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   TCP/TLS async/sync request connection, bounded hostname/address dialing and
   explicit HELLO/AUTH/name/database setup are locally verified, including Redis
   8.0.5 interoperability. Managed READONLY and topology-based selection are
-  verified for explicit stale-tolerant Cluster reads. Initial client-certificate
+  verified for explicit stale-tolerant Cluster reads. Reactive recovery from an
+  abruptly terminated Cluster primary is verified with surviving metadata
+  seeds. Initial client-certificate
   signing/authentication is locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
@@ -15340,3 +15342,45 @@ replication lag policy remain open.
 
 [Replica routing contract](../../extlibs/xredis/docs/cluster_client.md).
 [Stage evidence](xredis-cluster-replica-route-20261119.json).
+
+## 2026-11-19 xredis Cluster primary loss and promotion
+
+An accepted transport disconnect invalidates the route's map generation and
+preserves the native result and delivery certainty. A refused first primary
+admission against an empty, disconnected maintained pool can request one
+fresh map before sending any business bytes. Ordinary capacity overload keeps
+its existing wait and overload contract. The pool retains observed transport
+loss through failed replacement construction and clears it on new readiness.
+
+An initial real Redis 8.0.5 run exposed SHARDS replies that retained the dead
+master beside the promoted online master. The corrected parser recognizes
+`fail` and `failed`, retains predecessor records and selects a unique online
+owner. Multiple online masters and ambiguous health combinations still reject
+atomically. RESP2 and RESP3 parser tests cover both record orders.
+
+Three owned loopback Cluster trials killed the original primary during two
+server-observed BLPOP operations. Three primary shards and one replica ran
+under WSL. Windows and WSL native clients exercised the RESP3/SHARDS
+disconnected path and the RESP2/SLOTS unsent path. In-flight outcomes stayed
+DISCONNECTED/MAY_HAVE_EXECUTED with one native attempt. The other clients
+still held the pre-election map and recovered on their first post-election
+write. Every probe obtained one successful INCR on the promoted primary
+without MOVED or manual invalidation. The four counters each reached one
+in every trial. The promoted endpoint used a new ordinary pool distinct from
+its prewarmed replica pool.
+
+| Loopback observation | Range across the three trials |
+| --- | ---: |
+| Process kill to survivor slot agreement | 1.968–2.775 s |
+| WSL post-election INCR, prior in-flight loss | 5.634–5.844 ms |
+| Windows post-election INCR, prior in-flight loss | 6.149–6.371 ms |
+| WSL post-election INCR, stale map and unsent call | 10.676–11.007 ms |
+| Windows post-election INCR, stale map and unsent call | 10.924–11.360 ms |
+
+The post-election timings start at call entry once the fixture has confirmed
+survivor agreement. Calls during an election can exhaust their deadline or
+the one unsent re-selection. Mixed-load failover, network partitions, TLS
+Cluster failover and production throughput and tails remain unqualified.
+
+[Recovery contract](../../extlibs/xredis/docs/cluster_client.md).
+[Stage evidence](xredis-cluster-primary-outage-20261119.json).

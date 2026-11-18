@@ -77,8 +77,11 @@ XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* C
 /* Ready resolves on the first valid map, or typed stop; metadata failures are
  * visible in Info while bootstrap retries. Acquired views are retained Maps.
  * MOVED from the current generation invalidates once per generation and starts
- * coalesced full-map refresh; ASK never changes the shared map. Old valid maps
- * remain usable during failed refresh. */
+ * coalesced full-map refresh. A terminal disconnected native attempt also
+ * requests refresh while preserving its outcome. An initial primary pool
+ * without dispatchable members after a transport failure can trigger one
+ * refresh before any native attempt. ASK never changes the shared map.
+ * Old valid maps remain usable during failed refresh. */
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* Client);
 XREDIS_API xredisclusterstatus xredisClusterClientSnapshot(xredisclusterclient* Client,
     xredisclustermap** Map,bool* Stale);

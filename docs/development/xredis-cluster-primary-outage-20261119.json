@@ -1,0 +1,382 @@
+{
+  "schema": 1,
+  "scope": "Reactive managed Cluster recovery after transport loss and automatic Redis promotion",
+  "branch": "master",
+  "workdir": "D:/GIT/xrt",
+  "qualification_head": "97fbe87b400ffd1d689920fa7c3785be8c3f4ee4",
+  "source": [
+    {
+      "path": "extlibs/xredis/docs/client-init.md",
+      "sha256": "45c46e914c7db0663842d704b42a53772a4bd0f70defc588bc1f5373bcd824f5"
+    },
+    {
+      "path": "extlibs/xredis/docs/cluster_client.md",
+      "sha256": "6235ffa7993773ad89824777731cd36f5fd0025baac852afd4f187eab7363339"
+    },
+    {
+      "path": "extlibs/xredis/docs/cluster_topology.md",
+      "sha256": "d0f911fcb7cbb58fd715e79a2828ecb910afccc8869b358f31854252fa8520d8"
+    },
+    {
+      "path": "extlibs/xredis/include/xredis/cluster_client.h",
+      "sha256": "d4960948fc07443f668536257caf63c6e9a8711c6c5109592470848f7b615390"
+    },
+    {
+      "path": "extlibs/xredis/include/xredis/cluster_topology.h",
+      "sha256": "138715e55a6c9fcd6982d5c140aa45b5d7b53b33c52ddb87d0275ad394f6f0fe"
+    },
+    {
+      "path": "extlibs/xredis/src/cluster_client/cluster_client.c",
+      "sha256": "091716926f1e2c256ed5fccfeee7b5eb025ef529b2e5757a5baf5d9ee1140672"
+    },
+    {
+      "path": "extlibs/xredis/src/cluster_route/cluster_route.c",
+      "sha256": "cb8edcfd97760e37dcb2b00a8fd644e553576bc38ea22ae4ced28cdcabc7ff08"
+    },
+    {
+      "path": "extlibs/xredis/src/cluster_topology/cluster_topology.c",
+      "sha256": "627a0951c09031199d1166833885f462dc787b8516f3fdfa6320f9ceeba56e52"
+    },
+    {
+      "path": "extlibs/xredis/src/internal/pool_connect_internal.h",
+      "sha256": "e10b74203881273fe8d3b871ea3d455074d4a374a7ff5650a202264bdf67bddb"
+    },
+    {
+      "path": "extlibs/xredis/src/pool/pool.c",
+      "sha256": "36e618504804fd1193320a100cbe325bcc3a9f6e041b7ee37b34f57135a6df81"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/redis_cluster_readonly.c",
+      "sha256": "2e122c0baa8808c5d55119aa324dbb9e22f5fca3681fb70f2d1e82f1eee5d9a6"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/run_redis_cluster_readonly.py",
+      "sha256": "c410b01d82318321e5504b1fee3f04a983f452c69d40e66bed3f92f2f8ce55d7"
+    },
+    {
+      "path": "extlibs/xredis/tests/test_cluster_client.c",
+      "sha256": "b752a37b1998cd7b92938f9d9db9d1e94ea81130a28f9192de4707ff5497c10b"
+    },
+    {
+      "path": "extlibs/xredis/tests/test_cluster_topology.c",
+      "sha256": "2b64485ebdb0161b91710dadbdb2748bf449053712f56eb787c5971202e8d972"
+    },
+    {
+      "path": "single/extlibs/xredis.h",
+      "sha256": "77a2900096ef9cff4f7ebf0dfbfef479092264f3f794285e8f3b8d217e92874a"
+    },
+    {
+      "path": "single/extlibs/xredis_decl.h",
+      "sha256": "1020143e4028049d1cb67d2f478571768450da5aac63d25e70d9656d1e102423"
+    }
+  ],
+  "checks": {
+    "windows": {
+      "cluster": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/windows-cluster-final.log",
+        "sha256": "68fdb1b565f26690cfff057ad20b4eb04914e1f8af763db4a29c759bdb0c428f",
+        "programs": [
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_client.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_topology.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_route.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_nodes.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_refresh.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\examples_cluster_topology_main.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_single_xredis_cluster_topology.exe"
+        ]
+      },
+      "managed_single_header": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/windows-single-final.log",
+        "sha256": "8d32e6939a7312c97e21587952cb4021368ad60b90b58ea83a28114b8d5ea601",
+        "programs": [
+          "[test] out\\gcc\\native\\xredis_cluster_client\\test_single_xredis_cluster_client.exe"
+        ]
+      },
+      "static": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/windows-package-static-final.log",
+        "sha256": "3920b690eb0a479acb25fedab6717bd9b0c6c749f17ca94758550e51c113d801",
+        "programs": [
+          "[verify] release\\gnu\\native\\xredis_cluster_client,xredis_role_client\\static\\test_package_xredis.exe"
+        ]
+      },
+      "shared": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/windows-package-shared-final.log",
+        "sha256": "1659fc902bf3e0a7bb34736ffbc0de08ef5abc40f96b734aa87969f71d8e917d",
+        "programs": [
+          "[verify] release\\gnu\\native\\xredis_cluster_client,xredis_role_client\\shared\\test_package_xredis.exe"
+        ]
+      }
+    },
+    "wsl": {
+      "cluster": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/wsl-cluster-final.log",
+        "sha256": "10aa49770051dfb918be8a7070a101e3cf2d4e49b2dc8ff11de3741f298fa6eb",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_client",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_topology",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_route",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_nodes",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_refresh",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/examples_cluster_topology_main",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_single_xredis_cluster_topology"
+        ]
+      },
+      "managed_single_header": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/wsl-single-final.log",
+        "sha256": "aa97b6ebfbff01b7bdc5fa7616ba4c8da93ef7b71d75e84994e554eae9e1c5a5",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client/test_single_xredis_cluster_client"
+        ]
+      },
+      "static": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/wsl-package-static-final.log",
+        "sha256": "a2183668574e13f44f4bac8e0e28ee8ff7df2809c0d55db1a975332364c9b94f",
+        "programs": [
+          "[verify] release/gnu/x64/xredis_cluster_client,xredis_role_client/static/test_package_xredis"
+        ]
+      },
+      "shared": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/wsl-package-shared-final.log",
+        "sha256": "367d8bebcbb0fe9f1b76a51c72002a564fbc1c95f252f5f8328cd055a0a42d36",
+        "programs": [
+          "[verify] release/gnu/x64/xredis_cluster_client,xredis_role_client/shared/test_package_xredis"
+        ]
+      },
+      "asan_ubsan_leaks": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/wsl-sanitized.log",
+        "sha256": "c07f0699c667205c2f31f70b642e381aba89d25fbe3189e12f42d3f731052b14",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_cluster_client",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_cluster_topology",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/examples_cluster_topology_main",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_single_xredis_cluster_topology"
+        ]
+      }
+    }
+  },
+  "gates": {
+    "generated_api_layout_maturity": {
+      "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/gates.log",
+      "sha256": "2c3fd304233d87203031b6e049437c3a65c45af22f0010326e55831af697471d",
+      "programs": []
+    },
+    "strict_release": {
+      "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/gate-release.log",
+      "sha256": "82de3a888862098f802037d12ec80e3b21d5b10a8c8e2c6d8c9963e4585211f1",
+      "programs": [],
+      "exit_code": 1,
+      "developing": 32
+    }
+  },
+  "trials": [
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-1.json",
+        "sha256": "7033f89f7050335769746c0d8d59091ac7f217b870d21b6c660c2640a8568f1f"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-1.log",
+        "sha256": "ef9cc5853efd01426c8d038248030a6505b76dc3621107bf6eadfdbb8c06647e",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 36924,
+      "replica": 24638,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 37368,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=5.844\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 5.844,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=11.007\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.007,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.149\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.149,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=11.229\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.229,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "kill_to_survivor_convergence_ms": 2420.9585679999464,
+      "promoted_role": "master",
+      "probes_terminal": true
+    },
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-2.json",
+        "sha256": "2c1163b2a40d87028fa8dc355cbf85c143bd1b5b5a2064e234252b74129786ac"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-2.log",
+        "sha256": "ef9cc5853efd01426c8d038248030a6505b76dc3621107bf6eadfdbb8c06647e",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 31391,
+      "replica": 19757,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 39728,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=5.634\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 5.634,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=10.685\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.685,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.327\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.327,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=11.360\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.36,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "kill_to_survivor_convergence_ms": 1967.6051579999694,
+      "promoted_role": "master",
+      "probes_terminal": true
+    },
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-3.json",
+        "sha256": "038e3ac0135edc9fc2f77210740c56a5c72d2f11b55aa1fad2425c28d42bc29a"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/qualified-3.log",
+        "sha256": "ef9cc5853efd01426c8d038248030a6505b76dc3621107bf6eadfdbb8c06647e",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 30761,
+      "replica": 35627,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 16351,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=5.692\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 5.692,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=10.676\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.676,
+          "client_sha256": "8c011df525d11b534baafedbf7fdcc672bd2baa0484a0400f700fa333bd0a2b2"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.371\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.371,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-primary-outage-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=10.924\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.924,
+          "client_sha256": "bce1f7c4b700ff370412a445a5e031d6b4b5009e4a65b328bde86c67b32e40e6"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "kill_to_survivor_convergence_ms": 2775.1298059999954,
+      "promoted_role": "master",
+      "probes_terminal": true
+    }
+  ],
+  "diagnostics": {
+    "windows_replacement_status": {
+      "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/primary-loss-2.json",
+      "sha256": "4f408611d6176630af39fa2721bc2b2d29ea36aa3034e99d704ac15cc406aa27"
+    },
+    "pre_fix_shards_after_election": {
+      "path": "out/service-extensions/xredis-cluster-primary-outage-20261119/primary-loss-shards.json",
+      "sha256": "c3a0b5dc99271aa67d86589a31756a20b1a1b262d2b458befd06c341b102178f"
+    }
+  },
+  "limits": [
+    "Redis 8.0.5 ran on WSL on a disposable loopback cluster with three primary shards and one replica.",
+    "Three trials. Separate Windows and WSL clients used RESP3/SHARDS for in-flight disconnect and RESP2/SLOTS for unsent admission. Each new write starts after the driver checks surviving Redis slot agreement.",
+    "An accepted request can fail with MAY_HAVE_EXECUTED. No application request was replayed after an uncertain result. In this fixture each post-election INCR independently executed once.",
+    "One unsent route recreation under the original deadline. A request submitted earlier in an ongoing election can time out or receive no-route.",
+    "The observations are loopback recovery timings. Mixed-load failover, black-hole partitions, reintegration, TLS and native production acceptance are open."
+  ]
+}

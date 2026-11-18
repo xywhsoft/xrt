@@ -58,7 +58,9 @@ XREDIS_API xredisclusterstatus xredisClusterRedirectRead(const xredisreply* Repl
  * coverage allowed. Zero is a limit. MaxNodes<=65535; shards/ranges<=16384. */
 XREDIS_API bool xredisClusterLimitsInit(xredisclusterlimits* Limits);
 /* Complete two-pass shape validation; detects overlapping/out-of-range slots,
- * duplicate known map fields and missing/multiple masters. SHARDS accepts RESP2
+ * duplicate known map fields and missing/ambiguous masters. After a promotion,
+ * SHARDS can report failed predecessor records beside one online master.
+ * Both `fail` and `failed` designate failed health. SHARDS accepts RESP2
  * alternating arrays or RESP3 maps, preserves unknown fields in the owner,
  * and preserves unknown role/health text. SLOTS accepts old 2-field endpoints,
  * optional node IDs and metadata; duplicate per-range node tuples remain so.

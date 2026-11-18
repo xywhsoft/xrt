@@ -5461,7 +5461,9 @@ XREDIS_API xredisclusterstatus xredisClusterRedirectRead(const xredisreply* Repl
  * coverage allowed. Zero is a limit. MaxNodes<=65535; shards/ranges<=16384. */
 XREDIS_API bool xredisClusterLimitsInit(xredisclusterlimits* Limits);
 /* Complete two-pass shape validation; detects overlapping/out-of-range slots,
- * duplicate known map fields and missing/multiple masters. SHARDS accepts RESP2
+ * duplicate known map fields and missing/ambiguous masters. After a promotion,
+ * SHARDS can report failed predecessor records beside one online master.
+ * Both `fail` and `failed` designate failed health. SHARDS accepts RESP2
  * alternating arrays or RESP3 maps, preserves unknown fields in the owner,
  * and preserves unknown role/health text. SLOTS accepts old 2-field endpoints,
  * optional node IDs and metadata; duplicate per-range node tuples remain so.
@@ -6060,8 +6062,11 @@ XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* C
 /* Ready resolves on the first valid map, or typed stop; metadata failures are
  * visible in Info while bootstrap retries. Acquired views are retained Maps.
  * MOVED from the current generation invalidates once per generation and starts
- * coalesced full-map refresh; ASK never changes the shared map. Old valid maps
- * remain usable during failed refresh. */
+ * coalesced full-map refresh. A terminal disconnected native attempt also
+ * requests refresh while preserving its outcome. An initial primary pool
+ * without dispatchable members after a transport failure can trigger one
+ * refresh before any native attempt. ASK never changes the shared map.
+ * Old valid maps remain usable during failed refresh. */
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* Client);
 XREDIS_API xredisclusterstatus xredisClusterClientSnapshot(xredisclusterclient* Client,
     xredisclustermap** Map,bool* Stale);

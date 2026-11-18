@@ -8,6 +8,9 @@ bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 #if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
 xredisadmission __xredisSharedPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
     const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result, bool Readonly);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+bool __xredisSharedPoolDisconnected(xredispool* Pool);
+#endif
 #endif
 #endif
 #endif

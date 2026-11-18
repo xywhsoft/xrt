@@ -1,8 +1,8 @@
 # Cluster topology and redirections
 
 Developing leaf `xredis_cluster_topology`. Computes binary key slots, classifies
-MOVED/ASK replies, and builds immutable SHARDS/SLOTS maps. Automatic Cluster
-connections, redirect execution, refresh and failover remain subsequent work.
+MOVED/ASK replies, and builds immutable SHARDS/SLOTS maps for the managed
+Cluster client. [Managed Cluster client](cluster_client.md)
 
 One allocation holds a fixed32KiB index and node/range descriptors, plus one
 retained immutable Reply reference; there is no text copy. MaxOwnedBytes counts
@@ -24,8 +24,13 @@ belongs to its query transport; SHARDS Port/TlsPort are separate. Endpoint text
 rejects control/space/URI delimiter bytes; real IP/DNS validation is the dial
 factory's responsibility. Snapshot/node views require a live topology ref.
 
-Overlapping slots, bad ranges, duplicate known map fields and missing/multiple
-masters fail atomically. Empty shard ranges and partial maps are valid unless
+Overlapping slots, bad ranges, duplicate known map fields and ambiguous primary
+records fail atomically. During promotion, Redis 8.0.5 can advertise a failed
+predecessor with the master role alongside the new online primary. When several
+records carry the master role, only a unique online primary accompanied by
+explicitly failed predecessors can own the slots. Both `fail` and `failed`
+map to failed health, and the original text and node descriptors are retained.
+Empty shard ranges and partial maps are valid unless
 RequireFullCoverage is set. Future fields/attributes remain in the reply owner
 and count toward limits. Zero is a real cap; the bounded Reply reader still owns
 its parsing costs. See the public header for all defaults and output rules.

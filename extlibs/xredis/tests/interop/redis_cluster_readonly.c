@@ -155,7 +155,7 @@ static void checkPool(xnetengine* Engine, xnetaddr* Address)
 }
 
 typedef struct clusterfixture {
-    uint16 Primary, Replica;
+    uint16 Primary, Replica, Witness;
     xredisinitmode Mode;
     xatomic32 DenyReplica;
 } clusterfixture;
@@ -166,7 +166,8 @@ static bool clusterAuthorize(const xredisclusteraddress* Address, ptr Data)
     if (Address->Tls || Address->Host.Size != 9 || memcmp(Address->Host.Data, "127.0.0.1", 9)) return false;
     if (Address->Reason == XREDIS_CLUSTER_REPLICA_READ)
         return Address->Port == Fixture->Replica && !xrtAtomic32Load(&Fixture->DenyReplica, XMEMORY_ACQUIRE);
-    return Address->Port == Fixture->Primary;
+    return Address->Port == Fixture->Primary ||
+        (Fixture->Witness && (Address->Port == Fixture->Replica || Address->Port == Fixture->Witness));
 }
 
 static bool clusterConnect(const xredisclusteraddress* Endpoint, xnetengine* Engine, size_t Slot, uint64 Attempt,
@@ -209,6 +210,18 @@ static void checkManagedRead(xredisclusterclient* Client, uint16 Slot, bool Pref
     xrtFutureDestroy(Future);
 }
 
+static void closeManaged(xredisclusterclient* Client, xredisclusternodes* Nodes)
+{
+    xfuture* Closed = xredisClusterClientClosed(Client);
+    require(xredisClusterClientClose(Client) && xrtFutureWaitFor(Closed, 5000) == XWAIT_OK, "managed Cluster close");
+    xrtFutureDestroy(Closed);
+    xredisClusterClientRelease(Client);
+    Closed = xredisClusterNodesClosed(Nodes);
+    require(xredisClusterNodesClose(Nodes) && xrtFutureWaitFor(Closed, 5000) == XWAIT_OK, "managed cache physical close");
+    xrtFutureDestroy(Closed);
+    xredisClusterNodesRelease(Nodes);
+}
+
 static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xredisinitmode Mode, xredisclusterformat Format)
 {
     printf("managed replica case mode=%d format=%d\n", (int)Mode, (int)Format);
@@ -238,19 +251,170 @@ static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xre
     checkManagedRead(Client, Slot, false, Primary, 0, 1);
     xrtAtomic32Store(&Fixture.DenyReplica, 1, XMEMORY_RELEASE);
     checkManagedRead(Client, Slot, true, Primary, 0, 2);
-    xfuture* Closed = xredisClusterClientClosed(Client);
-    require(xredisClusterClientClose(Client) && xrtFutureWaitFor(Closed, 5000) == XWAIT_OK, "managed Cluster close");
-    xrtFutureDestroy(Closed);
-    xredisClusterClientRelease(Client);
-    Closed = xredisClusterNodesClosed(Nodes);
-    require(xredisClusterNodesClose(Nodes) && xrtFutureWaitFor(Closed, 5000) == XWAIT_OK, "managed cache physical close");
-    xrtFutureDestroy(Closed);
-    xredisClusterNodesRelease(Nodes);
+    closeManaged(Client, Nodes);
     xredisPoolRelease(ReadPool);
+}
+
+static xredisclusterclientinfo clientInfo(xredisclusterclient* Client)
+{
+    xredisclusterclientinfo Info = {.Size = sizeof(Info)};
+    require(xredisClusterClientInfo(Client, &Info), "promotion client info");
+    return Info;
+}
+
+static void checkDisconnectedPool(xredispool* Pool)
+{
+    double Deadline = xrtTimer() + 5;
+    for (;;) {
+        xredispoolinfo Info = {.Size = sizeof(Info)};
+        xredispoolconnectinfo Connect = {.Size = sizeof(Connect)};
+        require(xredisPoolInfo(Pool, &Info) && xredisPoolConnectInfo(Pool, &Connect) &&
+            xrtTimer() < Deadline, "old primary pool observed disconnect");
+        if (!Info.Idle && Connect.Failures) return;
+        xrtSleep(2);
+    }
+}
+
+static void waitSignal(cstr Path)
+{
+    double Deadline = xrtTimer() + 40;
+    for (;;) {
+        FILE* Signal = fopen(Path, "rb");
+        if (Signal) { fclose(Signal); return; }
+        require(xrtTimer() < Deadline, "primary promotion signal");
+        xrtSleep(5);
+    }
+}
+
+static int checkPromotion(int argc, char** argv)
+{
+    if (argc != 8 || (strcmp(argv[5], "inflight") && strcmp(argv[5], "unsent"))) return 2;
+    long Primary = strtol(argv[2], NULL, 10), Replica = strtol(argv[3], NULL, 10), Witness = strtol(argv[4], NULL, 10);
+    if (Primary <= 0 || Replica <= 0 || Witness <= 0 || Primary > 65535 || Replica > 65535 || Witness > 65535 ||
+        Primary == Replica || Primary == Witness || Replica == Witness) return 2;
+    bool Inflight = !strcmp(argv[5], "inflight");
+    char Counter[96];
+    int Size = snprintf(Counter, sizeof(Counter), "xrt-owned:failover:{fixed}:%s", argv[6]);
+    if (Size <= 0 || (size_t)Size >= sizeof(Counter)) return 2;
+    xnetengine* Engine = xrtNetEngineCreate(NULL);
+    require(Engine && xrtNetEngineStart(Engine), "promotion engine start");
+    clusterfixture Fixture = {
+        .Primary = (uint16)Primary, .Replica = (uint16)Replica, .Witness = (uint16)Witness,
+        .Mode = Inflight ? XREDIS_INIT_RESP3 : XREDIS_INIT_RESP2,
+    };
+    xrtAtomic32Init(&Fixture.DenyReplica, 0);
+    xredisclusternodesconfig NC;
+    xredisClusterNodesConfigInit(&NC);
+    NC.Protocol = Inflight ? XREDIS_RESP3 : XREDIS_RESP2;
+    NC.Authorize = clusterAuthorize;
+    NC.Connect = clusterConnect;
+    NC.Data = &Fixture;
+    NC.AttemptTimeout = 500;
+    NC.RetryMin = 20;
+    NC.RetryMax = 100;
+    xredisclusternodes* Nodes = NULL;
+    require(xredisClusterNodesCreate(Engine, 0, &NC, &Nodes) == XREDIS_ADMISSION_ACCEPTED, "promotion node cache");
+    xredisclusteraddress Seeds[] = {
+        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Primary},
+        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Witness},
+    };
+    xredisclusteraddress ReadNode = Seeds[0];
+    ReadNode.Port = Fixture.Replica;
+    ReadNode.Reason = XREDIS_CLUSTER_REPLICA_READ;
+    xredispool *Old = NULL, *Read = NULL, *Other = NULL;
+    require(xredisClusterNodesGetPool(&Seeds[0], 5000, Nodes, &Old) == XREDIS_CLUSTER_POOL_READY &&
+        xredisClusterNodesGetPool(&ReadNode, 5000, Nodes, &Read) == XREDIS_CLUSTER_POOL_READY &&
+        xredisClusterNodesGetPool(&Seeds[1], 5000, Nodes, &Other) == XREDIS_CLUSTER_POOL_READY, "promotion pool prewarm");
+    waitPool(Old, 1);
+    waitPool(Read, 1);
+    waitPool(Other, 1);
+    xredisPoolRelease(Other);
+    xredisclusterclientconfig Config;
+    xredisClusterClientConfigInit(&Config);
+    Config.Refresh.Format = Inflight ? XREDIS_CLUSTER_SHARDS : XREDIS_CLUSTER_LEGACY_SLOTS;
+    Config.RefreshMin = 10;
+    Config.RefreshRetryMax = 100;
+    xredisclusterclient* Client = NULL;
+    require(xredisClusterClientCreate(Engine, 0, Nodes, Seeds, 2, &Config, &Client) == XREDIS_ADMISSION_ACCEPTED,
+        "promotion client start");
+    uint16 Slot, CounterSlot;
+    const xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), {(cbytes)Counter, (size_t)Size}};
+    require(xredisClusterKeySlot(Get[1], &Slot) && xredisClusterKeySlot(Increment[1], &CounterSlot) && Slot == CounterSlot,
+        "promotion slot");
+    checkManagedRead(Client, Slot, false, Fixture.Primary, 0, 1);
+    checkManagedRead(Client, Slot, true, Fixture.Replica, XREDIS_CLUSTER_REPLICA_READ, 1);
+    xredisclusterclientinfo Before = clientInfo(Client);
+    xfuture* Blocked = NULL;
+    if (Inflight) {
+        const xbytesview Block[] = {
+            XRT_BYTES_LITERAL("BLPOP"), XRT_BYTES_LITERAL("xrt-owned:failover:{fixed}\0blocked"), XRT_BYTES_LITERAL("0"),
+        };
+        require(xredisClusterClientCall(Client, Slot, Block, 3, 30000, &Blocked) == XREDIS_ADMISSION_ACCEPTED,
+            "in-flight blocking call admitted");
+    }
+    printf("READY %s %s\n", argv[5], argv[6]);
+    fflush(stdout);
+    if (Blocked) {
+        require(xrtFutureWaitFor(Blocked, 30000) == XWAIT_OK && xrtFutureValue(Blocked), "in-flight disconnect resolves");
+        const xredisclusterclientresult* Failure = xrtFutureValue(Blocked);
+        require(Failure->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Failure->RouteObserved &&
+            Failure->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Failure->Route.Attempts == 1 && Failure->Route.Moved == 0 &&
+            Failure->Route.Query.Status == XREDIS_REQUEST_DISCONNECTED && Failure->Route.Query.Delivery == XREDIS_MAY_HAVE_EXECUTED,
+            "accepted disconnect keeps uncertainty and is never replayed");
+        xrtFutureDestroy(Blocked);
+        double Deadline = xrtTimer() + 5;
+        while (clientInfo(Client).Refreshes == Before.Refreshes) {
+            require(xrtTimer() < Deadline, "accepted disconnect schedules control-plane refresh");
+            xrtSleep(2);
+        }
+        puts("DISCONNECTED MAY_HAVE_EXECUTED attempts=1");
+    }
+    waitSignal(argv[7]);
+    checkDisconnectedPool(Old);
+    if (!Inflight) {
+        xredisclusterclientinfo Unsent = clientInfo(Client);
+        require(Unsent.Generation == Before.Generation && Unsent.Refreshes == Before.Refreshes && !Unsent.Moved,
+            "unsent call still uses the original snapshot");
+    }
+    double Entered = xrtTimer();
+    xfuture* Write = NULL;
+    require(xredisClusterClientCall(Client, Slot, Increment, 2, 4000, &Write) == XREDIS_ADMISSION_ACCEPTED, "post-promotion INCR");
+    const xredisclusterclientresult* Result = waitValue(Write);
+    xredisclusterclientinfo After = clientInfo(Client);
+    bool Recovered = Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
+        Result->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Result->Generation > Before.Generation &&
+        Result->Route.Attempts == 1 && Result->Route.Moved == 0 && Result->Route.AttemptAddress.Port == Fixture.Replica &&
+        !Result->Route.AttemptAddress.Reason && !After.Moved;
+    if (!Recovered)
+        fprintf(stderr, "recovery result status=%d route=%d query=%d delivery=%d attempts=%zu port=%u candidate=%u provider=%d admission=%d generation=%llu current=%llu refreshes=%llu refresh_status=%d moved=%llu\n",
+            (int)Result->Status, (int)Result->Route.Status, (int)Result->Route.Query.Status, (int)Result->Route.Query.Delivery,
+            Result->Route.Attempts, (unsigned)Result->Route.AttemptAddress.Port, (unsigned)Result->Route.Address.Port,
+            (int)Result->Route.Provider, (int)Result->Route.Admission, (unsigned long long)Result->Generation,
+            (unsigned long long)After.Generation, (unsigned long long)After.Refreshes, (int)After.LastRefresh,
+            (unsigned long long)After.Moved);
+    require(Recovered, "one write on the promoted primary without MOVED");
+    xredisreplyvalue Count = root(Result->Native, XREDIS_REQUEST_OK);
+    require(Count.Type == XREDIS_REPLY_INTEGER && Count.Integer == 1, "post-promotion counter increments once");
+    xrtFutureDestroy(Write);
+    printf("recovery_call_ms=%.3f\n", (xrtTimer() - Entered) * 1000.);
+    xredisclusteraddress Promoted = Seeds[0];
+    Promoted.Port = Fixture.Replica;
+    xredispool* New = NULL;
+    require(xredisClusterNodesGetPool(&Promoted, 5000, Nodes, &New) == XREDIS_CLUSTER_POOL_READY && New != Read,
+        "promoted primary receives a distinct ordinary pool");
+    waitPool(New, 1);
+    xredisPoolRelease(New);
+    closeManaged(Client, Nodes);
+    xredisPoolRelease(Old);
+    xredisPoolRelease(Read);
+    require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "promotion engine physical close");
+    printf("[PASS] real Cluster primary loss: %s %s\n", argv[5], argv[6]);
+    return 0;
 }
 
 int main(int argc, char** argv)
 {
+    if (argc > 1 && !strcmp(argv[1], "promotion")) return checkPromotion(argc, argv);
     if (argc != 5 || strlen(argv[2]) != 40) return 2;
     long Port = strtol(argv[1], NULL, 10);
     long Primary = strtol(argv[4], NULL, 10);

@@ -160,6 +160,14 @@ managed topology selection and fallback with both topology reply formats and
 protocol versions. The report captures server identity, binary hashes,
 metadata replies and per-process logs.
 
+Pass `--primary-loss` to extend the owned Cluster fixture. The driver waits
+for the native clients to warm their pools and for the old primary to report
+their blocking operations. It kills that owned process and waits for the
+survivors to agree on the automatically elected primary. In-flight operations
+retain DISCONNECTED and MAY_HAVE_EXECUTED. Unsent writes can reroute after
+refresh, and the promoted primary uses a separate ordinary pool. The driver
+checks the server-side counters and records the election and call timings.
+
 ```sh
 python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_cluster_client,xredis_role_client --kind static --verify
 lib=release/gnu/native/xredis_cluster_client,xredis_role_client/static

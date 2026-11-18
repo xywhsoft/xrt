@@ -124,7 +124,9 @@ static xredisclusterstatus xredisClusterReadNode(xredisclusterbuild* B,size_t In
         if(F[4]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[4]),&N->Port))return XREDIS_CLUSTER_MALFORMED;
         if(F[5]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[5]),&N->TlsPort))return XREDIS_CLUSTER_MALFORMED;
         N->Role=xredisClusterWord(N->RoleText,"master")?XREDIS_CLUSTER_MASTER:xredisClusterWord(N->RoleText,"replica")?XREDIS_CLUSTER_REPLICA:XREDIS_CLUSTER_ROLE_OTHER;
-        N->Health=xredisClusterWord(N->HealthText,"online")?XREDIS_CLUSTER_ONLINE:xredisClusterWord(N->HealthText,"failed")?XREDIS_CLUSTER_FAILED:xredisClusterWord(N->HealthText,"loading")?XREDIS_CLUSTER_LOADING:XREDIS_CLUSTER_HEALTH_OTHER;
+        N->Health=xredisClusterWord(N->HealthText,"online")?XREDIS_CLUSTER_ONLINE:
+            (xredisClusterWord(N->HealthText,"fail") || xredisClusterWord(N->HealthText,"failed"))?XREDIS_CLUSTER_FAILED:
+            xredisClusterWord(N->HealthText,"loading")?XREDIS_CLUSTER_LOADING:XREDIS_CLUSTER_HEALTH_OTHER;
     }
     N->Endpoint=xredisClusterEndpoint(N->Host);return XREDIS_CLUSTER_VALUE;
 }
@@ -144,7 +146,10 @@ static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyv
     if(!xredisClusterArray(Root))return XREDIS_CLUSTER_MALFORMED;
     for(size_t Row=Root.FirstChild;Row!=XREDIS_REPLY_NONE;){
         if(B->Shards==B->Limits->MaxShards)return XREDIS_CLUSTER_LIMIT;
-        xredisreplyvalue Item=xredisClusterGet(B->Reply,Row),Ranges={0},Nodes={0};size_t Node,Count;size_t Master=SIZE_MAX;
+        xredisreplyvalue Item=xredisClusterGet(B->Reply,Row),Ranges={0},Nodes={0};size_t Node,Count;
+        size_t Master=SIZE_MAX,FailedMaster=SIZE_MAX;
+        xredisclusterhealth MasterHealth=XREDIS_CLUSTER_HEALTH_OTHER;
+        bool SeveralFailed=false;
         if(Legacy){if(!xredisClusterArray(Item) || Item.ChildCount<3)return XREDIS_CLUSTER_MALFORMED;
             xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild),Last=xredisClusterGet(B->Reply,First.Next);Node=Last.Next;Count=Item.ChildCount-2;
         }else{static const cstr Names[]={"slots","nodes"};size_t F[2];
@@ -156,10 +161,19 @@ static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyv
         if(Count>B->Limits->MaxNodes-B->Nodes)return XREDIS_CLUSTER_LIMIT;
         if(B->Output)B->Output->ShardStarts[B->Shards]=(uint16)B->Nodes;
         for(size_t K=0;K<Count;++K){xredisclusternode N;xredisclusterstatus S=xredisClusterReadNode(B,Node,Legacy,K==0,&N);if(S!=XREDIS_CLUSTER_VALUE)return S;
-            if(N.Role==XREDIS_CLUSTER_MASTER){if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;}
+            if(N.Role==XREDIS_CLUSTER_MASTER){
+                if(N.Health==XREDIS_CLUSTER_FAILED){SeveralFailed|=FailedMaster!=SIZE_MAX;FailedMaster=B->Nodes;}
+                else {if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;MasterHealth=N.Health;}
+            }
             if(B->Output)B->Output->Nodes[B->Nodes]=N;
             ++B->Nodes;Node=xredisClusterGet(B->Reply,Node).Next;
         }
+        /* A completed election can leave failed predecessor records with the
+         * master role. Select a unique online replacement in this shape. */
+        if(Master==SIZE_MAX){
+            if(SeveralFailed)return XREDIS_CLUSTER_MALFORMED;
+            Master=FailedMaster;
+        }else if(FailedMaster!=SIZE_MAX && MasterHealth!=XREDIS_CLUSTER_ONLINE)return XREDIS_CLUSTER_MALFORMED;
         if(Master==SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;
         if(Legacy){xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild);xredisclusterstatus S=xredisClusterBuildRange(B,First,xredisClusterGet(B->Reply,First.Next),Master);if(S!=XREDIS_CLUSTER_VALUE)return S;}
         else for(size_t Pair=Ranges.FirstChild;Pair!=XREDIS_REPLY_NONE;){xredisreplyvalue First=xredisClusterGet(B->Reply,Pair),Last=xredisClusterGet(B->Reply,First.Next);xredisclusterstatus S=xredisClusterBuildRange(B,First,Last,Master);if(S!=XREDIS_CLUSTER_VALUE)return S;Pair=Last.Next;}
