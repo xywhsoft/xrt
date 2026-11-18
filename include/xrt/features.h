@@ -288,6 +288,19 @@
 #endif
 #endif
 
+/* process_pipe 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_PIPE)
+#ifndef XRT_FEATURE_PROCESS_PIPE
+#define XRT_FEATURE_PROCESS_PIPE
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
 /* process 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS)
 #ifndef XRT_FEATURE_PROCESS

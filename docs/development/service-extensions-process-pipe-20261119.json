@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "733dc21627a506bb40318aabe906a14dfdf6ef17",
+  "scope": "Optional native parent stdio pipes for Process, with a blocking child and a nonblocking owner.",
+  "source_lf_sha256": {
+    "config/modules.json": "cfc978b65fbc1375c848c18175d3d496cd04d898edc344db8b892aef9eabfec4",
+    "include/xrt.h": "d142f3863a5c68e7556d87026f715330a38c566dcd45f3652876fff5f79af700",
+    "include/xrt/features.h": "126fc414070f179c6247ca1a9ee7af2d92d809576c8cda1aa5c58c0e3b69014c",
+    "include/xrt/process_pipe.h": "69eddd515afe304e326df2fd9ead3d89ef5a566bbd209ee145f8fe0f87fdae7b",
+    "src/process/process_pipe.c": "375d3b96221ea91c0cc5704744781888a575bfb5d00b68238c2cc8803bb9a374",
+    "single/xrt.h": "e9ff748e2fbb101e058cb651f95d6d9ed70ac59d26f876e5888a1aa371694ede",
+    "single/xrt_decl.h": "8e157d4a42248709c9929720b98aa0960b68710aafad442b974025e8c5df85e9",
+    "tests/process/test_process_pipe.c": "b70f763b85d5bf7d5fd68f112ee7ebb566da0f11b6797936ad8a3ad3a2380551",
+    "tests/single/test_single_process_pipe.c": "4f312a194bb008105a28b291f3541ffd88ef4b8c82ea6bcec9c3b4efa2a7d873",
+    "examples/process/pipe/main.c": "c1ee9568c51f11ea640ec2c6583dcfbc5cffe017e96ddebab7cacdcab233667f",
+    "docs/api/process_pipe.md": "257bff6f2d567e2f609c8e0fe4ba48f9254d8069f4d2e9715126a668b05cac30"
+  },
+  "raw_directory": "out/service-extensions/process-pipe-20261119",
+  "baseline_probe": {
+    "compiled_source_sha256": "7331686f603730a6b73f1c59f8da1555471909a636886c2226b0870a7ccd5327",
+    "log": "anonymous-overlapped.log",
+    "sha256": "b300a0617a00f9ccabc8aa3f2316b978bc93194c14e7c655db55c4e3336eeac1",
+    "elapsed_ms": 125,
+    "pending_status": false
+  },
+  "verified": {
+    "windows_gcc_16_2": {
+      "log": "windows-focused.log",
+      "sha256": "2341193d6f45a75742745d823a023bf4310ee7cd03657b6d1c830f9340e05247",
+      "programs_passed": 3,
+      "run_example": true
+    },
+    "wsl_gcc_15_2": {
+      "log": "wsl-focused.log",
+      "sha256": "cc9bdcb2399b4d8daaa195352805f8681ff5e1de79759b7a11233331575f20cf",
+      "programs_passed": 3,
+      "run_example": true
+    },
+    "windows_tinycc_0_9_27": {
+      "log": "tcc-focused.log",
+      "sha256": "7ebea3de38aa77b712d9fb38f0266aa4a5758ee69e3bad30fc825913f38b8a36",
+      "programs_passed": 3,
+      "run_example": true
+    },
+    "wsl_asan_ubsan_leaks": {
+      "log": "wsl-sanitized-final.log",
+      "sha256": "388ff4e4e9fff089d1ca76457da1905f2ca213cf81f13a4d3fb0baca5f7160d1",
+      "programs_passed": 3,
+      "run_example": true
+    },
+    "windows_process_io_regression": {
+      "log": "windows-regression.log",
+      "sha256": "da9c12eb750694bf88f5b8033da69300f90a8eee6b22c366be41c04a11f801ba",
+      "programs_passed": 6,
+      "run_example": false
+    },
+    "wsl_process_io_regression": {
+      "log": "wsl-regression.log",
+      "sha256": "a557d92cd4d920f4ea3116992034a232bab956a650dd1cb62192fe33895735bb",
+      "programs_passed": 6,
+      "run_example": false
+    },
+    "features_current": true,
+    "all_single_headers": {
+      "log": "headers.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api_reference_detail": {
+      "functions": 7,
+      "types": 2,
+      "constants": 1,
+      "problems": 0
+    }
+  },
+  "packages": {
+    "windows": {
+      "static": {
+        "tool_verifier": {
+          "log": "package-windows-static.log",
+          "sha256": "2c6bfc1edf7567eb9e38b01a16186d522b625490e4132be4831c431fc5e6f7ec"
+        },
+        "declaration_consumer": {
+          "log": "consumer-windows-static.log",
+          "sha256": "1cfc56be3771f84fbb7eee276ba90a7c1c5ec74516f33bcaaca4cff40aad5b00"
+        }
+      },
+      "shared": {
+        "tool_verifier": {
+          "log": "package-windows-shared.log",
+          "sha256": "e9993d4ea197051fca72448b70f12a22dea292acca80549e501a051c3bba9079"
+        },
+        "declaration_consumer": {
+          "log": "consumer-windows-shared-final.log",
+          "sha256": "1cfc56be3771f84fbb7eee276ba90a7c1c5ec74516f33bcaaca4cff40aad5b00"
+        }
+      }
+    },
+    "wsl": {
+      "static": {
+        "tool_verifier": {
+          "log": "package-wsl-static.log",
+          "sha256": "61cf2f4fbc1817d11277a5e04b3f97a1d170ee0e2b29db70cab67769b23dde79"
+        },
+        "declaration_consumer": {
+          "log": "consumer-wsl-static.log",
+          "sha256": "1cfc56be3771f84fbb7eee276ba90a7c1c5ec74516f33bcaaca4cff40aad5b00"
+        }
+      },
+      "shared": {
+        "tool_verifier": {
+          "log": "package-wsl-shared.log",
+          "sha256": "ed4eced1db4b22bd02f94d8be961cb73f197c30fcdc10a28bb99dbb1f736b1b6"
+        },
+        "declaration_consumer": {
+          "log": "consumer-wsl-shared.log",
+          "sha256": "1cfc56be3771f84fbb7eee276ba90a7c1c5ec74516f33bcaaca4cff40aad5b00"
+        }
+      }
+    }
+  },
+  "attempts": [
+    {
+      "log": "first-tcc-windows.log",
+      "outcome": "Access violation in Windows CRT swprintf. ASCII pipe names now use snprintf."
+    },
+    {
+      "log": "tcc-diagnose.log",
+      "outcome": "ERROR_PIPE_BUSY when the compiler's InterlockedIncrement reused a number in the probe. Native name generation now uses the existing XRT atomic API."
+    },
+    {
+      "log": "windows-diagnose.log",
+      "outcome": "One-time native handle count change before warming the existing Process failed-launch path. The final test primes it without pipe preparation and then verifies an unchanged native handle count across 16 failed pipe launches."
+    },
+    {
+      "log": "wsl-verified.log",
+      "outcome": "Existing Core tour example requires separately selectable ProcessRun, Pipeline and Terminal features. The Process regression command uses no-examples, and the new pipe example runs in its own suite."
+    }
+  ],
+  "open": [
+    "xrpc host integration with this primitive",
+    "native Linux and sustained server qualification"
+  ]
+}

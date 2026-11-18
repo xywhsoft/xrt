@@ -15318,6 +15318,19 @@
 			]
 		},
 		{
+			"name": "process_pipe",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_PROCESS_PIPE",
+			"depends": ["process", "atomic"],
+			"public_headers": ["include/xrt/process_pipe.h"],
+			"internal_headers": ["src/internal/xrt_process.h"],
+			"sources": ["src/process/process_pipe.c"],
+			"tests": ["tests/process/test_process_pipe.c"],
+			"single_tests": ["tests/single/test_single_process_pipe.c"],
+			"examples": ["examples/process/pipe/main.c"],
+			"docs": ["docs/api/process_pipe.md"]
+		},
+		{
 			"name": "process_oom_prefix_tests",
 			"state": "implemented",
 			"feature": null,

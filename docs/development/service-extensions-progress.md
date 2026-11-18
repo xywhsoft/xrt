@@ -15556,3 +15556,30 @@ poll and event drivers respectively. Event-driven UINT32_BE P99 ranged from
 attachment and production qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/stdio-event-20261119.json).
+
+## 2026-11-19 native process pipes for the xrpc owner
+
+Windows CreatePipe completed a ReadFile with an OVERLAPPED argument only
+after the probe writer supplied one byte 125 ms later. The Process pipe
+leaf now provisions distinct native endpoints for the existing public
+Process launcher. The child keeps ordinary blocking stdin/stdout. The
+parent waits for I/O or a concurrent wake with an explicit deadline.
+Windows uses one bounded staging buffer per direction and cancels and joins
+pending operations on close. POSIX uses a nonblocking process input socket
+and stdout pipe, reading and writing directly through the offered spans.
+The leaf uses the existing Process waiter and adds no thread.
+
+The modular, single-header and example programs passed on Windows GCC,
+Windows TinyCC and WSL GCC. The WSL example and tests also passed ASan,
+UBSan and leak checking. The native peer echoed 1 MiB through input
+half-close and output EOF. The tests cover an unread child, pending Windows
+retirement, independent process lifetime, child death, constructor OOM and
+recovery, Linux fd exhaustion during setup and native handle count
+stability after failed launches. The six-program Process/I/O regression
+passed per platform. Four independent declaration consumers exchanged data
+over Windows and WSL static/shared packages.
+
+The portable xrpc adapter remains the next consumer. Native Linux and
+sustained qualification remain open.
+
+[Stage evidence](service-extensions-process-pipe-20261119.json).

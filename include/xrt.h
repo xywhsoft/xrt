@@ -69,6 +69,7 @@
 #include <xrt/environment.h>
 #include <xrt/signal.h>
 #include <xrt/process.h>
+#include <xrt/process_pipe.h>
 #include <xrt/net.h>
 #include <xrt/net_file.h>
 #include <xrt/net_file_future.h>
