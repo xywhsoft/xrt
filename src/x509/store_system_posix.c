@@ -49,11 +49,12 @@ static void __xrtX509StoreSystemDirCleanup(xdir Dir)
 
 
 
-/* 导入一个 OpenSSL 风格哈希目录中的所有证书。 */
+/* 自动发现的目录可容忍单个证书不可解析，显式配置仍严格导入。 */
 static bool __xrtX509StoreSystemDirectory(
 	xx509store* pStore,
 	cstr sPath,
-	bool* pFound
+	bool* pFound,
+	xerror** ppRejected
 )
 {
 	xdir Dir = xrtDirOpen(sPath, XDIR_STAT | XDIR_FOLLOW_LINKS);
@@ -76,7 +77,22 @@ static bool __xrtX509StoreSystemDirectory(
 			return false;
 		}
 		if ( !xrtX509StoreAddFile(pStore, sCertificate, NULL) ) {
+			const xerror* pError = xrtGetError();
+			xerrkind Kind = xrtErrorKind(pError);
+			bool bRejected = (ppRejected != NULL) && (pError != NULL) &&
+				((Kind == XERR_PROTOCOL) || (Kind == XERR_UNSUPPORTED)) &&
+				(xrtErrorFind(pError, "xrt.x509",
+					X509_ERROR_TRUST_STORE_FILE) == pError);
+
 			xrtFree(sCertificate);
+			if ( bRejected ) {
+				if ( *ppRejected == NULL ) {
+					*ppRejected = xrtTakeError();
+				} else {
+					xrtClearError();
+				}
+				continue;
+			}
 			__xrtX509StoreSystemDirCleanup(Dir);
 			return false;
 		}
@@ -122,7 +138,7 @@ static bool __xrtX509StoreSystemDirectoryList(
 				);
 				return false;
 			}
-			if ( !__xrtX509StoreSystemDirectory(pStore, sPath, pFound) ) {
+			if ( !__xrtX509StoreSystemDirectory(pStore, sPath, pFound, NULL) ) {
 				xrtFree(sPath);
 				return false;
 			}
@@ -133,6 +149,42 @@ static bool __xrtX509StoreSystemDirectoryList(
 		}
 		iStart = iEnd + 1u;
 	}
+	return true;
+}
+
+
+
+/* 导入自动发现的目录，只有全部来源均无可用锚时才报告证书拒绝。 */
+static bool __xrtX509StoreSystemDirectories(
+	xx509store* pStore,
+	const char* const* ppPaths,
+	size_t iCount,
+	bool* pFound
+)
+{
+	xerror* pRejected = NULL;
+
+	for ( size_t i = 0; i < iCount; i++ ) {
+		if ( !xrtDirExists(ppPaths[i]) ) {
+			continue;
+		}
+		if ( !__xrtX509StoreSystemDirectory(
+			pStore, ppPaths[i], pFound, &pRejected
+		) ) {
+			xrtErrorFree(pRejected);
+			__xrtX509StoreSystemFailure(
+				"Unix system certificate directory import failed"
+			);
+			return false;
+		}
+	}
+	if ( !*pFound && (pRejected != NULL) ) {
+		__xrtX509StoreSystemError(xrtErrorKind(pRejected), 0,
+			"no usable Unix system trust anchor was found", pRejected);
+		xrtErrorFree(pRejected);
+		return false;
+	}
+	xrtErrorFree(pRejected);
 	return true;
 }
 
@@ -195,21 +247,10 @@ bool __xrtX509StoreSystemLoad(xx509store* pStore)
 			}
 			return false;
 		}
-	} else {
-		for ( size_t i = 0;
-			i < sizeof(Directories) / sizeof(Directories[0]); i++ ) {
-			if ( !xrtDirExists(Directories[i]) ) {
-				continue;
-			}
-			if ( !__xrtX509StoreSystemDirectory(
-				pStore, Directories[i], &bFound
-			) ) {
-				__xrtX509StoreSystemFailure(
-					"Unix system certificate directory import failed"
-				);
-				return false;
-			}
-		}
+	} else if ( !__xrtX509StoreSystemDirectories(
+		pStore, Directories, sizeof(Directories) / sizeof(Directories[0]), &bFound
+	) ) {
+		return false;
 	}
 	if ( !bFound ) {
 		__xrtX509StoreSystemError(
