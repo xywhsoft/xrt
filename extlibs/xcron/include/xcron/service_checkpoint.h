@@ -89,6 +89,16 @@ XCRON_API xwaitresult xcronServiceCollectCheckpoint(xcronservice* Service,xcronr
  * jobs via SetPausedAsync before requesting capture. File I/O is external. */
 XCRON_API bool xcronServiceSaveCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
     uint32 Count,xcroncheckpoint* Records,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Reserves one group, prevents new leases and waits for the issued work and
+ * any pending recurrence searches. Uses the same array borrow and limits
+ * as SaveCheckpointGroupAsync. A positive monotonic timeout starts at
+ * submission, including queue time. Only one quiescence command can own
+ * holds at a time. Conflicting quiescence, pause, resume or cancel returns
+ * BUSY and reaping skips the reserved members. On success the holds become
+ * ordinary pauses. Failure, timeout or service close releases the temporary
+ * holds and preserves Records. File commit remains with the caller. */
+XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint64 TimeoutMilliseconds,xcronrequestid* Request,xcronserviceissue* Issue);
 /* Uses the normal timeout and Error transfer rules. Only XWAIT_OK ends the
  * array borrow. Check Reply.Code to decide whether Records were published.
  * Index identifies the failed member or is NO_INDEX. */

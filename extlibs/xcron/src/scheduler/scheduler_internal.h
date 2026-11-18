@@ -14,4 +14,15 @@ typedef enum xcronadmissionstatus {XCRON_ADMISSION_REJECTED=-1,XCRON_ADMISSION_P
 bool xcronSchedulerBeginAdmission(xcronscheduler* S,const xcronjobconfig* C,xcronjobid* Id,xcronschedulerissue* Issue);
 xcronadmissionstatus xcronSchedulerFinishAdmission(xcronscheduler* S,xcronjobid Id,bool Cancel,xcronschedulerissue* Issue);
 #endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#include <xcron/checkpoint.h>
+/* A live owner can reserve one checkpoint group, including active leases.
+ * Finish always releases its reservation and either promotes the holds to
+ * ordinary pauses or restores the original dispatch state. */
+bool xcronSchedulerHoldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue);
+bool xcronSchedulerHeldCheckpointGroupReady(const xcronscheduler* S);
+bool xcronSchedulerFinishHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue,bool Capture);
+#endif
 #endif

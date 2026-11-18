@@ -29,7 +29,7 @@ typedef struct xcronjobslot {
     xcronlocation Location;
     bool Used,Initial,Paused;
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
-    bool Capturing;
+    bool Capturing,CheckpointHeld,CheckpointWaiting;
 #endif
 } xcronjobslot;
 typedef struct xcronrunslot {uint64 Generation;uint32 Job,Next;bool Used;} xcronrunslot;
@@ -47,6 +47,9 @@ struct xcronscheduler {
     uint32* Heap;
     uint32 FreeJob,FreeRun,ReadyHead,ReadyTail,RetireHead,RetireTail;
     uint32 SearchHead,SearchTail,Searching;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    uint32 CheckpointWaiting;
+#endif
     uint8 Turn;
     bool Promote;
     uint8 JobBits,RunBits;
@@ -189,11 +192,28 @@ static void xcronSchedulerDetach(xcronscheduler* S,uint32 I)
     default:break;
     }
 }
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+static void xcronSchedulerCheckpointProgress(xcronscheduler* S,xcronjobslot* J)
+{
+    if(J->CheckpointWaiting && !J->Info.Running && J->Info.State!=XCRON_JOB_SEARCHING){
+        J->CheckpointWaiting=false;
+        --S->CheckpointWaiting;
+    }
+}
+#endif
+
 static void xcronSchedulerPlace(xcronscheduler* S,uint32 I)
 {
     xcronjobslot* J=&S->Jobs[I];
     if(J->Info.State==XCRON_JOB_SEARCHING){xcronSchedulerSearchAdd(S,I);return;}
     if(J->Initial){J->Location=XCRON_LOC_RUNNING;return;}
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    if(J->CheckpointHeld){
+        xcronSchedulerCheckpointProgress(S,J);
+        J->Location=XCRON_LOC_RUNNING;
+        return;
+    }
+#endif
     if(J->Info.State!=XCRON_JOB_SCHEDULED){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);return;}
     if(J->Paused){J->Location=XCRON_LOC_RUNNING;return;}
     if(J->Config.Overlap!=XCRON_OVERLAP_SKIP && J->Info.Running>=J->Config.RunningLimit){J->Location=XCRON_LOC_BLOCKED;++S->Stats.Blocked;}
@@ -440,6 +460,10 @@ XCRON_API bool xcronSchedulerComplete(xcronscheduler* S,xcronrunid Id,xcronrunre
     if(R->Generation!=(UINT64_MAX>>S->RunBits)){++R->Generation;R->Next=S->FreeRun;S->FreeRun=RIndex;}
     xcronSchedulerIncrement(&S->Stats.Completed);
     xcronSchedulerIncrement(Result==XCRON_RUN_SUCCEEDED?&J->Info.Succeeded:Result==XCRON_RUN_FAILED?&J->Info.Failed:&J->Info.Cancelled);
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    if(J->CheckpointHeld)xcronSchedulerCheckpointProgress(S,J);
+    else
+#endif
     if(!xcronSchedulerLive(J->Info.State)){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);}
     else if(J->Location==XCRON_LOC_BLOCKED && J->Info.Running<J->Config.RunningLimit){--S->Stats.Blocked;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
@@ -462,6 +486,9 @@ XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* S,xcronjobid Id,bool Paus
     if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
     uint32 I;
     if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    if(S->Jobs[I].CheckpointHeld)return xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
+#endif
     xcronSchedulerSetPausedSlot(S,I,Paused);
     xcronSchedulerOK(Issue);
     return true;
@@ -470,7 +497,11 @@ XCRON_API bool xcronSchedulerCancel(xcronscheduler* S,xcronjobid Id,xcronschedul
 {
     if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
     uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
-    xcronjobslot* J=&S->Jobs[I];if(xcronSchedulerLive(J->Info.State)){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}
+    xcronjobslot* J=&S->Jobs[I];
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    if(J->CheckpointHeld)return xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
+#endif
+    if(xcronSchedulerLive(J->Info.State)){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerJob(const xcronscheduler* S,xcronjobid Id,xcronjobinfo* Info,xcronschedulerissue* Issue)
@@ -673,8 +704,12 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid I
     return true;
 }
 
-XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
-    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue)
+typedef enum xcroncheckpointgroupmode {
+    XCRON_CHECKPOINT_GROUP_SAVE,XCRON_CHECKPOINT_GROUP_HOLD,XCRON_CHECKPOINT_GROUP_FINISH
+} xcroncheckpointgroupmode;
+
+static bool xcronSchedulerCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue,xcroncheckpointgroupmode Mode)
 {
     size_t Members=Count;
     if(Members>SIZE_MAX/sizeof(*Targets) || Members>SIZE_MAX/sizeof(*Records))
@@ -710,7 +745,16 @@ XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* S,const xcronch
             xcronSchedulerFail(XCRON_SCHEDULER_CHECKPOINT_MISMATCH,NULL,Issue);
             break;
         }
-        if(!xcronSchedulerCheckpointReady(J,Issue))break;
+        if(J->CheckpointHeld!=(Mode==XCRON_CHECKPOINT_GROUP_FINISH) || J->Initial){
+            xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
+            break;
+        }
+        if(Mode==XCRON_CHECKPOINT_GROUP_HOLD){
+            if(J->Info.State==XCRON_JOB_FAULTED){
+                xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&J->Info.LastIssue,Issue);
+                break;
+            }
+        }else if(!xcronSchedulerCheckpointReady(J,Issue))break;
         J->Capturing=true;
         Previous=Target.Key.Job;
     }
@@ -721,14 +765,51 @@ XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* S,const xcronch
     uint64 Mask=(UINT64_C(1)<<S->JobBits)-1;
     for(uint32 J=0;J<Checked;++J){
         uint32 I=(uint32)(Targets[J].Job&Mask);
-        S->Jobs[I].Capturing=false;
-        if(OK){
+        xcronjobslot* Job=&S->Jobs[I];
+        Job->Capturing=false;
+        if(!OK)continue;
+        if(Mode==XCRON_CHECKPOINT_GROUP_HOLD){
+            Job->CheckpointHeld=true;
+            Job->CheckpointWaiting=Job->Info.Running || Job->Info.State==XCRON_JOB_SEARCHING;
+            if(Job->CheckpointWaiting)++S->CheckpointWaiting;
+            if(Job->Info.State!=XCRON_JOB_SEARCHING){
+                if(Job->Location==XCRON_LOC_RETIRED)xcronSchedulerQueueRemove(S,I,true);
+                else xcronSchedulerDetach(S,I);
+            }
+        }else{
             xcronSchedulerEncodeCheckpoint(S,I,Targets[J].Key,&Records[J]);
             xcronSchedulerSetPausedSlot(S,I,true);
         }
     }
     if(!InvalidAlias)*Index=OK?XCRON_CHECKPOINT_NO_INDEX:Checked;
     if(OK)xcronSchedulerOK(Issue);
+    return OK;
+}
+
+XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue)
+{return xcronSchedulerCheckpointGroup(S,Targets,Count,Records,Index,Issue,XCRON_CHECKPOINT_GROUP_SAVE);}
+
+bool xcronSchedulerHoldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue)
+{return xcronSchedulerCheckpointGroup(S,Targets,Count,Records,Index,Issue,XCRON_CHECKPOINT_GROUP_HOLD);}
+
+bool xcronSchedulerHeldCheckpointGroupReady(const xcronscheduler* S)
+{return S->CheckpointWaiting==0;}
+
+bool xcronSchedulerFinishHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue,bool Capture)
+{
+    bool OK=!Capture || xcronSchedulerCheckpointGroup(S,Targets,Count,Records,Index,Issue,XCRON_CHECKPOINT_GROUP_FINISH);
+    uint64 Mask=(UINT64_C(1)<<S->JobBits)-1;
+    for(uint32 J=0;J<Count;++J){
+        uint32 I=(uint32)(Targets[J].Job&Mask);
+        xcronjobslot* Job=&S->Jobs[I];
+        if(Job->CheckpointWaiting)--S->CheckpointWaiting;
+        Job->CheckpointWaiting=false;
+        Job->CheckpointHeld=false;
+        if(Job->Info.State!=XCRON_JOB_SEARCHING)xcronSchedulerPlace(S,I);
+    }
     return OK;
 }
 

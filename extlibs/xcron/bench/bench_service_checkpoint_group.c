@@ -26,7 +26,7 @@ static bool groupBenchStop(xcronservice* S,uint32 Count)
 }
 
 static bool groupBenchCapture(const xcronserviceconfig* C,const xcronservicecheckpointgroup* Seed,
-    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total)
+    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total,bool Quiesce)
 {
     xcroncheckpointtarget* Targets=malloc((size_t)Seed->Count*sizeof(*Targets));
     xcronservice* S=NULL;
@@ -36,8 +36,9 @@ static bool groupBenchCapture(const xcronserviceconfig* C,const xcronservicechec
         xcronrequestid Q;
         xcronservicecheckpointreply R;
         double Begin=xrtTimer();
-        if(!xcronServiceSaveCheckpointGroupAsync(S,Targets,Seed->Count,Records,&Q,NULL) ||
-           xcronServiceCollectCheckpointGroup(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code ||
+        bool Queued=Quiesce?xcronServiceQuiesceCheckpointGroupAsync(S,Targets,Seed->Count,Records,10000,&Q,NULL):
+            xcronServiceSaveCheckpointGroupAsync(S,Targets,Seed->Count,Records,&Q,NULL);
+        if(!Queued || xcronServiceCollectCheckpointGroup(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code ||
            R.Index!=XCRON_CHECKPOINT_NO_INDEX || R.Error)return false;
         double Delta=xrtTimer()-Begin;
         *Total+=Delta;
@@ -51,7 +52,8 @@ int main(int Argc,char** Argv)
 {
     size_t Iterations=Argc>1?(size_t)strtoul(Argv[1],NULL,10):250;
     uint32 Count=Argc>2?(uint32)strtoul(Argv[2],NULL,10):64;
-    bool Capture=Argc==4 && !strcmp(Argv[3],"capture");
+    bool Quiesce=Argc==4 && !strcmp(Argv[3],"quiesce");
+    bool Capture=Quiesce || (Argc==4 && !strcmp(Argv[3],"capture"));
     if((Argc>3 && !Capture) || !Iterations || Iterations>100000 || !Count || Count>1024)return 2;
     xcronservicecheckpointjob* Jobs=malloc((size_t)Count*sizeof(*Jobs));
     xcroncheckpoint* Records=malloc((size_t)Count*sizeof(*Records));
@@ -84,7 +86,7 @@ int main(int Argc,char** Argv)
     };
     double Total=0;
     if(Capture){
-        if(!groupBenchCapture(&C,&Seed,Ids,Records,Iterations,Samples,&Total))return 4;
+        if(!groupBenchCapture(&C,&Seed,Ids,Records,Iterations,Samples,&Total,Quiesce))return 4;
     }else{
         for(size_t I=0;I<Iterations;++I){
             xcronservice* S=NULL;

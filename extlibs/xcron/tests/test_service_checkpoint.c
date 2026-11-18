@@ -595,10 +595,22 @@ static void liveGroupWorkBudget(void)
     testRequire(xcronServiceCollect(S,A,0,&Reply,NULL)==XWAIT_OK && !Reply.Code && !Reply.Found && !Reply.Error &&
                 xcronServiceCollectCheckpointGroup(S,B,0,&Pending,NULL)==XWAIT_TIMEOUT && Pending.Index==777,
                 "full-budget capture waits for another owner turn after a one-unit command");
-    testRequire(xrtEventSet(&G.Release[1]),"allow remaining command to progress");
+    xcroncheckpoint Deferred[2];
+    memcpy(Deferred,Unchanged,sizeof(Deferred));
+    xcronrequestid Expiring=0;
+    testRequire(!xcronServiceQuiesceCheckpointGroupAsync(S,Targets,2,Deferred,0,&Expiring,NULL) && !Expiring &&
+                xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"group deadline must be positive");
+    testRequire(xcronServiceQuiesceCheckpointGroupAsync(S,Targets,2,Deferred,20,&Expiring,NULL),"queue bounded wait behind full work budget");
+    xrtSleep(80);
+    testRequire(xrtEventSet(&G.Release[1]),"allow remaining commands to progress");
     Pending=liveCollectGroup(S,B);
     testRequire(Pending.Code==XCRON_SERVICE_KERNEL && Pending.Scheduler.Code==XCRON_SCHEDULER_STALE &&
                 Pending.Index==0 && !memcmp(Records,Unchanged,sizeof(Records)),"deferred command completes on next turn");
+    xrtErrorFree(Pending.Error);
+    Pending=liveCollectGroup(S,Expiring);
+    testRequire(Pending.Code==XCRON_SERVICE_TIMEOUT && Pending.Index==XCRON_CHECKPOINT_NO_INDEX &&
+                xrtErrorKind(Pending.Error)==XERR_TIMEOUT && !memcmp(Deferred,Unchanged,sizeof(Deferred)),
+                "queued deadline expires before validating any member");
     xrtErrorFree(Pending.Error);
     liveStop(S,false,0,NULL,0);
     testRequire(xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"join work-budget fixture");
@@ -608,8 +620,188 @@ static void liveGroupWorkBudget(void)
     }
 }
 
+
+typedef struct livequiescence {
+    xevent Started,Release;
+    xatomic64 Wall;
+} livequiescence;
+
+static bool liveQuiescenceClock(xcronclock* Out,ptr Raw)
+{
+    livequiescence* F=Raw;
+    *Out=(xcronclock){(xtime)xrtAtomic64Load(&F->Wall,XMEMORY_ACQUIRE),0};
+    return true;
+}
+
+static xcronrunresult liveQuiescenceRun(const xcronrun* Run,const xcronexecution* Token,ptr Raw)
+{
+    (void)Token;
+    livequiescence* F=Raw;
+    if(Run->Data==F && Run->ScheduledAt==1000)
+        testRequire(xrtEventSet(&F->Started) && xrtEventWaitFor(&F->Release,10000)==XWAIT_OK,"release first physical lease");
+    return XCRON_RUN_SUCCEEDED;
+}
+
+static void liveQuiescenceCancel(xcronservice* S,bool Selected,xcronjobid Job,xcronschedulererror Expected)
+{
+    xcronrequestid Q=0;
+    testRequire(xcronServiceCancelAsync(S,Job,false,&Q,NULL),"queue cancellation");
+    xcronserviceerror Code=Expected?XCRON_SERVICE_KERNEL:XCRON_SERVICE_OK;
+    if(Selected){
+        xcronselectedreply Reply;
+        testRequire(xcronServiceCollectSelected(S,Q,10000,&Reply,NULL)==XWAIT_OK && Reply.Code==Code &&
+                    Reply.Scheduler.Code==Expected,"selected cancellation result");
+        xrtErrorFree(Reply.Error);
+    }else{
+        xcronreply Reply;
+        testRequire(xcronServiceCollect(S,Q,10000,&Reply,NULL)==XWAIT_OK && Reply.Code==Code &&
+                    Reply.Scheduler.Code==Expected,"actual cancellation result");
+        xrtErrorFree(Reply.Error);
+    }
+}
+
+static void liveQuiescenceDrain(xcronservice* S,bool Selected,xcronjobid Job)
+{
+    testRequire(xcronServiceWaitReadable(S,10000,NULL)==XWAIT_OK,"physical completion is readable");
+    size_t Count=0;
+    xcronservicecompletion Done={0};
+    if(Selected){
+        xcronselectedservicecompletion D={0};
+        testRequire(xcronServiceDrainSelected(S,&D,1,&Count,NULL),"drain selected quiescence fixture");
+        Done=D.Completion;
+    }else testRequire(xcronServiceDrain(S,&Done,1,&Count,NULL),"drain actual quiescence fixture");
+    testRequire(Count==1 && Done.Job==Job && Done.Result==XCRON_RUN_SUCCEEDED && !Done.Error,"one expected lease completion");
+}
+
+typedef enum livequiescencecase {LIVE_GROUP_READY,LIVE_GROUP_TIMEOUT,LIVE_GROUP_CLOSE} livequiescencecase;
+
+static void liveGroupQuiescence(bool Selected,livequiescencecase Case)
+{
+    livequiescence F={0};
+    xrtAtomic64Init(&F.Wall,0);
+    testRequire(xrtEventInit(&F.Started,true,false) && xrtEventInit(&F.Release,true,false),"gate an active lease");
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){2,8,0});
+    const xcronserviceconfig C={
+        .Scheduler={3,2,16,0,65536},.Executor=Pool,.Proc=liveQuiescenceRun,.Context=&F,
+        .Clock=liveQuiescenceClock,.ClockContext=&F,
+        .CommandLimit=4,.CompletionLimit=2,.BatchLimit=2,.CommandWorkLimit=2,.ResampleMilliseconds=4000,
+        .RetryIntervalMilliseconds=1,.RetryAttempts=1,.BytesLimit=262144,.AdapterBytesLimit=65536
+    };
+    xcronservice* S=NULL;
+    testRequire(Pool && liveCreate(Selected,true,&C,&S,NULL),"start group quiescence owner");
+    xcronjobconfig J=liveJob(NULL);
+    J.Data=&F;
+    xcronjobid A=liveAdd(S,Selected,&J);
+    J.Data=NULL;
+    J.Begin=J.End=2000;
+    xcronjobid B=liveAdd(S,Selected,&J);
+    if(Case!=LIVE_GROUP_READY)liveSetPaused(S,Selected,B,true);
+    xcronjobid Other=B;
+    if(Case==LIVE_GROUP_READY){
+        Other=liveAdd(S,Selected,&J);
+        liveQuiescenceCancel(S,Selected,Other,XCRON_SCHEDULER_OK);
+    }
+    xcronZoneRelease(J.Zone);
+    xrtAtomic64Store(&F.Wall,1000,XMEMORY_RELEASE);
+    testRequire(xcronServiceWake(S,NULL) && xrtEventWaitFor(&F.Started,10000)==XWAIT_OK,"first group member holds a physical lease");
+
+    const xcroncheckpointtarget Targets[]={{A,{1,1}},{Other,{2,1}}};
+    xcroncheckpoint Records[2],Unchanged[2];
+    memset(Unchanged,0x64,sizeof(Unchanged));
+    memcpy(Records,Unchanged,sizeof(Records));
+    uint64 Deadline=Case==LIVE_GROUP_TIMEOUT?500:10000;
+    xcronrequestid Q=0,Barrier=0;
+    double Begin=xrtTimer();
+    testRequire(xcronServiceQuiesceCheckpointGroupAsync(S,Targets,2,Records,Deadline,&Q,NULL) &&
+                xcronServiceReapAsync(S,&Barrier,NULL),"queue group wait before a reap barrier");
+    if(Selected){
+        xcronselectedreply Reply;
+        testRequire(xcronServiceCollectSelected(S,Barrier,10000,&Reply,NULL)==XWAIT_OK &&
+                    !Reply.Code && !Reply.Found && !Reply.Error,"reap skips reserved selected members");
+    }else{
+        xcronreply Reply;
+        testRequire(xcronServiceCollect(S,Barrier,10000,&Reply,NULL)==XWAIT_OK &&
+                    !Reply.Code && !Reply.Found && !Reply.Error,"reap skips reserved actual members");
+    }
+
+    if(Case!=LIVE_GROUP_TIMEOUT){
+        xcronservicecheckpointreply Pending={.Index=777};
+        testRequire(xcronServiceCollectCheckpointGroup(S,Q,0,&Pending,NULL)==XWAIT_TIMEOUT && Pending.Index==777,
+                    "group stays pending until the running lease finishes");
+    }
+    if(Case==LIVE_GROUP_READY){
+        liveQuiescenceCancel(S,Selected,A,XCRON_SCHEDULER_BUSY);
+        xcroncheckpoint Competing;
+        xcronrequestid Conflict=0;
+        testRequire(xcronServiceQuiesceCheckpointGroupAsync(S,Targets,1,&Competing,10000,&Conflict,NULL),"queue competing wait");
+        xcronservicecheckpointreply Busy=liveCollectGroup(S,Conflict);
+        testRequire(Busy.Code==XCRON_SERVICE_BUSY && Busy.Error,"one waiting group per owner");
+        xrtErrorFree(Busy.Error);
+        testRequire(xcronServiceSaveCheckpointGroupAsync(S,Targets+1,1,&Competing,&Conflict,NULL),"queue overlapping immediate capture");
+        Busy=liveCollectGroup(S,Conflict);
+        testRequire(Busy.Code==XCRON_SERVICE_KERNEL && Busy.Scheduler.Code==XCRON_SCHEDULER_BUSY && Busy.Index==0,
+                    "overlapping capture cannot take a reserved tombstone");
+        xrtErrorFree(Busy.Error);
+
+        xrtAtomic64Store(&F.Wall,2000,XMEMORY_RELEASE);
+        testRequire(xcronServiceWake(S,NULL),"advance the unrelated job while the group waits");
+        liveQuiescenceDrain(S,Selected,B);
+        testRequire(xrtEventSet(&F.Release),"allow reserved lease to complete");
+    }else if(Case==LIVE_GROUP_CLOSE){
+        testRequire(xcronServiceClose(S,false,NULL),"close while the group waits");
+    }
+
+    xcronservicecheckpointreply Reply=liveCollectGroup(S,Q);
+    if(Case==LIVE_GROUP_READY){
+        testRequire(!Reply.Code && !Reply.Error && Reply.Index==XCRON_CHECKPOINT_NO_INDEX,"capture reserved group together");
+        for(unsigned I=0;I<2;++I){
+            xcroncheckpointkey Key;
+            testRequire(xcronCheckpointGetKey(&Records[I],&Key) &&
+                        Key.Job==Targets[I].Key.Job && Key.Revision==Targets[I].Key.Revision,"write records in stable key order");
+        }
+    }else{
+        xcronserviceerror Code=Case==LIVE_GROUP_CLOSE?XCRON_SERVICE_CLOSED:XCRON_SERVICE_TIMEOUT;
+        testRequire(Reply.Code==Code && Reply.Index==XCRON_CHECKPOINT_NO_INDEX &&
+                    xrtErrorKind(Reply.Error)==(Case==LIVE_GROUP_CLOSE?XERR_CLOSED:XERR_TIMEOUT) &&
+                    !memcmp(Records,Unchanged,sizeof(Records)),"failed group leaves all output untouched");
+        xrtErrorFree(Reply.Error);
+        if(Case==LIVE_GROUP_TIMEOUT)
+            testRequire(xrtTimer()-Begin<3,"host deadline wakes before the coarse service-clock resample");
+        testRequire(xrtEventSet(&F.Release),"complete lease after group rollback");
+    }
+    liveQuiescenceDrain(S,Selected,A);
+    if(Case==LIVE_GROUP_TIMEOUT){
+        xrtAtomic64Store(&F.Wall,2000,XMEMORY_RELEASE);
+        testRequire(xcronServiceWake(S,NULL),"advance both jobs after rollback");
+        liveQuiescenceDrain(S,Selected,A);
+    }
+    if(Case!=LIVE_GROUP_CLOSE)
+        testRequire(xcronServiceWaitReadable(S,25,NULL)==XWAIT_TIMEOUT,
+                    "success holds the successor and rollback preserves pre-existing holds");
+    testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK,"join quiescence owner");
+    for(unsigned I=0;I<(Case==LIVE_GROUP_READY?3u:2u);++I){
+        bool Found=false;
+        if(Selected){
+            xcronselectedretired R;
+            testRequire(xcronServiceReapStoppedSelected(S,&R,&Found,NULL) && Found,"return selected job ownership");
+        }else{
+            xcronretired R;
+            testRequire(xcronServiceReapStopped(S,&R,&Found,NULL) && Found,"return actual job ownership");
+        }
+    }
+    testRequire(xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) &&
+                xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"release quiescence fixture");
+    xrtEventUnit(&F.Release);
+    xrtEventUnit(&F.Started);
+}
+
 int main(void)
 {
+    for(unsigned Selected=0;Selected<2;++Selected){
+        liveGroupQuiescence(Selected!=0,LIVE_GROUP_READY);
+        liveGroupQuiescence(Selected!=0,LIVE_GROUP_TIMEOUT);
+        liveGroupQuiescence(Selected!=0,LIVE_GROUP_CLOSE);
+    }
     liveGroupWorkBudget();
     liveGroupTest(false);
     liveGroupTest(true);

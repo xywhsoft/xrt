@@ -3612,13 +3612,13 @@ typedef enum xcronrequestkind {
     XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
     XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT,
     XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT,
-    XCRON_REQUEST_SAVE_CHECKPOINT_GROUP
+    XCRON_REQUEST_SAVE_CHECKPOINT_GROUP,XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP
 } xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
     XCRON_SERVICE_MEMORY,XCRON_SERVICE_CLOSED,XCRON_SERVICE_STALE,
     XCRON_SERVICE_BUSY,XCRON_SERVICE_THREAD,XCRON_SERVICE_CLOCK,
-    XCRON_SERVICE_SYSTEM,XCRON_SERVICE_KERNEL,XCRON_SERVICE_EXECUTOR
+    XCRON_SERVICE_SYSTEM,XCRON_SERVICE_KERNEL,XCRON_SERVICE_EXECUTOR,XCRON_SERVICE_TIMEOUT
 } xcronserviceerror;
 typedef enum xcronservicecompletioncode {XCRON_COMPLETION_NORMAL=0,XCRON_COMPLETION_REJECTED,XCRON_COMPLETION_EXPIRED,XCRON_COMPLETION_CANCELLED,XCRON_COMPLETION_INTERNAL} xcronservicecompletioncode;
 typedef struct xcronserviceissue {xcronserviceerror Code;xerrkind Cause;} xcronserviceissue;
@@ -4536,6 +4536,16 @@ XCRON_API xwaitresult xcronServiceCollectCheckpoint(xcronservice* Service,xcronr
  * jobs via SetPausedAsync before requesting capture. File I/O is external. */
 XCRON_API bool xcronServiceSaveCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
     uint32 Count,xcroncheckpoint* Records,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Reserves one group, prevents new leases and waits for the issued work and
+ * any pending recurrence searches. Uses the same array borrow and limits
+ * as SaveCheckpointGroupAsync. A positive monotonic timeout starts at
+ * submission, including queue time. Only one quiescence command can own
+ * holds at a time. Conflicting quiescence, pause, resume or cancel returns
+ * BUSY and reaping skips the reserved members. On success the holds become
+ * ordinary pauses. Failure, timeout or service close releases the temporary
+ * holds and preserves Records. File commit remains with the caller. */
+XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint64 TimeoutMilliseconds,xcronrequestid* Request,xcronserviceissue* Issue);
 /* Uses the normal timeout and Error transfer rules. Only XWAIT_OK ends the
  * array borrow. Check Reply.Code to decide whether Records were published.
  * Index identifies the failed member or is NO_INDEX. */

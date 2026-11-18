@@ -61,8 +61,7 @@ static bool groupDemoInfo(xcronservice* S,xcronjobid Id,xcronjobinfo* Info)
 
 static bool groupDemoAdvance(xcronservice* S,xcronjobid Id)
 {
-    if(!groupDemoPaused(S,Id,false) || xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK ||
-       !groupDemoPaused(S,Id,true))return false;
+    if(!groupDemoPaused(S,Id,false) || xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK)return false;
     xcronservicecompletion Done;
     size_t Count;
     if(!xcronServiceDrain(S,&Done,1,&Count,NULL) || Count!=1)return false;
@@ -108,7 +107,7 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
         xcroncheckpoint Records[DEMO_JOBS];
         xcronrequestid Request;
         xcronservicecheckpointreply Reply;
-        if(!xcronServiceSaveCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,&Request,NULL) ||
+        if(!xcronServiceQuiesceCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,10000,&Request,NULL) ||
            xcronServiceCollectCheckpointGroup(S,Request,10000,&Reply,NULL)!=XWAIT_OK)return 7;
         xrtErrorFree(Reply.Error);
         if(Reply.Code)return 7;

@@ -15053,3 +15053,49 @@ device power-loss and native mixed-load qualification remain open.
 The strict release gate lists 17 developing xcron modules.
 [Capture contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-group-capture-20261119.json).
+
+## 2026-11-19 Wait for a live checkpoint group to quiesce
+
+A bounded live request reserves a whole group, waits for issued leases
+and recurrence searches, and captures the successor records together.
+Other jobs keep dispatching. Cancellation and overlapping capture of
+reserved members return BUSY, and reaping defers reserved tombstones.
+The host monotonic deadline covers queued and reserved time. Timeout and
+close release temporary reservations, preserve existing pause state,
+and leave caller output untouched. The group acquires and finalizes in
+separate budgeted owner turns with one borrowed ticket.
+
+Both service modes exercise physical lease completion, an unrelated
+job dispatch, tombstone reservation, overlapping requests, timeout
+before reservation, timeout while active and graceful shutdown. The
+group example commits and reopens the successor image. The scalar
+restart case and interrupted group writes also recover on Windows NTFS
+and WSL ext4. The recovery images match across both filesystems and
+match the preceding stage.
+
+All tests ran on master. The retired service-extensions branch tip is
+an ancestor of the tested revision. Windows and WSL pass xredis ROLE
+client, xrpc Duplex and xmqtt session smoke suites. The xcron modular
+and single-header suites, base regressions, and trimmed and full
+static/shared consumers pass on both hosts. WSL ASan/UBSan/leak and
+Clang ThreadSanitizer checks also pass.
+
+Each performance profile runs 10,000 serial quiescence requests with
+one warm-up and five measured runs. Jobs start paused and have no
+active leases. The median of each per-run statistic describes
+coordination and encoding through ticket collection.
+
+| Host | Jobs/group | Groups/s | Jobs/s | P50 (us) | P95 (us) | P99 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | 87,181.1 | 87,181.1 | 10.700 | 16.000 | 20.400 |
+| Windows | 64 | 18,072.5 | 1,156,640.6 | 53.000 | 66.300 | 72.400 |
+| WSL | 1 | 35,471.0 | 35,471.0 | 25.400 | 42.100 | 55.400 |
+| WSL | 64 | 12,323.4 | 788,700.2 | 78.400 | 102.300 | 118.600 |
+
+Windows 1-job and Windows 64-job profiles passed the local repeatability thresholds. WSL 1-job and WSL 64-job profiles exceeded at least one local repeatability threshold.
+
+Periodic asynchronous file commits, device power-loss testing and
+native mixed-load qualification remain open. The strict release gate
+lists 17 developing xcron modules.
+[Quiescence contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-group-quiesce-20261119.json).

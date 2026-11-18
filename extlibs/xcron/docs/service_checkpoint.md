@@ -92,6 +92,31 @@ closes. A timed-out or wrong collector leaves the borrow outstanding.
 A successful collection transfers the diagnostic, if present, and ends
 the array borrow. Check the reply status before using the records.
 
+## Wait for a live group to quiesce
+
+Use QuiesceCheckpointGroupAsync to reserve the members and wait for their
+issued leases and pending recurrence searches. It validates the entire
+group before reserving any member. Other jobs keep dispatching. A pending
+request holds a single ticket. It prevents new leases, pause, resume and
+cancel for its members, and reaping skips them. A second quiescence request
+returns BUSY if the first still owns its reservation when the owner handles it.
+An overlapping immediate group capture reports the first reserved member as
+BUSY.
+
+The positive timeout runs against the host monotonic timer from submission,
+including time at the command queue head. The owner checks expiry before
+reserving the group and before encoding records. Reservation and finalization
+each spend one CommandWorkLimit unit per member in separate turns, or one
+unit for an empty group. Lease and search completion update readiness as
+they advance. The owner can check readiness without polling every member.
+
+On success the owner writes all records and turns the reservations into
+ordinary dispatch pauses. If the deadline expires, the service closes or
+a member faults, it releases the reservations, preserves pre-existing
+pauses and leaves the output untouched. The caller collects the group
+ticket to end the same array borrow used by immediate capture. The
+quiescence deadline and the collection timeout are independent.
+
 Commit the captured records through the group store on the caller or
 storage thread. Hold ownership across this interval by coordinating any
 other producers that could resume, cancel or reap the jobs. Release jobs
