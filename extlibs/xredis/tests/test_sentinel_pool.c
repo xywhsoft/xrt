@@ -17,9 +17,9 @@ static void spRepairTest(void)
         spReturn(spLease(Again),false);spReturn(Second,false);spClose(&F,P);spStop(&F);testRequire(spInfo(P).Generation==1,"closed metadata after engine");xredisPoolRelease(P);xrtFutureDestroy(A);xrtFutureDestroy(B);xrtFutureDestroy(Again);
     }
 }
-static void spSwitchTest(bool Close)
+static void spSwitchTest(bool Replica,bool Close)
 {
-    printf("switch close=%u\n",(unsigned)Close);fflush(stdout);spfixture F;spStart(&F,0,false,false);xredissentinelpoolconfig K;spConfig(&F,&K);xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;
+    printf("switch replica=%u close=%u\n",(unsigned)Replica,(unsigned)Close);fflush(stdout);spfixture F;spStart(&F,0,false,false);F.Replicas=Replica;xredissentinelpoolconfig K;spConfig(&F,&K);xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;
     xredispool* P=spCreate(&F,2,&O,&K);xfuture *A=spAcquire(P,5000),*B=spAcquire(P,5000);xredislease *First=spLease(A),*Second=spLease(B);xrtAtomicPtrStore(&F.Watched,Second,XMEMORY_RELEASE);F.CloseFromNotify=Close;
     xbytesview Hold=XRT_BYTES_LITERAL("HOLD");xfuture* Request=NULL;testRequire(xredisLeaseCallAsync(Second,&Hold,1,5000,&Request)==XREDIS_ADMISSION_ACCEPTED,"old sent command");redisPeerWait(&F.A.Base.Commands,1);
     xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);spReturn(First,true);
@@ -27,6 +27,67 @@ static void spSwitchTest(bool Close)
         const xredisrequestresult* Old=spWait(Request);testRequire(Old->Status!=XREDIS_REQUEST_OK && Old->Delivery==XREDIS_MAY_HAVE_EXECUTED && xrtAtomic32Load(&F.B.Base.Commands,XMEMORY_ACQUIRE)==0,"uncertain old command never replayed");spPing(L);spReturn(L,false);xrtFutureDestroy(Next);}
     else {xfuture* Closed=xredisPoolClosed(P);testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"close reentry during fence");xrtFutureDestroy(Closed);}
     spClose(&F,P);spStop(&F);testRequire(((const xredisrequestresult*)spWait(Request))->Delivery==XREDIS_MAY_HAVE_EXECUTED,"retained uncertain outcome after engine");xredisPoolRelease(P);xrtFutureDestroy(Request);xrtFutureDestroy(A);xrtFutureDestroy(B);
+}
+static void spReplicaReorderTest(void)
+{
+    for(unsigned Secure=0;Secure<(SP_TLS?2u:1u);++Secure)for(unsigned V=0;V<2;++V){
+        spfixture F;spStart(&F,0,Secure!=0,V==0);F.Replicas=true;
+        xrtAtomic32Store(&F.QueryMode,7,XMEMORY_RELEASE);
+        xredissentinelpoolconfig K;spConfig(&F,&K);K.Discovery.ConnectMaster=NULL;
+        xredispool* P=spCreate(&F,2,NULL,&K);
+        xfuture *A=spAcquire(P,5000),*B=spAcquire(P,5000);
+        xredislease *First=spLease(A),*Second=spLease(B);
+        spPing(First);spPing(Second);
+        xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);
+        spReturn(First,true);
+        xfuture* Replacement=spAcquire(P,5000);
+        spPing(spLease(Replacement));spPing(Second);
+        xredissentinelpoolinfo I=spInfo(P);
+        testRequire(I.Phase==XREDIS_SENTINEL_POOL_ONLINE&&I.Generation==1&&!I.Changes&&
+            I.Port==F.A.Base.Address.Port&&I.Connect.Connected==3&&
+            xrtAtomic32Load(&F.Roles,XMEMORY_ACQUIRE)==3&&!xrtAtomic32Load(&F.B.Base.Accepted,XMEMORY_ACQUIRE),
+            "ordered list change keeps current verified replica and unaffected lease");
+        spReturn(spLease(Replacement),false);spReturn(Second,false);
+        spClose(&F,P);spStop(&F);xredisPoolRelease(P);
+        xrtFutureDestroy(A);xrtFutureDestroy(B);xrtFutureDestroy(Replacement);
+    }
+}
+static void spReplicaEmptyTest(void)
+{
+    spfixture F;spStart(&F,0,false,false);F.Replicas=true;
+    xrtAtomic32Store(&F.QueryMode,6,XMEMORY_RELEASE);
+    xredissentinelpoolconfig K;spConfig(&F,&K);K.Discovery.MaxRounds=1;
+    xredispool* P=spCreate(&F,2,NULL,&K);
+    xfuture* Timeout=spAcquire(P,100);
+    testRequire(((const xredisleaseresult*)spWait(Timeout))->Status==XREDIS_REQUEST_TIMEOUT,"acquire deadline while replicas unavailable");
+    double End=xrtTimer()+5;
+    for(;;){
+        xredissentinelpoolinfo I=spInfo(P);
+        testRequire(I.Phase==XREDIS_SENTINEL_POOL_DISCOVERING&&!I.Generation&&I.Connect.Connecting<=1,
+            "one bootstrap discovery while no replica is selected");
+        if(I.LastStatus==XREDIS_SENTINEL_NO_REPLICA)break;
+        testRequire(xrtTimer()<End,"no replica reported as transient");
+        xrtSleep(1);
+    }
+    testRequire(!xrtAtomic32Load(&F.Roles,XMEMORY_ACQUIRE),"empty list never dials data node");
+    xrtAtomic32Store(&F.QueryMode,0,XMEMORY_RELEASE);
+    xfuture *A=spAcquire(P,5000),*B=spAcquire(P,5000);
+    spPing(spLease(A));spPing(spLease(B));
+    testRequire(spInfo(P).Generation==1&&spInfo(P).Connect.Connected==2,"same pool recovers from empty list");
+    spReturn(spLease(A),false);spReturn(spLease(B),false);
+    spClose(&F,P);spStop(&F);xredisPoolRelease(P);
+    xrtFutureDestroy(Timeout);xrtFutureDestroy(A);xrtFutureDestroy(B);
+}
+static void spReplicaBounds(void)
+{
+    spfixture F;spStart(&F,0,false,false);xredissentinelpoolconfig K;spConfig(&F,&K);
+    xnetengine* E=F.Seed.Base.Engine;xredispool* Out=(xredispool*)(uintptr_t)1;
+    testRequire(xredisSentinelReplicaPoolCreate(E,0,1,NULL,&K,NULL,8,&Out)==XREDIS_ADMISSION_ERROR&&
+        xredisSentinelReplicaPoolCreate(E,0,1,NULL,&K,spMaster,0,&Out)==XREDIS_ADMISSION_ERROR&&
+        xredisSentinelReplicaPoolCreate(E,0,1,NULL,&K,spMaster,257,&Out)==XREDIS_ADMISSION_ERROR&&
+        Out==(xredispool*)(uintptr_t)1&&!xrtAtomic32Load(&F.Calls,XMEMORY_ACQUIRE)&&
+        !xrtAtomic32Load(&F.Drops,XMEMORY_ACQUIRE),"invalid replica pool inputs consume nothing");
+    xrtClearError();spStop(&F);
 }
 static void spFaultTests(void)
 {
@@ -91,7 +152,15 @@ static void spInheritedDeadline(void)
 {
     spfixture F;spStart(&F,0,false,false);xredissentinelpoolconfig K;spConfig(&F,&K);xredissentineldiscovery* D=NULL;
     testRequire(__xredisSentinelDiscoveryCreateUntil(F.Seed.Base.Engine,&K.Discovery,xrtTimer()-.1,&D)==XREDIS_ADMISSION_ACCEPTED,"inherited absolute deadline construction");
-    testRequire(xredisSentinelDiscoveryStep(D)==XREDIS_SENTINEL_DONE,"inherited deadline expires before native factory");xredissentinelresult R={0};R.Size=sizeof(R);testRequire(xredisSentinelDiscoveryResult(D,&R) && R.Status==XREDIS_SENTINEL_TIMEOUT && !xrtAtomic32Load(&F.Calls,XMEMORY_ACQUIRE),"relative defaults cannot reset inherited deadline");xredisSentinelDiscoveryDestroy(D);spStop(&F);
+    testRequire(xredisSentinelDiscoveryStep(D)==XREDIS_SENTINEL_DONE,"inherited deadline expires before native factory");xredissentinelresult R={0};R.Size=sizeof(R);testRequire(xredisSentinelDiscoveryResult(D,&R) && R.Status==XREDIS_SENTINEL_TIMEOUT && !xrtAtomic32Load(&F.Calls,XMEMORY_ACQUIRE),"relative defaults cannot reset inherited deadline");xredisSentinelDiscoveryDestroy(D);
+    D=NULL;
+    testRequire(__xredisSentinelReplicaCreateUntil(F.Seed.Base.Engine,&K.Discovery,xrtTimer()-.1,8,NULL,&D)==XREDIS_ADMISSION_ACCEPTED&&
+        xredisSentinelDiscoveryStep(D)==XREDIS_SENTINEL_DONE&&xredisSentinelDiscoveryResult(D,&R)&&
+        R.Status==XREDIS_SENTINEL_TIMEOUT&&!xrtAtomic32Load(&F.Calls,XMEMORY_ACQUIRE),
+        "replica repair has the same absolute deadline");
+    xredisSentinelDiscoveryDestroy(D);spStop(&F);
 }
 int main(void)
-{spRepairTest();spSwitchTest(false);spSwitchTest(true);spFaultTests();spBoundsTests();spOwnerOOM();spOrdinaryPoolInfo();spNestedFence();spRaceTests();spInheritedDeadline();puts("Sentinel pool tests passed");return 0;}
+{spRepairTest();spSwitchTest(false,false);spSwitchTest(false,true);
+ spReplicaReorderTest();spReplicaEmptyTest();spReplicaBounds();spSwitchTest(true,false);spSwitchTest(true,true);
+ puts("Sentinel replica pool tests passed");spFaultTests();spBoundsTests();spOwnerOOM();spOrdinaryPoolInfo();spNestedFence();spRaceTests();spInheritedDeadline();puts("Sentinel pool tests passed");return 0;}

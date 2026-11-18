@@ -14452,3 +14452,29 @@ Replica pools, automatic seed refresh and event-triggered rediscovery remain
 open. Native Linux long runs, real authenticated/TLS Sentinel deployments
 and production throughput and tail latency remain qualification work.
 [Stage evidence](xredis-sentinel-replica-20261118.json).
+
+## 2026-11-18 Sentinel replica pool failover
+
+The xredis Sentinel pool now supports an explicit replica factory. The first
+connection selects one connected, ROLE-verified replica. Refill can proceed
+in parallel after selection. A repair tries the current endpoint first when
+Sentinel still lists it. A different verified endpoint fences old leases,
+preserves accepted command outcomes, and drains before serving the new
+generation. The same pool recovers when an empty eligible list later gains a
+replica.
+
+Real Redis tests cover 18 replica pool failovers and 18 master pool controls
+on Windows and WSL across RESP2, RESP3 and AUTO and three connection factories.
+The C probe keeps three old leases and a queued acquisition alive across
+promotion. It observes the accepted blocking command on the old server and
+checks for no replay on the new endpoint. The final probe releases resolved
+close observers during retries and bounds live observers at five.
+A Windows master control attempt hit a Windows-reserved Sentinel port.
+The failure and native bind error are retained beside the successful repeat.
+
+Modular and single-header suites, static and shared package consumers,
+ASan/UBSan/leaks, and TSan passed. Strict release still reports 31 developing
+xredis modules. Automatic Sentinel seed refresh, event-triggered discovery,
+real authenticated/TLS Sentinel deployments, native Linux endurance and
+production throughput and tail latency remain open.
+[Stage evidence](xredis-sentinel-replica-pool-20261118.json).

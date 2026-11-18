@@ -8,7 +8,16 @@ XREDIS_API bool xredisSentinelPoolConfigInit(xredissentinelpoolconfig* K)
     *K=(xredissentinelpoolconfig){0};K->Size=sizeof(*K);K->MaxConnecting=4;K->RetryMin=100;K->RetryMax=10000;return xredisSentinelConfigInit(&K->Discovery);
 }
 XREDIS_API xredisadmission xredisSentinelPoolCreate(xnetengine* E,uint64 A,size_t N,const xredispoolconfig* C,const xredissentinelpoolconfig* S,xredispool** P)
-{return __xredisSentinelPoolCreate(E,A,N,C,S,P);}
+{return __xredisSentinelPoolCreate(E,A,N,C,S,NULL,0,P);}
+XREDIS_API xredisadmission xredisSentinelReplicaPoolCreate(xnetengine* E,uint64 A,size_t N,const xredispoolconfig* C,
+    const xredissentinelpoolconfig* S,xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,xredispool** P)
+{
+    if(!ConnectReplica||!MaxReplicas||MaxReplicas>256){
+        xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_CLIENT_ARGUMENT,"invalid Sentinel replica pool factory or limit");
+        return XREDIS_ADMISSION_ERROR;
+    }
+    return __xredisSentinelPoolCreate(E,A,N,C,S,ConnectReplica,MaxReplicas,P);
+}
 XREDIS_API bool xredisSentinelPoolInfo(xredispool* P,xredissentinelpoolinfo* I)
 {return __xredisSentinelPoolInfo(P,I);}
 #endif

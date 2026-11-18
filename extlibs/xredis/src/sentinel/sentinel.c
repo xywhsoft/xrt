@@ -13,7 +13,8 @@ struct xredissentineldiscovery {
     xredissentinelstatus AfterDrain,ReplicaFailure;
     xredisreply* ReplicaReply;
     size_t ReplicaLimit,ReplicaCount,ReplicaIndex;
-    /* The endpoint descriptors follow the object, then service and host storage. */
+    xredissentinelendpoint PreferredReplica;
+    /* Endpoint descriptors, service bytes, selected host and preferred host follow. */
 };
 static bool xredisSentinelArgument(cstr Text)
 {xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_CLIENT_ARGUMENT,Text);return false;}
@@ -21,15 +22,15 @@ static xredissentinelendpoint* xredisSentinelReplicas(xredissentineldiscovery* D
 {return (xredissentinelendpoint*)(D+1);}
 static unsigned char* xredisSentinelData(xredissentineldiscovery* D)
 {return (unsigned char*)(xredisSentinelReplicas(D)+D->ReplicaLimit);}
-static size_t xredisSentinelBytes(const xredissentinelconfig* K,size_t ReplicaLimit)
-{return sizeof(xredissentineldiscovery)+ReplicaLimit*sizeof(xredissentinelendpoint)+K->Service.Size+K->MaxHostBytes;}
+static size_t xredisSentinelBytes(const xredissentinelconfig* K,size_t ReplicaLimit,size_t PreferredBytes)
+{return sizeof(xredissentineldiscovery)+ReplicaLimit*sizeof(xredissentinelendpoint)+K->Service.Size+K->MaxHostBytes+PreferredBytes;}
 static void xredisSentinelDropReplicas(xredissentineldiscovery* D)
 {
     xredisReplyRelease(D->ReplicaReply);
     D->ReplicaReply=NULL;D->ReplicaCount=D->ReplicaIndex=0;
 }
 static bool xredisSentinelDisjoint(xredissentineldiscovery* D,ptr P,size_t N)
-{return P && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(D,xredisSentinelBytes(&D->Config,D->ReplicaLimit),P,N);}
+{return P && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(D,xredisSentinelBytes(&D->Config,D->ReplicaLimit,D->PreferredReplica.Host.Size),P,N);}
 static double xredisSentinelDue(double Now,int64 Timeout)
 {return nextafter(Now+(double)Timeout*.001,INFINITY);}
 static int64 xredisSentinelRemaining(double Due)
@@ -235,6 +236,17 @@ static xredissentinelstatus xredisSentinelReadReplicas(xredissentineldiscovery* 
         I=Row.Next;
     }
     if(!Count)return XREDIS_SENTINEL_NO_REPLICA;
+    if(D->PreferredReplica.Port){
+        for(size_t I=0;I<Count;++I){
+            xredissentinelendpoint Entry=Entries[I];
+            if(Entry.Port!=D->PreferredReplica.Port||!xredisSentinelEquals(Entry.Host,D->PreferredReplica.Host))continue;
+            if(I){
+                memmove(Entries+1,Entries,I*sizeof(*Entries));
+                Entries[0]=Entry;
+            }
+            break;
+        }
+    }
     if(!xredisReplyRetain(Reply))return XREDIS_SENTINEL_LIMIT;
     D->ReplicaReply=Reply;D->ReplicaCount=Count;
     return XREDIS_SENTINEL_OK;
@@ -301,22 +313,40 @@ bool __xredisSentinelConfigValid(const xredissentinelconfig* Config,ptr Output,s
     return true;
 }
 static xredisadmission xredisSentinelCreate(xnetengine* Engine,const xredissentinelconfig* Config,double Deadline,
-    xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,xredissentineldiscovery** Output)
+    xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,const xredissentinelendpoint* Prefer,xredissentineldiscovery** Output)
 {
     if(!isfinite(Deadline) || !Engine || !Config || !Output || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))){xredisSentinelArgument("invalid Sentinel discovery arguments");return XREDIS_ADMISSION_ERROR;}
     xredissentinelconfig K=*Config;
-    if(MaxReplicas)K.ConnectMaster=ConnectReplica;
+    if(ConnectReplica)K.ConnectMaster=ConnectReplica;
     if(!__xredisSentinelConfigValid(&K,Output,sizeof(*Output)))return XREDIS_ADMISSION_ERROR;
+    size_t PreferredBytes=Prefer?Prefer->Host.Size:0;
+    if(Prefer&&(!MaxReplicas||!Prefer->Port||!PreferredBytes||PreferredBytes>K.MaxHostBytes||
+       !xrtMemRangeValid(Prefer->Host.Data,PreferredBytes))){
+        xredisSentinelArgument("invalid Sentinel preferred replica");return XREDIS_ADMISSION_ERROR;
+    }
     if(!xrtNetEnginePin(Engine))return XREDIS_ADMISSION_ERROR;
-    xredissentineldiscovery* D=xrtCalloc(1,xredisSentinelBytes(&K,MaxReplicas));
+    xredissentineldiscovery* D=xrtCalloc(1,xredisSentinelBytes(&K,MaxReplicas,PreferredBytes));
     if(!D){(void)xrtNetEngineUnpin(Engine);return XREDIS_ADMISSION_ERROR;}
     D->Engine=Engine;D->Config=K;D->ReplicaLimit=MaxReplicas;
     unsigned char* Service=xredisSentinelData(D);
     memcpy(Service,K.Service.Data,K.Service.Size);D->Config.Service=(xbytesview){Service,K.Service.Size};
+    if(Prefer){
+        unsigned char* Host=Service+K.Service.Size+K.MaxHostBytes;
+        memcpy(Host,Prefer->Host.Data,PreferredBytes);
+        D->PreferredReplica=(xredissentinelendpoint){{Host,PreferredBytes},Prefer->Port};
+    }
     D->Deadline=Deadline;D->NextWake=xrtTimer();D->Result.Size=sizeof(D->Result);D->Result.PreferredSeed=K.PreferredSeed;D->Result.Rounds=1;*Output=D;return XREDIS_ADMISSION_ACCEPTED;
 }
 xredisadmission __xredisSentinelDiscoveryCreateUntil(xnetengine* Engine,const xredissentinelconfig* Config,double Deadline,xredissentineldiscovery** Output)
-{return xredisSentinelCreate(Engine,Config,Deadline,NULL,0,Output);}
+{return xredisSentinelCreate(Engine,Config,Deadline,NULL,0,NULL,Output);}
+xredisadmission __xredisSentinelReplicaCreateUntil(xnetengine* Engine,const xredissentinelconfig* Config,double Deadline,
+    size_t MaxReplicas,const xredissentinelendpoint* Prefer,xredissentineldiscovery** Output)
+{
+    if(!MaxReplicas||MaxReplicas>256){
+        xredisSentinelArgument("invalid Sentinel replica limit");return XREDIS_ADMISSION_ERROR;
+    }
+    return xredisSentinelCreate(Engine,Config,Deadline,NULL,MaxReplicas,Prefer,Output);
+}
 XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,const xredissentinelconfig* Config,xredissentineldiscovery** Output)
 {
     double Entered=xrtTimer();
@@ -330,7 +360,7 @@ XREDIS_API xredisadmission xredisSentinelReplicaDiscoveryCreate(xnetengine* Engi
     if(!ConnectReplica||!MaxReplicas||MaxReplicas>256||!Config||!xrtMemRangeValid(Config,sizeof(*Config))){
         xredisSentinelArgument("invalid Sentinel replica limits or factory");return XREDIS_ADMISSION_ERROR;
     }
-    return xredisSentinelCreate(Engine,Config,xredisSentinelDue(Entered,Config->Timeout),ConnectReplica,MaxReplicas,Output);
+    return xredisSentinelCreate(Engine,Config,xredisSentinelDue(Entered,Config->Timeout),ConnectReplica,MaxReplicas,NULL,Output);
 }
 static void xredisSentinelRetryTarget(xredissentineldiscovery* D)
 {

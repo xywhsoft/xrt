@@ -17,27 +17,44 @@ struct spfixture {
     xnetresolver* Resolver;
 #endif
     xatomic32 Current,Queries,Roles,Calls,Drops,QueryMode,Stale,FenceRejects,Notifies;
-    xatomicptr Pool,Watched;unsigned Factory;bool Secure,Resp2,CloseFromNotify;
+    xatomicptr Pool,Watched;unsigned Factory;bool Secure,Resp2,CloseFromNotify,Replicas;
 #if SP_TLS
     redistlspeer TLS;
 #endif
 };
 static bool spCommand(redispeer* Peer,xredisreply* Reply,ptr Data)
 {
-    spnode* N=Data;spfixture* F=N->Root;xredisreplyvalue Root,Name;redisPeerRequire(xredisReplyGet(Reply,0,&Root) && xredisReplyGet(Reply,Root.FirstChild,&Name),"Sentinel pool peer command");
+    spnode* N=Data;spfixture* F=N->Root;xredisreplyvalue Root,Name={0};redisPeerRequire(xredisReplyGet(Reply,0,&Root) && xredisReplyGet(Reply,Root.FirstChild,&Name),"Sentinel pool peer command");
     if(redisPeerName(Name,"HELLO"))return redisConnectPeerCommand(Peer,Reply,&N->Base);
     if(redisPeerName(Name,"SENTINEL")){
         redisPeerRequire(N->Kind==0 && Root.ChildCount==3,"seed query cardinality");xredisreplyvalue Sub,Service;xredisReplyGet(Reply,Name.Next,&Sub);xredisReplyGet(Reply,Sub.Next,&Service);
-        redisPeerRequire(redisPeerName(Sub,"GET-MASTER-ADDR-BY-NAME") && redisPeerName(Service,"cache"),"snapshotted service query");xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
+        redisPeerRequire(redisPeerName(Sub,F->Replicas?"REPLICAS":"GET-MASTER-ADDR-BY-NAME") && redisPeerName(Service,"cache"),"snapshotted service query");xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
         switch(xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE)){
         case 1:redisPeerSend(Peer,"_\r\n",3);break;case 2:redisPeerSend(Peer,"+bad\r\n",6);break;
         case 3:redisPeerSend(Peer,"-NOPERM synthetic\r\n",19);break;case 4:xrtNetStreamAbort(Peer->Stream);break;case 5:break;
-        default:{unsigned Port=xrtAtomic32Load(&F->Current,XMEMORY_ACQUIRE)?F->B.Base.Address.Port:F->A.Base.Address.Port;char Response[100];int L=snprintf(Response,sizeof(Response),"*2\r\n+127.0.0.1\r\n+%u\r\n",Port);redisPeerSend(Peer,Response,(size_t)L);break;}}
+        case 6:redisPeerSend(Peer,"*0\r\n",4);break;
+        default:{
+            bool Reverse=xrtAtomic32Load(&F->Current,XMEMORY_ACQUIRE)!=0;
+            unsigned Port=Reverse?F->B.Base.Address.Port:F->A.Base.Address.Port;
+            unsigned Other=Reverse?F->A.Base.Address.Port:F->B.Base.Address.Port;
+            char Response[200];int L;
+            if(F->Replicas){
+                bool Both=xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE)==7;
+                const char* Row=F->Resp2?"*6":"%3";
+                L=snprintf(Response,sizeof(Response),"*%u\r\n%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+slave\r\n",Both?2u:1u,Row,Port);
+                redisPeerRequire(L>0&&(size_t)L<sizeof(Response),"first candidate fixture row");
+                if(Both)L+=snprintf(Response+L,sizeof(Response)-(size_t)L,
+                    "%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+slave\r\n",Row,Other);
+            }else L=snprintf(Response,sizeof(Response),"*2\r\n+127.0.0.1\r\n+%u\r\n",Port);
+            redisPeerRequire(L>0&&(size_t)L<sizeof(Response),"bounded discovery fixture reply");
+            redisPeerSend(Peer,Response,(size_t)L);break;
+        }}
         return true;
     }
     if(redisPeerName(Name,"ROLE")){
         redisPeerRequire(N->Kind!=0 && Root.ChildCount==1,"target role command");xrtAtomic32FetchAdd(&F->Roles,1,XMEMORY_RELEASE);
-        const char* Text=xrtAtomic32Load(&F->Stale,XMEMORY_ACQUIRE)?"*5\r\n+slave\r\n+127.0.0.1\r\n:6379\r\n+connected\r\n:0\r\n":"*3\r\n+master\r\n:0\r\n*0\r\n";redisPeerSend(Peer,Text,strlen(Text));return true;
+        bool Replica=(xrtAtomic32Load(&F->Stale,XMEMORY_ACQUIRE)!=0)!=F->Replicas;
+        const char* Text=Replica?"*5\r\n+slave\r\n+127.0.0.1\r\n:6379\r\n+connected\r\n:0\r\n":"*3\r\n+master\r\n:0\r\n*0\r\n";redisPeerSend(Peer,Text,strlen(Text));return true;
     }
     return redisConnectPeerCommand(Peer,Reply,&N->Base);
 }
@@ -100,7 +117,13 @@ static inline void spDrop(ptr Data)
 static inline void spConfig(spfixture* F,xredissentinelpoolconfig* K)
 {xredisSentinelPoolConfigInit(K);K->Discovery.Service=(xbytesview)XRT_BYTES_LITERAL("cache");K->Discovery.ConnectSeed=spSeed;K->Discovery.ConnectMaster=spMaster;K->Discovery.Data=F;K->Discovery.Protocol=F->Resp2?XREDIS_RESP2:XREDIS_RESP3;K->Discovery.SeedTimeout=2000;K->Discovery.RetryDelay=10;K->RetryMin=5;K->RetryMax=20;K->Notify=spNotify;K->Drop=spDrop;}
 static inline xredispool* spCreate(spfixture* F,size_t Count,const xredispoolconfig* Options,const xredissentinelpoolconfig* K)
-{xredispool* P=NULL;redisPeerRequire(xredisSentinelPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,&P)==XREDIS_ADMISSION_ACCEPTED,"Sentinel pool create");xrtAtomicPtrStore(&F->Pool,P,XMEMORY_RELEASE);return P;}
+{
+    xredispool* P=NULL;
+    xredisadmission A=F->Replicas?xredisSentinelReplicaPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,spMaster,8,&P):
+        xredisSentinelPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,&P);
+    redisPeerRequire(A==XREDIS_ADMISSION_ACCEPTED,"Sentinel pool create");
+    xrtAtomicPtrStore(&F->Pool,P,XMEMORY_RELEASE);return P;
+}
 static inline const void* spWait(xfuture* F)
 {redisPeerRequire(F && xrtFutureWaitFor(F,10000)==XWAIT_OK && xrtFutureValue(F),"Sentinel pool typed wait");return xrtFutureValue(F);}
 static inline xfuture* spAcquire(xredispool* P,int64 Timeout)

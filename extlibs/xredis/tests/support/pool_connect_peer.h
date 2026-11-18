@@ -16,7 +16,7 @@ typedef struct redisconnectpeer {
 } redisconnectpeer;
 static bool redisConnectPeerCommand(redispeer* Peer, xredisreply* Reply, ptr Data)
 {
-    redisconnectpeer* Fixture = Data; xredisreplyvalue Root, Name;
+    redisconnectpeer* Fixture = Data; xredisreplyvalue Root, Name={0};
     redisPeerRequire(xredisReplyGet(Reply, 0, &Root) && xredisReplyGet(Reply, Root.FirstChild, &Name), "reconnect command frame");
     if (!redisPeerName(Name, "HELLO")) {
         xrtAtomic32FetchAdd(&Fixture->Commands, 1, XMEMORY_RELEASE);

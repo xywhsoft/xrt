@@ -5255,6 +5255,19 @@ XREDIS_API bool xredisSentinelPoolConfigInit(xredissentinelpoolconfig* Config);
  * snapshots/outcomes keep no engine/context reference. */
 XREDIS_API xredisadmission xredisSentinelPoolCreate(xnetengine* Engine,uint64 Affinity,size_t Count,
     const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,xredispool** Output);
+/* Automatic pool pinned to one ROLE-verified, connected replica at a time.
+ * Use the same pool ownership and retirement contract. ConnectReplica supplies
+ * the data factory; Discovery.ConnectMaster may be NULL. MaxReplicas1..256
+ * bounds rows per discovery. Initial discovery chooses the first usable replica.
+ * After that, each repair tries the current host/port first when eligible; a
+ * different verified replica switches the entire generation and fences old
+ * leases. Bootstrap establishes one endpoint before parallel refill starts.
+ * NO_REPLICA also retries with bounded jitter. Only missing members trigger
+ * discovery. Take ordinary native leases; command permissions and replication
+ * lag are governed by the Redis deployment and the caller. */
+XREDIS_API xredisadmission xredisSentinelReplicaPoolCreate(xnetengine* Engine,uint64 Affinity,size_t Count,
+    const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,xredissentinelreplicaconnect ConnectReplica,
+    size_t MaxReplicas,xredispool** Output);
 XREDIS_API bool xredisSentinelPoolInfo(xredispool* Pool,xredissentinelpoolinfo* Info);
 XRT_EXTERN_C_END
 #endif
