@@ -1,6 +1,6 @@
 #include <xmqtt/store_delta.h>
 #include <xrt/memory.h>
-#include "../internal/xmqtt_internal.h"
+#include "../internal/xmqtt_store_packet.h"
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
 enum {XMQTT_D_HEADER=32,XMQTT_D_ENTRY=48};
@@ -33,7 +33,7 @@ static bool xmqttDRestore(xerror* Saved)
     if(!xrtTrySwapErrorTake(Saved,&Discard)){xrtErrorFree(Saved);return false;}
     xrtErrorFree(Discard);return true;
 }
-static xmqttstoredeltastatus xmqttDPacket(const xmqttstoredeltaconfig* K,const xmqttstoredelta* D,xmqttproperty* Properties,size_t Capacity)
+XMQTT_INTERNAL xmqttstoredeltastatus xmqttInternalStorePacket(const xmqttstoredeltaconfig* K,const xmqttstoredelta* D,xmqttproperty* Properties,size_t Capacity)
 {
     if(D->Data.Size&&(D->Data.Data[0]>>4)!=XMQTT_PACKET_PUBLISH)return xmqttDError(XMQTT_STORE_DELTA_PROTOCOL,"only PUBLISH wire is permitted in durable payload records");
     xmqttpacket P;xmqttcodecissue Issue;xmqttcodecbuffers B={Properties,Capacity,NULL,0};xmqttdirection Direction=D->Type==XMQTT_STORE_OUT_PUT?XMQTT_CLIENT_TO_SERVER:XMQTT_SERVER_TO_CLIENT;
@@ -75,10 +75,10 @@ static xmqttstoredeltastatus xmqttDValidate(const xmqttstoredeltaconfig* K,const
         return XMQTT_STORE_DELTA_DONE;
     case XMQTT_STORE_OUT_PUT:
         if(!D->Identifier||D->Reason||(D->Flags&~3u)||D->Flags==2u)break;
-        return xmqttDPacket(K,D,P,N);
+        return xmqttInternalStorePacket(K,D,P,N);
     case XMQTT_STORE_IN_ACCEPT:
         if(D->Flags||D->Reason)break;
-        return xmqttDPacket(K,D,P,N);
+        return xmqttInternalStorePacket(K,D,P,N);
     case XMQTT_STORE_OUT_ATTEMPT:case XMQTT_STORE_IN_PUBREL:case XMQTT_STORE_IN_COMPLETE:
         if(!D->Identifier||D->Flags||D->Reason)break;
         return XMQTT_STORE_DELTA_DONE;

@@ -14293,3 +14293,20 @@ shared examples run creation, rotation and snapshot recovery. Preparation
 and publication are explicit storage operations. MQTT snapshot encoding, automated compaction, initial namespace
 power-loss qualification and controlled production performance remain open.
 [Stage evidence](xmqtt-journal-slot-20261118.json).
+
+
+## 2026-11-18 Offline MQTT store compaction
+
+MQTT 5.0 and 3.1.1 typed journals can be compacted under the native slot lock.
+An independently reopened store preserves packet stages, ordered Inbox
+deliveries, issued-key fences and expiry. A new semantic Writer consumes the
+recovered State and its exact Journal, commits an old-epoch Inbox ACK, fences
+a reused key, and appends a newer key. Repeating compaction preserves the
+combined checkpoint and delta history.
+
+Windows and Linux under WSL exercise modular and single-header reconstruction,
+native faults, independent checkpoint bytes, and static/shared library examples.
+The fixtures reduce a 15- or 16-transaction history to three transactions.
+Live compaction scheduling, namespace and device power-loss qualification,
+and production throughput and tail latency remain open.
+[Stage evidence](xmqtt-store-compact-20261118.json).

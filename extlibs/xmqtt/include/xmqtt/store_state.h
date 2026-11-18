@@ -40,7 +40,9 @@ XMQTT_API bool xmqttStoreStateConfigInit(xmqttstorestateconfig* Config);
  * typed schema, Binding and storage Generation are checked against its actual
  * descriptor before consuming it. Neither file nor Journal ownership transfers.
  * Replay validates every committed batch and legal epoch/key/id/QoS/clock order.
- * First BIND precedes all records; first OPEN uses that epoch. Session-present
+ * A compacted generation can start with a complete typed checkpoint followed
+ * by ordinary deltas. Otherwise first BIND precedes all records and first OPEN
+ * uses that epoch. Session-present
  * OPEN keeps it; subsequent new-session OPEN advances exactly once, no wrap.
  * New outgoing/incoming keys strictly increase globally, including after reset.
  * No state is exposed until Journal EMPTY proves the complete committed prefix.

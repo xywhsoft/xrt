@@ -1,0 +1,1368 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+  "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+  "prior_delivery_source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+  "source_inputs_changed_after_package_validation": [
+    "extlibs/xmqtt/docs/store_state.md",
+    "extlibs/xmqtt/tests/test_store_compact.c"
+  ],
+  "focused_test_source_map_sha256": "86f2efe6fffbf3ec7e1bd8d6052e4c71ea0d0e5aedfa3f441eb77be305cf2db1",
+  "final_edit_after_test": "extlibs/xmqtt/docs/store_state.md text only",
+  "expiry_fixture": "Compaction observed exact elapsed expiry, then fresh recovery checked remaining time immediately before and at the boundary.",
+  "evidence_directory": "out/service-extensions/mqtt-store-compact-20261118",
+  "scope": "Offline typed MQTT compaction and normal Store Writer adoption of the selected checkpoint.",
+  "versions": [
+    "5.0",
+    "3.1.1"
+  ],
+  "independent_checkpoint_cases": 104,
+  "typed_rotation_cases": 16,
+  "injected_failure_cases": 16,
+  "failure_points": [
+    "checkpoint scratch allocation",
+    "inactive row block write",
+    "first selector write",
+    "second selector write after first synchronized"
+  ],
+  "native_fixture_transactions": {
+    "original": [
+      15,
+      16
+    ],
+    "replacement": 3
+  },
+  "public_example_transactions": {
+    "original": 4,
+    "replacement": 2
+  },
+  "wsl_sanitizers": [
+    "address",
+    "undefined",
+    "leak detection"
+  ],
+  "architectures": {
+    "windows": "native x64",
+    "linux": "WSL x64"
+  },
+  "automatic_native_termination_scope": "Stable slot primitive verified in parent stage. This stage injects recoverable I/O failures into the composed compaction call.",
+  "platforms": {
+    "windows": {
+      "focus": {
+        "label": "compact",
+        "log": "windows-compact-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_store_compact_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+        "source_map_sha256": "86f2efe6fffbf3ec7e1bd8d6052e4c71ea0d0e5aedfa3f441eb77be305cf2db1",
+        "log_sha256": "de9606a79083ba4bad270d953855c2b4c3cb7f0b9ddabdc20636113351dc996b",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-compact-attempt3/test_store_compact.exe.gz",
+            "sha256": "8e2cf5c13717cdcbd63f7998d418cc049cae38cde765854ade285c8250f7ffba",
+            "binary_sha256": "d3b58a52f3e0bfb9e01541ae29e00d4b5b8de94b75370e147ef168c1c8f1ba50"
+          },
+          {
+            "path": "binaries/windows/windows-compact-attempt3/examples_store_compact_main.exe.gz",
+            "sha256": "ff99ff24ea5ab096352b0f43519760720d333f3f378da0f4e694d04613612201",
+            "binary_sha256": "5703c35bb194d17b523fc90c03a6afc38f0f9b63a57e1133895c8028794d70be"
+          },
+          {
+            "path": "binaries/windows/windows-compact-attempt3/test_single_xmqtt_store_compact.exe.gz",
+            "sha256": "742771a55d377154fdb8f080599bd7c544144a4a422180c64bc025a47204514b",
+            "binary_sha256": "7bf4077af6d58a484199dc7829104d8f368443960d394d0d97b3824f0449b4a1"
+          }
+        ]
+      },
+      "independent_checkpoint_cases": 52,
+      "typed_rotation_cases": 8,
+      "injected_failure_cases": 8,
+      "packages": {
+        "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+        "files": {
+          "packages/windows/shared/consumer.c": "f1c15f85c024c1beb5741c70e75454412d68c9a46a87367b7e00e42ce2206aaa",
+          "packages/windows/shared/libxmqtt.dll.a": "0588923f3840ad941622be9397ae7f3bebebc3818fd5d31e594dc03065f07218",
+          "packages/windows/shared/libxrt.dll.a": "d9bcd7cdf92a20b5b5376360e52a1b6857e8975e220594ee61bf0cc05f0bbfe5",
+          "packages/windows/shared/packages.json": "a6cbe66a5efb3800da746cfcc3c748d1c5ec76a613c73bdd25bc56055363f0f5",
+          "packages/windows/shared/slot_example.exe": "bacfd4224fc78d4f5ead0580daa1e148a94ffccc3a2a4e99d9763abf57ea5222",
+          "packages/windows/shared/test_package_xmqtt.exe": "7321eca706cfcdc7cd37570177530ecaab7a3e9a217462db9e543b7da0f483bd",
+          "packages/windows/shared/xmqtt.dll": "d8b5c51cd6d303eaabd39ff39ee467abe415a2d2998b41a43ef44f83c2c97c2b",
+          "packages/windows/shared/xrt.dll": "20323e3c1e570ab6f1a462ed4e5d0b62e2bd4346ef50342d209310762d2f2738",
+          "packages/windows/static/libxmqtt.a": "472a60620dc1d7daef8b6dee173954cbcf2e265fe57aafeec91365d874e5fd01",
+          "packages/windows/static/libxrt.a": "34a496603b3b49f82c8e022dafff8d9f293179d4cf15067e82406b678cc2ea46",
+          "packages/windows/static/packages.json": "4eae72587062097680e38004f76e6d43a62ddd31e50e3c1c820dd922c6bdeacf",
+          "packages/windows/static/slot_example.exe": "670072f35b44c2d1b3806101632a35a71327a1d3eb44b44d00fe59fc5033dd58",
+          "packages/windows/static/test_package_xmqtt.exe": "85fb27f647e5e77a6494e3487f3e5469116af88be7149cb28193f7b454ad473c"
+        }
+      },
+      "delivery": [
+        {
+          "label": "package-static",
+          "log": "windows-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_compact",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "8ae5e493cac6b42ee4bb6cc400b8737834bec06c683577f0e8d2097a65d5fab3",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-build",
+          "log": "windows-ws-consumer-static-build.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\store_compact\\main.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\libxmqtt.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\libxrt.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\slot_example.exe"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-create",
+          "log": "windows-ws-consumer-static-create.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\slot_example.exe",
+            "create",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-h85173ut"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "a92e74f8f621cab3e0c371900db6eda6a31ae9688e5af8cbecfb922ffa769ef2",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-compact",
+          "log": "windows-ws-consumer-static-compact.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\slot_example.exe",
+            "compact",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-h85173ut"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-read",
+          "log": "windows-ws-consumer-static-read.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\static\\slot_example.exe",
+            "read",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-h85173ut"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_compact",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "d0e7a9b6bfbdb43710f7b11fb06cd89a93480150860d7a19cb33e18f96b20dbb",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-build",
+          "log": "windows-ws-consumer-shared-build.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT",
+            "-DXMQTT_USE_SHARED",
+            "-DXRT_USE_SHARED",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\consumer.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\libxmqtt.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\libxrt.dll.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\slot_example.exe"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-create",
+          "log": "windows-ws-consumer-shared-create.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\slot_example.exe",
+            "create",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-rmje8ib9"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "a92e74f8f621cab3e0c371900db6eda6a31ae9688e5af8cbecfb922ffa769ef2",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-compact",
+          "log": "windows-ws-consumer-shared-compact.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\slot_example.exe",
+            "compact",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-rmje8ib9"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-read",
+          "log": "windows-ws-consumer-shared-read.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-compact-20261118\\packages\\windows\\shared\\slot_example.exe",
+            "read",
+            "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xrt-mqtt-locked-package-rmje8ib9"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "regressions": [
+        {
+          "label": "regression-xmqtt_store_state_tests",
+          "log": "windows-regression-xmqtt_store_state_tests.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_state_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "2ddcc337df9ea4f1b5bc4d47c31a0d791b830a4e9740357002f3f724a7af3b28",
+          "programs": 13,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_store_state.exe.gz",
+              "sha256": "67abe2d1d7909cb649b1b698bbc8ebb57416c969d369bad92a3378defec7c9f8",
+              "binary_sha256": "4bd928384bcce57b7f18f7ec3c19c5a138f21f4dfbcf4e3b79f81e841f08b7ac"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_store_state_faults.exe.gz",
+              "sha256": "f20a80b81402f58526475caecebcf8d9cac8655e46403024a43ccfa864258bc8",
+              "binary_sha256": "b8bb6f26c15911e28857c903187db955adb833fe380011edbe8589120c36b30a"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_store_state_readers.exe.gz",
+              "sha256": "ff60ae25e594a1b81ff3a6e0b432a994dc28959b47c50d053e05748b55a79032",
+              "binary_sha256": "ddb0bd4dc4092581b4f2bbd9e6a8ad709034f6f6380652cfaa152000aa3cc19a"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_store_state_journal.exe.gz",
+              "sha256": "2aa290c154ac714033c799e6902198d21e12b13b6373bd3fa6f9307aa1de4783",
+              "binary_sha256": "d99d950d8ccbe2482eba70360e605430e713826f7bb2a4272729c587a33ad8cd"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_store_state_identity.exe.gz",
+              "sha256": "8dd129441ae5397113d24f308cdb7ce137cd6d64bb5c6468956fe1302b81952d",
+              "binary_sha256": "d62b2fc2455602c47f07759c09fe80b48c28c27708876b6521465d61b1bdfc55"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/examples_store_state_main.exe.gz",
+              "sha256": "b4d3235b949db820bca8b9542219e3d83641acd4788639356399fc6512d912a1",
+              "binary_sha256": "e6d1aedb869fd613048557ce7b80da3ebcd682b54f0ab75c5757b573c80e7b09"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state.exe.gz",
+              "sha256": "b2bf8788ba12084d970043b907a6c3db8f7e14ac5305bbf4387dd4ca7cff44bc",
+              "binary_sha256": "05eb771542a34ec7c6486efeeed701330527d8655ff2d488c58a677de7f67020"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_faults.exe.gz",
+              "sha256": "aeb1e8e2f6f8fa8f9d4d4798df2df80ed8d7869361ad05fecdb062db7ffbf573",
+              "binary_sha256": "b64ff5eebd80c282d21011b634f1aada8004ae359bf96f7857e45093d83559b3"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_errors.exe.gz",
+              "sha256": "ffb0afbed60a5aabc3ea37953791192eaa37e15c373c57c624c5b87c4c334b3e",
+              "binary_sha256": "0c98aca1a80ca5f8f1b531bc92f6eaeddbc8b186d4b03f6330fe3df705985491"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_readers.exe.gz",
+              "sha256": "6422cce4bb321d56f5a0f6b955416c4472a16e377add37f990d0385515250101",
+              "binary_sha256": "73bc12781b10d217d9ad798621baab86f2fe76620b0c8a17c8fdd4d5a69b095f"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_journal.exe.gz",
+              "sha256": "96800046c7ae9865fd5182c28b117f15e15b95574b739baffa9ec6a71c2cad9c",
+              "binary_sha256": "46ca809f28a4a6dafebbc81059e71cbb4f0313490ab7e1680058e362b2cc2434"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_identity.exe.gz",
+              "sha256": "622f65195d18cc49d219f90e41abfa6d0da6fad32b50e7619749928e48c3feab",
+              "binary_sha256": "9bb05b6cc6b094674be6eb6a61a98d78ea6b9e04a8ba3a78ec5034374507f874"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_io.exe.gz",
+              "sha256": "0e04ae68e02e0e49407a0b0a45475c4146e00e409576f7c6c47e094600876cb8",
+              "binary_sha256": "0615843583a8f257aea04bcc8b4e1aa7043060fd86ba40f24ed1815c43de2699"
+            }
+          ]
+        },
+        {
+          "label": "regression-xmqtt_store_write_tests",
+          "log": "windows-regression-xmqtt_store_write_tests.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_write_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e797f7fc396b74bbc7f2140bffcf4349632d4e5ed958d5cb9fcfc783ee7dbeca",
+          "programs": 20,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write.exe.gz",
+              "sha256": "1b56334af0fa6369839a7a33007a1c1063aaed3ec94c15f62c0455fb681701d3",
+              "binary_sha256": "1fc5b664db273a0ebb60889725024120a0a613187a39f3b06b93152407ba0adb"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_transactions.exe.gz",
+              "sha256": "d9d1f0be404faa595287ec97e4afaedbd59ca86be65512be3b5219e7ed1d8c5a",
+              "binary_sha256": "c3d3a0f267c780caf3531f42534496e89b3beab3c3ca2b50ec0d4c68edd747af"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_faults.exe.gz",
+              "sha256": "438dabfd67f0b020cabfb5340710d26089168055a2938100f6c6aac23a33c626",
+              "binary_sha256": "1e17b6de86927ec54e6dd8a4c24f2f8a53169af9451f9b8c6e5ad291c9fe5e5a"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_file.exe.gz",
+              "sha256": "d09481482a7d94406221115497714a956bb837b3dceaebc2ad56912572f7c6d8",
+              "binary_sha256": "3be0a6bd622a1444df4e678a81a2b9593b7fb2b1aaf8326f3c37000c0bc615b1"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_lifetime.exe.gz",
+              "sha256": "5804ffdcbe968c00569e524437e171133ace9daa75352c7368b7804d46235e64",
+              "binary_sha256": "3e01112dbb45d3ec4413ba2aa64b2578c63e18e7af4108affde188981655a00e"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_concurrent.exe.gz",
+              "sha256": "5825e74296207fd2491870ebd38abc102a5e43952b19cb5e8dc784aaca8e9b2b",
+              "binary_sha256": "1ee1928bc6c03a1c5153375f8f0b53e0026f10a6cad9c2667d88eb38e4403580"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_work.exe.gz",
+              "sha256": "2b90c67137bfd77038896c71fde617e0979cd4a6aa379eba4fc31b74f3be3be0",
+              "binary_sha256": "729f024cfa73b8bb68400394e04b7de093a97d67f2a05d71f2012f124886ee9d"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_store_write_progress.exe.gz",
+              "sha256": "1ef2e585f65a113afcadc308f64b241d4f034160c151ef25a262104472b96814",
+              "binary_sha256": "8c6dc85c1b2266cfef296590279d4d0254428f24602de70e1f1a1d860f00daa5"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/examples_store_write_main.exe.gz",
+              "sha256": "76267a7f14752ac0201b986c5ea4d4cc17cc934024952cb526c66e90a52f59e2",
+              "binary_sha256": "3ae0967553f74db2099388bc12034c15d42084e9401d0033ae0d34a49b0b1f10"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write.exe.gz",
+              "sha256": "3c8329f6984212b38987a0e704f73c4169a0468a9ee8e0f11531dad48c176cf8",
+              "binary_sha256": "2568c9d04d8eaec65aa35f63f48597e73f0fea26869a72b38a4821814007be18"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_transactions.exe.gz",
+              "sha256": "af7c0e79d944abe2010bbdef3014e0635ff15e9cbe338ea3549b234d1babcdd6",
+              "binary_sha256": "db4c397746a7ce8b191a7a22ac7ac429cdafda7702e18a89ec6c33b6c1e5b8e0"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_faults.exe.gz",
+              "sha256": "cf26075376547f29b063a2515ae2f7631a5cafd11c4520a39b35dd6f1bf80154",
+              "binary_sha256": "09399cc84fb19a2b17eb0adef359ab9c4e76fd8122fcb2d5789a8ca5557c5a82"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_file.exe.gz",
+              "sha256": "98fba10966fbaca80f2189b54a7d4301cf07909a02bb11174f42568b6b54b4e0",
+              "binary_sha256": "fbbc6979963e6c4126da532e47c0cce2af6c4b63bf4035fbc8a494926e4d1f84"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_oom.exe.gz",
+              "sha256": "5cece3b35fcecb4577457722b8a912570c193f3d4278421725d4b09d7a5e7394",
+              "binary_sha256": "3c9c4dd7648f71f48cbeec2640963660d3154afd26db4dce2bbe8ad04b7cbb5e"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_lifetime.exe.gz",
+              "sha256": "247b19a61db7238357b202cc24aa666aaecda9d8abed2c4234f351bfd023d5c5",
+              "binary_sha256": "6d49cb90d8fcfdb92aaba22d8dfb2a14dde10b0caaaa573dd3ddbbd09c64e8de"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_errors.exe.gz",
+              "sha256": "e36cf8d7b12241bf64e0d113918db2ec4078359a03a60fd14b548f23278dcba1",
+              "binary_sha256": "8f839fed8a3454525f31186bebc720977e4520b190bf00b00df55c5329edde6f"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_concurrent.exe.gz",
+              "sha256": "6153d3409463a7b15867062e29ed9c4f9cdfb3e28ba97ff7f918374ac13e153f",
+              "binary_sha256": "f0f63b7119801926a503f701ca5b7f59ae6413612dd03ff1be10ad39ed81b1cc"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_work.exe.gz",
+              "sha256": "3ece908f0d718d0ea8a13f1998e09f2c7024586818249722112453c3cf87d497",
+              "binary_sha256": "351d2d89d2b5c2259f58218d1913c671bf2ebc0d69f27e3a0d507d7e7fc7e9ca"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_progress.exe.gz",
+              "sha256": "68fab2e3f5f6f7a8a5200272b7fa9c2895c88e26a3e8cfa52d6543ab3cd6fd39",
+              "binary_sha256": "d8b9cf76c49a425a01fa7710bbd89543094dc1a4f0f00f3243c9684de9628963"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_allocator.exe.gz",
+              "sha256": "4899c55b1811a16aef43bcabb4a3b74416560c9ec07e135026b7a5f6743d7f71",
+              "binary_sha256": "e59057a08b8dd855c190d138b6f2179484e027d98de53fd6843c068b69021ddd"
+            }
+          ]
+        },
+        {
+          "label": "regression-xmqtt_journal_slot_tests",
+          "log": "windows-regression-xmqtt_journal_slot_tests.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_journal_slot_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "587c818f92f5edb97aa60496a2cc65c0ef5c6dfaab23a424e8d1b61e8331aab9",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_journal_slot_tests/test_journal_slot.exe.gz",
+              "sha256": "5f0037d1db0ded94492f6936070c0c68b59c3fb0324ea3e0f790d66dad2c123b",
+              "binary_sha256": "9c7ee7f09511be7f20885148276ca8f1bd5419e168c350b8353cd66a3b3a868f"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_journal_slot_tests/examples_journal_slot_main.exe.gz",
+              "sha256": "f60f2e20389a85256cd3902c54ab0a603d32d8cb5bd92e291208ae91c70fa376",
+              "binary_sha256": "cf82f3d2a6b84b5dec572a17bca0ad41434c036070a948b3247e506844e3bc74"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_journal_slot_tests/test_single_xmqtt_journal_slot.exe.gz",
+              "sha256": "673f8aabae8f52465f1555540367d9db81f3b461e08e83c7cc82b2484ebd0abe",
+              "binary_sha256": "0f4bc954446b5062bd6898e89720bf217d1c78a26eec4b9933cc3c15f108a6c4"
+            },
+            {
+              "path": "binaries/windows/windows-regression-xmqtt_journal_slot_tests/test_single_xmqtt_journal_slot_faults.exe.gz",
+              "sha256": "3cb6603b6fa8fcfe277b875da077c11c301e78bb032a7c8dd1a9fcf877138abb",
+              "binary_sha256": "4d23fc31b11e15d0333be9684d705eb5c1cbe25272dba81b15750055c6f146bf"
+            }
+          ]
+        },
+        {
+          "label": "regression-root",
+          "log": "windows-regression-root.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,xmqtt_store_compact_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--test",
+            "test_store_compact",
+            "--no-single",
+            "--no-examples"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "c510e16ede723030ff370e32379b836484a10ed6e32999d1b63f3b93c9d64abb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-regression-root/test_store_compact.exe.gz",
+              "sha256": "04827a855935269918582c29854c6e38e9991b78dbe2263d1cc1828625615a09",
+              "binary_sha256": "56f9b039c80d476063ae189774e4d1a75c17881b2d3597b521d9819dc9d2c336"
+            }
+          ]
+        }
+      ]
+    },
+    "wsl": {
+      "focus": {
+        "label": "compact",
+        "log": "wsl-compact-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_store_compact_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--cflag=-g",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+        "source_map_sha256": "86f2efe6fffbf3ec7e1bd8d6052e4c71ea0d0e5aedfa3f441eb77be305cf2db1",
+        "log_sha256": "af498406c067e9cad21418412e366ddb062604159d6af28451cfc9bb9fd53ef9",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-compact-attempt3/test_store_compact.gz",
+            "sha256": "54dd86681473cdb7cd357124d370db0a512bb5904c712ad918a78b5581f63292",
+            "binary_sha256": "b52392ef8473f4d36c9ef94fbaacc83925adedcd84cd2ffebd196fc1007f9e26"
+          },
+          {
+            "path": "binaries/wsl/wsl-compact-attempt3/examples_store_compact_main.gz",
+            "sha256": "0f45ddb65a93613225af9cf068124135f90e31d0953bd5f9ca2a7a349a2ca6a8",
+            "binary_sha256": "62ba4c2240d8434f367f2e7de1e4fd827d881ab71b8f66d83db78dccf470b388"
+          },
+          {
+            "path": "binaries/wsl/wsl-compact-attempt3/test_single_xmqtt_store_compact.gz",
+            "sha256": "df3c1c65a2404d0f87ac844053ae5c9c32fad1123017bf37facbc72a95eceb6f",
+            "binary_sha256": "b2c9d714f2d8c6d7865eea48e57781f2cb18d0fce5d4277f960d5404922feda5"
+          }
+        ]
+      },
+      "independent_checkpoint_cases": 52,
+      "typed_rotation_cases": 8,
+      "injected_failure_cases": 8,
+      "packages": {
+        "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+        "files": {
+          "packages/wsl/shared/consumer.c": "dd83f2fdd0c28f5cf1dddaff1e1bd213d319c9f3fbc85713a0e5f227e20c06a3",
+          "packages/wsl/shared/libxmqtt.so": "03b6952dcf05cf7e5a15b82f17bc735929ab6e40888ac7fee7f69b3a920e5b65",
+          "packages/wsl/shared/libxrt.so": "08861dc2f012cbe7048460ab3c6b6a2ec055585983916d92480614b2b5f1c3c6",
+          "packages/wsl/shared/packages.json": "cdf23ea269ec7548d1c419e6d08b05edec87daa0a6fb049db382c59e8bc58d94",
+          "packages/wsl/shared/slot_example": "637d015811c34e303aac5cea3a6ca0cae53c4a6e06a9d475a3ec9b80050e8f7d",
+          "packages/wsl/shared/test_package_xmqtt": "28edfc5216e179a4c0ff882fb013bcd85ceecd0433093c8e42704cb7540e747e",
+          "packages/wsl/static/libxmqtt.a": "53d982afccc91cdd80b9a0156b18d4796cd0a9abf03ec63252c89d22b250c806",
+          "packages/wsl/static/libxrt.a": "652a7e1a882c655401f00a37db0c6ecc40e4052e06c18e6c9c3220a0b2b6b8a0",
+          "packages/wsl/static/packages.json": "b8e10a0c4e51a48bef66b1c9e0cf1bf36bdddaf0894d569a3c1d5ec32c70a262",
+          "packages/wsl/static/slot_example": "bf2ec6ed723a57074afd0681c679ea3ac57d562e929bbf0e2015f49759b72130",
+          "packages/wsl/static/test_package_xmqtt": "6f81b8e4a9af515dc71b1c77bbede1b7c65fbb0ba60cce958e48a74ff82d64be"
+        }
+      },
+      "delivery": [
+        {
+          "label": "package-static",
+          "log": "wsl-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_compact",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e29308d5c0b1879fcaeb1e438f98b24abc9d050b50f207a6d7a8ae801ca43de8",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-build",
+          "log": "wsl-ws-consumer-static-build.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/store_compact/main.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/libxmqtt.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/slot_example"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-create",
+          "log": "wsl-ws-consumer-static-create.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/slot_example",
+            "create",
+            "/tmp/xrt-mqtt-locked-package-32zwd430"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "099c425a34fa9ebd7d6b3b0749dd13101006a9aff3985f0a7f824ca104f17ee1",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-compact",
+          "log": "wsl-ws-consumer-static-compact.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/slot_example",
+            "compact",
+            "/tmp/xrt-mqtt-locked-package-32zwd430"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-static-read",
+          "log": "wsl-ws-consumer-static-read.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/static/slot_example",
+            "read",
+            "/tmp/xrt-mqtt-locked-package-32zwd430"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_compact",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "83195ccebf19e0af4df0c10da964d924986c85a967595de4d6adf11001abcac3",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-build",
+          "log": "wsl-ws-consumer-shared-build.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT",
+            "-DXMQTT_USE_SHARED",
+            "-DXRT_USE_SHARED",
+            "-Wl,-rpath,$ORIGIN",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/consumer.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/libxmqtt.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/libxrt.so",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/slot_example"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-create",
+          "log": "wsl-ws-consumer-shared-create.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/slot_example",
+            "create",
+            "/tmp/xrt-mqtt-locked-package-50kfpdaq"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "099c425a34fa9ebd7d6b3b0749dd13101006a9aff3985f0a7f824ca104f17ee1",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-compact",
+          "log": "wsl-ws-consumer-shared-compact.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/slot_example",
+            "compact",
+            "/tmp/xrt-mqtt-locked-package-50kfpdaq"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "ws-consumer-shared-read",
+          "log": "wsl-ws-consumer-shared-read.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-compact-20261118/packages/wsl/shared/slot_example",
+            "read",
+            "/tmp/xrt-mqtt-locked-package-50kfpdaq"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "regressions": [
+        {
+          "label": "regression-xmqtt_store_state_tests",
+          "log": "wsl-regression-xmqtt_store_state_tests.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_state_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "52ec1fdeaf6180a03357d1c2e4148a9b105fc4edc1432a38366532f386dc9714",
+          "programs": 13,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_store_state.gz",
+              "sha256": "090500f7234441a8e5f4c8288da931974a5d7e3492f9a1498ea125ece946af8d",
+              "binary_sha256": "8272732cfd920e98d5cca7c61843ca41ea6c76eacf64e0d98e34309e2fa48ae5"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_store_state_faults.gz",
+              "sha256": "b33365f8b1dd92fe7b81f924a5d7fb7e1fc654c167a0e88c054f9fd97ebd9432",
+              "binary_sha256": "442866241c4d8bd83d181149ad612e3bf9b0c5527029f2849bb19259663eac5f"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_store_state_readers.gz",
+              "sha256": "4bc8ecc4dd6343a302d860068226285fd536cba182a3bc148755ac061e5f071b",
+              "binary_sha256": "469054ccc360e442e4a8a4c5be53f6d5c370fca82ba0951fc5d7ece52217d523"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_store_state_journal.gz",
+              "sha256": "84589d601718c0b30101aae521b5f79cf8b21cdeafebade163884fe9921757bf",
+              "binary_sha256": "5a67dc3276dc4b055e662a73e026c856ee8280200aca829c8dca049f22e351b2"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_store_state_identity.gz",
+              "sha256": "9028d6f9a868807050424e1ff802a7f3ba251c5fd62aec53d86abb1d40616902",
+              "binary_sha256": "4d1ec05575bbbe7af37c19e95f23569f05971fa89bc9c196d73459685e90c899"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/examples_store_state_main.gz",
+              "sha256": "278093f99caa63d3a1efa89dd23693e5b4361f11955a7eb196f594c18c4e6d6e",
+              "binary_sha256": "b0c16ae8c673e44b3264664ce1aebfec319aeb1c251a124c8b14f49db2b27ffd"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state.gz",
+              "sha256": "3c687d3cd3acd65a99e0ae2abebd0c331fc5ec3e85290c58a687b526a19d5116",
+              "binary_sha256": "05fe7ac17357450b0856f67b20c4de6039161cbeb8e6ace9ef81cd52967165ab"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_faults.gz",
+              "sha256": "6d7be66f2e65364129c15ef95c24738019e01a54550db83e9ffb51b1d536c440",
+              "binary_sha256": "7771acc4684e9860dc9d8f541b2eebb0c7a22931d692760a2e7fa1776123beee"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_errors.gz",
+              "sha256": "aea1a1e684007608ea78b5326e042ff14b84ba66971e3d53d567edc16d6cfdcb",
+              "binary_sha256": "649c900802a629e5b7fe37b97b5faf24347bd73c677edde33161ddf0c91c014a"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_readers.gz",
+              "sha256": "1e3aa73177ba548b0e816d92b8a9f56919b0715fb8922471020d49fcf9dcb73a",
+              "binary_sha256": "140f197465e6b7faf5bbd939471c3ca6f64e47e66749c505f917c450c81d93fe"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_journal.gz",
+              "sha256": "359c846490764d5934d3ddd59582580ec5995be47668e230c87715b903ee108d",
+              "binary_sha256": "2879fd85b77a6de729a1f43306ba3edfc24271a9795c444f3a103fa59a44be4e"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_identity.gz",
+              "sha256": "b50df048577a8eab642693a8643fef97d9ae0dbce1310ddf018cedb93ab91292",
+              "binary_sha256": "9ff178e934151231a2d3a43693b18297dc68b66bfb5e41f0862644286bbcf164"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_state_tests/test_single_xmqtt_store_state_io.gz",
+              "sha256": "df7e3935b62c4f47b5f999b911bed0b45c62f68ed33c40c1a5d860575541a417",
+              "binary_sha256": "815d3c0fe448f3d9b527426ee65dadc7aa33f70a6fdd34646937ef8a17e67dbe"
+            }
+          ]
+        },
+        {
+          "label": "regression-xmqtt_store_write_tests",
+          "log": "wsl-regression-xmqtt_store_write_tests.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_store_write_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "fa44f3b7e272c62f942132402813d86666c0b603c3fda88df43fc5cc8d7b3f97",
+          "programs": 20,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write.gz",
+              "sha256": "6cbda3e4e01a2e767cad7a60e082e0acac3e45f0f90e805879b11fe381817dfa",
+              "binary_sha256": "43d5854af83abb1914e90e42cbd1a1bc62095669740ccf03859338a3e6c08734"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_transactions.gz",
+              "sha256": "a1ba9f501cf3036820d8901d16b92b89b1263c01069326c3909d61db8c277a84",
+              "binary_sha256": "dec6b29c6bf33d29605c56eec53eb556d724d78793a7f6e0169ee3f76553a0d4"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_faults.gz",
+              "sha256": "ac239438843e277e925dc8aa6d217f05a9bfd249d10a2cca7ce38af38ade8140",
+              "binary_sha256": "eb4cccf7774fd11b0518275f6c36ea9fdc54c1c623835e558814743ae2dabd2f"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_file.gz",
+              "sha256": "86e58e0a9037673b49e8fa128d95cbeaec47b4d0041d7529223703d6e42d9fca",
+              "binary_sha256": "79dd0009eacb991b05cc05d371a296c099e07c208878283a6fc3151312b30986"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_lifetime.gz",
+              "sha256": "25230565ff91dbf2adf17d0342577ae859ced4600184a00f5bd0d0fc7dc40bc8",
+              "binary_sha256": "8711a1820a3f0e03e1565ce094b3aea2c4f8b94c4f36c8bb6994f46ab525a5ef"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_concurrent.gz",
+              "sha256": "2ed148d7f42e584e0dd33646ab951fc814f8d92b7174c35e03862b20d61654b4",
+              "binary_sha256": "b57acb365e12a966c6b7f7d9338dd040320245ac8e6a532a913f2e3171722118"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_work.gz",
+              "sha256": "49548d7672aeda2a28ccb50e7adf53441a8d175446388d8d94c0b0c0149239f7",
+              "binary_sha256": "851e2cde9c858a676671cd8f63f1db6acb08c7d607aa550dec2fae9c370d40cd"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_store_write_progress.gz",
+              "sha256": "0a7e163143f189c5f46c2e0136a3a8173d8ff5dca83bd2c0d123ef8f33db30f3",
+              "binary_sha256": "90de2cba66f1e1eb0a84358d5b552c6a3541fcdbb12e38e8ac4eb90d594f5fde"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/examples_store_write_main.gz",
+              "sha256": "c860434909085baaf05b231b9de7b6d2ba50bd570b4aa3e685f261ceeb47a057",
+              "binary_sha256": "e6954ccaee75cea4286520a4f9e16e813ba35a03b0a3caea11ba9d045237a908"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write.gz",
+              "sha256": "cda0990669d8a528c8bfd48227c132348a780efd46e28eb18a21bf6e92b99c7a",
+              "binary_sha256": "b797529546151b9cbf8546d98704a1d10280f03fbc4cc4cf5e378e1f4e8dcb6c"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_transactions.gz",
+              "sha256": "aa74f75555ecdb6659d97a656ad84fe1aa980dfff6aafdc55b33adba0f54f793",
+              "binary_sha256": "8fc46df5f967bb8e71f2fa7694adc6d45e8a5ec8e05d56343e8c2a2c182839bd"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_faults.gz",
+              "sha256": "b5ebc9fbe7a2b9110ea60e11417aa61af4e3b9f5fda19cdfebb2e038bf5efc3a",
+              "binary_sha256": "a1ae3a67d2d7c64cbf25391de00a749d07d7161f33eab3f90df405cfb1359f89"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_file.gz",
+              "sha256": "4170da5361037721b65c12711d31bf01825f159606de7bf6f087193be8c9eacc",
+              "binary_sha256": "2a3850f003dff2b9e99be89dd0f5f01b33edec6f5e58079568bde8efcb63163b"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_oom.gz",
+              "sha256": "c7864b87f945f0aa4f9f1b6aff4530921a6028dcf20663dec406574473c1ea2a",
+              "binary_sha256": "9325fdefc1bd39b13f7e7660b30777212311ee7bf90ed543ecbcad8865972a4d"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_lifetime.gz",
+              "sha256": "1b569ea71e3debd6f54bed98a37036bb05197980d304e0b2aa020618daeb1991",
+              "binary_sha256": "6d854cc57920173511d9f2b7beb1e258fabfa4e04903f490a2d3c46bcb18f650"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_errors.gz",
+              "sha256": "f2175e30121244cd379c7ea3265ddf985c1d0d5bfa359db94a83968dfc04308a",
+              "binary_sha256": "24ec1e484b5f0875060682bc29dab361ef80af667a6ad9d8e4c638f79001745e"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_concurrent.gz",
+              "sha256": "9bdcb1c9272650b81c0c87501c41c30fed05924e26a7b2b1c1c5f2ab986dc346",
+              "binary_sha256": "3ce2f9c2fa7d0659c7b1ce7b69d35c97511a12f962525d2bf32a038fda23f5ea"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_work.gz",
+              "sha256": "189ac098a22b107e539d22417d6d08e188d4fbe72afb2b1cc7d11e690f08975a",
+              "binary_sha256": "49bfb6298fab03408c6a18eb1cb7b0c3547afd8663c8effe09e52d01565d0dac"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_progress.gz",
+              "sha256": "ebd72087ec058556842ed3f236d759f6e2d2007185571e55f473b83d18d879f7",
+              "binary_sha256": "4a859ddeb94f7d93d17de2557b78ca7b93ecd940fc76dc7963db3f87d2ecb8d1"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_store_write_tests/test_single_xmqtt_store_write_allocator.gz",
+              "sha256": "a4731f0868289e72b978e0a935fde4ab8b59f3cd11e6be5664028b7144010b86",
+              "binary_sha256": "b02ced8251117c8cc3854fc21a2728be4ba971332987bef833ebafd2d5278a9b"
+            }
+          ]
+        },
+        {
+          "label": "regression-xmqtt_journal_slot_tests",
+          "log": "wsl-regression-xmqtt_journal_slot_tests.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_journal_slot_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "782f646b7e0366bd0f78e4ede705ef718eb6dd0d85118dfd7995cf1cf7c414f8",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_journal_slot_tests/test_journal_slot.gz",
+              "sha256": "437eb9fb23644b0afae9f7f8a2965fabe55dd2fb388b995a01102c3a9a3fb5f3",
+              "binary_sha256": "d8d1a8f639a3775ba54d2cd63f5a56286ca458b93c173acf94de4ee7916df743"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_journal_slot_tests/examples_journal_slot_main.gz",
+              "sha256": "589ef4886857c1cfc509f9e9f32434b21973457b2fa8f1a886e7aa1ba5968ebd",
+              "binary_sha256": "3eff059c9bf26a412bb24ac0000409023346f814214607301f49a9b743cff375"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_journal_slot_tests/test_single_xmqtt_journal_slot.gz",
+              "sha256": "e6d993c8016e326d6ed56228747fb817012714b086e84e2497ec759d09e3b292",
+              "binary_sha256": "9e359d15bd31fbc6fa4cf39c910d19582bb8d44e5c9f13a448292127358727c7"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-xmqtt_journal_slot_tests/test_single_xmqtt_journal_slot_faults.gz",
+              "sha256": "7002f6829cee9fe3938bc25dc901d32e47eb6da40e5a9b1df828986e665723d0",
+              "binary_sha256": "bf5ac5e89876ef05e0f022d24e0e23467a8604396528297cfdb0231868d2bcad"
+            }
+          ]
+        },
+        {
+          "label": "regression-root",
+          "log": "wsl-regression-root.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,xmqtt_store_compact_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--test",
+            "test_store_compact",
+            "--no-single",
+            "--no-examples"
+          ],
+          "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+          "source_map_sha256": "16fc6a1bc9c875ee961d84c14d3644c47d0da2e28047dc4f517076a26b11243f",
+          "log_sha256": "11e057240d1253f572d8218b20666f9f25f3717ef29d99f8293fe9c3bd3b41a0",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-regression-root/test_store_compact.gz",
+              "sha256": "3958dd28b02ac57ae268df2fbd7527685d84b3d062c20216ece672b7da2f8141",
+              "binary_sha256": "e0fa5ed4500fc75168325b6f5afcc05715f840151335532caeca9c243a84443f"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "73d6d3d273dac0e37c5fc3b2f80ba3f10b2c94df3b322311b557318e837a7414",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "55578b2e53f96fce976177a4f1d43b57dd3d4977b21be7fe9b02eacf13393697",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "1393691ba5a083b5258cb37bcc89a89e929f5e8c",
+      "source_map_sha256": "7a8272cb6f6dacbf34496edf6cbd0aef8a593a1e84728ca3aee52e5d2b635924",
+      "log_sha256": "afb2696ec3d69f94ba2f9d72b5e667e775b7e1b990efbe6f5a1bc6e4c8c4b7da",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 35,
+    "sha256": "b913db7fbfb5f4b4732a914aedc967df0b7a6bc733c0f7e6403ba9b82e24f306"
+  },
+  "pending": [
+    "automatic online compaction scheduling",
+    "subscription intent durability",
+    "published namespace and device power-loss qualification",
+    "production throughput and tail latency"
+  ]
+}

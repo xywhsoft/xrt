@@ -3,8 +3,8 @@
 Status: developing. Select `XMQTT_MODULE_XMQTT_STORE_STATE`. This is the actual
 cross-record applier for the typed journal: recover an immutable offline view of
 outgoing QoS obligations, incoming QoS2 identities and pending Inbox payloads.
-Live Client storage/ACK integration, Session import, application delivery leases,
-namespace publication/locking, compaction and bounded group commit remain required.
+The native slot supports offline checkpoints. Automatic compaction and bounded
+group commit remain open. [Offline compaction](store_compact.md).
 
 `xmqttStoreStateRecover` requires an unconsumed Journal with the exact MQTT level,
 typed payload schema, broker/principal/slot binding and storage generation. It
@@ -14,9 +14,12 @@ Later semantic corruption cannot publish earlier payloads. Errors release the
 whole candidate; output remains unchanged. Reopen the Journal before retry after
 any consumption. Storage suffix retirement may already have changed the file.
 
-The first record is BIND; identity is immutable. An explicit expected ClientId
-must match. Empty expected identity permits MQTT5 assigned-id recovery, not311.
-First OPEN shares BIND's nonzero epoch. A resumed OPEN retains the epoch and
+The first stateful operation in a delta-only generation is BIND. A compacted
+generation starts with its complete checkpoint before subsequent deltas.
+Identity is immutable. The supplied ClientId must match, and MQTT 5.0 can
+use an empty expected identity for assigned-ID recovery.
+The first OPEN on a freshly bound store shares BIND's nonzero epoch.
+A resumed OPEN retains the epoch and
 requires available local state; each subsequent new broker-session OPEN advances
 exactly one epoch. Epochs and strictly increasing global flow/delivery keys never
 wrap. Resets cannot revive an old key, and completions must match key, original

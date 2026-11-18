@@ -558,3 +558,30 @@ files. The demo rotates a format where each record is a complete independent
 snapshot. MQTT Store snapshot equivalence and live compaction still need
 integration.
 [Stage evidence](xmqtt-journal-slot-20261118.json).
+
+
+## 2026-11-18 Offline compacted MQTT generation
+
+The compactor replays the selected typed history under the stable slot lock,
+retires its Journal, and writes a complete typed checkpoint into the inactive
+generation. It preserves the raw disconnect wall and expiry before applying
+recovery-time projection. It also keeps the last issued key even when its
+packet was completed, the broker epoch, outgoing PUBLISH and PUBREL state,
+and old-epoch pending Inbox deliveries. The ordinary recovery path reads the
+checkpoint before applying any appended delta batches.
+
+The first transaction contains an exact version, ClientId, epoch, clock and
+entry count. Following transactions carry bounded row blocks in increasing
+key order. For an active inbound QoS 2 delivery, one row represents both the
+receive identity and the pending Inbox payload. Checkpoint replay reuses the
+canonical packet validator and reconstructs only one owned packet per row.
+Missing blocks, duplicate live identities and unsupported formats fail typed
+recovery with the output unmodified.
+
+One additional buffer is capped by caller scratch and both transaction byte
+limits. The output uses ordinary frame durability barriers and the stable
+selector. A definite inactive-data failure preserves the selected generation.
+An uncertain selector write requires reopening and resolving the actual
+selected generation. The compactor is offline and the caller owns the
+maintenance pause.
+[Stage evidence](xmqtt-store-compact-20261118.json).

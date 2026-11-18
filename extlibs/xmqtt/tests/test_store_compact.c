@@ -1,0 +1,366 @@
+#include "test.h"
+#include <xmqtt/store_compact.h>
+#include <xmqtt/store_inbox.h>
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+static const char* Names[]={"journal.slot","journal.0","journal.1"};
+static void expect(xmqttjournalstatus Actual,xmqttjournalstatus Expected,cstr Step)
+{
+    if(Actual!=Expected)
+        fprintf(stderr,"%s: status %d expected %d, %s\n",Step,(int)Actual,(int)Expected,
+                xrtGetError()?xrtErrorMessage(xrtGetError()):"no diagnostic");
+    testRequire(Actual==Expected,Step);
+}
+
+static void append(xmqttjournal* J,const xmqttstoredeltaconfig* C,const xmqttstoredelta* Ops,size_t Count)
+{
+    unsigned char Buffer[1536];
+    size_t Bytes=0;
+    uint64 Sequence=0;
+    testRequire(xmqttStoreDeltaWrite(C,Ops,Count,NULL,0,Buffer,sizeof(Buffer),&Bytes)==XMQTT_STORE_DELTA_DONE,
+                "encode complete delta batch");
+    expect(xmqttJournalAppend(J,(xbytesview){Buffer,Bytes},&Sequence),XMQTT_JOURNAL_DONE,"commit batch");
+}
+static xbytesview wire(xmqttversion V,unsigned char Data[9],uint8 Qos,uint8 Identifier)
+{
+    Data[0]=(unsigned char)(0x30u|(Qos<<1u));
+    Data[2]=0;Data[3]=1;Data[4]='t';
+    size_t Bytes=5;
+    if(Qos){Data[Bytes++]=0;Data[Bytes++]=Identifier;}
+    if(V==XMQTT_VERSION_5)Data[Bytes++]=0;
+    Data[Bytes++]=(unsigned char)('A'+Identifier);
+    Data[1]=(unsigned char)(Bytes-2);
+    return (xbytesview){Data,Bytes};
+}
+static void seed(xmqttjournal* J,const xmqttstorestateconfig* C,bool Live)
+{
+    unsigned char Raw[5][9];
+    uint32 Expiry=C->Delta.Version==XMQTT_VERSION_5?60:UINT32_MAX;
+    uint8 Reason=C->Delta.Version==XMQTT_VERSION_5?0x10:0;
+    const xmqttstoredelta Ops[]={
+        {.Type=XMQTT_STORE_BIND,.Epoch=4,.WallMilliseconds=1000,.Data=XRT_BYTES_LITERAL("checkpoint")},
+        {.Type=XMQTT_STORE_OPEN,.Epoch=4,.WallMilliseconds=1001,.Expiry=Expiry},
+        {.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=4,.Key=1,.Identifier=7,.Data=wire(C->Delta.Version,Raw[0],2,7)},
+        {.Type=XMQTT_STORE_IN_PUBREL,.Epoch=4,.Key=1,.Identifier=7},
+        {.Type=XMQTT_STORE_END,.Epoch=4,.WallMilliseconds=1002,.Expiry=Expiry},
+        {.Type=XMQTT_STORE_CLEAR,.Epoch=4,.WallMilliseconds=1003},
+        {.Type=XMQTT_STORE_OPEN,.Epoch=5,.WallMilliseconds=1004,.Expiry=Expiry},
+        {.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=5,.Key=2,.Identifier=7,.Data=wire(C->Delta.Version,Raw[1],2,7)},
+        {.Type=XMQTT_STORE_IN_PUBREL,.Epoch=5,.Key=2,.Identifier=7},
+        {.Type=XMQTT_STORE_INBOX_ACK,.Epoch=5,.Key=2},
+        {.Type=XMQTT_STORE_OUT_PUT,.Epoch=5,.Key=3,.Identifier=7,.Flags=1,.Data=wire(C->Delta.Version,Raw[2],2,7)},
+        {.Type=XMQTT_STORE_OUT_PUBREL,.Epoch=5,.Key=3,.Identifier=7,.Reason=Reason},
+        {.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=5,.Key=4,.Data=wire(C->Delta.Version,Raw[3],0,0)},
+        {.Type=XMQTT_STORE_OUT_PUT,.Epoch=5,.Key=50,.Identifier=9,.Flags=3,.Data=wire(C->Delta.Version,Raw[4],1,9)},
+        {.Type=XMQTT_STORE_OUT_COMPLETE,.Epoch=5,.Key=50,.Identifier=9,.Flags=XMQTT_PACKET_PUBACK},
+        {.Type=XMQTT_STORE_END,.Epoch=5,.WallMilliseconds=2000,.Expiry=Expiry},
+    };
+    size_t Count=sizeof(Ops)/sizeof(Ops[0])-(Live?1u:0u);
+    for(size_t I=0;I<Count;++I)append(J,&C->Delta,Ops+I,1);
+}
+static xmqttstorestate* recover(xmqttjournalslot* Slot,const xmqttstorestateconfig* C,xmqttjournal** J)
+{
+    expect(xmqttJournalSlotOpenCurrent(Slot,J),XMQTT_JOURNAL_DONE,"open exact current file");
+    xmqttstorestate* State=NULL;
+    testRequire(xmqttStoreStateRecover(*J,C,&State)==XMQTT_STORE_DONE,"recover exact typed history");
+    return State;
+}
+static xmqttstorestateinfo info(const xmqttstorestate* S)
+{
+    xmqttstorestateinfo Info;
+    testRequire(xmqttStoreStateInfo(S,&Info),"read recovered info");
+    return Info;
+}
+static void same(const xmqttstorestate* A,const xmqttstorestate* B)
+{
+    xmqttstorestateinfo IA=info(A),IB=info(B);
+    testRequire(IA.Version==IB.Version&&IA.Epoch==IB.Epoch&&IA.LastKey==IB.LastKey&&
+        IA.LastWallMilliseconds==IB.LastWallMilliseconds&&IA.RemainingMilliseconds==IB.RemainingMilliseconds&&
+        IA.HasSession==IB.HasSession&&IA.LiveAtCut==IB.LiveAtCut&&IA.Outgoing==IB.Outgoing&&
+        IA.Incoming==IB.Incoming&&IA.Inbox==IB.Inbox&&IA.ClientId.Size==IB.ClientId.Size&&
+        !memcmp(IA.ClientId.Data,IB.ClientId.Data,IA.ClientId.Size),"same logical metadata after storage rotation");
+    size_t Counts[]={IA.Outgoing,IA.Incoming,IA.Inbox};
+    for(size_t K=0;K<3;++K)for(size_t I=0;I<Counts[K];++I){
+        xmqttstoreview L,R;
+        testRequire(xmqttStoreStateView(A,(xmqttstoreviewkind)K,I,&L)==XMQTT_STORE_DONE&&
+            xmqttStoreStateView(B,(xmqttstoreviewkind)K,I,&R)==XMQTT_STORE_DONE,"both ordered record views exist");
+        testRequire(L.Epoch==R.Epoch&&L.Key==R.Key&&L.Identifier==R.Identifier&&L.Qos==R.Qos&&
+            L.PubrecReason==R.PubrecReason&&L.Attempted==R.Attempted&&L.Sent==R.Sent&&
+            L.Pubrel==R.Pubrel&&L.InboxPending==R.InboxPending&&L.Wire.Size==R.Wire.Size&&
+            !memcmp(L.Wire.Data,R.Wire.Data,L.Wire.Size),"same protocol stage, delivery and exact canonical wire");
+    }
+}
+static void writer(xmqttjournal* J,xmqttstorestate* State,const xmqttstorestateconfig* C)
+{
+    xtaskpoolconfig PoolConfig={.Threads=1,.QueueLimit=8};
+    xtaskpool* Pool=xrtTaskPoolCreate(&PoolConfig);
+    xmqttstorewriteconfig Config;
+    xmqttStoreWriteConfigInit(&Config);
+    xmqttstorewrite* W=NULL;
+    testRequire(Pool&&xmqttStoreInboxCreate(Pool,J,State,&Config,&W),"writer adopts exact new generation");
+    unsigned char Buffer[128];
+    size_t Bytes;
+    xmqttstorelease Lease;
+    xmqttstoreview View;
+    testRequire(xmqttStoreInboxTake(W,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&
+        View.Key==1&&View.Epoch==4&&View.Pubrel,"old epoch Inbox delivery retains FIFO and retired PUBREL stage");
+    xfuture* F=NULL;
+    testRequire(xmqttStoreInboxAckAsync(W,Lease,5000,&F)==XMQTT_JWORK_ACCEPTED&&
+        xrtFutureWaitFor(F,5000)==XWAIT_OK,"post-compaction durable Inbox ACK");
+    const xmqttcommitresult* Result=xrtFutureValue(F);
+    testRequire(Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED,"Inbox acknowledgement committed");
+    xrtFutureDestroy(F);
+
+    unsigned char Raw[9];
+    uint32 Expiry=C->Delta.Version==XMQTT_VERSION_5?60:UINT32_MAX;
+    xmqttstoredelta Opens[]={
+        {.Type=XMQTT_STORE_OPEN,.Flags=XMQTT_STORE_DELTA_SESSION_PRESENT,.Expiry=Expiry,.Epoch=5,.WallMilliseconds=3001},
+        {.Type=XMQTT_STORE_IN_COMPLETE,.Epoch=5,.Key=2,.Identifier=7},
+        {.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=5,.Key=50,.Data=wire(C->Delta.Version,Raw,0,0)}
+    };
+    unsigned char Work[512];
+    testRequire(xmqttStoreDeltaWrite(&C->Delta,Opens,3,NULL,0,Work,sizeof(Work),&Bytes)==XMQTT_STORE_DELTA_DONE&&
+        xmqttStoreWriteAppendAsync(W,(xbytesview){Work,Bytes},5000,&F)==XMQTT_JWORK_ACCEPTED&&
+        xrtFutureWaitFor(F,5000)==XWAIT_OK,"submit stale key after compacted retired suffix");
+    Result=xrtFutureValue(F);
+    testRequire(Result&&Result->Status==XMQTT_COMMIT_INVALID&&!Result->AppendCalled,"retired key still fenced");
+    xrtFutureDestroy(F);
+    Opens[2].Key=51;
+    testRequire(xmqttStoreDeltaWrite(&C->Delta,Opens,3,NULL,0,Work,sizeof(Work),&Bytes)==XMQTT_STORE_DELTA_DONE&&
+        xmqttStoreWriteAppendAsync(W,(xbytesview){Work,Bytes},5000,&F)==XMQTT_JWORK_ACCEPTED&&
+        xrtFutureWaitFor(F,5000)==XWAIT_OK,"persist new data after the checkpoint");
+    Result=xrtFutureValue(F);
+    testRequire(Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED,"new valid delta committed");
+    xrtFutureDestroy(F);
+    testRequire(xmqttStoreWriteClose(W)&&xmqttStoreWriteWaitFor(W,5000)==XWAIT_OK&&xmqttStoreWriteDestroy(W)&&
+        xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK&&xrtTaskPoolDestroy(Pool),"retire writer then pool");
+}
+#if defined(TEST_COMPACT_FAULTS)
+static xmqttjournalstatus injected(xmqttjournalslot* Slot,const xmqttstorestateconfig* C,unsigned Point)
+{
+    compactHit=compactSelectorWrites=0;
+    compactFault=Point;
+    xmqttjournalstatus Status=xmqttStoreCompact(Slot,C,84);
+    compactFault=0;
+    testRequire(compactHit==1,"reached requested allocation or I/O fault exactly once");
+    return Status;
+}
+#endif
+
+static void local(xmqttversion V,bool Live)
+{
+    str Dir=xrtDirTemp(NULL,"xmqtt-compact-",NULL);
+    xroot Root=Dir?xrtRootOpen(Dir):NULL;
+    testRequire(Root!=NULL,"native anchored fixture root");
+    xfileoptions Open;
+    xrtFileOptionsInit(&Open);
+    Open.Flags=XFILE_READ|XFILE_WRITE|XFILE_CREATE|XFILE_EXCLUSIVE;
+    for(size_t I=0;I<3;++I){
+        xfile F=xrtRootFileOpen(Root,Names[I],&Open);
+        testRequire(F&&xrtClose(F),"create empty native fixture file");
+    }
+    xmqttjournalconfig JC;
+    xmqttJournalConfigInit(&JC);
+    JC.Version=V;JC.Binding=XRT_BYTES_LITERAL("test/checkpoint");JC.Generation=11;
+    JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;JC.MaxTransactionBytes=2048;
+    xmqttjournalslot* Slot=NULL;
+    expect(xmqttJournalSlotCreate(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"create typed slot");
+    xmqttstorestateconfig C;
+    xmqttStoreStateConfigInit(&C);
+    C.Binding=JC.Binding;C.Generation=JC.Generation;C.Delta.Version=V;
+    C.ClientId=XRT_STR_LITERAL("checkpoint");C.WallMilliseconds=3000;
+    C.MaxOutgoing=8;C.MaxIncoming=8;C.MaxInbox=8;
+    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_EMPTY,"empty slot has no history to rewrite");
+    xmqttjournal* J=NULL;
+    expect(xmqttJournalSlotOpenCurrent(Slot,&J),XMQTT_JOURNAL_DONE,"open initial journal");
+    xmqttjournalrecord Record;
+    expect(xmqttJournalNext(J,&Record),XMQTT_JOURNAL_EMPTY,"validate the empty starting point");
+    seed(J,&C,Live);
+    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_STATE,"retire physical Journal before compaction");
+    testRequire(xmqttJournalDestroy(J),"release source writer");
+
+    xmqttstorestate* Old=recover(Slot,&C,&J);
+    testRequire(xmqttJournalDestroy(J),"keep immutable old State independent of old file");
+    testRequire(info(Old).Outgoing==1&&info(Old).Incoming==1&&info(Old).Inbox==2&&info(Old).LastKey==50,
+                "oracle covers all three view kinds and a retired highest key");
+    expect(xmqttStoreCompact(Slot,&C,70),XMQTT_JOURNAL_LIMIT,"decline short scratch quota");
+    xmqttjournalslotinfo SlotInfo;
+    testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation&&!SlotInfo.JournalOpen,
+                "scratch refusal retains selector and releases handles");
+
+#if defined(TEST_COMPACT_FAULTS)
+    if(!Live){
+        expect(injected(Slot,&C,1),XMQTT_JOURNAL_ERROR,"scratch allocation failure");
+        expect(injected(Slot,&C,2),XMQTT_JOURNAL_IO,"inactive data failure is a definite selector refusal");
+        expect(injected(Slot,&C,3),XMQTT_JOURNAL_UNCERTAIN,"first selector write could have had effects");
+        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
+                    "close failed preparation and fence its selector");
+        testRequire(xmqttJournalSlotDestroy(Slot),"retire uncertain owner");
+        expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"recover old generation before selector output");
+        xmqttstorestate* Current=recover(Slot,&C,&J);
+        same(Old,Current);
+        xmqttStoreStateDestroy(Current);
+        testRequire(xmqttJournalDestroy(J),"release old recovery owner");
+    }
+    if(Live){
+        expect(injected(Slot,&C,4),XMQTT_JOURNAL_UNCERTAIN,"second selector write fails after first is synced");
+        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
+                    "retire ambiguous publish before fresh selection");
+        testRequire(xmqttJournalSlotDestroy(Slot),"retire ambiguous selector owner");
+        expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"recover the first synchronized choice");
+        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
+            SlotInfo.PublishedSequence==3,"first valid choice selects the complete typed checkpoint");
+    }else
+#endif
+    {
+        xrtSetErrorKind(XERR_AGAIN);
+        const xerror* Ambient=xrtGetError();
+        /* The checkpoint preserves the physical cut even when expiry has
+         * already elapsed at the compactor's observation time. */
+        if(!Live&&V==XMQTT_VERSION_5)C.WallMilliseconds=62000;
+        expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_DONE,"publish a bounded multi-block checkpoint");
+        C.WallMilliseconds=3000;
+        testRequire(xrtGetError()==Ambient,"successful rotation preserves ambient diagnostics");
+        xrtClearError();
+        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
+            SlotInfo.PublishedSequence==3&&SlotInfo.Effect==XMQTT_JOURNAL_COMMITTED,"one descriptor and two row blocks");
+    }
+    ++C.Generation;
+    testRequire(xmqttJournalSlotDestroy(Slot),"drop original selector owner");
+    expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"fresh native selector owner");
+    xmqttstorestate* New=recover(Slot,&C,&J);
+    same(Old,New);
+    testRequire(info(New).Transactions==3&&info(New).ReplayBytes<info(Old).ReplayBytes/2,"physical replay reduction");
+
+    if(!Live&&V==XMQTT_VERSION_5){
+        testRequire(xmqttJournalDestroy(J),"retire before expiry read");
+        xmqttStoreStateDestroy(New);
+        C.WallMilliseconds=61999;
+        New=recover(Slot,&C,&J);
+        testRequire(info(New).HasSession&&info(New).RemainingMilliseconds==1&&info(New).Outgoing==1,
+                    "compactor's later wall did not consume earlier observation's final millisecond");
+        testRequire(xmqttJournalDestroy(J),"release before exact boundary read");
+        xmqttStoreStateDestroy(New);
+        C.WallMilliseconds=62000;
+        New=recover(Slot,&C,&J);
+        testRequire(!info(New).HasSession&&info(New).Inbox==2&&!info(New).Outgoing&&!info(New).Incoming,
+                    "original absolute expiry consumed despite generation change");
+        testRequire(xmqttJournalDestroy(J),"retire expired reader");
+        xmqttStoreStateDestroy(New);
+        C.WallMilliseconds=3000;
+        New=recover(Slot,&C,&J);
+        same(Old,New);
+    }
+    writer(J,New,&C);
+    C.WallMilliseconds=3100;
+    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_DONE,"compact a checkpoint followed by ordinary deltas");
+    ++C.Generation;
+    New=recover(Slot,&C,&J);
+    xmqttstorestateinfo Current=info(New);
+    testRequire(Current.LastKey==51&&Current.Epoch==5&&Current.LiveAtCut&&Current.Outgoing==1&&
+        !Current.Incoming&&Current.Inbox==2&&Current.Transactions==3,"new committed state survives subsequent rotation");
+    testRequire(info(Old).LastKey==50&&info(Old).Inbox==2,"earlier State remains immutable across physical reuse");
+    testRequire(xmqttJournalDestroy(J)&&xmqttJournalSlotDestroy(Slot),"release all native owners");
+    xmqttStoreStateDestroy(New);
+    xmqttStoreStateDestroy(Old);
+    for(size_t I=0;I<3;++I)testRequire(xrtRootRemove(Root,Names[I]),"unlink exact fixture file");
+    testRequire(xrtRootClose(Root)&&xrtDirRemove(Dir),"retire fixture directory");
+    xrtFree(Dir);
+}
+
+enum {COMPACT_CORRUPT_CASES=12};
+static void corrupt(xmqttversion V,unsigned Case)
+{
+    str Path=NULL;
+    xfile F=xrtFileTemp(NULL,"xmqtt-checkpoint-bytes-",NULL,&Path);
+    testRequire(F&&Path,"native fixture file");
+    xmqttjournalconfig JC;
+    xmqttJournalConfigInit(&JC);
+    JC.Generation=99;JC.Version=V;JC.Binding=XRT_BYTES_LITERAL("test/checkpoint/bytes");
+    JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;
+    xmqttjournal* J=NULL;
+    expect(xmqttJournalCreate(F,&JC,&J),XMQTT_JOURNAL_DONE,"native raw checkpoint source");
+    unsigned char Header[65]={'X','M','Q','C','K','P','T',0,1,(unsigned char)V,7};
+    Header[15]=1;Header[23]=2;Header[31]=2;Header[39]=10;Header[55]=2;
+    memset(Header+56,255,4);
+    Header[64]='c';
+    if(Case==1)Header[8]=2;
+    if(Case==2)Header[31]=1;
+    uint64 Seq;
+    if(Case==4){
+        xmqttstoredeltaconfig D;
+        xmqttStoreDeltaConfigInit(&D);
+        D.Version=V;
+        append(J,&D,NULL,0);
+    }
+    expect(xmqttJournalAppend(J,(xbytesview){Header,sizeof(Header)},&Seq),XMQTT_JOURNAL_DONE,
+           "commit independent checkpoint descriptor");
+
+    if(Case!=3){
+        unsigned char Block[88]={'X','M','Q','C','R','O','W',0};
+        Block[11]=2;
+        size_t At=16;
+        for(uint8 I=1;I<=2;++I){
+            unsigned char Raw[9];
+            xbytesview Packet=wire(V,Raw,1,I);
+            unsigned char* H=Block+At;
+            H[7]=I;H[15]=2;H[19]=(unsigned char)Packet.Size;H[21]=I;H[22]=1;
+            memcpy(H+24,Packet.Data,Packet.Size);
+            if(I==2){
+                switch(Case){
+                case 5:H[7]=1;break;
+                case 6:H[21]=1;H[24+6]=1;break;
+                case 7:H[21]=1;break;
+                case 8:H[22]=0;break;
+                case 9:H[22]=15;break;
+                case 10:Block[15]=1;break;
+                default:break;
+                }
+            }
+            At+=24+Packet.Size;
+        }
+        expect(xmqttJournalAppend(J,(xbytesview){Block,At},&Seq),XMQTT_JOURNAL_DONE,
+               "commit independently encoded checkpoint packet rows");
+    }
+    testRequire(xmqttJournalDestroy(J),"retire fixture writer");
+    expect(xmqttJournalOpen(F,&JC,&J),XMQTT_JOURNAL_DONE,"independent journal is structurally valid");
+    xmqttstorestateconfig C;
+    xmqttStoreStateConfigInit(&C);
+    C.Binding=JC.Binding;C.Generation=JC.Generation;C.Delta.Version=V;
+    C.ClientId=Case==11?XRT_STR_LITERAL("different"):XRT_STR_LITERAL("c");
+    C.WallMilliseconds=1000;
+    if(Case==12)C.MaxOperations=2;
+    xmqttstorestate* S=NULL;
+    xmqttstorestatus Expected=!Case?XMQTT_STORE_DONE:Case==11?XMQTT_STORE_STATE_ERROR:
+        Case==12?XMQTT_STORE_LIMIT:XMQTT_STORE_CORRUPT;
+    xmqttstorestatus Status=xmqttStoreStateRecover(J,&C,&S);
+    if(Status!=Expected)fprintf(stderr,"checkpoint oracle case %u status %d wanted %d\n",Case,(int)Status,(int)Expected);
+    testRequire(Status==Expected,"classify independently constructed or mutated checkpoint");
+    if(Case)testRequire(S==NULL,"invalid checkpoint leaves output unchanged");
+    else testRequire(info(S).Outgoing==2&&info(S).LastKey==2,"valid independent checkpoint");
+    xmqttStoreStateDestroy(S);
+    xrtClearError();
+    testRequire(xmqttJournalDestroy(J)&&xrtClose(F)&&xrtFileDelete(Path),"retire exact raw checkpoint fixture");
+    xrtFree(Path);
+}
+#endif
+
+int main(void)
+{
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+    for(unsigned I=0;I<2;++I){
+        xmqttversion V=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
+        local(V,false);
+        local(V,true);
+        for(unsigned Case=0;Case<=COMPACT_CORRUPT_CASES;++Case)corrupt(V,Case);
+    }
+    puts("[PASS] bounded typed rotation, state equivalence, expiry and subsequent native Writer");
+    puts("[PASS] 26 independent checkpoint cases, exact format and failure classifications");
+#if defined(TEST_COMPACT_FAULTS)
+    puts("[PASS] eight injected checkpoint allocation, data and selector write failures");
+#endif
+#else
+    puts("[SKIP] native store compaction requires Windows or Linux");
+#endif
+    return 0;
+}

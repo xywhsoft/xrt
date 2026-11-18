@@ -157,7 +157,8 @@
         "xmqtt_store_inbox",
         "xmqtt_reconnect_store",
         "xmqtt_journal_file",
-        "xmqtt_journal_slot"
+        "xmqtt_journal_slot",
+        "xmqtt_store_compact"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -730,7 +731,8 @@
         "xmqtt_store_session_tests",
         "xmqtt_journal_worker_tests",
         "xmqtt_journal_file_tests",
-        "xmqtt_journal_slot_tests"
+        "xmqtt_journal_slot_tests",
+        "xmqtt_store_compact_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -828,7 +830,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_session/main.c",
@@ -893,7 +896,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c": "xmqtt_reconnect_store_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c": "xmqtt_journal_file_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c": "xmqtt_journal_slot_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c": "xmqtt_journal_slot_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c": "xmqtt_journal_slot_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c": "xmqtt_store_compact_tests"
       }
     },
     {
@@ -1894,7 +1898,9 @@
       "public_headers": [
         "extlibs/xmqtt/include/xmqtt/store_delta.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_store_packet.h"
+      ],
       "sources": [
         "extlibs/xmqtt/src/session/store_delta.c"
       ],
@@ -1952,7 +1958,8 @@
       ],
       "internal_headers": [
         "extlibs/xmqtt/src/internal/xmqtt_journal_replay.h",
-        "extlibs/xmqtt/src/internal/xmqtt_store_session_source.h"
+        "extlibs/xmqtt/src/internal/xmqtt_store_session_source.h",
+        "extlibs/xmqtt/src/internal/xmqtt_store_packet.h"
       ],
       "sources": [
         "extlibs/xmqtt/src/session/store_state.c"
@@ -2590,6 +2597,54 @@
       ],
       "examples": [
         "extlibs/xmqtt/examples/journal_slot/main.c"
+      ],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_store_compact",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_STORE_COMPACT",
+      "depends": [
+        "xmqtt_store_state",
+        "xmqtt_journal_slot"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/store_compact.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xmqtt/examples/store_compact/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/store_compact.md"
+      ]
+    },
+    {
+      "name": "xmqtt_store_compact_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_store_compact",
+        "xmqtt_store_inbox",
+        "dir_temp",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_store_compact.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/store_compact/main.c"
       ],
       "benchmarks": [],
       "docs": []

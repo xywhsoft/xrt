@@ -662,6 +662,9 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerInfo(xmqttjournal* J,const void* O
 XMQTT_INTERNAL bool xmqttInternalJournalWorkerDestroy(xmqttjournal* J,const void* O){return xmqttJDestroyOwned(J,O);}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
+size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* J){return J->Config.MaxTransactionBytes;}
+#endif
 bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,
     uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions)
 {
