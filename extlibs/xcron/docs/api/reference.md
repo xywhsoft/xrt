@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `117` 个函数、`231` 个常量或宏、
-`108` 个公共类型。
+当前登记 `121` 个函数、`234` 个常量或宏、
+`111` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -113,9 +113,11 @@
 - `xcronCheckpointStoreOpen`
 - `xcronCheckpointStoreRead`
 
-### 常量与宏 (11)
+### 常量与宏 (13)
 
 - `XCRON_CHECKPOINT_STORE_ARGUMENT`
+- `XCRON_CHECKPOINT_STORE_BUSY`
+- `XCRON_CHECKPOINT_STORE_CANCELLED`
 - `XCRON_CHECKPOINT_STORE_CORRUPT`
 - `XCRON_CHECKPOINT_STORE_EMPTY`
 - `XCRON_CHECKPOINT_STORE_IO`
@@ -130,6 +132,27 @@
 ### 类型 (1)
 
 - `xcroncheckpointstore`
+
+## `extlibs/xcron/include/xcron/checkpoint_writer.h`
+
+[查看带契约注释的公共头](../../include/xcron/checkpoint_writer.h)
+
+### 函数 (4)
+
+- `xcronCheckpointWriterCollect`
+- `xcronCheckpointWriterCreate`
+- `xcronCheckpointWriterDestroy`
+- `xcronCheckpointWriterSubmit`
+
+### 常量与宏 (1)
+
+- `XCRON_FEATURE_XCRON_CHECKPOINT_WRITER`
+
+### 类型 (3)
+
+- `xcroncheckpointwriter`
+- `xcroncheckpointwriterreply`
+- `xcroncheckpointwriteticket`
 
 ## `extlibs/xcron/include/xcron/delivery.h`
 

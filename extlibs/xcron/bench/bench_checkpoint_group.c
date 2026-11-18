@@ -1,6 +1,7 @@
-#include <xcron/checkpoint_group.h>
+#include <xcron/checkpoint_writer.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int groupCompareTimes(const void* A,const void* B)
 {
@@ -12,7 +13,11 @@ int main(int Argc,char** Argv)
 {
     size_t Commits=Argc>1?(size_t)strtoul(Argv[1],NULL,10):200;
     uint32 Count=Argc>2?(uint32)strtoul(Argv[2],NULL,10):64;
-    if(Argc>3 || !Commits || Commits>100000 || !Count || Count>1024)return 2;
+    bool Async=false;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    Async=Argc==4 && !strcmp(Argv[3],"async");
+#endif
+    if((Argc>3 && !Async) || !Commits || Commits>100000 || !Count || Count>1024)return 2;
     double* Samples=malloc(Commits*sizeof(*Samples));
     xcroncheckpoint* Records=malloc((size_t)Count*sizeof(*Records));
     if(!Samples || !Records)return 3;
@@ -41,13 +46,35 @@ int main(int Argc,char** Argv)
     for(uint32 I=0;I<Count;++I)
         if(!xcronSchedulerSaveCheckpoint(S,Id,(xcroncheckpointkey){I+1,1},&Records[I],NULL))return 3;
 
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    xexecutor* Pool=NULL;
+    xcroncheckpointwriter* Writer=NULL;
+    if(Async){
+        Pool=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+        if(!Pool || !xcronCheckpointWriterCreate(Store,Pool,&Writer))return 3;
+    }
+#endif
     double Start=xrtTimer();
     for(size_t I=0;I<Commits;++I){
         double Begin=xrtTimer();
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+        if(Async){
+            xcroncheckpointwriteticket Ticket;
+            xcroncheckpointwriterreply Reply;
+            if(!xcronCheckpointWriterSubmit(Writer,I,Records,Count,&Ticket) ||
+               xcronCheckpointWriterCollect(Writer,Ticket,-1,&Reply)!=XWAIT_OK ||
+               Reply.Status!=XCRON_CHECKPOINT_STORE_OK || Reply.Generation!=I+1 || Reply.Error)return 4;
+        }else
+#endif
         if(xcronCheckpointGroupCommit(Store,I,Records,Count)!=XCRON_CHECKPOINT_STORE_OK)return 4;
         Samples[I]=(xrtTimer()-Begin)*1000000;
     }
     double Elapsed=xrtTimer()-Start;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    if(Async && (xcronCheckpointWriterDestroy(Writer)!=XCRON_CHECKPOINT_STORE_OK ||
+       !xrtExecutorClose(Pool) || xrtExecutorWait(Pool)!=XWAIT_OK || !xrtExecutorDestroy(Pool) ||
+       xcronCheckpointGroupOpen(Root,"bench.xcg",99,Count,false,&Store)!=XCRON_CHECKPOINT_STORE_OK))return 5;
+#endif
     xcroncheckpointgroupview View;
     xcronretired Retired;
     bool Found;

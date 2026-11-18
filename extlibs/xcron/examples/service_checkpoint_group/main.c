@@ -1,5 +1,5 @@
 #include <xcron/service_checkpoint.h>
-#include <xcron/checkpoint_group.h>
+#include <xcron/checkpoint_writer.h>
 #include <xrt/atomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +69,29 @@ static bool groupDemoAdvance(xcronservice* S,xcronjobid Id)
     return Done.Job==Id && Done.Result==XCRON_RUN_SUCCEEDED;
 }
 
+static bool groupDemoCommit(xcroncheckpointgroup* Store,xcronservice* Service,xcronjobid Job,
+    const xcroncheckpoint* Records,uint64* Generation)
+{
+    xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+    xcroncheckpointwriter* Writer=NULL;
+    bool Opened=Storage && xcronCheckpointWriterCreate(Store,Storage,&Writer);
+    xcroncheckpointwriteticket Ticket=0;
+    bool Submitted=Opened && xcronCheckpointWriterSubmit(Writer,*Generation,Records,DEMO_JOBS,&Ticket);
+    xcronjobinfo Info;
+    bool Observed=Submitted && groupDemoInfo(Service,Job,&Info);
+    bool Joined=false;
+    if(Storage && xrtExecutorClose(Storage))Joined=xrtExecutorWait(Storage)==XWAIT_OK;
+    if(Submitted && !Joined)abort(); /* The stack records live through the disk operation. */
+
+    xcroncheckpointwriterreply Reply={0};
+    bool Collected=Submitted && xcronCheckpointWriterCollect(Writer,Ticket,0,&Reply)==XWAIT_OK;
+    if(Collected && Reply.Status==XCRON_CHECKPOINT_STORE_OK)*Generation=Reply.Generation;
+    xrtErrorFree(Reply.Error);
+    xcroncheckpointstorestatus Closed=Opened?xcronCheckpointWriterDestroy(Writer):xcronCheckpointGroupClose(Store);
+    bool Released=Storage && xrtExecutorDestroy(Storage);
+    return Observed && Collected && Reply.Status==XCRON_CHECKPOINT_STORE_OK && Closed==XCRON_CHECKPOINT_STORE_OK && Released;
+}
+
 static int groupDemo(xroot Root,bool Create,bool Advance)
 {
     xcroncheckpointgroup* Store=NULL;
@@ -95,6 +118,7 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
     if(!Pool || !xcronServiceCreateCheckpointedFromGroup(&Config,&Seed,&S,Ids,NULL))return 6;
     xcronZoneRelease(Job.Zone);
     if(xcronServiceWaitReadable(S,25,NULL)!=XWAIT_TIMEOUT)return 6;
+    uint64 Generation=View.Info.Generation;
     if(Advance){
         xcroncheckpointtarget Targets[DEMO_JOBS];
         for(unsigned I=0;I<DEMO_JOBS;++I){
@@ -107,16 +131,18 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
         xcroncheckpoint Records[DEMO_JOBS];
         xcronrequestid Request;
         xcronservicecheckpointreply Reply;
-        if(!xcronServiceQuiesceCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,10000,&Request,NULL) ||
-           xcronServiceCollectCheckpointGroup(S,Request,10000,&Reply,NULL)!=XWAIT_OK)return 7;
+        if(!xcronServiceQuiesceCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,10000,&Request,NULL))return 7;
+        xwaitresult Collected;
+        do Collected=xcronServiceCollectCheckpointGroup(S,Request,10000,&Reply,NULL);
+        while(Collected==XWAIT_TIMEOUT);
+        if(Collected!=XWAIT_OK)abort(); /* The owner still borrows the arrays on a collector failure. */
         xrtErrorFree(Reply.Error);
         if(Reply.Code)return 7;
-        if(xcronCheckpointGroupCommit(Store,View.Info.Generation,Records,DEMO_JOBS)!=XCRON_CHECKPOINT_STORE_OK ||
-           xcronCheckpointGroupRead(Store,&View)!=XCRON_CHECKPOINT_STORE_OK)return 8;
-    }
+        if(!groupDemoCommit(Store,S,Ids[0],Records,&Generation))return 8;
+    }else if(xcronCheckpointGroupClose(Store)!=XCRON_CHECKPOINT_STORE_OK)return 8;
     xcronjobinfo A,B;
     if(!groupDemoInfo(S,Ids[0],&A) || !groupDemoInfo(S,Ids[1],&B))return 9;
-    printf("GEN %llu NEXT %lld %lld SUCCEEDED %llu %llu\n",(unsigned long long)View.Info.Generation,
+    printf("GEN %llu NEXT %lld %lld SUCCEEDED %llu %llu\n",(unsigned long long)Generation,
            (long long)A.Next,(long long)B.Next,(unsigned long long)A.Succeeded,(unsigned long long)B.Succeeded);
     if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return 9;
     for(unsigned I=0;I<DEMO_JOBS;++I){
@@ -125,7 +151,7 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
         if(!xcronServiceReapStopped(S,&R,&Found,NULL) || !Found)return 9;
     }
     if(!xcronServiceDestroy(S,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK ||
-       !xrtExecutorDestroy(Pool) || xcronCheckpointGroupClose(Store)!=XCRON_CHECKPOINT_STORE_OK)return 9;
+       !xrtExecutorDestroy(Pool))return 9;
     return 0;
 }
 

@@ -49,6 +49,7 @@
 #include <xcron/checkpoint.h>
 #include <xcron/checkpoint_store.h>
 #include <xcron/checkpoint_group.h>
+#include <xcron/checkpoint_writer.h>
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_EXECUTOR)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_EXECUTOR"

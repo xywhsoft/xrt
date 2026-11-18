@@ -11,5 +11,7 @@ configurations, and publishes the live service with every job held.
 Advance resumes one job at a time and waits for its physical completion.
 One quiescence request captures both successor records and holds their
 dispatch. The request allows up to ten seconds for previously issued leases
-and recurrence searches. The caller commits the group in one generation.
+and recurrence searches. The caller submits those records to a dedicated storage executor. The live
+owner can answer a job query while storage handles the group commit. The
+reply identifies the durable generation.
 [Startup contract](../../docs/service_checkpoint.md).

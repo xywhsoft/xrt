@@ -1,5 +1,6 @@
 #include "test.h"
-#include <xcron/checkpoint_group.h>
+#include <xcron/checkpoint_writer.h>
+#include <xrt/sync.h>
 #include <xrt/memory.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,8 +128,127 @@ static void testCheckpointGroups(xroot Root,const xcroncheckpoint* First,const x
     testRequire(xcronCheckpointGroupClose(S)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,GroupPath),"remove empty owned file");
 }
 
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+typedef struct groupwritergate {
+    xmutex Mutex;
+    xcond Changed;
+    unsigned Step;
+    xcroncheckpointwriter* Writer;
+    xcroncheckpointwriteticket Ticket;
+} groupwritergate;
+
+static void groupWriterGateAdvance(groupwritergate* G,unsigned Step)
+{
+    testRequire(xrtMutexLock(&G->Mutex),"lock writer test gate");
+    G->Step=Step;
+    testRequire(xrtCondBroadcast(&G->Changed) && xrtMutexUnlock(&G->Mutex),"advance writer test gate");
+}
+
+static void groupWriterGateWait(groupwritergate* G,unsigned Step)
+{
+    testRequire(xrtMutexLock(&G->Mutex),"lock writer test gate");
+    while(G->Step<Step)
+        testRequire(xrtCondWaitFor(&G->Changed,&G->Mutex,10000)==XWAIT_OK,"wait for writer test gate");
+    testRequire(xrtMutexUnlock(&G->Mutex),"unlock writer test gate");
+}
+
+static void groupWriterGate(ptr Context)
+{
+    groupwritergate* G=Context;
+    groupWriterGateAdvance(G,1);
+    groupWriterGateWait(G,2);
+    xcroncheckpointwriterreply R={.Generation=UINT64_MAX};
+    testRequire(xcronCheckpointWriterCollect(G->Writer,G->Ticket,-1,&R)==XWAIT_ERROR &&
+                xrtErrorKind(xrtGetError())==XERR_STATE && R.Generation==UINT64_MAX,"refuse to wait from the same executor");
+    groupWriterGateAdvance(G,3);
+    groupWriterGateWait(G,4);
+}
+
+static void groupWriterTest(xroot Root,const xcroncheckpoint* Records,bool Cancel)
+{
+    xcroncheckpointgroup* S=NULL;
+    xcroncheckpointwriter* W=NULL;
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,1,0});
+    testRequire(Pool && xcronCheckpointGroupOpen(Root,GroupPath,GroupId,GROUP_CAPACITY,true,&S)==XCRON_CHECKPOINT_STORE_OK,
+                "open fixture for async checkpoint writer");
+    xallocationbudget* Budget=NULL;
+    xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"deny writer allocation");
+    testRequire(!xcronCheckpointWriterCreate(S,Pool,&W) && !W && xrtErrorKind(xrtGetError())==XERR_MEMORY,
+                "failed writer creation transfers no store");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"leave denied writer allocation");
+    groupExpect(S,0,1,NULL,0);
+    testRequire(xcronCheckpointWriterCreate(S,Pool,&W),"writer owns the file lock");
+    groupwritergate G={.Writer=W};
+    testRequire(xrtMutexInit(&G.Mutex) && xrtCondInit(&G.Changed) &&
+                xrtExecutorSubmit(Pool,groupWriterGate,&G,NULL,NULL),"occupy storage worker");
+    groupWriterGateWait(&G,1);
+
+    union {xcroncheckpoint Record;xcroncheckpointwriterreply Reply;} Borrowed={.Record=Records[0]};
+    testRequire(xrtAllocationBudgetEnter(Budget,&Scope),"deny admission allocation");
+    testRequire(xcronCheckpointWriterSubmit(W,0,&Borrowed.Record,1,&G.Ticket),"queue one borrowed record without allocation");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"leave denied admission allocation");
+    xrtAllocationBudgetFree(Budget);
+    groupWriterGateAdvance(&G,2);
+    groupWriterGateWait(&G,3);
+    xcroncheckpointwriteticket Extra=999;
+    xcroncheckpointwriterreply Reply={.Generation=UINT64_MAX};
+    testRequire(xcronCheckpointWriterCollect(W,G.Ticket,0,&Borrowed.Reply)==XWAIT_ERROR &&
+                xrtErrorKind(xrtGetError())==XERR_ARGUMENT &&
+                xcronCheckpointWriterCollect(W,G.Ticket,25,&Reply)==XWAIT_TIMEOUT && Reply.Generation==UINT64_MAX,
+                "pending result preserves caller buffers");
+    testRequire(!xcronCheckpointWriterSubmit(W,0,NULL,0,&Extra) && Extra==999 && xrtErrorKind(xrtGetError())==XERR_AGAIN &&
+                xcronCheckpointWriterDestroy(W)==XCRON_CHECKPOINT_STORE_BUSY,
+                "outstanding checkpoint keeps one ticket and the store");
+    xcroncheckpointgroup* Other=NULL;
+    testRequire(xcronCheckpointGroupOpen(Root,GroupPath,GroupId,GROUP_CAPACITY,false,&Other)==XCRON_CHECKPOINT_STORE_LOCK && !Other,
+                "external opener cannot take the writer's store");
+    xcroncheckpointwriter* Second=NULL;
+    testRequire(xcronCheckpointGroupOpen(Root,"other.xcg",GroupId+1,1,true,&Other)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointWriterCreate(Other,Pool,&Second) &&
+                !xcronCheckpointWriterSubmit(Second,0,Records,1,&Extra) && Extra==999 && xrtErrorKind(xrtGetError())==XERR_AGAIN &&
+                xcronCheckpointWriterDestroy(Second)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,"other.xcg"),
+                "native queue saturation leaves the other writer idle");
+
+    if(Cancel){
+        testRequire(xrtExecutorCancel(Pool),"cancel the queued checkpoint before it reaches the disk");
+        testRequire(xcronCheckpointWriterDestroy(W)==XCRON_CHECKPOINT_STORE_BUSY,"discarded queue entry must be collected");
+        testRequire(xcronCheckpointWriterCollect(W,G.Ticket,0,&Reply)==XWAIT_OK &&
+                    Reply.Status==XCRON_CHECKPOINT_STORE_CANCELLED && !Reply.Generation && !Reply.Error,
+                    "queued cancellation releases the borrow once");
+        testRequire(!xcronCheckpointWriterSubmit(W,0,NULL,0,&Extra) && Extra==999 && xrtErrorKind(xrtGetError())==XERR_CLOSED,
+                    "closed storage executor does not consume the next ticket");
+    }
+    groupWriterGateAdvance(&G,4);
+    if(!Cancel){
+        testRequire(xcronCheckpointWriterCollect(W,G.Ticket,10000,&Reply)==XWAIT_OK &&
+                    Reply.Status==XCRON_CHECKPOINT_STORE_OK && Reply.Generation==1 && !Reply.Error,"collect native commit result");
+        testRequire(xcronCheckpointWriterSubmit(W,0,Records,1,&Extra) && Extra!=G.Ticket &&
+                    xcronCheckpointWriterCollect(W,G.Ticket,0,&Reply)==XWAIT_ERROR && Reply.Generation==1,
+                    "stale ticket cannot consume a later result");
+        testRequire(xcronCheckpointWriterCollect(W,Extra,10000,&Reply)==XWAIT_OK &&
+                    Reply.Status==XCRON_CHECKPOINT_STORE_STALE && !Reply.Generation && Reply.Error &&
+                    xrtErrorCode(Reply.Error)==XCRON_CHECKPOINT_STORE_STALE,"transfer the worker's typed store error");
+        xrtErrorFree(Reply.Error);
+        testRequire(xcronCheckpointWriterSubmit(W,1,Records,GROUP_CAPACITY,&Extra) &&
+                    xcronCheckpointWriterCollect(W,Extra,10000,&Reply)==XWAIT_OK &&
+                    Reply.Status==XCRON_CHECKPOINT_STORE_OK && Reply.Generation==2 && !Reply.Error,"retry with current generation");
+    }
+    testRequire(xcronCheckpointWriterDestroy(W)==XCRON_CHECKPOINT_STORE_OK && xrtExecutorClose(Pool) &&
+                xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"retire writer and caller-owned executor");
+    testRequire(xrtCondUnit(&G.Changed) && xrtMutexUnit(&G.Mutex),"retire writer test gate");
+    testRequire(xcronCheckpointGroupOpen(Root,GroupPath,GroupId,GROUP_CAPACITY,false,&S)==XCRON_CHECKPOINT_STORE_OK,
+                "reopen file after destroying writer");
+    groupExpect(S,Cancel?0:2,Cancel?1:2,Records,Cancel?0:GROUP_CAPACITY);
+    testRequire(xcronCheckpointGroupClose(S)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,GroupPath),"remove async store fixture");
+}
+#endif
+
 #if !defined(XCRON_SINGLE_HEADER)
 static unsigned GroupFault;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+static groupwritergate* GroupFlushGate;
+#endif
 
 static bool groupTestWrite(xfile File,uint64 Offset,const void* Data,size_t Bytes,size_t* Written)
 {
@@ -145,6 +265,16 @@ static bool groupTestWrite(xfile File,uint64 Offset,const void* Data,size_t Byte
 
 static bool groupTestFlush(xfile File)
 {
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    if(GroupFault==5 || GroupFault==6){
+        groupWriterGateAdvance(GroupFlushGate,1);
+        groupWriterGateWait(GroupFlushGate,2);
+        if(GroupFault==6){
+            xrtSetErrorInfo(XERR_IO,"test.cron.group",6,"injected async flush failure");
+            return false;
+        }
+    }
+#endif
     if(GroupFault==2 || GroupFault==4){
         if(GroupFault==4){puts("GROUP BEFORE FLUSH");fflush(stdout);(void)getchar();}
         xrtSetErrorInfo(XERR_IO,"test.cron.group",2,"injected flush failure");
@@ -189,6 +319,56 @@ static void testGroupFaults(xroot Root,const xcroncheckpoint* First,const xcronc
         testRequire(xcronCheckpointGroupClose(S)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,GroupPath),"remove fault fixture");
     }
 }
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+#define xcronCheckpointGroupCommit xcronCheckpointGroupCommitFault
+#define xcronCheckpointWriterCreate xcronCheckpointWriterCreateFault
+#define xcronCheckpointWriterSubmit xcronCheckpointWriterSubmitFault
+#define xcronCheckpointWriterCollect xcronCheckpointWriterCollectFault
+#define xcronCheckpointWriterDestroy xcronCheckpointWriterDestroyFault
+#include "../src/checkpoint_group/checkpoint_writer.c"
+#undef xcronCheckpointWriterDestroy
+#undef xcronCheckpointWriterCollect
+#undef xcronCheckpointWriterSubmit
+#undef xcronCheckpointWriterCreate
+#undef xcronCheckpointGroupCommit
+
+static void groupWriterFlush(const xroot Root,const xcroncheckpoint* Records,bool Fail)
+{
+    xcroncheckpointgroup* S=NULL;
+    xcroncheckpointwriter* W=NULL;
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+    groupwritergate G={0};
+    testRequire(Pool && xrtMutexInit(&G.Mutex) && xrtCondInit(&G.Changed) &&
+                xcronCheckpointGroupOpen(Root,GroupPath,GroupId,GROUP_CAPACITY,true,&S)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointWriterCreateFault(S,Pool,&W),"start deterministic blocked-flush fixture");
+    GroupFault=Fail?6:5;
+    GroupFlushGate=&G;
+    xcroncheckpointwriteticket Ticket=0;
+    testRequire(xcronCheckpointWriterSubmitFault(W,0,Records,GROUP_CAPACITY,&Ticket),"submit blocked-flush commit");
+    groupWriterGateWait(&G,1);
+    xcroncheckpointwriterreply Reply={.Generation=UINT64_MAX};
+    testRequire(xrtExecutorCancel(Pool) && xcronCheckpointWriterCollectFault(W,Ticket,0,&Reply)==XWAIT_TIMEOUT &&
+                Reply.Generation==UINT64_MAX && xcronCheckpointWriterDestroyFault(W)==XCRON_CHECKPOINT_STORE_BUSY,
+                "running commit and borrow survive executor cancellation until physical flush completes");
+    groupWriterGateAdvance(&G,2);
+    testRequire(xcronCheckpointWriterCollectFault(W,Ticket,10000,&Reply)==XWAIT_OK &&
+                (Fail?(Reply.Status==XCRON_CHECKPOINT_STORE_UNCERTAIN && !Reply.Generation &&
+                       xrtErrorKind(Reply.Error)==XERR_IO && xrtErrorCode(Reply.Error)==6):
+                      (Reply.Status==XCRON_CHECKPOINT_STORE_OK && Reply.Generation==1 && !Reply.Error)),
+                "report the running commit's actual flush outcome");
+    xrtErrorFree(Reply.Error);
+    GroupFlushGate=NULL;
+    GroupFault=0;
+    testRequire(xcronCheckpointWriterDestroyFault(W)==XCRON_CHECKPOINT_STORE_OK &&
+                xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"retire blocked-flush fixture");
+    testRequire(xrtCondUnit(&G.Changed) && xrtMutexUnit(&G.Mutex),"retire flush barrier");
+    testRequire(xcronCheckpointGroupOpen(Root,GroupPath,GroupId,GROUP_CAPACITY,false,&S)==XCRON_CHECKPOINT_STORE_OK,
+                "reopen to resolve the generation");
+    groupExpect(S,1,2,Records,GROUP_CAPACITY);
+    testRequire(xcronCheckpointGroupClose(S)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,GroupPath),"remove flush fixture");
+}
+#endif
+
 static int groupInterrupt(cstr Directory,unsigned Mode)
 {
     xroot Root=xrtRootOpen(Directory);
@@ -229,8 +409,16 @@ int main(int Argc,char** Argv)
     xcroncheckpoint First[GROUP_CAPACITY],Second[GROUP_CAPACITY];
     groupRecords(GROUP_CAPACITY,First,Second);
     testCheckpointGroups(Root,First,Second);
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    groupWriterTest(Root,First,false);
+    groupWriterTest(Root,Second,true);
+#endif
 #if !defined(XCRON_SINGLE_HEADER)
     testGroupFaults(Root,First,Second);
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    groupWriterFlush(Root,First,false);
+    groupWriterFlush(Root,Second,true);
+#endif
 #endif
     testRequire(xrtRootClose(Root) && xrtRootRemove(Parent,Name) && xrtRootClose(Parent),"remove owned checkpoint group test directory");
     puts("cron checkpoint group tests passed");

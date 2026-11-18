@@ -160,7 +160,8 @@
         "xcron_checkpoint",
         "xcron_checkpoint_store",
         "xcron_service_checkpoint",
-        "xcron_checkpoint_group"
+        "xcron_checkpoint_group",
+        "xcron_checkpoint_writer"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -639,6 +640,37 @@
       ]
     },
     {
+      "name": "xcron_checkpoint_writer",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_CHECKPOINT_WRITER",
+      "depends": [
+        "xcron_checkpoint_group",
+        "executor",
+        "cond"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/checkpoint_writer.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/checkpoint_group/checkpoint_writer.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_checkpoint_group.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_writer.c"
+      ],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_checkpoint_group.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/checkpoint_writer.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
       "name": "xcron_executor",
       "state": "developing",
       "feature": "XCRON_FEATURE_XCRON_EXECUTOR",
@@ -789,7 +821,7 @@
       "feature": "XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT",
       "depends": [
         "xcron_service_selected",
-        "xcron_checkpoint_group"
+        "xcron_checkpoint_writer"
       ],
       "public_headers": [
         "extlibs/xcron/include/xcron/service_checkpoint.h"
@@ -899,7 +931,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_checkpoint.c",
         "extlibs/xcron/tests/single/test_single_xcron_checkpoint_store.c",
         "extlibs/xcron/tests/single/test_single_xcron_service_checkpoint.c",
-        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_group.c"
+        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_group.c",
+        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_writer.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -927,7 +960,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_checkpoint.c": "xcron_checkpoint",
         "extlibs/xcron/tests/single/test_single_xcron_checkpoint_store.c": "xcron_checkpoint_store",
         "extlibs/xcron/tests/single/test_single_xcron_service_checkpoint.c": "xcron_service_checkpoint",
-        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_group.c": "xcron_checkpoint_group"
+        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_group.c": "xcron_checkpoint_group",
+        "extlibs/xcron/tests/single/test_single_xcron_checkpoint_writer.c": "xcron_checkpoint_writer"
       }
     }
   ]

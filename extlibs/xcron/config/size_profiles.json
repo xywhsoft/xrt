@@ -281,6 +281,16 @@
         "_xrtExecutorCreate",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_checkpoint_writer",
+      "system": "checkpoint_group",
+      "suite": "xcron_checkpoint_writer",
+      "description": "Bounded asynchronous group commit on XRT executor and rooted file storage",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

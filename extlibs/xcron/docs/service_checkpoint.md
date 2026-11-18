@@ -117,8 +117,8 @@ pauses and leaves the output untouched. The caller collects the group
 ticket to end the same array borrow used by immediate capture. The
 quiescence deadline and the collection timeout are independent.
 
-Commit the captured records through the group store on the caller or
-storage thread. Hold ownership across this interval by coordinating any
+Commit the captured records through the group store or use the
+[asynchronous checkpoint writer](checkpoint_writer.md) on a storage executor. Hold ownership across this interval by coordinating any
 other producers that could resume, cancel or reap the jobs. Release jobs
 after the caller accepts the file commit outcome.
 [Runnable group recovery and capture example](../examples/service_checkpoint_group/README.md).

@@ -165,5 +165,6 @@ to capture a quiescent cursor, commit it from the caller and restore it into
 a new live service.
 
 The optional [checkpoint group](docs/checkpoint_group.md) commits a bounded
-set of jobs together with one file flush. The [runnable example](examples/checkpoint_group/README.md)
+set of jobs together with one file flush. The [asynchronous writer](docs/checkpoint_writer.md)
+runs the commit on a host-supplied storage executor. The [runnable example](examples/checkpoint_group/README.md)
 stages the recovered jobs paused before resuming dispatch.

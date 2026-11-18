@@ -4371,6 +4371,94 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_checkpoint_writer_1",
+      "system": "checkpoint_group",
+      "description": "Submit and collect a 1-record native file commit on a dedicated XRT executor",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint_writer_1",
+          "source": "extlibs/xcron/bench/bench_checkpoint_group.c",
+          "suite": "xcron_checkpoint_writer",
+          "args": [
+            "200",
+            "1",
+            "async"
+          ],
+          "smoke_args": [
+            "8",
+            "1",
+            "async"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "direction": "higher",
+              "unit": "groups/s"
+            },
+            "records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            },
+            "group_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_checkpoint_writer_64",
+      "system": "checkpoint_group",
+      "description": "Submit and collect a 64-record native file commit on a dedicated XRT executor",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint_writer_64",
+          "source": "extlibs/xcron/bench/bench_checkpoint_group.c",
+          "suite": "xcron_checkpoint_writer",
+          "args": [
+            "200",
+            "64",
+            "async"
+          ],
+          "smoke_args": [
+            "8",
+            "64",
+            "async"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "direction": "higher",
+              "unit": "groups/s"
+            },
+            "records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            },
+            "group_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

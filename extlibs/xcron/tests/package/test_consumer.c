@@ -76,7 +76,7 @@ static bool consumerCheckpointService(const xcronjobconfig* Config,const xcronch
 }
 #endif
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT_GROUP)
-#include <xcron/checkpoint_group.h>
+#include <xcron/checkpoint_writer.h>
 static bool consumerCheckpointGroup(const xcroncheckpoint* Record)
 {
     cstr Base=getenv("TMPDIR");
@@ -90,10 +90,23 @@ static bool consumerCheckpointGroup(const xcroncheckpoint* Record)
     xcroncheckpointgroup* S=NULL;
     xcroncheckpointgroupview View;
     xcroncheckpointkey Key;
-    if(!Root || xcronCheckpointGroupOpen(Root,Name,80,16,true,&S)!=XCRON_CHECKPOINT_STORE_OK ||
-       xcronCheckpointGroupCommit(S,0,Record,1)!=XCRON_CHECKPOINT_STORE_OK ||
-       xcronCheckpointGroupClose(S)!=XCRON_CHECKPOINT_STORE_OK ||
-       xcronCheckpointGroupOpen(Root,Name,80,16,false,&S)!=XCRON_CHECKPOINT_STORE_OK ||
+    if(!Root || xcronCheckpointGroupOpen(Root,Name,80,16,true,&S)!=XCRON_CHECKPOINT_STORE_OK)return false;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER)
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+    xcroncheckpointwriter* Writer=NULL;
+    xcroncheckpointwriteticket Ticket;
+    xcroncheckpointwriterreply Reply;
+    if(!Pool || !xcronCheckpointWriterCreate(S,Pool,&Writer) ||
+       !xcronCheckpointWriterSubmit(Writer,0,Record,1,&Ticket) ||
+       xcronCheckpointWriterCollect(Writer,Ticket,-1,&Reply)!=XWAIT_OK ||
+       Reply.Status!=XCRON_CHECKPOINT_STORE_OK || Reply.Generation!=1 || Reply.Error ||
+       xcronCheckpointWriterDestroy(Writer)!=XCRON_CHECKPOINT_STORE_OK ||
+       !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return false;
+#else
+    if(xcronCheckpointGroupCommit(S,0,Record,1)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointGroupClose(S)!=XCRON_CHECKPOINT_STORE_OK)return false;
+#endif
+    if(xcronCheckpointGroupOpen(Root,Name,80,16,false,&S)!=XCRON_CHECKPOINT_STORE_OK ||
        xcronCheckpointGroupRead(S,&View)!=XCRON_CHECKPOINT_STORE_OK || View.Info.Generation!=1 || View.Count!=1 ||
        !xcronCheckpointGetKey(View.Records,&Key) || Key.Job!=1 || Key.Revision!=2 ||
        memcmp(Record->Bytes,View.Records[0].Bytes,sizeof(Record->Bytes)))return false;

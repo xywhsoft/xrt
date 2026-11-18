@@ -14,11 +14,11 @@ Target and rules: [development contract](service-extensions-plan.md).
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
   acceptance remain pending.
-- xcron expression/calendar, explicit zone/TZif occurrences, scheduling kernel,
-  executor adapter and bounded live service are locally verified. The live owner
-  now uses the public reusable precise event waiter. Named-zone database/reload,
-  durable recovery, nominal DST compensation, bounded recurrence CPU and final
-  native performance/long-run acceptance remain pending.
+- xcron expression/calendar, named zone/TZif reload, budgeted recurrence,
+  DST selection, scheduling and the bounded live service are locally verified.
+  The two-slot stores recover job and group checkpoints, and live groups can
+  hold dispatch across a storage executor commit. Periodic orchestration,
+  power-loss and native mixed-load acceptance remain pending.
 - P1 codec/expression/calendar foundations are locally verified. P2 now has a
   measured-workload TCP request/deadline/cancel/close slice and bounded pool
   repair; remaining modes and pinned overhead/performance acceptance are pending.
@@ -15099,3 +15099,57 @@ native mixed-load qualification remain open. The strict release gate
 lists 17 developing xcron modules.
 [Quiescence contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-group-quiesce-20261119.json).
+
+## 2026-11-19 Write a whole checkpoint group on a storage executor
+
+The optional writer takes one open group and borrows a host XRT executor.
+It admits one commit through collection. Admission borrows immutable
+records and uses one existing executor slot. The storage worker checks
+the expected generation and writes and flushes the same alternate slot
+as the direct group API. The serialized store selection can still build
+without the executor. The worker publishes the native outcome and any
+owned diagnostic through a generation-bound collection ticket.
+
+Deterministic tests hold the worker queue full, cancel a queued commit,
+cancel the executor during physical flush, and fail the flush after the
+slot write. They verify exact borrow release, no admission allocation,
+constructor rollback, stale tickets, typed errors and refusal to destroy
+before collection. A running write reports its actual result even when
+the host cancels its executor. After an uncertain result, the test closes
+the writer and reopens the file to resolve the generation.
+
+The live example hands its captured records to a storage executor and
+queries the scheduler before joining storage. Windows NTFS and WSL ext4
+recover identical images. The restart, interrupted group write, base
+service regressions, trimmed and full static/shared consumers, and
+modular and single-header tests pass on both platforms. WSL sanitizer
+runs cover ASan, UBSan, leaks and Clang ThreadSanitizer.
+
+The baseline compares direct and executor commits in the same environment.
+Each profile uses one warm-up and five measured runs of 200 serial commits.
+Both paths include a native flush, and executor latency includes ticket
+submission and collection. Each cell is the median of the per-run metric.
+
+| Host | Records | Path | Groups/s | Records/s | P50 (us) | P95 (us) | P99 (us) |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | Direct | 1,063.0 | 1,063.0 | 967.700 | 988.800 | 1083.200 |
+| Windows | 1 | Executor | 1,058.3 | 1,058.3 | 967.900 | 998.400 | 1078.700 |
+| Windows | 64 | Direct | 1,146.9 | 73,404.1 | 869.900 | 907.800 | 1002.100 |
+| Windows | 64 | Executor | 1,142.5 | 73,118.4 | 869.500 | 991.700 | 1010.100 |
+| WSL | 1 | Direct | 18.7 | 18.7 | 52846.204 | 60467.202 | 83284.503 |
+| WSL | 1 | Executor | 19.3 | 19.3 | 50104.100 | 58372.099 | 66316.799 |
+| WSL | 64 | Direct | 18.4 | 1,180.8 | 53905.798 | 58400.300 | 74981.702 |
+| WSL | 64 | Executor | 13.7 | 876.5 | 58531.099 | 133432.198 | 176573.498 |
+
+Windows recorded 3 repeatability threshold failures and WSL recorded 23 repeatability threshold failures. The evidence retains every failed metric.
+
+A WSL follow-up ran five alternating pairs of 32 commits on the same
+64-record executable. The median paired executor/direct throughput
+ratio was 0.978. This smaller sample checks whether the throughput
+difference persists and leaves the original repeatability result in force.
+
+Periodic capture/commit orchestration, device power-loss testing and native
+mixed-load qualification remain open. The strict release gate lists
+18 developing xcron modules.
+[Writer contract](../../extlibs/xcron/docs/checkpoint_writer.md).
+[Stage evidence](xcron-checkpoint-writer-20261119.json).
