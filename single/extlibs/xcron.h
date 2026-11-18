@@ -109,6 +109,25 @@
 #ifndef XCRON_MODULE_XCRON_CHECKPOINT
 #define XCRON_MODULE_XCRON_CHECKPOINT
 #endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#define XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#endif
+#endif
+
+/* xcron_checkpoint_store 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CHECKPOINT_STORE)
+#ifndef XCRON_FEATURE_XCRON_CHECKPOINT_STORE
+#define XCRON_FEATURE_XCRON_CHECKPOINT_STORE
+#endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT
+#define XCRON_MODULE_XCRON_CHECKPOINT
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
 #endif
 
 /* xcron_checkpoint 及其直接依赖。 */
@@ -1715,6 +1734,58 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/checkpoint_store.h */
+/* ========================================================================== */
+
+#ifndef XCRON_CHECKPOINT_STORE_H
+#define XCRON_CHECKPOINT_STORE_H
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT) || !defined(XRT_FEATURE_FILE_ROOT) || !defined(XRT_FEATURE_FILE_LOCK))
+#error "cron checkpoint store requires checkpoint and rooted native file locks"
+#endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
+typedef struct xcroncheckpointstore xcroncheckpointstore;
+typedef enum xcroncheckpointstorestatus {
+    XCRON_CHECKPOINT_STORE_OK=0,XCRON_CHECKPOINT_STORE_EMPTY,
+    XCRON_CHECKPOINT_STORE_ARGUMENT=7001,XCRON_CHECKPOINT_STORE_MEMORY,
+    XCRON_CHECKPOINT_STORE_IO,XCRON_CHECKPOINT_STORE_LOCK,
+    XCRON_CHECKPOINT_STORE_CORRUPT,XCRON_CHECKPOINT_STORE_MISMATCH,
+    XCRON_CHECKPOINT_STORE_STALE,XCRON_CHECKPOINT_STORE_LIMIT,
+    XCRON_CHECKPOINT_STORE_UNCERTAIN
+} xcroncheckpointstorestatus;
+typedef struct xcroncheckpointstoreinfo {
+    uint64 Generation;
+    uint32 ValidSlots;
+} xcroncheckpointstoreinfo;
+
+XRT_EXTERN_C_BEGIN
+/* A caller-serialized store owns one exclusive native file lock until Close.
+ * Create is exclusive and initializes an empty generation zero. Open existing
+ * validates both slots and synchronizes the selected image before publication.
+ * A failed Create can leave an unusable file to inspect. Open never truncates
+ * or reinitializes an existing file. Root and Path are borrowed for this call.
+ * Keep the path stable in a trusted directory while the store is in use. */
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreOpen(xroot Root,cstr Path,
+    xcroncheckpointkey Key,bool Create,xcroncheckpointstore** Store);
+/* Read the cached committed image. EMPTY publishes Info, leaving Record
+ * untouched. Errors leave both outputs untouched. Outputs must be distinct
+ * and outside the store object. Info is required; Record may be NULL. */
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreRead(const xcroncheckpointstore* Store,
+    xcroncheckpoint* Record,xcroncheckpointstoreinfo* Info);
+/* Compare ExpectedGeneration before I/O; generation zero means empty.
+ * Success advances the generation by one after one native flush. An uncertain
+ * write or flush poisons this handle. The caller keeps Record stable through
+ * the call. Close an uncertain handle and reopen to discover the
+ * durable generation. Serialize calls outside network and live owner turns. */
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreCommit(xcroncheckpointstore* Store,
+    uint64 ExpectedGeneration,const xcroncheckpoint* Record);
+/* Consumes Store and releases the lock even when reporting a close error. */
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreClose(xcroncheckpointstore* Store);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -2042,6 +2113,7 @@ typedef enum xcroncheckpointstatus {
     XCRON_CHECKPOINT_VALID, XCRON_CHECKPOINT_INVALID, XCRON_CHECKPOINT_INCOMPATIBLE
 } xcroncheckpointstatus;
 
+xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key);
 void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info,bool Selected,
     xcrondeliverypolicy Policy,xcroncheckpointkey Key,xcroncheckpoint* Out);
 xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
@@ -6073,16 +6145,25 @@ void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info
 static uint64 xcronCheckpointAdd(uint64 A,uint64 B)
 {return B>UINT64_MAX-A?UINT64_MAX:A+B;}
 
-xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
-    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy)
+xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key)
 {
     const uint8* B=Wire.Data;
     if(Wire.Size!=XCRON_CHECKPOINT_BYTES || memcmp(B,"XCCP",4) || B[4]!=XCC_VERSION ||
        B[5]>1 || B[7] || B[6]>XCRON_JOB_CANCELLED || xcronCheckpointGet(B+XCC_CRC,4)!=xrtCrc32(B,XCC_CRC) ||
        B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_REJECT ||
        (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return XCRON_CHECKPOINT_INVALID;
-    if(B[5]!=(uint8)Selected || xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job ||
-       xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)return XCRON_CHECKPOINT_INCOMPATIBLE;
+    if(xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job || xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)
+        return XCRON_CHECKPOINT_INCOMPATIBLE;
+    return XCRON_CHECKPOINT_VALID;
+}
+
+xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
+    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy)
+{
+    xcroncheckpointstatus Status=xcronCheckpointValidate(Wire,Key);
+    if(Status!=XCRON_CHECKPOINT_VALID)return Status;
+    const uint8* B=Wire.Data;
+    if(B[5]!=(uint8)Selected)return XCRON_CHECKPOINT_INCOMPATIBLE;
     bool Scheduled=B[6]==XCRON_JOB_SCHEDULED;
     xtime Next=xcronCheckpointTime(B+XCC_NEXT);
     xcrondeliverypolicy Saved={(xcronfoldpolicy)B[XCC_POLICY],(xcronmissingpolicy)B[XCC_POLICY+1]};
@@ -6101,6 +6182,194 @@ xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig
         .SkippedRanges=Counts[4],.CoalescedRanges=Counts[5],.LastIssue={.Field=XCRON_FIELD_NONE}};
     *Policy=Saved;
     return XCRON_CHECKPOINT_VALID;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/checkpoint_store/checkpoint_store.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
+#include <string.h>
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
+enum { XCS_PAGE=4096, XCS_RECORD=32, XCS_CRC=XCS_RECORD+XCRON_CHECKPOINT_BYTES, XCS_WIRE=XCS_CRC+4 };
+_Static_assert(XCS_WIRE<=XCS_PAGE,"checkpoint store slot");
+#define XCS_MAGIC UINT32_C(0x58435331)
+
+struct xcroncheckpointstore {
+    xfile File;
+    xcroncheckpointkey Key;
+    xcroncheckpointstoreinfo Info;
+    xcroncheckpoint Record;
+    uint32 Magic;
+    bool Uncertain;
+};
+
+static xcroncheckpointstorestatus xcronStoreFail(xcroncheckpointstorestatus Status,xerrkind Kind,cstr Text)
+{
+    xrtSetErrorInfo(Kind,"xrt.cron.checkpoint_store",Status,Text);
+    return Status;
+}
+
+static bool xcronStoreValid(const xcroncheckpointstore* Store)
+{
+    return xrtMemRangeValid(Store,sizeof(*Store)) && Store->Magic==XCS_MAGIC;
+}
+
+static void xcronStorePut(uint8* B,uint64 Value,size_t Count)
+{
+    for(size_t I=0;I<Count;++I){B[I]=(uint8)Value;Value>>=8;}
+}
+static uint64 xcronStoreGet(const uint8* B,size_t Count)
+{
+    uint64 Value=0;
+    while(Count)Value=(Value<<8)|B[--Count];
+    return Value;
+}
+
+static bool xcronStoreWrite(const xcroncheckpointstore* Store,uint64 Generation,const xcroncheckpoint* Record)
+{
+    uint8 B[XCS_WIRE]={0};
+    memcpy(B,"XCST",4);
+    B[4]=1;
+    xcronStorePut(B+8,Generation,8);
+    xcronStorePut(B+16,Store->Key.Job,8);
+    xcronStorePut(B+24,Store->Key.Revision,8);
+    if(Record)memcpy(B+XCS_RECORD,Record->Bytes,sizeof(Record->Bytes));
+    xcronStorePut(B+XCS_CRC,xrtCrc32(B,XCS_CRC),4);
+    return xrtWriteAtFull(Store->File,(Generation&1)*XCS_PAGE,B,sizeof(B),NULL) && xrtFlush(Store->File);
+}
+
+static xcroncheckpointstorestatus xcronStoreDecode(const uint8* B,unsigned Slot,xcroncheckpointkey Key,uint64* Generation)
+{
+    if(memcmp(B,"XCST",4) || xcronStoreGet(B+XCS_CRC,4)!=xrtCrc32(B,XCS_CRC))
+        return XCRON_CHECKPOINT_STORE_EMPTY;
+    if(xcronStoreGet(B+4,4)!=1)return XCRON_CHECKPOINT_STORE_CORRUPT;
+    if(xcronStoreGet(B+16,8)!=Key.Job || xcronStoreGet(B+24,8)!=Key.Revision)
+        return XCRON_CHECKPOINT_STORE_MISMATCH;
+    uint64 G=xcronStoreGet(B+8,8);
+    if((G&1)!=Slot)return XCRON_CHECKPOINT_STORE_CORRUPT;
+    if(G){
+        xcroncheckpointstatus Status=xcronCheckpointValidate((xbytesview){B+XCS_RECORD,XCRON_CHECKPOINT_BYTES},Key);
+        if(Status!=XCRON_CHECKPOINT_VALID)
+            return Status==XCRON_CHECKPOINT_INCOMPATIBLE?XCRON_CHECKPOINT_STORE_MISMATCH:XCRON_CHECKPOINT_STORE_CORRUPT;
+    }else{
+        for(size_t I=XCS_RECORD;I<XCS_CRC;++I)if(B[I])return XCRON_CHECKPOINT_STORE_CORRUPT;
+    }
+    *Generation=G;
+    return XCRON_CHECKPOINT_STORE_OK;
+}
+
+static xcroncheckpointstorestatus xcronStoreRecover(xcroncheckpointstore* Store)
+{
+    uint64 Size;
+    if(!xrtFileSize(Store->File,&Size))return XCRON_CHECKPOINT_STORE_IO;
+    if(Size!=2*XCS_PAGE)return XCRON_CHECKPOINT_STORE_CORRUPT;
+    for(unsigned Slot=0;Slot<2;++Slot){
+        uint8 B[XCS_WIRE];uint64 Generation;
+        if(!xrtReadAtFull(Store->File,(uint64)Slot*XCS_PAGE,B,sizeof(B),NULL))return XCRON_CHECKPOINT_STORE_IO;
+        xcroncheckpointstorestatus Status=xcronStoreDecode(B,Slot,Store->Key,&Generation);
+        if(Status==XCRON_CHECKPOINT_STORE_EMPTY)continue;
+        if(Status!=XCRON_CHECKPOINT_STORE_OK)return Status;
+        if(Store->Info.ValidSlots){
+            uint64 First=Store->Info.Generation;
+            if((Generation>First?Generation-First:First-Generation)!=1)return XCRON_CHECKPOINT_STORE_CORRUPT;
+        }
+        if(!Store->Info.ValidSlots || Generation>Store->Info.Generation){
+            Store->Info.Generation=Generation;
+            memcpy(Store->Record.Bytes,B+XCS_RECORD,sizeof(Store->Record.Bytes));
+        }
+        ++Store->Info.ValidSlots;
+    }
+    if(!Store->Info.ValidSlots)return XCRON_CHECKPOINT_STORE_CORRUPT;
+    return xrtFlush(Store->File)?XCRON_CHECKPOINT_STORE_OK:XCRON_CHECKPOINT_STORE_IO;
+}
+
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreOpen(xroot Root,cstr Path,
+    xcroncheckpointkey Key,bool Create,xcroncheckpointstore** Out)
+{
+    if(!Root || !Path || !*Path || !Key.Job || !Key.Revision || !xrtMemRangeValid(Out,sizeof(*Out)))
+        return xcronStoreFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint store open");
+    xcroncheckpointstore* Store=xrtCalloc(1,sizeof(*Store));
+    if(!Store)return XCRON_CHECKPOINT_STORE_MEMORY;
+    xfileoptions Options={XFILE_READ|XFILE_WRITE,0600,XFILE_SHARE_READ|XFILE_SHARE_WRITE};
+    if(Create)Options.Flags|=XFILE_CREATE|XFILE_EXCLUSIVE;
+    Store->File=xrtRootFileOpen(Root,Path,&Options);
+    Store->Key=Key;
+    xcroncheckpointstorestatus Status=XCRON_CHECKPOINT_STORE_IO;
+    if(Store->File){
+        if(!xrtFileTryLockExclusiveUntilClose(Store->File))Status=XCRON_CHECKPOINT_STORE_LOCK;
+        else if(Create){
+            if(xrtFileResize(Store->File,2*XCS_PAGE) && xcronStoreWrite(Store,0,NULL)){
+                Store->Info.ValidSlots=1;
+                Status=XCRON_CHECKPOINT_STORE_OK;
+            }
+        }else Status=xcronStoreRecover(Store);
+    }
+    if(Status==XCRON_CHECKPOINT_STORE_OK){
+        Store->Magic=XCS_MAGIC;
+        *Out=Store;
+        return Status;
+    }
+    if(Store->File)(void)xrtClose(Store->File);
+    xrtFree(Store);
+    if(Status==XCRON_CHECKPOINT_STORE_CORRUPT)return xcronStoreFail(Status,XERR_VALUE,"invalid checkpoint store image");
+    if(Status==XCRON_CHECKPOINT_STORE_MISMATCH)return xcronStoreFail(Status,XERR_VALUE,"checkpoint store key mismatch");
+    return Status;
+}
+
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreRead(const xcroncheckpointstore* Store,
+    xcroncheckpoint* Record,xcroncheckpointstoreinfo* Info)
+{
+    size_t Bytes=Record?sizeof(*Record):0;
+    if(!xcronStoreValid(Store) || !xrtMemRangeValid(Info,sizeof(*Info)) || !xrtMemRangeValid(Record,Bytes) ||
+       xrtMemRangesOverlap(Record,Bytes,Info,sizeof(*Info)) ||
+       xrtMemRangesOverlap(Record,Bytes,Store,sizeof(*Store)) ||
+       xrtMemRangesOverlap(Info,sizeof(*Info),Store,sizeof(*Store)))
+        return xcronStoreFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint store outputs");
+    if(Store->Uncertain)return xcronStoreFail(XCRON_CHECKPOINT_STORE_UNCERTAIN,XERR_STATE,"reopen uncertain checkpoint store");
+    *Info=Store->Info;
+    if(!Info->Generation)return XCRON_CHECKPOINT_STORE_EMPTY;
+    if(Record)*Record=Store->Record;
+    return XCRON_CHECKPOINT_STORE_OK;
+}
+
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreCommit(xcroncheckpointstore* Store,
+    uint64 ExpectedGeneration,const xcroncheckpoint* Record)
+{
+    if(!xcronStoreValid(Store) || !xrtMemRangeValid(Record,sizeof(*Record)) ||
+       xrtMemRangesOverlap(Record,sizeof(*Record),Store,sizeof(*Store)))
+        return xcronStoreFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint commit");
+    if(Store->Uncertain)return xcronStoreFail(XCRON_CHECKPOINT_STORE_UNCERTAIN,XERR_STATE,"reopen uncertain checkpoint store");
+    if(ExpectedGeneration!=Store->Info.Generation)
+        return xcronStoreFail(XCRON_CHECKPOINT_STORE_STALE,XERR_STATE,"stale checkpoint generation");
+    if(ExpectedGeneration==UINT64_MAX)
+        return xcronStoreFail(XCRON_CHECKPOINT_STORE_LIMIT,XERR_RANGE,"checkpoint generation exhausted");
+    xcroncheckpointstatus Status=xcronCheckpointValidate((xbytesview){Record->Bytes,sizeof(Record->Bytes)},Store->Key);
+    if(Status!=XCRON_CHECKPOINT_VALID)return xcronStoreFail(
+        Status==XCRON_CHECKPOINT_INCOMPATIBLE?XCRON_CHECKPOINT_STORE_MISMATCH:XCRON_CHECKPOINT_STORE_CORRUPT,
+        XERR_VALUE,"invalid checkpoint record or key");
+    uint64 Next=ExpectedGeneration+1;
+    if(!xcronStoreWrite(Store,Next,Record)){
+        Store->Uncertain=true;
+        return XCRON_CHECKPOINT_STORE_UNCERTAIN;
+    }
+    Store->Record=*Record;
+    Store->Info.Generation=Next;
+    Store->Info.ValidSlots=2;
+    return XCRON_CHECKPOINT_STORE_OK;
+}
+
+XCRON_API xcroncheckpointstorestatus xcronCheckpointStoreClose(xcroncheckpointstore* Store)
+{
+    if(!xcronStoreValid(Store))return xcronStoreFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint store");
+    Store->Magic=0;
+    bool Closed=xrtClose(Store->File);
+    xrtFree(Store);
+    return Closed?XCRON_CHECKPOINT_STORE_OK:XCRON_CHECKPOINT_STORE_IO;
 }
 #endif
 #endif

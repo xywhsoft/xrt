@@ -1,5 +1,35 @@
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
 #include <xcron/checkpoint.h>
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
+#include <xcron/checkpoint_store.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static bool consumerCheckpointStore(const xcroncheckpoint* Record,xcroncheckpointkey Key)
+{
+    cstr Base=getenv("TMPDIR");
+#if defined(_WIN32)
+    if(!Base || !*Base)Base=getenv("TEMP");
+#else
+    if(!Base || !*Base)Base="/tmp";
+#endif
+    if(!Base || !*Base)Base=".";
+    xroot Root=xrtRootOpen(Base);
+    char Name[96];
+    snprintf(Name,sizeof(Name),"xcron-checkpoint-consumer-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));
+    xcroncheckpointstore* Store=NULL;
+    xcroncheckpointstoreinfo Info;
+    xcroncheckpoint Loaded;
+    if(!Root || xcronCheckpointStoreOpen(Root,Name,Key,true,&Store)!=XCRON_CHECKPOINT_STORE_OK)return false;
+    if(xcronCheckpointStoreCommit(Store,0,Record)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointStoreClose(Store)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointStoreOpen(Root,Name,Key,false,&Store)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointStoreRead(Store,&Loaded,&Info)!=XCRON_CHECKPOINT_STORE_OK ||
+       Info.Generation!=1 || memcmp(Loaded.Bytes,Record->Bytes,sizeof(Record->Bytes)))return false;
+    return xcronCheckpointStoreClose(Store)==XCRON_CHECKPOINT_STORE_OK &&
+           xrtRootRemove(Root,Name) && xrtRootClose(Root);
+}
+#endif
 static bool consumerCheckpoint(void)
 {
     xcronjobconfig Config={.Begin=0,.End=2000,.RunningLimit=1};
@@ -15,6 +45,9 @@ static bool consumerCheckpoint(void)
        !xcronSchedulerSaveCheckpoint(S,Original,Key,&Record,NULL) ||
        !xcronSchedulerRestoreCheckpoint(S,&Config,Key,(xbytesview){Record.Bytes,sizeof(Record.Bytes)},&Restored,NULL) ||
        !xcronSchedulerJob(S,Restored,&Info,NULL) || Info.Next!=0 || !xcronSchedulerClose(S,NULL))return false;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
+    if(!consumerCheckpointStore(&Record,Key))return false;
+#endif
     bool Found; xcronretired Retired;
     bool OK=xcronSchedulerReap(S,&Retired,&Found,NULL) && Found &&
             xcronSchedulerReap(S,&Retired,&Found,NULL) && Found && xcronSchedulerDestroy(S,NULL);

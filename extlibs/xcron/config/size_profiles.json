@@ -253,6 +253,20 @@
         "_xrtExecutorCreate",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_checkpoint_store",
+      "system": "checkpoint_store",
+      "suite": "xcron_checkpoint_store",
+      "description": "Serialized checkpoint store plus rooted file and lock dependencies",
+      "forbid_symbols": [
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "xrtNetEngineCreate",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

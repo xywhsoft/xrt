@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `93` 个函数、`207` 个常量或宏、
-`98` 个公共类型。
+当前登记 `97` 个函数、`219` 个常量或宏、
+`101` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -73,6 +73,38 @@
 - `xcronjobid`
 - `xcronscheduler`
 - `xcronschedulerissue`
+
+## `extlibs/xcron/include/xcron/checkpoint_store.h`
+
+[查看带契约注释的公共头](../../include/xcron/checkpoint_store.h)
+
+### 函数 (4)
+
+- `xcronCheckpointStoreClose`
+- `xcronCheckpointStoreCommit`
+- `xcronCheckpointStoreOpen`
+- `xcronCheckpointStoreRead`
+
+### 常量与宏 (12)
+
+- `XCRON_CHECKPOINT_STORE_ARGUMENT`
+- `XCRON_CHECKPOINT_STORE_CORRUPT`
+- `XCRON_CHECKPOINT_STORE_EMPTY`
+- `XCRON_CHECKPOINT_STORE_IO`
+- `XCRON_CHECKPOINT_STORE_LIMIT`
+- `XCRON_CHECKPOINT_STORE_LOCK`
+- `XCRON_CHECKPOINT_STORE_MEMORY`
+- `XCRON_CHECKPOINT_STORE_MISMATCH`
+- `XCRON_CHECKPOINT_STORE_OK`
+- `XCRON_CHECKPOINT_STORE_STALE`
+- `XCRON_CHECKPOINT_STORE_UNCERTAIN`
+- `XCRON_FEATURE_XCRON_CHECKPOINT_STORE`
+
+### 类型 (3)
+
+- `xcroncheckpointstore`
+- `xcroncheckpointstoreinfo`
+- `xcroncheckpointstorestatus`
 
 ## `extlibs/xcron/include/xcron/delivery.h`
 

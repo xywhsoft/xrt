@@ -3909,6 +3909,42 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_checkpoint_store",
+      "system": "checkpoint_store",
+      "description": "One synchronous commit per sample on one rooted alternating-slot file; includes native file flush",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint_store",
+          "source": "extlibs/xcron/bench/bench_checkpoint_store.c",
+          "suite": "xcron_checkpoint_store",
+          "args": [
+            "1000"
+          ],
+          "smoke_args": [
+            "24"
+          ],
+          "metrics": {
+            "commits_per_sec": {
+              "direction": "higher",
+              "unit": "commits/s"
+            },
+            "commit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "commit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "commit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

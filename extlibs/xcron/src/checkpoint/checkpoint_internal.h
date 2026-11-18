@@ -6,6 +6,7 @@ typedef enum xcroncheckpointstatus {
     XCRON_CHECKPOINT_VALID, XCRON_CHECKPOINT_INVALID, XCRON_CHECKPOINT_INCOMPATIBLE
 } xcroncheckpointstatus;
 
+xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key);
 void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info,bool Selected,
     xcrondeliverypolicy Policy,xcroncheckpointkey Key,xcroncheckpoint* Out);
 xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,

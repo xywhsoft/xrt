@@ -14789,3 +14789,38 @@ commit/rotation, live service integration, power-loss validation, native
 endurance and end-to-end throughput and tail latency remain open. The
 strict xcron release gate lists 14 developing modules.
 [Stage evidence](xcron-checkpoint-20261118.json).
+
+## 2026-11-18 File-backed xcron checkpoint store
+
+The optional leaf keeps one job and revision in two slots of an 8192-byte
+file. A caller-serialized handle owns the native exclusive lock. Commit
+checks the generation and record envelope, writes the other slot and
+synchronizes the file before updating the cache. A failed write or flush
+requires a reopen to establish the recovered generation. Create is
+exclusive and opening a corrupt file never reinitializes it.
+
+Windows NTFS and WSL ext4 pass blocked-contender and process termination
+checks with an active lease, a persisted torn prefix and a complete slot
+before flush. After a torn write the prior generation is readable. With
+the full slot visible after process termination, reopening synchronizes
+and publishes the new generation. The earlier tmpfs controls produced
+identical wire images. The modular fault probe also injects I/O failure
+returns in the actual store implementation and checks poisoned handles.
+The module, standalone header, package consumers and WSL sanitizers pass.
+
+Each timing sample contains one alternate-slot write and native flush.
+There are five measured runs of 1,000 commits per filesystem. The table
+uses the median of each run's reported statistic.
+
+| Client / filesystem | Commits/s | p50 (ms) | p99 (ms) | p99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows NTFS | 1,035 | 0.974 | 1.166 | 5.303 |
+| WSL ext4 | 18 | 50.020 | 142.864 | 306.677 |
+
+The local measurements exceed the configured repeatability limits and remain exploratory.
+
+Initial directory installation, device power-loss behavior and live
+scheduler integration require separate verification. The strict xcron
+release gate lists 15 developing modules.
+[Store contract](../../extlibs/xcron/docs/checkpoint_store.md).
+[Stage evidence](xcron-checkpoint-store-20261118.json).

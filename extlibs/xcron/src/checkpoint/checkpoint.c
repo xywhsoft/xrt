@@ -55,16 +55,25 @@ void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info
 static uint64 xcronCheckpointAdd(uint64 A,uint64 B)
 {return B>UINT64_MAX-A?UINT64_MAX:A+B;}
 
-xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
-    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy)
+xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key)
 {
     const uint8* B=Wire.Data;
     if(Wire.Size!=XCRON_CHECKPOINT_BYTES || memcmp(B,"XCCP",4) || B[4]!=XCC_VERSION ||
        B[5]>1 || B[7] || B[6]>XCRON_JOB_CANCELLED || xcronCheckpointGet(B+XCC_CRC,4)!=xrtCrc32(B,XCC_CRC) ||
        B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_REJECT ||
        (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return XCRON_CHECKPOINT_INVALID;
-    if(B[5]!=(uint8)Selected || xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job ||
-       xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)return XCRON_CHECKPOINT_INCOMPATIBLE;
+    if(xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job || xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)
+        return XCRON_CHECKPOINT_INCOMPATIBLE;
+    return XCRON_CHECKPOINT_VALID;
+}
+
+xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
+    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy)
+{
+    xcroncheckpointstatus Status=xcronCheckpointValidate(Wire,Key);
+    if(Status!=XCRON_CHECKPOINT_VALID)return Status;
+    const uint8* B=Wire.Data;
+    if(B[5]!=(uint8)Selected)return XCRON_CHECKPOINT_INCOMPATIBLE;
     bool Scheduled=B[6]==XCRON_JOB_SCHEDULED;
     xtime Next=xcronCheckpointTime(B+XCC_NEXT);
     xcrondeliverypolicy Saved={(xcronfoldpolicy)B[XCC_POLICY],(xcronmissingpolicy)B[XCC_POLICY+1]};

@@ -26,6 +26,8 @@ until completion and a retirement receipt. The kernel creates no threads/timers.
 See [scheduler contracts and example](docs/scheduler.md).
 The optional checkpoint module restores a validated next occurrence or terminal
 state with fresh process-local data. [Checkpoint contract](docs/checkpoint.md).
+The optional file-backed store commits one job using two fixed slots, a native
+exclusive lock and generation-checked commits. [File-backed store](docs/checkpoint_store.md).
 
 `XCRON_MODULE_XCRON_EXECUTOR` dispatches actual leases through a borrowed XRT
 Executor, with preallocated slots, cooperative cancellation, owned worker-error
