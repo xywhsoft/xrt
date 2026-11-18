@@ -14748,3 +14748,44 @@ strict xredis release gate reports 32 developing modules. Multi-Sentinel
 disagreement and data freshness beyond
 the checked upstream remain outside this measurement.
 [Stage evidence](xredis-sentinel-standby-20261118.json).
+
+## 2026-11-18 xcron pull scheduler job checkpoints
+
+The optional xcron_checkpoint module saves a quiescent actual or selected
+job in a 180-byte versioned record. It binds configuration and application
+job/revision keys, carries counters and next occurrence, and rejects
+incompatible or corrupt input before acquiring a slot or a zone reference.
+Restoring an exhausted or explicitly cancelled job preserves its terminal
+state. The monotonic epoch and process-local Data come from the new owner.
+A selected restore revalidates the instant and reconstructs the local label
+and multiplicity. The job record is separate from the dispatch path.
+
+Windows and WSL modular and single-header tests cover CRC corruption, a
+valid-CRC off-schedule cursor, configuration mismatch, active lease and
+unfinished search rejection, cancelled/exhausted jobs, DST folds, and typed
+errors under allocation refusal. The isolated module and full package
+pass static and shared consumer tests. ASan, UBSan and leak detection
+pass in WSL. The isolated size profile checks the file/thread/executor
+dependency boundary.
+
+The independent processes flush the last complete record, acquire a live
+lease and terminate its process before completion. Restart reoffers that
+lease. After committing a new record, a later restart advances to the next
+instant. Windows and WSL produce byte-identical records and reject a
+truncated input file. Run the test with the built checkpoint example as
+the client. [Checkpoint example](../../extlibs/xcron/examples/checkpoint/README.md).
+
+Five repeats of 150,000 operations use one precompiled UTC job and a
+serialized owner. The restore rate includes cancellation and reaping
+each restored job. These are in-memory operation rates.
+
+| Platform | Save records/s | Restore and reap records/s |
+| --- | ---: | ---: |
+| windows | 1,552,996 | 1,245,724 |
+| wsl | 1,537,288 | 1,220,409 |
+
+The local runs pass the repeatability limits on both platforms. Storage
+commit/rotation, live service integration, power-loss validation, native
+endurance and end-to-end throughput and tail latency remain open. The
+strict xcron release gate lists 14 developing modules.
+[Stage evidence](xcron-checkpoint-20261118.json).

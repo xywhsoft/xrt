@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `91` 个函数、`203` 个常量或宏、
-`96` 个公共类型。
+当前登记 `93` 个函数、`207` 个常量或宏、
+`98` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -49,6 +49,30 @@
 - `xcroncalendarstatus`
 - `xcronexpression`
 - `xcronfield`
+
+## `extlibs/xcron/include/xcron/checkpoint.h`
+
+[查看带契约注释的公共头](../../include/xcron/checkpoint.h)
+
+### 函数 (2)
+
+- `xcronSchedulerRestoreCheckpoint`
+- `xcronSchedulerSaveCheckpoint`
+
+### 常量与宏 (3)
+
+- `XCRON_CHECKPOINT_BYTES`
+- `XCRON_FEATURE_XCRON_CHECKPOINT`
+- `XCRON_FEATURE_XCRON_SCHEDULER_SELECTED`
+
+### 类型 (6)
+
+- `xcroncheckpoint`
+- `xcroncheckpointkey`
+- `xcronjobconfig`
+- `xcronjobid`
+- `xcronscheduler`
+- `xcronschedulerissue`
 
 ## `extlibs/xcron/include/xcron/delivery.h`
 
@@ -134,7 +158,7 @@
 - `XCRON_FEATURE_XCRON_EXECUTOR`
 - `XCRON_FEATURE_XCRON_SCHEDULER`
 
-### 类型 (13)
+### 类型 (12)
 
 - `xcroncompletion`
 - `xcronexecuteproc`
@@ -145,7 +169,6 @@
 - `xcronexecutorissue`
 - `xcronexecutornotify`
 - `xcronexecutorstats`
-- `xcronjobid`
 - `xcronrun`
 - `xcronrunid`
 - `xcronrunresult`
@@ -162,10 +185,9 @@
 - `xcronExecutorSubmitBatchSelected`
 - `xcronExecutorSubmitSelected`
 
-### 常量与宏 (2)
+### 常量与宏 (1)
 
 - `XCRON_FEATURE_XCRON_EXECUTOR_SELECTED`
-- `XCRON_FEATURE_XCRON_SCHEDULER_SELECTED`
 
 ### 类型 (3)
 
@@ -276,7 +298,7 @@
 - `xcronSchedulerReap`
 - `xcronSchedulerWake`
 
-### 常量与宏 (24)
+### 常量与宏 (26)
 
 - `XCRON_JOB_CANCELLED`
 - `XCRON_JOB_EXHAUSTED`
@@ -296,6 +318,8 @@
 - `XCRON_SCHEDULER_ARGUMENT`
 - `XCRON_SCHEDULER_BUSY`
 - `XCRON_SCHEDULER_CALCULATION`
+- `XCRON_SCHEDULER_CHECKPOINT`
+- `XCRON_SCHEDULER_CHECKPOINT_MISMATCH`
 - `XCRON_SCHEDULER_CLOCK`
 - `XCRON_SCHEDULER_CLOSED`
 - `XCRON_SCHEDULER_LIMIT`
@@ -303,10 +327,9 @@
 - `XCRON_SCHEDULER_OK`
 - `XCRON_SCHEDULER_STALE`
 
-### 类型 (17)
+### 类型 (14)
 
 - `xcronclock`
-- `xcronjobconfig`
 - `xcronjobinfo`
 - `xcronjobstate`
 - `xcronmisfire`
@@ -314,10 +337,8 @@
 - `xcronpoll`
 - `xcronpollbudgeted`
 - `xcronretired`
-- `xcronscheduler`
 - `xcronschedulerconfig`
 - `xcronschedulererror`
-- `xcronschedulerissue`
 - `xcronschedulerstats`
 - `xcronwake`
 - `xcronzonedbudget`

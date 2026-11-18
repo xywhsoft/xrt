@@ -46,6 +46,7 @@
 #error "XCRON_FEATURE_XCRON requires selected scheduler"
 #endif
 #include <xcron/scheduler_selected.h>
+#include <xcron/checkpoint.h>
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_EXECUTOR)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_EXECUTOR"

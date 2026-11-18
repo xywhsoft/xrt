@@ -3881,6 +3881,34 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xcron_checkpoint",
+      "system": "checkpoint",
+      "description": "Quiescent in-memory actual scheduler save and restore/cancel/reap, one owner and fixed UTC job",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint",
+          "source": "extlibs/xcron/bench/bench_checkpoint.c",
+          "suite": "xcron_checkpoint",
+          "args": [
+            "150000"
+          ],
+          "smoke_args": [
+            "1000"
+          ],
+          "metrics": {
+            "save_records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            },
+            "restore_reap_records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

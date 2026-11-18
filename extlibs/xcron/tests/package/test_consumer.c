@@ -1,4 +1,31 @@
-#if defined(XCRON_FEATURE_XCRON_TZDB) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#include <xcron/checkpoint.h>
+static bool consumerCheckpoint(void)
+{
+    xcronjobconfig Config={.Begin=0,.End=2000,.RunningLimit=1};
+    const xcronschedulerconfig Limits={2,1,8,0,65536};
+    const xcroncheckpointkey Key={1,2};
+    xcronscheduler* S=NULL;
+    xcronjobid Original,Restored;
+    xcroncheckpoint Record;
+    xcronjobinfo Info;
+    if(!xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_POSIX,&Config.Zone,NULL) ||
+       !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&Config.Expression,NULL) ||
+       !xcronSchedulerCreate(&Limits,&S,NULL) || !xcronSchedulerAdd(S,&Config,&Original,NULL) ||
+       !xcronSchedulerSaveCheckpoint(S,Original,Key,&Record,NULL) ||
+       !xcronSchedulerRestoreCheckpoint(S,&Config,Key,(xbytesview){Record.Bytes,sizeof(Record.Bytes)},&Restored,NULL) ||
+       !xcronSchedulerJob(S,Restored,&Info,NULL) || Info.Next!=0 || !xcronSchedulerClose(S,NULL))return false;
+    bool Found; xcronretired Retired;
+    bool OK=xcronSchedulerReap(S,&Retired,&Found,NULL) && Found &&
+            xcronSchedulerReap(S,&Retired,&Found,NULL) && Found && xcronSchedulerDestroy(S,NULL);
+    xcronZoneRelease(Config.Zone);
+    return OK;
+}
+#endif
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
+int main(void){return consumerCheckpoint()?0:1;}
+#elif defined(XCRON_FEATURE_XCRON_TZDB) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
 /* A trimmed TZDB package must be checked through its own public surface, not
  * enable and link unrelated scheduler/executor/service APIs in its consumer. */
 #include <xcron.h>
@@ -179,6 +206,9 @@ int main(void)
 	if (!DeliveryOK) return 30;
 	if(!consumerSelected())return 31;
 	if(!consumerSelectedService())return 32;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    if(!consumerCheckpoint())return 33;
+#endif
 	return 0;
 }
 

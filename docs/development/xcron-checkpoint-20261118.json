@@ -1,0 +1,1122 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "source_revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+  "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+  "evidence_directory": "out/service-extensions/xcron-checkpoint-20261118",
+  "format": {
+    "version": 1,
+    "bytes": 180,
+    "integers": "little endian",
+    "integrity": "CRC-32/ISO-HDLC"
+  },
+  "source_sha256": {
+    "extlibs/xcron/include/xcron/checkpoint.h": "718377e40b82f64e853f67ab192c6814667cf16ebdd67f96cda4eadb2b31540f",
+    "extlibs/xcron/src/checkpoint/checkpoint.c": "ea966774ce1f4d01e365e299e633d0bcb7c146884f55d90b2cd74a2bce7df2d6",
+    "extlibs/xcron/src/scheduler/scheduler.c": "c4ec0d8f309584961bb7211987f7c2bc1113293c910951558461a65bd4ed112b",
+    "extlibs/xcron/tests/test_checkpoint.c": "f7a2cdd278ddd6e0f9e401c5872aa315d2e24eeec35b5c9dc0e493e8ced4487e",
+    "extlibs/xcron/examples/checkpoint/main.c": "791654a15d702df97a48c4e3d98c35233208250b6439ab00cd98c65f2517ce4d",
+    "extlibs/xcron/tests/interop/run_checkpoint_restart.py": "56f81f106a3824309d7ff7f94736618e4e453b764877c6cb8487ad86b5709a3f",
+    "single/extlibs/xcron.h": "d7cf895967c7c89a2e64b9c759de9cd8563569e2d7386934a8eb0687402931f4",
+    "single/extlibs/xcron_decl.h": "5f4b2294be3cb901192bda54f5c27e48a7b7ee7d0cdec0ee9b320c98bf2220bb"
+  },
+  "tests": {
+    "windows": [
+      {
+        "label": "checkpoint",
+        "log": "windows-checkpoint.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "8396020a5e90b694c73f5483161c551934d95b509e7e2f16d7ed6bcc0b1801fa",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-checkpoint/test_checkpoint.exe.gz",
+            "sha256": "a7138a3aeffb5e63297800176c5b89ebb49f8dcbb3665dad7e2af25e6e96db86",
+            "binary_sha256": "c52da2cd924cc37e439426ea64be35dbe1a3d80df8252d51af4004d9452f9e7b"
+          },
+          {
+            "path": "binaries/windows/windows-checkpoint/examples_checkpoint_main.exe.gz",
+            "sha256": "be59f16e9d92d2a5689a27ba0669335438a15da604e5dbc97f8225511cabde96",
+            "binary_sha256": "bd5017a14ab15a6c559c26f325817bfd99b666184c71fcad275db3df866824ee"
+          },
+          {
+            "path": "binaries/windows/windows-checkpoint/test_single_xcron_checkpoint.exe.gz",
+            "sha256": "cce43356662bbd55780fa15e3e050b052236e6ddf91208ae307ffc9e7a64829d",
+            "binary_sha256": "7f2cfda401f332feaaf87bca24c3b55d57c87725b83da3978068c3835289cbd5"
+          }
+        ]
+      },
+      {
+        "label": "xcron_scheduler",
+        "log": "windows-xcron_scheduler.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_scheduler",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "c0611acf85b02d6351c15e18fd34cedaf38fc3744f12fed193e652d38c79ccf3",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-xcron_scheduler/test_scheduler.exe.gz",
+            "sha256": "bd75707ac3b588cd1ba7e19604ac5229fe919f0d6fe764ed1c1234077f243cec",
+            "binary_sha256": "650bd7d3854aefd44f8495dc041d427807275f15534d3f586ed9c508da2361fb"
+          },
+          {
+            "path": "binaries/windows/windows-xcron_scheduler/examples_scheduler_main.exe.gz",
+            "sha256": "1d2adff949cf03940772b18ba8003c353780260d502919e7339fa73df65e5dd1",
+            "binary_sha256": "720d5a9481f81a9ba047902aa36172e197c4091cf7ed910e0ae5ac2caaee04ac"
+          },
+          {
+            "path": "binaries/windows/windows-xcron_scheduler/test_single_xcron_scheduler.exe.gz",
+            "sha256": "6e9efeb0c66abc1fd6a94d4a4cad34fc28dcadd3dda5b1f447742cead5769025",
+            "binary_sha256": "51497bbf4fc4d0980b3d505e785d273ed20aba4bb5d59239d003424fe9d16ee9"
+          }
+        ]
+      },
+      {
+        "label": "xcron_scheduler_selected",
+        "log": "windows-xcron_scheduler_selected.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_scheduler_selected",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "16a772faefc271a5f6f561eda54226f02298796fc7a97774d7ecbae62a2de868",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-xcron_scheduler_selected/test_scheduler_selected.exe.gz",
+            "sha256": "a235af89308b2c44c341a6f250495121ac1b0210945bdee8c6f878231d9ce441",
+            "binary_sha256": "c8e197fe3d21c21632623a3a827ba2dba0abc30df9e57ed1056dd54cf0261232"
+          },
+          {
+            "path": "binaries/windows/windows-xcron_scheduler_selected/examples_scheduler_selected_main.exe.gz",
+            "sha256": "f4ff56ce48bda4770d9bfee28512254d0937c394218cc54b8e88278afde5f5c5",
+            "binary_sha256": "01bbdf99b90209092fa5b2afa6645b87bc5294bca208015129b7101e35c1c4e3"
+          },
+          {
+            "path": "binaries/windows/windows-xcron_scheduler_selected/test_single_xcron_scheduler_selected.exe.gz",
+            "sha256": "02c4e19dd50c8306b44d39ddbb32c97945733ae4f46c676e0fec96a2a1466764",
+            "binary_sha256": "34230c61a80dc893b62f5a461a0b7ff5341b5f30429c19c48ceee58309f39b14"
+          }
+        ]
+      }
+    ],
+    "wsl": [
+      {
+        "label": "checkpoint",
+        "log": "wsl-checkpoint.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "e60a6c9ff238c8c437e87bfbb8a95698337ed1bfc41058247a4e4b23a54c5028",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-checkpoint/test_checkpoint.gz",
+            "sha256": "3e6547d4d5fc08b097217ed1285c7851ab1005508d014da1caf1bd12fa41a2bb",
+            "binary_sha256": "974f8380fad61e6b64b8c177cca119cfc1213869b3b9a4e3e80b5d21918452c5"
+          },
+          {
+            "path": "binaries/wsl/wsl-checkpoint/examples_checkpoint_main.gz",
+            "sha256": "4f8515c9a9edc90e71ccca0731bafeb52c01b3efd61604ace041d08f555c0702",
+            "binary_sha256": "2716c7b987ee2a350b6d6931a78cff53c81012e9044fa8ef4cdbaef5eccf2178"
+          },
+          {
+            "path": "binaries/wsl/wsl-checkpoint/test_single_xcron_checkpoint.gz",
+            "sha256": "cc929354c9d9bc775e61b82e1a526138afd01fece2dfbb55e288bd9ad61cd7d8",
+            "binary_sha256": "c681de06e0d914ab9543d2df9282ae5880f1e1344705ac5fc963f6ae433278cc"
+          }
+        ]
+      },
+      {
+        "label": "xcron_scheduler",
+        "log": "wsl-xcron_scheduler.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_scheduler",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "c63ae1ff3d27f408823987ac8d5ff2d31866e542d51e162e608c4e291626df18",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler/test_scheduler.gz",
+            "sha256": "7b3671baafe04d401e736eed8a76e9333c958b5b64103a09961fccb0871b170d",
+            "binary_sha256": "87d64a292e972209b0853e926f2dd54240dfe19740aaf3d23f03178915ab6c3b"
+          },
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler/examples_scheduler_main.gz",
+            "sha256": "58c7bf58cc00b11d10bde4e41119b930512fa872c255b2149742580b0a7993de",
+            "binary_sha256": "c92ebb58d79afdb2c4261f7675cc2102c1a5d7d6cc03ee6580f9c05359c7bfff"
+          },
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler/test_single_xcron_scheduler.gz",
+            "sha256": "09baf5cbe66309505f8022919f62447429c160525e3da09dd2da1778856a38c9",
+            "binary_sha256": "978a33cd6965870481f490ae22710def08262f9a8fba717f7b9728820ccdd529"
+          }
+        ]
+      },
+      {
+        "label": "xcron_scheduler_selected",
+        "log": "wsl-xcron_scheduler_selected.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_scheduler_selected",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "b1e3b91ea142b0d7eda4d6b06786f39ce95a950469652918474728903456f54d",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler_selected/test_scheduler_selected.gz",
+            "sha256": "a1d8205bf77f74db25ef1c4599f5c120b3e25ea6d7d3732604fe5146ad3fc580",
+            "binary_sha256": "07b20945c66f3b18a17570cb5d54781d28c09495468742fd83082fc299ea59f4"
+          },
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler_selected/examples_scheduler_selected_main.gz",
+            "sha256": "5c83cbc8f0a3192f04817f9a922dbd35b6163ac1a7e98d9359217c49aa71c3e0",
+            "binary_sha256": "469c2dd055b9933c6480ee9ab217fcd0e304c887b4318b88f3e505d888808294"
+          },
+          {
+            "path": "binaries/wsl/wsl-xcron_scheduler_selected/test_single_xcron_scheduler_selected.gz",
+            "sha256": "22860af8c599ee7a22bac0d2d8bfa57c96ae65a6ef88bca10ae491ede7345043",
+            "binary_sha256": "c51be6fc852ab937dd9de0f18a5215b4e9d5207b8b625e19c96ed8b58d2d2eea"
+          }
+        ]
+      }
+    ]
+  },
+  "restart": {
+    "windows": {
+      "report": "windows-restart.json",
+      "report_sha256": "9c5dcc48176fdc848b918b51d7e4d962dff9ba0992d5c04547062532cad93431",
+      "result": {
+        "client_sha256": "bd5017a14ab15a6c559c26f325817bfd99b666184c71fcad275db3df866824ee",
+        "runner_sha256": "56f81f106a3824309d7ff7f94736618e4e453b764877c6cb8487ad86b5709a3f",
+        "interrupted": "NEXT 1000",
+        "terminated_exit": 1,
+        "replayed": "NEXT 1000",
+        "resumed": "NEXT 2000",
+        "earlier_checkpoint_sha256": "fda70791a997834318d5c77e22d7d6db9e2e895e32074bd8d011faf09d79c83e",
+        "advanced_checkpoint_sha256": "b2076dd58af50529229c3ef60710b696c9aa22d1c6a38db14ad381a35e2ecfd0",
+        "torn_checkpoint_exit": 7,
+        "synchronized_records": 2
+      },
+      "receipt": {
+        "label": "restart",
+        "log": "windows-restart.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xcron/tests/interop/run_checkpoint_restart.py",
+          "--client",
+          "D:\\GIT\\xrt\\out\\gcc\\native\\xcron_checkpoint\\examples_checkpoint_main.exe",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xcron-checkpoint-20261118\\windows-restart.json"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "5b7df7666a419bf32ad2f12c2d0e8d148ad30477b4aab7530cce44988e559dc1",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "wsl": {
+      "report": "wsl-restart.json",
+      "report_sha256": "6ba1db0c049c112473f8844a57b6b50caa00e2182f03d5eba992622ae6e14695",
+      "result": {
+        "client_sha256": "2716c7b987ee2a350b6d6931a78cff53c81012e9044fa8ef4cdbaef5eccf2178",
+        "runner_sha256": "56f81f106a3824309d7ff7f94736618e4e453b764877c6cb8487ad86b5709a3f",
+        "interrupted": "NEXT 1000",
+        "terminated_exit": -9,
+        "replayed": "NEXT 1000",
+        "resumed": "NEXT 2000",
+        "earlier_checkpoint_sha256": "fda70791a997834318d5c77e22d7d6db9e2e895e32074bd8d011faf09d79c83e",
+        "advanced_checkpoint_sha256": "b2076dd58af50529229c3ef60710b696c9aa22d1c6a38db14ad381a35e2ecfd0",
+        "torn_checkpoint_exit": 7,
+        "synchronized_records": 2
+      },
+      "receipt": {
+        "label": "restart",
+        "log": "wsl-restart.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xcron/tests/interop/run_checkpoint_restart.py",
+          "--client",
+          "/mnt/d/GIT/xrt/out/gcc/x64/xcron_checkpoint/examples_checkpoint_main",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xcron-checkpoint-20261118/wsl-restart.json"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "873dd454082813628fe16dcd7495fc3e8696e1e7210199eac48000ef870e512d",
+        "programs": 0,
+        "binaries": []
+      }
+    }
+  },
+  "sanitizer": {
+    "label": "checkpoint-san",
+    "log": "wsl-checkpoint-san.log",
+    "exit_code": 0,
+    "args": [
+      "/usr/bin/python3",
+      "-u",
+      "-X",
+      "utf8",
+      "tools/build.py",
+      "--compiler",
+      "/usr/bin/gcc",
+      "--arch",
+      "x64",
+      "--manifest",
+      "extlibs/xcron/config/modules.json",
+      "--suite",
+      "xcron_checkpoint,memory_stats",
+      "--jobs",
+      "3",
+      "--no-examples",
+      "--cflag=-O2",
+      "--cflag=-g",
+      "--cflag=-fsanitize=address,undefined",
+      "--cflag=-fno-omit-frame-pointer",
+      "--ldflag=-fsanitize=address,undefined"
+    ],
+    "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+    "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+    "log_sha256": "5df7527cc2534f2b523d65fed1c468808622dc6770184c5d7c76ca173afb093a",
+    "programs": 6,
+    "binaries": [
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_checkpoint.gz",
+        "sha256": "d7a3513f971adca6c7e8b225d64878471fd51ed8bb753239dae554455dbd4098",
+        "binary_sha256": "d2596d430c710c170a60dbe8c0d4fe32607d050ae27a288b4014dfe05fb15ca7"
+      },
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_memory_stats.gz",
+        "sha256": "68b21913bf59a2607fde192e61fd11d7e0dac1419262c543f83a788a9fe8ff4a",
+        "binary_sha256": "cc92625218af7f73f1c6cf1c99ad099da0e326510036104148decbe12024ae27"
+      },
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_memory_stats_threads.gz",
+        "sha256": "436c31534c536d1e1b1803540ba6f76f8d48914652289c7b236558b87232c6d5",
+        "binary_sha256": "df2c3b5a866ae663a39761ff54dbf5ed9c46b4417d5d618b147e7074830f7866"
+      },
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_single_xcron_checkpoint.gz",
+        "sha256": "ac43130a2ac629b8a5ca44156351f89d446b2a9b49477b02afe4a7c11416ee70",
+        "binary_sha256": "d418ae44a3bb10780c6fb6fc14239ec54f1dc22182459cf012cf33ec669a13e5"
+      },
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_single_stats.gz",
+        "sha256": "9a2c2d0ec3c0fde2b8c9828e3f3c63714646ddb1438f7e24a8fd7bd07af35789",
+        "binary_sha256": "a86e658ada684494207a45bd80027216bce855e82a560310c62ae37bdcbabe32"
+      },
+      {
+        "path": "binaries/wsl/wsl-checkpoint-san/test_single_stats_threads.gz",
+        "sha256": "0b5609eacbd3f150d2583282fdafb8769b6078e1eb82608993e28d6939e79ee6",
+        "binary_sha256": "065eeb322845edb02c5be3ab703697818d93e1c93c5e65e827da9fd8d1f86712"
+      }
+    ]
+  },
+  "packages": {
+    "windows": [
+      {
+        "label": "package-xcron_checkpoint-static",
+        "log": "windows-package-xcron_checkpoint-static.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "281537391a57d446df3144583b965202588d4131add382fa99ec3a145453b6c9",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron_checkpoint-shared",
+        "log": "windows-package-xcron_checkpoint-shared.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "2bdd61b18042de57049f5eb5e86a644a89a4cc93139f934ed5bd6b0e7972b621",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron-static",
+        "log": "windows-package-xcron-static.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "dc5826f588c8ffad3187e661143d91170ddc09c2a858b0a06b028b2927506f96",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron-shared",
+        "log": "windows-package-xcron-shared.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "cd351e6926a0bf95c358b3996ba0521f3a7b5601d0e8e29947f36af85b28962b",
+        "programs": 0,
+        "binaries": []
+      }
+    ],
+    "wsl": [
+      {
+        "label": "package-xcron_checkpoint-static",
+        "log": "wsl-package-xcron_checkpoint-static.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "074dd7fccb8b9ecfb705aed3f2625109eb252496142f916bc8830e17a929a8aa",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron_checkpoint-shared",
+        "log": "wsl-package-xcron_checkpoint-shared.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron_checkpoint",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "ddd407d98b7bfdca14a9b1e2194ca227bec40058ba66cc55025b0b740853e739",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron-static",
+        "log": "wsl-package-xcron-static.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "f7367dd32f5bffb96fa2a7339adb8b032ad764a7c541aa7618bc30a003a01e48",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-xcron-shared",
+        "log": "wsl-package-xcron-shared.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--suite",
+          "xcron",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "14952c2b709b6f428508eb77b5e1c0b7423955a111000bf2eeab9ff3e12de393",
+        "programs": 0,
+        "binaries": []
+      }
+    ]
+  },
+  "size": {
+    "windows": {
+      "report": "windows-size.json",
+      "report_sha256": "7cc77a454b6c03e6f426a04aa17e3b3f2fb6b63370620b2d26051f2be0308d66",
+      "metrics": {
+        "text": 132940,
+        "data": 2376,
+        "bss": 11072,
+        "members": 1,
+        "load": 135316,
+        "file": 179964,
+        "path": "out/size/gnu/native/xcron_checkpoint/single/xcron_single.o",
+        "compile_seconds": 4.4693353999755345,
+        "forbidden_symbol_count": 0
+      },
+      "receipt": {
+        "label": "size",
+        "log": "windows-size.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_size.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--config",
+          "extlibs/xcron/config/size_profiles.json",
+          "--profiles",
+          "xcron_checkpoint",
+          "--kind",
+          "single",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xcron-checkpoint-20261118\\windows-size.json"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "074ea7fb8b7a19b62a25ed2fbc154af1b1c906228621e0bc8b8a24df7f0fb8c7",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "wsl": {
+      "report": "wsl-size.json",
+      "report_sha256": "816eb12d68f881b0fa31a9962c490df1ecba4501596cc2390dd2c807690d2b8d",
+      "metrics": {
+        "text": 141069,
+        "data": 2648,
+        "bss": 10892,
+        "members": 1,
+        "load": 143717,
+        "file": 214968,
+        "path": "out/size/gnu/x64/xcron_checkpoint/single/xcron_single.o",
+        "compile_seconds": 2.7503181350000006,
+        "forbidden_symbol_count": 0
+      },
+      "receipt": {
+        "label": "size",
+        "log": "wsl-size.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_size.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--config",
+          "extlibs/xcron/config/size_profiles.json",
+          "--profiles",
+          "xcron_checkpoint",
+          "--kind",
+          "single",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xcron-checkpoint-20261118/wsl-size.json"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "d14e92a083efa3e725530c5f79c809b015b662ba8449f91344e43cd8e050b859",
+        "programs": 0,
+        "binaries": []
+      }
+    }
+  },
+  "measurements": {
+    "windows": {
+      "report": "windows-benchmark.json",
+      "report_sha256": "4c9b279cc45e926733889a783346210f4d9cdff502eda5d70535b770bb87ef82",
+      "environment": {
+        "platform": "win32",
+        "machine": "amd64",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "optimization": "-O2"
+      },
+      "measurement": {
+        "save_records_per_sec": {
+          "samples": [
+            1546997.794,
+            1555577.679,
+            1552995.988,
+            1555722.882,
+            1552202.109
+          ],
+          "median": 1552995.988,
+          "mean": 1552699.2903999998,
+          "min": 1546997.794,
+          "max": 1555722.882,
+          "mad": 2581.691000000108,
+          "relative_mad": 0.0016623938631837008,
+          "range": 8725.087999999989,
+          "relative_range": 0.005618229581672293,
+          "central_range": 3375.570000000065,
+          "relative_central_range": 0.0021735857826311817,
+          "direction": "higher",
+          "unit": "records/s",
+          "limit": 0.05,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "restore_reap_records_per_sec": {
+          "samples": [
+            1253241.718,
+            1206798.621,
+            1249154.738,
+            1245724.052,
+            1243427.45
+          ],
+          "median": 1245724.052,
+          "mean": 1239669.3158,
+          "min": 1206798.621,
+          "max": 1253241.718,
+          "mad": 3430.685999999987,
+          "relative_mad": 0.00275396946417792,
+          "range": 46443.09700000007,
+          "relative_range": 0.03728201035007396,
+          "central_range": 5727.287999999942,
+          "relative_central_range": 0.004597557533552336,
+          "direction": "higher",
+          "unit": "records/s",
+          "limit": 0.05,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        }
+      },
+      "quality_failures": [],
+      "receipt": {
+        "label": "benchmark",
+        "log": "windows-benchmark.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--config",
+          "extlibs/xcron/config/performance_profiles.json",
+          "--profiles",
+          "xcron_checkpoint",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xcron-checkpoint-20261118\\windows-benchmark.json",
+          "--repeats",
+          "5",
+          "--warmups",
+          "1"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "460cbd8370307ba634e958cfcbf0666b30f4b369c1a15abe2c1dfb6c0814d95f",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "wsl": {
+      "report": "wsl-benchmark.json",
+      "report_sha256": "7e6af59a2827e8b4cfa4382d30ea3ec4e15af69c788d1965f66a4cd36ce46f88",
+      "environment": {
+        "platform": "linux",
+        "machine": "x86_64",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "optimization": "-O2"
+      },
+      "measurement": {
+        "save_records_per_sec": {
+          "samples": [
+            1546195.035,
+            1537287.823,
+            1524953.702,
+            1418930.203,
+            1550502.326
+          ],
+          "median": 1537287.823,
+          "mean": 1515573.8177999998,
+          "min": 1418930.203,
+          "max": 1550502.326,
+          "mad": 12334.121000000043,
+          "relative_mad": 0.008023299746127008,
+          "range": 131572.1229999999,
+          "relative_range": 0.0855871756944242,
+          "central_range": 21241.332999999868,
+          "relative_central_range": 0.01381740795848343,
+          "direction": "higher",
+          "unit": "records/s",
+          "limit": 0.05,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "restore_reap_records_per_sec": {
+          "samples": [
+            1244500.851,
+            1220408.63,
+            1098848.306,
+            1245874.587,
+            1209498.404
+          ],
+          "median": 1220408.63,
+          "mean": 1203826.1556,
+          "min": 1098848.306,
+          "max": 1245874.587,
+          "mad": 24092.221000000136,
+          "relative_mad": 0.01974110999198698,
+          "range": 147026.28099999996,
+          "relative_range": 0.12047299354151565,
+          "central_range": 35002.44699999993,
+          "relative_central_range": 0.028680923864001135,
+          "direction": "higher",
+          "unit": "records/s",
+          "limit": 0.05,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        }
+      },
+      "quality_failures": [],
+      "receipt": {
+        "label": "benchmark",
+        "log": "wsl-benchmark.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--config",
+          "extlibs/xcron/config/performance_profiles.json",
+          "--profiles",
+          "xcron_checkpoint",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xcron-checkpoint-20261118/wsl-benchmark.json",
+          "--repeats",
+          "5",
+          "--warmups",
+          "1"
+        ],
+        "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+        "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+        "log_sha256": "135dcd81c96d847b8653f9fc1aae1eac36c10806ee7e3c242a9c6aadcca5989f",
+        "programs": 0,
+        "binaries": []
+      }
+    }
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xcron/config/modules.json"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xcron/config/modules.json"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xcron/config/modules.json"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "f1c7279061e7a148214ec190ad2634b0b4b2a33cccab0bce6d3a4926554a236d",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xcron/config/modules.json"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xcron/config/modules.json"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "5e8fb7b1bb5b39f3737c9e55eabf8f51c8639d3cda77d91c8ee5be0668df5764",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+      "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+      "log_sha256": "b6aed115567bb62e74f3978098d06de77c7047d922222199e212499e5b690aed",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release_gate": {
+    "label": "strict",
+    "log": "windows-strict.log",
+    "exit_code": 1,
+    "args": [
+      "C:\\Program Files\\Python312\\python.exe",
+      "-u",
+      "-X",
+      "utf8",
+      "tools/check_release_maturity.py",
+      "--release",
+      "--manifest",
+      "extlibs/xcron/config/modules.json"
+    ],
+    "revision": "e75a26c1522dd8a792d3e0a18b13910aaa602e10",
+    "source_map_sha256": "2d47645316a4317653701d35df705c6fd47887b515669f641839ed321a4f6f73",
+    "log_sha256": "b61ef1848d5ac861d15eaa9d512d7e3b81b916bad6492d15f38c0ad371d0d1c4",
+    "programs": 0,
+    "binaries": [],
+    "developing_modules": [
+      "xcron",
+      "xcron_timezone",
+      "xcron_tzdb",
+      "xcron_tzdb_file",
+      "xcron_delivery",
+      "xcron_zoned",
+      "xcron_occurrence",
+      "xcron_scheduler",
+      "xcron_scheduler_selected",
+      "xcron_checkpoint",
+      "xcron_executor",
+      "xcron_executor_selected",
+      "xcron_service",
+      "xcron_service_selected"
+    ]
+  },
+  "pending": [
+    "Atomic durable-store commits and live-service journal integration.",
+    "Multiple-job transactions, power-loss qualification and native server endurance.",
+    "Controlled end-to-end throughput and tail-latency baselines."
+  ]
+}

@@ -235,6 +235,24 @@
         "_xrtTimeLocal",
         "_xrtTimeFromLocal"
       ]
+    },
+    {
+      "name": "xcron_checkpoint",
+      "system": "checkpoint",
+      "suite": "xcron_checkpoint",
+      "description": "Serialized pull scheduler and checkpoint record validation",
+      "forbid_symbols": [
+        "xrtOpen",
+        "xrtFileOpen",
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "xrtNetEngineCreate",
+        "_xrtOpen",
+        "_xrtFileOpen",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

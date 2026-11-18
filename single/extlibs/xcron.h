@@ -106,6 +106,22 @@
 #ifndef XCRON_MODULE_XCRON_SERVICE_SELECTED
 #define XCRON_MODULE_XCRON_SERVICE_SELECTED
 #endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT
+#define XCRON_MODULE_XCRON_CHECKPOINT
+#endif
+#endif
+
+/* xcron_checkpoint 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CHECKPOINT)
+#ifndef XCRON_FEATURE_XCRON_CHECKPOINT
+#define XCRON_FEATURE_XCRON_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#define XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
 #endif
 
 /* xcron_service_selected 及其直接依赖。 */
@@ -716,7 +732,8 @@ typedef enum xcronrunresult {XCRON_RUN_SUCCEEDED=0,XCRON_RUN_FAILED,XCRON_RUN_CA
 typedef enum xcronschedulererror {
     XCRON_SCHEDULER_OK=0,XCRON_SCHEDULER_ARGUMENT=4001,XCRON_SCHEDULER_LIMIT,
     XCRON_SCHEDULER_MEMORY,XCRON_SCHEDULER_CLOSED,XCRON_SCHEDULER_STALE,
-    XCRON_SCHEDULER_BUSY,XCRON_SCHEDULER_CLOCK,XCRON_SCHEDULER_CALCULATION
+    XCRON_SCHEDULER_BUSY,XCRON_SCHEDULER_CLOCK,XCRON_SCHEDULER_CALCULATION,
+    XCRON_SCHEDULER_CHECKPOINT,XCRON_SCHEDULER_CHECKPOINT_MISMATCH
 } xcronschedulererror;
 typedef struct xcronschedulerissue {xcronschedulererror Code;xcronzonedissue Zoned;} xcronschedulerissue;
 typedef struct xcronschedulerconfig {
@@ -1651,6 +1668,53 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/checkpoint.h */
+/* ========================================================================== */
+
+#ifndef XCRON_CHECKPOINT_H
+#define XCRON_CHECKPOINT_H
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT) && !defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
+#error "cron checkpoints require the scheduler in both modes"
+#endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#define XCRON_CHECKPOINT_BYTES 180u
+typedef struct xcroncheckpointkey {
+    uint64 Job;
+    uint64 Revision;
+} xcroncheckpointkey;
+typedef struct xcroncheckpoint {
+    uint8 Bytes[XCRON_CHECKPOINT_BYTES];
+} xcroncheckpoint;
+
+XRT_EXTERN_C_BEGIN
+/* Capture one quiescent job on the serialized scheduler owner. Every run has
+ * physically completed and the next occurrence is known, or the job is an
+ * exhausted/explicitly cancelled tombstone. SEARCHING/live leases are BUSY;
+ * a faulted job reports CALCULATION. Capture before Close/Reap. A new record
+ * is published to caller storage only on success. No I/O or allocation on
+ * success. Job and Revision are nonzero stable application identities;
+ * change Revision whenever the job's zone rules or intended behavior change.
+ * The caller commits the record to durable storage at its chosen boundary. */
+XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcronjobid Job,
+    xcroncheckpointkey Key,xcroncheckpoint* Checkpoint,xcronschedulerissue* Issue);
+/* Admit from a complete v1 record into an open scheduler of the saved mode.
+ * Recreate the same configuration/zone and supply new process-local Data;
+ * configured fields and Key must match. Revalidate a scheduled instant and
+ * restore the selected mode's saved fold/missing policy and local metadata.
+ * Terminal records restore as reapable tombstones. Per-job counters continue;
+ * scheduler-wide counters, monotonic samples, leases and old IDs are local.
+ * Only success retains Zone and borrows Data. Config/record are borrowed for
+ * the call. Checksum detects storage corruption; it authenticates nothing.
+ * Replay may occur after the last committed checkpoint. Serializing a newer
+ * record does not itself make the record durable or commit business effects. */
+XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -1961,6 +2025,27 @@ typedef struct xcronoccurrencevalue {
 } xcronoccurrencevalue;
 void xcronOccurrenceValueInit(const xcronexpression* Expression,const xcronzone* Zone,xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrencevalue* Value);
 xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* Value,const xcronzone* Zone,xcronoccurrencebudget Budget);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xcron/src/checkpoint/checkpoint_internal.h */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#ifndef XCRON_CHECKPOINT_INTERNAL_H
+#define XCRON_CHECKPOINT_INTERNAL_H
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+typedef enum xcroncheckpointstatus {
+    XCRON_CHECKPOINT_VALID, XCRON_CHECKPOINT_INVALID, XCRON_CHECKPOINT_INCOMPATIBLE
+} xcroncheckpointstatus;
+
+void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info,bool Selected,
+    xcrondeliverypolicy Policy,xcroncheckpointkey Key,xcroncheckpoint* Out);
+xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
+    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy);
 #endif
 #endif
 #endif
@@ -3501,6 +3586,8 @@ XCRON_API xcronzonedstatus xcronZonedCursorStep(xcronzonedcursor* C,const xcronz
 /* ========================================================================== */
 
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER)
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#endif
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
 #endif
 #include <string.h>
@@ -3581,6 +3668,10 @@ static bool xcronSchedulerFail(xcronschedulererror Code,const xcronzonedissue* Z
     case XCRON_SCHEDULER_BUSY:Text="cron scheduler has unreaped jobs or live leases";Kind=XERR_STATE;break;
     case XCRON_SCHEDULER_CLOCK:Text="cron monotonic clock sample moved backwards";Kind=XERR_STATE;break;
     case XCRON_SCHEDULER_CALCULATION:Text="cron initial occurrence calculation failed";Kind=XERR_VALUE;break;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    case XCRON_SCHEDULER_CHECKPOINT:Text="invalid cron checkpoint record";Kind=XERR_VALUE;break;
+    case XCRON_SCHEDULER_CHECKPOINT_MISMATCH:Text="cron checkpoint does not match the job configuration";Kind=XERR_VALUE;break;
+#endif
     default:break;
     }
     xrtSetErrorInfo(Kind,"xrt.cron.scheduler",Code,Text);return false;
@@ -4102,6 +4193,70 @@ XCRON_API bool xcronSchedulerReapSelected(xcronscheduler* S,xcronselectedretired
     uint32 I=S->RetireHead;if(I==XCRON_SLOT_NONE){*Found=false;xcronSchedulerOK(Issue);return true;}
     xcronjobslot* J=&S->Jobs[I];xcronselectedretired Value={xcronSchedulerId(J->Generation,I,S->JobBits),J->Config.Data,xcronSchedulerSelectedInfo(S,I)};
     xcronSchedulerQueueRemove(S,I,true);xcronSchedulerFreeJob(S,I);*Retired=Value;*Found=true;xcronSchedulerOK(Issue);return true;
+}
+#endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid Id,
+    xcroncheckpointkey Key,xcroncheckpoint* Out,xcronschedulerissue* Issue)
+{
+    if(!Key.Job || !Key.Revision || !Out || !xcronSchedulerArgs(S,Out,sizeof(*Out),Issue))
+        return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    uint32 I;
+    if(!xcronSchedulerJobIndex(S,Id,&I))return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+    const xcronjobslot* J=&S->Jobs[I];
+    void* O[]={Out,Issue};size_t N[]={sizeof(*Out),Issue?sizeof(*Issue):0};
+    if(!xcronZoneOutputs(J->Config.Zone,NULL,0,O,N,2))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
+    if(J->Info.Running || J->Initial || J->Info.State==XCRON_JOB_SEARCHING)
+        return xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
+    if(J->Info.State==XCRON_JOB_FAULTED)return xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&J->Info.LastIssue,Issue);
+    xcrondeliverypolicy Policy=S->Selected?S->Selections[I].Policy:(xcrondeliverypolicy){0};
+    xcronCheckpointEncode(&J->Config,&J->Info,S->Selected,Policy,Key,Out);
+    xcronSchedulerOK(Issue);
+    return true;
+}
+
+XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* S,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Id,xcronschedulerissue* Issue)
+{
+    void* O[]={Id,Issue};size_t N[]={sizeof(*Id),Issue?sizeof(*Issue):0};
+    if(!S || !Key.Job || !Key.Revision || !Id ||
+       !xcronSchedulerOutputs(S,Checkpoint.Data,Checkpoint.Size,O,N,2))
+        return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(!xcronSchedulerAdmissionArgs(S,Config,Id,Issue,S->Selected))return false;
+
+    xcronjobinfo Saved;
+    xcrondeliverypolicy Policy;
+    xcroncheckpointstatus Status=xcronCheckpointDecode(Checkpoint,Config,S->Selected,Key,&Saved,&Policy);
+    if(Status!=XCRON_CHECKPOINT_VALID)return xcronSchedulerFail(
+        Status==XCRON_CHECKPOINT_INVALID?XCRON_SCHEDULER_CHECKPOINT:XCRON_SCHEDULER_CHECKPOINT_MISMATCH,NULL,Issue);
+
+    xcronoccurrencevalue Selection;
+    if(Saved.HasNext){
+        if(S->Selected){
+            xcronOccurrenceValueInit(&Config->Expression,Config->Zone,Saved.Next,Saved.Next,0,Policy,&Selection);
+            xcronoccurrencebudget All={UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX};
+            if(xcronOccurrenceValueStep(&Selection,Config->Zone,All)!=XCRON_OCCURRENCE_FOUND ||
+               Selection.Candidate.When!=Saved.Next)
+                return xcronSchedulerFail(XCRON_SCHEDULER_CHECKPOINT_MISMATCH,NULL,Issue);
+        }else{
+            xtime When;
+            if(xcronZonedNextValue(&Config->Expression,Config->Zone,Saved.Next,Saved.Next,0,&When,&Saved.LastIssue)!=XCRON_ZONED_FOUND ||
+               When!=Saved.Next)return xcronSchedulerFail(XCRON_SCHEDULER_CHECKPOINT_MISMATCH,&Saved.LastIssue,Issue);
+        }
+    }
+    if(!xcronZoneRetain(Config->Zone))return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
+    uint32 I=xcronSchedulerAllocateJob(S,Config,false);
+    xcronjobslot* J=&S->Jobs[I];
+    J->Info=Saved;
+    if(S->Selected){
+        if(Saved.HasNext)S->Selections[I]=Selection;
+        else S->Selections[I]=(xcronoccurrencevalue){.Policy=Policy,.Status=XCRON_OCCURRENCE_NONE,.Work={.Field=XCRON_FIELD_NONE}};
+    }
+    xcronSchedulerPlace(S,I);
+    *Id=xcronSchedulerId(J->Generation,I,S->JobBits);
+    xcronSchedulerOK(Issue);
+    return true;
 }
 #endif
 #endif
@@ -5853,6 +6008,99 @@ XCRON_API xcronoccurrencestatus xcronOccurrenceCursorStep(xcronoccurrencecursor*
     xcronoccurrencestatus S=xcronOccurrenceValueStep(&I.Value,Z,B);memcpy(C,&I,sizeof(I));if(S==XCRON_OCCURRENCE_FOUND)*Next=I.Value.Candidate;
     if(S==XCRON_OCCURRENCE_ERROR)xcronOccurrenceReport(I.Value.Work,Issue);else if(Issue)*Issue=I.Value.Work;
     return S;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/checkpoint/checkpoint.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#include <string.h>
+
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+enum { XCC_VERSION=1, XCC_JOB=8, XCC_CONFIG=24, XCC_NEXT=40, XCC_POLICY=122,
+       XCC_COUNTS=128, XCC_CRC=176 };
+_Static_assert(XCC_CRC+4==XCRON_CHECKPOINT_BYTES && XCRON_FIELD_COUNT==6,"checkpoint v1 field layout");
+_Static_assert(XCRON_JOB_SCHEDULED==0 && XCRON_JOB_EXHAUSTED==1 && XCRON_JOB_CANCELLED==2,
+               "checkpoint v1 job states");
+
+static void xcronCheckpointPut(uint8* Out,uint64 Value,size_t Bytes)
+{
+    for(size_t I=0;I<Bytes;++I){Out[I]=(uint8)Value;Value>>=8;}
+}
+static uint64 xcronCheckpointGet(const uint8* In,size_t Bytes)
+{
+    uint64 Value=0;
+    for(size_t I=Bytes;I;--I)Value=(Value<<8)|In[I-1];
+    return Value;
+}
+static xtime xcronCheckpointTime(const uint8* In)
+{
+    uint64 Value=xcronCheckpointGet(In,8);
+    return Value<=INT64_MAX?(xtime)Value:INT64_MIN+(xtime)(Value-(UINT64_C(1)<<63));
+}
+static void xcronCheckpointConfig(uint8* Out,const xcronjobconfig* Config,xtime Next,xcrondeliverypolicy Policy)
+{
+    xcronCheckpointPut(Out,(uint64)Config->Begin,8);
+    xcronCheckpointPut(Out+8,(uint64)Config->End,8);
+    xcronCheckpointPut(Out+16,(uint64)Next,8);
+    xcronCheckpointPut(Out+24,Config->GraceMilliseconds,8);
+    for(size_t I=0;I<XCRON_FIELD_COUNT;++I)xcronCheckpointPut(Out+32+8*I,Config->Expression.Fields[I],8);
+    xcronCheckpointPut(Out+80,Config->Expression.Flags,4);
+    xcronCheckpointPut(Out+84,(uint32)Config->Expression.Dialect,4);
+    xcronCheckpointPut(Out+88,Config->SearchFlags,4);
+    xcronCheckpointPut(Out+92,Config->RunningLimit,4);
+    Out[96]=(uint8)Config->Misfire;Out[97]=(uint8)Config->Overlap;
+    Out[98]=(uint8)Policy.Fold;Out[99]=(uint8)Policy.Missing;
+    memset(Out+100,0,4);
+}
+void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info,bool Selected,
+    xcrondeliverypolicy Policy,xcroncheckpointkey Key,xcroncheckpoint* Out)
+{
+    uint8* B=Out->Bytes;
+    memcpy(B,"XCCP",4);
+    B[4]=XCC_VERSION;B[5]=Selected;B[6]=(uint8)Info->State;B[7]=0;
+    xcronCheckpointPut(B+XCC_JOB,Key.Job,8);
+    xcronCheckpointPut(B+XCC_JOB+8,Key.Revision,8);
+    xcronCheckpointConfig(B+XCC_CONFIG,Config,Info->HasNext?Info->Next:0,Policy);
+    const uint64 Counts[]={Info->Dispatched,Info->Succeeded,Info->Failed,Info->Cancelled,Info->SkippedRanges,Info->CoalescedRanges};
+    for(size_t I=0;I<sizeof(Counts)/sizeof(*Counts);++I)xcronCheckpointPut(B+XCC_COUNTS+8*I,Counts[I],8);
+    xcronCheckpointPut(B+XCC_CRC,xrtCrc32(B,XCC_CRC),4);
+}
+static uint64 xcronCheckpointAdd(uint64 A,uint64 B)
+{return B>UINT64_MAX-A?UINT64_MAX:A+B;}
+
+xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,
+    bool Selected,xcroncheckpointkey Key,xcronjobinfo* Info,xcrondeliverypolicy* Policy)
+{
+    const uint8* B=Wire.Data;
+    if(Wire.Size!=XCRON_CHECKPOINT_BYTES || memcmp(B,"XCCP",4) || B[4]!=XCC_VERSION ||
+       B[5]>1 || B[7] || B[6]>XCRON_JOB_CANCELLED || xcronCheckpointGet(B+XCC_CRC,4)!=xrtCrc32(B,XCC_CRC) ||
+       B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_REJECT ||
+       (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return XCRON_CHECKPOINT_INVALID;
+    if(B[5]!=(uint8)Selected || xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job ||
+       xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)return XCRON_CHECKPOINT_INCOMPATIBLE;
+    bool Scheduled=B[6]==XCRON_JOB_SCHEDULED;
+    xtime Next=xcronCheckpointTime(B+XCC_NEXT);
+    xcrondeliverypolicy Saved={(xcronfoldpolicy)B[XCC_POLICY],(xcronmissingpolicy)B[XCC_POLICY+1]};
+    uint8 Expected[XCC_COUNTS-XCC_CONFIG];
+    xcronCheckpointConfig(Expected,Config,Next,Saved);
+    if(memcmp(Expected,B+XCC_CONFIG,sizeof(Expected)))return XCRON_CHECKPOINT_INCOMPATIBLE;
+    if(Scheduled?(Next<Config->Begin || Next>Config->End ||
+                  (Next==Config->Begin && Config->SearchFlags==XCRON_SEARCH_EXCLUSIVE)):Next!=0)
+        return XCRON_CHECKPOINT_INVALID;
+    uint64 Counts[6];
+    for(size_t I=0;I<sizeof(Counts)/sizeof(*Counts);++I)Counts[I]=xcronCheckpointGet(B+XCC_COUNTS+8*I,8);
+    if(Counts[0]!=xcronCheckpointAdd(xcronCheckpointAdd(Counts[1],Counts[2]),Counts[3]) || Counts[5]>Counts[0])
+        return XCRON_CHECKPOINT_INVALID;
+    *Info=(xcronjobinfo){.State=(xcronjobstate)B[6],.HasNext=Scheduled,.Next=Next,
+        .Dispatched=Counts[0],.Succeeded=Counts[1],.Failed=Counts[2],.Cancelled=Counts[3],
+        .SkippedRanges=Counts[4],.CoalescedRanges=Counts[5],.LastIssue={.Field=XCRON_FIELD_NONE}};
+    *Policy=Saved;
+    return XCRON_CHECKPOINT_VALID;
 }
 #endif
 #endif

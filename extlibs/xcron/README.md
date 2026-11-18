@@ -6,8 +6,9 @@ implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
 transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
 Owned non-leap TZif v1..4 binary history loading is implemented, including
 unknown/truncated coverage and more than two fold candidates. Explicit named
-database snapshots/reload are available; leap-aware conversion and durable
-recovery remain pending. Production/performance acceptance is not claimed.
+database snapshots and reload are available. The pull scheduler can recover
+one quiescent job from a committed checkpoint. Leap-aware conversion, live
+durable recovery and production performance qualification remain open.
 
 `XCRON_MODULE_XCRON_TZDB` provides exact named lookup, immutable retained snapshots,
 CAS publication and one aggregate quota across current/old/candidate generations.
@@ -23,6 +24,8 @@ catch-up/skip/coalesced misfires, wait/allow/skip overlap, fair work budgets,
 generation IDs and physical run leases. Cancellation/close preserve active data
 until completion and a retirement receipt. The kernel creates no threads/timers.
 See [scheduler contracts and example](docs/scheduler.md).
+The optional checkpoint module restores a validated next occurrence or terminal
+state with fresh process-local data. [Checkpoint contract](docs/checkpoint.md).
 
 `XCRON_MODULE_XCRON_EXECUTOR` dispatches actual leases through a borrowed XRT
 Executor, with preallocated slots, cooperative cancellation, owned worker-error

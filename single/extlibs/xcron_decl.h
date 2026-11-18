@@ -36,6 +36,9 @@
 #if !defined(XCRON_FEATURE_XCRON_CALENDAR)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CALENDAR 1
 #endif
+#if !defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CHECKPOINT 1
+#endif
 #if !defined(XCRON_FEATURE_XCRON_DELIVERY)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_DELIVERY 1
 #endif
@@ -83,6 +86,9 @@
 #endif
 #if !defined(XCRON_MODULE_XCRON_CALENDAR)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR 1
+#endif
+#if !defined(XCRON_MODULE_XCRON_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CHECKPOINT 1
 #endif
 #if !defined(XCRON_MODULE_XCRON_DELIVERY)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_DELIVERY 1
@@ -1337,6 +1343,9 @@
 #endif
 #if !defined(XRT_MODULE_COND)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_COND 1
+#endif
+#if !defined(XRT_MODULE_CRC32)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32 1
 #endif
 #if !defined(XRT_MODULE_EVENT_WAITER)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER 1
@@ -2623,6 +2632,22 @@
 #ifndef XCRON_MODULE_XCRON_SERVICE_SELECTED
 #define XCRON_MODULE_XCRON_SERVICE_SELECTED
 #endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT
+#define XCRON_MODULE_XCRON_CHECKPOINT
+#endif
+#endif
+
+/* xcron_checkpoint 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CHECKPOINT)
+#ifndef XCRON_FEATURE_XCRON_CHECKPOINT
+#define XCRON_FEATURE_XCRON_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#define XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
 #endif
 
 /* xcron_service_selected 及其直接依赖。 */
@@ -3233,7 +3258,8 @@ typedef enum xcronrunresult {XCRON_RUN_SUCCEEDED=0,XCRON_RUN_FAILED,XCRON_RUN_CA
 typedef enum xcronschedulererror {
     XCRON_SCHEDULER_OK=0,XCRON_SCHEDULER_ARGUMENT=4001,XCRON_SCHEDULER_LIMIT,
     XCRON_SCHEDULER_MEMORY,XCRON_SCHEDULER_CLOSED,XCRON_SCHEDULER_STALE,
-    XCRON_SCHEDULER_BUSY,XCRON_SCHEDULER_CLOCK,XCRON_SCHEDULER_CALCULATION
+    XCRON_SCHEDULER_BUSY,XCRON_SCHEDULER_CLOCK,XCRON_SCHEDULER_CALCULATION,
+    XCRON_SCHEDULER_CHECKPOINT,XCRON_SCHEDULER_CHECKPOINT_MISMATCH
 } xcronschedulererror;
 typedef struct xcronschedulerissue {xcronschedulererror Code;xcronzonedissue Zoned;} xcronschedulerissue;
 typedef struct xcronschedulerconfig {
@@ -4168,6 +4194,53 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/checkpoint.h */
+/* ========================================================================== */
+
+#ifndef XCRON_CHECKPOINT_H
+#define XCRON_CHECKPOINT_H
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT) && !defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
+#error "cron checkpoints require the scheduler in both modes"
+#endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+#define XCRON_CHECKPOINT_BYTES 180u
+typedef struct xcroncheckpointkey {
+    uint64 Job;
+    uint64 Revision;
+} xcroncheckpointkey;
+typedef struct xcroncheckpoint {
+    uint8 Bytes[XCRON_CHECKPOINT_BYTES];
+} xcroncheckpoint;
+
+XRT_EXTERN_C_BEGIN
+/* Capture one quiescent job on the serialized scheduler owner. Every run has
+ * physically completed and the next occurrence is known, or the job is an
+ * exhausted/explicitly cancelled tombstone. SEARCHING/live leases are BUSY;
+ * a faulted job reports CALCULATION. Capture before Close/Reap. A new record
+ * is published to caller storage only on success. No I/O or allocation on
+ * success. Job and Revision are nonzero stable application identities;
+ * change Revision whenever the job's zone rules or intended behavior change.
+ * The caller commits the record to durable storage at its chosen boundary. */
+XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcronjobid Job,
+    xcroncheckpointkey Key,xcroncheckpoint* Checkpoint,xcronschedulerissue* Issue);
+/* Admit from a complete v1 record into an open scheduler of the saved mode.
+ * Recreate the same configuration/zone and supply new process-local Data;
+ * configured fields and Key must match. Revalidate a scheduled instant and
+ * restore the selected mode's saved fold/missing policy and local metadata.
+ * Terminal records restore as reapable tombstones. Per-job counters continue;
+ * scheduler-wide counters, monotonic samples, leases and old IDs are local.
+ * Only success retains Zone and borrows Data. Config/record are borrowed for
+ * the call. Checksum detects storage corruption; it authenticates nothing.
+ * Replay may occur after the last committed checkpoint. Serializing a newer
+ * record does not itself make the record durable or commit business effects. */
+XCRON_API bool xcronSchedulerRestoreCheckpoint(xcronscheduler* Scheduler,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,xbytesview Checkpoint,xcronjobid* Job,xcronschedulerissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -4232,6 +4305,10 @@ XRT_EXTERN_C_END
 #undef XCRON_FEATURE_XCRON_CALENDAR
 #undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CALENDAR
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CHECKPOINT)
+#undef XCRON_FEATURE_XCRON_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CHECKPOINT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_DELIVERY)
 #undef XCRON_FEATURE_XCRON_DELIVERY
 #undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_DELIVERY
@@ -4295,6 +4372,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR)
 #undef XCRON_MODULE_XCRON_CALENDAR
 #undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CHECKPOINT)
+#undef XCRON_MODULE_XCRON_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CHECKPOINT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_DELIVERY)
 #undef XCRON_MODULE_XCRON_DELIVERY
@@ -5968,6 +6049,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_COND
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_COND
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32)
+#undef XRT_MODULE_CRC32
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER)
 #undef XRT_MODULE_EVENT_WAITER
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER
@@ -6049,6 +6134,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XCRON_MODULE_XCRON_SERVICE_SELECTED
 #define XCRON_MODULE_XCRON_SERVICE_SELECTED
+#endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT
+#define XCRON_MODULE_XCRON_CHECKPOINT
+#endif
+#endif
+
+/* xcron_checkpoint 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CHECKPOINT)
+#ifndef XCRON_FEATURE_XCRON_CHECKPOINT
+#define XCRON_FEATURE_XCRON_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#define XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
 #endif
 #endif
 
