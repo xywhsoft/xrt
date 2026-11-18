@@ -14478,3 +14478,28 @@ xredis modules. Automatic Sentinel seed refresh, event-triggered discovery,
 real authenticated/TLS Sentinel deployments, native Linux endurance and
 production throughput and tail latency remain open.
 [Stage evidence](xredis-sentinel-replica-pool-20261118.json).
+
+## 2026-11-18 Active Sentinel pool topology refresh
+
+Master and replica pools can request an explicit refresh or opt into a
+monotonic interval. Hints coalesce into one probe and at most one queued
+follow-up. The probe queries Sentinel and verifies ROLE, preserving current
+members on an unchanged endpoint or an optional probe failure. Verified
+changes fence and physically retire the old generation before refilling.
+Missing members preempt optional probes. The existing pool worker and timer
+own every step and physical closure.
+
+The real Redis fixture remaps Sentinel between two reachable masters. The
+old server still reports master and holds a blocking client request when
+the C probe sends the hint. Eighteen such remaps cover Windows and WSL,
+three native connection factories, RESP2, RESP3 and AUTO. Thirty-six
+independent master and replica election controls exercise default behavior.
+Local fixtures also cover periodic refresh, reentrant Close, coalescing,
+malformed replies, stale ROLE and cancellation for required refill. Modular,
+single-header and package consumers, ASan/UBSan/leaks and TSan passed.
+
+Additional Sentinel seed discovery and a packaged Sentinel Pub/Sub
+listener remain open. The strict release gate still reports 31 developing
+modules. Authenticated TLS deployments, native Linux endurance and
+production throughput and tail latency remain qualification work.
+[Stage evidence](xredis-sentinel-active-refresh-20261118.json).

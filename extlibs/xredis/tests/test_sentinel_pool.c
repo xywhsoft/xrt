@@ -17,16 +17,86 @@ static void spRepairTest(void)
         spReturn(spLease(Again),false);spReturn(Second,false);spClose(&F,P);spStop(&F);testRequire(spInfo(P).Generation==1,"closed metadata after engine");xredisPoolRelease(P);xrtFutureDestroy(A);xrtFutureDestroy(B);xrtFutureDestroy(Again);
     }
 }
-static void spSwitchTest(bool Replica,bool Close)
+static void spSwitchTest(bool Replica,bool Close,unsigned Refresh)
 {
-    printf("switch replica=%u close=%u\n",(unsigned)Replica,(unsigned)Close);fflush(stdout);spfixture F;spStart(&F,0,false,false);F.Replicas=Replica;xredissentinelpoolconfig K;spConfig(&F,&K);xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;
+    printf("switch replica=%u close=%u refresh=%u\n",(unsigned)Replica,(unsigned)Close,Refresh);fflush(stdout);spfixture F;spStart(&F,0,false,false);F.Replicas=Replica;xredissentinelpoolconfig K;spConfig(&F,&K);xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;
     xredispool* P=spCreate(&F,2,&O,&K);xfuture *A=spAcquire(P,5000),*B=spAcquire(P,5000);xredislease *First=spLease(A),*Second=spLease(B);xrtAtomicPtrStore(&F.Watched,Second,XMEMORY_RELEASE);F.CloseFromNotify=Close;
     xbytesview Hold=XRT_BYTES_LITERAL("HOLD");xfuture* Request=NULL;testRequire(xredisLeaseCallAsync(Second,&Hold,1,5000,&Request)==XREDIS_ADMISSION_ACCEPTED,"old sent command");redisPeerWait(&F.A.Base.Commands,1);
-    xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);spReturn(First,true);
+    xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);
+    if(Refresh==1)testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"external topology hint");
+    else if(Refresh==2)testRequire(xredisSentinelPoolSetRefreshInterval(P,100)==XREDIS_ADMISSION_ACCEPTED,"periodic topology check");
+    else spReturn(First,true);
     if(!Close){xfuture* Next=spAcquire(P,5000);xredislease* L=spLease(Next);xredissentinelpoolinfo I=spInfo(P);testRequire(I.Generation==2 && I.Changes==1 && I.Port==F.B.Base.Address.Port && xrtAtomic32Load(&F.FenceRejects,XMEMORY_ACQUIRE)>0,"verified change fences all old lease admissions");
         const xredisrequestresult* Old=spWait(Request);testRequire(Old->Status!=XREDIS_REQUEST_OK && Old->Delivery==XREDIS_MAY_HAVE_EXECUTED && xrtAtomic32Load(&F.B.Base.Commands,XMEMORY_ACQUIRE)==0,"uncertain old command never replayed");spPing(L);spReturn(L,false);xrtFutureDestroy(Next);}
     else {xfuture* Closed=xredisPoolClosed(P);testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"close reentry during fence");xrtFutureDestroy(Closed);}
     spClose(&F,P);spStop(&F);testRequire(((const xredisrequestresult*)spWait(Request))->Delivery==XREDIS_MAY_HAVE_EXECUTED,"retained uncertain outcome after engine");xredisPoolRelease(P);xrtFutureDestroy(Request);xrtFutureDestroy(A);xrtFutureDestroy(B);
+}
+static void spRefreshWait(xredispool* P,xredissentinelstatus Status)
+{
+    double End=xrtTimer()+10;
+    while(spInfo(P).LastStatus!=Status){
+        testRequire(xrtTimer()<End,"refresh status deadline");
+        xrtSleep(1);
+    }
+}
+static void spRefreshTest(void)
+{
+    spfixture F;spStart(&F,0,false,false);
+    xredissentinelpoolconfig K;spConfig(&F,&K);
+    K.Discovery.SeedTimeout=800;K.Discovery.MaxRounds=1;K.MaxConnecting=1;
+    xredispool* P=spCreate(&F,1,NULL,&K);
+    xfuture* A=spAcquire(P,5000);xredislease* L=spLease(A);
+    testRequire(xredisSentinelPoolSetRefreshInterval(P,-1)==XREDIS_ADMISSION_ERROR &&
+        xredisSentinelPoolSetRefreshInterval(P,99)==XREDIS_ADMISSION_ERROR &&
+        xredisSentinelPoolSetRefreshInterval(P,86400001)==XREDIS_ADMISSION_ERROR,"refresh interval bounds");
+    xrtClearError();
+    xrtAtomic32Store(&F.QueryMode,5,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"initial hint");
+    redisPeerWait(&F.Queries,2);
+    spPing(L);
+    for(unsigned I=0;I<32;++I)
+        testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"coalesced in-flight hint");
+    xrtAtomic32Store(&F.QueryMode,0,XMEMORY_RELEASE);
+    redisPeerWait(&F.Roles,2);spRefreshWait(P,XREDIS_SENTINEL_OK);
+    testRequire(xrtAtomic32Load(&F.Queries,XMEMORY_ACQUIRE)==3 && spInfo(P).Connect.Connected==1 &&
+        spInfo(P).Generation==1,"one follow-up for 32 hints and unchanged member");
+    spPing(L);
+
+    xrtAtomic32Store(&F.QueryMode,2,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"malformed refresh query");
+    spRefreshWait(P,XREDIS_SENTINEL_PROTOCOL);
+    testRequire(spInfo(P).Phase==XREDIS_SENTINEL_POOL_ONLINE && spInfo(P).Generation==1,
+        "probe error preserves verified generation");
+    spPing(L);
+    xrtAtomic32Store(&F.QueryMode,0,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolSetRefreshInterval(P,100)==XREDIS_ADMISSION_ACCEPTED,"enable timer");
+    redisPeerWait(&F.Roles,3);spRefreshWait(P,XREDIS_SENTINEL_OK);
+    testRequire(xredisSentinelPoolSetRefreshInterval(P,0)==XREDIS_ADMISSION_ACCEPTED,"disable periodic refresh");
+    xrtSleep(240);
+    testRequire(xrtAtomic32Load(&F.Queries,XMEMORY_ACQUIRE)==5,"periodic refresh disabled");
+    xrtAtomic32Store(&F.QueryMode,5,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"hint works with interval disabled");
+    redisPeerWait(&F.Queries,6);
+    xrtAtomic32Store(&F.QueryMode,0,XMEMORY_RELEASE);
+    spReturn(L,true);
+    xfuture* Repaired=spAcquire(P,5000);L=spLease(Repaired);
+    testRequire(spInfo(P).Generation==1 && xrtAtomic32Load(&F.Queries,XMEMORY_ACQUIRE)==7,
+        "physical probe cancellation precedes required refill");
+    spPing(L);
+
+    xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);xrtAtomic32Store(&F.Stale,1,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"stale announced address");
+    spRefreshWait(P,XREDIS_SENTINEL_STALE_ROLE);
+    testRequire(spInfo(P).Generation==1 && spInfo(P).Port==F.A.Base.Address.Port,"ROLE gates proactive generation change");
+    spPing(L);
+    xrtAtomic32Store(&F.Stale,0,XMEMORY_RELEASE);xrtAtomic32Store(&F.QueryMode,5,XMEMORY_RELEASE);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"close while probing");
+    redisPeerWait(&F.Queries,9);
+    spClose(&F,P);
+    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_CLOSED &&
+        xredisSentinelPoolSetRefreshInterval(P,100)==XREDIS_ADMISSION_CLOSED,"refresh rejected after close");
+    spStop(&F);xredisPoolRelease(P);xrtFutureDestroy(A);xrtFutureDestroy(Repaired);
+    puts("Sentinel proactive refresh tests passed");
 }
 static void spReplicaReorderTest(void)
 {
@@ -120,7 +190,8 @@ static void spOwnerOOM(void)
 }
 static void spOrdinaryPoolInfo(void)
 {
-    spfixture F;spStart(&F,0,false,false);redisconnectfactory Factory;xredispoolconnectconfig K;redisConnectFactoryConfig(&Factory,&F.A.Base,&K);xredispool* P=NULL;testRequire(xredisPoolConnect(F.Seed.Base.Engine,0,1,NULL,&K,&P)==XREDIS_ADMISSION_ACCEPTED,"ordinary pool on same engine");xfuture* A=spAcquire(P,5000);spPing(spLease(A));spReturn(spLease(A),false);xredissentinelpoolinfo I={0};I.Size=sizeof(I);testRequire(!xredisSentinelPoolInfo(P,&I),"ordinary live pool rejects Sentinel snapshot");xrtClearError();xfuture* Closed=xredisPoolClosed(P);xredisPoolClose(P);testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK && !xredisSentinelPoolInfo(P,&I),"ordinary closed connector is never cast as Sentinel state");xrtClearError();xredisPoolRelease(P);xrtFutureDestroy(Closed);xrtFutureDestroy(A);spStop(&F);
+    spfixture F;spStart(&F,0,false,false);redisconnectfactory Factory;xredispoolconnectconfig K;redisConnectFactoryConfig(&Factory,&F.A.Base,&K);xredispool* P=NULL;testRequire(xredisPoolConnect(F.Seed.Base.Engine,0,1,NULL,&K,&P)==XREDIS_ADMISSION_ACCEPTED,"ordinary pool on same engine");xfuture* A=spAcquire(P,5000);spPing(spLease(A));spReturn(spLease(A),false);xredissentinelpoolinfo I={0};I.Size=sizeof(I);testRequire(!xredisSentinelPoolInfo(P,&I) && xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ERROR &&
+        xredisSentinelPoolSetRefreshInterval(P,100)==XREDIS_ADMISSION_ERROR,"ordinary pool rejects Sentinel operations");xrtClearError();xfuture* Closed=xredisPoolClosed(P);xredisPoolClose(P);testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK && !xredisSentinelPoolInfo(P,&I),"ordinary closed connector is never cast as Sentinel state");xrtClearError();xredisPoolRelease(P);xrtFutureDestroy(Closed);xrtFutureDestroy(A);spStop(&F);
 }
 static void spNestedFence(void)
 {
@@ -161,6 +232,7 @@ static void spInheritedDeadline(void)
     xredisSentinelDiscoveryDestroy(D);spStop(&F);
 }
 int main(void)
-{spRepairTest();spSwitchTest(false,false);spSwitchTest(false,true);
- spReplicaReorderTest();spReplicaEmptyTest();spReplicaBounds();spSwitchTest(true,false);spSwitchTest(true,true);
+{spRepairTest();spSwitchTest(false,false,0);spSwitchTest(false,true,0);
+ spReplicaReorderTest();spReplicaEmptyTest();spReplicaBounds();spSwitchTest(true,false,0);spSwitchTest(true,true,0);
+ spSwitchTest(false,false,1);spSwitchTest(true,false,2);spSwitchTest(false,true,1);spRefreshTest();
  puts("Sentinel replica pool tests passed");spFaultTests();spBoundsTests();spOwnerOOM();spOrdinaryPoolInfo();spNestedFence();spRaceTests();spInheritedDeadline();puts("Sentinel pool tests passed");return 0;}

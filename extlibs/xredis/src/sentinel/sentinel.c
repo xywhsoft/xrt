@@ -418,7 +418,13 @@ XREDIS_API xredissentinelstep xredisSentinelDiscoveryStep(xredissentineldiscover
 XREDIS_API xfuture* xredisSentinelDiscoveryPending(xredissentineldiscovery* D)
 {if(!D){xredisSentinelArgument("invalid Sentinel discovery");return NULL;}xfuture* F=D->Closed?D->Closed:D->Pending;return F && !xrtFutureDone(F)?xrtFutureRef(F):NULL;}
 XREDIS_API double xredisSentinelDiscoveryNextWake(xredissentineldiscovery* D)
-{if(!D){xredisSentinelArgument("invalid Sentinel discovery");return 0;}return D->NextWake;}
+{
+    if(!D){xredisSentinelArgument("invalid Sentinel discovery");return 0;}
+    /* Pending can disappear between Step and registration after completion. */
+    if((D->State==XS_SEED_READY || D->State==XS_QUERY || D->State==XS_MASTER_READY || D->State==XS_ROLE) &&
+       D->Pending && xrtFutureDone(D->Pending))return xrtTimer();
+    return D->NextWake;
+}
 XREDIS_API bool xredisSentinelDiscoveryResult(xredissentineldiscovery* D,xredissentinelresult* R)
 {if(!D || !xredisSentinelDisjoint(D,R,sizeof(*R)) || R->Size!=sizeof(*R))return xredisSentinelArgument("invalid Sentinel result");*R=D->Result;return true;}
 XREDIS_API bool xredisSentinelDiscoveryTakeClient(xredissentineldiscovery* D,xredisclient** C)
@@ -428,6 +434,15 @@ XREDIS_API bool xredisSentinelDiscoveryTakeClient(xredissentineldiscovery* D,xre
 }
 XREDIS_API bool xredisSentinelDiscoveryCancel(xredissentineldiscovery* D)
 {if(!D || D->Stepping)return xredisSentinelArgument("invalid/reentrant Sentinel cancel");if(D->State!=XS_DONE)xredisSentinelStop(D,XREDIS_SENTINEL_CANCELLED);return true;}
+bool __xredisSentinelDiscoveryRetire(xredissentineldiscovery* D)
+{
+    if(D->State!=XS_DONE || !D->Client)return false;
+    /* Preserve the verified result while the private probe physically closes. */
+    D->State=XS_STOP;
+    D->NextWake=xrtTimer();
+    (void)xredisClientClose(D->Client);
+    return true;
+}
 XREDIS_API void xredisSentinelDiscoveryDestroy(xredissentineldiscovery* D)
 {
     if(!D)return;

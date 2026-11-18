@@ -18,6 +18,16 @@ XREDIS_API xredisadmission xredisSentinelReplicaPoolCreate(xnetengine* E,uint64 
     }
     return __xredisSentinelPoolCreate(E,A,N,C,S,ConnectReplica,MaxReplicas,P);
 }
+XREDIS_API xredisadmission xredisSentinelPoolRefresh(xredispool* P)
+{return __xredisSentinelPoolRefresh(P,-1);}
+XREDIS_API xredisadmission xredisSentinelPoolSetRefreshInterval(xredispool* P,int64 Interval)
+{
+    if(Interval<0 || (Interval && Interval<100) || Interval>86400000){
+        xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_CLIENT_ARGUMENT,"invalid Sentinel refresh interval");
+        return XREDIS_ADMISSION_ERROR;
+    }
+    return __xredisSentinelPoolRefresh(P,Interval);
+}
 XREDIS_API bool xredisSentinelPoolInfo(xredispool* P,xredissentinelpoolinfo* I)
 {return __xredisSentinelPoolInfo(P,I);}
 #endif

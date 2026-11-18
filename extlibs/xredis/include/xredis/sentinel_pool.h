@@ -62,12 +62,25 @@ XREDIS_API xredisadmission xredisSentinelPoolCreate(xnetengine* Engine,uint64 Af
  * After that, each repair tries the current host/port first when eligible; a
  * different verified replica switches the entire generation and fences old
  * leases. Bootstrap establishes one endpoint before parallel refill starts.
- * NO_REPLICA also retries with bounded jitter. Only missing members trigger
- * discovery. Take ordinary native leases; command permissions and replication
+ * NO_REPLICA also retries with bounded jitter. Missing members trigger discovery.
+ * Take ordinary native leases; command permissions and replication
  * lag are governed by the Redis deployment and the caller. */
 XREDIS_API xredisadmission xredisSentinelReplicaPoolCreate(xnetengine* Engine,uint64 Affinity,size_t Count,
     const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,xredissentinelreplicaconnect ConnectReplica,
     size_t MaxReplicas,xredispool** Output);
+/* Coalesce a hint for a fresh Sentinel query and ROLE verification on the pool
+ * worker. Hints can come from Pub/Sub; no endpoint from the event is used.
+ * One probe runs on a fully connected pool, with at most one follow-up hint.
+ * Refill takes precedence. An unchanged endpoint preserves all members.
+ * A changed verified endpoint fences the old generation before any new grant.
+ * A failed probe updates LastStatus and keeps existing members. No result
+ * Future or per-call allocation. Thread-safe, including Notify reentry. */
+XREDIS_API xredisadmission xredisSentinelPoolRefresh(xredispool* Pool);
+/* Optional monotonic refresh interval (0 disables, otherwise 100..86400000ms).
+ * Each interval starts after the prior probe's physical retirement. Disabling
+ * periodic probes does not revoke accepted hints or cancel an in-flight probe.
+ * Both refresh APIs return CLOSED after closing and ERROR for ordinary pools. */
+XREDIS_API xredisadmission xredisSentinelPoolSetRefreshInterval(xredispool* Pool,int64 Interval);
 XREDIS_API bool xredisSentinelPoolInfo(xredispool* Pool,xredissentinelpoolinfo* Info);
 XRT_EXTERN_C_END
 #endif

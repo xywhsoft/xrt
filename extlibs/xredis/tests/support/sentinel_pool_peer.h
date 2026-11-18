@@ -28,8 +28,8 @@ static bool spCommand(redispeer* Peer,xredisreply* Reply,ptr Data)
     if(redisPeerName(Name,"HELLO"))return redisConnectPeerCommand(Peer,Reply,&N->Base);
     if(redisPeerName(Name,"SENTINEL")){
         redisPeerRequire(N->Kind==0 && Root.ChildCount==3,"seed query cardinality");xredisreplyvalue Sub,Service;xredisReplyGet(Reply,Name.Next,&Sub);xredisReplyGet(Reply,Sub.Next,&Service);
-        redisPeerRequire(redisPeerName(Sub,F->Replicas?"REPLICAS":"GET-MASTER-ADDR-BY-NAME") && redisPeerName(Service,"cache"),"snapshotted service query");xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
-        switch(xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE)){
+        redisPeerRequire(redisPeerName(Sub,F->Replicas?"REPLICAS":"GET-MASTER-ADDR-BY-NAME") && redisPeerName(Service,"cache"),"snapshotted service query");uint32 Mode=xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE);xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
+        switch(Mode){
         case 1:redisPeerSend(Peer,"_\r\n",3);break;case 2:redisPeerSend(Peer,"+bad\r\n",6);break;
         case 3:redisPeerSend(Peer,"-NOPERM synthetic\r\n",19);break;case 4:xrtNetStreamAbort(Peer->Stream);break;case 5:break;
         case 6:redisPeerSend(Peer,"*0\r\n",4);break;
@@ -39,7 +39,7 @@ static bool spCommand(redispeer* Peer,xredisreply* Reply,ptr Data)
             unsigned Other=Reverse?F->A.Base.Address.Port:F->B.Base.Address.Port;
             char Response[200];int L;
             if(F->Replicas){
-                bool Both=xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE)==7;
+                bool Both=Mode==7;
                 const char* Row=F->Resp2?"*6":"%3";
                 L=snprintf(Response,sizeof(Response),"*%u\r\n%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+slave\r\n",Both?2u:1u,Row,Port);
                 redisPeerRequire(L>0&&(size_t)L<sizeof(Response),"first candidate fixture row");
