@@ -750,7 +750,8 @@ static xmqttjournalstatus xmqttSCEncode(xmqttjournal* Candidate,ptr Context)
 }
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactModel(const xmqttstorestate* S,
     const void* StateOwner,xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats)
+    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats,
+    xmqttcompactionrequest* Request)
 {
     if(!S||S->WriteOwner!=StateOwner||S->Plan||S->Retiring)abort();
     xmqttjournalstatus Status=xmqttInternalJournalCompactCheck(*Journal,Owner,0,0,Config->MinReclaimBytes,Result);
@@ -765,6 +766,13 @@ XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactModel(const xmqttstor
     if(Status!=XMQTT_JOURNAL_DONE)return Status;
     Status=xmqttInternalJournalCompactCheck(*Journal,Owner,Stats->Transactions,Stats->ReplayBytes,Config->MinReclaimBytes,Result);
     if(Status!=XMQTT_JOURNAL_DONE)return Status;
+    if(Request&&(Stats->Transactions==S->Config.MaxTransactions||
+       Request->Operations>S->Config.MaxOperations-Stats->Operations||
+       Request->Bytes>S->Config.MaxReplayBytes-Stats->ReplayBytes||
+       !xmqttInternalJournalCompactFits(*Journal,Stats->Transactions,Stats->ReplayBytes,Request->Bytes))){
+        Request->NoRoom=true;
+        return XMQTT_JOURNAL_LIMIT;
+    }
     if(S->Info.ClientId.Size){
         Work.Buffer=xrtMalloc(Capacity);
         if(!Work.Buffer)return XMQTT_JOURNAL_ERROR;
@@ -833,11 +841,18 @@ static void xmqttSPlanFree(xmqttstorestate* S,xmqttstoreplan* P)
     if(P->Shadow.Info.ClientId.Data!=S->Info.ClientId.Data&&P->Shadow.Info.ClientId.Data!=S->ExpectedId.Data)xrtFree((ptr)P->Shadow.Info.ClientId.Data);
     xrtFree(P);
 }
-XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* S,const void* Owner,const xmqttstoredeltadocument* D,size_t MaxWork,size_t MaxPlanBytes,xmqttstoreplan** Out)
+XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* S,const void* Owner,const xmqttstoredeltadocument* D,size_t MaxWork,size_t MaxPlanBytes,xmqttstoreplan** Out XMQTT_SW_PRESSURE_PARAM)
 {
     if(!S||S->WriteOwner!=Owner||S->Plan)abort();
     if(D->Count>MaxWork)return XMQTT_STORE_LIMIT;
-    if(S->Info.Transactions>=S->Config.MaxTransactions||D->Count>S->Config.MaxOperations-S->Info.Operations||D->Raw.Size>S->Config.MaxReplayBytes-S->Info.ReplayBytes)return XMQTT_STORE_LIMIT;
+    bool ReplayFull=S->Info.Transactions>=S->Config.MaxTransactions||
+        D->Count>S->Config.MaxOperations-S->Info.Operations||D->Raw.Size>S->Config.MaxReplayBytes-S->Info.ReplayBytes;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    if(ReplayFull&&(!Request||!S->Config.MaxTransactions||D->Count>S->Config.MaxOperations||
+                    D->Raw.Size>S->Config.MaxReplayBytes))return XMQTT_STORE_LIMIT;
+#else
+    if(ReplayFull)return XMQTT_STORE_LIMIT;
+#endif
     bool Bulk=false;
     for(size_t I=0;I<D->Count;++I){const xmqttstoredelta* O=D->Operations+I;
         if((O->Type==XMQTT_STORE_OPEN&&!(O->Flags&2u))||O->Type==XMQTT_STORE_CLEAR||(O->Type==XMQTT_STORE_END&&!O->Expiry))Bulk=true;
@@ -858,6 +873,13 @@ XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* 
     P->Shadow.Plan=P;xmqttstorestatus Status=XMQTT_STORE_DONE;
     for(size_t I=0;I<D->Count;++I){Status=xmqttSApply(&P->Shadow,D->Operations+I);if(P->Exhausted)Status=XMQTT_STORE_LIMIT;if(Status!=XMQTT_STORE_DONE)break;}
     if(Status!=XMQTT_STORE_DONE){xmqttSPlanFree(S,P);return Status;}
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    if(Request)*Request=(xmqttcompactionrequest){.Operations=D->Count,.Bytes=D->Raw.Size,.ReplayBlocked=ReplayFull};
+    if(ReplayFull){
+        xmqttSPlanFree(S,P);
+        return XMQTT_STORE_LIMIT;
+    }
+#endif
     ++P->Shadow.Info.Transactions;P->Shadow.Info.Operations+=D->Count;P->Shadow.Info.ReplayBytes+=D->Raw.Size;
     if(P->PhysicalBytes>P->Shadow.Info.PeakMemoryBytes)P->Shadow.Info.PeakMemoryBytes=P->PhysicalBytes;
     *Out=P;return XMQTT_STORE_DONE;

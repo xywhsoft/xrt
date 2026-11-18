@@ -35,7 +35,7 @@ static bool xmqttSWSpan(const void* P,size_t N){return (P||!N)&&xrtMemRangeValid
 static bool xmqttSWSeparate(const void* P,size_t N,const void* Q,size_t M){return !N||!M||!xrtMemRangesOverlap(P,N,Q,M);}
 static bool xmqttSWOutput(xmqttstorewrite* W,void* P,size_t N)
 {return xmqttSWSpan(P,N)&&xmqttSWSeparate(P,N,W,sizeof(*W))&&xmqttSWSeparate(P,N,W->Scratch,W->ScratchBytes)&&xmqttInternalStoreWriteOutput(W->State,W,P,N);}
-static xmqttcommitstatus xmqttSWPrepare(ptr Context,xbytesview Data XMQTT_SW_INBOX_PARAM)
+static xmqttcommitstatus xmqttSWPrepare(ptr Context,xbytesview Data XMQTT_SW_INBOX_PARAM XMQTT_SW_PRESSURE_PARAM)
 {
     xmqttstorewrite* W=Context;if(W->Pending)abort();xmqttstoredeltadocument D;
     xmqttstoredeltastatus DS=xmqttStoreDeltaRead(&W->Delta,Data,W->Operations,W->Delta.MaxOperations,W->Properties,W->Delta.Codec.MaxProperties,&D);
@@ -53,7 +53,7 @@ static xmqttcommitstatus xmqttSWPrepare(ptr Context,xbytesview Data XMQTT_SW_INB
         }
     }
 #endif
-    xmqttstorestatus S=xmqttInternalStoreWritePrepare(W->State,W,&D,W->Config.MaxModelWork,W->PlanLimit,&W->Pending);
+    xmqttstorestatus S=xmqttInternalStoreWritePrepare(W->State,W,&D,W->Config.MaxModelWork,W->PlanLimit,&W->Pending XMQTT_SW_PRESSURE_ARG(Request));
     return S==XMQTT_STORE_DONE?XMQTT_COMMIT_OK:S==XMQTT_STORE_LIMIT?XMQTT_COMMIT_LIMIT:S==XMQTT_STORE_ERROR?XMQTT_COMMIT_INITIALIZATION:XMQTT_COMMIT_INVALID;
 }
 static void xmqttSWFinish(ptr Context,const xmqttcommitresult* Result)
@@ -393,11 +393,11 @@ XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* W,
 }
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* W,
     xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result)
+    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcompactionrequest* Request)
 {
     if(!W||W->Pending)abort();
     xmqttcheckpointstats Stats={0};
-    xmqttjournalstatus Status=xmqttInternalStoreCompactModel(W->State,W,Journal,Owner,Config,Stop,StopContext,Result,&Stats);
+    xmqttjournalstatus Status=xmqttInternalStoreCompactModel(W->State,W,Journal,Owner,Config,Stop,StopContext,Result,&Stats,Request);
     if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
         xmqttjournalinfo J;
         if(!xmqttInternalJournalWorkerInfo(*Journal,Owner,&J)||!xrtMutexLock(&W->Gate))abort();

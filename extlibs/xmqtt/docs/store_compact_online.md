@@ -48,17 +48,23 @@ Initialize `xmqttstoreautocompactconfig` and call
 `xmqttStoreWriteSetAutoCompact` when the native-slot Writer is idle.
 Pass NULL to disable it. Each pump gives queued foreground work priority.
 At an idle boundary it considers one checkpoint when the selected file meets
-TriggerBytes. An append that is valid but reaches the physical file cap can
-also run one checkpoint and retry on the selected generation. The original
-deadline, semantic validation and Inbox acknowledgement reservation still apply.
-Typed operation and replay limits are independent.
+TriggerBytes. A valid append can also trigger one checkpoint when it reaches
+the physical file cap or exhausts MaxTransactions, MaxOperations or
+MaxReplayBytes. Before writing the checkpoint, the Writer measures it together
+with the pending append against all four limits. If it fits and the checkpoint
+is selected, the Writer prepares and retries the same request once, with its
+original deadline and Inbox acknowledgement reservation. Per-batch decoder
+limits and live-model storage and work limits still apply.
 
-After a nonpublishing attempt, continued foreground commits can grow the
-selected file by RetryGrowthBytes to rearm compaction. Definite inactive I/O
+The last batch that could not fit alongside a checkpoint suppresses repeat
+measurements for batches with at least as many operations and encoded bytes
+at the same cut. Smaller batches can still trigger a checkpoint. Other
+nonpublishing attempts require RetryGrowthBytes of new committed bytes
+to rearm compaction. Definite inactive I/O
 failures, temporary contention and local allocation failures also start the
 configured RetryDelayMs cooldown. A later foreground arrival can then retry
 even when the file has no room to grow. A manual successful rotation clears
-both gates. Inadequate space savings use the byte threshold alone. The growth
+the retry gates. Inadequate space savings use the byte threshold alone. The growth
 floor and checkpoint limits are explicit. The policy creates no timer, extra task or
 maintenance Future. A committed foreground Future can finish before automatic
 maintenance. `xmqttStoreWriteAutoCompactInfo` reports the separate outcome.

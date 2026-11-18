@@ -2,6 +2,9 @@
 #include "../examples/common/client_peer.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+typedef enum onlinequota {
+    QUOTA_NONE,QUOTA_TRANSACTIONS,QUOTA_OPERATIONS,QUOTA_BYTES
+} onlinequota;
 typedef struct onlinefixture {
     str Path;
     xroot Root;
@@ -10,6 +13,7 @@ typedef struct onlinefixture {
     xmqttjournalslot* Slot;
     xtaskpool* Pool;
     xmqttstorewrite* Writer;
+    onlinequota Quota;
 } onlinefixture;
 
 static void check(bool OK,cstr Message)
@@ -49,6 +53,7 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
     uint64 Sequence;
     check(xmqttStoreDeltaWrite(&X->State.Delta,NULL,0,NULL,0,Wire,sizeof(Wire),&Bytes)==XMQTT_STORE_DELTA_DONE,
         "encode ordinary empty delta batch");
+    uint64 ReplayBytes=18*Bytes;
     for(unsigned I=0;I<18;++I)
         check(xmqttJournalAppend(J,(xbytesview){Wire,Bytes},&Sequence)==XMQTT_JOURNAL_DONE,"populate native history");
     if(Expired||Pending){
@@ -62,8 +67,12 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
                 (xmqttstoredelta){.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=1,.Key=1,.Data=Message},
         };
         check(xmqttStoreDeltaWrite(&X->State.Delta,Ops,3,NULL,0,Wire,sizeof(Wire),&Bytes)==XMQTT_STORE_DELTA_DONE&&
-            xmqttJournalAppend(J,(xbytesview){Wire,Bytes},&Sequence)==XMQTT_JOURNAL_DONE,"native expired history");
+            xmqttJournalAppend(J,(xbytesview){Wire,Bytes},&Sequence)==XMQTT_JOURNAL_DONE,"native session history");
+        ReplayBytes+=Bytes;
     }
+    if(X->Quota==QUOTA_TRANSACTIONS)X->State.MaxTransactions=Sequence;
+    if(X->Quota==QUOTA_OPERATIONS)X->State.MaxOperations=3;
+    if(X->Quota==QUOTA_BYTES)X->State.MaxReplayBytes=ReplayBytes;
     check(xmqttJournalDestroy(J)&&xmqttJournalSlotOpenCurrent(X->Slot,&J)==XMQTT_JOURNAL_DONE,"fresh replay owner");
     xmqttstorestate* State=NULL;
     check(xmqttStoreStateRecover(J,&X->State,&State)==XMQTT_STORE_DONE,"recover native prefix");
@@ -420,9 +429,9 @@ static void automaticBackoff(xmqttversion V)
     end(&X);
 }
 enum {AUTO_PRESSURE_DONE,AUTO_PRESSURE_UNCERTAIN,AUTO_PRESSURE_RETRY};
-static void automaticPressure(xmqttversion V,unsigned Mode)
+static void automaticPressure(xmqttversion V,unsigned Mode,onlinequota Quota)
 {
-    onlinefixture X={0};
+    onlinefixture X={.Quota=Quota};
     begin(&X,V,false,true,14350);
     xmqttstoreautocompactconfig C=autoConfig(UINT64_MAX);
     if(Mode==AUTO_PRESSURE_RETRY)C.RetryDelayMs=40;
@@ -440,7 +449,7 @@ static void automaticPressure(xmqttversion V,unsigned Mode)
     }else if(Mode==AUTO_PRESSURE_RETRY)xrtAtomic32Store(&onlineHook,2,XMEMORY_RELEASE);
 #endif
     xfuture* F=NULL;
-    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&F)==XMQTT_JWORK_ACCEPTED,"accept one ACK under physical pressure");
+    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&F)==XMQTT_JWORK_ACCEPTED,"accept one ACK under storage pressure");
     const xmqttcommitresult* R=autoCommit(F);
     autoIdle(X.Writer);
     xmqttstoreautocompactinfo I=autoInfo(X.Writer);
@@ -465,7 +474,8 @@ static void automaticPressure(xmqttversion V,unsigned Mode)
 #endif
     if(Mode==AUTO_PRESSURE_UNCERTAIN){
         check(R->Effect==XMQTT_JOURNAL_NOT_COMMITTED&&R->Status==XMQTT_COMMIT_STORAGE&&
-            I.Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED&&!I.Rotations&&current(X.Writer).Worker.Failed,
+            I.Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED&&!I.Rotations&&current(X.Writer).Worker.Failed&&
+            R->AppendCalled==(Quota==QUOTA_NONE),
             "selector uncertainty does not become an uncertain foreground ACK");
         check(reopen(&X,2).Inbox==1,"cold recovery preserves the unacknowledged delivery");
     }else{
@@ -479,6 +489,80 @@ static void automaticPressure(xmqttversion V,unsigned Mode)
     xrtAtomic32Store(&onlineHook,0,XMEMORY_RELEASE);
 #endif
     xrtFutureDestroy(F);
+    end(&X);
+}
+static void automaticReplayPressure(xmqttversion V,onlinequota Quota,uint64 FileBytes)
+{
+    onlinefixture X={.Quota=Quota};
+    begin(&X,V,false,true,FileBytes);
+    xmqttstorewriteinfo Before=current(X.Writer);
+    check(Before.State.Transactions==19&&Before.State.Operations==3&&
+        (Quota!=QUOTA_BYTES||Before.State.ReplayBytes==X.State.MaxReplayBytes),
+        "recover exactly to the configured replay capacity");
+    xmqttstoreautocompactconfig C=autoConfig(UINT64_MAX);
+    xfuture* F;
+    const xmqttcommitresult* R;
+    if(Quota==QUOTA_TRANSACTIONS&&!FileBytes){
+        F=autoAppend(&X,NULL,0);
+        R=autoCommit(F);
+        check(R->Status==XMQTT_COMMIT_LIMIT&&!R->AppendCalled&&
+            R->Effect==XMQTT_JOURNAL_NOT_COMMITTED,"replay limit stays strict without opt-in");
+        xrtFutureDestroy(F);
+        autoIdle(X.Writer);
+    }
+    check(xmqttStoreWriteSetAutoCompact(X.Writer,&C),"enable typed replay pressure policy");
+    if(Quota==QUOTA_OPERATIONS){
+        xmqttstoredelta Stale={.Type=XMQTT_STORE_OUT_COMPLETE,.Flags=XMQTT_PACKET_PUBACK,
+            .Identifier=7,.Epoch=1,.Key=13};
+        F=autoAppend(&X,&Stale,1);
+        R=autoCommit(F);
+        check(R->Status==XMQTT_COMMIT_INVALID&&!R->AppendCalled&&
+            R->Effect==XMQTT_JOURNAL_NOT_COMMITTED&&!autoInfo(X.Writer).Attempts,
+            "stale operation cannot trigger replacement even at exhausted replay quotas");
+        xrtFutureDestroy(F);
+
+        uint32 Expiry=V==XMQTT_VERSION_5?60:UINT32_MAX;
+        const xmqttstoredelta Pair[]={
+            {.Type=XMQTT_STORE_END,.Epoch=1,.Expiry=Expiry,.WallMilliseconds=2001},
+            {.Type=XMQTT_STORE_OPEN,.Flags=XMQTT_STORE_DELTA_SESSION_PRESENT,.Epoch=1,
+                .Expiry=Expiry,.WallMilliseconds=2002},
+        };
+        for(unsigned N=0;N<2;++N){
+            F=autoAppend(&X,Pair,2);
+            R=autoCommit(F);
+            xmqttstoreautocompactinfo I=autoInfo(X.Writer);
+            xmqttstorewriteinfo After=current(X.Writer);
+            check(R->Status==XMQTT_COMMIT_LIMIT&&!R->AppendCalled&&!R->AttemptSequence&&
+                R->Effect==XMQTT_JOURNAL_NOT_COMMITTED&&I.StorageStatus==XMQTT_JOURNAL_LIMIT&&
+                I.Attempts==1&&!I.Rotations&&!I.NextEligibleBytes&&!I.RetryAfter&&
+                After.Worker.Journal.Sequence==Before.Worker.Journal.Sequence&&
+                After.Worker.Journal.CommittedEnd==Before.Worker.Journal.CommittedEnd&&
+                I.Generation==1&&After.State.Inbox==1&&After.State.Operations==3,
+                "a nonfitting batch cannot rotate the slot or block smaller requests");
+            xrtFutureDestroy(F);
+        }
+    }
+
+    unsigned char Buffer[128];
+    xmqttstorelease Lease;
+    xmqttstoreview View;
+    size_t Bytes;
+    check(xmqttStoreInboxTake(X.Writer,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&
+        View.Key==1,"take delivery from the original replay generation");
+    F=NULL;
+    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&F)==XMQTT_JWORK_ACCEPTED,
+        "accept acknowledgment under replay pressure");
+    R=autoCommit(F);
+    autoIdle(X.Writer);
+    xmqttstoreautocompactinfo I=autoInfo(X.Writer);
+    check(R->Status==XMQTT_COMMIT_OK&&R->Effect==XMQTT_JOURNAL_COMMITTED&&R->AppendCalled&&
+        R->AttemptSequence==3&&R->Sequence==3&&I.Attempts==(Quota==QUOTA_OPERATIONS?2:1)&&
+        I.Rotations==1&&I.Generation==2&&I.Bytes<I.PreviousBytes,
+        "checkpoint reclaims replay headroom and commits the original ACK exactly once");
+    xrtFutureDestroy(F);
+    xmqttstorestateinfo S=reopen(&X,2);
+    check(S.Transactions==3&&S.Operations==3&&!S.Inbox&&S.LastKey==1,
+        "cold replay under unchanged limits recovers one ACK and the original key fence");
     end(&X);
 }
 #if defined(TEST_ONLINE_FAULTS)
@@ -531,15 +615,21 @@ int main(void)
         xmqttversion V=I?XMQTT_VERSION_311:XMQTT_VERSION_5;
         automaticIdle(V);
         automaticBackoff(V);
-        automaticPressure(V,AUTO_PRESSURE_DONE);
+        automaticPressure(V,AUTO_PRESSURE_DONE,QUOTA_NONE);
+        automaticReplayPressure(V,QUOTA_TRANSACTIONS,0);
+        automaticReplayPressure(V,QUOTA_OPERATIONS,0);
+        automaticReplayPressure(V,QUOTA_BYTES,0);
+        automaticReplayPressure(V,QUOTA_TRANSACTIONS,14350);
 #if defined(TEST_ONLINE_FAULTS)
-        automaticPressure(V,AUTO_PRESSURE_UNCERTAIN);
-        automaticPressure(V,AUTO_PRESSURE_RETRY);
+        automaticPressure(V,AUTO_PRESSURE_UNCERTAIN,QUOTA_NONE);
+        automaticPressure(V,AUTO_PRESSURE_UNCERTAIN,QUOTA_TRANSACTIONS);
+        automaticPressure(V,AUTO_PRESSURE_RETRY,QUOTA_NONE);
         automaticCloseOrError(V,false);
         automaticCloseOrError(V,true);
 #endif
     }
     puts("[PASS] automatic idle ordering, committed-growth backoff and exact pressure ACK retry");
+    puts("[PASS] typed transaction, operation and byte pressure, nonfitting request suppression and exact ACK replay");
     puts("[PASS] online native rotation on the same TCP connection, Inbox lease, FIFO and expiry");
 #if defined(TEST_ONLINE_FAULTS)
     uncertain(XMQTT_VERSION_5);

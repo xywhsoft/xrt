@@ -673,3 +673,22 @@ through its own lease, writes the application ACK, and verifies END
 and an empty Inbox from a new journal cursor. An independent subscriber
 checks that the outgoing payload arrives once.
 [Stage evidence](xmqtt-store-auto-broker-20261118.json).
+
+## 2026-11-18 Replay capacity under foreground pressure
+
+The native Store Writer's optional maintenance policy can reclaim historical
+transactions, operations and replay bytes. It first prepares the foreground
+transaction using the existing model validation and work limits. A replay-budget
+refusal releases that tentative plan before the pump measures the checkpoint.
+The checkpoint and pending transaction must fit all replay and physical file
+caps together. Insufficient room stops before allocation of checkpoint output
+scratch or writes to the inactive slot.
+
+The pump suppresses another measurement for a batch at least as large as the
+latest nonfitting batch in both operation count and encoded bytes at the same
+cut. A smaller batch can still recover capacity. Publication resets the
+suppression record. After a successful switch the pump restages the original
+request at most once under its existing deadline and Inbox reservation. An
+ambiguous selector fences the owner while the foreground result reflects the
+definite noncommit of the batch. Recovery applies the original caps to the
+checkpoint and the new delta suffix.

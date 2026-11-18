@@ -14378,3 +14378,21 @@ WebSocket and WSS. Mosquitto stays alive during each replacement. The native
 Linux production soak, storage-device power-loss and production throughput
 and tail latency remain open.
 [Stage evidence](xmqtt-store-auto-broker-20261118.json).
+
+## 2026-11-18 Foreground MQTT replay capacity
+
+A valid foreground transaction can now trigger online compaction under the
+optional native Writer policy when the transaction, operation or replay-byte
+budget is exhausted. The Writer proves the checkpoint and the pending
+transaction fit together before writing. It suppresses repeated measurements
+for an oversized batch at the same cut and lets a smaller batch trigger
+maintenance. Inbox ACKs retain their original lease and deadline and commit
+once after a successful rotation.
+
+Windows and Linux under WSL cover MQTT 5.0 and 3.1.1, plus simultaneous file
+and replay pressure, invalid semantic batches, inability to fit, unchanged-cap
+cold recovery, and uncertain selector publication. The rollback and retry
+cases run through modular and single-header builds. Broker-connected replay
+pressure, native Linux production runs, storage-device power-loss and
+queue-inclusive throughput and tail latency remain open.
+[Stage evidence](xmqtt-store-replay-quota-20261118.json).

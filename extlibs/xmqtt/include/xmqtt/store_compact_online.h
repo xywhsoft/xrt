@@ -68,16 +68,16 @@ XMQTT_API bool xmqttStoreAutoCompactConfigInit(xmqttstoreautocompactconfig* Conf
  * to disable. The Writer must own the selected native JournalSlot child and
  * remain live through this call. Busy, closed or unsupported Writers refuse.
  * Foreground work wins before the pump starts an idle checkpoint. A valid
- * append refused by the physical file cap may checkpoint and retry once
- * within the original deadline. The typed model is restaged on the new cut.
- * Other appends queue normally. No extra task, timer or Future is created.
- * After a nonpublishing attempt, wait for RetryGrowthBytes of new committed
- * bytes. A later foreground request can also retry a definite inactive I/O,
- * BUSY or local allocation failure after RetryDelayMs. Zero disables that
- * clock-based path. Policy replacement resets its history.
- * Close fences new work and waits for any entered native I/O as usual.
- * This policy applies to the physical selected file. Typed replay and entry
- * quotas retain their independent limits. */
+ * append refused by the physical file cap or an exhausted cumulative
+ * replay quota may checkpoint and retry once within the original deadline.
+ * The checkpoint and the pending append must fit together within all file
+ * and replay limits. The typed model is restaged on the selected cut.
+ * A batch that will not fit leaves smaller batches eligible at the same
+ * cut. Other unsuccessful attempts impose RetryGrowthBytes of new committed
+ * data. A later request can retry a definite inactive I/O, BUSY or local
+ * allocation failure after RetryDelayMs. Zero disables that clock-based
+ * path. Policy replacement resets its history. Other appends queue normally
+ * without an extra task, timer or Future. Close waits for entered I/O. */
 XMQTT_API bool xmqttStoreWriteSetAutoCompact(xmqttstorewrite* Writer,const xmqttstoreautocompactconfig* Config);
 /* A gate-protected snapshot of the last finished automatic attempt plus
  * the running flag. Disabled returns Enabled=false and zero counters.

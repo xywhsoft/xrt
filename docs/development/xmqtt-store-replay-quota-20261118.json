@@ -1,0 +1,372 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "6d4d7f9e02383e48afbcff33a40e1875d366e110",
+  "source_map_sha256": "d7346ff511a4a9fcbcca67fac0bc0e7180be522edfc81d0d6c7350b44096afc9",
+  "evidence_directory": "out/service-extensions/mqtt-store-replay-quota-20261118",
+  "scope": "Foreground automatic compaction when the native typed Writer exhausts cumulative replay budgets.",
+  "versions": [
+    "5.0",
+    "3.1.1"
+  ],
+  "focused_replay_pressure_cases": 36,
+  "regression_programs": 72,
+  "package_consumers": 4,
+  "scenarios": [
+    "transaction count, operation count, encoded replay bytes and combined file plus transaction capacity",
+    "strict replay refusal when the policy is disabled, with no append",
+    "invalid stale semantic operation is rejected before a checkpoint attempt",
+    "a valid batch that cannot fit is refused with no generation change, and its repeat is suppressed",
+    "the smaller Inbox ACK keeps its lease and commits exactly once on the new generation",
+    "cold recovery with identical caps sees one ACK and preserves the original key fence",
+    "uncertain selector at typed pressure leaves the selected checkpoint able to recover the unacknowledged delivery"
+  ],
+  "wsl_sanitizers": [
+    "address",
+    "undefined",
+    "leak detection",
+    "thread"
+  ],
+  "tsan": [
+    {
+      "label": "tsan-online",
+      "log": "wsl-tsan-online-attempt2.log",
+      "log_sha256": "ffd70dcac4927be0ef6428db0fedbf4e37cdbf0bbc8f900c93d6d4693fc1963e",
+      "programs": 1
+    },
+    {
+      "label": "tsan-online-faults",
+      "log": "wsl-tsan-online-faults-attempt2.log",
+      "log_sha256": "7b89775f13f905b0de454067d5a90cdeacc291f45c6dfa5ede11321051a250a1",
+      "programs": 1
+    }
+  ],
+  "platforms": {
+    "windows": {
+      "focus": {
+        "label": "online",
+        "log": "windows-online-attempt4.log",
+        "log_sha256": "682a9ec17a08e81988f9066ddd5d1577dc2e2ec78c92c3a65c49f5301a25937c",
+        "programs": 3
+      },
+      "replay_pressure_cases": 18,
+      "delivery": [
+        {
+          "label": "package-static",
+          "log": "windows-package-static-attempt2.log",
+          "log_sha256": "edd3e1445e822477e8da5cc5e6d06bac650e15244ba31b7757d9d33804259c83",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-build",
+          "log": "windows-ws-consumer-static-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-create",
+          "log": "windows-ws-consumer-static-create-attempt2.log",
+          "log_sha256": "a92e74f8f621cab3e0c371900db6eda6a31ae9688e5af8cbecfb922ffa769ef2",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-auto",
+          "log": "windows-ws-consumer-static-auto-attempt2.log",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-read",
+          "log": "windows-ws-consumer-static-read-attempt2.log",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared-attempt2.log",
+          "log_sha256": "24169e89005dec8c38c9e572d62da21e13b7e76fb01c651bd5afe5ea7ebc3f74",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-build",
+          "log": "windows-ws-consumer-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-create",
+          "log": "windows-ws-consumer-shared-create.log",
+          "log_sha256": "a92e74f8f621cab3e0c371900db6eda6a31ae9688e5af8cbecfb922ffa769ef2",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-auto",
+          "log": "windows-ws-consumer-shared-auto.log",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-read",
+          "log": "windows-ws-consumer-shared-read.log",
+          "log_sha256": "b3f39cc9ede1ab75dbbee9cca47d73ada54fa0d0a39737991acef40df75ec062",
+          "programs": 0
+        }
+      ],
+      "regressions": [
+        {
+          "label": "regression-xmqtt_store_compact_tests",
+          "log": "windows-regression-xmqtt_store_compact_tests-attempt3.log",
+          "log_sha256": "30d85628d799bfecb1270c7a8c51c9aadf991fe734c6882b4ee269f90e40b9a7",
+          "programs": 3
+        },
+        {
+          "label": "regression-xmqtt_journal_worker_tests",
+          "log": "windows-regression-xmqtt_journal_worker_tests-attempt2.log",
+          "log_sha256": "920301b6e93f7a90760b1b2e469eb48a14619700e6f66acdfe116ce63de20407",
+          "programs": 12
+        },
+        {
+          "label": "regression-xmqtt_store_write_tests",
+          "log": "windows-regression-xmqtt_store_write_tests.log",
+          "log_sha256": "e797f7fc396b74bbc7f2140bffcf4349632d4e5ed958d5cb9fcfc783ee7dbeca",
+          "programs": 20
+        },
+        {
+          "label": "regression-root",
+          "log": "windows-regression-root.log",
+          "log_sha256": "9cbaa60b3f6ca3fbb326442fb69b0ad1557481c8dbc1fe94ac6fd4b5cc189839",
+          "programs": 1
+        }
+      ]
+    },
+    "wsl": {
+      "focus": {
+        "label": "online",
+        "log": "wsl-online-attempt4.log",
+        "log_sha256": "3f7f2f417912db9508835f7c4b918832c6868afedfafd0f4f6465e7f7ad71248",
+        "programs": 3
+      },
+      "replay_pressure_cases": 18,
+      "delivery": [
+        {
+          "label": "package-static",
+          "log": "wsl-package-static-attempt2.log",
+          "log_sha256": "6724f9adcac38e98542a2c08392cabfa425545a2fee4c37f95fee070846d6179",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-build",
+          "log": "wsl-ws-consumer-static-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-create",
+          "log": "wsl-ws-consumer-static-create-attempt2.log",
+          "log_sha256": "099c425a34fa9ebd7d6b3b0749dd13101006a9aff3985f0a7f824ca104f17ee1",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-auto",
+          "log": "wsl-ws-consumer-static-auto-attempt2.log",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-static-read",
+          "log": "wsl-ws-consumer-static-read-attempt2.log",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared-attempt2.log",
+          "log_sha256": "6cb50b480a53895fbdaf8873159f4706d386c892d5fd4d590034a8589f5bccd8",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-build",
+          "log": "wsl-ws-consumer-shared-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-create",
+          "log": "wsl-ws-consumer-shared-create-attempt2.log",
+          "log_sha256": "099c425a34fa9ebd7d6b3b0749dd13101006a9aff3985f0a7f824ca104f17ee1",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-auto",
+          "log": "wsl-ws-consumer-shared-auto-attempt2.log",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0
+        },
+        {
+          "label": "ws-consumer-shared-read",
+          "log": "wsl-ws-consumer-shared-read-attempt2.log",
+          "log_sha256": "46d9a44ba0d2c9090d87799f65d7e73f90b2a9119e49481e28fc428c216cfa22",
+          "programs": 0
+        }
+      ],
+      "regressions": [
+        {
+          "label": "regression-xmqtt_store_compact_tests",
+          "log": "wsl-regression-xmqtt_store_compact_tests-attempt3.log",
+          "log_sha256": "4b8c6c2b6b57be83410f5fa8c092173424367b722f665dcaf8299ca066e6a456",
+          "programs": 3
+        },
+        {
+          "label": "regression-xmqtt_journal_worker_tests",
+          "log": "wsl-regression-xmqtt_journal_worker_tests-attempt2.log",
+          "log_sha256": "b826e092243c3ff910ad8563308f31cc0fc408aea21bf0ceb27e464885f9c905",
+          "programs": 12
+        },
+        {
+          "label": "regression-xmqtt_store_write_tests",
+          "log": "wsl-regression-xmqtt_store_write_tests.log",
+          "log_sha256": "d60c77b54e92b49e20071790dc2b894e358d88580cfd0942514e5a024872b3ec",
+          "programs": 20
+        },
+        {
+          "label": "regression-root",
+          "log": "wsl-regression-root.log",
+          "log_sha256": "05c5918dc0dbb8c7cf0a83398908ebc7cf9034b7e5f3935967505b546504f0e3",
+          "programs": 1
+        }
+      ]
+    }
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt4.log",
+      "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+      "programs": 0
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt4.log",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt4.log",
+      "log_sha256": "4af43280e6fd850b596c49afc54ce622b4fd8a8a6cec228e8ba500c98edb4ff5",
+      "programs": 0
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt4.log",
+      "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+      "programs": 0
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt4.log",
+      "log_sha256": "f783c1067fefd5887e506e428b5e947563724bfb829b7c2f068cefe0430a7e5e",
+      "programs": 0
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt4.log",
+      "log_sha256": "556cec89258389bbfe9e5bd1afbd412fef1d1f34891af78b9b55131988bdaf4c",
+      "programs": 0
+    }
+  ],
+  "mainline_smoke": {
+    "windows": {
+      "source_map_sha256": "d7346ff511a4a9fcbcca67fac0bc0e7180be522edfc81d0d6c7350b44096afc9",
+      "component_inputs_sha256": "902be1756e102b04032fd49a2db76ea6827137ec55f84a691b342b0d58d6d9b4",
+      "tests": [
+        {
+          "label": "mainline-xredis",
+          "exit_code": 0,
+          "log": "windows-mainline-xredis.log",
+          "log_sha256": "7e03da2d3163c58c5d2b5219e45044a2c3ed0825d94537ab6613bb6cabc690ba",
+          "programs": 2
+        },
+        {
+          "label": "mainline-xrpc",
+          "exit_code": 0,
+          "log": "windows-mainline-xrpc.log",
+          "log_sha256": "239da649e5190e378cfd676675a32ccbf2a499c364e3760fe67081db64617b3a",
+          "programs": 2
+        },
+        {
+          "label": "mainline-xcron",
+          "exit_code": 0,
+          "log": "windows-mainline-xcron.log",
+          "log_sha256": "26f001b77da0df16af9f1f7ef50315893b95192eae2559cb2366175d4d8e68da",
+          "programs": 2
+        }
+      ]
+    },
+    "wsl": {
+      "source_map_sha256": "d7346ff511a4a9fcbcca67fac0bc0e7180be522edfc81d0d6c7350b44096afc9",
+      "component_inputs_sha256": "902be1756e102b04032fd49a2db76ea6827137ec55f84a691b342b0d58d6d9b4",
+      "tests": [
+        {
+          "label": "mainline-xredis",
+          "exit_code": 0,
+          "log": "wsl-mainline-xredis.log",
+          "log_sha256": "9aa41449faf836a5e076a3e2a39b4626b65a7ad40a45d67874e3be955466dab4",
+          "programs": 2
+        },
+        {
+          "label": "mainline-xrpc",
+          "exit_code": 0,
+          "log": "wsl-mainline-xrpc.log",
+          "log_sha256": "2bcdb7f33cc396bdf1706dfbfc4128cb81a0abce0f2d7e9a471ceb634e375ed3",
+          "programs": 2
+        },
+        {
+          "label": "mainline-xcron",
+          "exit_code": 0,
+          "log": "wsl-mainline-xcron.log",
+          "log_sha256": "ade340db1768d4de4a96ad61fb7655b7f4c206cd8a494acb56dffe28d0a1e724",
+          "programs": 2
+        }
+      ]
+    }
+  },
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 36,
+    "sha256": "04f645131f25d7638c3f2f7f09b00ec38625ce864d62b18e95b10aa7b302c758"
+  },
+  "corrected_intermediate_build_failures": [
+    {
+      "log": "windows-online.log",
+      "sha256": "bf05f378542be3c38eeee92355cbb54e8291f1c7b5a5878fe1886c3da54611b0"
+    },
+    {
+      "log": "windows-online-attempt2.log",
+      "sha256": "0e91edb74583c6a5ce48fd795c7a2cc57eff5e856e78083be7ea113c6682b6b2"
+    },
+    {
+      "log": "windows-regression-xmqtt_journal_worker_tests.log",
+      "sha256": "caf259cb329c89a6b6034c9198b6047747907048bcd9e2b34277be8c26fa7585"
+    },
+    {
+      "log": "wsl-online.log",
+      "sha256": "7a933a445f92a7601d92be8ebcf12d5f2c9c0edaa1615df6a3d1b462fe37ee39"
+    },
+    {
+      "log": "wsl-online-attempt2.log",
+      "sha256": "c50a2c94b31c616cfc4faf38afaeb155ef27b9d2705bf42064046c9b78718851"
+    },
+    {
+      "log": "wsl-regression-xmqtt_journal_worker_tests.log",
+      "sha256": "89af60712287b7cad1996e6e94e5065e594d72bcb92fc395436575180d0806e3"
+    }
+  ],
+  "pending": [
+    "independent broker coverage for the typed replay pressure path",
+    "device power-loss and native Linux production qualification",
+    "controlled throughput and queue-inclusive tail latency"
+  ]
+}

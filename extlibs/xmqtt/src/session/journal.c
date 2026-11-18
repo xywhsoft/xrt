@@ -526,6 +526,13 @@ XMQTT_INTERNAL bool xmqttInternalJournalCompactFilePressure(const xmqttjournal* 
     return Bytes<=J->Config.MaxTransactionBytes&&J->Info.Sequence!=UINT64_MAX&&
         (Room<XMQTT_J_OVERHEAD||Bytes>Room-XMQTT_J_OVERHEAD);
 }
+XMQTT_INTERNAL bool xmqttInternalJournalCompactFits(const xmqttjournal* J,uint64 Transactions,
+    uint64 ReplayBytes,uint64 NextBytes)
+{
+    uint64 Room=J->Config.MaxFileBytes-XMQTT_J_START;
+    return NextBytes<=J->Config.MaxTransactionBytes&&ReplayBytes<=Room&&NextBytes<=Room-ReplayBytes&&
+        Transactions<(Room-ReplayBytes-NextBytes)/XMQTT_J_OVERHEAD;
+}
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjournal* J,
     const void* Owner,uint64 Transactions,uint64 ReplayBytes,uint64 MinReclaim,xmqttstorecompactresult* Result)
 {

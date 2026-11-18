@@ -5,9 +5,16 @@
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 XMQTT_INTERNAL bool xmqttInternalJournalCompactAvailable(const xmqttjournal* Journal,const void* Owner);
 XMQTT_INTERNAL bool xmqttInternalJournalCompactFilePressure(const xmqttjournal* Journal,size_t Bytes);
+XMQTT_INTERNAL bool xmqttInternalJournalCompactFits(const xmqttjournal* Journal,uint64 Transactions,
+    uint64 ReplayBytes,uint64 NextBytes);
+typedef struct xmqttcompactionrequest {
+    uint64 Operations,Bytes;
+    bool ReplayBlocked,NoRoom;
+} xmqttcompactionrequest;
 typedef struct xmqttautocompactstate {
     xmqttstoreautocompactconfig Config;
     xmqttstoreautocompactinfo Info;
+    uint64 DeniedEnd,DeniedOperations,DeniedBytes;
 } xmqttautocompactstate;
 XMQTT_INTERNAL bool xmqttInternalJournalAutoCompactSet(xmqttjournalworker* Worker,
     xmqttautocompactstate* State,const xmqttstoreautocompactconfig* Config);
@@ -26,10 +33,11 @@ XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjour
     const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out);
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* Writer,
     xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result);
+    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcompactionrequest* Request);
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactModel(const xmqttstorestate* State,const void* StateOwner,
     xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats);
+    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats,
+    xmqttcompactionrequest* Request);
 XMQTT_INTERNAL void xmqttInternalStoreCompactRebase(xmqttstorestate* State,const void* StateOwner,
     const xmqttjournalinfo* Journal,const xmqttstorecompactresult* Result,const xmqttcheckpointstats* Stats);
 #endif

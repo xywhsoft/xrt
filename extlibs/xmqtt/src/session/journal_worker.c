@@ -145,14 +145,15 @@ static bool xmqttJWStopCompact(ptr Context)
     return Stop;
 }
 static void xmqttJWCompact(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,
-    const xmqttstorecompactconfig* Config,xmqttstorecompactresult* Result,xmqttjournalinfo After)
+    const xmqttstorecompactconfig* Config,xmqttstorecompactresult* Result,xmqttjournalinfo After,
+    xmqttcompactionrequest* Request)
 {
     xerror* Saved=NULL;
     bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
     xmqttjournalstatus Status=XMQTT_JOURNAL_ERROR;
     if(!LocalFailure){
         xmqttjwstop Stop={W,J,Native};
-        Status=xmqttInternalStoreCompactWork(W->Store,&W->Journal,W,Config,xmqttJWStopCompact,&Stop,Result);
+        Status=xmqttInternalStoreCompactWork(W->Store,&W->Journal,W,Config,xmqttJWStopCompact,&Stop,Result,Request);
         if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
         if(Status>=XMQTT_JOURNAL_EMPTY){
             xerror* Discard=NULL;
@@ -182,12 +183,15 @@ static bool xmqttJWAutoDue(const xmqttautocompactstate* A,uint64 End)
 
 /* The sole pump owns the actual Journal. Configuration is immutable until
  * this pump is idle, and the application can copy its counters under Gate. */
-static bool xmqttJWAutoCompact(xmqttjournalworker* W,xmqttjwitem* Pressure,xcancel* Native)
+static bool xmqttJWAutoCompact(xmqttjournalworker* W,xmqttjwitem* Pressure,xcancel* Native,
+    xmqttcompactionrequest* Request)
 {
     xrtMutexLock(&W->Gate);
     xmqttautocompactstate* A=W->Auto;
     xmqttjournalinfo Before=W->Info.Journal;
-    bool Eligible=A&&xmqttJWAutoDue(A,Before.CommittedEnd)&&
+    bool Repeated=Request&&A&&A->DeniedEnd==Before.CommittedEnd&&
+        Request->Operations>=A->DeniedOperations&&Request->Bytes>=A->DeniedBytes;
+    bool Eligible=A&&!Repeated&&xmqttJWAutoDue(A,Before.CommittedEnd)&&
         (Pressure||(!W->Head&&!W->Info.Requests&&Before.CommittedEnd>=A->Config.TriggerBytes))&&
         xmqttJWStop(W,Pressure,Native)==XMQTT_COMMIT_OK;
     if(Eligible){
@@ -199,16 +203,27 @@ static bool xmqttJWAutoCompact(xmqttjournalworker* W,xmqttjwitem* Pressure,xcanc
     if(!Eligible)return false;
 
     xmqttstorecompactresult Result={0};
-    xmqttJWCompact(W,Pressure,Native,&A->Config.Compact,&Result,Before);
+    xmqttJWCompact(W,Pressure,Native,&A->Config.Compact,&Result,Before,Request);
     bool Rotated=Result.Effect==XMQTT_JOURNAL_COMMITTED;
     xrtMutexLock(&W->Gate);
     uint64 End=W->Info.Journal.CommittedEnd,Retry=A->Config.RetryGrowthBytes;
-    if(Rotated)xmqttJWCount(&A->Info.Rotations);
-    A->Info.NextEligibleBytes=Rotated?0:Retry>UINT64_MAX-End?UINT64_MAX:End+Retry;
-    bool Transient=!Rotated&&!W->Info.Closed&&
-        (Result.StorageStatus==XMQTT_JOURNAL_IO||Result.StorageStatus==XMQTT_JOURNAL_BUSY||
-         Result.StorageStatus==XMQTT_JOURNAL_ERROR);
-    A->Info.RetryAfter=Transient&&A->Config.RetryDelayMs?xrtTimer()+(double)A->Config.RetryDelayMs/1000.0:0;
+    if(Rotated){
+        xmqttJWCount(&A->Info.Rotations);
+        A->DeniedEnd=A->Info.NextEligibleBytes=0;
+        A->Info.RetryAfter=0;
+    }else if(Request&&Request->NoRoom){
+        /* Larger requests share this bound at the same cut. Keep smaller
+         * requests eligible for their own checkpoint headroom check. */
+        A->DeniedEnd=Before.CommittedEnd;
+        A->DeniedOperations=Request->Operations;
+        A->DeniedBytes=Request->Bytes;
+    }else{
+        A->Info.NextEligibleBytes=Retry>UINT64_MAX-End?UINT64_MAX:End+Retry;
+        bool Transient=!W->Info.Closed&&
+            (Result.StorageStatus==XMQTT_JOURNAL_IO||Result.StorageStatus==XMQTT_JOURNAL_BUSY||
+             Result.StorageStatus==XMQTT_JOURNAL_ERROR);
+        A->Info.RetryAfter=Transient&&A->Config.RetryDelayMs?xrtTimer()+(double)A->Config.RetryDelayMs/1000.0:0;
+    }
     A->Info.Status=Result.Status;A->Info.StorageStatus=Result.StorageStatus;A->Info.Effect=Result.Effect;
     A->Info.Generation=Result.Generation;
     A->Info.PreviousBytes=Result.PreviousBytes;A->Info.Bytes=Result.Bytes;
@@ -228,7 +243,8 @@ static bool xmqttJWAutoCompact(xmqttjournalworker* W,xmqttjwitem* Pressure,xcanc
 }
 #endif
 
-static void xmqttJWCommitOne(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Cancel,xmqttjournalinfo Before)
+static void xmqttJWCommitOne(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Cancel,
+    xmqttjournalinfo Before XMQTT_SW_PRESSURE_PARAM)
 {
     if(J->Result.Status==XMQTT_COMMIT_OK){
         xerror* Saved=NULL;bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
@@ -236,7 +252,8 @@ static void xmqttJWCommitOne(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Cance
         if(!LocalFailure){uint64 Sequence=0;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
             if(W->Prepare){
-                J->Result.Status=W->Prepare(W->Store,J->Result.Data XMQTT_SW_INBOX_ARG(J->InboxKey));PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;
+                J->Result.Status=W->Prepare(W->Store,J->Result.Data XMQTT_SW_INBOX_ARG(J->InboxKey)
+                    XMQTT_SW_PRESSURE_ARG(Request));PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;
                 if(PolicyRefused&&(J->Result.Status==XMQTT_COMMIT_INVALID||J->Result.Status==XMQTT_COMMIT_INITIALIZATION))J->Result.Cause=xrtErrorRef(xrtGetError());
                 if(!PolicyRefused){xrtMutexLock(&W->Gate);J->Result.Status=xmqttJWStop(W,J,Cancel);xrtMutexUnlock(&W->Gate);PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;}
             }
@@ -278,7 +295,7 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
                xmqttJWAutoDue(W->Auto,W->Info.Journal.CommittedEnd)){
                 IdleChecked=true;
                 xrtMutexUnlock(&W->Gate);
-                (void)xmqttJWAutoCompact(W,NULL,Cancel);
+                (void)xmqttJWAutoCompact(W,NULL,Cancel,NULL);
                 continue;
             }
 #endif
@@ -290,14 +307,14 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
         if(!J->Result.Data.Data){
             if(J->Result.Status==XMQTT_COMMIT_OK){
                 xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
-                xmqttJWCompact(W,J,Cancel,&C->Config,&C->Result,Before);
+                xmqttJWCompact(W,J,Cancel,&C->Config,&C->Result,Before,NULL);
                 J->Result.Status=C->Result.Status;
                 J->Result.Effect=C->Result.Effect;
                 J->Result.Cause=C->Result.Cause;
                 if(C->Result.Effect==XMQTT_JOURNAL_COMMITTED){
                     xrtMutexLock(&W->Gate);
                     if(W->Auto){
-                        W->Auto->Info.NextEligibleBytes=0;
+                        W->Auto->DeniedEnd=W->Auto->Info.NextEligibleBytes=0;
                         W->Auto->Info.RetryAfter=0;
                     }
                     xrtMutexUnlock(&W->Gate);
@@ -307,22 +324,23 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
             xmqttJWFinish(W,J);
             continue;
         }
+        xmqttcompactionrequest Request={0};
 #endif
-        xmqttJWCommitOne(W,J,Cancel,Before);
+        xmqttJWCommitOne(W,J,Cancel,Before XMQTT_SW_PRESSURE_ARG(W->Auto?&Request:NULL));
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-        /* A physical LIMIT enters no write. Dispose the tentative typed plan
-         * first and keep the original request, deadline and ACK reservation. */
+        /* Both limits precede the write. The typed plan is already disposed,
+         * and the original request, deadline and ACK reservation stay live. */
         if(W->Auto&&J->Result.Status==XMQTT_COMMIT_LIMIT&&
-           J->Result.AppendStatus==XMQTT_JOURNAL_LIMIT&&
-           xmqttInternalJournalCompactFilePressure(W->Journal,J->Result.Data.Size)){
+           (Request.ReplayBlocked||(J->Result.AppendStatus==XMQTT_JOURNAL_LIMIT&&
+            xmqttInternalJournalCompactFilePressure(W->Journal,J->Result.Data.Size)))){
             IdleChecked=true;
-            bool Rotated=xmqttJWAutoCompact(W,J,Cancel);
+            bool Rotated=xmqttJWAutoCompact(W,J,Cancel,&Request);
             xrtMutexLock(&W->Gate);
             if(W->Info.Failed)J->Result.Status=XMQTT_COMMIT_STORAGE;
             else if(Rotated)J->Result.Status=xmqttJWStop(W,J,Cancel);
             Before=W->Info.Journal;
             xrtMutexUnlock(&W->Gate);
-            if(Rotated)xmqttJWCommitOne(W,J,Cancel,Before);
+            if(Rotated)xmqttJWCommitOne(W,J,Cancel,Before XMQTT_SW_PRESSURE_ARG(NULL));
         }
 #endif
         xmqttJWFinish(W,J);
