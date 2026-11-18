@@ -15583,3 +15583,18 @@ The portable xrpc adapter remains the next consumer. Native Linux and
 sustained qualification remain open.
 
 [Stage evidence](service-extensions-process-pipe-20261119.json).
+
+## 2026-11-19 stdio write completion before response dispatch
+
+A deterministic host fixture made the final write retry return AGAIN at
+the start of an owner turn, then made the complete reply readable and the
+write completion observable. The previous stdio loop would keep the write
+lane paused and dispatch the reply while the request still appeared
+partially sent. The regression failed on the prior Windows build.
+
+Assembling a frame now permits one retry of the started write before
+dispatch. The extra retry is bounded by completed frame assembly and
+preserves the existing per-turn progress budget. Windows and WSL
+modular/single-header tests passed in both framing profiles. The initial
+failure and both passing builds are in
+out/service-extensions/xrpc-stdio-process-20261119/stdio-order-*.log.

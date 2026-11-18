@@ -34,9 +34,13 @@ An asynchronous host copies accepted output or otherwise finishes using the
 borrow before returning. A zero-byte AGAIN retains the current prefix. The
 first offer marks local delivery uncertain and full acceptance is Sent.
 
-MaxIOWork limits progress units, with one additional no-progress attempt per
-direction. The owner rotates between read and write across turns, including
-MaxIOWork=1. ReadBytes, WriteChunkBytes, frame limits and Duplex's independent
+MaxIOWork limits progress units. An I/O callback that reports AGAIN pauses
+its direction for the turn. Assembling each complete incoming frame permits
+one extra attempt at a started write before dispatch. A peer can reply as
+the host gains visibility of a previously pending write completion. The owner
+observes that progress before correlating the reply. The owner rotates between
+read and write across turns, including MaxIOWork=1. ReadBytes, WriteChunkBytes,
+frame limits and Duplex's independent
 budgets bound the work and storage. The adapter is single allocation plus its
 reader and duplex endpoint. The host's own native buffers and handles are
 outside those budgets. Outgoing call encoding uses the smaller of the duplex

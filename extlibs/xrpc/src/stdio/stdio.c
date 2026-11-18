@@ -282,8 +282,12 @@ XRPC_API bool xrpcStdioStep(xrpcstdio* S)
                 continue;
             }
             bool Progress=Lane?xrpcStdioWriteWork(S):xrpcStdioReadWork(S);
-            if(Progress)++Work;
-            else Blocked[Lane]=true;
+            if(Progress){
+                ++Work;
+                /* A complete reply can become readable after a write returned
+                 * AGAIN. Observe that write's completion before dispatch. */
+                if(!Lane && S->Ready && S->Started)Blocked[1]=false;
+            }else Blocked[Lane]=true;
         }
         S->More|=Work==S->Config.MaxIOWork || WasEnded!=S->InputEnded;
         if(S->InputEnded && xrpcDuplexInfo(S->Duplex,&D))xrpcStdioCheckDrain(S,&D);

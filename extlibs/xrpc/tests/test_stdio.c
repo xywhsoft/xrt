@@ -13,7 +13,7 @@ typedef struct stdioTestPipe {
 typedef struct stdioTestIO {
     stdioTestPipe* In;
     stdioTestPipe* Out;
-    size_t Reads,Writes,OutputLimitAtEOF;
+    size_t Reads,Writes,OutputLimitAtEOF,OutputLimitOnRead;
 } stdioTestIO;
 typedef struct stdioTestHandler {
     xatomic32 Calls,Hold;
@@ -32,6 +32,7 @@ static xrpcstdioio stdioTestRead(ptr Raw,bytes Data,size_t Size,size_t* Count)
     }
     if(Size>P->Size)Size=P->Size;
     memcpy(Data,P->Bytes,Size);
+    if(IO->OutputLimitOnRead)IO->Out->Limit=IO->OutputLimitOnRead;
     P->Size-=Size;
     memmove(P->Bytes,P->Bytes+Size,P->Size);
     *Count=Size;
@@ -157,6 +158,28 @@ static void stdioTestPair(xrpcframeformat Format)
     stdioTestDrain(Left,XRPC_STDIO_CLOSED);stdioTestDrain(Right,XRPC_STDIO_CLOSED);
     testRequire(xrpcServerDestroy(Server),"stdio shared executor retirement");
     xrtFutureDestroy(Call);xrtFutureDestroy(Batch);
+}
+static void stdioTestReadAfterWriteCompletion(xrpcframeformat Format)
+{
+    stdioTestPipe In={0},Out={0};
+    stdioTestIO IO={.In=&In,.Out=&Out};
+    xrpcstdioconfig C=stdioTestConfig(&IO,NULL,Format);
+    size_t Header=0;
+    testRequire(xrpcFrameHeaderSize(42,&C.Frame,&Header),"stdio completion fixture header length");
+    Out.Limit=Header; /* Only the header reports completion in the first turn. */
+    xrpcstdio* S=stdioTestCreate(&C);
+    xfuture* F=NULL;
+    testRequire(xrpcStdioCall(S,XRT_STR_LITERAL("a"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED &&
+                xrpcStdioStep(S) && Out.Size==Header,"stdio pending final write");
+    stdioTestFrame(&In,Format,"{\"jsonrpc\":\"2.0\",\"result\":7,\"id\":\"1\"}");
+    IO.OutputLimitOnRead=sizeof(Out.Bytes); /* The write completes between the first retry and Read. */
+    size_t Writes=IO.Writes;
+    testRequire(xrpcStdioStep(S) && IO.Writes==Writes+2 && Out.Size>Header,
+                "stdio observes final write completion before dispatching the reply");
+    stdioTestResult(F,XRPC_CALL_OK,XRPC_REPLIED);
+    testRequire(xrpcStdioClose(S,XRPC_CALL_CLOSED),"stdio completion fixture closes");
+    stdioTestDrain(S,XRPC_STDIO_CLOSED);
+    xrtFutureDestroy(F);
 }
 static void stdioTestBackpressure(xrpcframeformat Format)
 {
@@ -308,6 +331,7 @@ int main(void)
 {
     for(unsigned Format=1;Format<=2;++Format){
         stdioTestPair((xrpcframeformat)Format);
+        stdioTestReadAfterWriteCompletion((xrpcframeformat)Format);
         stdioTestBackpressure((xrpcframeformat)Format);
     }
     for(unsigned Mode=0;Mode<4;++Mode)stdioTestEOF(Mode);

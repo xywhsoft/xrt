@@ -5167,9 +5167,10 @@ XRPC_API xrpcduplexadmission xrpcStdioNotify(xrpcstdio* Stdio,xstrview Method,xs
 XRPC_API xrpcduplexadmission xrpcStdioBatch(xrpcstdio* Stdio,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);
 /* Step/Info/Destroy have one owner. Drive after Wake or host I/O readiness and
  * at NextDeadline. More asks for an immediate turn. After AGAIN, arm host
- * readiness only in requested directions. MaxIOWork limits progress units
- * with at most one additional no-progress attempt per direction. This budget
- * is independent of Duplex.MaxWork. I/O callbacks must not reenter Step/Destroy. */
+ * readiness only in requested directions. MaxIOWork limits progress units.
+ * A blocked direction is paused for the turn. Each newly assembled input frame
+ * allows one retry of a started write before dispatch. This budget is independent
+ * of Duplex.MaxWork. I/O callbacks must not reenter Step/Destroy. */
 XRPC_API bool xrpcStdioStep(xrpcstdio* Stdio);
 XRPC_API bool xrpcStdioInfo(xrpcstdio* Stdio,xrpcstdioinfo* Info);
 /* Concurrent abortive seal. Use TRANSPORT for out-of-band host I/O failure.
