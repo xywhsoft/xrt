@@ -14583,3 +14583,54 @@ The runner accepts --listen master or --listen replica and --tls 12 or --tls 13.
 Use --case FACTORY PROTOCOL for a single case. Native Linux server-host
 endurance and production throughput and tail latency remain open.
 [Stage evidence](xredis-sentinel-mtls-20261118.json).
+
+## 2026-11-18 Sentinel lease recovery latency
+
+The xredis_sentinel_event_recovery profile measures the time for a saturated
+master or replica pool to replace its generation and serve queued acquisitions.
+Both triggers keep a RESP3 subscription online. The direct control calls
+xredisSentinelPoolRefresh. The Pub/Sub case schedules a +switch-master frame
+on the loopback Sentinel peer. Timing starts just before dispatch and stops
+when the caller observes the first queued lease and then the entire cohort.
+Each transition checks the new endpoint and generation, physical retirement
+of the old leases, and a binary ECHO on the verified replacement peer.
+The pool uses WorkItems=1 and the default MaxConnecting=4, capped at capacity.
+
+Each of the eight cases runs five measured processes of 1,024 transitions
+per platform. A process discards its first eight transitions. The runner
+uses one separate process warmup. Each transition begins at least 2 ms
+after observation of the previous cohort. The rate is computed over active
+recovery windows. The JSON reports retain p50, p95, p99 and p99.9 per repeat,
+plus the maximum and the active recovery rate.
+
+| Pool | Slots | Trigger | Windows first / all p99 (ms) | WSL first / all p99 (ms) |
+| --- | ---: | --- | ---: | ---: |
+| master | 1 | direct | 1.561 / 1.561 | 1.511 / 1.511 |
+| master | 1 | pubsub | 1.673 / 1.673 | 1.560 / 1.560 |
+| master | 8 | direct | 2.424 / 4.135 | 1.862 / 2.955 |
+| master | 8 | pubsub | 2.285 / 3.934 | 1.985 / 3.108 |
+| replica | 1 | direct | 1.534 / 1.534 | 1.554 / 1.554 |
+| replica | 1 | pubsub | 1.685 / 1.685 | 1.639 / 1.639 |
+| replica | 8 | direct | 2.187 / 3.812 | 1.951 / 3.095 |
+| replica | 8 | pubsub | 2.160 / 3.715 | 1.952 / 3.036 |
+
+The table reports medians of per-process p99 values. The ordinary
+repeatability limits are 3% relative MAD and 6% relative central range.
+Windows recorded 47 threshold breaches and WSL recorded 33.
+These measurements remain exploratory because the limits were exceeded.
+Host isolation was unverified, and a separate validation process was observed
+while the WSL runner was in setup.
+Modular regressions passed on Windows (5 programs) and WSL (5 programs).
+All six repository checks passed. ASan, UBSan and leak detection also passed for both
+8-slot Pub/Sub workloads in WSL.
+
+Run from the main checkout with GCC available in PATH.
+
+```text
+python tools/measure_performance.py --config extlibs/xredis/config/performance_profiles.json --profiles xredis_sentinel_event_recovery --report out/xredis-sentinel-event-recovery.json
+```
+
+This workload isolates client-side replacement after a topology change.
+Measuring real election lag, sustained business traffic during failover and
+native Linux performance remains part of production qualification.
+[Stage evidence](xredis-sentinel-recovery-bench-20261118.json).

@@ -15,6 +15,7 @@ struct spfixture {
     spnode Seed,A,B;
     spnode* SeedPeer;
     xfuture* Closed[512];size_t ClosedCount;
+    bool ReapClosed;
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
     xnetresolver* Resolver;
 #endif
@@ -101,6 +102,15 @@ static inline void spStart(spfixture* F,unsigned Factory,bool Secure,bool Resp2)
 }
 static inline xredissentinelstatus spConnect(spfixture* F,xnetengine* E,const xnetaddr* Address,int64 Timeout,xredisclient** C)
 {
+    if(F->ReapClosed){
+        size_t Live=0;
+        for(size_t I=0;I<F->ClosedCount;++I){
+            xfuture* Closed=F->Closed[I];
+            if(xrtFutureState(Closed)==XFUTURE_RESOLVED)xrtFutureDestroy(Closed);
+            else F->Closed[Live++]=Closed;
+        }
+        F->ClosedCount=Live;
+    }
     xredisclientinitconfig I;xredisClientInitConfigInit(&I);I.Timeout=Timeout;I.Mode=F->Resp2?XREDIS_INIT_RESP2:XREDIS_INIT_RESP3;
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
     xredisclientdialconfig D;xredisClientDialConfigInit(&D);D.Family=XNET_FAMILY_IPV4;

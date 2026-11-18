@@ -1,0 +1,1201 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+  "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+  "initial_source_map_sha256": "21e10301b53c5b1cfd384b5e99ddc6eb427d82580ebe3cde3bce48a7848e8b7e",
+  "evidence_directory": "out/service-extensions/xredis-sentinel-recovery-bench-20261118",
+  "profile": "xredis_sentinel_event_recovery",
+  "configuration_sha256": "991d7a657cdf12d0b2d870aeb247682d86bc15f4d9b961b6e24b4e54d0cf33fd",
+  "limits": {
+    "max_relative_mad": 0.03,
+    "max_relative_central_range": 0.06
+  },
+  "workload": {
+    "transport": "RESP3 over loopback TCP with in-process topology peers",
+    "observation_start": "immediately before the direct refresh call or event publisher enqueue",
+    "observation_end": "caller observes first queued lease, then all queued leases",
+    "transition_checks": [
+      "one verified topology generation",
+      "old leases physically retired",
+      "binary ECHO reaches the new peer",
+      "one live listener and exact matched-event/hint counts"
+    ],
+    "discarded_inner_warmup_transitions_per_process": 8,
+    "interval_after_last_lease_microseconds": 2000,
+    "active_rate": "count divided by sum of trigger-to-all-leases durations",
+    "pool_roles": [
+      "master",
+      "replica"
+    ],
+    "pool_slots": [
+      1,
+      8
+    ],
+    "pool_work_items": 1,
+    "max_connecting_configured": 4
+  },
+  "measurements": {
+    "initial-smoke": {
+      "windows": {
+        "report": "windows-initial-smoke.json",
+        "sha256": "a74686ca58f8a703b8e7eb47f78f04e25c1db5b2a082c9d57be50a9dcd3451e4",
+        "environment": {
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_version": "gcc.exe (GCC) 16.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "a83058e70260896441a7c86a67a84a2f3c30d6c753fbe11fc22c3103a72c1a2e",
+          "source_fingerprint": "0076a0d450d599b24b93ffe5d241fff1b9339a0a6a001a34cd4026ec07a9d047"
+        },
+        "samples_per_repeat": 24,
+        "repeats": 1,
+        "process_warmups": 0,
+        "case_count": 8,
+        "generated_at": "2026-11-18T10:02:20.003016+00:00",
+        "observed_recoveries": 192,
+        "quality_violations": [],
+        "benchmark_quality_passed": null,
+        "receipt": {
+          "label": "smoke",
+          "log": "windows-smoke.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-recovery-bench-20261118\\windows-smoke.json",
+            "--smoke"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "21e10301b53c5b1cfd384b5e99ddc6eb427d82580ebe3cde3bce48a7848e8b7e",
+          "log_sha256": "4c1645b082a120b375d854c1e84b5148b2cb9a5981bccea81fd4d6bfda9af806",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": null
+      },
+      "wsl": {
+        "report": "wsl-initial-smoke.json",
+        "sha256": "6ce5b58762a72512bdfda07d501f98222dc84cf153119c4f68fcce918e1f8068",
+        "environment": {
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "a83058e70260896441a7c86a67a84a2f3c30d6c753fbe11fc22c3103a72c1a2e",
+          "source_fingerprint": "0076a0d450d599b24b93ffe5d241fff1b9339a0a6a001a34cd4026ec07a9d047"
+        },
+        "samples_per_repeat": 24,
+        "repeats": 1,
+        "process_warmups": 0,
+        "case_count": 8,
+        "generated_at": "2026-11-18T10:02:59.444897+00:00",
+        "observed_recoveries": 192,
+        "quality_violations": [],
+        "benchmark_quality_passed": null,
+        "receipt": {
+          "label": "smoke",
+          "log": "wsl-smoke.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-recovery-bench-20261118/wsl-smoke.json",
+            "--smoke"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "21e10301b53c5b1cfd384b5e99ddc6eb427d82580ebe3cde3bce48a7848e8b7e",
+          "log_sha256": "e72b1f938a5539ff8053887ca760ca778814c3581250cf77d58eb7a8ac7383a7",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": null
+      }
+    },
+    "smoke": {
+      "windows": {
+        "report": "windows-smoke.json",
+        "sha256": "e2aa33c07658135b259bc4c3c3c49fd411fb9288ef27686704a1d4ec6754c23f",
+        "environment": {
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_version": "gcc.exe (GCC) 16.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "caed0be3cf637b3d7976dc2dc622a6d44f5f1678f299fac892576f5dd56ac05c",
+          "source_fingerprint": "002fe096383be9a3d5761ae2419f9a90b50a148df76659ff5902e176a7096dcc"
+        },
+        "samples_per_repeat": 24,
+        "repeats": 1,
+        "process_warmups": 0,
+        "case_count": 8,
+        "generated_at": "2026-11-18T11:54:20.145384+00:00",
+        "observed_recoveries": 192,
+        "quality_violations": [],
+        "benchmark_quality_passed": null,
+        "receipt": {
+          "label": "smoke",
+          "log": "windows-smoke-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-recovery-bench-20261118\\windows-smoke.json",
+            "--smoke"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+          "log_sha256": "ce2bcf388b210c169683e63940743f8f6c6c56d15916277823d0a84eaa627392",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": null
+      },
+      "wsl": {
+        "report": "wsl-smoke.json",
+        "sha256": "cafece163eb47b56e67382697bab8e59c97722beae8cae71fb91ea287bf83255",
+        "environment": {
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "caed0be3cf637b3d7976dc2dc622a6d44f5f1678f299fac892576f5dd56ac05c",
+          "source_fingerprint": "002fe096383be9a3d5761ae2419f9a90b50a148df76659ff5902e176a7096dcc"
+        },
+        "samples_per_repeat": 24,
+        "repeats": 1,
+        "process_warmups": 0,
+        "case_count": 8,
+        "generated_at": "2026-11-18T11:55:14.177362+00:00",
+        "observed_recoveries": 192,
+        "quality_violations": [],
+        "benchmark_quality_passed": null,
+        "receipt": {
+          "label": "smoke",
+          "log": "wsl-smoke-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-recovery-bench-20261118/wsl-smoke.json",
+            "--smoke"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+          "log_sha256": "a95cf4a05f01a0365981fcb913791e3b918395ea8f30e7e8f3466b625550b488",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": null
+      }
+    },
+    "benchmark": {
+      "windows": {
+        "report": "windows-benchmark.json",
+        "sha256": "5d683950e9c8b2d0f2964e04f48a3259f372dfd38b753f5d49fbcd5a75ba064f",
+        "environment": {
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_version": "gcc.exe (GCC) 16.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "caed0be3cf637b3d7976dc2dc622a6d44f5f1678f299fac892576f5dd56ac05c",
+          "source_fingerprint": "002fe096383be9a3d5761ae2419f9a90b50a148df76659ff5902e176a7096dcc"
+        },
+        "samples_per_repeat": 1024,
+        "repeats": 5,
+        "process_warmups": 1,
+        "case_count": 8,
+        "generated_at": "2026-11-18T11:57:18.571938+00:00",
+        "observed_recoveries": 40960,
+        "quality_violations": [
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/first_lease_p95_us: relative_mad=3.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/first_lease_p999_us: relative_mad=4.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/first_lease_p999_us: relative_central_range=7.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/all_leases_p95_us: relative_mad=3.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/all_leases_p999_us: relative_mad=4.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_direct_recovery/all_leases_p999_us: relative_central_range=7.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/first_lease_p99_us: relative_mad=4.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/first_lease_p99_us: relative_central_range=7.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/first_lease_p999_us: relative_mad=7.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/first_lease_p999_us: relative_central_range=8.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/all_leases_p99_us: relative_mad=4.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/all_leases_p99_us: relative_central_range=7.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/all_leases_p999_us: relative_mad=7.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_1_pubsub_recovery/all_leases_p999_us: relative_central_range=8.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p95_us: relative_mad=4.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p99_us: relative_mad=7.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p99_us: relative_central_range=8.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p999_us: relative_mad=4.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p999_us: relative_central_range=8.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p95_us: relative_mad=4.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p95_us: relative_central_range=8.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p99_us: relative_mad=5.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p99_us: relative_central_range=10.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p999_us: relative_mad=31.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p999_us: relative_central_range=55.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p99_us: relative_mad=4.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p999_us: relative_mad=5.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p999_us: relative_central_range=9.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p99_us: relative_mad=4.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p99_us: relative_central_range=7.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p999_us: relative_mad=7.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p999_us: relative_central_range=12.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p999_us: relative_mad=3.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p999_us: relative_mad=3.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/first_lease_p99_us: relative_mad=6.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/first_lease_p99_us: relative_central_range=7.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/first_lease_p999_us: relative_mad=17.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/first_lease_p999_us: relative_central_range=27.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/all_leases_p99_us: relative_mad=6.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/all_leases_p99_us: relative_central_range=7.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/all_leases_p999_us: relative_mad=17.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_pubsub_recovery/all_leases_p999_us: relative_central_range=27.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/first_lease_p999_us: relative_mad=3.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/all_leases_p999_us: relative_mad=5.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/all_leases_p999_us: relative_central_range=13.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_pubsub_recovery/all_leases_p999_us: relative_mad=5.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_pubsub_recovery/all_leases_p999_us: relative_central_range=9.5%"
+        ],
+        "benchmark_quality_passed": false,
+        "receipt": {
+          "label": "benchmark",
+          "log": "windows-benchmark.log",
+          "exit_code": 1,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-recovery-bench-20261118\\windows-benchmark.json",
+            "--repeats",
+            "5",
+            "--warmups",
+            "1"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+          "log_sha256": "167b44a449ed980d708cb853c3c74d8fd51ed6fecf48d4b70c8b9e8d4e8c2188",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": [
+          {
+            "role": "master",
+            "slots": 1,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 803.54,
+              "first_lease_p50_us": 1221.0,
+              "first_lease_p95_us": 1435.1,
+              "first_lease_p99_us": 1560.8,
+              "first_lease_p999_us": 1708.2,
+              "all_leases_p50_us": 1221.0,
+              "all_leases_p95_us": 1435.1,
+              "all_leases_p99_us": 1560.8,
+              "all_leases_p999_us": 1708.2
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 5882.4,
+              "all_leases": 5882.4
+            }
+          },
+          {
+            "role": "master",
+            "slots": 1,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 767.145,
+              "first_lease_p50_us": 1277.1,
+              "first_lease_p95_us": 1528.1,
+              "first_lease_p99_us": 1673.5,
+              "first_lease_p999_us": 1864.2,
+              "all_leases_p50_us": 1277.1,
+              "all_leases_p95_us": 1528.1,
+              "all_leases_p99_us": 1673.5,
+              "all_leases_p999_us": 1864.2
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 7487.3,
+              "all_leases": 7487.3
+            }
+          },
+          {
+            "role": "master",
+            "slots": 8,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 315.044,
+              "first_lease_p50_us": 1717.9,
+              "first_lease_p95_us": 2046.2,
+              "first_lease_p99_us": 2424.2,
+              "first_lease_p999_us": 2856.4,
+              "all_leases_p50_us": 3124.7,
+              "all_leases_p95_us": 3681.2,
+              "all_leases_p99_us": 4134.7,
+              "all_leases_p999_us": 5939.0
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 17398.1,
+              "all_leases": 19081.7
+            }
+          },
+          {
+            "role": "master",
+            "slots": 8,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 313.846,
+              "first_lease_p50_us": 1743.6,
+              "first_lease_p95_us": 2086.9,
+              "first_lease_p99_us": 2285.0,
+              "first_lease_p999_us": 2513.3,
+              "all_leases_p50_us": 3134.4,
+              "all_leases_p95_us": 3645.0,
+              "all_leases_p99_us": 3934.1,
+              "all_leases_p999_us": 4400.9
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 4931.9,
+              "all_leases": 5983.3
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 1,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 822.539,
+              "first_lease_p50_us": 1181.5,
+              "first_lease_p95_us": 1393.4,
+              "first_lease_p99_us": 1534.2,
+              "first_lease_p999_us": 1650.3,
+              "all_leases_p50_us": 1181.5,
+              "all_leases_p95_us": 1393.4,
+              "all_leases_p99_us": 1534.2,
+              "all_leases_p999_us": 1650.3
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 2769.3,
+              "all_leases": 2769.3
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 1,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 756.459,
+              "first_lease_p50_us": 1291.7,
+              "first_lease_p95_us": 1527.5,
+              "first_lease_p99_us": 1685.5,
+              "first_lease_p999_us": 1967.6,
+              "all_leases_p50_us": 1291.7,
+              "all_leases_p95_us": 1527.5,
+              "all_leases_p99_us": 1685.5,
+              "all_leases_p999_us": 1967.6
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 3010.1,
+              "all_leases": 3010.1
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 8,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 314.373,
+              "first_lease_p50_us": 1732.5,
+              "first_lease_p95_us": 2009.5,
+              "first_lease_p99_us": 2186.5,
+              "first_lease_p999_us": 2491.6,
+              "all_leases_p50_us": 3138.2,
+              "all_leases_p95_us": 3554.0,
+              "all_leases_p99_us": 3811.6,
+              "all_leases_p999_us": 4637.4
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 17376.6,
+              "all_leases": 19124.8
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 8,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 316.33,
+              "first_lease_p50_us": 1757.3,
+              "first_lease_p95_us": 2017.5,
+              "first_lease_p99_us": 2159.6,
+              "first_lease_p999_us": 2318.2,
+              "all_leases_p50_us": 3139.5,
+              "all_leases_p95_us": 3508.6,
+              "all_leases_p99_us": 3714.8,
+              "all_leases_p999_us": 4073.4
+            },
+            "benchmark_binary_sha256": "fe62d4ee37ce34c6940bfb6401d4027475b15afcc01e51127e107c8b7fe3c872",
+            "max_observed_us": {
+              "first_lease": 2600.2,
+              "all_leases": 4739.6
+            }
+          }
+        ]
+      },
+      "wsl": {
+        "report": "wsl-benchmark.json",
+        "sha256": "d8c49bd11e7d6d3874cc3faf876598028e2776edcbea298da12c4b8635419693",
+        "environment": {
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "optimization": "-O2",
+          "benchmark_fingerprint": "caed0be3cf637b3d7976dc2dc622a6d44f5f1678f299fac892576f5dd56ac05c",
+          "source_fingerprint": "002fe096383be9a3d5761ae2419f9a90b50a148df76659ff5902e176a7096dcc"
+        },
+        "samples_per_repeat": 1024,
+        "repeats": 5,
+        "process_warmups": 1,
+        "case_count": 8,
+        "generated_at": "2026-11-18T12:01:56.322494+00:00",
+        "observed_recoveries": 40960,
+        "quality_violations": [
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p95_us: relative_central_range=10.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p99_us: relative_central_range=19.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p999_us: relative_mad=5.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/first_lease_p999_us: relative_central_range=47.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p95_us: relative_central_range=9.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p99_us: relative_central_range=23.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p999_us: relative_mad=9.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_direct_recovery/all_leases_p999_us: relative_central_range=84.7%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p95_us: relative_mad=3.2%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p99_us: relative_mad=3.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p99_us: relative_central_range=13.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/first_lease_p999_us: relative_central_range=16.4%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p95_us: relative_mad=3.5%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p99_us: relative_mad=3.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p99_us: relative_central_range=15.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p999_us: relative_mad=8.1%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_master_8_pubsub_recovery/all_leases_p999_us: relative_central_range=13.6%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p95_us: relative_mad=3.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p95_us: relative_central_range=7.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p99_us: relative_mad=4.7%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p99_us: relative_central_range=9.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p999_us: relative_mad=4.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/first_lease_p999_us: relative_central_range=8.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p95_us: relative_mad=3.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p95_us: relative_central_range=7.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p99_us: relative_mad=4.7%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p99_us: relative_central_range=9.8%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p999_us: relative_mad=4.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_1_direct_recovery/all_leases_p999_us: relative_central_range=8.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/first_lease_p999_us: relative_central_range=8.0%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/all_leases_p99_us: relative_central_range=10.9%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_direct_recovery/all_leases_p999_us: relative_central_range=16.3%",
+          "xredis_sentinel_event_recovery/xredis_sentinel_replica_8_pubsub_recovery/first_lease_p999_us: relative_mad=4.1%"
+        ],
+        "benchmark_quality_passed": false,
+        "receipt": {
+          "label": "benchmark",
+          "log": "wsl-benchmark.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--config",
+            "extlibs/xredis/config/performance_profiles.json",
+            "--profiles",
+            "xredis_sentinel_event_recovery",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-recovery-bench-20261118/wsl-benchmark.json",
+            "--repeats",
+            "5",
+            "--warmups",
+            "1"
+          ],
+          "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+          "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+          "log_sha256": "0041c9a6b66d665a731e8737187693d40c884c596c49c764c881453f5f6a3b5d",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": [
+          {
+            "role": "master",
+            "slots": 1,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 854.42,
+              "first_lease_p50_us": 1130.8,
+              "first_lease_p95_us": 1376.3,
+              "first_lease_p99_us": 1511.3,
+              "first_lease_p999_us": 1604.1,
+              "all_leases_p50_us": 1130.8,
+              "all_leases_p95_us": 1376.3,
+              "all_leases_p99_us": 1511.3,
+              "all_leases_p999_us": 1604.1
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 1746.2,
+              "all_leases": 1746.2
+            }
+          },
+          {
+            "role": "master",
+            "slots": 1,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 813.51,
+              "first_lease_p50_us": 1206.6,
+              "first_lease_p95_us": 1446.7,
+              "first_lease_p99_us": 1559.7,
+              "first_lease_p999_us": 1696.2,
+              "all_leases_p50_us": 1206.6,
+              "all_leases_p95_us": 1446.7,
+              "all_leases_p99_us": 1559.7,
+              "all_leases_p999_us": 1696.2
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 1857.5,
+              "all_leases": 1857.5
+            }
+          },
+          {
+            "role": "master",
+            "slots": 8,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 414.097,
+              "first_lease_p50_us": 1488.9,
+              "first_lease_p95_us": 1733.0,
+              "first_lease_p99_us": 1862.4,
+              "first_lease_p999_us": 2062.1,
+              "all_leases_p50_us": 2373.7,
+              "all_leases_p95_us": 2777.5,
+              "all_leases_p99_us": 2954.9,
+              "all_leases_p999_us": 3381.1
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 7272.6,
+              "all_leases": 8600.3
+            }
+          },
+          {
+            "role": "master",
+            "slots": 8,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 384.277,
+              "first_lease_p50_us": 1589.3,
+              "first_lease_p95_us": 1818.0,
+              "first_lease_p99_us": 1984.8,
+              "first_lease_p999_us": 2079.5,
+              "all_leases_p50_us": 2588.6,
+              "all_leases_p95_us": 2932.2,
+              "all_leases_p99_us": 3107.7,
+              "all_leases_p999_us": 3589.3
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 19003.8,
+              "all_leases": 40978.9
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 1,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 838.494,
+              "first_lease_p50_us": 1145.5,
+              "first_lease_p95_us": 1424.6,
+              "first_lease_p99_us": 1553.801,
+              "first_lease_p999_us": 1667.6,
+              "all_leases_p50_us": 1145.5,
+              "all_leases_p95_us": 1424.6,
+              "all_leases_p99_us": 1553.801,
+              "all_leases_p999_us": 1667.6
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 1899.4,
+              "all_leases": 1899.4
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 1,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 801.719,
+              "first_lease_p50_us": 1218.0,
+              "first_lease_p95_us": 1500.0,
+              "first_lease_p99_us": 1639.5,
+              "first_lease_p999_us": 1803.8,
+              "all_leases_p50_us": 1218.0,
+              "all_leases_p95_us": 1500.0,
+              "all_leases_p99_us": 1639.5,
+              "all_leases_p999_us": 1803.8
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 2002.6,
+              "all_leases": 2002.6
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 8,
+            "trigger": "direct",
+            "medians": {
+              "recovery_batches_per_active_sec": 400.206,
+              "first_lease_p50_us": 1519.7,
+              "first_lease_p95_us": 1788.0,
+              "first_lease_p99_us": 1950.7,
+              "first_lease_p999_us": 2080.2,
+              "all_leases_p50_us": 2448.8,
+              "all_leases_p95_us": 2905.4,
+              "all_leases_p99_us": 3094.9,
+              "all_leases_p999_us": 3371.6
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 4154.3,
+              "all_leases": 5282.4
+            }
+          },
+          {
+            "role": "replica",
+            "slots": 8,
+            "trigger": "pubsub",
+            "medians": {
+              "recovery_batches_per_active_sec": 388.358,
+              "first_lease_p50_us": 1577.9,
+              "first_lease_p95_us": 1792.3,
+              "first_lease_p99_us": 1951.5,
+              "first_lease_p999_us": 2094.9,
+              "all_leases_p50_us": 2561.5,
+              "all_leases_p95_us": 2884.8,
+              "all_leases_p99_us": 3035.8,
+              "all_leases_p999_us": 3282.9
+            },
+            "benchmark_binary_sha256": "baa7e7bc9463920aee29d7955490cc3e7eb776c677318d3a5157ce4663db925c",
+            "max_observed_us": {
+              "first_lease": 3275.8,
+              "all_leases": 4361.8
+            }
+          }
+        ]
+      }
+    }
+  },
+  "fixtures": {
+    "windows": [
+      {
+        "label": "event-fixture",
+        "log": "windows-event-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "c19ccf53256c9508121df4feabbff11131aee056475a4dc0a51f28dfe37d8aeb",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-event-fixture/test_sentinel_events.exe.gz",
+            "sha256": "b1cdcf005e28768b2642367c72218f63b495fc5fdafda07290a8870c0efb9836",
+            "binary_sha256": "457835e2c491df3e6982df4e90d178eed5c69436ba782deac0c52039e75f5263"
+          },
+          {
+            "path": "binaries/windows/windows-event-fixture/examples_sentinel_events_main.exe.gz",
+            "sha256": "75e842011d0a32bd61948873110dcc31bb9b6e159530067a27966c04f7104f29",
+            "binary_sha256": "08fa3248ac040ebeb51db1ee8cc754ee9e96ca99b13e9aba6d7b1439b33fd764"
+          }
+        ]
+      },
+      {
+        "label": "pool-fixture",
+        "log": "windows-pool-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_pool",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "892b751131547d223cea8e2a706c4242386f79f6767ae7ffa82a3a9d137740f4",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-pool-fixture/test_sentinel_pool.exe.gz",
+            "sha256": "7b28e6b8d47d8fb0b6b080c510df90fd179cc4b546461276bc7551d39d5d3df0",
+            "binary_sha256": "01d3a80e7eff64d3ece194c3c28616c5fbd54e1de13975fb2838335270ebcbbc"
+          },
+          {
+            "path": "binaries/windows/windows-pool-fixture/examples_sentinel_pool_main.exe.gz",
+            "sha256": "51ff84f7ff9b1066eccdfdf1633f6953dd1238dbc17b7c7d7a19d8b2919f3b7e",
+            "binary_sha256": "d3093911b76421ef4874e5a544b8264e1698856a1e46198286d17b8c65956caf"
+          }
+        ]
+      },
+      {
+        "label": "connect-fixture",
+        "log": "windows-connect-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_pool_connect",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "20e4e55bca820d615b62c8bd27f48a54c171a0be55e963aaf2552a025d11bce7",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-connect-fixture/examples_pool_connect_main.exe.gz",
+            "sha256": "60c9ac3c1601b058c8ebae82e76642720b4cde38ef51afa61157925dbb510390",
+            "binary_sha256": "208f994804f8f7d391a6e478c03177a0550e53e0dc48e0adad8715249fe4d85b"
+          }
+        ]
+      }
+    ],
+    "wsl": [
+      {
+        "label": "event-fixture",
+        "log": "wsl-event-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "f65ef97bca130b4586df8428212db6e99a1782c0ed24fcc89128e096a18c36a2",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-event-fixture/test_sentinel_events.gz",
+            "sha256": "54f56104b1b0a2f41c889a7832807a15b304275a1f5de2acff38dbfbc9aa1a38",
+            "binary_sha256": "5cdcb4c3662a29abe627349b65a1f2588ce78dc6022a03da8d996029edbd9053"
+          },
+          {
+            "path": "binaries/wsl/wsl-event-fixture/examples_sentinel_events_main.gz",
+            "sha256": "e1d399c3b94438b246ec113ff6cb8ba34b79b709e13a59b95ffee6766573bb90",
+            "binary_sha256": "69cb4b985071dbef81d67096071ce8872f3913f76c77f4670abe7ca48638d24f"
+          }
+        ]
+      },
+      {
+        "label": "pool-fixture",
+        "log": "wsl-pool-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_pool",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "a292d6ceba0c827a8db24c98a54cd1118119f18af6a6e0796c29272d53853bc9",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-pool-fixture/test_sentinel_pool.gz",
+            "sha256": "d3f61dcfc2783f83e99d92497ce7b643832c2d4224ed298056fa1289369302c6",
+            "binary_sha256": "a21d84074542869f66b0933b7d40818bdee7d95cfbdfdee9b61e74ba6e74efff"
+          },
+          {
+            "path": "binaries/wsl/wsl-pool-fixture/examples_sentinel_pool_main.gz",
+            "sha256": "77d49675c2696cbe4c251873e4af3665e7d5845354b0a533e01b7e2736cb55ad",
+            "binary_sha256": "b6c9195f6b309eba22e31b7a426e1fb8c9c7986b5ac8936ee801bab87a075428"
+          }
+        ]
+      },
+      {
+        "label": "connect-fixture",
+        "log": "wsl-connect-fixture.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_pool_connect",
+          "--jobs",
+          "3",
+          "--no-single",
+          "--cflag=-O2"
+        ],
+        "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+        "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+        "log_sha256": "7a5f75d71425e978138ae0c9c032b045b9556ea9fc2bf89de42ba16e76e109fc",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-connect-fixture/examples_pool_connect_main.gz",
+            "sha256": "e894c3c0ffc9d5709ba15b4294bebbab901513d712e275a8773fc80e4d72c1ca",
+            "binary_sha256": "497a670f9c86a7897f6a14e4976a1ccb9fd5f1eadb3d165c76038eb9f073df92"
+          }
+        ]
+      }
+    ]
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "a98c7596ef17a1e6e06b965fbfddf27ebeccb54f958b7e76c893db86af2e9eea",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "66c21dd0941a224147efb6316484bfe55ec7f2b74f23c688069341e0f22c3819",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+      "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+      "log_sha256": "5ccab29804d10399d37a1e42fcce6c3fb7408f413b9a6c263788ce0fa594f82d",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "sanitizer": {
+    "label": "sanitizer-recovery",
+    "log": "wsl-sanitizer-recovery.log",
+    "exit_code": 0,
+    "args": [
+      "/usr/bin/python3",
+      "-u",
+      "-X",
+      "utf8",
+      "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/xredis-sentinel-recovery-bench-20261118/sanitize.py",
+      "run"
+    ],
+    "revision": "6b6e60ba86177db01e2f8a2095d6f02e352ccd13",
+    "source_map_sha256": "da5a502096e450e7bdc8d86a8284ace29df7141ce204e83035eedfb86074c40a",
+    "log_sha256": "cfc12dc2f8ae6e6bcad5b3d6e7838261c49cc12df91387471c72c7943e05ff02",
+    "programs": 0,
+    "binaries": [],
+    "benchmark_binary_sha256": "753e3d85603211bf2243c79ddd699e17053e4655b1e5c85ff960378dbb1f66c6",
+    "pool_roles": [
+      "master",
+      "replica"
+    ],
+    "trigger": "pubsub",
+    "slots": 8,
+    "measured_transitions_per_role": 1024,
+    "sanitizer_checks": [
+      "ASan",
+      "UBSan",
+      "LeakSanitizer"
+    ]
+  },
+  "wsl_host_isolation": "Unverified. An unrelated validation task was observed during WSL runner setup.",
+  "pending": [
+    "dedicated-host reproducibility for release baselines",
+    "actual Redis elections with concurrent business arrivals and TCP/mTLS",
+    "native Linux host endurance, fixed-arrival throughput and tail-latency qualification"
+  ]
+}

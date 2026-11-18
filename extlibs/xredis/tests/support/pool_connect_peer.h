@@ -11,6 +11,7 @@ typedef struct redisconnectpeer {
     const redistlsoptions* TLS;
 #endif
     redispeer* Peers;
+    xatomic32 SkipLive;
     redispeerhook Hook;
     xatomic32 Accepted, ListenerClosed, Mode, Commands, Hello;
 } redisconnectpeer;
@@ -36,7 +37,14 @@ static bool redisConnectPeerCommand(redispeer* Peer, xredisreply* Reply, ptr Dat
 static bool redisConnectPeerAccept(xnetlistener* Listener, xnetstream* Stream, ptr Data)
 {
     (void)Listener; redisconnectpeer* Fixture = Data;
-    uint32 Count = xrtAtomic32Load(&Fixture->Accepted, XMEMORY_RELAXED); redispeer* Peer = &Fixture->Peers[Count % REDIS_CONNECT_PEERS];
+    uint32 Count = xrtAtomic32Load(&Fixture->Accepted, XMEMORY_RELAXED);
+    redispeer* Peer = &Fixture->Peers[Count % REDIS_CONNECT_PEERS];
+    if (xrtAtomic32Load(&Fixture->SkipLive, XMEMORY_ACQUIRE)) {
+        /* A long-lived subscriber can occupy one slot for the entire run. */
+        for (size_t Offset = 1; Offset < REDIS_CONNECT_PEERS &&
+             Peer->Stream && !xrtAtomic32Load(&Peer->Closed, XMEMORY_ACQUIRE); ++Offset)
+            Peer = &Fixture->Peers[(Count + Offset) % REDIS_CONNECT_PEERS];
+    }
     if (Peer->Stream) {
         redisPeerRequire(xrtAtomic32Load(&Peer->Closed, XMEMORY_ACQUIRE) != 0, "reconnect fixture ring still live");
 #if defined(XREDIS_FEATURE_XREDIS_TLS)

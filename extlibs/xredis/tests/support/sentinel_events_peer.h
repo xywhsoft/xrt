@@ -98,11 +98,16 @@ static void seWrite(xnetworker* Worker,ptr Data)
     }
     xrtAtomic32Store(&W->Done,1,XMEMORY_RELEASE);
 }
-static void seSend(sefixture* F,unsigned Seed,cstr Payload,unsigned Count)
+static inline void seQueue(sewrite* W)
+{
+    sefixture* F=W->Fixture;
+    xnetengine* Engine=W->Seed?F->Backup.Base.Engine:F->Pool.Seed.Base.Engine;
+    redisPeerRequire(xrtNetEnginePost(Engine,1,seWrite,W),"send Sentinel fixture event");
+}
+static inline void seSend(sefixture* F,unsigned Seed,cstr Payload,unsigned Count)
 {
     sewrite W={.Fixture=F,.Payload=Payload,.Seed=Seed,.Count=Count};
-    xnetengine* Engine=Seed?F->Backup.Base.Engine:F->Pool.Seed.Base.Engine;
-    redisPeerRequire(xrtNetEnginePost(Engine,1,seWrite,&W),"send Sentinel fixture event");
+    seQueue(&W);
     redisPeerWait(&W.Done,1);
 }
 static void seStop(sefixture* F,xredispool* P)

@@ -1676,7 +1676,9 @@
       "examples": [
         "extlibs/xredis/examples/sentinel_events/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_sentinel_events.c"
+      ],
       "docs": [
         "extlibs/xredis/docs/sentinel_events.md",
         "extlibs/xredis/docs/api/reference.md",
