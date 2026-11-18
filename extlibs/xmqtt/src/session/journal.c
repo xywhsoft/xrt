@@ -513,13 +513,23 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjo
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_INTERNAL bool xmqttInternalJournalCompactAvailable(const xmqttjournal* J,const void* Owner)
+{
+    const xmqttjournalslot* Slot=J->Slot;
+    return Slot&&Slot->Child==J&&!Slot->Prepared&&!Slot->Busy&&!Slot->Poisoned&&
+        Slot->Current.Generation==J->Config.Generation&&xmqttJOwner(J,Owner)&&
+        !J->Busy&&J->Info.State==XMQTT_JOURNAL_READY;
+}
+XMQTT_INTERNAL bool xmqttInternalJournalCompactFilePressure(const xmqttjournal* J,size_t Bytes)
+{
+    uint64 Room=J->Config.MaxFileBytes-J->Info.CommittedEnd;
+    return Bytes<=J->Config.MaxTransactionBytes&&J->Info.Sequence!=UINT64_MAX&&
+        (Room<XMQTT_J_OVERHEAD||Bytes>Room-XMQTT_J_OVERHEAD);
+}
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjournal* J,
     const void* Owner,uint64 Transactions,uint64 ReplayBytes,uint64 MinReclaim,xmqttstorecompactresult* Result)
 {
-    xmqttjournalslot* Slot=J->Slot;
-    if(!Slot||Slot->Child!=J||Slot->Prepared||Slot->Busy||Slot->Poisoned||
-       Slot->Current.Generation!=J->Config.Generation||!xmqttJOwner(J,Owner)||
-       J->Busy||J->Info.State!=XMQTT_JOURNAL_READY)
+    if(!xmqttInternalJournalCompactAvailable(J,Owner))
         return xmqttJError(XMQTT_JOURNAL_STATE,"online compaction requires the selected owned Journal");
     Result->PreviousGeneration=Result->Generation=J->Config.Generation;
     Result->PreviousBytes=Result->Bytes=J->Info.CommittedEnd;
@@ -529,7 +539,7 @@ XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjo
         return XMQTT_JOURNAL_EMPTY;
     uint64 Saved=Bytes-ReplayBytes-Transactions*XMQTT_J_OVERHEAD;
     if(!Saved||Saved<MinReclaim)return XMQTT_JOURNAL_EMPTY;
-    return Slot->Current.Generation==UINT64_MAX?XMQTT_JOURNAL_LIMIT:XMQTT_JOURNAL_DONE;
+    return J->Config.Generation==UINT64_MAX?XMQTT_JOURNAL_LIMIT:XMQTT_JOURNAL_DONE;
 }
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactReplace(xmqttjournal** Current,
     const void* Owner,xmqttcompactencode Encode,ptr Context,xmqttcompactstop Stop,ptr StopContext,

@@ -24,6 +24,9 @@ struct xmqttstorewrite {
     uint64 InboxCookie[2],InboxSerial;
     bool InboxEnabled,InboxClosed;
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    xmqttautocompactstate Auto;
+#endif
     xmutex Gate;ptr Scratch;size_t ScratchBytes,PlanLimit;xmqttstoredelta* Operations;xmqttproperty* Properties;xmqttstoreplan* Pending;
 };
 static bool xmqttSWError(xerrkind Kind,cstr Text)
@@ -336,6 +339,34 @@ static bool xmqttSWUnclaimed(xmqttstorewrite* W)
 }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_API bool xmqttStoreAutoCompactConfigInit(xmqttstoreautocompactconfig* Config)
+{
+    if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid automatic compaction config output");
+    *Config=(xmqttstoreautocompactconfig){.Size=sizeof(*Config),.TriggerBytes=64u*1024u*1024u,
+        .RetryGrowthBytes=4u*1024u*1024u,.RetryDelayMs=1000};
+    return xmqttStoreCompactConfigInit(&Config->Compact);
+}
+XMQTT_API bool xmqttStoreWriteSetAutoCompact(xmqttstorewrite* W,const xmqttstoreautocompactconfig* Config)
+{
+    xmqttstoreautocompactconfig Copy;
+    if(!W)return xmqttSWError(XERR_ARGUMENT,"NULL automatic compaction Writer");
+    if(Config){
+        if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid automatic compaction config");
+        Copy=*Config;
+        if(Copy.Size!=sizeof(Copy)||Copy.Compact.Size!=sizeof(Copy.Compact)||!Copy.TriggerBytes||!Copy.RetryGrowthBytes)
+            return xmqttSWError(XERR_ARGUMENT,"invalid automatic compaction limits");
+    }
+    return xmqttInternalJournalAutoCompactSet(W->Worker,&W->Auto,Config?&Copy:NULL);
+}
+XMQTT_API bool xmqttStoreWriteAutoCompactInfo(xmqttstorewrite* W,xmqttstoreautocompactinfo* Info)
+{
+    if(!W||!xrtMutexLock(&W->Gate))return false;
+    bool Valid=xmqttSWOutput(W,Info,sizeof(*Info));
+    xrtMutexUnlock(&W->Gate);
+    if(!Valid)return xmqttSWError(XERR_ARGUMENT,"automatic compaction output overlaps owned state");
+    return xmqttInternalJournalAutoCompactInfo(W->Worker,Info);
+}
+
 XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config)
 {
     if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid compaction config output");

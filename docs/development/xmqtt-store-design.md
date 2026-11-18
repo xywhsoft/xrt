@@ -630,3 +630,28 @@ at an independent subscriber. The matrix includes both MQTT levels, TCP,
 TLS 1.2/1.3 and WebSocket with and without TLS. Transport gateways, host
 forwarding and storage backend are recorded in the stage evidence.
 [Stage evidence](xmqtt-compact-crash-20261118.json).
+
+
+## 2026-11-18 Automatic Store Writer compaction
+
+The host installs a copied policy at an idle Writer boundary. The existing
+storage pump checks it after foreground requests drain. A physical cap refusal
+has no write effect. In that case the pump can dispose the tentative typed
+plan, rotate at the exact committed cut, and prepare the same foreground
+transaction once more under its original deadline. An acknowledging Inbox
+lease stays reserved through that attempt. The model and first result remain
+generation-local.
+
+No separate timer, task, Future or queue entry is needed. Insufficient savings
+or a definite failure imposes a committed-growth floor. A later request can
+also retry temporary inactive I/O, BUSY or local allocation failure after a
+monotonic cooldown, including when the file has no headroom. A manual
+successful rotation resets the old generation's retry gates. Uncertain
+publication fences the owner, and the foreground request retains its own
+definite noncommit effect when admission had only reached the physical cap.
+
+The policy can be disabled. Existing checkpoint limits still cap both
+scratch and live entries. The immutable snapshot reports actual selector
+effect independently of foreground results and keeps Close tied to physical
+task retirement.
+[Stage evidence](xmqtt-store-compact-auto-20261118.json).

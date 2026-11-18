@@ -14342,3 +14342,23 @@ TLS 1.2/1.3, WebSocket and WSS, plus modular, single-header, static and shared
 consumers. Automatic maintenance scheduling, device power-loss qualification,
 and production throughput and tail latency remain open.
 [Stage evidence](xmqtt-compact-crash-20261118.json).
+
+
+## 2026-11-18 Automatic MQTT store compaction
+
+MQTT 5.0 and 3.1.1 Store Writers now support automatic checkpointing on the
+existing storage pump. The queued foreground work precedes an idle rotation.
+When an otherwise valid Inbox ACK reaches the physical file cap, the pump
+can rotate and commit the same acknowledgement once on the new generation.
+The fallback preserves the original deadline and lease reservation.
+
+Native tests check growth-based suppression, a time-based retry without new
+commits, manual reset of retry gates, explicit Close during candidate I/O,
+and selector uncertainty. Windows and WSL run these checks through normal
+and single-header builds. Static and shared consumers exercise the policy
+through the public example. A 128-transaction pressure fixture rotates 21
+times per platform and cold-reopens the last key on generation 22.
+Production throughput and tail latency,
+typed replay-quota scheduling, independent broker coverage for the new
+automatic policy, and device power-loss qualification remain open.
+[Stage evidence](xmqtt-store-compact-auto-20261118.json).

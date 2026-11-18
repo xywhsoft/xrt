@@ -3,6 +3,16 @@
 #include <xmqtt/store_compact_online.h>
 #include "xmqtt_internal.h"
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_INTERNAL bool xmqttInternalJournalCompactAvailable(const xmqttjournal* Journal,const void* Owner);
+XMQTT_INTERNAL bool xmqttInternalJournalCompactFilePressure(const xmqttjournal* Journal,size_t Bytes);
+typedef struct xmqttautocompactstate {
+    xmqttstoreautocompactconfig Config;
+    xmqttstoreautocompactinfo Info;
+} xmqttautocompactstate;
+XMQTT_INTERNAL bool xmqttInternalJournalAutoCompactSet(xmqttjournalworker* Worker,
+    xmqttautocompactstate* State,const xmqttstoreautocompactconfig* Config);
+XMQTT_INTERNAL bool xmqttInternalJournalAutoCompactInfo(xmqttjournalworker* Worker,xmqttstoreautocompactinfo* Info);
+
 typedef bool (*xmqttcompactstop)(ptr Context);
 typedef xmqttjournalstatus (*xmqttcompactencode)(xmqttjournal* Candidate,ptr Context);
 typedef struct xmqttcheckpointstats {

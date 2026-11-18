@@ -1,6 +1,9 @@
 #include <xmqtt/store_compact_online.h>
 #include <stdio.h>
 #include <string.h>
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#include <xrt/time.h>
+#endif
 
 static bool seed(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
 {
@@ -44,7 +47,37 @@ static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
+static bool automatic(xmqttstorewrite* W,const xmqttstoredeltaconfig* Delta)
+{
+    xmqttstoreautocompactconfig C;
+    xmqttStoreAutoCompactConfigInit(&C);
+    C.TriggerBytes=1;
+    C.Compact.MinReclaimBytes=1;
+    if(!xmqttStoreWriteSetAutoCompact(W,&C))return false;
+
+    /* An ordinary foreground transaction lets the existing pump reach an
+     * idle boundary. Production workloads do not need a dummy transaction. */
+    unsigned char Buffer[64];
+    size_t Bytes=0;
+    xfuture* F=NULL;
+    if(xmqttStoreDeltaWrite(Delta,NULL,0,NULL,0,Buffer,sizeof(Buffer),&Bytes)!=XMQTT_STORE_DELTA_DONE||
+       xmqttStoreWriteAppendAsync(W,(xbytesview){Buffer,Bytes},10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
+    if(xrtFutureWaitFor(F,10000)!=XWAIT_OK){xrtFutureDestroy(F);return false;}
+    const xmqttcommitresult* Result=xrtFutureValue(F);
+    bool OK=Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED;
+    xrtFutureDestroy(F);
+    if(!OK)return false;
+    double Deadline=xrtTimer()+10;
+    do{
+        xmqttstoreautocompactinfo Info;
+        if(!xmqttStoreWriteAutoCompactInfo(W,&Info))return false;
+        if(Info.Attempts&&!Info.Running)return Info.Rotations==1&&Info.Generation==2;
+        xrtSleep(1);
+    }while(xrtTimer()<Deadline);
+    return false;
+}
+
+static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bool Auto)
 {
     xmqttjournal* J=NULL;
     if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
@@ -60,6 +93,7 @@ static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
     if(!Pool||!xmqttStoreWriteConfigInit(&WC)||!xmqttStoreWriteCreate(Pool,J,State,&WC,&W))goto Done;
     J=NULL;
     State=NULL;
+    if(Auto){Good=automatic(W,&Config->Delta);goto Done;}
     xmqttstorecompactconfig C;
     xmqttStoreCompactConfigInit(&C);
     C.MinReclaimBytes=1;
@@ -81,7 +115,7 @@ int main(int Argc,char** Argv)
 {
     if(Argc==1){
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-        puts("Usage: examples_store_compact_main create|compact|online|read DIRECTORY");
+        puts("Usage: examples_store_compact_main create|compact|online|auto|read DIRECTORY");
 #else
         puts("Usage: examples_store_compact_main create|compact|read DIRECTORY");
 #endif
@@ -89,11 +123,12 @@ int main(int Argc,char** Argv)
     }
     if(Argc!=3)return 2;
     bool Create=!strcmp(Argv[1],"create"),Compact=!strcmp(Argv[1],"compact");
-    bool Online=false;
+    bool Online=false,Auto=false;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
     Online=!strcmp(Argv[1],"online");
+    Auto=!strcmp(Argv[1],"auto");
 #endif
-    if(!Create&&!Compact&&!Online&&strcmp(Argv[1],"read"))return 2;
+    if(!Create&&!Compact&&!Online&&!Auto&&strcmp(Argv[1],"read"))return 2;
     xroot Root=xrtRootOpen(Argv[2]);
     if(!Root)return 1;
     xmqttjournalconfig JC;
@@ -106,13 +141,13 @@ int main(int Argc,char** Argv)
     xmqttjournalslot* Slot=NULL;
     bool OK=(Create?xmqttJournalSlotCreate(Root,&JC,&Slot):xmqttJournalSlotOpen(Root,&JC,&Slot))==XMQTT_JOURNAL_DONE;
     if(OK&&Create)OK=seed(Slot,&C);
-    if(OK&&(Compact||Online)){
+    if(OK&&(Compact||Online||Auto)){
         xmqttjournalslotinfo I;
         OK=xmqttJournalSlotInfo(Slot,&I);
         if(OK){
             C.Generation=I.Generation;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-            if(Online)OK=online(Slot,&C);else
+            if(Online||Auto)OK=online(Slot,&C,Auto);else
 #endif
             OK=xmqttStoreCompact(Slot,&C,256)==XMQTT_JOURNAL_DONE;
         }
