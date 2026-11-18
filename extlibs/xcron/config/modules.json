@@ -789,7 +789,7 @@
       "feature": "XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT",
       "depends": [
         "xcron_service_selected",
-        "xcron_checkpoint_store"
+        "xcron_checkpoint_group"
       ],
       "public_headers": [
         "extlibs/xcron/include/xcron/service_checkpoint.h"
@@ -803,15 +803,18 @@
         "extlibs/xcron/tests/single/test_single_xcron_service_checkpoint.c"
       ],
       "examples": [
-        "extlibs/xcron/examples/service_checkpoint/main.c"
+        "extlibs/xcron/examples/service_checkpoint/main.c",
+        "extlibs/xcron/examples/service_checkpoint_group/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_service_checkpoint.c"
+        "extlibs/xcron/bench/bench_service_checkpoint.c",
+        "extlibs/xcron/bench/bench_service_checkpoint_group.c"
       ],
       "docs": [
         "extlibs/xcron/docs/service_checkpoint.md",
         "extlibs/xcron/docs/api/reference.md",
-        "extlibs/xcron/examples/service_checkpoint/README.md"
+        "extlibs/xcron/examples/service_checkpoint/README.md",
+        "extlibs/xcron/examples/service_checkpoint_group/README.md"
       ]
     },
     {

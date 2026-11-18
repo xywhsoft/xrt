@@ -4111,6 +4111,90 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_checkpoint_start_1",
+      "system": "service",
+      "description": "Whole-group live service startup for 1 paused jobs using a borrowed worker pool",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_start_1",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "250",
+            "1"
+          ],
+          "smoke_args": [
+            "10",
+            "1"
+          ],
+          "metrics": {
+            "starts_per_sec": {
+              "direction": "higher",
+              "unit": "starts/s"
+            },
+            "restored_per_sec": {
+              "direction": "higher",
+              "unit": "jobs/s"
+            },
+            "start_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "start_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "start_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_checkpoint_start_64",
+      "system": "service",
+      "description": "Whole-group live service startup for 64 paused jobs using a borrowed worker pool",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_start_64",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "250",
+            "64"
+          ],
+          "smoke_args": [
+            "10",
+            "64"
+          ],
+          "metrics": {
+            "starts_per_sec": {
+              "direction": "higher",
+              "unit": "starts/s"
+            },
+            "restored_per_sec": {
+              "direction": "higher",
+              "unit": "jobs/s"
+            },
+            "start_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "start_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "start_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

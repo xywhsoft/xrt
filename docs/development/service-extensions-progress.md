@@ -14959,3 +14959,50 @@ installation, device power-loss and native endurance qualification
 remain open. The strict release gate reports 17 developing xcron modules.
 [Group store contract](../../extlibs/xcron/docs/checkpoint_group.md).
 [Stage evidence](xcron-checkpoint-group-20261118.json).
+
+## 2026-11-18 Whole-group live service startup
+
+The checkpointed constructors can start from a complete committed record
+array with independent expected keys and configurations. The owner
+installs the entire group before the startup handshake publishes
+all job IDs and the service. Scheduled jobs start paused. A late member
+failure reports its index and unwinds prior admissions without invoking
+the clock or business callback. Terminal records preserve their normal
+retirement. File reads and commits stay with the caller.
+
+The temporary ID array is charged to retained-byte admission and
+InitializationBudget and released before publication. Both service modes
+pass tests for malformed later records, duplicate IDs, oversized groups,
+array aliasing, empty groups, limited startup bytes, targeted scratch
+allocation refusal, and zone and Data lifetime. The clock callback proof
+checks that all IDs are visible when the owner starts its loop.
+
+On Windows NTFS and WSL ext4, a pull-scheduler process writes generation 1
+and a live service starts with two overdue jobs held. Explicit release
+runs each job once. A single commit records both successors in generation 2.
+A fresh live service and the original pull consumer both recover the
+result. Images match byte for byte across the two platforms. The modular
+and single-header suites, prior single-job restart and ordinary service
+regressions, trimmed and full static/shared packages, and WSL ASan, UBSan
+and leak checks pass. Clang 21 ThreadSanitizer passes the modular suite.
+
+The local startup benchmark uses 250 creations per repeat and five
+measured repeats. It times each constructor with prebuilt inputs and a
+borrowed pool. Each measurement includes owner startup and validation.
+File I/O is outside the measured interval. The table uses the median of
+each reported run statistic.
+
+| Host | Jobs/start | Starts/s | Jobs/s | P50 (us) | P95 (us) | P99 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | 16,379.7 | 16,379.7 | 56.600 | 78.400 | 95.100 |
+| Windows | 64 | 8,535.0 | 546,237.3 | 113.400 | 144.300 | 170.500 |
+| WSL | 1 | 14,714.9 | 14,714.9 | 57.900 | 106.400 | 157.900 |
+| WSL | 64 | 8,721.2 | 558,156.4 | 103.800 | 149.700 | 188.500 |
+
+The local profiles exceed the configured repeatability limits.
+
+Automatic online group capture and commit, device power-loss and
+native mixed-load qualification remain open. The strict release gate
+reports 17 developing xcron modules.
+[Group startup contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-group-startup-20261118.json).

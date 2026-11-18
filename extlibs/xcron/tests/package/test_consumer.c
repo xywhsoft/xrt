@@ -55,10 +55,10 @@ static bool consumerCheckpointService(const xcronjobconfig* Config,const xcronch
     xcronrequestid Q;
     xcronreply R;
     xcroncheckpoint Saved;
-    if(!Pool || !xcronServiceCreateCheckpointed(&C,&S,NULL) ||
-       !xcronServiceRestorePausedCheckpointAsync(S,Config,Key,Record,&Q,NULL) ||
-       xcronServiceCollectCheckpoint(S,Q,10000,&R,NULL,NULL)!=XWAIT_OK || R.Code || !R.Job || R.Error)return false;
-    xcronjobid Job=R.Job;
+    xcronservicecheckpointjob Setup={*Config,Key};
+    xcronservicecheckpointgroup Seed={&Setup,Record,1};
+    xcronjobid Job;
+    if(!Pool || !xcronServiceCreateCheckpointedFromGroup(&C,&Seed,&S,&Job,NULL) || !Job)return false;
     if(!xcronServiceSaveCheckpointAsync(S,Job,Key,&Q,NULL) ||
        xcronServiceCollectCheckpoint(S,Q,10000,&R,&Saved,NULL)!=XWAIT_OK || R.Code || R.Error ||
        memcmp(Record->Bytes,Saved.Bytes,sizeof(Saved.Bytes)) ||

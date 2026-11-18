@@ -42,3 +42,30 @@ preserved cursor is subject to the job's normal misfire and overlap
 policies at the current sample. Ordinary RestoreCheckpointAsync allows
 dispatch immediately after admission. Automatic snapshots and grouped
 durable commits remain follow-up work.
+
+## Start a service from a committed group
+
+Use one checkpointed group constructor for startup. Supply the committed
+records alongside the application's expected keys and job configurations,
+in matching stable Job order. The caller keeps both input arrays and zones
+valid until return. File reading and generation selection are done by the
+caller before startup. Use a borrowed view from the checkpoint group
+store or an array of individually validated-format records.
+
+The owner validates and installs each record before publishing the service.
+An invalid record rolls back every prior admission, releases its zone
+reference, and returns a zero-based member index and scheduler issue. The
+service and ID output array stay untouched. A global startup failure
+reports NO_INDEX. On success, both outputs are ready before the first clock
+callback. Each scheduled job starts held. A terminal record is available
+for normal retirement. Application Data is borrowed only after successful
+startup and is returned by ordinary retirement.
+
+The owner allocates no per-member runtime object beyond the configured
+scheduler entries. A temporary ID array costs Count times sizeof(xcronjobid).
+It is charged to BytesLimit and the optional initialization budget and freed
+before publication. Preparation has one validation pass with the usual
+single-instant occurrence validation per member. Steady-state turns use
+the existing scheduler budgets. A host can resume jobs individually after
+it accepts the restored generation.
+[Runnable group recovery example](../examples/service_checkpoint_group/README.md).
