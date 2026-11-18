@@ -1,0 +1,1179 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+  "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+  "evidence_directory": "out/service-extensions/xredis-sentinel-seed-learning-20261118",
+  "prior_source_map_sha256": "af0a6d63d59d8b3ac6762d55c9d2047c603d3f7c12e53c20658d17f8bee5ebb7",
+  "scope": "Opt-in bounded discovery and reuse of extra Sentinel endpoints in master and replica pools.",
+  "cases": [
+    "Copied configured endpoints, duplicate rejection, append-only cap and exact deduplication.",
+    "Empty/malformed/down/over-limit peers, optional timeout and optional ACL error do not alter a verified data path.",
+    "Two stale ROLE attempts discard the peer list and issue the optional command only once.",
+    "Learned seed authentication failure falls back to the configured seed.",
+    "Real Sentinel loss: original process exits and its port refuses connections; the learned process supplies the replacement while two original leases remain usable.",
+    "Default master/replica failover and active topology remap regressions use the unchanged indexed factory APIs."
+  ],
+  "platforms": {
+    "windows": {
+      "tests": [
+        {
+          "label": "sentinel-pool",
+          "log": "windows-sentinel-pool-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "db9d947e8158757614a1662740b826243e64743f1f3e001ca2e7806fc92582af",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-sentinel-pool-attempt2/test_sentinel_pool.exe.gz",
+              "sha256": "7f673719bdc709dd1c6075bfd639d87c3d8bd05b75489c84c1674dda0290e1e4",
+              "binary_sha256": "c3c1b98fff49d9d147752238a7a5c8fde230e0ea266ef296531e7a42ac07edb7"
+            },
+            {
+              "path": "binaries/windows/windows-sentinel-pool-attempt2/examples_sentinel_pool_main.exe.gz",
+              "sha256": "4d171cd62a4d1d772d05afcb043378c20ac46bedfed7bce43028b8eef5bd003b",
+              "binary_sha256": "6980be8668c832cac3a8daaa35ce1f4847a45bf03f16ef8cc5308dc97de4ce2e"
+            },
+            {
+              "path": "binaries/windows/windows-sentinel-pool-attempt2/test_single_xredis_sentinel_pool.exe.gz",
+              "sha256": "25365dae34b2626f90268e0b180b834f28134ea3252986ef4f3228658924d3db",
+              "binary_sha256": "d06f744fff1955ca4a56116e67090e4fcca9b2e89068de172be970246fdd385e"
+            }
+          ]
+        },
+        {
+          "label": "sentinel-pool-tls",
+          "log": "windows-sentinel-pool-tls-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "7c3ae8324a6026cb37f397d8400587e7b25355e813eac44792d9930c917ee843",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-sentinel-pool-tls-attempt2/test_sentinel_pool.exe.gz",
+              "sha256": "2b049c7f70a128a5423e45ecd99ea424854b93e50d194695f8be5f0837a2c587",
+              "binary_sha256": "8fb34c43dde2d3495dfb3532c8c7947aa8ea6219a3541976e1b881b556c82fdd"
+            },
+            {
+              "path": "binaries/windows/windows-sentinel-pool-tls-attempt2/test_single_xredis_sentinel_pool_tls.exe.gz",
+              "sha256": "e2cc68b44380ad22823813eedfcfb9a73a862c239601b24be3ec7e0022ac0d7b",
+              "binary_sha256": "46dccb46d9941ecac9817b82ea45fd66a04b1e6ebfa4e2cfa10ad797c5358a2c"
+            }
+          ]
+        },
+        {
+          "label": "sentinel",
+          "log": "windows-sentinel-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "3be38f0b5e02d3f603959da5b21b800c65f79b911d928ceeec5556d6c4581b6f",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-sentinel-attempt2/test_sentinel.exe.gz",
+              "sha256": "b71acece35a71ebecb5baa5910654de0125dca489c033752b205a0238a287430",
+              "binary_sha256": "7719a618020547c088e63705797eb0a2738b61870baec29c4ea7bd61822f2f31"
+            },
+            {
+              "path": "binaries/windows/windows-sentinel-attempt2/test_single_xredis_sentinel_tls.exe.gz",
+              "sha256": "2847765f854640de962c1f870719dd1e6a1b0c75f2365885bd7b0eb0f6415fd7",
+              "binary_sha256": "7da70c7920c16adcc8f1e823d21a2f6e384203caff995dc10f31ff721a4d80f3"
+            }
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "label": "package-static",
+          "log": "windows-package-static-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "cfdb5c025a7c086406821e89648542f57d20b7eacacf78de15ce8a02afc1886c",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "af4091a2c56077fb6a7a9580a46a183465119839a3b0b61364cef9ffb54a5b0d",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "real_probe_build": {
+        "label": "redis-real-build",
+        "log": "windows-redis-real-build-attempt2.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-seed-learning-20261118\\stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+        "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+        "log_sha256": "3d694eba14f2de4a404ca3e7a1dddcb27579c31ed0fbd4e7f31720728a8cceec",
+        "programs": 0,
+        "binaries": []
+      },
+      "redis": {
+        "refresh": {
+          "count": 9,
+          "report": "redis-regression-windows-refresh.json",
+          "sha256": "4a5cf2ddc42af3b5e885df945cc60d4888b3d0560cedaf6b7700f65539ccfe35",
+          "maximum_live_close_observers": 4,
+          "binary_sha256": "6d0c294aa1b5d7e88fb1e19890660e67d354adbad95e56efa833506421602429",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-windows-refresh",
+            "log": "wsl-redis-regression-windows-refresh.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-windows-refresh.json",
+              "--refresh"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "904a22b7bb94b4d466edda7998403437544f306f3cd89a4ef050ea9a632ce6d8",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "7428e87ebf98f6acb50421c18c2bb5f88abc5d95c45835004d821ddb438d509b",
+            "replica": "f798bc140fe5722d3f58f5ab629fe3c5a734aeb2e17d06a73e20aa8eaf694c25",
+            "sentinel": "cef258df20a84c37d94b5ad468db7f6ac80e172505802aa5e16ddd7554e710a9"
+          }
+        },
+        "replica": {
+          "count": 9,
+          "report": "redis-regression-windows-replica.json",
+          "sha256": "fda2b84b3daec539944fab69b26c800c0c8af00533813e1399ea5c3e0683a956",
+          "maximum_live_close_observers": 3,
+          "binary_sha256": "6d0c294aa1b5d7e88fb1e19890660e67d354adbad95e56efa833506421602429",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-windows-replica",
+            "log": "wsl-redis-regression-windows-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-windows-replica.json",
+              "--replicas"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "b495269556d53fbd207b8f5c2a49081fc982579cfd34aae6994dd3bdf82f616a",
+            "replica": "68d3357513cf9363b79ba90e1c0752e88d951f24ff1889355329452b002d684d",
+            "sentinel": "f5245a3ef75ff52041b6ec345ec5ce37f2dfe807ee23ef1ccd325e4b841cf1cf"
+          }
+        },
+        "master": {
+          "count": 9,
+          "report": "redis-regression-windows-master.json",
+          "sha256": "7ac8fca953a1f1436bdfa0196d914c2f4435f66f5a4fe56ba31f72332a963bd8",
+          "maximum_live_close_observers": 3,
+          "binary_sha256": "6d0c294aa1b5d7e88fb1e19890660e67d354adbad95e56efa833506421602429",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-windows-master",
+            "log": "wsl-redis-regression-windows-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-windows-master.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "393e5c9639ea19a7607562f8fc39e3e228267e369610c14c616a3aa3e5a1dc99",
+            "replica": "3267c581cfa9dd6776b390d37673e3583038994a56ab954a9f0cd7e66870d6d7",
+            "sentinel": "099208ad905b0477acac11894160544ca5c112bf053d3a533e381a7676fbc402"
+          }
+        }
+      },
+      "learned_redis": {
+        "master": {
+          "count": 9,
+          "report": "redis-final-learn-windows-master.json",
+          "report_sha256": "80087fe5dae9a84c90b0ceb234a865f0e231a4c3a47d18971d56f41946e78037",
+          "receipt": {
+            "label": "redis-final-learn-windows-master",
+            "log": "wsl-redis-final-learn-windows-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--role",
+              "master",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-final-learn-windows-master.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "1b0ad80d972aaec0be2fdca5c29e233ad608d17c99a0589e1d89bbd7fe7a9750",
+            "programs": 0,
+            "binaries": []
+          },
+          "binary_sha256": "6d0c294aa1b5d7e88fb1e19890660e67d354adbad95e56efa833506421602429",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "fixture_log_sha256": {
+            "0-0-learned.log": "95875a000add1569026ad8e047f073c176fca578249fb0388f38b78efa5dfbc5",
+            "0-0-master.log": "3202db07a90593f382e551efb69bfe15109dc6315bf26efcba987e3c06ccb66a",
+            "0-0-replica.log": "7dae25b9d9a316cb3e8853ba80eea7fd58fcf99110af2675788d031d0cecef74",
+            "0-0-seed.log": "30af2bcbaa60e4276d87e1d3d6933bceb8c689631d76df200f48f8138dd7ff20",
+            "0-2-learned.log": "1c3180173aa9c2a3249205d6ea64201b7541730d01bf5ad4ef1c30e19883f43f",
+            "0-2-master.log": "0afba9ae119fdcf011339457008ea2f5fa60079d089c4a322d68d75a395ee0a2",
+            "0-2-replica.log": "c8f15559930492df9d087758bdbae54ec62aeb4f93c6b0fdcd3cc3912f886552",
+            "0-2-seed.log": "de5300a85cf0caea526dbf55139b06e3c09056c5ddf9007d0c2e852547e05e5e",
+            "0-3-learned.log": "88cec1b9112e40039dc0efb61ade21850d252fb91dba43085cb9cba4d6389cec",
+            "0-3-master.log": "df4bf3bcbf58e628e71c2c279dd06f07ba9314cf8078119bcbeaca49be5d8c0e",
+            "0-3-replica.log": "ba1c2ef20a9740fc1b20c38c01c25c6a8938926fcd1662657fa0d9c91d43bf00",
+            "0-3-seed.log": "d66e7a15ca981b72dd65dcebdae2c6e8f490fb5cbc610682bb4ceacfa940b83c",
+            "1-0-learned.log": "62aaca10f326e1d130fc86d6c92e2f62117ee87991aef08a86dcac689cfa7787",
+            "1-0-master.log": "30e5dd643d6d2d52fb28a77f11eae16653edf22dbfcac684ef37a792bd840ebf",
+            "1-0-replica.log": "0e4300769f0e046585d5e8ed62a8bc5f473b53b84245402ce3ba2ca2b8d9e517",
+            "1-0-seed.log": "1c9b1056a00955bf33c115b8b117170100153177616a13c5273a8bde91bf9492",
+            "1-2-learned.log": "dca2d93673d476995c5258c56ce5db6e0a17a467b326e59ec1a6ba727d27544f",
+            "1-2-master.log": "52e574b64d843263bb90b2c9dc30581b73b8ea14e2dc0baffec1ff3641860103",
+            "1-2-replica.log": "ffd9811b7f2ea5d8fc1920ce44d6f0048b2af8836466d44a96080a4121d2a0e3",
+            "1-2-seed.log": "143299a14b4cc81848a2ebe75d6d020b46e55321f9f88554e6caa14ab3402f98",
+            "1-3-learned.log": "e7d2a60fdeabf0ec8df84d90ea7981ec8a2a958bfd1c4f2472a592db2635b919",
+            "1-3-master.log": "57d0a0b5f04d405fb35a788cb49f20071b212963518d1f79415119de4405d762",
+            "1-3-replica.log": "999a674feef50eafef4c4f31de0f27ba0cb2267d9b6b55c908a4de7c9508023e",
+            "1-3-seed.log": "b26ecb1c2d1d10a4ac13ea654c1ff859ca751657651c838bb21ef48b6299a286",
+            "2-0-learned.log": "9ab65f412b80fdb1abd9497c4c9ee90bc4e5c7d10d782021cb9be87f44c3cfd0",
+            "2-0-master.log": "d0ec338eb67acd180b82861a42899040ead1131a83d9cc68d5f1aef5f4b71b4d",
+            "2-0-replica.log": "534d0c74fff281cb493329062aa63f428f131a96ecea2b824ce0010c3e008935",
+            "2-0-seed.log": "23012539245793b5476b00e7a6f7608532b61ec5c289a3aad70e72a8c8694519",
+            "2-2-learned.log": "a9cc3f8a37079bc04aa63ae1d1fc11413b1a0e7f227d1bbd89925fb6a5013017",
+            "2-2-master.log": "aca36915ce67c9e996215fba6df6a2f0f9d0bba130472d23169d8ff1fc4efa54",
+            "2-2-replica.log": "604ea27ef01317a4c3ee09dd7dfad0fe39d33c29f15436087ef5cc1203b698e9",
+            "2-2-seed.log": "ec209b8065fc216aefa04c5173d9317532f6f64a41dd382744b71b529dfc5616",
+            "2-3-learned.log": "0317018a189afa0ac19a2c6ce7491e6ad7c6282fcafabcb7c75d87cc43c6d412",
+            "2-3-master.log": "27babe2f9a94a19ca00b4486ad61af289cb04b83f686b8ba60d6941155c4f68e",
+            "2-3-replica.log": "378afd63eb0056043face6c7d4e6e09740c41339e356eb2f9b3c1d14f191792c",
+            "2-3-seed.log": "b51623f4e7c5b7561a81f084bda2805c436c64dad37f9c3308fb3332eaae0824"
+          }
+        },
+        "replica": {
+          "count": 9,
+          "report": "redis-final-learn-windows-replica.json",
+          "report_sha256": "f97b58c4ee1c35b943cf1181d669cdf9369bea63b67602553d7622450c3546f3",
+          "receipt": {
+            "label": "redis-final-learn-windows-replica",
+            "log": "wsl-redis-final-learn-windows-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--role",
+              "replica",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-final-learn-windows-replica.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "c837fb23d461be0a794f29947d7f2debd13dd04c9e11f1e602779e83f0d847a6",
+            "programs": 0,
+            "binaries": []
+          },
+          "binary_sha256": "6d0c294aa1b5d7e88fb1e19890660e67d354adbad95e56efa833506421602429",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "fixture_log_sha256": {
+            "0-0-learned.log": "99937e3248ad620935d545b71dfb6c8a888cd0c0d317b2b166df7a7ba78bdbf9",
+            "0-0-master.log": "bfb0ca61a73e7827ddd3c42c684c28d4773bd2470b21e5c6fa3f5fc033c1b846",
+            "0-0-replica.log": "bb64e9d11ac0f3146b7bca3ea5b32c61590db2c2a766c385a40247019bcb236e",
+            "0-0-seed.log": "fd8f5e32c5cbf122955d15cd71f2213b1603b31abc7e78784c41b50596107aed",
+            "0-2-learned.log": "95fe7691bbf1bccd3b3dea3a8469409408dd0df674b34fd7631e20c34f4a374e",
+            "0-2-master.log": "79f956ee402116e956a761bdeca061ac81b1d7958832e283d0e128b4a00b2ad6",
+            "0-2-replica.log": "75c94b75838588fd81a361ef0fda8c8b8b7567b188e90721f83b5ffcd17668e5",
+            "0-2-seed.log": "e1cd8669a9b5895cadbe6b1c553834afc4cff9158f4d43123ea0d82286694829",
+            "0-3-learned.log": "34e2b8cc586371dcf1b2aa5a3f65b164676f4632bde571d3de896e7e6e723d56",
+            "0-3-master.log": "6b6fd0fd11e60fcc9dbf96edb9cea4af68d35ab1830d275c4d8abeff15c3a60a",
+            "0-3-replica.log": "4e32f47f59605a5025a814740e3936f5169345199d6c29d60a2b4aceb2cc02e9",
+            "0-3-seed.log": "4856670c01cca5a4ce78e01462220142076e5052db182feb27018249c54fc3e1",
+            "1-0-learned.log": "0765c9754a75617b9d24a13126c245cd3e69b3158390761910ba46a1255702fb",
+            "1-0-master.log": "46ed94b301b44e342a0f06e539dcc13c77863162c44981909cfa5f3b0a0d2180",
+            "1-0-replica.log": "209bf37f86e4d32b3c425c9ccddedcc906335e6c4d3b15de60d7c6985e9610f5",
+            "1-0-seed.log": "092158de1e7a36bab59007d166ba53d741696068327b56b3a2bf4eb1ff1bb853",
+            "1-2-learned.log": "1eed5be3633ecd05a477baf75039b1c3470eea27084439fb7274894f72efa172",
+            "1-2-master.log": "0e37a88ec3bf2f39486c49051dbd721dfc85b260d0abcaf65786447c239a0aa7",
+            "1-2-replica.log": "b312e1209dff149ea4f8f5c22882dbc6c30dfa6d428b6a719963e659875d4bde",
+            "1-2-seed.log": "0e5be17bc63f761c26e8a529b8986b6e176d6deec81d6c9f5e6457573f86cdab",
+            "1-3-learned.log": "8661c9b76797908624faec80726a1393ed0bfe94aaa60af2cf297b27f43c231f",
+            "1-3-master.log": "44c936a93c8ab00acb4d9ffebef81b50d7fcf02103d094f2a5aed30337b81227",
+            "1-3-replica.log": "8322ebdc315c4ad4451b103e5be61fad8087a38ad521a0606280a7f049727fcb",
+            "1-3-seed.log": "748c2e1da5ee54667b38260a3bed583c0e76c20f65f4f0fb221f80af9996ab27",
+            "2-0-learned.log": "e86bece2620a7484d402e9ca852b971312939c2c2025cd2572598d5e796c5048",
+            "2-0-master.log": "7e4a097806cdb3329ce978bce7f98de8b431c7fef3f67333fb39534944b90d11",
+            "2-0-replica.log": "a2172b475f81614c1927c88d2efb128f3305eae4cf8e733f7e80b6a8bb5133b7",
+            "2-0-seed.log": "5c5be6d26e59bcbc662eaa4b15f675cf202ae41dd173ae44f042bc682313bb13",
+            "2-2-learned.log": "1b1c89eae8914dcd742def3125d04097f4ce1c97cefc7535f7f3f42f2f617392",
+            "2-2-master.log": "0ec71d74d83d5093af19a37672f28c263072aba720acfea2c0bf22770fec3347",
+            "2-2-replica.log": "d3042057891b3caca808baf5ebf0baac9d91bb08dfd02c1ca4004c736bdde339",
+            "2-2-seed.log": "e8fbc416d5ecd1aa643a9c18876e0a52101ef618d83f1df367962b8cf0b1d1ed",
+            "2-3-learned.log": "2bdd16e56d305f96c3540bd9184909890d9deafcf115298c95b9233b8ccfb455",
+            "2-3-master.log": "c631cad5dde32b472d4dc0d84639b6727810641d6670e30ea8844fc6fa8bfc79",
+            "2-3-replica.log": "0b11ce92841db0acaef2fbc027f3488c3a7a1c7526d9d5eadb85fb1c7fb085da",
+            "2-3-seed.log": "86d71f82da6ca0e50321b46e19355865e6ac8066bbb271ab279b569544e36a1f"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "tests": [
+        {
+          "label": "sentinel-pool",
+          "log": "wsl-sentinel-pool-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "5613f898b04c4d46c4555087776fcd6640a024a9a734534e71be84d6d7d49388",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-sentinel-pool-attempt2/test_sentinel_pool.gz",
+              "sha256": "7342a59d0d6054f01c3d539da69208c798434ea9e5f7881839a5ecd98e2f1468",
+              "binary_sha256": "e5b8ae4956f9ee058e6f8c502184f77e15a30e54129f06169f86159f9544e1e8"
+            },
+            {
+              "path": "binaries/wsl/wsl-sentinel-pool-attempt2/examples_sentinel_pool_main.gz",
+              "sha256": "a2d584813ab2c7fc981eba9e1b7e93b4672142335d67e229a77da380a535970d",
+              "binary_sha256": "1d63530f64e549f04b34e4d1c085485c28367144155987ddde39a2f22a3d9bbf"
+            },
+            {
+              "path": "binaries/wsl/wsl-sentinel-pool-attempt2/test_single_xredis_sentinel_pool.gz",
+              "sha256": "cc4c076abbe2be7998c124e56a6d95a12cdcff10fa9826fce8af36be2eecb89b",
+              "binary_sha256": "4fa1bf1c7998386e338b7da5f57d1d6695a970bfafe735aaee5fcb32c0ab0c45"
+            }
+          ]
+        },
+        {
+          "label": "sentinel-pool-tls",
+          "log": "wsl-sentinel-pool-tls-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "01c36f6248b23709e3d222d800c5da80987387dfe0bcf58bbf95064eaaf3ab89",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-sentinel-pool-tls-attempt2/test_sentinel_pool.gz",
+              "sha256": "8a7a31afddba7686fe80ad24bc371047f8ecb9da8cd504875f21c63b89c29ff0",
+              "binary_sha256": "d8164151034c666f343568f49f149f0abd0dd7c964ef97a6ac451a0b5b872723"
+            },
+            {
+              "path": "binaries/wsl/wsl-sentinel-pool-tls-attempt2/test_single_xredis_sentinel_pool_tls.gz",
+              "sha256": "3d8e7c346f493be26faf10f462e67fab2a810f10e17914f35357316934493e88",
+              "binary_sha256": "89e0050092eef23bdf9c7cdc8beb58b40cbae87968ef3f159842f551348d4908"
+            }
+          ]
+        },
+        {
+          "label": "sentinel",
+          "log": "wsl-sentinel-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "f37d86c4eed601b9608d3c0809723f8ed845b6c3cffa704cc782e218af7f1b96",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-sentinel-attempt2/test_sentinel.gz",
+              "sha256": "2500ed2e83ebc909285063ebf0b0628ecbbbd4a866d7578d8f4bb595ac44933b",
+              "binary_sha256": "b03ee4a491284224a1cf96dac93f64c57bdf0a8273ef08128ba79c990ff5265d"
+            },
+            {
+              "path": "binaries/wsl/wsl-sentinel-attempt2/test_single_xredis_sentinel_tls.gz",
+              "sha256": "547e7ffdea750ddc8c5aa7a352a43fa0facc412192876568aca361dd44e6429a",
+              "binary_sha256": "8b7ce8fb8aa987a3a4593fa8c3d3bf88eaea090d877cac01ece295f03921dca4"
+            }
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "label": "package-static",
+          "log": "wsl-package-static-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "90e57f5b390b8a744046f66722138f7fdcdecdf4fa0bf08d0448eb351173221b",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+          "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+          "log_sha256": "f9e3ee40967efa5aad0f15d61ea3924363f7a30c7df8712e4405e1068c84fd38",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "real_probe_build": {
+        "label": "redis-real-build",
+        "log": "wsl-redis-real-build-attempt2.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+        "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+        "log_sha256": "b11ab34ec5ca5161c6166de89e7b40237b8a8002dcf6c40f46151cbfb91c5ea7",
+        "programs": 0,
+        "binaries": []
+      },
+      "redis": {
+        "refresh": {
+          "count": 9,
+          "report": "redis-regression-wsl-refresh.json",
+          "sha256": "99d1e0877c2c22894b3dd4262c171e1e93880c9eae2424ff213cba2c33f4ea1d",
+          "maximum_live_close_observers": 4,
+          "binary_sha256": "ee6a5a90bab1c4d7532d882175410ddeeda645fb11472b70bc5126c7d83c2910",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-wsl-refresh",
+            "log": "wsl-redis-regression-wsl-refresh.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-wsl-refresh.json",
+              "--refresh"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "904a22b7bb94b4d466edda7998403437544f306f3cd89a4ef050ea9a632ce6d8",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "f15f43c7191a75245e7b1b463bc3e00b93962e0ca6a152bc8cc2684decae252c",
+            "replica": "619f750a958342f7c71ab550cff38604a7601345f54652eec0ddc290915b61d0",
+            "sentinel": "10d6e6f1e16e503109a32f5f850c2b057baae0c0210706708d237c07ee70d612"
+          }
+        },
+        "replica": {
+          "count": 9,
+          "report": "redis-regression-wsl-replica.json",
+          "sha256": "4a783b5d251365270907be257319c038dc1e9db2b073b49d385a523b33768615",
+          "maximum_live_close_observers": 3,
+          "binary_sha256": "ee6a5a90bab1c4d7532d882175410ddeeda645fb11472b70bc5126c7d83c2910",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-wsl-replica",
+            "log": "wsl-redis-regression-wsl-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-wsl-replica.json",
+              "--replicas"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "bb6208e91284b60a3979b7d3c0d7dae3ad94a3a0eb1c610eeff046073f03e073",
+            "replica": "01bfa18dd17bd89e0d699d80c0bb39a9e229abe6b0b9b8f5549e533017af1f73",
+            "sentinel": "b88b7b858db91bd85528b7dc83daac33773e21a9efb88bb19f4ff8e738769e9f"
+          }
+        },
+        "master": {
+          "count": 9,
+          "report": "redis-regression-wsl-master.json",
+          "sha256": "e4f82c9fb6770ae0e3b4c7b1105d2a6b990c6a6f648a6218f6407986d7299d44",
+          "maximum_live_close_observers": 3,
+          "binary_sha256": "ee6a5a90bab1c4d7532d882175410ddeeda645fb11472b70bc5126c7d83c2910",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "receipt": {
+            "label": "redis-regression-wsl-master",
+            "log": "wsl-redis-regression-wsl-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-regression-wsl-master.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "cefa70771179781c413dd85cd522eb124b50b754af63fb34ce968648570b7199",
+            "replica": "e310b1d998bb4a3d4aa5b24f1bfd30af74e820b738df2e8c2858a117095eb517",
+            "sentinel": "615025aa3f84127f9d71f49d416c059062ce071360df9f35051e0fd6c0fb6b9d"
+          }
+        }
+      },
+      "learned_redis": {
+        "master": {
+          "count": 9,
+          "report": "redis-final-learn-wsl-master.json",
+          "report_sha256": "db7ce6004bc64ad94191e6f3d1a4eb922717522821211e0b895113fe2ec0f312",
+          "receipt": {
+            "label": "redis-final-learn-wsl-master",
+            "log": "wsl-redis-final-learn-wsl-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--role",
+              "master",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-final-learn-wsl-master.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "1b0ad80d972aaec0be2fdca5c29e233ad608d17c99a0589e1d89bbd7fe7a9750",
+            "programs": 0,
+            "binaries": []
+          },
+          "binary_sha256": "ee6a5a90bab1c4d7532d882175410ddeeda645fb11472b70bc5126c7d83c2910",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "fixture_log_sha256": {
+            "0-0-learned.log": "d2fb9bcc0fcdab427c9273aea255c82748c4b7e90adccb6fb4c02b9c007d252b",
+            "0-0-master.log": "94cebc50d643ab072f1ba9fec56a173d1a2593763cecddedac703755f8ffc42d",
+            "0-0-replica.log": "fc6007f6a1c1d77edd2626b47989c3de7076eb1ce21add8f9469610b3cc465be",
+            "0-0-seed.log": "1028d46ceffcf60f0083130bad82418b4b2ed8fd5afd8aa14c29f3ebf1cc03c7",
+            "0-2-learned.log": "8d88a08a8ae1771f124544278a808c1e79fd44a018ee1f5d51337b0785ac588c",
+            "0-2-master.log": "7ce494aa4e251cbf0c412e34cce07f1d339d03324a0af1107bfe534043b82d87",
+            "0-2-replica.log": "13788a0fb949acde863d16629f30f4bd0bb252501c24823e517d8451aae76a96",
+            "0-2-seed.log": "4d6f28279ab8c544dc75906d9a912eab36cbd329a0a72b45c63b2a920ca131b5",
+            "0-3-learned.log": "ea426c82c1a5a00503bfd2cd956662d6960fb25a556e1bdcec9c1e95f6da5cbb",
+            "0-3-master.log": "a2efb628a7835de7b68150c59add1e89232ef5e04c0af6abb45749e661da7c71",
+            "0-3-replica.log": "dd8b9e97602299408ba26b1342ec60e74b3fa80b5f626fbd1bf4bcb5d8367c81",
+            "0-3-seed.log": "26b30e74221486b0287a9cb6e08780964b897904bd0178b3598b5d23b43e53c2",
+            "1-0-learned.log": "821ace496a065c1703a6a2912b5f9b2441246f1f8580f56c239b69daccc5ae4a",
+            "1-0-master.log": "ce56f1884a125cc300fd2b8ef67a570d14bee48b1b0e1a2ae1d3d08fc59967f6",
+            "1-0-replica.log": "69f14375d012c236e95a82c663bdb7ab2396a5877f9005fffa0769e63769a33d",
+            "1-0-seed.log": "667d9ece1a25d7f99a2477d6b8be33128e230ab01dee894a20f54ff68d7dcf54",
+            "1-2-learned.log": "285a8fc53032f755e07a6a4cb7d1eaff49e98f1b0c4715e2886e88b8d706a37b",
+            "1-2-master.log": "c87c7e16ca7d49898df5139cd420276e5fadafc9687635a81ee7997c35b58b36",
+            "1-2-replica.log": "6351bf599279ff9f1490970b95ba360729143006161162aab76b4e453ad0002b",
+            "1-2-seed.log": "04bb4d9e371ea7c953c81eb55aa7e962fd04722f37ff3f29858b746aaf0f1cbd",
+            "1-3-learned.log": "2db05d4b02a33c78871c19ea7e80a783f885f96cc73bf316a4e064c8d42bed82",
+            "1-3-master.log": "52a8211a9cb33b26d83a89dd311061d3acd0d3dc185356a81fac044e894e8110",
+            "1-3-replica.log": "15180d78be4a3c6005eca41126c14d341dda6c5515952c4a62532c8cdbdc471c",
+            "1-3-seed.log": "7443e773026f05c219968730eac5546a9a961916d2c825dbe442f0dd9f6f1cad",
+            "2-0-learned.log": "f828ec98bba5a75c060f2cdfe10bc3fcc33f993fb680802463416a1f27553f43",
+            "2-0-master.log": "e17e2286978d4a38acb624e9230375e4c9c01dd383c9b173b6c251ab0513afb4",
+            "2-0-replica.log": "1dd515b3fe51f2225e45a675a96d46ed67b2dc6f87a16919a3c1ff8a9aab5e26",
+            "2-0-seed.log": "72c24b7b61b7965c009ca98d4711d224402d52495559565b2355464a30dcd83f",
+            "2-2-learned.log": "84e163c861ec1684b9ab99b0213b64cc8cfe403761e3addffdbee026629ed9c2",
+            "2-2-master.log": "b1c319275caaa877f96bb47e3a74e3771027c03bcb08c2d01fe6789f48479c3b",
+            "2-2-replica.log": "5e29cc8d15c0bffcaa8ecde514461d5570bd73021cd9cd42ff6950b65d100e93",
+            "2-2-seed.log": "abb70600f40cb99b5e9b8b7b3640d963bf0945d4eea528422da9e91460977318",
+            "2-3-learned.log": "1f8cee5849cac736582a81621d8f282f74fb665813454c46b1b53b37efa6a71e",
+            "2-3-master.log": "d78cbc40b27ef2edeb403dd0cdd7bb93c953258acfa0890fa2e08c35d776facc",
+            "2-3-replica.log": "1d02a42c5b83b530db8d745bbf6699a948a2ca1f71491ed5bddc3f566c25358e",
+            "2-3-seed.log": "a416fbccb538128418343aeed8ec9215e64e7db35a8f7347e2794dde6b5d5e0c"
+          }
+        },
+        "replica": {
+          "count": 9,
+          "report": "redis-final-learn-wsl-replica.json",
+          "report_sha256": "7346289ddaeac01737dbcb6a25637b18513087253879616cb906040ec7c24446",
+          "receipt": {
+            "label": "redis-final-learn-wsl-replica",
+            "log": "wsl-redis-final-learn-wsl-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--role",
+              "replica",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-seed-learning-20261118/redis-final-learn-wsl-replica.json"
+            ],
+            "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+            "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+            "log_sha256": "c837fb23d461be0a794f29947d7f2debd13dd04c9e11f1e602779e83f0d847a6",
+            "programs": 0,
+            "binaries": []
+          },
+          "binary_sha256": "ee6a5a90bab1c4d7532d882175410ddeeda645fb11472b70bc5126c7d83c2910",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "fixture_log_sha256": {
+            "0-0-learned.log": "0d03d4dfcac0f81adb92b0fc1cac6a6d31f8b170de0476cc44671e350abd965c",
+            "0-0-master.log": "c5d0911c80611c2a9b29e25ad9559d011eaadb0d63a092749c61ce579f045821",
+            "0-0-replica.log": "2679813b634a2d66384d9ba73b1fa176192fd9b916e857519586b5c5bcdc6c96",
+            "0-0-seed.log": "784cd30111ab708c858138e94ca519287742913cf8d77a3ffce6cf73b7ed3736",
+            "0-2-learned.log": "3984fee02e45e1db04b97a9c65e5f3b3886b9c5216a558b4c5e64e8f70840dcd",
+            "0-2-master.log": "5804e90e591e8ff8989fb36582af81f0c9ee8521b14b7823fa7a92b48db37b77",
+            "0-2-replica.log": "d1909ac147a89d82d035cb17174ee9836b769a077d9a389aa375eb131dd262b7",
+            "0-2-seed.log": "6be1a025ac5c0f00cf5050c36f2fe23e429e09e34ec37c83a0dd62355a986d56",
+            "0-3-learned.log": "431b46b7d89f0b3b8350697b93d7a1233b9c4c3931ccbee3c4bbcbd3ead1c01e",
+            "0-3-master.log": "0534c885f9155b3a5395c6634535582457484bca7f02c2e72cb9c4fef7221535",
+            "0-3-replica.log": "759d096dd6cc94d16cb5071a2714791b8d0a1ab92fb017ee67d259c73545be80",
+            "0-3-seed.log": "7b17a4ab107c339728e41d4ba8d734d4b2a153704f5c99c7f0e1a72cb1ccbc19",
+            "1-0-learned.log": "ab3070e3e1c2c403398a59ab07ec4b381071a8428eed7013ae328f539ae6058d",
+            "1-0-master.log": "47703d98815ca1f78b51002769a31c1733f9a4b2ae85544a5aaddb57b20bb1af",
+            "1-0-replica.log": "8e0d8104efd153554a40d851e81b7deec918bd1671bd890a94c23e40408bed44",
+            "1-0-seed.log": "5abbe918b9d54033ae003840e54910fbe0afefb96b1efe7f2bd4354699274422",
+            "1-2-learned.log": "2f285e19cc62df2c72bf185a09004622550a424cc756d9cb187d25e4a3951d3b",
+            "1-2-master.log": "377961b1835cec63a92f6c79322f7ff1761a0a098c0f64b3f42288cbba672dc2",
+            "1-2-replica.log": "4897cdfd5086f64bb20ff9c7288524c4d3a217765aa9e130d119cc7880708808",
+            "1-2-seed.log": "a88f68cf221c5a900ffd09cd8d4c46b2dc121862bd8116f76e1061b810f3634a",
+            "1-3-learned.log": "9d15c25122a0229441a4fbf26dbf68a601c679a945acc54f45a9afd1e18671ba",
+            "1-3-master.log": "68f7108a515f0156fc47b82591c4e4c336912f0406b2bd7299510248305fc949",
+            "1-3-replica.log": "76ba6a4fa716c4dc61e9ef8a7813c92fc18258c8a6975ca07ed12e0879d33b73",
+            "1-3-seed.log": "876ab1f3ab755a11eddfd2cb21ab8fa5c46ff86349fdd4bdf8cfbec3888157c5",
+            "2-0-learned.log": "eaf226a4994e1a292c8bac53a986f1dac2b75c00c1ce2d437136db97494efc4e",
+            "2-0-master.log": "07df15010f5cc0ef3c71b1c100f863a4dc3bc85a25ae847a522002460cd6b5da",
+            "2-0-replica.log": "dd6940d2411a7e39db8cd41f83eb5551501e33bc05182c719bab9eb4813366b4",
+            "2-0-seed.log": "acc53c735ede137775d94bba5262b464e809d08a3665e44b34ac85247c455e2c",
+            "2-2-learned.log": "2aeaa167831a4be72941af86e97235de72c8b70d6b956daf7136c335c73b2718",
+            "2-2-master.log": "1af33db8eed14f9f518ed9bb3d146367f9dc3d07721dbb6a1314297a20658019",
+            "2-2-replica.log": "3e335cc93238aa680ac37dae0f1d60acc3b30aeaf6a551498110353736b14758",
+            "2-2-seed.log": "81692f89db5ac2d3abfec10a1a30e38df66369fb911d3c65128971f690147355",
+            "2-3-learned.log": "4a068f440c7ed2d8661ffe23271d6d8debde213311f97bd7a7f7d11a799de364",
+            "2-3-master.log": "c295513c0daef994bf2e5f75f08bc5e0cfc732a5626743f991a36b19b3694399",
+            "2-3-replica.log": "e9218db8ec86be0c20fec18aeebe117779db97a56a66d5ad0c126529352fcb81",
+            "2-3-seed.log": "4719f2de67cf24dc875800b9b806f37f2fcecc3b7b43a60893ed3c9cdd10577d"
+          }
+        }
+      }
+    }
+  },
+  "learned_master_recoveries": 18,
+  "learned_replica_recoveries": 18,
+  "real_redis_live_remaps": 18,
+  "real_replica_failovers": 18,
+  "real_master_failovers": 18,
+  "package_forms": 4,
+  "tsan": [
+    {
+      "label": "tsan-modular",
+      "log": "wsl-tsan-modular-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/clang-21",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--suite",
+        "xredis_sentinel_pool_tests,atomic",
+        "--jobs",
+        "3",
+        "--test",
+        "test_sentinel_pool",
+        "--no-single",
+        "--no-examples",
+        "--cflag=-O1",
+        "--cflag=-g",
+        "--cflag=-fsanitize=thread",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=thread"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "db67dda916257bb0a08f4a3f5b62bfb7e8f26064e80cd7479efdc3343a7bd159",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "binaries/wsl/wsl-tsan-modular-attempt2/test_sentinel_pool.gz",
+          "sha256": "6aa7658fd47049ac815265070ecccdd4140188cae8ae51271f943878d3b9a5fd",
+          "binary_sha256": "4e771cdecb325b4112339c85d3b6157083f9c51bf65adcdd8958fbc97731bbe2"
+        }
+      ]
+    },
+    {
+      "label": "tsan-single",
+      "log": "wsl-tsan-single-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/clang-21",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--suite",
+        "xredis_sentinel_pool_tests,atomic",
+        "--jobs",
+        "3",
+        "--single-test",
+        "test_single_xredis_sentinel_pool_tls",
+        "--no-examples",
+        "--cflag=-O1",
+        "--cflag=-g",
+        "--cflag=-fsanitize=thread",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=thread"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "b497f6ae29b90f20358c3e54028c092f4d60d5c466e2651d3505c39776d51308",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "binaries/wsl/wsl-tsan-single-attempt2/test_single_xredis_sentinel_pool_tls.gz",
+          "sha256": "7b144661a337735779857062c4a531cb3b600102d5bea84378cc43fd414a2521",
+          "binary_sha256": "1afdb3881ce7673f52c22a6f46d861ee650e70edf1c57f0fd69df65529d94b8c"
+        }
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "d8c860a21bfe3f5dcadc4d5972ce25cfdf38a3daaff31262114f3694df030c86",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "125e37a924005bef11d185d2f6de3d2eedc4344bc8da400a192e407c938c9a3c",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "db798b899420d7fdc8434e6a740f9fbb21224a86",
+      "source_map_sha256": "6c60344ad70a6ee7be9a46b8659beeb34fa87e1f8bb86f446e2171b8fddbf4fc",
+      "log_sha256": "6a72fe0c569c3db0e735dd86494c63711b7d9ad9d5ea8ecc14da95e125488f87",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 31,
+    "log_sha256": "69b0184b1101d84ee12f6a8cb7945b2ef07f4f041fc62dedb6b0c94c7004a9f4"
+  },
+  "pending": [
+    "native Sentinel Pub/Sub subscriber",
+    "authenticated TLS and native Linux endurance and throughput/tail-latency qualification"
+  ]
+}

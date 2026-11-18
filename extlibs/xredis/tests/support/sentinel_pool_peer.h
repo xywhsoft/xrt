@@ -12,23 +12,51 @@
 typedef struct spfixture spfixture;
 typedef struct spnode {redisconnectpeer Base;spfixture* Root;unsigned Kind;} spnode;
 struct spfixture {
-    spnode Seed,A,B;xfuture* Closed[512];size_t ClosedCount;
+    spnode Seed,A,B;
+    spnode* SeedPeer;
+    xfuture* Closed[512];size_t ClosedCount;
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
     xnetresolver* Resolver;
 #endif
     xatomic32 Current,Queries,Roles,Calls,Drops,QueryMode,Stale,FenceRejects,Notifies;
+    xatomic32 PeerMode,PeerQueries,SeedOffline,PeerDenied,PeerAttempts;
     xatomicptr Pool,Watched;unsigned Factory;bool Secure,Resp2,CloseFromNotify,Replicas;
 #if SP_TLS
     redistlspeer TLS;
 #endif
 };
+static void spPeerReply(redispeer* Peer,spfixture* F)
+{
+    redisPeerRequire(F->SeedPeer!=NULL,"peer-list fixture configured");
+    uint32 Mode=xrtAtomic32Load(&F->PeerMode,XMEMORY_ACQUIRE);
+    xrtAtomic32FetchAdd(&F->PeerQueries,1,XMEMORY_RELEASE);
+    if(Mode==3)return;
+    if(Mode==5){redisPeerSend(Peer,"*0\r\n",4);return;}
+    if(Mode==4){redisPeerSend(Peer,"-NOPERM synthetic\r\n",19);return;}
+    unsigned Count=Mode==2?6:5;
+    unsigned Other=F->SeedPeer->Base.Address.Port;
+    unsigned Ports[]={F->Seed.Base.Address.Port,Other,Other,F->B.Base.Address.Port,F->A.Base.Address.Port,Other};
+    char Response[512];
+    int Length=snprintf(Response,sizeof(Response),"*%u\r\n",Count);
+    for(unsigned I=0;I<Count;++I){
+        bool Invalid=Mode==1 && I==Count-1;
+        const char* Flags=I==3?"sentinel,s_down,disconnected":"sentinel";
+        int N=snprintf(Response+Length,sizeof(Response)-(size_t)Length,"%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+%s\r\n",
+            F->Resp2?"*6":"%3",Invalid?70000:Ports[I],Flags);
+        redisPeerRequire(N>0 && (size_t)(Length+N)<sizeof(Response),"bounded peer list");
+        Length+=N;
+    }
+    redisPeerSend(Peer,Response,(size_t)Length);
+}
 static bool spCommand(redispeer* Peer,xredisreply* Reply,ptr Data)
 {
     spnode* N=Data;spfixture* F=N->Root;xredisreplyvalue Root,Name={0};redisPeerRequire(xredisReplyGet(Reply,0,&Root) && xredisReplyGet(Reply,Root.FirstChild,&Name),"Sentinel pool peer command");
     if(redisPeerName(Name,"HELLO"))return redisConnectPeerCommand(Peer,Reply,&N->Base);
     if(redisPeerName(Name,"SENTINEL")){
         redisPeerRequire(N->Kind==0 && Root.ChildCount==3,"seed query cardinality");xredisreplyvalue Sub,Service;xredisReplyGet(Reply,Name.Next,&Sub);xredisReplyGet(Reply,Sub.Next,&Service);
-        redisPeerRequire(redisPeerName(Sub,F->Replicas?"REPLICAS":"GET-MASTER-ADDR-BY-NAME") && redisPeerName(Service,"cache"),"snapshotted service query");uint32 Mode=xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE);xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
+        redisPeerRequire(redisPeerName(Service,"cache"),"snapshotted service");
+        if(redisPeerName(Sub,"SENTINELS")){spPeerReply(Peer,F);return true;}
+        redisPeerRequire(redisPeerName(Sub,F->Replicas?"REPLICAS":"GET-MASTER-ADDR-BY-NAME"),"topology query");uint32 Mode=xrtAtomic32Load(&F->QueryMode,XMEMORY_ACQUIRE);xrtAtomic32FetchAdd(&F->Queries,1,XMEMORY_RELEASE);
         switch(Mode){
         case 1:redisPeerSend(Peer,"_\r\n",3);break;case 2:redisPeerSend(Peer,"+bad\r\n",6);break;
         case 3:redisPeerSend(Peer,"-NOPERM synthetic\r\n",19);break;case 4:xrtNetStreamAbort(Peer->Stream);break;case 5:break;
@@ -98,6 +126,19 @@ static inline xredissentinelstatus spConnect(spfixture* F,xnetengine* E,const xn
 }
 static inline xredissentinelstatus spSeed(xnetengine* E,size_t Seed,int64 Timeout,ptr Data,xredisclient** C)
 {spfixture* F=Data;redisPeerRequire(Seed==0,"one seed index");return spConnect(F,E,&F->Seed.Base.Address,Timeout,C);}
+static inline xredissentinelstatus spSeedEndpoint(xnetengine* E,const xredissentinelendpoint* A,int64 Timeout,ptr Data,xredisclient** C)
+{
+    spfixture* F=Data;
+    redisPeerRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),"snapshotted seed address");
+    if(A->Port==F->Seed.Base.Address.Port){
+        if(xrtAtomic32Load(&F->SeedOffline,XMEMORY_ACQUIRE))return XREDIS_SENTINEL_UNREACHABLE;
+        return spConnect(F,E,&F->Seed.Base.Address,Timeout,C);
+    }
+    redisPeerRequire(F->SeedPeer && A->Port==F->SeedPeer->Base.Address.Port,"only admitted peer dialed");
+    xrtAtomic32FetchAdd(&F->PeerAttempts,1,XMEMORY_RELEASE);
+    if(xrtAtomic32Load(&F->PeerDenied,XMEMORY_ACQUIRE))return XREDIS_SENTINEL_AUTH_FAILED;
+    return spConnect(F,E,&F->SeedPeer->Base.Address,Timeout,C);
+}
 static inline xredissentinelstatus spMaster(xnetengine* E,const xredissentinelendpoint* A,int64 Timeout,ptr Data,xredisclient** C)
 {spfixture* F=Data;redisPeerRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),"announced target host");xnetaddr Address;redisPeerRequire(xrtNetAddrParse(&Address,"127.0.0.1",A->Port),"target numeric address");return spConnect(F,E,&Address,Timeout,C);}
 static inline void spNotify(xredispool* P,const xredissentinelpoolinfo* I,ptr Data)

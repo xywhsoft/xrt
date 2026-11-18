@@ -23,6 +23,20 @@ typedef struct xredissentinelpoolconfig {
     size_t Size;xredissentinelconfig Discovery;size_t MaxConnecting;
     int64 RetryMin,RetryMax;xredissentinelpoolnotify Notify;xredispoolconnectdrop Drop;
 } xredissentinelpoolconfig;
+/* The Connect factory handles configured and learned Sentinel addresses. Apply
+ * endpoint/credential/TLS policy before dialing. To skip an address, return
+ * UNREACHABLE without transferring a Client. Endpoint bytes borrow the call. */
+typedef xredissentinelmasterconnect xredissentinelseedendpointconnect;
+typedef struct xredissentinelpoolseedconfig {
+    size_t Size;
+    const xredissentinelendpoint* Seeds; /* Discovery.SeedCount endpoints */
+    xredissentinelseedendpointconnect Connect;
+    size_t MaxSeeds, MaxPeerRows;
+    int64 PeerTimeout, PeerRefreshMin;
+} xredissentinelpoolseedconfig;
+typedef struct xredissentinelpoolseedinfo {
+    size_t Size, Configured, Known, Capacity;
+} xredissentinelpoolseedinfo;
 XRT_EXTERN_C_BEGIN
 /* Defaults: native discovery defaults, four complete concurrent discovery/retire
  * duties, jittered100ms..10s retry. Discovery.Timeout1..60000ms; other discovery
@@ -68,6 +82,23 @@ XREDIS_API xredisadmission xredisSentinelPoolCreate(xnetengine* Engine,uint64 Af
 XREDIS_API xredisadmission xredisSentinelReplicaPoolCreate(xnetengine* Engine,uint64 Affinity,size_t Count,
     const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,xredissentinelreplicaconnect ConnectReplica,
     size_t MaxReplicas,xredispool** Output);
+/* Defaults: 16 total seeds, 64 rows, 100ms query and at least 1s
+ * between scans. Limits: 1..256 seeds/rows, 1..60000ms query cap,
+ * 100..86400000ms spacing. Seeds and their hosts are copied on acceptance. */
+XREDIS_API bool xredisSentinelPoolSeedConfigInit(xredissentinelpoolseedconfig* Config);
+/* Endpoint-based master/replica constructors. Discovery.ConnectSeed is ignored.
+ * Initial addresses must be distinct. A successful topology lookup can query
+ * SENTINEL SENTINELS on the same connection within its remaining seed budget.
+ * Append only validated, eligible endpoints after target ROLE succeeds. Keep
+ * configured seeds and preserve exact address/index identity. A failed optional
+ * list leaves the primary discovery result intact. No automatic eviction. */
+XREDIS_API xredisadmission xredisSentinelPoolCreateWithSeeds(xnetengine* Engine,uint64 Affinity,size_t Count,
+    const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,const xredissentinelpoolseedconfig* Seeds,xredispool** Output);
+XREDIS_API xredisadmission xredisSentinelReplicaPoolCreateWithSeeds(xnetengine* Engine,uint64 Affinity,size_t Count,
+    const xredispoolconfig* Config,const xredissentinelpoolconfig* Sentinel,const xredissentinelpoolseedconfig* Seeds,
+    xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,xredispool** Output);
+/* Thread-safe counts. Also available after physical close. */
+XREDIS_API bool xredisSentinelPoolSeedInfo(xredispool* Pool,xredissentinelpoolseedinfo* Info);
 /* Coalesce a hint for a fresh Sentinel query and ROLE verification on the pool
  * worker. Hints can come from Pub/Sub; no endpoint from the event is used.
  * One probe runs on a fully connected pool, with at most one follow-up hint.

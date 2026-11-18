@@ -14503,3 +14503,28 @@ listener remain open. The strict release gate still reports 31 developing
 modules. Authenticated TLS deployments, native Linux endurance and
 production throughput and tail latency remain qualification work.
 [Stage evidence](xredis-sentinel-active-refresh-20261118.json).
+
+## 2026-11-18 Sentinel seed learning and recovery
+
+Master and replica pools can opt into endpoint-based seed factories and
+learn additional Sentinel addresses. The pool copies configured seeds and
+keeps a bounded exact-address table. One discovery at a time may query
+SENTINEL SENTINELS. Each discovery sends that optional command at most
+once, within the original seed and target budgets. A fully validated list
+is appended only after ROLE verifies the data endpoint. Learned seed
+errors can fall through to the configured addresses.
+
+Windows and WSL each repair a pool after the configured Sentinel process
+exits and its port refuses connections. Thirty-six real Redis cases cover
+both data roles, three connection factories, and RESP2, RESP3 and AUTO.
+Two original leases stay usable on the same data endpoint and generation.
+Fifty-four real Redis controls cover existing election and online refresh
+paths. Local fixtures also cover TLS, malformed/oversized/empty lists,
+readiness faults, two stale ROLE attempts and constructor allocation
+failure. The package example runs the learned endpoint path.
+
+A packaged Sentinel Pub/Sub listener remains open. The strict release gate
+still reports 31 developing modules. Authenticated TLS interoperability,
+native Linux endurance and production throughput and tail latency remain
+qualification work.
+[Stage evidence](xredis-sentinel-seed-learning-20261118.json).
