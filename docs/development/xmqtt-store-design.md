@@ -444,3 +444,30 @@ Direct Mosquitto WS/WSS listener observations are recorded independently so
 that successful broker delivery and a committed abnormal END cannot mask an
 incomplete transport shutdown.
 [Stage evidence](xmqtt-client-store-ws-20261118.json).
+
+## 2026-11-18 Durable automatic MQTT reconnect
+
+The reconnect controller can hold a fresh or journal-restored Session and
+reserve a caller-owned durable Inbox Writer across connection generations.
+The factory chooses a durable transport using the supplied Session and Writer.
+The next generation acquires the protocol driver after physical retirement and
+lease release. The first admissible Client lease follows its own committed OPEN.
+
+A Client restores replay bits from the durable outgoing obligation. A full
+local send and a committed write-ahead attempt can describe the same packet.
+Reconciliation checks the identifier, canonical packet, stage and PUBREC
+reason before restoring it. Completion of replay removes the journaled
+obligation while retaining the original Future value.
+
+Inbox acknowledgements remain usable between generations. An earlier
+application ACK can settle while the next socket connects, and journal ordering
+gates the next OPEN. If OPEN lands after setup timed out, committed END
+reconciles the offline Session before attempting a resume. An unusable Writer
+prevents new retries. Disposal and journal recovery remain explicit.
+
+The independent Mosquitto TCP tests cut generation one after dropping PUBACK.
+They check Session Present, the original identifier and DUP on generation two,
+two QoS 1 deliveries and graceful durable END across client platforms and
+linkage modes. Automatic recovery under TLS/WS/WSS, durability of subscription
+intent and workload-level performance remain open.
+[Stage evidence](xmqtt-reconnect-store-20261118.json).

@@ -1,5 +1,9 @@
 #include <xmqtt/reconnect.h>
 #include <xmqtt/reconnect_subscriptions.h>
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+#include <xmqtt/reconnect_store.h>
+#include "../internal/xmqtt_client_store.h"
+#endif
 #include "../internal/xmqtt_client_lifecycle.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
@@ -13,6 +17,9 @@ struct xmqttreconnect {
     xnetengine* Engine;xnetworker* Worker;xtaskpool* Pool;uint64 Affinity;
     xmqttsession* Session;xmqttclientinbox* Inbox;xmqttclient *Client,*Cleaning;
     xmqttclientlease* Leases;xmqttclientlifecycle Lifecycle;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    xmqttclientstoreconfig Store;xmqttreconnectstorefactory StoreFactory;xtaskpool* StorePool;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     struct xmqttsubscriptions* Subscriptions;
 #endif
@@ -561,14 +568,22 @@ static void xmqttReconnectAttempt(xmqttreconnect* R)
     bool Notify=xmqttReconnectStateLocked(R,XMQTT_RECONNECT_CONNECTING);R->Closed=false;xrtMutexUnlock(&R->Gate);
     if(Notify)xmqttReconnectNotify(R);
     xrtMutexLock(&R->Gate);bool Stop=R->Stop;xrtMutexUnlock(&R->Gate);if(Stop)return;
-    xmqttclient* C=NULL;xmqttclientstatus Status=R->Config.Factory(R->Engine,R->Affinity,&R->Config.Client,R->Session,R->Inbox,&Connect,R->Config.FactoryData,&C);
+    xmqttclient* C=NULL;xmqttclientstatus Status;
+    struct xmqttstorewrite* Writer=NULL;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(R->StoreFactory){
+        Writer=R->Store.Writer;
+        Status=R->StoreFactory(R->Engine,R->Affinity,&R->Config.Client,R->Session,&R->Store,&Connect,R->Config.FactoryData,&C);
+    }else
+#endif
+    Status=R->Config.Factory(R->Engine,R->Affinity,&R->Config.Client,R->Session,R->Inbox,&Connect,R->Config.FactoryData,&C);
     if(Status==XMQTT_STATUS_OK && C){
         xrtMutexLock(&R->Gate);R->Client=C;xmqttReconnectRef(R);xrtMutexUnlock(&R->Gate);
         size_t* Capacity=NULL;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
         if(R->Subscriptions)Capacity=&R->Subscriptions->MaxOutgoingBytes;
 #endif
-        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,R->Inbox,&R->Lifecycle,Capacity))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
+        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,R->Inbox,&R->Lifecycle,Capacity,Writer))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
     }else{
         if(Status<=XMQTT_STATUS_OK || Status>XMQTT_STATUS_AUTHENTICATION)Status=XMQTT_STATUS_INITIALIZATION;
         /* Reuse the closed-generation policy without a fabricated Client. */
@@ -598,6 +613,10 @@ static void xmqttReconnectWork(xnetworker* Worker,ptr Data)
             else {double Poll=xmqttReconnectDeadline(Now,R->Config.RetirementPoll);if(Poll<At)At=Poll;}
         }
     }else if(!Cleaning){
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+        if(!Stop&&R->StoreFactory&&!xmqttInternalStoreWriteReconnectUsable(R->Store.Writer,R))
+            xmqttReconnectFail(R,XMQTT_STATUS_SESSION,false);
+#endif
         xrtMutexLock(&R->Gate);bool Notify=false;
         if(R->Stop)Notify=xmqttReconnectStateLocked(R,R->Failed?XMQTT_RECONNECT_FAILED:XMQTT_RECONNECT_STOPPED);
         else if(Now<R->Info.NextAttemptAt){Notify=xmqttReconnectStateLocked(R,XMQTT_RECONNECT_WAITING);if(R->Info.NextAttemptAt<At)At=R->Info.NextAttemptAt;}
@@ -624,6 +643,9 @@ XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* K)
     K->RetryStatuses=(UINT32_C(1)<<XMQTT_STATUS_TRANSPORT)|(UINT32_C(1)<<XMQTT_STATUS_TIMEOUT)|(UINT32_C(1)<<XMQTT_STATUS_SERVER_DISCONNECT);return true;
 }
 static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttpacket* Connect,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,xmqttreconnectstorefactory StoreFactory,
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     const xmqttsubscriptionsconfig* Subscriptions,const xmqttpacket* Initial,size_t InitialCount,
 #endif
@@ -632,7 +654,11 @@ static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 A
     double Started=xrtTimer();
     if(!Engine || !Pool || !Config || !Connect || !Out || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Connect,sizeof(*Connect)) || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect factory arguments");
     xmqttreconnectconfig K=*Config;
-    if(K.Size!=sizeof(K) || K.Client.Size!=sizeof(K.Client) || (K.Client.Version!=XMQTT_VERSION_5 && K.Client.Version!=XMQTT_VERSION_311) || !K.Factory || !K.MaxLeases || K.InitialDelay<1 || K.MaxDelay<K.InitialDelay || K.MaxDelay>INT32_MAX || K.StableReset<0 || (K.RecoveryTimeout<=0 && K.RecoveryTimeout!=XRT_WAIT_FOREVER) || K.RetirementPoll<1 || K.RetirementPoll>60000 || K.JitterPermille>1000 || K.RetryStatuses>>((unsigned)XMQTT_STATUS_AUTHENTICATION+1) || Connect->Type!=XMQTT_PACKET_CONNECT)
+    bool HasFactory=K.Factory!=NULL;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(StoreFactory)HasFactory=true;
+#endif
+    if(K.Size!=sizeof(K) || K.Client.Size!=sizeof(K.Client) || (K.Client.Version!=XMQTT_VERSION_5 && K.Client.Version!=XMQTT_VERSION_311) || !HasFactory || !K.MaxLeases || K.InitialDelay<1 || K.MaxDelay<K.InitialDelay || K.MaxDelay>INT32_MAX || K.StableReset<0 || (K.RecoveryTimeout<=0 && K.RecoveryTimeout!=XRT_WAIT_FOREVER) || K.RetirementPoll<1 || K.RetirementPoll>60000 || K.JitterPermille>1000 || K.RetryStatuses>>((unsigned)XMQTT_STATUS_AUTHENTICATION+1) || Connect->Type!=XMQTT_PACKET_CONNECT)
         return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect policy");
     size_t Bytes=0;bool Valid=K.Client.Version==XMQTT_VERSION_5?xmqttPacketSize5(Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,&Bytes):K.Client.Version==XMQTT_VERSION_311 && xmqttPacketSize311(Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,&Bytes);
     if(!Valid)return false;
@@ -652,10 +678,25 @@ static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 A
     bool Gate=false,Retirement=false,Cond=false;
     if(!(Gate=xrtMutexInit(&R->Gate)) || !(Retirement=xrtMutexInit(&R->RetirementLock)) || !(Cond=xrtCondInit(&R->RetirementReady)) || !xrtNetPostInit(&R->Post))goto Failed;
     if(!(K.Client.Version==XMQTT_VERSION_5?xmqttPacketWrite5(R->Wire,Bytes,Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,NULL):xmqttPacketWrite311(R->Wire,Bytes,Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,NULL)))goto Failed;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(Store){
+        xmqttsessioninfo Info;xstrview Id;
+        if(!xmqttSessionInfo(Session,&Info)||!xmqttSessionClientId(Session,&Id)||Info.Connected||
+           Info.Version!=K.Client.Version||!Id.Size||Id.Size!=Connect->Body.Connect.ClientId.Size||
+           memcmp(Id.Data,Connect->Body.Connect.ClientId.Data,Id.Size)){
+            xmqttReconnectError(XERR_ARGUMENT,"durable reconnect requires a matching disconnected Session");
+            goto Failed;
+        }
+        if(!xmqttInternalStoreWriteReserveReconnect(Store->Writer,R,Session,Pool,&R->StorePool))goto Failed;
+        R->Session=Session;R->Store=*Store;R->StoreFactory=StoreFactory;
+    }else
+#endif
+    {
     xmqttsessionconfig S;xmqttSessionConfigInit(&S);S.Version=K.Client.Version;S.ClientId=Connect->Body.Connect.ClientId;S.Codec=K.Client.Codec;S.MaxOutgoing=K.MaxSessionOutgoing;S.MaxIncoming=K.MaxSessionIncoming;S.MaxBytes=K.MaxSessionBytes;
     if(!(S.ClientId.Size?xmqttSessionCreate(&S,&R->Session):xmqttSessionCreateUnassigned(&S,K.MaxAssignedIdBytes,&R->Session)))goto Failed;
     xmqttclientinboxconfig I;xmqttClientInboxConfigInit(&I);I.Version=K.Client.Version;I.MaxObjects=K.Client.MaxObjects;I.MaxObjectBytes=K.Client.MaxObjectBytes;I.MaxMessages=K.Client.MaxMessages;I.MaxMessageBytes=K.Client.MaxMessageBytes;
     if(!xmqttClientInboxCreate(&I,&R->Inbox))goto Failed;
+    }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     if(Subscriptions){
         if(InitialCount && (!Initial || InitialCount>65535 || !xrtMemRangeValid(Initial,InitialCount*sizeof(*Initial)))){xmqttReconnectError(XERR_ARGUMENT,"invalid initial subscription vector");goto Failed;}
@@ -672,7 +713,12 @@ Failed:
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     xmqttSubscriptionsDestroy(R);
 #endif
-    xmqttClientInboxDestroy(R->Inbox);if(R->Session)xmqttSessionDestroy(R->Session);
+    xmqttClientInboxDestroy(R->Inbox);
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(R->StoreFactory)xmqttInternalStoreWriteReleaseReconnect(R->Store.Writer,R);
+    else
+#endif
+    if(R->Session)xmqttSessionDestroy(R->Session);
     if(Cond)xrtCondUnit(&R->RetirementReady);
     if(Retirement)xrtMutexUnit(&R->RetirementLock);
     if(Gate)xrtMutexUnit(&R->Gate);
@@ -681,6 +727,9 @@ Failed:
 XMQTT_API bool xmqttReconnectCreate(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttpacket* C,xmqttreconnect** Out)
 {
     return xmqttReconnectCreateImpl(E,P,A,K,C,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+        NULL,NULL,NULL,
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
         NULL,NULL,0,
 #endif
@@ -690,7 +739,27 @@ XMQTT_API bool xmqttReconnectCreate(xnetengine* E,xtaskpool* P,uint64 A,const xm
 XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttsubscriptionsconfig* S,const xmqttpacket* C,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Out)
 {
     if(!S)return xmqttReconnectError(XERR_ARGUMENT,"subscription config is NULL");
-    return xmqttReconnectCreateImpl(E,P,A,K,C,S,Initial,Count,Out);
+    return xmqttReconnectCreateImpl(E,P,A,K,C,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+        NULL,NULL,NULL,
+#endif
+        S,Initial,Count,Out);
+}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+XMQTT_API bool xmqttReconnectCreateStore(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,xmqttreconnectstorefactory Factory,
+    const xmqttpacket* Connect,xmqttreconnect** Out)
+{
+    if(!Session||!Store||!Factory||!Out||!xrtMemRangeValid(Store,sizeof(*Store))||
+       xrtMemRangesOverlap(Store,sizeof(*Store),Out,sizeof(*Out))||
+       Store->Size!=sizeof(*Store)||!Store->Writer||!Store->Wall)
+        return xmqttReconnectError(XERR_ARGUMENT,"invalid durable reconnect plan");
+    return xmqttReconnectCreateImpl(E,P,A,K,Connect,Session,Store,Factory,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+        NULL,NULL,0,
+#endif
+        Out);
 }
 #endif
 XMQTT_API bool xmqttReconnectAcquire(xmqttreconnect* R,xmqttclientlease* L)
@@ -722,7 +791,7 @@ XMQTT_API bool xmqttReconnectInfo(xmqttreconnect* R,xmqttreconnectinfo* Out)
     xrtMutexLock(&R->Gate);*Out=R->Info;xrtMutexUnlock(&R->Gate);return true;
 }
 XMQTT_API bool xmqttReconnectTakeMessage(xmqttreconnect* R,xmqttmessage** Message)
-{if(!R)return xmqttReconnectError(XERR_ARGUMENT,"controller is NULL");return xmqttClientInboxTake(R->Inbox,Message);}
+{if(!R)return xmqttReconnectError(XERR_ARGUMENT,"controller is NULL");return R->Inbox&&xmqttClientInboxTake(R->Inbox,Message);}
 XMQTT_API bool xmqttReconnectClose(xmqttreconnect* R)
 {
     if(!R)return xmqttReconnectError(XERR_ARGUMENT,"controller is NULL");
@@ -745,10 +814,18 @@ static void xmqttReconnectAssist(xmqttreconnect* R,double Deadline)
     if(!Wake)xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
     xmqttReconnectSignal(R);
 }
+static bool xmqttReconnectCanWait(const xmqttreconnect* R)
+{
+    if(xrtNetEngineCurrent(R->Engine)||xrtTaskPoolIsCurrentWorkerV1(R->Pool))return false;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(R->StorePool&&xrtTaskPoolIsCurrentWorkerV1(R->StorePool))return false;
+#endif
+    return true;
+}
 XMQTT_API xwaitresult xmqttReconnectWaitFor(xmqttreconnect* R,int64 Timeout)
 {
     if(!R || Timeout<XRT_WAIT_FOREVER){xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect wait");return XWAIT_ERROR;}
-    if(xrtNetEngineCurrent(R->Engine) || xrtTaskPoolIsCurrentWorkerV1(R->Pool)){xmqttReconnectError(XERR_STATE,"cannot wait from an Engine/cleanup worker");return XWAIT_ERROR;}
+    if(!xmqttReconnectCanWait(R)){xmqttReconnectError(XERR_STATE,"cannot wait from a controller worker");return XWAIT_ERROR;}
     double Deadline=xmqttReconnectDeadline(xrtTimer(),Timeout);
     for(;;){
         if(xrtAtomic32Load(&R->AssistReady,XMEMORY_ACQUIRE))xmqttReconnectAssist(R,Deadline);
@@ -766,12 +843,15 @@ XMQTT_API xwaitresult xmqttReconnectWaitFor(xmqttreconnect* R,int64 Timeout)
 XMQTT_API bool xmqttReconnectDestroy(xmqttreconnect* R)
 {
     if(!R)return true;
-    if(xrtNetEngineCurrent(R->Engine) || xrtTaskPoolIsCurrentWorkerV1(R->Pool))return xmqttReconnectError(XERR_STATE,"cannot destroy from an Engine/cleanup worker");
+    if(!xmqttReconnectCanWait(R))return xmqttReconnectError(XERR_STATE,"cannot destroy from a controller worker");
     if(!xmqttReconnectClose(R) || xmqttReconnectWaitFor(R,XRT_WAIT_FOREVER)!=XWAIT_OK)return false;
     if(R->Session && !xmqttSessionDestroy(R->Session))return false;
     R->Session=NULL;
     if(!xmqttClientInboxDestroy(R->Inbox))return false;
     R->Inbox=NULL;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(R->StoreFactory)xmqttInternalStoreWriteReleaseReconnect(R->Store.Writer,R);
+#endif
     #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     xmqttSubscriptionsDestroy(R);
     #endif

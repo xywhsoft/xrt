@@ -138,7 +138,7 @@ static void rcPolicy(void)
         if(Mode==1){K.MaxAttempts=0;K.RecoveryTimeout=25;K.InitialDelay=K.MaxDelay=15;}if(Mode==2){K.InitialDelay=K.MaxDelay=10000;}
         xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreate(P.Engine,P.Pool,1,&K,&Q,&R),"policy controller");
         if(Mode==2){rcWait(&P.FactoryCalls,1);double End=xrtTimer()+5;xmqttreconnectinfo I;do{testRequire(xmqttReconnectInfo(R,&I) && xrtTimer()<End,"backoff arm");if(I.State!=XMQTT_RECONNECT_WAITING)xrtSleep(1);}while(I.State!=XMQTT_RECONNECT_WAITING);testRequire(xmqttReconnectClose(R),"stop long backoff");}
-        testRequire(xmqttReconnectWaitFor(R,5000)==XWAIT_OK,"bounded policy terminates");xmqttreconnectinfo I;xmqttReconnectInfo(R,&I);
+        testRequire(xmqttReconnectWaitFor(R,5000)==XWAIT_OK,"bounded policy terminates");xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I),"terminal policy snapshot");
         if(!Mode){testRequire(I.State==XMQTT_RECONNECT_FAILED && I.Attempts==4,"exact maximum consecutive attempts");testRequire(P.FactoryAt[1]-P.FactoryAt[0]>=0.009 && P.FactoryAt[2]-P.FactoryAt[1]>=0.019 && P.FactoryAt[3]-P.FactoryAt[2]>=0.024,"saturating exponential intervals");}
         else if(Mode==1)testRequire(I.State==XMQTT_RECONNECT_FAILED && I.LastStatus==XMQTT_STATUS_TIMEOUT && I.Attempts<=2,"one original outage deadline");
         else testRequire(I.State==XMQTT_RECONNECT_STOPPED && I.Attempts==1,"cancelled timer joins without waiting ten seconds");
@@ -150,7 +150,7 @@ static void rcCleanupFailure(void)
     for(unsigned Wrong=0;Wrong<2;++Wrong){rcPeer P;rcStart(&P,XMQTT_VERSION_5,Wrong?RC_WRONG_FACTORY:0);xmqttreconnectconfig K;xmqttpacket Q;xmqttproperty E;rcConfig(&P,&K,&Q,&E);xmqttreconnect* R=NULL;
         testRequire(xmqttReconnectCreate(P.Engine,P.Pool,1,&K,&Q,&R),"cleanup fallback controller");
         if(!Wrong){(void)rcOnline(R,1);testRequire(xrtTaskPoolClose(P.Pool) && xmqttReconnectClose(R),"closed borrowed Pool");}
-        testRequire(xmqttReconnectWaitFor(R,5000)==XWAIT_OK,"external wait assists retained physical cleanup");xmqttreconnectinfo I;xmqttReconnectInfo(R,&I);testRequire(I.State==XMQTT_RECONNECT_FAILED,"invalid factory/cleanup admission has a typed terminal failure");testRequire(xmqttReconnectDestroy(R),"fallback owner consumed once");rcStop(&P);
+        testRequire(xmqttReconnectWaitFor(R,5000)==XWAIT_OK,"external wait assists retained physical cleanup");xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I) && I.State==XMQTT_RECONNECT_FAILED,"invalid factory/cleanup admission has a typed terminal failure");testRequire(xmqttReconnectDestroy(R),"fallback owner consumed once");rcStop(&P);
     }
 }
 static void rcAllocation(void)
@@ -160,7 +160,7 @@ static void rcAllocation(void)
         if(!Worker)testRequire(xrtAllocationBudgetEnter(P.Budget,&Scope),"constructor allocation scope");
         xmqttreconnect* R=(xmqttreconnect*)(uintptr_t)1;bool OK=xmqttReconnectCreate(P.Engine,P.Pool,1,&K,&Q,&R);
         if(!Worker)testRequire(xrtAllocationBudgetLeave(&Scope),"constructor scope leave");
-        if(OK){if(Worker){rcWait(&P.FactoryCalls,1);xmqttreconnectinfo I;xmqttReconnectInfo(R,&I);testRequire(I.Attempts==1,"worker quota attempt");}rcClose(R);}else testRequire(R==(xmqttreconnect*)(uintptr_t)1,"constructor output atomicity");
+        if(OK){if(Worker){rcWait(&P.FactoryCalls,1);xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I) && I.Attempts==1,"worker quota attempt");}rcClose(R);}else testRequire(R==(xmqttreconnect*)(uintptr_t)1,"constructor output atomicity");
         rcStop(&P);xrtClearError();xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(P.Budget,&I) && !I.LiveBytes && !I.LiveCount,"controller/Session/Client OOM lifetime leak");xrtAllocationBudgetFree(P.Budget);
     }
 }

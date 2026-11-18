@@ -83,5 +83,6 @@
 #endif
 #include <xmqtt/client_ws_uri.h>
 #include <xmqtt/reconnect.h>
+#include <xmqtt/reconnect_store.h>
 #include <xmqtt/reconnect_subscriptions.h>
 #endif

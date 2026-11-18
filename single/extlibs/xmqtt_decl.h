@@ -114,6 +114,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_STORE 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS 1
 #endif
@@ -230,6 +233,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_RECONNECT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_RECONNECT_STORE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT_STORE 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS 1
@@ -2874,6 +2880,22 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
 #define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#define XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#endif
+#endif
+
+/* xmqtt_reconnect_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_RECONNECT_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#define XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT
+#define XMQTT_MODULE_XMQTT_RECONNECT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
 #endif
 #endif
 
@@ -6053,6 +6075,44 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/reconnect_store.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_RECONNECT_STORE_H
+#define XMQTT_RECONNECT_STORE_H
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE) && (!defined(XMQTT_FEATURE_XMQTT_RECONNECT) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE))
+#error "Durable MQTT reconnect requires Reconnect and Client Store"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+XRT_EXTERN_C_BEGIN
+/* Runs on the supplied Engine worker. Use a durable Client factory with the
+ * exact supplied Session and Store. Borrow the arguments for this call.
+ * Transport policy and FactoryData belong to the application. Return one
+ * Client with OK, or a typed failure without transferring a Client. */
+typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint64 Affinity,
+    const xmqttclientconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
+    const xmqttpacket* Connect,ptr FactoryData,xmqttclient** Client);
+/* Success consumes the matching fresh or recovered disconnected Session, and
+ * reserves the caller-owned Inbox Writer through Destroy. Serialize creation
+ * with Writer lifecycle and mutations. CleanupPool is the existing Reconnect
+ * cleanup pool and must differ from the Writer's IO pool. Both must keep
+ * running. The stored factory argument selects transport; Config.FactoryData,
+ * retry and notification policy follow Reconnect. Session caps come from
+ * the transferred Session. ReconnectTakeMessage is empty; use StoreInboxTake
+ * and StoreInboxAckAsync throughout the controller lifetime.
+ * Each new connection waits for actual retirement of the previous Client,
+ * leases and storage effects. An unusable Writer prevents the next attempt
+ * with SESSION. Recover the authoritative journal before constructing another
+ * controller. Original Futures never transfer to the new connection. */
+XMQTT_API bool xmqttReconnectCreateStore(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
+    const xmqttreconnectconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
+    xmqttreconnectstorefactory Factory,const xmqttpacket* Connect,xmqttreconnect** Controller);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -6222,6 +6282,10 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_RECONNECT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+#undef XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
 #undef XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS
@@ -6377,6 +6441,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT)
 #undef XMQTT_MODULE_XMQTT_RECONNECT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT_STORE)
+#undef XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS)
 #undef XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS
@@ -8253,6 +8321,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
 #define XMQTT_MODULE_XMQTT_STORE_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#define XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#endif
+#endif
+
+/* xmqtt_reconnect_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_RECONNECT_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#define XMQTT_FEATURE_XMQTT_RECONNECT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT
+#define XMQTT_MODULE_XMQTT_RECONNECT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE
+#define XMQTT_MODULE_XMQTT_CLIENT_STORE
 #endif
 #endif
 

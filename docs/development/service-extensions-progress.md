@@ -14214,3 +14214,28 @@ Ordinary integrity gates passed. Strict release still reports 31 developing
 modules. Broker-native graceful close, durable reconnect and subscription
 intents, production throughput and tail latency remain open.
 [Stage evidence](xmqtt-client-store-ws-20261118.json).
+
+## 2026-11-18 Durable automatic MQTT reconnect on master
+
+`xmqttReconnectCreateStore` composes generation leases and reconnect policy
+with a caller-owned durable Inbox Writer and a fresh or journal-restored
+Session. An old Client's real storage and transport retirement fence the next
+driver. The replacement waits for its own durable OPEN before leasing. The
+journal provides replay flags, and a PUBACK on the replacement retires the
+obligation while the original Future keeps its local outcome.
+
+Both MQTT versions passed held Inbox ACK, late OPEN, uncertain storage and
+cold Session recovery fixtures. Windows and Linux under WSL passed the
+modular and single-header suites. WSL ran ASan, UBSan, leak detection and TSan.
+Windows and WSL linked and exercised the static and shared packages. The real
+Mosquitto TCP test drops the first PUBACK, sees Session Present and the
+original packet identifier with DUP, and observes graceful durable END in each
+of 12 platform/version/linkage cases.
+
+The prior service-extension worktree tip, migration and revalidation commits
+are ancestors of this mainline. Local tests and this stage's changes use
+`D:/GIT/xrt` on `master`. Ordinary integrity checks pass. Strict release
+reports 32 developing modules. Automatic durable TLS/WS/WSS interop,
+subscription intent across durable recovery, and controlled throughput and
+tail-latency qualification remain open.
+[Stage evidence](xmqtt-reconnect-store-20261118.json).

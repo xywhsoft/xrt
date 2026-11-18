@@ -1,3 +1,4 @@
+#include "../internal/xmqtt_client_store.h"
 #include <xmqtt/session.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
@@ -418,6 +419,36 @@ XMQTT_API bool xmqttSessionDestroy(xmqttsession* S)
     xmqttsessionpacket* Drop=xmqttSessionClearLocked(S);xrtMutexUnlock(&S->Gate);xmqttSessionListRelease(Drop);xmqttSessionDrop(S);return true;
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
+XMQTT_INTERNAL void xmqttInternalSessionStoreAttempt(xmqttsession* S,const void* Owner,
+    const xmqttsessionpacket* Packet,bool Attempted)
+{
+    xmqttsessionpacket* P=(xmqttsessionpacket*)Packet;
+    xrtMutexLock(&S->Gate);
+    if(S->Driver!=Owner||P->Owner!=S||!P->Active||S->Selected||(!Attempted&&P->Sent))abort();
+    P->Attempted=Attempted;
+    xrtMutexUnlock(&S->Gate);
+}
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+/* OPEN made it to the journal after logical setup failure. There was no
+ * live local Session. Apply the broker's committed reset/resume and END
+ * to its offline projection without creating replay requests. */
+XMQTT_INTERNAL void xmqttInternalSessionStoreClosed(xmqttsession* S,const void* Owner,bool Present,uint32 Expiry,double At)
+{
+    xrtMutexLock(&S->Gate);
+    if(S->Driver!=Owner||S->Connected||S->Selected||!xmqttSessionTime(S,At))abort();
+    xmqttsessionpacket* Drop=!Present||!Expiry?xmqttSessionClearLocked(S):NULL;
+    S->LastNow=At;
+    if(Expiry){
+        S->HasState=S->Persistent=true;
+        S->ClosedAt=At;S->Expiry=Expiry;S->InfiniteExpiry=Expiry==UINT32_MAX;
+        S->ExpiresAt=S->InfiniteExpiry?INFINITY:At+(double)Expiry;
+    }
+    xrtMutexUnlock(&S->Gate);
+    xmqttSessionListRelease(Drop);
+}
+#endif
+#endif
 XMQTT_INTERNAL bool xmqttInternalSessionClaim(xmqttsession* S,const void* Owner,xmqttversion Version,
     const xmqttpacket* Connect,const xmqttcodecconfig* Codec,double Now,size_t* Count,size_t* Bytes)
 {

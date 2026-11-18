@@ -154,7 +154,8 @@
         "xmqtt_client_store",
         "xmqtt_client_store_tls",
         "xmqtt_client_store_ws",
-        "xmqtt_store_inbox"
+        "xmqtt_store_inbox",
+        "xmqtt_reconnect_store"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -720,6 +721,7 @@
         "xmqtt_client_store_auth_tests",
         "xmqtt_client_store_ws_tests",
         "xmqtt_reconnect_tests",
+        "xmqtt_reconnect_store_tests",
         "xmqtt_reconnect_transport_tests",
         "xmqtt_reconnect_subscriptions",
         "xmqtt_store_state_tests",
@@ -818,7 +820,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_file.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_concurrent.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_session/main.c",
@@ -879,7 +882,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_file.c": "xmqtt_journal_worker_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_concurrent.c": "xmqtt_journal_worker_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c": "xmqtt_journal_worker_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c": "xmqtt_journal_worker_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c": "xmqtt_journal_worker_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c": "xmqtt_reconnect_store_tests"
       }
     },
     {
@@ -2432,6 +2436,54 @@
       "docs": [
         "extlibs/xmqtt/examples/store_inbox/README.md"
       ]
+    },
+    {
+      "name": "xmqtt_reconnect_store",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_RECONNECT_STORE",
+      "depends": [
+        "xmqtt_reconnect",
+        "xmqtt_client_store"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/reconnect_store.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/reconnect_store.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_reconnect_store_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_reconnect_store",
+        "xmqtt_store_session",
+        "memory_stats",
+        "vfs",
+        "file_temp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect_store.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/reconnect_store/main.c"
+      ],
+      "benchmarks": [],
+      "docs": []
     }
   ]
 }

@@ -140,6 +140,9 @@ typedef struct xmqttclientstorestate {
     uint8 AcceptQos,AckType,AckReason,EndReason;
     bool ExplicitEnd,EndSettled;
     bool Claimed,EverOpened,Applying,OpenCommitted,Ending,EndCommitted,Broken,Fallback,EndWallValid;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    bool Resume,OpenUnapplied;
+#endif
 } xmqttclientstorestate;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
@@ -452,7 +455,7 @@ static bool xmqttStoreClientAttach(xmqttclient* C,const xmqttclientstoreplan* P)
     if(Bytes>C->Config.MaxPrivateBytes-C->Info.PrivateBytes)return xmqttClientError(XERR_RANGE,"store continuation exceeds private budget");
     xmqttclientstorestate* D=xrtCalloc(1,Bytes);if(!D)return false;
     C->Store=D;D->Plan=*P;xrtAtomic32Init(&D->Watching,0);C->Info.PrivateBytes+=Bytes;
-    if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,!C->Inbox,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
+    if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,C->Session->State,!C->Inbox,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
     D->Claimed=true;xmqttsessioninfo I;xstrview Id;
     if(!xmqttSessionInfo(C->Session->State,&I)||!xmqttSessionClientId(C->Session->State,&Id))return false;
     if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing!=I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
@@ -539,6 +542,9 @@ static bool xmqttStoreClientSubmitOpen(xmqttclient* C,const xmqttnegotiated* N,c
     if(!D->Initial.ClientId.Size)Ops[Count++]=(xmqttstoredelta){.Type=XMQTT_STORE_BIND,.Epoch=Epoch,.WallMilliseconds=Wall,.Data={(const unsigned char*)N->ClientId.Data,N->ClientId.Size}};
     Ops[Count++]=(xmqttstoredelta){.Type=XMQTT_STORE_OPEN,.Flags=(C->SetupPacket.Body.Connect.CleanStart?1u:0u)|(N->SessionPresent?2u:0u),.Epoch=Epoch,.WallMilliseconds=Wall,.Expiry=Expiry};
     D->Epoch=Epoch;D->Expiry=Expiry;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    D->Resume=N->SessionPresent;
+#endif
     if(xmqttStoreClientSubmit(C,Ops,Count,C->SetupDeadline))return true;
     xmqttMessageRelease(D->Message);D->Message=NULL;return false;
 }
@@ -629,6 +635,10 @@ static void xmqttStoreClientProgress(xmqttclient* C)
         if(D->Action==XMQTT_STORE_END){
             D->EndCommitted=Committed;
             D->EndSettled=true;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+            if(OK&&D->OpenUnapplied)
+                xmqttInternalSessionStoreClosed(C->Session->State,C,D->Resume,D->Expiry,C->Session->EndAt);
+#endif
             if(!OK){
                 D->Broken=true;
                 xmqttClientFail(C,R?xmqttStoreClientStatus(R->Status):XMQTT_STATUS_INITIALIZATION,R?R->Cause:NULL);
@@ -646,6 +656,9 @@ static void xmqttStoreClientProgress(xmqttclient* C)
 #endif
                     {D->Applying=true;(void)xmqttClientFrame(C,&D->Message->Packet);D->Applying=false;}
                 }
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+                D->OpenUnapplied=Committed&&!C->Session->Opened;
+#endif
                 if(D->Message){xmqttMessageRelease(D->Message);D->Message=NULL;}
             }else if(D->Transmit)xmqttStoreClientTransmitResult(C,Committed,Active);
             else xmqttStoreClientReceiveResult(C,Committed,Active);
@@ -1746,6 +1759,7 @@ static bool xmqttClientSessionRestore(xmqttclient* C)
                 xmqttClientFail(C,XMQTT_STATUS_SESSION,NULL);
                 return false;
             }
+            xmqttInternalSessionStoreAttempt(D->State,C,Packet,Attempted);
         }
 #endif
         bool TLS=xmqttClientUsesFence(C);
@@ -4045,11 +4059,17 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Worker,
     xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
-    size_t* MaxOutgoingBytes)
+    size_t* MaxOutgoingBytes,struct xmqttstorewrite* Writer)
 {
     if(!C || C->Worker!=Worker || !xrtNetWorkerIsCurrent(Worker) || !C->Session ||
        C->Session->State!=Session || C->Inbox!=Inbox || C->Lifecycle || !Observer || !Observer->Changed)
         return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(Writer&&(!C->Store||C->Store->Plan.Writer!=Writer))
+        return xmqttClientError(XERR_STATE,"reconnect factory returned a different writer");
+#else
+    (void)Writer;
+#endif
     if(MaxOutgoingBytes)*MaxOutgoingBytes=C->Config.MaxOutgoingBytes;
     C->Lifecycle=Observer;
     if(C->Info.State==XMQTT_CLIENT_CLOSED)Observer->Changed(Observer->Data,C,true,C->Info.CloseStatus,C->Info.ServerReason);

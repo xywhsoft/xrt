@@ -59,9 +59,10 @@ prepared-address TLS, including MQTT5 challenge/final-proof authentication.
 recovery and numeric/hostname/prepared enhanced-auth factories. The developing
 [automatic reconnect controller](docs/reconnect.md) adds generation leases, bounded
 backoff/deadlines and physical cleanup over a borrowed Engine/task pool. Durable
-[numeric TCP recovery](docs/client_store.md) is available separately in the
-developing durable Client. Automatic integration with the reconnect controller
-and qualification for the remaining transports are pending.
+[automatic recovery](docs/reconnect_store.md) composes the same controller with
+an Inbox Writer and a fresh or journal-restored Session. The transport callback
+selects a durable Client factory. Subscription intent after session loss remains
+an application responsibility.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,

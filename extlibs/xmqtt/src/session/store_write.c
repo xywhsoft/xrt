@@ -14,6 +14,9 @@ struct xmqttstorewrite {
     xmqttstorewriteconfig Config;xmqttstoredeltaconfig Delta;xmqttstorestate* State;xmqttjournalworker* Worker;
     #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
     const void* Driver;size_t Admissions;xtaskpool* Pool;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    const void* ReconnectOwner;xmqttsession* ReconnectSession;
+#endif
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     uint64 InboxCookie[2],InboxSerial;
@@ -211,7 +214,11 @@ static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,
     if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
     bool OK=xmqttSWOutput(W,Future,sizeof(*Future));
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    OK=OK&&W->Driver==Owner;if(OK)++W->Admissions;
+    OK=OK&&W->Driver==Owner;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(W->ReconnectOwner&&!Owner)OK=false;
+#endif
+    if(OK)++W->Admissions;
 #else
     (void)Owner;
 #endif
@@ -227,17 +234,61 @@ static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,
 XMQTT_API xmqttjournaladmission xmqttStoreWriteAppendAsync(xmqttstorewrite* W,xbytesview Data,int64 Timeout,xfuture** Future)
 {return xmqttSWAppend(W,NULL,Data,Timeout,Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0,Future);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,bool RequireInbox,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+XMQTT_INTERNAL void xmqttInternalStoreWriteReleaseReconnect(xmqttstorewrite* W,const void* Owner)
+{
+    if(!xrtMutexLock(&W->Gate))abort();
+    if(W->ReconnectOwner!=Owner||W->Driver||W->Admissions)abort();
+    W->ReconnectOwner=NULL;W->ReconnectSession=NULL;
+    if(!xrtMutexUnlock(&W->Gate))abort();
+}
+XMQTT_INTERNAL bool xmqttInternalStoreWriteReserveReconnect(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
+    xtaskpool* Cleanup,xtaskpool** StoragePool)
+{
+    if(Cleanup==W->Pool)return xmqttSWError(XERR_ARGUMENT,"durable reconnect requires a separate cleanup pool");
+    if(!xrtMutexLock(&W->Gate))return false;
+    bool OK=!W->Driver&&!W->ReconnectOwner&&!W->Admissions&&W->InboxEnabled&&!W->InboxClosed;
+    if(OK){W->ReconnectOwner=Owner;W->ReconnectSession=Session;}
+    xrtMutexUnlock(&W->Gate);
+    if(!OK)return xmqttSWError(XERR_STATE,"durable reconnect requires an unclaimed Inbox writer");
+    xmqttjournalworkerinfo Info;
+    if(!xmqttJournalWorkerInfo(W->Worker,&Info)||Info.Failed||Info.Closed||Info.Requests||Info.Tasks){
+        xmqttInternalStoreWriteReleaseReconnect(W,Owner);
+        return xmqttSWError(XERR_STATE,"durable reconnect requires a drained and usable writer");
+    }
+    *StoragePool=W->Pool;
+    return true;
+}
+XMQTT_INTERNAL bool xmqttInternalStoreWriteReconnectUsable(xmqttstorewrite* W,const void* Owner)
+{
+    if(!xrtMutexLock(&W->Gate))return false;
+    bool OK=W->ReconnectOwner==Owner&&!W->Driver&&!W->InboxClosed;
+    xrtMutexUnlock(&W->Gate);
+    xmqttjournalworkerinfo Info;
+    return OK&&xmqttJournalWorkerInfo(W->Worker,&Info)&&!Info.Failed&&!Info.Closed;
+}
+#endif
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,bool RequireInbox,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
     bool OK=!W->Driver&&!W->Admissions&&(!RequireInbox||(W->InboxEnabled&&!W->InboxClosed));
+    bool Reserved=false;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    Reserved=W->ReconnectOwner!=NULL;
+    if(Reserved&&(W->ReconnectSession!=Session||!RequireInbox))OK=false;
+#else
+    (void)Session;
+#endif
     if(OK)W->Driver=Owner;
     xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
     /* Reap native tails outside the model gate: backing frees can reenter Info. */
-    xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Requests&&!I.Tasks&&!I.Failed&&!I.Closed;
+    /* A reconnect reservation excludes other protocol mutations. The new
+     * generation may use the committed projection while an Inbox ACK settles. */
+    xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Failed&&!I.Closed&&
+        (Reserved||(!I.Requests&&!I.Tasks));
     if(!xrtMutexLock(&W->Gate))abort();
-    if(OK&&!W->Pending){*Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);*Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;}
+    if(OK&&(Reserved||!W->Pending)){*Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);*Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;}
     else {W->Driver=NULL;OK=false;}
     xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
 }
@@ -272,7 +323,15 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,cons
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future)
 {return xmqttSWAppend(W,Owner,Data,XRT_WAIT_FOREVER,Deadline,Future);}
 static bool xmqttSWUnclaimed(xmqttstorewrite* W)
-{if(!W||!xrtMutexLock(&W->Gate))return false;bool OK=!W->Driver;xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"Client owns store writer until physical destruction");}
+{
+    if(!W||!xrtMutexLock(&W->Gate))return false;
+    bool OK=!W->Driver;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+    if(W->ReconnectOwner)OK=false;
+#endif
+    xrtMutexUnlock(&W->Gate);
+    return OK?true:xmqttSWError(XERR_STATE,"Client or controller owns store writer until physical destruction");
+}
 #endif
 XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
 {
