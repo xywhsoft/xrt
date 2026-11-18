@@ -8,7 +8,7 @@
  * below use literal protocol bytes independently of the product codec. */
 typedef struct mqttTlsPeer {
     xnetengine* Engine;xnetlistener* Listener;xnetresolver* Resolver;xnetaddr Address;
-    xtlscontext* Context;xtlsidentity* Identity;xtlsserverconfig Config;xmqttversion Version;
+    xtlscontext* Context;xtlscontext* BoundedServer;xtlsidentity* Identity;xtlsserverconfig Config;xmqttversion Version;
     xatomicptr Server,Raw;xatomic32 Closed,ListenerClosed,Publishes,Lookups,VerifierDrops,ReceivedAcks,Disconnects,Resume,DnsEntered,DnsGate;
     unsigned char* Input;size_t Used,Capacity;bool Auth,PauseAfterFirst,Silent,Reject,BlockDns;
     void (*Frame)(xtlsstream*,struct mqttTlsPeer*,unsigned char,const unsigned char*,size_t);ptr FrameData;
@@ -98,7 +98,8 @@ static inline void mqttTlsVerifierDrop(ptr Data)
 {xrtAtomic32FetchAdd(&((mqttTlsPeer*)Data)->VerifierDrops,1,XMEMORY_RELEASE);}
 static inline xtlsverifydecision mqttTlsVerify(const xtlspeer* Peer,ptr Data)
 {mqttTlsPeer* P=Data;testRequire(Peer && Peer->Name.Size==11 && !memcmp(Peer->Name.Data,"example.com",11),"retained verification identity");return P->Reject?XTLS_VERIFY_REJECT:testTlsServerAccept(Peer,NULL);}
-enum {MQTT_TLS_AUTH=1,MQTT_TLS_PAUSE=2,MQTT_TLS_SILENT=4,MQTT_TLS_REJECT=8,MQTT_TLS_BLOCK_DNS=16};
+enum {MQTT_TLS_AUTH=1,MQTT_TLS_PAUSE=2,MQTT_TLS_SILENT=4,MQTT_TLS_REJECT=8,
+      MQTT_TLS_BLOCK_DNS=16,MQTT_TLS_SINGLE_RECORD=32};
 static inline void mqttTlsStartWith(mqttTlsPeer* P,xmqttversion Version,unsigned Flags,
     void (*Frame)(xtlsstream*,mqttTlsPeer*,unsigned char,const unsigned char*,size_t),ptr Data)
 {
@@ -106,8 +107,20 @@ static inline void mqttTlsStartWith(mqttTlsPeer* P,xmqttversion Version,unsigned
     P->Silent=(Flags&MQTT_TLS_SILENT)!=0;P->Reject=(Flags&MQTT_TLS_REJECT)!=0;P->BlockDns=(Flags&MQTT_TLS_BLOCK_DNS)!=0;
     P->Frame=Frame;P->FrameData=Data;
     P->Capacity=3u*1024u*1024u;P->Input=xrtMalloc(P->Capacity);testRequire(P->Input!=NULL,"fixture bounded input");
-    xrtAtomicPtrInit(&P->Server,NULL);P->Context=testTlsServerContext();P->Identity=testTlsServerIdentity();testRequire(P->Context && P->Identity,"TLS fixture resources");
-    static const xstrview Protocols[]={{"mqtt",4}};xrtTlsServerConfigInit(&P->Config);P->Config.Context=P->Context;P->Config.Identity=P->Identity;P->Config.Protocols=Protocols;P->Config.ProtocolCount=1;P->Config.RequireProtocol=true;
+    xrtAtomicPtrInit(&P->Server,NULL);P->Context=testTlsServerContext();
+    if(P->Context && (Flags&MQTT_TLS_SINGLE_RECORD)){
+        /* Publish application records to Read before handling a following
+         * close_notify, even when both records arrive in the same TCP read. */
+        xtlscontextconfig Context={
+            .Policy=xrtTlsContextPolicy(P->Context),
+            .Limits=*xrtTlsContextLimits(P->Context)
+        };
+        Context.Limits.RecordBudget=1;
+        P->BoundedServer=xrtTlsContextCreate(&Context);
+        testRequire(P->BoundedServer!=NULL,"single-record TLS server context");
+    }
+    P->Identity=testTlsServerIdentity();testRequire(P->Context && P->Identity,"TLS fixture resources");
+    static const xstrview Protocols[]={{"mqtt",4}};xrtTlsServerConfigInit(&P->Config);P->Config.Context=P->BoundedServer?P->BoundedServer:P->Context;P->Config.Identity=P->Identity;P->Config.Protocols=Protocols;P->Config.ProtocolCount=1;P->Config.RequireProtocol=true;
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;E.Backend=MQTT_TLS_BACKEND;P->Engine=xrtNetEngineCreate(&E);testRequire(P->Engine && xrtNetEngineStart(P->Engine),"TLS MQTT engine");
     xnetlistenconfig L;xrtNetListenConfigInit(&L);L.Distribution=XNET_ACCEPT_LOCAL;xrtNetAddrLoopback(&L.Address,XNET_FAMILY_IPV4,0);
     static const xnetlistenerevents Events={mqttTlsAccept,NULL,mqttTlsListenerClosed};P->Listener=xrtNetListen(P->Engine,&L,&Events,NULL,P);testRequire(P->Listener && xrtNetListenerLocal(P->Listener,&P->Address),"TLS MQTT listener");
@@ -123,7 +136,7 @@ static inline void mqttTlsStop(mqttTlsPeer* P)
     xnetstream* Raw=xrtAtomicPtrLoad(&P->Raw,XMEMORY_ACQUIRE);if(Raw){testRequire(xrtNetStreamAbort(Raw) && xrtNetStreamWaitRetired(Raw,15000)==XWAIT_OK,"silent peer retires");xrtNetStreamDestroy(Raw);}
     testRequire(xrtNetListenerClose(P->Listener),"fixture listener close");mqttTlsWait(&P->ListenerClosed,1,"fixture listener callback");xrtNetListenerDestroy(P->Listener);
     testRequire(xrtNetResolverDestroy(P->Resolver) && xrtNetEngineDestroy(P->Engine),"actual fixture Resolver/Engine join");
-    xrtTlsIdentityRelease(P->Identity);xrtTlsContextRelease(P->Context);xrtFree(P->Input);
+    xrtTlsIdentityRelease(P->Identity);xrtTlsContextRelease(P->BoundedServer);xrtTlsContextRelease(P->Context);xrtFree(P->Input);
 }
 static inline xtlsverifier* mqttTlsConfigure(mqttTlsPeer* P,xmqttclienttlsconfig* T,char Name[12],xstrview* Protocol,char Alpn[4])
 {

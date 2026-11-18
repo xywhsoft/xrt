@@ -2,7 +2,7 @@
 #define XCRON_TEST_SERVICE_READABLE_CASES_H
 #include <xrt/memory_stats.h>
 typedef struct rwfixture {
-    xcronservice* Service;xatomic64 Wall,Mono,Calls;xatomic32 Gate,Started,Probe,Probed,FailClock;
+    xcronservice* Service;xatomic64 Wall,Mono,Calls;xatomic32 Gate,Started,Probe,Probed,FailClock,CancellationObserved;
     bool Selected,FailBody;
 } rwfixture;
 static bool rwClock(xcronclock* C,ptr Raw)
@@ -19,7 +19,10 @@ static xcronrunresult rwProc(const xcronrun* R,const xcronexecution* T,ptr Raw)
     if(F->Selected){const xcronexecutionlabel* L=xcronExecutionSelected(T);xdatetime Expected;xrtTimeSplit(R->ScheduledAt,&Expected);Expected.Offset=0;Expected.IsDST=-1;testRequire(L && L->Candidates==1 && !memcmp(&Expected,&L->Local,sizeof(Expected)),"readability preserves complete selected worker view");}
 #endif
     xrtAtomic64FetchAdd(&F->Calls,1,XMEMORY_RELAXED);xrtAtomic32FetchAdd(&F->Started,1,XMEMORY_RELEASE);double End=xrtTimer()+10;
-    while(!xrtAtomic32Load(&F->Gate,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"readable body physical release");xrtThreadYield();}
+    while(!xrtAtomic32Load(&F->Gate,XMEMORY_ACQUIRE)){
+        if(xcronExecutionCancelled(T))xrtAtomic32Store(&F->CancellationObserved,1,XMEMORY_RELEASE);
+        testRequire(xrtTimer()<End,"readable body physical release");xrtThreadYield();
+    }
     if(F->FailBody){xrtSetErrorInfo(XERR_IO,"readable.body",23,"owned worker error");return XCRON_RUN_FAILED;}
     return xcronExecutionCancelled(T)?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED;
 }
@@ -94,7 +97,24 @@ static void testRWReadiness(bool Selected)
 }
 static void testRWCloseAndErrors(bool Selected)
 {
-    rwfixture F=rwFixture(Selected);xexecutor* E=rwStart(&F);xrtAtomic32Store(&F.Gate,0,XMEMORY_RELEASE);rwAdd(&F,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH);rwUntil(&F.Started,1,"readable cancelled body retains physical tail");testRequire(xcronServiceClose(F.Service,true,NULL) && xcronServiceWaitReadable(F.Service,0,NULL)==XWAIT_TIMEOUT,"closing without physical result is not EOF");rwwaiter W={.F=&F,.Timeout=10000};xthread* T=rwSpawn(&W);testRequire(!xrtAtomic32Load(&W.Done,XMEMORY_ACQUIRE),"readiness does not infer completion from cancellation");xrtAtomic32Store(&F.Gate,1,XMEMORY_RELEASE);rwJoin(T);testRequire(W.Result==XWAIT_OK,"cancelled physical result wakes reader");xcronservicecompletion D;testRequire(rwDrain(&F,&D)==1 && D.Result==XCRON_RUN_CANCELLED && !D.Error,"cancelled receipt remains owned by Drain");rwClear(&F,E);
+    rwfixture F=rwFixture(Selected);
+    xexecutor* E=rwStart(&F);
+    xrtAtomic32Store(&F.Gate,0,XMEMORY_RELEASE);
+    rwAdd(&F,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH);
+    rwUntil(&F.Started,1,"readable cancelled body retains physical tail");
+    testRequire(xcronServiceClose(F.Service,true,NULL) && xcronServiceWaitReadable(F.Service,0,NULL)==XWAIT_TIMEOUT,
+                "closing without physical result is not EOF");
+    rwwaiter W={.F=&F,.Timeout=10000};
+    xthread* T=rwSpawn(&W);
+    rwUntil(&F.CancellationObserved,1,"worker observes the cooperative cancellation before physical release");
+    testRequire(!xrtAtomic32Load(&W.Done,XMEMORY_ACQUIRE),"readiness does not infer completion from cancellation");
+    xrtAtomic32Store(&F.Gate,1,XMEMORY_RELEASE);
+    rwJoin(T);
+    testRequire(W.Result==XWAIT_OK,"cancelled physical result wakes reader");
+    xcronservicecompletion D;
+    testRequire(rwDrain(&F,&D)==1 && D.Result==XCRON_RUN_CANCELLED && !D.Error,
+                "cancelled receipt remains owned by Drain");
+    rwClear(&F,E);
     F=rwFixture(Selected);F.FailBody=true;E=rwStart(&F);rwAdd(&F,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH);testRequire(xcronServiceWaitReadable(F.Service,10000,NULL)==XWAIT_OK && xcronServiceWaitReadable(F.Service,0,NULL)==XWAIT_OK,"worker error is readable without taking Error");testRequire(rwDrain(&F,&D)==1 && D.Error && xrtErrorCode(D.Error)==23,"worker Error transferred exactly once by Drain");xrtErrorFree(D.Error);rwClear(&F,E);
     F=rwFixture(Selected);E=rwStart(&F);W=(rwwaiter){.F=&F,.Timeout=10000};T=rwSpawn(&W);xrtAtomic32Store(&F.FailClock,1,XMEMORY_RELEASE);xcronServiceWake(F.Service,NULL);rwJoin(T);testRequire(W.Result==XWAIT_ERROR && W.Issue.Code==XCRON_SERVICE_CLOCK && W.StickyIdentity,"empty failed owner returns original sticky error, never caller ambient cause");rwClear(&F,E);
     F=rwFixture(Selected);E=rwStart(&F);W=(rwwaiter){.F=&F,.Timeout=10000};T=rwSpawn(&W);testRequire(xcronServiceClose(F.Service,false,NULL),"close idle readable service");rwJoin(T);testRequire(W.Result==XWAIT_ERROR && W.Issue.Code==XCRON_SERVICE_CLOSED,"normal stopped-empty wakes all result readers");rwClear(&F,E);

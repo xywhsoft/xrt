@@ -21,6 +21,9 @@ static void tsFrame(xtlsstream* Stream,mqttTlsPeer* Peer,unsigned char Flags,con
         testRequire(Peer->Version==XMQTT_VERSION_5?Size==sizeof(End5)&&!memcmp(Data,End5,Size):Size==0,
                     "literal complete TLS DISCONNECT");
         if(Case->Mode==TLS_STORE_TRUNCATE){
+            xtlsalertlevel Level;xtlsalert Alert;
+            testRequire(!xrtTlsSessionPeerAlert(xrtTlsStreamSession(Stream),&Level,&Alert),
+                        "fixture receives DISCONNECT before the TLS close alert");
             xrtAtomic32FetchAdd(&Peer->Disconnects,1,XMEMORY_RELEASE);
             testRequire(xrtTlsStreamAbort(Stream),"peer truncates TLS without close_notify");
             return;
@@ -167,6 +170,7 @@ static void tsCase(xmqttversion Version,unsigned Factory,tlsStoreMode Mode)
     mqttTlsPeer Peer;
     tlsStorePeer Case={Writer,Mode};
     unsigned Flags=Mode==TLS_STORE_CERT_REJECT?MQTT_TLS_REJECT:Mode==TLS_STORE_HOLD_OPEN?MQTT_TLS_BLOCK_DNS:0;
+    if(Mode==TLS_STORE_TRUNCATE)Flags|=MQTT_TLS_SINGLE_RECORD;
     mqttTlsStartWith(&Peer,Version,Flags,tsFrame,&Case);
     xatomic64 Wall;
     xrtAtomic64Init(&Wall,200000);
