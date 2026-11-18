@@ -23,15 +23,24 @@ temporarily rotate into fallback before a discovered pool becomes ready.
 
 An accepted native attempt that reports DISCONNECTED also invalidates its map
 generation. Its typed result preserves the original delivery state and the
-client refreshes topology in the background. For a call that has yet to make
-any native attempt, an unavailable initial primary pool can use the same
-one-refresh path as a missing slot. This requires an open maintained pool
-with zero dispatchable members and a recorded transport disconnect. A live
-pool at its request quota keeps its ordinary bounded wait or overload outcome.
-The outage evidence survives failed replacement construction and clears when
-a replacement becomes ready.
-The fresh route inherits the original deadline. The pool check takes one
-gate on this refused admission path. Recovery depends on a reachable,
+client refreshes topology in the background. Before the first native attempt,
+a confirmed outage can keep the call pending across several map generations
+during an election. A topology primary reported failed, or a refused initial
+primary admission to a maintained pool with zero dispatchable members and a
+recorded transport disconnect, establishes the outage. Ordinary overload on
+a live pool keeps its existing wait or overload outcome. The pool records
+disconnect evidence through failed replacement construction and clears it
+on replacement readiness.
+
+Recovery can wait up to `1 + Route.MaxWaits` times for refreshed maps under the
+original deadline. Each generation coalesces demands through the existing
+refresh timer and backoff. A call keeps the same quota reservation throughout
+the wait. If a newer map published before a queued call enters its map wait,
+the worker schedules that call against the already published generation.
+The router reuses its storage when the next endpoint fits, so
+unchanged maps avoid rebuilding the command or allocating another route.
+Native admission waits remain cumulative across maps. A missing slot without
+confirmed outage still gets one refresh. Recovery depends on a reachable,
 authorized metadata node reporting the promotion.
 The optional [command adapter](cluster_command.md) calculates complete routing
 keys from a caller-owned catalogue before admission, with explicit keyless

@@ -57,18 +57,19 @@ def identity(port, process):
     return fields[b"run_id"].decode()
 
 
-def check_primary_loss(clients, children, metadata, master, replica, slot, report):
+def check_primary_loss(clients, children, metadata, master, replica, slot, report, during_election):
     by_port = dict(children)
     run_ids = {node["port"]: node["run_id"] for node in metadata["nodes"]}
     node_ids = {node["port"]: node["node_id"].encode() for node in metadata["nodes"]}
     surviving = [port for port in by_port if port != master]
     witness = next(port for port in surviving if port != replica)
     signal = report.with_name(f"{report.stem}-promoted")
+    down = report.with_name(f"{report.stem}-primary-down")
     evidence = dict(witness=witness, cases=[])
     metadata["primary_loss"] = evidence
     probes = []
-    cases = [(client, f"c{index}-{kind}", kind) for index, client in enumerate(clients)
-             for kind in ("inflight", "unsent")]
+    kinds = ("inflight", "unsent", "election") if during_election else ("inflight", "unsent")
+    cases = [(client, f"c{index}-{kind}", kind) for index, client in enumerate(clients) for kind in kinds]
     try:
         for port, process in children:
             assert identity(port, process) == run_ids[port]
@@ -81,7 +82,7 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
 
         for client, label, kind in cases:
             log = report.with_name(f"{report.stem}-{label}.log")
-            signal_path = str(signal)
+            signal_path = str(down if kind == "election" else signal)
             if client.suffix.lower() == ".exe":
                 signal_path = subprocess.check_output(["wslpath", "-w", signal_path], text=True).strip()
             with log.open("wb") as output:
@@ -110,6 +111,13 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
         began = time.monotonic()
         by_port[master].kill()
         evidence["old_primary_exit_code"] = by_port[master].wait(timeout=5)
+        if during_election:
+            down.touch()
+            submissions = [(label, log) for _, label, kind, _, log in probes if kind == "election"]
+            wait_until(lambda: all(f"OFFERED {label}" in log.read_text(encoding="utf-8") for label, log in submissions),
+                       2, "native election writes submitted")
+            assert exchange(replica, ["ROLE"])[0][0] == b"slave", "election write offered after promotion"
+            evidence["submitted_before_promotion"] = len(submissions)
 
         def ownership_changed():
             if exchange(replica, ["ROLE"])[0][0] != b"master":
@@ -160,7 +168,10 @@ def main():
     parser.add_argument("--server", type=Path, default=Path(shutil.which("redis-server") or "redis-server"))
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--primary-loss", action="store_true", help="kill the owned primary and observe automatic election")
+    parser.add_argument("--during-election", action="store_true", help="also offer unsent writes before the replica promotes")
     args = parser.parse_args()
+    if args.during_election and not args.primary_loss:
+        parser.error("--during-election requires --primary-loss")
     server = args.server.absolute()
     clients = [client.absolute() for client in args.client]
     report = args.report.absolute()
@@ -182,7 +193,7 @@ def main():
                 command = [
                     str(server), "--bind", "127.0.0.1", "--port", str(port), "--save", "", "--appendonly", "no",
                     "--dir", str(directory), "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf",
-                    "--cluster-node-timeout", "1000", "--repl-diskless-sync-delay", "0",
+                    "--cluster-node-timeout", "2000" if args.during_election else "1000", "--repl-diskless-sync-delay", "0",
                 ]
                 with (directory / "server.log").open("wb") as log:
                     process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
@@ -263,7 +274,7 @@ def main():
                     "[PASS] real Cluster replica routing:" in run.stdout, run.stdout
                 print(client.name, "passed", flush=True)
             if args.primary_loss:
-                check_primary_loss(clients, children, result, master, replica, slot, report)
+                check_primary_loss(clients, children, result, master, replica, slot, report, args.during_election)
             result["complete"] = True
         except BaseException:
             result["failure"] = traceback.format_exc()

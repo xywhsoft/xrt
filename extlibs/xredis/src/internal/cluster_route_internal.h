@@ -17,5 +17,8 @@ void __xredisClusterRouteUnit(xredisclusterroute* Route);
 xredisadmission __xredisClusterRouteRetryMissing(xredisclusterroute* Previous,
     const xredisclustertopology* Topology,xbytesview Origin,uint32 ReplicaCursor,
     const xredisclusterrouteconfig* Config,xredisclusterroute** Route,xredisclusterroutestatus* Failure);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+bool __xredisClusterRoutePrimaryOutage(const xredisclusterroute* Route);
+#endif
 #endif
 #endif

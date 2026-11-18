@@ -288,11 +288,14 @@ static void waitSignal(cstr Path)
 
 static int checkPromotion(int argc, char** argv)
 {
-    if (argc != 8 || (strcmp(argv[5], "inflight") && strcmp(argv[5], "unsent"))) return 2;
+    if (argc != 8 || (strcmp(argv[5], "inflight") && strcmp(argv[5], "unsent") && strcmp(argv[5], "election")))
+        return 2;
     long Primary = strtol(argv[2], NULL, 10), Replica = strtol(argv[3], NULL, 10), Witness = strtol(argv[4], NULL, 10);
     if (Primary <= 0 || Replica <= 0 || Witness <= 0 || Primary > 65535 || Replica > 65535 || Witness > 65535 ||
         Primary == Replica || Primary == Witness || Replica == Witness) return 2;
     bool Inflight = !strcmp(argv[5], "inflight");
+    bool Election = !strcmp(argv[5], "election");
+    bool Shards = Inflight || Election;
     char Counter[96];
     int Size = snprintf(Counter, sizeof(Counter), "xrt-owned:failover:{fixed}:%s", argv[6]);
     if (Size <= 0 || (size_t)Size >= sizeof(Counter)) return 2;
@@ -300,12 +303,12 @@ static int checkPromotion(int argc, char** argv)
     require(Engine && xrtNetEngineStart(Engine), "promotion engine start");
     clusterfixture Fixture = {
         .Primary = (uint16)Primary, .Replica = (uint16)Replica, .Witness = (uint16)Witness,
-        .Mode = Inflight ? XREDIS_INIT_RESP3 : XREDIS_INIT_RESP2,
+        .Mode = Shards ? XREDIS_INIT_RESP3 : XREDIS_INIT_RESP2,
     };
     xrtAtomic32Init(&Fixture.DenyReplica, 0);
     xredisclusternodesconfig NC;
     xredisClusterNodesConfigInit(&NC);
-    NC.Protocol = Inflight ? XREDIS_RESP3 : XREDIS_RESP2;
+    NC.Protocol = Shards ? XREDIS_RESP3 : XREDIS_RESP2;
     NC.Authorize = clusterAuthorize;
     NC.Connect = clusterConnect;
     NC.Data = &Fixture;
@@ -331,9 +334,9 @@ static int checkPromotion(int argc, char** argv)
     xredisPoolRelease(Other);
     xredisclusterclientconfig Config;
     xredisClusterClientConfigInit(&Config);
-    Config.Refresh.Format = Inflight ? XREDIS_CLUSTER_SHARDS : XREDIS_CLUSTER_LEGACY_SLOTS;
-    Config.RefreshMin = 10;
-    Config.RefreshRetryMax = 100;
+    Config.Refresh.Format = Shards ? XREDIS_CLUSTER_SHARDS : XREDIS_CLUSTER_LEGACY_SLOTS;
+    Config.RefreshMin = Election ? 100 : 10;
+    Config.RefreshRetryMax = Election ? 300 : 100;
     xredisclusterclient* Client = NULL;
     require(xredisClusterClientCreate(Engine, 0, Nodes, Seeds, 2, &Config, &Client) == XREDIS_ADMISSION_ACCEPTED,
         "promotion client start");
@@ -378,13 +381,20 @@ static int checkPromotion(int argc, char** argv)
     }
     double Entered = xrtTimer();
     xfuture* Write = NULL;
-    require(xredisClusterClientCall(Client, Slot, Increment, 2, 4000, &Write) == XREDIS_ADMISSION_ACCEPTED, "post-promotion INCR");
-    const xredisclusterclientresult* Result = waitValue(Write);
+    require(xredisClusterClientCall(Client, Slot, Increment, 2, Election ? 10000 : 4000, &Write) ==
+        XREDIS_ADMISSION_ACCEPTED, "recovery INCR");
+    if (Election) {
+        printf("OFFERED %s\n", argv[6]);
+        fflush(stdout);
+    }
+    require(xrtFutureWaitFor(Write, 11000) == XWAIT_OK && xrtFutureValue(Write), "typed recovery result");
+    const xredisclusterclientresult* Result = xrtFutureValue(Write);
     xredisclusterclientinfo After = clientInfo(Client);
     bool Recovered = Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
         Result->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Result->Generation > Before.Generation &&
         Result->Route.Attempts == 1 && Result->Route.Moved == 0 && Result->Route.AttemptAddress.Port == Fixture.Replica &&
-        !Result->Route.AttemptAddress.Reason && !After.Moved;
+        !Result->Route.AttemptAddress.Reason && !After.Moved &&
+        (!Election || After.Refreshes > Before.Refreshes + 1u);
     if (!Recovered)
         fprintf(stderr, "recovery result status=%d route=%d query=%d delivery=%d attempts=%zu port=%u candidate=%u provider=%d admission=%d generation=%llu current=%llu refreshes=%llu refresh_status=%d moved=%llu\n",
             (int)Result->Status, (int)Result->Route.Status, (int)Result->Route.Query.Status, (int)Result->Route.Query.Delivery,
@@ -397,6 +407,8 @@ static int checkPromotion(int argc, char** argv)
     require(Count.Type == XREDIS_REPLY_INTEGER && Count.Integer == 1, "post-promotion counter increments once");
     xrtFutureDestroy(Write);
     printf("recovery_call_ms=%.3f\n", (xrtTimer() - Entered) * 1000.);
+    if (Election)
+        printf("election_refreshes=%llu\n", (unsigned long long)(After.Refreshes - Before.Refreshes));
     xredisclusteraddress Promoted = Seeds[0];
     Promoted.Port = Fixture.Replica;
     xredispool* New = NULL;

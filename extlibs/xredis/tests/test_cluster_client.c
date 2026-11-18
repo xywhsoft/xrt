@@ -208,6 +208,50 @@ static void ccMissing(void)
     testRequire(V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE && !V->Route.Attempts && V->Generation==2 && xrtAtomic32Load(&F->Nodes[0].Queries,XMEMORY_ACQUIRE)==2 && !xrtAtomic32Load(&F->Base->Business,XMEMORY_ACQUIRE),"missing slot did not fetch once before error");cfStop(F,C);xrtFutureDestroy(R);
     F=rfStart(3);xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);xredisClusterClientConfigInit(&K);K.Route.MaxStorageBytes=1;C=cfCreate(F,&K);R=cfEcho(C,5000);redisPeerWait(&F->Nodes[0].Queries,1);rfRelease(F,0);V=cfWait(R);testRequire(V->Status==XREDIS_CLUSTER_CLIENT_LIMIT && !V->RouteObserved && !V->Native,"cold route limit misclassified as allocation failure");cfStop(F,C);xrtFutureDestroy(R);
 }
+static void ccElectionWait(void)
+{
+    rffixture* F=rfStart(3);
+    xrtAtomic32Store(&F->Nodes[0].Failed,1,XMEMORY_RELEASE);
+    xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);
+    K.Route.MaxWaits=3;
+    xredisclusterclient* C=cfCreate(F,&K);cfReady(C);
+    xfuture* Limited=cfEcho(C,5000);
+    const xredisclusterclientresult* Result=cfWait(Limited);
+    testRequire(Result->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && Result->Route.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE &&
+        Result->Generation==5 && !Result->Route.Attempts && !Result->Native && cfInfo(C).Refreshes==5,
+        "confirmed primary outage observes one refresh plus the configured map wait budget");
+    xrtFutureDestroy(Limited);cfStop(F,C);
+
+    F=rfStart(3);
+    xrtAtomic32Store(&F->Nodes[0].Failed,1,XMEMORY_RELEASE);
+    C=cfCreate(F,NULL);cfReady(C);
+    xfuture* Waiting=cfEcho(C,5000);
+    redisPeerWait(&F->Nodes[0].Queries,4);
+    testRequire(xrtFutureState(Waiting)==XFUTURE_PENDING && !xrtAtomic32Load(&F->Base->Business,XMEMORY_ACQUIRE),
+        "several failed-primary generations leave the unsent operation pending");
+    xrtAtomic32Store(&F->Nodes[0].Target,1,XMEMORY_RELEASE);
+    Result=cfWait(Waiting);
+    testRequire(Result->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && Result->Route.Query.Status==XREDIS_REQUEST_OK &&
+        Result->Generation>=4 && Result->Route.Attempts==1 && Result->Route.AttemptAddress.Port==F->Base->Peers[1].Address.Port,
+        "one native attempt after the new owner appears");
+    xrtFutureDestroy(Waiting);cfStop(F,C);
+
+    F=rfStart(3);
+    xrtAtomic32Store(&F->Nodes[0].Failed,1,XMEMORY_RELEASE);
+    C=cfCreate(F,NULL);cfReady(C);
+    xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);
+    xfuture* Cancelled=cfEcho(C,5000),*Expired=cfEcho(C,150);
+    redisPeerWait(&F->Nodes[0].Queries,2);
+    testRequire(xrtFutureCancel(Cancelled),"cancel during shared election refresh");
+    Result=cfWait(Cancelled);
+    testRequire(Result->Status==XREDIS_CLUSTER_CLIENT_CANCELLED && !Result->Route.Attempts && !Result->Native,
+        "cancel before native admission");
+    Result=cfWait(Expired);
+    testRequire(Result->Status==XREDIS_CLUSTER_CLIENT_TIMEOUT && !Result->Route.Attempts && !Result->Native &&
+        !cfInfo(C).Requests && !xrtAtomic32Load(&F->Base->Business,XMEMORY_ACQUIRE),
+        "original deadline includes election and releases request quotas");
+    xrtFutureDestroy(Cancelled);xrtFutureDestroy(Expired);cfStop(F,C);
+}
 static void ccBudgetDrain(xallocationbudget* B)
 {double Due=xrtTimer()+10;for(;;){xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(B,&I) && xrtTimer()<Due,"managed budget retirement");if(!I.LiveBytes && !I.LiveCount)return;xrtSleep(1);}}
 static void ccOOM(void)
@@ -272,6 +316,70 @@ static void ccSeedEvolution(void)
     xrtAtomic32Store(&F->Nodes[1].Mode,RF_DENIED,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[0].Mode,RF_NORMAL,XMEMORY_RELEASE);testRequire(xredisClusterClientInvalidate(C),"bootstrap fallback demand");Due=xrtTimer()+10;while(cfInfo(C).Generation<3 || cfInfo(C).Dirty){testRequire(xrtTimer()<Due,"bootstrap fallback stranded");xrtSleep(1);}xfuture* R=cfEcho(C,5000);testRequire(cfWait(R)->Route.Query.Status==XREDIS_REQUEST_OK,"business after seed evolution");cfStop(F,C);testRequire(xredisClusterMapInfo(Map,&M) && M.Generation==2,"retained evolved map changed");xredisClusterMapRelease(Map);xrtFutureDestroy(R);
 }
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
+static void ccMapAlreadyPublished(void)
+{
+    rffixture* F=rfStart(3);
+    xrtAtomic32Store(&F->Nodes[0].Failed,1,XMEMORY_RELEASE);
+    xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);
+    K.RefreshMin=1;
+    xredisclusteraddress Seed=nnAddress(F->Base,0);Seed.Slot=0;
+    xnetengine* Progress=F->Base->Peers[1].Engine;
+    xredisclusterclient* C=NULL;
+    testRequire(xredisClusterClientCreate(Progress,0,F->Base->Cache,&Seed,1,&K,&C)==XREDIS_ADMISSION_ACCEPTED,
+        "separate progress engine for queued map publication");
+    cfReady(C);
+    xrtAtomic32Store(&F->Nodes[0].Target,1,XMEMORY_RELEASE);
+    xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);
+    testRequire(xredisClusterClientInvalidate(C),"stall next map");
+    redisPeerWait(&F->Nodes[0].Queries,2);
+    ccbarrier B={0};
+    testRequire(xrtNetEnginePost(Progress,0,ccBlock,&B),"hold managed progress worker");
+    redisPeerWait(&B.Entered,1);
+    xfuture* Call=cfEcho(C,2500);
+    xfuture* Metadata=xrtFutureRef(C->Metadata.Future);
+    rfRelease(F,0);
+    testRequire(Metadata && xrtFutureWaitFor(Metadata,1000)==XWAIT_OK,"metadata reply ready before worker enters");
+    xrtFutureDestroy(Metadata);
+    double Due=xrtTimer()+1;
+    while(xredisClusterWatchActive(&C->Metadata)){
+        testRequire(xrtTimer()<Due,"metadata watch released before worker resumes");xrtSleep(1);
+    }
+    xrtAtomic32Store(&B.Continue,1,XMEMORY_RELEASE);
+    const xredisclusterclientresult* V=cfWait(Call);
+    testRequire(V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->Generation==2 &&
+        V->Route.Query.Status==XREDIS_REQUEST_OK && V->Route.Attempts==1 && cfInfo(C).Refreshes==2,
+        "queued stale route uses the map already published on this worker turn");
+    xrtFutureDestroy(Call);cfStop(F,C);
+}
+static void ccRecoveryStorage(void)
+{
+    xredisclustertopology* Missing=crTopology(6379,"old",2,16383);
+    xredisclustertopology* Promoted=crTopology(6380,"promoted.example",0,16383);
+    xredisclusterrouteconfig K;xredisClusterRouteConfigInit(&K);K.GetPool=xredisClusterNodesGetPool;
+    const xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("same\0payload")};
+    xredisclusterroute *Original=NULL,*Next=NULL;
+    double Entered=xrtTimer();
+    testRequire(__xredisClusterRouteCreate(Missing,(xbytesview){0},1,0,A,2,&K,&Original,Entered,NULL)==
+        XREDIS_ADMISSION_ACCEPTED && Original->Result.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE,"unsent route storage");
+    double Deadline=Original->Deadline;
+    xallocationbudget* Budget=NULL;xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"retry OOM scope");
+    xredisclusterroutestatus Failure=XREDIS_CLUSTER_ROUTE_PROTOCOL;
+    testRequire(__xredisClusterRouteRetryMissing(Original,Missing,(xbytesview){0},0,&K,&Next,&Failure)==
+        XREDIS_ADMISSION_ACCEPTED && Next==Original && Original->Deadline==Deadline,"unchanged maps reuse route without allocation");
+    Next=(void*)(uintptr_t)1;
+    testRequire(__xredisClusterRouteRetryMissing(Original,Promoted,(xbytesview){0},0,&K,&Next,&Failure)==
+        XREDIS_ADMISSION_ERROR && Failure==XREDIS_CLUSTER_ROUTE_MEMORY && Next==(void*)(uintptr_t)1 &&
+        Original->Result.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE,"growing host OOM preserves the original route and output");
+    xrtClearError();testRequire(xrtAllocationBudgetLeave(&Scope),"retry OOM scope leave");
+    ccBudgetDrain(Budget);xrtAllocationBudgetFree(Budget);
+    testRequire(__xredisClusterRouteRetryMissing(Original,Promoted,(xbytesview){0},0,&K,&Next,&Failure)==
+        XREDIS_ADMISSION_ACCEPTED && Next!=Original && Next->Deadline==Deadline && Next->Entered==Entered &&
+        Next->Result.Address.Port==6380 && Next->Arguments[1].Size==A[1].Size &&
+        !memcmp(Next->Arguments[1].Data,A[1].Data,A[1].Size),"growing host preserves original deadline and bytes");
+    xredisClusterRouteDestroy(Next);xredisClusterRouteDestroy(Original);
+    xredisClusterTopologyRelease(Missing);xredisClusterTopologyRelease(Promoted);
+}
 typedef struct ccdeadlineprobe {rffixture* Fixture;xredisclusterclient* Client;xatomic32 Done;} ccdeadlineprobe;
 static void ccInspectDeadline(xnetworker* W,ptr Data)
 {
@@ -285,8 +393,8 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccBusyPoolDoesNotRefresh();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
+{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccBusyPoolDoesNotRefresh();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccElectionWait();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
-ccDeadline();
+ccDeadline();ccRecoveryStorage();ccMapAlreadyPublished();
 #endif
 puts("[PASS] managed Cluster client: automatic bootstrap, bounded asynchronous calls, MOVED refresh, ephemeral ASK, queue deadlines, quotas, cancellation, recovery, producers, OOM and retained outcomes");return 0;}

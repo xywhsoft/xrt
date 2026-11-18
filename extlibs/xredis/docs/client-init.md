@@ -167,6 +167,10 @@ survivors to agree on the automatically elected primary. In-flight operations
 retain DISCONNECTED and MAY_HAVE_EXECUTED. Unsent writes can reroute after
 refresh, and the promoted primary uses a separate ordinary pool. The driver
 checks the server-side counters and records the election and call timings.
+Use `--primary-loss --during-election` to also submit writes after the old
+primary exits while the candidate still reports itself a replica. These
+probes retain their original deadline through multiple map generations and
+each verifies one increment on the promoted primary.
 
 ```sh
 python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_cluster_client,xredis_role_client --kind static --verify

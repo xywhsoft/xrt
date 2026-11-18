@@ -1,0 +1,692 @@
+{
+  "schema": 1,
+  "scope": "Bounded unsent Cluster calls across stale map generations during actual automatic election",
+  "branch": "master",
+  "workdir": "D:/GIT/xrt",
+  "qualification_head": "2ebbbfdc878ed409fbb8147a1b5f744d63808c33",
+  "source": [
+    {
+      "path": "extlibs/xredis/docs/client-init.md",
+      "sha256": "66b045853f766a09a6bb97cf25bd47d32f8fba21311339019ec3062b721819c9"
+    },
+    {
+      "path": "extlibs/xredis/docs/cluster_client.md",
+      "sha256": "de0ef6644fc01f7545334e1c0649d3bb8ec64743753af3abe49c142ae67ea131"
+    },
+    {
+      "path": "extlibs/xredis/include/xredis/cluster_client.h",
+      "sha256": "f10be2112f8405a3d6bd55ed8a7a682d8ccecaf5be55174b544250df25d3ce79"
+    },
+    {
+      "path": "extlibs/xredis/src/cluster_client/cluster_client.c",
+      "sha256": "f1a0770da65cac6b628517a776450a7b38791bfb91c388a4bc1fe275446f662e"
+    },
+    {
+      "path": "extlibs/xredis/src/cluster_route/cluster_route.c",
+      "sha256": "3bbab9309bd405f3f5c580e85cf86a251ee52addc2b246fb1153a9da20dc109d"
+    },
+    {
+      "path": "extlibs/xredis/src/internal/cluster_route_internal.h",
+      "sha256": "b035beca446e96b6c5b8dcfa77100091bd93aa33d5f7a6771dabfaf635cef696"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/redis_cluster_readonly.c",
+      "sha256": "355b0da59ae1d7d9d3eb6f5da71e543ea6efdb04f6f17b62927720ac05b6174d"
+    },
+    {
+      "path": "extlibs/xredis/tests/interop/run_redis_cluster_readonly.py",
+      "sha256": "eb3b0ec79df0f5e164eb1b1059483fd65c9f1a60397e404862bde912af1efd0e"
+    },
+    {
+      "path": "extlibs/xredis/tests/support/cluster_refresh_peer.h",
+      "sha256": "cb0df328609fcfd77525902f7b0c95b1ead37a216bb9ffd10a6809de7ddea929"
+    },
+    {
+      "path": "extlibs/xredis/tests/test_cluster_client.c",
+      "sha256": "f95d75124d095af2ba7ed454f3f40e368eb370464e2541d9b18af00fdc6465b7"
+    },
+    {
+      "path": "single/extlibs/xredis.h",
+      "sha256": "4f463aa5eeb6b03557c661801d7ffb9de8db36b0055d29e264343e45ea20faa6"
+    },
+    {
+      "path": "single/extlibs/xredis_decl.h",
+      "sha256": "21154527a89cfbd92ddaacfb92fbc1084f475af1958d2ad6d0cde2210e8165e9"
+    }
+  ],
+  "checks": {
+    "windows": {
+      "cluster": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-cluster.log",
+        "sha256": "ac88633720ca09d3537d8e1c68f3d8085814aace5ffc96e7703fdefb010cbe4b",
+        "programs": [
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_client.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_topology.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_route.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_nodes.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_cluster_refresh.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\examples_cluster_topology_main.exe",
+          "[test] out\\gcc\\native\\xredis_cluster_client_tests+4-161a5a772172\\test_single_xredis_cluster_topology.exe"
+        ]
+      },
+      "managed_single_header": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-single-final.log",
+        "sha256": "8d32e6939a7312c97e21587952cb4021368ad60b90b58ea83a28114b8d5ea601",
+        "programs": [
+          "[test] out\\gcc\\native\\xredis_cluster_client\\test_single_xredis_cluster_client.exe"
+        ]
+      },
+      "static": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-package-static.log",
+        "sha256": "be371cd4f0eec37dc15a1d34636b9ada29dde71b24b04f7910bd0849cd716b2a",
+        "programs": [
+          "[verify] release\\gnu\\native\\xredis_cluster_client,xredis_role_client\\static\\test_package_xredis.exe"
+        ]
+      },
+      "shared": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-package-shared.log",
+        "sha256": "ca8d621103027637d1b00445e48d9664df41fed87dbe5cdfd2dace1dee3a4911",
+        "programs": [
+          "[verify] release\\gnu\\native\\xredis_cluster_client,xredis_role_client\\shared\\test_package_xredis.exe"
+        ]
+      }
+    },
+    "wsl": {
+      "cluster": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-cluster.log",
+        "sha256": "bae4734f5a7a5a6039a73d5a3cbb8e189a5855e77a573d7c1f35c7b82ddfff0c",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_client",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_topology",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_route",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_nodes",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_cluster_refresh",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/examples_cluster_topology_main",
+          "[test] out/gcc/x64/xredis_cluster_client_tests+4-161a5a772172/test_single_xredis_cluster_topology"
+        ]
+      },
+      "managed_single_header": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-single-final.log",
+        "sha256": "aa97b6ebfbff01b7bdc5fa7616ba4c8da93ef7b71d75e84994e554eae9e1c5a5",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client/test_single_xredis_cluster_client"
+        ]
+      },
+      "static": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-package-static.log",
+        "sha256": "de16a2ba7b1a3255d921e5b60ed87e5566b553461c7ae208001006ce901a5839",
+        "programs": [
+          "[verify] release/gnu/x64/xredis_cluster_client,xredis_role_client/static/test_package_xredis"
+        ]
+      },
+      "shared": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-package-shared.log",
+        "sha256": "52df861f7ad985deb9b3c977326f7e79098d461bc8413b69857d3771b1d39d11",
+        "programs": [
+          "[verify] release/gnu/x64/xredis_cluster_client,xredis_role_client/shared/test_package_xredis"
+        ]
+      },
+      "asan_ubsan_leaks": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-sanitized.log",
+        "sha256": "7cff4d5fef2ab5459fcab47e79242ca88466e27bc5d68750008f153aec4f7706",
+        "programs": [
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_cluster_client",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_cluster_topology",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/examples_cluster_topology_main",
+          "[test] out/gcc/x64/xredis_cluster_client_tests,xredis_cluster_topology/test_single_xredis_cluster_topology"
+        ]
+      }
+    }
+  },
+  "gates": {
+    "generated_api_layout_maturity": {
+      "path": "out/service-extensions/xredis-cluster-election-wait-20261119/gates.log",
+      "sha256": "5ddfa6b05bdab1dae2fdfd655862bea94bb3967aa16f6214913abbba47b2ec04",
+      "programs": []
+    },
+    "strict_release": {
+      "path": "out/service-extensions/xredis-cluster-election-wait-20261119/gate-release.log",
+      "sha256": "82de3a888862098f802037d12ec80e3b21d5b10a8c8e2c6d8c9963e4585211f1",
+      "programs": [],
+      "exit_code": 1,
+      "developing": 32
+    }
+  },
+  "baseline": {
+    "report": {
+      "path": "out/service-extensions/xredis-cluster-election-wait-20261119/baseline.json",
+      "sha256": "7a7a96eff42040d50f05e9d162ab27acf433763a050d0f33daf06954315eefc1"
+    },
+    "election_case": {
+      "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-baseline",
+      "label": "c0-election",
+      "kind": "election",
+      "exit_code": 1,
+      "output": "READY election c0-election\nOFFERED c0-election\nrecovery result status=0 route=4 query=0 delivery=0 attempts=0 port=0 candidate=17537 provider=0 admission=1 generation=2 current=2 refreshes=2 refresh_status=0 moved=0\n[FAIL] Cluster READONLY: one write on the promoted primary without MOVED\n",
+      "server_counter": 0
+    },
+    "missed_publication_reproduction": {
+      "path": "out/service-extensions/xredis-cluster-election-wait-20261119/published-race-baseline.log",
+      "sha256": "5eb81cc5bc2530d9ceb50f20b6cadbeedbcd0326757eb1c815f0a8e01ec7a0bd",
+      "programs": [
+        "[test] out\\gcc\\native\\xredis_cluster_client\\test_single_xredis_cluster_client.exe"
+      ]
+    }
+  },
+  "trials": [
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-1.json",
+        "sha256": "39ac1660d9a8eef76d095ceec9fe2a3f6fdb35805c7cf8b898bab4f7a2dbfa2b"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-1.log",
+        "sha256": "81331fab0856a6e9f3a8eddcf97746f86a06e3bb9f0d1a1e5a70ba48a98cd184",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 27915,
+      "replica": 37536,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 17112,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=5.741\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 5.741,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=10.857\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.857,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c0-election\nOFFERED c0-election\nrecovery_call_ms=3137.789\nelection_refreshes=31\n[PASS] real Cluster primary loss: election c0-election\n",
+          "server_counter": 1,
+          "refresh_starts": 31,
+          "recovery_call_ms": 3137.789,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.308\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.308,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=12.195\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 12.195,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c1-election\nOFFERED c1-election\nrecovery_call_ms=3160.170\nelection_refreshes=31\n[PASS] real Cluster primary loss: election c1-election\n",
+          "server_counter": 1,
+          "refresh_starts": 31,
+          "recovery_call_ms": 3160.17,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "submitted_before_promotion": 2,
+      "kill_to_survivor_convergence_ms": 3146.8317720000414,
+      "promoted_role": "master",
+      "probes_terminal": true
+    },
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-2.json",
+        "sha256": "7e508392e067ffc19884df42f8dc83e5f1db59e066c04b7f5b7345ece3711b25"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-2.log",
+        "sha256": "81331fab0856a6e9f3a8eddcf97746f86a06e3bb9f0d1a1e5a70ba48a98cd184",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 39053,
+      "replica": 24808,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 16645,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.235\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.235,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=10.918\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.918,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c0-election\nOFFERED c0-election\nrecovery_call_ms=4343.449\nelection_refreshes=44\n[PASS] real Cluster primary loss: election c0-election\n",
+          "server_counter": 1,
+          "refresh_starts": 44,
+          "recovery_call_ms": 4343.449,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=6.011\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 6.011,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=11.171\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.171,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c1-election\nOFFERED c1-election\nrecovery_call_ms=4312.368\nelection_refreshes=43\n[PASS] real Cluster primary loss: election c1-election\n",
+          "server_counter": 1,
+          "refresh_starts": 43,
+          "recovery_call_ms": 4312.368,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "submitted_before_promotion": 2,
+      "kill_to_survivor_convergence_ms": 4299.294547000045,
+      "promoted_role": "master",
+      "probes_terminal": true
+    },
+    {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-3.json",
+        "sha256": "74de23d50806ec7c64c1e5593da526bf9cf37af7862f42ea8c40540f2592d010"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/final-qualified-3.log",
+        "sha256": "81331fab0856a6e9f3a8eddcf97746f86a06e3bb9f0d1a1e5a70ba48a98cd184",
+        "programs": []
+      },
+      "slot": 6056,
+      "primary": 28592,
+      "replica": 38156,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "witness": 39383,
+      "cases": [
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c0-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=5.871\n[PASS] real Cluster primary loss: inflight c0-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 5.871,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c0-unsent\nrecovery_call_ms=10.766\n[PASS] real Cluster primary loss: unsent c0-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 10.766,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-wsl",
+          "label": "c0-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c0-election\nOFFERED c0-election\nrecovery_call_ms=3837.573\nelection_refreshes=38\n[PASS] real Cluster primary loss: election c0-election\n",
+          "server_counter": 1,
+          "refresh_starts": 38,
+          "recovery_call_ms": 3837.573,
+          "client_sha256": "9c5d718ca4c505f8bfc46c02f366861b37307da19034e6115667dfec6eac722d"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-inflight",
+          "kind": "inflight",
+          "exit_code": 0,
+          "output": "READY inflight c1-inflight\nDISCONNECTED MAY_HAVE_EXECUTED attempts=1\nrecovery_call_ms=11.722\n[PASS] real Cluster primary loss: inflight c1-inflight\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.722,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-unsent",
+          "kind": "unsent",
+          "exit_code": 0,
+          "output": "READY unsent c1-unsent\nrecovery_call_ms=11.734\n[PASS] real Cluster primary loss: unsent c1-unsent\n",
+          "server_counter": 1,
+          "recovery_call_ms": 11.734,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        },
+        {
+          "client": "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-election-wait-20261119/cluster-windows.exe",
+          "label": "c1-election",
+          "kind": "election",
+          "exit_code": 0,
+          "output": "READY election c1-election\nOFFERED c1-election\nrecovery_call_ms=3911.244\nelection_refreshes=38\n[PASS] real Cluster primary loss: election c1-election\n",
+          "server_counter": 1,
+          "refresh_starts": 38,
+          "recovery_call_ms": 3911.244,
+          "client_sha256": "ad14317ac8b1071b90324e1862393bb275653c5af348669d7e2a72b8bcb08608"
+        }
+      ],
+      "observed_blpop": 2,
+      "old_primary_exit_code": -9,
+      "submitted_before_promotion": 2,
+      "kill_to_survivor_convergence_ms": 3843.7254379996375,
+      "promoted_role": "master",
+      "probes_terminal": true
+    }
+  ],
+  "performance": {
+    "windows": {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-final-perf.json",
+        "sha256": "f9f9c9b8aa456d53ce2dccae7fbe31d70765eb225d7b7eb3362b721c32f138bf"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/windows-final-perf.log",
+        "sha256": "ed7ec634f0b8770721174b9ecac715fe89d70f082fac75c9cbb79569520516fb"
+      },
+      "exit_code": 1,
+      "quality_failures": [
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/requests_per_sec: relative_central_range=8.9%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p95_us: relative_central_range=22.3%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p99_us: relative_mad=6.7%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p99_us: relative_central_range=30.1%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p999_us: relative_central_range=28.8%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/requests_per_sec: relative_mad=3.1%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/requests_per_sec: relative_central_range=13.9%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p50_us: relative_central_range=18.3%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p95_us: relative_mad=6.1%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p95_us: relative_central_range=13.7%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p99_us: relative_mad=4.0%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p99_us: relative_central_range=9.4%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p999_us: relative_central_range=7.0%"
+      ],
+      "profiles": {
+        "xredis_cluster_primary_warm": {
+          "requests_per_sec": {
+            "median": 179955.964712,
+            "samples": [
+              179955.964712,
+              192498.524832,
+              176498.516578
+            ],
+            "unit": "requests/s"
+          },
+          "latency_p50_us": {
+            "median": 166.399986,
+            "samples": [
+              166.399986,
+              164.000085,
+              170.500018
+            ],
+            "unit": "us"
+          },
+          "latency_p95_us": {
+            "median": 263.000024,
+            "samples": [
+              263.000024,
+              207.199948,
+              265.799928
+            ],
+            "unit": "us"
+          },
+          "latency_p99_us": {
+            "median": 302.30009,
+            "samples": [
+              322.500011,
+              231.400016,
+              302.30009
+            ],
+            "unit": "us"
+          },
+          "latency_p999_us": {
+            "median": 349.5001,
+            "samples": [
+              356.499921,
+              255.99997,
+              349.5001
+            ],
+            "unit": "us"
+          }
+        },
+        "xredis_cluster_replica_warm": {
+          "requests_per_sec": {
+            "median": 242829.841795,
+            "samples": [
+              216546.771936,
+              250322.603293,
+              242829.841795
+            ],
+            "unit": "requests/s"
+          },
+          "latency_p50_us": {
+            "median": 123.800011,
+            "samples": [
+              145.200058,
+              122.500001,
+              123.800011
+            ],
+            "unit": "us"
+          },
+          "latency_p95_us": {
+            "median": 179.899973,
+            "samples": [
+              190.89994,
+              166.299986,
+              179.899973
+            ],
+            "unit": "us"
+          },
+          "latency_p99_us": {
+            "median": 199.900009,
+            "samples": [
+              210.60009,
+              191.900064,
+              199.900009
+            ],
+            "unit": "us"
+          },
+          "latency_p999_us": {
+            "median": 240.799971,
+            "samples": [
+              241.499976,
+              224.60008,
+              240.799971
+            ],
+            "unit": "us"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-final-perf.json",
+        "sha256": "df44d22096e19f1eebd350a982f8785afcaf1ccde1b641bf6e8dfbd4695515c7"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-election-wait-20261119/wsl-final-perf.log",
+        "sha256": "461813381712d1402bcd6864d7884162863e314d8b8fdb8470042a108b4e25d0"
+      },
+      "exit_code": 1,
+      "quality_failures": [
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/requests_per_sec: relative_mad=4.3%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/requests_per_sec: relative_central_range=11.2%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p95_us: relative_mad=5.6%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p95_us: relative_central_range=21.5%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p99_us: relative_central_range=19.6%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p999_us: relative_mad=7.2%",
+        "xredis_cluster_replica_warm/xredis_cluster_primary_warm/latency_p999_us: relative_central_range=20.3%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/requests_per_sec: relative_mad=5.5%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/requests_per_sec: relative_central_range=13.1%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p50_us: relative_central_range=22.8%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p95_us: relative_central_range=10.8%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p99_us: relative_central_range=7.2%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p999_us: relative_mad=6.9%",
+        "xredis_cluster_replica_warm/xredis_cluster_replica_warm/latency_p999_us: relative_central_range=23.8%"
+      ],
+      "profiles": {
+        "xredis_cluster_primary_warm": {
+          "requests_per_sec": {
+            "median": 44065.281207,
+            "samples": [
+              41021.579595,
+              44065.281207,
+              45973.496477
+            ],
+            "unit": "requests/s"
+          },
+          "latency_p50_us": {
+            "median": 642.1,
+            "samples": [
+              653.5,
+              642.1,
+              636.7
+            ],
+            "unit": "us"
+          },
+          "latency_p95_us": {
+            "median": 1188.5,
+            "samples": [
+              1378.101,
+              1188.5,
+              1122.1
+            ],
+            "unit": "us"
+          },
+          "latency_p99_us": {
+            "median": 1508.601,
+            "samples": [
+              1766.201,
+              1471.101,
+              1508.601
+            ],
+            "unit": "us"
+          },
+          "latency_p999_us": {
+            "median": 1719.9,
+            "samples": [
+              1944.6,
+              1719.9,
+              1596.1
+            ],
+            "unit": "us"
+          }
+        },
+        "xredis_cluster_replica_warm": {
+          "requests_per_sec": {
+            "median": 55543.765466,
+            "samples": [
+              55543.765466,
+              51317.997961,
+              58597.289585
+            ],
+            "unit": "requests/s"
+          },
+          "latency_p50_us": {
+            "median": 517.9,
+            "samples": [
+              517.9,
+              631.9,
+              513.7
+            ],
+            "unit": "us"
+          },
+          "latency_p95_us": {
+            "median": 836.9,
+            "samples": [
+              836.9,
+              838.5,
+              748.5
+            ],
+            "unit": "us"
+          },
+          "latency_p99_us": {
+            "median": 929.8,
+            "samples": [
+              945.1,
+              929.8,
+              878.4
+            ],
+            "unit": "us"
+          },
+          "latency_p999_us": {
+            "median": 1150.1,
+            "samples": [
+              1229.8,
+              1150.1,
+              956.001
+            ],
+            "unit": "us"
+          }
+        }
+      }
+    }
+  },
+  "limits": [
+    "Redis 8.0.5 under WSL in an isolated loopback cluster, 2 s server node timeout and 100 ms minimum metadata refresh interval for election probes.",
+    "Both native clients submit before promotion with a 10 s entry deadline. The observations include election, metadata refresh and business reply and are not an outage SLA.",
+    "The existing map wait queue retains original request/byte reservations. Up to 1 + Route.MaxWaits refresh waits on confirmed outage and one original call deadline bound the wait.",
+    "Warmed loopback benchmark, 32 outstanding requests, 20000 observations per run, three repeats. Different synthetic node engines contribute scheduling differences. Mixed-load failover, partitions, native Linux and TLS production measurements are open."
+  ]
+}

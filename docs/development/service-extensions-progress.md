@@ -12,7 +12,7 @@ Target and rules: [development contract](service-extensions-plan.md).
   8.0.5 interoperability. Managed READONLY and topology-based selection are
   verified for explicit stale-tolerant Cluster reads. Reactive recovery from an
   abruptly terminated Cluster primary is verified with surviving metadata
-  seeds. Initial client-certificate
+  seeds, including unsent writes submitted during the election. Initial client-certificate
   signing/authentication is locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
@@ -15384,3 +15384,61 @@ Cluster failover and production throughput and tails remain unqualified.
 
 [Recovery contract](../../extlibs/xredis/docs/cluster_client.md).
 [Stage evidence](xredis-cluster-primary-outage-20261119.json).
+
+## 2026-11-19 xredis unsent calls across a Cluster election
+
+The previous mainline build reproduced a terminal NO_ROUTE after the first
+refresh still reported the unavailable owner. The real Redis candidate still
+reported itself as a replica when the test submitted the write.
+
+The client now keeps the unsent operation in its existing map wait queue after
+a confirmed primary outage. For that operation, it coalesces up to
+`1 + Route.MaxWaits` map waits under the original deadline. Unconfirmed missing
+slots retain the single refresh. Native pool waits remain cumulative across
+maps. The code keeps the original charge and command storage while waiting.
+When a new endpoint fits the existing route, the controller rebinds it in
+place. A larger endpoint can allocate a replacement within the same admission
+reservation. Native attempts that were already accepted retain their
+existing outcome and delivery rules.
+
+Scripted peers verify exhaustion of the map budget, cancellation and deadline
+while metadata is held, and one native attempt after a new owner appears.
+The single-header probe exercises unchanged-map reuse in a one-byte allocation
+budget and injected failure when a larger endpoint requires a new allocation.
+Both branches preserve the original deadline and command bytes.
+A separate progress-engine barrier reproduces a queued call missing an
+already published generation. The worker now uses that generation without
+waiting for another refresh notification.
+
+Three Redis 8.0.5 loopback elections each included a Windows and a WSL
+client submitting a write before the candidate promoted. The driver
+independently checked the replica role after observing both submissions.
+The six writes observed 31–44 metadata refresh starts per client at a 100 ms
+minimum refresh interval. Each made a single native attempt on the promoted
+primary and left a server counter of one. The in-flight disconnect and
+post-election write cases also passed in each trial.
+
+| Loopback observation | Range across the three trials |
+| --- | ---: |
+| Process kill to surviving nodes' slot agreement | 3.147–4.299 s |
+| WSL during-election write, offer to reply | 3.138–4.343 s |
+| Windows during-election write, offer to reply | 3.160–4.312 s |
+
+The owned fixture used a 2 s Redis node timeout. The measurements include
+election and metadata query time. Sustained mixed-load failover, network
+partitions, TLS and native production latency remain unqualified.
+
+The prewarmed loopback profile ran three repeats of 20,000 requests per
+route with a pipeline depth of 32. Each cell is the median across repeats.
+
+| Host | Primary requests/s | Primary P99 (µs) | Replica requests/s | Replica P99 (µs) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 179,956 | 302.3 | 242,830 | 199.9 |
+| WSL | 44,065 | 1508.6 | 55,544 | 929.8 |
+
+Both hosts missed repeatability thresholds. This profile includes the
+scheduling differences of two synthetic node engines. The strict release
+gate lists 32 developing xredis modules.
+
+[Recovery contract](../../extlibs/xredis/docs/cluster_client.md).
+[Stage evidence](xredis-cluster-election-wait-20261119.json).

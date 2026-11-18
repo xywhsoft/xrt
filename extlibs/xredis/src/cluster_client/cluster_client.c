@@ -21,8 +21,9 @@ struct xredisclusteroperation {
     xredisclusterroute* Route;xredisclusterwatch Watch;
     xfuture* Future;xpromise* Promise;xcancel* Token;xcancelwatch* Cancel;
     xbytesview* Arguments;size_t Count,Wire,Reservation,Heap;
-    int64 Timeout;uint32 ReplicaCursor;uint16 Slot;double Entered,Deadline,Due,Started;
-    size_t Moved;bool Queued,WaitingMap,MissingTried,Stopping,Publishing;
+    int64 Timeout;uint32 ReplicaCursor;uint16 Slot;bool Recovering,Stopping;
+    double Entered,Deadline,Due,Started;
+    size_t Moved;uint32 MapWaits;bool Queued,WaitingMap,Publishing;
 };
 #define XREDIS_CLUSTER_OPERATION_PREFIX ((sizeof(xredisclusteroperation)+_Alignof(max_align_t)-1)/_Alignof(max_align_t)*_Alignof(max_align_t))
 struct xredisclusterclient {
@@ -140,10 +141,12 @@ static xredisclusterpoolstatus xredisClusterProvider(const xredisclusteraddress*
 }
 static xredisclusterrouteconfig xredisClusterRouteConfigFor(xredisclusterclient* C,xredisclusteroperation* O,bool Tls)
 {xredisclusterrouteconfig K=C->Config.Route;K.GetPool=xredisClusterProvider;K.Data=O;K.Tls=Tls;if(O)K.Timeout=O->Timeout;return K;}
-static void xredisClusterInvalidateGeneration(xredisclusterclient* C,uint64 Generation)
+static bool xredisClusterInvalidateGeneration(xredisclusterclient* C,uint64 Generation)
 {
     xrtMutexLock(&C->Gate);bool Needed=Generation==C->Info.Generation && Generation!=C->InvalidatedGeneration;
-    if(Needed){C->InvalidatedGeneration=Generation;C->Invalidation=true;C->Info.Dirty=true;xredisClusterWakeLocked(C);}xrtMutexUnlock(&C->Gate);
+    bool Newer=Generation<C->Info.Generation;
+    if(Needed){C->InvalidatedGeneration=Generation;C->Invalidation=true;C->Info.Dirty=true;xredisClusterWakeLocked(C);}
+    xrtMutexUnlock(&C->Gate);return Newer;
 }
 static void xredisClusterOperationFree(ptr Value,ptr Data)
 {
@@ -188,7 +191,10 @@ static void xredisClusterOperationStep(xredisclusterclient* C,xredisclusteropera
             __xredisClusterRouteCreate(M.Topology,M.Origin.Host,O->Slot,O->ReplicaCursor,O->Arguments,O->Count,&K,&R,O->Entered,&Failure);
         if(A!=XREDIS_ADMISSION_ACCEPTED){xredisClusterStopOperation(C,O,Failure==XREDIS_CLUSTER_ROUTE_LIMIT?XREDIS_CLUSTER_CLIENT_LIMIT:XREDIS_CLUSTER_CLIENT_MEMORY);return;}
         xredisClusterMapWaitRemove(C,O);
-        if(O->Route==(xredisclusterroute*)((unsigned char*)O+XREDIS_CLUSTER_OPERATION_PREFIX))__xredisClusterRouteUnit(O->Route);else xredisClusterRouteDestroy(O->Route);
+        if(O->Route!=R){
+            if(O->Route==(xredisclusterroute*)((unsigned char*)O+XREDIS_CLUSTER_OPERATION_PREFIX))__xredisClusterRouteUnit(O->Route);
+            else xredisClusterRouteDestroy(O->Route);
+        }
         O->Route=R;O->Result.Generation=M.Generation;xrtFree(O->Arguments);O->Arguments=NULL;
     }
     xredisclusterroutestep S=xredisClusterRouteStep(O->Route);xredisclusterrouteresult R={0};R.Size=sizeof(R);xredisClusterRouteResult(O->Route,&R);
@@ -198,7 +204,20 @@ static void xredisClusterOperationStep(xredisclusterclient* C,xredisclusteropera
     if(xredisClusterClosing(C)){xredisClusterStopOperation(C,O,C->Info.StopStatus);return;}
     if(xrtTimer()>=O->Deadline && (S!=XREDIS_CLUSTER_ROUTE_DONE || R.Status==XREDIS_CLUSTER_ROUTE_COMPLETE)){xredisClusterStopOperation(C,O,XREDIS_CLUSTER_CLIENT_TIMEOUT);return;}
     if(S==XREDIS_CLUSTER_ROUTE_DONE){
-        if(R.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE && !O->MissingTried){O->MissingTried=true;xredisClusterInvalidateGeneration(C,O->Result.Generation);xredisClusterMapWait(C,O);return;}
+        if(R.Status==XREDIS_CLUSTER_ROUTE_NO_ROUTE && !R.Attempts){
+            O->Recovering=O->Recovering || __xredisClusterRoutePrimaryOutage(O->Route);
+            size_t Limit=O->Recovering?1u+C->Config.Route.MaxWaits:1u;
+            if(O->MapWaits<Limit){
+                ++O->MapWaits;
+                bool Newer=xredisClusterInvalidateGeneration(C,O->Result.Generation);
+                xredisClusterMapWait(C,O);
+                /* Admission can capture the old map before this worker
+                 * publishes a newer one. Its notification may have already
+                 * run before the operation joined the map wait queue. */
+                if(Newer){xrtMutexLock(&C->Gate);xredisClusterQueueLocked(C,O);xrtMutexUnlock(&C->Gate);}
+                return;
+            }
+        }
         O->Stopping=true;O->Result.Status=R.Status==XREDIS_CLUSTER_ROUTE_TIMEOUT?XREDIS_CLUSTER_CLIENT_TIMEOUT:XREDIS_CLUSTER_CLIENT_COMPLETE;xredisClusterComplete(C,O);return;
     }
     if(S==XREDIS_CLUSTER_ROUTE_STEP_ERROR){xredisClusterStopOperation(C,O,XREDIS_CLUSTER_CLIENT_INTERNAL);return;}

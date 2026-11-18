@@ -3,7 +3,7 @@
 #include "cluster_nodes_peer.h"
 enum {RF_NORMAL,RF_HOLD,RF_DROP,RF_BAD,RF_DENIED,RF_PARTIAL};
 typedef struct rffixture rffixture;
-typedef struct rfnode {rffixture* Owner;size_t Index;xatomic32 Mode,Queries,Shards,Slots,Target,Installed,Replicas,Loading;xatomicptr LastPeer,Client;} rfnode;
+typedef struct rfnode {rffixture* Owner;size_t Index;xatomic32 Mode,Queries,Shards,Slots,Target,Installed,Replicas,Loading,Failed;xatomicptr LastPeer,Client;} rfnode;
 struct rffixture {nnfixture* Base;xredisclusterrefresh* Refresh;rfnode Nodes[3];xatomic32 Action;};
 static bool rfCommand(redispeer* P,xredisreply* Reply,ptr Data)
 {
@@ -19,6 +19,7 @@ static bool rfCommand(redispeer* P,xredisreply* Reply,ptr Data)
         char Wire[1024];
         uint32 Replicas=xrtAtomic32Load(&N->Replicas,XMEMORY_ACQUIRE)&~(1u<<Target);
         uint32 Loading=xrtAtomic32Load(&N->Loading,XMEMORY_ACQUIRE);
+        uint32 Failed=xrtAtomic32Load(&N->Failed,XMEMORY_ACQUIRE);
         unsigned Nodes=1;
         for(unsigned I=0;I<3;++I)if(Replicas&(1u<<I))++Nodes;
         int Count=snprintf(Wire,sizeof(Wire),Shards?
@@ -29,7 +30,7 @@ static bool rfCommand(redispeer* P,xredisreply* Reply,ptr Data)
         for(unsigned Row=0;Row<4;++Row){
             unsigned I=Row?Row-1:Target;
             if(Row && !(Replicas&(1u<<I)))continue;
-            cstr Role=Row?"replica":"master",Health=(Loading&(1u<<I))?"loading":"online";
+            cstr Role=Row?"replica":"master",Health=(Failed&(1u<<I))?"fail":(Loading&(1u<<I))?"loading":"online";
             unsigned Port=F->Base->Peers[I].Address.Port;
             int Bytes=Shards?snprintf(Wire+Count,sizeof(Wire)-(size_t)Count,
                 "%%7\r\n$2\r\nid\r\n$1\r\n%c\r\n$8\r\nendpoint\r\n$0\r\n\r\n$2\r\nip\r\n$9\r\n127.0.0.1\r\n$18\r\nreplication-offset\r\n:0\r\n$4\r\nport\r\n:%u\r\n$4\r\nrole\r\n$%zu\r\n%s\r\n$6\r\nhealth\r\n$%zu\r\n%s\r\n",

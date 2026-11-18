@@ -6064,8 +6064,10 @@ XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* C
  * MOVED from the current generation invalidates once per generation and starts
  * coalesced full-map refresh. A terminal disconnected native attempt also
  * requests refresh while preserving its outcome. An initial primary pool
- * without dispatchable members after a transport failure can trigger one
- * refresh before any native attempt. ASK never changes the shared map.
+ * without dispatchable members after a transport failure, or a primary
+ * identified as failed by topology, can wait for recovery before the first
+ * native attempt. Up to 1 + Route.MaxWaits map refresh waits share the original
+ * deadline. Other missing routes keep their single refresh. ASK never changes the shared map.
  * Old valid maps remain usable during failed refresh. */
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* Client);
 XREDIS_API xredisclusterstatus xredisClusterClientSnapshot(xredisclusterclient* Client,
