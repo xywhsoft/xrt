@@ -16,12 +16,20 @@ typedef struct xcronservicecheckpointgroup {
     const xcroncheckpoint* Records;
     uint32 Count;
 } xcronservicecheckpointgroup;
-#define XCRON_SERVICE_CHECKPOINT_NO_INDEX UINT32_MAX
+#define XCRON_SERVICE_CHECKPOINT_NO_INDEX XCRON_CHECKPOINT_NO_INDEX
 typedef struct xcronservicecheckpointissue {
     xcronserviceissue Service;
     xcronschedulerissue Scheduler;
     uint32 Index;
 } xcronservicecheckpointissue;
+
+typedef struct xcronservicecheckpointreply {
+    xcronrequestid Request;
+    xcronserviceerror Code;
+    xcronschedulerissue Scheduler;
+    uint32 Index;
+    xerror* Error;
+} xcronservicecheckpointreply;
 
 XRT_EXTERN_C_BEGIN
 /* Match the ordinary constructors and additionally reserve one record and
@@ -70,6 +78,22 @@ XCRON_API bool xcronServiceRestorePausedCheckpointAsync(xcronservice* Service,co
  * rejects ordinary tickets. All outputs must be disjoint. */
 XCRON_API xwaitresult xcronServiceCollectCheckpoint(xcronservice* Service,xcronrequestid Request,int64 Timeout,
     xcronreply* Reply,xcroncheckpoint* Record,xcronserviceissue* Issue);
+/* One command captures and holds a quiescent group at an owner boundary.
+ * Count must fit JobLimit and CommandWorkLimit; a nonempty group consumes
+ * Count work units in its owner turn. Targets and Records are borrowed
+ * until successful collection, including on close or collection timeout.
+ * Keep Targets immutable and Records exclusively available to this command.
+ * A rejected admission transfers no borrow. An unsuccessful command leaves
+ * the records and dispatch holds intact. Use disjoint spans, outside all
+ * borrowed zones, contexts and service storage. A caller may pause busy
+ * jobs via SetPausedAsync before requesting capture. File I/O is external. */
+XCRON_API bool xcronServiceSaveCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Uses the normal timeout and Error transfer rules. Only XWAIT_OK ends the
+ * array borrow. Check Reply.Code to decide whether Records were published.
+ * Index identifies the failed member or is NO_INDEX. */
+XCRON_API xwaitresult xcronServiceCollectCheckpointGroup(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronservicecheckpointreply* Reply,xcronserviceissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

@@ -3611,7 +3611,8 @@ typedef enum xcronservicestate {XCRON_SERVICE_STARTING=0,XCRON_SERVICE_RUNNING,X
 typedef enum xcronrequestkind {
     XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
     XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT,
-    XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT
+    XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT,
+    XCRON_REQUEST_SAVE_CHECKPOINT_GROUP
 } xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
@@ -4296,6 +4297,12 @@ typedef struct xcroncheckpoint {
     uint8 Bytes[XCRON_CHECKPOINT_BYTES];
 } xcroncheckpoint;
 
+typedef struct xcroncheckpointtarget {
+    xcronjobid Job;
+    xcroncheckpointkey Key;
+} xcroncheckpointtarget;
+#define XCRON_CHECKPOINT_NO_INDEX UINT32_MAX
+
 XRT_EXTERN_C_BEGIN
 /* Validates the v1 envelope and returns its stable application identity.
  * The record and output must be disjoint. Failure preserves Key. */
@@ -4310,6 +4317,15 @@ XCRON_API bool xcronCheckpointGetKey(const xcroncheckpoint* Checkpoint,xcronchec
  * The caller commits the record to durable storage at its chosen boundary. */
 XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcronjobid Job,
     xcroncheckpointkey Key,xcroncheckpoint* Checkpoint,xcronschedulerissue* Issue);
+/* Capture a sorted set of quiescent jobs at one owner boundary and pause
+ * publication for every scheduled member on success. Stable Key.Job values
+ * must increase and live Job IDs must be distinct. Count zero writes no
+ * records. A BUSY, stale, corrupt, or other rejected member leaves Records
+ * and all holds unchanged. Index is required and reports the failed member
+ * or NO_INDEX on success or a global failure. Invalid spans and aliases
+ * preserve every output. No allocation or I/O on success. */
+XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* Scheduler,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue);
 /* Admit from a complete v1 record into an open scheduler of the saved mode.
  * Recreate the same configuration/zone and supply new process-local Data;
  * configured fields and Key must match. Revalidate a scheduled instant and
@@ -4447,12 +4463,20 @@ typedef struct xcronservicecheckpointgroup {
     const xcroncheckpoint* Records;
     uint32 Count;
 } xcronservicecheckpointgroup;
-#define XCRON_SERVICE_CHECKPOINT_NO_INDEX UINT32_MAX
+#define XCRON_SERVICE_CHECKPOINT_NO_INDEX XCRON_CHECKPOINT_NO_INDEX
 typedef struct xcronservicecheckpointissue {
     xcronserviceissue Service;
     xcronschedulerissue Scheduler;
     uint32 Index;
 } xcronservicecheckpointissue;
+
+typedef struct xcronservicecheckpointreply {
+    xcronrequestid Request;
+    xcronserviceerror Code;
+    xcronschedulerissue Scheduler;
+    uint32 Index;
+    xerror* Error;
+} xcronservicecheckpointreply;
 
 XRT_EXTERN_C_BEGIN
 /* Match the ordinary constructors and additionally reserve one record and
@@ -4501,6 +4525,22 @@ XCRON_API bool xcronServiceRestorePausedCheckpointAsync(xcronservice* Service,co
  * rejects ordinary tickets. All outputs must be disjoint. */
 XCRON_API xwaitresult xcronServiceCollectCheckpoint(xcronservice* Service,xcronrequestid Request,int64 Timeout,
     xcronreply* Reply,xcroncheckpoint* Record,xcronserviceissue* Issue);
+/* One command captures and holds a quiescent group at an owner boundary.
+ * Count must fit JobLimit and CommandWorkLimit; a nonempty group consumes
+ * Count work units in its owner turn. Targets and Records are borrowed
+ * until successful collection, including on close or collection timeout.
+ * Keep Targets immutable and Records exclusively available to this command.
+ * A rejected admission transfers no borrow. An unsuccessful command leaves
+ * the records and dispatch holds intact. Use disjoint spans, outside all
+ * borrowed zones, contexts and service storage. A caller may pause busy
+ * jobs via SetPausedAsync before requesting capture. File I/O is external. */
+XCRON_API bool xcronServiceSaveCheckpointGroupAsync(xcronservice* Service,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Uses the normal timeout and Error transfer rules. Only XWAIT_OK ends the
+ * array borrow. Check Reply.Code to decide whether Records were published.
+ * Index identifies the failed member or is NO_INDEX. */
+XCRON_API xwaitresult xcronServiceCollectCheckpointGroup(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronservicecheckpointreply* Reply,xcronserviceissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

@@ -15006,3 +15006,50 @@ native mixed-load qualification remain open. The strict release gate
 reports 17 developing xcron modules.
 [Group startup contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-group-startup-20261118.json).
+
+## 2026-11-19 Capture and hold a whole group online
+
+Pull and live schedulers can validate every quiescent member and capture
+all records at one owner boundary. A successful capture holds dispatch
+for the scheduled members. A rejection preserves the previous holds and
+the entire output. The tests force a late busy member and confirm that
+an earlier eligible member still dispatches.
+
+A live capture borrows the target and record arrays until collection,
+uses one command ticket, and charges one turn unit per member. Counts
+are bounded by JobLimit and CommandWorkLimit. A command whose cost
+exceeds the remaining turn budget waits at the queue head. The
+serialized pull capture succeeds with an allocation denial budget.
+Live tests cover duplicate IDs and keys, timeout, mixed collectors,
+borrowed-output aliasing, close before execution, and both service modes.
+A clock barrier verifies deferral to a fresh command budget. The initial
+trimmed builds exposed a checkpoint-only type in the shared collector.
+The final collector builds in the ordinary feature selection as well.
+
+The runnable example takes the two physically completed jobs through
+one owner capture and one file commit. Windows NTFS and WSL ext4 produce
+identical generation images, matching the previous scalar capture output.
+Earlier single-job restart and group writer interruption cases also pass.
+Modular and single-header checks, ordinary regressions, trimmed and full
+static/shared consumers, WSL ASan/UBSan/leaks, and modular Clang 21
+ThreadSanitizer pass.
+
+Each local performance run submits 10,000 serial captures of an already
+held group, with five measured runs. Timing covers enqueue, owner
+validation and encoding, and collection. The table uses the median
+of each reported run statistic.
+
+| Host | Jobs/capture | Groups/s | Jobs/s | P50 (us) | P95 (us) | P99 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | 144,696.2 | 144,696.2 | 8.600 | 8.800 | 8.900 |
+| Windows | 64 | 19,247.6 | 1,231,848.5 | 50.500 | 61.700 | 65.500 |
+| WSL | 1 | 39,841.0 | 39,841.0 | 24.500 | 28.100 | 39.300 |
+| WSL | 64 | 14,233.7 | 910,957.3 | 67.800 | 82.500 | 101.100 |
+
+Both 64-job profiles pass the local repeatability checks. The one-job profiles exceed their limits.
+
+Automatic quiescence coordination, scheduled asynchronous commits,
+device power-loss and native mixed-load qualification remain open.
+The strict release gate lists 17 developing xcron modules.
+[Capture contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-group-capture-20261119.json).

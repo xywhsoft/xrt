@@ -1,6 +1,7 @@
 #include <xcron/service_checkpoint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int groupStartupCompare(const void* A,const void* B)
 {
@@ -13,11 +14,45 @@ static xcronrunresult groupStartupRun(const xcronrun* Run,const xcronexecution* 
     return XCRON_RUN_FAILED;
 }
 
+static bool groupBenchStop(xcronservice* S,uint32 Count)
+{
+    if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;
+    for(uint32 J=0;J<Count;++J){
+        xcronretired R;
+        bool Found;
+        if(!xcronServiceReapStopped(S,&R,&Found,NULL) || !Found || R.Info.Dispatched)return false;
+    }
+    return xcronServiceDestroy(S,NULL);
+}
+
+static bool groupBenchCapture(const xcronserviceconfig* C,const xcronservicecheckpointgroup* Seed,
+    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total)
+{
+    xcroncheckpointtarget* Targets=malloc((size_t)Seed->Count*sizeof(*Targets));
+    xcronservice* S=NULL;
+    if(!Targets || !xcronServiceCreateCheckpointedFromGroup(C,Seed,&S,Ids,NULL))return false;
+    for(uint32 I=0;I<Seed->Count;++I)Targets[I]=(xcroncheckpointtarget){Ids[I],Seed->Jobs[I].Key};
+    for(size_t I=0;I<Iterations;++I){
+        xcronrequestid Q;
+        xcronservicecheckpointreply R;
+        double Begin=xrtTimer();
+        if(!xcronServiceSaveCheckpointGroupAsync(S,Targets,Seed->Count,Records,&Q,NULL) ||
+           xcronServiceCollectCheckpointGroup(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code ||
+           R.Index!=XCRON_CHECKPOINT_NO_INDEX || R.Error)return false;
+        double Delta=xrtTimer()-Begin;
+        *Total+=Delta;
+        Samples[I]=Delta*1000000;
+    }
+    free(Targets);
+    return groupBenchStop(S,Seed->Count);
+}
+
 int main(int Argc,char** Argv)
 {
     size_t Iterations=Argc>1?(size_t)strtoul(Argv[1],NULL,10):250;
     uint32 Count=Argc>2?(uint32)strtoul(Argv[2],NULL,10):64;
-    if(Argc>3 || !Iterations || Iterations>100000 || !Count || Count>1024)return 2;
+    bool Capture=Argc==4 && !strcmp(Argv[3],"capture");
+    if((Argc>3 && !Capture) || !Iterations || Iterations>100000 || !Count || Count>1024)return 2;
     xcronservicecheckpointjob* Jobs=malloc((size_t)Count*sizeof(*Jobs));
     xcroncheckpoint* Records=malloc((size_t)Count*sizeof(*Records));
     xcronjobid* Ids=malloc((size_t)Count*sizeof(*Ids));
@@ -43,32 +78,31 @@ int main(int Argc,char** Argv)
     if(!Pool)return 3;
     const xcronserviceconfig C={
         .Scheduler={Count,1,16,0,2097152},.Executor=Pool,.Proc=groupStartupRun,
-        .CommandLimit=1,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=1,
+        .CommandLimit=1,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=Capture?Count:1,
         .ResampleMilliseconds=20,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
         .BytesLimit=4194304,.AdapterBytesLimit=65536
     };
-    double Startup=0;
-    for(size_t I=0;I<Iterations;++I){
-        xcronservice* S=NULL;
-        double Begin=xrtTimer();
-        if(!xcronServiceCreateCheckpointedFromGroup(&C,&Seed,&S,Ids,NULL))return 4;
-        double Delta=xrtTimer()-Begin;
-        Startup+=Delta;
-        Samples[I]=Delta*1000000;
-        if(!Ids[0] || !Ids[Count-1] || !xcronServiceClose(S,false,NULL) ||
-           xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return 4;
-        for(uint32 J=0;J<Count;++J){
-            xcronretired R;
-            if(!xcronServiceReapStopped(S,&R,&Found,NULL) || !Found || R.Info.Dispatched)return 4;
+    double Total=0;
+    if(Capture){
+        if(!groupBenchCapture(&C,&Seed,Ids,Records,Iterations,Samples,&Total))return 4;
+    }else{
+        for(size_t I=0;I<Iterations;++I){
+            xcronservice* S=NULL;
+            double Begin=xrtTimer();
+            if(!xcronServiceCreateCheckpointedFromGroup(&C,&Seed,&S,Ids,NULL))return 4;
+            double Delta=xrtTimer()-Begin;
+            Total+=Delta;
+            Samples[I]=Delta*1000000;
+            if(!Ids[0] || !Ids[Count-1] || !groupBenchStop(S,Count))return 4;
         }
-        if(!xcronServiceDestroy(S,NULL))return 4;
     }
-    if(Startup<=0 || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 5;
+    if(Total<=0 || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 5;
     xcronZoneRelease(Job.Zone);
     qsort(Samples,Iterations,sizeof(*Samples),groupStartupCompare);
-    printf("starts_per_sec: %.3f\nrestored_per_sec: %.3f\nstart_p50_us: %.3f\nstart_p95_us: %.3f\nstart_p99_us: %.3f\n",
-           Iterations/Startup,(double)Iterations*Count/Startup,Samples[(Iterations+1)/2-1],
-           Samples[(Iterations*95+99)/100-1],Samples[(Iterations*99+99)/100-1]);
+    cstr Operation=Capture?"capture":"start",Amount=Capture?"captured":"restored";
+    printf("%ss_per_sec: %.3f\n%s_per_sec: %.3f\n%s_p50_us: %.3f\n%s_p95_us: %.3f\n%s_p99_us: %.3f\n",
+           Operation,Iterations/Total,Amount,(double)Iterations*Count/Total,Operation,Samples[(Iterations+1)/2-1],
+           Operation,Samples[(Iterations*95+99)/100-1],Operation,Samples[(Iterations*99+99)/100-1]);
     free(Samples);
     free(Ids);
     free(Records);

@@ -28,6 +28,9 @@ typedef struct xcronjobslot {
     uint32 Next,Previous,Position;
     xcronlocation Location;
     bool Used,Initial,Paused;
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+    bool Capturing;
+#endif
 } xcronjobslot;
 typedef struct xcronrunslot {uint64 Generation;uint32 Job,Next;bool Used;} xcronrunslot;
 struct xcronscheduler {
@@ -441,12 +444,8 @@ XCRON_API bool xcronSchedulerComplete(xcronscheduler* S,xcronrunid Id,xcronrunre
     else if(J->Location==XCRON_LOC_BLOCKED && J->Info.Running<J->Config.RunningLimit){--S->Stats.Blocked;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
 }
-XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* S,xcronjobid Id,bool Paused,xcronschedulerissue* Issue)
+static void xcronSchedulerSetPausedSlot(xcronscheduler* S,uint32 I,bool Paused)
 {
-    if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
-    if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
-    uint32 I;
-    if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
     xcronjobslot* J=&S->Jobs[I];
     if(xcronSchedulerLive(J->Info.State) && J->Paused!=Paused){
         J->Paused=Paused;
@@ -455,6 +454,15 @@ XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* S,xcronjobid Id,bool Paus
             xcronSchedulerPlace(S,I);
         }
     }
+}
+
+XCRON_API bool xcronSchedulerSetPaused(xcronscheduler* S,xcronjobid Id,bool Paused,xcronschedulerissue* Issue)
+{
+    if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
+    uint32 I;
+    if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+    xcronSchedulerSetPausedSlot(S,I,Paused);
     xcronSchedulerOK(Issue);
     return true;
 }
@@ -633,6 +641,21 @@ XCRON_API bool xcronSchedulerReapSelected(xcronscheduler* S,xcronselectedretired
 }
 #endif
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
+static bool xcronSchedulerCheckpointReady(const xcronjobslot* J,xcronschedulerissue* Issue)
+{
+    if(J->Info.Running || J->Initial || J->Info.State==XCRON_JOB_SEARCHING)
+        return xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
+    if(J->Info.State==XCRON_JOB_FAULTED)return xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&J->Info.LastIssue,Issue);
+    return true;
+}
+
+static void xcronSchedulerEncodeCheckpoint(const xcronscheduler* S,uint32 I,xcroncheckpointkey Key,xcroncheckpoint* Out)
+{
+    const xcronjobslot* J=&S->Jobs[I];
+    xcrondeliverypolicy Policy=S->Selected?S->Selections[I].Policy:(xcrondeliverypolicy){0};
+    xcronCheckpointEncode(&J->Config,&J->Info,S->Selected,Policy,Key,Out);
+}
+
 XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid Id,
     xcroncheckpointkey Key,xcroncheckpoint* Out,xcronschedulerissue* Issue)
 {
@@ -644,13 +667,69 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid I
     void* O[]={Out,Issue};size_t N[]={sizeof(*Out),Issue?sizeof(*Issue):0};
     if(!xcronZoneOutputs(J->Config.Zone,NULL,0,O,N,2))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
     if(S->Stats.Closed)return xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);
-    if(J->Info.Running || J->Initial || J->Info.State==XCRON_JOB_SEARCHING)
-        return xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
-    if(J->Info.State==XCRON_JOB_FAULTED)return xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&J->Info.LastIssue,Issue);
-    xcrondeliverypolicy Policy=S->Selected?S->Selections[I].Policy:(xcrondeliverypolicy){0};
-    xcronCheckpointEncode(&J->Config,&J->Info,S->Selected,Policy,Key,Out);
+    if(!xcronSchedulerCheckpointReady(J,Issue))return false;
+    xcronSchedulerEncodeCheckpoint(S,I,Key,Out);
     xcronSchedulerOK(Issue);
     return true;
+}
+
+XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue)
+{
+    size_t Members=Count;
+    if(Members>SIZE_MAX/sizeof(*Targets) || Members>SIZE_MAX/sizeof(*Records))
+        return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    size_t InputBytes=Members*sizeof(*Targets),RecordBytes=Members*sizeof(*Records);
+    void* O[]={Records,Index,Issue};
+    size_t N[]={RecordBytes,sizeof(*Index),Issue?sizeof(*Issue):0};
+    if(!S || !Index || !xcronSchedulerOutputs(S,Targets,InputBytes,O,N,3) ||
+       xcronSchedulerOverlap(Targets,InputBytes,S,S->Stats.Bytes))
+        return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(S->Stats.Closed || Count>S->Config.JobLimit){
+        *Index=XCRON_CHECKPOINT_NO_INDEX;
+        return xcronSchedulerFail(S->Stats.Closed?XCRON_SCHEDULER_CLOSED:XCRON_SCHEDULER_LIMIT,NULL,Issue);
+    }
+
+    uint64 Previous=0;
+    uint32 Checked=0;
+    bool InvalidAlias=false;
+    for(;Checked<Count;++Checked){
+        xcroncheckpointtarget Target=Targets[Checked];
+        uint32 I;
+        if(!xcronSchedulerJobIndex(S,Target.Job,&I)){
+            xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+            break;
+        }
+        xcronjobslot* J=&S->Jobs[I];
+        if(!xcronZoneOutputs(J->Config.Zone,Targets,InputBytes,O,N,3)){
+            InvalidAlias=true;
+            xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+            break;
+        }
+        if(Target.Key.Job<=Previous || !Target.Key.Revision || J->Capturing){
+            xcronSchedulerFail(XCRON_SCHEDULER_CHECKPOINT_MISMATCH,NULL,Issue);
+            break;
+        }
+        if(!xcronSchedulerCheckpointReady(J,Issue))break;
+        J->Capturing=true;
+        Previous=Target.Key.Job;
+    }
+
+    /* Validation marks exist only during this serialized call. Commit can
+     * encode and hold every member without another fallible operation. */
+    bool OK=Checked==Count;
+    uint64 Mask=(UINT64_C(1)<<S->JobBits)-1;
+    for(uint32 J=0;J<Checked;++J){
+        uint32 I=(uint32)(Targets[J].Job&Mask);
+        S->Jobs[I].Capturing=false;
+        if(OK){
+            xcronSchedulerEncodeCheckpoint(S,I,Targets[J].Key,&Records[J]);
+            xcronSchedulerSetPausedSlot(S,I,true);
+        }
+    }
+    if(!InvalidAlias)*Index=OK?XCRON_CHECKPOINT_NO_INDEX:Checked;
+    if(OK)xcronSchedulerOK(Issue);
+    return OK;
 }
 
 static bool xcronSchedulerRestoreMode(xcronscheduler* S,const xcronjobconfig* Config,

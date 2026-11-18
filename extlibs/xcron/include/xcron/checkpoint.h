@@ -15,6 +15,12 @@ typedef struct xcroncheckpoint {
     uint8 Bytes[XCRON_CHECKPOINT_BYTES];
 } xcroncheckpoint;
 
+typedef struct xcroncheckpointtarget {
+    xcronjobid Job;
+    xcroncheckpointkey Key;
+} xcroncheckpointtarget;
+#define XCRON_CHECKPOINT_NO_INDEX UINT32_MAX
+
 XRT_EXTERN_C_BEGIN
 /* Validates the v1 envelope and returns its stable application identity.
  * The record and output must be disjoint. Failure preserves Key. */
@@ -29,6 +35,15 @@ XCRON_API bool xcronCheckpointGetKey(const xcroncheckpoint* Checkpoint,xcronchec
  * The caller commits the record to durable storage at its chosen boundary. */
 XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* Scheduler,xcronjobid Job,
     xcroncheckpointkey Key,xcroncheckpoint* Checkpoint,xcronschedulerissue* Issue);
+/* Capture a sorted set of quiescent jobs at one owner boundary and pause
+ * publication for every scheduled member on success. Stable Key.Job values
+ * must increase and live Job IDs must be distinct. Count zero writes no
+ * records. A BUSY, stale, corrupt, or other rejected member leaves Records
+ * and all holds unchanged. Index is required and reports the failed member
+ * or NO_INDEX on success or a global failure. Invalid spans and aliases
+ * preserve every output. No allocation or I/O on success. */
+XCRON_API bool xcronSchedulerSaveCheckpointGroup(xcronscheduler* Scheduler,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue);
 /* Admit from a complete v1 record into an open scheduler of the saved mode.
  * Recreate the same configuration/zone and supply new process-local Data;
  * configured fields and Key must match. Revalidate a scheduled instant and

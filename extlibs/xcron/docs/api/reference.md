@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `113` 个函数、`227` 个常量或宏、
-`106` 个公共类型。
+当前登记 `116` 个函数、`229` 个常量或宏、
+`108` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -54,23 +54,26 @@
 
 [查看带契约注释的公共头](../../include/xcron/checkpoint.h)
 
-### 函数 (4)
+### 函数 (5)
 
 - `xcronCheckpointGetKey`
 - `xcronSchedulerRestoreCheckpoint`
 - `xcronSchedulerRestorePausedCheckpoint`
 - `xcronSchedulerSaveCheckpoint`
+- `xcronSchedulerSaveCheckpointGroup`
 
-### 常量与宏 (3)
+### 常量与宏 (4)
 
 - `XCRON_CHECKPOINT_BYTES`
+- `XCRON_CHECKPOINT_NO_INDEX`
 - `XCRON_FEATURE_XCRON_CHECKPOINT`
 - `XCRON_FEATURE_XCRON_SCHEDULER_SELECTED`
 
-### 类型 (6)
+### 类型 (7)
 
 - `xcroncheckpoint`
 - `xcroncheckpointkey`
+- `xcroncheckpointtarget`
 - `xcronjobconfig`
 - `xcronjobid`
 - `xcronscheduler`
@@ -440,7 +443,7 @@
 - `xcronServiceWaitReadable`
 - `xcronServiceWake`
 
-### 常量与宏 (32)
+### 常量与宏 (33)
 
 - `XCRON_COMPLETION_CANCELLED`
 - `XCRON_COMPLETION_EXPIRED`
@@ -457,6 +460,7 @@
 - `XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT`
 - `XCRON_REQUEST_RESUME`
 - `XCRON_REQUEST_SAVE_CHECKPOINT`
+- `XCRON_REQUEST_SAVE_CHECKPOINT_GROUP`
 - `XCRON_SERVICE_ARGUMENT`
 - `XCRON_SERVICE_BUSY`
 - `XCRON_SERVICE_CLOCK`
@@ -494,9 +498,10 @@
 
 [查看带契约注释的公共头](../../include/xcron/service_checkpoint.h)
 
-### 函数 (8)
+### 函数 (10)
 
 - `xcronServiceCollectCheckpoint`
+- `xcronServiceCollectCheckpointGroup`
 - `xcronServiceCreateCheckpointed`
 - `xcronServiceCreateCheckpointedFromGroup`
 - `xcronServiceCreateSelectedCheckpointed`
@@ -504,6 +509,7 @@
 - `xcronServiceRestoreCheckpointAsync`
 - `xcronServiceRestorePausedCheckpointAsync`
 - `xcronServiceSaveCheckpointAsync`
+- `xcronServiceSaveCheckpointGroupAsync`
 
 ### 常量与宏 (3)
 
@@ -511,12 +517,13 @@
 - `XCRON_FEATURE_XCRON_SERVICE_SELECTED`
 - `XCRON_SERVICE_CHECKPOINT_NO_INDEX`
 
-### 类型 (4)
+### 类型 (5)
 
 - `xcronselectedserviceconfig`
 - `xcronservicecheckpointgroup`
 - `xcronservicecheckpointissue`
 - `xcronservicecheckpointjob`
+- `xcronservicecheckpointreply`
 
 ## `extlibs/xcron/include/xcron/service_selected.h`
 

@@ -108,6 +108,14 @@ static void liveSetPaused(xcronservice* S,bool Selected,xcronjobid Job,bool Paus
     }
 }
 
+static xcronservicecheckpointreply liveCollectGroup(xcronservice* S,xcronrequestid Q)
+{
+    xcronservicecheckpointreply Reply;
+    testRequire(xcronServiceCollectCheckpointGroup(S,Q,10000,&Reply,NULL)==XWAIT_OK && Reply.Request==Q,
+                "collect one group capture reply");
+    return Reply;
+}
+
 static void liveCapture(xcronservice* S,xcronjobid Job,xcroncheckpoint* Record)
 {
     double Until=xrtTimer()+10.0;
@@ -252,6 +260,12 @@ static void liveRoundtrip(bool Selected)
     testRequire(Reply.Code==XCRON_SERVICE_KERNEL && Reply.Scheduler.Code==XCRON_SCHEDULER_BUSY &&
                 !memcmp(&Copy,&First,sizeof(First)),"active lease keeps checkpoint output untouched");
     xrtErrorFree(Reply.Error);
+    const xcroncheckpointtarget Busy={Job,liveKey};
+    testRequire(xcronServiceSaveCheckpointGroupAsync(S,&Busy,1,&Copy,&Q,NULL),"request group capture with a live member");
+    xcronservicecheckpointreply BusyReply=liveCollectGroup(S,Q);
+    testRequire(BusyReply.Code==XCRON_SERVICE_KERNEL && BusyReply.Scheduler.Code==XCRON_SCHEDULER_BUSY &&
+                BusyReply.Index==0 && !memcmp(&Copy,&First,sizeof(First)),"busy group failure preserves borrowed output");
+    xrtErrorFree(BusyReply.Error);
     testRequire(xrtEventSet(&F.RunGate) && xcronServiceWaitReadable(S,10000,NULL)==XWAIT_OK,"wait for physical completion");
     size_t Count;
     xcronservicecompletion Done;
@@ -270,12 +284,28 @@ static void liveRoundtrip(bool Selected)
     testRequire(xrtEventReset(&F.ClockEntered) && xrtEventReset(&F.ClockGate) &&
                 liveCreate(Selected,true,&C,&S,NULL) && xrtEventWaitFor(&F.ClockEntered,10000)==XWAIT_OK,"pause before close with accepted restore");
     J=liveJob(&F);
-    testRequire(xcronServiceRestoreCheckpointAsync(S,&J,liveKey,&Copy,&Q,NULL) && xcronServiceClose(S,false,NULL),"close with queued restore");
+    testRequire(xcronServiceRestoreCheckpointAsync(S,&J,liveKey,&Copy,&Q,NULL),"queue scalar restore before close");
+    _Alignas(xcronservicecheckpointreply) xcroncheckpoint Pending=First;
+    xcronrequestid G;
+    testRequire(xcronServiceSaveCheckpointGroupAsync(S,&Busy,1,&Pending,&G,NULL),"queue borrowed group for close");
+    xcronservicecheckpointreply GroupReply={.Index=777};
+    testRequire(xcronServiceCollectCheckpointGroup(S,G,0,&GroupReply,NULL)==XWAIT_TIMEOUT && GroupReply.Index==777,
+                "a timeout preserves ticket and reply");
+    testRequire(xcronServiceCollectCheckpoint(S,G,0,&Reply,&Copy,NULL)==XWAIT_ERROR,"scalar collector rejects group ticket");
+    xrtClearError();
+    testRequire(xcronServiceCollectCheckpointGroup(S,G,0,(xcronservicecheckpointreply*)&Pending,NULL)==XWAIT_ERROR,
+                "group collector cannot overlap the borrowed record output");
+    xrtClearError();
+    testRequire(xcronServiceClose(S,false,NULL),"close while the grouped borrow is outstanding");
     xcronZoneRelease(J.Zone);
     testRequire(xrtEventSet(&F.ClockGate) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK,"join before collecting closed restore");
     Reply=liveCollect(S,Q,NULL);
     testRequire(Reply.Code==XCRON_SERVICE_CLOSED && !Reply.Job && Reply.Data==&F,"closed restore returns data without admission");
     xrtErrorFree(Reply.Error);
+    GroupReply=liveCollectGroup(S,G);
+    testRequire(GroupReply.Code==XCRON_SERVICE_CLOSED && GroupReply.Index==XCRON_CHECKPOINT_NO_INDEX &&
+                !memcmp(&Pending,&First,sizeof(First)),"closed capture returns ownership without publishing");
+    xrtErrorFree(GroupReply.Error);
     liveStop(S,Selected,0,NULL,0);
     testRequire(xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"host pool remains borrowed");
     xrtEventUnit(&F.RunGate);
@@ -443,6 +473,23 @@ static void liveGroupTest(bool Selected)
     testRequire(xrtAllocationBudgetInfo(Refusal,&Used) && Used.PeakBytes==Arena && !Used.LiveBytes,
                 "startup scratch OOM returns the preallocated arena");
     xrtAllocationBudgetFree(Refusal);
+    const xcroncheckpointtarget Capture[]={{Ids[0],Jobs[0].Key},{Ids[1],Jobs[1].Key},{Ids[2],Jobs[2].Key}};
+    xcroncheckpoint Output[LIVE_GROUP_JOBS];
+    xcronrequestid Q=0;
+    xcronserviceissue Admission;
+    testRequire(!xcronServiceSaveCheckpointGroupAsync(Service,Capture,LIVE_GROUP_JOBS,Output,&Q,&Admission) &&
+                Admission.Code==XCRON_SERVICE_LIMIT && Q==0,"capture consumes the configured owner work budget");
+    xrtClearError();
+    testRequire(xcronServiceSaveCheckpointGroupAsync(Service,Capture,2,Output,&Q,NULL),"queue two-job capture");
+    xcronservicecheckpointreply Saved=liveCollectGroup(Service,Q);
+    testRequire(!Saved.Code && Saved.Index==XCRON_CHECKPOINT_NO_INDEX && !Saved.Error &&
+                !memcmp(Output,Records,2*sizeof(*Records)),"group capture after live restore is canonical");
+    testRequire(xcronServiceCollectCheckpointGroup(Service,Q,0,&Saved,&Admission)==XWAIT_ERROR &&
+                Admission.Code==XCRON_SERVICE_STALE,"group borrow transfers exactly once");
+    xrtClearError();
+    testRequire(xcronServiceSaveCheckpointGroupAsync(Service,NULL,0,NULL,&Q,NULL),"admit empty capture");
+    Saved=liveCollectGroup(Service,Q);
+    testRequire(!Saved.Code && !Saved.Error,"collect empty capture");
     xcronZoneRelease(Zone);
     memset(Jobs,0,sizeof(Jobs));
     memset(Records,0,sizeof(Records));
@@ -499,8 +546,71 @@ static void liveGroupTest(bool Selected)
     xrtEventUnit(&F.Clocked);
 }
 
+typedef struct livegroupturn {
+    xevent Entered[2],Release[2];
+    uint32 Samples;
+} livegroupturn;
+
+static bool liveGroupTurnClock(xcronclock* Out,ptr Raw)
+{
+    livegroupturn* G=Raw;
+    uint32 I=G->Samples++;
+    if(I<2 && (!xrtEventSet(&G->Entered[I]) || xrtEventWaitFor(&G->Release[I],10000)!=XWAIT_OK))return false;
+    *Out=(xcronclock){0,G->Samples};
+    return true;
+}
+
+static xcronrunresult liveGroupNoRun(const xcronrun* Run,const xcronexecution* Token,ptr Raw)
+{
+    (void)Run;(void)Token;(void)Raw;
+    testRequire(false,"work-budget fixture has no job to dispatch");
+    return XCRON_RUN_FAILED;
+}
+
+static void liveGroupWorkBudget(void)
+{
+    livegroupturn G={0};
+    for(unsigned I=0;I<2;++I)
+        testRequire(xrtEventInit(&G.Entered[I],true,false) && xrtEventInit(&G.Release[I],true,false),"gate owner turns");
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
+    const xcronserviceconfig C={
+        .Scheduler={2,1,8,0,65536},.Executor=Pool,.Proc=liveGroupNoRun,
+        .Clock=liveGroupTurnClock,.ClockContext=&G,.CommandLimit=2,.CompletionLimit=1,.BatchLimit=1,
+        .CommandWorkLimit=2,.ResampleMilliseconds=2,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
+        .BytesLimit=262144,.AdapterBytesLimit=65536
+    };
+    xcronservice* S=NULL;
+    testRequire(Pool && xcronServiceCreateCheckpointed(&C,&S,NULL) &&
+                xrtEventWaitFor(&G.Entered[0],10000)==XWAIT_OK,"hold initial owner turn");
+    const xcroncheckpointtarget Targets[]={{1,{1,1}},{2,{2,1}}};
+    xcroncheckpoint Records[2],Unchanged[2];
+    memset(Unchanged,0xf2,sizeof(Unchanged));memcpy(Records,Unchanged,sizeof(Records));
+    xcronrequestid A=0,B=0;
+    testRequire(xcronServiceReapAsync(S,&A,NULL) &&
+                xcronServiceSaveCheckpointGroupAsync(S,Targets,2,Records,&B,NULL) &&
+                xrtEventSet(&G.Release[0]) && xrtEventWaitFor(&G.Entered[1],10000)==XWAIT_OK,
+                "ordinary command and full-budget capture reach the second clock sample");
+    xcronreply Reply;
+    xcronservicecheckpointreply Pending={.Index=777};
+    testRequire(xcronServiceCollect(S,A,0,&Reply,NULL)==XWAIT_OK && !Reply.Code && !Reply.Found && !Reply.Error &&
+                xcronServiceCollectCheckpointGroup(S,B,0,&Pending,NULL)==XWAIT_TIMEOUT && Pending.Index==777,
+                "full-budget capture waits for another owner turn after a one-unit command");
+    testRequire(xrtEventSet(&G.Release[1]),"allow remaining command to progress");
+    Pending=liveCollectGroup(S,B);
+    testRequire(Pending.Code==XCRON_SERVICE_KERNEL && Pending.Scheduler.Code==XCRON_SCHEDULER_STALE &&
+                Pending.Index==0 && !memcmp(Records,Unchanged,sizeof(Records)),"deferred command completes on next turn");
+    xrtErrorFree(Pending.Error);
+    liveStop(S,false,0,NULL,0);
+    testRequire(xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"join work-budget fixture");
+    for(unsigned I=0;I<2;++I){
+        xrtEventUnit(&G.Release[I]);
+        xrtEventUnit(&G.Entered[I]);
+    }
+}
+
 int main(void)
 {
+    liveGroupWorkBudget();
     liveGroupTest(false);
     liveGroupTest(true);
     liveRoundtrip(false);

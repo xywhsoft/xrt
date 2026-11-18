@@ -59,7 +59,7 @@ static bool groupDemoInfo(xcronservice* S,xcronjobid Id,xcronjobinfo* Info)
     return !R.Code && R.Info.HasNext;
 }
 
-static bool groupDemoAdvance(xcronservice* S,xcronjobid Id,xcroncheckpointkey Key,xcroncheckpoint* Record)
+static bool groupDemoAdvance(xcronservice* S,xcronjobid Id)
 {
     if(!groupDemoPaused(S,Id,false) || xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK ||
        !groupDemoPaused(S,Id,true))return false;
@@ -67,13 +67,7 @@ static bool groupDemoAdvance(xcronservice* S,xcronjobid Id,xcroncheckpointkey Ke
     size_t Count;
     if(!xcronServiceDrain(S,&Done,1,&Count,NULL) || Count!=1)return false;
     xrtErrorFree(Done.Error);
-    if(Done.Job!=Id || Done.Result!=XCRON_RUN_SUCCEEDED)return false;
-    xcronrequestid Q;
-    xcronreply R;
-    if(!xcronServiceSaveCheckpointAsync(S,Id,Key,&Q,NULL) ||
-       xcronServiceCollectCheckpoint(S,Q,10000,&R,Record,NULL)!=XWAIT_OK)return false;
-    xrtErrorFree(R.Error);
-    return !R.Code && R.Job==Id;
+    return Done.Job==Id && Done.Result==XCRON_RUN_SUCCEEDED;
 }
 
 static int groupDemo(xroot Root,bool Create,bool Advance)
@@ -103,13 +97,21 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
     xcronZoneRelease(Job.Zone);
     if(xcronServiceWaitReadable(S,25,NULL)!=XWAIT_TIMEOUT)return 6;
     if(Advance){
-        xcroncheckpoint Records[DEMO_JOBS];
+        xcroncheckpointtarget Targets[DEMO_JOBS];
         for(unsigned I=0;I<DEMO_JOBS;++I){
             xcronjobinfo Info;
             if(!groupDemoInfo(S,Ids[I],&Info))return 7;
             xrtAtomic64Store(&Clock,(uint64)Info.Next,XMEMORY_RELEASE);
-            if(!groupDemoAdvance(S,Ids[I],Jobs[I].Key,&Records[I]))return 7;
+            if(!groupDemoAdvance(S,Ids[I]))return 7;
+            Targets[I]=(xcroncheckpointtarget){Ids[I],Jobs[I].Key};
         }
+        xcroncheckpoint Records[DEMO_JOBS];
+        xcronrequestid Request;
+        xcronservicecheckpointreply Reply;
+        if(!xcronServiceSaveCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,&Request,NULL) ||
+           xcronServiceCollectCheckpointGroup(S,Request,10000,&Reply,NULL)!=XWAIT_OK)return 7;
+        xrtErrorFree(Reply.Error);
+        if(Reply.Code)return 7;
         if(xcronCheckpointGroupCommit(Store,View.Info.Generation,Records,DEMO_JOBS)!=XCRON_CHECKPOINT_STORE_OK ||
            xcronCheckpointGroupRead(Store,&View)!=XCRON_CHECKPOINT_STORE_OK)return 8;
     }

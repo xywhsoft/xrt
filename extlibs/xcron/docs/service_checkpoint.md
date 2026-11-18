@@ -69,3 +69,31 @@ single-instant occurrence validation per member. Steady-state turns use
 the existing scheduler budgets. A host can resume jobs individually after
 it accepts the restored generation.
 [Runnable group recovery example](../examples/service_checkpoint_group/README.md).
+
+## Capture and hold a live group
+
+Submit SaveCheckpointGroupAsync with distinct live IDs and strictly
+increasing persistent Job keys. The owner validates the whole set at
+one command boundary. It then writes every record in stable key order
+and holds new dispatch for all scheduled members. An active lease or
+unfinished search returns BUSY with the failed index. Other validation
+errors also preserve the output and the prior holds. Hold busy jobs and
+wait for physical completion or recurrence progress before retrying.
+
+A command uses one ticket and spends one CommandWorkLimit unit per
+member, or one unit for an empty group. If another command used part of
+the current turn, the group stays at the queue head until a turn with
+enough budget. Each member is validated and encoded once. The owner
+uses caller-owned record storage, with no extra allocation on success.
+
+Keep the input array immutable and the output array exclusively borrowed
+through successful CollectCheckpointGroup, including while the service
+closes. A timed-out or wrong collector leaves the borrow outstanding.
+A successful collection transfers the diagnostic, if present, and ends
+the array borrow. Check the reply status before using the records.
+
+Commit the captured records through the group store on the caller or
+storage thread. Hold ownership across this interval by coordinating any
+other producers that could resume, cancel or reap the jobs. Release jobs
+after the caller accepts the file commit outcome.
+[Runnable group recovery and capture example](../examples/service_checkpoint_group/README.md).

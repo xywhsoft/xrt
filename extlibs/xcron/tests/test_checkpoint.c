@@ -32,7 +32,7 @@ static void checkpointActual(void)
     testRequire(xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_POSIX,&C.Zone,NULL) &&
                 xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&C.Expression,NULL),"actual checkpoint input");
     xcronscheduler *Before=NULL,*After=NULL;
-    xcronjobid Job;
+    xcronjobid Job=0;
     testRequire(xcronSchedulerCreate(&Limits,&Before,NULL) && xcronSchedulerAdd(Before,&C,&Job,NULL),"original checkpoint job");
     xcronrun Run;xcronpoll P;
     testRequire(xcronSchedulerPoll(Before,(xcronclock){C.Begin,100},&Run,1,&P,NULL) &&
@@ -125,7 +125,7 @@ static void checkpointSelected(void)
                 xcronExpressionCompile(XRT_STR_LITERAL("30 1 * * *"),XCRON_UNIX5,&C.Expression,NULL),"selected fold fixture");
     C.Begin=Times[0];C.End=Times[1];
     xcronscheduler* S=NULL;
-    xcronjobid Job;
+    xcronjobid Job=0;
     xcrondeliverypolicy Policy={XCRON_FOLD_LAST,XCRON_MISSING_REJECT};
     testRequire(xcronSchedulerCreateSelected(&Limits,&S,NULL) &&
                 xcronSchedulerAddSelected(S,&C,Policy,&Job,NULL),"start selected checkpoint job");
@@ -157,9 +157,77 @@ static void checkpointSelected(void)
     closeCheckpointScheduler(S,true);xcronZoneRelease(C.Zone);
 }
 
+static void checkpointGroupCapture(void)
+{
+    xcronjobconfig C={.Begin=1000,.End=10000,.RunningLimit=1};
+    xcronscheduler* S=NULL;
+    testRequire(xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_POSIX,&C.Zone,NULL) &&
+                xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&C.Expression,NULL) &&
+                xcronSchedulerCreate(&Limits,&S,NULL),"initialize group capture");
+    xcroncheckpointtarget Targets[2]={{.Key={1,1}},{.Key={2,1}}};
+    testRequire(xcronSchedulerAdd(S,&C,&Targets[1].Job,NULL),"capture active second member");
+    C.Begin=2000;
+    testRequire(xcronSchedulerAdd(S,&C,&Targets[0].Job,NULL),"capture idle first member");
+    xcronZoneRelease(C.Zone);
+
+    xcronrun A,B;
+    xcronpoll Poll;
+    testRequire(xcronSchedulerPoll(S,(xcronclock){1000,1},&A,1,&Poll,NULL) && Poll.Count==1 &&
+                A.Job==Targets[1].Job,"group fixture has one live lease");
+    _Alignas(uint32) xcroncheckpoint Records[2];
+    xcroncheckpoint Sentinel[2],Individual[2];
+    memset(Sentinel,0x3a,sizeof(Sentinel));memcpy(Records,Sentinel,sizeof(Records));
+    xcronschedulerissue Issue;
+    uint32 Index=77;
+    testRequire(!xcronSchedulerSaveCheckpointGroup(S,Targets,2,Records,&Index,&Issue) &&
+                Index==1 && Issue.Code==XCRON_SCHEDULER_BUSY && !memcmp(Records,Sentinel,sizeof(Records)),
+                "late busy member preserves all outputs");
+    xrtClearError();
+    testRequire(xcronSchedulerPoll(S,(xcronclock){2000,2},&B,1,&Poll,NULL) && Poll.Count==1 &&
+                B.Job==Targets[0].Job,"failed group does not hold the first member");
+    testRequire(xcronSchedulerComplete(S,A.Id,XCRON_RUN_SUCCEEDED,NULL) &&
+                xcronSchedulerComplete(S,B.Id,XCRON_RUN_SUCCEEDED,NULL),"return both leases");
+    for(unsigned I=0;I<2;++I)
+        testRequire(xcronSchedulerSaveCheckpoint(S,Targets[I].Job,Targets[I].Key,&Individual[I],NULL),"canonical scalar capture");
+
+    xcroncheckpointtarget Duplicate[]={Targets[0],Targets[1]};
+    Duplicate[1].Job=Duplicate[0].Job;
+    testRequire(!xcronSchedulerSaveCheckpointGroup(S,Duplicate,2,Records,&Index,&Issue) &&
+                Index==1 && Issue.Code==XCRON_SCHEDULER_CHECKPOINT_MISMATCH && !memcmp(Records,Sentinel,sizeof(Records)),
+                "reject repeated live Job IDs with distinct stable keys");
+    xrtClearError();
+    Duplicate[1]=Targets[1];
+    Duplicate[1].Key=Duplicate[0].Key;
+    testRequire(!xcronSchedulerSaveCheckpointGroup(S,Duplicate,2,Records,&Index,&Issue) &&
+                Index==1 && Issue.Code==XCRON_SCHEDULER_CHECKPOINT_MISMATCH,
+                "reject repeated stable keys");
+    xrtClearError();
+    Index=77;
+    testRequire(!xcronSchedulerSaveCheckpointGroup(S,Targets,2,Records,(uint32*)Records,&Issue) && Index==77 &&
+                !memcmp(Records,Sentinel,sizeof(Records)),"group output aliases preserve records");
+    xrtClearError();
+
+    xallocationbudget* Budget=NULL;
+    xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"deny allocations in capture");
+    testRequire(xcronSchedulerSaveCheckpointGroup(S,Targets,2,Records,&Index,NULL) &&
+                Index==XCRON_CHECKPOINT_NO_INDEX && !memcmp(Records,Individual,sizeof(Records)),
+                "successful capture writes both canonical records");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"leave capture scope");
+    xrtAllocationBudgetFree(Budget);
+    testRequire(xcronSchedulerPoll(S,(xcronclock){5000,3},&A,1,&Poll,NULL) && !Poll.Count && !Poll.More,
+                "all captured jobs are held");
+    testRequire(xcronSchedulerSaveCheckpointGroup(S,NULL,0,NULL,&Index,NULL) && Index==XCRON_CHECKPOINT_NO_INDEX,
+                "empty capture has a defined result");
+    testRequire(xcronSchedulerSetPaused(S,Targets[0].Job,false,NULL) &&
+                xcronSchedulerPoll(S,(xcronclock){5000,3},&A,1,&Poll,NULL) && Poll.Count==1 && A.Job==Targets[0].Job &&
+                xcronSchedulerComplete(S,A.Id,XCRON_RUN_SUCCEEDED,NULL),"resume releases one member");
+    closeCheckpointScheduler(S,false);
+}
+
 int main(void)
 {
-    checkpointActual();checkpointSelected();
+    checkpointActual();checkpointSelected();checkpointGroupCapture();
     puts("cron checkpoint tests passed");
     return 0;
 }

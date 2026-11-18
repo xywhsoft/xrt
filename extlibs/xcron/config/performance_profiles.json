@@ -4195,6 +4195,94 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_checkpoint_capture_1",
+      "system": "service",
+      "description": "Capture and hold 1 jobs with one command on a live owner",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_capture_1",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "10000",
+            "1",
+            "capture"
+          ],
+          "smoke_args": [
+            "1000",
+            "1",
+            "capture"
+          ],
+          "metrics": {
+            "captures_per_sec": {
+              "direction": "higher",
+              "unit": "captures/s"
+            },
+            "captured_per_sec": {
+              "direction": "higher",
+              "unit": "jobs/s"
+            },
+            "capture_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_checkpoint_capture_64",
+      "system": "service",
+      "description": "Capture and hold 64 jobs with one command on a live owner",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_capture_64",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "10000",
+            "64",
+            "capture"
+          ],
+          "smoke_args": [
+            "1000",
+            "64",
+            "capture"
+          ],
+          "metrics": {
+            "captures_per_sec": {
+              "direction": "higher",
+              "unit": "captures/s"
+            },
+            "captured_per_sec": {
+              "direction": "higher",
+              "unit": "jobs/s"
+            },
+            "capture_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }
