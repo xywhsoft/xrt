@@ -46,6 +46,16 @@ typedef struct xcronservicecheckpointcommitreply {
     uint64 Generation;
 } xcronservicecheckpointcommitreply;
 
+typedef struct xcronservicecheckpointperiodic {
+    xcronservicecheckpointcommit Commit;
+    uint64 EveryMilliseconds;
+} xcronservicecheckpointperiodic;
+typedef struct xcronservicecheckpointperiodicreport {
+    xcronservicecheckpointcommitreply Last;
+    uint64 Started,Finished,Committed,Skipped,Generation;
+    bool Stopped;
+} xcronservicecheckpointperiodicreport;
+
 XRT_EXTERN_C_BEGIN
 /* Match the ordinary constructors and additionally reserve one record and
  * key per command slot, charged to ArenaBytes and BytesLimit. Ordinary
@@ -138,6 +148,32 @@ XCRON_API bool xcronServiceCommitCheckpointGroupAsync(xcronservice* Service,cons
  * the writer executor is refused while the request depends on it. */
 XCRON_API xwaitresult xcronServiceCollectCheckpointCommit(xcronservice* Service,xcronrequestid Request,int64 Timeout,
     xcronservicecheckpointcommitreply* Reply,xcronserviceissue* Issue);
+/* Register one periodic group on the same live owner. It owns one command
+ * ticket and borrows the writer and arrays through successful final collection.
+ * The first tick is one positive interval after the owner arms the request.
+ * Host monotonic time drives fixed-rate ticks. Missed ticks are skipped and
+ * never queue extra writes. The capture timeout applies separately to each
+ * attempt. Success advances the expected generation. Capture timeout and
+ * temporary storage queue pressure retry on a later tick. Other failures
+ * stop the schedule. UNCERTAIN also leaves the scheduled members paused.
+ * Use a dedicated writer for the group while the registration is live. */
+XCRON_API bool xcronServiceStartCheckpointPeriodicAsync(xcronservice* Service,const xcronservicecheckpointperiodic* Periodic,
+    xcronrequestid* Request,xcronserviceissue* Issue);
+/* Request stop without a second ticket, even if the command queue is full.
+ * A write already accepted by storage drains. Service Close also stops the
+ * schedule. Poll or collect the original ticket to observe completion. */
+XCRON_API bool xcronServiceStopCheckpointPeriodic(xcronservice* Service,xcronrequestid Request,xcronserviceissue* Issue);
+/* Copy current counters and the latest finished attempt. Before Finished is
+ * nonzero, Last identifies the ticket and can report registration failure.
+ * A returned Last.Command.Error is an owned reference. This call retains the
+ * ticket and all borrows. Generation starts at Commit.ExpectedGeneration and
+ * advances after a successful write. */
+XCRON_API bool xcronServiceInspectCheckpointPeriodic(xcronservice* Service,xcronrequestid Request,
+    xcronservicecheckpointperiodicreport* Report,xcronserviceissue* Issue);
+/* Collect once after stop, ending the array and writer borrows. As for a
+ * single commit, a positive wait from the storage executor is refused. */
+XCRON_API xwaitresult xcronServiceCollectCheckpointPeriodic(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronservicecheckpointperiodicreport* Report,xcronserviceissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

@@ -48,8 +48,26 @@ static bool groupBenchCapture(const xcronserviceconfig* C,const xcronservicechec
     return groupBenchStop(S,Seed->Count);
 }
 
-static bool groupBenchCommit(const xcronserviceconfig* C,const xcronservicecheckpointgroup* Seed,
-    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total)
+typedef enum groupbenchfilemode {GROUP_BENCH_COMMIT,GROUP_BENCH_INFO,GROUP_BENCH_PERIODIC_INFO} groupbenchfilemode;
+
+static bool groupBenchInfoSamples(xcronservice* S,xcronjobid Job,size_t Iterations,double* Samples,double* Total)
+{
+    for(size_t I=0;I<Iterations;++I){
+        xcronrequestid Ticket;
+        xcronreply Reply;
+        double Begin=xrtTimer();
+        if(!xcronServiceInfoAsync(S,Job,&Ticket,NULL) ||
+           xcronServiceCollect(S,Ticket,10000,&Reply,NULL)!=XWAIT_OK || Reply.Code ||
+           Reply.Error || Reply.Job!=Job || !Reply.Info.HasNext)return false;
+        double Delta=xrtTimer()-Begin;
+        *Total+=Delta;
+        Samples[I]=Delta*1000000;
+    }
+    return true;
+}
+
+static bool groupBenchFile(const xcronserviceconfig* C,const xcronservicecheckpointgroup* Seed,
+    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total,groupbenchfilemode Mode)
 {
     cstr Base=getenv("TMPDIR");
 #if defined(_WIN32)
@@ -71,29 +89,50 @@ static bool groupBenchCommit(const xcronserviceconfig* C,const xcronservicecheck
        !xcronServiceCreateCheckpointedFromGroup(C,Seed,&S,Ids,NULL))return false;
     for(uint32 I=0;I<Seed->Count;++I)Targets[I]=(xcroncheckpointtarget){Ids[I],Seed->Jobs[I].Key};
     xcronservicecheckpointcommit Commit={Writer,Targets,Records,0,10000,Seed->Count};
-    for(size_t I=0;I<Iterations;++I){
-        xcronrequestid Ticket;
-        xcronservicecheckpointcommitreply Reply;
-        Commit.ExpectedGeneration=I;
-        double Begin=xrtTimer();
-        if(!xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL))return false;
-        xwaitresult Wait;
-        do Wait=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
-        while(Wait==XWAIT_TIMEOUT);
-        if(Wait!=XWAIT_OK)abort();
-        if(Reply.Command.Code || Reply.Command.Error || !Reply.StorageCompleted ||
-           Reply.Store!=XCRON_CHECKPOINT_STORE_OK || Reply.Generation!=I+1)return false;
-        double Delta=xrtTimer()-Begin;
-        *Total+=Delta;
-        Samples[I]=Delta*1000000;
+    uint64 Generation=0;
+    if(Mode==GROUP_BENCH_COMMIT){
+        for(size_t I=0;I<Iterations;++I){
+            xcronrequestid Ticket;
+            xcronservicecheckpointcommitreply Reply;
+            Commit.ExpectedGeneration=I;
+            double Begin=xrtTimer();
+            if(!xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL))return false;
+            xwaitresult Wait;
+            do Wait=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
+            while(Wait==XWAIT_TIMEOUT);
+            if(Wait!=XWAIT_OK)abort();
+            if(Reply.Command.Code || Reply.Command.Error || !Reply.StorageCompleted ||
+               Reply.Store!=XCRON_CHECKPOINT_STORE_OK || Reply.Generation!=I+1)return false;
+            double Delta=xrtTimer()-Begin;
+            *Total+=Delta;
+            Samples[I]=Delta*1000000;
+        }
+        Generation=Iterations;
+    }else{
+        xcronrequestid Ticket=0;
+        const xcronservicecheckpointperiodic Periodic={Commit,4};
+        if(Mode==GROUP_BENCH_PERIODIC_INFO && !xcronServiceStartCheckpointPeriodicAsync(S,&Periodic,&Ticket,NULL))return false;
+        bool Measured=groupBenchInfoSamples(S,Ids[0],Iterations,Samples,Total);
+        if(Ticket){
+            if(!xcronServiceStopCheckpointPeriodic(S,Ticket,NULL))abort();
+            xcronservicecheckpointperiodicreport Report;
+            xwaitresult Wait;
+            do Wait=xcronServiceCollectCheckpointPeriodic(S,Ticket,10000,&Report,NULL);
+            while(Wait==XWAIT_TIMEOUT);
+            if(Wait!=XWAIT_OK)abort();
+            Generation=Report.Generation;
+            xrtErrorFree(Report.Last.Command.Error);
+            if(!Generation || Report.Committed!=Generation || Report.Last.Store==XCRON_CHECKPOINT_STORE_UNCERTAIN)return false;
+        }
+        if(!Measured)return false;
     }
     free(Targets);
     xcroncheckpointgroupview View;
     return groupBenchStop(S,Seed->Count) && xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK &&
            xrtExecutorDestroy(Storage) && xcronCheckpointGroupOpen(Root,Name,102,Seed->Count,false,&Store)==XCRON_CHECKPOINT_STORE_OK &&
-           xcronCheckpointGroupRead(Store,&View)==XCRON_CHECKPOINT_STORE_OK &&
-           View.Info.Generation==Iterations && View.Count==Seed->Count &&
-           !memcmp(Records,View.Records,(size_t)View.Count*sizeof(*Records)) &&
+           xcronCheckpointGroupRead(Store,&View)==(Generation?XCRON_CHECKPOINT_STORE_OK:XCRON_CHECKPOINT_STORE_EMPTY) &&
+           View.Info.Generation==Generation && View.Count==(Generation?Seed->Count:0) &&
+           (!Generation || !memcmp(Records,View.Records,(size_t)View.Count*sizeof(*Records))) &&
            xcronCheckpointGroupClose(Store)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Name) && xrtRootClose(Root);
 }
 
@@ -103,7 +142,9 @@ int main(int Argc,char** Argv)
     uint32 Count=Argc>2?(uint32)strtoul(Argv[2],NULL,10):64;
     bool Quiesce=Argc==4 && !strcmp(Argv[3],"quiesce");
     bool Durable=Argc==4 && !strcmp(Argv[3],"commit");
-    bool Capture=Durable || Quiesce || (Argc==4 && !strcmp(Argv[3],"capture"));
+    bool Periodic=Argc==4 && !strcmp(Argv[3],"periodic-info");
+    bool Info=Periodic || (Argc==4 && !strcmp(Argv[3],"info"));
+    bool Capture=Durable || Info || Quiesce || (Argc==4 && !strcmp(Argv[3],"capture"));
     if((Argc>3 && !Capture) || !Iterations || Iterations>100000 || !Count || Count>1024)return 2;
     xcronservicecheckpointjob* Jobs=malloc((size_t)Count*sizeof(*Jobs));
     xcroncheckpoint* Records=malloc((size_t)Count*sizeof(*Records));
@@ -130,13 +171,14 @@ int main(int Argc,char** Argv)
     if(!Pool)return 3;
     const xcronserviceconfig C={
         .Scheduler={Count,1,16,0,2097152},.Executor=Pool,.Proc=groupStartupRun,
-        .CommandLimit=1,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=Capture?Count:1,
+        .CommandLimit=Info?2:1,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=Capture?Count:1,
         .ResampleMilliseconds=20,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
         .BytesLimit=4194304,.AdapterBytesLimit=65536
     };
     double Total=0;
-    if(Durable){
-        if(!groupBenchCommit(&C,&Seed,Ids,Records,Iterations,Samples,&Total))return 4;
+    if(Durable || Info){
+        groupbenchfilemode Mode=Durable?GROUP_BENCH_COMMIT:Periodic?GROUP_BENCH_PERIODIC_INFO:GROUP_BENCH_INFO;
+        if(!groupBenchFile(&C,&Seed,Ids,Records,Iterations,Samples,&Total,Mode))return 4;
     }else if(Capture){
         if(!groupBenchCapture(&C,&Seed,Ids,Records,Iterations,Samples,&Total,Quiesce))return 4;
     }else{
@@ -153,10 +195,12 @@ int main(int Argc,char** Argv)
     if(Total<=0 || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 5;
     xcronZoneRelease(Job.Zone);
     qsort(Samples,Iterations,sizeof(*Samples),groupStartupCompare);
-    cstr Operation=Durable?"commit":Capture?"capture":"start";
-    cstr Amount=Durable?"committed":Capture?"captured":"restored";
-    printf("%ss_per_sec: %.3f\n%s_per_sec: %.3f\n%s_p50_us: %.3f\n%s_p95_us: %.3f\n%s_p99_us: %.3f\n",
-           Operation,Iterations/Total,Amount,(double)Iterations*Count/Total,Operation,Samples[(Iterations+1)/2-1],
+    cstr Operation=Info?"info":Durable?"commit":Capture?"capture":"start";
+    cstr Amount=Info?"info":Durable?"committed":Capture?"captured":"restored";
+    double Items=Info?(double)Iterations:(double)Iterations*Count;
+    printf("%ss_per_sec: %.3f\n",Operation,Iterations/Total);
+    if(!Info)printf("%s_per_sec: %.3f\n",Amount,Items/Total);
+    printf("%s_p50_us: %.3f\n%s_p95_us: %.3f\n%s_p99_us: %.3f\n",Operation,Samples[(Iterations+1)/2-1],
            Operation,Samples[(Iterations*95+99)/100-1],Operation,Samples[(Iterations*99+99)/100-1]);
     free(Samples);
     free(Ids);

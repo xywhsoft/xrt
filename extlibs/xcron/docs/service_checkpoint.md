@@ -153,4 +153,32 @@ to resolve the durable generation before resuming them. The reply distinguishes
 an admission rejection from a completed storage result, including executor
 cancellation. The durable generation is populated for a successful storage commit.
 
+## Schedule periodic group commits
+
+StartCheckpointPeriodicAsync arms one group per live service. The first
+tick comes one interval after owner registration. The fixed-rate cadence
+uses the host monotonic timer, independent of the configured wall-clock
+sample and clock corrections. Only one attempt is in flight. The owner
+coalesces elapsed ticks and skips ticks that pass while an attempt is still
+active. One-shot requests and periodic capture share the existing command
+work budget. Ready ordinary commands get a turn between periodic attempts.
+
+The registration owns one ordinary command slot until final collection.
+Targets stay immutable, scratch is exclusive, and the writer and its
+executor stay live throughout. Use this writer for the scheduled group so
+its expected generation remains authoritative. The next attempt uses the
+generation returned by the preceding successful write. A quiescence timeout
+or temporary writer backpressure waits for the next tick. Other failures
+stop the schedule. An uncertain write leaves scheduled members paused for
+reconciliation, just as an on-demand commit does.
+
+InspectCheckpointPeriodic returns counters, the current expected
+generation, and the latest finished attempt. Started and Finished describe
+attempts, Committed counts successful writes, and Skipped counts coalesced
+ticks. The snapshot's optional diagnostic is an owned reference.
+StopCheckpointPeriodic takes the original ticket and consumes no additional
+slot. A stop or service close abandons an attempt before storage admission
+and drains a write already accepted by storage. Final collection releases
+the borrows. The service can accept a new registration after that collection.
+
 [Runnable group recovery and commit example](../examples/service_checkpoint_group/README.md).

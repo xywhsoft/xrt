@@ -71,6 +71,13 @@ struct xcronservicerecovery {
     uint32 Restored;
     xcronservicecheckpointissue Issue;
 };
+typedef struct xcronservicecheckpointperiod {
+    double Next,Interval,Window;
+    uint64 Started,Finished,Committed,Skipped,Generation;
+    uint32 LastIndex;
+    xcroncheckpointstorestatus LastStore;
+    bool StorageCompleted,Yield;
+} xcronservicecheckpointperiod;
 typedef struct xcronservicecheckpointbatch {
     const xcroncheckpointtarget* Targets;
     xcroncheckpoint* Records;
@@ -80,6 +87,7 @@ typedef struct xcronservicecheckpointbatch {
     uint64 Generation;
     xcroncheckpointwriteticket WriterTicket;
     xcroncheckpointstorestatus Store;
+    xcronservicecheckpointperiod Period;
 } xcronservicecheckpointbatch;
 typedef union xcronservicecheckpointcommand {
     struct {
@@ -117,8 +125,9 @@ struct xcronservice {
     xcroncommand* Commands;
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
     xcronservicecheckpointcommand* Checkpoints;
-    uint32 Quiescing;
+    uint32 Quiescing,Periodic;
     xatomic32 CheckpointStored;
+    bool PeriodicReserved;
 #endif
     xcronreservation* Reservations;
     uint32* ActiveMap;
@@ -315,10 +324,17 @@ static void xcronServiceSubmitReadySelected(xcronservice* S,size_t Count)
     }
 }
 #endif
+static void xcronServiceMarkReplyReady(xcronservice* S,xcroncommand* C)
+{
+    C->State=XCRON_CMD_READY;
+    --S->Stats.PendingRequests;
+    ++S->Stats.ReadyReplies;
+    xrtCondBroadcast(&S->Changed);
+}
 static void xcronServiceReplyReady(xcronservice* S,xcroncommand* C,xcronreply R,bool OK)
 {
     if(!OK)R.Error=xrtTakeError();else xrtClearError();
-    xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_READY;--S->Stats.PendingRequests;++S->Stats.ReadyReplies;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);
+    xrtMutexLock(&S->Mutex);C->Reply=R;xcronServiceMarkReplyReady(S,C);xrtMutexUnlock(&S->Mutex);
 }
 #if defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
 static void xcronServiceCommandSelected(xcronservice* S,uint32 I)
@@ -342,16 +358,16 @@ static void xcronServiceCommandSelected(xcronservice* S,uint32 I)
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
 static bool xcronServiceCheckpointGroupKind(xcronrequestkind Kind)
 {return Kind==XCRON_REQUEST_SAVE_CHECKPOINT_GROUP || Kind==XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP ||
-        Kind==XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP;}
+        Kind==XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP || Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP;}
 
 static bool xcronServiceCheckpointKind(xcronrequestkind Kind)
 {return Kind==XCRON_REQUEST_SAVE_CHECKPOINT || Kind==XCRON_REQUEST_RESTORE_CHECKPOINT ||
         Kind==XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT || xcronServiceCheckpointGroupKind(Kind);}
 
-static bool xcronServiceCheckpointClosing(xcronservice* S)
+static bool xcronServiceCheckpointClosing(xcronservice* S,const xcroncommand* Periodic)
 {
     xrtMutexLock(&S->Mutex);
-    bool Closing=S->Closing;
+    bool Closing=S->Closing || (Periodic && Periodic->Cancel);
     xrtMutexUnlock(&S->Mutex);
     return Closing;
 }
@@ -363,6 +379,96 @@ static void xcronServiceCheckpointStored(ptr Raw)
     xcronServiceSignal(S);
 }
 
+/* Consume the elapsed fixed-rate ticks arithmetically, including time spent
+ * blocked by a lease or writer. Next remains on the original phase. */
+static uint64 xcronServicePeriodicTicks(xcronservicecheckpointperiod* P,double Now)
+{
+    if(Now<P->Next)return 0;
+    double Ticks=floor((Now-P->Next)/P->Interval)+1;
+    P->Next+=Ticks*P->Interval;
+    if(P->Next<=Now)P->Next=Now+P->Interval;
+    return Ticks>=(double)UINT64_MAX?UINT64_MAX:(uint64)Ticks;
+}
+
+static void xcronServicePeriodicStopLocked(xcronservice* S,xcroncommand* C)
+{
+    S->Periodic=XCRON_SERVICE_NONE;
+    xcronServiceMarkReplyReady(S,C);
+}
+
+static void xcronServicePeriodicDone(xcronservice* S,xcroncommand* C,xcronservicecheckpointbatch* B,xcronreply R)
+{
+    R.Error=xrtTakeError();
+    bool Retry=R.Code==XCRON_SERVICE_OK || R.Code==XCRON_SERVICE_TIMEOUT ||
+        (R.Code==XCRON_SERVICE_STORAGE && !B->WriterTicket && xrtErrorKind(R.Error)==XERR_AGAIN);
+    xcronservicecheckpointperiod* P=&B->Period;
+    xrtMutexLock(&S->Mutex);
+    xerror* Previous=C->Reply.Error;
+    C->Reply=R;
+    P->LastIndex=B->Index;
+    P->StorageCompleted=B->WriterTicket!=0;
+    P->LastStore=B->Store;
+    xcronServiceIncrement(&P->Finished);
+    if(R.Code==XCRON_SERVICE_OK){
+        P->Generation=B->Generation;
+        xcronServiceIncrement(&P->Committed);
+    }
+    if(S->Closing || C->Cancel || !Retry)xcronServicePeriodicStopLocked(S,C);
+    else{
+        P->Skipped=xcronServiceAddTime(P->Skipped,xcronServicePeriodicTicks(P,xrtTimer()));
+        P->Yield=true;
+    }
+    xrtMutexUnlock(&S->Mutex);
+    xrtErrorFree(Previous);
+}
+
+static uint32 xcronServiceStartPeriodicDue(xcronservice* S,uint32 Work,bool Stop)
+{
+    uint32 I=S->Periodic;
+    if(I==XCRON_SERVICE_NONE || S->Quiescing==I)return 0;
+    xcroncommand* C=&S->Commands[I];
+    xcronservicecheckpointbatch* B=&S->Checkpoints[I].Group;
+    xcronservicecheckpointperiod* P=&B->Period;
+    uint32 Cost=B->Count?B->Count:1;
+    double Now=0;
+    if(!Stop){
+        if(S->Quiescing!=XCRON_SERVICE_NONE || Cost>Work)return 0;
+        Now=xrtTimer();
+        if(Now<P->Next)return 0;
+    }
+    xrtMutexLock(&S->Mutex);
+    if(S->Closing || C->Cancel){
+        xcronServicePeriodicStopLocked(S,C);
+        xrtMutexUnlock(&S->Mutex);
+        return 0;
+    }
+    if(P->Yield){
+        P->Yield=false;
+        if(S->CommandHead!=XCRON_SERVICE_NONE){xrtMutexUnlock(&S->Mutex);return 0;}
+    }
+    uint64 Ticks=xcronServicePeriodicTicks(P,Now);
+    if(!Ticks){xrtMutexUnlock(&S->Mutex);return 0;}
+    P->Skipped=xcronServiceAddTime(P->Skipped,Ticks-1);
+    xcronServiceIncrement(&P->Started);
+    xcronreply R={.Request=C->Reply.Request,.Kind=C->Reply.Kind};
+    B->Deadline=Now+P->Window;
+    B->Index=XCRON_CHECKPOINT_NO_INDEX;
+    B->Store=0;
+    B->WriterTicket=0;
+    B->Generation=P->Generation;
+    xrtMutexUnlock(&S->Mutex);
+
+    xrtClearError();
+    if(xcronSchedulerHoldCheckpointGroup(S->Kernel,B->Targets,B->Count,B->Records,&B->Index,&R.Scheduler))
+        S->Quiescing=I;
+    else{
+        R.Code=XCRON_SERVICE_KERNEL;
+        if(R.Scheduler.Code==XCRON_SCHEDULER_OK)R.Scheduler.Code=XCRON_SCHEDULER_ARGUMENT;
+        xcronServicePeriodicDone(S,C,B,R);
+    }
+    return Cost;
+}
+
 static uint32 xcronServiceAdvanceCheckpointGroup(xcronservice* S,bool Closing)
 {
     if(S->Quiescing==XCRON_SERVICE_NONE)return 0;
@@ -370,6 +476,7 @@ static uint32 xcronServiceAdvanceCheckpointGroup(xcronservice* S,bool Closing)
     xcronservicecheckpointbatch* Batch=&S->Checkpoints[I].Group;
     xcroncommand* C=&S->Commands[I];
     xcronreply R={.Request=C->Reply.Request,.Kind=C->Reply.Kind};
+    bool Periodic=R.Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP;
     uint32 Cost=Batch->Count?Batch->Count:1;
     bool Pause=false;
     if(Batch->WriterTicket){
@@ -396,7 +503,7 @@ static uint32 xcronServiceAdvanceCheckpointGroup(xcronservice* S,bool Closing)
             R.Code=XCRON_SERVICE_KERNEL;
             if(R.Scheduler.Code==XCRON_SCHEDULER_OK)R.Scheduler.Code=XCRON_SCHEDULER_ARGUMENT;
         }else if(!Batch->Writer)Pause=true;
-        else if(xcronServiceCheckpointClosing(S))R.Code=XCRON_SERVICE_CLOSED;
+        else if(xcronServiceCheckpointClosing(S,Periodic?C:NULL))R.Code=XCRON_SERVICE_CLOSED;
         else if(xrtTimer()>=Batch->Deadline)R.Code=XCRON_SERVICE_TIMEOUT;
         else{
             xrtAtomic32Store(&S->CheckpointStored,0,XMEMORY_RELAXED);
@@ -408,7 +515,8 @@ static uint32 xcronServiceAdvanceCheckpointGroup(xcronservice* S,bool Closing)
     }
     xcronSchedulerReleaseCheckpointGroup(S->Kernel,Batch->Targets,Batch->Count,Pause);
     S->Quiescing=XCRON_SERVICE_NONE;
-    xcronServiceReplyReady(S,C,R,R.Code==XCRON_SERVICE_OK);
+    if(Periodic)xcronServicePeriodicDone(S,C,Batch,R);
+    else xcronServiceReplyReady(S,C,R,R.Code==XCRON_SERVICE_OK);
     return Cost;
 }
 
@@ -417,7 +525,13 @@ static void xcronServiceCommandCheckpoint(xcronservice* S,uint32 I)
     xcroncommand* C=&S->Commands[I];
     xcronservicecheckpointcommand* X=&S->Checkpoints[I];
     xcronreply R={.Request=C->Reply.Request,.Kind=C->Reply.Kind,.Job=C->Job};
-    bool Closing=xcronServiceCheckpointClosing(S);
+    bool Periodic=R.Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP;
+    bool Closing=xcronServiceCheckpointClosing(S,Periodic?C:NULL);
+    if(Periodic && !Closing){
+        X->Group.Period.Next=xrtTimer()+X->Group.Period.Interval;
+        S->Periodic=I;
+        return;
+    }
     bool Group=xcronServiceCheckpointGroupKind(R.Kind);
     bool OK=false,Restore=!Group && R.Kind!=XCRON_REQUEST_SAVE_CHECKPOINT;
     xrtClearError();
@@ -648,10 +762,16 @@ static int32 xcronServiceOwner(ptr Raw)
     S->Stats.State=S->Closing?XCRON_SERVICE_STOPPING:XCRON_SERVICE_RUNNING;xrtMutexUnlock(&S->Mutex);
     bool AppliedClose=false,AppliedCancel=false;
     for(;;){
-        xrtMutexLock(&S->Mutex);bool Closing=S->Closing,Cancel=S->CancelRuns;xrtMutexUnlock(&S->Mutex);
+        xrtMutexLock(&S->Mutex);
+        bool Closing=S->Closing,Cancel=S->CancelRuns;
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+        bool StopPeriodic=S->Periodic!=XCRON_SERVICE_NONE && S->Commands[S->Periodic].Cancel;
+#endif
+        xrtMutexUnlock(&S->Mutex);
         uint32 CommandWork=S->Config.CommandWorkLimit;
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
-        CommandWork-=xcronServiceAdvanceCheckpointGroup(S,Closing);
+        CommandWork-=xcronServiceAdvanceCheckpointGroup(S,Closing || (StopPeriodic && S->Quiescing==S->Periodic));
+        CommandWork-=xcronServiceStartPeriodicDue(S,CommandWork,Closing || StopPeriodic);
 #endif
         if(Closing && !AppliedClose){xcronSchedulerClose(S->Kernel,NULL);xcronExecutorClose(S->Bridge,Cancel,NULL);xcronServiceCancelUnsent(S,0);AppliedClose=true;AppliedCancel=Cancel;}
         else if(Closing && Cancel && !AppliedCancel){xcronExecutorClose(S->Bridge,true,NULL);AppliedCancel=true;}
@@ -659,7 +779,8 @@ static int32 xcronServiceOwner(ptr Raw)
             xrtMutexLock(&S->Mutex);
             uint32 I=S->CommandHead,Cost=1;
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
-            if(I!=XCRON_SERVICE_NONE && xcronServiceCheckpointGroupKind(S->Commands[I].Reply.Kind)){
+            if(I!=XCRON_SERVICE_NONE && S->Commands[I].Reply.Kind!=XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP &&
+               xcronServiceCheckpointGroupKind(S->Commands[I].Reply.Kind)){
                 uint32 Count=S->Checkpoints[I].Group.Count;
                 if(Count)Cost=Count;
             }
@@ -758,6 +879,9 @@ static int32 xcronServiceOwner(ptr Raw)
                     if(Left<(double)Delay)Delay=Left<=0?0:(uint64)ceil(Left);
                 }
             }
+        }else if(S->Periodic!=XCRON_SERVICE_NONE && Delay){
+            double Left=(S->Checkpoints[S->Periodic].Group.Period.Next-xrtTimer())*1000.0;
+            if(Left<(double)Delay)Delay=Left<=0?0:(uint64)ceil(Left);
         }
 #endif
         /* The auto-reset event is never reset after the work check. */
@@ -837,7 +961,7 @@ static bool xcronServiceCreateMode(const xcronserviceconfig* C,xcronservice** Ou
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
     if(Checkpointed)S->Checkpoints=(xcronservicecheckpointcommand*)((unsigned char*)S+CheckpointOffset);
-    S->Quiescing=XCRON_SERVICE_NONE;
+    S->Quiescing=S->Periodic=XCRON_SERVICE_NONE;
     xrtAtomic32Init(&S->CheckpointStored,0);
 #endif
     S->CommandHead=S->CommandTail=S->DoneHead=S->DoneTail=S->AdmissionHead=S->AdmissionTail=XCRON_SERVICE_NONE;S->CommandBits=xcronServiceBits(C->CommandLimit);S->RunBits=xcronServiceBits(C->Scheduler.RunLimit);xrtAtomic64Init(&S->WakeFailures,0);
@@ -945,6 +1069,9 @@ static bool xcronServiceEnqueue(xcronservice* S,xcronrequestkind Kind,const xcro
 {
     if(!xrtMutexLock(&S->Mutex))return xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);
     xcronserviceerror Code=S->Closing?XCRON_SERVICE_CLOSED:S->FreeCommand==XCRON_SERVICE_NONE?XCRON_SERVICE_LIMIT:XCRON_SERVICE_OK;
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+    if(!S->Closing && Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP && S->PeriodicReserved)Code=XCRON_SERVICE_BUSY;
+#endif
     if(Code!=XCRON_SERVICE_OK){xrtMutexUnlock(&S->Mutex);return xcronServiceFail(Code,XERR_NONE,Issue);}
     if(Add && !xcronZoneRetain(Add->Zone)){xrtMutexUnlock(&S->Mutex);return xcronServiceFail(XCRON_SERVICE_LIMIT,xrtErrorKind(xrtGetError()),Issue);}
     uint32 I=S->FreeCommand;xcroncommand* C=&S->Commands[I];S->FreeCommand=C->Next;
@@ -957,6 +1084,7 @@ static bool xcronServiceEnqueue(xcronservice* S,xcronrequestkind Kind,const xcro
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
     if(xcronServiceCheckpointGroupKind(Kind)){
         S->Checkpoints[I].Group=*(const xcronservicecheckpointbatch*)Extension;
+        if(Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP)S->PeriodicReserved=true;
     }else if(Extension && xcronServiceCheckpointKind(Kind)){
         const xcronservicecheckpointinput* Input=Extension;
         S->Checkpoints[I].Key=Input->Key;
@@ -998,7 +1126,7 @@ XCRON_API bool xcronServiceSaveCheckpointAsync(xcronservice* S,xcronjobid Job,xc
 }
 
 static bool xcronServiceEnqueueCheckpointGroup(xcronservice* S,const xcronservicecheckpointcommit* Input,
-    xcronrequestkind Kind,xcronrequestid* Request,xcronserviceissue* Issue)
+    xcronrequestkind Kind,uint64 Every,xcronrequestid* Request,xcronserviceissue* Issue)
 {
     size_t Members=Input->Count;
     if(Members>SIZE_MAX/sizeof(*Input->Targets) || Members>SIZE_MAX/sizeof(*Input->Scratch))
@@ -1018,8 +1146,10 @@ static bool xcronServiceEnqueueCheckpointGroup(xcronservice* S,const xcronservic
         return xcronServiceFail(XCRON_SERVICE_LIMIT,XERR_NONE,Issue);
     const xcronservicecheckpointbatch Batch={.Targets=Input->Targets,.Records=Input->Scratch,.Count=Input->Count,
         .Index=XCRON_CHECKPOINT_NO_INDEX,
-        .Deadline=Input->TimeoutMilliseconds?xrtTimer()+(double)Input->TimeoutMilliseconds/1000.0:0,
-        .Writer=Input->Writer,.Generation=Input->ExpectedGeneration};
+        .Deadline=!Every && Input->TimeoutMilliseconds?xrtTimer()+(double)Input->TimeoutMilliseconds/1000.0:0,
+        .Writer=Input->Writer,.Generation=Input->ExpectedGeneration,
+        .Period={.Interval=(double)Every/1000.0,.Window=(double)Input->TimeoutMilliseconds/1000.0,
+            .Generation=Input->ExpectedGeneration,.LastIndex=XCRON_CHECKPOINT_NO_INDEX}};
     return xcronServiceEnqueue(S,Kind,NULL,&Batch,0,false,Request,Issue);
 }
 
@@ -1027,7 +1157,7 @@ XCRON_API bool xcronServiceSaveCheckpointGroupAsync(xcronservice* S,const xcronc
     uint32 Count,xcroncheckpoint* Records,xcronrequestid* Request,xcronserviceissue* Issue)
 {
     const xcronservicecheckpointcommit Input={.Targets=Targets,.Scratch=Records,.Count=Count};
-    return xcronServiceEnqueueCheckpointGroup(S,&Input,XCRON_REQUEST_SAVE_CHECKPOINT_GROUP,Request,Issue);
+    return xcronServiceEnqueueCheckpointGroup(S,&Input,XCRON_REQUEST_SAVE_CHECKPOINT_GROUP,0,Request,Issue);
 }
 
 XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* S,const xcroncheckpointtarget* Targets,
@@ -1035,7 +1165,7 @@ XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* S,const xcr
 {
     if(!TimeoutMilliseconds)return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
     const xcronservicecheckpointcommit Input={.Targets=Targets,.Scratch=Records,.Count=Count,.TimeoutMilliseconds=TimeoutMilliseconds};
-    return xcronServiceEnqueueCheckpointGroup(S,&Input,XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP,Request,Issue);
+    return xcronServiceEnqueueCheckpointGroup(S,&Input,XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP,0,Request,Issue);
 }
 
 XCRON_API bool xcronServiceCommitCheckpointGroupAsync(xcronservice* S,const xcronservicecheckpointcommit* Commit,
@@ -1045,7 +1175,18 @@ XCRON_API bool xcronServiceCommitCheckpointGroupAsync(xcronservice* S,const xcro
     if(!S || !Commit || !Request || !xcronServiceOutputs(S,Commit,sizeof(*Commit),O,N,2) ||
        !Commit->Writer || !Commit->TimeoutMilliseconds)
         return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
-    return xcronServiceEnqueueCheckpointGroup(S,Commit,XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP,Request,Issue);
+    return xcronServiceEnqueueCheckpointGroup(S,Commit,XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP,0,Request,Issue);
+}
+
+XCRON_API bool xcronServiceStartCheckpointPeriodicAsync(xcronservice* S,const xcronservicecheckpointperiodic* Input,
+    xcronrequestid* Request,xcronserviceissue* Issue)
+{
+    void* O[]={Request,Issue};size_t N[]={sizeof(*Request),Issue?sizeof(*Issue):0};
+    if(!S || !Input || !Request || !xcronServiceOutputs(S,Input,sizeof(*Input),O,N,2) ||
+       !Input->Commit.Writer || !Input->Commit.TimeoutMilliseconds || !Input->EveryMilliseconds)
+        return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+    return xcronServiceEnqueueCheckpointGroup(S,&Input->Commit,XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP,
+        Input->EveryMilliseconds,Request,Issue);
 }
 
 static bool xcronServiceRestoreAsync(xcronservice* S,const xcronjobconfig* Config,xcroncheckpointkey Key,
@@ -1109,8 +1250,44 @@ XCRON_API xwaitresult xcronServiceWaitReadable(xcronservice* S,int64 Timeout,xcr
         if(Result==XWAIT_ERROR){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);return XWAIT_ERROR;}
     }
 }
+static xcroncommand* xcronServiceFindCommand(xcronservice* S,xcronrequestid Id,uint32* Index)
+{
+    uint32 I=(uint32)(Id&((UINT64_C(1)<<S->CommandBits)-1));
+    xcroncommand* C=I<S->Config.CommandLimit?&S->Commands[I]:NULL;
+    if(!Id || !C || C->State==XCRON_CMD_FREE || C->Generation!=(Id>>S->CommandBits))return NULL;
+    *Index=I;
+    return C;
+}
+
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+static bool xcronServiceCheckpointOutput(const xcronservicecheckpointbatch* B,void* Reply,size_t Bytes,xcronserviceissue* Issue)
+{
+    void* O[]={Reply,Issue};
+    size_t N[]={Bytes,Issue?sizeof(*Issue):0};
+    return xcronServiceOutputs(NULL,B->Targets,(size_t)B->Count*sizeof(*B->Targets),O,N,2) &&
+        xcronServiceOutputs(NULL,B->Records,(size_t)B->Count*sizeof(*B->Records),O,N,2) &&
+        (!B->Writer || (xcronCheckpointWriterOutside(B->Writer,Reply,N[0]) &&
+                        xcronCheckpointWriterOutside(B->Writer,Issue,N[1])));
+}
+
+static xcronservicecheckpointperiodicreport xcronServicePeriodicReport(const xcroncommand* C,
+    const xcronservicecheckpointperiod* P,bool RefError)
+{
+    const xcronreply* R=&C->Reply;
+    const xcronservicecheckpointreply Command={R->Request,R->Code,R->Scheduler,P->LastIndex,
+        RefError?xrtErrorRef(R->Error):R->Error};
+    uint64 Generation=P->StorageCompleted && P->LastStore==XCRON_CHECKPOINT_STORE_OK?P->Generation:0;
+    return (xcronservicecheckpointperiodicreport){
+        .Last={Command,P->StorageCompleted,P->LastStore,Generation},
+        .Started=P->Started,.Finished=P->Finished,.Committed=P->Committed,.Skipped=P->Skipped,
+        .Generation=P->Generation,.Stopped=C->State==XCRON_CMD_READY
+    };
+}
+#endif
+
 typedef enum xcronservicecollectmode {
-    XCRON_COLLECT_COMMAND,XCRON_COLLECT_CHECKPOINT,XCRON_COLLECT_GROUP,XCRON_COLLECT_COMMIT
+    XCRON_COLLECT_COMMAND,XCRON_COLLECT_CHECKPOINT,XCRON_COLLECT_GROUP,XCRON_COLLECT_COMMIT,
+    XCRON_COLLECT_PERIODIC,XCRON_INSPECT_PERIODIC
 } xcronservicecollectmode;
 
 static xwaitresult xcronServiceCollectValue(xcronservice* S,xcronrequestid Id,int64 Timeout,void* Reply,xcronserviceissue* Issue,
@@ -1120,36 +1297,46 @@ static xwaitresult xcronServiceCollectValue(xcronservice* S,xcronrequestid Id,in
     (void)Mode;(void)Record;
 #endif
     double Start=xrtTimer();if(!xrtMutexLock(&S->Mutex)){xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);return XWAIT_ERROR;}
-    for(;;){uint32 I=(uint32)(Id&((UINT64_C(1)<<S->CommandBits)-1));xcroncommand* C=I<S->Config.CommandLimit?&S->Commands[I]:NULL;
-        if(!Id || !C || C->State==XCRON_CMD_FREE || C->Generation!=(Id>>S->CommandBits)){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_STALE,XERR_NONE,Issue);return XWAIT_ERROR;}
+    for(;;){
+        uint32 I;
+        xcroncommand* C=xcronServiceFindCommand(S,Id,&I);
+        if(!C){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_STALE,XERR_NONE,Issue);return XWAIT_ERROR;}
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
         bool Save=C->Reply.Kind==XCRON_REQUEST_SAVE_CHECKPOINT;
         bool Group=xcronServiceCheckpointGroupKind(C->Reply.Kind);
-        xcronservicecollectmode Required=C->Reply.Kind==XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP?XCRON_COLLECT_COMMIT:
+        bool Periodic=C->Reply.Kind==XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP;
+        xcronservicecollectmode Required=Periodic?XCRON_COLLECT_PERIODIC:
+            C->Reply.Kind==XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP?XCRON_COLLECT_COMMIT:
             Group?XCRON_COLLECT_GROUP:xcronServiceCheckpointKind(C->Reply.Kind)?XCRON_COLLECT_CHECKPOINT:XCRON_COLLECT_COMMAND;
-        if(Mode!=Required || (Save && !Record)){
+        bool Inspect=Mode==XCRON_INSPECT_PERIODIC && Periodic;
+        if((Mode!=Required && !Inspect) || (Save && !Record)){
             xrtMutexUnlock(&S->Mutex);
             xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,Group?NULL:Issue);
             return XWAIT_ERROR;
         }
         const xcronservicecheckpointbatch* Batch=Group?&S->Checkpoints[I].Group:NULL;
         if(Group){
-            void* O[]={Reply,Issue};
-            size_t N[]={Mode==XCRON_COLLECT_COMMIT?sizeof(xcronservicecheckpointcommitreply):sizeof(xcronservicecheckpointreply),
-                Issue?sizeof(*Issue):0};
-            if(!xcronServiceOutputs(NULL,Batch->Targets,(size_t)Batch->Count*sizeof(*Batch->Targets),O,N,2) ||
-               !xcronServiceOutputs(NULL,Batch->Records,(size_t)Batch->Count*sizeof(*Batch->Records),O,N,2) ||
-               (Batch->Writer && (!xcronCheckpointWriterOutside(Batch->Writer,Reply,N[0]) ||
-                                  !xcronCheckpointWriterOutside(Batch->Writer,Issue,N[1])))){
+            size_t Bytes=Periodic?sizeof(xcronservicecheckpointperiodicreport):
+                Mode==XCRON_COLLECT_COMMIT?sizeof(xcronservicecheckpointcommitreply):sizeof(xcronservicecheckpointreply);
+            if(!xcronServiceCheckpointOutput(Batch,Reply,Bytes,Issue)){
                 xrtMutexUnlock(&S->Mutex);
                 xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
                 return XWAIT_ERROR;
             }
         }
+        if(Inspect){
+            *(xcronservicecheckpointperiodicreport*)Reply=xcronServicePeriodicReport(C,&Batch->Period,true);
+            xrtMutexUnlock(&S->Mutex);
+            xcronServiceOK(Issue);
+            return XWAIT_OK;
+        }
 #endif
         if(C->State==XCRON_CMD_READY){
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
-            if(Group){
+            if(Periodic){
+                *(xcronservicecheckpointperiodicreport*)Reply=xcronServicePeriodicReport(C,&Batch->Period,false);
+                S->PeriodicReserved=false;
+            }else if(Group){
                 const xcronreply* R=&C->Reply;
                 xcronservicecheckpointreply Command={R->Request,R->Code,R->Scheduler,Batch->Index,R->Error};
                 if(Mode==XCRON_COLLECT_COMMIT){
@@ -1229,6 +1416,43 @@ XCRON_API xwaitresult xcronServiceCollectCheckpointCommit(xcronservice* S,xcronr
     }
     return xcronServiceCollectValue(S,Id,Timeout,Reply,Issue,XCRON_COLLECT_COMMIT,NULL);
 }
+
+XCRON_API bool xcronServiceStopCheckpointPeriodic(xcronservice* S,xcronrequestid Id,xcronserviceissue* Issue)
+{
+    if(!xcronServiceArgs(S,NULL,0,Issue) || !S->Checkpoints)return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+    if(!xrtMutexLock(&S->Mutex))return xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);
+    uint32 I;
+    xcroncommand* C=xcronServiceFindCommand(S,Id,&I);
+    if(!C){xrtMutexUnlock(&S->Mutex);return xcronServiceFail(XCRON_SERVICE_STALE,XERR_NONE,Issue);}
+    if(C->Reply.Kind!=XCRON_REQUEST_PERIODIC_CHECKPOINT_GROUP || !xcronServiceCheckpointOutput(&S->Checkpoints[I].Group,NULL,0,Issue)){
+        xrtMutexUnlock(&S->Mutex);
+        return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+    }
+    bool Wake=C->State!=XCRON_CMD_READY && !C->Cancel;
+    if(Wake)C->Cancel=true;
+    xrtMutexUnlock(&S->Mutex);
+    if(Wake)xcronServiceSignal(S);
+    xcronServiceOK(Issue);
+    return true;
+}
+
+static xwaitresult xcronServiceReadPeriodic(xcronservice* S,xcronrequestid Id,int64 Timeout,
+    xcronservicecheckpointperiodicreport* Report,xcronserviceissue* Issue,xcronservicecollectmode Mode)
+{
+    if(!Report || Timeout<0 || !xcronServiceArgs(S,Report,sizeof(*Report),Issue) || !S->Checkpoints){
+        xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+        return XWAIT_ERROR;
+    }
+    return xcronServiceCollectValue(S,Id,Timeout,Report,Issue,Mode,NULL);
+}
+
+XCRON_API bool xcronServiceInspectCheckpointPeriodic(xcronservice* S,xcronrequestid Id,
+    xcronservicecheckpointperiodicreport* Report,xcronserviceissue* Issue)
+{return xcronServiceReadPeriodic(S,Id,0,Report,Issue,XCRON_INSPECT_PERIODIC)==XWAIT_OK;}
+
+XCRON_API xwaitresult xcronServiceCollectCheckpointPeriodic(xcronservice* S,xcronrequestid Id,int64 Timeout,
+    xcronservicecheckpointperiodicreport* Report,xcronserviceissue* Issue)
+{return xcronServiceReadPeriodic(S,Id,Timeout,Report,Issue,XCRON_COLLECT_PERIODIC);}
 #endif
 static bool xcronServiceDrainValue(xcronservice* S,void* Completed,size_t Capacity,size_t* Count,xcronserviceissue* Issue)
 {

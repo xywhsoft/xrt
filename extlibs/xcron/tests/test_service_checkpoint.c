@@ -809,16 +809,23 @@ typedef struct livecommitgate {
     xevent Entered,Probe,Probed,Release;
     xcronservice* Service;
     xcronrequestid Request;
+    bool Periodic;
 } livecommitgate;
 
 static void liveCommitGate(ptr Raw)
 {
     livecommitgate* F=Raw;
     testRequire(xrtEventSet(&F->Entered) && xrtEventWaitFor(&F->Probe,10000)==XWAIT_OK,"hold storage executor");
-    xcronservicecheckpointcommitreply Reply={.Generation=UINT64_MAX};
     xcronserviceissue Issue;
-    testRequire(xcronServiceCollectCheckpointCommit(F->Service,F->Request,10000,&Reply,&Issue)==XWAIT_ERROR &&
-                Issue.Code==XCRON_SERVICE_THREAD && Reply.Generation==UINT64_MAX,"refuse wait on the same storage executor");
+    if(F->Periodic){
+        xcronservicecheckpointperiodicreport Report={.Generation=UINT64_MAX};
+        testRequire(xcronServiceCollectCheckpointPeriodic(F->Service,F->Request,10000,&Report,&Issue)==XWAIT_ERROR &&
+                    Issue.Code==XCRON_SERVICE_THREAD && Report.Generation==UINT64_MAX,"refuse periodic wait on storage executor");
+    }else{
+        xcronservicecheckpointcommitreply Reply={.Generation=UINT64_MAX};
+        testRequire(xcronServiceCollectCheckpointCommit(F->Service,F->Request,10000,&Reply,&Issue)==XWAIT_ERROR &&
+                    Issue.Code==XCRON_SERVICE_THREAD && Reply.Generation==UINT64_MAX,"refuse wait on the same storage executor");
+    }
     testRequire(xrtEventSet(&F->Probed) && xrtEventWaitFor(&F->Release,10000)==XWAIT_OK,"wait for storage release");
 }
 
@@ -963,6 +970,153 @@ static void liveCommitTest(xroot Root,bool Selected,livecommitcase Case)
     testRequire(xcronCheckpointGroupClose(Group)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Path),"remove durable fixture");
 }
 
+typedef enum liveperiodiccase {
+    LIVE_PERIODIC_REPEAT,LIVE_PERIODIC_PRESSURE,LIVE_PERIODIC_CLOSE,LIVE_PERIODIC_STALE,LIVE_PERIODIC_TIMEOUT
+} liveperiodiccase;
+
+static void livePeriodicFiller(ptr Raw)
+{
+    (void)Raw;
+}
+
+static xcronservicecheckpointperiodicreport livePeriodicWait(xcronservice* S,xcronrequestid Q,uint64 Finished,
+    xcronserviceerror Code)
+{
+    double Until=xrtTimer()+10;
+    for(;;){
+        xcronservicecheckpointperiodicreport Report;
+        testRequire(xcronServiceInspectCheckpointPeriodic(S,Q,&Report,NULL),"inspect checkpoint schedule");
+        if(Report.Finished>=Finished && Report.Last.Command.Code==Code)return Report;
+        xrtErrorFree(Report.Last.Command.Error);
+        testRequire(!Report.Stopped && xrtTimer()<Until,"periodic attempt must reach the expected result");
+        xrtSleep(2);
+    }
+}
+
+static void livePeriodicTest(xroot Root,bool Selected,liveperiodiccase Case)
+{
+    livequiescence F={0};
+    xrtAtomic64Init(&F.Wall,0);
+    xexecutor* Jobs=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
+    xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,1,0});
+    const xcronserviceconfig Config={
+        .Scheduler={1,1,16,0,65536},.Executor=Jobs,.Proc=liveQuiescenceRun,.Context=&F,
+        .Clock=liveQuiescenceClock,.ClockContext=&F,.CommandLimit=1,.CompletionLimit=1,.BatchLimit=1,
+        .CommandWorkLimit=1,.ResampleMilliseconds=6000,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
+        .BytesLimit=262144,.AdapterBytesLimit=65536
+    };
+    xcroncheckpointgroup* Group=NULL;
+    xcroncheckpointwriter* Writer=NULL;
+    xcronservice* S=NULL;
+    const char Path[]="periodic.xcg";
+    testRequire(Jobs && Storage && liveCreate(Selected,true,&Config,&S,NULL) &&
+                xcronCheckpointGroupOpen(Root,Path,302,1,true,&Group)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointWriterCreate(Group,Storage,&Writer),"create periodic storage fixture");
+    const bool Timeout=Case==LIVE_PERIODIC_TIMEOUT;
+    xcronjobconfig J=liveJob(NULL);
+    if(Timeout)J.Data=&F;
+    xcronjobid Job=liveAdd(S,Selected,&J);
+    xcronZoneRelease(J.Zone);
+    if(Timeout){
+        testRequire(xrtEventInit(&F.Started,true,false) && xrtEventInit(&F.Release,true,false),"gate a lease through its checkpoint deadline");
+        xrtAtomic64Store(&F.Wall,1000,XMEMORY_RELEASE);
+        testRequire(xcronServiceWake(S,NULL) && xrtEventWaitFor(&F.Started,10000)==XWAIT_OK,"occupy the job lease");
+    }else liveSetPaused(S,Selected,Job,true);
+
+    livecommitgate Gate={.Service=S,.Periodic=true};
+    if(!Timeout)
+        testRequire(xrtEventInit(&Gate.Entered,true,false) && xrtEventInit(&Gate.Probe,true,false) &&
+                    xrtEventInit(&Gate.Probed,true,false) && xrtEventInit(&Gate.Release,true,false) &&
+                    xrtExecutorSubmit(Storage,liveCommitGate,&Gate,NULL,NULL) &&
+                    xrtEventWaitFor(&Gate.Entered,10000)==XWAIT_OK,"occupy storage before first periodic tick");
+    if(Case==LIVE_PERIODIC_PRESSURE)
+        testRequire(xrtExecutorSubmit(Storage,livePeriodicFiller,NULL,NULL,NULL),"fill the bounded storage queue");
+    const xcroncheckpointtarget Target={Job,{72,1}};
+    union {xcroncheckpoint Record;xcronservicecheckpointperiodicreport Output;} Scratch;
+    xcronservicecheckpointperiodic P={{Writer,&Target,&Scratch.Record,Case==LIVE_PERIODIC_STALE?1:0,
+        Timeout?40:4000,1},60};
+    testRequire(xcronServiceStartCheckpointPeriodicAsync(S,&P,&Gate.Request,NULL),"register a host-monotonic checkpoint cadence");
+    xcronrequestid Duplicate=999;
+    xcronserviceissue Issue;
+    testRequire(!xcronServiceStartCheckpointPeriodicAsync(S,&P,&Duplicate,&Issue) &&
+                Issue.Code==XCRON_SERVICE_BUSY && Duplicate==999,"one outstanding schedule ticket");
+    testRequire(!xcronServiceInspectCheckpointPeriodic(S,Gate.Request,&Scratch.Output,NULL),"observe without aliasing scratch");
+
+    xcronservicecheckpointperiodicreport Report;
+    if(Timeout){
+        Report=livePeriodicWait(S,Gate.Request,1,XCRON_SERVICE_TIMEOUT);
+        testRequire(!Report.Last.StorageCompleted && !Report.Committed && xrtErrorKind(Report.Last.Command.Error)==XERR_TIMEOUT,
+                    "a periodic capture deadline rolls back and leaves the schedule armed");
+        xrtErrorFree(Report.Last.Command.Error);
+        testRequire(xrtEventSet(&F.Release),"allow a subsequent timed capture");
+        liveQuiescenceDrain(S,Selected,Job);
+    }else{
+        if(Case==LIVE_PERIODIC_PRESSURE){
+            Report=livePeriodicWait(S,Gate.Request,1,XCRON_SERVICE_STORAGE);
+            testRequire(!Report.Last.StorageCompleted && !Report.Committed &&
+                        xrtErrorKind(Report.Last.Command.Error)==XERR_AGAIN,"temporary writer rejection keeps the schedule armed");
+            xrtErrorFree(Report.Last.Command.Error);
+        }else liveCommitWaitQueued(Storage);
+        testRequire(xrtEventSet(&Gate.Probe) && xrtEventWaitFor(&Gate.Probed,10000)==XWAIT_OK,"verify storage reentrant refusal");
+        if(Case==LIVE_PERIODIC_REPEAT){
+            xrtSleep(205);
+            testRequire(xcronServiceInspectCheckpointPeriodic(S,Gate.Request,&Report,NULL) &&
+                        Report.Started==1 && !Report.Finished && !Report.Committed,"do not stack missed ticks behind a slow write");
+            xrtErrorFree(Report.Last.Command.Error);
+        }
+        if(Case==LIVE_PERIODIC_CLOSE){
+            testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,25,NULL)==XWAIT_TIMEOUT &&
+                        xcronServiceCollectCheckpointPeriodic(S,Gate.Request,0,&Report,NULL)==XWAIT_TIMEOUT,
+                        "close drains an admitted periodic write");
+        }
+        testRequire(xrtEventSet(&Gate.Release),"allow storage to progress");
+    }
+
+    if(Case!=LIVE_PERIODIC_CLOSE && Case!=LIVE_PERIODIC_STALE){
+        Report=livePeriodicWait(S,Gate.Request,Case==LIVE_PERIODIC_REPEAT?3:2,XCRON_SERVICE_OK);
+        testRequire(Report.Committed && Report.Last.Generation==Report.Generation &&
+                    (Case!=LIVE_PERIODIC_REPEAT || Report.Skipped>=2),"advance generation and coalesce missed ticks");
+        xrtErrorFree(Report.Last.Command.Error);
+        testRequire(xcronServiceStopCheckpointPeriodic(S,Gate.Request,NULL),"stop with the only ticket still occupied");
+    }
+    testRequire(xcronServiceCollectCheckpointPeriodic(S,Gate.Request,10000,&Report,NULL)==XWAIT_OK && Report.Stopped &&
+                Report.Last.Command.Request==Gate.Request && Report.Started==Report.Finished,"collect the drained periodic schedule");
+    uint64 Generation=Report.Generation;
+    if(Case==LIVE_PERIODIC_STALE){
+        testRequire(Report.Started==1 && !Report.Committed && Report.Last.StorageCompleted &&
+                    Report.Last.Store==XCRON_CHECKPOINT_STORE_STALE,"stale storage stops the schedule");
+        Generation=0;
+    }else{
+        testRequire(Report.Committed==Generation && (Case!=LIVE_PERIODIC_CLOSE || Generation==1),
+                    "only successful writes advance generation");
+    }
+    xrtErrorFree(Report.Last.Command.Error);
+
+    if(Case!=LIVE_PERIODIC_CLOSE){
+        P.Commit.ExpectedGeneration=Generation;
+        P.EveryMilliseconds=UINT64_C(60000);
+        testRequire(xcronServiceStartCheckpointPeriodicAsync(S,&P,&Duplicate,NULL) && Duplicate!=Gate.Request &&
+                    !xcronServiceStopCheckpointPeriodic(S,Gate.Request,&Issue) && Issue.Code==XCRON_SERVICE_STALE &&
+                    xcronServiceStopCheckpointPeriodic(S,Duplicate,NULL) &&
+                    xcronServiceCollectCheckpointPeriodic(S,Duplicate,10000,&Report,NULL)==XWAIT_OK &&
+                    Report.Stopped && !Report.Started && Report.Generation==Generation,"rearm and stop before the first tick");
+        xrtErrorFree(Report.Last.Command.Error);
+    }
+    testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK,"join periodic service");
+    liveReapAll(S,Selected,1);
+    testRequire(xcronServiceDestroy(S,NULL) && xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK &&
+                xrtExecutorDestroy(Storage) && xrtExecutorDestroy(Jobs),"reclaim schedule and executors");
+    if(Timeout){xrtEventUnit(&F.Release);xrtEventUnit(&F.Started);}
+    else{
+        xrtEventUnit(&Gate.Release);xrtEventUnit(&Gate.Probed);xrtEventUnit(&Gate.Probe);xrtEventUnit(&Gate.Entered);
+    }
+    xcroncheckpointgroupview View;
+    testRequire(xcronCheckpointGroupOpen(Root,Path,302,1,false,&Group)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointGroupRead(Group,&View)==(Generation?XCRON_CHECKPOINT_STORE_OK:XCRON_CHECKPOINT_STORE_EMPTY) &&
+                View.Info.Generation==Generation && View.Count==(Generation?1u:0u),"recover only committed periodic generations");
+    testRequire(xcronCheckpointGroupClose(Group)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Path),"remove periodic fixture");
+}
+
 static void liveCommitTests(void)
 {
     cstr Base=getenv("TMPDIR");
@@ -983,6 +1137,11 @@ static void liveCommitTests(void)
     liveCommitTest(Root,false,LIVE_COMMIT_STALE);
     liveCommitTest(Root,true,LIVE_COMMIT_CANCEL);
     liveCommitTest(Root,true,LIVE_COMMIT_CLOSE);
+    livePeriodicTest(Root,false,LIVE_PERIODIC_REPEAT);
+    livePeriodicTest(Root,true,LIVE_PERIODIC_PRESSURE);
+    livePeriodicTest(Root,false,LIVE_PERIODIC_CLOSE);
+    livePeriodicTest(Root,true,LIVE_PERIODIC_STALE);
+    livePeriodicTest(Root,false,LIVE_PERIODIC_TIMEOUT);
 #if !defined(XCRON_SINGLE_HEADER)
     liveCommitTest(Root,false,LIVE_COMMIT_UNCERTAIN);
 #endif

@@ -17,8 +17,8 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xcron expression/calendar, named zone/TZif reload, budgeted recurrence,
   DST selection, scheduling and the bounded live service are locally verified.
   The two-slot stores recover job and group checkpoints, and live groups can
-  hold dispatch across a storage executor commit. Periodic orchestration,
-  power-loss and native mixed-load acceptance remain pending.
+  run bounded periodic captures and storage executor commits. Power-loss
+  and native mixed-load acceptance remain pending.
 - P1 codec/expression/calendar foundations are locally verified. P2 now has a
   measured-workload TCP request/deadline/cancel/close slice and bounded pool
   repair; remaining modes and pinned overhead/performance acceptance are pending.
@@ -15203,3 +15203,54 @@ mixed-load qualification remain open. The strict release gate lists
 18 developing xcron modules.
 [Live commit contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-service-checkpoint-commit-20261119.json).
+
+## 2026-11-19 Run periodic group checkpoints on the live owner
+
+One registration occupies one existing command slot through final
+collection. The owner takes its cadence from the host monotonic timer.
+It skips elapsed ticks in constant work and admits at most one capture
+or write at a time. Ordinary commands get a turn between attempts.
+Successful writes advance the expected generation. Capture timeouts
+and temporary storage rejection retry on a subsequent tick. A stale
+or uncertain store stops the schedule. Stop and Close drain accepted
+writes and release the arrays and writer after final collection.
+
+The pressure tests hold a native storage worker while the tick cadence
+passes, saturate its queue and hold a job through its capture deadline.
+They also cover repeated generations, borrowed scratch aliasing, stale
+schedule tickets, stopping before the first tick, closing with a write
+queued and refusing a wait from the storage executor. The packaged
+consumers exercise arm, inspect, stop and final collection.
+
+Windows and WSL pass modular, single-header, static/shared consumer,
+ordinary service and checkpoint regressions. An independent process
+advances two jobs, commits their group periodically, and opens both
+slots through the existing writer and service readers. Single-commit
+and interrupted-write recovery still pass. WSL passes ASan, UBSan, leak
+detection and Clang ThreadSanitizer.
+
+The periodic example reopens generation 3 on Windows and 3 on WSL.
+Both files have the same SHA-256 digest.
+
+
+The benchmark issues 24,000 serial Info requests for one of 64 paused
+jobs. The periodic case adds a 4 ms checkpoint cadence with real writes
+and native flushes. Each cell is the median of five per-run metrics.
+The benchmark verifies that a periodic generation reached storage.
+
+| Host | Periodic | Info/s | P50 (us) | P95 (us) | P99 (us) | Repeatability failures |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | Off | 517,044.1 | 1.900 | 2.800 | 8.500 | 2 |
+| Windows | On | 461,050.8 | 1.900 | 3.800 | 8.700 | 2 |
+| WSL | Off | 33,987.8 | 29.100 | 39.700 | 49.600 | 0 |
+| WSL | On | 35,003.9 | 26.200 | 40.800 | 50.400 | 4 |
+
+Five alternating pairs per host used the same binary for both modes.
+Windows recorded a periodic/control throughput ratio of 0.973 and a paired P99 difference of +1.0 microseconds.
+WSL recorded a periodic/control throughput ratio of 1.005 and a paired P99 difference of -0.6 microseconds.
+
+
+Device power-loss and native mixed-load qualification remain open.
+The strict release gate lists 18 developing xcron modules.
+[Periodic contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-checkpoint-periodic-20261119.json).

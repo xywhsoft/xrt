@@ -4503,6 +4503,86 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_checkpoint_info_64",
+      "system": "service",
+      "description": "Inspect one of 64 held jobs through the live owner",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_info_64",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "24000",
+            "64",
+            "info"
+          ],
+          "smoke_args": [
+            "2000",
+            "64",
+            "info"
+          ],
+          "metrics": {
+            "infos_per_sec": {
+              "direction": "higher",
+              "unit": "info/s"
+            },
+            "info_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "info_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "info_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_checkpoint_periodic_info_64",
+      "system": "service",
+      "description": "Inspect one of 64 held jobs during 4 ms periodic native group commits",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_periodic_info_64",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "24000",
+            "64",
+            "periodic-info"
+          ],
+          "smoke_args": [
+            "2000",
+            "64",
+            "periodic-info"
+          ],
+          "metrics": {
+            "infos_per_sec": {
+              "direction": "higher",
+              "unit": "info/s"
+            },
+            "info_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "info_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "info_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -69,33 +69,61 @@ static bool groupDemoAdvance(xcronservice* S,xcronjobid Id)
     return Done.Job==Id && Done.Result==XCRON_RUN_SUCCEEDED;
 }
 
+static bool groupDemoPeriodic(xcronservice* S,const xcronservicecheckpointcommit* Commit,uint64* Generation)
+{
+    const xcronservicecheckpointperiodic Periodic={*Commit,500};
+    xcronrequestid Ticket;
+    if(!xcronServiceStartCheckpointPeriodicAsync(S,&Periodic,&Ticket,NULL))return false;
+    double Until=xrtTimer()+10;
+    bool More=true;
+    while(More){
+        xcronservicecheckpointperiodicreport Snapshot;
+        if(!xcronServiceInspectCheckpointPeriodic(S,Ticket,&Snapshot,NULL))abort();
+        More=!Snapshot.Stopped && Snapshot.Committed<2 && xrtTimer()<Until;
+        xrtErrorFree(Snapshot.Last.Command.Error);
+        if(More)xrtSleep(5);
+    }
+    if(!xcronServiceStopCheckpointPeriodic(S,Ticket,NULL))abort();
+    xcronservicecheckpointperiodicreport Report;
+    xwaitresult Wait;
+    do Wait=xcronServiceCollectCheckpointPeriodic(S,Ticket,10000,&Report,NULL);
+    while(Wait==XWAIT_TIMEOUT);
+    if(Wait!=XWAIT_OK)abort();
+    bool OK=Report.Committed>=2 && Report.Last.Store!=XCRON_CHECKPOINT_STORE_UNCERTAIN;
+    if(OK)*Generation=Report.Generation;
+    xrtErrorFree(Report.Last.Command.Error);
+    return OK;
+}
+
 static bool groupDemoCommit(xcroncheckpointgroup* Store,xcronservice* S,const xcroncheckpointtarget* Targets,
-    uint64* Generation)
+    uint64* Generation,bool Periodic)
 {
     xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
     xcroncheckpointwriter* Writer=NULL;
     bool Opened=Storage && xcronCheckpointWriterCreate(Store,Storage,&Writer);
     xcroncheckpoint Scratch[DEMO_JOBS];
     const xcronservicecheckpointcommit Commit={Writer,Targets,Scratch,*Generation,10000,DEMO_JOBS};
-    xcronrequestid Ticket=0;
-    bool Submitted=Opened && xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL);
-    xcronservicecheckpointcommitreply Reply={0};
-    if(Submitted){
-        xwaitresult Collected;
-        do Collected=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
-        while(Collected==XWAIT_TIMEOUT);
-        if(Collected!=XWAIT_OK)abort(); /* The owner still borrows both arrays. */
+    bool Committed=false;
+    if(Opened && Periodic)Committed=groupDemoPeriodic(S,&Commit,Generation);
+    else if(Opened){
+        xcronrequestid Ticket;
+        if(xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL)){
+            xcronservicecheckpointcommitreply Reply;
+            xwaitresult Wait;
+            do Wait=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
+            while(Wait==XWAIT_TIMEOUT);
+            if(Wait!=XWAIT_OK)abort(); /* The owner still borrows both arrays. */
+            Committed=Reply.Command.Code==XCRON_SERVICE_OK && Reply.StorageCompleted && Reply.Store==XCRON_CHECKPOINT_STORE_OK;
+            if(Committed)*Generation=Reply.Generation;
+            xrtErrorFree(Reply.Command.Error);
+        }
     }
-    bool Committed=Submitted && Reply.Command.Code==XCRON_SERVICE_OK &&
-        Reply.StorageCompleted && Reply.Store==XCRON_CHECKPOINT_STORE_OK;
-    if(Committed)*Generation=Reply.Generation;
-    xrtErrorFree(Reply.Command.Error);
     xcroncheckpointstorestatus Closed=Opened?xcronCheckpointWriterDestroy(Writer):xcronCheckpointGroupClose(Store);
     bool Released=Storage && xrtExecutorDestroy(Storage);
     return Committed && Closed==XCRON_CHECKPOINT_STORE_OK && Released;
 }
 
-static int groupDemo(xroot Root,bool Create,bool Advance)
+static int groupDemo(xroot Root,bool Create,bool Advance,bool Periodic)
 {
     xcroncheckpointgroup* Store=NULL;
     if(xcronCheckpointGroupOpen(Root,"group.xcg",940,32,Create,&Store)!=XCRON_CHECKPOINT_STORE_OK)return 3;
@@ -131,7 +159,7 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
             if(!groupDemoAdvance(S,Ids[I]))return 7;
             Targets[I]=(xcroncheckpointtarget){Ids[I],Jobs[I].Key};
         }
-        if(!groupDemoCommit(Store,S,Targets,&Generation))return 8;
+        if(!groupDemoCommit(Store,S,Targets,&Generation,Periodic))return 8;
     }else if(xcronCheckpointGroupClose(Store)!=XCRON_CHECKPOINT_STORE_OK)return 8;
     xcronjobinfo A,B;
     if(!groupDemoInfo(S,Ids[0],&A) || !groupDemoInfo(S,Ids[1],&B))return 9;
@@ -150,10 +178,11 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
 
 int main(int Argc,char** Argv)
 {
-    if(Argc==3 && (!strcmp(Argv[1],"show") || !strcmp(Argv[1],"advance"))){
+    bool Periodic=Argc==3 && !strcmp(Argv[1],"advance-periodic");
+    if(Argc==3 && (Periodic || !strcmp(Argv[1],"show") || !strcmp(Argv[1],"advance"))){
         xroot Root=xrtRootOpen(Argv[2]);
         if(!Root)return 2;
-        int Code=groupDemo(Root,false,!strcmp(Argv[1],"advance"));
+        int Code=groupDemo(Root,false,Periodic || !strcmp(Argv[1],"advance"),Periodic);
         return xrtRootClose(Root)?Code:9;
     }
     if(Argc!=1)return 2;
@@ -169,8 +198,8 @@ int main(int Argc,char** Argv)
     if(!Parent || !xrtRootDirCreate(Parent,Name,0700))return 3;
     xroot Root=xrtRootOpenIn(Parent,Name);
     if(!Root)return 3;
-    int Code=groupDemo(Root,true,true);
-    if(!Code)Code=groupDemo(Root,false,false);
+    int Code=groupDemo(Root,true,true,false);
+    if(!Code)Code=groupDemo(Root,false,false,false);
     if(!xrtRootClose(Root) || !xrtRootRemove(Parent,File) || !xrtRootRemove(Parent,Name) || !xrtRootClose(Parent))return 9;
     return Code;
 }

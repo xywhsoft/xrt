@@ -73,6 +73,19 @@ static bool consumerCheckpointCommit(xcronservice* S,xcronjobid Job,xcroncheckpo
     bool Committed=Reply.Command.Code==XCRON_SERVICE_OK && Reply.StorageCompleted &&
         Reply.Store==XCRON_CHECKPOINT_STORE_OK && Reply.Generation==1;
     xrtErrorFree(Reply.Command.Error);
+    const xcronservicecheckpointperiodic Periodic={
+        {.Writer=Writer,.Targets=&Target,.Scratch=&Scratch,.ExpectedGeneration=1,.TimeoutMilliseconds=10000,.Count=1},60000
+    };
+    if(!Committed || !xcronServiceStartCheckpointPeriodicAsync(S,&Periodic,&Ticket,NULL))return false;
+    xcronservicecheckpointperiodicreport Report;
+    if(!xcronServiceInspectCheckpointPeriodic(S,Ticket,&Report,NULL))abort();
+    xrtErrorFree(Report.Last.Command.Error);
+    if(!xcronServiceStopCheckpointPeriodic(S,Ticket,NULL))abort();
+    do Wait=xcronServiceCollectCheckpointPeriodic(S,Ticket,10000,&Report,NULL);
+    while(Wait==XWAIT_TIMEOUT);
+    if(Wait!=XWAIT_OK)abort();
+    Committed=Report.Stopped && !Report.Started && Report.Generation==1;
+    xrtErrorFree(Report.Last.Command.Error);
     return xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK && xrtExecutorDestroy(Storage) &&
            xrtRootRemove(Root,Name) && xrtRootClose(Root) && Committed;
 }
