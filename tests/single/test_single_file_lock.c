@@ -16,7 +16,11 @@ int main(void)
 		 xrtFileLockRange(File, XFILE_LOCK_SHARED, 0u, 2u, true) &&
 		 xrtFileUnlockRange(File, 0u, 2u) &&
 		 xrtFileLock(File, XFILE_LOCK_EXCLUSIVE, true) &&
-		 xrtFileUnlock(File) && xrtClose(File) &&
+		 xrtFileUnlock(File) &&
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+		 xrtFileTryLockExclusiveUntilClose(File) &&
+#endif
+		 xrtClose(File) &&
 		 xrtFileDelete(sPath) ) {
 		iResult = 0;
 	}

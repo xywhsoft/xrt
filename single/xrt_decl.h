@@ -20563,6 +20563,14 @@ XRT_API bool xrtFileLock(xfile File, xfilelock Mode, bool bWait);
 /* 解除整个文件锁。 */
 XRT_API bool xrtFileUnlock(xfile File);
 
+/* Try one exclusive, whole-file lock on a synchronous writable native file.
+ * Conflicting independent opens report XERR_AGAIN, even in the same process.
+ * Acquire once per open. Release by closing File. Independent closes keep
+ * this lock intact. Do not duplicate/inherit the held native handle or mix
+ * unlock APIs on it. Windows and Linux with open-file-description lock support.
+ * Linux locks are advisory. Protect pathname replacement separately. */
+XRT_API bool xrtFileTryLockExclusiveUntilClose(xfile File);
+
 #endif
 
 

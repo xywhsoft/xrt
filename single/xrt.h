@@ -18153,6 +18153,14 @@ XRT_API bool xrtFileLock(xfile File, xfilelock Mode, bool bWait);
 /* 解除整个文件锁。 */
 XRT_API bool xrtFileUnlock(xfile File);
 
+/* Try one exclusive, whole-file lock on a synchronous writable native file.
+ * Conflicting independent opens report XERR_AGAIN, even in the same process.
+ * Acquire once per open. Release by closing File. Independent closes keep
+ * this lock intact. Do not duplicate/inherit the held native handle or mix
+ * unlock APIs on it. Windows and Linux with open-file-description lock support.
+ * Linux locks are advisory. Protect pathname replacement separately. */
+XRT_API bool xrtFileTryLockExclusiveUntilClose(xfile File);
+
 #endif
 
 
@@ -282099,6 +282107,10 @@ XRT_API bool xrtTimeParseAny(xstrview Text, xtime* pTime)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_FILE_LOCK)
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+	#define _GNU_SOURCE
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(_POSIX_C_SOURCE)
 	#define _POSIX_C_SOURCE 200809L
 #endif
@@ -282155,6 +282167,43 @@ static void __xrtFileLockBusy(cstr sOperation, int iCode)
 
 
 
+#if !defined(_WIN32) && !defined(_WIN64)
+static bool __xrtFileLockPosix(intptr_t hFile, xfilelock Mode,
+	uint64 iOffset, uint64 iSize, int iCommand, bool bWait)
+{
+	struct flock Lock;
+	int iResult;
+
+	memset(&Lock, 0, sizeof(Lock));
+	Lock.l_type = (Mode == XFILE_LOCK_SHARED) ? F_RDLCK : F_WRLCK;
+	Lock.l_whence = SEEK_SET;
+	Lock.l_start = (off_t)iOffset;
+	Lock.l_len = (off_t)iSize;
+	do {
+		iResult = fcntl((int)hFile, iCommand, &Lock);
+	} while ( bWait && (iResult != 0) && (errno == EINTR) );
+	if ( iResult == 0 ) {
+		return true;
+	}
+	int iCode = errno;
+	if ( !bWait && ((iCode == EACCES) || (iCode == EAGAIN)) ) {
+		__xrtFileLockBusy("lock", iCode);
+	}
+#if defined(__linux__) && defined(F_OFD_SETLK)
+	else if ( (iCommand == F_OFD_SETLK) && ((iCode == EINVAL) || (iCode == EOPNOTSUPP)) ) {
+		__xrtFileSetKindError(XERR_UNSUPPORTED, XFILE_ERROR_LOCK,
+			"lock", "open file description locks are unavailable", iCode);
+	}
+#endif
+	else {
+		__xrtFileSetError(XFILE_ERROR_LOCK, "lock",
+			"failed to lock the file range", iCode);
+	}
+	return false;
+}
+#endif
+
+
 /* 锁定一个文件字节区间。 */
 XRT_API bool xrtFileLockRange(xfile File, xfilelock Mode,
 	uint64 iOffset, uint64 iSize, bool bWait)
@@ -282195,32 +282244,9 @@ XRT_API bool xrtFileLockRange(xfile File, xfilelock Mode,
 			}
 		}
 	#else
-		{
-			struct flock Lock;
-			int iCommand = bWait ? F_SETLKW : F_SETLK;
-			int iResult;
-
-			memset(&Lock, 0, sizeof(Lock));
-			Lock.l_type = (Mode == XFILE_LOCK_SHARED) ?
-				F_RDLCK : F_WRLCK;
-			Lock.l_whence = SEEK_SET;
-			Lock.l_start = (off_t)iOffset;
-			Lock.l_len = (off_t)iSize;
-			do {
-				iResult = fcntl((int)hFile, iCommand, &Lock);
-			} while ( bWait && (iResult != 0) && (errno == EINTR) );
-			if ( iResult != 0 ) {
-				int iCode = errno;
-
-				if ( !bWait &&
-					 ((iCode == EACCES) || (iCode == EAGAIN)) ) {
-					__xrtFileLockBusy("lock", iCode);
-				} else {
-					__xrtFileSetError(XFILE_ERROR_LOCK, "lock",
-						"failed to lock the file range", iCode);
-				}
-				return false;
-			}
+		if ( !__xrtFileLockPosix(hFile, Mode, iOffset, iSize,
+			bWait ? F_SETLKW : F_SETLK, bWait) ) {
+			return false;
 		}
 	#endif
 	return true;
@@ -282304,6 +282330,31 @@ XRT_API bool xrtFileLock(xfile File, xfilelock Mode, bool bWait)
 XRT_API bool xrtFileUnlock(xfile File)
 {
 	return xrtFileUnlockRange(File, 0u, 0u);
+}
+
+
+
+XRT_API bool xrtFileTryLockExclusiveUntilClose(xfile File)
+{
+	if ( !__xrtFileLockCheck(File, XFILE_LOCK_EXCLUSIVE, 0u, 0u) ) {
+		return false;
+	}
+	if ( (xrtFileFlags(File) & XFILE_ASYNC) != 0u ) {
+		__xrtFileError(XERR_UNSUPPORTED, XFILE_ERROR_LOCK, "lock-until-close",
+			"handle ownership locks require a synchronous file");
+		return false;
+	}
+#if defined(_WIN32) || defined(_WIN64)
+	return xrtFileLock(File, XFILE_LOCK_EXCLUSIVE, false);
+#elif defined(__linux__) && defined(F_OFD_SETLK)
+	intptr_t hFile = __xrtFileControlNative(File);
+	return (hFile != (intptr_t)-1) && __xrtFileLockPosix(hFile,
+		XFILE_LOCK_EXCLUSIVE, 0u, 0u, F_OFD_SETLK, false);
+#else
+	__xrtFileError(XERR_UNSUPPORTED, XFILE_ERROR_LOCK, "lock-until-close",
+		"open file description locks are unavailable");
+	return false;
+#endif
 }
 
 #endif

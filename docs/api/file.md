@@ -1582,6 +1582,16 @@ bool xrtFileUnlock(xfile File);
 
 文件锁是协调协议，不是线程互斥量。POSIX 使用 `fcntl` 建议锁，同一进程内的线程不会彼此冲突，而且进程关闭指向同一文件的其他描述符也可能释放锁；Windows 锁与句柄关联，并会影响遵守系统锁语义的 IO。跨平台代码应在进程内另用同步原语、显式解锁，并避免在持锁期间关闭该文件的其他句柄。锁不会保护通过其他文件名、映射或不遵守建议锁的访问。
 
+### `xrtFileTryLockExclusiveUntilClose`
+
+对可写的同步原生文件立即尝试独占整文件。各次独立打开即使来自同一进程也会竞争，竞争失败返回 `XERR_AGAIN`。关闭其他打开的文件不会释放持有者的锁。每个打开的句柄只获取一次，持有者通过 `xrtClose` 释放。持锁期间保持句柄独占，避免复制、继承或调用区间解锁入口。
+
+Windows 使用 `LockFileEx`。Linux 使用 `F_OFD_SETLK`，要求内核及文件系统支持该操作。Linux 的锁属于建议锁。应用应协调所有写入者，并单独保护文件名的替换。参见 [Windows 文件锁](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex) 和 [Linux 文件描述锁](https://www.man7.org/linux/man-pages/man2/f_ofd_setlk.2const.html)。
+
+```c
+bool xrtFileTryLockExclusiveUntilClose(xfile File);
+```
+
 ### `xrtFileLock`
 
 锁定整个文件；`bWait` 决定冲突时阻塞或立即失败。

@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "date": "2026-11-18",
+  "base_revision": "570f7e44daeabc0794e81e240b4da390a0bb0479",
+  "reason": "A Linux process-associated F_SETLK lock can be reacquired from another open and is released by closing that open. A local journal needs ownership to follow each native open.",
+  "evidence_directory": "out/service-extensions/mqtt-locked-journal-20261118",
+  "gap": {
+    "log": "record-lock-gap.log",
+    "sha256": "932f6817cdfbad7b2ebd42ee1ab57afe7c1601882d10813e7ae552d8e37d3eed"
+  },
+  "source_sha256": {
+    "docs/api/file.md": "90bdfaad84a06c002013f0ff3c3037ff93a113dafe6924342e3fc4dc2299d01f",
+    "include/xrt/file.h": "b84942d3fb49f07a9009b017f04ce2316882e8d2a3cee41ef35eaea829d9e7fc",
+    "single/xrt.h": "ee2d34e5048797139aabca396bfae2bbd6a3acf7eedcb4660a849d5ba8f341ee",
+    "single/xrt_decl.h": "f4a6f516a00edd223a5526086cc830ed5b8b47ec99528c35158c4e9d155fddc8",
+    "src/fs/file_lock.c": "3844004ae7fc9061635d2ff10600e7f34c8ef462f0e4256b8cdfeeef7de62311",
+    "tests/file/test_file_lock.c": "8b33cc2687b84450c22b34a8140cb90ebe125a26bcfb7b4250c1ec7f264e7891",
+    "tests/single/test_single_file_lock.c": "20691bcead016fcde4595bad6b776b78e02597d0024561702899d38e0255f98f"
+  },
+  "file_lock_tests": {
+    "windows": {
+      "programs": 3,
+      "log": "windows-core-final.log",
+      "sha256": "0a19ab058410d36a12f394f474aee0d84dea51d9e777fa148c90ee4d812106f4",
+      "initial_compiler_error_sha256": "b0eedc4d755ffc872569d2659676fadf96c108282ecb4551ab5d4d8b378adc77"
+    },
+    "wsl": {
+      "programs": 3,
+      "log": "wsl-core-final.log",
+      "sha256": "20ef6ecb8033262f6d576729590b096dc23d086aa686ae666832f6801c9ccba5",
+      "initial_compiler_error_sha256": "056cde68a6c1cc1beaf7e4475aaa6284038b8d5289db1d0070ef7136bfddb78a"
+    }
+  },
+  "linux_sanitizers": [
+    "address",
+    "undefined",
+    "leak detection"
+  ],
+  "local_gates": [
+    "amalgamated core headers current",
+    "file API docs complete"
+  ],
+  "sources": [
+    "https://www.man7.org/linux/man-pages/man2/f_ofd_setlk.2const.html",
+    "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex"
+  ]
+}

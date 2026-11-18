@@ -87,6 +87,29 @@ static bool testFileLockRunChild(cstr sPath, bool bBusy)
 
 
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+static void testFileLockHandle(cstr sPath)
+{
+	xfile Owner = xrtOpen(sPath, XFILE_READ | XFILE_WRITE);
+	testRequire(Owner && xrtFileTryLockExclusiveUntilClose(Owner),
+		"open-description lock acquisition failed");
+
+	xfile Contender = xrtOpen(sPath, XFILE_READ | XFILE_WRITE);
+	testRequire(Contender != NULL, "independent open failed");
+	testRequire(!xrtFileTryLockExclusiveUntilClose(Contender) &&
+		xrtErrorKind(xrtGetError()) == XERR_AGAIN,
+		"independent handle in the same process did not conflict");
+	xrtClearError();
+	testRequire(xrtClose(Contender), "contender close failed");
+	testRequire(testFileLockRunChild(sPath, true),
+		"unrelated close released the ownership lock");
+	testRequire(xrtClose(Owner) && testFileLockRunChild(sPath, false),
+		"owner close did not release the ownership lock");
+}
+#endif
+
+
+
 /* 文件锁必须跨进程冲突，并支持区间、整文件和参数边界。 */
 int main(int iArgumentCount, char** pArguments)
 {
@@ -144,6 +167,9 @@ int main(int iArgumentCount, char** pArguments)
 		"append handle exclusive unlock failed");
 	testRequire(xrtClose(File),
 		"append lock fixture close failed");
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+	testFileLockHandle(sPath);
+#endif
 	testRequire(xrtFileDelete(sPath), "file lock fixture delete failed");
 	xrtFree(sPath);
 	return 0;
