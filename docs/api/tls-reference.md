@@ -357,7 +357,7 @@
 - `XTLS_VERSION_12`
 - `XTLS_VERSION_13`
 
-### 类型 (61)
+### 类型 (62)
 
 - `xtls12certificaterequest`
 - `xtls12serverkeyexchange`
@@ -410,6 +410,7 @@
 - `xtlsrecord`
 - `xtlsrecordtype`
 - `xtlsresult`
+- `xtlsresume`
 - `xtlsrole`
 - `xtlsserverhello`
 - `xtlsservername`
@@ -447,10 +448,9 @@
 - `XTLS_CLIENT_RESUME_LIMIT_DEFAULT`
 - `XTLS_CLIENT_RESUME_LIMIT_MAX`
 
-### 类型 (5)
+### 类型 (4)
 
 - `xtlsclientconfig`
-- `xtlsresume`
 - `xtlssession`
 - `xtlsverifier`
 - `xtlsverifylimits`
