@@ -14396,3 +14396,19 @@ cases run through modular and single-header builds. Broker-connected replay
 pressure, native Linux production runs, storage-device power-loss and
 queue-inclusive throughput and tail latency remain open.
 [Stage evidence](xmqtt-store-replay-quota-20261118.json).
+
+## 2026-11-18 Mosquitto verification at MQTT replay limits
+
+The independent broker runner exhausts transaction count, operation count
+or replay bytes while retaining physical file headroom. Each old generation
+is decoded and counted before the replacement starts. Each new generation
+contains a QoS 2 checkpoint followed by one durable QoS 1 acceptance.
+Restart uses the same replay cap and completes the QoS 2 exchange, the
+recovered application Inbox ACK and graceful END. The wire observer verifies
+that the original subscriber receives one copy.
+
+The matrix covers native Windows and WSL clients, MQTT 5.0 and 3.1.1,
+TCP, TLS 1.2/1.3, WebSocket and WSS, and modular, single-header, static
+and shared builds. Native Linux production runs, storage-device power-loss
+and controlled throughput and tail latency remain open.
+[Stage evidence](xmqtt-store-replay-broker-20261118.json).

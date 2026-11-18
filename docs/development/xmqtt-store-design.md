@@ -692,3 +692,19 @@ request at most once under its existing deadline and Inbox reservation. An
 ambiguous selector fences the owner while the foreground result reflects the
 definite noncommit of the batch. Recovery applies the original caps to the
 checkpoint and the new delta suffix.
+
+## 2026-11-18 Broker qualification under replay pressure
+
+A connected publisher retires three QoS 1 transactions before leaving one
+QoS 2 obligation pending. The QoS 1 trigger comes from a second connection.
+The selected-file cap leaves space for the trigger. Independent parsing of
+the retired generation proves the configured transaction, operation or
+replay-byte cap is already full.
+
+The selector contains the pending QoS 2 checkpoint and the new generation's
+first delta contains exactly one IN_ACCEPT. The test waits for PUBACK before
+terminating the first process. A replacement opens the same slot using the
+same cap, resumes the original packet identifier and acknowledges the
+recovered Inbox lease. The last replay measures usage below the original cap
+and checks the application acknowledgement by its durable key.
+[Stage evidence](xmqtt-store-replay-broker-20261118.json).

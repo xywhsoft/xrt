@@ -1,0 +1,1567 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "production_revision": "ec2b3f1ed878d3596928a102bffc0a6b20c68eec",
+  "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+  "build_source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+  "source_change_after_build": "Only the independent Python checkpoint oracle was corrected.",
+  "evidence_directory": "out/service-extensions/mqtt-store-replay-broker-20261118",
+  "scope": "Independent broker and native restart qualification under exhausted MQTT store replay budgets.",
+  "topology": "Mosquitto and TCP/TLS/WebSocket gateways in WSL; native Windows and WSL x64 clients; slot files on D:.",
+  "broker": "Mosquitto 2.0.22",
+  "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+  "oracle_sources": {
+    "run_compact_crash_broker.py": "24cb75f0e7d69d428386af65178e356e407f037836246dbe2c6f7c4398b9e993",
+    "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+    "run_reconnect_store_broker.py": "6b4c9649226b62001e9e6a39ee4c36fc6524f87aaacea0632d1985d0f67265cd",
+    "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+    "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+    "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+    "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+    "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+  },
+  "mqtt_versions": [
+    "5.0",
+    "3.1.1"
+  ],
+  "transports": [
+    "tcp",
+    "tls12",
+    "tls13",
+    "ws",
+    "wss12",
+    "wss13"
+  ],
+  "withheld": [
+    "PUBREC",
+    "PUBCOMP"
+  ],
+  "replay_cases": 648,
+  "wsl_asan_ubsan_cases": 72,
+  "wsl_sanitizer_scope": "Address and undefined-behavior instrumentation on both processes. Leak detection reaches normal exit of the replacement.",
+  "control_cases": 24,
+  "replay_budget_stats": {
+    "replay-transactions": {
+      "cases": 216,
+      "largest_old_file": 16165,
+      "caps": [
+        32,
+        33
+      ],
+      "final_use": [
+        7,
+        8
+      ]
+    },
+    "replay-operations": {
+      "cases": 216,
+      "largest_old_file": 16165,
+      "caps": [
+        9,
+        10
+      ],
+      "final_use": [
+        7,
+        8
+      ]
+    },
+    "replay-bytes": {
+      "cases": 216,
+      "largest_old_file": 16165,
+      "caps": [
+        1681,
+        1685,
+        1761,
+        1765
+      ],
+      "final_use": [
+        660,
+        662,
+        740,
+        742
+      ]
+    }
+  },
+  "matrix": [
+    {
+      "policy": "replay-transactions",
+      "form": "modular",
+      "report": "broker-modular-replay-transactions.json",
+      "sha256": "39139eb23cba0a7fa7267f1dd33d750a1ed22b49048d279234b302ee782c8961",
+      "cases": 48,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-modular-replay-transactions-final",
+        "log": "wsl-broker-modular-replay-transactions-final.log",
+        "log_sha256": "b05a12c51487d66024c1de0f276efdbdfc63a7caea22ff42f45842291266b56c",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-modular-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-operations",
+      "form": "modular",
+      "report": "broker-modular-replay-operations.json",
+      "sha256": "2ffd12d4d624df979fe0aa6efcb64e142fe0f83c8a16e810db3577b748ba69d2",
+      "cases": 48,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-modular-replay-operations-final",
+        "log": "wsl-broker-modular-replay-operations-final.log",
+        "log_sha256": "b05a12c51487d66024c1de0f276efdbdfc63a7caea22ff42f45842291266b56c",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-modular-replay-operations.json",
+          "--policy",
+          "replay-operations"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-bytes",
+      "form": "modular",
+      "report": "broker-modular-replay-bytes.json",
+      "sha256": "7c371a32656f1af531fc61860fc85a1c7fd216953d53481f6cec455496c96d23",
+      "cases": 48,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-modular-replay-bytes-final",
+        "log": "wsl-broker-modular-replay-bytes-final.log",
+        "log_sha256": "b05a12c51487d66024c1de0f276efdbdfc63a7caea22ff42f45842291266b56c",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-modular-replay-bytes.json",
+          "--policy",
+          "replay-bytes"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-transactions",
+      "form": "single",
+      "report": "broker-single-replay-transactions.json",
+      "sha256": "11f42a168d8a975651725f3435fc2c993c5588eb073eae2e8829ef70d91ffe3a",
+      "cases": 48,
+      "form_sha256": {
+        "windows-single": "2baf355e95b713b730eec923908437026dd158210b6275ec0724c12a18dc440a",
+        "wsl-single": "9334f385aebea7afadb0f1b5fa6463fe4996e17b81fa3419fe1ab35afd8d3417"
+      },
+      "receipt": {
+        "label": "broker-single-replay-transactions-final",
+        "log": "wsl-broker-single-replay-transactions-final.log",
+        "log_sha256": "64e4b33930254f76a263e76e0a9bd6ce1f06152fe9f0641f77b707a8880089e8",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+          "--form",
+          "wsl-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-operations",
+      "form": "single",
+      "report": "broker-single-replay-operations.json",
+      "sha256": "571f508f0f32452064d24343cd538f01cbe72bde9c6943d301e3af3f27fea077",
+      "cases": 48,
+      "form_sha256": {
+        "windows-single": "2baf355e95b713b730eec923908437026dd158210b6275ec0724c12a18dc440a",
+        "wsl-single": "9334f385aebea7afadb0f1b5fa6463fe4996e17b81fa3419fe1ab35afd8d3417"
+      },
+      "receipt": {
+        "label": "broker-single-replay-operations-final",
+        "log": "wsl-broker-single-replay-operations-final.log",
+        "log_sha256": "64e4b33930254f76a263e76e0a9bd6ce1f06152fe9f0641f77b707a8880089e8",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+          "--form",
+          "wsl-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-replay-operations.json",
+          "--policy",
+          "replay-operations"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-bytes",
+      "form": "single",
+      "report": "broker-single-replay-bytes.json",
+      "sha256": "86c6e696209d1ea4b73b6ebc95c7180afec30b0f21ef21f77c34aa42c1e93278",
+      "cases": 48,
+      "form_sha256": {
+        "windows-single": "2baf355e95b713b730eec923908437026dd158210b6275ec0724c12a18dc440a",
+        "wsl-single": "9334f385aebea7afadb0f1b5fa6463fe4996e17b81fa3419fe1ab35afd8d3417"
+      },
+      "receipt": {
+        "label": "broker-single-replay-bytes-final",
+        "log": "wsl-broker-single-replay-bytes-final.log",
+        "log_sha256": "64e4b33930254f76a263e76e0a9bd6ce1f06152fe9f0641f77b707a8880089e8",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+          "--form",
+          "wsl-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-replay-bytes.json",
+          "--policy",
+          "replay-bytes"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-transactions",
+      "form": "static",
+      "report": "broker-static-retry-replay-transactions.json",
+      "sha256": "c9db92409612ddefcd84c3224fb96baaf90144e9cd736a9054a37f2b61c49fb7",
+      "cases": 48,
+      "form_sha256": {
+        "windows-static": "439c4917086cee8b952eefa4f7f76446a986590177fab658593fcfec1fb7024b",
+        "wsl-static": "47b603127275a0e9f5df722701e1c2cc67e18bcc40f76ce8c0d3c0fe674e733d"
+      },
+      "receipt": {
+        "label": "broker-static-retry-replay-transactions-final",
+        "log": "wsl-broker-static-retry-replay-transactions-final.log",
+        "log_sha256": "2ff330262d912af73610df0330d21030d8d8abd4817c305ee02caad20e0848e5",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/static.exe",
+          "--form",
+          "wsl-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-static-retry-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-operations",
+      "form": "static",
+      "report": "broker-static-replay-operations.json",
+      "sha256": "4ec0a89b6ee2023741af53f64c23010096180288af354355e0d22a4e5e922ee1",
+      "cases": 48,
+      "form_sha256": {
+        "windows-static": "439c4917086cee8b952eefa4f7f76446a986590177fab658593fcfec1fb7024b",
+        "wsl-static": "47b603127275a0e9f5df722701e1c2cc67e18bcc40f76ce8c0d3c0fe674e733d"
+      },
+      "receipt": {
+        "label": "broker-static-replay-operations-final",
+        "log": "wsl-broker-static-replay-operations-final.log",
+        "log_sha256": "2ff330262d912af73610df0330d21030d8d8abd4817c305ee02caad20e0848e5",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/static.exe",
+          "--form",
+          "wsl-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-static-replay-operations.json",
+          "--policy",
+          "replay-operations"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-bytes",
+      "form": "static",
+      "report": "broker-static-replay-bytes.json",
+      "sha256": "88c077ecba69cb4a7236043c333a5c67e75cd65526b5220b3c495ee61979865d",
+      "cases": 48,
+      "form_sha256": {
+        "windows-static": "439c4917086cee8b952eefa4f7f76446a986590177fab658593fcfec1fb7024b",
+        "wsl-static": "47b603127275a0e9f5df722701e1c2cc67e18bcc40f76ce8c0d3c0fe674e733d"
+      },
+      "receipt": {
+        "label": "broker-static-replay-bytes-final",
+        "log": "wsl-broker-static-replay-bytes-final.log",
+        "log_sha256": "2ff330262d912af73610df0330d21030d8d8abd4817c305ee02caad20e0848e5",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/static.exe",
+          "--form",
+          "wsl-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-static-replay-bytes.json",
+          "--policy",
+          "replay-bytes"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-transactions",
+      "form": "shared",
+      "report": "broker-shared-replay-transactions.json",
+      "sha256": "af3b786a39915b713d5285e7df7550e260ebd7484d118657c1eb3c2e1937f157",
+      "cases": 48,
+      "form_sha256": {
+        "windows-shared": "25a188324e6f75c2b274c555cad63765b376425d546c4906371148f5aee2baef",
+        "wsl-shared": "3d9c92b1dcd1173b55149460319cb7317cb448455c421f9db7d1b58eb3887a39"
+      },
+      "receipt": {
+        "label": "broker-shared-replay-transactions-final",
+        "log": "wsl-broker-shared-replay-transactions-final.log",
+        "log_sha256": "69cf772daa39e6753f73fb2a0376773f3c0575c3e4b2d4da85b5ec697d171235",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/shared.exe",
+          "--form",
+          "wsl-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-shared-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-operations",
+      "form": "shared",
+      "report": "broker-shared-replay-operations.json",
+      "sha256": "3fcb29dc83e6b2f96189c91927346f9fec77e0d4e5f133dc46acb6014210a5a8",
+      "cases": 48,
+      "form_sha256": {
+        "windows-shared": "25a188324e6f75c2b274c555cad63765b376425d546c4906371148f5aee2baef",
+        "wsl-shared": "3d9c92b1dcd1173b55149460319cb7317cb448455c421f9db7d1b58eb3887a39"
+      },
+      "receipt": {
+        "label": "broker-shared-replay-operations-final",
+        "log": "wsl-broker-shared-replay-operations-final.log",
+        "log_sha256": "69cf772daa39e6753f73fb2a0376773f3c0575c3e4b2d4da85b5ec697d171235",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/shared.exe",
+          "--form",
+          "wsl-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-shared-replay-operations.json",
+          "--policy",
+          "replay-operations"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-bytes",
+      "form": "shared",
+      "report": "broker-shared-replay-bytes.json",
+      "sha256": "1ffbd9ee2ed4a2da7f1056c526498d84d5e4f02bde260928b8c33e12802783c2",
+      "cases": 48,
+      "form_sha256": {
+        "windows-shared": "25a188324e6f75c2b274c555cad63765b376425d546c4906371148f5aee2baef",
+        "wsl-shared": "3d9c92b1dcd1173b55149460319cb7317cb448455c421f9db7d1b58eb3887a39"
+      },
+      "receipt": {
+        "label": "broker-shared-replay-bytes-final",
+        "log": "wsl-broker-shared-replay-bytes-final.log",
+        "log_sha256": "69cf772daa39e6753f73fb2a0376773f3c0575c3e4b2d4da85b5ec697d171235",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/shared.exe",
+          "--form",
+          "wsl-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-shared-replay-bytes.json",
+          "--policy",
+          "replay-bytes"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-transactions",
+      "form": "asan",
+      "report": "broker-asan-replay-transactions.json",
+      "sha256": "51b8d71e9fa08bba1021d56c937ac6ce59576746d5a986f5c946d51309d3cc7d",
+      "cases": 24,
+      "form_sha256": {
+        "wsl-modular-asan": "b23d658fe99f3f2bf028edce55adc7d6f4675112d9f00ccae4ba56c150362e44"
+      },
+      "receipt": {
+        "label": "broker-asan-replay-transactions-final",
+        "log": "wsl-broker-asan-replay-transactions-final.log",
+        "log_sha256": "baad3d638b01152b2b1edc89a83cc6b2bb22051766fce64df2e9a2fd4a706201",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "wsl-modular-asan",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular-asan",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-asan-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-operations",
+      "form": "asan",
+      "report": "broker-asan-replay-operations.json",
+      "sha256": "73f9b77ae271f5bd00bd2298f5552b8e9cd0776a0887311e91e85dc574bcb9bc",
+      "cases": 24,
+      "form_sha256": {
+        "wsl-modular-asan": "b23d658fe99f3f2bf028edce55adc7d6f4675112d9f00ccae4ba56c150362e44"
+      },
+      "receipt": {
+        "label": "broker-asan-replay-operations-final",
+        "log": "wsl-broker-asan-replay-operations-final.log",
+        "log_sha256": "baad3d638b01152b2b1edc89a83cc6b2bb22051766fce64df2e9a2fd4a706201",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "wsl-modular-asan",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular-asan",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-asan-replay-operations.json",
+          "--policy",
+          "replay-operations"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "replay-bytes",
+      "form": "asan",
+      "report": "broker-asan-replay-bytes.json",
+      "sha256": "f5a3661ae5af82fe34e7d9242053c7096765f9cbc0619631866593445bd279ed",
+      "cases": 24,
+      "form_sha256": {
+        "wsl-modular-asan": "b23d658fe99f3f2bf028edce55adc7d6f4675112d9f00ccae4ba56c150362e44"
+      },
+      "receipt": {
+        "label": "broker-asan-replay-bytes-final",
+        "log": "wsl-broker-asan-replay-bytes-final.log",
+        "log_sha256": "baad3d638b01152b2b1edc89a83cc6b2bb22051766fce64df2e9a2fd4a706201",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "wsl-modular-asan",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular-asan",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-asan-replay-bytes.json",
+          "--policy",
+          "replay-bytes"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    }
+  ],
+  "controls": [
+    {
+      "policy": "manual",
+      "form": "control",
+      "report": "broker-control-manual.json",
+      "sha256": "1e59ccb1dd969e63d7a02ff1ad0640f05db4091279145bd969fcf665f1edb4bf",
+      "cases": 8,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-control-manual-final",
+        "log": "wsl-broker-control-manual-final.log",
+        "log_sha256": "2b28ae92b71b0efc7727b8a7b2671a84e4cf9de8cd6de35a9d5903d8eeba0692",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-control-manual.json",
+          "--policy",
+          "manual",
+          "--transport",
+          "tcp"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "automatic",
+      "form": "control",
+      "report": "broker-control-automatic.json",
+      "sha256": "cb7cc76b8ebface798c12b0f2a71b2b1d0aca750b0a8164efec472b6343bf5b5",
+      "cases": 8,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-control-automatic-final",
+        "log": "wsl-broker-control-automatic-final.log",
+        "log_sha256": "2b28ae92b71b0efc7727b8a7b2671a84e4cf9de8cd6de35a9d5903d8eeba0692",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-control-automatic.json",
+          "--policy",
+          "automatic",
+          "--transport",
+          "tcp"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    },
+    {
+      "policy": "pressure",
+      "form": "control",
+      "report": "broker-control-pressure.json",
+      "sha256": "d9846609d98f845a9cae23789dc5d52f4a5839a7c1494782378233d2686689be",
+      "cases": 8,
+      "form_sha256": {
+        "windows-modular": "4c61ca68e7cf9036057d82cc871a3db03c245837194023c332ca0be28438bfe8",
+        "wsl-modular": "9b9174d07e81f6bc2f0695c0aaba801d30c0760b83524d30087aefc6e376985d"
+      },
+      "receipt": {
+        "label": "broker-control-pressure-final",
+        "log": "wsl-broker-control-pressure-final.log",
+        "log_sha256": "2b28ae92b71b0efc7727b8a7b2671a84e4cf9de8cd6de35a9d5903d8eeba0692",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-control-pressure.json",
+          "--policy",
+          "pressure",
+          "--transport",
+          "tcp"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 0
+      }
+    }
+  ],
+  "builds": {
+    "windows": {
+      "regression": {
+        "label": "regression-default",
+        "log": "windows-regression-default.log",
+        "log_sha256": "300a86d3853e5ab63eda05d118e17042943ed7f838007e22de7e7cd17dbd63c0",
+        "programs": 3,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_reconnect_store_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+        "exit_code": 0
+      },
+      "forms": [
+        {
+          "label": "modular",
+          "log": "windows-modular.log",
+          "log_sha256": "ff7469eb8720bc5e1439b127dfd41f484a90e27fbbbb7fafbfeffb93778d7b4a",
+          "programs": 1,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms.py",
+            "modular"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "single-compile",
+          "log": "windows-single-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\single.c",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\single.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "single-usage",
+          "log": "windows-single-usage.log",
+          "log_sha256": "cae1e22bdfe267004c95b809987029f1d0be3d02421b69e3eef12ac420b47d45",
+          "programs": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\single.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "package-static",
+          "log": "windows-package-static.log",
+          "log_sha256": "cb9901396843fb41274b2a23ce676c26a5edce32fff67231b17fb7c25ccedd34",
+          "programs": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "windows-consumer-static-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store\\main.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\libxmqtt.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\libxrt.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\static.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "windows-consumer-static-usage.log",
+          "log_sha256": "cae1e22bdfe267004c95b809987029f1d0be3d02421b69e3eef12ac420b47d45",
+          "programs": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\static.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared.log",
+          "log_sha256": "fb460e3408eac8889223820a11b35fa066f08b0ed0e75a0a99c66f6f4db39dad",
+          "programs": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "windows-consumer-shared-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\shared.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\libxmqtt.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\libxrt.dll.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\shared.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "windows-consumer-shared-usage.log",
+          "log_sha256": "cae1e22bdfe267004c95b809987029f1d0be3d02421b69e3eef12ac420b47d45",
+          "programs": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-replay-broker-20261118\\forms\\windows\\shared.exe"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        }
+      ],
+      "libraries": {
+        "libxmqtt.a": "bab15c5cf4abf03fee76b0f69a5391328901f8f37c66d4a283021b4b720c1d04",
+        "libxrt.a": "5ee41b936238f1a24b6a878ad936a7aef729c5abdd53925de2dff6b4b8e88fd0",
+        "xmqtt.dll": "1f0846bf8e5abfcc4b0f7049cc4d13a07c028c005faedfaeb820bf3ac99cd8d0",
+        "xrt.dll": "85a8762d2f1847982a849f36de04d2713166721e8c2d30e944ac653397c0cc81",
+        "libxmqtt.dll.a": "9c80a50cf267c35925f91aca053f1bb4fdb8328559903674dae20abe5727c8cf",
+        "libxrt.dll.a": "811ddc2203aa9b7dd8986192aae2aae2d28fc23ac771bd44f515938f90b9d56e"
+      }
+    },
+    "wsl": {
+      "regression": {
+        "label": "regression-default",
+        "log": "wsl-regression-default.log",
+        "log_sha256": "58b54987f27f9a9453c4e834cb2b88bfeec2ff773c7f0271c576bd98db5a563a",
+        "programs": 3,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_reconnect_store_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+        "exit_code": 0
+      },
+      "forms": [
+        {
+          "label": "modular",
+          "log": "wsl-modular.log",
+          "log_sha256": "4bee70b062b6bfb3ef7e28645dd9bb05296b85dff4f39cf11910a24073141e48",
+          "programs": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms.py",
+            "modular"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "single-compile",
+          "log": "wsl-single-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "single-usage",
+          "log": "wsl-single-usage.log",
+          "log_sha256": "c18178d57a1bbef40d2e52a2db9a5665e656af04e4222adbe6483888bcb936bf",
+          "programs": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "package-static",
+          "log": "wsl-package-static.log",
+          "log_sha256": "773ef3236ba50dcb8e89bc26e1621a3d9df9840f5e294b45fc7d54ea8c966cb0",
+          "programs": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "wsl-consumer-static-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store/main.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/libxmqtt.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "wsl-consumer-static-usage.log",
+          "log_sha256": "c18178d57a1bbef40d2e52a2db9a5665e656af04e4222adbe6483888bcb936bf",
+          "programs": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared.log",
+          "log_sha256": "400f668156635d480083d55b04f48ac7078e10782e2442c3b8f394dfdf80c2e4",
+          "programs": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "wsl-consumer-shared-compile.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store",
+            "-Wl,-rpath,$ORIGIN",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/libxmqtt.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/libxrt.so",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "wsl-consumer-shared-usage.log",
+          "log_sha256": "c18178d57a1bbef40d2e52a2db9a5665e656af04e4222adbe6483888bcb936bf",
+          "programs": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/shared"
+          ],
+          "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+          "exit_code": 0
+        }
+      ],
+      "libraries": {
+        "libxmqtt.a": "8f61ce58f8d80949789f1464ce2fb635b731677595ec208bb7488c94424c821e",
+        "libxrt.a": "dd801d36c00c56e0b280a2f9173c91105bb19f4d5dc5d2eab5179216a0e5085a",
+        "libxmqtt.so": "e36e6db9e3b0e12b50183b53f94803897fd40ab7e9f7edf99122391c042f05a1",
+        "libxrt.so": "c72d86616a61a96bdabb181ca69dd6e4286d644e48957ad46b1976eadb9f80e6"
+      }
+    }
+  },
+  "sanitized_build": {
+    "label": "asan",
+    "log": "wsl-asan.log",
+    "log_sha256": "f88154656217dd66b2c39a18a90c50f51fe0729b9c95333c0c77bad8f1bb62be",
+    "programs": 1,
+    "args": [
+      "/usr/bin/python3",
+      "-u",
+      "-X",
+      "utf8",
+      "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms.py",
+      "asan-build"
+    ],
+    "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+    "exit_code": 0
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features.log",
+      "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single.log",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api.log",
+      "log_sha256": "4af43280e6fd850b596c49afc54ce622b4fd8a8a6cec228e8ba500c98edb4ff5",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference.log",
+      "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity.log",
+      "log_sha256": "f783c1067fefd5887e506e428b5e947563724bfb829b7c2f068cefe0430a7e5e",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout.log",
+      "log_sha256": "100bb61e3bf86eeb83e5f541a296ece0524a07de0554290bafa46228f158b90a",
+      "programs": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 0
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 36,
+    "sha256": "04f645131f25d7638c3f2f7f09b00ec38625ce864d62b18e95b10aa7b302c758"
+  },
+  "corrected_oracle_failures": [
+    {
+      "label": "broker-single-smoke-replay-transactions-final",
+      "log": "wsl-broker-single-smoke-replay-transactions-final.log",
+      "log_sha256": "d62f5523595804f8a1fd6364ca9b4760f1bb203e60c73fec8aa0aefa6640369f",
+      "programs": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+        "--broker",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+        "--windows-python",
+        "/mnt/c/Program Files/Python312/python.exe",
+        "--form",
+        "windows-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+        "--form",
+        "wsl-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+        "--report",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-smoke-replay-transactions.json",
+        "--policy",
+        "replay-transactions",
+        "--transport",
+        "tcp"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 1
+    },
+    {
+      "label": "broker-single-smoke-replay-operations-final",
+      "log": "wsl-broker-single-smoke-replay-operations-final.log",
+      "log_sha256": "d62f5523595804f8a1fd6364ca9b4760f1bb203e60c73fec8aa0aefa6640369f",
+      "programs": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+        "--broker",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+        "--windows-python",
+        "/mnt/c/Program Files/Python312/python.exe",
+        "--form",
+        "windows-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+        "--form",
+        "wsl-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+        "--report",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-smoke-replay-operations.json",
+        "--policy",
+        "replay-operations",
+        "--transport",
+        "tcp"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 1
+    },
+    {
+      "label": "broker-single-smoke-replay-bytes-final",
+      "log": "wsl-broker-single-smoke-replay-bytes-final.log",
+      "log_sha256": "d62f5523595804f8a1fd6364ca9b4760f1bb203e60c73fec8aa0aefa6640369f",
+      "programs": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+        "--broker",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+        "--windows-python",
+        "/mnt/c/Program Files/Python312/python.exe",
+        "--form",
+        "windows-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/single.exe",
+        "--form",
+        "wsl-single",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/single",
+        "--report",
+        "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-single-smoke-replay-bytes.json",
+        "--policy",
+        "replay-bytes",
+        "--transport",
+        "tcp"
+      ],
+      "source_map_sha256": "b63edf48baabe7db3d9a008fa604047dc894224b2961005e7214397ee0badcc7",
+      "exit_code": 1
+    }
+  ],
+  "harness_retries": [
+    {
+      "receipt": {
+        "label": "broker-static-replay-transactions-final",
+        "log": "wsl-broker-static-replay-transactions-final.log",
+        "log_sha256": "eafebe61d6083629a7b291b87eab3bd419a8fe05980bff34766fdd795c94e6e7",
+        "programs": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/windows/static.exe",
+          "--form",
+          "wsl-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/forms/wsl/static",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-replay-broker-20261118/broker-static-replay-transactions.json",
+          "--policy",
+          "replay-transactions"
+        ],
+        "source_map_sha256": "958f711bcaeb5843e6e9f7ab5b30e649acec908f3cebe6c78844c421b8f54f76",
+        "exit_code": 1
+      },
+      "report": "broker-static-replay-transactions.json",
+      "sha256": "6f63eb7b336c8f04f01893f7dfbfffb9431c801d143ba2e87f6197c22efd9eff",
+      "completed_before_failure": 28,
+      "case": "wsl-static-tls12-311-pubrec",
+      "error": "OSError(61, 'No data available')"
+    }
+  ],
+  "pending": [
+    "native Linux production runtime and 72-hour mixed load",
+    "storage-device power-loss qualification",
+    "controlled same-host throughput and queue-inclusive tail latency"
+  ]
+}

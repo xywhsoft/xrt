@@ -110,3 +110,9 @@ automatic compaction, or `compact-pressure-cut` and
 broker receives the network acknowledgment before termination. The restored
 application consumes the pending Inbox message through a fresh lease and
 commits its separate application acknowledgment.
+
+The replay-pressure variants use `compact-replay-cut` and
+`compact-replay-resume` followed by DIRECTORY, a quota name
+(`transactions`, `operations` or `bytes`), and its positive integer limit.
+Use the interop runner to select a limit that the old cut exactly exhausts.
+It verifies recovery under that same limit through the final durable END.

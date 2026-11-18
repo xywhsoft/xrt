@@ -126,7 +126,7 @@ def cut(proxy):
             pass
 
 
-def verify_protocol(proxy, sink, transport, fault):
+def verify_protocol(proxy, sink, transport, fault, history_topic=None):
     assert not proxy.errors, proxy.errors
     rows = proxy.rows
     acks = [r for r in rows if r['type'] == 2]
@@ -135,7 +135,7 @@ def verify_protocol(proxy, sink, transport, fault):
     drops = [r for r in rows if not r['forwarded']]
     assert len(drops) == 1 and drops[0]['generation'] == 1, rows
     assert drops[0]['direction'] == 'sc' and drops[0]['type'] == (4, 5, 7)[fault], rows
-    publishes = [r for r in rows if r['type'] == 3 and r['direction'] == 'cs']
+    publishes = [r for r in rows if r['type'] == 3 and r['direction'] == 'cs' and r['topic'] != history_topic]
     first = publishes[0]
     identifier = first['identifier']
     original_flags = 2 if fault == 0 else 4

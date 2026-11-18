@@ -361,3 +361,13 @@ After restart, the new client resumes the QoS 2 exchange. The application takes
 the recovered Inbox lease, verifies its original payload, and commits a durable
 ACK. The broker sends no second trigger delivery in the observed recovery.
 The final cold reopen checks END and an empty Inbox.
+
+Select `--policy replay-transactions`, `--policy replay-operations` or
+`--policy replay-bytes` to exhaust a replay quota with physical space still
+available. The first client completes three additional QoS 1 publishes on a
+separate topic to build durable operation history. The runner reads both
+journal generations independently and checks that the old generation exactly
+exhausts the chosen quota. It verifies the IN_ACCEPT after the checkpoint,
+native process termination, QoS 2 replay and the later application ACK.
+The replacement opens and finishes under the same quota. The report records
+decoded budgets for the old cut, the recovered cut and the final END.
