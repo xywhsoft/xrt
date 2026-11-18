@@ -126,7 +126,7 @@ def cut(proxy):
             pass
 
 
-def verify(proxy, sink, transport, fault, output):
+def verify_protocol(proxy, sink, transport, fault):
     assert not proxy.errors, proxy.errors
     rows = proxy.rows
     acks = [r for r in rows if r['type'] == 2]
@@ -175,6 +175,11 @@ def verify(proxy, sink, transport, fault, output):
         assert raw[0] == 0x30 and body == field(TOPIC) + PAYLOAD, (raw.hex(), body.hex())
     ready, _, _ = select.select([sink], [], [], .1)
     assert not ready, 'unexpected extra delivery'
+    return deliveries
+
+
+def verify(proxy, sink, transport, fault, output):
+    deliveries = verify_protocol(proxy, sink, transport, fault)
     assert f'Generation 2 settled durable QoS {2 if fault else 1}.' in output, output
     assert f'Committed graceful END at {7 if fault else 6}.' in output, output
     if fault:

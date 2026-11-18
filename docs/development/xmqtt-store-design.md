@@ -611,3 +611,22 @@ later commits. The explicit request has entry, scratch and reclaim limits.
 Automatic maintenance scheduling, queue-inclusive latency qualification,
 and device power-loss validation remain open.
 [Stage evidence](xmqtt-store-compact-online-20261118.json).
+
+
+## 2026-11-18 Online checkpoint and native process restart
+
+The real-broker matrix holds either PUBREC or PUBCOMP while the connected
+publisher rotates its typed store under the native slot lock. It terminates
+the publisher after the compacted Journal and selector have synchronized.
+The broker stays running. A fresh process opens the exact selected generation,
+recovers the Session, accepts Session Present, resumes the original packet
+identifier and retires the durable obligation. Its final END is read back
+from another unopened cursor.
+
+The independent oracle checks both selector pages, the selected Journal chain
+and the compacted packet bytes before the replacement starts. It then checks
+duplicate PUBLISH versus PUBREL on the wire and requires exactly one payload
+at an independent subscriber. The matrix includes both MQTT levels, TCP,
+TLS 1.2/1.3 and WebSocket with and without TLS. Transport gateways, host
+forwarding and storage backend are recorded in the stage evidence.
+[Stage evidence](xmqtt-compact-crash-20261118.json).

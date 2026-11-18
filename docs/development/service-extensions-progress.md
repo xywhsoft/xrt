@@ -14326,3 +14326,19 @@ The caller chooses the maintenance trigger. Other durable requests wait
 behind the bounded checkpoint. Production throughput, tail latency, automatic
 maintenance policy, and power-loss validation remain open.
 [Stage evidence](xmqtt-store-compact-online-20261118.json).
+
+
+## 2026-11-18 Online checkpoint recovery against Mosquitto
+
+A real publisher rotates its typed MQTT store with an unfinished QoS 2
+transaction, exits through native process termination, and resumes from
+the synchronized slot in a fresh process. The broker preserves its session.
+The independent wire observer verifies the original identifier and the
+correct PUBLISH or PUBREL replay. The subscriber receives one copy. Fresh
+typed replay verifies the final durable END.
+
+The matrix covers Windows and Linux under WSL, MQTT 5.0 and 3.1.1, TCP,
+TLS 1.2/1.3, WebSocket and WSS, plus modular, single-header, static and shared
+consumers. Automatic maintenance scheduling, device power-loss qualification,
+and production throughput and tail latency remain open.
+[Stage evidence](xmqtt-compact-crash-20261118.json).

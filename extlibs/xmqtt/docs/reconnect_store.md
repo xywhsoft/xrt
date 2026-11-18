@@ -89,3 +89,16 @@ transport closure. It covers PUBLISH retransmission following lost PUBACK or
 PUBREC and PUBREL recovery following lost PUBCOMP. See the retry rules in
 [MQTT 5.0 §4.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1 §4.4](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).
+
+
+## Recovery from an online checkpoint
+
+With the complete `xmqtt` feature set the example also accepts
+`compact-cut DIRECTORY` and `compact-resume DIRECTORY`. These modes are
+driven by the interop runner. It provisions the three journal slot filenames
+in a private directory and tells the first publisher to compact while one
+QoS 2 acknowledgement is withheld. After the selector has committed, the
+runner terminates the process. The replacement opens the selected slot,
+recovers the typed State, restores a fresh Session, and connects with the
+same Client ID and Clean Start disabled. It verifies the replay, commits END,
+and cold-reopens the journal again. [Run the checkpoint qualification](../tests/interop/README.md#online-checkpoint-and-native-client-restart).

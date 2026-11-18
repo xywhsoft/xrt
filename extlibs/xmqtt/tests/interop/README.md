@@ -315,3 +315,30 @@ delivery count. The replacement must finish a graceful MQTT and transport
 close with the expected durable END. The WebSocket tests split MQTT bytes
 across WebSocket continuation frames and interpose Ping frames. The gateways
 terminate TLS and WebSocket, with Mosquitto maintaining the MQTT session.
+
+
+### Online checkpoint and native client restart
+
+Build the complete reconnect example with the root `xmqtt` feature set.
+The qualification runner starts a fresh Mosquitto process for each scenario
+and keeps it alive while replacing the publisher. It withholds one PUBREC or
+PUBCOMP, authorizes online compaction while the QoS 2 Future is still pending,
+and waits for the selected checkpoint. It terminates the original client
+using a native process handle, then starts a fresh publisher on the same
+journal slot and Client ID.
+
+The runner independently checks the selector and journal checksums and decodes
+the stored QoS 2 stage, packet identifier, topic and payload. It checks the
+replacement CONNACK, the retransmitted packet and the subscriber's single
+delivery. The replacement also commits durable END and reopens the resulting
+journal. For the WSL-to-Windows topology supply a native `--windows-python`.
+For TLS and WSS supply OpenSSL. The gateway uses loopback and the test broker
+owns the MQTT session and published messages.
+
+```sh
+python extlibs/xmqtt/tests/interop/run_compact_crash_broker.py --broker /path/to/mosquitto --form build /path/to/examples_reconnect_store_main --report out/compact-crash.json
+```
+
+Select `--transport tcp` for a shorter run. Client process-exit tests cover
+recovery of the synchronized files in this topology. Physical power-loss
+survival requires a separate storage qualification.

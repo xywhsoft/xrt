@@ -1,6 +1,11 @@
 #include <xmqtt/reconnect_store.h>
 #include <xrt/memory.h>
 #include <xrt/time.h>
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#define RECONNECT_EXAMPLE_COMPACT
+#include <xmqtt/store_compact_online.h>
+#include <xmqtt/store_session.h>
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
 #include <xmqtt/client_store_tls.h>
 #endif
@@ -160,6 +165,90 @@ static bool destroyPool(xtaskpool* Pool)
     return !Pool||(xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,10000)==XWAIT_OK&&xrtTaskPoolDestroy(Pool));
 }
 
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+static bool compactSeed(xmqttjournal* Journal,const xmqttstoredeltaconfig* Config)
+{
+    unsigned char Bytes[64];
+    size_t Size=0;
+    uint64 Seq=0;
+    xmqttjournalrecord Record;
+    if(xmqttJournalNext(Journal,&Record)!=XMQTT_JOURNAL_EMPTY||
+       xmqttStoreDeltaWrite(Config,NULL,0,NULL,0,Bytes,sizeof(Bytes),&Size)!=XMQTT_STORE_DELTA_DONE)return false;
+    for(unsigned I=0;I<24;++I)
+        if(xmqttJournalAppend(Journal,(xbytesview){Bytes,Size},&Seq)!=XMQTT_JOURNAL_DONE)return false;
+    return true;
+}
+
+static void compactCut(xmqttstorewrite* Writer,xfuture* Publish)
+{
+    /* The fixture signals only after independently observing the dropped ACK. */
+    if(fgetc(stdin)!='c'||xrtFutureState(Publish)!=XFUTURE_PENDING)return;
+    xmqttstorewriteinfo Info;
+    xmqttstoreview Outgoing;
+    unsigned char Packet[1024];
+    size_t Bytes=0;
+    if(!xmqttStoreWriteInfo(Writer,&Info)||!Info.State.LiveAtCut||Info.State.Outgoing!=1||
+       xmqttStoreWriteRead(Writer,Info.State.LastKey,Packet,sizeof(Packet),&Outgoing,&Bytes)!=XMQTT_STORE_DONE||
+       Outgoing.Qos!=2||!Outgoing.Attempted)return;
+    xmqttstorecompactconfig Config;
+    xmqttStoreCompactConfigInit(&Config);
+    Config.MinReclaimBytes=1;
+    Config.MaxEntries=4;
+    Config.MaxScratchBytes=1024;
+    xfuture* Future=NULL;
+    if(xmqttStoreWriteCompactAsync(Writer,&Config,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return;
+    const xmqttstorecompactresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
+    bool Held=Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED&&
+       Result->PreviousGeneration==1&&Result->Generation==2&&Result->Sequence==2&&Result->Bytes<Result->PreviousBytes&&
+       xrtFutureState(Publish)==XFUTURE_PENDING;
+    if(Held){
+        printf("COMPACTED %llu %llu %u %s %llu %llu %llu\n",(unsigned long long)Result->Generation,
+            (unsigned long long)Result->Sequence,(unsigned)Outgoing.Identifier,Outgoing.Pubrel?"PUBREL":"PUBLISH",
+            (unsigned long long)Outgoing.Key,(unsigned long long)Result->PreviousBytes,(unsigned long long)Result->Bytes);
+        Held=fflush(stdout)==0;
+    }
+    xrtFutureDestroy(Future);
+    /* The qualification runner terminates this native process at the marker. */
+    if(Held)(void)fgetc(stdin);
+}
+
+static bool compactRestore(const xmqttstorestate* State,const xmqttsessionconfig* SessionConfig,
+    const xmqttstorestateconfig* Config,xmqttsession** Session)
+{
+    xmqttstorestateinfo Info;
+    xmqttstoreview Outgoing;
+    if(!xmqttStoreStateInfo(State,&Info)||!Info.LiveAtCut||!Info.HasSession||Info.Transactions!=2||Info.Outgoing!=1||
+       xmqttStoreStateView(State,XMQTT_STORE_OUTGOING,0,&Outgoing)!=XMQTT_STORE_DONE||
+       Outgoing.Qos!=2||!Outgoing.Attempted)return false;
+    xmqttstoresessionconfig Restore;
+    if(!xmqttStoreSessionConfigInit(&Restore))return false;
+    Restore.Binding=Config->Binding;
+    Restore.Generation=Config->Generation;
+    Restore.WallMilliseconds=Config->WallMilliseconds;
+    Restore.MonotonicTime=xrtTimer();
+    if(xmqttStoreSessionRestore(State,SessionConfig,&Restore,Session)!=XMQTT_SESSION_DONE)return false;
+    printf("RECOVERED %llu %llu %u %s %llu\n",(unsigned long long)Config->Generation,
+        (unsigned long long)Info.Transactions,(unsigned)Outgoing.Identifier,Outgoing.Pubrel?"PUBREL":"PUBLISH",
+        (unsigned long long)Outgoing.Key);
+    return true;
+}
+
+static bool compactVerify(xmqttjournalslot* Slot,xmqttstorestateconfig* C,uint64* Last,uint64 End)
+{
+    if(!wall(Last,&C->WallMilliseconds))return false;
+    xmqttjournal* Journal=NULL;
+    xmqttstorestate* State=NULL;
+    xmqttstorestateinfo Info;
+    bool OK=xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
+        xmqttStoreStateRecover(Journal,C,&State)==XMQTT_STORE_DONE&&xmqttStoreStateInfo(State,&Info)&&
+        !Info.LiveAtCut&&!Info.Outgoing&&Info.Transactions==End;
+    xmqttStoreStateDestroy(State);
+    if(!xmqttJournalDestroy(Journal)){(void)xmqttJournalDestroy(Journal);return false;}
+    if(OK)printf("VERIFIED %llu %llu\n",(unsigned long long)C->Generation,(unsigned long long)End);
+    return OK;
+}
+#endif
+
 int main(int Argc,char** Argv)
 {
     if(Argc==1){
@@ -172,6 +261,9 @@ int main(int Argc,char** Argv)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
         puts("       examples_reconnect_store_main wss://HOST:PORT/mqtt 5|311 CA.pem [expect-replay|replay-qos2]");
 #endif
+#endif
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+        puts("       Any endpoint form can use compact-cut DIRECTORY or compact-resume DIRECTORY with the interop runner.");
 #endif
         return 0;
     }
@@ -198,9 +290,19 @@ int main(int Argc,char** Argv)
 #endif
     bool Secure=Remote.Channel==CHANNEL_TLS||Remote.Channel==CHANNEL_WSS;
     int Mode=Level+(Secure?2:1);
+    bool Cut=false,Resume=false;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    const char* Directory=NULL;
+    if(Argc==Mode+2){
+        Cut=!strcmp(Argv[Mode],"compact-cut");
+        Resume=!strcmp(Argv[Mode],"compact-resume");
+        if(!Cut&&!Resume)return 2;
+        Directory=Argv[Mode+1];
+    }else
+#endif
     if(Argc<Mode||Argc>Mode+1)return 2;
     bool Replay=Argc==Mode+1;
-    bool Qos2=Replay&&!strcmp(Argv[Mode],"replay-qos2");
+    bool Qos2=Cut||Resume||(Replay&&!strcmp(Argv[Mode],"replay-qos2"));
     if(Replay&&!Qos2&&strcmp(Argv[Mode],"expect-replay"))return 2;
     bool V5=!strcmp(Argv[Level],"5");
     if(!V5&&strcmp(Argv[Level],"311"))return 2;
@@ -233,7 +335,11 @@ int main(int Argc,char** Argv)
     bool OK=false,Started=false;
     uint64 Wall=0;
     str Path=NULL;
-    xfile File=xrtFileTemp(NULL,"xmqtt-reconnect-store-",NULL,&Path);
+    xfile File=NULL;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    xroot Root=NULL;
+    xmqttjournalslot* Slot=NULL;
+#endif
     xmqttjournal* Journal=NULL;
     xmqttstorestate* State=NULL;
     xmqttstorewrite* Writer=NULL;
@@ -243,9 +349,40 @@ int main(int Argc,char** Argv)
     xtaskpool *Storage=NULL,*Cleanup=NULL;
     xnetengine* Engine=NULL;
     xfuture *Publish=NULL,*Disconnect=NULL;
-    if(!File||!wall(&Wall,&SC.WallMilliseconds)||
-       xmqttJournalCreate(File,&JC,&Journal)!=XMQTT_JOURNAL_DONE||
-       xmqttStoreStateRecover(Journal,&SC,&State)!=XMQTT_STORE_DONE)goto Done;
+    if(!wall(&Wall,&SC.WallMilliseconds))goto Done;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Directory){
+        Root=xrtRootOpen(Directory);
+        if(!Root)goto Done;
+        xmqttjournalstatus Open=Cut?xmqttJournalSlotCreate(Root,&JC,&Slot):xmqttJournalSlotOpen(Root,&JC,&Slot);
+        xmqttjournalslotinfo Selected;
+        if(Open!=XMQTT_JOURNAL_DONE||!xmqttJournalSlotInfo(Slot,&Selected)||
+           Selected.Generation!=(Cut?1u:2u))goto Done;
+        SC.Generation=Selected.Generation;
+        if(xmqttJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
+        if(Cut){
+            if(!compactSeed(Journal,&SC.Delta)||!xmqttJournalDestroy(Journal))goto Done;
+            Journal=NULL;
+            if(xmqttJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
+        }
+    }else
+#endif
+    {
+        File=xrtFileTemp(NULL,"xmqtt-reconnect-store-",NULL,&Path);
+        if(!File||xmqttJournalCreate(File,&JC,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
+    }
+    if(xmqttStoreStateRecover(Journal,&SC,&State)!=XMQTT_STORE_DONE)goto Done;
+
+    xmqttsessionconfig SK;
+    xmqttSessionConfigInit(&SK);
+    SK.Version=Version;
+    SK.ClientId=Id;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Resume){
+        if(!compactRestore(State,&SK,&SC,&Session))goto Done;
+    }else
+#endif
+    if(!xmqttSessionCreate(&SK,&Session))goto Done;
     xtaskpoolconfig PC={.Threads=1,.QueueLimit=16};
     Storage=xrtTaskPoolCreate(&PC);
     Cleanup=xrtTaskPoolCreate(&PC);
@@ -255,11 +392,6 @@ int main(int Argc,char** Argv)
     Journal=NULL;
     State=NULL;
 
-    xmqttsessionconfig SK;
-    xmqttSessionConfigInit(&SK);
-    SK.Version=Version;
-    SK.ClientId=Id;
-    if(!xmqttSessionCreate(&SK,&Session))goto Done;
     xnetengineconfig EC;
     xrtNetEngineConfigInit(&EC);
     EC.Workers=1;
@@ -274,7 +406,7 @@ int main(int Argc,char** Argv)
     xmqttpacket Connect;
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
     Connect.Body.Connect.ClientId=Id;
-    Connect.Body.Connect.CleanStart=true;
+    Connect.Body.Connect.CleanStart=!Resume;
     xmqttproperty Expiry={XMQTT_PROPERTY_SESSION_EXPIRY,XMQTT_PROPERTY_UINT32,{.Number=300}};
     if(V5)Connect.Properties=(xmqttpropertylist){&Expiry,1};
     /* MQTT 3.1.1 needs a persistent first connection to exercise replay.
@@ -284,14 +416,25 @@ int main(int Argc,char** Argv)
     Session=NULL;
     if(!online(Controller,1,&Lease)||Lease.Generation!=1)goto Done;
 
+    xmqttclientstoreoutcome Outcome;
+    if(Resume){
+        if(!replayed(Writer))goto Done;
+        puts("Fresh process settled the compacted QoS 2 obligation.");
+        goto Disconnect;
+    }
     xmqttpacket Packet;
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Packet);
     Packet.Flags=Qos2?4:2;
     Packet.Body.Publish.Topic=XRT_STR_LITERAL("xrt/example/reconnect-store");
     Packet.Body.Publish.Payload=XRT_BYTES_LITERAL("durable automatic reconnect");
     if(xmqttClientPublishAsync(Lease.Client,&Packet,10000,&Publish)!=XMQTT_ADMISSION_ACCEPTED)goto Done;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Cut){
+        compactCut(Writer,Publish);
+        goto Done;
+    }
+#endif
     const xmqttwriteresult* First=result(Publish);
-    xmqttclientstoreoutcome Outcome;
     if(!First||!xmqttClientStoreOutcome(First,&Outcome)||Outcome.Attempt.Effect!=XMQTT_JOURNAL_COMMITTED)goto Done;
     if(Replay){
         if(First->Status!=XMQTT_STATUS_TRANSPORT||Outcome.Completion.Sequence||
@@ -303,6 +446,7 @@ int main(int Argc,char** Argv)
         (unsigned long long)Lease.Generation,Qos2?2u:1u,(int)First->Status,
         (unsigned long long)Outcome.Attempt.Sequence);
 
+Disconnect:
     if(xmqttClientDisconnectAsync(Lease.Client,NULL,10000,&Disconnect)!=XMQTT_ADMISSION_ACCEPTED)goto Done;
     const xmqttwriteresult* Last=result(Disconnect);
     if(!Last||Last->Status!=XMQTT_STATUS_OK||!xmqttClientStoreOutcome(Last,&Outcome)||
@@ -319,11 +463,24 @@ Done:
     xrtFutureDestroy(Publish);
     if(Session&&!xmqttSessionDestroy(Session))return 1;
     if(Writer&&!xmqttStoreWriteDestroy(Writer))return 1;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(OK&&Resume&&!compactVerify(Slot,&SC,&Wall,Outcome.End.Sequence))OK=false;
+#endif
     if(Started&&!xrtNetEngineStop(Engine))return 1;
     if(Engine&&!xrtNetEngineDestroy(Engine))return 1;
     if(!destroyPool(Cleanup)||!destroyPool(Storage))return 1;
     xmqttStoreStateDestroy(State);
-    if(Journal&&!xmqttJournalDestroy(Journal))return 1;
+    if(!xmqttJournalDestroy(Journal)){
+        (void)xmqttJournalDestroy(Journal);
+        OK=false;
+    }
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(!xmqttJournalSlotDestroy(Slot)){
+        (void)xmqttJournalSlotDestroy(Slot);
+        OK=false;
+    }
+    if(Root&&!xrtRootClose(Root))OK=false;
+#endif
     if(File&&(!xrtClose(File)||!xrtFileDelete(Path)))OK=false;
     xrtFree(Path);
     if(!OK)fputs("Durable MQTT reconnect example failed.\n",stderr);
