@@ -73,6 +73,32 @@ static bool consumerCheckpointService(const xcronjobconfig* Config,const xcronch
            xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
 }
 #endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_GROUP)
+#include <xcron/checkpoint_group.h>
+static bool consumerCheckpointGroup(const xcroncheckpoint* Record)
+{
+    cstr Base=getenv("TMPDIR");
+#if defined(_WIN32)
+    if(!Base || !*Base)Base=getenv("TEMP");
+#endif
+    if(!Base || !*Base)Base=".";
+    xroot Root=xrtRootOpen(Base);
+    char Name[96];
+    snprintf(Name,sizeof(Name),"xcron-group-consumer-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));
+    xcroncheckpointgroup* S=NULL;
+    xcroncheckpointgroupview View;
+    xcroncheckpointkey Key;
+    if(!Root || xcronCheckpointGroupOpen(Root,Name,80,16,true,&S)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointGroupCommit(S,0,Record,1)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointGroupClose(S)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointGroupOpen(Root,Name,80,16,false,&S)!=XCRON_CHECKPOINT_STORE_OK ||
+       xcronCheckpointGroupRead(S,&View)!=XCRON_CHECKPOINT_STORE_OK || View.Info.Generation!=1 || View.Count!=1 ||
+       !xcronCheckpointGetKey(View.Records,&Key) || Key.Job!=1 || Key.Revision!=2 ||
+       memcmp(Record->Bytes,View.Records[0].Bytes,sizeof(Record->Bytes)))return false;
+    return xcronCheckpointGroupClose(S)==XCRON_CHECKPOINT_STORE_OK &&
+           xrtRootRemove(Root,Name) && xrtRootClose(Root);
+}
+#endif
 static bool consumerCheckpoint(void)
 {
     xcronjobconfig Config={.Begin=1000,.End=2000,.RunningLimit=1};
@@ -93,6 +119,9 @@ static bool consumerCheckpoint(void)
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
     if(!consumerCheckpointService(&Config,&Record,Key))return false;
+#endif
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT_GROUP)
+    if(!consumerCheckpointGroup(&Record))return false;
 #endif
     bool Found; xcronretired Retired;
     bool OK=xcronSchedulerReap(S,&Retired,&Found,NULL) && Found &&

@@ -16,6 +16,9 @@ typedef struct xcroncheckpoint {
 } xcroncheckpoint;
 
 XRT_EXTERN_C_BEGIN
+/* Validates the v1 envelope and returns its stable application identity.
+ * The record and output must be disjoint. Failure preserves Key. */
+XCRON_API bool xcronCheckpointGetKey(const xcroncheckpoint* Checkpoint,xcroncheckpointkey* Key);
 /* Capture one quiescent job on the serialized scheduler owner. Every run has
  * physically completed and the next occurrence is known, or the job is an
  * exhausted/explicitly cancelled tombstone. SEARCHING/live leases are BUSY;

@@ -1,24 +1,15 @@
 #include "checkpoint_internal.h"
 #include <xrt/crc32.h>
+#include <xrt/memory.h>
 #include <string.h>
 
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT)
 enum { XCC_VERSION=1, XCC_JOB=8, XCC_CONFIG=24, XCC_NEXT=40, XCC_POLICY=122,
-       XCC_COUNTS=128, XCC_CRC=176 };
+       XCC_COUNTS=128, XCC_CRC=XCRON_CHECKPOINT_CRC_OFFSET };
 _Static_assert(XCC_CRC+4==XCRON_CHECKPOINT_BYTES && XCRON_FIELD_COUNT==6,"checkpoint v1 field layout");
 _Static_assert(XCRON_JOB_SCHEDULED==0 && XCRON_JOB_EXHAUSTED==1 && XCRON_JOB_CANCELLED==2,
                "checkpoint v1 job states");
 
-static void xcronCheckpointPut(uint8* Out,uint64 Value,size_t Bytes)
-{
-    for(size_t I=0;I<Bytes;++I){Out[I]=(uint8)Value;Value>>=8;}
-}
-static uint64 xcronCheckpointGet(const uint8* In,size_t Bytes)
-{
-    uint64 Value=0;
-    for(size_t I=Bytes;I;--I)Value=(Value<<8)|In[I-1];
-    return Value;
-}
 static xtime xcronCheckpointTime(const uint8* In)
 {
     uint64 Value=xcronCheckpointGet(In,8);
@@ -55,16 +46,39 @@ void xcronCheckpointEncode(const xcronjobconfig* Config,const xcronjobinfo* Info
 static uint64 xcronCheckpointAdd(uint64 A,uint64 B)
 {return B>UINT64_MAX-A?UINT64_MAX:A+B;}
 
-xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key)
+bool xcronCheckpointIdentify(xbytesview Wire,xcroncheckpointkey* Key)
 {
     const uint8* B=Wire.Data;
     if(Wire.Size!=XCRON_CHECKPOINT_BYTES || memcmp(B,"XCCP",4) || B[4]!=XCC_VERSION ||
        B[5]>1 || B[7] || B[6]>XCRON_JOB_CANCELLED || xcronCheckpointGet(B+XCC_CRC,4)!=xrtCrc32(B,XCC_CRC) ||
        B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_REJECT ||
-       (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return XCRON_CHECKPOINT_INVALID;
-    if(xcronCheckpointGet(B+XCC_JOB,8)!=Key.Job || xcronCheckpointGet(B+XCC_JOB+8,8)!=Key.Revision)
-        return XCRON_CHECKPOINT_INCOMPATIBLE;
+       (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return false;
+    *Key=(xcroncheckpointkey){xcronCheckpointGet(B+XCC_JOB,8),xcronCheckpointGet(B+XCC_JOB+8,8)};
+    return true;
+}
+
+xcroncheckpointstatus xcronCheckpointValidate(xbytesview Wire,xcroncheckpointkey Key)
+{
+    xcroncheckpointkey Saved;
+    if(!xcronCheckpointIdentify(Wire,&Saved))return XCRON_CHECKPOINT_INVALID;
+    if(Saved.Job!=Key.Job || Saved.Revision!=Key.Revision)return XCRON_CHECKPOINT_INCOMPATIBLE;
     return XCRON_CHECKPOINT_VALID;
+}
+
+XCRON_API bool xcronCheckpointGetKey(const xcroncheckpoint* Record,xcroncheckpointkey* Key)
+{
+    if(!xrtMemRangeValid(Record,sizeof(*Record)) || !xrtMemRangeValid(Key,sizeof(*Key)) ||
+       xrtMemRangesOverlap(Record,sizeof(*Record),Key,sizeof(*Key))){
+        xrtSetErrorInfo(XERR_ARGUMENT,"xrt.cron.checkpoint",XCRON_SCHEDULER_ARGUMENT,"invalid checkpoint key output");
+        return false;
+    }
+    xcroncheckpointkey Parsed;
+    if(!xcronCheckpointIdentify((xbytesview){Record->Bytes,sizeof(Record->Bytes)},&Parsed) || !Parsed.Job || !Parsed.Revision){
+        xrtSetErrorInfo(XERR_VALUE,"xrt.cron.checkpoint",XCRON_SCHEDULER_CHECKPOINT,"invalid checkpoint record");
+        return false;
+    }
+    *Key=Parsed;
+    return true;
 }
 
 xcroncheckpointstatus xcronCheckpointDecode(xbytesview Wire,const xcronjobconfig* Config,

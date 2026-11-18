@@ -267,6 +267,20 @@
         "_xrtExecutorCreate",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_checkpoint_group",
+      "system": "checkpoint_group",
+      "suite": "xcron_checkpoint_group",
+      "description": "Atomic group snapshots with rooted files and native locks",
+      "forbid_symbols": [
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "xrtNetEngineCreate",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

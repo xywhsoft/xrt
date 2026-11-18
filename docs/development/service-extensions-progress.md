@@ -14913,3 +14913,49 @@ and native endurance remain open. The strict gate lists 16 developing
 xcron modules.
 [Service checkpoint contract](../../extlibs/xcron/docs/service_checkpoint.md).
 [Stage evidence](xcron-pause-checkpoint-20261118.json).
+
+## 2026-11-18 Atomic checkpoint groups
+
+The group store persists a bounded, sorted set of v1 job checkpoints
+in one generation of a locked two-slot file. It validates the entire
+input, writes one contiguous alternate image, then flushes and publishes.
+Read borrows the validated cached group. Group identity and capacity are
+fixed on reopen. The example stages two jobs paused before advancing
+and committing them together. Existing single-job files remain unchanged.
+
+The outer checksum binds ordered per-record CRC fields. Hashing the
+complete record bytes including their own CRCs would give a fixed
+residue and miss substitutions. The multi-page unit fixture replaces
+one record with an individually valid record from another generation
+and verifies whole-group fallback. Both damaged slots are rejected.
+The suites cover allocation refusal, stale or duplicate inputs, lock
+contention, empty commits, and uncertain handles.
+
+Windows NTFS and WSL ext4 both revert to generation 1 when the writer
+is terminated after persisting only the new header and first record.
+When the process terminates after the full write but before its flush,
+reopen validates generation 2 and synchronizes it before publication.
+Each fixture's bytes agree across platforms. Module and single-header
+tests, prior checkpoint regressions, trimmed and full static/shared
+consumers, and WSL ASan, UBSan and leak checks pass. The size profile
+checks that trimming excludes executor, thread and network entry points.
+
+The local benchmark uses precomputed records, 200 synchronous
+alternating-slot commits per repeat and five measured repeats. Each
+timed operation includes validation, a complete write and a native
+file flush. The table uses the median of each reported run statistic.
+
+| Host | Records/group | Groups/s | Records/s | P50 (ms) | P99 (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows NTFS | 1 | 1,095.4 | 1,095.4 | 0.935 | 1.008 |
+| Windows NTFS | 64 | 1,143.5 | 73,185.2 | 0.875 | 1.036 |
+| WSL ext4 | 1 | 18.7 | 18.7 | 52.556 | 60.770 |
+| WSL ext4 | 64 | 20.3 | 1,298.5 | 49.992 | 64.756 |
+
+The local profiles exceed the configured repeatability limits.
+
+Automatic live group capture and restart admission, initial directory
+installation, device power-loss and native endurance qualification
+remain open. The strict release gate reports 17 developing xcron modules.
+[Group store contract](../../extlibs/xcron/docs/checkpoint_group.md).
+[Stage evidence](xcron-checkpoint-group-20261118.json).

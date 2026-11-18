@@ -4027,6 +4027,90 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_checkpoint_group_1",
+      "system": "checkpoint_group",
+      "description": "Replace a 1-record group in one write and native flush",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint_group_1",
+          "source": "extlibs/xcron/bench/bench_checkpoint_group.c",
+          "suite": "xcron_checkpoint_group",
+          "args": [
+            "200",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "direction": "higher",
+              "unit": "groups/s"
+            },
+            "records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            },
+            "group_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_checkpoint_group_64",
+      "system": "checkpoint_group",
+      "description": "Replace a 64-record group in one write and native flush",
+      "benchmarks": [
+        {
+          "name": "xcron_checkpoint_group_64",
+          "source": "extlibs/xcron/bench/bench_checkpoint_group.c",
+          "suite": "xcron_checkpoint_group",
+          "args": [
+            "200",
+            "64"
+          ],
+          "smoke_args": [
+            "8",
+            "64"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "direction": "higher",
+              "unit": "groups/s"
+            },
+            "records_per_sec": {
+              "direction": "higher",
+              "unit": "records/s"
+            },
+            "group_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "group_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }
