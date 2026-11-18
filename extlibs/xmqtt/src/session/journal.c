@@ -1,4 +1,4 @@
-#include <xmqtt/journal.h>
+#include <xmqtt/journal_file.h>
 #include "../internal/xmqtt_journal_replay.h"
 #include "../internal/xmqtt_journal_worker.h"
 #include <xrt/crc32.h>
@@ -12,6 +12,9 @@ struct xmqttjournal {
     const void* Worker;
 #endif
     uint64 Cursor,ReadSequence,FileBytes;uint32 ReadChain;bool Busy;
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+    bool OwnFile;
+#endif
     unsigned char* Page;unsigned char* Buffer;
 };
 static bool xmqttJOwner(const xmqttjournal* J,const void* Owner)
@@ -113,10 +116,15 @@ static xmqttjournalstatus xmqttJLoad(xmqttjournal* J)
     if(J->FileBytes>C->MaxFileBytes)return XMQTT_JOURNAL_LIMIT;
     J->Info.Sequence=W.Sequence;J->Info.CommittedEnd=W.End;J->Info.Chain=W.Chain;J->Cursor=XMQTT_J_START;return XMQTT_JOURNAL_DONE;
 }
+static bool xmqttJConstructorArgs(const xmqttjournalconfig* C,xmqttjournal** Out)
+{
+    return xmqttJConfig(C)&&xmqttJSpan(Out,sizeof(*Out))&&xmqttJSeparate(Out,sizeof(*Out),C,sizeof(*C))&&
+        xmqttJSeparate(Out,sizeof(*Out),C->Binding.Data,C->Binding.Size);
+}
 static xmqttjournalstatus xmqttJConstruct(xfile File,const xmqttjournalconfig* C,xmqttjournal** Out,bool Create)
 {
-    if(!File||!xmqttJConfig(C)||!xmqttJSpan(Out,sizeof(*Out))||!xmqttJSeparate(Out,sizeof(*Out),C,sizeof(*C))||
-        !xmqttJSeparate(Out,sizeof(*Out),C->Binding.Data,C->Binding.Size))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal file/config/output");
+    if(!File||!xmqttJConstructorArgs(C,Out))
+        return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal file/config/output");
     size_t Bytes=sizeof(xmqttjournal)+XMQTT_J_PAGE+C->Binding.Size+C->MaxTransactionBytes;
     if(Bytes>C->MaxMemoryBytes)return XMQTT_JOURNAL_LIMIT;
     xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
@@ -144,6 +152,50 @@ XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile F,const xmqttjournalconfig
 {return xmqttJConstruct(F,C,J,true);}
 XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile F,const xmqttjournalconfig* C,xmqttjournal** J)
 {return xmqttJConstruct(F,C,J,false);}
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+static xmqttjournalstatus xmqttJConstructLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,
+    xmqttjournal** Out,bool Create)
+{
+    if(!Root||!Path||!*Path||!xmqttJConstructorArgs(C,Out)||
+       !xmqttJSeparate(Out,sizeof(*Out),Path,strlen(Path)+1))
+        return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid locked journal root/path/config/output");
+    xerror* Saved=NULL;
+    if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
+    xfileinfo Info;
+    if(!xrtRootStat(Root,Path,false,&Info))return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_IO);
+    if(Info.Type!=XFILE_TYPE_FILE){
+        xmqttJError(XMQTT_JOURNAL_ERROR,"locked journal requires an existing regular file");
+        return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_ERROR);
+    }
+    xfileoptions Options;
+    xrtFileOptionsInit(&Options);
+    Options.Flags=XFILE_READ|XFILE_WRITE|XFILE_NOFOLLOW;
+    Options.Share=XFILE_SHARE_READ|XFILE_SHARE_WRITE;
+    xfile File=xrtRootFileOpen(Root,Path,&Options);
+    if(!File)return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_IO);
+    xmqttjournal* J=NULL;
+    xmqttjournalstatus S=xrtFileTryLockExclusiveUntilClose(File)?
+        xmqttJConstruct(File,C,&J,Create):
+        xrtErrorKind(xrtGetError())==XERR_AGAIN?XMQTT_JOURNAL_BUSY:XMQTT_JOURNAL_IO;
+    if(S==XMQTT_JOURNAL_DONE){
+        S=xmqttJFinish(NULL,Saved,S);
+        if(S==XMQTT_JOURNAL_DONE){
+            J->OwnFile=true;
+            *Out=J;
+            return S;
+        }
+        xrtFree(J);
+        (void)xrtClose(File);
+        return S;
+    }
+    if(!xrtClose(File))S=XMQTT_JOURNAL_IO;
+    return xmqttJFinish(NULL,Saved,S);
+}
+XMQTT_API xmqttjournalstatus xmqttJournalOpenLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,xmqttjournal** J)
+{return xmqttJConstructLocked(Root,Path,C,J,false);}
+XMQTT_API xmqttjournalstatus xmqttJournalCreateLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,xmqttjournal** J)
+{return xmqttJConstructLocked(Root,Path,C,J,true);}
+#endif
 XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord* Out)
 {
     if(!J||!xmqttJOutside(J,Out,sizeof(*Out)))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid replay output");
@@ -205,7 +257,21 @@ static bool xmqttJInfoOwned(xmqttjournal* J,const void* Owner,xmqttjournalinfo* 
 static bool xmqttJDestroyOwned(xmqttjournal* J,const void* Owner)
 {
     if(!J)return true;
-    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal destroy");return false;}xrtFree(J);return true;
+    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal destroy");return false;}
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+    if(J->OwnFile&&J->File){
+        xfile File=J->File;
+        J->File=NULL;
+        J->Info.State=XMQTT_JOURNAL_POISONED;
+        J->Busy=true;
+        /* Close consumes the native wrapper even on error. Keep the Journal
+         * owner alive on false so it can finish disposal without a second close. */
+        bool Closed=xrtClose(File);
+        J->Busy=false;
+        if(!Closed)return false;
+    }
+#endif
+    xrtFree(J);return true;
 }
 XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,uint64* Sequence)
 {return xmqttJAppendOwned(J,NULL,Data,Sequence);}

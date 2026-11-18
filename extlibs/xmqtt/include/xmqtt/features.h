@@ -106,6 +106,25 @@
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#endif
+#endif
+
+/* xmqtt_journal_file 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
 #endif
 
 /* xmqtt_reconnect_store 及其直接依赖。 */

@@ -1,0 +1,10 @@
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_STORE_INBOX
+#define XRT_MODULE_DIR_TEMP
+#define XRT_MODULE_MEMORY_STATS
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_journal_file.c"

@@ -163,6 +163,25 @@
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#endif
+#endif
+
+/* xmqtt_journal_file 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
 #endif
 
 /* xmqtt_reconnect_store 及其直接依赖。 */
@@ -2684,7 +2703,7 @@ typedef struct xmqttjournal xmqttjournal;
 typedef enum xmqttjournalstatus {
     XMQTT_JOURNAL_UNCERTAIN=-6,XMQTT_JOURNAL_IO=-5,XMQTT_JOURNAL_CORRUPT=-4,
     XMQTT_JOURNAL_STATE=-3,XMQTT_JOURNAL_ERROR=-2,
-    XMQTT_JOURNAL_EMPTY=0,XMQTT_JOURNAL_DONE=1,XMQTT_JOURNAL_LIMIT=2
+    XMQTT_JOURNAL_EMPTY=0,XMQTT_JOURNAL_DONE=1,XMQTT_JOURNAL_LIMIT=2,XMQTT_JOURNAL_BUSY=3
 } xmqttjournalstatus;
 typedef enum xmqttjournaleffect {
     XMQTT_JOURNAL_NOT_COMMITTED=0,XMQTT_JOURNAL_MAY_BE_COMMITTED=1,XMQTT_JOURNAL_COMMITTED=2
@@ -3020,8 +3039,9 @@ XRT_EXTERN_C_BEGIN
 XMQTT_API bool xmqttJournalWorkerConfigInit(xmqttjournalworkerconfig* Config);
 /* Success consumes exclusive ownership of a READY Journal, failure none.
  * Direct alias operations on that Journal are refused after transfer. No file
- * IO here. Borrow Pool through Destroy; keep the Journal's file/provider live
- * and exclusively owned through Wait/Destroy, then close it separately.
+ * IO here. Borrow Pool through Destroy. Keep a borrowed Journal file/provider
+ * live through Destroy. An owned, locked Journal closes its file at Destroy
+ * after the worker's physical I/O and task tails have retired.
  * No thread/pool/shared runtime is created. Output changes only on success. */
 XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,
     const xmqttjournalworkerconfig* Config,xmqttjournalworker** Worker);
@@ -3386,6 +3406,39 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
 XMQTT_API bool xmqttReconnectCreateStore(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
     const xmqttreconnectconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
     xmqttreconnectstorefactory Factory,const xmqttpacket* Connect,xmqttreconnect** Controller);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/journal_file.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_JOURNAL_FILE_H
+#define XMQTT_JOURNAL_FILE_H
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE) && \
+    (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_FILE_ROOT) || !defined(XRT_FEATURE_FILE_LOCK))
+#error "The locked journal requires the MQTT journal, native root and file locks"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+XRT_EXTERN_C_BEGIN
+/* Open an existing regular file relative to the borrowed Root. Names and
+ * root lifetime follow xrtRootFileOpen. The final component must be a regular
+ * file in a trusted, stable namespace. Provision the name durably beforehand.
+ * The new native handle locks before any journal data read, replay or write.
+ * BUSY leaves Journal and the committed data unchanged; native contention
+ * may notify an error handler, while the ambient error is restored.
+ * Success transfers the locked handle to Journal and downstream owners.
+ * Physical Destroy releases it. A close error leaves a poisoned Journal
+ * that can be destroyed again to finish disposal. The Root is borrowed
+ * only during construction. Windows and Linux with native lock support. */
+XMQTT_API xmqttjournalstatus xmqttJournalOpenLocked(xroot Root,cstr Path,
+    const xmqttjournalconfig* Config,xmqttjournal** Journal);
+/* Initialize a pre-existing empty file under the same ownership lock.
+ * A failed initialization can leave partial bytes for explicit recovery. */
+XMQTT_API xmqttjournalstatus xmqttJournalCreateLocked(xroot Root,cstr Path,
+    const xmqttjournalconfig* Config,xmqttjournal** Journal);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -11761,6 +11814,9 @@ struct xmqttjournal {
     const void* Worker;
 #endif
     uint64 Cursor,ReadSequence,FileBytes;uint32 ReadChain;bool Busy;
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+    bool OwnFile;
+#endif
     unsigned char* Page;unsigned char* Buffer;
 };
 static bool xmqttJOwner(const xmqttjournal* J,const void* Owner)
@@ -11862,10 +11918,15 @@ static xmqttjournalstatus xmqttJLoad(xmqttjournal* J)
     if(J->FileBytes>C->MaxFileBytes)return XMQTT_JOURNAL_LIMIT;
     J->Info.Sequence=W.Sequence;J->Info.CommittedEnd=W.End;J->Info.Chain=W.Chain;J->Cursor=XMQTT_J_START;return XMQTT_JOURNAL_DONE;
 }
+static bool xmqttJConstructorArgs(const xmqttjournalconfig* C,xmqttjournal** Out)
+{
+    return xmqttJConfig(C)&&xmqttJSpan(Out,sizeof(*Out))&&xmqttJSeparate(Out,sizeof(*Out),C,sizeof(*C))&&
+        xmqttJSeparate(Out,sizeof(*Out),C->Binding.Data,C->Binding.Size);
+}
 static xmqttjournalstatus xmqttJConstruct(xfile File,const xmqttjournalconfig* C,xmqttjournal** Out,bool Create)
 {
-    if(!File||!xmqttJConfig(C)||!xmqttJSpan(Out,sizeof(*Out))||!xmqttJSeparate(Out,sizeof(*Out),C,sizeof(*C))||
-        !xmqttJSeparate(Out,sizeof(*Out),C->Binding.Data,C->Binding.Size))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal file/config/output");
+    if(!File||!xmqttJConstructorArgs(C,Out))
+        return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid journal file/config/output");
     size_t Bytes=sizeof(xmqttjournal)+XMQTT_J_PAGE+C->Binding.Size+C->MaxTransactionBytes;
     if(Bytes>C->MaxMemoryBytes)return XMQTT_JOURNAL_LIMIT;
     xerror* Saved=NULL;if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
@@ -11893,6 +11954,50 @@ XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile F,const xmqttjournalconfig
 {return xmqttJConstruct(F,C,J,true);}
 XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile F,const xmqttjournalconfig* C,xmqttjournal** J)
 {return xmqttJConstruct(F,C,J,false);}
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+static xmqttjournalstatus xmqttJConstructLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,
+    xmqttjournal** Out,bool Create)
+{
+    if(!Root||!Path||!*Path||!xmqttJConstructorArgs(C,Out)||
+       !xmqttJSeparate(Out,sizeof(*Out),Path,strlen(Path)+1))
+        return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid locked journal root/path/config/output");
+    xerror* Saved=NULL;
+    if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
+    xfileinfo Info;
+    if(!xrtRootStat(Root,Path,false,&Info))return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_IO);
+    if(Info.Type!=XFILE_TYPE_FILE){
+        xmqttJError(XMQTT_JOURNAL_ERROR,"locked journal requires an existing regular file");
+        return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_ERROR);
+    }
+    xfileoptions Options;
+    xrtFileOptionsInit(&Options);
+    Options.Flags=XFILE_READ|XFILE_WRITE|XFILE_NOFOLLOW;
+    Options.Share=XFILE_SHARE_READ|XFILE_SHARE_WRITE;
+    xfile File=xrtRootFileOpen(Root,Path,&Options);
+    if(!File)return xmqttJFinish(NULL,Saved,XMQTT_JOURNAL_IO);
+    xmqttjournal* J=NULL;
+    xmqttjournalstatus S=xrtFileTryLockExclusiveUntilClose(File)?
+        xmqttJConstruct(File,C,&J,Create):
+        xrtErrorKind(xrtGetError())==XERR_AGAIN?XMQTT_JOURNAL_BUSY:XMQTT_JOURNAL_IO;
+    if(S==XMQTT_JOURNAL_DONE){
+        S=xmqttJFinish(NULL,Saved,S);
+        if(S==XMQTT_JOURNAL_DONE){
+            J->OwnFile=true;
+            *Out=J;
+            return S;
+        }
+        xrtFree(J);
+        (void)xrtClose(File);
+        return S;
+    }
+    if(!xrtClose(File))S=XMQTT_JOURNAL_IO;
+    return xmqttJFinish(NULL,Saved,S);
+}
+XMQTT_API xmqttjournalstatus xmqttJournalOpenLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,xmqttjournal** J)
+{return xmqttJConstructLocked(Root,Path,C,J,false);}
+XMQTT_API xmqttjournalstatus xmqttJournalCreateLocked(xroot Root,cstr Path,const xmqttjournalconfig* C,xmqttjournal** J)
+{return xmqttJConstructLocked(Root,Path,C,J,true);}
+#endif
 XMQTT_API xmqttjournalstatus xmqttJournalNext(xmqttjournal* J,xmqttjournalrecord* Out)
 {
     if(!J||!xmqttJOutside(J,Out,sizeof(*Out)))return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid replay output");
@@ -11954,7 +12059,21 @@ static bool xmqttJInfoOwned(xmqttjournal* J,const void* Owner,xmqttjournalinfo* 
 static bool xmqttJDestroyOwned(xmqttjournal* J,const void* Owner)
 {
     if(!J)return true;
-    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal destroy");return false;}xrtFree(J);return true;
+    if(!xmqttJOwner(J,Owner)||J->Busy){xmqttJError(XMQTT_JOURNAL_STATE,"claimed or reentrant journal destroy");return false;}
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+    if(J->OwnFile&&J->File){
+        xfile File=J->File;
+        J->File=NULL;
+        J->Info.State=XMQTT_JOURNAL_POISONED;
+        J->Busy=true;
+        /* Close consumes the native wrapper even on error. Keep the Journal
+         * owner alive on false so it can finish disposal without a second close. */
+        bool Closed=xrtClose(File);
+        J->Busy=false;
+        if(!Closed)return false;
+    }
+#endif
+    xrtFree(J);return true;
 }
 XMQTT_API xmqttjournalstatus xmqttJournalAppend(xmqttjournal* J,xbytesview Data,uint64* Sequence)
 {return xmqttJAppendOwned(J,NULL,Data,Sequence);}

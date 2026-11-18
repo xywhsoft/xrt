@@ -27,8 +27,9 @@ XRT_EXTERN_C_BEGIN
 XMQTT_API bool xmqttJournalWorkerConfigInit(xmqttjournalworkerconfig* Config);
 /* Success consumes exclusive ownership of a READY Journal, failure none.
  * Direct alias operations on that Journal are refused after transfer. No file
- * IO here. Borrow Pool through Destroy; keep the Journal's file/provider live
- * and exclusively owned through Wait/Destroy, then close it separately.
+ * IO here. Borrow Pool through Destroy. Keep a borrowed Journal file/provider
+ * live through Destroy. An owned, locked Journal closes its file at Destroy
+ * after the worker's physical I/O and task tails have retired.
  * No thread/pool/shared runtime is created. Output changes only on success. */
 XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,
     const xmqttjournalworkerconfig* Config,xmqttjournalworker** Worker);

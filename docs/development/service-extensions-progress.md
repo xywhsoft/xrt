@@ -14256,3 +14256,22 @@ covered. Strict release still reports 32 developing modules. Broker-native
 WS/WSS graceful shutdown, durable subscriptions and controlled production
 throughput and tail latency remain open.
 [Stage evidence](xmqtt-reconnect-store-transports-20261118.json).
+
+## 2026-11-18 Native file locking for MQTT journal owners
+
+The locked constructors reject simultaneous owners of the same native file
+during initialization, replay, append and physical teardown. The same lock
+survives transfer to the typed Store Writer and continues to exclude contenders
+after Close and Wait. Retaining the original Future value does not keep the
+file locked after Writer Destroy.
+
+Windows and Linux under WSL verify lock contention through independent opens,
+hard-link aliases, constrained allocation, and fresh-process recovery after
+normal close and forced process exit. Modular and single-header builds also
+run the typed commit fixture. The static and shared consumer probes initialize,
+reopen and append the same journal through their public headers.
+
+The owner requires a pre-existing regular file in a trusted stable directory.
+Directory durability, namespace replacement and compaction have separate
+requirements.
+[Stage evidence](xmqtt-locked-journal-20261118.json).

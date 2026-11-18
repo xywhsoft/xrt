@@ -99,6 +99,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_WORKER 1
 #endif
@@ -218,6 +221,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL_WORKER)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_WORKER 1
@@ -1487,6 +1493,12 @@
 #endif
 #if !defined(XRT_MODULE_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE 1
+#endif
+#if !defined(XRT_MODULE_FILE_LOCK)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK 1
+#endif
+#if !defined(XRT_MODULE_FILE_ROOT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT 1
 #endif
 #if !defined(XRT_MODULE_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE 1
@@ -2883,6 +2895,25 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#endif
+#endif
+
+/* xmqtt_journal_file 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
 #endif
 #endif
 
@@ -5405,7 +5436,7 @@ typedef struct xmqttjournal xmqttjournal;
 typedef enum xmqttjournalstatus {
     XMQTT_JOURNAL_UNCERTAIN=-6,XMQTT_JOURNAL_IO=-5,XMQTT_JOURNAL_CORRUPT=-4,
     XMQTT_JOURNAL_STATE=-3,XMQTT_JOURNAL_ERROR=-2,
-    XMQTT_JOURNAL_EMPTY=0,XMQTT_JOURNAL_DONE=1,XMQTT_JOURNAL_LIMIT=2
+    XMQTT_JOURNAL_EMPTY=0,XMQTT_JOURNAL_DONE=1,XMQTT_JOURNAL_LIMIT=2,XMQTT_JOURNAL_BUSY=3
 } xmqttjournalstatus;
 typedef enum xmqttjournaleffect {
     XMQTT_JOURNAL_NOT_COMMITTED=0,XMQTT_JOURNAL_MAY_BE_COMMITTED=1,XMQTT_JOURNAL_COMMITTED=2
@@ -5741,8 +5772,9 @@ XRT_EXTERN_C_BEGIN
 XMQTT_API bool xmqttJournalWorkerConfigInit(xmqttjournalworkerconfig* Config);
 /* Success consumes exclusive ownership of a READY Journal, failure none.
  * Direct alias operations on that Journal are refused after transfer. No file
- * IO here. Borrow Pool through Destroy; keep the Journal's file/provider live
- * and exclusively owned through Wait/Destroy, then close it separately.
+ * IO here. Borrow Pool through Destroy. Keep a borrowed Journal file/provider
+ * live through Destroy. An owned, locked Journal closes its file at Destroy
+ * after the worker's physical I/O and task tails have retired.
  * No thread/pool/shared runtime is created. Output changes only on success. */
 XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,
     const xmqttjournalworkerconfig* Config,xmqttjournalworker** Worker);
@@ -6113,6 +6145,39 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/journal_file.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_JOURNAL_FILE_H
+#define XMQTT_JOURNAL_FILE_H
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE) && \
+    (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_FILE_ROOT) || !defined(XRT_FEATURE_FILE_LOCK))
+#error "The locked journal requires the MQTT journal, native root and file locks"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+XRT_EXTERN_C_BEGIN
+/* Open an existing regular file relative to the borrowed Root. Names and
+ * root lifetime follow xrtRootFileOpen. The final component must be a regular
+ * file in a trusted, stable namespace. Provision the name durably beforehand.
+ * The new native handle locks before any journal data read, replay or write.
+ * BUSY leaves Journal and the committed data unchanged; native contention
+ * may notify an error handler, while the ambient error is restored.
+ * Success transfers the locked handle to Journal and downstream owners.
+ * Physical Destroy releases it. A close error leaves a poisoned Journal
+ * that can be destroyed again to finish disposal. The Root is borrowed
+ * only during construction. Windows and Linux with native lock support. */
+XMQTT_API xmqttjournalstatus xmqttJournalOpenLocked(xroot Root,cstr Path,
+    const xmqttjournalconfig* Config,xmqttjournal** Journal);
+/* Initialize a pre-existing empty file under the same ownership lock.
+ * A failed initialization can leave partial bytes for explicit recovery. */
+XMQTT_API xmqttjournalstatus xmqttJournalCreateLocked(xroot Root,cstr Path,
+    const xmqttjournalconfig* Config,xmqttjournal** Journal);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -6261,6 +6326,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL)
 #undef XMQTT_FEATURE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
+#undef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #undef XMQTT_FEATURE_XMQTT_JOURNAL_WORKER
@@ -6421,6 +6490,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL)
 #undef XMQTT_MODULE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#undef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_WORKER)
 #undef XMQTT_MODULE_XMQTT_JOURNAL_WORKER
@@ -8114,6 +8187,14 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK)
+#undef XRT_MODULE_FILE_LOCK
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT)
+#undef XRT_MODULE_FILE_ROOT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE)
 #undef XRT_MODULE_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE
@@ -8324,6 +8405,25 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#endif
+#endif
+
+/* xmqtt_journal_file 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL
+#define XMQTT_MODULE_XMQTT_JOURNAL
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
 #endif
 #endif
 

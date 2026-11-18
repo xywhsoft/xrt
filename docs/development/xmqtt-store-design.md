@@ -495,3 +495,33 @@ authenticated closure for the qualified secure routes. The remaining
 direct broker-native WS/WSS close and durable subscription-intent work have
 separate acceptance requirements.
 [Stage evidence](xmqtt-reconnect-store-transports-20261118.json).
+
+## 2026-11-18 Locked native journal ownership
+
+The Linux prototype reproduced a traditional record-lock failure for this
+use case. A separate open in the same process could acquire the lock, and
+closing that open released the first owner's lock. Core now exposes a
+nonblocking whole-file lock tied to the native open. Windows uses the
+existing native handle operation. Linux uses open-file-description locking.
+[XRT checkpoint](xmqtt-native-file-lock-20261118.json).
+
+`xmqttJournalCreateLocked` and `xmqttJournalOpenLocked` take an anchored
+directory and an existing regular file in a trusted, stable namespace.
+They acquire native exclusivity before checking journal content and retain
+the file through actual downstream ownership. A contender receives BUSY
+without a journal output or a replay, truncate or append. Hard-link aliases
+still contend. The caller can close the directory after construction.
+
+The same native handle moves into a Journal Worker or Store Writer through
+existing ownership. Close and Wait retire outstanding work. Destroy closes
+the file and releases the lock. Commit results retain their own bytes and
+credits independently. A close failure reports an error once and leaves
+the poisoned owner valid for final disposal because native close already
+consumes the file wrapper.
+
+Native process tests race six contenders for each file. One initializes it
+and holds the lock through a synced transaction. Other contenders see BUSY
+through either hard-link name. Fresh owners recover the original bytes after
+ordinary shutdown or forced process termination. Coordinated replacement,
+durable directory publication and compaction remain separate work.
+[Stage evidence](xmqtt-locked-journal-20261118.json).
