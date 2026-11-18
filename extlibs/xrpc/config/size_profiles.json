@@ -135,6 +135,19 @@
       ]
     },
     {
+      "name": "xrpc_stdio",
+      "system": "stdio",
+      "suite": "xrpc_stdio",
+      "description": "Host-driven bidirectional framing with the existing executor and Future closure",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ]
+    },
+    {
       "name": "xrpc_tcp",
       "system": "tcp",
       "suite": "xrpc_tcp",

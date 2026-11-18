@@ -27,10 +27,34 @@ static bool rpcConsumerServerCall(const xrpcmessage* Request,xrpcreply* Reply,co
 #include "../../examples/frame/main.c"
 #undef main
 #endif
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+static xrpcstdioio rpcConsumerStdioEof(ptr User,bytes Data,size_t Size,size_t* Count)
+{(void)User;(void)Data;(void)Size;(void)Count;return XRPC_STDIO_IO_EOF;}
+static xrpcstdioio rpcConsumerStdioWrite(ptr User,cbytes Data,size_t Size,size_t* Count)
+{(void)User;(void)Data;(void)Size;(void)Count;return XRPC_STDIO_IO_ERROR;}
+static bool rpcConsumerStdio(void)
+{
+    xrpcstdioconfig Config;
+    if(!xrpcStdioConfigInit(&Config))return false;
+    Config.Read=rpcConsumerStdioEof;
+    Config.Write=rpcConsumerStdioWrite;
+    xrpcstdio* S=NULL;
+    if(!xrpcStdioCreate(&Config,&S))return false;
+    xrpcstdioinfo Info={.Size=sizeof(Info)};
+    for(unsigned N=0;N<4;++N){
+        if(!xrpcStdioStep(S) || !xrpcStdioInfo(S,&Info))return false;
+        if(Info.Drained)return Info.Reason==XRPC_STDIO_EOF && xrpcStdioDestroy(S);
+    }
+    return false;
+}
+#endif
 int main(void)
 {
 #if defined(XRPC_FEATURE_XRPC_FRAME)
     if(framePackageExample())return 1;
+#endif
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+    if(!rpcConsumerStdio())return 31;
 #endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	xrpcmessage Message; xrpcdocument Doc;

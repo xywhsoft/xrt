@@ -269,3 +269,11 @@ and same-peer ws/wss factories with exact authority/resource preservation, decod
 routing, default TLS identity and the existing original setup clock/retirement.
 See [the runnable URI example](examples/ws_uri/README.md). This remains developing;
 production and performance acceptance are separate outstanding gates.
+
+## Framed standard streams
+
+The [stdio adapter](docs/stdio.md) runs calls, notifications and batches over
+host-owned stdin/stdout with Content-Length or an explicitly selected four-byte
+length. It handles partial I/O, input backpressure and clean EOF response drain.
+The [pipe example](examples/stdio/README.md) runs as a real subprocess on
+Windows and Linux.

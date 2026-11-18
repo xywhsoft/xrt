@@ -115,6 +115,9 @@
 #ifndef XRPC_MODULE_XRPC_DUPLEX
 #define XRPC_MODULE_XRPC_DUPLEX
 #endif
+#ifndef XRPC_MODULE_XRPC_STDIO
+#define XRPC_MODULE_XRPC_STDIO
+#endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
 #endif
@@ -399,6 +402,19 @@
 #endif
 #ifndef XRT_MODULE_NET_TCP_RETIRE
 #define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#endif
+
+/* xrpc_stdio 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_STDIO)
+#ifndef XRPC_FEATURE_XRPC_STDIO
+#define XRPC_FEATURE_XRPC_STDIO
+#endif
+#ifndef XRPC_MODULE_XRPC_FRAME
+#define XRPC_MODULE_XRPC_FRAME
+#endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
 #endif
 #endif
 
@@ -2348,6 +2364,81 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/stdio.h */
+/* ========================================================================== */
+
+#ifndef XRPC_STDIO_H
+#define XRPC_STDIO_H
+#if defined(XRPC_FEATURE_XRPC_STDIO) && (!defined(XRPC_FEATURE_XRPC_DUPLEX) || !defined(XRPC_FEATURE_XRPC_FRAME))
+#error "xrpc stdio requires duplex and frame"
+#endif
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+
+typedef struct xrpcstdio xrpcstdio;
+typedef enum xrpcstdioio {
+    XRPC_STDIO_IO_ERROR=-1,XRPC_STDIO_IO_AGAIN=0,XRPC_STDIO_IO_PROGRESS=1,XRPC_STDIO_IO_EOF
+} xrpcstdioio;
+/* Callbacks run on the serialized owner and must return without waiting.
+ * PROGRESS sets Count to 1..Size bytes. Other outcomes leave Count zero.
+ * EOF is valid for Read only. Spans expire on return. Write progress means
+ * the host accepted that prefix and now owns any physical I/O obligations. */
+typedef xrpcstdioio (*xrpcstdioread)(ptr User,bytes Data,size_t Size,size_t* Count);
+typedef xrpcstdioio (*xrpcstdiowrite)(ptr User,cbytes Data,size_t Size,size_t* Count);
+typedef enum xrpcstdioreason {
+    XRPC_STDIO_OPEN=0,XRPC_STDIO_EOF,XRPC_STDIO_CLOSED,XRPC_STDIO_TRUNCATED,
+    XRPC_STDIO_FRAME,XRPC_STDIO_IO,XRPC_STDIO_LIMIT,XRPC_STDIO_MEMORY,
+    XRPC_STDIO_TIMEOUT,XRPC_STDIO_DUPLEX
+} xrpcstdioreason;
+typedef struct xrpcstdioconfig {
+    size_t Size;
+    xrpcduplexconfig Duplex;
+    xrpcframeconfig Frame;
+    xrpcstdioread Read;
+    xrpcstdiowrite Write;
+    ptr User;
+    size_t ReadBytes,WriteChunkBytes,MaxIOWork;
+    int64 DrainTimeout;
+} xrpcstdioconfig;
+typedef struct xrpcstdioinfo {
+    size_t Size;
+    xrpcduplexinfo Duplex;
+    xrpcframeinfo Frame;
+    xrpcstdioreason Reason;
+    size_t FixedBytes,BufferedInputBytes;
+    double NextDeadline;
+    bool InputEnded,WantRead,WantWrite,More,Drained;
+} xrpcstdioinfo;
+
+XRT_EXTERN_C_BEGIN
+/* Content-Length, 16 KiB input and write chunks, 64 I/O units per turn,
+ * 5 s clean-EOF drain. Host owns and drives the two byte streams. A borrowed
+ * Server and callback context must remain alive through Destroy. */
+XRPC_API bool xrpcStdioConfigInit(xrpcstdioconfig* Config);
+XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result);
+/* Concurrent. Only ACCEPTED writes Future. Deadlines start at entry. The
+ * transport stops accepting submissions when input EOF is observed. */
+XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
+XRPC_API xrpcduplexadmission xrpcStdioNotify(xrpcstdio* Stdio,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
+XRPC_API xrpcduplexadmission xrpcStdioBatch(xrpcstdio* Stdio,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);
+/* Step/Info/Destroy have one owner. Drive after Wake or host I/O readiness and
+ * at NextDeadline. More asks for an immediate turn. After AGAIN, arm host
+ * readiness only in requested directions. MaxIOWork limits progress units
+ * with at most one additional no-progress attempt per direction. This budget
+ * is independent of Duplex.MaxWork. I/O callbacks must not reenter Step/Destroy. */
+XRPC_API bool xrpcStdioStep(xrpcstdio* Stdio);
+XRPC_API bool xrpcStdioInfo(xrpcstdio* Stdio,xrpcstdioinfo* Info);
+/* Concurrent abortive seal. Use TRANSPORT for out-of-band host I/O failure.
+ * If the current frame was started, discard the native channel on error.
+ * Stop new API entries before Destroy. Drained covers library duties. The
+ * host independently retires its native handles and any queued I/O. */
+XRPC_API bool xrpcStdioClose(xrpcstdio* Stdio,xrpccallstatus Reason);
+XRPC_API bool xrpcStdioDestroy(xrpcstdio* Stdio);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc/tcp.h */
 /* ========================================================================== */
 
@@ -3046,6 +3137,9 @@ XRT_EXTERN_C_END
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DUPLEX)
 #error "XRPC_FEATURE_XRPC requires duplex"
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_STDIO)
+#error "XRPC_FEATURE_XRPC requires stdio"
+#endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP)
 #error "XRPC_FEATURE_XRPC requires tcp"
 #endif
@@ -3373,13 +3467,17 @@ bool xrpcPendingProbeBatch(xrpcpending*,const xstrview*,size_t,xrpcpendingresolu
 /* internal: extlibs/xrpc/src/internal/xrpc_duplex_internal.h */
 /* ========================================================================== */
 
-#if defined(XRPC_FEATURE_XRPC_TCP) || \
+#if defined(XRPC_FEATURE_XRPC_STDIO) || \
+	defined(XRPC_FEATURE_XRPC_TCP) || \
 	defined(XRPC_FEATURE_XRPC_TLS) || \
 	defined(XRPC_FEATURE_XRPC_WS) || \
 	defined(XRPC_FEATURE_XRPC_WS_TLS)
 #ifndef XRPC_DUPLEX_INTERNAL_H
 #define XRPC_DUPLEX_INTERNAL_H
-#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+void xrpcDuplexEndInput(xrpcduplex*);
+#endif
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS) || defined(XRPC_FEATURE_XRPC_STDIO)
 xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex*,const xrpcduplexitem*,size_t,bool,int64,xfuture**,double);
 xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex*,xstrview,xbytesview,double);
 #endif
@@ -7645,7 +7743,7 @@ struct xrpcduplex {
     size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     uint64 Serial,SelectionSerial,SelectedToken;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
-    bool Closing,Busy,More,CancelStarted,PreferScan;
+    bool Closing,Busy,More,CancelStarted,PreferScan,InputEnded;
     unsigned Turn;
     xrpccallstatus Reason;
     xrpcmessage* Scratch;
@@ -7776,7 +7874,7 @@ static xrpcduplexadmission xrpcDuplexSubmit(xrpcduplex* D,const xrpcduplexitem* 
     /* Only reservation/publication are serialized. JSON scans, quoting, copies,
      * allocator/quota locks and native Future construction do not hold Gate. */
     xrtMutexLock(&D->Gate);
-    if(D->Closing){xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_CLOSED;}
+    if(D->Closing || D->InputEnded){xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_CLOSED;}
     if(D->Operations==D->Config.MaxOperations || Replies>D->Config.MaxPendingCalls-D->PendingCalls ||
        Replies>UINT64_MAX-D->Serial || TempBytes>D->Config.MaxTemporaryBytes-D->TemporaryBytes){
         ++D->Rejected;xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_OVERLOADED;}
@@ -7991,7 +8089,7 @@ static xrpcduplexadmission xrpcDuplexReceiveImpl(xrpcduplex* D,xstrview Input,xb
         xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex receive spans");return XRPC_DUPLEX_ERROR;}
     if(!xrpcDuplexEnter(D))return XRPC_DUPLEX_ERROR;
     xrpcduplexadmission Result=XRPC_DUPLEX_ERROR;
-    if(xrpcDuplexIsClosing(D)){Result=XRPC_DUPLEX_CLOSED;goto Done;}
+    if(D->InputEnded || xrpcDuplexIsClosing(D)){Result=XRPC_DUPLEX_CLOSED;goto Done;}
     xrpcdecodeconfig C=D->Config.Response.Decode;C.Mode=XRPC_DECODE_DUPLEX;xrpcdocument Doc;
     xrpcdecodestatus S=xrpcDecode(Input,&C,D->Scratch,C.MaxMessages,&Doc);
     if(S==XRPC_DECODE_LOCAL_ERROR)goto Done;
@@ -8033,7 +8131,17 @@ Done:
 }
 XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbytesview Context)
 {return xrpcDuplexReceiveImpl(D,Input,Context,xrtTimer());}
-#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+/* The owner closes the input direction. A concurrent constructor that
+ * already reserved credits still publishes and retires through the owner. */
+void xrpcDuplexEndInput(xrpcduplex* D)
+{
+    xrtMutexLock(&D->Gate);
+    D->InputEnded=true;
+    xrtMutexUnlock(&D->Gate);
+}
+#endif
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS) || defined(XRPC_FEATURE_XRPC_STDIO)
 xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex* D,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {return xrpcDuplexSubmit(D,Items,Count,Batch,Timeout,Future,Entered);}
 xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex* D,xstrview Input,xbytesview Context,double Entered)
@@ -8072,6 +8180,7 @@ static bool xrpcDuplexWorkSubmit(xrpcduplex* D,bool* OK)
         xrpcDuplexDeadlineUp(D,Slot,R);
     }
     if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
+    else if(D->InputEnded)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_TRANSPORT);
     else {xrpccallfinish F=xrpcCallPoll(R->Call);
         if(F==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
         if(F!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
@@ -8098,7 +8207,11 @@ static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK,double Now)
     if(R==D->Scan)xrpcDuplexAdvanceScan(D);
     if(!R->Finishing){if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
         else {xrpccallfinish P=xrpcCallPoll(R->Call);if(P==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
-            if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);}}
+            if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
+            /* A started frame must reach its boundary or the whole output
+             * direction must be discarded. Unstarted requests need no write. */
+            else if(D->InputEnded && (!R->Started || R->Sent))
+                xrpcDuplexPrepareFinish(D,R,XRPC_CALL_TRANSPORT);}}
     if(R->Finishing)*OK=xrpcDuplexFinish(D,R);
     return true;
 }
@@ -8149,7 +8262,8 @@ XRPC_API int xrpcDuplexNext(xrpcduplex* D,xrpcduplexoutput** Output,uint64* Toke
     if(!xrpcDuplexEnter(D))return -1;
     int Result=0;
     if(D->Selection){xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC duplex already has a selected output");Result=-1;}
-    else if(!xrpcDuplexIsClosing(D) && D->OutputHead){
+    else if(!xrpcDuplexIsClosing(D) && D->OutputHead &&
+            (!D->InputEnded || !D->OutputHead->Request)){
         if(D->SelectionSerial==UINT64_MAX){xrpcDuplexSeal(D,XRPC_CALL_LIMIT);xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex selection serial exhausted");Result=-1;}
         else if(!xrpcDuplexOutputRetain(D->OutputHead))Result=-1;
         else {D->Selection=D->OutputHead;D->SelectedToken=++D->SelectionSerial;*Output=D->Selection;*Token=D->SelectedToken;Result=1;}
@@ -8163,7 +8277,7 @@ XRPC_API bool xrpcDuplexStarted(xrpcduplex* D,uint64 Token)
     if(Token && Token==D->SelectedToken && D->Selection && !xrpcDuplexIsClosing(D)){
         xrpcduplexrequest* R=D->Selection->Request;
         if(!R)OK=true;
-        else if(!R->Started && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){OK=xrpcCallMarkSent(R->Call);R->Started=OK;}
+        else if(!R->Started && !D->InputEnded && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){OK=xrpcCallMarkSent(R->Call);R->Started=OK;}
         else OK=R->Started;
     }
     if(OK)D->Selection->Started=true;
@@ -8177,7 +8291,10 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* D,uint64 Token)
         xrpcduplexrequest* R=O->Request;
         if(O->Started && (!R || R->Started)){if(R){R->Sent=true;R->Output=NULL;}
             xrpcDuplexUnqueue(D,O);OK=true;
-            if(R && !R->Replies){xrpcDuplexPrepareFinish(D,R,XRPC_CALL_NOTIFY_DONE);OK=xrpcDuplexFinish(D,R);}}
+            if(R && (!R->Replies || D->InputEnded)){
+                xrpcDuplexPrepareFinish(D,R,R->Replies?XRPC_CALL_TRANSPORT:XRPC_CALL_NOTIFY_DONE);
+                OK=xrpcDuplexFinish(D,R);
+            }}
     }
     D->Busy=false;return OK;
 }
@@ -8210,6 +8327,343 @@ XRPC_API bool xrpcDuplexDestroy(xrpcduplex* D)
     if(!I.Drained)return xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC duplex close duties still live");
     xrpcPendingDestroy(D->Pending);xrpcResultQuotaRelease(D->Control);xrpcResultQuotaRelease(D->Wire);xrpcResultQuotaRelease(D->Results);
     xrtMutexUnit(&D->Gate);xrtFree(D);return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/stdio/stdio.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+#include <math.h>
+
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+struct xrpcstdio {
+    xrpcstdioconfig Config;
+    xrpcduplex* Duplex;
+    xrpcframereader* Reader;
+    xrpcframeview Input;
+    xrpcduplexoutput* Output;
+    xstrview Body;
+    uint64 Token;
+    size_t ReadAt,ReadEnd,HeaderBytes,HeaderAt,BodyAt,OwnedBytes;
+    double ReadEntered,FrameEntered,RetryAt,DrainAt;
+    xrpcstdioreason Reason;
+    bool Ready,FrameActive,InputEnded,Started,WriteTurn,Busy,More;
+    unsigned char Header[64];
+    unsigned char Buffer[];
+};
+
+static bool xrpcStdioReport(xerrkind Kind,cstr Message)
+{
+    xrtSetErrorInfo(Kind,"xrt.rpc.stdio",1,Message);
+    return false;
+}
+
+static bool xrpcStdioSpan(xrpcstdio* S,const void* Span,size_t Bytes)
+{
+    return xrtMemRangeValid(Span,Bytes) && !xrtMemRangesOverlap(S,S->OwnedBytes,Span,Bytes);
+}
+
+XRPC_API bool xrpcStdioConfigInit(xrpcstdioconfig* Config)
+{
+    if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))
+        return xrpcStdioReport(XERR_ARGUMENT,"invalid stdio configuration output");
+    *Config=(xrpcstdioconfig){0};
+    Config->Size=sizeof(*Config);
+    xrpcDuplexConfigInit(&Config->Duplex);
+    xrpcFrameConfigInit(&Config->Frame);
+    Config->ReadBytes=16u*1024u;
+    Config->WriteChunkBytes=16u*1024u;
+    Config->MaxIOWork=64;
+    Config->DrainTimeout=5000;
+    return true;
+}
+
+XRPC_API bool xrpcStdioCreate(const xrpcstdioconfig* Config,xrpcstdio** Result)
+{
+    if(!Config || !Result || !xrtMemRangeValid(Config,sizeof(*Config)) ||
+       !xrtMemRangeValid(Result,sizeof(*Result)) ||
+       xrtMemRangesOverlap(Config,sizeof(*Config),Result,sizeof(*Result)))
+        return xrpcStdioReport(XERR_ARGUMENT,"invalid stdio constructor spans");
+    xrpcstdioconfig C=*Config;
+    if(C.Size!=sizeof(C) || !C.Read || !C.Write ||
+       !C.ReadBytes || C.ReadBytes>1024u*1024u || !C.WriteChunkBytes ||
+       C.WriteChunkBytes>1024u*1024u || !C.MaxIOWork || C.MaxIOWork>65536u ||
+       C.DrainTimeout<XRT_WAIT_FOREVER || C.Duplex.Size!=sizeof(C.Duplex) ||
+       C.Frame.Size!=sizeof(C.Frame))
+        return xrpcStdioReport(XERR_ARGUMENT,"invalid stdio configuration");
+    size_t Prefix;
+    if(!xrpcFrameHeaderSize(C.Frame.MaxBodyBytes,&C.Frame,&Prefix))return false;
+    if(C.Duplex.Encode.MaxOutputBytes>C.Frame.MaxBodyBytes)
+        C.Duplex.Encode.MaxOutputBytes=C.Frame.MaxBodyBytes;
+
+    size_t Bytes=sizeof(xrpcstdio)+C.ReadBytes;
+    xrpcstdio* S=xrtCalloc(1,Bytes);
+    if(!S)return xrpcStdioReport(XERR_MEMORY,"stdio adapter allocation failed");
+    S->Config=C;
+    S->OwnedBytes=Bytes;
+    S->DrainAt=INFINITY;
+    if(!xrpcFrameReaderCreate(&C.Frame,&S->Reader) ||
+       !xrpcDuplexCreate(&C.Duplex,&S->Duplex)){
+        xrpcFrameReaderDestroy(S->Reader);
+        xrtFree(S);
+        return false;
+    }
+    *Result=S;
+    return true;
+}
+
+static xrpcduplexadmission xrpcStdioSubmit(xrpcstdio* S,const xrpcduplexitem* Items,size_t Count,
+    bool Batch,int64 Timeout,xfuture** Future,double Entered)
+{
+    if(!S || !Future || !xrpcStdioSpan(S,Future,sizeof(*Future))){
+        xrpcStdioReport(XERR_ARGUMENT,"invalid stdio future output");
+        return XRPC_DUPLEX_ERROR;
+    }
+    return xrpcDuplexSubmitEntered(S->Duplex,Items,Count,Batch,Timeout,Future,Entered);
+}
+XRPC_API xrpcduplexadmission xrpcStdioCall(xrpcstdio* S,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
+{
+    double Entered=xrtTimer();
+    xrpcduplexitem Item={false,Method,Params};
+    return xrpcStdioSubmit(S,&Item,1,false,Timeout,Future,Entered);
+}
+XRPC_API xrpcduplexadmission xrpcStdioNotify(xrpcstdio* S,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
+{
+    double Entered=xrtTimer();
+    xrpcduplexitem Item={true,Method,Params};
+    return xrpcStdioSubmit(S,&Item,1,false,Timeout,Future,Entered);
+}
+XRPC_API xrpcduplexadmission xrpcStdioBatch(xrpcstdio* S,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future)
+{
+    return xrpcStdioSubmit(S,Items,Count,true,Timeout,Future,xrtTimer());
+}
+XRPC_API bool xrpcStdioClose(xrpcstdio* S,xrpccallstatus Reason)
+{
+    if(!S)return xrpcStdioReport(XERR_ARGUMENT,"null stdio adapter");
+    return xrpcDuplexClose(S->Duplex,Reason);
+}
+
+static void xrpcStdioDropOutput(xrpcstdio* S)
+{
+    xrpcDuplexOutputRelease(S->Output);
+    S->Output=NULL;
+    S->Body=(xstrview){0};
+    S->Started=false;
+}
+
+static void xrpcStdioStop(xrpcstdio* S,xrpcstdioreason Reason,xrpccallstatus Status)
+{
+    if(S->Reason==XRPC_STDIO_OPEN)S->Reason=Reason;
+    xrpcDuplexClose(S->Duplex,Status);
+    xrpcStdioDropOutput(S);
+}
+
+static void xrpcStdioFrameStop(xrpcstdio* S,xrpcframestatus Status)
+{
+    if(Status==XRPC_FRAME_TRUNCATED)xrpcStdioStop(S,XRPC_STDIO_TRUNCATED,XRPC_CALL_PROTOCOL);
+    else if(Status==XRPC_FRAME_LIMIT)xrpcStdioStop(S,XRPC_STDIO_LIMIT,XRPC_CALL_LIMIT);
+    else if(Status==XRPC_FRAME_MEMORY)xrpcStdioStop(S,XRPC_STDIO_MEMORY,XRPC_CALL_MEMORY);
+    else xrpcStdioStop(S,XRPC_STDIO_FRAME,XRPC_CALL_PROTOCOL);
+}
+
+static void xrpcStdioReadEnd(xrpcstdio* S)
+{
+    S->InputEnded=true;
+    xrpcframestatus Status=xrpcFrameReaderEnd(S->Reader);
+    if(Status!=XRPC_FRAME_END){
+        xrpcStdioFrameStop(S,Status);
+        return;
+    }
+    xrpcDuplexEndInput(S->Duplex);
+    if(S->Config.DrainTimeout!=XRT_WAIT_FOREVER)
+        S->DrainAt=xrtTimer()+(double)S->Config.DrainTimeout*.001;
+}
+
+static bool xrpcStdioDispatch(xrpcstdio* S)
+{
+    if(S->RetryAt && S->RetryAt>xrtTimer())return false;
+    xstrview Body={(cstr)S->Input.Body.Data,S->Input.Body.Size};
+    xrpcduplexadmission Result=xrpcDuplexReceiveEntered(S->Duplex,Body,(xbytesview){0},S->FrameEntered);
+    if(Result==XRPC_DUPLEX_OVERLOADED && S->Config.Duplex.Server){
+        /* A shared server can release capacity without a wake for this peer. */
+        S->RetryAt=xrtTimer()+.001;
+        return false;
+    }
+    S->Ready=S->FrameActive=false;
+    S->RetryAt=0;
+    if(Result==XRPC_DUPLEX_OVERLOADED)xrpcStdioStop(S,XRPC_STDIO_LIMIT,XRPC_CALL_LIMIT);
+    else if(Result==XRPC_DUPLEX_PROTOCOL)xrpcStdioStop(S,XRPC_STDIO_DUPLEX,XRPC_CALL_PROTOCOL);
+    else if(Result==XRPC_DUPLEX_ERROR)xrpcStdioStop(S,XRPC_STDIO_DUPLEX,XRPC_CALL_TRANSPORT);
+    else if(Result==XRPC_DUPLEX_CLOSED)xrpcStdioStop(S,XRPC_STDIO_CLOSED,XRPC_CALL_CLOSED);
+    return true;
+}
+
+static bool xrpcStdioReadWork(xrpcstdio* S)
+{
+    if(S->InputEnded)return false;
+    if(S->Ready)return xrpcStdioDispatch(S);
+    if(S->ReadAt!=S->ReadEnd){
+        if(!S->FrameActive){
+            S->FrameActive=true;
+            S->FrameEntered=S->ReadEntered;
+        }
+        size_t Used=0;
+        xbytesview Input={S->Buffer+S->ReadAt,S->ReadEnd-S->ReadAt};
+        xrpcframestatus Status=xrpcFrameReaderFeed(S->Reader,Input,&Used,&S->Input);
+        S->ReadAt+=Used;
+        if(Status==XRPC_FRAME_READY)S->Ready=true;
+        else if(Status!=XRPC_FRAME_MORE || !Used)xrpcStdioFrameStop(S,Status);
+        return true;
+    }
+
+    size_t Count=0;
+    double Entered=xrtTimer();
+    xrpcstdioio IO=S->Config.Read(S->Config.User,S->Buffer,S->Config.ReadBytes,&Count);
+    if(IO==XRPC_STDIO_IO_PROGRESS && Count && Count<=S->Config.ReadBytes){
+        S->ReadAt=0;
+        S->ReadEnd=Count;
+        S->ReadEntered=Entered;
+    } else if(IO==XRPC_STDIO_IO_AGAIN && !Count)return false;
+    else if(IO==XRPC_STDIO_IO_EOF && !Count)xrpcStdioReadEnd(S);
+    else xrpcStdioStop(S,XRPC_STDIO_IO,XRPC_CALL_TRANSPORT);
+    return true;
+}
+
+static bool xrpcStdioWriteWork(xrpcstdio* S)
+{
+    if(!S->Output){
+        int Selected=xrpcDuplexNext(S->Duplex,&S->Output,&S->Token);
+        if(!Selected)return false;
+        if(Selected<0){
+            xrpcStdioStop(S,XRPC_STDIO_DUPLEX,XRPC_CALL_TRANSPORT);
+            return true;
+        }
+        S->Body=xrpcDuplexOutputWire(S->Output);
+        S->HeaderAt=S->BodyAt=0;
+        if(!xrpcFrameHeaderWrite(S->Body.Size,&S->Config.Frame,S->Header,sizeof(S->Header),&S->HeaderBytes)){
+            xrpcStdioStop(S,XRPC_STDIO_LIMIT,XRPC_CALL_LIMIT);
+            return true;
+        }
+    }
+    if(!S->Started){
+        if(!xrpcDuplexStarted(S->Duplex,S->Token)){
+            S->More=true;
+            return false;
+        }
+        S->Started=true;
+    }
+
+    bool IsHeader=S->HeaderAt!=S->HeaderBytes;
+    cbytes Data=IsHeader?S->Header+S->HeaderAt:(cbytes)S->Body.Data+S->BodyAt;
+    size_t At=IsHeader?S->HeaderAt:S->BodyAt;
+    size_t Left=(IsHeader?S->HeaderBytes:S->Body.Size)-At;
+    if(Left>S->Config.WriteChunkBytes)Left=S->Config.WriteChunkBytes;
+    size_t Count=0;
+    xrpcstdioio IO=S->Config.Write(S->Config.User,Data,Left,&Count);
+    if(IO==XRPC_STDIO_IO_AGAIN && !Count)return false;
+    if(IO!=XRPC_STDIO_IO_PROGRESS || !Count || Count>Left){
+        xrpcStdioStop(S,XRPC_STDIO_IO,XRPC_CALL_TRANSPORT);
+        return true;
+    }
+    if(IsHeader)S->HeaderAt+=Count;
+    else S->BodyAt+=Count;
+    if(S->HeaderAt==S->HeaderBytes && S->BodyAt==S->Body.Size){
+        if(!xrpcDuplexSent(S->Duplex,S->Token))
+            xrpcStdioStop(S,XRPC_STDIO_DUPLEX,XRPC_CALL_TRANSPORT);
+        else xrpcStdioDropOutput(S);
+    }
+    return true;
+}
+
+static void xrpcStdioCheckDrain(xrpcstdio* S,const xrpcduplexinfo* D)
+{
+    if(D->Closing){
+        xrpcStdioDropOutput(S);
+        return;
+    }
+    if(!S->InputEnded)return;
+    if(!D->Operations && !D->Outputs)
+        xrpcStdioStop(S,XRPC_STDIO_EOF,XRPC_CALL_TRANSPORT);
+    else if(xrtTimer()>=S->DrainAt)
+        xrpcStdioStop(S,XRPC_STDIO_TIMEOUT,XRPC_CALL_TIMEOUT);
+}
+
+XRPC_API bool xrpcStdioStep(xrpcstdio* S)
+{
+    if(!S || S->Busy)return xrpcStdioReport(XERR_STATE,"invalid stdio owner entry");
+    S->Busy=true;
+    S->More=false;
+    bool OK=xrpcDuplexStep(S->Duplex);
+    xrpcduplexinfo D={.Size=sizeof(D)};
+    if(!OK || !xrpcDuplexInfo(S->Duplex,&D)){
+        xrpcStdioStop(S,XRPC_STDIO_DUPLEX,XRPC_CALL_TRANSPORT);
+        S->Busy=false;
+        return false;
+    }
+    if(S->Output && !D.Selected)xrpcStdioDropOutput(S);
+    xrpcStdioCheckDrain(S,&D);
+    if(!D.Closing && S->Reason==XRPC_STDIO_OPEN){
+        bool Blocked[2]={false,false};
+        bool WasEnded=S->InputEnded;
+        size_t Work=0;
+        /* Recheck the drain policy before issuing any post-EOF write. */
+        while(Work<S->Config.MaxIOWork && S->Reason==XRPC_STDIO_OPEN && WasEnded==S->InputEnded){
+            unsigned Lane=S->WriteTurn?1u:0u;
+            S->WriteTurn=!S->WriteTurn;
+            if(Blocked[Lane]){
+                if(Blocked[1u-Lane])break;
+                continue;
+            }
+            bool Progress=Lane?xrpcStdioWriteWork(S):xrpcStdioReadWork(S);
+            if(Progress)++Work;
+            else Blocked[Lane]=true;
+        }
+        S->More|=Work==S->Config.MaxIOWork || WasEnded!=S->InputEnded;
+        if(S->InputEnded && xrpcDuplexInfo(S->Duplex,&D))xrpcStdioCheckDrain(S,&D);
+    }
+    S->Busy=false;
+    return true;
+}
+
+XRPC_API bool xrpcStdioInfo(xrpcstdio* S,xrpcstdioinfo* Info)
+{
+    if(!S || !Info || !xrpcStdioSpan(S,Info,sizeof(*Info)) || Info->Size!=sizeof(*Info))
+        return xrpcStdioReport(XERR_ARGUMENT,"invalid stdio info output");
+    xrpcstdioinfo V={.Size=sizeof(V),.Duplex={.Size=sizeof(V.Duplex)},.Frame={.Size=sizeof(V.Frame)}};
+    if(!xrpcDuplexInfo(S->Duplex,&V.Duplex) || !xrpcFrameReaderInfo(S->Reader,&V.Frame))return false;
+    V.Reason=S->Reason;
+    if(V.Reason==XRPC_STDIO_OPEN && V.Duplex.Closing)
+        V.Reason=V.Duplex.Reason==XRPC_CALL_CLOSED?XRPC_STDIO_CLOSED:XRPC_STDIO_DUPLEX;
+    V.FixedBytes=S->OwnedBytes;
+    V.BufferedInputBytes=S->ReadEnd-S->ReadAt;
+    V.InputEnded=S->InputEnded;
+    V.Drained=V.Duplex.Drained && !S->Output;
+    V.WantRead=V.Reason==XRPC_STDIO_OPEN && !S->InputEnded && !S->Ready && !V.BufferedInputBytes;
+    V.WantWrite=V.Reason==XRPC_STDIO_OPEN && S->Output;
+    V.More=!V.Drained && (S->More || V.Duplex.More || (V.Duplex.Closing && S->Output));
+    V.NextDeadline=V.Duplex.NextDeadline;
+    if(V.Reason==XRPC_STDIO_OPEN){
+        if(S->Ready && S->RetryAt<V.NextDeadline)V.NextDeadline=S->RetryAt;
+        if(S->DrainAt<V.NextDeadline)V.NextDeadline=S->DrainAt;
+    }
+    if(V.More)V.NextDeadline=xrtTimer();
+    *Info=V;
+    return true;
+}
+
+XRPC_API bool xrpcStdioDestroy(xrpcstdio* S)
+{
+    if(!S)return true;
+    if(S->Busy || S->Output)
+        return xrpcStdioReport(XERR_STATE,"stdio owner or output remains active");
+    if(!xrpcDuplexDestroy(S->Duplex))return false;
+    xrpcFrameReaderDestroy(S->Reader);
+    xrtFree(S);
+    return true;
 }
 #endif
 #endif

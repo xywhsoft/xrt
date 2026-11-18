@@ -147,6 +147,13 @@
         ]
       },
       {
+        "name": "stdio",
+        "state": "retained",
+        "source_roots": [
+          "stdio"
+        ]
+      },
+      {
         "name": "tcp",
         "state": "retained",
         "source_roots": [
@@ -255,6 +262,7 @@
         "xrpc_http_server_tls",
         "xrpc_frame",
         "xrpc_duplex",
+        "xrpc_stdio",
         "xrpc_tcp",
         "xrpc_tls",
         "xrpc_tcp_dial",
@@ -832,6 +840,7 @@
         "extlibs/xrpc/tests/test_http_server_tls.c",
         "extlibs/xrpc/tests/test_frame.c",
         "extlibs/xrpc/tests/test_duplex.c",
+        "extlibs/xrpc/tests/test_stdio.c",
         "extlibs/xrpc/tests/test_tcp.c",
         "extlibs/xrpc/tests/test_tls.c",
         "extlibs/xrpc/tests/test_tcp_dial.c",
@@ -861,6 +870,7 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c",
@@ -900,6 +910,7 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c": "xrpc_http_server_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c": "xrpc_duplex_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c": "xrpc_stdio",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c": "xrpc_tcp_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c": "xrpc_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c": "xrpc_tcp_dial_tests",
@@ -1368,6 +1379,40 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/duplex.md"
+      ]
+    },
+    {
+      "name": "xrpc_stdio",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_STDIO",
+      "depends": [
+        "xrpc_frame",
+        "xrpc_duplex"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/stdio.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_duplex_internal.h"
+      ],
+      "sources": [
+        "extlibs/xrpc/src/stdio/stdio.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_stdio.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/stdio/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_stdio.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/stdio.md",
+        "extlibs/xrpc/examples/stdio/README.md"
       ]
     },
     {

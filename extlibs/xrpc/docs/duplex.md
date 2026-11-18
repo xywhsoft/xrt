@@ -7,7 +7,8 @@ its existing bounded Core executor; NULL is client-only. No new shared runtime,
 engine, timer, transport, listener or thread is created. The shared server and
 callback code/context must remain alive until successful endpoint destruction.
 The TCP, TLS and WebSocket adapters drive this message state machine.
-Framed stdio and negotiated cancellation and deadlines remain pending.
+[Framed stdio](stdio.md) drives it over host-owned byte streams. Automated
+process attachment and negotiated cancellation and deadlines remain pending.
 
 The public [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification),
 sections 4-6, is the protocol source. Duplex envelope admission is an explicit

@@ -1,0 +1,774 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "97b342e6dd312c1b72982b1a65044cbeaf18cd3b",
+  "scope": "Host-driven full-duplex framed stdio with bounded progress, retained backpressure frames and explicit EOF drain.",
+  "candidate_sha256": {
+    "extlibs/xrpc/include/xrpc/stdio.h": "0261c3721b12a2f6526e9bd7fcc4a5d44e7adaadec91d24dc5b52e23e2352f7f",
+    "extlibs/xrpc/src/stdio/stdio.c": "9b8e3e7c7d561b7159379c2d973f62f67d35145c51f227f9d7321ff5a48d44c6",
+    "extlibs/xrpc/src/duplex/duplex.c": "8d142da48cdd2d88204ac3e5e45b9254f0c41ecf7c340c8f2859c71cfaa3f070",
+    "extlibs/xrpc/src/internal/xrpc_duplex_internal.h": "c0c658f18adf1ca2269085baed631dbdf9b7f8c0a1440b730fe0631bd50027bf",
+    "extlibs/xrpc/tests/test_stdio.c": "3680aef3929dc9edf244742132cd330ec74a3091a4b19d38c84ca6748af7417f",
+    "extlibs/xrpc/tests/single/test_single_xrpc_stdio.c": "07dfd2a959719fc3406d8ebd70a2e9370b9d371c5dcc3001bc941b633c39d6bd",
+    "extlibs/xrpc/examples/stdio/main.c": "c93957932cd0630866778328a6f4888db93a3cec5a0b25df778b42769b7881ae",
+    "extlibs/xrpc/tests/interop/run_stdio.py": "76c9ba5468220c496911bd5832a4f7751f69947e097a7dfd4b14524fe7b679fb",
+    "extlibs/xrpc/tests/package/test_consumer.c": "da9988c60cb9d460d55c202a7cb03bcb4b19b9fe4f76a3557190906cac791113",
+    "extlibs/xrpc/bench/bench_stdio.c": "88cf650519059a4de0d1eb4f5e109b5a963e4d9cc8807aa5889a1533636c5342",
+    "extlibs/xrpc/config/performance_profiles.json": "80cec191f9e73c8224f94c2c3f40f235bf7ba73b351c0562b67aa257a58d61db",
+    "extlibs/xrpc/config/size_profiles.json": "385c3e9894d5dba0776555a66b6380ce55d5f0065b169800e5b9d899d079c010",
+    "extlibs/xrpc/config/modules.json": "b278998c1f0af3d9dd1799276c5964b1d213d0706bdccd9a2e3e85b4d0b52c13",
+    "single/extlibs/xrpc.h": "64f21e0ea488189ffa5a2e689406a8900eb9088269a45db587fbe9d59578be7a",
+    "single/extlibs/xrpc_decl.h": "8637df403fb4e93e2105252099279c51872e433119e72f1a41cd9d6c65ad9ec0"
+  },
+  "raw_directory": "out/service-extensions/xrpc-stdio-20261119",
+  "eof_guard_counterexample": {
+    "log": "eof-guard-counterexample-final.log",
+    "sha256": "2c0e10f2a08b70e3facc19bd7604caf4355cef2f35c24f1392d03bce8e3d2c03",
+    "programs": 0,
+    "skips": []
+  },
+  "metadata": {
+    "log": "metadata-committable.log",
+    "sha256": "a8212ca21bca4ae6ca4aa6fc4fe15b1b72f036d15e5ae0c4afa8cb4b26b91bda",
+    "programs": 0,
+    "skips": []
+  },
+  "platforms": {
+    "windows": {
+      "legacy_root_programs": {
+        "log": "windows-full.log",
+        "sha256": "de0306aafaea344bcd832d9d1229d333325ae815f301670df14715dabbf979fe",
+        "programs": 59,
+        "skips": []
+      },
+      "stdio_programs_at_final_root": {
+        "modular": {
+          "log": "windows-root-stdio-modular.log",
+          "sha256": "f9275e732e2cee7b3dfb1b312b62bc3a37e7806d37b4daba9b47ade12a7491e4",
+          "programs": 1,
+          "skips": []
+        },
+        "single": {
+          "log": "windows-root-stdio-single.log",
+          "sha256": "49312698804b0166ec25a3b17c8dafafc85013247cd6a634d81c6bf1aa7fc8ba",
+          "programs": 1,
+          "skips": []
+        }
+      },
+      "root_total_programs_across_verified_runs": 61,
+      "focused_stdio": {
+        "log": "windows-verified.log",
+        "sha256": "3ff3bdc7d0d3abc56e7efeca314189fefa98b2c3fe9260dd684ce43ff71e511b",
+        "programs": 3,
+        "skips": []
+      },
+      "trim": {
+        "log": "windows-trim.log",
+        "sha256": "7ca1354b9da9c50301489a16f91d9e402944fd1006689d247b8cc26dca3b0086",
+        "programs": 0,
+        "skips": []
+      },
+      "sdk_consumers": {
+        "xrpc": {
+          "static": {
+            "log": "windows-xrpc-static-final.log",
+            "sha256": "bfde9950884c00d9849505af7c7d5c3bb305257f68c5318e849a3966e66e384e",
+            "programs": 0,
+            "skips": []
+          },
+          "shared": {
+            "log": "windows-xrpc-shared-final.log",
+            "sha256": "661bcf5e7b98f526a5beaf0f2def5e4a7c0b4deca93e83159187a238a2f3de9c",
+            "programs": 0,
+            "skips": []
+          }
+        },
+        "xrpc_stdio": {
+          "static": {
+            "log": "windows-xrpc_stdio-static-final.log",
+            "sha256": "6adcef9a2ce10788af3599dd67ffffd17c2ae07912cd55376780e107062fcf2b",
+            "programs": 0,
+            "skips": []
+          },
+          "shared": {
+            "log": "windows-xrpc_stdio-shared-final.log",
+            "sha256": "6ba724ead628cde2e10c4fdd5b78291a9c0ec6ee29fe670dde7b1dee3dfd43c2",
+            "programs": 0,
+            "skips": []
+          }
+        }
+      },
+      "root_input_note": "Existing 59 programs ran after the final common Duplex code. The added modular and single-header stdio programs were rerun from the aggregate selector after the EOF guard.",
+      "environment": "Windows x64",
+      "memory_benchmark": {
+        "compiler": "gcc.exe (GCC) 16.2.0",
+        "report_sha256": "27fde56ff165ffeabb5c1ba8ee9d1087326f72c4b28c7c83cc3bc6e66f94461c",
+        "source_fingerprint": "4dcc2e46b1d4a9b6e9fb8b711c2fa2d61c0512c9486526c046744c819fa6b415",
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "exit_code": 1,
+        "quality_failures": [
+          "[quality-fail] xrpc_stdio/xrpc_stdio_content_length/p99_call_ns: relative_mad=15.4%",
+          "[quality-fail] xrpc_stdio/xrpc_stdio_content_length/p99_call_ns: relative_central_range=35.2%",
+          "[quality-fail] xrpc_stdio/xrpc_stdio_uint32_be/p99_call_ns: relative_mad=17.9%",
+          "[quality-fail] xrpc_stdio/xrpc_stdio_uint32_be/p99_call_ns: relative_central_range=62.7%"
+        ],
+        "profiles": {
+          "xrpc_stdio_content_length": {
+            "source": "extlibs/xrpc/bench/bench_stdio.c",
+            "inputs": [],
+            "suite": "xrpc_stdio",
+            "args": [
+              "20000",
+              "1"
+            ],
+            "facts": {},
+            "metrics": {
+              "calls_per_sec": {
+                "samples": [
+                  175154.354844,
+                  174185.075096,
+                  170521.882135,
+                  170986.351926,
+                  171115.967023
+                ],
+                "median": 171115.967023,
+                "mean": 172392.7262048,
+                "min": 170521.882135,
+                "max": 175154.354844,
+                "mad": 594.0848880000121,
+                "relative_mad": 0.0034718261441970526,
+                "range": 4632.472708999994,
+                "relative_range": 0.027072124183345994,
+                "central_range": 3198.723169999983,
+                "relative_central_range": 0.01869330621595375,
+                "direction": "higher",
+                "unit": "calls/s",
+                "limit": 0.05,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p50_call_ns": {
+                "samples": [
+                  5699.926987,
+                  5699.926987,
+                  5700.043403,
+                  5700.043403,
+                  5700.043403
+                ],
+                "median": 5700.043403,
+                "mean": 5699.9968366,
+                "min": 5699.926987,
+                "max": 5700.043403,
+                "mad": 0.0,
+                "relative_mad": 0.0,
+                "range": 0.11641599999984464,
+                "relative_range": 2.0423704131546355e-05,
+                "central_range": 0.11641599999984464,
+                "relative_central_range": 2.0423704131546355e-05,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p99_call_ns": {
+                "samples": [
+                  5800.044164,
+                  7099.937648,
+                  10499.963537,
+                  9100.069292,
+                  10300.078429
+                ],
+                "median": 9100.069292,
+                "mean": 8560.018614,
+                "min": 5800.044164,
+                "max": 10499.963537,
+                "mad": 1399.8942449999995,
+                "relative_mad": 0.1538333610526094,
+                "range": 4699.919373,
+                "relative_range": 0.5164707237044629,
+                "central_range": 3200.140780999999,
+                "relative_central_range": 0.35166114436219603,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              }
+            }
+          },
+          "xrpc_stdio_uint32_be": {
+            "source": "extlibs/xrpc/bench/bench_stdio.c",
+            "inputs": [],
+            "suite": "xrpc_stdio",
+            "args": [
+              "20000",
+              "2"
+            ],
+            "facts": {},
+            "metrics": {
+              "calls_per_sec": {
+                "samples": [
+                  174426.311721,
+                  184701.19952,
+                  167201.991738,
+                  183800.047742,
+                  183785.353436
+                ],
+                "median": 183785.353436,
+                "mean": 178782.9808314,
+                "min": 167201.991738,
+                "max": 184701.19952,
+                "mad": 915.8460839999898,
+                "relative_mad": 0.004983237602331118,
+                "range": 17499.207781999983,
+                "relative_range": 0.09521546442542698,
+                "central_range": 9373.73602099999,
+                "relative_central_range": 0.05100371626874079,
+                "direction": "higher",
+                "unit": "calls/s",
+                "limit": 0.05,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p50_call_ns": {
+                "samples": [
+                  5399.924703,
+                  5399.924703,
+                  5400.041118,
+                  5399.924703,
+                  5400.041118
+                ],
+                "median": 5399.924703,
+                "mean": 5399.971269,
+                "min": 5399.924703,
+                "max": 5400.041118,
+                "mad": 0.0,
+                "relative_mad": 0.0,
+                "range": 0.1164150000004156,
+                "relative_range": 2.1558633944606617e-05,
+                "central_range": 0.1164150000004156,
+                "relative_central_range": 2.1558633944606617e-05,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p99_call_ns": {
+                "samples": [
+                  9699.957445,
+                  5500.04188,
+                  11200.085282,
+                  6699.934602,
+                  5500.04188
+                ],
+                "median": 6699.934602,
+                "mean": 7720.0122178,
+                "min": 5500.04188,
+                "max": 11200.085282,
+                "mad": 1199.8927220000005,
+                "relative_mad": 0.17909021405101774,
+                "range": 5700.043402,
+                "relative_range": 0.8507610507568951,
+                "central_range": 4199.915565,
+                "relative_central_range": 0.6268591881100275,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              }
+            }
+          }
+        }
+      },
+      "pipe_benchmark_and_interop": {
+        "executable_sha256": "de1b4f9a4b74acc0bb6b88898bfeda376bbfcefb4be55a939de87bd726adecc6",
+        "harness_sha256": "76c9ba5468220c496911bd5832a4f7751f69947e097a7dfd4b14524fe7b679fb",
+        "scope": "Parent Python and example C over native diverted pipes. Performance uses closed-loop groups of 32 and includes the driver's idle poll and Python overhead.",
+        "profiles": {
+          "content_length": {
+            "checks": [
+              "live_response_before_eof",
+              "split_header_and_utf8_roundtrip",
+              "coalesced_batch_and_scalar",
+              "32768_byte_echo_with_delayed_reader",
+              "clean_eof_drain",
+              "invalid_frame",
+              "truncated_eof"
+            ],
+            "performance": [
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 872.4393925129534,
+                "p50_us": 18482.0,
+                "p99_us": 47990.2
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 867.5768852947709,
+                "p50_us": 17905.4,
+                "p99_us": 45928.4
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 956.0619063155498,
+                "p50_us": 17358.3,
+                "p99_us": 34417.8
+              }
+            ]
+          },
+          "uint32_be": {
+            "checks": [
+              "live_response_before_eof",
+              "split_header_and_utf8_roundtrip",
+              "coalesced_batch_and_scalar",
+              "32768_byte_echo_with_delayed_reader",
+              "clean_eof_drain",
+              "invalid_frame",
+              "truncated_eof"
+            ],
+            "performance": [
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 961.4071545685922,
+                "p50_us": 17573.5,
+                "p99_us": 35178.9
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 947.9020008183986,
+                "p50_us": 17506.5,
+                "p99_us": 35616.5
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 968.6811845551921,
+                "p50_us": 17134.2,
+                "p99_us": 36954.1
+              }
+            ]
+          }
+        },
+        "report_sha256": "0621810d565ec50e869d76e74461a71be406d07cd3916a650e65712cb12f1e92",
+        "median": {
+          "content_length": {
+            "calls_per_second": 872.4393925129534,
+            "p50_us": 17905.4,
+            "p99_us": 45928.4
+          },
+          "uint32_be": {
+            "calls_per_second": 961.4071545685922,
+            "p50_us": 17506.5,
+            "p99_us": 35616.5
+          }
+        }
+      },
+      "single_object_size": {
+        "text": 405384,
+        "data": 2712,
+        "bss": 11136,
+        "members": 1,
+        "load": 408096,
+        "file": 600039,
+        "path": "out/size/gnu/native/xrpc_stdio/single/xrpc_single.o",
+        "compile_seconds": 11.101368499919772,
+        "forbidden_symbol_count": 0,
+        "report_sha256": "3134cdefcc60199cef8a66047bfe251b51e1ea6aecdc7ae4b87822eb0a0e2d4b"
+      }
+    },
+    "wsl": {
+      "legacy_root_programs": {
+        "log": "wsl-full.log",
+        "sha256": "8d6fdd31431b1b1e63059235040f445f68dcae1acd5508503dc95e8f350ce51a",
+        "programs": 59,
+        "skips": []
+      },
+      "stdio_programs_at_final_root": {
+        "modular": {
+          "log": "wsl-root-stdio-modular.log",
+          "sha256": "2422d9cd1092fafe8898be4676d28fb36c02620bb406c6ae568aaf4e4c537ecd",
+          "programs": 1,
+          "skips": []
+        },
+        "single": {
+          "log": "wsl-root-stdio-single.log",
+          "sha256": "d6bdaf6f14f0cc2aff8a7109c606ebc47eab1a76dbc483a782347f6989caeb30",
+          "programs": 1,
+          "skips": []
+        }
+      },
+      "root_total_programs_across_verified_runs": 61,
+      "focused_stdio": {
+        "log": "wsl-verified.log",
+        "sha256": "90d0777e9f90a5f11e13966e26bea2cf46d93e8b5c9b0dbecd49c6e1f32b8dd2",
+        "programs": 3,
+        "skips": []
+      },
+      "trim": {
+        "log": "wsl-trim.log",
+        "sha256": "ce9fda79a848d35ed6c0bdc011d93d73a233425a760090a9dc851a6be9bb0188",
+        "programs": 0,
+        "skips": []
+      },
+      "sdk_consumers": {
+        "xrpc": {
+          "static": {
+            "log": "wsl-xrpc-static-final.log",
+            "sha256": "d91c51cce34acabde540c7d80e703b125985e81303d395f45443dfd18b562c95",
+            "programs": 0,
+            "skips": []
+          },
+          "shared": {
+            "log": "wsl-xrpc-shared-final.log",
+            "sha256": "a796d9007b1b976e43a1261d4fb368d201ff53d182580b24997c643a0a6612bd",
+            "programs": 0,
+            "skips": []
+          }
+        },
+        "xrpc_stdio": {
+          "static": {
+            "log": "wsl-xrpc_stdio-static-final.log",
+            "sha256": "3f38dbe66d288bbdd3f1a5b16897d800d3a20eceaf537df3bb6e4d76dda8bc5a",
+            "programs": 0,
+            "skips": []
+          },
+          "shared": {
+            "log": "wsl-xrpc_stdio-shared-final.log",
+            "sha256": "ff20228c286fe98648a8f6c69bc3da6654df8dc6ca4c4543ed3c0ad6647623ec",
+            "programs": 0,
+            "skips": []
+          }
+        }
+      },
+      "root_input_note": "Existing 59 programs ran after the final common Duplex code. The added modular and single-header stdio programs were rerun from the aggregate selector after the EOF guard.",
+      "sanitizers": {
+        "log": "wsl-asan-verified.log",
+        "sha256": "3e8f98054920ed6d0f37d42af572a837fa65450be12e4689ce02ba8f47dc13ed",
+        "programs": 2,
+        "skips": []
+      },
+      "environment": "Ubuntu x64 under WSL2",
+      "memory_benchmark": {
+        "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "report_sha256": "69f7b52526ca65d02488ecfc02cd4bcdfecc7c86f4ede235ae521b443bb8a976",
+        "source_fingerprint": "4dcc2e46b1d4a9b6e9fb8b711c2fa2d61c0512c9486526c046744c819fa6b415",
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "exit_code": 0,
+        "quality_failures": [],
+        "profiles": {
+          "xrpc_stdio_content_length": {
+            "source": "extlibs/xrpc/bench/bench_stdio.c",
+            "inputs": [],
+            "suite": "xrpc_stdio",
+            "args": [
+              "20000",
+              "1"
+            ],
+            "facts": {},
+            "metrics": {
+              "calls_per_sec": {
+                "samples": [
+                  153647.12645,
+                  153894.930252,
+                  155017.85391,
+                  152929.990272,
+                  152299.961292
+                ],
+                "median": 153647.12645,
+                "mean": 153557.9724352,
+                "min": 152299.961292,
+                "max": 155017.85391,
+                "mad": 717.1361780000152,
+                "relative_mad": 0.004667423300190299,
+                "range": 2717.8926180000126,
+                "relative_range": 0.017689186129260098,
+                "central_range": 964.9399799999956,
+                "relative_central_range": 0.006280234471641793,
+                "direction": "higher",
+                "unit": "calls/s",
+                "limit": 0.05,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p50_call_ns": {
+                "samples": [
+                  6300.00001,
+                  6399.99999,
+                  6399.99999,
+                  6499.999998,
+                  6400.000004
+                ],
+                "median": 6399.99999,
+                "mean": 6399.999998400001,
+                "min": 6300.00001,
+                "max": 6499.999998,
+                "mad": 1.4000000192027073e-05,
+                "relative_mad": 2.187500033422199e-09,
+                "range": 199.99998800000049,
+                "relative_range": 0.031249998173828196,
+                "central_range": 1.4000000192027073e-05,
+                "relative_central_range": 2.187500033422199e-09,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p99_call_ns": {
+                "samples": [
+                  8100.000002,
+                  8100.000002,
+                  7900.0,
+                  6700.0,
+                  8199.999996
+                ],
+                "median": 8100.000002,
+                "mean": 7800.0,
+                "min": 6700.0,
+                "max": 8199.999996,
+                "mad": 99.9999940000007,
+                "relative_mad": 0.012345678268556709,
+                "range": 1499.9999960000005,
+                "relative_range": 0.18518518464563336,
+                "central_range": 200.00000199999977,
+                "relative_central_range": 0.02469135826550828,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              }
+            }
+          },
+          "xrpc_stdio_uint32_be": {
+            "source": "extlibs/xrpc/bench/bench_stdio.c",
+            "inputs": [],
+            "suite": "xrpc_stdio",
+            "args": [
+              "20000",
+              "2"
+            ],
+            "facts": {},
+            "metrics": {
+              "calls_per_sec": {
+                "samples": [
+                  160765.749127,
+                  160522.907867,
+                  160145.015796,
+                  156383.160261,
+                  159463.29884
+                ],
+                "median": 160145.015796,
+                "mean": 159456.02637819998,
+                "min": 156383.160261,
+                "max": 160765.749127,
+                "mad": 620.7333309999958,
+                "relative_mad": 0.0038760702474232114,
+                "range": 4382.588865999976,
+                "relative_range": 0.027366376931659973,
+                "central_range": 1059.6090269999986,
+                "relative_central_range": 0.006616559508475598,
+                "direction": "higher",
+                "unit": "calls/s",
+                "limit": 0.05,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p50_call_ns": {
+                "samples": [
+                  6100.000007,
+                  6100.000007,
+                  6100.000007,
+                  6100.000007,
+                  6100.000007
+                ],
+                "median": 6100.000007,
+                "mean": 6100.000007,
+                "min": 6100.000007,
+                "max": 6100.000007,
+                "mad": 0.0,
+                "relative_mad": 0.0,
+                "range": 0.0,
+                "relative_range": 0.0,
+                "central_range": 0.0,
+                "relative_central_range": 0.0,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              },
+              "p99_call_ns": {
+                "samples": [
+                  7699.999998,
+                  7699.999998,
+                  7700.000012,
+                  7900.0,
+                  7700.000012
+                ],
+                "median": 7700.000012,
+                "mean": 7740.0000039999995,
+                "min": 7699.999998,
+                "max": 7900.0,
+                "mad": 1.4000000192027073e-05,
+                "relative_mad": 1.8181818402868689e-09,
+                "range": 200.00000199999977,
+                "relative_range": 0.0259740261932872,
+                "central_range": 1.4000000192027073e-05,
+                "relative_central_range": 1.8181818402868689e-09,
+                "direction": "lower",
+                "unit": "ns",
+                "limit": 0.1,
+                "max_relative_mad": 0.03,
+                "max_relative_central_range": 0.06
+              }
+            }
+          }
+        }
+      },
+      "pipe_benchmark_and_interop": {
+        "executable_sha256": "131b19110a0f6f84e85f242abe38cf40589291c29deffb59a30bde123904654c",
+        "harness_sha256": "76c9ba5468220c496911bd5832a4f7751f69947e097a7dfd4b14524fe7b679fb",
+        "scope": "Parent Python and example C over native diverted pipes. Performance uses closed-loop groups of 32 and includes the driver's idle poll and Python overhead.",
+        "profiles": {
+          "content_length": {
+            "checks": [
+              "live_response_before_eof",
+              "split_header_and_utf8_roundtrip",
+              "coalesced_batch_and_scalar",
+              "32768_byte_echo_with_delayed_reader",
+              "clean_eof_drain",
+              "invalid_frame",
+              "truncated_eof"
+            ],
+            "performance": [
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13366.932458241341,
+                "p50_us": 1498.4,
+                "p99_us": 2844.901
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13747.567316611328,
+                "p50_us": 1474.3,
+                "p99_us": 2538.6
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13628.709888886751,
+                "p50_us": 1482.7,
+                "p99_us": 2597.0
+              }
+            ]
+          },
+          "uint32_be": {
+            "checks": [
+              "live_response_before_eof",
+              "split_header_and_utf8_roundtrip",
+              "coalesced_batch_and_scalar",
+              "32768_byte_echo_with_delayed_reader",
+              "clean_eof_drain",
+              "invalid_frame",
+              "truncated_eof"
+            ],
+            "performance": [
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13098.279757126682,
+                "p50_us": 1532.2,
+                "p99_us": 3001.7
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13607.674053097742,
+                "p50_us": 1498.4,
+                "p99_us": 2701.301
+              },
+              {
+                "calls": 2048,
+                "window": 32,
+                "calls_per_second": 13697.65804157868,
+                "p50_us": 1501.4,
+                "p99_us": 2627.7
+              }
+            ]
+          }
+        },
+        "report_sha256": "c22f34c6d845b41ee89c7d3f87e7374a4b86b689812f17cc1597503a9bfd7e71",
+        "median": {
+          "content_length": {
+            "calls_per_second": 13628.709888886751,
+            "p50_us": 1482.7,
+            "p99_us": 2597.0
+          },
+          "uint32_be": {
+            "calls_per_second": 13607.674053097742,
+            "p50_us": 1501.4,
+            "p99_us": 2701.301
+          }
+        }
+      },
+      "single_object_size": {
+        "text": 423126,
+        "data": 4472,
+        "bss": 10948,
+        "members": 1,
+        "load": 427598,
+        "file": 745352,
+        "path": "out/size/gnu/x64/xrpc_stdio/single/xrpc_single.o",
+        "compile_seconds": 7.257911056000012,
+        "forbidden_symbol_count": 0,
+        "report_sha256": "999ebbad4406d3b3b7dd15c5034b1b60dc255265e8b0f7ddf0ac0403a4c74f5b"
+      }
+    }
+  },
+  "strict_release": {
+    "exit_code": 1,
+    "developing_modules": [
+      "xrpc",
+      "xrpc_frame",
+      "xrpc_duplex",
+      "xrpc_stdio",
+      "xrpc_tcp",
+      "xrpc_tls",
+      "xrpc_tcp_dial",
+      "xrpc_tls_dial",
+      "xrpc_ws",
+      "xrpc_ws_tls",
+      "xrpc_ws_http",
+      "xrpc_ws_http_tls",
+      "xrpc_ws_deflate",
+      "xrpc_ws_http_deflate",
+      "xrpc_ws_dial",
+      "xrpc_ws_dial_tls",
+      "xrpc_ws_uri_parse",
+      "xrpc_ws_uri",
+      "xrpc_ws_uri_tls"
+    ]
+  },
+  "remaining_scope": [
+    "The adapter has host-provided I/O callbacks. Automatic native process attachment and readiness retirement remain pending.",
+    "Native pipe measurements include the portable polling example and the Python peer. The workload is closed loop.",
+    "The Windows memory profile missed the p99 repeatability gate.",
+    "Negotiated extensions, native Linux and 72-hour production acceptance remain open."
+  ]
+}

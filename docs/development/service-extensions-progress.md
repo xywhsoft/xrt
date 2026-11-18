@@ -15482,3 +15482,45 @@ developing modules. Mixed-load network tail latency, native Linux and
 72-hour production acceptance remain open.
 
 [Paired results and verification](../../extlibs/xrpc/tests/results/duplex-deadline-index-20261119.json).
+
+
+## 2026-11-19 xrpc host-driven framed stdio
+
+The new stdio module binds a frame configuration and the existing Duplex
+endpoint to two host-provided nonblocking byte callbacks. Content-Length and
+UINT32_BE remain explicit. The adapter bounds read storage, write offers
+and owner work, retains one overloaded frame and preserves its incoming
+deadline through retry.
+
+Clean EOF drains accepted handler responses. It retires unstarted outgoing
+calls and preserves the framing boundary of any started output while the
+drain budget permits. An EOF deadline regression exposes the previous
+candidate writing after a zero drain budget when the peer becomes writable
+during EOF observation. The fixed candidate checks the budget before another
+write. The tests also cover raw output pressure, cancellation after partial
+write, malformed and truncated input, I/O contracts and allocation rollback.
+
+The Windows and WSL aggregates each verified 59 existing programs and two
+added stdio programs. Separate stdio suites, WSL ASan/UBSan with leak checks,
+two trim probes and all eight root/leaf static/shared consumers passed.
+The independent Python peer verifies both formats over real redirected pipes
+while the stream is open and through EOF. A 32 KiB result is consumed after a
+delayed read. Both single-object dependency inspections found zero forbidden
+network, TLS, HTTP, WebSocket or process symbols.
+
+| Environment and fixture | Content-Length calls/s | P99 | UINT32_BE calls/s | P99 |
+| --- | ---: | ---: | ---: | ---: |
+| Windows memory callbacks | 171,116 | 9.10 µs | 183,785 | 6.70 µs |
+| WSL memory callbacks | 153,647 | 8.10 µs | 160,145 | 7.70 µs |
+| Windows redirected-pipe example | 872 | 45.93 ms | 961 | 35.62 ms |
+| WSL redirected-pipe example | 13,629 | 2.60 ms | 13,608 | 2.70 ms |
+
+The memory fixture uses a single in-flight call and a simulated peer.
+The pipe fixture uses closed-loop groups of 32 and includes the example's
+idle polling and Python processing. The Windows memory P99 metrics missed
+the repeatability gate in both formats. WSL passed the memory-profile
+repeatability check. Strict release still lists 19 developing modules.
+Native process attachment, negotiated deadline/cancellation, mixed-load
+performance and native 72-hour production qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/stdio-20261119.json).

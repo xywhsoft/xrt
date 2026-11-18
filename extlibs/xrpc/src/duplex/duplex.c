@@ -61,7 +61,7 @@ struct xrpcduplex {
     size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     uint64 Serial,SelectionSerial,SelectedToken;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
-    bool Closing,Busy,More,CancelStarted,PreferScan;
+    bool Closing,Busy,More,CancelStarted,PreferScan,InputEnded;
     unsigned Turn;
     xrpccallstatus Reason;
     xrpcmessage* Scratch;
@@ -192,7 +192,7 @@ static xrpcduplexadmission xrpcDuplexSubmit(xrpcduplex* D,const xrpcduplexitem* 
     /* Only reservation/publication are serialized. JSON scans, quoting, copies,
      * allocator/quota locks and native Future construction do not hold Gate. */
     xrtMutexLock(&D->Gate);
-    if(D->Closing){xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_CLOSED;}
+    if(D->Closing || D->InputEnded){xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_CLOSED;}
     if(D->Operations==D->Config.MaxOperations || Replies>D->Config.MaxPendingCalls-D->PendingCalls ||
        Replies>UINT64_MAX-D->Serial || TempBytes>D->Config.MaxTemporaryBytes-D->TemporaryBytes){
         ++D->Rejected;xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_OVERLOADED;}
@@ -407,7 +407,7 @@ static xrpcduplexadmission xrpcDuplexReceiveImpl(xrpcduplex* D,xstrview Input,xb
         xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex receive spans");return XRPC_DUPLEX_ERROR;}
     if(!xrpcDuplexEnter(D))return XRPC_DUPLEX_ERROR;
     xrpcduplexadmission Result=XRPC_DUPLEX_ERROR;
-    if(xrpcDuplexIsClosing(D)){Result=XRPC_DUPLEX_CLOSED;goto Done;}
+    if(D->InputEnded || xrpcDuplexIsClosing(D)){Result=XRPC_DUPLEX_CLOSED;goto Done;}
     xrpcdecodeconfig C=D->Config.Response.Decode;C.Mode=XRPC_DECODE_DUPLEX;xrpcdocument Doc;
     xrpcdecodestatus S=xrpcDecode(Input,&C,D->Scratch,C.MaxMessages,&Doc);
     if(S==XRPC_DECODE_LOCAL_ERROR)goto Done;
@@ -449,7 +449,17 @@ Done:
 }
 XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbytesview Context)
 {return xrpcDuplexReceiveImpl(D,Input,Context,xrtTimer());}
-#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_STDIO)
+/* The owner closes the input direction. A concurrent constructor that
+ * already reserved credits still publishes and retires through the owner. */
+void xrpcDuplexEndInput(xrpcduplex* D)
+{
+    xrtMutexLock(&D->Gate);
+    D->InputEnded=true;
+    xrtMutexUnlock(&D->Gate);
+}
+#endif
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS) || defined(XRPC_FEATURE_XRPC_STDIO)
 xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex* D,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {return xrpcDuplexSubmit(D,Items,Count,Batch,Timeout,Future,Entered);}
 xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex* D,xstrview Input,xbytesview Context,double Entered)
@@ -488,6 +498,7 @@ static bool xrpcDuplexWorkSubmit(xrpcduplex* D,bool* OK)
         xrpcDuplexDeadlineUp(D,Slot,R);
     }
     if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
+    else if(D->InputEnded)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_TRANSPORT);
     else {xrpccallfinish F=xrpcCallPoll(R->Call);
         if(F==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
         if(F!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
@@ -514,7 +525,11 @@ static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK,double Now)
     if(R==D->Scan)xrpcDuplexAdvanceScan(D);
     if(!R->Finishing){if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
         else {xrpccallfinish P=xrpcCallPoll(R->Call);if(P==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
-            if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);}}
+            if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);
+            /* A started frame must reach its boundary or the whole output
+             * direction must be discarded. Unstarted requests need no write. */
+            else if(D->InputEnded && (!R->Started || R->Sent))
+                xrpcDuplexPrepareFinish(D,R,XRPC_CALL_TRANSPORT);}}
     if(R->Finishing)*OK=xrpcDuplexFinish(D,R);
     return true;
 }
@@ -565,7 +580,8 @@ XRPC_API int xrpcDuplexNext(xrpcduplex* D,xrpcduplexoutput** Output,uint64* Toke
     if(!xrpcDuplexEnter(D))return -1;
     int Result=0;
     if(D->Selection){xrpcDuplexReport(XERR_STATE,XRPC_DUPLEX_STATE,"RPC duplex already has a selected output");Result=-1;}
-    else if(!xrpcDuplexIsClosing(D) && D->OutputHead){
+    else if(!xrpcDuplexIsClosing(D) && D->OutputHead &&
+            (!D->InputEnded || !D->OutputHead->Request)){
         if(D->SelectionSerial==UINT64_MAX){xrpcDuplexSeal(D,XRPC_CALL_LIMIT);xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex selection serial exhausted");Result=-1;}
         else if(!xrpcDuplexOutputRetain(D->OutputHead))Result=-1;
         else {D->Selection=D->OutputHead;D->SelectedToken=++D->SelectionSerial;*Output=D->Selection;*Token=D->SelectedToken;Result=1;}
@@ -579,7 +595,7 @@ XRPC_API bool xrpcDuplexStarted(xrpcduplex* D,uint64 Token)
     if(Token && Token==D->SelectedToken && D->Selection && !xrpcDuplexIsClosing(D)){
         xrpcduplexrequest* R=D->Selection->Request;
         if(!R)OK=true;
-        else if(!R->Started && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){OK=xrpcCallMarkSent(R->Call);R->Started=OK;}
+        else if(!R->Started && !D->InputEnded && xrpcCallPoll(R->Call)==XRPC_CALL_PENDING){OK=xrpcCallMarkSent(R->Call);R->Started=OK;}
         else OK=R->Started;
     }
     if(OK)D->Selection->Started=true;
@@ -593,7 +609,10 @@ XRPC_API bool xrpcDuplexSent(xrpcduplex* D,uint64 Token)
         xrpcduplexrequest* R=O->Request;
         if(O->Started && (!R || R->Started)){if(R){R->Sent=true;R->Output=NULL;}
             xrpcDuplexUnqueue(D,O);OK=true;
-            if(R && !R->Replies){xrpcDuplexPrepareFinish(D,R,XRPC_CALL_NOTIFY_DONE);OK=xrpcDuplexFinish(D,R);}}
+            if(R && (!R->Replies || D->InputEnded)){
+                xrpcDuplexPrepareFinish(D,R,R->Replies?XRPC_CALL_TRANSPORT:XRPC_CALL_NOTIFY_DONE);
+                OK=xrpcDuplexFinish(D,R);
+            }}
     }
     D->Busy=false;return OK;
 }

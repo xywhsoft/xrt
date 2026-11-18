@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `167` 个函数、`252` 个常量或宏、
-`119` 个公共类型。
+当前登记 `176` 个函数、`267` 个常量或宏、
+`126` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -589,6 +589,50 @@
 - `xrpcservererror`
 - `xrpcserverresult`
 - `xrpcserverstatus`
+
+## `extlibs/xrpc/include/xrpc/stdio.h`
+
+[查看带契约注释的公共头](../../include/xrpc/stdio.h)
+
+### 函数 (9)
+
+- `xrpcStdioBatch`
+- `xrpcStdioCall`
+- `xrpcStdioClose`
+- `xrpcStdioConfigInit`
+- `xrpcStdioCreate`
+- `xrpcStdioDestroy`
+- `xrpcStdioInfo`
+- `xrpcStdioNotify`
+- `xrpcStdioStep`
+
+### 常量与宏 (15)
+
+- `XRPC_FEATURE_XRPC_STDIO`
+- `XRPC_STDIO_CLOSED`
+- `XRPC_STDIO_DUPLEX`
+- `XRPC_STDIO_EOF`
+- `XRPC_STDIO_FRAME`
+- `XRPC_STDIO_IO`
+- `XRPC_STDIO_IO_AGAIN`
+- `XRPC_STDIO_IO_EOF`
+- `XRPC_STDIO_IO_ERROR`
+- `XRPC_STDIO_IO_PROGRESS`
+- `XRPC_STDIO_LIMIT`
+- `XRPC_STDIO_MEMORY`
+- `XRPC_STDIO_OPEN`
+- `XRPC_STDIO_TIMEOUT`
+- `XRPC_STDIO_TRUNCATED`
+
+### 类型 (7)
+
+- `xrpcstdio`
+- `xrpcstdioconfig`
+- `xrpcstdioinfo`
+- `xrpcstdioio`
+- `xrpcstdioread`
+- `xrpcstdioreason`
+- `xrpcstdiowrite`
 
 ## `extlibs/xrpc/include/xrpc/tcp.h`
 

@@ -4403,6 +4403,67 @@
       ]
     },
     {
+      "name": "xrpc_stdio",
+      "system": "stdio",
+      "description": "Closed-loop window-one stdio over bounded memory callbacks with a separately simulated peer response",
+      "benchmarks": [
+        {
+          "name": "xrpc_stdio_content_length",
+          "source": "extlibs/xrpc/bench/bench_stdio.c",
+          "suite": "xrpc_stdio",
+          "args": [
+            "20000",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "p50_call_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p99_call_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_stdio_uint32_be",
+          "source": "extlibs/xrpc/bench/bench_stdio.c",
+          "suite": "xrpc_stdio",
+          "args": [
+            "20000",
+            "2"
+          ],
+          "smoke_args": [
+            "100",
+            "2"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "p50_call_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p99_call_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xrpc_tcp",
       "system": "tcp",
       "description": "Actual native loopback TCP baseline, closed loop pipeline1/barrier-window32; no production performance acceptance",

@@ -80,6 +80,9 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Independent stdio subprocess peer
+        if: matrix.product == 'xrpc'
+        run: python extlibs/xrpc/tests/interop/run_stdio.py out/gcc/native/xrpc_examples/examples_stdio_main out/service-extensions/xrpc-stdio-linux.json
       - name: Address and undefined behavior sanitizers
         run: >-
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json
@@ -169,6 +172,9 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Independent stdio subprocess peer
+        if: matrix.product == 'xrpc'
+        run: python extlibs/xrpc/tests/interop/run_stdio.py out/gcc/native/xrpc_examples/examples_stdio_main.exe out/service-extensions/xrpc-stdio-windows.json
       - name: Check isolated MQTT 3.1.1 size closure
         if: matrix.product == 'xmqtt'
         run: >-
