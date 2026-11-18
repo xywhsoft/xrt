@@ -325,7 +325,13 @@ static void testGroupFaults(xroot Root,const xcroncheckpoint* First,const xcronc
 #define xcronCheckpointWriterSubmit xcronCheckpointWriterSubmitFault
 #define xcronCheckpointWriterCollect xcronCheckpointWriterCollectFault
 #define xcronCheckpointWriterDestroy xcronCheckpointWriterDestroyFault
+#define xcronCheckpointWriterSubmitSignal xcronCheckpointWriterSubmitSignalFault
+#define xcronCheckpointWriterOutside xcronCheckpointWriterOutsideFault
+#define xcronCheckpointWriterCurrent xcronCheckpointWriterCurrentFault
 #include "../src/checkpoint_group/checkpoint_writer.c"
+#undef xcronCheckpointWriterCurrent
+#undef xcronCheckpointWriterOutside
+#undef xcronCheckpointWriterSubmitSignal
 #undef xcronCheckpointWriterDestroy
 #undef xcronCheckpointWriterCollect
 #undef xcronCheckpointWriterSubmit

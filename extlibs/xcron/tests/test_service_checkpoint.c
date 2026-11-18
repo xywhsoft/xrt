@@ -4,6 +4,7 @@
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <string.h>
+#include <stdlib.h>
 
 typedef struct servicecheckpointfixture {
     xevent ClockEntered,ClockGate,RunEntered,RunGate;
@@ -673,6 +674,20 @@ static void liveQuiescenceDrain(xcronservice* S,bool Selected,xcronjobid Job)
     testRequire(Count==1 && Done.Job==Job && Done.Result==XCRON_RUN_SUCCEEDED && !Done.Error,"one expected lease completion");
 }
 
+static void liveReapAll(xcronservice* S,bool Selected,unsigned Count)
+{
+    for(unsigned I=0;I<Count;++I){
+        bool Found=false;
+        if(Selected){
+            xcronselectedretired R;
+            testRequire(xcronServiceReapStoppedSelected(S,&R,&Found,NULL) && Found,"return selected job ownership");
+        }else{
+            xcronretired R;
+            testRequire(xcronServiceReapStopped(S,&R,&Found,NULL) && Found,"return actual job ownership");
+        }
+    }
+}
+
 typedef enum livequiescencecase {LIVE_GROUP_READY,LIVE_GROUP_TIMEOUT,LIVE_GROUP_CLOSE} livequiescencecase;
 
 static void liveGroupQuiescence(bool Selected,livequiescencecase Case)
@@ -779,24 +794,204 @@ static void liveGroupQuiescence(bool Selected,livequiescencecase Case)
         testRequire(xcronServiceWaitReadable(S,25,NULL)==XWAIT_TIMEOUT,
                     "success holds the successor and rollback preserves pre-existing holds");
     testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK,"join quiescence owner");
-    for(unsigned I=0;I<(Case==LIVE_GROUP_READY?3u:2u);++I){
-        bool Found=false;
-        if(Selected){
-            xcronselectedretired R;
-            testRequire(xcronServiceReapStoppedSelected(S,&R,&Found,NULL) && Found,"return selected job ownership");
-        }else{
-            xcronretired R;
-            testRequire(xcronServiceReapStopped(S,&R,&Found,NULL) && Found,"return actual job ownership");
-        }
-    }
+    liveReapAll(S,Selected,Case==LIVE_GROUP_READY?3u:2u);
     testRequire(xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) &&
                 xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),"release quiescence fixture");
     xrtEventUnit(&F.Release);
     xrtEventUnit(&F.Started);
 }
 
+typedef enum livecommitcase {
+    LIVE_COMMIT_OK,LIVE_COMMIT_STALE,LIVE_COMMIT_CANCEL,LIVE_COMMIT_CLOSE,LIVE_COMMIT_UNCERTAIN
+} livecommitcase;
+
+typedef struct livecommitgate {
+    xevent Entered,Probe,Probed,Release;
+    xcronservice* Service;
+    xcronrequestid Request;
+} livecommitgate;
+
+static void liveCommitGate(ptr Raw)
+{
+    livecommitgate* F=Raw;
+    testRequire(xrtEventSet(&F->Entered) && xrtEventWaitFor(&F->Probe,10000)==XWAIT_OK,"hold storage executor");
+    xcronservicecheckpointcommitreply Reply={.Generation=UINT64_MAX};
+    xcronserviceissue Issue;
+    testRequire(xcronServiceCollectCheckpointCommit(F->Service,F->Request,10000,&Reply,&Issue)==XWAIT_ERROR &&
+                Issue.Code==XCRON_SERVICE_THREAD && Reply.Generation==UINT64_MAX,"refuse wait on the same storage executor");
+    testRequire(xrtEventSet(&F->Probed) && xrtEventWaitFor(&F->Release,10000)==XWAIT_OK,"wait for storage release");
+}
+
+static void liveCommitWaitQueued(xexecutor* Storage)
+{
+    double Until=xrtTimer()+5.0;
+    xexecutorstats Stats;
+    do{
+        testRequire(xrtExecutorGet(Storage,&Stats),"inspect storage queue");
+        if(Stats.Queued)return;
+        xrtSleep(1);
+    }while(xrtTimer()<Until);
+    testRequire(false,"durable request must reach the storage queue");
+}
+
+#if !defined(XCRON_SINGLE_HEADER)
+static bool liveCommitNoFlush(xfile File)
+{
+    (void)File;
+    xrtSetErrorInfo(XERR_IO,"test.cron.service",1,"injected flush failure");
+    return false;
+}
+#define xrtFlush liveCommitNoFlush
+#define xcronCheckpointGroupOpen xcronCheckpointGroupOpenInjected
+#define xcronCheckpointGroupRead xcronCheckpointGroupReadInjected
+#define xcronCheckpointGroupCommit xcronCheckpointGroupCommitInjected
+#define xcronCheckpointGroupClose xcronCheckpointGroupCloseInjected
+#include "../src/checkpoint_group/checkpoint_group.c"
+#undef xcronCheckpointGroupClose
+#undef xcronCheckpointGroupCommit
+#undef xcronCheckpointGroupRead
+#undef xcronCheckpointGroupOpen
+#undef xrtFlush
+#endif
+
+static void liveCommitTest(xroot Root,bool Selected,livecommitcase Case)
+{
+    livequiescence F={0};
+    xrtAtomic64Init(&F.Wall,0);
+    xexecutor* Jobs=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
+    xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,1,0});
+    const xcronserviceconfig Config={
+        .Scheduler={3,1,16,0,65536},.Executor=Jobs,.Proc=liveQuiescenceRun,.Context=&F,
+        .Clock=liveQuiescenceClock,.ClockContext=&F,.CommandLimit=4,.CompletionLimit=3,.BatchLimit=1,
+        .CommandWorkLimit=2,.ResampleMilliseconds=6000,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
+        .BytesLimit=262144,.AdapterBytesLimit=65536
+    };
+    xcroncheckpointgroup* Group=NULL;
+    xcroncheckpointwriter* Writer=NULL;
+    xcronservice* S=NULL;
+    const char Path[]="live.xcg";
+    testRequire(Jobs && Storage && liveCreate(Selected,true,&Config,&S,NULL) &&
+                xcronCheckpointGroupOpen(Root,Path,301,2,true,&Group)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointWriterCreate(Group,Storage,&Writer),"start live durable group fixture");
+#if !defined(XCRON_SINGLE_HEADER)
+    /* Inject a failed commit while the writer is idle, leaving its physical
+     * store uncertain for the subsequent service transaction. */
+    if(Case==LIVE_COMMIT_UNCERTAIN)
+        testRequire(xcronCheckpointGroupCommitInjected(Group,0,NULL,0)==XCRON_CHECKPOINT_STORE_UNCERTAIN,
+                    "prepare an uncertain writer");
+#endif
+    xcronjobconfig J=liveJob(NULL);
+    J.Begin=2000;J.End=3000;
+    xcronjobid A=liveAdd(S,Selected,&J),B=liveAdd(S,Selected,&J);
+    liveSetPaused(S,Selected,B,true);
+    J.End=2000;
+    xcronjobid Other=liveAdd(S,Selected,&J);
+    xcronZoneRelease(J.Zone);
+
+    livecommitgate Gate={.Service=S};
+    testRequire(xrtEventInit(&Gate.Entered,true,false) && xrtEventInit(&Gate.Probe,true,false) &&
+                xrtEventInit(&Gate.Probed,true,false) && xrtEventInit(&Gate.Release,true,false) &&
+                xrtExecutorSubmit(Storage,liveCommitGate,&Gate,NULL,NULL) &&
+                xrtEventWaitFor(&Gate.Entered,10000)==XWAIT_OK,"queue behind an occupied storage worker");
+    const xcroncheckpointtarget Targets[]={{A,{11,1}},{B,{12,1}}};
+    union {xcroncheckpoint Records[2];xcronservicecheckpointcommitreply Reply;} Scratch;
+    const xcronservicecheckpointcommit C={Writer,Targets,Scratch.Records,Case==LIVE_COMMIT_STALE?1:0,10000,2};
+    testRequire(xcronServiceCommitCheckpointGroupAsync(S,&C,&Gate.Request,NULL),"admit a live durable group");
+    liveCommitWaitQueued(Storage);
+    testRequire(xrtEventSet(&Gate.Probe) && xrtEventWaitFor(&Gate.Probed,10000)==XWAIT_OK,"check reentrant storage wait");
+    xcronservicecheckpointreply Wrong={.Index=777};
+    xcronservicecheckpointcommitreply Reply={.Generation=UINT64_MAX};
+    testRequire(xcronServiceCollectCheckpointGroup(S,Gate.Request,0,&Wrong,NULL)==XWAIT_ERROR && Wrong.Index==777 &&
+                xcronServiceCollectCheckpointCommit(S,Gate.Request,0,&Scratch.Reply,NULL)==XWAIT_ERROR &&
+                xcronServiceCollectCheckpointCommit(S,Gate.Request,20,&Reply,NULL)==XWAIT_TIMEOUT &&
+                Reply.Generation==UINT64_MAX,"pending commit preserves result and scratch ownership");
+    liveQuiescenceCancel(S,Selected,A,XCRON_SCHEDULER_BUSY);
+    xrtAtomic64Store(&F.Wall,2000,XMEMORY_RELEASE);
+    testRequire(xcronServiceWake(S,NULL),"make member and unrelated job due while storage waits");
+    liveQuiescenceDrain(S,Selected,Other);
+    testRequire(xcronServiceWaitReadable(S,25,NULL)==XWAIT_TIMEOUT,"held jobs cannot run while storage waits");
+    if(Case==LIVE_COMMIT_CLOSE)
+        testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,25,NULL)==XWAIT_TIMEOUT,
+                    "close waits for an admitted durable commit");
+    if(Case==LIVE_COMMIT_CANCEL)testRequire(xrtExecutorCancel(Storage),"discard the queued commit");
+    testRequire(xrtEventSet(&Gate.Release),"release storage queue");
+
+    testRequire(xcronServiceCollectCheckpointCommit(S,Gate.Request,3000,&Reply,NULL)==XWAIT_OK &&
+                Reply.Command.Request==Gate.Request && Reply.Command.Index==XCRON_CHECKPOINT_NO_INDEX && Reply.StorageCompleted,
+                "writer wakes the owner before the six-second resampling interval");
+    xcroncheckpointstorestatus Status=Case==LIVE_COMMIT_STALE?XCRON_CHECKPOINT_STORE_STALE:
+        Case==LIVE_COMMIT_CANCEL?XCRON_CHECKPOINT_STORE_CANCELLED:
+        Case==LIVE_COMMIT_UNCERTAIN?XCRON_CHECKPOINT_STORE_UNCERTAIN:XCRON_CHECKPOINT_STORE_OK;
+    bool Committed=Status==XCRON_CHECKPOINT_STORE_OK;
+    testRequire(Reply.Store==Status && Reply.Command.Code==(Committed?XCRON_SERVICE_OK:XCRON_SERVICE_STORAGE) &&
+                Reply.Generation==(Committed?1u:0u),"publish exact durable result and generation");
+    xrtErrorFree(Reply.Command.Error);
+
+    if(Case!=LIVE_COMMIT_CLOSE){
+        if(Case==LIVE_COMMIT_UNCERTAIN){
+            testRequire(xcronServiceWaitReadable(S,25,NULL)==XWAIT_TIMEOUT,"uncertain store stops scheduled members");
+            liveSetPaused(S,Selected,A,false);
+        }
+        liveQuiescenceDrain(S,Selected,A);
+        testRequire(xcronServiceWaitReadable(S,25,NULL)==XWAIT_TIMEOUT,"preserve previously paused member");
+    }
+    if(Case==LIVE_COMMIT_CANCEL){
+        xcronrequestid Rejected=0;
+        testRequire(xcronServiceCommitCheckpointGroupAsync(S,&C,&Rejected,NULL) &&
+                    xcronServiceCollectCheckpointCommit(S,Rejected,3000,&Reply,NULL)==XWAIT_OK &&
+                    Reply.Command.Code==XCRON_SERVICE_STORAGE && !Reply.StorageCompleted && !Reply.Generation &&
+                    xrtErrorKind(Reply.Command.Error)==XERR_CLOSED,"distinguish writer rejection from a cancelled write");
+        xrtErrorFree(Reply.Command.Error);
+        xrtAtomic64Store(&F.Wall,3000,XMEMORY_RELEASE);
+        testRequire(xcronServiceWake(S,NULL),"advance after writer submission rollback");
+        liveQuiescenceDrain(S,Selected,A);
+    }
+    testRequire(xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK,"join durable service owner");
+    liveReapAll(S,Selected,3);
+    testRequire(xcronServiceDestroy(S,NULL) && xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK &&
+                xrtExecutorClose(Storage) && xrtExecutorWaitFor(Storage,10000)==XWAIT_OK && xrtExecutorDestroy(Storage) &&
+                xrtExecutorClose(Jobs) && xrtExecutorWaitFor(Jobs,10000)==XWAIT_OK && xrtExecutorDestroy(Jobs),
+                "release jobs, writer and both executors");
+    xrtEventUnit(&Gate.Release);xrtEventUnit(&Gate.Probed);xrtEventUnit(&Gate.Probe);xrtEventUnit(&Gate.Entered);
+    xcroncheckpointgroupview View;
+    testRequire(xcronCheckpointGroupOpen(Root,Path,301,2,false,&Group)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointGroupRead(Group,&View)==(Committed || Case==LIVE_COMMIT_UNCERTAIN?
+                    XCRON_CHECKPOINT_STORE_OK:XCRON_CHECKPOINT_STORE_EMPTY),"reopen the durable group");
+    testRequire(View.Info.Generation==(Committed || Case==LIVE_COMMIT_UNCERTAIN?1u:0u) &&
+                View.Count==(Committed?2u:0u) && (!Committed || !memcmp(View.Records,Scratch.Records,sizeof(Scratch.Records))),
+                "successful generation stores the exact pre-release records");
+    testRequire(xcronCheckpointGroupClose(Group)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Path),"remove durable fixture");
+}
+
+static void liveCommitTests(void)
+{
+    cstr Base=getenv("TMPDIR");
+#if defined(_WIN32)
+    if(!Base || !*Base)Base=getenv("TEMP");
+#else
+    if(!Base || !*Base)Base="/tmp";
+#endif
+    if(!Base || !*Base)Base=".";
+    char Name[96];
+    snprintf(Name,sizeof(Name),"xcron-service-commit-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));
+    xroot Parent=xrtRootOpen(Base);
+    testRequire(Parent && xrtRootDirCreate(Parent,Name,0700),"create live commit test directory");
+    xroot Root=xrtRootOpenIn(Parent,Name);
+    testRequire(Root!=NULL,"open live commit test directory");
+    liveCommitTest(Root,false,LIVE_COMMIT_OK);
+    liveCommitTest(Root,true,LIVE_COMMIT_OK);
+    liveCommitTest(Root,false,LIVE_COMMIT_STALE);
+    liveCommitTest(Root,true,LIVE_COMMIT_CANCEL);
+    liveCommitTest(Root,true,LIVE_COMMIT_CLOSE);
+#if !defined(XCRON_SINGLE_HEADER)
+    liveCommitTest(Root,false,LIVE_COMMIT_UNCERTAIN);
+#endif
+    testRequire(xrtRootClose(Root) && xrtRootRemove(Parent,Name) && xrtRootClose(Parent),"remove live commit test directory");
+}
+
 int main(void)
 {
+    liveCommitTests();
     for(unsigned Selected=0;Selected<2;++Selected){
         liveGroupQuiescence(Selected!=0,LIVE_GROUP_READY);
         liveGroupQuiescence(Selected!=0,LIVE_GROUP_TIMEOUT);

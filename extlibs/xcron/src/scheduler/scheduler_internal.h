@@ -22,7 +22,8 @@ xcronadmissionstatus xcronSchedulerFinishAdmission(xcronscheduler* S,xcronjobid 
 bool xcronSchedulerHoldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
     uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue);
 bool xcronSchedulerHeldCheckpointGroupReady(const xcronscheduler* S);
-bool xcronSchedulerFinishHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
-    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue,bool Capture);
+bool xcronSchedulerCaptureHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue);
+void xcronSchedulerReleaseCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,uint32 Count,bool Pause);
 #endif
 #endif

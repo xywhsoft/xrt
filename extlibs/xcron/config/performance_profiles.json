@@ -4459,6 +4459,50 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_checkpoint_commit_64",
+      "system": "service",
+      "description": "Capture 64 already-paused jobs on the live owner, commit with one native flush, then collect",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint_commit_64",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint_group.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "128",
+            "64",
+            "commit"
+          ],
+          "smoke_args": [
+            "8",
+            "64",
+            "commit"
+          ],
+          "metrics": {
+            "commits_per_sec": {
+              "direction": "higher",
+              "unit": "commits/s"
+            },
+            "committed_per_sec": {
+              "direction": "higher",
+              "unit": "jobs/s"
+            },
+            "commit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "commit_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "commit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

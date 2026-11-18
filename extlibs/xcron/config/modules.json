@@ -651,7 +651,9 @@
       "public_headers": [
         "extlibs/xcron/include/xcron/checkpoint_writer.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xcron/src/checkpoint_group/checkpoint_writer_internal.h"
+      ],
       "sources": [
         "extlibs/xcron/src/checkpoint_group/checkpoint_writer.c"
       ],

@@ -121,4 +121,36 @@ Commit the captured records through the group store or use the
 [asynchronous checkpoint writer](checkpoint_writer.md) on a storage executor. Hold ownership across this interval by coordinating any
 other producers that could resume, cancel or reap the jobs. Release jobs
 after the caller accepts the file commit outcome.
-[Runnable group recovery and capture example](../examples/service_checkpoint_group/README.md).
+## Commit a live group through a storage executor
+
+CommitCheckpointGroupAsync captures and commits the group as one live request.
+Supply an open writer, the expected durable generation, and scratch records in
+the same order as the stable target keys. The service copies the descriptor at
+admission. Keep the writer and target/scratch arrays alive through successful
+CollectCheckpointCommit. The scratch bytes hold an intermediate image. Use the
+reply to decide whether a generation is durable.
+
+The owner reserves members, waits for their leases and recurrence searches,
+and encodes the records before giving the writer its ticket. It keeps the
+reservation until the writer completes, including if the service starts closing.
+Pause, resume, cancel, overlapping capture and reaping remain constrained while
+the writer owns the group. Unrelated jobs continue through the usual budgets.
+A writer notification wakes the owner on completion. While storage is pending,
+the owner checks one readiness flag without taking the writer lock.
+
+The timeout bounds quiescence through writer admission and includes FIFO time.
+The host waits for the physical outcome of an admitted write, including during
+shutdown. Use a storage executor independent of the job executor when disk work
+needs its own budget. Collecting or joining the service with a blocking wait from
+that executor would depend on its work. The commit collector refuses that wait
+while its ticket is pending.
+
+A successful commit restores the original dispatch eligibility, including any
+previous pauses. Validation failure, rejected storage admission and definite
+storage failure also restore that eligibility. An uncertain result leaves the
+scheduled members paused for reconciliation. Close and reopen the writer's store
+to resolve the durable generation before resuming them. The reply distinguishes
+an admission rejection from a completed storage result, including executor
+cancellation. The durable generation is populated for a successful storage commit.
+
+[Runnable group recovery and commit example](../examples/service_checkpoint_group/README.md).

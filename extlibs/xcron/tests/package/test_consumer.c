@@ -43,6 +43,39 @@ static xcronrunresult consumerCheckpointRun(const xcronrun* Run,const xcronexecu
     (void)Run;(void)Token;(void)Context;
     return XCRON_RUN_FAILED;
 }
+static bool consumerCheckpointCommit(xcronservice* S,xcronjobid Job,xcroncheckpointkey Key)
+{
+    cstr Base=getenv("TMPDIR");
+#if defined(_WIN32)
+    if(!Base || !*Base)Base=getenv("TEMP");
+#else
+    if(!Base || !*Base)Base="/tmp";
+#endif
+    if(!Base || !*Base)Base=".";
+    xroot Root=xrtRootOpen(Base);
+    char Name[96];
+    snprintf(Name,sizeof(Name),"xcron-live-consumer-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));
+    xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+    xcroncheckpointgroup* Group=NULL;
+    xcroncheckpointwriter* Writer=NULL;
+    if(!Root || !Storage || xcronCheckpointGroupOpen(Root,Name,101,1,true,&Group)!=XCRON_CHECKPOINT_STORE_OK ||
+       !xcronCheckpointWriterCreate(Group,Storage,&Writer))return false;
+    xcroncheckpoint Scratch;
+    const xcroncheckpointtarget Target={Job,Key};
+    const xcronservicecheckpointcommit Commit={Writer,&Target,&Scratch,0,10000,1};
+    xcronrequestid Ticket;
+    xcronservicecheckpointcommitreply Reply;
+    if(!xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL))return false;
+    xwaitresult Wait;
+    do Wait=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
+    while(Wait==XWAIT_TIMEOUT);
+    if(Wait!=XWAIT_OK)abort();
+    bool Committed=Reply.Command.Code==XCRON_SERVICE_OK && Reply.StorageCompleted &&
+        Reply.Store==XCRON_CHECKPOINT_STORE_OK && Reply.Generation==1;
+    xrtErrorFree(Reply.Command.Error);
+    return xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK && xrtExecutorDestroy(Storage) &&
+           xrtRootRemove(Root,Name) && xrtRootClose(Root) && Committed;
+}
 static bool consumerCheckpointService(const xcronjobconfig* Config,const xcroncheckpoint* Record,xcroncheckpointkey Key)
 {
     xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
@@ -64,6 +97,7 @@ static bool consumerCheckpointService(const xcronjobconfig* Config,const xcronch
     if(!xcronServiceQuiesceCheckpointGroupAsync(S,&Target,1,&Saved,10000,&Q,NULL) ||
        xcronServiceCollectCheckpointGroup(S,Q,10000,&Captured,NULL)!=XWAIT_OK || Captured.Code || Captured.Error ||
        Captured.Index!=XCRON_CHECKPOINT_NO_INDEX || memcmp(Record->Bytes,Saved.Bytes,sizeof(Saved.Bytes)) ||
+       !consumerCheckpointCommit(S,Job,Key) ||
        !xcronServiceSetPausedAsync(S,Job,false,&Q,NULL) ||
        xcronServiceCollect(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Kind!=XCRON_REQUEST_RESUME ||
        R.Job!=Job || R.Code || R.Error)return false;

@@ -15153,3 +15153,53 @@ mixed-load qualification remain open. The strict release gate lists
 18 developing xcron modules.
 [Writer contract](../../extlibs/xcron/docs/checkpoint_writer.md).
 [Stage evidence](xcron-checkpoint-writer-20261119.json).
+
+## 2026-11-19 Commit a live checkpoint group in one request
+
+The live owner reserves a whole group through lease quiescence, capture
+and an asynchronous file commit. It keeps dispatch protected until the
+writer reports its outcome. Prior pauses survive success, definite storage
+errors and executor rejection. An uncertain store leaves scheduled members
+paused for reconciliation. Shutdown drains an admitted
+write and returns the physical outcome before destroying the service.
+
+Capture, handoff and release run in bounded owner turns. The integrated
+operation fits the existing checkpoint command slot and borrows scratch
+records through collection. One writer notification wakes the owner.
+While storage is pending, the owner observes an atomic readiness flag
+without acquiring the writer lock.
+
+Deterministic tests block the storage executor and let an unrelated
+due job finish while the reserved group cannot dispatch or be cancelled.
+They cover a wait from the storage executor, mismatched collectors and
+scratch aliasing, queued cancellation, storage rejection, stale generation,
+uncertain store, preserved prior pauses and close with an admitted write.
+
+The runnable example advances and recovers both jobs through the integrated
+request. Windows NTFS and WSL ext4 produce identical durable images and
+pass the restart, interrupted writer, base service, modular, single-header
+and static/shared consumer checks. WSL passes ASan, UBSan, leak detection
+and Clang ThreadSanitizer.
+
+The round-trip baseline covers 64 already-paused members, capture, one
+native flush and collection. Each of five measured runs commits 128
+generations. Each cell is the median of the per-run metric.
+
+| Host | Groups/s | Records/s | P50 (ms) | P95 (ms) | P99 (ms) | Repeatability failures |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows | 799.6 | 51,177.6 | 1.190 | 1.681 | 1.821 | 8 |
+| WSL | 16.7 | 1,067.7 | 58.437 | 105.492 | 110.902 | 10 |
+
+
+Five alternating Windows pairs compared the live request with the
+standalone writer, with 128 commits of 64 records per path in each pair.
+The median live/writer throughput ratio was 0.908.
+The median paired P50 and P99 differences were +118.3
+and -24.1 microseconds. Both paths flush on the same
+filesystem. The serial results retain the failed repeatability checks.
+
+Periodic capture/commit orchestration, device power-loss testing and native
+mixed-load qualification remain open. The strict release gate lists
+18 developing xcron modules.
+[Live commit contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-checkpoint-commit-20261119.json).

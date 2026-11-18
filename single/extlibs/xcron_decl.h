@@ -3637,13 +3637,13 @@ typedef enum xcronrequestkind {
     XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
     XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT,
     XCRON_REQUEST_PAUSE,XCRON_REQUEST_RESUME,XCRON_REQUEST_RESTORE_PAUSED_CHECKPOINT,
-    XCRON_REQUEST_SAVE_CHECKPOINT_GROUP,XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP
+    XCRON_REQUEST_SAVE_CHECKPOINT_GROUP,XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP,XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP
 } xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
     XCRON_SERVICE_MEMORY,XCRON_SERVICE_CLOSED,XCRON_SERVICE_STALE,
     XCRON_SERVICE_BUSY,XCRON_SERVICE_THREAD,XCRON_SERVICE_CLOCK,
-    XCRON_SERVICE_SYSTEM,XCRON_SERVICE_KERNEL,XCRON_SERVICE_EXECUTOR,XCRON_SERVICE_TIMEOUT
+    XCRON_SERVICE_SYSTEM,XCRON_SERVICE_KERNEL,XCRON_SERVICE_EXECUTOR,XCRON_SERVICE_TIMEOUT,XCRON_SERVICE_STORAGE
 } xcronserviceerror;
 typedef enum xcronservicecompletioncode {XCRON_COMPLETION_NORMAL=0,XCRON_COMPLETION_REJECTED,XCRON_COMPLETION_EXPIRED,XCRON_COMPLETION_CANCELLED,XCRON_COMPLETION_INTERNAL} xcronservicecompletioncode;
 typedef struct xcronserviceissue {xcronserviceerror Code;xerrkind Cause;} xcronserviceissue;
@@ -4525,8 +4525,8 @@ XRT_EXTERN_C_END
 
 #ifndef XCRON_SERVICE_CHECKPOINT_H
 #define XCRON_SERVICE_CHECKPOINT_H
-#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT) || !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED))
-#error "cron service checkpoints require the checkpoint and selected service modules"
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER) || !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED))
+#error "cron service checkpoints require the checkpoint writer and selected service modules"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
 typedef struct xcronservicecheckpointjob {
@@ -4552,6 +4552,21 @@ typedef struct xcronservicecheckpointreply {
     uint32 Index;
     xerror* Error;
 } xcronservicecheckpointreply;
+
+typedef struct xcronservicecheckpointcommit {
+    xcroncheckpointwriter* Writer;
+    const xcroncheckpointtarget* Targets;
+    xcroncheckpoint* Scratch;
+    uint64 ExpectedGeneration,TimeoutMilliseconds;
+    uint32 Count;
+} xcronservicecheckpointcommit;
+
+typedef struct xcronservicecheckpointcommitreply {
+    xcronservicecheckpointreply Command;
+    bool StorageCompleted;
+    xcroncheckpointstorestatus Store;
+    uint64 Generation;
+} xcronservicecheckpointcommitreply;
 
 XRT_EXTERN_C_BEGIN
 /* Match the ordinary constructors and additionally reserve one record and
@@ -4626,6 +4641,25 @@ XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* Service,con
  * Index identifies the failed member or is NO_INDEX. */
 XCRON_API xwaitresult xcronServiceCollectCheckpointGroup(xcronservice* Service,xcronrequestid Request,int64 Timeout,
     xcronservicecheckpointreply* Reply,xcronserviceissue* Issue);
+/* Reserves/captures as QuiesceCheckpointGroupAsync and keeps the reservations
+ * until the off-owner writer finishes. A positive timeout covers quiescence
+ * through writer admission. A submitted write drains during service close.
+ * A definite outcome restores previous dispatch eligibility. UNCERTAIN
+ * leaves scheduled members paused for explicit reconciliation. Copying the
+ * descriptor completes at admission. Keep Writer and both arrays live until
+ * successful collection. Scratch is working storage; only the reply reports
+ * durability. All spans must be disjoint from Writer, store and executor.
+ * The host owns Writer and its executor. Join the service from outside that
+ * executor while a durable request is outstanding. */
+XCRON_API bool xcronServiceCommitCheckpointGroupAsync(xcronservice* Service,const xcronservicecheckpointcommit* Commit,
+    xcronrequestid* Request,xcronserviceissue* Issue);
+/* Only XWAIT_OK writes Reply and releases the borrows. Command.Error transfers
+ * the owned diagnostic. Store and Generation apply when StorageCompleted is
+ * true; Generation is nonzero on a stored generation. STORAGE with
+ * StorageCompleted false indicates writer submission rejection. A wait from
+ * the writer executor is refused while the request depends on it. */
+XCRON_API xwaitresult xcronServiceCollectCheckpointCommit(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronservicecheckpointcommitreply* Reply,xcronserviceissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

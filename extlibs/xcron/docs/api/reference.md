@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `121` 个函数、`234` 个常量或宏、
-`111` 个公共类型。
+当前登记 `123` 个函数、`236` 个常量或宏、
+`113` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -466,7 +466,7 @@
 - `xcronServiceWaitReadable`
 - `xcronServiceWake`
 
-### 常量与宏 (35)
+### 常量与宏 (37)
 
 - `XCRON_COMPLETION_CANCELLED`
 - `XCRON_COMPLETION_EXPIRED`
@@ -476,6 +476,7 @@
 - `XCRON_FEATURE_XCRON_SERVICE`
 - `XCRON_REQUEST_ADD`
 - `XCRON_REQUEST_CANCEL`
+- `XCRON_REQUEST_COMMIT_CHECKPOINT_GROUP`
 - `XCRON_REQUEST_INFO`
 - `XCRON_REQUEST_PAUSE`
 - `XCRON_REQUEST_QUIESCE_CHECKPOINT_GROUP`
@@ -500,6 +501,7 @@
 - `XCRON_SERVICE_STARTING`
 - `XCRON_SERVICE_STOPPED`
 - `XCRON_SERVICE_STOPPING`
+- `XCRON_SERVICE_STORAGE`
 - `XCRON_SERVICE_SYSTEM`
 - `XCRON_SERVICE_THREAD`
 - `XCRON_SERVICE_TIMEOUT`
@@ -523,10 +525,12 @@
 
 [查看带契约注释的公共头](../../include/xcron/service_checkpoint.h)
 
-### 函数 (11)
+### 函数 (13)
 
 - `xcronServiceCollectCheckpoint`
+- `xcronServiceCollectCheckpointCommit`
 - `xcronServiceCollectCheckpointGroup`
+- `xcronServiceCommitCheckpointGroupAsync`
 - `xcronServiceCreateCheckpointed`
 - `xcronServiceCreateCheckpointedFromGroup`
 - `xcronServiceCreateSelectedCheckpointed`
@@ -543,9 +547,11 @@
 - `XCRON_FEATURE_XCRON_SERVICE_SELECTED`
 - `XCRON_SERVICE_CHECKPOINT_NO_INDEX`
 
-### 类型 (5)
+### 类型 (7)
 
 - `xcronselectedserviceconfig`
+- `xcronservicecheckpointcommit`
+- `xcronservicecheckpointcommitreply`
 - `xcronservicecheckpointgroup`
 - `xcronservicecheckpointissue`
 - `xcronservicecheckpointjob`

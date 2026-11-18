@@ -1,10 +1,10 @@
 #ifndef XCRON_SERVICE_CHECKPOINT_H
 #define XCRON_SERVICE_CHECKPOINT_H
 #include <xcron/features.h>
-#include <xcron/checkpoint.h>
+#include <xcron/checkpoint_writer.h>
 #include <xcron/service_selected.h>
-#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT) || !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED))
-#error "cron service checkpoints require the checkpoint and selected service modules"
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT_WRITER) || !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED))
+#error "cron service checkpoints require the checkpoint writer and selected service modules"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
 typedef struct xcronservicecheckpointjob {
@@ -30,6 +30,21 @@ typedef struct xcronservicecheckpointreply {
     uint32 Index;
     xerror* Error;
 } xcronservicecheckpointreply;
+
+typedef struct xcronservicecheckpointcommit {
+    xcroncheckpointwriter* Writer;
+    const xcroncheckpointtarget* Targets;
+    xcroncheckpoint* Scratch;
+    uint64 ExpectedGeneration,TimeoutMilliseconds;
+    uint32 Count;
+} xcronservicecheckpointcommit;
+
+typedef struct xcronservicecheckpointcommitreply {
+    xcronservicecheckpointreply Command;
+    bool StorageCompleted;
+    xcroncheckpointstorestatus Store;
+    uint64 Generation;
+} xcronservicecheckpointcommitreply;
 
 XRT_EXTERN_C_BEGIN
 /* Match the ordinary constructors and additionally reserve one record and
@@ -104,6 +119,25 @@ XCRON_API bool xcronServiceQuiesceCheckpointGroupAsync(xcronservice* Service,con
  * Index identifies the failed member or is NO_INDEX. */
 XCRON_API xwaitresult xcronServiceCollectCheckpointGroup(xcronservice* Service,xcronrequestid Request,int64 Timeout,
     xcronservicecheckpointreply* Reply,xcronserviceissue* Issue);
+/* Reserves/captures as QuiesceCheckpointGroupAsync and keeps the reservations
+ * until the off-owner writer finishes. A positive timeout covers quiescence
+ * through writer admission. A submitted write drains during service close.
+ * A definite outcome restores previous dispatch eligibility. UNCERTAIN
+ * leaves scheduled members paused for explicit reconciliation. Copying the
+ * descriptor completes at admission. Keep Writer and both arrays live until
+ * successful collection. Scratch is working storage; only the reply reports
+ * durability. All spans must be disjoint from Writer, store and executor.
+ * The host owns Writer and its executor. Join the service from outside that
+ * executor while a durable request is outstanding. */
+XCRON_API bool xcronServiceCommitCheckpointGroupAsync(xcronservice* Service,const xcronservicecheckpointcommit* Commit,
+    xcronrequestid* Request,xcronserviceissue* Issue);
+/* Only XWAIT_OK writes Reply and releases the borrows. Command.Error transfers
+ * the owned diagnostic. Store and Generation apply when StorageCompleted is
+ * true; Generation is nonzero on a stored generation. STORAGE with
+ * StorageCompleted false indicates writer submission rejection. A wait from
+ * the writer executor is refused while the request depends on it. */
+XCRON_API xwaitresult xcronServiceCollectCheckpointCommit(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronservicecheckpointcommitreply* Reply,xcronserviceissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

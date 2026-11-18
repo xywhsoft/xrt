@@ -1,4 +1,4 @@
-#include <xcron/checkpoint_writer.h>
+#include "checkpoint_writer_internal.h"
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <xrt/time.h>
@@ -19,6 +19,8 @@ struct xcroncheckpointwriter {
     xcronwriterstate State;
     xcroncheckpointwriteticket Ticket;
     xcroncheckpointwriterreply Reply;
+    void (*Signal)(ptr);
+    ptr SignalContext;
 };
 
 static bool xcronWriterFail(xcroncheckpointstorestatus Code,xerrkind Kind,cstr Text)
@@ -27,11 +29,14 @@ static bool xcronWriterFail(xcroncheckpointstorestatus Code,xerrkind Kind,cstr T
     return false;
 }
 
-static bool xcronWriterOutput(const xcroncheckpointwriter* W,const void* Out,size_t Size)
+bool xcronCheckpointWriterOutside(const xcroncheckpointwriter* W,const void* Out,size_t Size)
 {
     return xrtMemRangeValid(W,sizeof(*W)) && xrtMemRangeValid(Out,Size) &&
         !xrtMemRangesOverlap(W,sizeof(*W),Out,Size);
 }
+
+bool xcronCheckpointWriterCurrent(const xcroncheckpointwriter* W)
+{return xrtExecutorIsCurrent(W->Executor);}
 
 static void xcronWriterRun(ptr Raw)
 {
@@ -50,6 +55,11 @@ static void xcronWriterReady(ptr Raw,ptr Context)
     xcroncheckpointwriter* W=Raw;
     xrtMutexLock(&W->Mutex);
     W->State=XCRON_WRITER_READY;
+    if(W->Signal){
+        W->Signal(W->SignalContext);
+        W->Signal=NULL;
+        W->SignalContext=NULL;
+    }
     xrtCondBroadcast(&W->Changed);
     xrtMutexUnlock(&W->Mutex);
 }
@@ -80,15 +90,16 @@ XCRON_API bool xcronCheckpointWriterCreate(xcroncheckpointgroup* Store,xexecutor
     return true;
 }
 
-XCRON_API bool xcronCheckpointWriterSubmit(xcroncheckpointwriter* W,uint64 Expected,
-    const xcroncheckpoint* Records,uint32 Count,xcroncheckpointwriteticket* Ticket)
+bool xcronCheckpointWriterSubmitSignal(xcroncheckpointwriter* W,uint64 Expected,
+    const xcroncheckpoint* Records,uint32 Count,xcroncheckpointwriteticket* Ticket,
+    void (*Signal)(ptr),ptr Context)
 {
     size_t Members=Count;
     if(Members>SIZE_MAX/sizeof(*Records))
         return xcronWriterFail(XCRON_CHECKPOINT_STORE_LIMIT,XERR_RANGE,"checkpoint writer input exceeds address space");
     size_t Bytes=Members*sizeof(*Records);
-    if(!xcronWriterOutput(W,Ticket,sizeof(*Ticket)) || !xrtMemRangeValid(Records,Bytes) ||
-       xrtMemRangesOverlap(Records,Bytes,W,sizeof(*W)) || xrtMemRangesOverlap(Records,Bytes,Ticket,sizeof(*Ticket)))
+    if(!xcronCheckpointWriterOutside(W,Ticket,sizeof(*Ticket)) || !xcronCheckpointWriterOutside(W,Records,Bytes) ||
+       xrtMemRangesOverlap(Records,Bytes,Ticket,sizeof(*Ticket)))
         return xcronWriterFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint writer input or ticket");
     if(!xrtMutexLock(&W->Mutex))return false;
     if(W->State!=XCRON_WRITER_IDLE || W->Ticket==UINT64_MAX){
@@ -102,6 +113,8 @@ XCRON_API bool xcronCheckpointWriterSubmit(xcroncheckpointwriter* W,uint64 Expec
     W->Expected=Expected;
     W->Count=Count;
     W->Reply=(xcroncheckpointwriterreply){.Status=XCRON_CHECKPOINT_STORE_CANCELLED};
+    W->Signal=Signal;
+    W->SignalContext=Context;
     W->State=XCRON_WRITER_PENDING;
     bool OK=xrtExecutorSubmit(W->Executor,xcronWriterRun,W,xcronWriterReady,NULL);
     if(OK)*Ticket=++W->Ticket;
@@ -109,15 +122,21 @@ XCRON_API bool xcronCheckpointWriterSubmit(xcroncheckpointwriter* W,uint64 Expec
         W->State=XCRON_WRITER_IDLE;
         W->Records=NULL;
         W->RecordBytes=0;
+        W->Signal=NULL;
+        W->SignalContext=NULL;
     }
     xrtMutexUnlock(&W->Mutex);
     return OK;
 }
 
+XCRON_API bool xcronCheckpointWriterSubmit(xcroncheckpointwriter* W,uint64 Expected,
+    const xcroncheckpoint* Records,uint32 Count,xcroncheckpointwriteticket* Ticket)
+{return xcronCheckpointWriterSubmitSignal(W,Expected,Records,Count,Ticket,NULL,NULL);}
+
 XCRON_API xwaitresult xcronCheckpointWriterCollect(xcroncheckpointwriter* W,xcroncheckpointwriteticket Ticket,
     int64 Timeout,xcroncheckpointwriterreply* Reply)
 {
-    if(Timeout< -1 || !Ticket || !xcronWriterOutput(W,Reply,sizeof(*Reply))){
+    if(Timeout< -1 || !Ticket || !xcronCheckpointWriterOutside(W,Reply,sizeof(*Reply))){
         xcronWriterFail(XCRON_CHECKPOINT_STORE_ARGUMENT,XERR_ARGUMENT,"invalid checkpoint writer collection");
         return XWAIT_ERROR;
     }
@@ -144,7 +163,7 @@ XCRON_API xwaitresult xcronCheckpointWriterCollect(xcroncheckpointwriter* W,xcro
             break;
         }
         if(!Timeout){Result=XWAIT_TIMEOUT;break;}
-        if(!CheckedContext && xrtExecutorIsCurrent(W->Executor)){
+        if(!CheckedContext && xcronCheckpointWriterCurrent(W)){
             xcronWriterFail(XCRON_CHECKPOINT_STORE_BUSY,XERR_STATE,"checkpoint writer wait depends on the current executor");
             break;
         }

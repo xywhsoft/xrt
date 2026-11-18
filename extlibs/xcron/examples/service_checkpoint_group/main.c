@@ -69,27 +69,30 @@ static bool groupDemoAdvance(xcronservice* S,xcronjobid Id)
     return Done.Job==Id && Done.Result==XCRON_RUN_SUCCEEDED;
 }
 
-static bool groupDemoCommit(xcroncheckpointgroup* Store,xcronservice* Service,xcronjobid Job,
-    const xcroncheckpoint* Records,uint64* Generation)
+static bool groupDemoCommit(xcroncheckpointgroup* Store,xcronservice* S,const xcroncheckpointtarget* Targets,
+    uint64* Generation)
 {
     xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
     xcroncheckpointwriter* Writer=NULL;
     bool Opened=Storage && xcronCheckpointWriterCreate(Store,Storage,&Writer);
-    xcroncheckpointwriteticket Ticket=0;
-    bool Submitted=Opened && xcronCheckpointWriterSubmit(Writer,*Generation,Records,DEMO_JOBS,&Ticket);
-    xcronjobinfo Info;
-    bool Observed=Submitted && groupDemoInfo(Service,Job,&Info);
-    bool Joined=false;
-    if(Storage && xrtExecutorClose(Storage))Joined=xrtExecutorWait(Storage)==XWAIT_OK;
-    if(Submitted && !Joined)abort(); /* The stack records live through the disk operation. */
-
-    xcroncheckpointwriterreply Reply={0};
-    bool Collected=Submitted && xcronCheckpointWriterCollect(Writer,Ticket,0,&Reply)==XWAIT_OK;
-    if(Collected && Reply.Status==XCRON_CHECKPOINT_STORE_OK)*Generation=Reply.Generation;
-    xrtErrorFree(Reply.Error);
+    xcroncheckpoint Scratch[DEMO_JOBS];
+    const xcronservicecheckpointcommit Commit={Writer,Targets,Scratch,*Generation,10000,DEMO_JOBS};
+    xcronrequestid Ticket=0;
+    bool Submitted=Opened && xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL);
+    xcronservicecheckpointcommitreply Reply={0};
+    if(Submitted){
+        xwaitresult Collected;
+        do Collected=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
+        while(Collected==XWAIT_TIMEOUT);
+        if(Collected!=XWAIT_OK)abort(); /* The owner still borrows both arrays. */
+    }
+    bool Committed=Submitted && Reply.Command.Code==XCRON_SERVICE_OK &&
+        Reply.StorageCompleted && Reply.Store==XCRON_CHECKPOINT_STORE_OK;
+    if(Committed)*Generation=Reply.Generation;
+    xrtErrorFree(Reply.Command.Error);
     xcroncheckpointstorestatus Closed=Opened?xcronCheckpointWriterDestroy(Writer):xcronCheckpointGroupClose(Store);
     bool Released=Storage && xrtExecutorDestroy(Storage);
-    return Observed && Collected && Reply.Status==XCRON_CHECKPOINT_STORE_OK && Closed==XCRON_CHECKPOINT_STORE_OK && Released;
+    return Committed && Closed==XCRON_CHECKPOINT_STORE_OK && Released;
 }
 
 static int groupDemo(xroot Root,bool Create,bool Advance)
@@ -128,17 +131,7 @@ static int groupDemo(xroot Root,bool Create,bool Advance)
             if(!groupDemoAdvance(S,Ids[I]))return 7;
             Targets[I]=(xcroncheckpointtarget){Ids[I],Jobs[I].Key};
         }
-        xcroncheckpoint Records[DEMO_JOBS];
-        xcronrequestid Request;
-        xcronservicecheckpointreply Reply;
-        if(!xcronServiceQuiesceCheckpointGroupAsync(S,Targets,DEMO_JOBS,Records,10000,&Request,NULL))return 7;
-        xwaitresult Collected;
-        do Collected=xcronServiceCollectCheckpointGroup(S,Request,10000,&Reply,NULL);
-        while(Collected==XWAIT_TIMEOUT);
-        if(Collected!=XWAIT_OK)abort(); /* The owner still borrows the arrays on a collector failure. */
-        xrtErrorFree(Reply.Error);
-        if(Reply.Code)return 7;
-        if(!groupDemoCommit(Store,S,Ids[0],Records,&Generation))return 8;
+        if(!groupDemoCommit(Store,S,Targets,&Generation))return 8;
     }else if(xcronCheckpointGroupClose(Store)!=XCRON_CHECKPOINT_STORE_OK)return 8;
     xcronjobinfo A,B;
     if(!groupDemoInfo(S,Ids[0],&A) || !groupDemoInfo(S,Ids[1],&B))return 9;

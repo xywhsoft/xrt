@@ -48,12 +48,62 @@ static bool groupBenchCapture(const xcronserviceconfig* C,const xcronservicechec
     return groupBenchStop(S,Seed->Count);
 }
 
+static bool groupBenchCommit(const xcronserviceconfig* C,const xcronservicecheckpointgroup* Seed,
+    xcronjobid* Ids,xcroncheckpoint* Records,size_t Iterations,double* Samples,double* Total)
+{
+    cstr Base=getenv("TMPDIR");
+#if defined(_WIN32)
+    if(!Base || !*Base)Base=getenv("TEMP");
+#else
+    if(!Base || !*Base)Base="/tmp";
+#endif
+    if(!Base || !*Base)Base=".";
+    char Name[96];
+    snprintf(Name,sizeof(Name),"xcron-live-bench-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));
+    xroot Root=xrtRootOpen(Base);
+    xexecutor* Storage=xrtExecutorCreate(&(xexecutorconfig){1,2,0});
+    xcroncheckpointgroup* Store=NULL;
+    xcroncheckpointwriter* Writer=NULL;
+    xcronservice* S=NULL;
+    xcroncheckpointtarget* Targets=malloc((size_t)Seed->Count*sizeof(*Targets));
+    if(!Root || !Storage || !Targets || xcronCheckpointGroupOpen(Root,Name,102,Seed->Count,true,&Store)!=XCRON_CHECKPOINT_STORE_OK ||
+       !xcronCheckpointWriterCreate(Store,Storage,&Writer) ||
+       !xcronServiceCreateCheckpointedFromGroup(C,Seed,&S,Ids,NULL))return false;
+    for(uint32 I=0;I<Seed->Count;++I)Targets[I]=(xcroncheckpointtarget){Ids[I],Seed->Jobs[I].Key};
+    xcronservicecheckpointcommit Commit={Writer,Targets,Records,0,10000,Seed->Count};
+    for(size_t I=0;I<Iterations;++I){
+        xcronrequestid Ticket;
+        xcronservicecheckpointcommitreply Reply;
+        Commit.ExpectedGeneration=I;
+        double Begin=xrtTimer();
+        if(!xcronServiceCommitCheckpointGroupAsync(S,&Commit,&Ticket,NULL))return false;
+        xwaitresult Wait;
+        do Wait=xcronServiceCollectCheckpointCommit(S,Ticket,10000,&Reply,NULL);
+        while(Wait==XWAIT_TIMEOUT);
+        if(Wait!=XWAIT_OK)abort();
+        if(Reply.Command.Code || Reply.Command.Error || !Reply.StorageCompleted ||
+           Reply.Store!=XCRON_CHECKPOINT_STORE_OK || Reply.Generation!=I+1)return false;
+        double Delta=xrtTimer()-Begin;
+        *Total+=Delta;
+        Samples[I]=Delta*1000000;
+    }
+    free(Targets);
+    xcroncheckpointgroupview View;
+    return groupBenchStop(S,Seed->Count) && xcronCheckpointWriterDestroy(Writer)==XCRON_CHECKPOINT_STORE_OK &&
+           xrtExecutorDestroy(Storage) && xcronCheckpointGroupOpen(Root,Name,102,Seed->Count,false,&Store)==XCRON_CHECKPOINT_STORE_OK &&
+           xcronCheckpointGroupRead(Store,&View)==XCRON_CHECKPOINT_STORE_OK &&
+           View.Info.Generation==Iterations && View.Count==Seed->Count &&
+           !memcmp(Records,View.Records,(size_t)View.Count*sizeof(*Records)) &&
+           xcronCheckpointGroupClose(Store)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Name) && xrtRootClose(Root);
+}
+
 int main(int Argc,char** Argv)
 {
     size_t Iterations=Argc>1?(size_t)strtoul(Argv[1],NULL,10):250;
     uint32 Count=Argc>2?(uint32)strtoul(Argv[2],NULL,10):64;
     bool Quiesce=Argc==4 && !strcmp(Argv[3],"quiesce");
-    bool Capture=Quiesce || (Argc==4 && !strcmp(Argv[3],"capture"));
+    bool Durable=Argc==4 && !strcmp(Argv[3],"commit");
+    bool Capture=Durable || Quiesce || (Argc==4 && !strcmp(Argv[3],"capture"));
     if((Argc>3 && !Capture) || !Iterations || Iterations>100000 || !Count || Count>1024)return 2;
     xcronservicecheckpointjob* Jobs=malloc((size_t)Count*sizeof(*Jobs));
     xcroncheckpoint* Records=malloc((size_t)Count*sizeof(*Records));
@@ -85,7 +135,9 @@ int main(int Argc,char** Argv)
         .BytesLimit=4194304,.AdapterBytesLimit=65536
     };
     double Total=0;
-    if(Capture){
+    if(Durable){
+        if(!groupBenchCommit(&C,&Seed,Ids,Records,Iterations,Samples,&Total))return 4;
+    }else if(Capture){
         if(!groupBenchCapture(&C,&Seed,Ids,Records,Iterations,Samples,&Total,Quiesce))return 4;
     }else{
         for(size_t I=0;I<Iterations;++I){
@@ -101,7 +153,8 @@ int main(int Argc,char** Argv)
     if(Total<=0 || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 5;
     xcronZoneRelease(Job.Zone);
     qsort(Samples,Iterations,sizeof(*Samples),groupStartupCompare);
-    cstr Operation=Capture?"capture":"start",Amount=Capture?"captured":"restored";
+    cstr Operation=Durable?"commit":Capture?"capture":"start";
+    cstr Amount=Durable?"committed":Capture?"captured":"restored";
     printf("%ss_per_sec: %.3f\n%s_per_sec: %.3f\n%s_p50_us: %.3f\n%s_p95_us: %.3f\n%s_p99_us: %.3f\n",
            Operation,Iterations/Total,Amount,(double)Iterations*Count/Total,Operation,Samples[(Iterations+1)/2-1],
            Operation,Samples[(Iterations*95+99)/100-1],Operation,Samples[(Iterations*99+99)/100-1]);

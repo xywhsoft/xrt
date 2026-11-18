@@ -705,7 +705,7 @@ XCRON_API bool xcronSchedulerSaveCheckpoint(const xcronscheduler* S,xcronjobid I
 }
 
 typedef enum xcroncheckpointgroupmode {
-    XCRON_CHECKPOINT_GROUP_SAVE,XCRON_CHECKPOINT_GROUP_HOLD,XCRON_CHECKPOINT_GROUP_FINISH
+    XCRON_CHECKPOINT_GROUP_SAVE,XCRON_CHECKPOINT_GROUP_HOLD,XCRON_CHECKPOINT_GROUP_HELD
 } xcroncheckpointgroupmode;
 
 static bool xcronSchedulerCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
@@ -745,7 +745,7 @@ static bool xcronSchedulerCheckpointGroup(xcronscheduler* S,const xcroncheckpoin
             xcronSchedulerFail(XCRON_SCHEDULER_CHECKPOINT_MISMATCH,NULL,Issue);
             break;
         }
-        if(J->CheckpointHeld!=(Mode==XCRON_CHECKPOINT_GROUP_FINISH) || J->Initial){
+        if(J->CheckpointHeld!=(Mode==XCRON_CHECKPOINT_GROUP_HELD) || J->Initial){
             xcronSchedulerFail(XCRON_SCHEDULER_BUSY,NULL,Issue);
             break;
         }
@@ -778,7 +778,7 @@ static bool xcronSchedulerCheckpointGroup(xcronscheduler* S,const xcroncheckpoin
             }
         }else{
             xcronSchedulerEncodeCheckpoint(S,I,Targets[J].Key,&Records[J]);
-            xcronSchedulerSetPausedSlot(S,I,true);
+            if(Mode==XCRON_CHECKPOINT_GROUP_SAVE)xcronSchedulerSetPausedSlot(S,I,true);
         }
     }
     if(!InvalidAlias)*Index=OK?XCRON_CHECKPOINT_NO_INDEX:Checked;
@@ -797,10 +797,12 @@ bool xcronSchedulerHoldCheckpointGroup(xcronscheduler* S,const xcroncheckpointta
 bool xcronSchedulerHeldCheckpointGroupReady(const xcronscheduler* S)
 {return S->CheckpointWaiting==0;}
 
-bool xcronSchedulerFinishHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
-    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue,bool Capture)
+bool xcronSchedulerCaptureHeldCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,
+    uint32 Count,xcroncheckpoint* Records,uint32* Index,xcronschedulerissue* Issue)
+{return xcronSchedulerCheckpointGroup(S,Targets,Count,Records,Index,Issue,XCRON_CHECKPOINT_GROUP_HELD);}
+
+void xcronSchedulerReleaseCheckpointGroup(xcronscheduler* S,const xcroncheckpointtarget* Targets,uint32 Count,bool Pause)
 {
-    bool OK=!Capture || xcronSchedulerCheckpointGroup(S,Targets,Count,Records,Index,Issue,XCRON_CHECKPOINT_GROUP_FINISH);
     uint64 Mask=(UINT64_C(1)<<S->JobBits)-1;
     for(uint32 J=0;J<Count;++J){
         uint32 I=(uint32)(Targets[J].Job&Mask);
@@ -808,9 +810,9 @@ bool xcronSchedulerFinishHeldCheckpointGroup(xcronscheduler* S,const xcroncheckp
         if(Job->CheckpointWaiting)--S->CheckpointWaiting;
         Job->CheckpointWaiting=false;
         Job->CheckpointHeld=false;
+        if(Pause)Job->Paused=true;
         if(Job->Info.State!=XCRON_JOB_SEARCHING)xcronSchedulerPlace(S,I);
     }
-    return OK;
 }
 
 static bool xcronSchedulerRestoreMode(xcronscheduler* S,const xcronjobconfig* Config,
