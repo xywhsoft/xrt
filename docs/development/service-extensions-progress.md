@@ -14430,3 +14430,25 @@ ASan/UBSan and TSan exercise the observer and verified rotation path on WSL.
 Production performance baselines, native Linux long runs and device
 power-loss qualification remain open.
 [Stage evidence](xmqtt-store-capacity-20261118.json).
+
+## 2026-11-18 Sentinel replica discovery
+
+The standalone xredis Sentinel owner now offers explicit replica discovery.
+It validates bounded RESP2 and RESP3 replica lists, skips down rows, and
+hands out the first native Client with a connected replica ROLE response.
+Failed candidates retire physically before the next candidate starts.
+Per-candidate deadlines, fallback seeds, cancellation and the original total
+deadline share the existing discovery state machine. One immutable seed reply
+backs the candidate views through selection.
+
+Redis failover tests exercise RESP2, RESP3 and AUTO with numeric, DNS and
+prepared-address factories. Windows and WSL each verify the replica before
+failover, the unknown-service outcome, and the demoted replica after failover,
+with complementary master controls. The fixtures also exercise TLS, malformed
+and over-budget lists, stale ROLE, timeouts and constructor OOM. Modular,
+single-header and verified static/shared consumers cover the new entry point.
+
+Replica pools, automatic seed refresh and event-triggered rediscovery remain
+open. Native Linux long runs, real authenticated/TLS Sentinel deployments
+and production throughput and tail latency remain qualification work.
+[Stage evidence](xredis-sentinel-replica-20261118.json).

@@ -5103,7 +5103,7 @@ typedef enum xredissentinelstatus {
     XREDIS_SENTINEL_PENDING=0,XREDIS_SENTINEL_OK,XREDIS_SENTINEL_UNREACHABLE,
     XREDIS_SENTINEL_UNKNOWN_SERVICE,XREDIS_SENTINEL_STALE_ROLE,XREDIS_SENTINEL_TIMEOUT,
     XREDIS_SENTINEL_CANCELLED,XREDIS_SENTINEL_AUTH_FAILED,XREDIS_SENTINEL_SERVER_ERROR,
-    XREDIS_SENTINEL_PROTOCOL,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_MEMORY,XREDIS_SENTINEL_FACTORY
+    XREDIS_SENTINEL_PROTOCOL,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_MEMORY,XREDIS_SENTINEL_FACTORY,XREDIS_SENTINEL_NO_REPLICA
 } xredissentinelstatus;
 typedef enum xredissentinelstep {
     XREDIS_SENTINEL_STEP_ERROR=-1,XREDIS_SENTINEL_WAIT=0,XREDIS_SENTINEL_MORE=1,XREDIS_SENTINEL_DONE=2
@@ -5118,6 +5118,7 @@ typedef enum xredissentinelstep {
  * its own ROLE command; factories need no role flag. */
 typedef xredissentinelstatus (*xredissentinelseedconnect)(xnetengine* Engine,size_t Seed,int64 Timeout,ptr Data,xredisclient** Client);
 typedef xredissentinelstatus (*xredissentinelmasterconnect)(xnetengine* Engine,const xredissentinelendpoint* Endpoint,int64 Timeout,ptr Data,xredisclient** Client);
+typedef xredissentinelmasterconnect xredissentinelreplicaconnect;
 typedef struct xredissentinelconfig {
     size_t Size; xbytesview Service;
     size_t SeedCount,PreferredSeed,MaxRounds,MaxServiceBytes,MaxHostBytes;
@@ -5128,7 +5129,8 @@ typedef struct xredissentinelconfig {
 /* Host borrows Discovery until Destroy, copied once from the successful query.
  * PreferredSeed identifies the most recent positive query, for the next discovery.
  * Native outcomes are last observations, never an ambient error/peer diagnostic.
- * OK verifies a point-in-time master identity, not freshness or consensus. */
+ * MasterAttempts counts data-node attempts for either constructor. OK
+ * verifies the requested point-in-time role. Replication lag can still occur. */
 typedef struct xredissentinelresult {
     size_t Size;xredissentinelstatus Status;xredissentinelendpoint Endpoint;
     size_t PreferredSeed,Rounds,SeedAttempts,MasterAttempts,UnknownReplies,StaleReplies;
@@ -5148,6 +5150,19 @@ XREDIS_API bool xredisSentinelConfigInit(xredissentinelconfig* Config);
  * Successful factories' transport callbacks retain their own context/security
  * material through native physical close; Discovery never assumes their duty. */
 XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,const xredissentinelconfig* Config,xredissentineldiscovery** Output);
+/* Discover one replica with SENTINEL REPLICAS and verify ROLE reports a
+ * connected replica. ConnectReplica supplies the data factory; ConnectMaster
+ * may be NULL. MaxReplicas limits all rows to 1..256 and each row has at most
+ * 128 pairs. Role.MaxPayloadBytes also bounds the list reply. Validate the
+ * complete list before connecting. Down/disconnected rows are skipped.
+ * Try eligible replicas in wire order, then continue through the seeds.
+ * SeedTimeout also bounds each replica setup+ROLE, and Timeout includes all
+ * candidates and physical retirement. Empty/ineligible lists can report
+ * NO_REPLICA. ConnectReplica controls authority, credentials and trust.
+ * Uses the same Step/Pending/TakeClient/Destroy contract. A successful Client
+ * carries the caller's normal command privileges and a point-in-time role. */
+XREDIS_API xredisadmission xredisSentinelReplicaDiscoveryCreate(xnetengine* Engine,const xredissentinelconfig* Config,
+    xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,xredissentineldiscovery** Output);
 /* Each Step advances one phase, never blocks. MORE schedules another turn.
  * WAIT observes Pending or NextWake (whichever comes first). Never busy-poll or
  * block an Engine worker. One original monotonic deadline spans all rounds,
@@ -5166,7 +5181,7 @@ XREDIS_API xfuture* xredisSentinelDiscoveryPending(xredissentineldiscovery* Disc
  * polling at >=1ms. Pending completion can require an earlier turn. */
 XREDIS_API double xredisSentinelDiscoveryNextWake(xredissentineldiscovery* Discovery);
 XREDIS_API bool xredisSentinelDiscoveryResult(xredissentineldiscovery* Discovery,xredissentinelresult* Result);
-/* Once only, after DONE/OK, transfers native master reference and close duty.
+/* Once only, after DONE/OK, transfers the native verified Client reference and close duty.
  * Destroy otherwise closes it. Future reconnects must run discovery again.
  * No proxy/extra allocation/copy/synchronization on ordinary business calls. */
 XREDIS_API bool xredisSentinelDiscoveryTakeClient(xredissentineldiscovery* Discovery,xredisclient** Client);

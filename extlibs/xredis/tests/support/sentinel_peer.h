@@ -8,7 +8,7 @@ typedef struct sentinelpeer {
 } sentinelpeer;
 typedef struct sentinelfixture {
     sentinelpeer *Seeds[4],*Masters[3];size_t SeedUsed,MasterUsed,SeedCount,MasterCount;
-    size_t Order[16],OrderCount;unsigned Factory;bool Secure; xredisinitmode Mode;
+    size_t Order[16],OrderCount;unsigned Factory;bool Secure,Replicas; xredisinitmode Mode;
     xredissentinelstatus SeedFailure,MasterFailure;
     xredisclient* Clients[8];size_t ClientCount;
 } sentinelfixture;
@@ -16,7 +16,10 @@ static inline void sentinelPeerStart(sentinelfixture* F,sentinelpeer* P,bool See
 {
     size_t N=0;
     if(F->Mode!=XREDIS_INIT_RESP2)P->Steps[N++]=(redisinitpeerstep){{XRT_BYTES_LITERAL("HELLO"),XRT_BYTES_LITERAL("3")},2,XRT_BYTES_LITERAL(REDIS_INIT_HELLO_REPLY),false,false};
-    if(Seed)P->Steps[N++]=(redisinitpeerstep){{XRT_BYTES_LITERAL("SENTINEL"),XRT_BYTES_LITERAL("GET-MASTER-ADDR-BY-NAME"),XRT_BYTES_LITERAL("cache")},3,{(cbytes)Response,strlen(Response)},Hold,Abort};
+    if(Seed){
+        xbytesview Command=F->Replicas?(xbytesview)XRT_BYTES_LITERAL("REPLICAS"):(xbytesview)XRT_BYTES_LITERAL("GET-MASTER-ADDR-BY-NAME");
+        P->Steps[N++]=(redisinitpeerstep){{XRT_BYTES_LITERAL("SENTINEL"),Command,XRT_BYTES_LITERAL("cache")},3,{(cbytes)Response,strlen(Response)},Hold,Abort};
+    }
     else P->Steps[N++]=(redisinitpeerstep){{XRT_BYTES_LITERAL("ROLE")},1,{(cbytes)Response,strlen(Response)},Hold,Abort};
     roleClientPeerStart(&P->Peer,F->Secure,F->Factory!=0,P->Steps,N);P->Started=true;
 }
@@ -72,6 +75,21 @@ static inline void sentinelConfig(sentinelfixture* F,xredissentinelconfig* K)
 {xredisSentinelConfigInit(K);K->Service=(xbytesview)XRT_BYTES_LITERAL("cache");K->ConnectSeed=sentinelSeedConnect;K->ConnectMaster=sentinelMasterConnect;K->Data=F;K->Protocol=F->Mode==XREDIS_INIT_RESP2?XREDIS_RESP2:XREDIS_RESP3;K->SeedTimeout=2000;K->RetryDelay=10;}
 static inline xredissentineldiscovery* sentinelCreate(sentinelfixture* F,const xredissentinelconfig* K)
 {xredissentineldiscovery* D=NULL;redisPeerRequire(xredisSentinelDiscoveryCreate(roleClientPeerInit(&F->Seeds[0]->Peer)->Peer.Engine,K,&D)==XREDIS_ADMISSION_ACCEPTED,"discovery create");return D;}
+static inline xredissentineldiscovery* sentinelReplicaCreate(sentinelfixture* F,xredissentinelconfig* K,size_t MaxReplicas)
+{
+    xredissentineldiscovery* D=NULL;
+    K->ConnectMaster=NULL;
+    redisPeerRequire(xredisSentinelReplicaDiscoveryCreate(roleClientPeerInit(&F->Seeds[0]->Peer)->Peer.Engine,
+        K,sentinelMasterConnect,MaxReplicas,&D)==XREDIS_ADMISSION_ACCEPTED,"replica discovery create");
+    return D;
+}
+static inline size_t sentinelReplicaRow(char* Output,size_t Capacity,bool Map,unsigned Port,cstr Flags)
+{
+    int N=snprintf(Output,Capacity,"%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+%s\r\n",
+        Map?"%3":"*6",Port,Flags);
+    redisPeerRequire(N>0 && (size_t)N<Capacity,"bounded replica fixture row");
+    return (size_t)N;
+}
 static inline xredissentinelresult sentinelDrive(xredissentineldiscovery* D)
 {
     double End=xrtTimer()+12;

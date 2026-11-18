@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `218` 个函数、`360` 个常量或宏、
-`159` 个公共类型。
+当前登记 `219` 个函数、`361` 个常量或宏、
+`160` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -851,7 +851,7 @@
 
 [查看带契约注释的公共头](../../include/xredis/sentinel.h)
 
-### 函数 (9)
+### 函数 (10)
 
 - `xredisSentinelConfigInit`
 - `xredisSentinelDiscoveryCancel`
@@ -862,8 +862,9 @@
 - `xredisSentinelDiscoveryResult`
 - `xredisSentinelDiscoveryStep`
 - `xredisSentinelDiscoveryTakeClient`
+- `xredisSentinelReplicaDiscoveryCreate`
 
-### 常量与宏 (18)
+### 常量与宏 (19)
 
 - `XREDIS_FEATURE_XREDIS_SENTINEL`
 - `XREDIS_SENTINEL_AUTH_FAILED`
@@ -873,6 +874,7 @@
 - `XREDIS_SENTINEL_LIMIT`
 - `XREDIS_SENTINEL_MEMORY`
 - `XREDIS_SENTINEL_MORE`
+- `XREDIS_SENTINEL_NO_REPLICA`
 - `XREDIS_SENTINEL_OK`
 - `XREDIS_SENTINEL_PENDING`
 - `XREDIS_SENTINEL_PROTOCOL`
@@ -884,12 +886,13 @@
 - `XREDIS_SENTINEL_UNREACHABLE`
 - `XREDIS_SENTINEL_WAIT`
 
-### 类型 (8)
+### 类型 (9)
 
 - `xredissentinelconfig`
 - `xredissentineldiscovery`
 - `xredissentinelendpoint`
 - `xredissentinelmasterconnect`
+- `xredissentinelreplicaconnect`
 - `xredissentinelresult`
 - `xredissentinelseedconnect`
 - `xredissentinelstatus`

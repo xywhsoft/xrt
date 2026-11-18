@@ -1,4 +1,4 @@
-"""Owned real Redis/Sentinel master discovery before and after manual failover."""
+"""Owned real Redis/Sentinel master and replica discovery before and after manual failover."""
 from pathlib import Path
 import argparse,json,subprocess,tempfile,socket,time,traceback,shutil,hashlib
 from run_redis_role import exchange
@@ -40,19 +40,27 @@ def main():
    peers,_=exchange(sentinel,['SENTINEL','REPLICAS','cache'])
    if value[3]==b'connected' and peers:break
    assert time.monotonic()<due,'replica not observed by Sentinel';time.sleep(.05)
-  def probe(stage,port,service,status):
+  def probe(stage,port,service,status,replica=False):
    owned();runid=next(x['run_id'] for x in result['fixtures'] if x['port']==port)
    for factory in range(3):
     for protocol in (2,3,0):
-     args=[str(client),str(sentinel),str(port),runid,service,str(factory),str(protocol),str(status)];p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=25);result['cases'].append(dict(stage=stage,port=port,service=service,status=status,factory=factory,protocol=protocol,exit_code=p.returncode,output=p.stdout));save();assert p.returncode==0,p.stdout
+     args=[str(client),str(sentinel),str(port),runid,service,str(factory),str(protocol),str(status)]
+     if replica:args.append('replica')
+     p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=25);result['cases'].append(dict(stage=stage,port=port,service=service,status=status,factory=factory,protocol=protocol,exit_code=p.returncode,output=p.stdout));save();assert p.returncode==0,p.stdout
    print(stage,'9 real discovery probes passed',flush=True)
   probe('initial-master',master,'cache',1);probe('unknown-service',master,'missing',3)
+  probe('initial-replica',replica,'cache',1,replica=True)
+  probe('unknown-replica-service',replica,'missing',3,replica=True)
   owned();exchange(sentinel,['SENTINEL','FAILOVER','cache']);due=time.monotonic()+25
   while True:
    endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache']);role,_=exchange(replica,['ROLE']);old,_=exchange(master,['ROLE'])
-   if endpoint and int(endpoint[1])==replica and role[0]==b'master' and old[0]==b'slave':break
+   peers,_=exchange(sentinel,['SENTINEL','REPLICAS','cache'])
+   if (endpoint and int(endpoint[1])==replica and role[0]==b'master' and old[0]==b'slave' and
+       old[3]==b'connected' and any(int(dict(zip(row[::2],row[1::2]))[b'port'])==master for row in peers)):
+    break
    assert time.monotonic()<due,'manual failover not completed';time.sleep(.05)
-  probe('rediscovered-promoted-master',replica,'cache',1);owned();result['complete']=True
+  probe('rediscovered-promoted-master',replica,'cache',1)
+  probe('rediscovered-demoted-replica',master,'cache',1,replica=True);owned();result['complete']=True
  except BaseException:
   result['failure']=traceback.format_exc();raise
  finally:

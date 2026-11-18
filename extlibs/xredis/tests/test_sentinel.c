@@ -91,5 +91,117 @@ static void sentinelBounds(void)
         xredissentineldiscovery* D=(xredissentineldiscovery*)(uintptr_t)1;testRequire(xredisSentinelDiscoveryCreate(E,&C,&D)==XREDIS_ADMISSION_ERROR && D==(xredissentineldiscovery*)(uintptr_t)1,"invalid arguments preserve output");xrtClearError();}
     bool Rejected=false,Accepted=false;for(size_t Limit=1;Limit<6000;Limit+=131){xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&Scope),"constructor quota");xredissentineldiscovery* D=NULL;xredisadmission A=xredisSentinelDiscoveryCreate(E,&K,&D);if(A==XREDIS_ADMISSION_ACCEPTED){Accepted=true;xredisSentinelDiscoveryDestroy(D);}else{Rejected=true;testRequire(!D,"OOM preserves output");xrtClearError();}testRequire(xrtAllocationBudgetLeave(&Scope),"leave quota");xallocationbudgetinfo Info={0};Info.Size=sizeof(Info);testRequire(xrtAllocationBudgetInfo(B,&Info) && !Info.LiveCount && !Info.LiveBytes,"constructor/destroy no outstanding memory");xrtAllocationBudgetFree(B);}testRequire(Rejected && Accepted,"quotas straddle allocation");sentinelFixtureStop(&F);
 }
+static void sentinelReplicaSuccess(void)
+{
+    const cstr Disconnected="*5\r\n+slave\r\n+127.0.0.1\r\n:6379\r\n+sync\r\n:0\r\n";
+    for(unsigned Secure=0;Secure<(ROLE_PEER_TLS?2u:1u);++Secure)for(unsigned V=0;V<2;++V){
+        sentinelfixture F;sentinelFixtureStart(&F,0,Secure!=0,V?XREDIS_INIT_RESP3:XREDIS_INIT_RESP2);
+        F.Replicas=true;
+        sentinelMaster(&F,ROLE_MASTER_REPLY,false,false);
+        sentinelMaster(&F,Disconnected,false,false);
+        sentinelMaster(&F,ROLE_REPLICA_REPLY,false,false);
+        char Wire[512]="*4\r\n";size_t N=strlen(Wire);
+        N+=sentinelReplicaRow(Wire+N,sizeof(Wire)-N,V!=0,101,"slave,s_down,disconnected");
+        for(size_t I=0;I<F.MasterCount;++I)
+            N+=sentinelReplicaRow(Wire+N,sizeof(Wire)-N,V!=0,
+                roleClientPeerInit(&F.Masters[I]->Peer)->Peer.Address.Port,"slave");
+        sentinelSeed(&F,Wire,false,false);
+        xredissentinelconfig K;sentinelConfig(&F,&K);
+        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,4);
+        xredissentinelresult R=sentinelDrive(D);
+        testRequire(R.Status==XREDIS_SENTINEL_OK&&R.SeedAttempts==1&&R.MasterAttempts==3&&R.StaleReplies==2&&
+            R.Rounds==1&&R.Endpoint.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
+            "skip down row, retire stale master and syncing replica, select connected replica");
+        xredisclient* C=NULL;
+        testRequire(xredisSentinelDiscoveryTakeClient(D,&C),"transfer native replica");
+        xredisSentinelDiscoveryDestroy(D);
+        xfuture* F1=roleClientPing(C,5000);
+        testRequire(((const xredisrequestresult*)roleClientWait(F1))->Status==XREDIS_REQUEST_OK,"transferred replica PING");
+        xrtFutureDestroy(F1);xredisClientClose(C);xredisClientRelease(C);
+        sentinelFixtureStop(&F);
+    }
+}
+static void sentinelReplicaNextSeed(void)
+{
+    for(unsigned Cancel=0;Cancel<2;++Cancel){
+        sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
+        sentinelMaster(&F,ROLE_REPLICA_REPLY,true,false);
+        sentinelMaster(&F,ROLE_REPLICA_REPLY,false,false);
+        char First[180]="*1\r\n",Second[180]="*1\r\n";
+        sentinelReplicaRow(First+4,sizeof(First)-4,true,roleClientPeerInit(&F.Masters[0]->Peer)->Peer.Address.Port,"slave");
+        sentinelReplicaRow(Second+4,sizeof(Second)-4,true,roleClientPeerInit(&F.Masters[1]->Peer)->Peer.Address.Port,"slave");
+        sentinelSeed(&F,First,false,false);sentinelSeed(&F,Second,false,false);
+        xredissentinelconfig K;sentinelConfig(&F,&K);K.SeedCount=2;K.MaxRounds=1;K.SeedTimeout=500;
+        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,1);
+        if(Cancel){
+            double End=xrtTimer()+4;
+            while(xrtAtomic32Load(&roleClientPeerInit(&F.Masters[0]->Peer)->StepsSeen,XMEMORY_ACQUIRE)<2){
+                testRequire(xrtTimer()<End,"held replica ROLE started");xredisSentinelDiscoveryStep(D);xrtSleep(1);
+            }
+            testRequire(xredisSentinelDiscoveryCancel(D),"cancel with retained list and held ROLE");
+        }
+        xredissentinelresult R=sentinelDrive(D);
+        if(Cancel)testRequire(R.Status==XREDIS_SENTINEL_CANCELLED&&R.MasterAttempts==1&&!R.Endpoint.Host.Data,
+            "cancel retires candidate and clears endpoint");
+        else testRequire(R.Status==XREDIS_SENTINEL_OK&&R.SeedAttempts==2&&R.MasterAttempts==2&&R.PreferredSeed==1&&
+            R.Rounds==1&&F.Order[0]==0&&F.Order[1]==1,"candidate timeout proceeds to next seed within round");
+        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+    }
+}
+static void sentinelReplicaErrors(void)
+{
+    const cstr Replies[]={
+        "*0\r\n","-ERR No such master with that name\r\n","-NOPERM blocked\r\n",
+        "*1\r\n%3\r\n+ip\r\n+127.0.0.1\r\n+ip\r\n+duplicate\r\n+flags\r\n+slave\r\n",
+        "*0\r\n","*0\r\n","*0\r\n","*0\r\n","_\r\n"
+    };
+    const xredissentinelstatus Status[]={
+        XREDIS_SENTINEL_NO_REPLICA,XREDIS_SENTINEL_UNKNOWN_SERVICE,XREDIS_SENTINEL_SERVER_ERROR,
+        XREDIS_SENTINEL_PROTOCOL,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_PROTOCOL,
+        XREDIS_SENTINEL_NO_REPLICA,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_UNKNOWN_SERVICE
+    };
+    for(size_t I=0;I<sizeof(Status)/sizeof(*Status);++I){
+        sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
+        char Wire[400];cstr Response=Replies[I];
+        if(I>=4&&I<=7){
+            strcpy(Wire,I<=5?"*2\r\n":"*1\r\n");
+            size_t N=4+sentinelReplicaRow(Wire+4,sizeof(Wire)-4,true,6379,I==6?"slave,o_down":"slave");
+            if(I==4)sentinelReplicaRow(Wire+N,sizeof(Wire)-N,true,6380,"slave");
+            if(I==5)strcpy(Wire+N,"+bad late row\r\n");
+            Response=Wire;
+        }
+        sentinelSeed(&F,Response,false,false);
+        xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=1;
+        if(I==7)K.Role.MaxPayloadBytes=1;
+        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,I==4?1:4);
+        xredissentinelresult R=sentinelDrive(D);
+        testRequire(R.Status==Status[I]&&!R.MasterAttempts&&!R.Endpoint.Host.Data,
+            "complete list validation and typed failures before data factory");
+        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+    }
+}
+static void sentinelReplicaBounds(void)
+{
+    sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
+    sentinelSeed(&F,"*0\r\n",false,false);
+    xredissentinelconfig K;sentinelConfig(&F,&K);K.ConnectMaster=NULL;
+    xnetengine* E=roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine;
+    xredissentineldiscovery* D=(xredissentineldiscovery*)(uintptr_t)1;
+    testRequire(xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,0,&D)==XREDIS_ADMISSION_ERROR&&
+        xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,257,&D)==XREDIS_ADMISSION_ERROR&&
+        xredisSentinelReplicaDiscoveryCreate(E,&K,NULL,1,&D)==XREDIS_ADMISSION_ERROR&&
+        D==(xredissentineldiscovery*)(uintptr_t)1,"invalid replica admission preserves output");
+    xrtClearError();
+    xallocationbudget* B=NULL;xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&B)&&xrtAllocationBudgetEnter(B,&Scope),"bounded replica constructor OOM");
+    testRequire(xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,64,&D)==XREDIS_ADMISSION_ERROR&&
+        D==(xredissentineldiscovery*)(uintptr_t)1,"allocation refusal preserves output");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"exit replica constructor scope");
+    xrtClearError();
+    xallocationbudgetinfo Info={.Size=sizeof(Info)};
+    testRequire(xrtAllocationBudgetInfo(B,&Info)&&!Info.LiveCount&&!Info.LiveBytes,"replica allocation rolls back");
+    xrtAllocationBudgetFree(B);sentinelFixtureStop(&F);
+}
 int main(void)
-{sentinelSuccess();sentinelStale();sentinelErrors();sentinelStops();sentinelAdditional();sentinelRoleCaps();sentinelNativeFailures();sentinelBounds();puts("Sentinel discovery tests passed");return 0;}
+{sentinelReplicaSuccess();sentinelReplicaNextSeed();sentinelReplicaErrors();sentinelReplicaBounds();
+ puts("Sentinel replica selection tests passed");sentinelSuccess();sentinelStale();sentinelErrors();sentinelStops();sentinelAdditional();sentinelRoleCaps();sentinelNativeFailures();sentinelBounds();puts("Sentinel discovery tests passed");return 0;}
