@@ -73,7 +73,8 @@ class SentinelTls:
                     "user xredis-seed on >fixture-seed-pass &+switch-master +auth +hello +ping +subscribe "
                     "+sentinel|get-master-addr-by-name +sentinel|replicas +sentinel|sentinels\n")
         replication = f"replicaof 127.0.0.1 {master}\n" if name == "replica" else ""
-        return (prefix + replication + "masteruser xredis-replication\nmasterauth fixture-replication-pass\n"
+        priority = "replica-priority 0\n" if name == "standby" else ""
+        return (prefix + replication + priority + "masteruser xredis-replication\nmasterauth fixture-replication-pass\n"
                 "repl-diskless-sync-delay 0\n"
                 "user xredis-replication on >fixture-replication-pass +ping +psync +replconf\n"
                 "user xredis-monitor on >fixture-monitor-pass &__sentinel__:hello "

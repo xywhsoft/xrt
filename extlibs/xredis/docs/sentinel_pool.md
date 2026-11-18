@@ -36,7 +36,11 @@ list bound. The initial slot establishes one chosen replica before parallel
 refill. Every subsequent connection rediscovers Sentinel and verifies with
 ROLE that the candidate is a connected replica. A repair tries the current
 exact host and port first when they remain eligible in the reply. This keeps
-healthy members in place when Sentinel changes list order.
+healthy members in place when Sentinel changes list order. If that endpoint
+reports that it has become a primary before the seed reports a promotion,
+the worker retires the probe and requests fresh topology before trying
+other rows from that seed. When Sentinel reports a promoted endpoint,
+replacement connections must already follow it.
 
 Each generation serves one verified endpoint. A different verified replica
 closes the old generation's admission gate and drains its connections before

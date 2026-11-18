@@ -2496,6 +2496,8 @@ XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,cons
  * 128 pairs. Role.MaxPayloadBytes also bounds the list reply. Validate the
  * complete list before connecting. Down/disconnected rows are skipped.
  * Try eligible replicas in wire order, then continue through the seeds.
+ * A row marked promoted identifies the required exact upstream during that
+ * snapshot. Exclude the promoted node itself from read candidates.
  * SeedTimeout also bounds each replica setup+ROLE, and Timeout includes all
  * candidates and physical retirement. Empty/ineligible lists can report
  * NO_REPLICA. ConnectReplica controls authority, credentials and trust.
@@ -11945,7 +11947,7 @@ struct xredissentineldiscovery {
     xredissentinelstatus AfterDrain,ReplicaFailure;
     xredisreply* ReplicaReply;
     size_t ReplicaLimit,ReplicaCount,ReplicaIndex;
-    xredissentinelendpoint PreferredReplica;
+    xredissentinelendpoint PreferredReplica,Promoted;
     xredissentinelpeerdiscovery Peers;
     xredisreply* PeerReply;
     size_t Seed, PeerCount;
@@ -11971,7 +11973,7 @@ static void xredisSentinelDropPeers(xredissentineldiscovery* D)
 static void xredisSentinelDropReplicas(xredissentineldiscovery* D)
 {
     xredisReplyRelease(D->ReplicaReply);
-    D->ReplicaReply=NULL;D->ReplicaCount=D->ReplicaIndex=0;
+    D->ReplicaReply=NULL;D->ReplicaCount=D->ReplicaIndex=0;D->Promoted=(xredissentinelendpoint){0};
 }
 static bool xredisSentinelDisjoint(xredissentineldiscovery* D,ptr P,size_t N)
 {return P && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(D,xredisSentinelBytes(&D->Config,D->ReplicaLimit+D->Peers.MaxRows,D->PreferredReplica.Host.Size),P,N);}
@@ -12148,10 +12150,12 @@ static xredissentinelstatus xredisSentinelEndpoint(xredissentineldiscovery* D,co
 }
 static bool xredisSentinelEquals(xbytesview V,xbytesview Expected)
 {return V.Size==Expected.Size && !memcmp(V.Data,Expected.Data,V.Size);}
-static xredissentinelstatus xredisSentinelFlags(const xredisreplyvalue* Flags,xbytesview Kind)
+static bool xredisSentinelSameEndpoint(xredissentinelendpoint A,xredissentinelendpoint B)
+{return A.Port==B.Port && xredisSentinelEquals(A.Host,B.Host);}
+static xredissentinelstatus xredisSentinelFlags(const xredisreplyvalue* Flags,xbytesview Kind,bool* Promoted)
 {
     if(!xredisSentinelString(Flags)||!Flags->Data.Size)return XREDIS_SENTINEL_PROTOCOL;
-    bool Matching=false,Down=false;
+    bool Matching=false,Down=false,Promotion=false;
     size_t At=0;
     for(size_t I=0;I<=Flags->Data.Size;++I){
         if(I<Flags->Data.Size && Flags->Data.Data[I]!=','){
@@ -12161,15 +12165,17 @@ static xredissentinelstatus xredisSentinelFlags(const xredisreplyvalue* Flags,xb
         if(I==At)return XREDIS_SENTINEL_PROTOCOL;
         xbytesview Flag={Flags->Data.Data+At,I-At};
         if(xredisSentinelEquals(Flag,Kind))Matching=true;
+        if(Promoted && xredisSentinelEquals(Flag,(xbytesview)XRT_BYTES_LITERAL("promoted")))Promotion=true;
         if(xredisSentinelEquals(Flag,(xbytesview)XRT_BYTES_LITERAL("s_down"))||
            xredisSentinelEquals(Flag,(xbytesview)XRT_BYTES_LITERAL("o_down"))||
            xredisSentinelEquals(Flag,(xbytesview)XRT_BYTES_LITERAL("disconnected")))Down=true;
         At=I+1;
     }
+    if(Promoted)*Promoted=Matching&&Promotion;
     return Matching&&!Down?XREDIS_SENTINEL_OK:XREDIS_SENTINEL_NO_REPLICA;
 }
 static xredissentinelstatus xredisSentinelNodeRow(xredissentineldiscovery* D,const xredisreply* Reply,
-    const xredisreplyvalue* Row,xbytesview Kind,xredissentinelendpoint* Endpoint)
+    const xredisreplyvalue* Row,xbytesview Kind,xredissentinelendpoint* Endpoint,bool* Promoted)
 {
     if((Row->Type!=XREDIS_REPLY_MAP&&Row->Type!=XREDIS_REPLY_ARRAY)||
        Row->Flags&XREDIS_REPLY_NULL_VALUE||Row->ChildCount%2)return XREDIS_SENTINEL_PROTOCOL;
@@ -12189,7 +12195,7 @@ static xredissentinelstatus xredisSentinelNodeRow(xredissentineldiscovery* D,con
     }
     if(Seen!=7)return XREDIS_SENTINEL_PROTOCOL;
     xredissentinelstatus S=xredisSentinelAddress(D,Fields,Fields+1,Endpoint);
-    return S==XREDIS_SENTINEL_OK?xredisSentinelFlags(Fields+2,Kind):S;
+    return S==XREDIS_SENTINEL_OK?xredisSentinelFlags(Fields+2,Kind,Promoted):S;
 }
 static xredissentinelstatus xredisSentinelReadReplicas(xredissentineldiscovery* D,xredisreply* Reply)
 {
@@ -12199,19 +12205,28 @@ static xredissentinelstatus xredisSentinelReadReplicas(xredissentineldiscovery* 
     if(Root.Type!=XREDIS_REPLY_ARRAY)return XREDIS_SENTINEL_PROTOCOL;
     if(Root.ChildCount>D->ReplicaLimit||Info.PayloadBytes>D->Config.Role.MaxPayloadBytes)return XREDIS_SENTINEL_LIMIT;
     size_t Count=0;
+    bool ConflictingPromotion=false;
+    xredissentinelendpoint Promoted={0};
     xredissentinelendpoint* Entries=xredisSentinelReplicas(D);
     for(size_t I=Root.FirstChild;I!=XREDIS_REPLY_NONE;){
         xredisreplyvalue Row;xredisReplyGet(Reply,I,&Row);
-        xredissentinelstatus S=xredisSentinelNodeRow(D,Reply,&Row,(xbytesview)XRT_BYTES_LITERAL("slave"),Entries+Count);
-        if(S==XREDIS_SENTINEL_OK)++Count;
-        else if(S!=XREDIS_SENTINEL_NO_REPLICA)return S;
+        xredissentinelendpoint Entry;
+        bool Promotion=false;
+        xredissentinelstatus S=xredisSentinelNodeRow(D,Reply,&Row,(xbytesview)XRT_BYTES_LITERAL("slave"),&Entry,&Promotion);
+        if(S!=XREDIS_SENTINEL_OK && S!=XREDIS_SENTINEL_NO_REPLICA)return S;
+        if(Promotion){
+            /* A promoted row identifies the new upstream even while Sentinel
+             * considers its data link down. It is never a read candidate. */
+            if(Promoted.Port && !xredisSentinelSameEndpoint(Promoted,Entry))ConflictingPromotion=true;
+            Promoted=Entry;
+        }else if(S==XREDIS_SENTINEL_OK)Entries[Count++]=Entry;
         I=Row.Next;
     }
-    if(!Count)return XREDIS_SENTINEL_NO_REPLICA;
+    if(!Count || ConflictingPromotion)return XREDIS_SENTINEL_NO_REPLICA;
     if(D->PreferredReplica.Port){
         for(size_t I=0;I<Count;++I){
             xredissentinelendpoint Entry=Entries[I];
-            if(Entry.Port!=D->PreferredReplica.Port||!xredisSentinelEquals(Entry.Host,D->PreferredReplica.Host))continue;
+            if(!xredisSentinelSameEndpoint(Entry,D->PreferredReplica))continue;
             if(I){
                 memmove(Entries+1,Entries,I*sizeof(*Entries));
                 Entries[0]=Entry;
@@ -12220,7 +12235,7 @@ static xredissentinelstatus xredisSentinelReadReplicas(xredissentineldiscovery* 
         }
     }
     if(!xredisReplyRetain(Reply))return XREDIS_SENTINEL_LIMIT;
-    D->ReplicaReply=Reply;D->ReplicaCount=Count;
+    D->ReplicaReply=Reply;D->ReplicaCount=Count;D->Promoted=Promoted;
     return XREDIS_SENTINEL_OK;
 }
 static void xredisSentinelReadPeers(xredissentineldiscovery* D,xredisreply* Reply)
@@ -12235,7 +12250,7 @@ static void xredisSentinelReadPeers(xredissentineldiscovery* D,xredisreply* Repl
     for(size_t I=Root.FirstChild;I!=XREDIS_REPLY_NONE;){
         xredisreplyvalue Row;
         xredisReplyGet(Reply,I,&Row);
-        xredissentinelstatus S=xredisSentinelNodeRow(D,Reply,&Row,(xbytesview)XRT_BYTES_LITERAL("sentinel"),Entries+Count);
+        xredissentinelstatus S=xredisSentinelNodeRow(D,Reply,&Row,(xbytesview)XRT_BYTES_LITERAL("sentinel"),Entries+Count,NULL);
         if(S==XREDIS_SENTINEL_OK)++Count;
         else if(S!=XREDIS_SENTINEL_NO_REPLICA)return;
         I=Row.Next;
@@ -12298,7 +12313,19 @@ static void xredisSentinelReply(xredissentineldiscovery* D,bool Seed)
     }else{
         xredisroleinfo I;xredisrolestatus S=xredisRoleRead(R->Reply,&D->Config.Role,&I);
         if(S!=XREDIS_ROLE_VALUE){xredisSentinelStop(D,S==XREDIS_ROLE_LIMIT?XREDIS_SENTINEL_LIMIT:XREDIS_SENTINEL_PROTOCOL);return;}
-        bool Verified=D->ReplicaLimit?(I.Kind==XREDIS_ROLE_REPLICA&&I.Link==XREDIS_ROLE_LINK_CONNECTED):I.Kind==XREDIS_ROLE_MASTER;
+        bool Verified=I.Kind==XREDIS_ROLE_MASTER;
+        if(D->ReplicaLimit){
+            xredissentinelendpoint Upstream={I.MasterHost,I.MasterPort};
+            Verified=I.Kind==XREDIS_ROLE_REPLICA && I.Link==XREDIS_ROLE_LINK_CONNECTED &&
+                (!D->Promoted.Port || (xredisSentinelSameEndpoint(Upstream,D->Promoted) &&
+                                      !xredisSentinelSameEndpoint(D->Result.Endpoint,D->Promoted)));
+            if(I.Kind==XREDIS_ROLE_MASTER && !D->Promoted.Port && D->PreferredReplica.Port &&
+               xredisSentinelSameEndpoint(D->Result.Endpoint,D->PreferredReplica)){
+                /* The previously selected replica is now primary. Refresh the
+                 * contradicted seed snapshot before trying its other rows. */
+                D->ReplicaIndex=D->ReplicaCount-1;
+            }
+        }
         if(!Verified){++D->Result.StaleReplies;xredisSentinelDrainStart(D,false,XREDIS_SENTINEL_STALE_ROLE);return;}
         xredisSentinelDropPending(D);D->State=XS_SUCCESS;
     }

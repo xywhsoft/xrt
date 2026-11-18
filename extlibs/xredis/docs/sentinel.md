@@ -53,9 +53,14 @@ list is validated before a data connection begins. Each row must carry one
 IP/host, port and flag field. The library skips rows without the replica
 flag and rows marked subjectively down, objectively down or disconnected.
 The first candidate with a native ROLE reply identifying a connected replica
-wins. A promoted or syncing node proceeds through physical close before
-another candidate. The factory can authorize or map Sentinel-announced names
-and addresses for the caller's network boundary.
+wins. When the snapshot marks a replica as promoted, discovery excludes
+that node and requires other candidates to report its exact host and port as
+their replication upstream. A connected candidate still following the old
+primary is retired before another candidate is tried. Conflicting promoted
+endpoints remain retryable. These checks reuse the original REPLICAS and ROLE
+commands and the retained reply. Host aliases must match byte-for-byte during
+the promotion snapshot. The factory can authorize or map Sentinel-announced
+addresses at the caller's network boundary.
 
 The configured seed timeout bounds each seed query and each candidate setup
 plus ROLE. The original total deadline covers the complete operation,

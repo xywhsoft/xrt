@@ -1,0 +1,2683 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "branch": "master",
+  "base_revision": "cc2e26606968236a13598c8391883192398aedbb",
+  "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+  "initial_probe_source_map_sha256": "dcfee04585e6bfa4e4b6a84845d135b6bcadeda7eca314b67f3c2936e97c1ce6",
+  "evidence_directory": "out/service-extensions/xredis-sentinel-standby-20261118",
+  "failure_before_fix": {
+    "report": "smoke-wsl-tcp-failover.json",
+    "sha256": "c4654ee2527bfb3f6ac2339843c461932519cca64610e0f6e5f1e7e603b1fa0b",
+    "fixture_log_sha256": {
+      "master": "2bb941e3b09e248c8df5761519b60346bbf4b196e9212e73eda454360ca64721",
+      "replica": "ba1c24a127717b3eab073ac434880de63b37d9db1612521504f3de1db2c16446",
+      "sentinel": "d57b7a5164e8daa47b43751ed90ca3639afbb969e18073a8cef7abd9cd0dc263",
+      "standby": "2159166e547a1b321b22dee95e5bcb9af8b1077d8bf7a2b66a07de9879ac643d"
+    },
+    "checkpoint": {
+      "send_to_pool_replacement_seconds": 0.14311379999998053,
+      "standby_role": "slave",
+      "standby_upstream": 39479,
+      "standby_state": "connected",
+      "promoted_role": "master",
+      "old_primary_role": "master"
+    },
+    "ports": {
+      "master": 39479,
+      "replica": 42175,
+      "sentinel": 43225,
+      "standby": 44705
+    },
+    "receipt": {
+      "label": "smoke-wsl-tcp-failover",
+      "log": "wsl-smoke-wsl-tcp-failover.log",
+      "exit_code": 1,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+        "--server",
+        "/usr/bin/redis-server",
+        "--listen",
+        "replica",
+        "--client",
+        "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+        "--case",
+        "0",
+        "3",
+        "--report",
+        "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/smoke-wsl-tcp-failover.json",
+        "--load",
+        "18000",
+        "1000",
+        "64",
+        "200",
+        "--standby"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "dcfee04585e6bfa4e4b6a84845d135b6bcadeda7eca314b67f3c2936e97c1ce6",
+      "log_sha256": "b9f2d280eb799e885928293b32e84929e912c796795959bf5766348f3e8046d8",
+      "programs": 0,
+      "binaries": []
+    }
+  },
+  "standby_matrix": [
+    {
+      "host": "windows",
+      "transport": "tcp",
+      "mode": "control",
+      "report": "matrix-windows-tcp-control.json",
+      "sha256": "c57e2074a5ef419213376cf2f750bdf457847e27e9eb70428158aa048d7482e6",
+      "fixture_log_sha256": {
+        "master": "9237a5f4dcd7c9fe3fd684bca85ddb9504335d5d3ea3ac8437d7354787080fce",
+        "replica": "d6fb757a6a8d2ae449d32b8dc5618fa79912055b3c054f80e61fb8aff7728cd8",
+        "sentinel": "b99632f47a2b138efc2bfb70f29b5c51c357c8fea450f9dec4560c7b3aac8187",
+        "standby": "a2c516b0c82a74ece8d74f73b3798739291b5dc5219f5569932fe6d806e1f625"
+      },
+      "receipt": {
+        "label": "matrix-windows-tcp-control",
+        "log": "wsl-matrix-windows-tcp-control.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/windows/redis_sentinel.exe",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-windows-tcp-control.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--control"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 44282,
+        "replica": 42673,
+        "sentinel": 39817,
+        "standby": 38954
+      },
+      "client_sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000100,
+        "trigger_marker_ns": 1000000000,
+        "switch_event_observed_ns": null,
+        "full_replacement_observed_ns": null,
+        "longest_success_completion_gap_ns": 3236800,
+        "successes": 18000,
+        "drain_successes": 0,
+        "phases": {
+          "before_marker": {
+            "start_ns": 0,
+            "end_ns": 1000000000,
+            "offered": 1000,
+            "successful": 1000,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1000
+            },
+            "delivery": {
+              "replied": 1000
+            },
+            "success_latency": {
+              "p50_us": 200.3,
+              "p95_us": 249.3,
+              "p99_us": 319.1,
+              "p999_us": 412.1
+            },
+            "all_latency": {
+              "p50_us": 200.3,
+              "p95_us": 249.3,
+              "p99_us": 319.1,
+              "p999_us": 412.1
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 4.4
+            },
+            "success_completions_per_sec": 1000.0
+          },
+          "after_marker": {
+            "start_ns": 1000000000,
+            "end_ns": 18000000000,
+            "offered": 17000,
+            "successful": 17000,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 17000,
+            "outcomes": {
+              "call_result:ok": 17000
+            },
+            "delivery": {
+              "replied": 17000
+            },
+            "success_latency": {
+              "p50_us": 195.3,
+              "p95_us": 244.2,
+              "p99_us": 326.8,
+              "p999_us": 493.6
+            },
+            "all_latency": {
+              "p50_us": 195.3,
+              "p95_us": 244.2,
+              "p99_us": 326.8,
+              "p999_us": 493.6
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 13.2
+            },
+            "success_completions_per_sec": 1000.0
+          }
+        },
+        "ledger": "matrix-windows-tcp-control-0-3-offers.csv.gz",
+        "ledger_sha256": "56637af3edaae714110068fe14068dedab5a0eb1c1fb363b7d29d31de24d845a"
+      }
+    },
+    {
+      "host": "windows",
+      "transport": "tcp",
+      "mode": "failover",
+      "report": "matrix-windows-tcp-failover.json",
+      "sha256": "5016e374abc3fc54039a4c276dca7b395b4d33dc7066945cfbe8e3a6964ce4dc",
+      "fixture_log_sha256": {
+        "master": "e4f1678c463dc58c8d4de2e03f70ccb2625f480ebb832762d1fa227c523a6262",
+        "replica": "9b1f471485a8620ad9c16dd4af5ade7503d8a9d9b1909287274ac2fbbf7f4cdd",
+        "sentinel": "2a148deb1d8611f1d4271956bec0159b824c83c9c62a8334952c78ddc80cd1e7",
+        "standby": "71a250dec428373e690262bad344be8b3e4f479fdf16a7e90520b852911490d1"
+      },
+      "receipt": {
+        "label": "matrix-windows-tcp-failover",
+        "log": "wsl-matrix-windows-tcp-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/windows/redis_sentinel.exe",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-windows-tcp-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 42534,
+        "replica": 40837,
+        "sentinel": 41304,
+        "standby": 44318
+      },
+      "client_sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2307274500,
+      "controller": {
+        "marker_to_send": 2.7000000955013093e-06,
+        "send_to_ack": 0.0003645999997843319,
+        "send_to_verified_roles": 12.309741881999798
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.3072820639999918,
+        "standby_role": "slave",
+        "standby_upstream": 40837,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000100,
+        "trigger_marker_ns": 1000000100,
+        "switch_event_observed_ns": 3226703900,
+        "full_replacement_observed_ns": 2304630900,
+        "longest_success_completion_gap_ns": 1108642400,
+        "successes": 16956,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000000100,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 196.0,
+              "p95_us": 242.1,
+              "p99_us": 336.2,
+              "p999_us": 395.9
+            },
+            "all_latency": {
+              "p50_us": 196.0,
+              "p95_us": 242.1,
+              "p99_us": 336.2,
+              "p999_us": 395.9
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 13.2
+            },
+            "success_completions_per_sec": 999.99990000001
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000000100,
+            "end_ns": 2304630900,
+            "offered": 1304,
+            "successful": 260,
+            "deadline_missed": 32,
+            "completed_successfully_in_window": 224,
+            "outcomes": {
+              "call_result:ok": 260,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 320,
+              "generator_capacity": 723
+            },
+            "delivery": {
+              "replied": 260,
+              "may_have_executed": 1,
+              "not_sent": 1043
+            },
+            "success_latency": {
+              "p50_us": 203.2,
+              "p95_us": 94302.0,
+              "p99_us": 103341.2,
+              "p999_us": 105836.2
+            },
+            "all_latency": {
+              "p50_us": 0.9,
+              "p95_us": 199020.4,
+              "p99_us": 200020.6,
+              "p999_us": 200378.2
+            },
+            "generator_lag": {
+              "p50_us": 0.3,
+              "p95_us": 0.9,
+              "p99_us": 1.3,
+              "p999_us": 4.4
+            },
+            "success_completions_per_sec": 171.6960844401343
+          },
+          "after_pool_online": {
+            "start_ns": 2304630900,
+            "end_ns": 18000000000,
+            "offered": 15695,
+            "successful": 15695,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15732,
+            "outcomes": {
+              "call_result:ok": 15695
+            },
+            "delivery": {
+              "replied": 15695
+            },
+            "success_latency": {
+              "p50_us": 197.2,
+              "p95_us": 247.6,
+              "p99_us": 339.0,
+              "p999_us": 468.5
+            },
+            "all_latency": {
+              "p50_us": 197.2,
+              "p95_us": 247.6,
+              "p99_us": 339.0,
+              "p999_us": 468.5
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 11.6
+            },
+            "success_completions_per_sec": 1002.3338667454466
+          }
+        },
+        "ledger": "matrix-windows-tcp-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "077f9374ddd6f2805f62d0b2c49332f3c773b3ff7523f41c24afbc1c4cfa0093"
+      }
+    },
+    {
+      "host": "windows",
+      "transport": "13",
+      "mode": "control",
+      "report": "matrix-windows-13-control.json",
+      "sha256": "618eba137fa39a50987d98c9aecd9081c85a28f07e2139c61bace4417c045a87",
+      "fixture_log_sha256": {
+        "master": "61a5a9cde6db0ed6dd86366882ae0826f857958ad3c7f9657e94b524c01106fe",
+        "replica": "dbeaaeea915e63e2acb97e9bcca79811e05654e57308d9d6ef14e84d00b1ab78",
+        "sentinel": "9689fcc2fb9eff184154a5852eb0952a1a32d63844dbde4b91d0c33ac4118ce9",
+        "standby": "8961974c65c12b54a1de2eb4755964d8c13bd717de5f580e4c80dda3097f8b52"
+      },
+      "receipt": {
+        "label": "matrix-windows-13-control",
+        "log": "wsl-matrix-windows-13-control.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/windows/redis_sentinel.exe",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-windows-13-control.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--control",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 46541,
+        "replica": 43874,
+        "sentinel": 46702,
+        "standby": 38510
+      },
+      "client_sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000100,
+        "trigger_marker_ns": 1000003800,
+        "switch_event_observed_ns": null,
+        "full_replacement_observed_ns": null,
+        "longest_success_completion_gap_ns": 1831800,
+        "successes": 18000,
+        "drain_successes": 0,
+        "phases": {
+          "before_marker": {
+            "start_ns": 0,
+            "end_ns": 1000003800,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 221.1,
+              "p95_us": 270.5,
+              "p99_us": 366.6,
+              "p999_us": 653.7
+            },
+            "all_latency": {
+              "p50_us": 221.1,
+              "p95_us": 270.5,
+              "p99_us": 366.6,
+              "p999_us": 653.7
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 20.0
+            },
+            "success_completions_per_sec": 999.99620001444
+          },
+          "after_marker": {
+            "start_ns": 1000003800,
+            "end_ns": 18000000000,
+            "offered": 16999,
+            "successful": 16999,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 17000,
+            "outcomes": {
+              "call_result:ok": 16999
+            },
+            "delivery": {
+              "replied": 16999
+            },
+            "success_latency": {
+              "p50_us": 218.0,
+              "p95_us": 262.2,
+              "p99_us": 342.7,
+              "p999_us": 448.7
+            },
+            "all_latency": {
+              "p50_us": 218.0,
+              "p95_us": 262.2,
+              "p99_us": 342.7,
+              "p999_us": 448.7
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 7.2
+            },
+            "success_completions_per_sec": 1000.0002235294618
+          }
+        },
+        "ledger": "matrix-windows-13-control-0-3-offers.csv.gz",
+        "ledger_sha256": "6a88feec4e21937e59fc23589c2476bee559b36cd97b005d030a5322f819eaf9"
+      }
+    },
+    {
+      "host": "windows",
+      "transport": "13",
+      "mode": "failover",
+      "report": "matrix-windows-13-failover.json",
+      "sha256": "8a9eda9a43d15513008ff0c6f0925b9bff2054544dfa85e2bbca3f1ea3146851",
+      "fixture_log_sha256": {
+        "master": "1af3d3bf8990148fab9637987550f646dfdd418c334f104e7856238ac310cec6",
+        "replica": "b48c0951a72cc66dac31c7a6c1ea4603eac6da93791229c898d5b239733da81c",
+        "sentinel": "0bdc22bcb243cbd02b4957330664a0328dcda4aa3d726428a7029f54169723b7",
+        "standby": "08964121eb2d7891908bd5d811941fa57fd43fc5ba4826b35dcafa591321aa28"
+      },
+      "receipt": {
+        "label": "matrix-windows-13-failover",
+        "log": "wsl-matrix-windows-13-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/windows/redis_sentinel.exe",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-windows-13-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 39329,
+        "replica": 47242,
+        "sentinel": 46992,
+        "standby": 45842
+      },
+      "client_sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2335934600,
+      "controller": {
+        "marker_to_send": 3.000000106112566e-06,
+        "send_to_ack": 0.003443000000061147,
+        "send_to_verified_roles": 12.25938418099986
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.3359144529999867,
+        "standby_role": "slave",
+        "standby_upstream": 47242,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000100,
+        "trigger_marker_ns": 1000002200,
+        "switch_event_observed_ns": 3133570500,
+        "full_replacement_observed_ns": 2331536800,
+        "longest_success_completion_gap_ns": 1112165000,
+        "successes": 16922,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000002200,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 226.2,
+              "p95_us": 273.8,
+              "p99_us": 330.2,
+              "p999_us": 424.5
+            },
+            "all_latency": {
+              "p50_us": 226.2,
+              "p95_us": 273.8,
+              "p99_us": 330.2,
+              "p999_us": 424.5
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 0.5
+            },
+            "success_completions_per_sec": 999.99780000484
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000002200,
+            "end_ns": 2331536800,
+            "offered": 1331,
+            "successful": 253,
+            "deadline_missed": 37,
+            "completed_successfully_in_window": 199,
+            "outcomes": {
+              "call_result:ok": 253,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 320,
+              "generator_capacity": 757
+            },
+            "delivery": {
+              "replied": 253,
+              "may_have_executed": 1,
+              "not_sent": 1077
+            },
+            "success_latency": {
+              "p50_us": 239.1,
+              "p95_us": 128632.5,
+              "p99_us": 136850.6,
+              "p999_us": 137989.1
+            },
+            "all_latency": {
+              "p50_us": 0.9,
+              "p95_us": 199018.5,
+              "p99_us": 200016.7,
+              "p999_us": 200822.6
+            },
+            "generator_lag": {
+              "p50_us": 0.3,
+              "p95_us": 0.9,
+              "p99_us": 1.1,
+              "p999_us": 6.9
+            },
+            "success_completions_per_sec": 149.45161770486476
+          },
+          "after_pool_online": {
+            "start_ns": 2331536800,
+            "end_ns": 18000000000,
+            "offered": 15668,
+            "successful": 15668,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15723,
+            "outcomes": {
+              "call_result:ok": 15668
+            },
+            "delivery": {
+              "replied": 15668
+            },
+            "success_latency": {
+              "p50_us": 223.5,
+              "p95_us": 286.2,
+              "p99_us": 398.0,
+              "p999_us": 4688.8
+            },
+            "all_latency": {
+              "p50_us": 223.5,
+              "p95_us": 286.2,
+              "p99_us": 398.0,
+              "p999_us": 4688.8
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.2,
+              "p999_us": 151.0
+            },
+            "success_completions_per_sec": 1003.480673203483
+          }
+        },
+        "ledger": "matrix-windows-13-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "043320ab301f200e72a5cd4652a2d8230ce4b41da872257af62bd2dcc018c5c1"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "tcp",
+      "mode": "control",
+      "report": "matrix-wsl-tcp-control.json",
+      "sha256": "e04c234e81b85413b042d9c71dc7fefcc0d8c5f5299037f1a44ee07aeb626305",
+      "fixture_log_sha256": {
+        "master": "85d60173ef8bed0953cd59710546b8f8b3a58829c4d00ccfef33c0c2a371427a",
+        "replica": "49947002c98680efa86272eb7871640a528af636e38401ec650325850a3cfffa",
+        "sentinel": "7f0ae7d3da01e879478677babbe1320e9262d02a0e25af5bd00e4774bd4c2d63",
+        "standby": "bfc5171f684ac2e2f05b4c45081345720029861e363cc4c66d52c78238cef6cc"
+      },
+      "receipt": {
+        "label": "matrix-wsl-tcp-control",
+        "log": "wsl-matrix-wsl-tcp-control.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-tcp-control.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--control"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 47226,
+        "replica": 44333,
+        "sentinel": 46378,
+        "standby": 42472
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000496,
+        "trigger_marker_ns": 1000000132,
+        "switch_event_observed_ns": null,
+        "full_replacement_observed_ns": null,
+        "longest_success_completion_gap_ns": 1305500,
+        "successes": 18000,
+        "drain_successes": 0,
+        "phases": {
+          "before_marker": {
+            "start_ns": 0,
+            "end_ns": 1000000132,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 128.916,
+              "p95_us": 169.01,
+              "p99_us": 248.512,
+              "p999_us": 327.327
+            },
+            "all_latency": {
+              "p50_us": 128.916,
+              "p95_us": 169.01,
+              "p99_us": 248.512,
+              "p999_us": 327.327
+            },
+            "generator_lag": {
+              "p50_us": 0.223,
+              "p95_us": 0.512,
+              "p99_us": 1.502,
+              "p999_us": 31.831
+            },
+            "success_completions_per_sec": 999.9998680000174
+          },
+          "after_marker": {
+            "start_ns": 1000000132,
+            "end_ns": 18000000000,
+            "offered": 16999,
+            "successful": 16999,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 17000,
+            "outcomes": {
+              "call_result:ok": 16999
+            },
+            "delivery": {
+              "replied": 16999
+            },
+            "success_latency": {
+              "p50_us": 127.659,
+              "p95_us": 170.216,
+              "p99_us": 241.965,
+              "p999_us": 328.411
+            },
+            "all_latency": {
+              "p50_us": 127.659,
+              "p95_us": 170.216,
+              "p99_us": 241.965,
+              "p999_us": 328.411
+            },
+            "generator_lag": {
+              "p50_us": 0.269,
+              "p95_us": 0.548,
+              "p99_us": 0.762,
+              "p999_us": 18.181
+            },
+            "success_completions_per_sec": 1000.000007764706
+          }
+        },
+        "ledger": "matrix-wsl-tcp-control-0-3-offers.csv.gz",
+        "ledger_sha256": "4dacdaac0669c4013815dc4c18ad2c6896e94588c513bc78ba655479ed539c5c"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "tcp",
+      "mode": "failover",
+      "report": "matrix-wsl-tcp-failover.json",
+      "sha256": "30bc3ff8da851650b01ca45176e47d9efd36ae03ca4dfc83309de30baf9c425b",
+      "fixture_log_sha256": {
+        "master": "bea04270dd8e721f2b4fe10831f44c38f13527a156568b3cd3ca6177975ada2e",
+        "replica": "2df7dded7b3cce77b05c7ae2dec01d79efca5857d3d78fc4a7768c7f160b7fa1",
+        "sentinel": "f1b7dc05841293b8c4807c8da2e7f28c3a0ca7d86a9799bb2e8bef2616ebb5ed",
+        "standby": "7688188e53bfaeffb44adfd75cbcda503dbcb341e979bd10ee2d7897270a9b08"
+      },
+      "receipt": {
+        "label": "matrix-wsl-tcp-failover",
+        "log": "wsl-matrix-wsl-tcp-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-tcp-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 41531,
+        "replica": 42788,
+        "sentinel": 44966,
+        "standby": 39986
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2283283251,
+      "controller": {
+        "marker_to_send": 2.7999999474559445e-06,
+        "send_to_ack": 0.00036599999998543353,
+        "send_to_verified_roles": 12.37678579899989
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.28328562899992,
+        "standby_role": "slave",
+        "standby_upstream": 42788,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000347,
+        "trigger_marker_ns": 1000000522,
+        "switch_event_observed_ns": 3212433572,
+        "full_replacement_observed_ns": 2281052451,
+        "longest_success_completion_gap_ns": 1035104823,
+        "successes": 17027,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000000522,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 129.707,
+              "p95_us": 174.106,
+              "p99_us": 260.418,
+              "p999_us": 322.211
+            },
+            "all_latency": {
+              "p50_us": 129.707,
+              "p95_us": 174.106,
+              "p99_us": 260.418,
+              "p999_us": 322.211
+            },
+            "generator_lag": {
+              "p50_us": 0.214,
+              "p95_us": 0.513,
+              "p99_us": 2.418,
+              "p999_us": 31.309
+            },
+            "success_completions_per_sec": 999.9994780002725
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000000522,
+            "end_ns": 2281052451,
+            "offered": 1281,
+            "successful": 308,
+            "deadline_missed": 1,
+            "completed_successfully_in_window": 270,
+            "outcomes": {
+              "call_result:ok": 308,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 291,
+              "generator_capacity": 681
+            },
+            "delivery": {
+              "replied": 308,
+              "may_have_executed": 1,
+              "not_sent": 972
+            },
+            "success_latency": {
+              "p50_us": 129.927,
+              "p95_us": 184548.651,
+              "p99_us": 195674.651,
+              "p999_us": 198222.551
+            },
+            "all_latency": {
+              "p50_us": 1.741,
+              "p95_us": 199034.933,
+              "p99_us": 199044.341,
+              "p999_us": 199544.637
+            },
+            "generator_lag": {
+              "p50_us": 0.626,
+              "p95_us": 1.448,
+              "p99_us": 2.239,
+              "p999_us": 9.451
+            },
+            "success_completions_per_sec": 210.7642897901604
+          },
+          "after_pool_online": {
+            "start_ns": 2281052451,
+            "end_ns": 18000000000,
+            "offered": 15718,
+            "successful": 15718,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15757,
+            "outcomes": {
+              "call_result:ok": 15718
+            },
+            "delivery": {
+              "replied": 15718
+            },
+            "success_latency": {
+              "p50_us": 129.805,
+              "p95_us": 175.027,
+              "p99_us": 252.561,
+              "p999_us": 371.186
+            },
+            "all_latency": {
+              "p50_us": 129.805,
+              "p95_us": 175.027,
+              "p99_us": 252.561,
+              "p999_us": 371.186
+            },
+            "generator_lag": {
+              "p50_us": 0.266,
+              "p95_us": 0.542,
+              "p99_us": 2.862,
+              "p999_us": 24.06
+            },
+            "success_completions_per_sec": 1002.4208014487854
+          }
+        },
+        "ledger": "matrix-wsl-tcp-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "e03f5bd9d2bc82841659774490bda197fb73f7e45f2178ad017ebce3d86b8a4d"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "13",
+      "mode": "control",
+      "report": "matrix-wsl-13-control.json",
+      "sha256": "863bce8d2f231d2f06801b1ddf45c4fddd58d63d9a0ef6e3570b448ed64b2283",
+      "fixture_log_sha256": {
+        "master": "96836351e15c0fe95093a7f3e982fbe0603eedb154f36c149c210c8f1f42b04b",
+        "replica": "8a120650e3c15b8e4f733ff2975e817fc727c3c455d28d77a4bcf109d8c2f296",
+        "sentinel": "9da220f158fbabab243999f6f254220e84826f8b5c75f0fd0c363f3cd1070a0c",
+        "standby": "192d95af27c6baf4da723ee3d935937222ad47577c7026e9a0652b1dee0a7fd3"
+      },
+      "receipt": {
+        "label": "matrix-wsl-13-control",
+        "log": "wsl-matrix-wsl-13-control.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-13-control.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--control",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 38109,
+        "replica": 41234,
+        "sentinel": 44340,
+        "standby": 43897
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000338,
+        "trigger_marker_ns": 1000000516,
+        "switch_event_observed_ns": null,
+        "full_replacement_observed_ns": null,
+        "longest_success_completion_gap_ns": 3349900,
+        "successes": 18000,
+        "drain_successes": 0,
+        "phases": {
+          "before_marker": {
+            "start_ns": 0,
+            "end_ns": 1000000516,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 146.605,
+              "p95_us": 190.006,
+              "p99_us": 259.707,
+              "p999_us": 366.0
+            },
+            "all_latency": {
+              "p50_us": 146.605,
+              "p95_us": 190.006,
+              "p99_us": 259.707,
+              "p999_us": 366.0
+            },
+            "generator_lag": {
+              "p50_us": 0.212,
+              "p95_us": 0.506,
+              "p99_us": 2.11,
+              "p999_us": 15.208
+            },
+            "success_completions_per_sec": 999.9994840002663
+          },
+          "after_marker": {
+            "start_ns": 1000000516,
+            "end_ns": 18000000000,
+            "offered": 16999,
+            "successful": 16999,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 17000,
+            "outcomes": {
+              "call_result:ok": 16999
+            },
+            "delivery": {
+              "replied": 16999
+            },
+            "success_latency": {
+              "p50_us": 144.132,
+              "p95_us": 188.988,
+              "p99_us": 255.901,
+              "p999_us": 343.067
+            },
+            "all_latency": {
+              "p50_us": 144.132,
+              "p95_us": 188.988,
+              "p99_us": 255.901,
+              "p999_us": 343.067
+            },
+            "generator_lag": {
+              "p50_us": 0.258,
+              "p95_us": 0.526,
+              "p99_us": 0.697,
+              "p999_us": 28.074
+            },
+            "success_completions_per_sec": 1000.0000303529421
+          }
+        },
+        "ledger": "matrix-wsl-13-control-0-3-offers.csv.gz",
+        "ledger_sha256": "799efc1ffd204059afbca1ecf0746c998c963cc793dabae9fbb2fce31af70f78"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "13",
+      "mode": "failover",
+      "report": "matrix-wsl-13-failover.json",
+      "sha256": "b8305a797ab8fc221bda8277d33e1ff74a7ee0d1fe6ff3d9ff9362f93671efda",
+      "fixture_log_sha256": {
+        "master": "920110bed80576db22d47524a7a673a396f70ee1da50ae9b711c37c954470814",
+        "replica": "e9b691882ef1065c92432a23e8226dfb191baeb28d76ba9b14417f5345317d4d",
+        "sentinel": "f8e040b3c5a3e54f0d25e38edbf3f4e1f3e77ac76305230356a6703d924ffd76",
+        "standby": "1b4e2d3d67d761f13f91707cc8f1a039e2c1f3fae3a27854a2382360dce42183"
+      },
+      "receipt": {
+        "label": "matrix-wsl-13-failover",
+        "log": "wsl-matrix-wsl-13-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-13-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 41643,
+        "replica": 40487,
+        "sentinel": 38358,
+        "standby": 41599
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2285925328,
+      "controller": {
+        "marker_to_send": 3.6999999792897142e-06,
+        "send_to_ack": 0.0035528000000795146,
+        "send_to_verified_roles": 12.290160964000052
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.2858926159999555,
+        "standby_role": "slave",
+        "standby_upstream": 40487,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000478,
+        "trigger_marker_ns": 1000020312,
+        "switch_event_observed_ns": 3133401238,
+        "full_replacement_observed_ns": 2283033828,
+        "longest_success_completion_gap_ns": 1055201512,
+        "successes": 16981,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000020312,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 150.506,
+              "p95_us": 194.808,
+              "p99_us": 256.3,
+              "p999_us": 340.011
+            },
+            "all_latency": {
+              "p50_us": 150.506,
+              "p95_us": 194.808,
+              "p99_us": 256.3,
+              "p999_us": 340.011
+            },
+            "generator_lag": {
+              "p50_us": 0.209,
+              "p95_us": 0.509,
+              "p99_us": 0.612,
+              "p999_us": 7.305
+            },
+            "success_completions_per_sec": 999.979688412569
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000020312,
+            "end_ns": 2283033828,
+            "offered": 1283,
+            "successful": 264,
+            "deadline_missed": 1,
+            "completed_successfully_in_window": 206,
+            "outcomes": {
+              "call_result:ok": 264,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 313,
+              "generator_capacity": 704,
+              "call_result:timeout": 1
+            },
+            "delivery": {
+              "replied": 264,
+              "not_sent": 1019
+            },
+            "success_latency": {
+              "p50_us": 148.414,
+              "p95_us": 81045.228,
+              "p99_us": 196766.827,
+              "p999_us": 198350.227
+            },
+            "all_latency": {
+              "p50_us": 1.425,
+              "p95_us": 199039.719,
+              "p99_us": 199054.127,
+              "p999_us": 199860.227
+            },
+            "generator_lag": {
+              "p50_us": 0.617,
+              "p95_us": 1.523,
+              "p99_us": 2.221,
+              "p999_us": 20.117
+            },
+            "success_completions_per_sec": 160.5594932797263
+          },
+          "after_pool_online": {
+            "start_ns": 2283033828,
+            "end_ns": 18000000000,
+            "offered": 15716,
+            "successful": 15716,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15775,
+            "outcomes": {
+              "call_result:ok": 15716
+            },
+            "delivery": {
+              "replied": 15716
+            },
+            "success_latency": {
+              "p50_us": 146.468,
+              "p95_us": 194.17,
+              "p99_us": 280.474,
+              "p999_us": 4569.94
+            },
+            "all_latency": {
+              "p50_us": 146.468,
+              "p95_us": 194.17,
+              "p99_us": 280.474,
+              "p999_us": 4569.94
+            },
+            "generator_lag": {
+              "p50_us": 0.279,
+              "p95_us": 0.57,
+              "p99_us": 0.69,
+              "p999_us": 20.167
+            },
+            "success_completions_per_sec": 1003.692431946783
+          }
+        },
+        "ledger": "matrix-wsl-13-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "10dca2a35bd78fdb1d3cd0d8513be638a004d448807a71cd91dc4388bd4fd404"
+      }
+    }
+  ],
+  "comparisons_and_regressions": [
+    {
+      "host": "windows",
+      "transport": "13",
+      "mode": "two-node",
+      "report": "matrix-windows-13-two-node.json",
+      "sha256": "2b230c88b36e26515c4db2d243e65ba8996d42094a363afbe6e2c40da4f64591",
+      "fixture_log_sha256": {
+        "master": "f72c668ab9075d4bfe48c3e9375dd18bf93ab525d3d3c1be09549152f6ba8cda",
+        "replica": "1eae7b3976399f3808e37776131bae25b490e9d8321590c5ac2d72da07b99e3c",
+        "sentinel": "4ff0933fb7d5d2df5b6704c64948074a8f0f78318db5871006f246ada69cc69a"
+      },
+      "receipt": {
+        "label": "matrix-windows-13-two-node",
+        "log": "wsl-matrix-windows-13-two-node.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/windows/redis_sentinel.exe",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-windows-13-two-node.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 39280,
+        "replica": 46844,
+        "sentinel": 44210
+      },
+      "client_sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 12404371600,
+      "controller": {
+        "marker_to_send": 1.2199999900985858e-05,
+        "send_to_ack": 0.0032261000001199136,
+        "send_to_verified_roles": 11.255119698000044
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000000,
+        "trigger_marker_ns": 1000000100,
+        "switch_event_observed_ns": 2089458400,
+        "full_replacement_observed_ns": 12389154400,
+        "longest_success_completion_gap_ns": 11169781000,
+        "successes": 6857,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000000100,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 225.1,
+              "p95_us": 281.6,
+              "p99_us": 432.3,
+              "p999_us": 4548.8
+            },
+            "all_latency": {
+              "p50_us": 225.1,
+              "p95_us": 281.6,
+              "p99_us": 432.3,
+              "p999_us": 4548.8
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.6,
+              "p999_us": 10.6
+            },
+            "success_completions_per_sec": 999.99990000001
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000000100,
+            "end_ns": 12389154400,
+            "offered": 11389,
+            "successful": 246,
+            "deadline_missed": 400,
+            "completed_successfully_in_window": 187,
+            "outcomes": {
+              "call_result:ok": 246,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 3520,
+              "generator_capacity": 7622
+            },
+            "delivery": {
+              "replied": 246,
+              "may_have_executed": 1,
+              "not_sent": 11142
+            },
+            "success_latency": {
+              "p50_us": 225.3,
+              "p95_us": 165678.4,
+              "p99_us": 178152.2,
+              "p999_us": 180290.4
+            },
+            "all_latency": {
+              "p50_us": 0.7,
+              "p95_us": 199348.5,
+              "p99_us": 200241.4,
+              "p999_us": 200940.0
+            },
+            "generator_lag": {
+              "p50_us": 0.4,
+              "p95_us": 1.0,
+              "p99_us": 1.3,
+              "p999_us": 19.4
+            },
+            "success_completions_per_sec": 16.419129557319284
+          },
+          "after_pool_online": {
+            "start_ns": 12389154400,
+            "end_ns": 18000000000,
+            "offered": 5610,
+            "successful": 5610,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 5670,
+            "outcomes": {
+              "call_result:ok": 5610
+            },
+            "delivery": {
+              "replied": 5610
+            },
+            "success_latency": {
+              "p50_us": 221.4,
+              "p95_us": 274.6,
+              "p99_us": 378.1,
+              "p999_us": 9901.1
+            },
+            "all_latency": {
+              "p50_us": 221.4,
+              "p95_us": 274.6,
+              "p99_us": 378.1,
+              "p999_us": 9901.1
+            },
+            "generator_lag": {
+              "p50_us": 0.0,
+              "p95_us": 0.1,
+              "p99_us": 0.1,
+              "p999_us": 8.9
+            },
+            "success_completions_per_sec": 1010.542867192781
+          }
+        },
+        "ledger": "matrix-windows-13-two-node-0-3-offers.csv.gz",
+        "ledger_sha256": "9e25a357075c90f7a1ac1154eab076e0a1e4f0bb867ba54216c5a5ccf9c82400"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "tcp",
+      "mode": "legacy",
+      "report": "matrix-wsl-tcp-legacy.json",
+      "sha256": "17b2a5bddef0d9004e255637340a1603dddc5b0c20351881c5d5c5a29f6a7250",
+      "fixture_log_sha256": {
+        "master": "8a7888acceb70bcee6fbbb2211e95a80fa8d149cd76ab9a81acd602e4a422ce3",
+        "replica": "0bcc0348de5e44a9ab017816910de96b4335faf2f1162f588540e37e932c4650",
+        "sentinel": "e10d0f53266ecfa20815d8efa8a8c135c6203f10d5a48b83734b1b0d208046c1"
+      },
+      "receipt": {
+        "label": "matrix-wsl-tcp-legacy",
+        "log": "wsl-matrix-wsl-tcp-legacy.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-tcp-legacy.json"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "0c7248d3e0ccbd0803b3b2aadd76e2dabf04396ba4f3868c85f54aa464d4189b",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 43921,
+        "replica": 47353,
+        "sentinel": 38237
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293"
+    },
+    {
+      "host": "wsl-san",
+      "transport": "13",
+      "mode": "failover",
+      "report": "matrix-wsl-san-13-failover.json",
+      "sha256": "ff992eb797c6f787cf0edafc9b1940a9f3eead0dcadf9e4a58fa72e6c7b7fd7b",
+      "fixture_log_sha256": {
+        "master": "dcc49a105899681bef4a25edf36b5f40ef5014e39e962a73e9157d06c1512c5d",
+        "replica": "68b692d059918ef8f5d8bec6d26d66ba29ad36a359a4f027fc2e3b5e06f5a097",
+        "sentinel": "23516351926a491e0683102e1c5bcb33c83fc88efe4dc37f91cf31e18b6cc5ab",
+        "standby": "878815eb256c18296917d4b6359b3cf787e4dc7e67ca94c8ab5b81dc8ee44c6c"
+      },
+      "receipt": {
+        "label": "matrix-wsl-san-13-failover",
+        "log": "wsl-matrix-wsl-san-13-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--case",
+          "0",
+          "3",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl-san/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/matrix-wsl-san-13-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby",
+          "--tls",
+          "13"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 39747,
+        "replica": 38154,
+        "sentinel": 39374,
+        "standby": 43348
+      },
+      "client_sha256": "23d81244e45c5f6ab200b34fd0e32e16646b39bb25b476fb5e62dac2b9143fdb",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2566589888,
+      "controller": {
+        "marker_to_send": 5.300000111674308e-06,
+        "send_to_ack": 0.0038727999999537133,
+        "send_to_verified_roles": 12.393959777999953
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.5665517939999063,
+        "standby_role": "slave",
+        "standby_upstream": 38154,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000239,
+        "trigger_marker_ns": 1000000794,
+        "switch_event_observed_ns": 3244443587,
+        "full_replacement_observed_ns": 2558721288,
+        "longest_success_completion_gap_ns": 1199809995,
+        "successes": 16691,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000000794,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 210.399,
+              "p95_us": 271.595,
+              "p99_us": 373.094,
+              "p999_us": 480.596
+            },
+            "all_latency": {
+              "p50_us": 210.399,
+              "p95_us": 271.595,
+              "p99_us": 373.094,
+              "p999_us": 480.596
+            },
+            "generator_lag": {
+              "p50_us": 0.396,
+              "p95_us": 0.7,
+              "p99_us": 1.596,
+              "p999_us": 18.198
+            },
+            "success_completions_per_sec": 999.9992060006305
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000000794,
+            "end_ns": 2558721288,
+            "offered": 1558,
+            "successful": 261,
+            "deadline_missed": 10,
+            "completed_successfully_in_window": 202,
+            "outcomes": {
+              "call_result:ok": 261,
+              "call_result:disconnected": 1,
+              "acquire_result:timeout": 377,
+              "generator_capacity": 917,
+              "call_result:timeout": 2
+            },
+            "delivery": {
+              "replied": 261,
+              "may_have_executed": 2,
+              "not_sent": 1295
+            },
+            "success_latency": {
+              "p50_us": 222.494,
+              "p95_us": 155117.888,
+              "p99_us": 197035.088,
+              "p999_us": 198570.488
+            },
+            "all_latency": {
+              "p50_us": 2.788,
+              "p95_us": 199075.388,
+              "p99_us": 199626.489,
+              "p999_us": 234153.688
+            },
+            "generator_lag": {
+              "p50_us": 1.188,
+              "p95_us": 3.089,
+              "p99_us": 12.288,
+              "p999_us": 37.491
+            },
+            "success_completions_per_sec": 129.59347155411174
+          },
+          "after_pool_online": {
+            "start_ns": 2558721288,
+            "end_ns": 18000000000,
+            "offered": 15441,
+            "successful": 15429,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15489,
+            "outcomes": {
+              "call_result:ok": 15429,
+              "generator_capacity": 12
+            },
+            "delivery": {
+              "replied": 15429,
+              "not_sent": 12
+            },
+            "success_latency": {
+              "p50_us": 217.56,
+              "p95_us": 281.184,
+              "p99_us": 961.486,
+              "p999_us": 63382.287
+            },
+            "all_latency": {
+              "p50_us": 217.522,
+              "p95_us": 281.181,
+              "p99_us": 961.486,
+              "p999_us": 63382.287
+            },
+            "generator_lag": {
+              "p50_us": 0.381,
+              "p95_us": 0.784,
+              "p99_us": 5.654,
+              "p999_us": 80.956
+            },
+            "success_completions_per_sec": 1003.0905010452867
+          }
+        },
+        "ledger": "matrix-wsl-san-13-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "d85e6aa0942a46790a034b510fc836de95ca653fe3009c07fc7cc17406d466b1"
+      }
+    },
+    {
+      "host": "wsl",
+      "transport": "tcp",
+      "mode": "failover",
+      "report": "corrected-wsl-tcp-failover.json",
+      "sha256": "866d80014111950af78c1bc285778ed45c4c3f5c12c49a5bd8e984c3dc2374d6",
+      "fixture_log_sha256": {
+        "master": "79dc7d148976c2c07686cd36d423d7556c708b543be5f001ff1a737df8b9e85a",
+        "replica": "e12f485e520ce5e38f22328f0c088b44e2b94af3fdd3e793079846ed3c0617b7",
+        "sentinel": "d9274e21b320c27afa0d2b4fbaa604cb8c273f0069c7e3d54e4ca0daee3af0f1",
+        "standby": "2c1ae9a0f0b65a475b4103933b6fd9d9cbe00a4354b1c2ebfcf4e155116e29c7"
+      },
+      "receipt": {
+        "label": "corrected-wsl-tcp-failover",
+        "log": "wsl-corrected-wsl-tcp-failover.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel",
+          "--case",
+          "0",
+          "3",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/corrected-wsl-tcp-failover.json",
+          "--load",
+          "18000",
+          "1000",
+          "64",
+          "200",
+          "--standby"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "a59f0800aac99db8cc3fdd3d0d73fcdb96b9068c993b8f4375a3621a89a0ce9d",
+        "programs": 0,
+        "binaries": []
+      },
+      "ports": {
+        "master": 42844,
+        "replica": 45556,
+        "sentinel": 45945,
+        "standby": 38531
+      },
+      "client_sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "first_verified_replacement_reply_ns": 2223595805,
+      "controller": {
+        "marker_to_send": 4.9999999873762135e-06,
+        "send_to_ack": 0.0009458999999196749,
+        "send_to_verified_roles": 12.325425690999964
+      },
+      "checkpoint": {
+        "send_to_replacement_reply_seconds": 1.21822930299993,
+        "standby_role": "slave",
+        "standby_upstream": 45556,
+        "standby_state": "connected",
+        "promoted_role": "master",
+        "old_primary_role": "master"
+      },
+      "load": {
+        "schedule": {
+          "count": 18000,
+          "rate_per_sec": 1000,
+          "generator_slots": 64,
+          "timeout_ms": 200,
+          "payload_bytes": 32,
+          "command": "PING",
+          "horizon_ns": 18000000000
+        },
+        "elapsed_ns": 18000000441,
+        "trigger_marker_ns": 1000017002,
+        "switch_event_observed_ns": 3208662304,
+        "full_replacement_observed_ns": 2220124005,
+        "longest_success_completion_gap_ns": 1041621602,
+        "successes": 17022,
+        "drain_successes": 0,
+        "phases": {
+          "before_trigger": {
+            "start_ns": 0,
+            "end_ns": 1000017002,
+            "offered": 1001,
+            "successful": 1001,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 1000,
+            "outcomes": {
+              "call_result:ok": 1001
+            },
+            "delivery": {
+              "replied": 1001
+            },
+            "success_latency": {
+              "p50_us": 885.601,
+              "p95_us": 14726.302,
+              "p99_us": 21516.401,
+              "p999_us": 23478.501
+            },
+            "all_latency": {
+              "p50_us": 885.601,
+              "p95_us": 14726.302,
+              "p99_us": 21516.401,
+              "p999_us": 23478.501
+            },
+            "generator_lag": {
+              "p50_us": 0.401,
+              "p95_us": 1012.902,
+              "p99_us": 7206.901,
+              "p999_us": 9957.102
+            },
+            "success_completions_per_sec": 999.9829982890631
+          },
+          "trigger_to_pool_online": {
+            "start_ns": 1000017002,
+            "end_ns": 2220124005,
+            "offered": 1220,
+            "successful": 242,
+            "deadline_missed": 8,
+            "completed_successfully_in_window": 190,
+            "outcomes": {
+              "call_result:ok": 242,
+              "acquire_result:timeout": 296,
+              "generator_capacity": 682
+            },
+            "delivery": {
+              "replied": 242,
+              "not_sent": 978
+            },
+            "success_latency": {
+              "p50_us": 236.303,
+              "p95_us": 188158.705,
+              "p99_us": 197155.805,
+              "p999_us": 198808.305
+            },
+            "all_latency": {
+              "p50_us": 2.403,
+              "p95_us": 199085.203,
+              "p99_us": 199733.705,
+              "p999_us": 200413.704
+            },
+            "generator_lag": {
+              "p50_us": 1.103,
+              "p95_us": 17.703,
+              "p99_us": 120.704,
+              "p999_us": 1108.603
+            },
+            "success_completions_per_sec": 155.7240467703471
+          },
+          "after_pool_online": {
+            "start_ns": 2220124005,
+            "end_ns": 18000000000,
+            "offered": 15779,
+            "successful": 15779,
+            "deadline_missed": 0,
+            "completed_successfully_in_window": 15832,
+            "outcomes": {
+              "call_result:ok": 15779
+            },
+            "delivery": {
+              "replied": 15779
+            },
+            "success_latency": {
+              "p50_us": 194.443,
+              "p95_us": 9932.541,
+              "p99_us": 21878.639,
+              "p999_us": 33134.096
+            },
+            "all_latency": {
+              "p50_us": 194.443,
+              "p95_us": 9932.541,
+              "p99_us": 21878.639,
+              "p999_us": 33134.096
+            },
+            "generator_lag": {
+              "p50_us": 0.35,
+              "p95_us": 11.301,
+              "p99_us": 866.54,
+              "p999_us": 5164.4
+            },
+            "success_completions_per_sec": 1003.303194842375
+          }
+        },
+        "ledger": "corrected-wsl-tcp-failover-0-3-offers.csv.gz",
+        "ledger_sha256": "1262256dd4d25ed07b4c95e113b1a9054df3d78cc30b3e304025428f75b2d764"
+      }
+    }
+  ],
+  "builds": {
+    "windows": {
+      "tool": "gcc.exe (GCC) 16.2.0",
+      "sha256": "6c210e92d1a4e494649b15e544c3bce2969a60254586b5233116d4e158db2ca8",
+      "receipt": {
+        "label": "build",
+        "log": "windows-build-attempt2.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/build_sentinel_probe.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--output",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-standby-20261118\\forms\\windows\\redis_sentinel.exe"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "b0e6e9bc2124d65d170a11bd840925af2bc05553559a9f143fd500100e1fbfed",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "wsl": {
+      "tool": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "sha256": "788f816686b1695cf19a5696032ae1063b296cdeb3f1f51205aba44abaf91eae",
+      "receipt": {
+        "label": "build",
+        "log": "wsl-build-attempt2.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/build_sentinel_probe.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--output",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl/redis_sentinel"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "f74a93d4bafaa2b4355b041f174d839e7bf913c606515880bc400eb9149e9e75",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "wsl-san": {
+      "tool": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "sha256": "23d81244e45c5f6ab200b34fd0e32e16646b39bb25b476fb5e62dac2b9143fdb",
+      "receipt": {
+        "label": "build-san",
+        "log": "wsl-build-san-attempt2.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/build_sentinel_probe.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--output",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-standby-20261118/forms/wsl-san/redis_sentinel",
+          "--sanitize"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "64e41e5a159e978cc0683f8004dbd87788ba6cf96cfbfc274fb4e3faac3aabae",
+        "programs": 0,
+        "binaries": []
+      }
+    }
+  },
+  "tests": {
+    "windows": [
+      {
+        "label": "sentinel_tests",
+        "log": "windows-sentinel_tests.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "19e2ffcf82477a3b07d733bf5ac1acaf4127a2fef2676038448bb6366a215cbe",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-sentinel_tests/test_sentinel.exe.gz",
+            "sha256": "48bd8b4b0acb09fa865d2ebfa9393600388d809ff6732cd01948a15cd4207785",
+            "binary_sha256": "37806d11f2e2e7b88483107f1323f17d06ab54909b17c188c999fec135431d51"
+          },
+          {
+            "path": "binaries/windows/windows-sentinel_tests/test_single_xredis_sentinel_tls.exe.gz",
+            "sha256": "75fcc48d481d31d3253b4001f91b6540511d0182fd061b033cae1b39ffda8cbf",
+            "binary_sha256": "ebb43a6708d6e6166b3ab834f0775f79cb2b415c37bebc6be69e1c53adfaff32"
+          }
+        ]
+      },
+      {
+        "label": "sentinel_pool_tests",
+        "log": "windows-sentinel_pool_tests.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_pool_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "5cc60be0c05c645553827ca90ec345bb5a1bda25dece0cdea085a2575ebf45a9",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-sentinel_pool_tests/test_sentinel_pool.exe.gz",
+            "sha256": "f502fcd9f4fead7f96df7bdcf4dfb539c342f12de95dd6ca42c68b48bc5cec4b",
+            "binary_sha256": "7ba744721c6a49c06fde935f2c432dc43b47d92632137c33e1b4d462edbe5a7d"
+          },
+          {
+            "path": "binaries/windows/windows-sentinel_pool_tests/test_single_xredis_sentinel_pool_tls.exe.gz",
+            "sha256": "2d679e4bfdab711b8965e8a33e22b2f7407a51e6fcd30bb6b2f4f7ebf4075579",
+            "binary_sha256": "d3b8d8e1d9c0ca18873ac3a108b1480991af60efce3701ce93175cf0e364fd6a"
+          }
+        ]
+      },
+      {
+        "label": "sentinel_events_tests",
+        "log": "windows-sentinel_events_tests.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "b7766a551610ca25f766184b4df6de87f2f2c808c501ad1b5dbae02d07449164",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-sentinel_events_tests/test_sentinel_events.exe.gz",
+            "sha256": "f51932b0846278834987b080b77585824ce201061d0559c35111d72466eca97b",
+            "binary_sha256": "fca91b3aca3c4c79873b1fe207723dd48396ddd11097d1e2298f049c70598f20"
+          },
+          {
+            "path": "binaries/windows/windows-sentinel_events_tests/test_single_xredis_sentinel_events_tls.exe.gz",
+            "sha256": "ca62c37ee4682e62b947b41d204e4e8a40f62f4ef05292e8637996c16dc9a5aa",
+            "binary_sha256": "673565b3b260f2c714f2f1b2acee6ba646d82405a702635ef60d20fe5ff0116f"
+          }
+        ]
+      },
+      {
+        "label": "package-static",
+        "log": "windows-package-static.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "7b8d9b80d041ce02cea1b48b2d4dc0dd21044882cb93d6ddd9e58e6cb0e4953a",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-shared",
+        "log": "windows-package-shared.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "614fb0313f7577dfdd186317749934ccc9661e78e172d8cc0f0bba6d85291876",
+        "programs": 0,
+        "binaries": []
+      }
+    ],
+    "wsl": [
+      {
+        "label": "sentinel_tests",
+        "log": "wsl-sentinel_tests.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "0035b6f6c7e8f545f173750fb785ffd812f4d763df08eb95e1eab289f4efda50",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-sentinel_tests/test_sentinel.gz",
+            "sha256": "c0545440c93ec17906c5189a04b027e32efcac480794a3442ae334e22b10ca52",
+            "binary_sha256": "9ebaa621832b5db2950509d2b3c0016c9b8deb1d96a924523be30aa493842915"
+          },
+          {
+            "path": "binaries/wsl/wsl-sentinel_tests/test_single_xredis_sentinel_tls.gz",
+            "sha256": "a3995e061ce3a77be1caa0deaced13b77f7089d7ab500a19035af35d0d9e4b26",
+            "binary_sha256": "ac8032e3b333301851325368cd4441bce0acfabbae4b83892d1de0ac9ab5a7ce"
+          }
+        ]
+      },
+      {
+        "label": "sentinel_pool_tests",
+        "log": "wsl-sentinel_pool_tests.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_pool_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "7bf7178053040da0d3687f88651446428224cd063db2572d4db99feb36b8f824",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-sentinel_pool_tests/test_sentinel_pool.gz",
+            "sha256": "90825d4296bed327a3519b6e9019fd85da95b2ec9a287ebe163e7c189bbf93df",
+            "binary_sha256": "b7ec7db61f13ecacfef1145408ef1ece270368389f2a61be1008afb78405bc79"
+          },
+          {
+            "path": "binaries/wsl/wsl-sentinel_pool_tests/test_single_xredis_sentinel_pool_tls.gz",
+            "sha256": "dd0f9cafa37f73a30b9dbd15ef26664f91a1ddecec8a79fcac982d2ffec934ff",
+            "binary_sha256": "8a0d48675a54e35ef0da15f008d5a74649af9433705125aac7beab4a4236fec5"
+          }
+        ]
+      },
+      {
+        "label": "sentinel_events_tests",
+        "log": "wsl-sentinel_events_tests.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "f92dd2f28f8573071cf08930ed2e35d3455bafaff20e7ce9057286195ba7ef0c",
+        "programs": 2,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-sentinel_events_tests/test_sentinel_events.gz",
+            "sha256": "bea41e1840f066f968d7cee8634f4e656bdbef3f1c2f394c2140ebb40c21925a",
+            "binary_sha256": "c321f12ac5ae819f4202378ade066557be993ab26f45bb74ff003e8186625307"
+          },
+          {
+            "path": "binaries/wsl/wsl-sentinel_events_tests/test_single_xredis_sentinel_events_tls.gz",
+            "sha256": "08d4621186adbbc57ef738da549cc1d726c6e2ff833bf9ef1cd7b077aa9c8c14",
+            "binary_sha256": "752c174d25043161bd79188924ee00a4ad07b2bbb8e63c9abb71c4e5e78c066a"
+          }
+        ]
+      },
+      {
+        "label": "package-static",
+        "log": "wsl-package-static.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--kind",
+          "static",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "6f25e0f432fe4978b03df98163a8cc30e635f079ec1059baad750746e4c8bebb",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "package-shared",
+        "log": "wsl-package-shared.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/package.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events",
+          "--kind",
+          "shared",
+          "--verify",
+          "--cflag=-O2"
+        ],
+        "revision": "cc2e26606968236a13598c8391883192398aedbb",
+        "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+        "log_sha256": "9ed5b468ec1c0aad0b839732645013958840fecff8e1170e67437386689d18f7",
+        "programs": 0,
+        "binaries": []
+      }
+    ]
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "a98c7596ef17a1e6e06b965fbfddf27ebeccb54f958b7e76c893db86af2e9eea",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "66c21dd0941a224147efb6316484bfe55ec7f2b74f23c688069341e0f22c3819",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "cc2e26606968236a13598c8391883192398aedbb",
+      "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+      "log_sha256": "5d560d6ddb29fe4988f84a69b735b0ecd6c327839a05b22ada3e88df9616d886",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release_gate": {
+    "label": "gate-release",
+    "log": "windows-gate-release.log",
+    "exit_code": 1,
+    "args": [
+      "C:\\Program Files\\Python312\\python.exe",
+      "-u",
+      "-X",
+      "utf8",
+      "tools/check_release_maturity.py",
+      "--release",
+      "--manifest",
+      "extlibs/xredis/config/modules.json"
+    ],
+    "revision": "cc2e26606968236a13598c8391883192398aedbb",
+    "source_map_sha256": "649d4f06ba408c9028a507352478c7d8556e552822af21697e3819f4106651e1",
+    "log_sha256": "8d792cc6685b9c88af6a883437417c34a096c13217b7575a8e4c74e954283e3d",
+    "programs": 0,
+    "binaries": [],
+    "developing_modules": [
+      "xredis_pool_connect",
+      "xredis_pool_transaction",
+      "xredis_pool_watch",
+      "xredis_pool",
+      "xredis_watch",
+      "xredis",
+      "xredis_transaction",
+      "xredis_tls_auth",
+      "xredis_tracking",
+      "xredis_pubsub",
+      "xredis_subscriber",
+      "xredis_subscriber_notify",
+      "xredis_subscriptions",
+      "xredis_subscription_session",
+      "xredis_role",
+      "xredis_role_client",
+      "xredis_sentinel",
+      "xredis_sentinel_pool",
+      "xredis_sentinel_events",
+      "xredis_cluster_topology",
+      "xredis_pool_asking",
+      "xredis_pool_shared",
+      "xredis_pool_shared_connect",
+      "xredis_pool_shared_asking",
+      "xredis_cluster_route",
+      "xredis_cluster_nodes",
+      "xredis_cluster_refresh",
+      "xredis_cluster_client",
+      "xredis_command_keys",
+      "xredis_cluster_command",
+      "xredis_cluster_client_sync",
+      "xredis_cluster_command_sync"
+    ]
+  },
+  "totals": {
+    "standby_runs": 8,
+    "real_standby_failovers": 4,
+    "scheduled_offers": 144000
+  },
+  "scope": "Sentinel promotion-window replica upstream validation using existing REPLICAS and ROLE replies.",
+  "pending": [
+    "Cross-Sentinel staleness and replication freshness require separate policy and qualification.",
+    "Native Linux and Windows server endurance and controlled performance remain open."
+  ]
+}

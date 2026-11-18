@@ -109,6 +109,7 @@ static void sprLoad(xredispool* Pool,const redisopenconfig* Config,cstr NextRun,
     uint64 End=Start+Config->Count*REDIS_OPEN_NS/Config->Rate;
     uint64 Limit=End+Budget+5u*REDIS_OPEN_NS;
     size_t Index=0,Active=0;
+    bool ReplacementReplied=false;
     while(Index<Config->Count || Active || sprLoadNow()<End){
         uint64 Now=sprLoadNow();
         sprRequire(Now<Limit,"bounded load drain");
@@ -129,7 +130,13 @@ static void sprLoad(xredispool* Pool,const redisopenconfig* Config,cstr NextRun,
 
         for(size_t I=0;I<Active;){
             sprloadslot* Slot=&Slots[I];
-            if(!sprLoadAdvance(Slot,&Records[Slot->Index],Budget)){++I;continue;}
+            sprloadrecord* R=&Records[Slot->Index];
+            if(!sprLoadAdvance(Slot,R,Budget)){++I;continue;}
+            if(Online && !ReplacementReplied && R->Submitted>=Online &&
+               R->Stage==SPR_LOAD_CALL_RESULT && R->Status==XREDIS_REQUEST_OK){
+                ReplacementReplied=true;
+                puts("REPLACED");fflush(stdout);
+            }
             if(Slot->Lease)sprRequire(xredisLeaseReturn(Slot->Lease),"return completed load lease");
             xrtFutureDestroy(Slot->Call);
             xrtFutureDestroy(Slot->Acquire);
@@ -179,7 +186,7 @@ static void sprLoad(xredispool* Pool,const redisopenconfig* Config,cstr NextRun,
     sprRequire(Info.Port==NextPort && Info.Generation==(Switch?2u:1u) && Info.Changes==(Switch?1u:0u) &&
         Info.Phase==XREDIS_SENTINEL_POOL_ONLINE && Info.LastStatus==XREDIS_SENTINEL_OK,
         "final verified loaded generation");
-    sprRequire(Trigger && (Switch?(Event && Online && Online+REDIS_OPEN_NS<=End):!Events.Matched),
+    sprRequire(Trigger && (Switch?(Event && ReplacementReplied && Online+REDIS_OPEN_NS<=End):!Events.Matched),
         "observed event and at least one second of post-recovery offers");
     xfuture* Acquired=sprAcquire(Pool);
     xredislease* Lease=sprLease(Acquired);

@@ -1,5 +1,6 @@
 #include "test.h"
 #include "support/sentinel_peer.h"
+#include "../src/internal/sentinel_config.h"
 static void sentinelSuccess(void)
 {
     for(unsigned Secure=0;Secure<(ROLE_PEER_TLS?2u:1u);++Secure)for(unsigned Factory=0;Factory<
@@ -121,6 +122,66 @@ static void sentinelReplicaSuccess(void)
         sentinelFixtureStop(&F);
     }
 }
+static void sentinelReplicaPromotion(void)
+{
+    for(unsigned V=0;V<2;++V){
+        sentinelfixture F;sentinelFixtureStart(&F,0,false,V?XREDIS_INIT_RESP3:XREDIS_INIT_RESP2);
+        F.Replicas=true;
+        sentinelMaster(&F,"*5\r\n+slave\r\n+127.0.0.1\r\n:6380\r\n+connected\r\n:0\r\n",false,false);
+        sentinelMaster(&F,"*5\r\n+slave\r\n+127.0.0.2\r\n:6379\r\n+connected\r\n:0\r\n",false,false);
+        sentinelMaster(&F,"*5\r\n+slave\r\n+127.0.0.1\r\n:6379\r\n+connected\r\n:0\r\n",false,false);
+        char Wire[512]="*4\r\n";size_t N=strlen(Wire);
+        for(size_t I=0;I<F.MasterCount;++I){
+            unsigned Port=roleClientPeerInit(&F.Masters[I]->Peer)->Peer.Address.Port;
+            N+=sentinelReplicaRow(Wire+N,sizeof(Wire)-N,V!=0,Port,"slave");
+        }
+        sentinelReplicaRow(Wire+N,sizeof(Wire)-N,V!=0,6379,"slave,promoted,disconnected");
+        sentinelSeed(&F,Wire,false,false);
+        xredissentinelconfig K;sentinelConfig(&F,&K);
+        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,4);
+        xredissentinelresult R=sentinelDrive(D);
+        testRequire(R.Status==XREDIS_SENTINEL_OK && R.SeedAttempts==1 && R.MasterAttempts==3 &&
+            R.StaleReplies==2 && R.Endpoint.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
+            "promotion requires exact upstream host and port even with a disconnected promoted row");
+        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+    }
+
+    sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
+    char Wire[512]="*3\r\n";size_t N=strlen(Wire);
+    N+=sentinelReplicaRow(Wire+N,sizeof(Wire)-N,true,6379,"slave,promoted");
+    N+=sentinelReplicaRow(Wire+N,sizeof(Wire)-N,true,6380,"slave,promoted");
+    sentinelReplicaRow(Wire+N,sizeof(Wire)-N,true,6381,"slave");
+    sentinelSeed(&F,Wire,false,false);
+    xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=1;
+    xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,3);
+    xredissentinelresult R=sentinelDrive(D);
+    testRequire(R.Status==XREDIS_SENTINEL_NO_REPLICA && !R.MasterAttempts,"conflicting promoted endpoints retry without dialing");
+    xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+}
+static void sentinelReplicaRefreshOnPromotion(void)
+{
+    sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
+    sentinelMaster(&F,ROLE_MASTER_REPLY,false,false);
+    sentinelMaster(&F,"*5\r\n+slave\r\n+127.0.0.1\r\n:6379\r\n+connected\r\n:0\r\n",false,false);
+    uint16 Previous=roleClientPeerInit(&F.Masters[0]->Peer)->Peer.Address.Port;
+    uint16 Replacement=roleClientPeerInit(&F.Masters[1]->Peer)->Peer.Address.Port;
+    char Before[256]="*2\r\n",After[256]="*2\r\n";
+    size_t N=4+sentinelReplicaRow(Before+4,sizeof(Before)-4,true,Previous,"slave");
+    sentinelReplicaRow(Before+N,sizeof(Before)-N,true,Replacement,"slave");
+    N=4+sentinelReplicaRow(After+4,sizeof(After)-4,true,6379,"slave,promoted");
+    sentinelReplicaRow(After+N,sizeof(After)-N,true,Replacement,"slave");
+    sentinelSeed(&F,Before,false,false);sentinelSeed(&F,After,false,false);
+    xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=2;
+    xredissentinelendpoint Preferred={XRT_BYTES_LITERAL("127.0.0.1"),Previous};
+    xredissentineldiscovery* D=NULL;
+    testRequire(__xredisSentinelReplicaCreateUntil(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,
+        &K,xrtTimer()+5,2,&Preferred,&D)==XREDIS_ADMISSION_ACCEPTED,"preferred replica discovery");
+    xredissentinelresult R=sentinelDrive(D);
+    testRequire(R.Status==XREDIS_SENTINEL_OK && R.SeedAttempts==2 && R.MasterAttempts==2 &&
+        R.StaleReplies==1 && R.Rounds==2 && R.Endpoint.Port==Replacement,
+        "promotion of the preferred replica invalidates the whole stale snapshot");
+    xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+}
 static void sentinelReplicaNextSeed(void)
 {
     for(unsigned Cancel=0;Cancel<2;++Cancel){
@@ -203,5 +264,5 @@ static void sentinelReplicaBounds(void)
     xrtAllocationBudgetFree(B);sentinelFixtureStop(&F);
 }
 int main(void)
-{sentinelReplicaSuccess();sentinelReplicaNextSeed();sentinelReplicaErrors();sentinelReplicaBounds();
+{sentinelReplicaSuccess();sentinelReplicaPromotion();sentinelReplicaRefreshOnPromotion();sentinelReplicaNextSeed();sentinelReplicaErrors();sentinelReplicaBounds();
  puts("Sentinel replica selection tests passed");sentinelSuccess();sentinelStale();sentinelErrors();sentinelStops();sentinelAdditional();sentinelRoleCaps();sentinelNativeFailures();sentinelBounds();puts("Sentinel discovery tests passed");return 0;}

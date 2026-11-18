@@ -14699,3 +14699,52 @@ observed host. Native Linux and Windows server qualification,
 representative Redis workloads, repeated controlled measurements and
 long-duration mixed-load runs remain open.
 [Stage evidence](xredis-sentinel-load-20261118.json).
+
+## 2026-11-18 Verify replica upstream during Sentinel promotion
+
+A three-node Redis fixture reproduced the replica pool adopting a standby
+that still followed the old primary. The original replica had already become
+the new primary. The native pool reported replacement about 143 ms after
+the failover command, before Redis had reparented the standby.
+
+Replica discovery now excludes a row with the promoted flag and requires the
+other candidates to report its exact endpoint as upstream in ROLE. Conflicting
+promoted endpoints leave the snapshot retryable. A formerly preferred replica
+that now reports primary invalidates a snapshot that missed the promotion.
+Discovery uses the same deadlines, reply ownership, ACL commands and physical
+retirement before trying another candidate.
+[Redis Sentinel promotion flags](https://raw.githubusercontent.com/redis/redis/8.0.5/src/sentinel.c).
+
+The fixture starts the pool on the original replica and adds a non-promotable
+standby before traffic begins. During failover the C probe publishes a marker
+after full replacement and a verified binary PING offered on the replacement
+generation. The controller then observes the standby following the promoted
+primary and checks that the old primary still reports primary.
+
+| Client | Transport | Successful offers | First verified replacement reply (s after trigger) | Old primary converted (controller s after command) | Longest gap between successes (s) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| windows | TCP | 16,956/18,000 | 1.307 | 12.310 | 1.109 |
+| windows | mTLS 1.3 | 16,922/18,000 | 1.336 | 12.259 | 1.112 |
+| wsl | TCP | 17,027/18,000 | 1.283 | 12.377 | 1.035 |
+| wsl | mTLS 1.3 | 16,981/18,000 | 1.286 | 12.290 | 1.055 |
+
+8 TCP and mutual TLS scenarios tracked all
+144,000 scheduled offers, including the four paired
+no-election controls. A two-node comparison and the no-load interoperability
+path also passed. WSL ASan, UBSan and leak detection passed for the
+three-node mutual TLS workload. Discovery, pool and event suites and static
+and shared consumers passed on Windows and WSL.
+
+Reproduce with GCC and Redis installed on the POSIX test host.
+
+```text
+python3 extlibs/xredis/tests/interop/build_sentinel_probe.py --arch x64 --output out/redis_sentinel
+python3 extlibs/xredis/tests/interop/run_redis_sentinel_pool.py --listen replica --standby --case 0 3 --client out/redis_sentinel --load 18000 1000 64 200 --report out/sentinel-standby.json
+```
+
+The loopback fixture uses numeric endpoints and a single Sentinel. Native
+server-host performance and long-duration qualification remain open. The
+strict xredis release gate reports 32 developing modules. Multi-Sentinel
+disagreement and data freshness beyond
+the checked upstream remain outside this measurement.
+[Stage evidence](xredis-sentinel-standby-20261118.json).

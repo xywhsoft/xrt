@@ -31,8 +31,12 @@ def main():
  parser.add_argument('--case',type=int,nargs=2,metavar=('FACTORY','PROTOCOL'))
  parser.add_argument('--load',type=int,nargs=4,metavar=('COUNT','RATE','SLOTS','TIMEOUT_MS'))
  parser.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
+ parser.add_argument('--standby',action='store_true',
+                     help='add a non-promotable replica after the pool has leased from the first replica')
  a=parser.parse_args()
  if a.control and not a.load:parser.error('--control requires --load')
+ if a.standby and not (a.listen=='replica' and a.load and a.case):
+  parser.error('--standby requires --listen replica, --load and one --case')
  if a.load:
   count,rate,slots,timeout=a.load
   if not a.listen or not (0<rate<=100000 and 3*rate<=count<=min(300000,30*rate) and 1<=slots<=1024 and 1<=timeout<=10000):
@@ -54,6 +58,8 @@ def main():
       'Three exclusive pool members; binary PING on each lease. Per-offer latency starts at the planned arrival.',
       'Windows probe may use loopback forwarding to the WSL Redis host. Client and controller clocks are independent.',
   ]
+ if a.standby:
+  result['limits'].append('The standby joins before the workload starts and has replication priority zero.')
  def save():report.write_text(json.dumps(result,indent=2)+'\n')
  def identity(port):
   data,_=exchange(port,['INFO','SERVER']);return dict(line.split(b':',1) for line in data.split(b'\r\n') if b':' in line)
@@ -64,7 +70,7 @@ def main():
  try:
   runtime=Path(temporary.name)
   reserved=windows_listeners(client)
-  ports=ports_for_fixture(reserved)[:3]
+  ports=ports_for_fixture(reserved)
   if a.load:result['fixture_port_policy']=dict(range=[38000,47999],windows_listeners_excluded=len(reserved))
   tls=None
   exchange=tcp_exchange
@@ -75,10 +81,11 @@ def main():
    result['openssl_sha256']=sha(tls.openssl)
    result['tls_fixture_sha256']=sha(Path(__file__).with_name('sentinel_tls_fixture.py'))
    exchange=tls.exchange
-  master,replica,sentinel=ports
-  for name,port in zip(('master','replica','sentinel'),ports):
+  master,replica,sentinel,standby=ports
+  def start(name,port):
    directory=runtime/name;directory.mkdir();log=(directory/'server.log').open('wb');logs.append((name,log));args=[a.server,'--bind','127.0.0.1','--port',str(port),'--dir',str(directory),'--save','','--appendonly','no','--repl-diskless-sync-delay','0']
    if name=='replica':args+=['--replicaof','127.0.0.1',str(master)]
+   if name=='standby':args+=['--replica-priority','0']
    if name=='sentinel':
     config=directory/'sentinel.conf';config.write_text(f'bind 127.0.0.1\nport {port}\ndir {json.dumps(str(directory))}\nsentinel monitor cache 127.0.0.1 {master} 1\nsentinel down-after-milliseconds cache 5000\nsentinel failover-timeout cache 10000\n');args=[a.server,str(config),'--sentinel']
    if tls:
@@ -92,6 +99,21 @@ def main():
     except OSError:
      assert time.monotonic()<due;time.sleep(.02)
    result['fixtures'].append(dict(name=name,port=port,pid=p.pid,run_id=info[b'run_id'].decode()));save()
+  for name,port in zip(('master','replica','sentinel'),ports):start(name,port)
+
+  def listed_replica(port):
+   peers,_=exchange(sentinel,['SENTINEL','REPLICAS','cache'])
+   for entry in peers:
+    fields=dict(zip(entry[::2],entry[1::2]))
+    flags=fields.get(b'flags',b'')
+    if int(fields[b'port'])==port and not any(flag in flags for flag in (b's_down',b'o_down',b'disconnected')):
+     return fields
+   return None
+
+  def follows(role,primary):
+   return (len(role)==5 and role[0]==b'slave' and role[1]==b'127.0.0.1' and
+           role[2]==primary and role[3]==b'connected')
+
   due=time.monotonic()+15
   while True:
    value,_=exchange(replica,['ROLE'])
@@ -106,12 +128,9 @@ def main():
    due=time.monotonic()+20
    while True:
     endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache']);current=int(endpoint[1]);other=replica if current==master else master
-    role,_=exchange(other,['ROLE']);stats,_=exchange(sentinel,['SENTINEL','MASTER','cache']);stats=dict(zip(stats[::2],stats[1::2]));peers,_=exchange(sentinel,['SENTINEL','REPLICAS','cache'])
-    good=False
-    for item in peers:
-     fields=dict(zip(item[::2],item[1::2]));flags=fields.get(b'flags',b'')
-     if int(fields[b'port'])==other and not any(x in flags for x in (b's_down',b'o_down',b'disconnected')):good=True
-    if role[0]==b'slave' and role[3]==b'connected' and b'failover' not in stats[b'flags'] and good:return current,other
+    role,_=exchange(other,['ROLE']);stats,_=exchange(sentinel,['SENTINEL','MASTER','cache']);stats=dict(zip(stats[::2],stats[1::2]))
+    if role[0]==b'slave' and role[3]==b'connected' and b'failover' not in stats[b'flags'] and listed_replica(other):
+     return current,other
     assert time.monotonic()<due,'replica not ready for the next controlled failover';time.sleep(.05)
   for factory,protocol in matrix:
    if a.refresh:
@@ -121,7 +140,14 @@ def main():
    owned();run=lambda port:next(x['run_id'] for x in result['fixtures'] if x['port']==port)
    initial,destination=(target,current) if a.replicas else (current,target)
    if a.control:destination=initial
-   args=[str(client),str(sentinel),str(destination),run(initial),run(destination),str(factory),str(protocol),'3']
+   initial_run=run(initial)
+   if a.standby:
+    # Start an isolated standby so its process identity can be supplied to the
+    # probe. It joins the real replication group only after the probe is ready.
+    start('standby',standby)
+    assert listed_replica(standby) is None
+    if not a.control:destination=standby
+   args=[str(client),str(sentinel),str(destination),initial_run,run(destination),str(factory),str(protocol),'3']
    if a.listen:args.append('events-'+a.listen)
    elif a.replicas:args.append('replica')
    elif a.refresh:args.append('refresh')
@@ -141,6 +167,19 @@ def main():
       assert time.monotonic()<due,f'probe did not reach {marker}'
     expect('READY',25)
     case['ready']=True;save();owned()
+    if a.standby:
+     exchange(standby,['REPLICAOF','127.0.0.1',str(current)])
+     due=time.monotonic()+15
+     while True:
+      role,_=exchange(standby,['ROLE'])
+      fields=listed_replica(standby)
+      if follows(role,current) and fields is not None:
+       priority=int(fields[b'slave-priority'])
+       assert priority==0
+       case['standby_before_load']=dict(port=standby,upstream=current,priority=priority)
+       case['promotion_port']=target;save();break
+      assert time.monotonic()<due,'Sentinel did not see the connected standby'
+      time.sleep(.05)
     if a.load:
      probe.stdin.write('GO\n');probe.stdin.flush()
      expect('ELECT',10);marker=time.monotonic()
@@ -163,6 +202,21 @@ def main():
      case['manual_failover_requests']=1
      if a.load:case['controller_timing_seconds']=dict(marker_to_send=sent-marker,send_to_ack=ack-sent)
      case['interrupted_control_reads']=0
+     if a.standby:
+      expect('REPLACED',15)
+      replacement_sec=time.monotonic()-sent
+      follower,_=exchange(standby,['ROLE'])
+      promoted,_=exchange(target,['ROLE'])
+      old_role,_=exchange(current,['ROLE'])
+      standby_role=follower[0]
+      case['standby_at_replacement']=dict(
+          send_to_replacement_reply_seconds=replacement_sec,
+          standby_role=standby_role.decode(),
+          standby_upstream=follower[2] if standby_role==b'slave' else None,
+          standby_state=follower[3].decode() if standby_role==b'slave' else None,
+          promoted_role=promoted[0].decode(),old_primary_role=old_role[0].decode())
+      save()
+      assert follows(follower,target) and promoted[0]==old_role[0]==b'master',case['standby_at_replacement']
      while True:
       try:
        endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache'])

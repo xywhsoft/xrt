@@ -65,6 +65,8 @@ XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,cons
  * 128 pairs. Role.MaxPayloadBytes also bounds the list reply. Validate the
  * complete list before connecting. Down/disconnected rows are skipped.
  * Try eligible replicas in wire order, then continue through the seeds.
+ * A row marked promoted identifies the required exact upstream during that
+ * snapshot. Exclude the promoted node itself from read candidates.
  * SeedTimeout also bounds each replica setup+ROLE, and Timeout includes all
  * candidates and physical retirement. Empty/ineligible lists can report
  * NO_REPLICA. ConnectReplica controls authority, credentials and trust.
