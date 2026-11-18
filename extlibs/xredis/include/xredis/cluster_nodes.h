@@ -15,7 +15,10 @@ typedef enum xredisclusternodesstate {XREDIS_CLUSTER_NODES_OPEN,XREDIS_CLUSTER_N
 typedef bool (*xredisclusterauthorizeproc)(const xredisclusteraddress* Address,ptr Data);
 /* Runs on each node's pool worker; different nodes may call concurrently.
  * Same managed-client factory rules as PoolConnect: private reference transfers
- * on success only. Address borrows a stable copied key; Slot/Reason are zero.
+ * on success only. Address borrows a stable copied key; Slot is zero. Reason
+ * is REPLICA_READ for a replica pool and zero otherwise. Replica factories
+ * must use XREDIS_INIT_CLUSTER_READONLY. The pool drains any candidate built
+ * without it before publishing a dispatch-eligible member.
  * Honor exact transport/endpoint/credentials/session profile and total per-
  * attempt Timeout; never block. Client setup may outlive one caller's route. */
 typedef bool (*xredisclusterconnectproc)(const xredisclusteraddress* Address,
@@ -49,7 +52,8 @@ XREDIS_API xredisadmission xredisClusterNodesCreate(xnetengine* Engine,uint64 Af
 XREDIS_API bool xredisClusterNodesRetain(xredisclusternodes* Cache);
 XREDIS_API void xredisClusterNodesRelease(xredisclusternodes* Cache);
 /* Direct Route.GetPool adapter (Data=Cache). Exact copied host/port/TLS key;
- * Slot/Reason do not create duplicate node pools. Authorization runs on every
+ * REPLICA_READ has a separate pool for the same endpoint. Slot and redirect
+ * reasons do not create duplicate pools. Authorization runs on every
  * call. One concurrent creator per key; others WAIT. Hits allocate nothing and
  * transfer one pool ref on READY; all other outcomes preserve output. READY
  * means a maintained pool exists, not that its members are already ready.
@@ -63,7 +67,8 @@ XREDIS_API void xredisClusterNodesRelease(xredisclusternodes* Cache);
  * Endpoint policy/factory code/data live until Drop. No hidden DNS/TLS fallback. */
 XREDIS_API xredisclusterpoolstatus xredisClusterNodesGetPool(const xredisclusteraddress* Address,
     int64 Remaining,ptr Cache,xredispool** Pool);
-/* Explicit endpoint fence, idempotent if absent. Stops new lookups for this key
+/* Explicit endpoint/profile fence, idempotent if absent. REPLICA_READ selects
+ * its separate pool. Stops new lookups for this key
  * until its physical close retires; closes accepted native work with the usual
  * typed/possibly uncertain outcomes. Retained selected pools may reject later
  * admissions CLOSED. Retirement never replays accepted business. */

@@ -3,10 +3,11 @@
 #include "pool_connect_peer.h"
 #include "cluster_route_peer.h"
 typedef struct nnfixture nnfixture;
-typedef struct nnnode {nnfixture* Owner;size_t Index;xatomic32 Redirect,Target,Prefixes,Installed;} nnnode;
+typedef struct nnnode {nnfixture* Owner;size_t Index;xatomic32 Redirect,Target,Prefixes,Installed,Readonly;} nnnode;
 struct nnfixture {
     redisconnectpeer Peers[3];nnnode Nodes[3];xredisclusternodes* Cache;
     xatomic32 Calls,Auth,Drops,Deny,Block,Entered,Continue,CloseInAuth,Go,HoldBusiness,Business,AuthExited;
+    xatomic32 DenyReplica,BadReplica;
     xfuture* ClientClosed[1024];
 };
 static bool nnCommand(redispeer* P,xredisreply* Reply,ptr Data)
@@ -14,6 +15,10 @@ static bool nnCommand(redispeer* P,xredisreply* Reply,ptr Data)
     nnnode* N=Data;nnfixture* F=N->Owner;xredisreplyvalue Root,Name;
     redisPeerRequire(xredisReplyGet(Reply,0,&Root) && xredisReplyGet(Reply,Root.FirstChild,&Name),"nodes fixture command");
     if(redisPeerName(Name,"HELLO"))return redisConnectPeerCommand(P,Reply,&F->Peers[N->Index]);
+    if(redisPeerName(Name,"READONLY")){
+        redisPeerRequire(Root.ChildCount==1,"READONLY setup shape");
+        redisPeerSend(P,"+OK\r\n",5);xrtAtomic32FetchAdd(&N->Readonly,1,XMEMORY_RELEASE);return true;
+    }
     if(redisPeerName(Name,"ASKING")){redisPeerSend(P,"+OK\r\n",5);xrtAtomic32FetchAdd(&N->Prefixes,1,XMEMORY_RELEASE);return true;}
     uint32 Kind=xrtAtomic32Load(&N->Redirect,XMEMORY_ACQUIRE);
     if(Kind){uint32 Target=xrtAtomic32Load(&N->Target,XMEMORY_ACQUIRE);redisPeerRequire(Target<3,"nodes redirect target");char Wire[100];int Size=snprintf(Wire,sizeof(Wire),"-%s 1 127.0.0.1:%u\r\n",Kind==1?"MOVED":"ASK",(unsigned)F->Peers[Target].Address.Port);redisPeerSend(P,Wire,(size_t)Size);return true;}
@@ -28,12 +33,15 @@ static bool nnAuthorize(const xredisclusteraddress* A,ptr Data)
     if(xrtAtomic32Load(&F->Block,XMEMORY_ACQUIRE)){xrtAtomic32Store(&F->Entered,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&F->Continue,XMEMORY_ACQUIRE))xrtSleep(1);}
     bool Allowed=!A->Tls && !xrtAtomic32Load(&F->Deny,XMEMORY_ACQUIRE) && A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),Known=false;
     if(Allowed)for(unsigned N=0;N<3;++N)if(A->Port==F->Peers[N].Address.Port){Known=true;break;}
-    xrtAtomic32FetchAdd(&F->AuthExited,1,XMEMORY_RELEASE);return Allowed && Known;
+    bool Denied=A->Reason==XREDIS_CLUSTER_REPLICA_READ && xrtAtomic32Load(&F->DenyReplica,XMEMORY_ACQUIRE);
+    xrtAtomic32FetchAdd(&F->AuthExited,1,XMEMORY_RELEASE);return Allowed && Known && !Denied;
 }
 static bool nnConnect(const xredisclusteraddress* A,xnetengine* E,size_t Slot,uint64 Attempt,int64 Timeout,ptr Data,xredisclient** Out)
 {
-    nnfixture* F=Data;(void)Attempt;redisPeerRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9) && !A->Tls && !A->Slot && !A->Reason,"stable copied node identity");
+    nnfixture* F=Data;(void)Attempt;redisPeerRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9) && !A->Tls && !A->Slot &&
+        (!A->Reason || A->Reason==XREDIS_CLUSTER_REPLICA_READ),"stable copied node identity/profile");
     uint32 Call=xrtAtomic32FetchAdd(&F->Calls,1,XMEMORY_ACQ_REL);redisPeerRequire(Call<1024,"nodes fixture churn bound");xnetaddr Address;redisPeerRequire(xrtNetAddrParse(&Address,"127.0.0.1",A->Port),"nodes numeric factory");xredisclientinitconfig C;xredisClientInitConfigInit(&C);C.Timeout=Timeout;
+    if(A->Reason==XREDIS_CLUSTER_REPLICA_READ && !xrtAtomic32Load(&F->BadReplica,XMEMORY_ACQUIRE))C.Flags=XREDIS_INIT_CLUSTER_READONLY;
     bool OK=xredisClientConnectInit(E,&Address,Slot%2,NULL,&C,Out);if(OK)F->ClientClosed[Call]=xredisClientClosed(*Out);return OK;
 }
 static void nnDrop(ptr Data)

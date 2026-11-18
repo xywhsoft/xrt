@@ -38,6 +38,7 @@ xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* 
     xnetengine** Engine, xnetworker** Worker, ptr Output);
 #if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
 xredisadmission __xredisClientClaimStarting(xredisclient* Client, xredisexclusiveowner* Owner, xnetengine* Engine);
+bool __xredisClientInitReadonly(const xredisclient* Client);
 #endif
 bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner);
 bool __xredisClientIsWorker(xredisclient* Client);

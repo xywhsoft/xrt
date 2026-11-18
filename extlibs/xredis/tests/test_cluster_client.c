@@ -18,6 +18,124 @@ static void ccRedirects(void)
         xfuture* Next=cfEcho(C,5000);const xredisclusterclientresult* W=cfWait(Next);testRequire(W->Route.Query.Status==XREDIS_REQUEST_OK && W->Route.Attempts==(Kind==1?1u:2u),"next call did not use proper shared/ephemeral map");cfStop(F,C);xrtFutureDestroy(R);xrtFutureDestroy(Next);
     }
 }
+static xfuture* ccReadReplica(xredisclusterclient* C)
+{
+    const xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("replica\0read")};
+    xfuture* F=NULL;
+    testRequire(xredisClusterClientCallReplica(C,1,A,2,5000,&F)==XREDIS_ADMISSION_ACCEPTED,"stale-tolerant read admission");
+    return F;
+}
+static const xredisclusterrouteresult* ccReadResult(xfuture* F)
+{
+    const xredisclusterclientresult* V=cfWait(F);
+    testRequire(V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE &&
+        V->Route.Query.Status==XREDIS_REQUEST_OK && V->Route.Query.Delivery==XREDIS_REPLIED,"replica read observed");
+    return &V->Route;
+}
+static xredispool* ccReplicaPool(rffixture* F,size_t Index)
+{
+    xredisclusteraddress A=nnAddress(F->Base,Index);
+    A.Reason=XREDIS_CLUSTER_REPLICA_READ;
+    xredispool* P=NULL;
+    testRequire(xredisClusterNodesGetPool(&A,5000,F->Base->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"replica pool");
+    return P;
+}
+static void ccReplicaRoutes(void)
+{
+    for(unsigned Legacy=0;Legacy<2;++Legacy){
+        rffixture* F=rfStart(5);
+        xrtAtomic32Store(&F->Nodes[0].Replicas,6,XMEMORY_RELEASE);
+        xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);
+        xredispool* A=ccReplicaPool(F,1),*B=ccReplicaPool(F,2);
+        nnReady(A,1);nnReady(B,1);
+        xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);
+        if(Legacy)K.Refresh.Format=XREDIS_CLUSTER_LEGACY_SLOTS;
+        xredisclusterclient* C=cfCreate(F,&K);
+        xfuture* Cold=ccReadReplica(C);
+        redisPeerWait(&F->Nodes[0].Queries,1);rfRelease(F,0);
+        testRequire(ccReadResult(Cold)->AttemptAddress.Reason==XREDIS_CLUSTER_REPLICA_READ,"bootstrap read selects replica");
+        xrtFutureDestroy(Cold);
+        unsigned Seen=0;
+        for(unsigned N=0;N<6;++N){
+            xfuture* R=ccReadReplica(C);
+            const xredisclusterrouteresult* V=ccReadResult(R);
+            testRequire(V->AttemptAddress.Reason==XREDIS_CLUSTER_REPLICA_READ && V->Attempts==1 && V->ProviderCalls==1,"warm read takes one replica attempt");
+            Seen|=V->AttemptAddress.Port==F->Base->Peers[1].Address.Port?1u:
+                V->AttemptAddress.Port==F->Base->Peers[2].Address.Port?2u:0u;
+            xrtFutureDestroy(R);
+        }
+        testRequire(Seen==3 && xrtAtomic32Load(&F->Base->Nodes[1].Readonly,XMEMORY_ACQUIRE)==1 &&
+            xrtAtomic32Load(&F->Base->Nodes[2].Readonly,XMEMORY_ACQUIRE)==1,"rotation and READONLY reuse");
+        xfuture* R=cfEcho(C,5000);
+        testRequire(ccReadResult(R)->AttemptAddress.Port==F->Base->Peers[0].Address.Port,"ordinary calls keep primary routing");
+        xrtFutureDestroy(R);
+        xrtAtomic32Store(&F->Base->DenyReplica,1,XMEMORY_RELEASE);
+        R=ccReadReplica(C);const xredisclusterrouteresult* V=ccReadResult(R);
+        testRequire(V->AttemptAddress.Port==F->Base->Peers[0].Address.Port && !V->AttemptAddress.Reason &&
+            V->Attempts==1 && V->ProviderCalls==2,"replica denial falls back before native acceptance");
+        xrtFutureDestroy(R);
+        xrtAtomic32Store(&F->Base->DenyReplica,0,XMEMORY_RELEASE);
+        xrtAtomic32Store(&F->Base->Nodes[1].Redirect,XREDIS_CLUSTER_MOVED,XMEMORY_RELEASE);
+        xrtAtomic32Store(&F->Base->Nodes[2].Redirect,XREDIS_CLUSTER_MOVED,XMEMORY_RELEASE);
+        xrtAtomic32Store(&F->Nodes[0].Mode,RF_NORMAL,XMEMORY_RELEASE);
+        R=ccReadReplica(C);V=ccReadResult(R);
+        testRequire(V->AttemptAddress.Port==F->Base->Peers[0].Address.Port &&
+            V->AttemptAddress.Reason==XREDIS_CLUSTER_MOVED && V->Attempts==2 && V->Moved==1,
+            "validated replica MOVED targets the ordinary pool");
+        xrtFutureDestroy(R);
+        if(!Legacy){
+            double Due=xrtTimer()+5;
+            while(cfInfo(C).Generation<2 || cfInfo(C).Dirty){testRequire(xrtTimer()<Due,"MOVED map published");xrtSleep(1);}
+            xrtAtomic32Store(&F->Nodes[0].Loading,6,XMEMORY_RELEASE);
+            uint64 Before=cfInfo(C).Generation;Due=xrtTimer()+5;
+            testRequire(xredisClusterClientInvalidate(C),"publish replicas loading");
+            while(cfInfo(C).Generation<=Before || cfInfo(C).Dirty){testRequire(xrtTimer()<Due,"loading map published");xrtSleep(1);}
+            R=ccReadReplica(C);V=ccReadResult(R);
+            testRequire(V->AttemptAddress.Port==F->Base->Peers[0].Address.Port && !V->AttemptAddress.Reason &&
+                V->Attempts==1 && V->ProviderCalls==1,"loading replicas skipped before any lookup");
+            xrtFutureDestroy(R);
+        }
+        xredisPoolRelease(A);xredisPoolRelease(B);cfStop(F,C);
+    }
+}
+static void ccReplicaProfile(void)
+{
+    rffixture* F=rfStart(4);
+    xrtAtomic32Store(&F->Nodes[0].Replicas,2,XMEMORY_RELEASE);
+    xrtAtomic32Store(&F->Base->BadReplica,1,XMEMORY_RELEASE);
+    xredisclusteraddress Address=nnAddress(F->Base,1);
+    xredispool* Primary=NULL,*Replica=ccReplicaPool(F,1);
+    testRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Primary)==XREDIS_CLUSTER_POOL_READY &&
+        Primary!=Replica,"same address has separate ordinary and replica pools");
+    nnReady(Primary,1);
+    xredispoolconnectinfo Info={.Size=sizeof(Info)};
+    double Due=xrtTimer()+5;
+    do {
+        testRequire(xredisPoolConnectInfo(Replica,&Info) && xrtTimer()<Due && Info.Connected==0,"unflagged replica rejected");
+        if(!Info.Failures)xrtSleep(1);
+    }while(!Info.Failures);
+    xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);
+    xfuture* R=ccReadReplica(C);const xredisclusterrouteresult* V=ccReadResult(R);
+    testRequire(V->AttemptAddress.Port==F->Base->Peers[0].Address.Port && V->Attempts==1 && V->ProviderCalls==2,
+        "unavailable replica pool falls back without sending on wrong profile");
+    xrtFutureDestroy(R);
+    testRequire(xredisClusterNodesRetire(F->Base->Cache,&Address),"retire ordinary profile independently");
+    xfuture* Closed=xredisPoolClosed(Primary);
+    testRequire(xrtFutureWaitFor(Closed,5000)==XWAIT_OK,"ordinary physical retirement");
+    xrtFutureDestroy(Closed);xredisPoolRelease(Primary);
+    xrtAtomic32Store(&F->Base->BadReplica,0,XMEMORY_RELEASE);nnReady(Replica,1);
+    R=ccReadReplica(C);V=ccReadResult(R);
+    testRequire(V->AttemptAddress.Reason==XREDIS_CLUSTER_REPLICA_READ && V->Attempts==1,"replacement runs READONLY");
+    xrtFutureDestroy(R);
+    uint32 Business=xrtAtomic32Load(&F->Base->Business,XMEMORY_ACQUIRE);
+    xrtAtomic32Store(&F->Base->HoldBusiness,1,XMEMORY_RELEASE);R=ccReadReplica(C);redisPeerWait(&F->Base->Business,Business+1);
+    testRequire(xrtFutureCancel(R),"cancel accepted replica read");
+    const xredisclusterclientresult* Stopped=cfWait(R);
+    testRequire(Stopped->Status==XREDIS_CLUSTER_CLIENT_CANCELLED && Stopped->Route.Attempts==1 &&
+        Stopped->Route.AttemptAddress.Reason==XREDIS_CLUSTER_REPLICA_READ,"accepted replica stop preserves attempt");
+    xredisPoolRelease(Replica);cfStop(F,C);
+    xrtFutureDestroy(R);
+}
 typedef struct ccbarrier {xatomic32 Entered,Continue;} ccbarrier;
 static void ccBlock(xnetworker* W,ptr Data)
 {(void)W;ccbarrier* B=Data;xrtAtomic32Store(&B->Entered,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&B->Continue,XMEMORY_ACQUIRE))xrtSleep(1);}
@@ -134,7 +252,7 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
+{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 ccDeadline();
 #endif

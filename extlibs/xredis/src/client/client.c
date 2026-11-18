@@ -351,6 +351,10 @@ static bool xredisClientInitValid(const xredisclientinitconfig* Init, const xred
 			return xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid initialization input span");
 	return true;
 }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+bool __xredisClientInitReadonly(const xredisclient* Client)
+{ return (Client->InitFlags & XREDIS_INIT_CLUSTER_READONLY) != 0; }
+#endif
 
 static bool xredisClientInitBuild(xredisclient* Client, const xredisclientinitconfig* Init)
 {

@@ -7,7 +7,7 @@ xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t 
 bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 #if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
 xredisadmission __xredisSharedPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
-    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result);
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result, bool Readonly);
 #endif
 #endif
 #endif

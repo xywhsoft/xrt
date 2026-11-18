@@ -8,7 +8,7 @@
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
 struct xredisclustertopology {
     xatomic32 References;xredisreply* Reply;xredisclustertopologyinfo Info;
-    xredisclusternode* Nodes;xredisclusterrange* Ranges;
+    xredisclusternode* Nodes;xredisclusterrange* Ranges;uint16* ShardStarts;
     uint16 Slots[XREDIS_CLUSTER_SLOTS];
 };
 typedef struct xredisclusterbuild {
@@ -154,6 +154,7 @@ static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyv
             Node=Nodes.FirstChild;Count=Nodes.ChildCount;
         }
         if(Count>B->Limits->MaxNodes-B->Nodes)return XREDIS_CLUSTER_LIMIT;
+        if(B->Output)B->Output->ShardStarts[B->Shards]=(uint16)B->Nodes;
         for(size_t K=0;K<Count;++K){xredisclusternode N;xredisclusterstatus S=xredisClusterReadNode(B,Node,Legacy,K==0,&N);if(S!=XREDIS_CLUSTER_VALUE)return S;
             if(N.Role==XREDIS_CLUSTER_MASTER){if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;}
             if(B->Output)B->Output->Nodes[B->Nodes]=N;
@@ -180,10 +181,12 @@ XREDIS_API xredisclusterstatus xredisClusterTopologyCreate(xredisreply* R,xredis
     if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_CLUSTER_SERVER_ERROR;
     xredisclusterbuild B={0};B.Reply=R;B.Limits=&K;
     xredisclusterstatus S=xredisClusterBuild(&B,Root,Format==XREDIS_CLUSTER_LEGACY_SLOTS);if(S!=XREDIS_CLUSTER_VALUE)return S;
-    size_t Bytes=sizeof(xredisclustertopology)+B.Nodes*sizeof(xredisclusternode)+B.Ranges*sizeof(xredisclusterrange);
+    size_t Bytes=sizeof(xredisclustertopology)+B.Nodes*sizeof(xredisclusternode)+B.Ranges*sizeof(xredisclusterrange)+
+        (B.Shards+1)*sizeof(uint16);
     if(Bytes>K.MaxOwnedBytes || I.ReservedBytes>K.MaxOwnedBytes-Bytes)return XREDIS_CLUSTER_LIMIT;
     xredisclustertopology* T=xrtCalloc(1,Bytes);if(!T)return XREDIS_CLUSTER_MEMORY;
     T->Nodes=(xredisclusternode*)(T+1);T->Ranges=(xredisclusterrange*)(T->Nodes+B.Nodes);
+    T->ShardStarts=(uint16*)(T->Ranges+B.Ranges);T->ShardStarts[B.Shards]=(uint16)B.Nodes;
     T->Info=(xredisclustertopologyinfo){sizeof(T->Info),B.Shards,B.Nodes,B.Ranges,B.Assigned,Bytes,I.ReservedBytes,Format};
     xredisclusterbuild Fill={0};Fill.Reply=R;Fill.Limits=&K;Fill.Output=T;
     S=xredisClusterBuild(&Fill,Root,Format==XREDIS_CLUSTER_LEGACY_SLOTS);
@@ -207,6 +210,11 @@ static bool xredisClusterOutput(const xredisclustertopology* T,const void* Outpu
 }
 bool __xredisClusterTopologyOutput(const xredisclustertopology* T,const void* Output,size_t Bytes)
 {return xredisClusterOutput(T,Output,Bytes);}
+const xredisclusternode* __xredisClusterTopologyShardNodes(const xredisclustertopology* T,size_t Shard,size_t* Count)
+{
+    uint16 First=T->ShardStarts[Shard];*Count=T->ShardStarts[Shard+1]-First;
+    return T->Nodes+First;
+}
 XREDIS_API bool xredisClusterTopologyInfo(const xredisclustertopology* T,xredisclustertopologyinfo* I)
 {if(!xredisClusterOutput(T,I,sizeof(*I)) || I->Size!=sizeof(*I))return xredisClusterArgument("invalid Cluster topology info size");*I=T->Info;return true;}
 XREDIS_API xredisclusterstatus xredisClusterTopologyLookup(const xredisclustertopology* T,uint16 Slot,xredisclusternode* N)

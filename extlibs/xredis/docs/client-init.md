@@ -155,11 +155,14 @@ The separate managed READONLY fixture starts three loopback Cluster primaries
 and one replica. The native probe checks RESP2/RESP3 MOVED on connections
 without READONLY, binary GET on managed READONLY connections and pipelined reads
 through a maintained two-connection pool. The runner waits for replication
-before testing and saves server identity, binary hashes and per-process logs.
+and for both SHARDS and SLOTS to advertise the replica. The probe also checks
+managed topology selection and fallback with both topology reply formats and
+protocol versions. The report captures server identity, binary hashes,
+metadata replies and per-process logs.
 
 ```sh
-python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_role_client,xredis_pool_shared_connect --kind static --verify
-lib=release/gnu/native/xredis_role_client,xredis_pool_shared_connect/static
+python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_cluster_client,xredis_role_client --kind static --verify
+lib=release/gnu/native/xredis_cluster_client,xredis_role_client/static
 mkdir -p out/service-extensions
 gcc -std=c11 -Wall -Wextra -Werror -O2 -pthread -Iinclude -Iextlibs/xredis/include extlibs/xredis/tests/interop/redis_cluster_readonly.c "$lib/libxredis.a" "$lib/libxrt.a" -lm -o out/service-extensions/redis-cluster-readonly
 python extlibs/xredis/tests/interop/run_redis_cluster_readonly.py --client out/service-extensions/redis-cluster-readonly --report out/service-extensions/evidence/redis-cluster-readonly.json

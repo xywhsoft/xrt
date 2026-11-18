@@ -16,7 +16,11 @@ typedef enum xredisclusterstatus {
 typedef enum xredisclusterendpoint {XREDIS_CLUSTER_ENDPOINT_HOST=1,XREDIS_CLUSTER_ENDPOINT_SOURCE,XREDIS_CLUSTER_ENDPOINT_UNKNOWN} xredisclusterendpoint;
 typedef enum xredisclusterrole {XREDIS_CLUSTER_ROLE_OTHER=0,XREDIS_CLUSTER_MASTER,XREDIS_CLUSTER_REPLICA} xredisclusterrole;
 typedef enum xredisclusterhealth {XREDIS_CLUSTER_HEALTH_OTHER=0,XREDIS_CLUSTER_ONLINE,XREDIS_CLUSTER_FAILED,XREDIS_CLUSTER_LOADING,XREDIS_CLUSTER_UNREPORTED} xredisclusterhealth;
-typedef enum xredisclusterredirectkind {XREDIS_CLUSTER_MOVED=1,XREDIS_CLUSTER_ASK} xredisclusterredirectkind;
+typedef enum xredisclusterredirectkind {
+    XREDIS_CLUSTER_MOVED=1,XREDIS_CLUSTER_ASK,
+    /* Initial replica endpoint marker. RedirectRead returns MOVED or ASK. */
+    XREDIS_CLUSTER_REPLICA_READ
+} xredisclusterredirectkind;
 typedef struct xredisclusterlimits {
     size_t Size,MaxShards,MaxNodes,MaxRanges,MaxReplyNodes,MaxPayloadBytes,MaxEndpointBytes,MaxOwnedBytes;
     bool RequireFullCoverage;

@@ -125,17 +125,44 @@ def main():
                 assert frame(reply)[0] == b"OK"
                 send(connection, ["GET", KEY])
                 assert frame(reply)[0] == VALUE
+            replica_id = result["nodes"][3]["node_id"].encode()
+
+            def replica_advertised():
+                shards, _ = exchange(master, ["CLUSTER", "SHARDS"], protocol=3)
+                slots, _ = exchange(master, ["CLUSTER", "SLOTS"])
+                for shard in shards:
+                    bounds = shard[b"slots"]
+                    if not any(first <= slot <= last for first, last in zip(bounds[::2], bounds[1::2])):
+                        continue
+                    if not any(
+                        node.get(b"id") == replica_id and node.get(b"role") == b"replica" and
+                        node.get(b"health") == b"online" and node.get(b"port") == replica
+                        for node in shard[b"nodes"]
+                    ):
+                        return False
+                    return any(
+                        first <= slot <= last and any(node[1:3] == [replica, replica_id] for node in nodes[1:])
+                        for first, last, *nodes in slots
+                    )
+                return False
+
+            wait_until(replica_advertised, 15, "owning primary advertises the online replica in SHARDS and SLOTS")
             moved = f"MOVED {slot} 127.0.0.1:{master}"
             result.update(slot=slot, primary=master, replica=replica, expected_moved=moved)
+            result["metadata_wire"] = {
+                command: exchange(master, ["CLUSTER", command])[1].decode("ascii")
+                for command in ("SHARDS", "SLOTS")
+            }
             run_id = result["nodes"][3]["run_id"]
             for client in clients:
                 assert identity(replica, children[3][1]) == run_id
                 run = subprocess.run(
-                    [str(client), str(replica), run_id, moved], text=True,
+                    [str(client), str(replica), run_id, moved, str(master)], text=True,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=45,
                 )
                 result["cases"].append(dict(client=str(client), sha256=sha(client), exit_code=run.returncode, output=run.stdout))
-                assert run.returncode == 0 and "[PASS] real Cluster READONLY:" in run.stdout, run.stdout
+                assert run.returncode == 0 and "[PASS] real Cluster READONLY:" in run.stdout and \
+                    "[PASS] real Cluster replica routing:" in run.stdout, run.stdout
                 print(client.name, "passed", flush=True)
             result["complete"] = True
         except BaseException:

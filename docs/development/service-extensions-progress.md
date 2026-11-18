@@ -9,8 +9,8 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
   TCP/TLS async/sync request connection, bounded hostname/address dialing and
   explicit HELLO/AUTH/name/database setup are locally verified, including Redis
-  8.0.5 interoperability. Managed READONLY is verified for explicitly selected
-  Cluster replicas and maintained shared pools. Initial client-certificate
+  8.0.5 interoperability. Managed READONLY and topology-based selection are
+  verified for explicit stale-tolerant Cluster reads. Initial client-certificate
   signing/authentication is locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
@@ -15299,3 +15299,44 @@ Automatic replica selection, deployment tail latency and strict release
 qualification remain open. The strict gate lists 32 developing xredis modules.
 [Connection contract](../../extlibs/xredis/docs/client-init.md).
 [Stage evidence](xredis-cluster-readonly-20261119.json).
+
+## 2026-11-19 xredis Cluster replica selection
+
+`xredisClusterClientCallReplica` selects a usable replica from the slot's shard
+under the original call deadline. The start position rotates across calls.
+An immutable shard index bounds the scan to that shard. The source endpoint
+inherits the topology query host and transport. Routes can fall back to an
+eligible primary before native admission. After acceptance, validated MOVED
+or ASK is the only routing retry.
+
+Each replica profile uses its own authorized pool, even when its address also
+has an ordinary pool. A factory candidate without managed READONLY cannot
+enter the ready list. Failure and replacement use the native pool's physical
+retirement path. The regular command APIs continue to select primaries.
+
+Windows and Ubuntu/WSL pass modular and single-header Cluster and pool
+regressions and independent static and shared consumers. The WSL managed
+Cluster suite passes GCC ASan, UBSan and leak detection. Scripted peers
+exercise cold bootstrap, both topology formats, rotation, loading-replica
+filtering, provider denial, profile mismatch and recovery, MOVED and a
+cancelled accepted read. Redis 8.0.5 tests actual binary reads for all four
+RESP2/RESP3 and SHARDS/SLOTS combinations with both native clients. An initial
+fixture run queried metadata before the owning primary advertised the
+replica. The qualified fixture waits for both views.
+
+The prewarmed loopback benchmark uses pipeline depth 32 and three repeats
+of 20,000 requests per route. The table reports medians across the repeats.
+
+| Host | Primary requests/s | Primary P99 (µs) | Replica requests/s | Replica P99 (µs) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 172,100 | 302.6 | 227,732 | 190.0 |
+| WSL | 45,457 | 1268.6 | 62,842 | 688.7 |
+
+Both hosts missed repeatability thresholds. The primary and replica run on
+different synthetic node engines, so the measurements include their
+scheduling differences. The strict release gate lists 32 developing xredis
+modules. Native deployment performance, physical Cluster promotion and
+replication lag policy remain open.
+
+[Replica routing contract](../../extlibs/xredis/docs/cluster_client.md).
+[Stage evidence](xredis-cluster-replica-route-20261119.json).

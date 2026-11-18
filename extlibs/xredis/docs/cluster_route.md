@@ -48,10 +48,11 @@ Future. Endpoint views borrow Route; native reply/cause views also borrow that
 Future. Address is the current candidate, AttemptAddress identifies the native
 observation. Before DONE copy views before the next Step.
 
-[Maintained node caches](cluster_nodes.md) provide a bounded GetPool adapter.
-Coalesced refresh, persistent MOVED-map updates, seed/bootstrap,
-replica policy and a fully managed asynchronous facade remain subsequent work.
-The provider receives validated MOVED/ASK reason so those layers can reuse this
-executor; the input topology is never mutated. The broader four-library
+Maintained node caches provide a bounded GetPool adapter and the managed
+Cluster client also uses the executor for explicit replica reads. The provider
+receives the replica marker distinctly from validated MOVED and ASK, while
+the input topology stays immutable. [Managed Cluster client](cluster_client.md)
+
+The broader four-library
 performance/upstream/native Linux/mixed-load/fixed-arrival/72h gates remain open.
 See the [runnable example](../examples/cluster_route/README.md).

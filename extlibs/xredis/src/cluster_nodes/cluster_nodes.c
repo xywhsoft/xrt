@@ -1,5 +1,6 @@
 #include <xredis/cluster_nodes.h>
 #include "../internal/cluster_nodes_internal.h"
+#include "../internal/pool_connect_internal.h"
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <math.h>
@@ -39,13 +40,20 @@ bool __xredisClusterNodesCurrent(xredisclusternodes* C)
 static bool xredisNodesAddress(const xredisclusteraddress* A,size_t Max)
 {
     if(!xrtMemRangeValid(A,sizeof(*A)) || !A->Host.Size || A->Host.Size>Max || !xrtMemRangeValid(A->Host.Data,A->Host.Size) || !A->Port || A->Slot>=XREDIS_CLUSTER_SLOTS ||
-        (A->Reason!=0 && A->Reason!=XREDIS_CLUSTER_MOVED && A->Reason!=XREDIS_CLUSTER_ASK) || (A->Host.Size==1 && A->Host.Data[0]=='?'))return false;
+        (A->Reason!=0 && A->Reason!=XREDIS_CLUSTER_MOVED && A->Reason!=XREDIS_CLUSTER_ASK && A->Reason!=XREDIS_CLUSTER_REPLICA_READ) ||
+        (A->Host.Size==1 && A->Host.Data[0]=='?'))return false;
     for(size_t I=0;I<A->Host.Size;++I){unsigned X=A->Host.Data[I];if(X<=32 || X==127 || X=='/' || X=='\\' || X=='@' || X=='#')return false;}return true;
 }
 static uint64 xredisNodesHash(const xredisclusteraddress* A)
-{uint64 H=14695981039346656037ull;for(size_t I=0;I<A->Host.Size;++I){H^=A->Host.Data[I];H*=1099511628211ull;}H^=A->Port;H*=1099511628211ull;H^=A->Tls;return H;}
+{uint64 H=14695981039346656037ull;for(size_t I=0;I<A->Host.Size;++I){H^=A->Host.Data[I];H*=1099511628211ull;}H^=A->Port;H*=1099511628211ull;H^=A->Tls;return H^(A->Reason==XREDIS_CLUSTER_REPLICA_READ?2u:0u);}
 static xredisclusternodepool* xredisNodesFind(xredisclusternodes* C,const xredisclusteraddress* A,uint64 H)
-{for(xredisclusternodepool* N=C->Buckets[H&(C->BucketCount-1)];N;N=N->Next)if(N->Hash==H && N->Address.Port==A->Port && N->Address.Tls==A->Tls && N->Address.Host.Size==A->Host.Size && !memcmp(N->Address.Host.Data,A->Host.Data,A->Host.Size))return N;return NULL;}
+{
+    xredisclusterredirectkind Profile=A->Reason==XREDIS_CLUSTER_REPLICA_READ?XREDIS_CLUSTER_REPLICA_READ:0;
+    for(xredisclusternodepool* N=C->Buckets[H&(C->BucketCount-1)];N;N=N->Next)
+        if(N->Hash==H && N->Address.Port==A->Port && N->Address.Tls==A->Tls && N->Address.Reason==Profile &&
+            N->Address.Host.Size==A->Host.Size && !memcmp(N->Address.Host.Data,A->Host.Data,A->Host.Size))return N;
+    return NULL;
+}
 #define XREDIS_NODES_SEALED 0x80000000u
 #define XREDIS_NODES_USERS 0x7fffffffu
 /* The seal bit and admitted caller count share one modification order. A
@@ -151,13 +159,15 @@ XREDIS_API xredisclusterpoolstatus xredisClusterNodesGetPool(const xrediscluster
     if(N){if(N->Opening || N->Retiring){++C->Info.Waits;xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_WAIT;}
         xredisPoolRetain(N->Pool);*Out=N->Pool;++C->Info.Hits;xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_READY;}
     if(!C->Free){++C->Info.Waits;xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_WAIT;}
-    N=C->Free;C->Free=N->FreeNext;N->FreeNext=NULL;N->Address.Host.Size=A->Host.Size;memcpy((ptr)N->Address.Host.Data,A->Host.Data,A->Host.Size);N->Address.Port=A->Port;N->Address.Tls=A->Tls;N->Address.Slot=0;N->Address.Reason=0;
+    bool Readonly=A->Reason==XREDIS_CLUSTER_REPLICA_READ;
+    N=C->Free;C->Free=N->FreeNext;N->FreeNext=NULL;N->Address.Host.Size=A->Host.Size;memcpy((ptr)N->Address.Host.Data,A->Host.Data,A->Host.Size);N->Address.Port=A->Port;N->Address.Tls=A->Tls;N->Address.Slot=0;N->Address.Reason=Readonly?XREDIS_CLUSTER_REPLICA_READ:0;
     N->Hash=H;size_t Bucket=H&(C->BucketCount-1);N->Next=C->Buckets[Bucket];C->Buckets[Bucket]=N;N->Opening=true;N->Retiring=false;N->ObservedClosed=false;N->Pool=NULL;N->Closed=NULL;++C->Info.Nodes;++C->Info.Opening;++C->Info.Misses;
     xrtMutexUnlock(&C->Gate);
     if(!xrtFutureWatchInit(&N->Watch,xredisNodesNotify,xredisNodesReleased,N)){
         xredispool* P=NULL;xfuture* F=NULL;xrtMutexLock(&C->Gate);--C->Info.Opening;N->Opening=false;++C->Info.Failures;xredisNodesUnlink(N,&P,&F);xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_MEMORY;}
     xredispoolconnectconfig Connect={sizeof(Connect),xredisNodesConnect,NULL,N,C->Config.Protocol,C->Config.MaxConnecting,C->Config.AttemptTimeout,C->Config.RetryMin,C->Config.RetryMax};
-    xredispool* P=NULL;xredisNodesRef(C);xredisadmission Admission=xredisSharedPoolConnect(C->Engine,C->Affinity,C->Config.ConnectionsPerNode,&C->Config.Pool,&Connect,&P);
+    xredispool* P=NULL;xredisNodesRef(C);
+    xredisadmission Admission=__xredisSharedPoolConnect(C->Engine,C->Affinity,C->Config.ConnectionsPerNode,&C->Config.Pool,&Connect,&P,Readonly);
     if(Admission!=XREDIS_ADMISSION_ACCEPTED){xredispool* Drop=NULL;xfuture* F=NULL;xrtMutexLock(&C->Gate);--C->Info.Opening;N->Opening=false;++C->Info.Failures;xredisNodesUnlink(N,&Drop,&F);xrtMutexUnlock(&C->Gate);xredisClusterNodesRelease(C);xredisNodesEnd(C);return Admission==XREDIS_ADMISSION_CLOSED?XREDIS_CLUSTER_POOL_CLOSED:XREDIS_CLUSTER_POOL_MEMORY;}
     xfuture* Closed=xredisPoolClosed(P);xrtMutexLock(&C->Gate);N->Pool=P;N->Closed=Closed;++C->Info.Created;xrtMutexUnlock(&C->Gate);
     xfuturewatchresult W=xrtFutureWatchAdd(Closed,&N->Watch);

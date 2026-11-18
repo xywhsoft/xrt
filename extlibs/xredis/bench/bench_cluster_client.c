@@ -13,9 +13,15 @@ int main(int Argc,char** Argv)
 {
     size_t Count=Argc>1?(size_t)strtoull(Argv[1],NULL,10):20000;unsigned Mode=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):1;bool Heap=Argc>3 && strtoul(Argv[3],NULL,10)!=0;size_t Pipeline=Argc>4?(size_t)strtoull(Argv[4],NULL,10):32;
     unsigned Affinity=Argc>5?(unsigned)strtoul(Argv[5],NULL,10):1;
-    if(!Count || Count>1000000 || Mode>1 || !Pipeline || Pipeline>32 || Affinity>1 || Argc>6)return 2;
-    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");rffixture* F=rfStart(3);xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);
-    xredisclusteraddress Address=nnAddress(F->Base,0);xredispool* Pool=NULL;redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"managed benchmark shared baseline");nnReady(Pool,1);
+    if(!Count || Count>1000000 || Mode>3 || !Pipeline || Pipeline>32 || Affinity>1 || Argc>6)return 2;
+    bool Replica=Mode==2;
+    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");
+    rffixture* F=rfStart(3);
+    if(Mode>=2)xrtAtomic32Store(&F->Nodes[0].Replicas,2,XMEMORY_RELEASE);
+    xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);
+    xredisclusteraddress Address=nnAddress(F->Base,Replica?1:0);
+    Address.Reason=Replica?XREDIS_CLUSTER_REPLICA_READ:0;
+    xredispool* Pool=NULL;redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"managed benchmark shared baseline");nnReady(Pool,1);
     xfuture* Futures[32]={0};double Submitted[32]={0};const xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("managed\0route")};uint64 Sum=0;
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xmemstats Before,After;xrtMemStatsEnable(Heap);xrtMemStatsGet(&Before);
@@ -25,12 +31,21 @@ int main(int Argc,char** Argv)
     double Began=xrtTimer();
     for(size_t N=0;N<Count+Pipeline;++N){size_t I=N%Pipeline;
         if(N>=Pipeline && Futures[I]){redisPeerRequire(xrtFutureWaitFor(Futures[I],15000)==XWAIT_OK,"managed benchmark bounded wait");const xredisrequestresult* Q;
-            if(Mode){const xredisclusterclientresult* V=xrtFutureValue(Futures[I]);redisPeerRequire(V && V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");Q=&V->Route.Query;}
+            if(Mode){const xredisclusterclientresult* V=xrtFutureValue(Futures[I]);redisPeerRequire(V && V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");
+                if(Mode>=2)redisPeerRequire(V->Route.Attempts==1 && V->Route.AttemptAddress.Port==Address.Port &&
+                    V->Route.AttemptAddress.Reason==Address.Reason,"benchmark expected warm profile");
+                Q=&V->Route.Query;}
             else Q=xrtFutureValue(Futures[I]);
             redisPeerRequire(Q && Q->Status==XREDIS_REQUEST_OK,"benchmark native status");xredisreplyvalue V;redisPeerRequire(xredisReplyGet(Q->Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"managed\0route",13),"benchmark binary result");Samples[N-Pipeline]=(xrtTimer()-Submitted[I])*1e6;++Sum;xrtFutureDestroy(Futures[I]);Futures[I]=NULL;}
-        if(N<Count){Submitted[I]=xrtTimer();xredisadmission S=Mode?xredisClusterClientCall(C,1,A,2,10000,&Futures[I]):xredisSharedPoolCallAsync(Pool,A,2,10000,&Futures[I]);redisPeerRequire(S==XREDIS_ADMISSION_ACCEPTED,"benchmark no hidden admission loss");}
+        if(N<Count){
+            Submitted[I]=xrtTimer();
+            xredisadmission S=Replica?xredisClusterClientCallReplica(C,1,A,2,10000,&Futures[I]):
+                Mode?xredisClusterClientCall(C,1,A,2,10000,&Futures[I]):xredisSharedPoolCallAsync(Pool,A,2,10000,&Futures[I]);
+            redisPeerRequire(S==XREDIS_ADMISSION_ACCEPTED,"benchmark no hidden admission loss");
+        }
     }
     double Seconds=xrtTimer()-Began;
+    redisPeerRequire(Sum==Count,"benchmark completed every request");
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
 #endif

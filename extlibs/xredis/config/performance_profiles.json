@@ -5638,6 +5638,113 @@
       ]
     },
     {
+      "name": "xredis_cluster_replica_warm",
+      "system": "cluster_client",
+      "description": "Warm managed primary and replica routing on the same synthetic topology, different loopback node engines, pipeline32, 20000 samples. Includes observed completion, excludes socket setup.",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_primary_warm",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/cluster_client_peer.h",
+            "extlibs/xredis/tests/support/cluster_refresh_peer.h",
+            "extlibs/xredis/tests/support/cluster_nodes_peer.h",
+            "extlibs/xredis/tests/support/cluster_route_peer.h",
+            "extlibs/xredis/tests/support/pool_connect_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "3",
+            "0",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "0",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_replica_warm",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/cluster_client_peer.h",
+            "extlibs/xredis/tests/support/cluster_refresh_peer.h",
+            "extlibs/xredis/tests/support/cluster_nodes_peer.h",
+            "extlibs/xredis/tests/support/cluster_route_peer.h",
+            "extlibs/xredis/tests/support/pool_connect_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "2",
+            "0",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "0",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xredis_cluster_client",
       "system": "cluster_client",
       "description": "Automatic Cluster client vs direct same shared native pool: warm binary ECHO, pipeline1/32, observed FIFO completion latency including queue/validation/refs; same/cross native-worker affinity0/1",

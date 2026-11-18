@@ -3,5 +3,7 @@
 #include <xredis/cluster_topology.h>
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
 bool __xredisClusterTopologyOutput(const xredisclustertopology* Topology,const void* Output,size_t Bytes);
+const xredisclusternode* __xredisClusterTopologyShardNodes(const xredisclustertopology* Topology,
+    size_t Shard,size_t* Count);
 #endif
 #endif
