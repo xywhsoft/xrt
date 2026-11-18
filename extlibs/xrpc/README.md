@@ -109,7 +109,7 @@ restore and error reference operations still occur on public JSON API calls.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc_tests --cflag=-O2
-python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --no-single --cflag=-O2
+python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc_examples --no-single --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --trim-only
 python tools/package.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --kind static --verify
 python tools/package.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --kind shared --verify

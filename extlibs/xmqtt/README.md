@@ -222,7 +222,7 @@ and the still-pending transport, credit, alias-map and authentication state.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --cflag=-O2
-python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --no-single --cflag=-O2
+python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_examples --no-single --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --trim-only
 python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --kind static --verify
 python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --kind shared --verify

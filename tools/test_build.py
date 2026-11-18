@@ -247,11 +247,11 @@ class AggregateAssetTest(unittest.TestCase):
 			self.assertTrue(expected)
 			for platform in ("windows", "linux"):
 				with self.subTest(product=product, platform=platform):
-					# Redis's certificate-file example selects an optional RSA
-					# identity implementation through its documented example root.
-					suite = "xredis_examples" if product == "xredis" else product
-					_, _, _, examples, *_ = xrt_build._load_modules(suite, [manifest], platform=platform)
+					suite = product if product == "xcron" else f"{product}_examples"
+					_, tests, singles, examples, *_ = xrt_build._load_modules(suite, [manifest], platform=platform)
 					self.assertEqual(set(examples), expected)
+					if suite.endswith("_examples"):
+						self.assertEqual((tests, singles), ([], []))
 
 	def test_redis_example_root_does_not_expand_library_dependencies(self) -> None:
 		"""All runnable examples select their helper closure separately from the library."""

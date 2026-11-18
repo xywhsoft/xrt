@@ -52,9 +52,9 @@ jobs:
           - product: xcron
             examples: xcron
           - product: xrpc
-            examples: xrpc
+            examples: xrpc_examples
           - product: xmqtt
-            examples: xmqtt
+            examples: xmqtt_examples
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -132,9 +132,9 @@ jobs:
           - product: xcron
             examples: xcron
           - product: xrpc
-            examples: xrpc
+            examples: xrpc_examples
           - product: xmqtt
-            examples: xmqtt
+            examples: xmqtt_examples
     defaults:
       run:
         shell: msys2 {0}

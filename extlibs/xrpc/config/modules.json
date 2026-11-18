@@ -284,6 +284,28 @@
       ]
     },
     {
+      "name": "xrpc_examples",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc",
+        "xrpc_ws_uri_tls_tests"
+      ],
+      "collect_dependency_assets": [
+        "examples"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/README.md"
+      ]
+    },
+    {
       "name": "xrpc_decode",
       "state": "implemented",
       "feature": "XRPC_FEATURE_XRPC_DECODE",
