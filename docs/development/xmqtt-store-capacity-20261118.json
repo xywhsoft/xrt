@@ -1,0 +1,4930 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "6685fc1b701f539123e0403715281de870a4b694",
+  "source_map_sha256": "22bc98f96113640235a9d38a0f312e143f08bd6bdcc19169a6d7ca82366c8b4d",
+  "evidence_directory": "out/service-extensions/mqtt-store-capacity-20261118",
+  "scope": "Queue-inclusive fixed-schedule component observations of one typed native Store Writer, with no live Inbox at checkpoint.",
+  "storage": {
+    "windows": "C: NTFS",
+    "wsl": "WSL2 virtual ext4, /var/tmp",
+    "evidence": {
+      "file": "filesystems.txt",
+      "sha256": "091ec7864347a32ef82f44f398adda0bc86946019c9a01acf2e5fece1661048a"
+    }
+  },
+  "measured_trials": 40,
+  "smoke_trials": 8,
+  "overload_trials": 6,
+  "paired_rotation_trials": 8,
+  "sanitized_trials": 12,
+  "ordering": "Windows measured process returned before the WSL measured process was launched.",
+  "platforms": {
+    "windows": {
+      "smoke": {
+        "file": "windows-smoke-final.json",
+        "sha256": "d8e735c667a6de3b09554365f8b5cbdf5160b1b7fd4706cc64fefa2a7cc821f0",
+        "environment": {
+          "platform": "win32",
+          "platform_release": "10",
+          "machine": "amd64",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+          "compiler_version": "gcc.exe (GCC) 16.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "source_revision": "6685fc1b701f539123e0403715281de870a4b694",
+          "source_dirty": true,
+          "source_fingerprint": "0ad73298460de23b265a8574d65cfbcc48058f47395ebc2aae38da268eb5ae1c",
+          "benchmark_fingerprint": "06ca368b0b3331ad1267bfb92c64b62590b98f0e243005c120cae29b21fe443f",
+          "policy": "baseline-unpinned",
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "benchmarks": {
+          "native_mqtt5_off": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "0",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "65",
+              "observer_bytes": "1952",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 65,
+                "accepted": 64,
+                "committed": 64,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 2,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 65,
+                "recovered_generation": 1,
+                "selected_file_bytes": 42446
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "406250000",
+                "physical_phase_seconds": "0.421813400",
+                "terminal_phase_seconds": "0.421810700",
+                "native_tasks": "63",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-bbf1b56947581058"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  151.726
+                ],
+                "unit": "op/s",
+                "median": 151.726,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1857.9
+                ],
+                "unit": "us",
+                "median": 1857.9,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  2310.533
+                ],
+                "unit": "us",
+                "median": 2310.533,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  10184.067
+                ],
+                "unit": "us",
+                "median": 10184.067,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  10184.067
+                ],
+                "unit": "us",
+                "median": 10184.067,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  10184.067
+                ],
+                "unit": "us",
+                "median": 10184.067,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  10184.067
+                ],
+                "unit": "us",
+                "median": 10184.067,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  32.567
+                ],
+                "unit": "us",
+                "median": 32.567,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  6347656.25
+                ],
+                "unit": "ns/op",
+                "median": 6347656.25,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  7798.2
+                ],
+                "unit": "us",
+                "median": 7798.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt5_pressure": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "16",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "16",
+              "observer_bytes": "1952",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 16,
+                "accepted": 64,
+                "committed": 64,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 2,
+                "checkpoint_attempts": 4,
+                "rotations": 4,
+                "recovered_transactions": 5,
+                "recovered_generation": 5,
+                "selected_file_bytes": 14302
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "453125000",
+                "physical_phase_seconds": "0.425593800",
+                "terminal_phase_seconds": "0.421874300",
+                "native_tasks": "62",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-b43a8fdf3916a462"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  150.378
+                ],
+                "unit": "op/s",
+                "median": 150.378,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1841.567
+                ],
+                "unit": "us",
+                "median": 1841.567,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  6169.5
+                ],
+                "unit": "us",
+                "median": 6169.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  8531.8
+                ],
+                "unit": "us",
+                "median": 8531.8,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  8531.8
+                ],
+                "unit": "us",
+                "median": 8531.8,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  8531.8
+                ],
+                "unit": "us",
+                "median": 8531.8,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  8531.8
+                ],
+                "unit": "us",
+                "median": 8531.8,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  4.5
+                ],
+                "unit": "us",
+                "median": 4.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  7080078.125
+                ],
+                "unit": "ns/op",
+                "median": 7080078.125,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  7206.6
+                ],
+                "unit": "us",
+                "median": 7206.6,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt311_off": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "0",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "65",
+              "observer_bytes": "1952",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 65,
+                "accepted": 64,
+                "committed": 64,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 1,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 65,
+                "recovered_generation": 1,
+                "selected_file_bytes": 42382
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "421875000",
+                "physical_phase_seconds": "0.421667200",
+                "terminal_phase_seconds": "0.421664700",
+                "native_tasks": "64",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-ed619cef9896614c"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  151.778
+                ],
+                "unit": "op/s",
+                "median": 151.778,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1846.033
+                ],
+                "unit": "us",
+                "median": 1846.033,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1937.2
+                ],
+                "unit": "us",
+                "median": 1937.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  5492.4
+                ],
+                "unit": "us",
+                "median": 5492.4,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  5492.4
+                ],
+                "unit": "us",
+                "median": 5492.4,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  5492.4
+                ],
+                "unit": "us",
+                "median": 5492.4,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  5492.4
+                ],
+                "unit": "us",
+                "median": 5492.4,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.2
+                ],
+                "unit": "us",
+                "median": 0.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  6591796.875
+                ],
+                "unit": "ns/op",
+                "median": 6591796.875,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  11032.3
+                ],
+                "unit": "us",
+                "median": 11032.3,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt311_pressure": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "16",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "16",
+              "observer_bytes": "1952",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 16,
+                "accepted": 64,
+                "committed": 64,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 2,
+                "checkpoint_attempts": 4,
+                "rotations": 4,
+                "recovered_transactions": 5,
+                "recovered_generation": 5,
+                "selected_file_bytes": 14298
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "437500000",
+                "physical_phase_seconds": "0.421871400",
+                "terminal_phase_seconds": "0.421867900",
+                "native_tasks": "63",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-58db79d72f7b4b37"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  151.705
+                ],
+                "unit": "op/s",
+                "median": 151.705,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1864.633
+                ],
+                "unit": "us",
+                "median": 1864.633,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  6037.9
+                ],
+                "unit": "us",
+                "median": 6037.9,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  9356.0
+                ],
+                "unit": "us",
+                "median": 9356.0,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  9356.0
+                ],
+                "unit": "us",
+                "median": 9356.0,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  9356.0
+                ],
+                "unit": "us",
+                "median": 9356.0,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  9356.0
+                ],
+                "unit": "us",
+                "median": 9356.0,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  214.367
+                ],
+                "unit": "us",
+                "median": 214.367,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  6835937.5
+                ],
+                "unit": "ns/op",
+                "median": 6835937.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  6792.8
+                ],
+                "unit": "us",
+                "median": 6792.8,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          }
+        }
+      },
+      "measurement": {
+        "file": "windows-measured.json",
+        "sha256": "bb1f74de4f8929ca3479791c784e0f82a5deadd507dd5896d562d8d51a05dbc1",
+        "environment": {
+          "platform": "win32",
+          "platform_release": "10",
+          "machine": "amd64",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+          "compiler_version": "gcc.exe (GCC) 16.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "source_revision": "6685fc1b701f539123e0403715281de870a4b694",
+          "source_dirty": true,
+          "source_fingerprint": "0ad73298460de23b265a8574d65cfbcc48058f47395ebc2aae38da268eb5ae1c",
+          "benchmark_fingerprint": "06ca368b0b3331ad1267bfb92c64b62590b98f0e243005c120cae29b21fe443f",
+          "policy": "baseline-unpinned",
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "benchmarks": {
+          "native_mqtt5_off": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "0",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "1025",
+              "observer_bytes": "26240",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 491726
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 491726
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 491726
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 7,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 491726
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 491726
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3656250000",
+                "physical_phase_seconds": "3.411579300",
+                "terminal_phase_seconds": "3.411576500",
+                "native_tasks": "1021",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-048953656b75fd8e"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3562500000",
+                "physical_phase_seconds": "3.411745600",
+                "terminal_phase_seconds": "3.411743400",
+                "native_tasks": "1011",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-6f08b004f2f9addf"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3593750000",
+                "physical_phase_seconds": "3.411523000",
+                "terminal_phase_seconds": "3.411520500",
+                "native_tasks": "1007",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-c0919c97cb951e27"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3562500000",
+                "physical_phase_seconds": "3.411726400",
+                "terminal_phase_seconds": "3.411724300",
+                "native_tasks": "998",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-e6f3bad2d5f5b635"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3546875000",
+                "physical_phase_seconds": "3.411717300",
+                "terminal_phase_seconds": "3.411713900",
+                "native_tasks": "1012",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-52150b9ed50a4cc3"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  300.154,
+                  300.14,
+                  300.159,
+                  300.141,
+                  300.142
+                ],
+                "unit": "op/s",
+                "median": 300.142,
+                "relative_mad": 6.663512604065908e-06,
+                "relative_central_range": 4.331283192614432e-05
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1791.833,
+                  1802.567,
+                  1793.733,
+                  1798.433,
+                  1798.6
+                ],
+                "unit": "us",
+                "median": 1798.433,
+                "relative_mad": 0.002298667784677002,
+                "relative_central_range": 0.002706244825356275
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1914.967,
+                  1931.567,
+                  1940.467,
+                  1938.9,
+                  1945.533
+                ],
+                "unit": "us",
+                "median": 1938.9,
+                "relative_mad": 0.003421011913971742,
+                "relative_central_range": 0.004590231574604204
+              },
+              "latency_p99_us": {
+                "samples": [
+                  2061.267,
+                  4034.9,
+                  5427.267,
+                  9714.933,
+                  3802.867
+                ],
+                "unit": "us",
+                "median": 4034.9,
+                "relative_mad": 0.345080918981883,
+                "relative_central_range": 0.4025874247193238
+              },
+              "latency_p999_us": {
+                "samples": [
+                  5256.633,
+                  9674.433,
+                  10457.167,
+                  20547.2,
+                  9800.2
+                ],
+                "unit": "us",
+                "median": 9800.2,
+                "relative_mad": 0.06703608089630811,
+                "relative_central_range": 0.0798691863431357
+              },
+              "latency_max_us": {
+                "samples": [
+                  6735.467,
+                  11146.367,
+                  11949.2,
+                  21891.133,
+                  9969.5
+                ],
+                "unit": "us",
+                "median": 11146.367,
+                "relative_mad": 0.10558301193563788,
+                "relative_central_range": 0.17760943991885433
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  2061.267,
+                  4034.9,
+                  5427.267,
+                  9714.933,
+                  3802.867
+                ],
+                "unit": "us",
+                "median": 4034.9,
+                "relative_mad": 0.345080918981883,
+                "relative_central_range": 0.4025874247193238
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.167,
+                  0.2,
+                  0.167,
+                  0.2,
+                  0.2
+                ],
+                "unit": "us",
+                "median": 0.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.165
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  3570556.641,
+                  3479003.906,
+                  3509521.484,
+                  3479003.906,
+                  3463745.117
+                ],
+                "unit": "ns/op",
+                "median": 3479003.906,
+                "relative_mad": 0.004385964894630927,
+                "relative_central_range": 0.008771929789261989
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  26894.1,
+                  26295.9,
+                  26811.6,
+                  26241.7,
+                  27114.0
+                ],
+                "unit": "us",
+                "median": 26811.6,
+                "relative_mad": 0.011278700264064863,
+                "relative_central_range": 0.022311238419191585
+              }
+            }
+          },
+          "native_mqtt5_pressure": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "64",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "64",
+              "observer_bytes": "26240",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 6,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19918
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19918
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19918
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 10,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19918
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19918
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3625000000",
+                "physical_phase_seconds": "3.411800600",
+                "terminal_phase_seconds": "3.411798700",
+                "native_tasks": "937",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-68cef64480964454"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3718750000",
+                "physical_phase_seconds": "3.411868900",
+                "terminal_phase_seconds": "3.411867000",
+                "native_tasks": "977",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-7038098e822cb4c3"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3562500000",
+                "physical_phase_seconds": "3.412046400",
+                "terminal_phase_seconds": "3.412044100",
+                "native_tasks": "974",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-d1482500d5701603"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3578125000",
+                "physical_phase_seconds": "3.412021500",
+                "terminal_phase_seconds": "3.412019300",
+                "native_tasks": "924",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-313b3e4e1223db3e"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3796875000",
+                "physical_phase_seconds": "3.411857500",
+                "terminal_phase_seconds": "3.411855300",
+                "native_tasks": "966",
+                "model_peak_bytes": "1087",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-c5c1439aa431fe0d"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  300.135,
+                  300.129,
+                  300.113,
+                  300.115,
+                  300.13
+                ],
+                "unit": "op/s",
+                "median": 300.129,
+                "relative_mad": 1.9991403696316602e-05,
+                "relative_central_range": 4.99785092409809e-05
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1805.733,
+                  1812.667,
+                  1909.2,
+                  2024.567,
+                  2016.1
+                ],
+                "unit": "us",
+                "median": 1909.2,
+                "relative_mad": 0.05419390320553116,
+                "relative_central_range": 0.10655405405405405
+              },
+              "latency_p95_us": {
+                "samples": [
+                  6050.9,
+                  3036.167,
+                  3055.333,
+                  6675.6,
+                  3789.533
+                ],
+                "unit": "us",
+                "median": 3789.533,
+                "relative_mad": 0.19880180486619328,
+                "relative_central_range": 0.7904844739444147
+              },
+              "latency_p99_us": {
+                "samples": [
+                  13466.167,
+                  6070.1,
+                  6534.0,
+                  20690.3,
+                  6865.333
+                ],
+                "unit": "us",
+                "median": 6865.333,
+                "relative_mad": 0.11583312856055188,
+                "relative_central_range": 1.0097349975594774
+              },
+              "latency_p999_us": {
+                "samples": [
+                  18496.7,
+                  9198.967,
+                  7751.0,
+                  28713.1,
+                  11761.167
+                ],
+                "unit": "us",
+                "median": 11761.167,
+                "relative_mad": 0.3409667595060932,
+                "relative_central_range": 0.7905451049202856
+              },
+              "latency_max_us": {
+                "samples": [
+                  19400.6,
+                  9838.9,
+                  8442.3,
+                  30061.133,
+                  13098.6
+                ],
+                "unit": "us",
+                "median": 13098.6,
+                "relative_mad": 0.3554807383995237,
+                "relative_central_range": 0.7299787763577786
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  13466.167,
+                  6070.1,
+                  6534.0,
+                  20690.3,
+                  6865.333
+                ],
+                "unit": "us",
+                "median": 6865.333,
+                "relative_mad": 0.11583312856055188,
+                "relative_central_range": 1.0097349975594774
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.167,
+                  0.2,
+                  0.167,
+                  0.167,
+                  0.2
+                ],
+                "unit": "us",
+                "median": 0.167,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.19760479041916168
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  3540039.062,
+                  3631591.797,
+                  3479003.906,
+                  3494262.695,
+                  3707885.742
+                ],
+                "unit": "ns/op",
+                "median": 3540039.062,
+                "relative_mad": 0.01724137924215932,
+                "relative_central_range": 0.03879310357734125
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  7642.4,
+                  7888.4,
+                  6710.7,
+                  6984.5,
+                  6902.7
+                ],
+                "unit": "us",
+                "median": 6984.5,
+                "relative_mad": 0.03920108812370251,
+                "relative_central_range": 0.10590593456940366
+              }
+            }
+          },
+          "native_mqtt311_off": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "0",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "1025",
+              "observer_bytes": "26240",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 490702
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 490702
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 490702
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 2,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 490702
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 1025,
+                "recovered_generation": 1,
+                "selected_file_bytes": 490702
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3640625000",
+                "physical_phase_seconds": "3.411992000",
+                "terminal_phase_seconds": "3.411987900",
+                "native_tasks": "1005",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-aef321f8adde047c"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3656250000",
+                "physical_phase_seconds": "3.412017500",
+                "terminal_phase_seconds": "3.412015900",
+                "native_tasks": "1014",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-327f1587e4c4aac7"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3593750000",
+                "physical_phase_seconds": "3.411954000",
+                "terminal_phase_seconds": "3.411950600",
+                "native_tasks": "1002",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-d4c46d660e5e8bef"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3546875000",
+                "physical_phase_seconds": "3.411921400",
+                "terminal_phase_seconds": "3.411917500",
+                "native_tasks": "1022",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-01ec2b63d467e23e"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3578125000",
+                "physical_phase_seconds": "3.412066100",
+                "terminal_phase_seconds": "3.412064000",
+                "native_tasks": "1015",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-7fe308afef0f9544"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  300.118,
+                  300.116,
+                  300.121,
+                  300.124,
+                  300.111
+                ],
+                "unit": "op/s",
+                "median": 300.118,
+                "relative_mad": 9.996068213122515e-06,
+                "relative_central_range": 1.6660113688600658e-05
+              },
+              "latency_p50_us": {
+                "samples": [
+                  2009.3,
+                  2011.033,
+                  2008.233,
+                  2006.033,
+                  2001.033
+                ],
+                "unit": "us",
+                "median": 2008.233,
+                "relative_mad": 0.0010954904137119774,
+                "relative_central_range": 0.001626803264362279
+              },
+              "latency_p95_us": {
+                "samples": [
+                  2227.067,
+                  2255.233,
+                  2207.5,
+                  2156.4,
+                  2176.1
+                ],
+                "unit": "us",
+                "median": 2207.5,
+                "relative_mad": 0.014224235560588943,
+                "relative_central_range": 0.023088108720271845
+              },
+              "latency_p99_us": {
+                "samples": [
+                  6034.4,
+                  3085.833,
+                  6297.933,
+                  2306.7,
+                  2750.133
+                ],
+                "unit": "us",
+                "median": 3085.833,
+                "relative_mad": 0.25248709181605106,
+                "relative_central_range": 1.0643048408646871
+              },
+              "latency_p999_us": {
+                "samples": [
+                  9881.7,
+                  8276.067,
+                  10329.733,
+                  3859.3,
+                  9598.9
+                ],
+                "unit": "us",
+                "median": 9598.9,
+                "relative_mad": 0.07613716154976097,
+                "relative_central_range": 0.16727260415255932
+              },
+              "latency_max_us": {
+                "samples": [
+                  10218.633,
+                  9620.1,
+                  11510.767,
+                  5197.833,
+                  10940.933
+                ],
+                "unit": "us",
+                "median": 10218.633,
+                "relative_mad": 0.07068460135519115,
+                "relative_central_range": 0.1292573086830695
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  6034.4,
+                  3085.833,
+                  6297.933,
+                  2306.7,
+                  2750.133
+                ],
+                "unit": "us",
+                "median": 3085.833,
+                "relative_mad": 0.25248709181605106,
+                "relative_central_range": 1.0643048408646871
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.2,
+                  0.167,
+                  0.2,
+                  0.167,
+                  0.2
+                ],
+                "unit": "us",
+                "median": 0.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.165
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  3555297.852,
+                  3570556.641,
+                  3509521.484,
+                  3463745.117,
+                  3494262.695
+                ],
+                "unit": "ns/op",
+                "median": 3509521.484,
+                "relative_mad": 0.013043478208837226,
+                "relative_central_range": 0.017391304563388766
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  25385.5,
+                  26386.7,
+                  26106.6,
+                  26193.0,
+                  25523.7
+                ],
+                "unit": "us",
+                "median": 26106.6,
+                "relative_mad": 0.010729087663656017,
+                "relative_central_range": 0.025637195192020384
+              }
+            }
+          },
+          "native_mqtt311_pressure": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "64",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "64",
+              "observer_bytes": "26240",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 3,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19902
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 10,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19902
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19902
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19902
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 1024,
+                "committed": 1024,
+                "window_drops": 0,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 16,
+                "rotations": 16,
+                "recovered_transactions": 17,
+                "recovered_generation": 17,
+                "selected_file_bytes": 19902
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3625000000",
+                "physical_phase_seconds": "3.412059900",
+                "terminal_phase_seconds": "3.412057800",
+                "native_tasks": "973",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-c0b26a03ca4b70f0"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3578125000",
+                "physical_phase_seconds": "3.436466500",
+                "terminal_phase_seconds": "3.436464700",
+                "native_tasks": "957",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-c33d9fa5ee8e35f9"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3578125000",
+                "physical_phase_seconds": "3.412112300",
+                "terminal_phase_seconds": "3.412110200",
+                "native_tasks": "958",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-f533cc2787bd852a"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3656250000",
+                "physical_phase_seconds": "3.411782600",
+                "terminal_phase_seconds": "3.411780800",
+                "native_tasks": "956",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-26ca587b02e47db1"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3609375000",
+                "physical_phase_seconds": "3.411989900",
+                "terminal_phase_seconds": "3.411987900",
+                "native_tasks": "965",
+                "model_peak_bytes": "1086",
+                "bench_path": "C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\xmqtt-capacity-b107272ef9266515"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  300.112,
+                  297.98,
+                  300.107,
+                  300.136,
+                  300.118
+                ],
+                "unit": "op/s",
+                "median": 300.112,
+                "relative_mad": 1.9992536119754644e-05,
+                "relative_central_range": 3.665298288627998e-05
+              },
+              "latency_p50_us": {
+                "samples": [
+                  2022.567,
+                  2017.667,
+                  2014.767,
+                  2009.567,
+                  2013.967
+                ],
+                "unit": "us",
+                "median": 2014.767,
+                "relative_mad": 0.0014393723939293544,
+                "relative_central_range": 0.0018364406405305517
+              },
+              "latency_p95_us": {
+                "samples": [
+                  3093.4,
+                  4623.733,
+                  4085.233,
+                  4373.567,
+                  3652.633
+                ],
+                "unit": "us",
+                "median": 4085.233,
+                "relative_mad": 0.10589359285015086,
+                "relative_central_range": 0.17647316566766208
+              },
+              "latency_p99_us": {
+                "samples": [
+                  6528.6,
+                  15775.833,
+                  6729.9,
+                  7114.3,
+                  6799.0
+                ],
+                "unit": "us",
+                "median": 6799.0,
+                "relative_mad": 0.03977055449330778,
+                "relative_central_range": 0.05653772613619658
+              },
+              "latency_p999_us": {
+                "samples": [
+                  6819.9,
+                  37009.067,
+                  10270.067,
+                  10080.833,
+                  10232.133
+                ],
+                "unit": "us",
+                "median": 10232.133,
+                "relative_mad": 0.014786750719522438,
+                "relative_central_range": 0.01849409111472638
+              },
+              "latency_max_us": {
+                "samples": [
+                  6822.3,
+                  38475.8,
+                  10979.8,
+                  10249.933,
+                  11404.667
+                ],
+                "unit": "us",
+                "median": 10979.8,
+                "relative_mad": 0.0664736151842473,
+                "relative_central_range": 0.10516894661104925
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  6528.6,
+                  15775.833,
+                  6729.9,
+                  7114.3,
+                  6799.0
+                ],
+                "unit": "us",
+                "median": 6799.0,
+                "relative_mad": 0.03977055449330778,
+                "relative_central_range": 0.05653772613619658
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.2,
+                  0.2,
+                  0.2,
+                  0.167,
+                  0.167
+                ],
+                "unit": "us",
+                "median": 0.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.165
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  3540039.062,
+                  3494262.695,
+                  3494262.695,
+                  3570556.641,
+                  3524780.273
+                ],
+                "unit": "ns/op",
+                "median": 3524780.273,
+                "relative_mad": 0.008658008623620157,
+                "relative_central_range": 0.01298701293543017
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  7026.2,
+                  6718.7,
+                  7057.5,
+                  7190.9,
+                  6958.1
+                ],
+                "unit": "us",
+                "median": 7026.2,
+                "relative_mad": 0.00969229455466674,
+                "relative_central_range": 0.01414704961430071
+              }
+            }
+          }
+        }
+      },
+      "receipt": {
+        "start_ns": 1794984607939512100,
+        "end_ns": 1794984694771654000,
+        "exit_code": 1,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--config",
+          "extlibs/xmqtt/config/performance_profiles.json",
+          "--profiles",
+          "xmqtt_store_capacity",
+          "--report",
+          "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-capacity-20261118\\windows-measured.json"
+        ],
+        "report": "windows-measured.json",
+        "report_sha256": "bb1f74de4f8929ca3479791c784e0f82a5deadd507dd5896d562d8d51a05dbc1",
+        "log": "windows-measured.log",
+        "log_sha256": "f0e3a6ee2c365437e1a3167a903924399868bdc8f50173f25f10b93e085fbfdc",
+        "source_map_sha256": "22bc98f96113640235a9d38a0f312e143f08bd6bdcc19169a6d7ca82366c8b4d",
+        "noise": [
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_p99_us: relative_mad=34.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_p99_us: relative_central_range=40.3%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_p999_us: relative_mad=6.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_p999_us: relative_central_range=8.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_max_us: relative_mad=10.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/latency_max_us: relative_central_range=17.8%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/all_arrival_p99_us: relative_mad=34.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/all_arrival_p99_us: relative_central_range=40.3%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/dispatch_lag_p99_us: relative_central_range=16.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p50_us: relative_mad=5.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p50_us: relative_central_range=10.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p95_us: relative_mad=19.9%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p95_us: relative_central_range=79.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p99_us: relative_mad=11.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p99_us: relative_central_range=101.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p999_us: relative_mad=34.1%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p999_us: relative_central_range=79.1%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_max_us: relative_mad=35.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_max_us: relative_central_range=73.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/all_arrival_p99_us: relative_mad=11.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/all_arrival_p99_us: relative_central_range=101.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/dispatch_lag_p99_us: relative_central_range=19.8%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/cold_recovery_us: relative_mad=3.9%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/cold_recovery_us: relative_central_range=10.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_p99_us: relative_mad=25.2%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_p99_us: relative_central_range=106.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_p999_us: relative_mad=7.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_p999_us: relative_central_range=16.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_max_us: relative_mad=7.1%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/latency_max_us: relative_central_range=12.9%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/all_arrival_p99_us: relative_mad=25.2%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/all_arrival_p99_us: relative_central_range=106.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/dispatch_lag_p99_us: relative_central_range=16.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/latency_p95_us: relative_mad=10.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/latency_p95_us: relative_central_range=17.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/latency_p99_us: relative_mad=4.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/latency_max_us: relative_mad=6.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/latency_max_us: relative_central_range=10.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/all_arrival_p99_us: relative_mad=4.0%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/dispatch_lag_p99_us: relative_central_range=16.5%"
+        ],
+        "binaries": {
+          "native_mqtt5_off": {
+            "file": "binaries/windows/native_mqtt5_off.exe",
+            "sha256": "163da0f3bb13c70bd4605cbe3d76315a62a47c42aeace4e7352f791b12dcbb1f"
+          },
+          "native_mqtt5_pressure": {
+            "file": "binaries/windows/native_mqtt5_pressure.exe",
+            "sha256": "163da0f3bb13c70bd4605cbe3d76315a62a47c42aeace4e7352f791b12dcbb1f"
+          },
+          "native_mqtt311_off": {
+            "file": "binaries/windows/native_mqtt311_off.exe",
+            "sha256": "163da0f3bb13c70bd4605cbe3d76315a62a47c42aeace4e7352f791b12dcbb1f"
+          },
+          "native_mqtt311_pressure": {
+            "file": "binaries/windows/native_mqtt311_pressure.exe",
+            "sha256": "163da0f3bb13c70bd4605cbe3d76315a62a47c42aeace4e7352f791b12dcbb1f"
+          }
+        }
+      },
+      "overload": [
+        {
+          "file": "windows-overload-4.log",
+          "sha256": "4cffe704c3aba1f44ad1eba4c2746e64dd6b8be2f1fd37c92ee5fb60e2922750",
+          "counts": {
+            "offered": 4096,
+            "offer_rate_hz": 50000,
+            "window": 1,
+            "transaction_cap": 16,
+            "accepted": 34,
+            "committed": 34,
+            "window_drops": 4062,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 2,
+            "rotations": 2,
+            "recovered_transactions": 5,
+            "recovered_generation": 3,
+            "selected_file_bytes": 14298
+          },
+          "heap_blocks_per_op": 9.647059,
+          "heap_bytes_per_op": 3539.882353
+        },
+        {
+          "file": "windows-overload-5.log",
+          "sha256": "efbc1a1e1ba59eda6fd195dbcd8f685e411018d5deeacb2fc8f267516eb4b376",
+          "counts": {
+            "offered": 4096,
+            "offer_rate_hz": 50000,
+            "window": 1,
+            "transaction_cap": 16,
+            "accepted": 41,
+            "committed": 41,
+            "window_drops": 4055,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 2,
+            "rotations": 2,
+            "recovered_transactions": 12,
+            "recovered_generation": 3,
+            "selected_file_bytes": 17578
+          },
+          "heap_blocks_per_op": 9.536585,
+          "heap_bytes_per_op": 3397.512195
+        }
+      ],
+      "admission_stress": {
+        "file": "windows-admission-pressure.log",
+        "sha256": "ed26d64438701fce93eb87946fc40dc3c7014193482bf085cdf8c300ed1caeed",
+        "counts": {
+          "offered": 4096,
+          "offer_rate_hz": 50000,
+          "window": 128,
+          "transaction_cap": 16,
+          "accepted": 32,
+          "committed": 32,
+          "window_drops": 0,
+          "worker_overloads": 4064,
+          "expired_before_admission": 0,
+          "timeouts": 0,
+          "late_commits": 0,
+          "peak_in_flight": 32,
+          "checkpoint_attempts": 2,
+          "rotations": 2,
+          "recovered_transactions": 3,
+          "recovered_generation": 3,
+          "selected_file_bytes": 13366
+        }
+      },
+      "rotation_pair": [
+        {
+          "receipt": {
+            "label": "paired-4-off",
+            "log": "windows-paired-4-off.log",
+            "log_sha256": "39c29e6c456bfdf0a7851baccd379c8999db902d982035682eaa661f7df3d00a",
+            "args": [
+              "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\native_mqtt311_off.exe",
+              "64",
+              "12",
+              "16",
+              "0",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 65,
+            "accepted": 64,
+            "committed": 64,
+            "window_drops": 0,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 65,
+            "recovered_generation": 1,
+            "selected_file_bytes": 42382
+          },
+          "metrics": {
+            "operations_per_sec": 12.186,
+            "latency_p50_us": 1832.733,
+            "latency_p95_us": 9457.533,
+            "latency_p99_us": 11814.1,
+            "latency_p999_us": 11814.1,
+            "latency_max_us": 11814.1,
+            "all_arrival_p99_us": 11814.1,
+            "dispatch_lag_p99_us": 9725.5,
+            "process_cpu_ns_per_op": 7080078.125,
+            "cold_recovery_us": 8094.6
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-4-pressure",
+            "log": "windows-paired-4-pressure.log",
+            "log_sha256": "6e14b8e5395efecdd48d79885bf2bb40de156351157f912fb6f3f2dea7595fae",
+            "args": [
+              "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\native_mqtt311_pressure.exe",
+              "64",
+              "12",
+              "16",
+              "8",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 8,
+            "accepted": 64,
+            "committed": 64,
+            "window_drops": 0,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 9,
+            "rotations": 9,
+            "recovered_transactions": 2,
+            "recovered_generation": 10,
+            "selected_file_bytes": 12897
+          },
+          "metrics": {
+            "operations_per_sec": 12.177,
+            "latency_p50_us": 1957.0,
+            "latency_p95_us": 6414.5,
+            "latency_p99_us": 11153.333,
+            "latency_p999_us": 11153.333,
+            "latency_max_us": 11153.333,
+            "all_arrival_p99_us": 11153.333,
+            "dispatch_lag_p99_us": 9300.933,
+            "process_cpu_ns_per_op": 5371093.75,
+            "cold_recovery_us": 6948.1
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-5-off",
+            "log": "windows-paired-5-off.log",
+            "log_sha256": "b0d9c8a3891a20dd316363c741b8d27dd7762d7449dbbbab40573bd9b2bbbce0",
+            "args": [
+              "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\native_mqtt5_off.exe",
+              "64",
+              "12",
+              "16",
+              "0",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 65,
+            "accepted": 64,
+            "committed": 64,
+            "window_drops": 0,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 65,
+            "recovered_generation": 1,
+            "selected_file_bytes": 42446
+          },
+          "metrics": {
+            "operations_per_sec": 12.186,
+            "latency_p50_us": 1922.1,
+            "latency_p95_us": 9325.0,
+            "latency_p99_us": 11550.367,
+            "latency_p999_us": 11550.367,
+            "latency_max_us": 11550.367,
+            "all_arrival_p99_us": 11550.367,
+            "dispatch_lag_p99_us": 9487.167,
+            "process_cpu_ns_per_op": 7812500.0,
+            "cold_recovery_us": 8431.8
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-5-pressure",
+            "log": "windows-paired-5-pressure.log",
+            "log_sha256": "f56b41b7c760bcae5ce6d895c087f526139d4e0c018d5353ea6e76a4872b483e",
+            "args": [
+              "D:\\GIT\\xrt\\out\\performance\\gnu\\native\\xmqtt\\native_mqtt5_pressure.exe",
+              "64",
+              "12",
+              "16",
+              "8",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 8,
+            "accepted": 64,
+            "committed": 64,
+            "window_drops": 0,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 9,
+            "rotations": 9,
+            "recovered_transactions": 2,
+            "recovered_generation": 10,
+            "selected_file_bytes": 12898
+          },
+          "metrics": {
+            "operations_per_sec": 12.177,
+            "latency_p50_us": 1909.5,
+            "latency_p95_us": 7233.167,
+            "latency_p99_us": 16879.7,
+            "latency_p999_us": 16879.7,
+            "latency_max_us": 16879.7,
+            "all_arrival_p99_us": 16879.7,
+            "dispatch_lag_p99_us": 8678.733,
+            "process_cpu_ns_per_op": 6591796.875,
+            "cold_recovery_us": 6754.6
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "smoke": {
+        "file": "wsl-smoke-final.json",
+        "sha256": "3d7888e47e5d9ce91b572a0e761fd849b3b688647a81dfc86b880bd45e35b01d",
+        "environment": {
+          "platform": "linux",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "machine": "x86_64",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "arch": "x64",
+          "optimization": "-O2",
+          "source_revision": "6685fc1b701f539123e0403715281de870a4b694",
+          "source_dirty": true,
+          "source_fingerprint": "0ad73298460de23b265a8574d65cfbcc48058f47395ebc2aae38da268eb5ae1c",
+          "benchmark_fingerprint": "06ca368b0b3331ad1267bfb92c64b62590b98f0e243005c120cae29b21fe443f",
+          "policy": "baseline-unpinned",
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "benchmarks": {
+          "native_mqtt5_off": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "0",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "65",
+              "observer_bytes": "1952",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 65,
+                "accepted": 8,
+                "committed": 8,
+                "window_drops": 56,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 9,
+                "recovered_generation": 1,
+                "selected_file_bytes": 16238
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "817085000",
+                "physical_phase_seconds": "0.816915591",
+                "terminal_phase_seconds": "0.816911591",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-983873cfee881c92"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.793
+                ],
+                "unit": "op/s",
+                "median": 9.793,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  379993.453
+                ],
+                "unit": "us",
+                "median": 379993.453,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  421678.755
+                ],
+                "unit": "us",
+                "median": 421678.755,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  421678.755
+                ],
+                "unit": "us",
+                "median": 421678.755,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  421678.755
+                ],
+                "unit": "us",
+                "median": 421678.755,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  421678.755
+                ],
+                "unit": "us",
+                "median": 421678.755,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  421678.755
+                ],
+                "unit": "us",
+                "median": 421678.755,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  1.268
+                ],
+                "unit": "us",
+                "median": 1.268,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  102135625.0
+                ],
+                "unit": "ns/op",
+                "median": 102135625.0,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  193.5
+                ],
+                "unit": "us",
+                "median": 193.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt5_pressure": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "16",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "16",
+              "observer_bytes": "1952",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 16,
+                "accepted": 8,
+                "committed": 8,
+                "window_drops": 56,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 9,
+                "recovered_generation": 1,
+                "selected_file_bytes": 16238
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "810706100",
+                "physical_phase_seconds": "0.809615779",
+                "terminal_phase_seconds": "0.809611279",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-179148b0c341cc3c"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.881
+                ],
+                "unit": "op/s",
+                "median": 9.881,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  388297.939
+                ],
+                "unit": "us",
+                "median": 388297.939,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  396277.946
+                ],
+                "unit": "us",
+                "median": 396277.946,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  396277.946
+                ],
+                "unit": "us",
+                "median": 396277.946,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  396277.946
+                ],
+                "unit": "us",
+                "median": 396277.946,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  396277.946
+                ],
+                "unit": "us",
+                "median": 396277.946,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  396277.946
+                ],
+                "unit": "us",
+                "median": 396277.946,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  1.14
+                ],
+                "unit": "us",
+                "median": 1.14,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  101338262.5
+                ],
+                "unit": "ns/op",
+                "median": 101338262.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  191.2
+                ],
+                "unit": "us",
+                "median": 191.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt311_off": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "0",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "65",
+              "observer_bytes": "1952",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 65,
+                "accepted": 8,
+                "committed": 8,
+                "window_drops": 56,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 9,
+                "recovered_generation": 1,
+                "selected_file_bytes": 16230
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "868092300",
+                "physical_phase_seconds": "0.866826970",
+                "terminal_phase_seconds": "0.866821670",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-b8893c6d950ec04f"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.229
+                ],
+                "unit": "op/s",
+                "median": 9.229,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  399739.086
+                ],
+                "unit": "us",
+                "median": 399739.086,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  446821.67
+                ],
+                "unit": "us",
+                "median": 446821.67,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  446821.67
+                ],
+                "unit": "us",
+                "median": 446821.67,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  446821.67
+                ],
+                "unit": "us",
+                "median": 446821.67,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  446821.67
+                ],
+                "unit": "us",
+                "median": 446821.67,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  446821.67
+                ],
+                "unit": "us",
+                "median": 446821.67,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.79
+                ],
+                "unit": "us",
+                "median": 0.79,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  108511537.5
+                ],
+                "unit": "ns/op",
+                "median": 108511537.5,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  194.2
+                ],
+                "unit": "us",
+                "median": 194.2,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          },
+          "native_mqtt311_pressure": {
+            "args": [
+              "64",
+              "150",
+              "4",
+              "16",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "64",
+              "offer_rate_hz": "150",
+              "window": "4",
+              "transaction_cap": "16",
+              "observer_bytes": "1952",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 64,
+                "offer_rate_hz": 150,
+                "window": 4,
+                "transaction_cap": 16,
+                "accepted": 7,
+                "committed": 7,
+                "window_drops": 57,
+                "worker_overloads": 0,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 4,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 8,
+                "recovered_generation": 1,
+                "selected_file_bytes": 15763
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "788642500",
+                "physical_phase_seconds": "0.787613873",
+                "terminal_phase_seconds": "0.787609773",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-7a4fda98faa81f92"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  8.888
+                ],
+                "unit": "op/s",
+                "median": 8.888,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p50_us": {
+                "samples": [
+                  427609.773
+                ],
+                "unit": "us",
+                "median": 427609.773,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p95_us": {
+                "samples": [
+                  447173.184
+                ],
+                "unit": "us",
+                "median": 447173.184,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p99_us": {
+                "samples": [
+                  447173.184
+                ],
+                "unit": "us",
+                "median": 447173.184,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_p999_us": {
+                "samples": [
+                  447173.184
+                ],
+                "unit": "us",
+                "median": 447173.184,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "latency_max_us": {
+                "samples": [
+                  447173.184
+                ],
+                "unit": "us",
+                "median": 447173.184,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  447173.184
+                ],
+                "unit": "us",
+                "median": 447173.184,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  1.086
+                ],
+                "unit": "us",
+                "median": 1.086,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  112663214.286
+                ],
+                "unit": "ns/op",
+                "median": 112663214.286,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  188.9
+                ],
+                "unit": "us",
+                "median": 188.9,
+                "relative_mad": 0.0,
+                "relative_central_range": 0.0
+              }
+            }
+          }
+        }
+      },
+      "measurement": {
+        "file": "wsl-measured.json",
+        "sha256": "8aefd5178703bee44e2ff540da0b2638bc240abaf817b53945157235135e2a14",
+        "environment": {
+          "platform": "linux",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "machine": "x86_64",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "arch": "x64",
+          "optimization": "-O2",
+          "source_revision": "6685fc1b701f539123e0403715281de870a4b694",
+          "source_dirty": true,
+          "source_fingerprint": "0ad73298460de23b265a8574d65cfbcc48058f47395ebc2aae38da268eb5ae1c",
+          "benchmark_fingerprint": "06ca368b0b3331ad1267bfb92c64b62590b98f0e243005c120cae29b21fe443f",
+          "policy": "baseline-unpinned",
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06
+        },
+        "benchmarks": {
+          "native_mqtt5_off": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "0",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "1025",
+              "observer_bytes": "26240",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 553,
+                "worker_overloads": 439,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 524,
+                "worker_overloads": 468,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 521,
+                "worker_overloads": 471,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 48,
+                "committed": 48,
+                "window_drops": 485,
+                "worker_overloads": 491,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 49,
+                "recovered_generation": 1,
+                "selected_file_bytes": 34958
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 507,
+                "worker_overloads": 485,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3610200600",
+                "physical_phase_seconds": "3.605749184",
+                "terminal_phase_seconds": "3.605745284",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-cb6e37c1d60c0867"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3432279800",
+                "physical_phase_seconds": "3.427758604",
+                "terminal_phase_seconds": "3.427754904",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-162d6e466e7c43ce"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3503750900",
+                "physical_phase_seconds": "3.499256938",
+                "terminal_phase_seconds": "3.499251338",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-b5fe1cbbd4f745b7"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "5107293800",
+                "physical_phase_seconds": "5.100086112",
+                "terminal_phase_seconds": "5.100071912",
+                "native_tasks": "2",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-5cdc24b666be8847"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3495602800",
+                "physical_phase_seconds": "3.490999309",
+                "terminal_phase_seconds": "3.490995709",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-beb7924af18da156"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  8.875,
+                  9.336,
+                  9.145,
+                  9.412,
+                  9.166
+                ],
+                "unit": "op/s",
+                "median": 9.166,
+                "relative_mad": 0.01854680340388391,
+                "relative_central_range": 0.020837879118481423
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1716896.329,
+                  1641086.507,
+                  1674527.252,
+                  1228412.253,
+                  1646218.67
+                ],
+                "unit": "us",
+                "median": 1646218.67,
+                "relative_mad": 0.01719612498380921,
+                "relative_central_range": 0.02031367133018854
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1938055.539,
+                  1726559.878,
+                  1772584.671,
+                  1742331.625,
+                  1793293.447
+                ],
+                "unit": "us",
+                "median": 1772584.671,
+                "relative_mad": 0.01706719373971168,
+                "relative_central_range": 0.028750007169615156
+              },
+              "latency_p99_us": {
+                "samples": [
+                  1939904.142,
+                  1732256.648,
+                  1774233.124,
+                  1746562.868,
+                  1794329.042
+                ],
+                "unit": "us",
+                "median": 1774233.124,
+                "relative_mad": 0.015595614592978398,
+                "relative_central_range": 0.026922152085804413
+              },
+              "latency_p999_us": {
+                "samples": [
+                  1939904.142,
+                  1732256.648,
+                  1774233.124,
+                  1746562.868,
+                  1794329.042
+                ],
+                "unit": "us",
+                "median": 1774233.124,
+                "relative_mad": 0.015595614592978398,
+                "relative_central_range": 0.026922152085804413
+              },
+              "latency_max_us": {
+                "samples": [
+                  1939904.142,
+                  1732256.648,
+                  1774233.124,
+                  1746562.868,
+                  1794329.042
+                ],
+                "unit": "us",
+                "median": 1774233.124,
+                "relative_mad": 0.015595614592978398,
+                "relative_central_range": 0.026922152085804413
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  1794170.763,
+                  1667918.122,
+                  1738577.504,
+                  1666470.497,
+                  1713101.93
+                ],
+                "unit": "us",
+                "median": 1713101.93,
+                "relative_mad": 0.026375434647954638,
+                "relative_central_range": 0.04124645519487564
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.635,
+                  0.591,
+                  0.599,
+                  0.695,
+                  0.585
+                ],
+                "unit": "us",
+                "median": 0.599,
+                "relative_mad": 0.02337228714524209,
+                "relative_central_range": 0.07345575959933229
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  112818768.75,
+                  107258743.75,
+                  109492215.625,
+                  106401954.167,
+                  109237587.5
+                ],
+                "unit": "ns/op",
+                "median": 109237587.5,
+                "relative_mad": 0.018115044420950802,
+                "relative_central_range": 0.020446001473622803
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  312.1,
+                  312.3,
+                  321.4,
+                  478.7,
+                  322.8
+                ],
+                "unit": "us",
+                "median": 321.4,
+                "relative_mad": 0.028313627878033498,
+                "relative_central_range": 0.032669570628500316
+              }
+            }
+          },
+          "native_mqtt5_pressure": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "64",
+              "5",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "64",
+              "observer_bytes": "26240",
+              "wire_bytes": "276",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 51,
+                "committed": 51,
+                "window_drops": 523,
+                "worker_overloads": 450,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 52,
+                "recovered_generation": 1,
+                "selected_file_bytes": 36362
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 51,
+                "committed": 51,
+                "window_drops": 520,
+                "worker_overloads": 453,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 52,
+                "recovered_generation": 1,
+                "selected_file_bytes": 36362
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 523,
+                "worker_overloads": 469,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 46,
+                "committed": 46,
+                "window_drops": 506,
+                "worker_overloads": 472,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 47,
+                "recovered_generation": 1,
+                "selected_file_bytes": 34022
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 541,
+                "worker_overloads": 451,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27470
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "5115212500",
+                "physical_phase_seconds": "5.107556944",
+                "terminal_phase_seconds": "5.107552144",
+                "native_tasks": "2",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-1739b01af9024f2e"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4999780400",
+                "physical_phase_seconds": "4.992428802",
+                "terminal_phase_seconds": "4.992424502",
+                "native_tasks": "2",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-6fbba248fd132fad"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3461822300",
+                "physical_phase_seconds": "3.457778630",
+                "terminal_phase_seconds": "3.457774130",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-cd186759566c5811"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4897983800",
+                "physical_phase_seconds": "4.891555580",
+                "terminal_phase_seconds": "4.891512280",
+                "native_tasks": "2",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-12f37b9c92da5c08"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3500299500",
+                "physical_phase_seconds": "3.495143770",
+                "terminal_phase_seconds": "3.495139370",
+                "native_tasks": "1",
+                "model_peak_bytes": "1087",
+                "bench_path": "/var/tmp/xmqtt-capacity-8587060630f6c25c"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.985,
+                  10.215,
+                  9.254,
+                  9.404,
+                  9.156
+                ],
+                "unit": "op/s",
+                "median": 9.404,
+                "relative_mad": 0.026371756699276834,
+                "relative_central_range": 0.07773287962569118
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1264663.553,
+                  1232276.453,
+                  1686260.715,
+                  1263161.849,
+                  1701806.037
+                ],
+                "unit": "us",
+                "median": 1264663.553,
+                "relative_mad": 0.02560926178600807,
+                "relative_central_range": 0.33455448684065947
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1714168.613,
+                  1607056.616,
+                  1813088.721,
+                  1657325.761,
+                  1806984.947
+                ],
+                "unit": "us",
+                "median": 1714168.613,
+                "relative_mad": 0.05414656020189307,
+                "relative_central_range": 0.08730715570510798
+              },
+              "latency_p99_us": {
+                "samples": [
+                  1714218.811,
+                  1615716.567,
+                  1827200.622,
+                  1673057.66,
+                  1816276.848
+                ],
+                "unit": "us",
+                "median": 1714218.811,
+                "relative_mad": 0.05746188489352655,
+                "relative_central_range": 0.0835477869458522
+              },
+              "latency_p999_us": {
+                "samples": [
+                  1714218.811,
+                  1615716.567,
+                  1827200.622,
+                  1673057.66,
+                  1816276.848
+                ],
+                "unit": "us",
+                "median": 1714218.811,
+                "relative_mad": 0.05746188489352655,
+                "relative_central_range": 0.0835477869458522
+              },
+              "latency_max_us": {
+                "samples": [
+                  1714218.811,
+                  1615716.567,
+                  1827200.622,
+                  1673057.66,
+                  1816276.848
+                ],
+                "unit": "us",
+                "median": 1714218.811,
+                "relative_mad": 0.05746188489352655,
+                "relative_central_range": 0.0835477869458522
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  1531448.272,
+                  1582412.046,
+                  1721107.463,
+                  1623083.969,
+                  1790741.71
+                ],
+                "unit": "us",
+                "median": 1623083.969,
+                "relative_mad": 0.056457767281416556,
+                "relative_central_range": 0.0854517817001493
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.669,
+                  0.587,
+                  0.902,
+                  0.577,
+                  1.495
+                ],
+                "unit": "us",
+                "median": 0.669,
+                "relative_mad": 0.1375186846038865,
+                "relative_central_range": 0.4708520179372198
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  100298284.314,
+                  98034909.804,
+                  108181946.875,
+                  106477908.696,
+                  109384359.375
+                ],
+                "unit": "ns/op",
+                "median": 106477908.696,
+                "relative_mad": 0.027296278773638147,
+                "relative_central_range": 0.07404035877064673
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  405.7,
+                  427.4,
+                  313.1,
+                  377.2,
+                  308.5
+                ],
+                "unit": "us",
+                "median": 377.2,
+                "relative_mad": 0.13308589607635204,
+                "relative_central_range": 0.245493107104984
+              }
+            }
+          },
+          "native_mqtt311_off": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "0",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "1025",
+              "observer_bytes": "26240",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 539,
+                "worker_overloads": 453,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27438
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 50,
+                "committed": 50,
+                "window_drops": 514,
+                "worker_overloads": 460,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 51,
+                "recovered_generation": 1,
+                "selected_file_bytes": 35844
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 50,
+                "committed": 50,
+                "window_drops": 519,
+                "worker_overloads": 455,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 51,
+                "recovered_generation": 1,
+                "selected_file_bytes": 35844
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 49,
+                "committed": 49,
+                "window_drops": 513,
+                "worker_overloads": 462,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 50,
+                "recovered_generation": 1,
+                "selected_file_bytes": 35377
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 1025,
+                "accepted": 50,
+                "committed": 50,
+                "window_drops": 524,
+                "worker_overloads": 450,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 51,
+                "recovered_generation": 1,
+                "selected_file_bytes": 35844
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3493177200",
+                "physical_phase_seconds": "3.488725425",
+                "terminal_phase_seconds": "3.488719925",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-9059c97ebaf36db2"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4914163900",
+                "physical_phase_seconds": "4.907250983",
+                "terminal_phase_seconds": "4.907246883",
+                "native_tasks": "2",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-cb5a37fc2c476f1c"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4847795500",
+                "physical_phase_seconds": "4.840847111",
+                "terminal_phase_seconds": "4.840843411",
+                "native_tasks": "2",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-89338f4957cc8779"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4957395100",
+                "physical_phase_seconds": "4.950225059",
+                "terminal_phase_seconds": "4.950220159",
+                "native_tasks": "2",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-3a8d50366c749834"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "4972759200",
+                "physical_phase_seconds": "4.965735507",
+                "terminal_phase_seconds": "4.965731907",
+                "native_tasks": "2",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-a4aac92841d7034d"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.172,
+                  10.189,
+                  10.329,
+                  9.899,
+                  10.069
+                ],
+                "unit": "op/s",
+                "median": 10.069,
+                "relative_mad": 0.01688350382361721,
+                "relative_central_range": 0.02880127122852328
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1692053.258,
+                  1168157.448,
+                  1192957.203,
+                  1243411.803,
+                  1201224.777
+                ],
+                "unit": "us",
+                "median": 1201224.777,
+                "relative_mad": 0.027528011104286362,
+                "relative_central_range": 0.04200263012057409
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1793601.703,
+                  1630771.013,
+                  1616068.273,
+                  1646468.13,
+                  1639608.822
+                ],
+                "unit": "us",
+                "median": 1639608.822,
+                "relative_mad": 0.005390193612900609,
+                "relative_central_range": 0.009573696353287768
+              },
+              "latency_p99_us": {
+                "samples": [
+                  1795825.866,
+                  1630797.025,
+                  1616114.174,
+                  1646487.928,
+                  1639634.018
+                ],
+                "unit": "us",
+                "median": 1639634.018,
+                "relative_mad": 0.005389613110600891,
+                "relative_central_range": 0.009569759365653858
+              },
+              "latency_p999_us": {
+                "samples": [
+                  1795825.866,
+                  1630797.025,
+                  1616114.174,
+                  1646487.928,
+                  1639634.018
+                ],
+                "unit": "us",
+                "median": 1639634.018,
+                "relative_mad": 0.005389613110600891,
+                "relative_central_range": 0.009569759365653858
+              },
+              "latency_max_us": {
+                "samples": [
+                  1795825.866,
+                  1630797.025,
+                  1616114.174,
+                  1646487.928,
+                  1639634.018
+                ],
+                "unit": "us",
+                "median": 1639634.018,
+                "relative_mad": 0.005389613110600891,
+                "relative_central_range": 0.009569759365653858
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  1737929.767,
+                  1574712.243,
+                  1607668.772,
+                  1604780.238,
+                  1639251.615
+                ],
+                "unit": "us",
+                "median": 1607668.772,
+                "relative_mad": 0.01964511816741308,
+                "relative_central_range": 0.021441840259866722
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.632,
+                  0.598,
+                  0.739,
+                  0.7,
+                  0.695
+                ],
+                "unit": "us",
+                "median": 0.695,
+                "relative_mad": 0.06330935251798567,
+                "relative_central_range": 0.09784172661870497
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  109161787.5,
+                  98283278.0,
+                  96955910.0,
+                  101171328.571,
+                  99455184.0
+                ],
+                "unit": "ns/op",
+                "median": 99455184.0,
+                "relative_mad": 0.01725545619623,
+                "relative_central_range": 0.029038713266067606
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  395.1,
+                  399.1,
+                  422.4,
+                  401.7,
+                  392.7
+                ],
+                "unit": "us",
+                "median": 399.1,
+                "relative_mad": 0.010022550739163116,
+                "relative_central_range": 0.016537208719619056
+              }
+            }
+          },
+          "native_mqtt311_pressure": {
+            "args": [
+              "1024",
+              "300",
+              "16",
+              "64",
+              "4",
+              "0"
+            ],
+            "facts": {
+              "offered": "1024",
+              "offer_rate_hz": "300",
+              "window": "16",
+              "transaction_cap": "64",
+              "observer_bytes": "26240",
+              "wire_bytes": "275",
+              "deadline_ms": "5000"
+            },
+            "outcomes": [
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 48,
+                "committed": 48,
+                "window_drops": 472,
+                "worker_overloads": 504,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 49,
+                "recovered_generation": 1,
+                "selected_file_bytes": 34910
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 496,
+                "worker_overloads": 496,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27438
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 504,
+                "worker_overloads": 488,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27438
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 526,
+                "worker_overloads": 466,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27438
+              },
+              {
+                "offered": 1024,
+                "offer_rate_hz": 300,
+                "window": 16,
+                "transaction_cap": 64,
+                "accepted": 32,
+                "committed": 32,
+                "window_drops": 522,
+                "worker_overloads": 470,
+                "expired_before_admission": 0,
+                "timeouts": 0,
+                "late_commits": 0,
+                "peak_in_flight": 16,
+                "checkpoint_attempts": 0,
+                "rotations": 0,
+                "recovered_transactions": 33,
+                "recovered_generation": 1,
+                "selected_file_bytes": 27438
+              }
+            ],
+            "observations": [
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "5031163100",
+                "physical_phase_seconds": "5.024312339",
+                "terminal_phase_seconds": "5.024309039",
+                "native_tasks": "2",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-5c1b32f84f3d19c4"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3471152800",
+                "physical_phase_seconds": "3.466673325",
+                "terminal_phase_seconds": "3.466669425",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-85994f59d78a1eb7"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3417045100",
+                "physical_phase_seconds": "3.412616621",
+                "terminal_phase_seconds": "3.412612021",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-6d514c876986e34c"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3439146500",
+                "physical_phase_seconds": "3.434716221",
+                "terminal_phase_seconds": "3.434712021",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-1e12d5ca19560c2b"
+              },
+              {
+                "already_ready": "0",
+                "process_cpu_ns": "3485376200",
+                "physical_phase_seconds": "3.480596229",
+                "terminal_phase_seconds": "3.480592429",
+                "native_tasks": "1",
+                "model_peak_bytes": "1086",
+                "bench_path": "/var/tmp/xmqtt-capacity-e10e89f3f3aafb62"
+              }
+            ],
+            "metrics": {
+              "operations_per_sec": {
+                "samples": [
+                  9.554,
+                  9.231,
+                  9.377,
+                  9.317,
+                  9.194
+                ],
+                "unit": "op/s",
+                "median": 9.317,
+                "relative_mad": 0.00923043898250513,
+                "relative_central_range": 0.015670280133090134
+              },
+              "latency_p50_us": {
+                "samples": [
+                  1209857.01,
+                  1608070.913,
+                  1634639.91,
+                  1649687.019,
+                  1689325.815
+                ],
+                "unit": "us",
+                "median": 1634639.91,
+                "relative_mad": 0.016253730768142065,
+                "relative_central_range": 0.025458882867970687
+              },
+              "latency_p95_us": {
+                "samples": [
+                  1776915.491,
+                  1798332.725,
+                  1773070.351,
+                  1732999.879,
+                  1810953.055
+                ],
+                "unit": "us",
+                "median": 1776915.491,
+                "relative_mad": 0.012053040287215423,
+                "relative_central_range": 0.01421698112710081
+              },
+              "latency_p99_us": {
+                "samples": [
+                  1793768.993,
+                  1806669.425,
+                  1782209.919,
+                  1748288.411,
+                  1812776.59
+                ],
+                "unit": "us",
+                "median": 1793768.993,
+                "relative_mad": 0.00719180231698878,
+                "relative_central_range": 0.013635817151177645
+              },
+              "latency_p999_us": {
+                "samples": [
+                  1793768.993,
+                  1806669.425,
+                  1782209.919,
+                  1748288.411,
+                  1812776.59
+                ],
+                "unit": "us",
+                "median": 1793768.993,
+                "relative_mad": 0.00719180231698878,
+                "relative_central_range": 0.013635817151177645
+              },
+              "latency_max_us": {
+                "samples": [
+                  1793768.993,
+                  1806669.425,
+                  1782209.919,
+                  1748288.411,
+                  1812776.59
+                ],
+                "unit": "us",
+                "median": 1793768.993,
+                "relative_mad": 0.00719180231698878,
+                "relative_central_range": 0.013635817151177645
+              },
+              "all_arrival_p99_us": {
+                "samples": [
+                  1652415.45,
+                  1714963.818,
+                  1689671.512,
+                  1664985.883,
+                  1757264.096
+                ],
+                "unit": "us",
+                "median": 1689671.512,
+                "relative_mad": 0.014968771042403574,
+                "relative_central_range": 0.0295784918222614
+              },
+              "dispatch_lag_p99_us": {
+                "samples": [
+                  0.577,
+                  1.006,
+                  0.58,
+                  0.572,
+                  1.003
+                ],
+                "unit": "us",
+                "median": 0.58,
+                "relative_mad": 0.013793103448275876,
+                "relative_central_range": 0.7344827586206896
+              },
+              "process_cpu_ns_per_op": {
+                "samples": [
+                  104815897.917,
+                  108473525.0,
+                  106782659.375,
+                  107473328.125,
+                  108918006.25
+                ],
+                "unit": "ns/op",
+                "median": 107473328.125,
+                "relative_mad": 0.009306466008354108,
+                "relative_central_range": 0.015732886051815474
+              },
+              "cold_recovery_us": {
+                "samples": [
+                  382.8,
+                  307.4,
+                  306.2,
+                  308.1,
+                  311.801
+                ],
+                "unit": "us",
+                "median": 308.1,
+                "relative_mad": 0.0061668289516391885,
+                "relative_central_range": 0.014284323271665077
+              }
+            }
+          }
+        }
+      },
+      "receipt": {
+        "start_ns": 1794984721410405701,
+        "end_ns": 1794984876833402960,
+        "exit_code": 1,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--config",
+          "extlibs/xmqtt/config/performance_profiles.json",
+          "--profiles",
+          "xmqtt_store_capacity",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/wsl-measured.json"
+        ],
+        "report": "wsl-measured.json",
+        "report_sha256": "8aefd5178703bee44e2ff540da0b2638bc240abaf817b53945157235135e2a14",
+        "log": "wsl-measured.log",
+        "log_sha256": "62dd263ba8e9939c0eecc0ef2343937da830445282a0ba794a4468a2c568d758",
+        "source_map_sha256": "22bc98f96113640235a9d38a0f312e143f08bd6bdcc19169a6d7ca82366c8b4d",
+        "noise": [
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_off/dispatch_lag_p99_us: relative_central_range=7.3%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/operations_per_sec: relative_central_range=7.8%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p50_us: relative_central_range=33.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p95_us: relative_mad=5.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p95_us: relative_central_range=8.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p99_us: relative_mad=5.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p99_us: relative_central_range=8.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p999_us: relative_mad=5.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_p999_us: relative_central_range=8.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_max_us: relative_mad=5.7%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/latency_max_us: relative_central_range=8.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/all_arrival_p99_us: relative_mad=5.6%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/all_arrival_p99_us: relative_central_range=8.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/dispatch_lag_p99_us: relative_mad=13.8%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/dispatch_lag_p99_us: relative_central_range=47.1%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/process_cpu_ns_per_op: relative_central_range=7.4%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/cold_recovery_us: relative_mad=13.3%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt5_pressure/cold_recovery_us: relative_central_range=24.5%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/dispatch_lag_p99_us: relative_mad=6.3%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_off/dispatch_lag_p99_us: relative_central_range=9.8%",
+          "[quality-fail] xmqtt_store_capacity/native_mqtt311_pressure/dispatch_lag_p99_us: relative_central_range=73.4%"
+        ],
+        "binaries": {
+          "native_mqtt5_off": {
+            "file": "binaries/wsl/native_mqtt5_off",
+            "sha256": "1a268dda56169e228972e7412119e1fd48462b44fcab65d1f5542a59a1afc07d"
+          },
+          "native_mqtt5_pressure": {
+            "file": "binaries/wsl/native_mqtt5_pressure",
+            "sha256": "1a268dda56169e228972e7412119e1fd48462b44fcab65d1f5542a59a1afc07d"
+          },
+          "native_mqtt311_off": {
+            "file": "binaries/wsl/native_mqtt311_off",
+            "sha256": "1a268dda56169e228972e7412119e1fd48462b44fcab65d1f5542a59a1afc07d"
+          },
+          "native_mqtt311_pressure": {
+            "file": "binaries/wsl/native_mqtt311_pressure",
+            "sha256": "1a268dda56169e228972e7412119e1fd48462b44fcab65d1f5542a59a1afc07d"
+          }
+        }
+      },
+      "overload": [
+        {
+          "file": "wsl-overload-4.log",
+          "sha256": "c4df1f295ad072570b1d57e8f54af7d00059f548177bc07de34cef4174076130",
+          "counts": {
+            "offered": 4096,
+            "offer_rate_hz": 50000,
+            "window": 1,
+            "transaction_cap": 16,
+            "accepted": 1,
+            "committed": 1,
+            "window_drops": 4095,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 2,
+            "recovered_generation": 1,
+            "selected_file_bytes": 12961
+          },
+          "heap_blocks_per_op": 9.0,
+          "heap_bytes_per_op": 3110.0
+        },
+        {
+          "file": "wsl-overload-5.log",
+          "sha256": "e46998e2176bb36bf56e8a266855fadbfc9a3a78291538cbfede43b8ce892e30",
+          "counts": {
+            "offered": 4096,
+            "offer_rate_hz": 50000,
+            "window": 1,
+            "transaction_cap": 16,
+            "accepted": 1,
+            "committed": 1,
+            "window_drops": 4095,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 1,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 2,
+            "recovered_generation": 1,
+            "selected_file_bytes": 12962
+          },
+          "heap_blocks_per_op": 9.0,
+          "heap_bytes_per_op": 3112.0
+        }
+      ],
+      "admission_stress": {
+        "file": "wsl-admission-pressure.log",
+        "sha256": "90f19f1d885b808588e8224d6715285ce07822e5ca54067339776e17275826b2",
+        "counts": {
+          "offered": 4096,
+          "offer_rate_hz": 50000,
+          "window": 128,
+          "transaction_cap": 16,
+          "accepted": 32,
+          "committed": 32,
+          "window_drops": 0,
+          "worker_overloads": 4064,
+          "expired_before_admission": 0,
+          "timeouts": 0,
+          "late_commits": 0,
+          "peak_in_flight": 32,
+          "checkpoint_attempts": 2,
+          "rotations": 2,
+          "recovered_transactions": 3,
+          "recovered_generation": 3,
+          "selected_file_bytes": 13366
+        }
+      },
+      "rotation_pair": [
+        {
+          "receipt": {
+            "label": "paired-4-off",
+            "log": "wsl-paired-4-off.log",
+            "log_sha256": "d9236409c1dbeb86f71e9784031aa4c116d31dff0d0d50582d461e3aeb5cef4a",
+            "args": [
+              "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/native_mqtt311_off",
+              "64",
+              "12",
+              "16",
+              "0",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 65,
+            "accepted": 25,
+            "committed": 25,
+            "window_drops": 39,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 16,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 26,
+            "recovered_generation": 1,
+            "selected_file_bytes": 24169
+          },
+          "metrics": {
+            "operations_per_sec": 3.498,
+            "latency_p50_us": 4149882.65,
+            "latency_p95_us": 4966555.756,
+            "latency_p99_us": 4991521.396,
+            "latency_p999_us": 4991521.396,
+            "latency_max_us": 4991521.396,
+            "all_arrival_p99_us": 4991521.396,
+            "dispatch_lag_p99_us": 0.568,
+            "process_cpu_ns_per_op": 126019600.0,
+            "cold_recovery_us": 275.9
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-4-pressure",
+            "log": "wsl-paired-4-pressure.log",
+            "log_sha256": "3e4025d8d49b7fe270c742824563f140109bc662aaec4ebe2c954aca99492865",
+            "args": [
+              "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/native_mqtt311_pressure",
+              "64",
+              "12",
+              "16",
+              "8",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 8,
+            "accepted": 45,
+            "committed": 45,
+            "window_drops": 0,
+            "worker_overloads": 19,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 12,
+            "checkpoint_attempts": 6,
+            "rotations": 6,
+            "recovered_transactions": 4,
+            "recovered_generation": 7,
+            "selected_file_bytes": 13831
+          },
+          "metrics": {
+            "operations_per_sec": 7.428,
+            "latency_p50_us": 603018.176,
+            "latency_p95_us": 1606469.853,
+            "latency_p99_us": 1649929.879,
+            "latency_p999_us": 1649929.879,
+            "latency_max_us": 1649929.879,
+            "all_arrival_p99_us": 1649929.879,
+            "dispatch_lag_p99_us": 6.957,
+            "process_cpu_ns_per_op": 45919771.111,
+            "cold_recovery_us": 178.9
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-5-off",
+            "log": "wsl-paired-5-off.log",
+            "log_sha256": "7fdd1bc9cf759e105b58078a7f59113fd6e4f894acc212f1abf9e22dce50faa1",
+            "args": [
+              "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/native_mqtt5_off",
+              "64",
+              "12",
+              "16",
+              "0",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 65,
+            "accepted": 56,
+            "committed": 56,
+            "window_drops": 0,
+            "worker_overloads": 8,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 8,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 57,
+            "recovered_generation": 1,
+            "selected_file_bytes": 38702
+          },
+          "metrics": {
+            "operations_per_sec": 9.615,
+            "latency_p50_us": 383371.264,
+            "latency_p95_us": 699886.293,
+            "latency_p99_us": 716519.92,
+            "latency_p999_us": 716519.92,
+            "latency_max_us": 716519.92,
+            "all_arrival_p99_us": 716519.92,
+            "dispatch_lag_p99_us": 13.25,
+            "process_cpu_ns_per_op": 32689276.786,
+            "cold_recovery_us": 429.5
+          }
+        },
+        {
+          "receipt": {
+            "label": "paired-5-pressure",
+            "log": "wsl-paired-5-pressure.log",
+            "log_sha256": "979c3565867d49fb594a9b708f06a4e43448780c052bed999e3bcb82905d2e5e",
+            "args": [
+              "/mnt/d/GIT/xrt/out/performance/gnu/x64/xmqtt/native_mqtt5_pressure",
+              "64",
+              "12",
+              "16",
+              "8",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "counts": {
+            "offered": 64,
+            "offer_rate_hz": 12,
+            "window": 16,
+            "transaction_cap": 8,
+            "accepted": 48,
+            "committed": 48,
+            "window_drops": 0,
+            "worker_overloads": 16,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 11,
+            "checkpoint_attempts": 6,
+            "rotations": 6,
+            "recovered_transactions": 7,
+            "recovered_generation": 7,
+            "selected_file_bytes": 15238
+          },
+          "metrics": {
+            "operations_per_sec": 7.708,
+            "latency_p50_us": 635479.381,
+            "latency_p95_us": 1348245.194,
+            "latency_p99_us": 1402080.038,
+            "latency_p999_us": 1402080.038,
+            "latency_max_us": 1402080.038,
+            "all_arrival_p99_us": 1402080.038,
+            "dispatch_lag_p99_us": 0.671,
+            "process_cpu_ns_per_op": 46563435.417,
+            "cold_recovery_us": 194.8
+          }
+        }
+      ]
+    }
+  },
+  "sanitized": {
+    "address": {
+      "compiler_step": {
+        "label": "address-compile",
+        "log": "wsl-address-compile-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "args": [
+          "/usr/bin/gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-pthread",
+          "-O1",
+          "-g",
+          "-fno-omit-frame-pointer",
+          "-fsanitize=address,undefined",
+          "-I",
+          "include",
+          "-I",
+          "extlibs/xmqtt/include",
+          "-I",
+          "single",
+          "-I",
+          ".",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/single.c",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/address-single"
+        ],
+        "exit_code": 0
+      },
+      "program": {
+        "file": "address-single",
+        "sha256": "eb6de0db712d2dc72b06d9a9b0b563065f59e4390d1d7497000a6d315cdad99b"
+      },
+      "cases": [
+        {
+          "version": "4",
+          "pressure": {
+            "label": "address-pressure-4",
+            "log": "wsl-address-pressure-4.log",
+            "log_sha256": "c3b39446a0e1176a8538a0bb929792d156f91de7acc61673418b99d6b2afa768",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/address-single",
+              "64",
+              "150",
+              "4",
+              "16",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "pressure_counts": {
+            "offered": 64,
+            "offer_rate_hz": 150,
+            "window": 4,
+            "transaction_cap": 16,
+            "accepted": 7,
+            "committed": 7,
+            "window_drops": 57,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 4,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 8,
+            "recovered_generation": 1,
+            "selected_file_bytes": 15763
+          },
+          "rotation": {
+            "label": "address-rotation-4",
+            "log": "wsl-address-rotation-4.log",
+            "log_sha256": "ae5f2612ab2ff95540fc51fef10945940426bda5cb079fb49ea7b731d627b067",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/address-single",
+              "64",
+              "100",
+              "8",
+              "4",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "rotation_counts": {
+            "offered": 64,
+            "offer_rate_hz": 100,
+            "window": 8,
+            "transaction_cap": 4,
+            "accepted": 11,
+            "committed": 11,
+            "window_drops": 53,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 8,
+            "checkpoint_attempts": 3,
+            "rotations": 3,
+            "recovered_transactions": 3,
+            "recovered_generation": 4,
+            "selected_file_bytes": 13364
+          },
+          "overload": {
+            "file": "wsl-address-overload-4.log",
+            "sha256": "0db834de5f69e6a24e568a277cfe728d70b93f70748de82f9bc8c6855c1f90ae",
+            "counts": {
+              "offered": 4096,
+              "offer_rate_hz": 50000,
+              "window": 1,
+              "transaction_cap": 16,
+              "accepted": 1,
+              "committed": 1,
+              "window_drops": 4095,
+              "worker_overloads": 0,
+              "expired_before_admission": 0,
+              "timeouts": 0,
+              "late_commits": 0,
+              "peak_in_flight": 1,
+              "checkpoint_attempts": 0,
+              "rotations": 0,
+              "recovered_transactions": 2,
+              "recovered_generation": 1,
+              "selected_file_bytes": 12961
+            },
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 3030.0
+          }
+        },
+        {
+          "version": "5",
+          "pressure": {
+            "label": "address-pressure-5",
+            "log": "wsl-address-pressure-5.log",
+            "log_sha256": "3d6a4a5a9b422f70db2789db7a88eba146e4fe345b6ecf36d04413bb2e09f624",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/address-single",
+              "64",
+              "150",
+              "4",
+              "16",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "pressure_counts": {
+            "offered": 64,
+            "offer_rate_hz": 150,
+            "window": 4,
+            "transaction_cap": 16,
+            "accepted": 8,
+            "committed": 8,
+            "window_drops": 56,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 4,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 9,
+            "recovered_generation": 1,
+            "selected_file_bytes": 16238
+          },
+          "rotation": {
+            "label": "address-rotation-5",
+            "log": "wsl-address-rotation-5.log",
+            "log_sha256": "6aaf63ae8e2398ecf4ddcd521f356c820cffcdc8a5292d83541d45d3604ed31b",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/address-single",
+              "64",
+              "100",
+              "8",
+              "4",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "rotation_counts": {
+            "offered": 64,
+            "offer_rate_hz": 100,
+            "window": 8,
+            "transaction_cap": 4,
+            "accepted": 11,
+            "committed": 11,
+            "window_drops": 53,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 8,
+            "checkpoint_attempts": 3,
+            "rotations": 3,
+            "recovered_transactions": 3,
+            "recovered_generation": 4,
+            "selected_file_bytes": 13366
+          },
+          "overload": {
+            "file": "wsl-address-overload-5.log",
+            "sha256": "a11973ac69d097eafebfe0d16d5e8f4d86dcc27f7d90cebfbb826fb89f36e081",
+            "counts": {
+              "offered": 4096,
+              "offer_rate_hz": 50000,
+              "window": 1,
+              "transaction_cap": 16,
+              "accepted": 1,
+              "committed": 1,
+              "window_drops": 4095,
+              "worker_overloads": 0,
+              "expired_before_admission": 0,
+              "timeouts": 0,
+              "late_commits": 0,
+              "peak_in_flight": 1,
+              "checkpoint_attempts": 0,
+              "rotations": 0,
+              "recovered_transactions": 2,
+              "recovered_generation": 1,
+              "selected_file_bytes": 12962
+            },
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 3032.0
+          }
+        }
+      ]
+    },
+    "thread": {
+      "compiler_step": {
+        "label": "thread-compile",
+        "log": "wsl-thread-compile-attempt3.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "args": [
+          "/usr/bin/clang-21",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-pthread",
+          "-O1",
+          "-g",
+          "-fno-omit-frame-pointer",
+          "-fsanitize=thread",
+          "-I",
+          "include",
+          "-I",
+          "extlibs/xmqtt/include",
+          "-I",
+          "single",
+          "-I",
+          ".",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/single.c",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/thread-single"
+        ],
+        "exit_code": 0
+      },
+      "program": {
+        "file": "thread-single",
+        "sha256": "fd417c52788e8dc5118590e0c74fbc8fb739683f21331d576da80ab4fc58f042"
+      },
+      "cases": [
+        {
+          "version": "4",
+          "pressure": {
+            "label": "thread-pressure-4",
+            "log": "wsl-thread-pressure-4.log",
+            "log_sha256": "6f690fdac02b3ec66099b28a118453f83b288332d2f47422ff741f90896360ed",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/thread-single",
+              "64",
+              "150",
+              "4",
+              "16",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "pressure_counts": {
+            "offered": 64,
+            "offer_rate_hz": 150,
+            "window": 4,
+            "transaction_cap": 16,
+            "accepted": 8,
+            "committed": 8,
+            "window_drops": 56,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 4,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 9,
+            "recovered_generation": 1,
+            "selected_file_bytes": 16230
+          },
+          "rotation": {
+            "label": "thread-rotation-4",
+            "log": "wsl-thread-rotation-4.log",
+            "log_sha256": "147d6ae29848ac39892af4bd83de1cffdaf4603d7a4751ef734d690ea936ebf8",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/thread-single",
+              "64",
+              "100",
+              "8",
+              "4",
+              "4",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "rotation_counts": {
+            "offered": 64,
+            "offer_rate_hz": 100,
+            "window": 8,
+            "transaction_cap": 4,
+            "accepted": 11,
+            "committed": 11,
+            "window_drops": 53,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 8,
+            "checkpoint_attempts": 3,
+            "rotations": 3,
+            "recovered_transactions": 3,
+            "recovered_generation": 4,
+            "selected_file_bytes": 13364
+          },
+          "overload": {
+            "file": "wsl-thread-overload-4.log",
+            "sha256": "38e2e31322242a131a4ffe85740fed0c6a88ec949ee66ac96f452e445d5ccc70",
+            "counts": {
+              "offered": 4096,
+              "offer_rate_hz": 50000,
+              "window": 1,
+              "transaction_cap": 16,
+              "accepted": 1,
+              "committed": 1,
+              "window_drops": 4095,
+              "worker_overloads": 0,
+              "expired_before_admission": 0,
+              "timeouts": 0,
+              "late_commits": 0,
+              "peak_in_flight": 1,
+              "checkpoint_attempts": 0,
+              "rotations": 0,
+              "recovered_transactions": 2,
+              "recovered_generation": 1,
+              "selected_file_bytes": 12961
+            },
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 3030.0
+          }
+        },
+        {
+          "version": "5",
+          "pressure": {
+            "label": "thread-pressure-5",
+            "log": "wsl-thread-pressure-5.log",
+            "log_sha256": "7c7e8fc4220b2a4a4ca978d517451ca99426e48c75fcdf37d7deb3029e79a214",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/thread-single",
+              "64",
+              "150",
+              "4",
+              "16",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "pressure_counts": {
+            "offered": 64,
+            "offer_rate_hz": 150,
+            "window": 4,
+            "transaction_cap": 16,
+            "accepted": 8,
+            "committed": 8,
+            "window_drops": 56,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 4,
+            "checkpoint_attempts": 0,
+            "rotations": 0,
+            "recovered_transactions": 9,
+            "recovered_generation": 1,
+            "selected_file_bytes": 16238
+          },
+          "rotation": {
+            "label": "thread-rotation-5",
+            "log": "wsl-thread-rotation-5.log",
+            "log_sha256": "ce8839637d5e6b8ab5722933a0443b23c34fb1454f545abc6f294c17b7972ebd",
+            "args": [
+              "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-capacity-20261118/thread-single",
+              "64",
+              "100",
+              "8",
+              "4",
+              "5",
+              "0"
+            ],
+            "exit_code": 0
+          },
+          "rotation_counts": {
+            "offered": 64,
+            "offer_rate_hz": 100,
+            "window": 8,
+            "transaction_cap": 4,
+            "accepted": 11,
+            "committed": 11,
+            "window_drops": 53,
+            "worker_overloads": 0,
+            "expired_before_admission": 0,
+            "timeouts": 0,
+            "late_commits": 0,
+            "peak_in_flight": 8,
+            "checkpoint_attempts": 3,
+            "rotations": 3,
+            "recovered_transactions": 3,
+            "recovered_generation": 4,
+            "selected_file_bytes": 13366
+          },
+          "overload": {
+            "file": "wsl-thread-overload-5.log",
+            "sha256": "fea9482f3619017ebd49996091a14e3e349f7b242e31820e7c011e534f5d0dc5",
+            "counts": {
+              "offered": 4096,
+              "offer_rate_hz": 50000,
+              "window": 1,
+              "transaction_cap": 16,
+              "accepted": 1,
+              "committed": 1,
+              "window_drops": 4095,
+              "worker_overloads": 0,
+              "expired_before_admission": 0,
+              "timeouts": 0,
+              "late_commits": 0,
+              "peak_in_flight": 1,
+              "checkpoint_attempts": 0,
+              "rotations": 0,
+              "recovered_transactions": 2,
+              "recovered_generation": 1,
+              "selected_file_bytes": 12962
+            },
+            "heap_blocks_per_op": 9.0,
+            "heap_bytes_per_op": 3032.0
+          }
+        }
+      ]
+    }
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt2.log",
+      "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt2.log",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt2.log",
+      "log_sha256": "4af43280e6fd850b596c49afc54ce622b4fd8a8a6cec228e8ba500c98edb4ff5",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt2.log",
+      "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt2.log",
+      "log_sha256": "6b84f638a84452445fe539ce3464e08d498527ef31b7e0e6e568593558bd5990",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout.log",
+      "log_sha256": "1395d1624e4f35aed02cdcf0a9bb067dc66958b9221738e4ee1203ee3c0ce397",
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "corrected_setup_failures": [
+    {
+      "file": "windows-smoke.log",
+      "sha256": "6845da09e5e20376e12651fa88df70f497614f58a832be8e3d00e636db02747f"
+    },
+    {
+      "file": "wsl-smoke.log",
+      "sha256": "e740ca64d572d2918493fb775cf652a60c655efd17fa9a43e453564143403342"
+    },
+    {
+      "file": "windows-gate-maturity.log",
+      "sha256": "867df15190bc25b44ac6f396e5df5c4f17517e0c8377a54c6e37fcc1b2727b2e"
+    },
+    {
+      "file": "wsl-address-compile.log",
+      "sha256": "d9a508fa60e6132cd4f995d4469aedd555a5ed4c3495adcc93d9e1b6cdd02226"
+    },
+    {
+      "file": "wsl-thread-compile.log",
+      "sha256": "3770bf567d5a3971040472d6ec9caffb4241d476a4ed18add71cc08657f3d2be"
+    },
+    {
+      "file": "wsl-address-compile-attempt2.log",
+      "sha256": "80eccf38efa7cc04e41273a54879da5bd67dd7de385bc6614c21fd625f57b033"
+    },
+    {
+      "file": "wsl-thread-compile-attempt2.log",
+      "sha256": "ba7e970a143f42fade380a42057670b495ea2f0316ab45c2c6904044acd70e61"
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 36,
+    "evidence": {
+      "file": "strict.log",
+      "sha256": "0e333f544f2cc793ccff266c71e9ecb2d161bdd02f1c97897d7c77e84188ef3b"
+    }
+  },
+  "pending": [
+    "controlled and stable performance baseline with populated checkpoints, matched broker workloads and measured copy/sync/syscall overhead",
+    "native Linux production runs and 72-hour mixed/fault qualification",
+    "storage-device power loss"
+  ]
+}

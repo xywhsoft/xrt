@@ -146,3 +146,52 @@ payload32 and window32: the first admission binds both directions, subsequent
 requests use an empty topic. Alias transaction/gather, incoming alias resolution,
 peer and observer costs are included. This is a steady-connection closed-loop
 workload, not broker recovery/fixed-arrival/native qualification.
+
+## Native Store Writer capacity and online compaction
+
+`bench_store_capacity.c` sends a fixed schedule of typed writes into one native
+journal slot on one host storage worker. Each transaction combines acceptance
+and acknowledgement of a 256-byte QoS 0 payload. The settled model keeps no
+live Inbox entries, so a pressure checkpoint retains identity, session metadata
+and the key fence. The registered profiles send 1,024 arrivals at 300/s with
+16 pending observation slots. Each MQTT version runs with maintenance disabled
+and with a 64-transaction quota driving foreground automatic compaction.
+
+```text
+python tools/measure_performance.py --compiler gcc --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_store_capacity --smoke --report out/store-capacity-smoke.json
+python tools/measure_performance.py --compiler gcc --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_store_capacity --report out/store-capacity.json
+```
+
+Choose an existing private scratch parent on the intended filesystem with
+`XMQTT_BENCH_DIRECTORY`. The benchmark uses the platform temporary directory
+when the variable is unset. Each successful trial provisions and removes its
+own three slot files. Record the filesystem and virtualization layer with the
+report. Avoid running the two operating-system workload groups concurrently
+on a shared host when measuring.
+
+The executable accepts `COUNT RATE WINDOW TRANSACTION_CAP VERSION INSTRUMENT`.
+A zero cap disables maintenance and sets the transaction bound to COUNT plus
+the seed transaction. Positive caps start at two. VERSION 4 selects MQTT 3.1.1,
+and VERSION 5 selects MQTT 5.0. Set INSTRUMENT to 1 to collect XRT block allocation
+counts and bytes in a separate run. A useful accounting stress run is
+`4096 50000 1 16 5 1`.
+
+Every scheduled arrival gets a terminal accounting category. A full observation
+window produces a drop. The Writer can independently refuse bounded admission.
+Accepted work uses the remaining five-second arrival deadline and records a late
+durable commit separately from a definite timeout. The next arrival is always
+computed from the original time origin. Committed percentiles span scheduled
+arrival to Future notification and therefore include dispatch lag, encoding,
+admission, queue time and any required checkpoint. All-arrival P99 also includes
+rejections and timeouts. Already-terminal Futures are counted and stamped at
+registration. Process CPU includes the actively yielding pacer, observation
+and native storage tasks. Heap counters exclude C observer arrays, which are
+reported separately.
+
+Throughput counts durable commits through the physical Writer drain. The final
+state checks the recovered sequence, highest key and Inbox count using the same
+quota. Recovery timing measures the selector and typed reopen after the Writer
+has closed, with the filesystem cache in its resulting state. This is a
+component workload on the recorded host. Broker traffic, populated checkpoints,
+production CPU and tail-latency acceptance, and device power-loss qualification
+require separate workloads.

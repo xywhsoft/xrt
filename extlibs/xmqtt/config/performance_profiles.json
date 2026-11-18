@@ -5302,6 +5302,401 @@
         }
       ],
       "system": "session"
+    },
+    {
+      "name": "xmqtt_store_capacity",
+      "system": "session",
+      "description": "Fixed scheduled arrivals into a native typed store, with disabled maintenance or foreground transaction-cap rotation",
+      "benchmarks": [
+        {
+          "name": "native_mqtt5_off",
+          "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
+          "suite": "xmqtt_store_compact_online_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1024",
+            "300",
+            "16",
+            "0",
+            "5",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "150",
+            "4",
+            "0",
+            "5",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_arrival_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "dispatch_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            },
+            "cold_recovery_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "offered",
+            "offer_rate_hz",
+            "window",
+            "transaction_cap",
+            "observer_bytes",
+            "wire_bytes",
+            "deadline_ms"
+          ],
+          "observations": [
+            "accepted",
+            "committed",
+            "window_drops",
+            "worker_overloads",
+            "expired_before_admission",
+            "timeouts",
+            "late_commits",
+            "already_ready",
+            "peak_in_flight",
+            "checkpoint_attempts",
+            "rotations",
+            "selected_file_bytes",
+            "recovered_transactions",
+            "recovered_generation",
+            "process_cpu_ns",
+            "physical_phase_seconds",
+            "terminal_phase_seconds",
+            "native_tasks",
+            "model_peak_bytes",
+            "bench_path"
+          ]
+        },
+        {
+          "name": "native_mqtt5_pressure",
+          "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
+          "suite": "xmqtt_store_compact_online_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1024",
+            "300",
+            "16",
+            "64",
+            "5",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "150",
+            "4",
+            "16",
+            "5",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_arrival_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "dispatch_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            },
+            "cold_recovery_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "offered",
+            "offer_rate_hz",
+            "window",
+            "transaction_cap",
+            "observer_bytes",
+            "wire_bytes",
+            "deadline_ms"
+          ],
+          "observations": [
+            "accepted",
+            "committed",
+            "window_drops",
+            "worker_overloads",
+            "expired_before_admission",
+            "timeouts",
+            "late_commits",
+            "already_ready",
+            "peak_in_flight",
+            "checkpoint_attempts",
+            "rotations",
+            "selected_file_bytes",
+            "recovered_transactions",
+            "recovered_generation",
+            "process_cpu_ns",
+            "physical_phase_seconds",
+            "terminal_phase_seconds",
+            "native_tasks",
+            "model_peak_bytes",
+            "bench_path"
+          ]
+        },
+        {
+          "name": "native_mqtt311_off",
+          "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
+          "suite": "xmqtt_store_compact_online_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1024",
+            "300",
+            "16",
+            "0",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "150",
+            "4",
+            "0",
+            "4",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_arrival_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "dispatch_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            },
+            "cold_recovery_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "offered",
+            "offer_rate_hz",
+            "window",
+            "transaction_cap",
+            "observer_bytes",
+            "wire_bytes",
+            "deadline_ms"
+          ],
+          "observations": [
+            "accepted",
+            "committed",
+            "window_drops",
+            "worker_overloads",
+            "expired_before_admission",
+            "timeouts",
+            "late_commits",
+            "already_ready",
+            "peak_in_flight",
+            "checkpoint_attempts",
+            "rotations",
+            "selected_file_bytes",
+            "recovered_transactions",
+            "recovered_generation",
+            "process_cpu_ns",
+            "physical_phase_seconds",
+            "terminal_phase_seconds",
+            "native_tasks",
+            "model_peak_bytes",
+            "bench_path"
+          ]
+        },
+        {
+          "name": "native_mqtt311_pressure",
+          "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
+          "suite": "xmqtt_store_compact_online_tests",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "1024",
+            "300",
+            "16",
+            "64",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "150",
+            "4",
+            "16",
+            "4",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "op/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_arrival_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "dispatch_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_op": {
+              "direction": "lower",
+              "unit": "ns/op"
+            },
+            "cold_recovery_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "offered",
+            "offer_rate_hz",
+            "window",
+            "transaction_cap",
+            "observer_bytes",
+            "wire_bytes",
+            "deadline_ms"
+          ],
+          "observations": [
+            "accepted",
+            "committed",
+            "window_drops",
+            "worker_overloads",
+            "expired_before_admission",
+            "timeouts",
+            "late_commits",
+            "already_ready",
+            "peak_in_flight",
+            "checkpoint_attempts",
+            "rotations",
+            "selected_file_bytes",
+            "recovered_transactions",
+            "recovered_generation",
+            "process_cpu_ns",
+            "physical_phase_seconds",
+            "terminal_phase_seconds",
+            "native_tasks",
+            "model_peak_bytes",
+            "bench_path"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -708,3 +708,29 @@ same cap, resumes the original packet identifier and acknowledges the
 recovered Inbox lease. The last replay measures usage below the original cap
 and checks the application acknowledgement by its durable key.
 [Stage evidence](xmqtt-store-replay-broker-20261118.json).
+
+## 2026-11-18 Fixed-arrival Store Writer measurements
+
+The native capacity benchmark separates arrivals from completions. Each
+scheduled arrival is counted even when the observer window is full or
+the Writer refuses admission. An admitted transaction carries the remainder
+of the arrival deadline. A Future notification measures planned arrival to
+completion, and a separate drain measurement includes physical task retirement.
+The same burst schedule and transaction encoding drive the disabled and
+foreground replay-quota modes.
+
+The local 300/s observations used a Windows NTFS temporary directory and
+the WSL2 ext4 volume. Windows committed all 1,024 writes in each trial.
+The limited Windows variant rotated 16 times per trial. WSL saturated before
+the 64-transaction threshold, so those runs compare overloaded workloads
+without a rotation. A separate paired workload on both systems uses 64
+arrivals at 12/s with an eight-transaction quota in the pressure variant.
+A final cold reopen checks the selected generation, committed key fence and
+empty Inbox with the same limits.
+
+Both host groups exceeded the existing noise limits. Keep the samples as
+component observations. The comparison records the caps, arrival outcomes,
+CPU, XRT allocation probes and selected replay size. Populated checkpoints,
+broker throughput, syscall and copy attribution, native Linux production
+runs and device power loss remain separate qualification work.
+[Stage evidence](xmqtt-store-capacity-20261118.json).

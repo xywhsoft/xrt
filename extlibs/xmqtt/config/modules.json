@@ -2673,7 +2673,9 @@
       "examples": [
         "extlibs/xmqtt/examples/store_compact/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_store_capacity.c"
+      ],
       "docs": [
         "extlibs/xmqtt/docs/store_compact_online.md"
       ]

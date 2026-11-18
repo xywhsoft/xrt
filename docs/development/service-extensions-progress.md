@@ -14412,3 +14412,21 @@ TCP, TLS 1.2/1.3, WebSocket and WSS, and modular, single-header, static
 and shared builds. Native Linux production runs, storage-device power-loss
 and controlled throughput and tail latency remain open.
 [Stage evidence](xmqtt-store-replay-broker-20261118.json).
+
+## 2026-11-18 Fixed-arrival MQTT Store Writer capacity
+
+Added a registered native-disk workload for MQTT 5.0 and 3.1.1. Latency
+runs from the planned arrival through admission, queueing, checkpointing
+and Future completion. Window drops, Writer admission refusal and accepted
+timeouts reconcile with the exact scheduled count. A separate endpoint
+includes physical drain. Every successful workload reopens the selected
+journal and checks the final sequence and key fence.
+
+Forty repeated local trials retain the existing noise-gate failures.
+At 300 arrivals/s Windows sustained the offered rate in this workload,
+while WSL2 ext4 saturated without reaching the 64-transaction threshold.
+The lower-rate eight-transaction pair exercises rotation on both filesystems.
+ASan/UBSan and TSan exercise the observer and verified rotation path on WSL.
+Production performance baselines, native Linux long runs and device
+power-loss qualification remain open.
+[Stage evidence](xmqtt-store-capacity-20261118.json).
