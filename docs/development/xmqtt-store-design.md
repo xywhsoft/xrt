@@ -655,3 +655,21 @@ scratch and live entries. The immutable snapshot reports actual selector
 effect independently of foreground results and keeps Close tied to physical
 task retirement.
 [Stage evidence](xmqtt-store-compact-auto-20261118.json).
+
+
+## 2026-11-18 Automatic checkpoints against an independent broker
+
+One QoS 2 publication remains pending while Mosquitto sends a separate
+QoS 1 delivery. The idle policy retains the pending application delivery
+inside the new checkpoint. The physical-cap policy first selects the
+outgoing checkpoint, then persists the receive as its first regular delta
+on the new generation. An independent byte oracle checks that the receive
+frame exceeded the measured remaining space on the old generation.
+
+The original publisher is terminated only after the selected disk state
+and observed network PUBACK reach their barriers. A fresh process resumes
+the original outgoing QoS 2 packet stage, consumes the preserved Inbox
+through its own lease, writes the application ACK, and verifies END
+and an empty Inbox from a new journal cursor. An independent subscriber
+checks that the outgoing payload arrives once.
+[Stage evidence](xmqtt-store-auto-broker-20261118.json).

@@ -342,3 +342,22 @@ python extlibs/xmqtt/tests/interop/run_compact_crash_broker.py --broker /path/to
 Select `--transport tcp` for a shorter run. Client process-exit tests cover
 recovery of the synchronized files in this topology. Physical power-loss
 survival requires a separate storage qualification.
+
+
+#### Automatic checkpoints
+
+Add `--policy automatic` for the idle policy or `--policy pressure` for the
+physical file-limit path. The first client subscribes to a separate trigger
+topic. While PUBREC or PUBCOMP is withheld, an independent publisher delivers
+one QoS 1 message. No application ACK is submitted before the native process
+exits. In idle mode the committed Inbox entry is included in the checkpoint.
+In pressure mode the 15,200-byte limit forces a rotation before the acceptance
+can commit. The oracle verifies that the frame could not fit in the old
+generation and checks an independent CRC chain through the new IN_ACCEPT
+delta following the checkpoint.
+
+The runner waits for the client PUBACK before terminating the process.
+After restart, the new client resumes the QoS 2 exchange. The application takes
+the recovered Inbox lease, verifies its original payload, and commits a durable
+ACK. The broker sends no second trigger delivery in the observed recovery.
+The final cold reopen checks END and an empty Inbox.

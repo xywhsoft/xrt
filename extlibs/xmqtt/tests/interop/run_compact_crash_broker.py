@@ -16,7 +16,7 @@ import time
 from journal_oracle import PAGE, START, crc
 from run_reconnect_store_broker import (
     FAULTS, LOOPBACK, PAYLOAD, TOPIC, TRANSPORTS, certificates, command,
-    connect_subscriber, digest, field, gateway, readiness, subscribe, verify_protocol,
+    connect_subscriber, digest, field, gateway, packet, readiness, send, subscribe, verify_protocol,
 )
 from run_session_broker import varint
 
@@ -47,6 +47,9 @@ with subprocess.Popen(sys.argv[1:], stdin=subprocess.PIPE) as child:
 """
 
 COMPACTED = re.compile(r'^COMPACTED (\d+) (\d+) (\d+) (PUBLISH|PUBREL) (\d+) (\d+) (\d+)$', re.M)
+AUTO_ARMED = re.compile(r'^AUTO_ARMED$', re.M)
+TRIGGER_TOPIC = b'xrt/example/compact-trigger'
+TRIGGER_BODY = b'accepted before automatic compaction'
 TERMINATED = re.compile(r'^TERMINATED (\d+) (-?\d+)$', re.M)
 
 
@@ -70,7 +73,25 @@ def check_page(page):
     assert len(page) == PAGE and crc(page[:-4]) == struct.unpack_from('>I', page, PAGE-4)[0]
 
 
-def checkpoint(root, match, mqtt, fault):
+def check_publish(wire, mqtt, qos, identifier, topic, payload):
+    length, body = varint(wire, 1)
+    properties = b'\0' if mqtt == 5 else b''
+    assert len(wire) == body + length and wire[0] == (0x30 | (qos << 1))
+    assert wire[body:] == field(topic) + identifier.to_bytes(2, 'big') + properties + payload
+
+
+def check_inbox_delta(delta, mqtt):
+    version = 5 if mqtt == 5 else 4
+    assert delta[:32] == struct.pack('>8sHBBIQQ', b'XMQDSET\0', 1, version, 0, 1, len(delta), 0)
+    wire = delta[80:]
+    identifier = struct.unpack_from('>H', delta, 36)[0]
+    assert identifier > 0
+    assert delta[32:80] == struct.pack('>BBBxHHI4xQQQQ', 9, 0, 0, identifier, 48, 0, 1, 2, 0, len(wire))
+    check_publish(wire, mqtt, 1, identifier, TRIGGER_TOPIC, TRIGGER_BODY)
+    return identifier
+
+
+def checkpoint(root, match, mqtt, fault, automatic, pressure):
     generation, sequence, identifier = map(int, match.group(1, 2, 3))
     key, previous_bytes, selected_bytes = map(int, match.group(5, 6, 7))
     stage = match[4]
@@ -87,17 +108,19 @@ def checkpoint(root, match, mqtt, fault):
     assert (root/'journal.0').stat().st_size == previous_bytes > selected_bytes
 
     journal = (root/'journal.1').read_bytes()
-    assert len(journal) == selected_bytes and journal[:8] == b'XMQWAL\0\0'
+    assert journal[:8] == b'XMQWAL\0\0'
     check_page(journal[:PAGE])
     assert journal[10] == (5 if mqtt == 5 else 4)
     assert struct.unpack_from('>Q', journal, 16)[0] == generation
     witnesses = [journal[offset:offset+PAGE] for offset in (PAGE, 2*PAGE)]
     assert witnesses[0] == witnesses[1] and witnesses[0][:8] == b'XMQWCOM\0'
     check_page(witnesses[0])
-    assert struct.unpack_from('>QQQI', witnesses[0], 8) == selected
+    witness = struct.unpack_from('>QQQI', witnesses[0], 8)
+    recovery_sequence = sequence + pressure
+    assert witness[:3] == (generation, recovery_sequence, len(journal))
 
     at, prior, payloads = START, 0, []
-    for index in range(1, sequence+1):
+    for index in range(1, recovery_sequence+1):
         head = journal[at:at+48]
         assert head[:8] == b'XMQWTX1\0'
         total, number, length, chain, body_crc, reserved, head_crc = struct.unpack_from('>QQQIIII', head, 8)
@@ -109,26 +132,72 @@ def checkpoint(root, match, mqtt, fault):
         assert struct.unpack_from('>8sII', journal, at+48+length) == (b'XMQWEND\0', prior, 0)
         at += total
         payloads.append(payload)
-    assert at == len(journal) and prior == selected[3]
-    meta, rows = payloads
+        if index == sequence:
+            assert (at, prior) == selected[2:]
+    assert at == len(journal) and prior == witness[3]
+    meta, rows = payloads[:2]
     assert meta[:8] == b'XMQCKPT\0' and meta[8:11] == bytes((1, 5 if mqtt == 5 else 4, 7))
-    assert struct.unpack_from('>QQ', meta, 16) == (1, key)
-    assert struct.unpack_from('>Q', meta, 48)[0] == 1
-    assert rows[:16] == b'XMQCROW\0\0\0\0\x01\0\0\0\0'
-    row_key, epoch, wire_size, row_id, flags, reason = struct.unpack_from('>QQIHBB', rows, 16)
-    assert (row_key, epoch, row_id, reason) == (key, 1, identifier, 0)
-    assert flags & 3 == 3 and not flags & 48 and bool(flags & 8) == (fault == 2)
-    wire = rows[40:]
-    length, body = varint(wire, 1)
-    properties = b'\0' if mqtt == 5 else b''
-    assert len(wire) == wire_size == body+length and wire[0] == 0x34
-    assert wire[body:] == field(TOPIC) + identifier.to_bytes(2, 'big') + properties + PAYLOAD
-    return dict(generation=generation, sequence=sequence, packet_id=identifier, stage=stage,
-                key=key, previous_bytes=previous_bytes, selected_bytes=selected_bytes,
-                control_sha256=digest(root/'journal.slot'), journal_sha256=digest(root/'journal.1'))
+    count = 2 if automatic and not pressure else 1
+    assert struct.unpack_from('>QQ', meta, 16) == (1, count)
+    assert struct.unpack_from('>Q', meta, 48)[0] == count
+    assert rows[:16] == b'XMQCROW\0' + struct.pack('>II', count, 0)
+    at = 16
+    inbox_id = None
+    for expected_key in range(1, count+1):
+        row_key, epoch, wire_size, row_id, flags, reason = struct.unpack_from('>QQIHBB', rows, at)
+        assert (row_key, epoch, reason) == (expected_key, 1, 0) and row_id > 0
+        at += 24
+        wire = rows[at:at+wire_size]
+        assert len(wire) == wire_size
+        at += wire_size
+        if row_key == key:
+            assert row_id == identifier and flags & 3 == 3 and not flags & 48
+            assert bool(flags & 8) == (fault == 2)
+            check_publish(wire, mqtt, 2, identifier, TOPIC, PAYLOAD)
+        else:
+            assert row_key == 2 and flags == 16
+            check_publish(wire, mqtt, 1, row_id, TRIGGER_TOPIC, TRIGGER_BODY)
+            inbox_id = row_id
+    assert at == len(rows)
+    if pressure:
+        delta = payloads[2]
+        # The ordinary IN_ACCEPT frame could not fit in the old generation.
+        assert previous_bytes <= 15200 < previous_bytes+64+len(delta)
+        inbox_id = check_inbox_delta(delta, mqtt)
+    result = dict(generation=generation, sequence=sequence, recovery_sequence=recovery_sequence,
+        packet_id=identifier, stage=stage, key=key, previous_bytes=previous_bytes,
+        selected_bytes=selected_bytes, recovery_bytes=len(journal),
+        control_sha256=digest(root/'journal.slot'), journal_sha256=digest(root/'journal.1'))
+    if inbox_id is not None:
+        result['inbox'] = dict(key=2, packet_id=inbox_id)
+    return result
+
+
+def publish_trigger(port):
+    with socket.create_connection((LOOPBACK, port), timeout=8) as source:
+        send(source, 0x10, b'\0\x04MQTT\x04\x02\0\0' + field(b'compact-auto-source'))
+        assert packet(source)[1] == b'\0\0'
+        send(source, 0x32, field(TRIGGER_TOPIC) + b'\0\x01' + TRIGGER_BODY)
+        assert packet(source)[0] == b'\x40\x02\0\x01'
+        send(source, 0xe0, b'')
+
+
+def trigger_trace(proxy):
+    events = [r for r in proxy.rows if r['type'] == 3 and r['direction'] == 'sc' and
+              r.get('topic') == TRIGGER_TOPIC.decode()]
+    return [(r['generation'], r['flags'], r['identifier']) for r in events]
+
+
+def acked_trigger(proxy):
+    events = trigger_trace(proxy)
+    return bool(events) and any(r['type'] == 4 and r['generation'] == 1 and r['direction'] == 'cs' and
+                                r['identifier'] == events[0][2] for r in proxy.rows)
 
 
 def case(args, client, transport, mqtt, fault, scratch, name):
+    automatic = args.policy != 'manual'
+    pressure = args.policy == 'pressure'
+    mode = {'manual': 'compact', 'automatic': 'compact-auto', 'pressure': 'compact-pressure'}[args.policy]
     cross = os.name != 'nt' and client.suffix.lower() == '.exe'
     windows_python = args.windows_python if cross else None
     if cross:
@@ -162,7 +231,7 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                 try:
                     readiness(windows_python, proxy.port)
                     cmd = command(client, transport, proxy.port, mqtt, fault, ca)[:-1]
-                    cut_cmd = [windows_path(client) if cross else cmd[0], *cmd[1:], 'compact-cut', directory]
+                    cut_cmd = [windows_path(client) if cross else cmd[0], *cmd[1:], mode+'-cut', directory]
                     with cut_log.open('wb') as log, subprocess.Popen(
                             [launcher, '-u', '-c', SUPERVISOR, *cut_cmd], stdin=subprocess.PIPE,
                             stdout=log, stderr=subprocess.STDOUT) as cutting:
@@ -171,7 +240,12 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                             assert cutting.poll() is None, cut_log.read_text(encoding='utf-8')
                             cutting.stdin.write(b'c')
                             cutting.stdin.flush()
+                            if automatic:
+                                wait_marker(cutting, cut_log, AUTO_ARMED)
+                                publish_trigger(port)
                             match = wait_marker(cutting, cut_log, COMPACTED)
+                            if automatic:
+                                proxy.wait(lambda: acked_trigger(proxy))
                             assert len([r for r in proxy.rows if r['type'] == 1]) == 1
                             cutting.stdin.write(b'x')
                             cutting.stdin.flush()
@@ -180,24 +254,34 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                             cutting.stdin.close()  # EOF also retires a live native child on a failed assertion.
                             if cutting.poll() is None:
                                 cutting.wait(timeout=12)
-                    exited = TERMINATED.search(cut_log.read_text(encoding='utf-8'))
+                    cut_output = cut_log.read_text(encoding='utf-8')
+                    exited = TERMINATED.search(cut_output)
+                    if automatic:
+                        assert cut_output.splitlines().count('AUTO_ARMED') == 1
+                        assert cut_output.splitlines().count('AUTO_ROTATED 1 1') == 1
                     assert exited and int(exited[2]) == (1 if cross or os.name == 'nt' else -9)
-                    snapshot = checkpoint(root, match, mqtt, fault)
+                    snapshot = checkpoint(root, match, mqtt, fault, automatic, pressure)
                     for thread in tuple(getattr(proxy, 'front_threads', proxy.threads)):
                         thread.join(8)
                         assert not thread.is_alive(), 'old transport did not retire after native process exit'
                     with resume_log.open('wb') as log:
-                        recovered = subprocess.run([*cmd, 'compact-resume', directory],
+                        recovered = subprocess.run([*cmd, mode+'-resume', directory],
                             stdout=log, stderr=subprocess.STDOUT, timeout=25)
                     output = resume_log.read_text(encoding='utf-8')
                     assert recovered.returncode == 0, (output, proxy.rows)
-                    expected = ' '.join(str(snapshot[k]) for k in ('generation', 'sequence', 'packet_id', 'stage', 'key'))
+                    expected = ' '.join(str(snapshot[k]) for k in ('generation', 'recovery_sequence', 'packet_id', 'stage', 'key'))
                     assert f'RECOVERED {expected}' in output, output
                     assert 'Fresh process settled the compacted QoS 2 obligation.' in output, output
-                    end = 5 if fault == 2 else 6
+                    end = (5 if fault == 2 else 6) + automatic + pressure
                     assert f'Committed graceful END at {end}.' in output and f'VERIFIED 2 {end}' in output, output
                     proxy.wait(lambda: any(r['type'] == 14 and r['generation'] == 2 for r in proxy.rows))
                     deliveries = verify_protocol(proxy, sink, transport, fault)
+                    if automatic:
+                        inbox_id = snapshot['inbox']['packet_id']
+                        assert output.splitlines().count(f'INBOX_ACKED 2 {end-1} {inbox_id}') == 1, output
+                        assert trigger_trace(proxy) == [(1, 2, inbox_id)]
+                        assert [(r['generation'], r['identifier']) for r in proxy.rows if
+                                r['type'] == 4 and r['direction'] == 'cs'] == [(1, inbox_id)]
                     first = next(r for r in proxy.rows if r['direction'] == 'cs' and r['type'] == 3)
                     assert first['identifier'] == snapshot['packet_id']
                     assert (root/'journal.1').stat().st_size > snapshot['selected_bytes']
@@ -228,6 +312,7 @@ def main():
     parser.add_argument('--transport', nargs='+', choices=TRANSPORTS, default=TRANSPORTS)
     parser.add_argument('--mqtt', nargs='+', type=int, choices=(311, 5), default=(311, 5))
     parser.add_argument('--fault', nargs='+', choices=FAULTS[1:], default=FAULTS[1:])
+    parser.add_argument('--policy', choices=('manual', 'automatic', 'pressure'), default='manual')
     args = parser.parse_args()
     forms = {}
     for label, path in args.form:
@@ -241,7 +326,7 @@ def main():
     sources = (Path(__file__).name, 'journal_oracle.py', 'run_reconnect_store_broker.py',
                'reconnect_ws_gateway.py', 'session_tls_proxy.py', 'run_session_broker.py',
                'run_session_tls_broker.py', 'run_mqtt_tls.py')
-    report = dict(schema=1, complete=False, broker=version, broker_sha256=digest(args.broker),
+    report = dict(schema=1, complete=False, policy=args.policy, broker=version, broker_sha256=digest(args.broker),
                   forms={label: dict(path=str(path), sha256=digest(path)) for label, path in forms.items()},
                   sources={name: digest(Path(__file__).with_name(name)) for name in sources}, cases=[])
     try:

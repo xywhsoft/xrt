@@ -14362,3 +14362,19 @@ Production throughput and tail latency,
 typed replay-quota scheduling, independent broker coverage for the new
 automatic policy, and device power-loss qualification remain open.
 [Stage evidence](xmqtt-store-compact-auto-20261118.json).
+
+
+## 2026-11-18 Mosquitto verification of automatic MQTT checkpoints
+
+Both automatic maintenance paths preserve a pending QoS 2 publish and a
+broker-acknowledged Inbox delivery through native process termination.
+The idle path stores both entries in the checkpoint. The physical-cap path
+writes the inbound acceptance once on the newly selected journal. Independent
+byte checks enforce the boundary and recovery completes the protocol exchange
+and the separate application ACK.
+
+Windows and Linux under WSL run the native clients through TCP, TLS 1.2/1.3,
+WebSocket and WSS. Mosquitto stays alive during each replacement. The native
+Linux production soak, storage-device power-loss and production throughput
+and tail latency remain open.
+[Stage evidence](xmqtt-store-auto-broker-20261118.json).

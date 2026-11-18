@@ -179,7 +179,116 @@ static bool compactSeed(xmqttjournal* Journal,const xmqttstoredeltaconfig* Confi
     return true;
 }
 
-static void compactCut(xmqttstorewrite* Writer,xfuture* Publish)
+static const xstrview compactTriggerTopic=XRT_STR_LITERAL("xrt/example/compact-trigger");
+static const xbytesview compactTriggerBody=XRT_BYTES_LITERAL("accepted before automatic compaction");
+
+static bool compactSubscribe(xmqttclient* Client)
+{
+    xmqttsubscription Filter={compactTriggerTopic,1};
+    xmqttpacket Packet;
+    xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Packet);
+    Packet.Body.Topics=(xmqttsubscriptionlist){&Filter,1};
+    xfuture* F=NULL;
+    if(xmqttClientSubscribeAsync(Client,&Packet,10000,&F)!=XMQTT_ADMISSION_ACCEPTED)return false;
+    const xmqttsubscriptionresult* Result=xrtFutureWaitFor(F,10000)==XWAIT_OK?xrtFutureValue(F):NULL;
+    bool Subscribed=Result&&Result->Status==XMQTT_STATUS_OK&&Result->Acknowledged&&Result->Granted==1&&Result->Ack;
+    if(Subscribed){
+        const xmqttpacket* Ack=xmqttMessagePacket(Result->Ack);
+        Subscribed=Ack&&Ack->Body.Reasons.Size==1&&Ack->Body.Reasons.Data[0]==1;
+    }
+    xrtFutureDestroy(F);
+    return Subscribed;
+}
+
+static bool compactAutomatic(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
+    xfuture* Publish,bool Pressure,xmqttstorecompactresult* Selection)
+{
+    xmqttstoreautocompactconfig Policy;
+    if(!xmqttStoreAutoCompactConfigInit(&Policy))return false;
+    Policy.Compact=*Compact;
+    Policy.TriggerBytes=Pressure?UINT64_MAX:1u;
+    double Deadline=xrtTimer()+5;
+    for(;;){
+        xmqttstorewriteinfo Info;
+        if(!xmqttStoreWriteInfo(Writer,&Info)||Info.Worker.Closed||xrtTimer()>=Deadline)return false;
+        if(!Info.Worker.Busy&&!Info.Worker.Requests&&!Info.Worker.Tasks)break;
+        xrtSleep(1);
+    }
+    if(!xmqttStoreWriteSetAutoCompact(Writer,&Policy))return false;
+    puts("AUTO_ARMED");
+    if(fflush(stdout)!=0)return false;
+
+    /* The broker's QoS 1 delivery commits the work that starts the policy. */
+    Deadline=xrtTimer()+5;
+    do{
+        xmqttstoreautocompactinfo Info;
+        if(!xmqttStoreWriteAutoCompactInfo(Writer,&Info)||xrtFutureState(Publish)!=XFUTURE_PENDING)return false;
+        if(Info.Attempts&&!Info.Running){
+            xmqttstorewriteinfo State;
+            if(Info.Attempts!=1||Info.Rotations!=1||Info.Status!=XMQTT_COMMIT_OK||
+               Info.StorageStatus!=XMQTT_JOURNAL_DONE||Info.Effect!=XMQTT_JOURNAL_COMMITTED||
+               !xmqttStoreWriteInfo(Writer,&State)||State.Worker.Closed||State.State.Outgoing!=1)return false;
+            /* A file-limit rotation publishes its prefix before the pump
+             * restages the QoS 1 acceptance as the first new delta. */
+            if(State.State.Inbox==1&&State.State.LastKey==2&&
+               State.Worker.Journal.Sequence==(Pressure?3u:2u)){
+                *Selection=(xmqttstorecompactresult){.Status=Info.Status,.StorageStatus=Info.StorageStatus,
+                    .Effect=Info.Effect,.Generation=Info.Generation,.PreviousGeneration=1,
+                    .Sequence=2,.PreviousBytes=Info.PreviousBytes,.Bytes=Info.Bytes};
+                puts("AUTO_ROTATED 1 1");
+                return true;
+            }
+            if(!Pressure||State.State.Inbox>1||State.State.LastKey>2)return false;
+        }
+        xrtSleep(1);
+    }while(xrtTimer()<Deadline);
+    return false;
+}
+
+static bool compactManual(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
+    xmqttstorecompactresult* Selection)
+{
+    xfuture* Future=NULL;
+    if(xmqttStoreWriteCompactAsync(Writer,Compact,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return false;
+    const xmqttstorecompactresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
+    if(Result){
+        *Selection=*Result;
+        Selection->Cause=NULL;
+    }
+    bool Done=Result!=NULL;
+    xrtFutureDestroy(Future);
+    return Done;
+}
+
+static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version)
+{
+    unsigned char Wire[1024];
+    size_t Bytes=0;
+    xmqttstorelease Lease;
+    xmqttstoreview View;
+    if(xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Lease,&View,&Bytes)!=XMQTT_STORE_DONE||
+       View.Key!=2||View.Epoch!=1||View.Qos!=1||!View.InboxPending)return false;
+    xmqttpacket Packet;
+    xbytesview Input={Wire,Bytes};
+    xmqttcodecstatus Decoded=Version==XMQTT_VERSION_5
+        ?xmqttPacketRead5(Input,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL)
+        :xmqttPacketRead311(Input,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL);
+    if(Decoded!=XMQTT_CODEC_DONE||Packet.Type!=XMQTT_PACKET_PUBLISH||Packet.Identifier!=View.Identifier||
+       Packet.Body.Publish.Topic.Size!=compactTriggerTopic.Size||
+       memcmp(Packet.Body.Publish.Topic.Data,compactTriggerTopic.Data,compactTriggerTopic.Size)||
+       Packet.Body.Publish.Payload.Size!=compactTriggerBody.Size||
+       memcmp(Packet.Body.Publish.Payload.Data,compactTriggerBody.Data,compactTriggerBody.Size))return false;
+    xfuture* F=NULL;
+    if(xmqttStoreInboxAckAsync(Writer,Lease,10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
+    const xmqttcommitresult* Result=xrtFutureWaitFor(F,10000)==XWAIT_OK?xrtFutureValue(F):NULL;
+    bool Done=Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED;
+    if(Done)printf("INBOX_ACKED %llu %llu %u\n",(unsigned long long)View.Key,
+        (unsigned long long)Result->Sequence,(unsigned)View.Identifier);
+    xrtFutureDestroy(F);
+    return Done&&xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Lease,&View,&Bytes)==XMQTT_STORE_EMPTY;
+}
+
+static void compactCut(xmqttstorewrite* Writer,xfuture* Publish,bool Auto,bool Pressure)
 {
     /* The fixture signals only after independently observing the dropped ACK. */
     if(fgetc(stdin)!='c'||xrtFutureState(Publish)!=XFUTURE_PENDING)return;
@@ -195,29 +304,28 @@ static void compactCut(xmqttstorewrite* Writer,xfuture* Publish)
     Config.MinReclaimBytes=1;
     Config.MaxEntries=4;
     Config.MaxScratchBytes=1024;
-    xfuture* Future=NULL;
-    if(xmqttStoreWriteCompactAsync(Writer,&Config,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return;
-    const xmqttstorecompactresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
-    bool Held=Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED&&
-       Result->PreviousGeneration==1&&Result->Generation==2&&Result->Sequence==2&&Result->Bytes<Result->PreviousBytes&&
+    xmqttstorecompactresult Result={0};
+    bool Selected=Auto?compactAutomatic(Writer,&Config,Publish,Pressure,&Result):compactManual(Writer,&Config,&Result);
+    bool Held=Selected&&Result.Status==XMQTT_COMMIT_OK&&Result.Effect==XMQTT_JOURNAL_COMMITTED&&
+       Result.PreviousGeneration==1&&Result.Generation==2&&Result.Sequence==2&&Result.Bytes<Result.PreviousBytes&&
        xrtFutureState(Publish)==XFUTURE_PENDING;
     if(Held){
-        printf("COMPACTED %llu %llu %u %s %llu %llu %llu\n",(unsigned long long)Result->Generation,
-            (unsigned long long)Result->Sequence,(unsigned)Outgoing.Identifier,Outgoing.Pubrel?"PUBREL":"PUBLISH",
-            (unsigned long long)Outgoing.Key,(unsigned long long)Result->PreviousBytes,(unsigned long long)Result->Bytes);
+        printf("COMPACTED %llu %llu %u %s %llu %llu %llu\n",(unsigned long long)Result.Generation,
+            (unsigned long long)Result.Sequence,(unsigned)Outgoing.Identifier,Outgoing.Pubrel?"PUBREL":"PUBLISH",
+            (unsigned long long)Outgoing.Key,(unsigned long long)Result.PreviousBytes,(unsigned long long)Result.Bytes);
         Held=fflush(stdout)==0;
     }
-    xrtFutureDestroy(Future);
     /* The qualification runner terminates this native process at the marker. */
     if(Held)(void)fgetc(stdin);
 }
 
 static bool compactRestore(const xmqttstorestate* State,const xmqttsessionconfig* SessionConfig,
-    const xmqttstorestateconfig* Config,xmqttsession** Session)
+    const xmqttstorestateconfig* Config,bool Auto,bool Pressure,xmqttsession** Session)
 {
     xmqttstorestateinfo Info;
     xmqttstoreview Outgoing;
-    if(!xmqttStoreStateInfo(State,&Info)||!Info.LiveAtCut||!Info.HasSession||Info.Transactions!=2||Info.Outgoing!=1||
+    if(!xmqttStoreStateInfo(State,&Info)||!Info.LiveAtCut||!Info.HasSession||Info.Outgoing!=1||
+       Info.Transactions!=(Pressure?3u:2u)||Info.Inbox!=(Auto?1u:0u)||Info.LastKey!=(Auto?2u:1u)||
        xmqttStoreStateView(State,XMQTT_STORE_OUTGOING,0,&Outgoing)!=XMQTT_STORE_DONE||
        Outgoing.Qos!=2||!Outgoing.Attempted)return false;
     xmqttstoresessionconfig Restore;
@@ -241,7 +349,7 @@ static bool compactVerify(xmqttjournalslot* Slot,xmqttstorestateconfig* C,uint64
     xmqttstorestateinfo Info;
     bool OK=xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,C,&State)==XMQTT_STORE_DONE&&xmqttStoreStateInfo(State,&Info)&&
-        !Info.LiveAtCut&&!Info.Outgoing&&Info.Transactions==End;
+        !Info.LiveAtCut&&!Info.Outgoing&&!Info.Inbox&&Info.Transactions==End;
     xmqttStoreStateDestroy(State);
     if(!xmqttJournalDestroy(Journal)){(void)xmqttJournalDestroy(Journal);return false;}
     if(OK)printf("VERIFIED %llu %llu\n",(unsigned long long)C->Generation,(unsigned long long)End);
@@ -263,7 +371,7 @@ int main(int Argc,char** Argv)
 #endif
 #endif
 #if defined(RECONNECT_EXAMPLE_COMPACT)
-        puts("       Any endpoint form can use compact-cut DIRECTORY or compact-resume DIRECTORY with the interop runner.");
+        puts("       The interop runner accepts compact, compact-auto and compact-pressure cut/resume modes.");
 #endif
         return 0;
     }
@@ -293,9 +401,16 @@ int main(int Argc,char** Argv)
     bool Cut=false,Resume=false;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     const char* Directory=NULL;
+    bool Auto=false,Pressure=false;
     if(Argc==Mode+2){
-        Cut=!strcmp(Argv[Mode],"compact-cut");
-        Resume=!strcmp(Argv[Mode],"compact-resume");
+        bool PressureCut=!strcmp(Argv[Mode],"compact-pressure-cut");
+        bool PressureResume=!strcmp(Argv[Mode],"compact-pressure-resume");
+        bool AutoCut=PressureCut||!strcmp(Argv[Mode],"compact-auto-cut");
+        bool AutoResume=PressureResume||!strcmp(Argv[Mode],"compact-auto-resume");
+        Pressure=PressureCut||PressureResume;
+        Auto=AutoCut||AutoResume;
+        Cut=AutoCut||!strcmp(Argv[Mode],"compact-cut");
+        Resume=AutoResume||!strcmp(Argv[Mode],"compact-resume");
         if(!Cut&&!Resume)return 2;
         Directory=Argv[Mode+1];
     }else
@@ -325,6 +440,11 @@ int main(int Argc,char** Argv)
     JC.Generation=1;
     JC.Binding=XRT_BYTES_LITERAL("example/reconnect-store");
     JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    /* Both original QoS 2 cuts fit. The independently encoded trigger
+     * transaction crosses this cap for either MQTT level and cut. */
+    if(Pressure)JC.MaxFileBytes=15200;
+#endif
     xmqttstorestateconfig SC;
     xmqttStoreStateConfigInit(&SC);
     SC.Delta.Version=Version;
@@ -379,7 +499,7 @@ int main(int Argc,char** Argv)
     SK.ClientId=Id;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Resume){
-        if(!compactRestore(State,&SK,&SC,&Session))goto Done;
+        if(!compactRestore(State,&SK,&SC,Auto,Pressure,&Session))goto Done;
     }else
 #endif
     if(!xmqttSessionCreate(&SK,&Session))goto Done;
@@ -419,9 +539,15 @@ int main(int Argc,char** Argv)
     xmqttclientstoreoutcome Outcome;
     if(Resume){
         if(!replayed(Writer))goto Done;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+        if(Auto&&!compactInboxAck(Writer,Version))goto Done;
+#endif
         puts("Fresh process settled the compacted QoS 2 obligation.");
         goto Disconnect;
     }
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Auto&&!compactSubscribe(Lease.Client))goto Done;
+#endif
     xmqttpacket Packet;
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Packet);
     Packet.Flags=Qos2?4:2;
@@ -430,7 +556,7 @@ int main(int Argc,char** Argv)
     if(xmqttClientPublishAsync(Lease.Client,&Packet,10000,&Publish)!=XMQTT_ADMISSION_ACCEPTED)goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Cut){
-        compactCut(Writer,Publish);
+        compactCut(Writer,Publish,Auto,Pressure);
         goto Done;
     }
 #endif

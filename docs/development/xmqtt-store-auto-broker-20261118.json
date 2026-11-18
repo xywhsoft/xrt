@@ -1,0 +1,3056 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "production_revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+  "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+  "evidence_directory": "out/service-extensions/mqtt-store-auto-broker-20261118",
+  "scope": "Independent broker verification of both automatic compaction paths across native process termination and cold restart.",
+  "topology": "Mosquitto in WSL, Windows and WSL x64 clients and loopback gateways for TLS/WS/WSS, journal files on D:.",
+  "mqtt_versions": [
+    "5.0",
+    "3.1.1"
+  ],
+  "native_terminations": 432,
+  "standard_cases": 384,
+  "asan_ubsan_cases": 48,
+  "asan_scope": "Both source and replacement use ASan/UBSan. Leak detection reaches normal exit of the replacement.",
+  "pressure_file_cap_bytes": 15200,
+  "pressure_append_oracle": "Selector prefix has two frames. The separately hashed third frame is one IN_ACCEPT for delivery key two.",
+  "inbox_app_acks": 432,
+  "exact_subscriber_delivery_cases": 432,
+  "matrix": {
+    "automatic": {
+      "modular": {
+        "report": "broker-modular-automatic.json",
+        "sha256": "db5be7afaec16feed0443a41f74d3fc03a0d5f89cd5b48b07de5460179062859",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-modular": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+            "sha256": "2882a80ea123f33ed08272e443fcdc8fa4b1f217cba0114f088f3885e6801589"
+          },
+          "wsl-modular": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+            "sha256": "ac91f833f2c4a951c977b644ebe9fc56d0aa8942e6f7a852c31249ea294f57ed"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-modular-automatic-final",
+          "log": "wsl-broker-modular-automatic-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-modular",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+            "--form",
+            "wsl-modular",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-modular-automatic.json",
+            "--policy",
+            "automatic"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "b05a12c51487d66024c1de0f276efdbdfc63a7caea22ff42f45842291266b56c",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15228,
+          15374
+        ],
+        "checkpoint_selected_bytes": [
+          12700,
+          12702
+        ],
+        "recovery_file_bytes": [
+          12700,
+          12702
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "single": {
+        "report": "broker-single-automatic.json",
+        "sha256": "0cd6ea1263e16e400598007068569510200cf51f05f5a9099b8aca2bf02e4e11",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-single": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/single.exe",
+            "sha256": "b8e853c47b73a1e33c0d7146c0885677178afba10b39bc6a44a72a840b32d1c2"
+          },
+          "wsl-single": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single",
+            "sha256": "c7ca4a7c5e59ff6acb1061dab46a46a017f94f771247f7b14a302616a9cc2c8d"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-single-automatic-final",
+          "log": "wsl-broker-single-automatic-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-single",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/single.exe",
+            "--form",
+            "wsl-single",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-single-automatic.json",
+            "--policy",
+            "automatic"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "64e4b33930254f76a263e76e0a9bd6ce1f06152fe9f0641f77b707a8880089e8",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15228,
+          15374
+        ],
+        "checkpoint_selected_bytes": [
+          12700,
+          12702
+        ],
+        "recovery_file_bytes": [
+          12700,
+          12702
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "static": {
+        "report": "broker-static-automatic.json",
+        "sha256": "3e26765393d75558922b456c176f666d7258083815ca484e4c655fc01b18088d",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-static": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/static.exe",
+            "sha256": "1864e427e8ad1f5a8c7d1a105195e010189b099bb5d5a52f1dd5b856765c95d1"
+          },
+          "wsl-static": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static",
+            "sha256": "560012fe7d3417efb824a50bbb821b99d2fb27799c8481af3c12652234298799"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-static-automatic-final",
+          "log": "wsl-broker-static-automatic-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-static",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/static.exe",
+            "--form",
+            "wsl-static",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-static-automatic.json",
+            "--policy",
+            "automatic"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "2ff330262d912af73610df0330d21030d8d8abd4817c305ee02caad20e0848e5",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15228,
+          15374
+        ],
+        "checkpoint_selected_bytes": [
+          12700,
+          12702
+        ],
+        "recovery_file_bytes": [
+          12700,
+          12702
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "shared": {
+        "report": "broker-shared-automatic.json",
+        "sha256": "1daa98e1b4bb2504b2f11558bb494cd6d7c08bb4d574f3e83d23a75efa84fdd1",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-shared": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/shared.exe",
+            "sha256": "579fec0638ed76e66732279994c39049bb07b019d1cd5695aad0b4eba492c87d"
+          },
+          "wsl-shared": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared",
+            "sha256": "5751bc859e2e45566bef4ce4a40302ebe9d061bdcfb663a7b7cc499551a51e26"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-shared-automatic-final",
+          "log": "wsl-broker-shared-automatic-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-shared",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/shared.exe",
+            "--form",
+            "wsl-shared",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-shared-automatic.json",
+            "--policy",
+            "automatic"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "69cf772daa39e6753f73fb2a0376773f3c0575c3e4b2d4da85b5ec697d171235",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15228,
+          15374
+        ],
+        "checkpoint_selected_bytes": [
+          12700,
+          12702
+        ],
+        "recovery_file_bytes": [
+          12700,
+          12702
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "asan": {
+        "report": "broker-asan-automatic.json",
+        "sha256": "12c36b5426c8c0d5e8cd794af6dc89615b5bcfcc627b3710f50a147618919713",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "wsl-modular-asan": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular-asan",
+            "sha256": "cc6ff03f842d2a883a6b8ae77fe0638132a81229a5d4ed699851238aa08caee9"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-asan-automatic-final",
+          "log": "wsl-broker-asan-automatic-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "wsl-modular-asan",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular-asan",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-asan-automatic.json",
+            "--policy",
+            "automatic"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "baad3d638b01152b2b1edc89a83cc6b2bb22051766fce64df2e9a2fd4a706201",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 24,
+        "automatic_rotations": 24,
+        "native_process_terminations": 24,
+        "application_inbox_acks": 24,
+        "single_subscriber_deliveries": 24,
+        "checkpoint_previous_bytes": [
+          15228,
+          15374
+        ],
+        "checkpoint_selected_bytes": [
+          12700,
+          12702
+        ],
+        "recovery_file_bytes": [
+          12700,
+          12702
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          }
+        ]
+      }
+    },
+    "pressure": {
+      "modular": {
+        "report": "broker-modular-pressure.json",
+        "sha256": "7d6b98d85d807b3f466db39e2e03bf9c644bbc983c2dae51fd3f7219c9ae59a3",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-modular": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+            "sha256": "2882a80ea123f33ed08272e443fcdc8fa4b1f217cba0114f088f3885e6801589"
+          },
+          "wsl-modular": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+            "sha256": "ac91f833f2c4a951c977b644ebe9fc56d0aa8942e6f7a852c31249ea294f57ed"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-modular-pressure-final",
+          "log": "wsl-broker-modular-pressure-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-modular",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+            "--form",
+            "wsl-modular",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-modular-pressure.json",
+            "--policy",
+            "pressure"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "b05a12c51487d66024c1de0f276efdbdfc63a7caea22ff42f45842291266b56c",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15015,
+          15160
+        ],
+        "checkpoint_selected_bytes": [
+          12607,
+          12608
+        ],
+        "recovery_file_bytes": [
+          12820,
+          12822
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "single": {
+        "report": "broker-single-pressure.json",
+        "sha256": "f152360f7b0948a6fadcd80b629e521823a90c76cc318a76f1697eea437fd20b",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-single": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/single.exe",
+            "sha256": "b8e853c47b73a1e33c0d7146c0885677178afba10b39bc6a44a72a840b32d1c2"
+          },
+          "wsl-single": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single",
+            "sha256": "c7ca4a7c5e59ff6acb1061dab46a46a017f94f771247f7b14a302616a9cc2c8d"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-single-pressure-final",
+          "log": "wsl-broker-single-pressure-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-single",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/single.exe",
+            "--form",
+            "wsl-single",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-single-pressure.json",
+            "--policy",
+            "pressure"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "64e4b33930254f76a263e76e0a9bd6ce1f06152fe9f0641f77b707a8880089e8",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15015,
+          15160
+        ],
+        "checkpoint_selected_bytes": [
+          12607,
+          12608
+        ],
+        "recovery_file_bytes": [
+          12820,
+          12822
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "static": {
+        "report": "broker-static-pressure.json",
+        "sha256": "60457b815897b45a9394d68048aa6331b99ada98536ca91bff45e7332a478010",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-static": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/static.exe",
+            "sha256": "1864e427e8ad1f5a8c7d1a105195e010189b099bb5d5a52f1dd5b856765c95d1"
+          },
+          "wsl-static": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static",
+            "sha256": "560012fe7d3417efb824a50bbb821b99d2fb27799c8481af3c12652234298799"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-static-pressure-final",
+          "log": "wsl-broker-static-pressure-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-static",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/static.exe",
+            "--form",
+            "wsl-static",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-static-pressure.json",
+            "--policy",
+            "pressure"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "2ff330262d912af73610df0330d21030d8d8abd4817c305ee02caad20e0848e5",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15015,
+          15160
+        ],
+        "checkpoint_selected_bytes": [
+          12607,
+          12608
+        ],
+        "recovery_file_bytes": [
+          12820,
+          12822
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "shared": {
+        "report": "broker-shared-pressure.json",
+        "sha256": "9c5c258349d5e23e1e39281f311bd02ba8e7d3bff8492d33103e6f404c0ba3f0",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "windows-shared": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/shared.exe",
+            "sha256": "579fec0638ed76e66732279994c39049bb07b019d1cd5695aad0b4eba492c87d"
+          },
+          "wsl-shared": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared",
+            "sha256": "5751bc859e2e45566bef4ce4a40302ebe9d061bdcfb663a7b7cc499551a51e26"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-shared-pressure-final",
+          "log": "wsl-broker-shared-pressure-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "windows-shared",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/shared.exe",
+            "--form",
+            "wsl-shared",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-shared-pressure.json",
+            "--policy",
+            "pressure"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "69cf772daa39e6753f73fb2a0376773f3c0575c3e4b2d4da85b5ec697d171235",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 48,
+        "automatic_rotations": 48,
+        "native_process_terminations": 48,
+        "application_inbox_acks": 48,
+        "single_subscriber_deliveries": 48,
+        "checkpoint_previous_bytes": [
+          15015,
+          15160
+        ],
+        "checkpoint_selected_bytes": [
+          12607,
+          12608
+        ],
+        "recovery_file_bytes": [
+          12820,
+          12822
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 2
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 2
+          }
+        ]
+      },
+      "asan": {
+        "report": "broker-asan-pressure.json",
+        "sha256": "71a76156f7cb527b058a4d57620495c71e4bab8598933717f03da4d2173af336",
+        "broker": "mosquitto version 2.0.22",
+        "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+        "programs": {
+          "wsl-modular-asan": {
+            "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular-asan",
+            "sha256": "cc6ff03f842d2a883a6b8ae77fe0638132a81229a5d4ed699851238aa08caee9"
+          }
+        },
+        "source_hashes": {
+          "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+          "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+          "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+          "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+          "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+          "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+          "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+          "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+        },
+        "receipt": {
+          "label": "broker-asan-pressure-final",
+          "log": "wsl-broker-asan-pressure-final.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+            "--broker",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+            "--windows-python",
+            "/mnt/c/Program Files/Python312/python.exe",
+            "--form",
+            "wsl-modular-asan",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular-asan",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-asan-pressure.json",
+            "--policy",
+            "pressure"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "baad3d638b01152b2b1edc89a83cc6b2bb22051766fce64df2e9a2fd4a706201",
+          "programs": 0,
+          "binaries": []
+        },
+        "cases": 24,
+        "automatic_rotations": 24,
+        "native_process_terminations": 24,
+        "application_inbox_acks": 24,
+        "single_subscriber_deliveries": 24,
+        "checkpoint_previous_bytes": [
+          15015,
+          15160
+        ],
+        "checkpoint_selected_bytes": [
+          12607,
+          12608
+        ],
+        "recovery_file_bytes": [
+          12820,
+          12822
+        ],
+        "by_transport_version_cut": [
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tcp",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "tls13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "ws",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss12",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 5,
+            "withheld": "pubrec",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubcomp",
+            "count": 1
+          },
+          {
+            "transport": "wss13",
+            "mqtt": 311,
+            "withheld": "pubrec",
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "controls": {
+    "broker-control-manual": {
+      "cases": 8,
+      "report": "broker-control-manual.json",
+      "sha256": "1abe3aba8e2245c6c1ba3adc23afd33cb286e3f27ea7529ed653e8550c78adfb",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "programs": {
+        "windows-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+          "sha256": "2882a80ea123f33ed08272e443fcdc8fa4b1f217cba0114f088f3885e6801589"
+        },
+        "wsl-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+          "sha256": "ac91f833f2c4a951c977b644ebe9fc56d0aa8942e6f7a852c31249ea294f57ed"
+        }
+      },
+      "source_hashes": {
+        "run_compact_crash_broker.py": "02c942b46ae7bad6a6f5a912d033b91a81cdd8c84f5d2207a200c875b34932d6",
+        "journal_oracle.py": "941190f3c1be165bee7469f7ecd5f1850bd10c26d2522e1f256e065cb49a358d",
+        "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "receipt": {
+        "label": "broker-control-manual-final",
+        "log": "wsl-broker-control-manual-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_compact_crash_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-control-manual.json",
+          "--policy",
+          "manual",
+          "--transport",
+          "tcp"
+        ],
+        "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+        "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+        "log_sha256": "2b28ae92b71b0efc7727b8a7b2671a84e4cf9de8cd6de35a9d5903d8eeba0692",
+        "programs": 0,
+        "binaries": []
+      }
+    },
+    "broker-legacy": {
+      "cases": 48,
+      "report": "broker-legacy.json",
+      "sha256": "92b8e23045a2ed6ee3f43a039c4570dec01b83ef2af892132a5d5779e52c026c",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "programs": {
+        "windows-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+          "sha256": "2882a80ea123f33ed08272e443fcdc8fa4b1f217cba0114f088f3885e6801589"
+        },
+        "wsl-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+          "sha256": "ac91f833f2c4a951c977b644ebe9fc56d0aa8942e6f7a852c31249ea294f57ed"
+        }
+      },
+      "source_hashes": {
+        "run_reconnect_store_broker.py": "11fdeedfd1ca1b18cca4c8fcf538a3fdb2ad944326e729e7a2fa6488b90dc14d",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "receipt": {
+        "label": "broker-legacy-final",
+        "log": "wsl-broker-legacy-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/broker-legacy.json",
+          "--transport",
+          "tcp",
+          "tls13",
+          "ws",
+          "wss13"
+        ],
+        "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+        "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+        "log_sha256": "bb3174703f11e44eab605f06c2ac9f9f711584bdda1df01cc34bcbc9b3517b2a",
+        "programs": 0,
+        "binaries": []
+      }
+    }
+  },
+  "builds": {
+    "windows": {
+      "standard": [
+        {
+          "label": "modular",
+          "log": "windows-modular-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms.py",
+            "modular"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "d1e5020a178ceef6a610ac54a4d5a4f6faa8b2488f7138c8ec23c2e358351b76",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-modular-attempt2/modular.exe.gz",
+              "sha256": "429a92b59782d446a1a16a7b5d5d992b655d52f797846c0d233ff2436f7f3e78",
+              "binary_sha256": "2882a80ea123f33ed08272e443fcdc8fa4b1f217cba0114f088f3885e6801589"
+            }
+          ]
+        },
+        {
+          "label": "single-compile",
+          "log": "windows-single-compile.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\single.c",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\single.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-usage",
+          "log": "windows-single-usage.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\single.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "60447d014dfd4f123e0c26cfda0fb9d79a2e57728c0bf30293a3ff2b9c3e012f",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-static",
+          "log": "windows-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "cb9901396843fb41274b2a23ce676c26a5edce32fff67231b17fb7c25ccedd34",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "windows-consumer-static-compile.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store\\main.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\libxmqtt.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\libxrt.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\static.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "windows-consumer-static-usage.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\static.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "60447d014dfd4f123e0c26cfda0fb9d79a2e57728c0bf30293a3ff2b9c3e012f",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "fb460e3408eac8889223820a11b35fa066f08b0ed0e75a0a99c66f6f4db39dad",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "windows-consumer-shared-compile.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\shared.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\libxmqtt.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\libxrt.dll.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\shared.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "windows-consumer-shared-usage.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-store-auto-broker-20261118\\forms\\windows\\shared.exe"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "60447d014dfd4f123e0c26cfda0fb9d79a2e57728c0bf30293a3ff2b9c3e012f",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "default_without_online": {
+        "label": "regression-default",
+        "log": "windows-regression-default.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_reconnect_store_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+        "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+        "log_sha256": "300a86d3853e5ab63eda05d118e17042943ed7f838007e22de7e7cd17dbd63c0",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-regression-default/test_reconnect_store.exe.gz",
+            "sha256": "decf8c8ee1f8f92d14b88b37fbb75f999f94374a8e2288e984692a7ab92e1653",
+            "binary_sha256": "f953285789551ff398d4ea9342ad59dab74b568aa0ecbf16e31f03c066c73f81"
+          },
+          {
+            "path": "binaries/windows/windows-regression-default/examples_reconnect_store_main.exe.gz",
+            "sha256": "cca6b41136db0d207491caeed2371b434f3642bdbb7bf5f515bcbbeae4348e73",
+            "binary_sha256": "8dbc1089f20a1caadee45001994831c12b6261a74fd287cb135d324e36c69936"
+          },
+          {
+            "path": "binaries/windows/windows-regression-default/test_single_xmqtt_reconnect_store.exe.gz",
+            "sha256": "96dbdfe0a8404a788f018055f98b0d8ca40095b48919bc6e5d4780d4f4bcc0cd",
+            "binary_sha256": "8773bef7697b34c8605a59fc9ea675f213abf97f6cd8c9649aab3ab25acceb4b"
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "standard": [
+        {
+          "label": "modular",
+          "log": "wsl-modular-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms.py",
+            "modular"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "f4598e34eea4236d15bf78ad5a98385d874dbe5c0f987875756a49104dbf5c6e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-modular-attempt2/modular.gz",
+              "sha256": "d80f8e29f8d17a2ac9c7e649238b9e1df747ba5a6e314e02e95e004309a73d16",
+              "binary_sha256": "ac91f833f2c4a951c977b644ebe9fc56d0aa8942e6f7a852c31249ea294f57ed"
+            }
+          ]
+        },
+        {
+          "label": "single-compile",
+          "log": "wsl-single-compile.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-usage",
+          "log": "wsl-single-usage.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/single"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "84fe479f7ac05383d70f9d3bb787404c322dd9e4af1da3ad7355f03d61ea8e21",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-static",
+          "log": "wsl-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "773ef3236ba50dcb8e89bc26e1621a3d9df9840f5e294b45fc7d54ea8c966cb0",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "wsl-consumer-static-compile.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store/main.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/libxmqtt.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "wsl-consumer-static-usage.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/static"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "84fe479f7ac05383d70f9d3bb787404c322dd9e4af1da3ad7355f03d61ea8e21",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "400f668156635d480083d55b04f48ac7078e10782e2442c3b8f394dfdf80c2e4",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "wsl-consumer-shared-compile.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE",
+            "-DXMQTT_MODULE_XMQTT_STORE_SESSION",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store",
+            "-Wl,-rpath,$ORIGIN",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/libxmqtt.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/libxrt.so",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "wsl-consumer-shared-usage.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms/wsl/shared"
+          ],
+          "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+          "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+          "log_sha256": "84fe479f7ac05383d70f9d3bb787404c322dd9e4af1da3ad7355f03d61ea8e21",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "default_without_online": {
+        "label": "regression-default",
+        "log": "wsl-regression-default.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--suite",
+          "xmqtt_reconnect_store_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+        "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+        "log_sha256": "58b54987f27f9a9453c4e834cb2b88bfeec2ff773c7f0271c576bd98db5a563a",
+        "programs": 3,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-regression-default/test_reconnect_store.gz",
+            "sha256": "6645ceade41bbb4fcc37d2fc1b3bd11072b80d3b05692c4589463ccfbbfca2de",
+            "binary_sha256": "c90e7aa590247a60e32183d765e81c18b9c8f5d3960373567a4088617054b19a"
+          },
+          {
+            "path": "binaries/wsl/wsl-regression-default/examples_reconnect_store_main.gz",
+            "sha256": "672df7b4ddb47d7823c0b561b76e48695f3668848f4b14ab017807abf1abfa83",
+            "binary_sha256": "3f1206c3c7361c0db7f14c66060e2fb85412fce4c66770cca6314b191e216cf2"
+          },
+          {
+            "path": "binaries/wsl/wsl-regression-default/test_single_xmqtt_reconnect_store.gz",
+            "sha256": "4b8fa35ea6bf7b32743cfa8963c8c6bb3ff62a90cb7a4dd811a9a225efccece4",
+            "binary_sha256": "72868efac3dffe05aa59a8e6c3c7aef629d790e19e616445fa2ce532c17b733e"
+          }
+        ]
+      }
+    }
+  },
+  "asan_build": {
+    "label": "asan",
+    "log": "wsl-asan.log",
+    "exit_code": 0,
+    "args": [
+      "/usr/bin/python3",
+      "-u",
+      "-X",
+      "utf8",
+      "/mnt/d/GIT/xrt/out/service-extensions/mqtt-store-auto-broker-20261118/forms.py",
+      "asan-build"
+    ],
+    "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+    "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+    "log_sha256": "fd4e37331d28fed798a3c835040008b63c901f44c46248f86cf19b7adc07d966",
+    "programs": 1,
+    "binaries": [
+      {
+        "path": "binaries/wsl/wsl-asan/modular-asan.gz",
+        "sha256": "f39982fadf069f8608375af82bea7e92adfdd48d0fac454182370ff7912a78fe",
+        "binary_sha256": "cc6ff03f842d2a883a6b8ae77fe0638132a81229a5d4ed699851238aa08caee9"
+      }
+    ]
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "4af43280e6fd850b596c49afc54ce622b4fd8a8a6cec228e8ba500c98edb4ff5",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xmqtt/config/modules.json"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "f783c1067fefd5887e506e428b5e947563724bfb829b7c2f068cefe0430a7e5e",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "a28742e8a8146a8c5609742d01394bf09149500f",
+      "source_map_sha256": "6c80b310850d148c3d60409a47a70ac94ca796096eefd840f2a4dc19c515139d",
+      "log_sha256": "149859fd98622eb29f9d4cd9358a461b71062214f241a2368452e988d56f124a",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 36,
+    "sha256": "04f645131f25d7638c3f2f7f09b00ec38625ce864d62b18e95b10aa7b302c758"
+  },
+  "scope_still_open": [
+    "typed replay quota scheduling",
+    "device power-loss qualification",
+    "native Linux production and broker-native secure transports",
+    "production throughput and tail latency"
+  ]
+}

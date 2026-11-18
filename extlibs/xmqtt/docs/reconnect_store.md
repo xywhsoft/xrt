@@ -102,3 +102,11 @@ runner terminates the process. The replacement opens the selected slot,
 recovers the typed State, restores a fresh Session, and connects with the
 same Client ID and Clean Start disabled. It verifies the replay, commits END,
 and cold-reopens the journal again. [Run the checkpoint qualification](../tests/interop/README.md#online-checkpoint-and-native-client-restart).
+
+
+The runner also uses `compact-auto-cut` and `compact-auto-resume` for idle
+automatic compaction, or `compact-pressure-cut` and
+`compact-pressure-resume` for physical file-limit retry. In either case the
+broker receives the network acknowledgment before termination. The restored
+application consumes the pending Inbox message through a fresh lease and
+commits its separate application acknowledgment.
