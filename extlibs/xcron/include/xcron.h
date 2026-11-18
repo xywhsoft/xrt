@@ -66,5 +66,6 @@
 #error "XCRON_FEATURE_XCRON requires selected service"
 #endif
 #include <xcron/service_selected.h>
+#include <xcron/service_checkpoint.h>
 
 #endif

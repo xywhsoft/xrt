@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `97` 个函数、`219` 个常量或宏、
+当前登记 `102` 个函数、`222` 个常量或宏、
 `101` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
@@ -416,7 +416,7 @@
 - `xcronServiceWaitReadable`
 - `xcronServiceWake`
 
-### 常量与宏 (27)
+### 常量与宏 (29)
 
 - `XCRON_COMPLETION_CANCELLED`
 - `XCRON_COMPLETION_EXPIRED`
@@ -428,6 +428,8 @@
 - `XCRON_REQUEST_CANCEL`
 - `XCRON_REQUEST_INFO`
 - `XCRON_REQUEST_REAP`
+- `XCRON_REQUEST_RESTORE_CHECKPOINT`
+- `XCRON_REQUEST_SAVE_CHECKPOINT`
 - `XCRON_SERVICE_ARGUMENT`
 - `XCRON_SERVICE_BUSY`
 - `XCRON_SERVICE_CLOCK`
@@ -461,6 +463,27 @@
 - `xcronservicestate`
 - `xcronservicestats`
 
+## `extlibs/xcron/include/xcron/service_checkpoint.h`
+
+[查看带契约注释的公共头](../../include/xcron/service_checkpoint.h)
+
+### 函数 (5)
+
+- `xcronServiceCollectCheckpoint`
+- `xcronServiceCreateCheckpointed`
+- `xcronServiceCreateSelectedCheckpointed`
+- `xcronServiceRestoreCheckpointAsync`
+- `xcronServiceSaveCheckpointAsync`
+
+### 常量与宏 (2)
+
+- `XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT`
+- `XCRON_FEATURE_XCRON_SERVICE_SELECTED`
+
+### 类型 (1)
+
+- `xcronselectedserviceconfig`
+
 ## `extlibs/xcron/include/xcron/service_selected.h`
 
 [查看带契约注释的公共头](../../include/xcron/service_selected.h)
@@ -474,15 +497,10 @@
 - `xcronServiceInspectSelected`
 - `xcronServiceReapStoppedSelected`
 
-### 常量与宏 (1)
-
-- `XCRON_FEATURE_XCRON_SERVICE_SELECTED`
-
-### 类型 (4)
+### 类型 (3)
 
 - `xcronselectedreply`
 - `xcronselectedservicecompletion`
-- `xcronselectedserviceconfig`
 - `xcronselectedservicestats`
 
 ## `extlibs/xcron/include/xcron/timezone.h`

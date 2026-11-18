@@ -14824,3 +14824,43 @@ scheduler integration require separate verification. The strict xcron
 release gate lists 15 developing modules.
 [Store contract](../../extlibs/xcron/docs/checkpoint_store.md).
 [Stage evidence](xcron-checkpoint-store-20261118.json).
+
+## 2026-11-18 Checkpoint capture and restore on the live xcron owner
+
+An optional module connects both live service modes to the versioned
+scheduler checkpoint. Opt-in construction budgets the record storage in
+the arena. Commands share the existing FIFO, tickets, work limits and close
+semantics. Restore copies the record and retains the configuration zone on
+queue acceptance. The owner captures a quiescent job or validates and
+restores its saved occurrence. File reads and synchronous commits run on
+the calling or separate storage thread.
+
+The modular and single-header suites cover actual and selected delivery,
+selected policy restoration, active lease rejection, output preservation,
+wrong collectors and keys, timeout, ticket saturation, startup OOM and
+close with an accepted restore. Existing service and checkpoint suites,
+trimmed and full static/shared consumers, and WSL sanitizers pass.
+
+On Windows NTFS and WSL ext4, terminating the process with an active lease
+left generation 1 unchanged. A fresh process replayed occurrence 1000,
+completed it and committed generation 2. The next restart reported
+occurrence 2000 and one success. A contender could not open the locked
+store while the interrupted process was running. The corresponding
+checkpoint file images were byte-identical across the two platforms.
+
+The local benchmark uses five repeats of 10,000 serial capture requests.
+It measures admission through collection of the record for one quiescent
+UTC job. The table shows the median of each reported run statistic.
+
+| Host | Captures/s | P50 (us) | P95 (us) | P99 (us) | P99.9 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 300,512 | 2.200 | 10.200 | 12.900 | 19.500 |
+| WSL | 37,070 | 24.700 | 38.800 | 51.300 | 86.800 |
+
+Local measurements exceeded repeatability limits. Native qualification remains open.
+
+Automatic capture scheduling, multi-job recovery policy and hardware
+power-loss qualification remain open. The strict xcron release gate reports
+16 developing modules.
+[Service checkpoint contract](../../extlibs/xcron/docs/service_checkpoint.md).
+[Stage evidence](xcron-service-checkpoint-20261118.json).

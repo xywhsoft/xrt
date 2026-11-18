@@ -3945,6 +3945,46 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_checkpoint",
+      "system": "service",
+      "description": "Serial caller-to-owner checkpoint capture round trip for one quiescent UTC job",
+      "benchmarks": [
+        {
+          "name": "xcron_service_checkpoint",
+          "source": "extlibs/xcron/bench/bench_service_checkpoint.c",
+          "suite": "xcron_service_checkpoint",
+          "args": [
+            "10000"
+          ],
+          "smoke_args": [
+            "1000"
+          ],
+          "metrics": {
+            "captures_per_sec": {
+              "direction": "higher",
+              "unit": "captures/s"
+            },
+            "capture_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "capture_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

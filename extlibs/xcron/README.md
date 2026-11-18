@@ -158,3 +158,8 @@ leases through the existing XRT batch API. Each lease retains its own cancellati
 token and physical receipt; no fill wait or additional retained arena is added.
 See the [batch contract](docs/executor.md#bounded-atomic-admission) and the
 [two-fold batch example](examples/executor_batch/README.md).
+
+Both live service modes support [checkpoint capture and restore](docs/service_checkpoint.md)
+through bounded command tickets. Use the [file-backed restart example](examples/service_checkpoint/README.md)
+to capture a quiescent cursor, commit it from the caller and restore it into
+a new live service.

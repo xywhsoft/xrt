@@ -66,6 +66,9 @@
 #if !defined(XCRON_FEATURE_XCRON_SERVICE)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE 1
 #endif
+#if !defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT 1
+#endif
 #if !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_SELECTED 1
 #endif
@@ -119,6 +122,9 @@
 #endif
 #if !defined(XCRON_MODULE_XCRON_SERVICE)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE 1
+#endif
+#if !defined(XCRON_MODULE_XCRON_SERVICE_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE_CHECKPOINT 1
 #endif
 #if !defined(XCRON_MODULE_XCRON_SERVICE_SELECTED)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE_SELECTED 1
@@ -2647,6 +2653,22 @@
 #ifndef XCRON_MODULE_XCRON_CHECKPOINT_STORE
 #define XCRON_MODULE_XCRON_CHECKPOINT_STORE
 #endif
+#ifndef XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
+#define XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
+#endif
+#endif
+
+/* xcron_service_checkpoint 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_SERVICE_CHECKPOINT)
+#ifndef XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#define XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_SERVICE_SELECTED
+#define XCRON_MODULE_XCRON_SERVICE_SELECTED
+#endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#define XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#endif
 #endif
 
 /* xcron_checkpoint_store 及其直接依赖。 */
@@ -3562,7 +3584,10 @@ typedef struct xcronservice xcronservice;
 typedef uint64 xcronrequestid;
 typedef bool (*xcronclockproc)(xcronclock* Clock,ptr Context);
 typedef enum xcronservicestate {XCRON_SERVICE_STARTING=0,XCRON_SERVICE_RUNNING,XCRON_SERVICE_STOPPING,XCRON_SERVICE_STOPPED,XCRON_SERVICE_FAILED} xcronservicestate;
-typedef enum xcronrequestkind {XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP} xcronrequestkind;
+typedef enum xcronrequestkind {
+    XCRON_REQUEST_ADD=0,XCRON_REQUEST_CANCEL,XCRON_REQUEST_INFO,XCRON_REQUEST_REAP,
+    XCRON_REQUEST_SAVE_CHECKPOINT,XCRON_REQUEST_RESTORE_CHECKPOINT
+} xcronrequestkind;
 typedef enum xcronserviceerror {
     XCRON_SERVICE_OK=0,XCRON_SERVICE_ARGUMENT=6001,XCRON_SERVICE_LIMIT,
     XCRON_SERVICE_MEMORY,XCRON_SERVICE_CLOSED,XCRON_SERVICE_STALE,
@@ -4321,6 +4346,47 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/service_checkpoint.h */
+/* ========================================================================== */
+
+#ifndef XCRON_SERVICE_CHECKPOINT_H
+#define XCRON_SERVICE_CHECKPOINT_H
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT) && (!defined(XCRON_FEATURE_XCRON_CHECKPOINT) || !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED))
+#error "cron service checkpoints require the checkpoint and selected service modules"
+#endif
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+XRT_EXTERN_C_BEGIN
+/* Match the ordinary constructors and additionally reserve one record and
+ * key per command slot, charged to ArenaBytes and BytesLimit. Ordinary
+ * constructors leave checkpoint admission disabled. */
+XCRON_API bool xcronServiceCreateCheckpointed(const xcronserviceconfig* Config,xcronservice** Service,xcronserviceissue* Issue);
+XCRON_API bool xcronServiceCreateSelectedCheckpointed(const xcronselectedserviceconfig* Config,xcronservice** Service,xcronserviceissue* Issue);
+/* Share CommandLimit and FIFO with normal requests. Save snapshots the job on
+ * the owner when quiescent, including a cancelled/exhausted job before reap.
+ * A live lease or unfinished search can return a kernel BUSY reply. It does
+ * not pause dispatch. Serialize durable commits for the same persistent key. */
+XCRON_API bool xcronServiceSaveCheckpointAsync(xcronservice* Service,xcronjobid Job,xcroncheckpointkey Key,
+    xcronrequestid* Request,xcronserviceissue* Issue);
+/* Copies Config and the record before return, retains Zone on acceptance,
+ * and borrows Data under the same rules as AddAsync. The owner checks the
+ * configuration, mode, and one saved occurrence before admitting the job.
+ * Selected policy comes from the record. The caller controls file I/O and
+ * must prevent multiple live restores of the same persistent identity. */
+XCRON_API bool xcronServiceRestoreCheckpointAsync(xcronservice* Service,const xcronjobconfig* Config,
+    xcroncheckpointkey Key,const xcroncheckpoint* Record,xcronrequestid* Request,xcronserviceissue* Issue);
+/* Collects either checkpoint kind in either service mode. Record is required
+ * for save and is assigned only on successful save. Restore returns Job or
+ * the original Data on failure. Error transfers as in ServiceCollect.
+ * Ordinary collectors reject these tickets and preserve them. This call
+ * rejects ordinary tickets. All outputs must be disjoint. */
+XCRON_API xwaitresult xcronServiceCollectCheckpoint(xcronservice* Service,xcronrequestid Request,int64 Timeout,
+    xcronreply* Reply,xcroncheckpoint* Record,xcronserviceissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -4425,6 +4491,10 @@ XRT_EXTERN_C_END
 #undef XCRON_FEATURE_XCRON_SERVICE
 #undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+#undef XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_SELECTED)
 #undef XCRON_FEATURE_XCRON_SERVICE_SELECTED
 #undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_SERVICE_SELECTED
@@ -4496,6 +4566,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE)
 #undef XCRON_MODULE_XCRON_SERVICE
 #undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE_CHECKPOINT)
+#undef XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_SERVICE_SELECTED)
 #undef XCRON_MODULE_XCRON_SERVICE_SELECTED
@@ -6229,6 +6303,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XCRON_MODULE_XCRON_CHECKPOINT
 #define XCRON_MODULE_XCRON_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#define XCRON_MODULE_XCRON_CHECKPOINT_STORE
+#endif
+#ifndef XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
+#define XCRON_MODULE_XCRON_SERVICE_CHECKPOINT
+#endif
+#endif
+
+/* xcron_service_checkpoint 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_SERVICE_CHECKPOINT)
+#ifndef XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#define XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT
+#endif
+#ifndef XCRON_MODULE_XCRON_SERVICE_SELECTED
+#define XCRON_MODULE_XCRON_SERVICE_SELECTED
 #endif
 #ifndef XCRON_MODULE_XCRON_CHECKPOINT_STORE
 #define XCRON_MODULE_XCRON_CHECKPOINT_STORE

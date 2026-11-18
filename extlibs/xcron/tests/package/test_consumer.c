@@ -30,9 +30,49 @@ static bool consumerCheckpointStore(const xcroncheckpoint* Record,xcroncheckpoin
            xrtRootRemove(Root,Name) && xrtRootClose(Root);
 }
 #endif
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+#include <xcron/service_checkpoint.h>
+static bool consumerCheckpointClock(xcronclock* Clock,ptr Context)
+{
+    (void)Context;
+    *Clock=(xcronclock){0,1};
+    return true;
+}
+static xcronrunresult consumerCheckpointRun(const xcronrun* Run,const xcronexecution* Token,ptr Context)
+{
+    (void)Run;(void)Token;(void)Context;
+    return XCRON_RUN_FAILED;
+}
+static bool consumerCheckpointService(const xcronjobconfig* Config,const xcroncheckpoint* Record,xcroncheckpointkey Key)
+{
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
+    const xcronserviceconfig C={
+        .Scheduler={1,1,8,0,65536},.Executor=Pool,.Proc=consumerCheckpointRun,.Clock=consumerCheckpointClock,
+        .CommandLimit=2,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=2,.ResampleMilliseconds=5,
+        .RetryIntervalMilliseconds=5,.RetryAttempts=1,.BytesLimit=262144,.AdapterBytesLimit=65536
+    };
+    xcronservice* S=NULL;
+    xcronrequestid Q;
+    xcronreply R;
+    xcroncheckpoint Saved;
+    if(!Pool || !xcronServiceCreateCheckpointed(&C,&S,NULL) ||
+       !xcronServiceRestoreCheckpointAsync(S,Config,Key,Record,&Q,NULL) ||
+       xcronServiceCollectCheckpoint(S,Q,10000,&R,NULL,NULL)!=XWAIT_OK || R.Code || !R.Job || R.Error)return false;
+    xcronjobid Job=R.Job;
+    if(!xcronServiceSaveCheckpointAsync(S,Job,Key,&Q,NULL) ||
+       xcronServiceCollectCheckpoint(S,Q,10000,&R,&Saved,NULL)!=XWAIT_OK || R.Code || R.Error ||
+       memcmp(Record->Bytes,Saved.Bytes,sizeof(Saved.Bytes)))return false;
+    xcronretired Retired;
+    bool Found;
+    return xcronServiceClose(S,false,NULL) && xcronServiceWaitFor(S,10000,NULL)==XWAIT_OK &&
+           xcronServiceReapStopped(S,&Retired,&Found,NULL) && Found && Retired.Id==Job &&
+           xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) &&
+           xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
+}
+#endif
 static bool consumerCheckpoint(void)
 {
-    xcronjobconfig Config={.Begin=0,.End=2000,.RunningLimit=1};
+    xcronjobconfig Config={.Begin=1000,.End=2000,.RunningLimit=1};
     const xcronschedulerconfig Limits={2,1,8,0,65536};
     const xcroncheckpointkey Key={1,2};
     xcronscheduler* S=NULL;
@@ -44,9 +84,12 @@ static bool consumerCheckpoint(void)
        !xcronSchedulerCreate(&Limits,&S,NULL) || !xcronSchedulerAdd(S,&Config,&Original,NULL) ||
        !xcronSchedulerSaveCheckpoint(S,Original,Key,&Record,NULL) ||
        !xcronSchedulerRestoreCheckpoint(S,&Config,Key,(xbytesview){Record.Bytes,sizeof(Record.Bytes)},&Restored,NULL) ||
-       !xcronSchedulerJob(S,Restored,&Info,NULL) || Info.Next!=0 || !xcronSchedulerClose(S,NULL))return false;
+       !xcronSchedulerJob(S,Restored,&Info,NULL) || Info.Next!=1000 || !xcronSchedulerClose(S,NULL))return false;
 #if defined(XCRON_FEATURE_XCRON_CHECKPOINT_STORE)
     if(!consumerCheckpointStore(&Record,Key))return false;
+#endif
+#if defined(XCRON_FEATURE_XCRON_SERVICE_CHECKPOINT)
+    if(!consumerCheckpointService(&Config,&Record,Key))return false;
 #endif
     bool Found; xcronretired Retired;
     bool OK=xcronSchedulerReap(S,&Retired,&Found,NULL) && Found &&
@@ -56,7 +99,7 @@ static bool consumerCheckpoint(void)
 }
 #endif
 
-#if defined(XCRON_FEATURE_XCRON_CHECKPOINT) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
+#if defined(XCRON_FEATURE_XCRON_CHECKPOINT) && !defined(XCRON_FEATURE_XCRON)
 int main(void){return consumerCheckpoint()?0:1;}
 #elif defined(XCRON_FEATURE_XCRON_TZDB) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
 /* A trimmed TZDB package must be checked through its own public surface, not
