@@ -471,3 +471,27 @@ two QoS 1 deliveries and graceful durable END across client platforms and
 linkage modes. Automatic recovery under TLS/WS/WSS, durability of subscription
 intent and workload-level performance remain open.
 [Stage evidence](xmqtt-reconnect-store-20261118.json).
+
+## 2026-11-18 Durable reconnect transport qualification
+
+The durable controller example opens a new TCP, TLS, WS or WSS transport
+through its factory per generation. The same journal-backed Session survives
+the connection. The example holds its trust verifier and resolver through
+physical controller retirement. TLS uses a full handshake per generation.
+A native Future observer reproduced publication while the old generation
+was still ONLINE. The example waits for the next generation before leasing.
+
+The independent runner drops PUBACK, PUBREC or PUBCOMP and cuts the first
+connection. It checks both CONNACKs, packet identity, replay step and journal
+checkpoints. Following lost PUBACK or PUBREC the replacement retransmits
+PUBLISH with DUP. Following lost PUBCOMP it sends PUBREL using the original
+identifier. A separate subscriber observes two deliveries for the tested QoS 1
+case and one for each tested QoS 2 case. The replacement commits graceful END
+after the required transport close.
+
+Mosquitto maintains the MQTT session. The TLS and WebSocket gateways exercise
+full handshakes, fragmented WebSocket messages with control frames, and
+authenticated closure for the qualified secure routes. The remaining
+direct broker-native WS/WSS close and durable subscription-intent work have
+separate acceptance requirements.
+[Stage evidence](xmqtt-reconnect-store-transports-20261118.json).

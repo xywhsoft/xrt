@@ -68,17 +68,19 @@ def metadata(raw, body, generation, direction, total=None):
 
 class TLSProxy(Proxy):
     def __init__(self, backend, version, mode, host, context_factory, tls,
-                 mutual=False, resume=0, prefix=False):
+                 mutual=False, resume=0, prefix=False, *, accepted_ciphers=(), listener=None):
         self.context_factory = context_factory
         self.context = context_factory()
         self.contexts = [self.context]
         self.tls, self.mutual, self.resume, self.prefix = tls, mutual, resume, prefix
+        default_cipher = 'ECDHE-RSA-AES128-GCM-SHA256' if tls == 12 else 'TLS_AES_128_GCM_SHA256'
+        self.accepted_ciphers = accepted_ciphers or (default_cipher,)
         self.sni = []
         self.observations = dict(handshakes=[], closes=[], prefix=prefix,
                                  frame_cap=LIMIT, input_cap_per_side=LIMIT,
                                  queue_cap_per_side=LIMIT, queue_frames=32,
                                  ssl_io_owner='one bridge thread per connection')
-        super().__init__(backend, version, mode, host)
+        super().__init__(backend, version, mode, host, listener=listener)
 
     def accept(self):
         generation = 0
@@ -113,9 +115,9 @@ class TLSProxy(Proxy):
                             resumed=front.session_reused, sni=self.sni[-1],
                             client_certificate_sha256=hashlib.sha256(cert).hexdigest() if cert else None)
                 self.observations['handshakes'].append(info)
-                assert info['tls'] == ('TLSv1.2' if self.tls == 12 else 'TLSv1.3')
-                assert info['cipher'] == ('ECDHE-RSA-AES128-GCM-SHA256' if self.tls == 12 else 'TLS_AES_128_GCM_SHA256')
-                assert info['alpn'] == 'mqtt' and info['sni'] == 'localhost'
+                assert info['tls'] == ('TLSv1.2' if self.tls == 12 else 'TLSv1.3'), info
+                assert info['cipher'] in self.accepted_ciphers, info
+                assert info['alpn'] == 'mqtt' and info['sni'] == 'localhost', info
                 assert bool(cert) == self.mutual
                 assert info['resumed'] == (generation == 2 and self.resume == 1)
                 back = socket.create_connection(('127.0.0.1', self.backend), timeout=10)

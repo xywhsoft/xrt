@@ -1,0 +1,2652 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "product": "xmqtt",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+  "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+  "evidence_directory": "out/service-extensions/mqtt-reconnect-store-transports-20261118",
+  "scope": "The public durable controller sample over TCP, TLS 1.2/1.3 and independent WS/WSS gateways with a real Mosquitto MQTT session.",
+  "package_source_map_sha256": "771358af4419f061b7b3629ad88e7858919972f872a4ee489336e106b69bb548",
+  "post_package_example_and_fixture_changes": [
+    "extlibs/xmqtt/docs/reconnect_store.md",
+    "extlibs/xmqtt/examples/reconnect_store/main.c",
+    "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+    "extlibs/xmqtt/tests/interop/session_tls_proxy.py"
+  ],
+  "cases": 324,
+  "transport_matrix": {
+    "modular": {
+      "cases": 72,
+      "result": "broker-modular-verified-final.json",
+      "sha256": "61bceda4b78f0dd1c8b66c051664995841861209acbfee9df81b5660d22700cf",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "forms": {
+        "windows-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/modular.exe",
+          "sha256": "779a9d7fd4a7d42fa08bd630981f6cb416d04a18de39b3710426969fb97c8fb5"
+        },
+        "wsl-modular": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/modular",
+          "sha256": "7646b7f542e1941083c5b25102235cdb27ef7008b9a9cc40a9070bd0d9c5fcf5"
+        }
+      },
+      "runner_sources": {
+        "run_reconnect_store_broker.py": "d95a10283949622d1eacdb1f22e45e252070916e024a8bf9d7ad21656feebf47",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "public_certificates": {
+        "badclient.pem": "8c5090f6ada862b0c2edbbf167aa9715f07618691735854ea29abf21dab459b2",
+        "client.pem": "dd7fd322c0f9dde082e64c3cc2c1307213f1fd014ee1e17ff983ee5c02e9939c",
+        "server.pem": "84def7361e26633ce548e07b2e8ca4e94c9b6b218a10891dce2b7d6b8b72a686",
+        "wrong.pem": "8e1340d40edfb68448b121e3192644d229be44be0fbc3274afae8059297d1adf",
+        "ca.pem": "8fb89b598954c2181b373ad1fd566c92d08df041fba47c4a7df4f06c96c701cc"
+      },
+      "transport_counts": {
+        "windows-modular": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        },
+        "wsl-modular": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        }
+      },
+      "representative": [
+        {
+          "name": "windows-modular-tls13-5-puback",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 2,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 10,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 8
+            }
+          ],
+          "observations": {
+            "handshakes": [
+              {
+                "generation": 1,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              },
+              {
+                "generation": 2,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              }
+            ],
+            "closes": [
+              {
+                "generation": 1,
+                "discarded": 0,
+                "notify": false,
+                "close_error": "ValueError"
+              },
+              {
+                "generation": 2,
+                "discarded": 0,
+                "notify": true
+              }
+            ],
+            "prefix": false,
+            "frame_cap": 2097152,
+            "input_cap_per_side": 2097152,
+            "queue_cap_per_side": 2097152,
+            "queue_frames": 32,
+            "ssl_io_owner": "one bridge thread per connection"
+          },
+          "results": [
+            "Generation 2 settled durable QoS 1. Original status 5, attempt 2.",
+            "Committed graceful END at 6."
+          ],
+          "subscriber_deliveries": 2
+        },
+        {
+          "name": "windows-modular-tls13-5-pubrec",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 12,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": {
+            "handshakes": [
+              {
+                "generation": 1,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              },
+              {
+                "generation": 2,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              }
+            ],
+            "closes": [
+              {
+                "generation": 1,
+                "discarded": 0,
+                "notify": false,
+                "close_error": "ValueError"
+              },
+              {
+                "generation": 2,
+                "discarded": 0,
+                "notify": true
+              }
+            ],
+            "prefix": false,
+            "frame_cap": 2097152,
+            "input_cap_per_side": 2097152,
+            "queue_cap_per_side": 2097152,
+            "queue_frames": 32,
+            "ssl_io_owner": "one bridge thread per connection"
+          },
+          "results": [
+            "Original PUBREL checkpoint 0.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        },
+        {
+          "name": "windows-modular-tls13-5-pubcomp",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 4
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": {
+            "handshakes": [
+              {
+                "generation": 1,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              },
+              {
+                "generation": 2,
+                "tls": "TLSv1.3",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "alpn": "mqtt",
+                "resumed": false,
+                "sni": "localhost",
+                "client_certificate_sha256": null
+              }
+            ],
+            "closes": [
+              {
+                "generation": 1,
+                "discarded": 0,
+                "notify": false,
+                "close_error": "ValueError"
+              },
+              {
+                "generation": 2,
+                "discarded": 0,
+                "notify": true
+              }
+            ],
+            "prefix": false,
+            "frame_cap": 2097152,
+            "input_cap_per_side": 2097152,
+            "queue_cap_per_side": 2097152,
+            "queue_frames": 32,
+            "ssl_io_owner": "one bridge thread per connection"
+          },
+          "results": [
+            "Original PUBREL checkpoint 3.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        },
+        {
+          "name": "windows-modular-ws-5-puback",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 2,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 10,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 8
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 0,
+              "client_frames": 3,
+              "server_frames": 2,
+              "client_bytes": 108,
+              "server_bytes": 11,
+              "pings": 1,
+              "pongs": 1,
+              "close_sent": false,
+              "close_received": false,
+              "authority": "127.0.0.1:52749",
+              "key_sha256": "0f804d1a3d1068562efeab5c56c070cc77d6e04da0e45925b962049232fa7f09",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 0,
+              "client_frames": 7,
+              "server_frames": 4,
+              "client_bytes": 110,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": true,
+              "close_received": true,
+              "authority": "127.0.0.1:52749",
+              "key_sha256": "4feb756e4e37d7eca2d21af5e618051bce24f354de841db34e669a6a3822a5f9",
+              "upgraded": true
+            }
+          ],
+          "results": [
+            "Generation 2 settled durable QoS 1. Original status 5, attempt 2.",
+            "Committed graceful END at 6."
+          ],
+          "subscriber_deliveries": 2
+        },
+        {
+          "name": "windows-modular-ws-5-pubrec",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 12,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 0,
+              "client_frames": 3,
+              "server_frames": 2,
+              "client_bytes": 108,
+              "server_bytes": 11,
+              "pings": 1,
+              "pongs": 1,
+              "close_sent": false,
+              "close_received": false,
+              "authority": "127.0.0.1:51243",
+              "key_sha256": "7fb4d2c230726a9e027b4eef8d66687bc60163cc7a701a2df53a7cb9b98387e9",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 0,
+              "client_frames": 9,
+              "server_frames": 6,
+              "client_bytes": 114,
+              "server_bytes": 19,
+              "pings": 3,
+              "pongs": 3,
+              "close_sent": true,
+              "close_received": true,
+              "authority": "127.0.0.1:51243",
+              "key_sha256": "2b4be6b0844f99f5abbe65d04d649ca6f60760c72c28f8067074d0f3fd03fc4b",
+              "upgraded": true
+            }
+          ],
+          "results": [
+            "Original PUBREL checkpoint 0.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        },
+        {
+          "name": "windows-modular-ws-5-pubcomp",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 4
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 0,
+              "client_frames": 5,
+              "server_frames": 4,
+              "client_bytes": 112,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": false,
+              "close_received": false,
+              "authority": "127.0.0.1:48663",
+              "key_sha256": "fd159ffcc26e0c5c362d73faf797fcfd13b9dd6e750536cb39a2cc9ee6eefee5",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 0,
+              "client_frames": 6,
+              "server_frames": 4,
+              "client_bytes": 53,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": true,
+              "close_received": true,
+              "authority": "127.0.0.1:48663",
+              "key_sha256": "befa9999a306b9b1a135ad5801c24b119e42fda07d66e3f695e740e146a6260f",
+              "upgraded": true
+            }
+          ],
+          "results": [
+            "Original PUBREL checkpoint 3.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        },
+        {
+          "name": "windows-modular-wss13-5-puback",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 2,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 10,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 4,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 8
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 13,
+              "client_frames": 3,
+              "server_frames": 2,
+              "client_bytes": 108,
+              "server_bytes": 11,
+              "pings": 1,
+              "pongs": 1,
+              "close_sent": false,
+              "close_received": false,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:43791",
+              "key_sha256": "9fb6dd21018bd5593f240b3b759ef567c706929f88b9b641528052b8fb8c2976",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 13,
+              "client_frames": 7,
+              "server_frames": 4,
+              "client_bytes": 110,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": true,
+              "close_received": true,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:43791",
+              "key_sha256": "e3f2e8d2e7c70c474384b424ad06c55a99f880482e93c7238b4225fcc1298474",
+              "upgraded": true,
+              "authenticated_tls_close": true
+            }
+          ],
+          "results": [
+            "Generation 2 settled durable QoS 1. Original status 5, attempt 2.",
+            "Committed graceful END at 6."
+          ],
+          "subscriber_deliveries": 2
+        },
+        {
+          "name": "windows-modular-wss13-5-pubrec",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 4
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 3,
+              "flags": 12,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 13,
+              "client_frames": 3,
+              "server_frames": 2,
+              "client_bytes": 108,
+              "server_bytes": 11,
+              "pings": 1,
+              "pongs": 1,
+              "close_sent": false,
+              "close_received": false,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:43945",
+              "key_sha256": "21cb0f772485db237b22898dfb14806e4f4181cdd22e98dc1be0648d792c2acb",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 13,
+              "client_frames": 9,
+              "server_frames": 6,
+              "client_bytes": 114,
+              "server_bytes": 19,
+              "pings": 3,
+              "pongs": 3,
+              "close_sent": true,
+              "close_received": true,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:43945",
+              "key_sha256": "c8946045b0d7846fc35d02669d8b314b8a903c272298c30c77a322c0f162835a",
+              "upgraded": true,
+              "authenticated_tls_close": true
+            }
+          ],
+          "results": [
+            "Original PUBREL checkpoint 0.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        },
+        {
+          "name": "windows-modular-wss13-5-pubcomp",
+          "wire": [
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 0
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": false,
+              "reason": 0,
+              "order": 1
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 3,
+              "flags": 4,
+              "bytes": 61,
+              "forwarded": true,
+              "topic_bytes": 27,
+              "topic": "xrt/example/reconnect-store",
+              "identifier": 1,
+              "property_hex": "",
+              "order": 2
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 5,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 3
+            },
+            {
+              "generation": 1,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 4
+            },
+            {
+              "generation": 1,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": false,
+              "identifier": 1,
+              "reason": 0,
+              "order": 5
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 1,
+              "flags": 0,
+              "bytes": 47,
+              "forwarded": true,
+              "order": 6
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 2,
+              "flags": 0,
+              "bytes": 11,
+              "forwarded": true,
+              "session_present": true,
+              "reason": 0,
+              "order": 7
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 6,
+              "flags": 2,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 8
+            },
+            {
+              "generation": 2,
+              "direction": "sc",
+              "type": 7,
+              "flags": 0,
+              "bytes": 4,
+              "forwarded": true,
+              "identifier": 1,
+              "reason": 0,
+              "order": 9
+            },
+            {
+              "generation": 2,
+              "direction": "cs",
+              "type": 14,
+              "flags": 0,
+              "bytes": 2,
+              "forwarded": true,
+              "order": 10
+            }
+          ],
+          "observations": [
+            {
+              "generation": 1,
+              "tls": 13,
+              "client_frames": 5,
+              "server_frames": 4,
+              "client_bytes": 112,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": false,
+              "close_received": false,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:48585",
+              "key_sha256": "4674e82f706221d6c0d9470512954b0f87242bc9c7b702de13d30653d666f5ef",
+              "upgraded": true,
+              "abort": "EOFError"
+            },
+            {
+              "generation": 2,
+              "tls": 13,
+              "client_frames": 6,
+              "server_frames": 4,
+              "client_bytes": 53,
+              "server_bytes": 15,
+              "pings": 2,
+              "pongs": 2,
+              "close_sent": true,
+              "close_received": true,
+              "sni": null,
+              "tls_version": "TLSv1.3",
+              "session_reused": false,
+              "authority": "127.0.0.1:48585",
+              "key_sha256": "fb2d0097e3a05a2ba1ad18cc8768673648fad9397972ad84ede3ae47b82ba9ac",
+              "upgraded": true,
+              "authenticated_tls_close": true
+            }
+          ],
+          "results": [
+            "Original PUBREL checkpoint 3.",
+            "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+            "Committed graceful END at 7."
+          ],
+          "subscriber_deliveries": 1
+        }
+      ]
+    },
+    "single": {
+      "cases": 72,
+      "result": "broker-single-verified-final.json",
+      "sha256": "90a569cf6f4bc09b7f9bd95a71a4e258ebfade8461ac7e083d926e6302581d0e",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "forms": {
+        "windows-single": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/single.exe",
+          "sha256": "ec7b88254fdcd187afe8442ba905b9f7ad779844f50dce7c7713c3e07e69452d"
+        },
+        "wsl-single": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/single",
+          "sha256": "d9329ef8c9cc568ff16ae9b4d2757b217d875c772feffa652e0d19300686e2a4"
+        }
+      },
+      "runner_sources": {
+        "run_reconnect_store_broker.py": "d95a10283949622d1eacdb1f22e45e252070916e024a8bf9d7ad21656feebf47",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "public_certificates": {
+        "badclient.pem": "1555b01219daa5e61114f8d2729baba807c89617b792b3618045bf73610fa596",
+        "client.pem": "21cb0d631b5c0b3ab9531a6b3e5cf28891a371091187cf8bf4a650797a126e2f",
+        "server.pem": "b5d9550dcbf4981ab58e979cedf7b651de9d29a0e4dc5a0fec9b8398a12b3e4a",
+        "wrong.pem": "6929fc00b07570733ad5e1888d3f635e688bab8ef27151e389a9f0a171b13513",
+        "ca.pem": "58e76a63710d7e618127470e11061ab990db140876870f53102a1e8fa786aa6b"
+      },
+      "transport_counts": {
+        "windows-single": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        },
+        "wsl-single": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        }
+      },
+      "representative": []
+    },
+    "static": {
+      "cases": 72,
+      "result": "broker-static-verified-final.json",
+      "sha256": "972367a4d14329d12682a87f1875be8098c1c8df1e2959df4db6104004c0482f",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "forms": {
+        "windows-static": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/static.exe",
+          "sha256": "7b0c37687ddb17c9603717acf4bb0e829c4f6212182126e85ceb051d37fd78a9"
+        },
+        "wsl-static": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/static",
+          "sha256": "9d2f321479322ce1107533befcb301d07bb6e19cfadd4a7bfd72dec088d56bc0"
+        }
+      },
+      "runner_sources": {
+        "run_reconnect_store_broker.py": "d95a10283949622d1eacdb1f22e45e252070916e024a8bf9d7ad21656feebf47",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "public_certificates": {
+        "badclient.pem": "81d9fa3c22d6e8355d9e78680f78c4a68d63bafc020fc877ed270ceba6d31a80",
+        "client.pem": "0b524587a7ab2f5dba47ab3a7b01307f543608a7e8bd7e68f2f4db113c30aa8d",
+        "server.pem": "86b4ce3677f7c89cb26b3bc5b180a159b3de662babe30552c39711edb8819646",
+        "wrong.pem": "c7ce82b473211fbd75c2026d45eafc25aff1bf6ed722834f0a0c6971a0272af9",
+        "ca.pem": "81169560b59cb7741847817a0084902647ecd510d56c7b73a9d0850b52bf464b"
+      },
+      "transport_counts": {
+        "windows-static": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        },
+        "wsl-static": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        }
+      },
+      "representative": []
+    },
+    "shared": {
+      "cases": 72,
+      "result": "broker-shared-verified-final.json",
+      "sha256": "13e21900df6522af361c6aececbeb58838fa0ffe1234be6a1023850bcc85c77e",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "forms": {
+        "windows-shared": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/shared.exe",
+          "sha256": "c77375fc3c96bb513a2bd80f39b67e5a2f63d884628cf7472c3b49c0f7e53e1d"
+        },
+        "wsl-shared": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/shared",
+          "sha256": "d03ca2048760745353e3ab1c78444f5bb10737254ed575631d25402a1684d967"
+        }
+      },
+      "runner_sources": {
+        "run_reconnect_store_broker.py": "d95a10283949622d1eacdb1f22e45e252070916e024a8bf9d7ad21656feebf47",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "public_certificates": {
+        "badclient.pem": "401ccaf723650611e16e747aeb2910ef1f60f2ba16acb0a204756ca439e2a84e",
+        "client.pem": "d365652fd68c30354eccb7e0a5eeca592db3316be5287cee92ea61ba9bba44a3",
+        "server.pem": "58db4983e54821559a637c326fbf7b4ba47e4138cf0c0d3eb18d0e50d0dfb3f6",
+        "wrong.pem": "9503caa1eea74e5e769401ac8f9e759c4fe368a9c2c66808038e9e08839f3d28",
+        "ca.pem": "2b7c3a7cd8836e8e27086f6c177fe4f8944752f4d3aac65a3b252f789a56882c"
+      },
+      "transport_counts": {
+        "windows-shared": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        },
+        "wsl-shared": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        }
+      },
+      "representative": []
+    },
+    "asan": {
+      "cases": 36,
+      "result": "broker-asan-verified-final.json",
+      "sha256": "3277e401b379aae51eb7667a6b86239ed35cb8efee1985f1563adcf6f4cef7e8",
+      "broker": "mosquitto version 2.0.22",
+      "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+      "forms": {
+        "wsl-modular-asan": {
+          "path": "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/modular-asan",
+          "sha256": "eb7d768dd75b12777b7442f4450481b829c658ac1e7a1f31e95d350fe0e7a3f9"
+        }
+      },
+      "runner_sources": {
+        "run_reconnect_store_broker.py": "d95a10283949622d1eacdb1f22e45e252070916e024a8bf9d7ad21656feebf47",
+        "reconnect_ws_gateway.py": "ab4981f5d918d573f71adb5264901d8f3891a224513169f25014da63bb35205f",
+        "session_tls_proxy.py": "868a194fc8d5abfc3ed6b7fd1e38cbe40125197c16873e280a6de27c5e770794",
+        "run_session_broker.py": "33c0c713f60d8ac53bad3a257761e5fbce235ae30abc965b946c458e2923b7df",
+        "run_session_tls_broker.py": "f54c874863fedf0f887d9624ad5a62f75b32acde9cbc4c1eb6adb02348a4115c",
+        "run_mqtt_tls.py": "7494be1bf658afe89f24208ab31923149086b8116b4077e16a71d0e575f37ede"
+      },
+      "public_certificates": {
+        "badclient.pem": "ab3f32fe46b402e5992081f78cab2ac2c6c2b6b325b96e91eddef88ecee220ec",
+        "client.pem": "fa4cb72d584b1ad4aad360e4a37aaac17ec1924a87db24de4d07e648521c5533",
+        "server.pem": "4e916842c38014698f5fb15c056c912a01dda21a1463d2fb1ed1c995cba3056c",
+        "wrong.pem": "42ce16f45b5cc5ba936f5a8d0feaa4e3371b19e3484c437b6b1e2a4da516df3e",
+        "ca.pem": "1093022f0969db47e8bf08de340dc83fa494bdb13f8d953cc1979fcc0cdc1a76"
+      },
+      "transport_counts": {
+        "wsl-modular-asan": {
+          "tcp": 6,
+          "tls12": 6,
+          "tls13": 6,
+          "ws": 6,
+          "wss12": 6,
+          "wss13": 6
+        }
+      },
+      "representative": []
+    }
+  },
+  "verification": {
+    "windows": {
+      "package_verification": [
+        {
+          "label": "package-static",
+          "log": "windows-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "771358af4419f061b7b3629ad88e7858919972f872a4ee489336e106b69bb548",
+          "log_sha256": "42ac417b1cec0cb063d5e218b6e0a7f1099d6256099409a9e28eb7356d34e9ef",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "771358af4419f061b7b3629ad88e7858919972f872a4ee489336e106b69bb548",
+          "log_sha256": "4896d50e97f3e74f492779d184851ed8f39764e4bdaa46bcce10d3ae4855ae68",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "final_consumers": [
+        {
+          "label": "modular",
+          "log": "windows-modular-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms.py",
+            "modular"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "d1262992fd4d55ed43f48e27ab48452448b9a8e8ed83b6ccf2975ca4667fce5e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-modular-attempt2/modular.exe.gz",
+              "sha256": "3bd253b2b8ff0d079ddd99379df1ae684b3d1d289e7911a1b26da66c33e77ffb",
+              "binary_sha256": "779a9d7fd4a7d42fa08bd630981f6cb416d04a18de39b3710426969fb97c8fb5"
+            }
+          ]
+        },
+        {
+          "label": "single-compile",
+          "log": "windows-single-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\single.c",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\single.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-usage",
+          "log": "windows-single-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\single.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "24be1b8ef8a905ae94fbedfe538224763633c1cf45b4a9a587bcb48de582f7ed",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "windows-consumer-static-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store\\main.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\libxmqtt.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\libxrt.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\static.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "windows-consumer-static-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\static.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "24be1b8ef8a905ae94fbedfe538224763633c1cf45b4a9a587bcb48de582f7ed",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "windows-consumer-shared-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\reconnect_store",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\shared.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\libxmqtt.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\libxrt.dll.a",
+            "-lws2_32",
+            "-lbcrypt",
+            "-lcrypt32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\shared.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "windows-consumer-shared-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\mqtt-reconnect-store-transports-20261118\\forms\\windows\\shared.exe"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "24be1b8ef8a905ae94fbedfe538224763633c1cf45b4a9a587bcb48de582f7ed",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "tcp_regression": [
+        {
+          "label": "regression-focused",
+          "log": "windows-regression-focused-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_reconnect_store_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "c9cd4bd1145d7ec297f8bf7f22289e3afbb829ab43936b7d4ff1f75e54f22b37",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-regression-focused-attempt2/test_reconnect_store.exe.gz",
+              "sha256": "6fbec9d953f61cff974abac4e311b03b6d2ba4afc90e0a8388fcacf6baec9828",
+              "binary_sha256": "0bacbcc0b9cc764012c0ca95d2d8de950ff6f78f8e38269b3ff834c5aaa582dc"
+            },
+            {
+              "path": "binaries/windows/windows-regression-focused-attempt2/examples_reconnect_store_main.exe.gz",
+              "sha256": "106fdc34e8ebc5156437d27de3051b55b3eb514c2ac758d55c77afb1e313c938",
+              "binary_sha256": "0dd74c59ce4c949e5848956e4506f83bc49851e1b408f7629f3161c4a0dcd374"
+            },
+            {
+              "path": "binaries/windows/windows-regression-focused-attempt2/test_single_xmqtt_reconnect_store.exe.gz",
+              "sha256": "f43bfe34c0757307faab6e7b1370e53000d0bcf372c6d2d13dc94daa3656a1d2",
+              "binary_sha256": "1a8a7b0365b5b45813bccd64e35fc93e13549e3ba687d4685a942c6ef925adea"
+            }
+          ]
+        }
+      ],
+      "package_libraries": {
+        "libxmqtt.a": "0ab418bc32d8534b16081b730f5187bdd06cc895e61aa44ebd4830604860b916",
+        "libxmqtt.dll.a": "9372638549e115f7f8fcc568c07467b1e22ad01d8ad689858ef80905f91e0f2a",
+        "libxrt.a": "5315e7eef0c755fe41d4a6fa0586b4b168fd0eebaeeac40ac31ef3564975958d",
+        "libxrt.dll.a": "eb44d4e22f23c4d1d9519d4a2be69e730bf29534c2eaab2018c98f4a9a473e73",
+        "xmqtt.dll": "36e068ddff8ec948a4f84591f1f30c66ff1e627f605f2273515b4c15e8861f2c",
+        "xrt.dll": "46c16a3c6017a6296591143dacf64c5d167c067bf60c7d9c30004fbe145edc0f"
+      }
+    },
+    "wsl": {
+      "package_verification": [
+        {
+          "label": "package-static",
+          "log": "wsl-package-static.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "771358af4419f061b7b3629ad88e7858919972f872a4ee489336e106b69bb548",
+          "log_sha256": "471f09ee19dcd47d3a3a9c42a34fe30aed6fe5b33e6f73fbef940cf783cc59b0",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,file_temp",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "771358af4419f061b7b3629ad88e7858919972f872a4ee489336e106b69bb548",
+          "log_sha256": "673902aa862bd861e4f152de3d25533b92cb99ea1d6a5605b0076ea46f735caf",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "final_consumers": [
+        {
+          "label": "modular",
+          "log": "wsl-modular-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms.py",
+            "modular"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "73c40b60f9f9dec877cddb251e233f0388a5717d8b1b39679622ae1c35924aab",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-modular-attempt2/modular.gz",
+              "sha256": "d203181f9b777a93f84c50b49df4321ccae81f3c570b3f9437444528dd2f6508",
+              "binary_sha256": "7646b7f542e1941083c5b25102235cdb27ef7008b9a9cc40a9070bd0d9c5fcf5"
+            }
+          ]
+        },
+        {
+          "label": "single-compile",
+          "log": "wsl-single-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/single.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/single"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-usage",
+          "log": "wsl-single-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/single"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "fbd99ec0b7410d30c91eb1026e6ef949821d0f6eb1dd210a6b31350c17b51886",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-compile",
+          "log": "wsl-consumer-static-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store/main.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/libxmqtt.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/static"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-static-usage",
+          "log": "wsl-consumer-static-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/static"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "fbd99ec0b7410d30c91eb1026e6ef949821d0f6eb1dd210a6b31350c17b51886",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-compile",
+          "log": "wsl-consumer-shared-compile-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/gcc",
+            "-m64",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+            "-DXMQTT_MODULE_XMQTT_RECONNECT_STORE",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_TLS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_STORE_WS",
+            "-DXMQTT_MODULE_XMQTT_CLIENT_WS_URI_TLS",
+            "-DXRT_MODULE_FILE_TEMP",
+            "-DXRT_USE_SHARED",
+            "-DXMQTT_USE_SHARED",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xmqtt/examples/reconnect_store",
+            "-Wl,-rpath,$ORIGIN",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/shared.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/libxmqtt.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/libxrt.so",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/shared"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "consumer-shared-usage",
+          "log": "wsl-consumer-shared-usage-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/shared"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "fbd99ec0b7410d30c91eb1026e6ef949821d0f6eb1dd210a6b31350c17b51886",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "tcp_regression": [
+        {
+          "label": "regression-focused",
+          "log": "wsl-regression-focused-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_reconnect_store_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "2726c4a5ba6e37de5c12390f8c1cb0f2c183458ebd7179051c2a12185434dbac",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-regression-focused-attempt2/test_reconnect_store.gz",
+              "sha256": "9e452b7eb6206ad9d9e5d69641f2bd2cd02342b2dfc02cdf67ae9ca5ce4356f2",
+              "binary_sha256": "d9d0ad1b7eeeeefdece40cb2b1e8e9c3ee0ffdd14bae6d7cfce8d321cabf0c47"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-focused-attempt2/examples_reconnect_store_main.gz",
+              "sha256": "c75090b1a1709f1591cb8cb770125540ac0605f82ac86da851cc8ad461665ad0",
+              "binary_sha256": "d6871c6988eec75fc76016c9f015de13f0b12d69501568532e1dc88816a7bd23"
+            },
+            {
+              "path": "binaries/wsl/wsl-regression-focused-attempt2/test_single_xmqtt_reconnect_store.gz",
+              "sha256": "a853754d97f9bceca0c7723c64dcd8f0057ab6c8dc3d1a144d4f498869550b13",
+              "binary_sha256": "9dea8c23c27c78b45f03ee67a1be83d7467b4e9b032cddd01cd24fd555c5ff8f"
+            }
+          ]
+        }
+      ],
+      "package_libraries": {
+        "libxmqtt.a": "bc3b4676320ea12561d79db7bce05e4b76b7fe6e13124bdf286713ba630e84a1",
+        "libxmqtt.so": "854d93c3a3bbc97fc46e4d478c12d5215113cab299d9f272d94512d0b5c6c043",
+        "libxrt.a": "1519a13c331d17417f4a7c253ed82044216a4cc87f5bfa5b817c245b4f55727b",
+        "libxrt.so": "b013af4b040b726e4b428f539a65607c88f70b4c2b9ee1f5927e6a2b78e98651"
+      },
+      "asan": [
+        {
+          "label": "asan",
+          "log": "wsl-asan-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms.py",
+            "asan-build"
+          ],
+          "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+          "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+          "log_sha256": "05011f6453db26490c4e530b500ae85d96312c0ac00ca1db4006dab54f93eb7f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-asan-attempt2/modular-asan.gz",
+              "sha256": "88472da50fbf6117f8f70f2614c24ee1eca032761cda965e81463cd5a5953045",
+              "binary_sha256": "eb7d768dd75b12777b7442f4450481b829c658ac1e7a1f31e95d350fe0e7a3f9"
+            }
+          ]
+        }
+      ]
+    },
+    "gates": [
+      {
+        "label": "gate-layout",
+        "log": "windows-gate-layout-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "-m",
+          "unittest",
+          "tools.test_extension_layout"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "711235a7340f3b5030faefa76a2289ad36ad9e0aa3b3a463a250fb87c13e01a0",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "gate-features",
+        "log": "windows-gate-features-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/generate_extension_features.py",
+          "--check",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "gate-single",
+        "log": "windows-gate-single-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/amalgamate.py",
+          "--check",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "gate-api",
+        "log": "windows-gate-api-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/check_api_docs.py",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "5473a47c0c596a0c24b6dd2c25747ecdabefc90f3286daf4c8fdf4f65577b19d",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "gate-reference",
+        "log": "windows-gate-reference-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/generate_api_reference.py",
+          "--check",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "gate-maturity",
+        "log": "windows-gate-maturity-attempt3.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/check_release_maturity.py",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "fbc962f1cf3a6af571ece4f933a0c0c7cb9b5d8099253561d9758c8bc4aef159",
+        "programs": 0,
+        "binaries": []
+      }
+    ],
+    "broker": [
+      {
+        "label": "broker-modular-verified-final",
+        "log": "wsl-broker-modular-verified-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/modular.exe",
+          "--form",
+          "wsl-modular",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/modular",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/broker-modular-verified-final.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "aa510b764f06f022a7178b32290d871ac52ae1b48ea511cd6ae7e9e0f9338671",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "broker-single-verified-final",
+        "log": "wsl-broker-single-verified-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/single.exe",
+          "--form",
+          "wsl-single",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/single",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/broker-single-verified-final.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "f5f72c988197a35db11c09dd0ba97f5e94780e59ea9e0962f2b8ee0305ba39ab",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "broker-static-verified-final",
+        "log": "wsl-broker-static-verified-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/static.exe",
+          "--form",
+          "wsl-static",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/static",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/broker-static-verified-final.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "97d9eff1a8ffc4cda009e595aea4d6a3411dd3b0e39ce22bb771f3da356a4df0",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "broker-shared-verified-final",
+        "log": "wsl-broker-shared-verified-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "windows-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/windows/shared.exe",
+          "--form",
+          "wsl-shared",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/shared",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/broker-shared-verified-final.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "343b335dbbebf9dc32839b41018c05b5085a0975a9c8ece821e35e4afbc1ee81",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "broker-asan-verified-final",
+        "log": "wsl-broker-asan-verified-final.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py",
+          "--broker",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-client-store-send-20261118/broker-package/extracted/usr/sbin/mosquitto",
+          "--windows-python",
+          "/mnt/c/Program Files/Python312/python.exe",
+          "--form",
+          "wsl-modular-asan",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/forms/wsl/modular-asan",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/mqtt-reconnect-store-transports-20261118/broker-asan-verified-final.json"
+        ],
+        "revision": "5f9eec5d662faff32b8ed8b7773c65f663e4edf0",
+        "source_map_sha256": "8de5cd1ba7e107333185091ca1b19ab317c2ff021d5c558e2a9980d57b41ee81",
+        "log_sha256": "1d8e68964362d85842c30655c8755fb3ece2a86dbf5f9d330efc7c277732ff79",
+        "programs": 0,
+        "binaries": []
+      }
+    ],
+    "tls_proxy_controls": {
+      "path": "tls-proxy-controls-final.json",
+      "sha256": "02c886e488f465a9b9feea8d811eddb8a9c3190ea6c0849768fb6dcc800f1b59",
+      "checks": [
+        "malformed/capped Remaining Length refused",
+        "malformed/capped Remaining Length refused",
+        "short metadata refused",
+        "short metadata refused",
+        "short metadata refused",
+        "pre-handshake joined",
+        "mid-handshake joined",
+        "early probe exit cleanup verified"
+      ]
+    },
+    "lifecycle_observation": {
+      "path": "lifecycle-observer.json",
+      "sha256": "4f3764af6bfcea4c89fab702dafdea6ac181003b39d723f154177a18d2ca0dd6",
+      "output": [
+        "Future published at controller state 1, generation 1.",
+        "Original PUBREL checkpoint 0.",
+        "Generation 2 settled durable QoS 2. Original status 5, attempt 2.",
+        "Committed graceful END at 7."
+      ]
+    }
+  },
+  "initial_smokes": [
+    {
+      "path": "smoke.json",
+      "sha256": "65e17c08e8cf22fbd85cac9f353a2e3333f3f047a7f677a05a6b1be63d161c47",
+      "completed": false,
+      "passed": 0
+    },
+    {
+      "path": "smoke-checked.json",
+      "sha256": "88ccb57cf46e149f01ea0f03bc07a66eade095c5fb9600af9db9cefccb479165",
+      "completed": false,
+      "passed": 0
+    },
+    {
+      "path": "smoke-adjusted.json",
+      "sha256": "623d7d42ab938ac12e4cb4f7249208d25958b12bbbb0cf7c7d8b72da56eaaf22",
+      "completed": true,
+      "passed": 9
+    }
+  ],
+  "failed_rechecks": [
+    {
+      "path": "broker-static-final.json",
+      "sha256": "a4690b94dbb22fca5992f1c9f5e44b3d15aeec25209f678d9b3e69fbd77934d8",
+      "case": "windows-static-tls12-311-puback",
+      "error": "CalledProcessError(1, ['/mnt/c/Program Files/Python312/python.exe', '-c', \"\\nimport socket, sys, time\\nend = time.monotonic() + 10\\nwhile True:\\n    try:\\n        with socket.create_connection(('127.0.0.1', int(sys.argv[1])), .25):\\n            pass\\n        break\\n    except OSError:\\n        if time.monotonic() >= end:\\n            raise\\n        time.sleep(.05)\\n\", '51677'])"
+    },
+    {
+      "path": "broker-asan-final.json",
+      "sha256": "0e6c7d5188dc3606fc4c8cd5bffacfbab362f99f1c3d81a9f25302641d345de2",
+      "case": "wsl-modular-asan-tls13-5-pubrec",
+      "error": "AssertionError(('Durable MQTT reconnect example failed.\\n', [{'generation': 1, 'direction': 'cs', 'type': 1, 'flags': 0, 'bytes': 47, 'forwarded': True, 'order': 0}, {'generation': 1, 'direction': 'sc', 'type': 2, 'flags': 0, 'bytes': 11, 'forwarded': True, 'session_present': False, 'reason': 0, 'order': 1}, {'generation': 1, 'direction': 'cs', 'type': 3, 'flags': 4, 'bytes': 61, 'forwarded': True, 'topic_bytes': 27, 'topic': 'xrt/example/reconnect-store', 'identifier': 1, 'property_hex': '', 'order': 2}, {'generation': 1, 'direction': 'sc', 'type': 5, 'flags': 0, 'bytes': 4, 'forwarded': False, 'identifier': 1, 'reason': 0, 'order': 3}]))"
+    }
+  ],
+  "initial_finding": "The shared TLS proxy originally required AES-128 for a pinned baseline. The default XRT client negotiated TLS_AES_256_GCM_SHA384. The durable runner supplies its own approved AEAD list while the original baseline retains its prior expectation.",
+  "generation_race": "An original error Future can publish while generation one still appears ONLINE. The example waits for generation two before acquiring the replacement lease.",
+  "windows_ports": "Cross-system tests check Windows port bindability before publishing the WSL listener, then verify native TCP reachability.",
+  "final_log_hash": "Broker teardown finishes before hashing logs. The initial complete matrix observed all outcomes but sampled logs before the broker had written its final shutdown record.",
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 32,
+    "sha256": "76dd351156fdfb1f93426f23c757a6a69cf995c5726cc0f530e15fa24002ea2f"
+  },
+  "standards": [
+    "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html",
+    "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html"
+  ],
+  "pending": [
+    "direct broker-native WS/WSS graceful close",
+    "durable subscription intent and persistence namespace/compaction",
+    "controlled native Windows/Linux throughput and tail latency"
+  ]
+}

@@ -288,3 +288,30 @@ strict locally partial prefixes, ticket reuse/full fallback, and resource reapin
 See [the stage receipt](../results/reconnect-transports-20261110.json) for exact
 commands, source identities,3456 cases and limitations. No test key is committed;
 CA/client material is generated at runtime and removed before runner return.
+
+## Durable automatic reconnect over TCP, TLS and WebSocket
+
+`run_reconnect_store_broker.py` runs the public reconnect example with
+Mosquitto, separate loopback gateways and an independent subscriber.
+Build the example with the features described in
+[Durable MQTT reconnect](../../docs/reconnect_store.md). Pass the executable
+once per linkage form.
+
+```sh
+python extlibs/xmqtt/tests/interop/run_reconnect_store_broker.py \
+    --broker /path/to/mosquitto --form modular /path/to/examples_reconnect_store_main \
+    --report out/mqtt-reconnect-store/report.json
+```
+
+The default matrix covers MQTT 5.0 and 3.1.1, TCP, TLS 1.2/1.3 and WS/WSS,
+and drops PUBACK, PUBREC or PUBCOMP before cutting the first connection.
+The runner creates temporary broker configuration and, for secure transport,
+temporary OpenSSL keys. When WSL launches Windows clients, provide a native
+Python executable with `--windows-python` for the loopback readiness check.
+
+The wire trace checks both CONNACKs, original packet identity, retransmission
+flags and which QoS 2 step survives. A separate subscriber checks payload and
+delivery count. The replacement must finish a graceful MQTT and transport
+close with the expected durable END. The WebSocket tests split MQTT bytes
+across WebSocket continuation frames and interpose Ping frames. The gateways
+terminate TLS and WebSocket, with Mosquitto maintaining the MQTT session.

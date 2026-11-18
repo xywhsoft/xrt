@@ -14239,3 +14239,20 @@ reports 32 developing modules. Automatic durable TLS/WS/WSS interop,
 subscription intent across durable recovery, and controlled throughput and
 tail-latency qualification remain open.
 [Stage evidence](xmqtt-reconnect-store-20261118.json).
+
+## 2026-11-18 Durable MQTT reconnect over TLS and WebSocket
+
+The public example uses the same reconnect controller over numeric TCP, verified
+TLS and native WS/WSS Client factories. The tracked Mosquitto driver drops the
+first PUBACK, PUBREC or PUBCOMP and retires the original connection. It checks
+Session Present, original identifiers, PUBLISH versus PUBREL retransmission,
+subscriber payload/count and the durable END on the replacement.
+
+The matrix runs both MQTT versions over TCP, TLS 1.2/1.3, WS and WSS 1.2/1.3.
+Windows and WSL each exercise modular, single-header, static and shared forms.
+The WSL modular matrix additionally runs with ASan, UBSan and leak detection.
+Existing TCP cold recovery, uncertain-write and lease regressions remain
+covered. Strict release still reports 32 developing modules. Broker-native
+WS/WSS graceful shutdown, durable subscriptions and controlled production
+throughput and tail latency remain open.
+[Stage evidence](xmqtt-reconnect-store-transports-20261118.json).
