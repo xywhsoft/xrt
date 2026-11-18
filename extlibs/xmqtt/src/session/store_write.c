@@ -1,4 +1,6 @@
 #include <xmqtt/store_inbox.h>
+#include "../internal/xmqtt_store_compact_online.h"
+#include "../internal/xmqtt_journal_worker.h"
 #include "../internal/xmqtt_store_write.h"
 #include "../internal/xmqtt_client_store.h"
 #include <xrt/memory.h>
@@ -333,6 +335,48 @@ static bool xmqttSWUnclaimed(xmqttstorewrite* W)
     return OK?true:xmqttSWError(XERR_STATE,"Client or controller owns store writer until physical destruction");
 }
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config)
+{
+    if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid compaction config output");
+    *Config=(xmqttstorecompactconfig){sizeof(*Config),1048576,1024,65536};
+    return true;
+}
+XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* W,
+    const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future)
+{
+    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
+    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttSWSpan(Config,sizeof(*Config))||Config->Size!=sizeof(*Config)||
+       !xmqttSWSeparate(Config,sizeof(*Config),Future,sizeof(*Future))){
+        xmqttSWError(XERR_ARGUMENT,"invalid compaction config, timeout or Future");
+        return XMQTT_JWORK_ERROR;
+    }
+    if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
+    bool Valid=xmqttSWOutput(W,Future,sizeof(*Future));
+    xrtMutexUnlock(&W->Gate);
+    if(!Valid){
+        xmqttSWError(XERR_ARGUMENT,"compaction Future overlaps owned state");
+        return XMQTT_JWORK_ERROR;
+    }
+    return xmqttInternalJournalCompactSubmit(W->Worker,Config,Deadline,Future);
+}
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* W,
+    xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
+    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result)
+{
+    if(!W||W->Pending)abort();
+    xmqttcheckpointstats Stats={0};
+    xmqttjournalstatus Status=xmqttInternalStoreCompactModel(W->State,W,Journal,Owner,Config,Stop,StopContext,Result,&Stats);
+    if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
+        xmqttjournalinfo J;
+        if(!xmqttInternalJournalWorkerInfo(*Journal,Owner,&J)||!xrtMutexLock(&W->Gate))abort();
+        xmqttInternalStoreCompactRebase(W->State,W,&J,Result,&Stats);
+        if(!xrtMutexUnlock(&W->Gate))abort();
+    }
+    return Status;
+}
+#endif
+
 XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
 {
     if(!W)return xmqttSWError(XERR_ARGUMENT,"NULL store writer");

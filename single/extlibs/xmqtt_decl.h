@@ -135,6 +135,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA 1
 #endif
@@ -263,6 +266,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_COMPACT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA 1
@@ -2916,6 +2922,22 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
 #define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#endif
+#endif
+
+/* xmqtt_store_compact_online 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#define XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
+#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
 #endif
 
@@ -6251,7 +6273,9 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(xroot Root,const xmqttjournalc
 /* Open the exact selected generation. Replay all records through EMPTY to
  * verify its complete history and the published prefix. The returned Journal
  * may transfer into the existing JournalWorker. Join and destroy it before
- * opening another Journal or preparing a replacement. */
+ * opening another Journal or preparing a replacement through the public slot
+ * API. An online Store Writer can rotate its own child on the storage task.
+ * Serialize direct Slot access with that Writer lifetime. */
 XMQTT_API xmqttjournalstatus xmqttJournalSlotOpenCurrent(xmqttjournalslot* Slot,xmqttjournal** Journal);
 /* After the selected generation has been fully recovered and retired, reset
  * only the inactive file and initialize it at Generation+1. Supply a complete
@@ -6307,6 +6331,59 @@ XRT_EXTERN_C_BEGIN
  * keep the namespace and inputs stable. Never call from a network callback. */
 XMQTT_API xmqttjournalstatus xmqttStoreCompact(xmqttjournalslot* Slot,
     const xmqttstorestateconfig* Config,size_t MaxScratchBytes);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/store_compact_online.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_STORE_COMPACT_ONLINE_H
+#define XMQTT_STORE_COMPACT_ONLINE_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "Online MQTT compaction requires the typed slot and Store Writer"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+typedef struct xmqttstorecompactconfig {
+    size_t Size,MaxScratchBytes,MaxEntries;
+    uint64 MinReclaimBytes;
+} xmqttstorecompactconfig;
+typedef struct xmqttstorecompactresult {
+    xmqttcommitstatus Status;xmqttjournalstatus StorageStatus;xmqttjournaleffect Effect;
+    uint64 PreviousGeneration,Generation,Sequence,PreviousBytes,Bytes;
+    const xerror* Cause;
+} xmqttstorecompactresult;
+XRT_EXTERN_C_BEGIN
+/* Defaults: 1 MiB output scratch, 1024 live entries and 64 KiB minimum
+ * selected-file reduction. Scratch and entry count are hard caps. */
+XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config);
+/* Queue one bounded checkpoint at a FIFO Store Writer commit boundary.
+ * The Writer must own a native JournalSlot child. Keep the Slot/root alive
+ * through Writer Destroy and serialize direct Slot calls with that lifetime.
+ * Connection state and Inbox leases stay with the same Writer. A source
+ * whose recovery projected unsynchronized expiry requires a committed reset
+ * establishing the durable cut before compaction is eligible.
+ * The host storage task scans bounded live entries and writes inactive
+ * blocks without replaying history or holding the model gate during I/O.
+ * Other commits wait in the existing bounded FIFO. No additional task pool.
+ * Scratch is allocated only during execution, capped by both transaction
+ * limits. One extra Journal allocation is bounded by the Slot's configuration.
+ * An insufficient reduction resolves EMPTY without replacement I/O.
+ * The byte figures describe selected journal lengths. The old file remains
+ * as the inactive generation until its next reuse. Sequence is generation
+ * local, including the ordinary commit results before and after a switch.
+ * Entry deadline, Close and explicit cancellation are sampled before the
+ * next block or publication. Entered I/O completes physically. A late
+ * stop can accompany COMMITTED. A definite inactive-file failure leaves
+ * the old Writer usable. An ambiguous selector change fences the Writer.
+ * Accepted Future resolves to an immutable xmqttstorecompactresult. On
+ * COMMITTED, Generation/Sequence/Bytes describe the new cut. Otherwise
+ * they describe the original cut if inspected; with MAY reopen to resolve.
+ * The config is copied, and Future changes only on ACCEPTED. */
+XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* Writer,
+    const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -6510,6 +6587,10 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_STORE_COMPACT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#undef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA)
 #undef XMQTT_FEATURE_XMQTT_STORE_DELTA
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA
@@ -6681,6 +6762,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT)
 #undef XMQTT_MODULE_XMQTT_STORE_COMPACT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
+#undef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA)
 #undef XMQTT_MODULE_XMQTT_STORE_DELTA
@@ -8565,6 +8650,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
 #define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#endif
+#endif
+
+/* xmqtt_store_compact_online 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#define XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
+#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
 #endif
 

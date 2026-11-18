@@ -585,3 +585,29 @@ An uncertain selector write requires reopening and resolving the actual
 selected generation. The compactor is offline and the caller owns the
 maintenance pause.
 [Stage evidence](xmqtt-store-compact-20261118.json).
+
+
+## 2026-11-18 Online compaction on the Store Writer
+
+A caller can queue a bounded checkpoint in the Writer's existing durable FIFO.
+Earlier mutations define the cut and later writes use the replacement Journal
+after selector sync. The Client, Session and Inbox lease owner continue across
+the switch. The task measures the selected-file reduction before replacement
+I/O. It scans and encodes the bounded committed model outside the model gate,
+without replaying history or allocating another model.
+
+The previous Journal stays open until publication. A definite inactive-file
+failure leaves its Writer usable. An ambiguous selector poisons the active
+owner. After a successful selector switch, any old-file retirement error stops
+writes while retaining the actual COMMITTED effect. The model rebases storage
+sequence, bytes and operation accounting as one update and retains MQTT epochs,
+key fences and lease metadata. Recovery-time protocol expiry requires a durable
+reset before the live model can supply an equivalent checkpoint.
+
+Native fixtures hold candidate I/O while the application inspects the model
+and queues an existing Inbox lease's ACK. The same TCP connection continues
+QoS 1 traffic after rotation and the reopened selected generation contains the
+later commits. The explicit request has entry, scratch and reclaim limits.
+Automatic maintenance scheduling, queue-inclusive latency qualification,
+and device power-loss validation remain open.
+[Stage evidence](xmqtt-store-compact-online-20261118.json).

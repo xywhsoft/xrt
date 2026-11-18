@@ -1,4 +1,5 @@
 #include <xmqtt/journal_worker.h>
+#include "../internal/xmqtt_store_compact_online.h"
 #include "../internal/xmqtt_journal_worker.h"
 #include "../internal/xmqtt_store_write.h"
 #include <xrt/atomic.h>
@@ -17,6 +18,17 @@ typedef struct xmqttjwitem {
     uint64 InboxKey;
 #endif
 } xmqttjwitem;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+typedef struct xmqttjwcompact {
+    xmqttstorecompactconfig Config;
+    xmqttstorecompactresult Result;
+} xmqttjwcompact;
+#define XMQTT_JW_COMPACT_PARAM ,const xmqttstorecompactconfig* Compact
+#define XMQTT_JW_COMPACT_ARG(C) ,C
+#else
+#define XMQTT_JW_COMPACT_PARAM
+#define XMQTT_JW_COMPACT_ARG(C)
+#endif
 typedef struct xmqttjwpump {
     struct xmqttjwpump* Next;xmqttjournalworker* Owner;xfuture* Future;bool Ran,Dropped;
 } xmqttjwpump;
@@ -102,9 +114,66 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
 #endif
     /* Only this owner can complete P. Publication invokes arbitrary watches
      * outside Gate; their retained result still owns the exact object credits. */
-    if(!xrtPromiseResolveOwned(P,&J->Result,xmqttJWResultFree,J))abort();
+    ptr Value=&J->Result;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    if(!J->Result.Data.Data){
+        xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
+        C->Result.Status=J->Result.Status;
+        C->Result.Cause=J->Result.Cause;
+        Value=&C->Result;
+    }
+#endif
+    if(!xrtPromiseResolveOwned(P,Value,xmqttJWResultFree,J))abort();
     xrtPromiseDestroy(P); /* may free J: no access afterwards */
 }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+typedef struct xmqttjwstop {
+    xmqttjournalworker* Worker;
+    xmqttjwitem* Item;
+    xcancel* Native;
+} xmqttjwstop;
+
+static bool xmqttJWStopCompact(ptr Context)
+{
+    const xmqttjwstop* S=Context;
+    xrtMutexLock(&S->Worker->Gate);
+    bool Stop=xmqttJWStop(S->Worker,S->Item,S->Native)!=XMQTT_COMMIT_OK;
+    xrtMutexUnlock(&S->Worker->Gate);
+    return Stop;
+}
+static void xmqttJWCompact(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,xmqttjournalinfo After)
+{
+    xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
+    xerror* Saved=NULL;
+    bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
+    xmqttjournalstatus Status=XMQTT_JOURNAL_ERROR;
+    if(!LocalFailure){
+        xmqttjwstop Stop={W,J,Native};
+        Status=xmqttInternalStoreCompactWork(W->Store,&W->Journal,W,&C->Config,xmqttJWStopCompact,&Stop,&C->Result);
+        if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
+        if(Status>=XMQTT_JOURNAL_EMPTY){
+            xerror* Discard=NULL;
+            if(!xrtTrySwapErrorTake(Saved,&Discard)){xrtErrorFree(Saved);LocalFailure=true;}
+            xrtErrorFree(Discard);
+        }else{
+            J->Result.Cause=xrtErrorRef(xrtGetError());
+            xrtErrorFree(Saved);
+        }
+    }
+    C->Result.StorageStatus=Status;
+    J->Result.Effect=C->Result.Effect; /* shared closure and Inbox settlement */
+    xrtMutexLock(&W->Gate);
+    W->Info.Journal=After;
+    if(LocalFailure||After.State==XMQTT_JOURNAL_POISONED)W->Info.Failed=W->Info.Closed=true;
+    if(LocalFailure||Status==XMQTT_JOURNAL_ERROR)J->Result.Status=XMQTT_COMMIT_INITIALIZATION;
+    else if(Status==XMQTT_JOURNAL_STATE)J->Result.Status=XMQTT_COMMIT_INVALID;
+    else if(Status<0)J->Result.Status=XMQTT_COMMIT_STORAGE;
+    else if(Status==XMQTT_JOURNAL_LIMIT||Status==XMQTT_JOURNAL_BUSY)J->Result.Status=XMQTT_COMMIT_LIMIT;
+    else J->Result.Status=xmqttJWStop(W,J,Native);
+    xrtMutexUnlock(&W->Gate);
+}
+#endif
+
 static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
 {
     (void)Value;xmqttjwpump* T=Data;xmqttjournalworker* W=T->Owner;xmqttjwscope Scope={xmqttJWCurrent,W};xmqttJWCurrent=&Scope;
@@ -114,6 +183,13 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
         if(!J){W->Running=false;W->Info.Busy=false;xrtMutexUnlock(&W->Gate);break;}
         W->Head=J->Next;if(!W->Head)W->Tail=NULL;--W->Info.Queued;W->Info.Busy=true;
         J->Result.Status=xmqttJWStop(W,J,Cancel);xmqttjournalinfo Before=W->Info.Journal;xrtMutexUnlock(&W->Gate);
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+        if(!J->Result.Data.Data){
+            if(J->Result.Status==XMQTT_COMMIT_OK)xmqttJWCompact(W,J,Cancel,Before);
+            xmqttJWFinish(W,J);
+            continue;
+        }
+#endif
         if(J->Result.Status==XMQTT_COMMIT_OK){
             xerror* Saved=NULL;bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
             xmqttjournalstatus S=XMQTT_JOURNAL_ERROR;xmqttjournalinfo After=Before;bool PolicyRefused=false;
@@ -179,6 +255,7 @@ static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Da
 #if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     ,uint64 InboxKey
 #endif
+    XMQTT_JW_COMPACT_PARAM
 )
 {
     if(!W||isnan(Deadline)||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
@@ -189,9 +266,22 @@ static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Da
     if(!xmqttJWOutput(W,Out,sizeof(*Out))||!xmqttJWSeparate(Data.Data,Data.Size,W,sizeof(*W))){xrtMutexUnlock(&W->Gate);xmqttJWError(XERR_ARGUMENT,"append output overlaps owned state/result");goto End;}
     if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
     if(Data.Size>W->Config.MaxTransactionBytes||Data.Size>SIZE_MAX-sizeof(*J)||W->Info.Requests>=W->Config.MaxRequests||W->Info.Objects>=W->Config.MaxObjects||W->Info.Scheduling||!W->Config.WorkTransactions||(W->Running&&W->TurnAccepted>=W->Config.WorkTransactions))goto Overload;
-    N=sizeof(*J)+Data.Size;if(N>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
+    N=sizeof(*J)+Data.Size;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    if(Compact)N=sizeof(*J)+sizeof(xmqttjwcompact);
+#endif
+    if(N>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
     ++W->Info.Requests;++W->Info.Objects;W->Info.Bytes+=N;xmqttJWRef(W);Reserved=true;xrtMutexUnlock(&W->Gate);
-    J=xrtCalloc(1,N);if(!J)goto End;J->Owner=W;J->Allocation=N;J->Deadline=Deadline;J->Result.Data=(xbytesview){(const unsigned char*)(J+1),Data.Size};if(Data.Size)memcpy(J+1,Data.Data,Data.Size);
+    J=xrtCalloc(1,N);if(!J)goto End;J->Owner=W;J->Allocation=N;J->Deadline=Deadline;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    if(Compact)((xmqttjwcompact*)(J+1))->Config=*Compact;
+    else
+#endif
+    {
+        /* Even an empty opaque append has a non-NULL owned data marker. */
+        J->Result.Data=(xbytesview){(const unsigned char*)(J+1),Data.Size};
+        if(Data.Size)memcpy(J+1,Data.Data,Data.Size);
+    }
 #if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     J->InboxKey=InboxKey;
 #endif
@@ -234,11 +324,17 @@ XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker
 #if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
         ,0
 #endif
+        XMQTT_JW_COMPACT_ARG(NULL)
     );
 }
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out XMQTT_SW_INBOX_PARAM)
-{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_SW_INBOX_ARG(InboxKey));}
+{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_SW_INBOX_ARG(InboxKey) XMQTT_JW_COMPACT_ARG(NULL));}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjournalworker* W,
+    const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out)
+{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_SW_INBOX_ARG(0) XMQTT_JW_COMPACT_ARG(Config));}
 #endif
 XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
 {

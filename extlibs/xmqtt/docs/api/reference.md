@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `205` 个函数、`304` 个常量或宏、
-`118` 个公共类型。
+当前登记 `207` 个函数、`305` 个常量或宏、
+`120` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -891,6 +891,25 @@
 
 - `xmqttstorestateconfig`
 
+## `extlibs/xmqtt/include/xmqtt/store_compact_online.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/store_compact_online.h)
+
+### 函数 (2)
+
+- `xmqttStoreCompactConfigInit`
+- `xmqttStoreWriteCompactAsync`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE`
+- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
+
+### 类型 (2)
+
+- `xmqttstorecompactconfig`
+- `xmqttstorecompactresult`
+
 ## `extlibs/xmqtt/include/xmqtt/store_delta.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/store_delta.h)
@@ -946,10 +965,6 @@
 - `xmqttStoreInboxCreate`
 - `xmqttStoreInboxRelease`
 - `xmqttStoreInboxTake`
-
-### 常量与宏 (1)
-
-- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
 
 ### 类型 (5)
 

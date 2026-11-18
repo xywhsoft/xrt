@@ -1,4 +1,5 @@
 #include <xmqtt/journal_slot.h>
+#include "../internal/xmqtt_store_compact_online.h"
 #include "../internal/xmqtt_journal_replay.h"
 #include "../internal/xmqtt_journal_worker.h"
 #include <xrt/crc32.h>
@@ -416,6 +417,20 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(xroot Root,const xmqttjournalc
 static bool xmqttJSSpan(const xmqttjournalslot* S,const void* Out,size_t Size)
 {return S&&xmqttJSpan(Out,Size)&&xmqttJSeparate(S,sizeof(*S)+S->Config.Binding.Size,Out,Size);}
 
+static xmqttjournalstatus xmqttJSRepair(xmqttjournalslot* S)
+{
+    if(!S->RepairOffset)return XMQTT_JOURNAL_DONE;
+    /* Leave the selected witness intact before reusing the inactive file. */
+    unsigned char P[XMQTT_J_PAGE];
+    xmqttJSWitness(P,&S->Current);
+    if(xmqttJSWrite(S->Control,S->RepairOffset,P)&&xrtFlush(S->Control)){
+        S->RepairOffset=0;
+        return XMQTT_JOURNAL_DONE;
+    }
+    S->Poisoned=true;
+    return XMQTT_JOURNAL_IO;
+}
+
 static xmqttjournalstatus xmqttJSOpenData(xmqttjournalslot* S,xmqttjournal** Out,bool Prepare)
 {
     if(!xmqttJSSpan(S,Out,sizeof(*Out)))
@@ -430,18 +445,7 @@ static xmqttjournalstatus xmqttJSOpenData(xmqttjournalslot* S,xmqttjournal** Out
     xmqttjournal* J=NULL;
     uint64 Generation=S->Current.Generation+(Prepare?1u:0u);
     xmqttjournalstatus Status=XMQTT_JOURNAL_DONE;
-    if(Prepare&&S->RepairOffset){
-        /* Repair only the stale witness, leaving the selected one intact
-         * before that slot can be reused. */
-        unsigned char P[XMQTT_J_PAGE];
-        xmqttJSWitness(P,&S->Current);
-        if(xmqttJSWrite(S->Control,S->RepairOffset,P)&&xrtFlush(S->Control))
-            S->RepairOffset=0;
-        else{
-            S->Poisoned=true;
-            Status=XMQTT_JOURNAL_IO;
-        }
-    }
+    if(Prepare)Status=xmqttJSRepair(S);
     if(Status==XMQTT_JOURNAL_DONE)Status=xmqttJSData(S,Generation,Prepare,Prepare,&J);
     if(Status==XMQTT_JOURNAL_DONE&&!Prepare){
         xmqttjwitness Latest={J->Info.Sequence,J->Info.CommittedEnd,J->Info.Chain};
@@ -471,16 +475,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotOpenCurrent(xmqttjournalslot* S,xmq
 XMQTT_API xmqttjournalstatus xmqttJournalSlotPrepare(xmqttjournalslot* S,xmqttjournal** Out)
 {return xmqttJSOpenData(S,Out,true);}
 
-XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjournal* J)
+static xmqttjournalstatus xmqttJSSelect(xmqttjournalslot* S,const xmqttjournal* J)
 {
-    if(!S||!J)return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid slot or prepared Journal");
-    if(S->Busy||S->Poisoned||!S->Prepared||S->Child!=J||J->Busy||!xmqttJOwner(J,NULL)||
-       J->Info.State!=XMQTT_JOURNAL_READY)
-        return xmqttJError(XMQTT_JOURNAL_STATE,"publication requires this slot's ready prepared Journal");
-    xerror* Saved=NULL;
-    if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
-    S->Busy=true;
-    J->Busy=true;
     xmqttslotmark Mark={J->Config.Generation,{J->Info.Sequence,J->Info.CommittedEnd,J->Info.Chain}};
     unsigned char P[XMQTT_J_PAGE];
     xmqttJSWitness(P,&Mark);
@@ -492,6 +488,20 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjo
         S->Prepared=false;
         Status=XMQTT_JOURNAL_DONE;
     }
+    return Status;
+}
+
+XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjournal* J)
+{
+    if(!S||!J)return xmqttJError(XMQTT_JOURNAL_ERROR,"invalid slot or prepared Journal");
+    if(S->Busy||S->Poisoned||!S->Prepared||S->Child!=J||J->Busy||!xmqttJOwner(J,NULL)||
+       J->Info.State!=XMQTT_JOURNAL_READY)
+        return xmqttJError(XMQTT_JOURNAL_STATE,"publication requires this slot's ready prepared Journal");
+    xerror* Saved=NULL;
+    if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
+    S->Busy=true;
+    J->Busy=true;
+    xmqttjournalstatus Status=xmqttJSSelect(S,J);
     Status=xmqttJFinish(NULL,Saved,Status);
     if(Status!=XMQTT_JOURNAL_DONE){
         S->Poisoned=true;
@@ -501,6 +511,77 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjo
     S->Busy=false;
     return Status;
 }
+
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjournal* J,
+    const void* Owner,uint64 Transactions,uint64 ReplayBytes,uint64 MinReclaim,xmqttstorecompactresult* Result)
+{
+    xmqttjournalslot* Slot=J->Slot;
+    if(!Slot||Slot->Child!=J||Slot->Prepared||Slot->Busy||Slot->Poisoned||
+       Slot->Current.Generation!=J->Config.Generation||!xmqttJOwner(J,Owner)||
+       J->Busy||J->Info.State!=XMQTT_JOURNAL_READY)
+        return xmqttJError(XMQTT_JOURNAL_STATE,"online compaction requires the selected owned Journal");
+    Result->PreviousGeneration=Result->Generation=J->Config.Generation;
+    Result->PreviousBytes=Result->Bytes=J->Info.CommittedEnd;
+    Result->Sequence=J->Info.Sequence;
+    uint64 Bytes=J->Info.CommittedEnd-XMQTT_J_START;
+    if(ReplayBytes>Bytes||Transactions>(Bytes-ReplayBytes)/XMQTT_J_OVERHEAD)
+        return XMQTT_JOURNAL_EMPTY;
+    uint64 Saved=Bytes-ReplayBytes-Transactions*XMQTT_J_OVERHEAD;
+    if(!Saved||Saved<MinReclaim)return XMQTT_JOURNAL_EMPTY;
+    return Slot->Current.Generation==UINT64_MAX?XMQTT_JOURNAL_LIMIT:XMQTT_JOURNAL_DONE;
+}
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactReplace(xmqttjournal** Current,
+    const void* Owner,xmqttcompactencode Encode,ptr Context,xmqttcompactstop Stop,ptr StopContext,
+    xmqttstorecompactresult* Result)
+{
+    xmqttjournal* Old=*Current;
+    xmqttjournalslot* Slot=Old->Slot;
+    if(Stop(StopContext))return XMQTT_JOURNAL_EMPTY;
+    Slot->Busy=Old->Busy=true;
+    xmqttjournal* Candidate=NULL;
+    xmqttjournalstatus Status=xmqttJSRepair(Slot);
+    if(Status==XMQTT_JOURNAL_DONE)
+        Status=xmqttJSData(Slot,Old->Config.Generation+1,true,true,&Candidate);
+    if(Status==XMQTT_JOURNAL_DONE)
+        Status=Encode(Candidate,Context);
+    if(Status==XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_IO; /* inactive writes */
+    if(Status==XMQTT_JOURNAL_DONE){
+        if(Stop(StopContext))Status=XMQTT_JOURNAL_EMPTY;
+        else{
+            Status=xmqttJSSelect(Slot,Candidate);
+            Result->Effect=Slot->Effect;
+        }
+    }
+    Old->Busy=false;
+    if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
+        /* Publish the new worker owner even if closing the old file reports a
+         * late error. The durable selector must govern all subsequent work. */
+        Old->Slot=NULL;
+        Candidate->Worker=Owner;
+        Candidate->Slot=Slot;
+        Slot->Child=*Current=Candidate;
+        Result->Generation=Candidate->Config.Generation;
+        Result->Sequence=Candidate->Info.Sequence;
+        Result->Bytes=Candidate->Info.CommittedEnd;
+        if(!xmqttInternalJournalWorkerDestroy(Old,Owner)){
+            (void)xmqttInternalJournalWorkerDestroy(Old,Owner);
+            Slot->Poisoned=true;
+            Candidate->Info.State=XMQTT_JOURNAL_POISONED;
+            Status=XMQTT_JOURNAL_IO;
+        }
+    }else{
+        if(Status==XMQTT_JOURNAL_UNCERTAIN)Slot->Poisoned=true;
+        if(Slot->Poisoned)Old->Info.State=XMQTT_JOURNAL_POISONED;
+        if(!xmqttJournalDestroy(Candidate)){
+            (void)xmqttJournalDestroy(Candidate);
+            if(Status!=XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_IO;
+        }
+    }
+    Slot->Busy=false;
+    return Status;
+}
+#endif
 
 XMQTT_API bool xmqttJournalSlotInfo(xmqttjournalslot* S,xmqttjournalslotinfo* Out)
 {

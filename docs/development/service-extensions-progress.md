@@ -14310,3 +14310,19 @@ The fixtures reduce a 15- or 16-transaction history to three transactions.
 Live compaction scheduling, namespace and device power-loss qualification,
 and production throughput and tail latency remain open.
 [Stage evidence](xmqtt-store-compact-20261118.json).
+
+
+## 2026-11-18 Online MQTT store rotation
+
+The typed Writer can queue a checkpoint without retiring its Client.
+Both MQTT versions complete durable QoS 1 round trips on the same TCP
+connection across publication. The acknowledgement from an existing Inbox
+lease becomes the first new-generation delta. Fresh
+recovery verifies later delivery keys and END. Native fault tests exercise
+cancellation during candidate I/O, continued use after inactive-write failure,
+and fencing plus recovery after an uncertain selector publication.
+
+The caller chooses the maintenance trigger. Other durable requests wait
+behind the bounded checkpoint. Production throughput, tail latency, automatic
+maintenance policy, and power-loss validation remain open.
+[Stage evidence](xmqtt-store-compact-online-20261118.json).

@@ -1,4 +1,4 @@
-#include <xmqtt/store_compact.h>
+#include <xmqtt/store_compact_online.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -43,12 +43,57 @@ static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
     return Good;
 }
 
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
+{
+    xmqttjournal* J=NULL;
+    if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
+    xmqttstorestate* State=NULL;
+    xmqttstorewrite* W=NULL;
+    xtaskpool* Pool=NULL;
+    xfuture* F=NULL;
+    bool Good=false;
+    if(xmqttStoreStateRecover(J,Config,&State)!=XMQTT_STORE_DONE)goto Done;
+    xtaskpoolconfig PC={.Threads=1,.QueueLimit=4};
+    Pool=xrtTaskPoolCreate(&PC);
+    xmqttstorewriteconfig WC;
+    if(!Pool||!xmqttStoreWriteConfigInit(&WC)||!xmqttStoreWriteCreate(Pool,J,State,&WC,&W))goto Done;
+    J=NULL;
+    State=NULL;
+    xmqttstorecompactconfig C;
+    xmqttStoreCompactConfigInit(&C);
+    C.MinReclaimBytes=1;
+    if(xmqttStoreWriteCompactAsync(W,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
+       xrtFutureWaitFor(F,10000)!=XWAIT_OK)goto Done;
+    const xmqttstorecompactresult* R=xrtFutureValue(F);
+    Good=R&&R->Status==XMQTT_COMMIT_OK&&R->Effect==XMQTT_JOURNAL_COMMITTED;
+Done:
+    xrtFutureDestroy(F);
+    if(!xmqttStoreWriteDestroy(W)){(void)xmqttStoreWriteDestroy(W);Good=false;}
+    xmqttStoreStateDestroy(State);
+    if(!xmqttJournalDestroy(J)){(void)xmqttJournalDestroy(J);Good=false;}
+    if(Pool&&(!xrtTaskPoolClose(Pool)||xrtTaskPoolWaitFor(Pool,XRT_WAIT_FOREVER)!=XWAIT_OK||!xrtTaskPoolDestroy(Pool)))Good=false;
+    return Good;
+}
+#endif
+
 int main(int Argc,char** Argv)
 {
-    if(Argc==1){puts("Usage: examples_store_compact_main create|compact|read DIRECTORY");return 0;}
+    if(Argc==1){
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+        puts("Usage: examples_store_compact_main create|compact|online|read DIRECTORY");
+#else
+        puts("Usage: examples_store_compact_main create|compact|read DIRECTORY");
+#endif
+        return 0;
+    }
     if(Argc!=3)return 2;
     bool Create=!strcmp(Argv[1],"create"),Compact=!strcmp(Argv[1],"compact");
-    if(!Create&&!Compact&&strcmp(Argv[1],"read"))return 2;
+    bool Online=false;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+    Online=!strcmp(Argv[1],"online");
+#endif
+    if(!Create&&!Compact&&!Online&&strcmp(Argv[1],"read"))return 2;
     xroot Root=xrtRootOpen(Argv[2]);
     if(!Root)return 1;
     xmqttjournalconfig JC;
@@ -61,11 +106,14 @@ int main(int Argc,char** Argv)
     xmqttjournalslot* Slot=NULL;
     bool OK=(Create?xmqttJournalSlotCreate(Root,&JC,&Slot):xmqttJournalSlotOpen(Root,&JC,&Slot))==XMQTT_JOURNAL_DONE;
     if(OK&&Create)OK=seed(Slot,&C);
-    if(OK&&Compact){
+    if(OK&&(Compact||Online)){
         xmqttjournalslotinfo I;
         OK=xmqttJournalSlotInfo(Slot,&I);
         if(OK){
             C.Generation=I.Generation;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+            if(Online)OK=online(Slot,&C);else
+#endif
             OK=xmqttStoreCompact(Slot,&C,256)==XMQTT_JOURNAL_DONE;
         }
     }

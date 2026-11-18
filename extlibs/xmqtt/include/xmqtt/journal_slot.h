@@ -26,7 +26,9 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(xroot Root,const xmqttjournalc
 /* Open the exact selected generation. Replay all records through EMPTY to
  * verify its complete history and the published prefix. The returned Journal
  * may transfer into the existing JournalWorker. Join and destroy it before
- * opening another Journal or preparing a replacement. */
+ * opening another Journal or preparing a replacement through the public slot
+ * API. An online Store Writer can rotate its own child on the storage task.
+ * Serialize direct Slot access with that Writer lifetime. */
 XMQTT_API xmqttjournalstatus xmqttJournalSlotOpenCurrent(xmqttjournalslot* Slot,xmqttjournal** Journal);
 /* After the selected generation has been fully recovered and retired, reset
  * only the inactive file and initialize it at Generation+1. Supply a complete

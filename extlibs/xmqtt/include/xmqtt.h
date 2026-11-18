@@ -42,6 +42,7 @@
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
 #include <xmqtt/store_compact.h>
+#include <xmqtt/store_compact_online.h>
 #include <xmqtt/store_session.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #error "MQTT root requires store Session import"
