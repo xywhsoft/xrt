@@ -111,6 +111,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_POOL 1
 #endif
@@ -224,6 +227,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_SENTINEL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_SENTINEL_EVENTS)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL_EVENTS 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_SENTINEL_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL_POOL 1
@@ -2812,6 +2818,9 @@
 #ifndef XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #define XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
+#define XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
+#endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
 #define XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
 #endif
@@ -2998,6 +3007,22 @@
 #endif
 #ifndef XREDIS_MODULE_XREDIS_REPLY
 #define XREDIS_MODULE_XREDIS_REPLY
+#endif
+#endif
+
+/* xredis_sentinel_events 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SENTINEL_EVENTS)
+#ifndef XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#define XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SENTINEL_POOL
+#define XREDIS_MODULE_XREDIS_SENTINEL_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#define XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY
+#define XREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY
 #endif
 #endif
 
@@ -5319,6 +5344,51 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/sentinel_events.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_SENTINEL_EVENTS_H
+#define XREDIS_SENTINEL_EVENTS_H
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS) && \
+    (!defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL) || !defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION) || \
+     !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY))
+#error "Sentinel events require native Sentinel pools, subscription sessions and receive notifications"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+typedef struct xredissentineleventconfig {
+    size_t Size, WorkMessages;
+    int64 AttemptTimeout, RetryMin, RetryMax, HintInterval;
+} xredissentineleventconfig;
+typedef struct xredissentineleventinfo {
+    size_t Size, Seed;
+    xredissubscriptionsessioninfo Session;
+    xredissentinelstatus LastSeedStatus;
+    uint64 Matched, Ignored, Hints;
+} xredissentineleventinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: 16 messages/turn, 5s setup, 100ms..10s jitter and 50ms
+ * between hints. WorkMessages 1..64; all times 1..60000ms. */
+XREDIS_API bool xredisSentinelEventConfigInit(xredissentineleventconfig* Config);
+/* Start one optional, reconnecting subscription to +switch-master.
+ * Uses the pool's configured/learned seed factories on its worker and their
+ * native push limits. The service name must be a single event token.
+ * Factory/readiness/subscription share one original attempt deadline.
+ * ACCEPTED copies Config and schedules setup, including when called via Notify.
+ * Repeated registration returns OVERLOADED; closed pools return CLOSED.
+ * Each valid event is only a paced hint for full query plus ROLE verification.
+ * The first acknowledged subscription and each restored one also queue a hint.
+ * Session failures surface via Info while existing data leases keep working.
+ * Close retires the subscriber before the pool context Drop. Periodic
+ * topology refresh remains independently configurable. */
+XREDIS_API xredisadmission xredisSentinelPoolListen(xredispool* Pool,const xredissentineleventconfig* Config);
+/* Thread-safe snapshot also available after physical close. */
+XREDIS_API bool xredisSentinelPoolEventInfo(xredispool* Pool,xredissentineleventinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/cluster_topology.h */
 /* ========================================================================== */
 
@@ -6279,6 +6349,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SENTINEL_POOL"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS"
+#endif
+
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY"
 #endif
@@ -6432,6 +6506,10 @@ XRT_EXTERN_C_END
 #undef XREDIS_FEATURE_XREDIS_SENTINEL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+#undef XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
 #undef XREDIS_FEATURE_XREDIS_SENTINEL_POOL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SENTINEL_POOL
@@ -6583,6 +6661,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL)
 #undef XREDIS_MODULE_XREDIS_SENTINEL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL_EVENTS)
+#undef XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SENTINEL_POOL)
 #undef XREDIS_MODULE_XREDIS_SENTINEL_POOL
@@ -8393,6 +8475,9 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #define XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
+#define XREDIS_MODULE_XREDIS_SENTINEL_EVENTS
+#endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
 #define XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
 #endif
@@ -8579,6 +8664,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_REPLY
 #define XREDIS_MODULE_XREDIS_REPLY
+#endif
+#endif
+
+/* xredis_sentinel_events 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SENTINEL_EVENTS)
+#ifndef XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#define XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SENTINEL_POOL
+#define XREDIS_MODULE_XREDIS_SENTINEL_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#define XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY
+#define XREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY
 #endif
 #endif
 

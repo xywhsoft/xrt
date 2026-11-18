@@ -24,8 +24,8 @@ No worker/runtime or per-business request Future/proxy is introduced. A
 Sentinel-only cold state allocation holds configuration, bounded service/host
 storage and one discovery/watch state per slot. Native pool/client public
 layouts remain unchanged. ROLE verifies point-in-time identity; it cannot
-establish consensus/freshness. The Pub/Sub transport binding remains separate
-work.
+establish consensus/freshness. Enable the optional [Sentinel event listener](sentinel_events.md)
+to request verified refreshes from native subscriptions.
 [Runnable example](../examples/sentinel_pool/README.md).
 
 ## Replica pools

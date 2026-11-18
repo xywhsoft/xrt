@@ -155,6 +155,11 @@ static int testPubSubPackage(void)
 #include "../../examples/sentinel_pool/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+#define main sentinelEventsPackageExample
+#include "../../examples/sentinel_events/main.c"
+#undef main
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
 #define main clusterTopologyPackageExample
 #include "../../examples/cluster_topology/main.c"
@@ -263,6 +268,9 @@ int main(void)
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
     if(sentinelPoolPackageExample())return 1;
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+    if(sentinelEventsPackageExample())return 1;
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL)
     if(sentinelPackageExample())return 1;

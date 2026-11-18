@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `226` 个函数、`361` 个常量或宏、
-`163` 个公共类型。
+当前登记 `229` 个函数、`362` 个常量或宏、
+`165` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -898,6 +898,29 @@
 - `xredissentinelstatus`
 - `xredissentinelstep`
 
+## `extlibs/xredis/include/xredis/sentinel_events.h`
+
+[查看带契约注释的公共头](../../include/xredis/sentinel_events.h)
+
+### 函数 (3)
+
+- `xredisSentinelEventConfigInit`
+- `xredisSentinelPoolEventInfo`
+- `xredisSentinelPoolListen`
+
+### 常量与宏 (4)
+
+- `XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS`
+- `XREDIS_FEATURE_XREDIS_SENTINEL_POOL`
+- `XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY`
+- `XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION`
+
+### 类型 (3)
+
+- `xredissentineleventconfig`
+- `xredissentineleventinfo`
+- `xredissubscriptionsessioninfo`
+
 ## `extlibs/xredis/include/xredis/sentinel_pool.h`
 
 [查看带契约注释的公共头](../../include/xredis/sentinel_pool.h)
@@ -915,9 +938,8 @@
 - `xredisSentinelReplicaPoolCreate`
 - `xredisSentinelReplicaPoolCreateWithSeeds`
 
-### 常量与宏 (6)
+### 常量与宏 (5)
 
-- `XREDIS_FEATURE_XREDIS_SENTINEL_POOL`
 - `XREDIS_SENTINEL_POOL_CLOSED`
 - `XREDIS_SENTINEL_POOL_CLOSING`
 - `XREDIS_SENTINEL_POOL_DISCOVERING`
@@ -965,10 +987,6 @@
 - `xredisSubscriberReadable`
 - `xredisSubscriberTakeBatch`
 
-### 常量与宏 (1)
-
-- `XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY`
-
 ## `extlibs/xredis/include/xredis/subscription_session.h`
 
 [查看带契约注释的公共头](../../include/xredis/subscription_session.h)
@@ -985,10 +1003,9 @@
 - `xredisSubscriptionSessionRelease`
 - `xredisSubscriptionSessionRetain`
 
-### 常量与宏 (10)
+### 常量与宏 (9)
 
 - `XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS`
-- `XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION`
 - `XREDIS_SESSION_BACKOFF`
 - `XREDIS_SESSION_CLOSED`
 - `XREDIS_SESSION_CLOSING`
@@ -998,7 +1015,7 @@
 - `XREDIS_SESSION_RESTORING`
 - `XREDIS_SESSION_UPDATING`
 
-### 类型 (11)
+### 类型 (10)
 
 - `xredissubscriptionreplayconfig`
 - `xredissubscriptions`
@@ -1008,7 +1025,6 @@
 - `xredissubscriptionsessionconnect`
 - `xredissubscriptionsessioncurrent`
 - `xredissubscriptionsessiondrop`
-- `xredissubscriptionsessioninfo`
 - `xredissubscriptionsessionnotify`
 - `xredissubscriptionsessionstate`
 

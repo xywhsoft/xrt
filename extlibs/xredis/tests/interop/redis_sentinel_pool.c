@@ -1,12 +1,13 @@
 #include <xredis/sentinel_pool.h>
+#include <xredis/sentinel_events.h>
 #include <xredis/dial.h>
 #include <xrt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 static void sprRequire(bool B,cstr T){if(!B){fprintf(stderr,"[FAIL] real Sentinel pool: %s\n",T);exit(1);}}
-/* Three pool members and at most two discoveries, with one Client per discovery. */
-enum { SPR_MAX_OBSERVERS = 5 };
+/* Three pool members, at most two discoveries and one optional subscriber. */
+enum { SPR_MAX_OBSERVERS = 6 };
 typedef struct sprcontext {
     uint16 Seed, Learned;
     unsigned Factory;
@@ -106,9 +107,14 @@ static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredisleas
 int main(int Argc,char** Argv)
 {
     bool Learn=Argc==10 && (!strcmp(Argv[8],"seed-master") || !strcmp(Argv[8],"seed-replica"));
-    bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica"));
+    bool Listen=Argc==9 && (!strcmp(Argv[8],"events-master") || !strcmp(Argv[8],"events-replica"));
+    bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica")) ||
+        (Listen&&!strcmp(Argv[8],"events-replica"));
     bool Refresh=Argc==9&&!strcmp(Argv[8],"refresh");
-    if((Argc!=8 && !Learn && !(Argc==9 && (Replicas || Refresh))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
+#if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+    if(Listen)return 2;
+#endif
+    if((Argc!=8 && !Learn && !(Argc==9 && (Replicas || Refresh || Listen))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
     unsigned long Seed=strtoul(Argv[1],NULL,10),Next=strtoul(Argv[2],NULL,10);sprcontext D={0};D.Seed=(uint16)Seed;D.Factory=(unsigned)strtoul(Argv[5],NULL,10);D.Mode=(xredisinitmode)strtol(Argv[6],NULL,10);size_t Count=(size_t)strtoul(Argv[7],NULL,10);if(!Seed || Seed>65535 || !Next || Next>65535 || D.Factory>2 || Count!=3)return 2;
     if(Learn){
         unsigned long Alternate=strtoul(Argv[9],NULL,10);
@@ -130,6 +136,23 @@ int main(int Argc,char** Argv)
     }else Pool=Replicas?xredisSentinelReplicaPoolCreate(E,1,Count,&O,&K,sprMaster,8,&P):
         xredisSentinelPoolCreate(E,1,Count,&O,&K,&P);
     sprRequire(Pool==XREDIS_ADMISSION_ACCEPTED,"pool create");xfuture* Acquired[3];xredislease* L[3];for(size_t N=0;N<Count;++N){Acquired[N]=sprAcquire(P);L[N]=sprLease(Acquired[N]);xfuture* ID=sprIdentity(L[N],Argv[3]);xrtFutureDestroy(ID);}
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+    uint64 PreviousHints=0;
+    if(Listen){
+        xredissentineleventconfig C;
+        sprRequire(xredisSentinelEventConfigInit(&C),"initialize native listener");
+        sprRequire(xredisSentinelPoolListen(P,&C)==XREDIS_ADMISSION_ACCEPTED,"enable native listener");
+        xredissentineleventinfo Snapshot={.Size=sizeof(Snapshot)};
+        double Due=xrtTimer()+10;
+        for(;;){
+            sprRequire(xredisSentinelPoolEventInfo(P,&Snapshot),"listener info");
+            if(Snapshot.Session.State==XREDIS_SESSION_ONLINE && Snapshot.Hints)break;
+            sprRequire(xrtTimer()<Due,"listener acknowledge and initial recheck");
+            xrtSleep(1);
+        }
+        PreviousHints=Snapshot.Hints;
+    }
+#endif
     if(Learn){
         sprSeedRecovery(P,E,&D,L,Argv[3],(uint16)Next,Replicas);
         for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);
@@ -151,5 +174,19 @@ int main(int Argc,char** Argv)
     }
     xredislease* New=sprLease(Waiting);xfuture* Current=sprIdentity(New,Argv[4]);const xredisrequestresult* OldResult=sprWait(Old);sprRequire(OldResult->Status!=XREDIS_REQUEST_OK && OldResult->Delivery==XREDIS_MAY_HAVE_EXECUTED,"old sent operation retains uncertainty");xfuture* List=sprCall(New,Clients,2);sprRequire(!sprContains(sprValue(List).Data,Command),"no old blocking command replayed on selected node");xrtFutureDestroy(List);
     xredissentinelpoolinfo I={0};I.Size=sizeof(I);sprRequire(xredisSentinelPoolInfo(P,&I) && I.Generation==2 && I.Changes==1 && I.Port==(uint16)Next,"whole verified generation replaced");
-    sprClose(P,E,&D);sprRequire(sprValue(Current).Data.Size>0 && ((const xredisrequestresult*)sprWait(Old))->Delivery==XREDIS_MAY_HAVE_EXECUTED && xredisSentinelPoolInfo(P,&I) && I.Phase==XREDIS_SENTINEL_POOL_CLOSED,"retained outcomes after engine teardown");xredisPoolRelease(P);for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);xrtFutureDestroy(Waiting);xrtFutureDestroy(Old);xrtFutureDestroy(Current);printf("[PASS] automatic Sentinel %s pool: %s, native queued lease, no replay, retained uncertainty and physical close; observers_peak=%zu\n",Replicas?"replica":Refresh?"refresh":"master",Refresh?"live Sentinel remap":"real failover",D.Peak);return 0;
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+    if(Listen){
+        xredissentineleventinfo Snapshot={.Size=sizeof(Snapshot)};
+        double Due=xrtTimer()+10;
+        for(;;){
+            sprRequire(xredisSentinelPoolEventInfo(P,&Snapshot),"event observation");
+            if(Snapshot.Matched && Snapshot.Hints>PreviousHints)break;
+            sprRequire(xrtTimer()<Due,"real +switch-master event reached the listener");
+            xrtSleep(1);
+        }
+        printf("event matched=%llu hints=%llu\n",(unsigned long long)Snapshot.Matched,(unsigned long long)Snapshot.Hints);
+    }
+#endif
+    sprClose(P,E,&D);sprRequire(sprValue(Current).Data.Size>0 && ((const xredisrequestresult*)sprWait(Old))->Delivery==XREDIS_MAY_HAVE_EXECUTED && xredisSentinelPoolInfo(P,&I) && I.Phase==XREDIS_SENTINEL_POOL_CLOSED,"retained outcomes after engine teardown");xredisPoolRelease(P);for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);xrtFutureDestroy(Waiting);xrtFutureDestroy(Old);xrtFutureDestroy(Current);printf("[PASS] automatic Sentinel %s pool: %s, native queued lease, no replay, retained uncertainty and physical close; observers_peak=%zu\n",Listen?(Replicas?"events-replica":"events-master"):Replicas?"replica":Refresh?"refresh":"master",
+        Refresh?"live Sentinel remap":"real failover",D.Peak);return 0;
 }

@@ -150,7 +150,8 @@
         "name": "sentinel_pool",
         "state": "retained",
         "source_roots": [
-          "sentinel_pool"
+          "sentinel_pool",
+          "sentinel_events"
         ]
       },
       {
@@ -502,6 +503,7 @@
         "xredis_role_client",
         "xredis_sentinel",
         "xredis_sentinel_pool",
+        "xredis_sentinel_events",
         "xredis_cluster_topology",
         "xredis_pool_asking",
         "xredis_pool_shared",
@@ -945,6 +947,7 @@
         "xredis_role_client_tests",
         "xredis_sentinel_tests",
         "xredis_sentinel_pool_tests",
+        "xredis_sentinel_events_tests",
         "xredis_cluster_topology",
         "xredis_pool_asking_tests",
         "xredis_pool_shared_tests",
@@ -988,6 +991,7 @@
         "extlibs/xredis/tests/test_role_client.c",
         "extlibs/xredis/tests/test_sentinel.c",
         "extlibs/xredis/tests/test_sentinel_pool.c",
+        "extlibs/xredis/tests/test_sentinel_events.c",
         "extlibs/xredis/tests/test_cluster_topology.c",
         "extlibs/xredis/tests/test_pool_asking.c",
         "extlibs/xredis/tests/test_pool_shared.c",
@@ -1036,6 +1040,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events.c",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_asking.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_asking_tls.c",
@@ -1096,6 +1102,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c": "xredis_sentinel_tests",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c": "xredis_sentinel_pool",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c": "xredis_sentinel_pool_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events.c": "xredis_sentinel_events",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events_tls.c": "xredis_sentinel_events_tests",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c": "xredis_cluster_topology",
         "extlibs/xredis/tests/single/test_single_xredis_pool_asking.c": "xredis_pool_asking",
         "extlibs/xredis/tests/single/test_single_xredis_pool_asking_tls.c": "xredis_pool_asking_tests",
@@ -1640,6 +1648,61 @@
       "docs": [
         "extlibs/xredis/docs/sentinel_pool.md"
       ]
+    },
+    {
+      "name": "xredis_sentinel_events",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS",
+      "depends": [
+        "xredis_sentinel_pool",
+        "xredis_subscription_session",
+        "xredis_subscriber_notify"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/sentinel_events.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/sentinel_events_internal.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/sentinel_events/sentinel_events.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_sentinel_events.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/sentinel_events/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/sentinel_events.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/sentinel_events/README.md"
+      ]
+    },
+    {
+      "name": "xredis_sentinel_events_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_sentinel_events",
+        "xredis_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_sentinel_events.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_events_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     },
     {
       "name": "xredis_cluster_topology",

@@ -1,0 +1,1271 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+  "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+  "initial_source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+  "fixture_source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+  "evidence_directory": "out/service-extensions/xredis-sentinel-events-20261118",
+  "scope": "Optional native Sentinel Pub/Sub listener with bounded event consumption, reconnect and verified refresh.",
+  "cases": [
+    "RESP2 and RESP3 exact service filtering and malformed event rejection.",
+    "Valid event payload provides no endpoint authority; role verification fences still-live old leases.",
+    "Bounded receive batches and paced hint coalescing.",
+    "Real Sentinel election generates native switch events, and both pool roles submit a verified refresh hint.",
+    "Local transport loss restores subscription through a learned seed and catches up without receiving the missed message.",
+    "Optional subscription denial or construction OOM preserves existing leases; close during ACK wait retires native context."
+  ],
+  "platforms": {
+    "windows": {
+      "tests": [
+        {
+          "label": "events",
+          "log": "windows-events-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "a00fd0e74c882bbb077449c1918b2576acee76dd6e7f03d7f2e27d8b4325b079",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-events-attempt2/test_sentinel_events.exe.gz",
+              "sha256": "9232291e3e8888247a3240252ca67b69d0d9a2a36df57a55fe6caa058ee9c59b",
+              "binary_sha256": "0a5b2e0ff16ccb87c6b5df7da2dc3f44470e872f69f420a4a78f2230c8d111dd"
+            },
+            {
+              "path": "binaries/windows/windows-events-attempt2/examples_sentinel_events_main.exe.gz",
+              "sha256": "d8faed1bc12421bcc026ca6a96b5f52056e9019f403ca34576ba42d75839bd38",
+              "binary_sha256": "53cfc2db0c4f36941ba7a0b5a46e65202be700269a06085ae5ccda43fa4e8afb"
+            },
+            {
+              "path": "binaries/windows/windows-events-attempt2/test_single_xredis_sentinel_events.exe.gz",
+              "sha256": "a31e53259e1b726e10e07bdc2fcef29c912225c8d2366370a18ff6765500b6b6",
+              "binary_sha256": "91acac4f126b87796b9c34ca50d3e5f0f85acbc844ec283de4387bca93160fec"
+            }
+          ]
+        },
+        {
+          "label": "events-tls",
+          "log": "windows-events-tls-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "d35c2b41ad436e08cd2333e87a9e7683e8d6290d323472da4aa201c14b3978b3",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-events-tls-attempt2/test_sentinel_events.exe.gz",
+              "sha256": "1e2dd3e32e2c481373b76f110f2f9e5e8916c5cd4322eb6dd18a27bfe93c4403",
+              "binary_sha256": "6d04f3a36575a6391bfb82cbd5ed687247358ba16135ab0cacba738d987ba8c1"
+            },
+            {
+              "path": "binaries/windows/windows-events-tls-attempt2/test_single_xredis_sentinel_events_tls.exe.gz",
+              "sha256": "03743d86ed9e84b5540b0d9ce79963b4bc4bb56a567de44e3e5a535136a0405f",
+              "binary_sha256": "e6defd3556e279880674b09ef81f49b6d6b1589b69c5c33305a0c7d69dc93c8f"
+            }
+          ]
+        },
+        {
+          "label": "pool-regression",
+          "log": "windows-pool-regression.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "ad98da79bed0c05053a7c031362a4d9d3ffcad8506dd8a34d665bb6e12be1260",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-pool-regression/test_sentinel_pool.exe.gz",
+              "sha256": "7f673719bdc709dd1c6075bfd639d87c3d8bd05b75489c84c1674dda0290e1e4",
+              "binary_sha256": "c3c1b98fff49d9d147752238a7a5c8fde230e0ea266ef296531e7a42ac07edb7"
+            },
+            {
+              "path": "binaries/windows/windows-pool-regression/examples_sentinel_pool_main.exe.gz",
+              "sha256": "4d171cd62a4d1d772d05afcb043378c20ac46bedfed7bce43028b8eef5bd003b",
+              "binary_sha256": "6980be8668c832cac3a8daaa35ce1f4847a45bf03f16ef8cc5308dc97de4ce2e"
+            },
+            {
+              "path": "binaries/windows/windows-pool-regression/test_single_xredis_sentinel_pool.exe.gz",
+              "sha256": "25365dae34b2626f90268e0b180b834f28134ea3252986ef4f3228658924d3db",
+              "binary_sha256": "d06f744fff1955ca4a56116e67090e4fcca9b2e89068de172be970246fdd385e"
+            }
+          ]
+        },
+        {
+          "label": "subscriber-regression",
+          "log": "windows-subscriber-regression.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_subscription_session",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "6535ec1f5ee1a4bc0b99f745cc03147ddecd7c63ab4f51c21640bb9c3521f823",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/windows/windows-subscriber-regression/test_subscription_session.exe.gz",
+              "sha256": "be18002dd6c661e10e23b70d04a8497c67b312a8c82106ba5b80a88cb4ac006f",
+              "binary_sha256": "72e8507093ca64955002a2ef98c0d88c6b19434d785e84f14517a664f9fb70a0"
+            },
+            {
+              "path": "binaries/windows/windows-subscriber-regression/examples_subscription_session_main.exe.gz",
+              "sha256": "d0939c06bfb18ead9b1820d8e19950da4d0ec1a419dbbc93f3be1a27676bb570",
+              "binary_sha256": "510ff1c1155477b919a72048d8a0e91327c2c6b5fee6fd7808f42e09e4122ba8"
+            },
+            {
+              "path": "binaries/windows/windows-subscriber-regression/test_single_xredis_subscription_session.exe.gz",
+              "sha256": "47783db842dd07d22a7035c20e8af86035c507ac54416f826555aa8b75736252",
+              "binary_sha256": "4d48fdde5a76b1cb9737bc7291d887dc76789e2c80f59c037db9bdf1e832c955"
+            }
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "label": "package-static",
+          "log": "windows-package-static-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+          "log_sha256": "14abb5553b138e8ee8ac6d583951cd524b92a925649a5c929b49730ede2bd82e",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "windows-package-shared-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+          "log_sha256": "df702bc73c5adfc3fcccf2b59aae19db7c91d4a945a76be903643748ad5aafa4",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "real_probe_build": {
+        "label": "redis-real-build",
+        "log": "windows-redis-real-build.log",
+        "exit_code": 0,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-events-20261118\\stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+        "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+        "log_sha256": "40148fc6d7c99825fed15fb0ecd752974ed1d460a4ff4323a30f5c84760a1eee",
+        "programs": 0,
+        "binaries": []
+      },
+      "redis": {
+        "events-master": {
+          "count": 9,
+          "report": "redis-regression-windows-events-master.json",
+          "sha256": "552e2ef34c0a170e1bc5b619ce10311a874f1fb383d1eae139f48253878ad3d4",
+          "binary_sha256": "63532f5532fd80997115383b9167bca018d0e52d9b2f57d12a9748eab0c2cca9",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 5,
+          "event_counts": [
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            }
+          ],
+          "receipt": {
+            "label": "redis-regression-windows-events-master",
+            "log": "wsl-redis-regression-windows-events-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-windows-events-master.json",
+              "--listen",
+              "master"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "903613da0786063b55d78e823536f19322c1630a58f87f6e20f998b62c37e0bc",
+            "replica": "6bccef0024b34f7dc656c7e838e51c7cc233ae640e82449772173c8b050671ca",
+            "sentinel": "fa27434007fc6eae7095ee1b1b397375db03644353f5ba845c7cf2280808f229"
+          }
+        },
+        "events-replica": {
+          "count": 9,
+          "report": "redis-regression-windows-events-replica.json",
+          "sha256": "a945345ea6b19f01d8f5560e83aebd1bccbb43110e489c5490fc7611394afa47",
+          "binary_sha256": "63532f5532fd80997115383b9167bca018d0e52d9b2f57d12a9748eab0c2cca9",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 5,
+          "event_counts": [
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            }
+          ],
+          "receipt": {
+            "label": "redis-regression-windows-events-replica",
+            "log": "wsl-redis-regression-windows-events-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-windows-events-replica.json",
+              "--listen",
+              "replica"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "ae3c11a36d8a4669b54e39ef0b558b013849c046eb9bc5a32b55a408b578af8d",
+            "replica": "c790b66fead180f52320000566b05711cc35f2db0b2db3dbae2a764ed694a4de",
+            "sentinel": "e356cd37c6cabbe3c83c8fae46a34af80e0527aab12927516634c29527dae296"
+          }
+        },
+        "refresh": {
+          "count": 9,
+          "report": "redis-regression-windows-refresh.json",
+          "sha256": "8a06d0d75ca27a81e0b320dc92d4aa832d1efd1b2721b18567e4bd0da59fa9fb",
+          "binary_sha256": "63532f5532fd80997115383b9167bca018d0e52d9b2f57d12a9748eab0c2cca9",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 4,
+          "event_counts": [],
+          "receipt": {
+            "label": "redis-regression-windows-refresh",
+            "log": "wsl-redis-regression-windows-refresh.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/windows/redis_sentinel.exe",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-windows-refresh.json",
+              "--refresh"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "904a22b7bb94b4d466edda7998403437544f306f3cd89a4ef050ea9a632ce6d8",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "1377cb3a2db8d22b7ef98390a1bd90fc8adced3f403e865bd09f56a0023c0cf2",
+            "replica": "0a955d94cedd3e4b69a1500fc520f92910bcc680ffc922e5b82250c081406871",
+            "sentinel": "3dd8089e4a3638fb4e3fa11408d80c5601c34f99426fa3096893c837325bbd9a"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "tests": [
+        {
+          "label": "events",
+          "log": "wsl-events-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "c10f5c691a7ed4ede751f33459723ac0733e1ce5814ce82f74980565f486e425",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-events-attempt2/test_sentinel_events.gz",
+              "sha256": "c8ffaaea580c3d742a75938586a578aa686bc44c4d9d3677cd38b159016c13fa",
+              "binary_sha256": "3caf20f52395874a7eba4e8219db6dc56f863bf4129dd4555af4d1439645f950"
+            },
+            {
+              "path": "binaries/wsl/wsl-events-attempt2/examples_sentinel_events_main.gz",
+              "sha256": "c734921b48ea856955792f144b04baf9d65c76b6629c154d2b3bc442b7cb484d",
+              "binary_sha256": "19613d147f58da1f2ea058f5bc637873a7233761871edac08e5fc52d5f221d43"
+            },
+            {
+              "path": "binaries/wsl/wsl-events-attempt2/test_single_xredis_sentinel_events.gz",
+              "sha256": "c26c539694456d70d70bc00795a51a39cd1d4c23b55e666d97f414f685390abe",
+              "binary_sha256": "a87f86c2c688f335c4ce0865e85d9a0d049917e84951eef905d8862a9072ab44"
+            }
+          ]
+        },
+        {
+          "label": "events-tls",
+          "log": "wsl-events-tls-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events_tests",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "fc432a5d0edf22d59dbf1624cd8dbc951ea69eec2a13513f40b748644bdf2f90",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-events-tls-attempt2/test_sentinel_events.gz",
+              "sha256": "1c2edc8c603823f828d319144942c96c65f85d0125a29be1e6a0a0305b87f14d",
+              "binary_sha256": "afdd6c7a810c8ffe065d3906f2382787be5943d272e9c085330d796e417490a7"
+            },
+            {
+              "path": "binaries/wsl/wsl-events-tls-attempt2/test_single_xredis_sentinel_events_tls.gz",
+              "sha256": "f2a5310d6f6a0d699932c7a88d0270e476a7d8214f1e6054a9d41d3096c80c73",
+              "binary_sha256": "223491b1e5c70721bbf4794bad3f0df66098042f1582663cd61aee68b5231520"
+            }
+          ]
+        },
+        {
+          "label": "pool-regression",
+          "log": "wsl-pool-regression.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_pool",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "e6ddee91fae620504570d5a9900bd83c9629313c720444ef413178dbfdbf150f",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-pool-regression/test_sentinel_pool.gz",
+              "sha256": "9e371d4c110debdee659e5e51eb7d5723bd23354c8f79bafa54dbd99eb9dcba8",
+              "binary_sha256": "3d3fbc2738a740fa10d23efa4174adafca23011e0afb382c272467d7a2362d6c"
+            },
+            {
+              "path": "binaries/wsl/wsl-pool-regression/examples_sentinel_pool_main.gz",
+              "sha256": "396e9f12a793f6c4bd2d22fb8c24ffca7eabfba7b30f943679e4b54b28a24388",
+              "binary_sha256": "60a8c5c39f1dbfb2686b52147265d224ac7c8c4bdd17e01961f6c29b95c384f7"
+            },
+            {
+              "path": "binaries/wsl/wsl-pool-regression/test_single_xredis_sentinel_pool.gz",
+              "sha256": "314e5bbdb18e4f42ee2b6751c8441fe15996c000c451b7c0d1008d79a1aef4c2",
+              "binary_sha256": "4ac92c8bee2a3bb9afd7a12a08b1c1ab202451ac5c0bf16e6d85787d3d853ae2"
+            }
+          ]
+        },
+        {
+          "label": "subscriber-regression",
+          "log": "wsl-subscriber-regression.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_subscription_session",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+          "log_sha256": "1706f8b409019c1cee547edf9d697fc5634e56b5570a508341657b92e8e770da",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "binaries/wsl/wsl-subscriber-regression/test_subscription_session.gz",
+              "sha256": "5350bd104b1b86540170bed3227a5255370deddfae9ddcceddd4063c26219ac9",
+              "binary_sha256": "2e1bf0d4a1eb7481a6be166c8502ece8c370fece1c01aeb90c635a91194ee4ed"
+            },
+            {
+              "path": "binaries/wsl/wsl-subscriber-regression/examples_subscription_session_main.gz",
+              "sha256": "f6f11635a86ad435532e8dd8663a72b9f7894ecc689b14afe8b164662b74f299",
+              "binary_sha256": "a5fbc5abb5af017fb3d6c6d00339954cd2312d1faad032fb551a3bd3a8c72789"
+            },
+            {
+              "path": "binaries/wsl/wsl-subscriber-regression/test_single_xredis_subscription_session.gz",
+              "sha256": "c32a01862325d8cf4857b0aec7bf6427a55f325fb10f4bc259c475b0e15bf977",
+              "binary_sha256": "eeac6f3371904829e4ae94bd7091c029b46e3645bbafc0a1733f10efeff79e80"
+            }
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "label": "package-static",
+          "log": "wsl-package-static-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+          "log_sha256": "d5c45fb8e551df0570a3625ca1f5989866b2548f76bce670b4f01e1280a28847",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "log": "wsl-package-shared-attempt2.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_sentinel_events",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+          "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+          "log_sha256": "d841e26d6889a286a7914ba01537c44e470a24764347904199ecdc0e38fe57f5",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "real_probe_build": {
+        "label": "redis-real-build",
+        "log": "wsl-redis-real-build.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+        "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+        "log_sha256": "7a66e8a2347fa6bd565c266f5727a4f27d72f4320e60ae496426fe0ed1973f06",
+        "programs": 0,
+        "binaries": []
+      },
+      "redis": {
+        "events-master": {
+          "count": 9,
+          "report": "redis-regression-wsl-events-master.json",
+          "sha256": "3c5d12be094a4e58f56a059f730ab4742c386f5700ae5ecb6fd1a8666c3d1794",
+          "binary_sha256": "639540b2d327245594e7a4f77ea1c5b03cc76e3e980ba6fb6a3ca55bbcc468b6",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 5,
+          "event_counts": [
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            }
+          ],
+          "receipt": {
+            "label": "redis-regression-wsl-events-master",
+            "log": "wsl-redis-regression-wsl-events-master.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-wsl-events-master.json",
+              "--listen",
+              "master"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "fbaf4f74e37f4476d200272e2462d58f282db78f273280d31328f9ecbae33e64",
+            "replica": "a743a4ced17e21461853183e73e7fe56c33c62140af31fe92579a9a50d0ddeb7",
+            "sentinel": "f98308e70964f150f3018947e4b1ba67cf985155d62a005a6f70fdcfadea8863"
+          }
+        },
+        "events-replica": {
+          "count": 9,
+          "report": "redis-regression-wsl-events-replica.json",
+          "sha256": "febfa1de6ae160b37e46460a067ba41713c106f8a7a253b7f9fa0b748ea1950c",
+          "binary_sha256": "639540b2d327245594e7a4f77ea1c5b03cc76e3e980ba6fb6a3ca55bbcc468b6",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 5,
+          "event_counts": [
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            },
+            {
+              "matched": 1,
+              "hints": 2
+            }
+          ],
+          "receipt": {
+            "label": "redis-regression-wsl-events-replica",
+            "log": "wsl-redis-regression-wsl-events-replica.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-wsl-events-replica.json",
+              "--listen",
+              "replica"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "422b6046689ec36127fd8564b91c2cc7fa8be34c9fd40d5eb5398a3170ca3d1e",
+            "replica": "157e9caebb3a4010d4e0c7b0d5f1880d65724c42c899afdc66000f7fc9cbeb9c",
+            "sentinel": "e1185b4090dae9e46dde10d079d884a6f87cbd57dcd6f6dd8ba7d2fba8e5e856"
+          }
+        },
+        "refresh": {
+          "count": 9,
+          "report": "redis-regression-wsl-refresh.json",
+          "sha256": "ed6ea3e5633a38a05f2104660afcb33e8d85ee4954d033f825800a8aa1e8e2cd",
+          "binary_sha256": "639540b2d327245594e7a4f77ea1c5b03cc76e3e980ba6fb6a3ca55bbcc468b6",
+          "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+          "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+          "maximum_live_close_observers": 4,
+          "event_counts": [],
+          "receipt": {
+            "label": "redis-regression-wsl-refresh",
+            "log": "wsl-redis-regression-wsl-refresh.log",
+            "exit_code": 0,
+            "args": [
+              "/usr/bin/python3",
+              "-u",
+              "-X",
+              "utf8",
+              "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+              "--server",
+              "/usr/bin/redis-server",
+              "--client",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/forms/wsl/redis_sentinel",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-events-20261118/redis-regression-wsl-refresh.json",
+              "--refresh"
+            ],
+            "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+            "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+            "log_sha256": "904a22b7bb94b4d466edda7998403437544f306f3cd89a4ef050ea9a632ce6d8",
+            "programs": 0,
+            "binaries": []
+          },
+          "fixture_log_sha256": {
+            "master": "4828f7970a25d22593de8e9442f15725d1078a9ed9a382b2218889e37a360fbb",
+            "replica": "5400621da6f72c42a5625ea5a0c160934f4bc53c324de44848276436b3c9af21",
+            "sentinel": "560d1ae5a60b2a3f906d851f409820ce957a11ef2b99a74ebe0f8b777a77353d"
+          }
+        }
+      }
+    }
+  },
+  "event_master_failovers": 18,
+  "event_replica_failovers": 18,
+  "live_remap_controls": 18,
+  "package_forms": 4,
+  "tsan": [
+    {
+      "label": "tsan-modular",
+      "log": "wsl-tsan-modular-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/clang-21",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--suite",
+        "xredis_sentinel_events_tests,atomic",
+        "--jobs",
+        "3",
+        "--test",
+        "test_sentinel_events",
+        "--no-single",
+        "--no-examples",
+        "--cflag=-O1",
+        "--cflag=-g",
+        "--cflag=-fsanitize=thread",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=thread"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+      "log_sha256": "0935a0694bce005ee8ca36c0757ad4c5f4ccedc1415abbafb5d9344abdf08901",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "binaries/wsl/wsl-tsan-modular-attempt2/test_sentinel_events.gz",
+          "sha256": "960ded8c1f027342a655870fac62c54717077811f67516d1821cccce423b7cf1",
+          "binary_sha256": "0d1d588f1da10f5e300e43bb639a6b0eddc84caa70c08c105aca9616641898d8"
+        }
+      ]
+    },
+    {
+      "label": "tsan-single",
+      "log": "wsl-tsan-single.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/clang-21",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--suite",
+        "xredis_sentinel_events_tests,atomic",
+        "--jobs",
+        "3",
+        "--single-test",
+        "test_single_xredis_sentinel_events_tls",
+        "--no-examples",
+        "--cflag=-O1",
+        "--cflag=-g",
+        "--cflag=-fsanitize=thread",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=thread"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "0f20054f09051c4428dab0ce1b2bdfdf6d270defdab2d36117acae163cbb45c3",
+      "log_sha256": "f8b266c562fd57c189316402cc025f6a171eab5191142376d2cda9436ffa6df6",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "binaries/wsl/wsl-tsan-single/test_single_xredis_sentinel_events_tls.gz",
+          "sha256": "86ee9c94fde73f2c85cfb07442b3df038f3cccb515a3f476469526073bd4f0a0",
+          "binary_sha256": "583192cc4e308f15e1422b9a9d5e394503e512e539a0b72ed8bb3c8e2b538a35"
+        }
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "a98c7596ef17a1e6e06b965fbfddf27ebeccb54f958b7e76c893db86af2e9eea",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "ca48c349354d3fe2a5e7f90315c8b4a18e660fbdf46e15820223939a6c28ca90",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt3.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+      "source_map_sha256": "8cd49b44edb4a163b044277e75a6ae5cf4b1b27dc157a04ff5554da4f206efd2",
+      "log_sha256": "f4f988b85d2df71a8595e6b59862acc8a0a0c935da3c1ac04833b8adec95b6a0",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "strict_release": {
+    "exit_code": 1,
+    "developing": 32,
+    "log_sha256": "8f53e64d8b0c87a949ce5fad746b7002de02c78e2ab2f0f4063d67894534895b"
+  },
+  "initial_fixture_failures": {
+    "receipts": [
+      {
+        "label": "events-tls",
+        "log": "windows-events-tls.log",
+        "exit_code": 1,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2"
+        ],
+        "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+        "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+        "log_sha256": "d0926347f23ceb42b7af2479d5e8b1394a3ee1c2bd0f5788ddaaa89e968ae19e",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "binaries/windows/windows-events-tls/test_sentinel_events.exe.gz",
+            "sha256": "9ff174c78fe4b04ab26c30dc330d5dff8ffa09ade47a741f8420037c2c8b011b",
+            "binary_sha256": "48b37cda6c35d5dee7cdc837307094d1bdfdbd7e74496c0b5ad38b8f8661674c"
+          }
+        ]
+      },
+      {
+        "label": "events-tls",
+        "log": "wsl-events-tls.log",
+        "exit_code": 1,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/gcc",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events_tests",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--cflag=-g",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+        "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+        "log_sha256": "3fe2f041ac72833dc9df743a35522307fad78eeee9f575d0b1f9c73c9ecf9f9c",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-events-tls/test_sentinel_events.gz",
+            "sha256": "cb371136be8a03dc05d8ad73fd161227f1bf7f86f7ad74ceb1375ad744088ddf",
+            "binary_sha256": "a5a2a1d4b08ced9ff3cb85ac07168491bb39ecc07a35d009985bc7908c00b803"
+          }
+        ]
+      },
+      {
+        "label": "tsan-modular",
+        "log": "wsl-tsan-modular.log",
+        "exit_code": 1,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "/usr/bin/clang-21",
+          "--arch",
+          "x64",
+          "--manifest",
+          "extlibs/xredis/config/modules.json",
+          "--suite",
+          "xredis_sentinel_events_tests,atomic",
+          "--jobs",
+          "3",
+          "--test",
+          "test_sentinel_events",
+          "--no-single",
+          "--no-examples",
+          "--cflag=-O1",
+          "--cflag=-g",
+          "--cflag=-fsanitize=thread",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=thread"
+        ],
+        "revision": "ac116878e1d38303dd86cb8dac391b8aafd39c82",
+        "source_map_sha256": "50c2bf05a3e5993a48f74c860baa95ad15749471fa7bd7d300d5c6d2c63019e6",
+        "log_sha256": "7bd5c304940d11ced22f5205cd9dbe10f3fe2dae948c287cbec324bc595cc1cf",
+        "programs": 1,
+        "binaries": [
+          {
+            "path": "binaries/wsl/wsl-tsan-modular/test_sentinel_events.gz",
+            "sha256": "5504c13e50241d9a8a1906604a8af8af2cef63f538489d277665cede227b3d69",
+            "binary_sha256": "a37cf6c860686ca499fa3888c96ae9427f4a690e11874b1ffefca9beeae9f261"
+          }
+        ]
+      }
+    ],
+    "correction": "Wait until startup ROLE has seen the original endpoint before testing an event. Wait until both slots refill before isolating subscription loss.",
+    "reused_initial_validation": "The real probe and server runner are independent of the edited unit tests and package consumer."
+  },
+  "pending": [
+    "real authenticated TLS Sentinel and native Linux endurance and throughput/tail-latency qualification"
+  ]
+}

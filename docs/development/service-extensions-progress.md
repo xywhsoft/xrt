@@ -14528,3 +14528,27 @@ still reports 31 developing modules. Authenticated TLS interoperability,
 native Linux endurance and production throughput and tail latency remain
 qualification work.
 [Stage evidence](xredis-sentinel-seed-learning-20261118.json).
+
+## 2026-11-18 Native Sentinel event listener
+
+The optional xredis_sentinel_events leaf reuses the subscription session,
+subscriber receive notifications, the existing pool worker and its verified
+refresh path. One listener per pool rotates over available configured and
+learned seeds. The +switch-master service and syntax are checked before
+requesting refresh. A subscription ACK also requests refresh after startup
+or reconnect. WorkMessages bounds each drain, and HintInterval bounds the
+rate at which bursts request discovery. Fatal optional listener failures
+remain visible without closing existing data members.
+
+Windows and WSL clients observed +switch-master and queued another verified
+refresh during 36 real Redis elections. Eighteen live remap controls cover
+explicit refresh while the old node and original requests remain live.
+Local fixtures additionally verify burst filtering, reconnect through a
+learned seed, missed-event catch-up, listener OOM, subscription ACL denial,
+and closure during an unacknowledged subscription. Static and shared
+consumers, modular and single-header suites, WSL ASan/UBSan and TSan pass.
+
+The strict release gate still reports 32 developing modules. Authenticated
+TLS Sentinel interoperability, native Linux endurance and production
+throughput and tail latency remain qualification work.
+[Stage evidence](xredis-sentinel-events-20261118.json).
