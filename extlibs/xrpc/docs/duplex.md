@@ -6,8 +6,8 @@ originate calls while serving the other end. A borrowed `xrpcserver` supplies
 its existing bounded Core executor; NULL is client-only. No new shared runtime,
 engine, timer, transport, listener or thread is created. The shared server and
 callback code/context must remain alive until successful endpoint destruction.
-This implements the message state machine; automatic TCP/stdio/WebSocket
-adapters and negotiated cancellation/deadline extensions are still required.
+The TCP, TLS and WebSocket adapters drive this message state machine.
+Framed stdio and negotiated cancellation and deadlines remain pending.
 
 The public [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification),
 sections 4-6, is the protocol source. Duplex envelope admission is an explicit
@@ -57,11 +57,21 @@ Future Watch release tails pin the endpoint. A registration failure retains the
 actual accepted job and polls its terminal Future before retirement; it never
 pretends failed registration completed business work.
 
-A call scan cohort is bounded by MaxWork across turns, with exact deadline and
-cancellation sampling in the native producer. It is a rotating O(live calls)
-scan, not one timer per call or a new scheduler; Info computes the minimum live
-deadline in O(live calls). Large pending windows therefore still require measured
-optimization. Executor completions signal the owner, with no normal polling.
+Each outgoing operation with a finite deadline has one entry in an owner-only
+min-heap, including a batch or notification. Info reads the earliest deadline
+in constant time. Step samples the monotonic clock at entry and considers expired
+operations ahead of their list position, sharing its call-work turns with the
+bounded cancellation scan. The native result producer still decides the exact
+deadline and cancellation outcome. Replies, cancellation and close remove their
+heap entries when the operation retires. Equal deadlines share the same
+scheduling priority. Wire order still follows construction publication.
+
+The heap reserves one pointer per MaxOperations in MaxFixedBytes at construction.
+Finite-deadline insertion and arbitrary removal are O(log n) and allocate
+nothing on the owner. The scan remains O(live calls) per cohort because callers
+can still request cancellation directly on a raw token. Appending a new
+operation or removing an indexed operation cannot extend an in-progress cohort
+past its captured tail. Executor completions signal the owner.
 Retained wire-credit stalls and exceptional registration failures retry at a
 1 ms scheduling hint; closing with only physical references remaining also uses
 that hint. A Wake can execute before its final constructor/Watch/cancellation pin
@@ -188,9 +198,10 @@ responses, unsent/late IDs, timeout/cancel/delivery, partial-send close, physica
 retained output quota, shared executor/context/malformed requests, live-handler
 close, four cross-thread producers and admission-close races, 4096 admission OOM
 budget prefixes, constructor failure thresholds, completion reentry and an
-impossible reply bound. They are local runtime evidence. Independent transport
-peer interop, broader transport fault injection, scalable contention/tail-latency,
-real TCP/stdio/WebSocket and native 72-hour acceptance remain pending.
+impossible reply bound. The indexed-deadline case verifies minimum updates
+after replies, a due operation at the tail of 128 calls and raw-token
+cancellation. Each network adapter has its own evidence. Framed stdio,
+larger mixed-load tail-latency tests and native 72-hour acceptance remain pending.
 
 `bench/bench_duplex.c` records closed-loop pipeline1 wall rate, average call cost,
 all-process-thread CPU and separate allocation runs. Mode0 is a native producer
@@ -212,5 +223,17 @@ cases force encoder refusal, retain the original deadline across construction,
 hold the real constructor pin after Wake, and exercise the uint64 ID boundary.
 The regular modular/single tests exercise actual shipping objects without that
 interposition. Info gained three size_t fields; recompile consumers for its
-checked Size/layout change. Large-window scans, general contention/tail latency,
-transport adapters and final native production qualification remain open.
+checked Size/layout change. Large-window raw cancellation scans and
+final native production qualification remain open.
+
+## Deadline lookup benchmark
+
+`bench/bench_duplex_deadlines.c` measures Info with 1, 1,024 or 8,192 sent
+calls awaiting replies. Each timed block contains 64 queries against the
+same finite deadlines. The reported p99 describes block means. See the
+[paired results](../tests/results/duplex-deadline-index-20261119.json) for fixed
+storage and pipeline-one throughput measurements.
+
+```sh
+python tools/measure_performance.py --compiler gcc --config extlibs/xrpc/config/performance_profiles.json --manifest extlibs/xrpc/config/modules.json --profiles xrpc_duplex_deadlines
+```

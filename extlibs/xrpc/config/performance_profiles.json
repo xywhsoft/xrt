@@ -4327,6 +4327,82 @@
       ]
     },
     {
+      "name": "xrpc_duplex_deadlines",
+      "system": "duplex",
+      "description": "DuplexInfo with fully sent finite-deadline calls awaiting replies; p99 of 64-query block means",
+      "benchmarks": [
+        {
+          "name": "xrpc_duplex_info_w1",
+          "source": "extlibs/xrpc/bench/bench_duplex_deadlines.c",
+          "suite": "xrpc_duplex",
+          "args": [
+            "256",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "info_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "info_block_p99_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_info_w1024",
+          "source": "extlibs/xrpc/bench/bench_duplex_deadlines.c",
+          "suite": "xrpc_duplex",
+          "args": [
+            "256",
+            "1024"
+          ],
+          "smoke_args": [
+            "8",
+            "1024"
+          ],
+          "metrics": {
+            "info_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "info_block_p99_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_info_w8192",
+          "source": "extlibs/xrpc/bench/bench_duplex_deadlines.c",
+          "suite": "xrpc_duplex",
+          "args": [
+            "256",
+            "8192"
+          ],
+          "smoke_args": [
+            "8",
+            "8192"
+          ],
+          "metrics": {
+            "info_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "info_block_p99_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xrpc_tcp",
       "system": "tcp",
       "description": "Actual native loopback TCP baseline, closed loop pipeline1/barrier-window32; no production performance acceptance",

@@ -15442,3 +15442,43 @@ gate lists 32 developing xredis modules.
 
 [Recovery contract](../../extlibs/xredis/docs/cluster_client.md).
 [Stage evidence](xredis-cluster-election-wait-20261119.json).
+
+
+## 2026-11-19 xrpc Duplex deadline index
+
+The owner indexes one finite deadline per outgoing operation, including batches
+and notifications. Info reads the minimum in constant time. The existing
+MaxWork budget covers due operations and cancellation work. The rotating
+raw-token cancellation cohort preserves its membership boundary while
+operations are added or removed. The native producer still determines exact timeout,
+cancellation and delivery status.
+
+The regression holds a 128-call window, retires both the minimum and a
+nonminimum by reply, and adds a near deadline at the tail. With MaxWork=1
+the old Duplex translation unit fails the two-owner-turn completion check
+on both platforms. The indexed implementation passes, including raw token
+cancellation and complete retirement.
+
+Measured with GCC O2 against 400d85e4. Each cell is the median of seven paired
+runs after one warmup. The p99 is taken over blocks of 64 Info queries.
+
+| Platform | 8,192 pending calls, mean lookup before and after | Block-mean p99 before and after |
+| --- | ---: | ---: |
+| Windows x64 | 42.325 µs → 0.090 µs | 50.252 µs → 0.097 µs |
+| Ubuntu x64 under WSL2 | 47.688 µs → 0.063 µs | 57.633 µs → 0.064 µs |
+
+The 8,192-operation configuration adds 65,552 bytes of fixed endpoint storage.
+The separate synthetic-peer pipeline-one profile measured 177,782 → 177,498
+calls/s on Windows and 155,765 → 160,535 calls/s on WSL. The Windows short
+run's CPU medians differed by one observed 15.625 ms process-time increment.
+A 400,000-call follow-up measured 182,721 → 190,035 calls/s and
+5,430 → 5,234 CPU ns/call. The receipt retains both runs.
+
+Both hosts ran all 59 xrpc modular and single-header programs and verified
+static and shared package consumers. WSL ASan, UBSan and leak checks passed
+for the modular and single-header Duplex suites. The registered benchmark
+profiles passed a Windows smoke run. The strict release check still has 18
+developing modules. Mixed-load network tail latency, native Linux and
+72-hour production acceptance remain open.
+
+[Paired results and verification](../../extlibs/xrpc/tests/results/duplex-deadline-index-20261119.json).

@@ -271,5 +271,69 @@ static void testDuplexSetupTimeout(void)
         testRequire(xrpcDuplexDestroy(D)&&xrpcDuplexOutputWire(O).Size,"retained output outlives setup timeout and duplex destruction");xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
     }
 }
+static xrpcduplexinfo duplexTestQuiet(xrpcduplex* D)
+{
+    double End=xrtTimer()+5;
+    xrpcduplexinfo I=duplexTestInfo(D);
+    while(I.More){
+        testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"bounded cohort reaches quiescence");
+        I=duplexTestInfo(D);
+    }
+    return I;
+}
+static void testDuplexIndexedDeadlines(void)
+{
+    enum {Window=128};
+    xfuture* Older[Window]={0};
+    duplexTestContext C;duplexTestInit(&C);
+    xrpcduplexconfig K;xrpcDuplexConfigInit(&K);
+    K.MaxOperations=Window+1;K.MaxWork=1;
+    xrpcduplex* D=duplexTestCreate(NULL,&C,&K);
+    for(size_t N=0;N<Window;++N)
+        testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("held"),(xstrview){0},N?60000:30000,Older+N)==XRPC_DUPLEX_ACCEPTED,
+                    "populate mixed-deadline pending window");
+    double First=duplexTestQuiet(D).NextDeadline;
+    testRequire(First>xrtTimer(),"initial finite minimum");
+    for(size_t N=0;N<Window;++N){
+        xrpcduplexoutput* O=NULL;uint64 Token;
+        testRequire(xrpcDuplexNext(D,&O,&Token)==1 && xrpcDuplexStarted(D,Token) && xrpcDuplexSent(D,Token),
+                    "fill actual in-flight window");
+        xrpcDuplexOutputRelease(O);
+    }
+    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"64\",\"result\":1}"),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+                "retire a nonminimum deadline on reply");
+    duplexTestResult(Older[63],XRPC_CALL_OK,XRPC_REPLIED);
+    testRequire(duplexTestInfo(D).NextDeadline==First,"nonminimum reply preserves exact minimum");
+    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}"),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
+                "retire the minimum deadline on reply");
+    duplexTestResult(Older[0],XRPC_CALL_OK,XRPC_REPLIED);
+    double Remaining=duplexTestInfo(D).NextDeadline;
+    testRequire(Remaining>First,"minimum advances after reply");
+
+    xfuture* Short=NULL;
+    double Entered=xrtTimer();
+    testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("expire"),(xstrview){0},350,&Short)==XRPC_DUPLEX_ACCEPTED,
+                "add an earlier deadline at the end of the cohort");
+    double Latest=xrtTimer()+.351;
+    double Due=duplexTestQuiet(D).NextDeadline;
+    testRequire(Due>=Entered+.349 && Due<=Latest && !xrtFutureDone(Short),"next deadline uses the native call clock");
+    while(xrtTimer()<Due)xrtSleep(1);
+    for(unsigned Turn=0;Turn<2 && !xrtFutureDone(Short);++Turn)
+        testRequire(xrpcDuplexStep(D),"service due call within two MaxWork=1 turns");
+    testRequire(xrtFutureDone(Short),"tail deadline completes within two owner turns");
+    duplexTestResult(Short,XRPC_CALL_TIMEOUT,XRPC_NOT_SENT);
+    testRequire(!duplexTestInfo(D).Closing,"unsent expiration leaves the channel usable");
+    testRequire(duplexTestQuiet(D).NextDeadline==Remaining,"expiration exposes surviving minimum");
+
+    xcancel* Raw=xrtFutureCancelToken(Older[Window-1]);
+    testRequire(Raw && xrtCancelRequest(Raw),"request raw cancellation on a later call");
+    xrtCancelDestroy(Raw);
+    testRequire(xrpcDuplexStep(D),"start bounded raw cancellation cohort");
+    duplexTestQuiet(D);
+    duplexTestResult(Older[Window-1],XRPC_CALL_CANCELLED,XRPC_MAY_HAVE_EXECUTED);
+    duplexTestClose(D);
+    for(size_t N=0;N<Window;++N)xrtFutureDestroy(Older[N]);
+    xrtFutureDestroy(Short);
+}
 int main(void)
-{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout");return 0;}
+{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();testDuplexIndexedDeadlines();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel");return 0;}

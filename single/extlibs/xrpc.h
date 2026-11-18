@@ -2257,8 +2257,9 @@ typedef struct xrpcduplexinfo {
     size_t Outputs,OutputBytes,Results,ResultBytes,OwnedBytes;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     uint64 ControlRefusals,OutputRefusals,ResultRefusals;
-    /* Absolute monotonic seconds. INFINITY means wait for Wake/input. Step
-     * performs at most MaxWork owner units; More requests another turn now. */
+    /* Absolute monotonic seconds. INFINITY means wait for Wake/input. The
+     * earliest attached finite deadline is indexed. Step performs at most
+     * MaxWork owner units; More requests another turn now. */
     double NextDeadline;
     bool More;
 } xrpcduplexinfo;
@@ -7624,8 +7625,10 @@ struct xrpcduplexrequest {
     xrpcduplexoutput* Output;
     xrpcresponses* Responses;
     size_t Count,Replies;
+    double Deadline;
     bool Batch,Started,Sent,Finishing,Finished;
     xrpccallstatus Status;
+    uint32 DeadlineSlot;
     xrpcduplexentry Entries[];
 };
 struct xrpcduplex {
@@ -7634,14 +7637,15 @@ struct xrpcduplex {
     xatomic32 References;
     xrpcresultquota *Control,*Wire,*Results;
     xrpcpending* Pending;
-    xrpcduplexrequest *SubmitHead,*SubmitTail,*Head,*Tail,*Scan;
+    xrpcduplexrequest *SubmitHead,*SubmitTail,*Head,*Tail,*Scan,*ScanEnd;
+    xrpcduplexrequest** Deadlines;
     xrpcduplexjob *Jobs,*ReadyHead,*ReadyTail,*CancelScan,*FallbackHead,*FallbackTail;
     xrpcduplexoutput *OutputHead,*OutputTail,*Selection;
-    size_t Operations,PendingCalls,Incoming,Live,ScanLeft,OwnedBytes,FixedBytes;
+    size_t Operations,PendingCalls,Incoming,DeadlineCount,Finishing,OwnedBytes,FixedBytes;
     size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     uint64 Serial,SelectionSerial,SelectedToken;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
-    bool Closing,Busy,More,CancelStarted;
+    bool Closing,Busy,More,CancelStarted,PreferScan;
     unsigned Turn;
     xrpccallstatus Reason;
     xrpcmessage* Scratch;
@@ -7698,12 +7702,15 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
     if(!xrpcEncodeSize(&Check,1,false,&C.Encode,&N) ||
        xrpcDecode(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":null}"),&C.Response.Decode,&M,1,&Doc)!=XRPC_DECODE_DONE)return false;
     size_t Count=C.Response.Decode.MaxMessages;
-    if(Count>(SIZE_MAX-sizeof(xrpcduplex))/(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u))
+    size_t Fixed=sizeof(xrpcduplex)+C.MaxOperations*sizeof(xrpcduplexrequest*);
+    size_t PerMessage=sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u;
+    if(Count>(SIZE_MAX-Fixed)/PerMessage)
         return xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex storage overflow");
-    size_t Bytes=sizeof(xrpcduplex)+Count*(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u);
+    size_t Bytes=Fixed+Count*PerMessage;
     xrpcduplex* D=xrtCalloc(1,Bytes);if(!D)goto Memory;
     D->Config=C;D->OwnedBytes=Bytes;D->Scratch=(xrpcmessage*)(D+1);D->Resolutions=(xrpcpendingresolution*)(D->Scratch+Count);
     D->CorrelationIds=(xstrview*)(D->Resolutions+Count);D->CorrelationText=(char*)(D->CorrelationIds+Count);
+    D->Deadlines=(xrpcduplexrequest**)(D->CorrelationText+Count*24u);
     if(!xrtMutexInit(&D->Gate)){xrtFree(D);return false;}
     xrtAtomic32Init(&D->References,1);
     xrpcpendingconfig P;xrpcPendingConfigInit(&P);P.MaxCalls=C.MaxPendingCalls;
@@ -7845,10 +7852,54 @@ static void xrpcDuplexUnqueue(xrpcduplex* D,xrpcduplexoutput* O)
         if(O->Next)O->Next->Prev=O->Prev;else D->OutputTail=O->Prev;O->Linked=false;}
     O->Next=O->Prev=NULL;O->Request=NULL;xrpcDuplexOutputRelease(O);
 }
+/* Owner-only heap with one slot per finite-deadline operation. The request
+ * keeps its index so reply/cancel/close can remove it without leaving tombstones. */
+static void xrpcDuplexDeadlineSet(xrpcduplex* D,size_t I,xrpcduplexrequest* R)
+{
+    D->Deadlines[I]=R;
+    R->DeadlineSlot=(uint32)(I+1u);
+}
+static void xrpcDuplexDeadlineUp(xrpcduplex* D,size_t I,xrpcduplexrequest* R)
+{
+    while(I){
+        size_t Parent=(I-1u)/2u;
+        if(D->Deadlines[Parent]->Deadline<=R->Deadline)break;
+        xrpcDuplexDeadlineSet(D,I,D->Deadlines[Parent]);
+        I=Parent;
+    }
+    xrpcDuplexDeadlineSet(D,I,R);
+}
+static void xrpcDuplexDeadlineDown(xrpcduplex* D,size_t I,xrpcduplexrequest* R)
+{
+    while(I<D->DeadlineCount/2u){
+        size_t Child=I*2u+1u;
+        if(Child+1u<D->DeadlineCount && D->Deadlines[Child+1u]->Deadline<D->Deadlines[Child]->Deadline)++Child;
+        if(R->Deadline<=D->Deadlines[Child]->Deadline)break;
+        xrpcDuplexDeadlineSet(D,I,D->Deadlines[Child]);
+        I=Child;
+    }
+    xrpcDuplexDeadlineSet(D,I,R);
+}
+static void xrpcDuplexDeadlineRemove(xrpcduplex* D,xrpcduplexrequest* R)
+{
+    if(!R->DeadlineSlot)return;
+    size_t I=R->DeadlineSlot-1u;
+    R->DeadlineSlot=0;
+    xrpcduplexrequest* Last=D->Deadlines[--D->DeadlineCount];
+    if(I==D->DeadlineCount)return;
+    if(I && Last->Deadline<D->Deadlines[(I-1u)/2u]->Deadline)
+        xrpcDuplexDeadlineUp(D,I,Last);
+    else xrpcDuplexDeadlineDown(D,I,Last);
+}
+static void xrpcDuplexAdvanceScan(xrpcduplex* D)
+{
+    if(D->Scan==D->ScanEnd)D->Scan=D->ScanEnd=NULL;
+    else D->Scan=D->Scan->Next;
+}
 static void xrpcDuplexPrepareFinish(xrpcduplex* D,xrpcduplexrequest* R,xrpccallstatus Status)
 {
     if(R->Finishing)return;
-    R->Finishing=true;R->Status=Status;
+    R->Finishing=true;R->Status=Status;++D->Finishing;
     for(size_t I=0;I<R->Count;++I)if(R->Entries[I].Token.Serial){xrpcpendingcall Taken;
         xrpcPendingTakeToken(D->Pending,R->Entries[I].Token,&Taken);R->Entries[I].Token.Serial=0;}
     if(R->Output){if(R->Started && !R->Sent)xrpcDuplexSeal(D,XRPC_CALL_TRANSPORT);
@@ -7864,9 +7915,12 @@ static bool xrpcDuplexFinish(xrpcduplex* D,xrpcduplexrequest* R)
     }
     if(!xrpcCallDestroy(R->Call))return false;
     R->Call=NULL;
-    if(D->Scan==R){D->Scan=R->Next;if(D->ScanLeft)--D->ScanLeft;}
+    xrpcDuplexDeadlineRemove(D,R);
+    --D->Finishing;
+    if(D->Scan==R)xrpcDuplexAdvanceScan(D);
+    else if(D->ScanEnd==R)D->ScanEnd=R->Prev;
     if(R->Prev)R->Prev->Next=R->Next;else D->Head=R->Next;
-    if(R->Next)R->Next->Prev=R->Prev;else D->Tail=R->Prev;--D->Live;
+    if(R->Next)R->Next->Prev=R->Prev;else D->Tail=R->Prev;
     xrtMutexLock(&D->Gate);--D->Operations;D->PendingCalls-=R->Replies;++D->Completed;xrtMutexUnlock(&D->Gate);
     xrpcResponsesRelease(R->Responses);xrpcDuplexDrop(R);return true;
 }
@@ -8011,7 +8065,12 @@ static bool xrpcDuplexWorkSubmit(xrpcduplex* D,bool* OK)
     xrtMutexLock(&D->Gate);xrpcduplexrequest* R=D->SubmitHead;
     if(R){D->SubmitHead=R->SubmitNext;if(!D->SubmitHead)D->SubmitTail=NULL;R->SubmitNext=NULL;}
     xrtMutexUnlock(&D->Gate);if(!R)return false;
-    R->Prev=D->Tail;if(R->Prev)R->Prev->Next=R;else D->Head=R;D->Tail=R;++D->Live;
+    R->Prev=D->Tail;if(R->Prev)R->Prev->Next=R;else D->Head=R;D->Tail=R;
+    R->Deadline=xrpcCallDeadline(R->Call);
+    if(isfinite(R->Deadline)){
+        size_t Slot=D->DeadlineCount++;
+        xrpcDuplexDeadlineUp(D,Slot,R);
+    }
     if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
     else {xrpccallfinish F=xrpcCallPoll(R->Call);
         if(F==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
@@ -8027,15 +8086,20 @@ static bool xrpcDuplexWorkSubmit(xrpcduplex* D,bool* OK)
     else D->More=true; /* Added outside this turn's bounded scan cohort. */
     return true;
 }
-static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK)
+static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK,double Now)
 {
-    if(!D->Scan || !D->ScanLeft){D->ScanLeft=0;return false;}
-    xrpcduplexrequest* R=D->Scan;D->Scan=R->Next;--D->ScanLeft;
+    xrpcduplexrequest* Due=D->DeadlineCount?D->Deadlines[0]:NULL;
+    if(Due && Due->Deadline>Now)Due=NULL;
+    /* Give an expired call a turn without waiting for its position in the
+     * cancellation cohort. Raw token cancellation still needs that cohort. */
+    xrpcduplexrequest* R=Due && (!D->PreferScan || !D->Scan)?Due:D->Scan;
+    if(!R)return false;
+    D->PreferScan=R!=D->Scan && D->Scan!=NULL;
+    if(R==D->Scan)xrpcDuplexAdvanceScan(D);
     if(!R->Finishing){if(xrpcDuplexIsClosing(D))xrpcDuplexPrepareFinish(D,R,D->Reason);
         else {xrpccallfinish P=xrpcCallPoll(R->Call);if(P==XRPC_CALL_FINISH_ERROR){*OK=false;return true;}
             if(P!=XRPC_CALL_PENDING)xrpcDuplexPrepareFinish(D,R,XRPC_CALL_CLOSED);}}
     if(R->Finishing)*OK=xrpcDuplexFinish(D,R);
-    if(!D->Scan)D->ScanLeft=0;
     return true;
 }
 static bool xrpcDuplexWorkClose(xrpcduplex* D)
@@ -8059,20 +8123,22 @@ XRPC_API bool xrpcDuplexStep(xrpcduplex* D)
 {
     if(!xrpcDuplexEnter(D))return false;
     bool OK=true,Blocked=false,FallbackBlocked=false;D->More=false;
-    if(!D->ScanLeft){D->Scan=D->Head;D->ScanLeft=D->Live;}
+    if(!D->Scan){D->Scan=D->Head;D->ScanEnd=D->Tail;}
+    double Now=D->DeadlineCount?xrtTimer():-INFINITY;
     /* Round robin persists across turns, including MaxWork=1. Admission and
      * executor floods cannot starve deadline/cancel/close work. */
     for(size_t Work=0;Work<D->Config.MaxWork && OK;++Work){bool Worked=false;
         for(unsigned Attempt=0;Attempt<5 && !Worked;++Attempt){unsigned Turn=D->Turn++%5;
             if(Turn==0 && !Blocked)Worked=xrpcDuplexWorkJob(D,&Blocked);
             else if(Turn==1)Worked=xrpcDuplexWorkSubmit(D,&OK);
-            else if(Turn==2)Worked=xrpcDuplexWorkCall(D,&OK);
+            else if(Turn==2)Worked=xrpcDuplexWorkCall(D,&OK,Now);
             else if(Turn==3)Worked=xrpcDuplexWorkClose(D);
             else if(Turn==4 && !FallbackBlocked)Worked=xrpcDuplexWorkFallback(D,&FallbackBlocked);
         }
         if(!Worked)break;
     }
-    xrtMutexLock(&D->Gate);D->More|=D->SubmitHead!=NULL || D->ScanLeft!=0 || (!Blocked && D->ReadyHead!=NULL) || (!FallbackBlocked && D->FallbackHead!=NULL);
+    D->More|=D->Scan!=NULL || (D->DeadlineCount && D->Deadlines[0]->Deadline<=Now);
+    xrtMutexLock(&D->Gate);D->More|=D->SubmitHead!=NULL || (!Blocked && D->ReadyHead!=NULL) || (!FallbackBlocked && D->FallbackHead!=NULL);
     if(D->Closing)D->More|=D->OutputHead!=NULL || !D->CancelStarted || D->CancelScan!=NULL;
     xrtMutexUnlock(&D->Gate);D->Busy=false;return OK;
 }
@@ -8128,9 +8194,12 @@ XRPC_API bool xrpcDuplexInfo(xrpcduplex* D,xrpcduplexinfo* I)
     V.Selected=D->Selection!=NULL;V.Started=D->Selection && D->Selection->Started;
     V.Drained=V.Closing && !V.Operations && !D->OutputHead && !D->Selection && xrtAtomic32Load(&D->References,XMEMORY_ACQUIRE)==1;
     V.More=D->More || Submit;
-    for(xrpcduplexrequest* R=D->Head;R;R=R->Next){double At=R->Finishing?xrtTimer():xrpcCallDeadline(R->Call);if(At<V.NextDeadline)V.NextDeadline=At;}
-    if((Ready || D->FallbackHead || (V.Closing && !V.Drained && !V.Operations)) && xrtTimer()+.001<V.NextDeadline)V.NextDeadline=xrtTimer()+.001; /* retry retained-wire credit */
-    if(V.More)V.NextDeadline=xrtTimer();
+    if(D->DeadlineCount)V.NextDeadline=D->Deadlines[0]->Deadline;
+    if(V.More || D->Finishing)V.NextDeadline=xrtTimer();
+    else if(Ready || D->FallbackHead || (V.Closing && !V.Drained && !V.Operations)){
+        double Retry=xrtTimer()+.001;
+        if(Retry<V.NextDeadline)V.NextDeadline=Retry; /* retry retained-wire credit */
+    }
     *I=V;return true;
 }
 XRPC_API bool xrpcDuplexDestroy(xrpcduplex* D)

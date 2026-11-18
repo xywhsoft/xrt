@@ -1340,7 +1340,8 @@
         "extlibs/xrpc/examples/duplex/main.c"
       ],
       "benchmarks": [
-        "extlibs/xrpc/bench/bench_duplex.c"
+        "extlibs/xrpc/bench/bench_duplex.c",
+        "extlibs/xrpc/bench/bench_duplex_deadlines.c"
       ],
       "docs": [
         "extlibs/xrpc/docs/duplex.md",

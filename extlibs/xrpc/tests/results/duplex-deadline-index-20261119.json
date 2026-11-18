@@ -1,0 +1,1914 @@
+{
+  "schema": 1,
+  "scope": "Owner-side indexed finite deadlines, bounded cohort progress, and local performance and delivery verification.",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "400d85e4aa539f579ea5c26692fefea2be6ad974",
+  "candidate_sha256": {
+    "extlibs/xrpc/src/duplex/duplex.c": "e38c7e9e73ae4318ecbe78e9c605aca8c3090261c085c2b14fc3ad9dd1482276",
+    "extlibs/xrpc/include/xrpc/duplex.h": "6c5cc68fbe76496a1ddabde10f54da7390abc84ffecbf3a2a2a865c3d7563ee1",
+    "extlibs/xrpc/tests/test_duplex.c": "d3cb1a5bede685a0f368b82d80c64acf9b93885a69d50fc89a0e04afd3ae432c",
+    "extlibs/xrpc/bench/bench_duplex_deadlines.c": "1ed612b26a6b4e15a3397f1ae5737acb00f9bb715896005c9c19c8e8a52dafe9",
+    "extlibs/xrpc/config/modules.json": "7ba38f5f518c6e61a24f10266b6a6f016ea42ad46189d41955c26ecc6d9f3d8b",
+    "extlibs/xrpc/config/performance_profiles.json": "45cebb15106d10a5e0998e69d78ff861b05504bb4da4a060f4c8ec1b857bfe5e",
+    "single/extlibs/xrpc.h": "92e385b8f945e3890c2bd2820640fc94cb0d0c165dd78ad6da6cfebe4b5a39ba",
+    "single/extlibs/xrpc_decl.h": "5c912e9effecf0b5a9c6967947a0f1cea245e0ed66f22863736911fbb6a9d1bf"
+  },
+  "measurement": {
+    "procedure": "One warmup and seven retained alternating baseline/indexed pairs per platform and workload, GCC -O2. Each timing block contains 64 Info calls. Pipeline1 uses synthetic peer responses and infinite call deadlines.",
+    "comparison": "The original and indexed Duplex translation units replace each other against the same set of common object files and the same benchmark sources.",
+    "harness_sha256": "4e9000b15df2e12f63891aca64d4f2150d5eaeb0624aeeeeb26e688a374b7a1f",
+    "raw_directory": "out/service-extensions/xrpc-duplex-deadlines-20261119"
+  },
+  "platforms": {
+    "windows": {
+      "workloads": {
+        "w1": {
+          "args": [
+            "256",
+            "1"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 92.242431,
+                "info_block_p99_ns": 93.750714,
+                "window": 1.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 78686.0
+              },
+              "indexed": {
+                "info_ns_per_call": 94.958502,
+                "info_block_p99_ns": 95.313226,
+                "window": 1.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 78710.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 118.786623,
+                  "info_block_p99_ns": 242.185706,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 116.241452,
+                  "info_block_p99_ns": 121.875928,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 95.45289,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 88.592536,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 93.176268,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 96.148689,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 92.907712,
+                  "info_block_p99_ns": 114.063369,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 94.488527,
+                  "info_block_p99_ns": 95.313226,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 91.479492,
+                  "info_block_p99_ns": 92.188202,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 95.01953,
+                  "info_block_p99_ns": 109.374014,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 104.956058,
+                  "info_block_p99_ns": 117.188392,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 91.619874,
+                  "info_block_p99_ns": 92.188202,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 103.045657,
+                  "info_block_p99_ns": 120.313416,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78710.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 113.49487,
+                  "info_block_p99_ns": 160.936906,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78686.0
+                }
+              }
+            }
+          ]
+        },
+        "w1024": {
+          "args": [
+            "256",
+            "1024"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 4164.89258,
+                "info_block_p99_ns": 5076.562957,
+                "window": 1024.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 161549.0
+              },
+              "indexed": {
+                "info_ns_per_call": 92.761226,
+                "info_block_p99_ns": 109.374014,
+                "window": 1024.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 169757.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 115.118411,
+                  "info_block_p99_ns": 118.750904,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4299.395748,
+                  "info_block_p99_ns": 4635.93824,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 3837.847899,
+                  "info_block_p99_ns": 4731.251465,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 91.772456,
+                  "info_block_p99_ns": 117.186573,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 104.711923,
+                  "info_block_p99_ns": 110.938345,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4253.60718,
+                  "info_block_p99_ns": 4834.373613,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 4281.921392,
+                  "info_block_p99_ns": 5125.000826,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 92.22412,
+                  "info_block_p99_ns": 95.313226,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 97.161866,
+                  "info_block_p99_ns": 350.000846,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4033.984375,
+                  "info_block_p99_ns": 4504.68724,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 3478.717034,
+                  "info_block_p99_ns": 4043.749868,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 91.973874,
+                  "info_block_p99_ns": 128.124157,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 84.173578,
+                  "info_block_p99_ns": 85.938154,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169757.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4086.462397,
+                  "info_block_p99_ns": 5104.688171,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161549.0
+                }
+              }
+            }
+          ]
+        },
+        "w8192": {
+          "args": [
+            "256",
+            "8192"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 42405.334476,
+                "info_block_p99_ns": 49374.999435,
+                "window": 8192.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 742157.0
+              },
+              "indexed": {
+                "info_ns_per_call": 106.451409,
+                "info_block_p99_ns": 126.561645,
+                "window": 8192.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 807709.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 95.947264,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 41633.325189,
+                  "info_block_p99_ns": 50251.563152,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 42438.79394,
+                  "info_block_p99_ns": 53143.749028,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 88.684082,
+                  "info_block_p99_ns": 92.188202,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 89.477552,
+                  "info_block_p99_ns": 90.62569,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 42902.996832,
+                  "info_block_p99_ns": 52728.12632,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 42309.033198,
+                  "info_block_p99_ns": 49542.186389,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 94.519045,
+                  "info_block_p99_ns": 124.999133,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 89.88647,
+                  "info_block_p99_ns": 90.62569,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 42968.383781,
+                  "info_block_p99_ns": 57284.374634,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 42325.103763,
+                  "info_block_p99_ns": 50089.063734,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 90.911868,
+                  "info_block_p99_ns": 96.875738,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 90.490715,
+                  "info_block_p99_ns": 115.624061,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807709.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 41712.676996,
+                  "info_block_p99_ns": 45935.938033,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742157.0
+                }
+              }
+            }
+          ]
+        },
+        "pipeline1": {
+          "args": [
+            "40000",
+            "1",
+            "0"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "calls_per_sec": 184913.379649,
+                "ns_per_call": 5407.9375,
+                "process_cpu_ns_per_call": 5078.125,
+                "completed": 40000.0
+              },
+              "indexed": {
+                "calls_per_sec": 185055.389388,
+                "ns_per_call": 5403.7875,
+                "process_cpu_ns_per_call": 5468.75,
+                "completed": 40000.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 177497.962102,
+                  "ns_per_call": 5633.8675,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 177782.360573,
+                  "ns_per_call": 5624.855001,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 175000.864038,
+                  "ns_per_call": 5714.257501,
+                  "process_cpu_ns_per_call": 5859.375,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 175771.714749,
+                  "ns_per_call": 5689.197499,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 186639.765653,
+                  "ns_per_call": 5357.915,
+                  "process_cpu_ns_per_call": 5078.125,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 181899.209614,
+                  "ns_per_call": 5497.550001,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 182064.548227,
+                  "ns_per_call": 5492.557501,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 178434.09798,
+                  "ns_per_call": 5604.310002,
+                  "process_cpu_ns_per_call": 5859.375,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 171908.219896,
+                  "ns_per_call": 5817.057501,
+                  "process_cpu_ns_per_call": 5859.375,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 161975.846198,
+                  "ns_per_call": 6173.759999,
+                  "process_cpu_ns_per_call": 6250.0,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 184489.505966,
+                  "ns_per_call": 5420.362501,
+                  "process_cpu_ns_per_call": 5078.125,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 159941.52538,
+                  "ns_per_call": 6252.285,
+                  "process_cpu_ns_per_call": 5859.375,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 178772.387897,
+                  "ns_per_call": 5593.705,
+                  "process_cpu_ns_per_call": 5859.375,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 175532.367725,
+                  "ns_per_call": 5696.955,
+                  "process_cpu_ns_per_call": 5468.75,
+                  "completed": 40000.0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "regressions": {
+        "baseline": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "[FAIL] tail deadline completes within two owner turns\n"
+        },
+        "indexed": {
+          "exit_code": 0,
+          "stdout": "[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel\n",
+          "stderr": ""
+        }
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "build_receipt_sha256": "d68f451a9e4640150156d2727fecd887f87c44049d9384b828b453476e760ca8",
+      "benchmark_binary_sha256": {
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\baseline-info.exe": "f292d6cea95a9ba9d7cbd54495e49533ab28cf6d9d99dac305f51eaab8ed555e",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\baseline-pipeline.exe": "0a81aa799b5402988716d136282a92d495134471fb60a2c0e0b5fdabe578d695",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\baseline-regression.exe": "919489b7ff421f9970e42c8b1d31d02069af7f9f87ca086c5db42749c97133b8",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\indexed-info.exe": "cbbfbdfe670f41e03d8afa6aa19dfdd760263e67646ff129e9cff8f98b843a2b",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\indexed-pipeline.exe": "cd4120a57ca5b2987de43b5d91f095088303cc2c5503a01701b19689860383fe",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-duplex-deadlines-20261119\\windows\\indexed-regression.exe": "d8a601b8fc258934d103578fea88926e3572a93282acf1532d6ffd00d23ce761"
+      },
+      "raw_measurement_sha256": "edc604aa654e36f0bf57af475c0e19758bad5d03ea3c12c3d43fa50659182d46",
+      "medians": {
+        "w1": {
+          "baseline": {
+            "info_ns_per_call": 96.148689,
+            "info_block_p99_ns": 114.063369,
+            "window": 1.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 78686.0
+          },
+          "indexed": {
+            "info_ns_per_call": 93.176268,
+            "info_block_p99_ns": 96.875738,
+            "window": 1.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 78710.0
+          }
+        },
+        "w1024": {
+          "baseline": {
+            "info_ns_per_call": 4086.462397,
+            "info_block_p99_ns": 4731.251465,
+            "window": 1024.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 161549.0
+          },
+          "indexed": {
+            "info_ns_per_call": 92.22412,
+            "info_block_p99_ns": 117.186573,
+            "window": 1024.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 169757.0
+          }
+        },
+        "w8192": {
+          "baseline": {
+            "info_ns_per_call": 42325.103763,
+            "info_block_p99_ns": 50251.563152,
+            "window": 8192.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 742157.0
+          },
+          "indexed": {
+            "info_ns_per_call": 90.490715,
+            "info_block_p99_ns": 96.875738,
+            "window": 8192.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 807709.0
+          }
+        },
+        "pipeline1": {
+          "baseline": {
+            "calls_per_sec": 177782.360573,
+            "ns_per_call": 5624.855001,
+            "process_cpu_ns_per_call": 5468.75,
+            "completed": 40000.0
+          },
+          "indexed": {
+            "calls_per_sec": 177497.962102,
+            "ns_per_call": 5633.8675,
+            "process_cpu_ns_per_call": 5859.375,
+            "completed": 40000.0
+          }
+        }
+      },
+      "full_suite": {
+        "log": "windows-full.log",
+        "sha256": "af87021d1d683a95c692b2b2e4336e8c22156d4ab95860470f6d0e3134bdbbef",
+        "programs": 59,
+        "skips": []
+      },
+      "packages": {
+        "static": {
+          "log": "windows-static.log",
+          "sha256": "8ea3efb58e7a539bd33141f00b2f096bafbcc73dd19964293dbdc938679c3d4d",
+          "programs": 0,
+          "skips": []
+        },
+        "shared": {
+          "log": "windows-shared.log",
+          "sha256": "c61b0ad6a6b7d863f16894a470a47c667ceed78e7424657f343f96faa3d4ae52",
+          "programs": 0,
+          "skips": []
+        }
+      },
+      "long_pipeline": {
+        "args": [
+          "400000",
+          "1",
+          "0"
+        ],
+        "warmup": {
+          "order": [
+            "baseline",
+            "indexed"
+          ],
+          "metrics": {
+            "baseline": {
+              "calls_per_sec": 184223.317717,
+              "ns_per_call": 5428.1945,
+              "process_cpu_ns_per_call": 5429.6875,
+              "completed": 400000.0
+            },
+            "indexed": {
+              "calls_per_sec": 187672.198038,
+              "ns_per_call": 5328.43975,
+              "process_cpu_ns_per_call": 5312.5,
+              "completed": 400000.0
+            }
+          }
+        },
+        "pairs": [
+          {
+            "order": [
+              "indexed",
+              "baseline"
+            ],
+            "metrics": {
+              "indexed": {
+                "calls_per_sec": 190035.218282,
+                "ns_per_call": 5262.1825,
+                "process_cpu_ns_per_call": 5234.375,
+                "completed": 400000.0
+              },
+              "baseline": {
+                "calls_per_sec": 185703.478425,
+                "ns_per_call": 5384.92875,
+                "process_cpu_ns_per_call": 5390.625,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "calls_per_sec": 182485.881076,
+                "ns_per_call": 5479.876,
+                "process_cpu_ns_per_call": 5468.75,
+                "completed": 400000.0
+              },
+              "indexed": {
+                "calls_per_sec": 192047.661622,
+                "ns_per_call": 5207.04075,
+                "process_cpu_ns_per_call": 5195.3125,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "indexed",
+              "baseline"
+            ],
+            "metrics": {
+              "indexed": {
+                "calls_per_sec": 190542.118046,
+                "ns_per_call": 5248.1835,
+                "process_cpu_ns_per_call": 5234.375,
+                "completed": 400000.0
+              },
+              "baseline": {
+                "calls_per_sec": 184967.950611,
+                "ns_per_call": 5406.342,
+                "process_cpu_ns_per_call": 5429.6875,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "calls_per_sec": 185164.225621,
+                "ns_per_call": 5400.61125,
+                "process_cpu_ns_per_call": 5390.625,
+                "completed": 400000.0
+              },
+              "indexed": {
+                "calls_per_sec": 190634.280763,
+                "ns_per_call": 5245.64625,
+                "process_cpu_ns_per_call": 5234.375,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "indexed",
+              "baseline"
+            ],
+            "metrics": {
+              "indexed": {
+                "calls_per_sec": 189311.617526,
+                "ns_per_call": 5282.296,
+                "process_cpu_ns_per_call": 5273.4375,
+                "completed": 400000.0
+              },
+              "baseline": {
+                "calls_per_sec": 181126.919166,
+                "ns_per_call": 5520.9905,
+                "process_cpu_ns_per_call": 5507.8125,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "calls_per_sec": 181470.953646,
+                "ns_per_call": 5510.52375,
+                "process_cpu_ns_per_call": 5429.6875,
+                "completed": 400000.0
+              },
+              "indexed": {
+                "calls_per_sec": 188877.201067,
+                "ns_per_call": 5294.44525,
+                "process_cpu_ns_per_call": 5312.5,
+                "completed": 400000.0
+              }
+            }
+          },
+          {
+            "order": [
+              "indexed",
+              "baseline"
+            ],
+            "metrics": {
+              "indexed": {
+                "calls_per_sec": 187776.791789,
+                "ns_per_call": 5325.47175,
+                "process_cpu_ns_per_call": 5351.5625,
+                "completed": 400000.0
+              },
+              "baseline": {
+                "calls_per_sec": 182720.797635,
+                "ns_per_call": 5472.83075,
+                "process_cpu_ns_per_call": 5468.75,
+                "completed": 400000.0
+              }
+            }
+          }
+        ],
+        "medians": {
+          "baseline": {
+            "calls_per_sec": 182720.797635,
+            "ns_per_call": 5472.83075,
+            "process_cpu_ns_per_call": 5429.6875,
+            "completed": 400000.0
+          },
+          "indexed": {
+            "calls_per_sec": 190035.218282,
+            "ns_per_call": 5262.1825,
+            "process_cpu_ns_per_call": 5234.375,
+            "completed": 400000.0
+          }
+        },
+        "receipt_sha256": "596f96131054aaf180572cf3f12154ab90c84fca2866e6ce9638fbbb2549212d",
+        "harness_sha256": "24b6ba255e60ca25edec408fda7d4751108cbe11e7c4efe8bde183ec46044c68"
+      }
+    },
+    "wsl": {
+      "workloads": {
+        "w1": {
+          "args": [
+            "256",
+            "1"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 66.296387,
+                "info_block_p99_ns": 126.562501,
+                "window": 1.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 78758.0
+              },
+              "indexed": {
+                "info_ns_per_call": 62.017822,
+                "info_block_p99_ns": 62.500002,
+                "window": 1.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 78782.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 77.264404,
+                  "info_block_p99_ns": 79.687501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 64.111328,
+                  "info_block_p99_ns": 65.625001,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 63.562012,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 65.771484,
+                  "info_block_p99_ns": 79.687499,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 78.436279,
+                  "info_block_p99_ns": 79.687501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 66.113281,
+                  "info_block_p99_ns": 81.250001,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 65.478516,
+                  "info_block_p99_ns": 123.4375,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 62.463379,
+                  "info_block_p99_ns": 64.062499,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 62.982178,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 82.666016,
+                  "info_block_p99_ns": 189.062499,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 64.202881,
+                  "info_block_p99_ns": 65.625001,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 62.908936,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 78.448486,
+                  "info_block_p99_ns": 79.687501,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78782.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 79.724121,
+                  "info_block_p99_ns": 81.250001,
+                  "window": 1.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 78758.0
+                }
+              }
+            }
+          ]
+        },
+        "w1024": {
+          "args": [
+            "256",
+            "1024"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 4484.844971,
+                "info_block_p99_ns": 5651.5625,
+                "window": 1024.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 161621.0
+              },
+              "indexed": {
+                "info_ns_per_call": 63.751221,
+                "info_block_p99_ns": 64.062501,
+                "window": 1024.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 169829.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 62.530518,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4391.802979,
+                  "info_block_p99_ns": 5693.749999,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 4518.084717,
+                  "info_block_p99_ns": 5818.750001,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 113.232422,
+                  "info_block_p99_ns": 198.437499,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 62.774658,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4152.758789,
+                  "info_block_p99_ns": 5696.875,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 4407.623291,
+                  "info_block_p99_ns": 7000.0,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 72.796631,
+                  "info_block_p99_ns": 156.25,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 62.731934,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 3648.529053,
+                  "info_block_p99_ns": 5207.812499,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 4721.704041,
+                  "info_block_p99_ns": 5840.625001,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 62.921143,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 63.879395,
+                  "info_block_p99_ns": 73.4375,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 169829.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 4076.586914,
+                  "info_block_p99_ns": 5317.187499,
+                  "window": 1024.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 161621.0
+                }
+              }
+            }
+          ]
+        },
+        "w8192": {
+          "args": [
+            "256",
+            "8192"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "info_ns_per_call": 47998.321472,
+                "info_block_p99_ns": 58785.937501,
+                "window": 8192.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 742229.0
+              },
+              "indexed": {
+                "info_ns_per_call": 64.886475,
+                "info_block_p99_ns": 64.062501,
+                "window": 8192.0,
+                "queries": 16384.0,
+                "endpoint_fixed_bytes": 807781.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 63.458252,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 47233.312927,
+                  "info_block_p99_ns": 57632.812499,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 48745.208679,
+                  "info_block_p99_ns": 58204.6875,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 62.310791,
+                  "info_block_p99_ns": 62.500002,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 62.884521,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 49343.377624,
+                  "info_block_p99_ns": 59481.25,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 47416.137634,
+                  "info_block_p99_ns": 56168.75,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 62.359619,
+                  "info_block_p99_ns": 64.062499,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 80.047607,
+                  "info_block_p99_ns": 79.687501,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 47688.238464,
+                  "info_block_p99_ns": 56190.624999,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "info_ns_per_call": 49240.24707,
+                  "info_block_p99_ns": 60445.312499,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                },
+                "indexed": {
+                  "info_ns_per_call": 80.639648,
+                  "info_block_p99_ns": 79.687501,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "info_ns_per_call": 63.061523,
+                  "info_block_p99_ns": 64.062501,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 807781.0
+                },
+                "baseline": {
+                  "info_ns_per_call": 47507.489685,
+                  "info_block_p99_ns": 57295.312502,
+                  "window": 8192.0,
+                  "queries": 16384.0,
+                  "endpoint_fixed_bytes": 742229.0
+                }
+              }
+            }
+          ]
+        },
+        "pipeline1": {
+          "args": [
+            "40000",
+            "1",
+            "0"
+          ],
+          "warmup": {
+            "order": [
+              "baseline",
+              "indexed"
+            ],
+            "metrics": {
+              "baseline": {
+                "calls_per_sec": 156692.6543,
+                "ns_per_call": 6381.9201,
+                "process_cpu_ns_per_call": 6381.95,
+                "completed": 40000.0
+              },
+              "indexed": {
+                "calls_per_sec": 162248.239458,
+                "ns_per_call": 6163.395075,
+                "process_cpu_ns_per_call": 6162.875,
+                "completed": 40000.0
+              }
+            }
+          },
+          "pairs": [
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 160084.650842,
+                  "ns_per_call": 6246.695075,
+                  "process_cpu_ns_per_call": 6246.55,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 152122.660274,
+                  "ns_per_call": 6573.6426,
+                  "process_cpu_ns_per_call": 6573.075,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 155764.511224,
+                  "ns_per_call": 6419.9476,
+                  "process_cpu_ns_per_call": 6419.85,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 160592.326811,
+                  "ns_per_call": 6226.947575,
+                  "process_cpu_ns_per_call": 6226.675,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 145824.088086,
+                  "ns_per_call": 6857.5776,
+                  "process_cpu_ns_per_call": 6857.025,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 154568.222866,
+                  "ns_per_call": 6469.6351,
+                  "process_cpu_ns_per_call": 6467.45,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 142421.635806,
+                  "ns_per_call": 7021.4051,
+                  "process_cpu_ns_per_call": 7020.25,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 160534.835289,
+                  "ns_per_call": 6229.1776,
+                  "process_cpu_ns_per_call": 6229.275,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 152072.865501,
+                  "ns_per_call": 6575.795075,
+                  "process_cpu_ns_per_call": 6574.775,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 162886.344062,
+                  "ns_per_call": 6139.250075,
+                  "process_cpu_ns_per_call": 6139.1,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "baseline",
+                "indexed"
+              ],
+              "metrics": {
+                "baseline": {
+                  "calls_per_sec": 165182.29452,
+                  "ns_per_call": 6053.9176,
+                  "process_cpu_ns_per_call": 6053.975,
+                  "completed": 40000.0
+                },
+                "indexed": {
+                  "calls_per_sec": 165400.113232,
+                  "ns_per_call": 6045.945075,
+                  "process_cpu_ns_per_call": 6045.125,
+                  "completed": 40000.0
+                }
+              }
+            },
+            {
+              "order": [
+                "indexed",
+                "baseline"
+              ],
+              "metrics": {
+                "indexed": {
+                  "calls_per_sec": 165513.654413,
+                  "ns_per_call": 6041.7976,
+                  "process_cpu_ns_per_call": 6041.1,
+                  "completed": 40000.0
+                },
+                "baseline": {
+                  "calls_per_sec": 165896.69655,
+                  "ns_per_call": 6027.847575,
+                  "process_cpu_ns_per_call": 6027.925,
+                  "completed": 40000.0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "regressions": {
+        "baseline": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "[FAIL] tail deadline completes within two owner turns\n"
+        },
+        "indexed": {
+          "exit_code": 0,
+          "stdout": "[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel\n",
+          "stderr": ""
+        }
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "build_receipt_sha256": "68c0f6ce338e4e95b294c873ab46f827c4d20f7515e859f9f1a0ad3eea5e2268",
+      "benchmark_binary_sha256": {
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/baseline-info": "bcb2a38a12494203e1687384d0bfaa24b6188a2b954eaa2308fc39c7b0194f95",
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/baseline-pipeline": "7bc7a83bb95761881984fc4edf33e04b2c6d62d87b05f1d927baec701be70adf",
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/baseline-regression": "1d88d432be1324963d578d39f611df2c85c011b694eb465569cb1221ef85c66a",
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/indexed-info": "2b706916a8d6dcb3d95f09e98769249281685d06b882a66474b0d632f08de599",
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/indexed-pipeline": "9dac382d8271645b80823cb8c6c11318c31b062beeaccaa2b554244fc84befd8",
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-duplex-deadlines-20261119/wsl/indexed-regression": "e9dba3778e43bbd81da602208451ca71dda87f159838fa0b707d1b378eda590b"
+      },
+      "raw_measurement_sha256": "d252542cc6b223950b5c63cb2bdda42fb74dc1495ee6b57c8fa05c8ddf84210d",
+      "medians": {
+        "w1": {
+          "baseline": {
+            "info_ns_per_call": 65.478516,
+            "info_block_p99_ns": 81.250001,
+            "window": 1.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 78758.0
+          },
+          "indexed": {
+            "info_ns_per_call": 65.771484,
+            "info_block_p99_ns": 79.687499,
+            "window": 1.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 78782.0
+          }
+        },
+        "w1024": {
+          "baseline": {
+            "info_ns_per_call": 4391.802979,
+            "info_block_p99_ns": 5696.875,
+            "window": 1024.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 161621.0
+          },
+          "indexed": {
+            "info_ns_per_call": 62.921143,
+            "info_block_p99_ns": 64.062501,
+            "window": 1024.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 169829.0
+          }
+        },
+        "w8192": {
+          "baseline": {
+            "info_ns_per_call": 47688.238464,
+            "info_block_p99_ns": 57632.812499,
+            "window": 8192.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 742229.0
+          },
+          "indexed": {
+            "info_ns_per_call": 63.061523,
+            "info_block_p99_ns": 64.062501,
+            "window": 8192.0,
+            "queries": 16384.0,
+            "endpoint_fixed_bytes": 807781.0
+          }
+        },
+        "pipeline1": {
+          "baseline": {
+            "calls_per_sec": 155764.511224,
+            "ns_per_call": 6419.9476,
+            "process_cpu_ns_per_call": 6419.85,
+            "completed": 40000.0
+          },
+          "indexed": {
+            "calls_per_sec": 160534.835289,
+            "ns_per_call": 6229.1776,
+            "process_cpu_ns_per_call": 6229.275,
+            "completed": 40000.0
+          }
+        }
+      },
+      "full_suite": {
+        "log": "wsl-full.log",
+        "sha256": "dd31bcf426a84c8c22221651c40974afa911e1c95ead4c655bef90e5347e8d49",
+        "programs": 59,
+        "skips": []
+      },
+      "packages": {
+        "static": {
+          "log": "wsl-static.log",
+          "sha256": "69f8171b321d1af96fcc3a2d90b2eb43e11c8fb1eef5d7ab9d188a8c7ec7835e",
+          "programs": 0,
+          "skips": []
+        },
+        "shared": {
+          "log": "wsl-shared.log",
+          "sha256": "c3060ff270458840762837e5ad568041653fb6d566651ffcbbb1260ba36e8159",
+          "programs": 0,
+          "skips": []
+        }
+      },
+      "sanitizers": {
+        "log": "asan-wsl-final.log",
+        "sha256": "6c977908c92e795c97ec660cf523c962a25092bd6a5b54860732f83ff55073f0",
+        "programs": 2,
+        "skips": []
+      }
+    }
+  },
+  "registered_profile_smoke": {
+    "log": "windows-profile-smoke.log",
+    "sha256": "415ef810588cde53e3af9440fcd1fc556f00a1c56fe894125290f1d830486665",
+    "programs": 0,
+    "skips": []
+  },
+  "strict_release": {
+    "status": "blocked_by_developing_modules",
+    "modules": [
+      "xrpc",
+      "xrpc_frame",
+      "xrpc_duplex",
+      "xrpc_tcp",
+      "xrpc_tls",
+      "xrpc_tcp_dial",
+      "xrpc_tls_dial",
+      "xrpc_ws",
+      "xrpc_ws_tls",
+      "xrpc_ws_http",
+      "xrpc_ws_http_tls",
+      "xrpc_ws_deflate",
+      "xrpc_ws_http_deflate",
+      "xrpc_ws_dial",
+      "xrpc_ws_dial_tls",
+      "xrpc_ws_uri_parse",
+      "xrpc_ws_uri",
+      "xrpc_ws_uri_tls"
+    ]
+  },
+  "remaining_scope": [
+    "Raw-token cancellation keeps a bounded rotating scan.",
+    "P99 is computed over 64-query block means on a fixed in-flight set.",
+    "Protocol extensions, mixed-load fixed-arrival network acceptance and native production qualification remain pending."
+  ]
+}

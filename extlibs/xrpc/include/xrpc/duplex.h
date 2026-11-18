@@ -45,8 +45,9 @@ typedef struct xrpcduplexinfo {
     size_t Outputs,OutputBytes,Results,ResultBytes,OwnedBytes;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     uint64 ControlRefusals,OutputRefusals,ResultRefusals;
-    /* Absolute monotonic seconds. INFINITY means wait for Wake/input. Step
-     * performs at most MaxWork owner units; More requests another turn now. */
+    /* Absolute monotonic seconds. INFINITY means wait for Wake/input. The
+     * earliest attached finite deadline is indexed. Step performs at most
+     * MaxWork owner units; More requests another turn now. */
     double NextDeadline;
     bool More;
 } xrpcduplexinfo;
