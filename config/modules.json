@@ -9404,6 +9404,7 @@
 				"tests/network/test_net_tcp_bind.c",
 				"tests/network/test_net_tcp_connect_timer.c",
 				"tests/network/test_net_tcp_edges.c",
+				"tests/network/test_net_tcp_epoll_fd_reuse.c",
 				"tests/network/test_net_tcp_invalid.c",
 				"tests/network/test_net_tcp_lifetime.c",
 				"tests/network/test_net_tcp_oom.c",

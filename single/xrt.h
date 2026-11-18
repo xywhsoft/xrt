@@ -163088,6 +163088,13 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		return;
 	}
 	if ( pStream->Socket != NULL ) {
+		/* A partial ready event may have left the other direction armed
+		 * after WatchPending was cleared. Retire it before reusing the fd. */
+		xnetport* pPort = __xrtNetWorkerPortBorrow(pStream->Worker);
+		if ( (xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_READINESS) != 0 &&
+			 !xrtNetPortUnwatch(pPort, pStream->Socket) ) {
+			xrtClearError();
+		}
 		if ( pStream->AbortRequested ) {
 			(void)xrtNetSocketSet(
 				pStream->Socket,
