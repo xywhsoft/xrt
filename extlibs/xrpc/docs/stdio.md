@@ -62,9 +62,12 @@ the host waits for its own retained I/O duties before releasing its handles.
 
 The [redirected-pipe example](../examples/stdio/README.md) can run against
 an independent Python peer using the integration script in tests/interop.
-This stage provides host-driven stdio for duplex calls. Automated native
-process attachment and its readiness lifecycle, negotiated deadline and
-cancellation, and native production qualification remain open.
+The example waits for Linux descriptor readiness and Windows overlapped
+named-pipe completion, with an executor wake and a deadline in both loops.
+The Windows driver waits for physical write completion before reporting
+progress and retires pending operations on shutdown. Automatic process
+attachment, negotiated deadline and cancellation, and production
+qualification remain open.
 
 ## Measuring the adapter
 
@@ -77,8 +80,10 @@ python tools/measure_performance.py --compiler gcc --config extlibs/xrpc/config/
 ```
 
 The independent Python peer can also record a width-32 closed-loop workload
-over actual redirected pipes. These results include the example driver's
-1 ms idle polling and Python time. The repository evidence records both
-workloads and the scope of the remaining production checks.
+over actual redirected pipes. The comparison runs the polling and event
+drivers in the same executable. The measurements include Python peer time,
+and Windows uses different pipe provisioning for the two modes.
 
 [Stage results and verification](../tests/results/stdio-20261119.json).
+
+[Event-driven pipe measurements and verification](../tests/results/stdio-event-20261119.json).

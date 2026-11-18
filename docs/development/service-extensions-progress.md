@@ -15524,3 +15524,35 @@ Native process attachment, negotiated deadline/cancellation, mixed-load
 performance and native 72-hour production qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/stdio-20261119.json).
+
+## 2026-11-19 xrpc event-driven stdio example
+
+The redirected stdio example now drives the portable adapter on requested
+read/write events, asynchronous executor wakeups and its next monotonic
+deadline. Linux waits in poll with a nonblocking wake pipe. Windows uses
+overlapped named pipe handles provisioned by the launcher. The Windows
+driver keeps one bounded buffer and completion event per direction. Pending
+operations are canceled and joined before the native state goes out of scope.
+The polling driver remains available for ordinary Windows pipe redirection.
+
+The scoped stdio suite passed on Windows and WSL, including the modular test,
+single-header test and executable. The Python peer passed both framing
+profiles with both drivers. The event driver also passed broken-reader
+retirement with the input writer held open and a 256 KiB response held past
+the five-second EOF drain deadline. The WSL ASan/UBSan build with leak
+checking passed the suite and both event-driven subprocess profiles.
+
+| Environment | Framing | Poll throughput and P99 | Event throughput and P99 |
+| --- | --- | ---: | ---: |
+| Windows | Content-Length | 898 calls/s, 42.69 ms | 24,841 calls/s, 1.27 ms |
+| Windows | UINT32_BE | 899 calls/s, 41.32 ms | 24,705 calls/s, 1.29 ms |
+| WSL | Content-Length | 13,169 calls/s, 2.96 ms | 19,873 calls/s, 1.64 ms |
+| WSL | UINT32_BE | 13,265 calls/s, 2.80 ms | 20,142 calls/s, 1.66 ms |
+
+Values are medians of three 2,048-call runs at window 32. Measurements include
+the Python peer. Windows uses anonymous and named pipe provisioning for the
+poll and event drivers respectively. Event-driven UINT32_BE P99 ranged from
+1.25 to 2.03 ms on Windows and 1.51 to 3.42 ms on WSL. Automatic process
+attachment and production qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/stdio-event-20261119.json).

@@ -1,0 +1,440 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "1d0e3750136349d6a48b70c39287651dd82ed081",
+  "scope": "Native event-driven host example using the existing xrpc framed stdio API.",
+  "candidate_sha256": {
+    "extlibs/xrpc/examples/stdio/main.c": "269c91e55830ad477e105e317d8d84f152cb1db72b7b440fb50a8eac59cb3305",
+    "extlibs/xrpc/tests/interop/run_stdio.py": "0b14a6e3e02b628b46b0314d1fd73c78bf2b90288441d6ae1ac0ac1a82bd0728"
+  },
+  "raw_directory": "out/service-extensions/xrpc-stdio-event-20261119",
+  "raw_files_sha256": {
+    "asan-build-wsl.log": "9e3d9c5acc6f070c2bc3a90a2902fa6ca3c08e0b857be99922778c900ca2c485",
+    "asan-interop-wsl.log": "962b9c3c38d0516238c23c631176e83442c86819b2d22f10abdad62776017747",
+    "asan-wsl.json": "83f4b45ec8116e7a150cfd17470f54b3603c3aa92efc74625ed1c6edc63a0d49",
+    "build-windows.log": "5c2f0648e089b1202358a1ddca0efba9071d56e78163bb9226de57700bad47eb",
+    "build-wsl.log": "007bcbff8944dceb82801365ca38d2d14dc326f0c726a563a7b32fde1788e137",
+    "interop-windows.log": "af3227088d40108500cbb54e30e89d0c1ab622876196078fbac46f82d434aae7",
+    "interop-wsl.log": "af3227088d40108500cbb54e30e89d0c1ab622876196078fbac46f82d434aae7",
+    "windows.json": "65dd712595ace4852cff254b8f20bd59d5c148cf525436f929d8dae6389aaff6",
+    "wsl.json": "4dc5e04e76ee7f925f240c5f5f07de913bf7ca22217bf9e268b845b2fe89ef9e"
+  },
+  "platforms": {
+    "windows": {
+      "os": "Windows 10 19045 x64",
+      "compiler": "GCC 16.2.0",
+      "build_suite": "xrpc_stdio",
+      "suite_programs_passed": 3,
+      "interop": {
+        "executable_sha256": "57b125a72e61a7abd95b2e05a66a8caaa3369e75a27bc5abf20303d39b43f3be",
+        "harness_sha256": "0b14a6e3e02b628b46b0314d1fd73c78bf2b90288441d6ae1ac0ac1a82bd0728",
+        "scope": "Independent Python peer and C example over native pipes. Performance uses closed-loop groups of 32 and includes Python processing.",
+        "profiles": {
+          "content_length": {
+            "poll": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 898.9149113831421,
+                  "p50_us": 18018.9,
+                  "p99_us": 39824.8
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 881.1389960625822,
+                  "p50_us": 18412.2,
+                  "p99_us": 42686.4
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 898.2391530166186,
+                  "p50_us": 17157.8,
+                  "p99_us": 43338.6
+                }
+              ]
+            },
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.016000000061467,
+                "partial_output_bytes": 4122
+              },
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 24841.134395631452,
+                  "p50_us": 680.1,
+                  "p99_us": 1291.9
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 24696.0623768513,
+                  "p50_us": 690.4,
+                  "p99_us": 1269.6
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 25561.434186171613,
+                  "p50_us": 667.9,
+                  "p99_us": 1215.8
+                }
+              ]
+            }
+          },
+          "uint32_be": {
+            "poll": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 899.3038738129123,
+                  "p50_us": 17929.2,
+                  "p99_us": 41315.9
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 891.9768943141526,
+                  "p50_us": 18159.9,
+                  "p99_us": 44604.5
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 952.1210495460921,
+                  "p50_us": 17205.6,
+                  "p99_us": 40267.6
+                }
+              ]
+            },
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.01500000001397,
+                "partial_output_bytes": 4100
+              },
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 25104.653799714386,
+                  "p50_us": 672.7,
+                  "p99_us": 1250.7
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 24705.267843464142,
+                  "p50_us": 686.9,
+                  "p99_us": 1287.3
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 23296.39429147338,
+                  "p50_us": 701.1,
+                  "p99_us": 2026.1
+                }
+              ]
+            }
+          }
+        }
+      },
+      "flags": "-O2"
+    },
+    "wsl": {
+      "os": "Linux 6.18.33.2-microsoft-standard-WSL2 x86_64",
+      "compiler": "GCC 15.2.0",
+      "build_suite": "xrpc_stdio",
+      "suite_programs_passed": 3,
+      "interop": {
+        "executable_sha256": "164e0e62b0c8ffc4ddb81ea670dd256a0ed4b69b2e17e46b3ddc31e70ea60cbd",
+        "harness_sha256": "0b14a6e3e02b628b46b0314d1fd73c78bf2b90288441d6ae1ac0ac1a82bd0728",
+        "scope": "Independent Python peer and C example over native pipes. Performance uses closed-loop groups of 32 and includes Python processing.",
+        "profiles": {
+          "content_length": {
+            "poll": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 13253.639183664616,
+                  "p50_us": 1523.5,
+                  "p99_us": 2878.1
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 12899.853167799243,
+                  "p50_us": 1594.7,
+                  "p99_us": 2956.1
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 13168.877036099364,
+                  "p50_us": 1497.4,
+                  "p99_us": 3616.3
+                }
+              ]
+            },
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.024498827000002,
+                "partial_output_bytes": 68634
+              },
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 19872.787379087724,
+                  "p50_us": 885.6,
+                  "p99_us": 1634.7
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 19864.383294604577,
+                  "p50_us": 896.9,
+                  "p99_us": 1673.6
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 20030.613584836465,
+                  "p50_us": 879.1,
+                  "p99_us": 1640.5
+                }
+              ]
+            }
+          },
+          "uint32_be": {
+            "poll": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 13470.90167171193,
+                  "p50_us": 1474.4,
+                  "p99_us": 2773.8
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 13264.627571292678,
+                  "p50_us": 1534.8,
+                  "p99_us": 2804.999
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 12889.70517814136,
+                  "p50_us": 1586.1,
+                  "p99_us": 2908.4
+                }
+              ]
+            },
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.024185692000003,
+                "partial_output_bytes": 70148
+              },
+              "performance": [
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 20142.116400228497,
+                  "p50_us": 871.299,
+                  "p99_us": 1663.1
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 20502.43088953901,
+                  "p50_us": 847.4,
+                  "p99_us": 1514.2
+                },
+                {
+                  "calls": 2048,
+                  "window": 32,
+                  "calls_per_second": 11776.97882298516,
+                  "p50_us": 1383.4,
+                  "p99_us": 3417.7
+                }
+              ]
+            }
+          }
+        }
+      },
+      "flags": "-O2"
+    },
+    "wsl_sanitized": {
+      "os": "Linux 6.18.33.2-microsoft-standard-WSL2 x86_64",
+      "compiler": "GCC 15.2.0",
+      "build_suite": "xrpc_stdio",
+      "suite_programs_passed": 3,
+      "interop": {
+        "executable_sha256": "32e3bbe55ebe26cd73e8609113a04955e512f8edba1fde78f14ebbc674bd04af",
+        "harness_sha256": "0b14a6e3e02b628b46b0314d1fd73c78bf2b90288441d6ae1ac0ac1a82bd0728",
+        "scope": "Independent Python peer and C example over native pipes. Performance uses closed-loop groups of 32 and includes Python processing.",
+        "profiles": {
+          "content_length": {
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.022979985999996,
+                "partial_output_bytes": 67610
+              }
+            }
+          },
+          "uint32_be": {
+            "event": {
+              "checks": [
+                "live_response_before_eof",
+                "split_header_and_utf8_roundtrip",
+                "coalesced_batch_and_scalar",
+                "32768_byte_echo_with_delayed_reader",
+                "clean_eof_drain",
+                "invalid_frame",
+                "truncated_eof"
+              ],
+              "retirement": {
+                "checks": [
+                  "reader_disappears_with_input_open",
+                  "unread_output_hits_eof_deadline"
+                ],
+                "drain_wait_seconds": 5.023080882999977,
+                "partial_output_bytes": 68612
+              }
+            }
+          }
+        }
+      },
+      "flags": "-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie",
+      "asan_options": "detect_leaks=1:halt_on_error=1",
+      "ubsan_options": "halt_on_error=1"
+    }
+  },
+  "initial_run": "The first retirement assertion on both platforms assumed the serialized key order of an incomplete JSON response. The corrected peer compares the wire header and validates the payload prefix independently of key order.",
+  "limits": [
+    "Performance is end-to-end over one local subprocess: 2048 calls per run, closed-loop window 32, three interleaved runs per driver and profile.",
+    "The Windows polling driver uses ordinary redirected anonymous pipes. The Windows event driver uses named pipes with overlapped child handles. Linux uses ordinary redirected pipes for both.",
+    "The event driver is an example. Automatic process attachment, negotiated deadline/cancellation and native production qualification are open.",
+    "Windows and WSL UINT32_BE event P99 show run-to-run spread. These are descriptive short-run samples without a release gate."
+  ],
+  "metadata_checks": {
+    "single_headers_current": true,
+    "generated_api_reference_current": true,
+    "documented_api_counts": {
+      "functions": 176,
+      "constants": 267,
+      "types": 126,
+      "missing": 0
+    }
+  }
+}

@@ -25,13 +25,13 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. [WS/WSS dial](docs/ws_dial.md) and [URI input](docs/ws_uri.md) compose native setup. Framed stdio,
-deadline/cancellation negotiation and production acceptance remain pending.
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. [TLS dial](docs/tls_dial.md) adds the same candidate controller with an explicit TLS policy snapshot. The [WS peer](docs/ws.md) and optional [HTTP Upgrade](docs/ws_http.md) add bidirectional Text mapping, same-handle native TCP/TLS handshake, route/shared-executor authorization and original setup clocks. [WS/WSS dial](docs/ws_dial.md) and [URI input](docs/ws_uri.md) compose native setup. [Framed stdio](docs/stdio.md) supports host-driven pipes.
+Automatic process attachment, deadline/cancellation negotiation and production acceptance remain pending.
 
 Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
 thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.
 WS config gained two unconditional fields, so rebuild checked-Size users with
-the matching headers/libraries. [WS/WSS URI input](docs/ws_uri.md) is available; framed stdio remains open.
+the matching headers/libraries.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
 caller-owned message scratch. It classifies calls, notifications, success/error
@@ -216,9 +216,8 @@ executor, copies complete requests, executes handlers off submitting threads and
 returns owned response Futures. Pending and retained result capacities share
 explicit limits, including reallocation peaks. Close drains, Cancel cooperates
 and drops queued jobs, and Destroy physically joins workers. Handler code/User
-remain borrowed through successful Destroy. This is the execution component;
-See the HTTP and framed TCP/TLS adapters below and the [WS/HTTP guide](docs/ws_http.md);
-stdio transport and final acceptance remain pending.
+remain borrowed through successful Destroy. The executor also serves the HTTP,
+framed TCP/TLS, [WebSocket](docs/ws_http.md) and [stdio](docs/stdio.md) adapters.
 
 
 Select `XRPC_MODULE_XRPC_HTTP_SERVER` for the bounded HTTP/1 server. It copies
@@ -275,5 +274,5 @@ production and performance acceptance are separate outstanding gates.
 The [stdio adapter](docs/stdio.md) runs calls, notifications and batches over
 host-owned stdin/stdout with Content-Length or an explicitly selected four-byte
 length. It handles partial I/O, input backpressure and clean EOF response drain.
-The [pipe example](examples/stdio/README.md) runs as a real subprocess on
-Windows and Linux.
+The [pipe example](examples/stdio/README.md) uses event-driven native pipes on
+Windows and Linux. The host supplies process launch and pipe handles.
