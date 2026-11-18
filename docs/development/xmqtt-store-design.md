@@ -525,3 +525,36 @@ through either hard-link name. Fresh owners recover the original bytes after
 ordinary shutdown or forced process termination. Coordinated replacement,
 durable directory publication and compaction remain separate work.
 [Stage evidence](xmqtt-locked-journal-20261118.json).
+
+## 2026-11-18 Bounded native journal generation switching
+
+The prior same-file lock is now composable with a stable namespace owner.
+The slot holds a locked control file and retains its own configured broker
+binding, format and initial generation. Three durably provisioned regular
+files have distinct native identities. No data-name operation is needed
+during rotation. The control lock stays live after the old Journal or its
+Worker retires.
+
+Preparation requires a completely recovered and retired current Journal.
+It locks and resets only the inactive file. The caller appends a complete
+replacement. The normal Journal barriers precede selector publication.
+Publication writes two checksummed witnesses to the fixed 12 KiB selector
+and flushes it. The prepared Journal cannot transfer into a Worker until
+publication succeeds. The same object can keep taking appends once current.
+
+Recovery selects the newest valid witness and validates that generation's
+published sequence, end offset and chain against the data. A larger later
+commit does not relax prefix verification. With only one intact newest
+choice, a future preparation repairs the other witness and syncs it
+before reusing old data. Corrupt selected history fails closed. Unknown
+publication effects leave both owners poisoned for fresh recovery.
+
+The process fixture checks real termination before and after publication.
+The independent byte oracle covers mixed, torn and conflicting selector
+pages, repair before reuse, and selected prefix corruption. The single-header
+failure fixture rejects each selector write and the final flush in turn. Both
+MQTT versions verify the uncertain result and recover by reopening native
+files. The demo rotates a format where each record is a complete independent
+snapshot. MQTT Store snapshot equivalence and live compaction still need
+integration.
+[Stage evidence](xmqtt-journal-slot-20261118.json).

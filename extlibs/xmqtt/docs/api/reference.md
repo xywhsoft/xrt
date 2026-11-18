@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `197` 个函数、`302` 个常量或宏、
-`116` 个公共类型。
+当前登记 `204` 个函数、`303` 个常量或宏、
+`118` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -483,6 +483,29 @@
 ### 常量与宏 (1)
 
 - `XMQTT_FEATURE_XMQTT_JOURNAL_FILE`
+
+## `extlibs/xmqtt/include/xmqtt/journal_slot.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/journal_slot.h)
+
+### 函数 (7)
+
+- `xmqttJournalSlotCreate`
+- `xmqttJournalSlotDestroy`
+- `xmqttJournalSlotInfo`
+- `xmqttJournalSlotOpen`
+- `xmqttJournalSlotOpenCurrent`
+- `xmqttJournalSlotPrepare`
+- `xmqttJournalSlotPublish`
+
+### 常量与宏 (1)
+
+- `XMQTT_FEATURE_XMQTT_JOURNAL_SLOT`
+
+### 类型 (2)
+
+- `xmqttjournalslot`
+- `xmqttjournalslotinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/journal_worker.h`
 

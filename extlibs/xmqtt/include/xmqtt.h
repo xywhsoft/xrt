@@ -26,6 +26,7 @@
 #include <xmqtt/session_image.h>
 #include <xmqtt/journal.h>
 #include <xmqtt/journal_file.h>
+#include <xmqtt/journal_slot.h>
 #include <xmqtt/journal_worker.h>
 #include <xmqtt/store_write.h>
 #include <xmqtt/store_inbox.h>

@@ -14275,3 +14275,21 @@ The owner requires a pre-existing regular file in a trusted stable directory.
 Directory durability, namespace replacement and compaction have separate
 requirements.
 [Stage evidence](xmqtt-locked-journal-20261118.json).
+
+## 2026-11-18 Bounded journal generation switch
+
+The native journal slot keeps its control lock through old-owner retirement
+and selects one of two pre-provisioned data files. Replacement initialization
+and appends sync before publication. The control map records the published
+prefix. A worker can append after publication and the same handle remains
+selected through physical destruction.
+
+Windows and Linux under WSL test normal and abandoned preparation, allocation
+refusal, generation exhaustion, typed Worker handoff and graceful removal.
+An independent selector corpus tests interruption and torn pages using
+native recovery. Injected selector write and flush failures verify the
+uncertain result, poisoned write ownership, and fresh recovery. Static and
+shared examples run creation, rotation and snapshot recovery. Preparation
+and publication are explicit storage operations. MQTT snapshot encoding, automated compaction, initial namespace
+power-loss qualification and controlled production performance remain open.
+[Stage evidence](xmqtt-journal-slot-20261118.json).

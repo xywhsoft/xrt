@@ -109,6 +109,19 @@
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
 #define XMQTT_MODULE_XMQTT_JOURNAL_FILE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
+#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
+#endif
+#endif
+
+/* xmqtt_journal_slot 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
+#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
+#define XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
+#endif
 #endif
 
 /* xmqtt_journal_file 及其直接依赖。 */

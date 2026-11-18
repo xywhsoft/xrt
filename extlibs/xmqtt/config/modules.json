@@ -156,7 +156,8 @@
         "xmqtt_client_store_ws",
         "xmqtt_store_inbox",
         "xmqtt_reconnect_store",
-        "xmqtt_journal_file"
+        "xmqtt_journal_file",
+        "xmqtt_journal_slot"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -728,7 +729,8 @@
         "xmqtt_store_state_tests",
         "xmqtt_store_session_tests",
         "xmqtt_journal_worker_tests",
-        "xmqtt_journal_file_tests"
+        "xmqtt_journal_file_tests",
+        "xmqtt_journal_slot_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -824,7 +826,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_session/main.c",
@@ -887,7 +891,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_faults.c": "xmqtt_journal_worker_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_worker_errors.c": "xmqtt_journal_worker_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c": "xmqtt_reconnect_store_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c": "xmqtt_journal_file_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_file.c": "xmqtt_journal_file_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c": "xmqtt_journal_slot_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c": "xmqtt_journal_slot_tests"
       }
     },
     {
@@ -2535,6 +2541,55 @@
       ],
       "examples": [
         "extlibs/xmqtt/examples/journal_file/main.c"
+      ],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_journal_slot",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_JOURNAL_SLOT",
+      "depends": [
+        "xmqtt_journal_file"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/journal_slot.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xmqtt/examples/journal_slot/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/journal_slot.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_journal_slot_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_journal_slot",
+        "xmqtt_journal_worker",
+        "dir_temp",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_journal_slot.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/journal_slot/main.c"
       ],
       "benchmarks": [],
       "docs": []
