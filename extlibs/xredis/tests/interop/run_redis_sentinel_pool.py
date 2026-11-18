@@ -1,10 +1,21 @@
 """Keep a native C pool alive across owned real Redis/Sentinel failover."""
 from pathlib import Path
-import argparse,json,subprocess,tempfile,socket,ssl,time,traceback,shutil,hashlib,select
+import argparse,json,subprocess,tempfile,ssl,time,traceback,shutil,hashlib,select,sys
 from run_redis_role import exchange as tcp_exchange
+from sentinel_load_report import load_report
+from run_redis_sentinel_seeds import ports_for_fixture
 
 def sha(p):
  with Path(p).open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+def windows_listeners(client):
+ if client.suffix.lower()!='.exe' or sys.platform=='win32':return set()
+ # WSL loopback forwarding cannot own a port already listened on by Windows.
+ output=subprocess.check_output(
+     ['powershell.exe','-NoProfile','-NonInteractive','-Command',
+      '(Get-NetTCPConnection -State Listen -ErrorAction Stop).LocalPort'],
+     text=True,encoding='ascii',errors='replace',timeout=20)
+ return {int(line.strip()) for line in output.splitlines() if line.strip().isdigit()}
+
 def main():
  parser=argparse.ArgumentParser(description=__doc__)
  mode=parser.add_mutually_exclusive_group()
@@ -18,7 +29,14 @@ def main():
  parser.add_argument('--openssl',type=Path,default=shutil.which('openssl'))
  parser.add_argument('--runtime-root',type=Path)
  parser.add_argument('--case',type=int,nargs=2,metavar=('FACTORY','PROTOCOL'))
+ parser.add_argument('--load',type=int,nargs=4,metavar=('COUNT','RATE','SLOTS','TIMEOUT_MS'))
+ parser.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
  a=parser.parse_args()
+ if a.control and not a.load:parser.error('--control requires --load')
+ if a.load:
+  count,rate,slots,timeout=a.load
+  if not a.listen or not (0<rate<=100000 and 3*rate<=count<=min(300000,30*rate) and 1<=slots<=1024 and 1<=timeout<=10000):
+   parser.error('--load requires --listen, a 3..30 second schedule, 1..1024 slots and a 1..10000 ms deadline')
  if a.tls and (not a.listen or not a.openssl):parser.error('--tls requires --listen and OpenSSL')
  matrix=[(factory,protocol) for factory in range(3) for protocol in (2,3,0)]
  if a.case:
@@ -28,6 +46,14 @@ def main():
  client=a.client.absolute();report=a.report.absolute();report.parent.mkdir(parents=True,exist_ok=True)
  transport='mutual TLS 1.'+str(a.tls-10)+' with Redis ACL' if a.tls else 'plaintext'
  result=dict(schema=1,complete=False,mode='events-'+a.listen if a.listen else 'replica' if a.replicas else 'refresh' if a.refresh else 'master',transport=transport,client_sha256=sha(client),server_version=subprocess.check_output([a.server,'--version'],text=True).strip(),server_sha256=sha(a.server),runner_sha256=sha(__file__),fixtures=[],cases=[],limits=['Owned loopback fixture; server and client run on the same host.','Each C pool keeps three old leases and one queued acquisition; the old blocking command is observed server-side and checked for replay.','Refresh mode remaps Sentinel to another master and confirms the old node and connections remain live before the hint.' if a.refresh else 'Failover mode triggers a real Sentinel election.']);children=[];logs=[]
+ if a.load:
+  result['load']=dict(schedule=a.load,control=a.control,pool_members=3,engine_workers=2,
+      ledger_helper_sha256=sha(Path(__file__).with_name('sentinel_load_report.py')))
+  result['limits']=[
+      'Disposable loopback topology. One controlled Sentinel FAILOVER request per election case.',
+      'Three exclusive pool members; binary PING on each lease. Per-offer latency starts at the planned arrival.',
+      'Windows probe may use loopback forwarding to the WSL Redis host. Client and controller clocks are independent.',
+  ]
  def save():report.write_text(json.dumps(result,indent=2)+'\n')
  def identity(port):
   data,_=exchange(port,['INFO','SERVER']);return dict(line.split(b':',1) for line in data.split(b'\r\n') if b':' in line)
@@ -36,22 +62,19 @@ def main():
    info=identity(port);expected=next(x for x in result['fixtures'] if x['name']==name);assert p.poll() is None and int(info[b'process_id'])==p.pid and info[b'run_id'].decode()==expected['run_id']
  temporary=tempfile.TemporaryDirectory(prefix='sentinel-discovery ',dir=a.runtime_root)
  try:
-  runtime=Path(temporary.name);ports=[]
+  runtime=Path(temporary.name)
+  reserved=windows_listeners(client)
+  ports=ports_for_fixture(reserved)[:3]
+  if a.load:result['fixture_port_policy']=dict(range=[38000,47999],windows_listeners_excluded=len(reserved))
   tls=None
   exchange=tcp_exchange
   if a.tls:
-   from run_redis_sentinel_seeds import ports_for_fixture
    from sentinel_tls_fixture import SentinelTls
    tls=SentinelTls(runtime,a.tls,a.openssl)
-   ports=ports_for_fixture()[:3]
    result['public_certificate_sha256']=tls.public_hashes
    result['openssl_sha256']=sha(tls.openssl)
    result['tls_fixture_sha256']=sha(Path(__file__).with_name('sentinel_tls_fixture.py'))
    exchange=tls.exchange
-  else:
-   while len(ports)<3:
-    with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-    if port not in ports:ports.append(port)
   master,replica,sentinel=ports
   for name,port in zip(('master','replica','sentinel'),ports):
    directory=runtime/name;directory.mkdir();log=(directory/'server.log').open('wb');logs.append((name,log));args=[a.server,'--bind','127.0.0.1','--port',str(port),'--dir',str(directory),'--save','','--appendonly','no','--repl-diskless-sync-delay','0']
@@ -97,24 +120,34 @@ def main():
    else:current,target=stable()
    owned();run=lambda port:next(x['run_id'] for x in result['fixtures'] if x['port']==port)
    initial,destination=(target,current) if a.replicas else (current,target)
+   if a.control:destination=initial
    args=[str(client),str(sentinel),str(destination),run(initial),run(destination),str(factory),str(protocol),'3']
    if a.listen:args.append('events-'+a.listen)
    elif a.replicas:args.append('replica')
    elif a.refresh:args.append('refresh')
    if tls:args.extend(tls.probe_args(client))
+   if a.load:args.extend(['load',*map(str,a.load)])
    probe=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);prefix=[]
    case=dict(factory=factory,protocol=protocol,initial_port=initial,target_port=destination,process_id=probe.pid,ready=False,exit_code=None);result['cases'].append(case);save()
    try:
-    due=time.monotonic()+25
-    while True:
-     ready,_,_=select.select([probe.stdout],[],[],.2)
-     if ready:
-      line=probe.stdout.readline();prefix.append(line)
-      if line.strip()=='READY':case['ready']=True;save();break
-     if probe.poll() is not None:raise AssertionError('probe ended before READY: '+''.join(prefix)+probe.stdout.read())
-     assert time.monotonic()<due,'C pool did not verify its initial native members'
-    owned()
-    if a.refresh:
+    def expect(marker,seconds):
+     due=time.monotonic()+seconds
+     while True:
+      ready,_,_=select.select([probe.stdout],[],[],.2)
+      if ready:
+       line=probe.stdout.readline();prefix.append(line)
+       if line.strip()==marker:return
+      if probe.poll() is not None:raise AssertionError(f'probe ended before {marker}: '+''.join(prefix)+probe.stdout.read())
+      assert time.monotonic()<due,f'probe did not reach {marker}'
+    expect('READY',25)
+    case['ready']=True;save();owned()
+    if a.load:
+     probe.stdin.write('GO\n');probe.stdin.flush()
+     expect('ELECT',10);marker=time.monotonic()
+     case['manual_failover_requests']=0
+    if a.control:
+     pass
+    elif a.refresh:
      exchange(sentinel,['SENTINEL','REMOVE','cache'])
      exchange(target,['REPLICAOF','NO','ONE'])
      exchange(sentinel,['SENTINEL','MONITOR','cache','127.0.0.1',str(target),'1'])
@@ -124,8 +157,11 @@ def main():
      assert int(endpoint[1])==target and old[0]==new[0]==b'master' and b'cmd=blpop' in clients
      case['old_live_before_hint']=True
     else:
-     exchange(sentinel,['SENTINEL','FAILOVER','cache']);due=time.monotonic()+25
+     sent=time.monotonic()
+     exchange(sentinel,['SENTINEL','FAILOVER','cache'])
+     ack=time.monotonic();due=ack+25
      case['manual_failover_requests']=1
+     if a.load:case['controller_timing_seconds']=dict(marker_to_send=sent-marker,send_to_ack=ack-sent)
      case['interrupted_control_reads']=0
      while True:
       try:
@@ -139,10 +175,21 @@ def main():
        case['interrupted_control_reads']+=1
       else:
        if int(endpoint[1])==target and new[0]==b'master' and old[0]==b'slave':
-        if not a.replicas or old[3]==b'connected':break
+        if not a.replicas or old[3]==b'connected':
+         if a.load:case['controller_timing_seconds']['send_to_verified_roles']=time.monotonic()-sent
+         break
       assert time.monotonic()<due,'manual failover did not complete';time.sleep(.05)
-    output,_=probe.communicate('GO\n',timeout=35);case.update(exit_code=probe.returncode,output=''.join(prefix)+output,probe_reaped=probe.poll() is not None);save();assert probe.returncode==0,case['output']
-    owned();print('factory',factory,'protocol',protocol,'persistent pool refresh passed' if a.refresh else 'persistent pool failover passed',flush=True)
+    output,_=probe.communicate(None if a.load else 'GO\n',timeout=45 if a.load else 35)
+    case.update(exit_code=probe.returncode,output=''.join(prefix)+output,probe_reaped=probe.poll() is not None)
+    assert probe.returncode==0,case['output']
+    if a.load:
+     ledger=report.with_name(f'{report.stem}-{factory}-{protocol}-offers.csv.gz')
+     case['load']=load_report(output,a.load,a.control,ledger)
+     case['output']=''.join(prefix)+'\n'.join(line for line in output.splitlines() if not line.startswith('LOAD '))
+    save();owned()
+    print('factory',factory,'protocol',protocol,
+          'fixed-arrival workload passed' if a.load else 'persistent pool refresh passed' if a.refresh else
+          'persistent pool failover passed',flush=True)
    finally:
     if probe.poll() is None:probe.kill();tail,_=probe.communicate(timeout=5);case['aborted_output']=''.join(prefix)+tail
     case['probe_reaped']=probe.poll() is not None;case['exit_code']=probe.returncode;save()

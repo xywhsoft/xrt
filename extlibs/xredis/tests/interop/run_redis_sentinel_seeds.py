@@ -16,9 +16,10 @@ import traceback
 from run_redis_role import exchange, sha
 
 
-def ports_for_fixture():
+def ports_for_fixture(exclude=()):
     # Stay below the native Windows ephemeral range for the WSL-to-Windows runner.
-    candidates = random.sample(range(38000, 48000), 64)
+    available = [port for port in range(38000, 48000) if port not in exclude]
+    candidates = random.sample(available, min(len(available), 64))
     ports = []
     with ExitStack() as stack:
         for port in candidates:

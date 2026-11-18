@@ -14634,3 +14634,68 @@ This workload isolates client-side replacement after a topology change.
 Measuring real election lag, sustained business traffic during failover and
 native Linux performance remains part of production qualification.
 [Stage evidence](xredis-sentinel-recovery-bench-20261118.json).
+
+## 2026-11-18 Fixed-arrival load during real Sentinel failover
+
+The interop probe starts with three native exclusive pool members
+and a Sentinel subscription. One producer offers binary 32-byte PING
+requests at predetermined monotonic times. Each offer acquires a lease
+and issues at most one command within the remaining budget. The ledger
+includes capacity drops, acquisition and call results, deadline misses
+and delivery states. It validates every returned payload. The probe
+checks the original and replacement Redis process identities and
+waits for physical closure.
+
+The 18-second diagnostic uses 64 generator slots and a 200 ms budget.
+The controller issues SENTINEL FAILOVER at a marker roughly one second
+into the stream. A paired control uses the same stream without an
+election. Latency is measured from the planned arrival. The measured
+transition starts at the trigger marker and ends when the caller
+observes the new endpoint, generation and full pool membership. The
+controller separately records its command and role-observation times.
+[Redis Sentinel documentation](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/).
+
+| Client | Pool | Transport | Rate offered/s | Successful offers | Transition p99 (ms) | Full replacement (s after marker) |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| windows | master | TCP | 1,000 | 18,000/18,000 | 0.392 | 1.195 |
+| windows | master | mTLS 1.3 | 1,000 | 17,999/18,000 | 47.990 | 1.262 |
+| windows | replica | TCP | 1,000 | 6,893/18,000 | 200.271 | 11.348 |
+| windows | replica | mTLS 1.3 | 1,000 | 6,786/18,000 | 200.271 | 11.501 |
+| wsl | master | TCP | 1,000 | 18,000/18,000 | 0.251 | 1.132 |
+| wsl | master | mTLS 1.3 | 1,000 | 17,999/18,000 | 37.966 | 1.232 |
+| wsl | replica | TCP | 1,000 | 6,890/18,000 | 199.063 | 11.326 |
+| wsl | replica | mTLS 1.3 | 1,000 | 6,873/18,000 | 199.122 | 11.410 |
+| windows | master | mTLS 1.3 | 5,000 | 89,683/90,000 | 55.666 | 1.257 |
+| wsl | master | mTLS 1.3 | 5,000 | 89,698/90,000 | 53.426 | 1.216 |
+
+20 workloads accounted for 648,000
+scheduled offers across 10 real failovers and their controls.
+The standard matrix uses 1,000 offers/s. The extra master scenarios use
+5,000 offers/s over mTLS. In the WSL control at that rate, the bounded
+generator dropped 1,078 offers before lease admission. The ledger
+reports these alongside transport and request outcomes.
+The initial Windows replica observation at
+12 seconds ended before Redis had finished converting the old master
+to a replica. A longer window captured post-recovery requests. An initial plaintext
+run also encountered a WSL Sentinel port held by a Windows listener.
+The controller now selects from the owned fixture range after excluding
+ports already listened on by Windows.
+Both existing no-load paths ran with the updated probe. A WSL
+replica workload also passed ASan, UBSan and leak detection. A ledger
+check rejects duplicate, omitted, shifted and invalid-delivery offers.
+
+Build the probe with GCC and run it against an owned topology.
+The controller uses POSIX pipe selection. For a Windows client and
+WSL server, build the EXE on Windows and pass its mounted path to
+the controller. Add --control for the no-election run.
+
+```text
+python3 extlibs/xredis/tests/interop/build_sentinel_probe.py --arch x64 --output out/redis_sentinel
+python3 extlibs/xredis/tests/interop/run_redis_sentinel_pool.py --listen master --case 0 3 --client out/redis_sentinel --load 18000 1000 64 200 --report out/sentinel-load.json
+```
+
+These unpinned loopback traces characterize this workload on the
+observed host. Native Linux and Windows server qualification,
+representative Redis workloads, repeated controlled measurements and
+long-duration mixed-load runs remain open.
+[Stage evidence](xredis-sentinel-load-20261118.json).

@@ -170,6 +170,9 @@ static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
     }
 #endif
 }
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+#include "sentinel_load_support.h"
+#endif
 static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredislease** L,cstr Run,uint16 Port,bool Replicas)
 {
     xredissentinelpoolseedinfo Seeds={.Size=sizeof(Seeds)};
@@ -197,6 +200,13 @@ static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredisleas
 }
 int main(int Argc,char** Argv)
 {
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
+    redisopenconfig Load={0};
+    if(Argc>=6 && !strcmp(Argv[Argc-5],"load")){
+        if(!sprLoadConfig(Argv+Argc-4,&Load))return 2;
+        Argc-=5;
+    }
+#endif
     bool Learn=Argc==10 && (!strcmp(Argv[8],"seed-master") || !strcmp(Argv[8],"seed-replica"));
     bool Secure=Argc==13;
     bool Listen=(Argc==9 || Secure) && (!strcmp(Argv[8],"events-master") || !strcmp(Argv[8],"events-replica"));
@@ -205,6 +215,8 @@ int main(int Argc,char** Argv)
     bool Refresh=Argc==9&&!strcmp(Argv[8],"refresh");
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     if(Listen)return 2;
+#else
+    if(Load.Count && !Listen)return 2;
 #endif
     if((Argc!=8 && !Learn && !Listen && !(Argc==9 && (Replicas || Refresh))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
 #if !defined(SPR_TLS)
@@ -254,6 +266,22 @@ int main(int Argc,char** Argv)
             xrtSleep(1);
         }
         PreviousHints=Snapshot.Hints;
+    }
+    if(Load.Count){
+        for(size_t N=0;N<Count;++N){
+            xfuture* Returned=xredisLeaseClosed(L[N]);
+            sprRequire(xredisLeaseReturn(L[N]),"release initial load lease");
+            const xredisleaseclosedresult* Result=sprWait(Returned);
+            sprRequire(Result->Reusable,"initial load lease physically returned");
+            xrtFutureDestroy(Returned);
+            xrtFutureDestroy(Acquired[N]);
+        }
+        bool Switch=strcmp(Argv[3],Argv[4])!=0;
+        sprLoad(P,&Load,Argv[4],(uint16)Next,Count,Switch,PreviousHints);
+        sprClose(P,E,&D);
+        xredisPoolRelease(P);
+        puts("[PASS] fixed-arrival Sentinel pool load");
+        return 0;
     }
 #endif
     if(Learn){
