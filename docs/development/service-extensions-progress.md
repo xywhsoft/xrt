@@ -14552,3 +14552,34 @@ The strict release gate still reports 32 developing modules. Authenticated
 TLS Sentinel interoperability, native Linux endurance and production
 throughput and tail latency remain qualification work.
 [Stage evidence](xredis-sentinel-events-20261118.json).
+
+## 2026-11-18 Redis Sentinel mutual TLS and ACL elections
+
+A disposable Redis 8.0.5 topology uses TLS-only listeners, mandatory client
+certificates and separate ACL users for the controller, native Sentinel
+queries and subscription, native data requests, monitoring, and replication.
+The native probe pins TLS 1.2 or 1.3, verifies the server name and CA, and
+rejects wrong passwords on both connection roles before preparing the pool.
+The fixture also checks missing client identity, cleartext, missing Redis
+authentication, cross-role credentials and restricted commands.
+
+Seventy-two real elections cover Windows and WSL clients, master and replica
+pools, both TLS versions, RESP2/RESP3/AUTO and numeric, DNS and prepared-address
+factories. The listener observes the real switch event. A queued acquisition
+reaches the replacement generation and the original business request retains
+delivery uncertainty without replay. Four plaintext controls and two
+ASan/UBSan/leak-detection elections also pass.
+
+The runner uses the WSL local filesystem for its temporary replication data
+and TLS material. Initial mounted-filesystem synchronization failures and
+TLS status-read interruptions are preserved in the report. Only read-only
+topology observations are retried within their original polling deadline.
+Each case issues one election request. The runner terminates its owned server
+processes and removes the temporary material.
+
+Build the existing interop probe with SPR_TLS and the
+xredis_sentinel_events, xredis_tls_auth, tls_identity_rsa and pem modules.
+The runner accepts --listen master or --listen replica and --tls 12 or --tls 13.
+Use --case FACTORY PROTOCOL for a single case. Native Linux server-host
+endurance and production throughput and tail latency remain open.
+[Stage evidence](xredis-sentinel-mtls-20261118.json).

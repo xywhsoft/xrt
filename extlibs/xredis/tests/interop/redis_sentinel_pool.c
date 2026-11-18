@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(SPR_TLS)
+#include <xredis/tls_auth.h>
+#include "../../examples/tls_auth/material.h"
+#endif
 static void sprRequire(bool B,cstr T){if(!B){fprintf(stderr,"[FAIL] real Sentinel pool: %s\n",T);exit(1);}}
 /* Three pool members, at most two discoveries and one optional subscriber. */
 enum { SPR_MAX_OBSERVERS = 6 };
@@ -16,7 +20,64 @@ typedef struct sprcontext {
     xfuture* Closed[SPR_MAX_OBSERVERS];
     size_t Count, Peak;
     xatomic32 Drops, LearnedDials;
+#if defined(SPR_TLS)
+    xredisclienttlsconfig TLS;
+    xtlsclientauthconfigv1 Auth;
+    xtlsverifier* Verifier;
+    xtlscontext* Context;
+    xtlsidentity* Identity;
+    unsigned Version;
+    bool BadPassword;
+#endif
 } sprcontext;
+#if defined(SPR_TLS)
+static void sprInitTLS(sprcontext* D,cstr CA,cstr Chain,cstr Key)
+{
+    size_t Size;
+    bytes Pem=xredisExampleAuthRead(CA,65536,&Size);
+    xx509store* Store=xrtX509StoreCreate();
+    sprRequire(Pem && Store && xrtX509StoreAddData(Store,(xbytesview){Pem,Size},NULL),"load fixture CA");
+    xrtFree(Pem);
+    xtlsverifierconfig Verify;
+    xrtTlsVerifierConfigInit(&Verify);Verify.Store=Store;
+    xtlsverifylimits Limits;xrtTlsVerifyLimitsInit(&Limits);
+    D->Verifier=xrtTlsVerifierCreateLimited(&Verify,&Limits);
+    xrtX509StoreFree(Store);
+
+    xtlsversion Version=D->Version==12?XTLS_VERSION_12:XTLS_VERSION_13;
+    xtlscipher Cipher=D->Version==12?XTLS_ECDHE_RSA_AES_128_GCM_SHA256:XTLS_AES_128_GCM_SHA256;
+    xtlssignature Signature=XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256;
+    xtlspolicy Policy;xrtTlsPolicyInit(&Policy);
+    Policy.Versions=&Version;Policy.VersionCount=1;
+    Policy.Ciphers=&Cipher;Policy.CipherCount=1;
+    Policy.Signatures=&Signature;Policy.SignatureCount=1;
+    xtlscontextconfig Config;xrtTlsContextConfigInit(&Config);Config.Policy=&Policy;
+    D->Context=xrtTlsContextCreate(&Config);
+    D->Identity=xredisExampleAuthIdentity(Chain,Key);
+    sprRequire(D->Verifier && D->Context && D->Identity,"fixture TLS policy and client identity");
+    xredisClientTlsConfigInit(&D->TLS);
+    D->TLS.Session.Context=D->Context;D->TLS.Session.Verifier=D->Verifier;
+    D->TLS.Session.VerifyName=(xstrview)XRT_STR_LITERAL("localhost");
+    D->TLS.Dial.Family=XNET_FAMILY_IPV4;
+    xrtTlsClientAuthConfigInitV1(&D->Auth);
+    D->Auth.Identity=D->Identity;D->Auth.RequireCertificate=true;
+}
+static bool sprConnectTLS(xnetengine* E,const xnetaddr* Address,xredisclientinitconfig* I,sprcontext* D,xredisclient** C)
+{
+    bool Seed=Address->Port==D->Seed || Address->Port==D->Learned;
+    I->Flags=XREDIS_INIT_AUTH|XREDIS_INIT_USERNAME;
+    I->Username=Seed?(xbytesview)XRT_BYTES_LITERAL("xredis-seed"):(xbytesview)XRT_BYTES_LITERAL("xredis-data");
+    I->Password=Seed?(xbytesview)XRT_BYTES_LITERAL("fixture-seed-pass"):(xbytesview)XRT_BYTES_LITERAL("fixture-data-pass");
+    if(D->BadPassword)I->Password=(xbytesview)XRT_BYTES_LITERAL("fixture-rejected-pass");
+    if(D->Factory==0)return xredisClientTlsAuthConnectV1(E,Address,0,NULL,I,&D->TLS,&D->Auth,C);
+    if(D->Factory==1)return xredisClientTlsAuthDialV1(E,D->Resolver,XRT_STR_LITERAL("localhost"),Address->Port,0,NULL,I,&D->TLS,&D->Auth,C);
+    xnetaddrlist* Endpoints=xrtNetAddrListCreate(Address,1);
+    if(!Endpoints)return false;
+    bool OK=xredisClientTlsAuthDialAddressesV1(E,Endpoints,0,NULL,I,&D->TLS,&D->Auth,C);
+    xrtNetAddrListDestroy(Endpoints);
+    return OK;
+}
+#endif
 static void sprReap(sprcontext* D)
 {
     size_t Live=0;
@@ -32,6 +93,10 @@ static xredissentinelstatus sprConnect(xnetengine* E,uint16 Port,int64 Timeout,s
     sprReap(D);
     xredisclientinitconfig I;xredisClientInitConfigInit(&I);I.Mode=D->Mode;I.Timeout=Timeout;xredisclientdialconfig Dial;xredisClientDialConfigInit(&Dial);Dial.Family=XNET_FAMILY_IPV4;
     xnetaddr A;sprRequire(xrtNetAddrParse(&A,"127.0.0.1",Port),"announced numeric endpoint");bool OK;
+#if defined(SPR_TLS)
+    if(D->Version)OK=sprConnectTLS(E,&A,&I,D,C);
+    else
+#endif
     if(D->Factory==1)OK=xredisClientDial(E,D->Resolver,XRT_STR_LITERAL("localhost"),Port,0,NULL,&I,&Dial,C);
     else if(D->Factory==2){xnetaddrlist* L=xrtNetAddrListCreate(&A,1);if(!L)return XREDIS_SENTINEL_MEMORY;OK=xredisClientDialAddresses(E,L,0,NULL,&I,&Dial,C);xrtNetAddrListDestroy(L);}
     else OK=xredisClientConnectInit(E,&A,0,NULL,&I,C);
@@ -59,6 +124,24 @@ static void sprDrop(ptr Data)
 {sprcontext* D=Data;for(size_t N=0;N<D->Count;++N){sprRequire(xrtFutureState(D->Closed[N])==XFUTURE_RESOLVED,"context drop after every seed/master closes");xrtFutureDestroy(D->Closed[N]);D->Closed[N]=NULL;}xrtAtomic32FetchAdd(&D->Drops,1,XMEMORY_RELEASE);}
 static const void* sprWait(xfuture* F)
 {sprRequire(F && xrtFutureWaitFor(F,30000)==XWAIT_OK && xrtFutureValue(F),"typed future deadline");return xrtFutureValue(F);}
+#if defined(SPR_TLS)
+static void sprRejectPasswords(xnetengine* E,uint16 DataPort,sprcontext* D)
+{
+    uint16 Ports[]={D->Seed,DataPort};
+    D->BadPassword=true;
+    for(size_t I=0;I<2;++I){
+        xredisclient* Client=NULL;
+        sprRequire(sprConnect(E,Ports[I],5000,D,&Client)==XREDIS_SENTINEL_OK,"native denied connection admitted");
+        xfuture* Ready=xredisClientReady(Client);
+        const xredisreadyresult* R=sprWait(Ready);
+        sprRequire(R->Status==XREDIS_READY_AUTH_FAILED && !R->Downgraded && !R->Hello,"native rejected password");
+        xfuture* Closed=xredisClientClosed(Client);
+        sprRequire(xredisClientClose(Client) && xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"denied connection retired");
+        xrtFutureDestroy(Ready);xrtFutureDestroy(Closed);xredisClientRelease(Client);
+    }
+    D->BadPassword=false;
+}
+#endif
 static xfuture* sprAcquire(xredispool* P)
 {xfuture* F=NULL;sprRequire(xredisPoolAcquireAsync(P,20000,&F)==XREDIS_ADMISSION_ACCEPTED,"native acquire admission");return F;}
 static xredislease* sprLease(xfuture* F)
@@ -78,6 +161,14 @@ static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
         xrtAtomic32Load(&D->Drops,XMEMORY_ACQUIRE)==1,"physical pool close/context drop");
     xrtFutureDestroy(Closed);
     sprRequire(xrtNetResolverDestroy(D->Resolver) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"physical owners joined");
+#if defined(SPR_TLS)
+    if(D->Version){
+        xrtTlsVerifierRelease(D->Verifier);
+        xrtTlsContextRelease(D->Context);
+        xrtTlsIdentityRelease(D->Identity);
+        printf("TLS 1.%u mutual verification and two native ACL rejections\n",D->Version-10);
+    }
+#endif
 }
 static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredislease** L,cstr Run,uint16 Port,bool Replicas)
 {
@@ -107,14 +198,18 @@ static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredisleas
 int main(int Argc,char** Argv)
 {
     bool Learn=Argc==10 && (!strcmp(Argv[8],"seed-master") || !strcmp(Argv[8],"seed-replica"));
-    bool Listen=Argc==9 && (!strcmp(Argv[8],"events-master") || !strcmp(Argv[8],"events-replica"));
+    bool Secure=Argc==13;
+    bool Listen=(Argc==9 || Secure) && (!strcmp(Argv[8],"events-master") || !strcmp(Argv[8],"events-replica"));
     bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica")) ||
         (Listen&&!strcmp(Argv[8],"events-replica"));
     bool Refresh=Argc==9&&!strcmp(Argv[8],"refresh");
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     if(Listen)return 2;
 #endif
-    if((Argc!=8 && !Learn && !(Argc==9 && (Replicas || Refresh || Listen))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
+    if((Argc!=8 && !Learn && !Listen && !(Argc==9 && (Replicas || Refresh))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
+#if !defined(SPR_TLS)
+    if(Secure)return 2;
+#endif
     unsigned long Seed=strtoul(Argv[1],NULL,10),Next=strtoul(Argv[2],NULL,10);sprcontext D={0};D.Seed=(uint16)Seed;D.Factory=(unsigned)strtoul(Argv[5],NULL,10);D.Mode=(xredisinitmode)strtol(Argv[6],NULL,10);size_t Count=(size_t)strtoul(Argv[7],NULL,10);if(!Seed || Seed>65535 || !Next || Next>65535 || D.Factory>2 || Count!=3)return 2;
     if(Learn){
         unsigned long Alternate=strtoul(Argv[9],NULL,10);
@@ -122,6 +217,14 @@ int main(int Argc,char** Argv)
         D.Learned=(uint16)Alternate;
     }
     xnetengineconfig Ecfg;xrtNetEngineConfigInit(&Ecfg);Ecfg.Workers=2;xnetengine* E=xrtNetEngineCreate(&Ecfg);sprRequire(E && xrtNetEngineStart(E),"engine start");D.Resolver=xrtNetResolverCreate(NULL);sprRequire(D.Resolver!=NULL,"resolver");
+#if defined(SPR_TLS)
+    if(Secure){
+        D.Version=(unsigned)strtoul(Argv[12],NULL,10);
+        sprRequire(D.Version==12 || D.Version==13,"supported TLS version");
+        sprInitTLS(&D,Argv[9],Argv[10],Argv[11]);
+        sprRejectPasswords(E,(uint16)Next,&D);
+    }
+#endif
     xredissentinelpoolconfig K;xredisSentinelPoolConfigInit(&K);K.Discovery.Service=(xbytesview)XRT_BYTES_LITERAL("cache");K.Discovery.ConnectSeed=sprSeed;K.Discovery.ConnectMaster=sprMaster;K.Discovery.Data=&D;K.Discovery.Protocol=D.Mode==XREDIS_INIT_RESP2?XREDIS_RESP2:XREDIS_RESP3;K.Discovery.SeedTimeout=2000;K.MaxConnecting=2;K.RetryMin=10;K.RetryMax=30;K.Drop=sprDrop;xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;O.LeaseTimeout=60000;
     xredispool* P=NULL;
     xredisadmission Pool;

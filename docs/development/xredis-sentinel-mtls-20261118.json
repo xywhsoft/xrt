@@ -1,0 +1,1898 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+  "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+  "transport_source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+  "initial_source_map_sha256": "40863da8316a1eacad701ca13afbfc491d742e294a6973dc81dc9621583d0b3c",
+  "evidence_directory": "out/service-extensions/xredis-sentinel-mtls-20261118",
+  "scope": "Mutual TLS 1.2/1.3 and distinct Redis ACL identities through real Sentinel elections and native master/replica pool recovery.",
+  "matrix": {
+    "windows": [
+      {
+        "count": 9,
+        "role": "master",
+        "tls_version": 12,
+        "report": "final-matrix-windows-master-12.json",
+        "report_sha256": "e754339af61d20869d7c5af98d45f4f5dd83207d1796da986307a7f54640c111",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "41d1c931e1ee085a4a96089a24313efb9d77d6d02643c8d7f2c2e1c49fcf8bc4",
+          "replica": "0f31dad72e57068f4d463a50a9cb52f73378bb078812a7a4119f9c730568dfaf",
+          "sentinel": "5837aa3c06e16fe66038f5af3915ed40d2938021909d4b4783a1a3699dbe019e"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-windows-master-12",
+          "log": "wsl-final-matrix-windows-master-12.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-windows-master-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "master",
+        "tls_version": 13,
+        "report": "final-matrix-windows-master-13.json",
+        "report_sha256": "7564d01efcae2da2a1bedd2c90cf446b919d6f99eaf43f7b063b8bae85d7fb78",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "65002362bf4d46fabd25b82cc1ae3ff680d4d22064f6db31e80192a5490530ac",
+          "replica": "35b4a6734960f4531fe33a01af8d4faec67b7c19350a2b4ddbf3218389814911",
+          "sentinel": "1bffb6ddefd5c360008580fb8166039ac23e35b5871296afb2692f89ef8786cb"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-windows-master-13",
+          "log": "wsl-final-matrix-windows-master-13.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-windows-master-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "replica",
+        "tls_version": 12,
+        "report": "final-matrix-windows-replica-12.json",
+        "report_sha256": "bdf3326565fb26703ff449679340a813f93ccc18aad72956c654cb2fd11951d9",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "c51a0115138451a63be2a78548d5777a3124203127a7ce69eff9dec864ecf0da",
+          "replica": "82e0632cdae3a6672a989f3afe56f4eb54aaac5c193b91f068bebb63511b4889",
+          "sentinel": "942987de03af1dffd3abe0df5982e4d1fece7521eae47485cc88dc28422d11d9"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 1
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-windows-replica-12",
+          "log": "wsl-final-matrix-windows-replica-12.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-windows-replica-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "replica",
+        "tls_version": 13,
+        "report": "final-matrix-windows-replica-13.json",
+        "report_sha256": "fd5ae184fb7095e043259506c5d1c46985a745f12bdd5334dfaf2050d4013f1b",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "157af43e18645ad872a19dda5c5ade5f331c058fe328d2a67722b2a8a71066b4",
+          "replica": "c6f7ef95a514ed64876424b8a738cc15690e91f8651339844dd5f412d6d5da20",
+          "sentinel": "6bdc84bfcf11043468d47e5994030f979b3731f27d7b24faa1003aa599ded338"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-windows-replica-13",
+          "log": "wsl-final-matrix-windows-replica-13.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-windows-replica-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      }
+    ],
+    "wsl": [
+      {
+        "count": 9,
+        "role": "master",
+        "tls_version": 12,
+        "report": "final-matrix-wsl-master-12.json",
+        "report_sha256": "2ddf8a76a996edcdece20c0bd6ae1c648c1586dba1c8f57584e3727bb8bb319c",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "274bc9cda8aacb9f94a0523d1950ceba1296d0c6735b468cf5c0feb6bad0af35",
+          "replica": "7f962e7674cddbc7449f891d87934e927b4826b8111731fb57ff7499eaf2deea",
+          "sentinel": "95c68f4686b378eb48ac91c2d0908f5a18f9cdefe36852579e1e5d809ec904f1"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-wsl-master-12",
+          "log": "wsl-final-matrix-wsl-master-12.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-wsl-master-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "master",
+        "tls_version": 13,
+        "report": "final-matrix-wsl-master-13.json",
+        "report_sha256": "2981933f7cd9be71290eeafee1cd8d00f610fc69dc76e522c634552782dd93db",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "29369ce8f0e57173219dd5f57bd7822fc79c2bf39632a716412ee521470de76c",
+          "replica": "19cf28fb388b5ae412ccc1737c9ea086a524327b1de704f345e811d21be46061",
+          "sentinel": "23b0dc216269866444516ee20b48e6319d0016f5933d06a465f53cf813559c48"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-wsl-master-13",
+          "log": "wsl-final-matrix-wsl-master-13.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-wsl-master-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "replica",
+        "tls_version": 12,
+        "report": "final-matrix-wsl-replica-12.json",
+        "report_sha256": "56902effc5e5769e9f35bff6ff313228816d7b0c02c60db6ed398d63ca505abb",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "e82d619a74742c3e6c4618d8154322000f981ad194d10e2cb4db2b2a80cb9fd6",
+          "replica": "701aae00b753ee3fcc09aaafeb594f3cc190c08eaed135c2b119aa4819922fe9",
+          "sentinel": "62abd6d5ebb2af03b2bc0a89f7d2b26bff450d0c2eed50ad9bdf7a847d64ba49"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-wsl-replica-12",
+          "log": "wsl-final-matrix-wsl-replica-12.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-wsl-replica-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      },
+      {
+        "count": 9,
+        "role": "replica",
+        "tls_version": 13,
+        "report": "final-matrix-wsl-replica-13.json",
+        "report_sha256": "71cb335eaa04f66195ceba0b9eab7de2b1493953f2f275fbfb1a91e194ac71f2",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "9938fbead4cb1c0bd812ed372f4ea2bdcea3e02ce495d1b0a8168f62f4fcca52",
+          "replica": "6ee0a648935f12f4db6d100e76174448dffdd15f57529b2632c0933ffd9af502",
+          "sentinel": "d5763a5d0ef32b4ca324917c478db2338bc41d888c3067b47ffd0a4f5a841340"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 1
+          },
+          {
+            "factory": 0,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 0,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 1,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 3,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          },
+          {
+            "factory": 2,
+            "protocol": 0,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-matrix-wsl-replica-13",
+          "log": "wsl-final-matrix-wsl-replica-13.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-matrix-wsl-replica-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "79cf2a0b0863141ba2a4b0846c82744898ce6db4b0d50953fff039198a8df553",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": {
+          "missing_identity_rejected": 2,
+          "plaintext_rejected": 2,
+          "redis_auth_required": 2,
+          "cross_role_login_rejected": 2,
+          "restricted_commands_rejected": 2
+        }
+      }
+    ]
+  },
+  "plaintext_controls": {
+    "windows": [
+      {
+        "count": 1,
+        "role": "master",
+        "tls_version": 0,
+        "report": "final-plaintext-windows-master.json",
+        "report_sha256": "eecf9bbe5885f8aa144dac260d7ffe58d0361cc958cf7aaa0185ee5232591874",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "b1920bb02728f61c59d704fbdfa315c151ac19fc43133cd5259300fce473e6aa",
+          "replica": "10ab8b0db72c1f7976bbb6b6d0f4c9c4fcaa7613e90d84ef21736400a34ea9f7",
+          "sentinel": "2f96e42bf75f32b27292e270a11cc71dde323851b7ad3421e90356eb54ada32a"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-plaintext-windows-master",
+          "log": "wsl-final-plaintext-windows-master.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-plaintext-windows-master.json",
+            "--case",
+            "0",
+            "2"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "388c6c8b7be5f4d723184b221d93706c929fa3df43d3e2cd8bf6827ce55e9d2f",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": null
+      },
+      {
+        "count": 1,
+        "role": "replica",
+        "tls_version": 0,
+        "report": "final-plaintext-windows-replica.json",
+        "report_sha256": "8d2bc6284261d31de9461727dedb893ff14ef2b58583d38621280a20b0045c55",
+        "client_sha256": "4573566d847057e852376efde041b6922f3d0219b2c436dc9fb1074d22004e77",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "cb81c79271cb3b77c18a4f5fd449858a4c3f065e0d790170a598a5c40f230c0b",
+          "replica": "38e29ecbeaabb610ec3ddfbd18f3ea622adc8bf7eec4a8245ba4b82c425e6390",
+          "sentinel": "fa5e59a1845ca0d602b59ca77b664e86027ffff8f5f1b1cea7b828f271f47645"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-plaintext-windows-replica",
+          "log": "wsl-final-plaintext-windows-replica.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-plaintext-windows-replica.json",
+            "--case",
+            "0",
+            "2"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "388c6c8b7be5f4d723184b221d93706c929fa3df43d3e2cd8bf6827ce55e9d2f",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": null
+      }
+    ],
+    "wsl": [
+      {
+        "count": 1,
+        "role": "master",
+        "tls_version": 0,
+        "report": "final-plaintext-wsl-master.json",
+        "report_sha256": "c9a27fc23a407eb1688a0e958a74b7e770ccf1e07d62c8f9e530c4b08e823c78",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "0003bc74249d9b1be4e130b39dc5460660d953434a74c5cc13681a12c19ad925",
+          "replica": "1d06bcf1bfecece4a6edea9c3d22a81e2ee60ed0783638cf78bedd545e08befe",
+          "sentinel": "8c1555f019ea0f5b5b3c25a83c49d0f29ea7581ec71c09bebb6cab907879a3ce"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-plaintext-wsl-master",
+          "log": "wsl-final-plaintext-wsl-master.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-plaintext-wsl-master.json",
+            "--case",
+            "0",
+            "2"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "388c6c8b7be5f4d723184b221d93706c929fa3df43d3e2cd8bf6827ce55e9d2f",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": null
+      },
+      {
+        "count": 1,
+        "role": "replica",
+        "tls_version": 0,
+        "report": "final-plaintext-wsl-replica.json",
+        "report_sha256": "a70e8aadf8417c613ae3203eba602e29b2dd22bafaefc862f60f06e681678068",
+        "client_sha256": "c2b9b9a693387627dd338c07ea1b261c83b32f25a63b2267e2d0d4a7c91651c6",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "fixture_log_sha256": {
+          "master": "26d3f00f00a73452613d9c33061c5d779b40ff644220c7e7924df50a9626e5a1",
+          "replica": "396047f70fc6e4b541d4fe318fde0a42481afc663fc7055280d6706226365424",
+          "sentinel": "e3b359b9ab28318aeb32458b689f2ac85d561991aee0a8f59ede695a56c40b25"
+        },
+        "events": [
+          {
+            "factory": 0,
+            "protocol": 2,
+            "matched": 1,
+            "hints": 2,
+            "observers_peak": 5,
+            "interrupted_control_reads": 0
+          }
+        ],
+        "receipt": {
+          "label": "final-plaintext-wsl-replica",
+          "log": "wsl-final-plaintext-wsl-replica.log",
+          "exit_code": 0,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-plaintext-wsl-replica.json",
+            "--case",
+            "0",
+            "2"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+          "log_sha256": "388c6c8b7be5f4d723184b221d93706c929fa3df43d3e2cd8bf6827ce55e9d2f",
+          "programs": 0,
+          "binaries": []
+        },
+        "policy": null
+      }
+    ]
+  },
+  "sanitized_smokes": [
+    {
+      "count": 1,
+      "role": "master",
+      "tls_version": 12,
+      "report": "final-smoke-wsl-san-master-12.json",
+      "report_sha256": "a4eaf57d05338227daa5aebc067896d89d5a5f4c601788718502811587693115",
+      "client_sha256": "03f79afde13732e0c7acffe064c8d6b133fa27139c86c1b9e132e693a9fdc5f3",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "fixture_log_sha256": {
+        "master": "8f4744f48d8660c083b7ad8db68e7bf77593fb8577b88168b6f5c464b0c0ed26",
+        "replica": "8d3d10e1e1384a6110b39563dda49477d7c2f1362e2b0c557b1923715d3e75d9",
+        "sentinel": "2341c4bdd31552befc27ac31ec42bf5d4efe54d67321b3e646ca9d1645fa3e99"
+      },
+      "events": [
+        {
+          "factory": 0,
+          "protocol": 2,
+          "matched": 1,
+          "hints": 2,
+          "observers_peak": 5,
+          "interrupted_control_reads": 0
+        }
+      ],
+      "receipt": {
+        "label": "final-smoke-wsl-san-master-12",
+        "log": "wsl-final-smoke-wsl-san-master-12.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "master",
+          "--tls",
+          "12",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl-san/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-smoke-wsl-san-master-12.json",
+          "--case",
+          "0",
+          "2"
+        ],
+        "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+        "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+        "log_sha256": "388c6c8b7be5f4d723184b221d93706c929fa3df43d3e2cd8bf6827ce55e9d2f",
+        "programs": 0,
+        "binaries": []
+      },
+      "policy": {
+        "missing_identity_rejected": 2,
+        "plaintext_rejected": 2,
+        "redis_auth_required": 2,
+        "cross_role_login_rejected": 2,
+        "restricted_commands_rejected": 2
+      }
+    },
+    {
+      "count": 1,
+      "role": "replica",
+      "tls_version": 13,
+      "report": "final-smoke-wsl-san-replica-13.json",
+      "report_sha256": "7736443e5a4c2b7b48b7e281c0db13ec971f011119795b89b2a608585311a5fa",
+      "client_sha256": "03f79afde13732e0c7acffe064c8d6b133fa27139c86c1b9e132e693a9fdc5f3",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "fixture_log_sha256": {
+        "master": "e36358c8944ec3436ee160be0166ce934d1bccdaa877fa66301813fd63c9d936",
+        "replica": "6f6f8f6bf11c13d480df8f34cba6ed844f6cde9a5c3c73e41cb293bf90b5600d",
+        "sentinel": "e0a0ed52b1735652ac33c44126f436a4a1e880ade29cbab84474e54f0408e45f"
+      },
+      "events": [
+        {
+          "factory": 2,
+          "protocol": 0,
+          "matched": 1,
+          "hints": 2,
+          "observers_peak": 5,
+          "interrupted_control_reads": 0
+        }
+      ],
+      "receipt": {
+        "label": "final-smoke-wsl-san-replica-13",
+        "log": "wsl-final-smoke-wsl-san-replica-13.log",
+        "exit_code": 0,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+          "--server",
+          "/usr/bin/redis-server",
+          "--listen",
+          "replica",
+          "--tls",
+          "13",
+          "--client",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl-san/redis_sentinel",
+          "--report",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/final-smoke-wsl-san-replica-13.json",
+          "--case",
+          "2",
+          "0"
+        ],
+        "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+        "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+        "log_sha256": "0f06734ffa442b75b2b7f00418dcd8d2123c018cb06dfd4acb8a76160333ec92",
+        "programs": 0,
+        "binaries": []
+      },
+      "policy": {
+        "missing_identity_rejected": 2,
+        "plaintext_rejected": 2,
+        "redis_auth_required": 2,
+        "cross_role_login_rejected": 2,
+        "restricted_commands_rejected": 2
+      }
+    }
+  ],
+  "totals": {
+    "mutual_tls_failovers": 72,
+    "plain_controls": 4,
+    "sanitized_failovers": 2,
+    "native_bad_password_rejections_in_matrix": 144,
+    "interrupted_read_only_control_queries": 2
+  },
+  "builds": [
+    {
+      "label": "redis-real-build",
+      "log": "windows-redis-real-build-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-mtls-20261118\\stage.py",
+        "modular",
+        "inner"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+      "log_sha256": "c7b9b9d1ac46924f6517cdb2c3d2192ecf8f9d4002d3aa783892136ba56c19b6",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "redis-real-build",
+      "log": "wsl-redis-real-build-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/stage.py",
+        "modular",
+        "inner"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+      "log_sha256": "cbd549268407f58fe5a250398499ccaf0729a7d04471b1e7e9d449b9709810fb",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "redis-real-build-san",
+      "log": "wsl-redis-real-build-san.log",
+      "exit_code": 0,
+      "args": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/stage.py",
+        "modular-san",
+        "inner"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+      "log_sha256": "955566ed591f64b07f1f3a7f825ffd0678cb06670c3b3da79f93a5891d05a739",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "generators": {
+    "extlibs/xredis/tests/interop/run_redis_tls.py": "a9e741c7a2a1bea57a8054e372a924b6016296ca3c02c00c758da1fe39f8f8a3",
+    "extlibs/xredis/tests/interop/sentinel_tls_fixture.py": "93c56a424e5e38970037d904f1c60eba9715d93baa94b04ab135f07d358eae82"
+  },
+  "initial_attempts": {
+    "compiler_errors": [
+      {
+        "label": "redis-real-build",
+        "log": "windows-redis-real-build.log",
+        "exit_code": 1,
+        "args": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-u",
+          "-X",
+          "utf8",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xredis-sentinel-mtls-20261118\\stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+        "source_map_sha256": "40863da8316a1eacad701ca13afbfc491d742e294a6973dc81dc9621583d0b3c",
+        "log_sha256": "93e966e048f83bc67355d7b5f6bc63b6dcbe3074da83c38d42ae96b69f7b636d",
+        "programs": 0,
+        "binaries": []
+      },
+      {
+        "label": "redis-real-build",
+        "log": "wsl-redis-real-build.log",
+        "exit_code": 1,
+        "args": [
+          "/usr/bin/python3",
+          "-u",
+          "-X",
+          "utf8",
+          "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/stage.py",
+          "modular",
+          "inner"
+        ],
+        "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+        "source_map_sha256": "40863da8316a1eacad701ca13afbfc491d742e294a6973dc81dc9621583d0b3c",
+        "log_sha256": "9b87443f8a0cd9f05967744a3a74696acd6b4e0f21fc0f0e4ace7ea8ec37fc1a",
+        "programs": 0,
+        "binaries": []
+      }
+    ],
+    "mounted_runtime_replication": [
+      {
+        "report": "smoke-windows-master-12.json",
+        "sha256": "9303715c2890c26c6bcc42c6f4c1becb8f046c6975e62eeb91ec9edcd274b33c",
+        "logs": {
+          "master": "493ae0935f144f3a5ed40ba19b3fcc89752d41d2a9c9302cf331afc41ffa5f1d",
+          "replica": "64eb02b730025d8c414aa62cdf725dc39ee434b843fdc6a1bdc93a782a28cce7",
+          "sentinel": "dbccec337b3bf0719adc4035ecd046d8a1c549618e550e11d5d39c3a568325a4"
+        },
+        "receipt": {
+          "label": "smoke-windows-master-12",
+          "log": "wsl-smoke-windows-master-12.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/smoke-windows-master-12.json",
+            "--runtime-root",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/runtime",
+            "--case",
+            "0",
+            "2"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "0ba827154b1e9d5d132a54bc5b7b28a0f460318e03de584819d50e7076a0064d",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 0
+      },
+      {
+        "report": "smoke-wsl-replica-13.json",
+        "sha256": "f436c6145bacc291853300dee62e9f62e0843ef55db6fed682489516a3a2bd8b",
+        "logs": {
+          "master": "a4772789d34e29e80679dfb37eeed9c2978a484fb35d4412c002084095dd9649",
+          "replica": "0d4c4ac038faef0fbdaa1c7c1516966de6c3c4507f374f172ce6c7d1a2d32944",
+          "sentinel": "9e8dc84a466ee4090406e14eced6e6ac5087ca30f8e5c1f23b5c6231dd265d95"
+        },
+        "receipt": {
+          "label": "smoke-wsl-replica-13",
+          "log": "wsl-smoke-wsl-replica-13.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/smoke-wsl-replica-13.json",
+            "--runtime-root",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/runtime",
+            "--case",
+            "1",
+            "3"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "0ba827154b1e9d5d132a54bc5b7b28a0f460318e03de584819d50e7076a0064d",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 0
+      }
+    ],
+    "control_read_interruptions": [
+      {
+        "report": "localfs-matrix-windows-master-13.json",
+        "sha256": "b9852db78b78384298dd73761661d6e76c629c289b670910f47eb7ff829c6fc6",
+        "logs": {
+          "master": "408a1e3c610cd7ad499404975a3d7342cb6235dc5efc09b9cb7418435008e49c",
+          "replica": "9a2e633258d3ecaf50ea534d465cf7c9820362d7bd5f3892839fef74c2c11ffe",
+          "sentinel": "e8548738cbf7256459c477a0d7c4273e6b466621a0cbca14c22d51dba0c412ab"
+        },
+        "receipt": {
+          "label": "localfs-matrix-windows-master-13",
+          "log": "wsl-localfs-matrix-windows-master-13.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-windows-master-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "02d0b7198dd294afce32bcc23c8066559b1346422d4b4b5444ef956efee80fb8",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 8
+      },
+      {
+        "report": "localfs-matrix-windows-replica-12.json",
+        "sha256": "c53d9d5c83716416f630f943f17762404c6c23a9de67386b9c07091b774bac80",
+        "logs": {
+          "master": "0e6eebf8fc2b7dbbf1a3c5679821e44fea0806612ecee9eb7f7b9e6810ecdc68",
+          "replica": "345c66f7ce3669173734d08813a4685d9e4aa46dbfbd368685c6b60e7c506f13",
+          "sentinel": "8cd459c8d1fa5a2b073f57b1726305ce0697c8d10a304e8621092dbf7d93e32d"
+        },
+        "receipt": {
+          "label": "localfs-matrix-windows-replica-12",
+          "log": "wsl-localfs-matrix-windows-replica-12.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/windows/redis_sentinel.exe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-windows-replica-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "b2fcf310a5dd43a1bd071e2f6d6ce9e97783ca566f72c7a6efd0d42fca7c936d",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 0
+      },
+      {
+        "report": "localfs-matrix-wsl-master-12.json",
+        "sha256": "ab479e5eef15561fb71ea69528816f5fecf3f176601a8f29901463d501ede348",
+        "logs": {
+          "master": "9a8f40ba9f1805b2d20c2e0b0be968b210a7a9aba10c13e2b3e759e1b39cb27b",
+          "replica": "62ff2125addcb3477a757dc30c4ffc1df891210dd0d34ca07956df2dfbe96d54",
+          "sentinel": "02a30f9320b20a5dd64924a646976e8ac3e2fb3a32d2b654d463a2dc7f5d738b"
+        },
+        "receipt": {
+          "label": "localfs-matrix-wsl-master-12",
+          "log": "wsl-localfs-matrix-wsl-master-12.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-wsl-master-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "34896077a5ab131ba34a03e16f7643e8f27d7aa0e3ee87d770d4bf97464a48a7",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 7
+      },
+      {
+        "report": "localfs-matrix-wsl-master-13.json",
+        "sha256": "3c97d33314825f6424459c8ab7405b8a5fae08e4e8953a01dfcfd1754f008df2",
+        "logs": {
+          "master": "bd37f1840d520709786565c4dd4da02619739fa220d0ccb73e80d2d4b911cf8b",
+          "replica": "c77959cc2544f9553ba935a02242164004febd540a1719104b930fbae252cd4a",
+          "sentinel": "f76b3359bb2f89aab53fe7a857f0d8b7ea93a0bac7b0e112e13dbfb25058c2cd"
+        },
+        "receipt": {
+          "label": "localfs-matrix-wsl-master-13",
+          "log": "wsl-localfs-matrix-wsl-master-13.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "master",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-wsl-master-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "2371abb869241c8426bfc49708a61c0b54a71de1a6bd04187c6c6a05eff01845",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 5
+      },
+      {
+        "report": "localfs-matrix-wsl-replica-12.json",
+        "sha256": "bcb3d938dac604bd691cf9c3842c6ba18c1c5b8501eaba70b6fa89fa4e0053fa",
+        "logs": {
+          "master": "1f14d33faae482d0fad56f3112b972780ca6e59f0d8dd68482e55d4c9fd53efb",
+          "replica": "c97ad460ead8826431dbc7b587137b9dd70aa7f24be3196f452f48c98f73cf74",
+          "sentinel": "867a73307a543ae8e0e82f2730808e458b7159be1545623ff963fe6cb509764c"
+        },
+        "receipt": {
+          "label": "localfs-matrix-wsl-replica-12",
+          "log": "wsl-localfs-matrix-wsl-replica-12.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "12",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-wsl-replica-12.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "4db8e56b0e15758ec514c6d4c8729185d9100dcf6915f35dde89e5a667990858",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 5
+      },
+      {
+        "report": "localfs-matrix-wsl-replica-13.json",
+        "sha256": "dee1b5446ce007e58e64e48560ac527863a85eabf151cd7f2c262708db3c489f",
+        "logs": {
+          "master": "5db834e907494025afd643caa7629ad96edbe718e1a12ce9312e9739c0454b68",
+          "replica": "f2711ef856d5da8582aac18520691ac1d800fa0a91567ddd9daad33e03e6dc0e",
+          "sentinel": "f4576cf627ff6bc1c9beb5185427a50c8d1bdfc5f801015028282817403f009f"
+        },
+        "receipt": {
+          "label": "localfs-matrix-wsl-replica-13",
+          "log": "wsl-localfs-matrix-wsl-replica-13.log",
+          "exit_code": 1,
+          "args": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_sentinel_pool.py",
+            "--server",
+            "/usr/bin/redis-server",
+            "--listen",
+            "replica",
+            "--tls",
+            "13",
+            "--client",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/forms/wsl/redis_sentinel",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-sentinel-mtls-20261118/localfs-matrix-wsl-replica-13.json"
+          ],
+          "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+          "source_map_sha256": "d87097a451d3f1f47a1dd3e0229ee3f036715865c68894962117ee55bf68c697",
+          "log_sha256": "d9c229df4ab89cc189bb6bea9ec0819974f315ac95ada00e9ca0da34c3d769ac",
+          "programs": 0,
+          "binaries": []
+        },
+        "successful_prefix": 0
+      }
+    ],
+    "notes": [
+      "Keep owned mutable TLS/identity references for teardown.",
+      "Keep Redis replication runtime and ephemeral keys on the WSL local filesystem for this fixture.",
+      "Retry only read-only status polling within the existing deadline when Redis closes an observer during promotion/demotion."
+    ]
+  },
+  "gates": [
+    {
+      "label": "gate-features",
+      "log": "windows-gate-features-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_extension_features.py",
+        "--check",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-single",
+      "log": "windows-gate-single-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/amalgamate.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-api",
+      "log": "windows-gate-api-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "a98c7596ef17a1e6e06b965fbfddf27ebeccb54f958b7e76c893db86af2e9eea",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-reference",
+      "log": "windows-gate-reference-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/generate_api_reference.py",
+        "--check",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-maturity",
+      "log": "windows-gate-maturity-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_release_maturity.py",
+        "--manifest",
+        "extlibs/xredis/config/modules.json"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "ca48c349354d3fe2a5e7f90315c8b4a18e660fbdf46e15820223939a6c28ca90",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "label": "gate-layout",
+      "log": "windows-gate-layout-attempt2.log",
+      "exit_code": 0,
+      "args": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "-m",
+        "unittest",
+        "tools.test_extension_layout"
+      ],
+      "revision": "66a83c5e286458898b2175ca69f6540cb55329aa",
+      "source_map_sha256": "e951898068db15a3011dae1c0d4e2dee1a2993a90f7adfb8fd8c96d698ca153a",
+      "log_sha256": "47b4ee3f34f6d5fabc496f893c6df25cf76edb3e54d0ea2ba1bd82ae98b045d1",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "pending": [
+    "native Linux server-host endurance, fixed-arrival throughput and tail-latency qualification"
+  ]
+}
