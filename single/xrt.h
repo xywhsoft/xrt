@@ -10864,6 +10864,16 @@ XRT_API uint64 xrtNetEngineAfter(xnetengine* pEngine,
 
 
 
+/* 以 1 到 UINT32_MAX 毫秒为间隔在同一 Worker 上触发同一 ID。
+ * 错过的间隔不逐次补发。
+ * XNET_RESULT_OK 可出现多次，每次保留同一个 TimerLimit 额度。取消或停止
+ * 时以唯一的非 OK 结果终结，pData 必须存活到终结回调返回。 */
+XRT_API uint64 xrtNetEngineEvery(xnetengine* pEngine,
+	uint64 iAffinity, int64 iPeriod,
+	xnettimerproc pProc, ptr pData);
+
+
+
 /* 异步请求取消 Timer；成功只表示请求已进入目标 Worker。 */
 XRT_API bool xrtNetEngineTimerCancel(xnetengine* pEngine, uint64 Id);
 
@@ -48840,7 +48850,8 @@ struct __xrt_net_engine_timer {
 	double Deadline;
 	xnettimerproc Proc;
 	ptr Data;
-	size_t HeapIndex;
+	/* TimerLimit bounds the heap index. Keep shared nodes in the 64-byte cache class. */
+	uint32 HeapIndex, PeriodMs;
 	const xnettimerownershipv1* OwnershipPolicy;
 	const xnetruntimeownershipv1* RuntimePolicy;
 };
@@ -88575,8 +88586,8 @@ static void __xrtNetEngineTimerSwap(
 
 	pTimers->Heap[iLeft] = pTimers->Heap[iRight];
 	pTimers->Heap[iRight] = pTimer;
-	pTimers->Heap[iLeft]->HeapIndex = iLeft;
-	pTimers->Heap[iRight]->HeapIndex = iRight;
+	pTimers->Heap[iLeft]->HeapIndex = (uint32)iLeft;
+	pTimers->Heap[iRight]->HeapIndex = (uint32)iRight;
 }
 
 
@@ -88774,7 +88785,7 @@ static __xrt_net_engine_timer* __xrtNetEngineTimerRemove(
 	__xrtNetEngineTimerHashRemove(pTimers, pTimer);
 	if ( iIndex != iLast ) {
 		pTimers->Heap[iIndex] = pTimers->Heap[iLast];
-		pTimers->Heap[iIndex]->HeapIndex = iIndex;
+		pTimers->Heap[iIndex]->HeapIndex = (uint32)iIndex;
 		if ( (iIndex != 0) && __xrtNetEngineTimerBefore(
 			pTimers->Heap[iIndex],
 			pTimers->Heap[(iIndex - 1u) / 2u]
@@ -88784,7 +88795,7 @@ static __xrt_net_engine_timer* __xrtNetEngineTimerRemove(
 			__xrtNetEngineTimerDown(pTimers, iIndex);
 		}
 	}
-	pTimer->HeapIndex = SIZE_MAX;
+	pTimer->HeapIndex = UINT32_MAX;
 	return pTimer;
 }
 
@@ -88850,7 +88861,7 @@ static void __xrtNetEngineTimerInsert(
 	__xrt_net_engine_timers* pTimers = &pWorker->Timers;
 	size_t iBucket;
 
-	pTimer->HeapIndex = pTimers->Count;
+	pTimer->HeapIndex = (uint32)pTimers->Count;
 	pTimers->Heap[pTimers->Count++] = pTimer;
 	iBucket = __xrtNetEngineTimerHash(pTimer->Id, pTimers->BucketCount);
 	pTimer->HashNext = pTimers->Buckets[iBucket];
@@ -88883,7 +88894,7 @@ static void __xrtNetEngineTimerAdd(
 
 
 
-/* 到期并终结当前时刻之前的全部 Timer。 */
+/* 处理截止期限已到的 Timer。周期 Timer 保留同一额度和节点。 */
 static void __xrtNetEngineTimersExpire(xnetworker* pWorker)
 {
 	__xrt_net_engine_timers* pTimers = &pWorker->Timers;
@@ -88891,10 +88902,17 @@ static void __xrtNetEngineTimersExpire(xnetworker* pWorker)
 
 	while ( (pTimers->Count != 0) &&
 			(pTimers->Heap[0]->Deadline <= iNow) ) {
-		__xrt_net_engine_timer* pTimer =
+		__xrt_net_engine_timer* pTimer = pTimers->Heap[0];
+		if ( pTimer->PeriodMs != 0 ) {
+			pTimer->Deadline = iNow + (double)pTimer->PeriodMs * 0.001;
+			__xrtNetEngineTimerDown(pTimers, 0);
+			__xrtNetEngineStatAdd(&pWorker->Stats.TimersFired, 1);
+			/* The callback may cancel and recycle this timer in place. */
+			pTimer->Proc(pWorker, pTimer->Id, XNET_RESULT_OK, pTimer->Data);
+		} else {
 			__xrtNetEngineTimerRemove(pWorker, 0);
-
-		__xrtNetEngineTimerFinish(pWorker, pTimer, XNET_RESULT_OK);
+			__xrtNetEngineTimerFinish(pWorker, pTimer, XNET_RESULT_OK);
+		}
 	}
 }
 
@@ -90734,6 +90752,7 @@ static uint64 __xrtNetEngineScheduleImpl(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	double iDeadline,
+	uint32 iPeriodMs,
 	xnettimerproc pProc,
 	ptr pData,
 	const xnettimerownershipv1* pPolicy
@@ -90804,10 +90823,11 @@ static uint64 __xrtNetEngineScheduleImpl(
 	memset(pTimer, 0, sizeof(*pTimer));
 	pTimer->Id = Id;
 	pTimer->Deadline = iDeadline;
+	pTimer->PeriodMs = iPeriodMs;
 	pTimer->Proc = pProc;
 	pTimer->Data = pData;
 	pTimer->OwnershipPolicy = pPolicy;
-	pTimer->HeapIndex = SIZE_MAX;
+	pTimer->HeapIndex = UINT32_MAX;
 
 	/*
 		所属 Worker 可直接入堆，避免同一回调内完成后仍需分配
@@ -90881,7 +90901,7 @@ XRT_API uint64 __xrtNetEngineSchedule(xnetengine* pEngine, uint64 iAffinity,
 {
     if ( !__xrtWaitValid(iDeadline) ) { return 0; }
 
-	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, pProc, pData, NULL);
+	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, 0, pProc, pData, NULL);
 }
 XRT_API uint64 __xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
 	double iDeadline, ptr pData, const xnettimerownershipv1* pPolicy)
@@ -90892,7 +90912,7 @@ XRT_API uint64 __xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffini
 
 		__xrtErrorSetInvalidArgument(); return 0;
 	}
-	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, pPolicy->Proc, pData, pPolicy);
+	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, 0, pPolicy->Proc, pData, pPolicy);
 }
 
 
@@ -90913,6 +90933,27 @@ XRT_API uint64 xrtNetEngineAfter(
 		pProc,
 		pData
 	);
+}
+
+
+
+/* 周期 Timer 在触发之间保留额度，直到取消或 Engine 停止。 */
+XRT_API uint64 xrtNetEngineEvery(
+	xnetengine* pEngine,
+	uint64 iAffinity,
+	int64 iPeriod,
+	xnettimerproc pProc,
+	ptr pData
+)
+{
+	if ( (iPeriod <= 0) || (iPeriod > UINT32_MAX) ) {
+		__xrtErrorSetInvalidArgument();
+		return 0;
+	}
+	double iDeadline = __xrtWaitAfter(iPeriod);
+	if ( !__xrtWaitValid(iDeadline) ) return 0;
+	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline,
+		(uint32)iPeriod, pProc, pData, NULL);
 }
 
 

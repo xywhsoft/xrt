@@ -7704,7 +7704,7 @@ if ( !xrtNetEnginePost(pEngine, 0u, exampleWorkerTask,
 `xrtNetEngineSchedule` 使用 `xrtTimer` 的绝对毫秒截止时间；
 `xrtNetEngineAfter` 是相对毫秒 Helper。成功返回的非零 ID 在所属 Engine 内唯一，
 回调只在所属 Worker 执行且绝不在非 Worker 调用线程内联；跨线程调度时，Worker
-可能在调度函数返回前并发完成回调。每个成功返回的 ID 恰好发生一次终态回调：
+可能在调度函数返回前并发完成回调。每个成功返回的单次 Timer ID 恰好发生一次终态回调：
 
 | 结果 | 含义 |
 | --- | --- |
@@ -7821,6 +7821,24 @@ xrtNetEngineAfter(
 			&State
 		)
 ```
+### `xrtNetEngineEvery`
+
+以 1 到 UINT32_MAX 毫秒为间隔在同一个 Worker 上重复触发。成功后，定时器在各次触发之间保留
+原有节点、ID 和一个 `TimerLimit` 额度。`XNET_RESULT_OK` 表示一次触发。
+错过的间隔会合并，定时器不会逐次补发。每次触发都计入 `TimersFired`。
+
+```c
+uint64 xrtNetEngineEvery(xnetengine* pEngine,
+	uint64 iAffinity, int64 iPeriod,
+	xnettimerproc pProc, ptr pData);
+```
+
+返回非零 ID 后，调用方须保留 `pData`，直到唯一的非 OK 回调返回。
+可通过 `xrtNetEngineTimerCancel` 异步取消，或在 Timer 所属 Worker 上（包括触发回调内）
+通过 `xrtNetEngineTimerCancelCurrent` 同步取消。终态回调与单次定时器使用相同的
+取消、Engine 停止和内部资源失败结果。超出间隔范围时返回 0，并设置
+`XERR_ARGUMENT`。其余调度失败与 `xrtNetEngineAfter` 相同。
+
 ### `xrtNetEngineTimerCancel`
 
 异步请求取消 Timer；成功只表示取消命令已进入目标 Worker。

@@ -100,7 +100,8 @@ struct __xrt_net_engine_timer {
 	double Deadline;
 	xnettimerproc Proc;
 	ptr Data;
-	size_t HeapIndex;
+	/* TimerLimit bounds the heap index. Keep shared nodes in the 64-byte cache class. */
+	uint32 HeapIndex, PeriodMs;
 	const xnettimerownershipv1* OwnershipPolicy;
 	const xnetruntimeownershipv1* RuntimePolicy;
 };

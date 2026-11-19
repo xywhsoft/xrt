@@ -1923,6 +1923,16 @@ XRT_API uint64 xrtNetEngineAfter(xnetengine* pEngine,
 
 
 
+/* 以 1 到 UINT32_MAX 毫秒为间隔在同一 Worker 上触发同一 ID。
+ * 错过的间隔不逐次补发。
+ * XNET_RESULT_OK 可出现多次，每次保留同一个 TimerLimit 额度。取消或停止
+ * 时以唯一的非 OK 结果终结，pData 必须存活到终结回调返回。 */
+XRT_API uint64 xrtNetEngineEvery(xnetengine* pEngine,
+	uint64 iAffinity, int64 iPeriod,
+	xnettimerproc pProc, ptr pData);
+
+
+
 /* 异步请求取消 Timer；成功只表示请求已进入目标 Worker。 */
 XRT_API bool xrtNetEngineTimerCancel(xnetengine* pEngine, uint64 Id);
 
