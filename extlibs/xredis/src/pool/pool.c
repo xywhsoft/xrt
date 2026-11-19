@@ -841,14 +841,6 @@ typedef struct xredispoolsentinelrefresh {
     xatomic32 Dirty;
     bool Requested, Cancelled, Retiring;
 } xredispoolsentinelrefresh;
-typedef struct xredispoolsentinelseeds {
-    xredissentinelpoolseedconfig Config;
-    xredissentinelendpoint* Entries;
-    unsigned char* Hosts;
-    xredissentineldiscovery* Query;
-    size_t Known;
-    double NextQuery;
-} xredispoolsentinelseeds;
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
 typedef struct xredispoolsentinelevents {
     xredissentineleventconfig Config;
@@ -867,7 +859,6 @@ typedef struct xredispoolsentinelevents {
 typedef struct xredispoolsentinelstate {
     xredispoolconnectstate Base;xredissentinelpoolconfig Config;xredissentinelpoolinfo Info;
     xredispoolsentinelrefresh Refresh;
-    xredispoolsentinelseeds Seeds;
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     xredispoolsentinelevents Events;
 #endif
@@ -1214,28 +1205,9 @@ static xredisadmission xredisPoolSpDiscover(xredispool* P,double Deadline,xredis
     xredispoolsentinelstate* S=xredisPoolSpState(P);
     xredissentinelconfig K=S->Config.Discovery;K.PreferredSeed=S->Info.PreferredSeed;
     xredissentinelendpoint Prefer={{S->Host,S->HostBytes},S->Info.Port};
-    if(S->Seeds.Entries){
-        xredispoolsentinelseeds* Seeds=&S->Seeds;
-        K.SeedCount=Seeds->Known;
-        bool Query=Seeds->Known<Seeds->Config.MaxSeeds && !Seeds->Query && xrtTimer()>=Seeds->NextQuery;
-        xredissentinelpeerdiscovery Peers={Seeds->Entries,Seeds->Config.Connect,S->Config.Discovery.SeedCount,
-            Query?Seeds->Config.MaxPeerRows:0,Seeds->Config.PeerTimeout};
-        xredisadmission A=__xredisSentinelDiscoveryCreateWithPeers(P->Engine,&K,Deadline,S->ReplicaLimit,
-            S->ReplicaLimit && S->Info.Generation?&Prefer:NULL,&Peers,D);
-        if(A==XREDIS_ADMISSION_ACCEPTED && Query)Seeds->Query=*D;
-        return A;
-    }
     return S->ReplicaLimit?
         __xredisSentinelReplicaCreateUntil(P->Engine,&K,Deadline,S->ReplicaLimit,S->Info.Generation?&Prefer:NULL,D):
         __xredisSentinelDiscoveryCreateUntil(P->Engine,&K,Deadline,D);
-}
-static void xredisPoolSpDestroyDiscovery(xredispoolsentinelstate* S,xredissentineldiscovery* D)
-{
-    if(S->Seeds.Query==D){
-        S->Seeds.Query=NULL;
-        S->Seeds.NextQuery=xredisPoolDeadline(xrtTimer(),S->Seeds.Config.PeerRefreshMin);
-    }
-    xredisSentinelDiscoveryDestroy(D);
 }
 static void xredisPoolSpStart(xredispool* P,size_t Item)
 {
@@ -1248,41 +1220,11 @@ static void xredisPoolSpStart(xredispool* P,size_t Item)
 }
 static bool xredisPoolSpSame(xredispoolsentinelstate* S,const xredissentinelendpoint* A)
 {return S->Info.Generation && S->Info.Port==A->Port && S->HostBytes==A->Host.Size && !memcmp(S->Host,A->Host.Data,A->Host.Size);}
-static bool xredisPoolSpSeedEqual(xredissentinelendpoint A,xredissentinelendpoint B)
-{return A.Port==B.Port && A.Host.Size==B.Host.Size && !memcmp(A.Host.Data,B.Host.Data,A.Host.Size);}
-static bool xredisPoolSpSeedContains(const xredissentinelendpoint* Entries,size_t Count,xredissentinelendpoint New)
-{
-    for(size_t I=0;I<Count;++I)if(xredisPoolSpSeedEqual(Entries[I],New))return true;
-    return false;
-}
-static void xredisPoolSpSeedCopy(xredissentinelendpoint* Out,unsigned char* Host,xredissentinelendpoint Source)
-{
-    memcpy(Host,Source.Host.Data,Source.Host.Size);
-    *Out=(xredissentinelendpoint){{Host,Source.Host.Size},Source.Port};
-}
-static size_t xredisPoolSpCollectPeers(xredispoolsentinelstate* S,xredissentineldiscovery* D)
-{
-    xredispoolsentinelseeds* Seeds=&S->Seeds;
-    size_t Known=Seeds->Known;
-    if(Seeds->Query!=D)return Known;
-    size_t Count;
-    const xredissentinelendpoint* Peers=__xredisSentinelDiscoveredPeers(D,&Count);
-    /* The worker fills unused entries outside the admission/snapshot gate.
-     * Published entries and indexes remain immutable for active discoveries. */
-    for(size_t I=0;I<Count && Known<Seeds->Config.MaxSeeds;++I){
-        if(xredisPoolSpSeedContains(Seeds->Entries,Known,Peers[I]))continue;
-        xredisPoolSpSeedCopy(&Seeds->Entries[Known],Seeds->Hosts+Known*S->Config.Discovery.MaxHostBytes,Peers[I]);
-        ++Known;
-    }
-    return Known;
-}
-static bool xredisPoolSpTopology(xredispool* P,size_t Item,const xredissentinelresult* R,xredissentineldiscovery* D)
+static bool xredisPoolSpTopology(xredispool* P,size_t Item,const xredissentinelresult* R)
 {
     xredispoolsentinelstate* S=xredisPoolSpState(P);
-    size_t Known=xredisPoolSpCollectPeers(S,D);
     xrtMutexLock(&P->Gate);
     if(P->Info.State!=XREDIS_POOL_OPEN){xrtMutexUnlock(&P->Gate);return false;}
-    S->Seeds.Known=Known;
     S->Info.PreferredSeed=R->PreferredSeed;S->Info.LastStatus=XREDIS_SENTINEL_OK;
     if(!xredisPoolSpSame(S,&R->Endpoint)){
         if(S->Info.Generation==UINT64_MAX){xrtMutexUnlock(&P->Gate);xredisPoolSpFailure(P,XREDIS_SENTINEL_LIMIT);xredisPoolClose(P);return false;}
@@ -1300,7 +1242,7 @@ static void xredisPoolSpAdopt(xredispool* P,size_t Item,bool Discard,xredisreque
     if(!xredisSentinelDiscoveryTakeClient(H->Discovery,&C)){
         xredisPoolSpFailure(P,XREDIS_SENTINEL_FACTORY);xredisPoolClose(P);return;
     }
-    xredisPoolSpDestroyDiscovery(S,H->Discovery);H->Discovery=NULL;H->Generation=S->Info.Generation;
+    xredisSentinelDiscoveryDestroy(H->Discovery);H->Discovery=NULL;H->Generation=S->Info.Generation;
     S->Base.Entries[Item].Phase=XREDIS_PC_CONNECTING;S->Base.Entries[Item].Due=H->Deadline;
     xredisPoolConnectAdopt(P,Item,C);
     if(Discard)xredisPoolConnectDrain(P,Item,Why);
@@ -1328,11 +1270,11 @@ static bool xredisPoolSpProcess(xredispool* P,xredispoolslot* Slot)
         if(R.Status==XREDIS_SENTINEL_OK){
             if(xrtTimer()>=H->Deadline){xredisPoolSpFailure(P,XREDIS_SENTINEL_TIMEOUT);if(S->Keeper==Item)S->Keeper=SIZE_MAX;xredisPoolSpAdopt(P,Item,true,XREDIS_REQUEST_TIMEOUT);return true;}
             if(S->Fencing){xredisPoolConnectHeapPut(&S->Base,Item,H->Deadline);return true;}
-            if(!xredisPoolSpTopology(P,Item,&R,H->Discovery)){xredisPoolSlotNotify(Slot);return true;}
+            if(!xredisPoolSpTopology(P,Item,&R)){xredisPoolSlotNotify(Slot);return true;}
             if(S->Fencing){H->Generation=S->Info.Generation;xredisPoolConnectHeapPut(&S->Base,Item,H->Deadline);return true;}
             xredisPoolSpAdopt(P,Item,false,XREDIS_REQUEST_OK);return true;
         }
-        xredisPoolSpDestroyDiscovery(S,H->Discovery);H->Discovery=NULL;
+        xredisSentinelDiscoveryDestroy(H->Discovery);H->Discovery=NULL;
         if(Open && !H->FenceCancel){xredisPoolSpFailure(P,R.Status);xredisPoolConnectFailed(P,Item,xredisPoolSpNative(R.Status));if(!xredisPoolSpTransient(R.Status))xredisPoolClose(P);}
         xredisPoolConnectRetired(P,Slot,xredisPoolSpNative(R.Status));return true;
     }
@@ -1385,13 +1327,13 @@ static void xredisPoolSpRefreshDrive(xredispool* P)
         if(!R->Retiring && Result.Status==XREDIS_SENTINEL_OK){
             R->Retiring=__xredisSentinelDiscoveryRetire(R->Discovery);
             if(R->Retiring){
-                (void)xredisPoolSpTopology(P,SIZE_MAX,&Result,R->Discovery);
+                (void)xredisPoolSpTopology(P,SIZE_MAX,&Result);
                 R->Due=Now;
                 return;
             }
         }
         if(Open && !R->Cancelled && !R->Retiring)xredisPoolSpFailure(P,Result.Status);
-        xredisPoolSpDestroyDiscovery(S,R->Discovery);
+        xredisSentinelDiscoveryDestroy(R->Discovery);
         R->Discovery=NULL;R->Cancelled=false;R->Retiring=false;
         R->AppliedInterval=Interval;
         R->Due=Open && Interval?xredisPoolDeadline(xrtTimer(),Interval):INFINITY;
@@ -1415,11 +1357,9 @@ static bool xredisPoolSpEventConnect(xnetengine* Engine,uint64 Attempt,int64 Tim
     if(!xredisPoolConnectOpen(P))return false;
     xredispoolsentinelstate* S=xredisPoolSpState(P);
     xredispoolsentinelevents* E=&S->Events;
-    size_t Count=S->Seeds.Entries?S->Seeds.Known:S->Config.Discovery.SeedCount;
+    size_t Count=S->Config.Discovery.SeedCount;
     size_t Seed=Attempt==1?S->Info.PreferredSeed:(E->Info.Seed+1)%Count;
-    xredissentinelstatus Status=S->Seeds.Entries?
-        S->Seeds.Config.Connect(Engine,&S->Seeds.Entries[Seed],Timeout,S->Config.Discovery.Data,Client):
-        S->Config.Discovery.ConnectSeed(Engine,Seed,Timeout,S->Config.Discovery.Data,Client);
+    xredissentinelstatus Status=S->Config.Discovery.ConnectSeed(Engine,Seed,Timeout,S->Config.Discovery.Data,Client);
     xrtMutexLock(&P->Gate);E->Info.Seed=Seed;E->Info.LastSeedStatus=Status;xrtMutexUnlock(&P->Gate);
     return Status==XREDIS_SENTINEL_OK;
 }
@@ -1608,7 +1548,6 @@ static void xredisPoolSpDispose(xredispool* P)
 {
     xredispoolsentinelstate* S=xredisPoolSpState(P);S->Notify=true;xredisPoolSpNotify(P);
     S->Config.Notify=NULL;S->Config.Discovery.ConnectSeed=NULL;S->Config.Discovery.ConnectMaster=NULL;S->Config.Discovery.Data=NULL;S->Config.Drop=NULL;
-    S->Seeds.Config.Connect=NULL;
 }
 xredisadmission __xredisSentinelPoolRefresh(xredispool* P,int64 Interval)
 {
@@ -1639,38 +1578,8 @@ bool __xredisSentinelPoolInfo(xredispool* P,xredissentinelpoolinfo* I)
             xrtAtomic32Load(&P->Quota.Closing,XMEMORY_ACQUIRE)==2?XREDIS_SENTINEL_POOL_RECONFIGURING:P->Info.Live?XREDIS_SENTINEL_POOL_ONLINE:XREDIS_SENTINEL_POOL_DISCOVERING;}
     xrtMutexUnlock(&P->Gate);return Valid?true:xredisPoolReport(XERR_STATE,"pool has no Sentinel maintenance");
 }
-bool __xredisSentinelPoolSeedInfo(xredispool* P,xredissentinelpoolseedinfo* I)
-{
-    if(!P || !I || !xrtMemRangeValid(I,sizeof(*I)) || I->Size!=sizeof(*I) || xrtMemRangesOverlap(P,P->StorageBytes,I,sizeof(*I)))
-        return xredisPoolReport(XERR_ARGUMENT,"invalid Sentinel seed snapshot");
-    xrtMutexLock(&P->Gate);
-    bool Valid=P->Connector && xredisPoolSpMode(P) && xredisPoolSpState(P)->Seeds.Entries;
-    if(Valid){
-        xredispoolsentinelstate* S=xredisPoolSpState(P);
-        *I=(xredissentinelpoolseedinfo){sizeof(*I),S->Config.Discovery.SeedCount,S->Seeds.Known,S->Seeds.Config.MaxSeeds};
-    }
-    xrtMutexUnlock(&P->Gate);
-    return Valid?true:xredisPoolReport(XERR_STATE,"pool has no Sentinel seed table");
-}
-static bool xredisPoolSpSeedConfig(const xredissentinelpoolseedconfig* Seeds,const xredissentinelconfig* Discovery,
-    xredispool** Output,xredissentinelpoolseedconfig* K)
-{
-    if(!xrtMemRangeValid(Seeds,sizeof(*Seeds)) || xrtMemRangesOverlap(Seeds,sizeof(*Seeds),Output,sizeof(*Output)))return false;
-    *K=*Seeds;
-    if(K->Size!=sizeof(*K) || !K->Connect || K->MaxSeeds<Discovery->SeedCount || K->MaxSeeds>256 ||
-       !K->MaxPeerRows || K->MaxPeerRows>256 || K->PeerTimeout<=0 || K->PeerTimeout>60000 ||
-       K->PeerRefreshMin<100 || K->PeerRefreshMin>86400000)return false;
-    size_t Bytes=Discovery->SeedCount*sizeof(*K->Seeds);
-    if(!xrtMemRangeValid(K->Seeds,Bytes) || xrtMemRangesOverlap(K->Seeds,Bytes,Output,sizeof(*Output)))return false;
-    for(size_t I=0;I<Discovery->SeedCount;++I){
-        xredissentinelendpoint E=K->Seeds[I];
-        if(!__xredisSentinelEndpointValid(E,Discovery->MaxHostBytes) ||
-           xrtMemRangesOverlap(E.Host.Data,E.Host.Size,Output,sizeof(*Output)) || xredisPoolSpSeedContains(K->Seeds,I,E))return false;
-    }
-    return true;
-}
 xredisadmission __xredisSentinelPoolCreate(xnetengine* Engine,uint64 Affinity,size_t Count,const xredispoolconfig* Config,
-    const xredissentinelpoolconfig* Sentinel,const xredissentinelpoolseedconfig* Seeds,
+    const xredissentinelpoolconfig* Sentinel,
     xredissentinelreplicaconnect ConnectReplica,size_t MaxReplicas,xredispool** Output)
 {
     if(!Engine || !Count || Count>65536 || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || !Sentinel || !xrtMemRangeValid(Sentinel,sizeof(*Sentinel)) ||
@@ -1678,14 +1587,9 @@ xredisadmission __xredisSentinelPoolCreate(xnetengine* Engine,uint64 Affinity,si
         xredisPoolReport(XERR_ARGUMENT,"invalid Sentinel pool config/output");return XREDIS_ADMISSION_ERROR;}
     xredissentinelpoolconfig K=*Sentinel;xredispoolconfig Options;if(Config)Options=*Config;else xredisPoolConfigInit(&Options);
     if(ConnectReplica)K.Discovery.ConnectMaster=ConnectReplica;
-    if(K.Size!=sizeof(K) || !xredisPoolBounds(&Options) || !K.MaxConnecting || K.MaxConnecting>65536 || K.Discovery.Timeout>60000 || K.RetryMin<=0 || K.RetryMax<K.RetryMin || K.RetryMax>60000 || !__xredisSentinelConfigValid(&K.Discovery,Seeds!=NULL,Output,sizeof(*Output))){xredisPoolReport(XERR_ARGUMENT,"invalid Sentinel pool bounds");return XREDIS_ADMISSION_ERROR;}
-    xredissentinelpoolseedconfig SeedConfig={0};
-    if(Seeds && !xredisPoolSpSeedConfig(Seeds,&K.Discovery,Output,&SeedConfig)){
-        xredisPoolReport(XERR_ARGUMENT,"invalid Sentinel seed table bounds or addresses");return XREDIS_ADMISSION_ERROR;
-    }
+    if(K.Size!=sizeof(K) || !xredisPoolBounds(&Options) || !K.MaxConnecting || K.MaxConnecting>65536 || K.Discovery.Timeout>60000 || K.RetryMin<=0 || K.RetryMax<K.RetryMin || K.RetryMax>60000 || !__xredisSentinelConfigValid(&K.Discovery,Output,sizeof(*Output))){xredisPoolReport(XERR_ARGUMENT,"invalid Sentinel pool bounds");return XREDIS_ADMISSION_ERROR;}
     size_t Per=sizeof(xredispoolconnectentry)+sizeof(size_t)+sizeof(xredispoolsentinelentry);
-    size_t Tail=sizeof(xredispoolsentinelstate)+K.Discovery.Service.Size+K.Discovery.MaxHostBytes+
-        SeedConfig.MaxSeeds*(sizeof(xredissentinelendpoint)+K.Discovery.MaxHostBytes);
+    size_t Tail=sizeof(xredispoolsentinelstate)+K.Discovery.Service.Size+K.Discovery.MaxHostBytes;
     if(Count>(SIZE_MAX-Tail)/Per){xredisPoolReport(XERR_RANGE,"Sentinel pool storage overflow");return XREDIS_ADMISSION_ERROR;}
     xredispool* P=xredisPoolAllocate(Engine,Affinity,Count,&Options);if(!P)return XREDIS_ADMISSION_ERROR;
     xredispoolsentinelstate* S=xrtCalloc(1,Tail+Count*Per);if(!S){xrtNetEngineUnpin(Engine);xredisPoolRelease(P);return XREDIS_ADMISSION_ERROR;}
@@ -1700,16 +1604,6 @@ xredisadmission __xredisSentinelPoolCreate(xnetengine* Engine,uint64 Affinity,si
     S->Base.Config.Protocol=K.Discovery.Protocol;S->Base.Config.MaxConnecting=K.MaxConnecting<Count?K.MaxConnecting:Count;S->Base.Config.AttemptTimeout=K.Discovery.Timeout;S->Base.Config.RetryMin=K.RetryMin;S->Base.Config.RetryMax=K.RetryMax;
     S->Base.Entries=(xredispoolconnectentry*)(S+1);S->Base.Heap=(size_t*)(S->Base.Entries+Count);S->Entries=(xredispoolsentinelentry*)(S->Base.Heap+Count);
     S->Service=(unsigned char*)(S->Entries+Count);
-    if(Seeds){
-        S->Seeds.Config=SeedConfig;
-        S->Seeds.Entries=(xredissentinelendpoint*)S->Service;
-        S->Seeds.Hosts=(unsigned char*)(S->Seeds.Entries+SeedConfig.MaxSeeds);
-        S->Seeds.Known=K.Discovery.SeedCount;
-        S->Service=S->Seeds.Hosts+SeedConfig.MaxSeeds*K.Discovery.MaxHostBytes;
-        S->Seeds.Config.Seeds=S->Seeds.Entries;
-        for(size_t I=0;I<S->Seeds.Known;++I)xredisPoolSpSeedCopy(&S->Seeds.Entries[I],
-            S->Seeds.Hosts+I*K.Discovery.MaxHostBytes,SeedConfig.Seeds[I]);
-    }
     S->Host=S->Service+K.Discovery.Service.Size;memcpy(S->Service,K.Discovery.Service.Data,K.Discovery.Service.Size);S->Config.Discovery.Service=(xbytesview){S->Service,K.Discovery.Service.Size};
     S->Info.Size=sizeof(S->Info);S->Info.PreferredSeed=K.Discovery.PreferredSeed;S->Base.Info.Size=sizeof(S->Base.Info);S->Base.Info.Waiting=Count;
     S->Base.Head=S->Base.Tail=SIZE_MAX;S->Base.HeapCount=Count;S->Base.Random=((uint64)(xrtTimer()*1000000.0)^(uint64)(uintptr_t)P)|1u;

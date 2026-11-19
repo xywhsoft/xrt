@@ -1,4 +1,5 @@
 #include <xredis/sentinel_pool.h>
+#include "../../examples/sentinel_pool/seed_policy.h"
 #include <xredis/sentinel_events.h>
 #include <xredis/dial.h>
 #include <xrt.h>
@@ -109,17 +110,14 @@ static xredissentinelstatus sprConnect(xnetengine* E,uint16 Port,int64 Timeout,s
     return XREDIS_SENTINEL_OK;
 }
 static xredissentinelstatus sprSeed(xnetengine* E,size_t Seed,int64 Timeout,ptr Data,xredisclient** C)
-{sprRequire(Seed==0,"seed index");sprcontext* D=Data;return sprConnect(E,D->Seed,Timeout,D,C);}
-static xredissentinelstatus sprMaster(xnetengine* E,const xredissentinelendpoint* A,int64 Timeout,ptr Data,xredisclient** C)
-{sprRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),"announced host");return sprConnect(E,A->Port,Timeout,Data,C);}
-static xredissentinelstatus sprEndpointSeed(xnetengine* E,const xredissentinelendpoint* A,int64 Timeout,ptr Data,xredisclient** C)
 {
     sprcontext* D=Data;
-    sprRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),"owned announced Sentinel host");
-    sprRequire(A->Port==D->Seed || A->Port==D->Learned,"owned announced Sentinel port");
-    if(A->Port==D->Learned)xrtAtomic32FetchAdd(&D->LearnedDials,1,XMEMORY_RELEASE);
-    return sprConnect(E,A->Port,Timeout,D,C);
+    sprRequire(Seed==0 || (Seed==1 && D->Learned),"configured seed index");
+    if(Seed==1)xrtAtomic32FetchAdd(&D->LearnedDials,1,XMEMORY_RELEASE);
+    return sprConnect(E,Seed==0?D->Seed:D->Learned,Timeout,D,C);
 }
+static xredissentinelstatus sprMaster(xnetengine* E,const xredissentinelendpoint* A,int64 Timeout,ptr Data,xredisclient** C)
+{sprRequire(A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),"announced host");return sprConnect(E,A->Port,Timeout,Data,C);}
 static void sprDrop(ptr Data)
 {sprcontext* D=Data;for(size_t N=0;N<D->Count;++N){sprRequire(xrtFutureState(D->Closed[N])==XFUTURE_RESOLVED,"context drop after every seed/master closes");xrtFutureDestroy(D->Closed[N]);D->Closed[N]=NULL;}xrtAtomic32FetchAdd(&D->Drops,1,XMEMORY_RELEASE);}
 static const void* sprWait(xfuture* F)
@@ -175,9 +173,8 @@ static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
 #endif
 static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredislease** L,cstr Run,uint16 Port,bool Replicas)
 {
-    xredissentinelpoolseedinfo Seeds={.Size=sizeof(Seeds)};
-    sprRequire(xredisSentinelPoolSeedInfo(P,&Seeds) && Seeds.Configured==1 && Seeds.Known==2 &&
-        Seeds.Capacity==2 && !xrtAtomic32Load(&D->LearnedDials,XMEMORY_ACQUIRE),"alternate learned before its first dial");
+    sprRequire(D->Learned && !xrtAtomic32Load(&D->LearnedDials,XMEMORY_ACQUIRE),
+        "APP selected the alternate before the pool's first dial");
     xfuture* Waiting=sprAcquire(P);
     sprRequire(!xrtFutureDone(Waiting),"all slots held during seed loss");
     puts("READY");fflush(stdout);
@@ -193,7 +190,6 @@ static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredisleas
         I.PreferredSeed==1 && I.Connect.Connected==4 && xrtAtomic32Load(&D->LearnedDials,XMEMORY_ACQUIRE)==1,
         "learned Sentinel repaired the missing slot on the existing generation");
     sprClose(P,E,D);
-    sprRequire(xredisSentinelPoolSeedInfo(P,&Seeds) && Seeds.Configured==1 && Seeds.Known==2,"closed seed counts retained");
     xrtFutureDestroy(Waiting);
     printf("[PASS] real Sentinel seed recovery role=%s learned=1 preferred=1 generation=1 observers_peak=%zu\n",
         Replicas?"replica":"master",D->Peak);
@@ -239,16 +235,18 @@ int main(int Argc,char** Argv)
 #endif
     xredissentinelpoolconfig K;xredisSentinelPoolConfigInit(&K);K.Discovery.Service=(xbytesview)XRT_BYTES_LITERAL("cache");K.Discovery.ConnectSeed=sprSeed;K.Discovery.ConnectMaster=sprMaster;K.Discovery.Data=&D;K.Discovery.Protocol=D.Mode==XREDIS_INIT_RESP2?XREDIS_RESP2:XREDIS_RESP3;K.Discovery.SeedTimeout=2000;K.MaxConnecting=2;K.RetryMin=10;K.RetryMax=30;K.Drop=sprDrop;xredispoolconfig O;xredisPoolConfigInit(&O);O.WorkItems=1;O.LeaseTimeout=60000;
     xredispool* P=NULL;
-    xredisadmission Pool;
     if(Learn){
-        xredissentinelendpoint SeedAddress={XRT_BYTES_LITERAL("127.0.0.1"),D.Seed};
-        xredissentinelpoolseedconfig Seeds;
-        sprRequire(xredisSentinelPoolSeedConfigInit(&Seeds),"init Sentinel seed config");
-        Seeds.Seeds=&SeedAddress;Seeds.Connect=sprEndpointSeed;Seeds.MaxSeeds=2;Seeds.PeerTimeout=500;
-        K.Discovery.ConnectSeed=NULL;K.MaxConnecting=1;
-        Pool=Replicas?xredisSentinelReplicaPoolCreateWithSeeds(E,1,Count,&O,&K,&Seeds,sprMaster,8,&P):
-            xredisSentinelPoolCreateWithSeeds(E,1,Count,&O,&K,&Seeds,&P);
-    }else Pool=Replicas?xredisSentinelReplicaPoolCreate(E,1,Count,&O,&K,sprMaster,8,&P):
+        xredisclient* SeedClient=NULL;
+        sprRequire(sprSeed(E,0,2000,&D,&SeedClient)==XREDIS_SENTINEL_OK,"open APP Sentinel connection");
+        bool Listed=appSeedRead(SeedClient,K.Discovery.Service,D.Learned);
+        sprRequire(xredisClientClose(SeedClient),"close APP Sentinel connection");
+        xredisClientRelease(SeedClient);
+        sprRequire(xrtFutureWaitFor(D.Closed[D.Count-1],2000)==XWAIT_OK,"retire APP Sentinel connection");
+        sprRequire(Listed,"APP-approved Sentinel was advertised");
+        K.Discovery.SeedCount=2;
+        K.MaxConnecting=1;
+    }
+    xredisadmission Pool=Replicas?xredisSentinelReplicaPoolCreate(E,1,Count,&O,&K,sprMaster,8,&P):
         xredisSentinelPoolCreate(E,1,Count,&O,&K,&P);
     sprRequire(Pool==XREDIS_ADMISSION_ACCEPTED,"pool create");xfuture* Acquired[3];xredislease* L[3];for(size_t N=0;N<Count;++N){Acquired[N]=sprAcquire(P);L[N]=sprLease(Acquired[N]);xfuture* ID=sprIdentity(L[N],Argv[3]);xrtFutureDestroy(ID);}
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)

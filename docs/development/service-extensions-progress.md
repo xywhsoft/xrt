@@ -17373,3 +17373,30 @@ hook. Controlled checkpoints still cover zero-key deliveries and updates
 to subscriptions and session expiry. Native Linux performance and the
 72-hour acceptance workloads are open. Strict release reports 43
 developing modules.
+
+## 2026-11-20 xredis Sentinel seeds owned by the APP
+
+Sentinel discovery and the native pool take stable indexes from the caller.
+They reuse the existing discovery deadline, role check and generation fence.
+Removed the peer-list phase, seed table, endpoint-based constructors and
+seed table introspection. The library source shrank by 224 lines. The
+example uses a short-lived client for SENTINEL SENTINELS and publishes a
+preapproved backup to its factory while an existing lease stays usable.
+When the first seed becomes unavailable, a subsequent repair reuses the
+same data-node generation through the backup.
+
+The pool and event suites passed on Windows x64 and Ubuntu/WSL x64,
+including modular and TLS single-header builds, with the runnable example
+and static and shared package consumers verified separately. A Redis
+8.0.5 fixture under WSL verified recovery after the configured Sentinel
+process was stopped, including all nine factory/protocol combinations for
+each of the master and replica fixtures on each client platform. The
+runner checks real process identity, generation stability and retirement.
+The first WSL build exposed an obsolete peer-phase reference. The first
+real runner used the old typed wait for a close observer that resolves
+with NULL. Both were corrected before the final matrix.
+
+Evidence is under
+`out/service-extensions/scope-reduction-20261119/xredis-app-sentinel-seeds/`.
+Sentinel and Cluster replica selection migrations remain open. The strict
+xredis gate still reports 32 developing modules.

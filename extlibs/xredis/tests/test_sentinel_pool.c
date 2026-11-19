@@ -98,99 +98,45 @@ static void spRefreshTest(void)
     spStop(&F);xredisPoolRelease(P);xrtFutureDestroy(A);xrtFutureDestroy(Repaired);
     puts("Sentinel proactive refresh tests passed");
 }
-static xredissentinelpoolseedinfo spSeedInfo(xredispool* P)
+static void spFixedSeedRecovery(bool Replica,bool Resp2,bool Secure)
 {
-    xredissentinelpoolseedinfo I={.Size=sizeof(I)};
-    testRequire(xredisSentinelPoolSeedInfo(P,&I),"seed table snapshot");
-    return I;
-}
-static void spSeedRefresh(spfixture* F,xredispool* P,uint32 Mode)
-{
-    /* Wait for the preceding probe's close and the bounded scan interval. */
-    xrtSleep(250);
-    uint32 Queries=xrtAtomic32Load(&F->PeerQueries,XMEMORY_ACQUIRE);
-    xrtAtomic32Store(&F->PeerMode,Mode,XMEMORY_RELEASE);
-    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"request peer discovery");
-    redisPeerWait(&F->PeerQueries,Queries+1);
-}
-static void spSeedLearning(bool Replica,bool Resp2,bool Secure)
-{
-    printf("seed replica=%u RESP2=%u TLS=%u\n",(unsigned)Replica,(unsigned)Resp2,(unsigned)Secure);fflush(stdout);
-    spfixture F;spStart(&F,0,Secure,Resp2);F.Replicas=Replica;
-    spnode Peer={0};redisConnectPeerStart(&Peer.Base);Peer.Root=&F;Peer.Base.Hook=(redispeerhook){spCommand,&Peer};F.SeedPeer=&Peer;
+    spfixture F;
+    spStart(&F,0,Secure,Resp2);
+    F.Replicas=Replica;
+    spnode Backup={0};
+    redisConnectPeerStart(&Backup.Base);
+    Backup.Root=&F;
+    Backup.Base.Hook=(redispeerhook){spCommand,&Backup};
+    F.SeedPeer=&Backup;
 #if SP_TLS
-    if(Secure)Peer.Base.TLS=&F.TLS.Options;
+    if(Secure)Backup.Base.TLS=&F.TLS.Options;
 #endif
-    xredissentinelpoolconfig K;spConfig(&F,&K);
-    K.Discovery.ConnectSeed=NULL;K.Discovery.MaxRounds=2;K.MaxConnecting=1;
-    xredissentinelpoolseedconfig Seeds;testRequire(xredisSentinelPoolSeedConfigInit(&Seeds),"init seeds");
-    unsigned char Host[]="127.0.0.1";
-    xredissentinelendpoint Initial[]={{{Host,9},F.Seed.Base.Address.Port},{{Host,9},F.Seed.Base.Address.Port}};
-    Seeds.Seeds=Initial;Seeds.Connect=spSeedEndpoint;Seeds.MaxSeeds=2;Seeds.PeerTimeout=Secure?350:60;
-    Seeds.MaxPeerRows=5;Seeds.PeerRefreshMin=100;
-    xnetengine* E=F.Seed.Base.Engine;
-    xredispool* Out=(xredispool*)(uintptr_t)1;
-    K.Discovery.SeedCount=2;
-    testRequire(xredisSentinelPoolCreateWithSeeds(E,0,1,NULL,&K,&Seeds,&Out)==XREDIS_ADMISSION_ERROR &&
-        Out==(xredispool*)(uintptr_t)1 && !xrtAtomic32Load(&F.Calls,XMEMORY_ACQUIRE),"reject duplicate configured seeds");
-    K.Discovery.SeedCount=1;
-    xrtClearError();
-    xallocationbudget* Budget=NULL;xallocationscope Scope={0};
-    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"seed allocation budget");
-    testRequire(xredisSentinelPoolCreateWithSeeds(E,0,1,NULL,&K,&Seeds,&Out)==XREDIS_ADMISSION_ERROR &&
-        Out==(xredispool*)(uintptr_t)1 && !xrtAtomic32Load(&F.Drops,XMEMORY_ACQUIRE),"OOM preserves seeded construction ownership");
-    testRequire(xrtAllocationBudgetLeave(&Scope),"release allocation scope");
-    xrtAllocationBudgetFree(Budget);xrtClearError();
+    xredissentinelpoolconfig Config;
+    spConfig(&F,&Config);
+    Config.Discovery.SeedCount=2;
+    xredispool* Pool=spCreate(&F,1,NULL,&Config);
+    xfuture* First=spAcquire(Pool,5000);
+    xredislease* Lease=spLease(First);
+    spPing(Lease);
+    testRequire(spInfo(Pool).PreferredSeed==0 && !xrtAtomic32Load(&F.PeerAttempts,XMEMORY_ACQUIRE),
+        "fixed primary seed used first");
 
-    xrtAtomic32Store(&F.PeerMode,1,XMEMORY_RELEASE);
-    xredispool* P=NULL;
-    xredisadmission Admitted=Replica?xredisSentinelReplicaPoolCreateWithSeeds(E,0,1,NULL,&K,&Seeds,spMaster,8,&P):
-        xredisSentinelPoolCreateWithSeeds(E,0,1,NULL,&K,&Seeds,&P);
-    testRequire(Admitted==XREDIS_ADMISSION_ACCEPTED,"seed table constructor");
-    xrtAtomicPtrStore(&F.Pool,P,XMEMORY_RELEASE);
-    Host[0]='9';Initial[0].Port=0;
-    xfuture* A=spAcquire(P,5000);xredislease* L=spLease(A);spPing(L);
-    testRequire(spSeedInfo(P).Known==1 && xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE)==1,
-        "malformed last row suppresses entire optional list");
-    for(uint32 Mode=2;Mode<=5;++Mode){
-        uint32 Roles=xrtAtomic32Load(&F.Roles,XMEMORY_ACQUIRE);
-        spSeedRefresh(&F,P,Mode);
-        redisPeerWait(&F.Roles,Roles+1);
-        testRequire(spSeedInfo(P).Known==1 && spInfo(P).Generation==1,
-            "empty, over-limit, timed-out or denied optional query leaves current target");
-        spPing(L);
-    }
-    xrtAtomic32Store(&F.Stale,1,XMEMORY_RELEASE);
-    uint32 StaleQueries=xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE);
-    uint32 StaleRoles=xrtAtomic32Load(&F.Roles,XMEMORY_ACQUIRE);
-    spSeedRefresh(&F,P,0);
-    spRefreshWait(P,XREDIS_SENTINEL_STALE_ROLE);
-    testRequire(spSeedInfo(P).Known==1 && xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE)==StaleQueries+1 &&
-        xrtAtomic32Load(&F.Roles,XMEMORY_ACQUIRE)==StaleRoles+2,
-        "valid peer list from stale topology is discarded and ROLE retry does not repeat the peer query");
-    xrtAtomic32Store(&F.Stale,0,XMEMORY_RELEASE);
-    spSeedRefresh(&F,P,0);
-    double End=xrtTimer()+5;
-    while(spSeedInfo(P).Known!=2){testRequire(xrtTimer()<End,"learned seed deadline");xrtSleep(1);}
-    testRequire(spSeedInfo(P).Configured==1 && spSeedInfo(P).Capacity==2 &&
-        !xrtAtomic32Load(&F.PeerAttempts,XMEMORY_ACQUIRE),"learned address dedup and cap");
-    uint32 Scans=xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE);
     xrtAtomic32Store(&F.SeedOffline,1,XMEMORY_RELEASE);
-    xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);
-    testRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"recover via learned sentinel");
-    xfuture* Next=spAcquire(P,5000);xredislease* New=spLease(Next);spPing(New);
-    testRequire(spInfo(P).Generation==2 && spInfo(P).PreferredSeed==1 && spInfo(P).Port==F.B.Base.Address.Port &&
-        xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE)==Scans,"capacity skips optional scan during recovery");
-    xrtAtomic32Store(&F.SeedOffline,0,XMEMORY_RELEASE);
-    xrtAtomic32Store(&F.PeerDenied,1,XMEMORY_RELEASE);
-    uint32 Attempts=xrtAtomic32Load(&F.PeerAttempts,XMEMORY_ACQUIRE);
-    spReturn(New,true);
-    xfuture* Back=spAcquire(P,5000);spPing(spLease(Back));
-    testRequire(xrtAtomic32Load(&F.PeerAttempts,XMEMORY_ACQUIRE)==Attempts+1 &&
-        spInfo(P).Generation==2 && spInfo(P).PreferredSeed==0,"learned peer authentication error falls back to configured seed");
-    spClose(&F,P);redisConnectPeerStop(&Peer.Base);spStop(&F);
-    testRequire(spSeedInfo(P).Known==2,"seed info survives physical shutdown");
-    xredisPoolRelease(P);xrtFutureDestroy(A);xrtFutureDestroy(Next);xrtFutureDestroy(Back);
+    spReturn(Lease,true);
+    xfuture* Repaired=spAcquire(Pool,5000);
+    Lease=spLease(Repaired);
+    spPing(Lease);
+    testRequire(spInfo(Pool).PreferredSeed==1 && spInfo(Pool).Generation==1 &&
+        xrtAtomic32Load(&F.PeerAttempts,XMEMORY_ACQUIRE)==1 &&
+        !xrtAtomic32Load(&F.PeerQueries,XMEMORY_ACQUIRE),
+        "fixed backup repairs the same generation without querying peers");
+    spReturn(Lease,false);
+    spClose(&F,Pool);
+    redisConnectPeerStop(&Backup.Base);
+    spStop(&F);
+    xredisPoolRelease(Pool);
+    xrtFutureDestroy(First);
+    xrtFutureDestroy(Repaired);
 }
 static void spReplicaReorderTest(void)
 {
@@ -329,9 +275,9 @@ int main(void)
 {spRepairTest();spSwitchTest(false,false,0);spSwitchTest(false,true,0);
  spReplicaReorderTest();spReplicaEmptyTest();spReplicaBounds();spSwitchTest(true,false,0);spSwitchTest(true,true,0);
  spSwitchTest(false,false,1);spSwitchTest(true,false,2);spSwitchTest(false,true,1);spRefreshTest();
- spSeedLearning(false,true,false);spSeedLearning(true,false,false);
+ spFixedSeedRecovery(false,true,false);spFixedSeedRecovery(true,false,false);
 #if SP_TLS
- spSeedLearning(false,false,true);spSeedLearning(true,true,true);
+ spFixedSeedRecovery(false,false,true);spFixedSeedRecovery(true,true,true);
 #endif
- puts("Sentinel seed learning tests passed");
+ puts("Sentinel fixed seed recovery tests passed");
  puts("Sentinel replica pool tests passed");spFaultTests();spBoundsTests();spOwnerOOM();spOrdinaryPoolInfo();spNestedFence();spRaceTests();spInheritedDeadline();puts("Sentinel pool tests passed");return 0;}

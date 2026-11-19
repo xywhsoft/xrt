@@ -1,4 +1,4 @@
-"""Verify that a native pool can refill from an automatically learned Sentinel."""
+"""Verify native repair from a Sentinel selected by the APP example."""
 
 import argparse
 from contextlib import ExitStack
@@ -119,7 +119,7 @@ def one_case(args, case, workdir, logdir):
                     break
             if probe.poll() is not None:
                 raise RuntimeError("C probe ended early: " + "".join(prefix) + probe.stdout.read())
-            assert time.monotonic() < deadline, "native seed table not ready"
+            assert time.monotonic() < deadline, "APP-selected seed list not ready"
 
         case["ready"] = True
         for label, fixture in case["fixtures"].items():

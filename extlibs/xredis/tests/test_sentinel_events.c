@@ -76,14 +76,14 @@ static void seBehavior(bool Replica,bool Secure,bool Resp2)
     seSend(&F,0,NULL,0);
     seWaitState(P,2,XREDIS_SESSION_ONLINE);
     End=xrtTimer()+10;
-    while(spInfo(P).Generation!=3){testRequire(xrtTimer()<End,"missed event catch-up via learned seed");xrtSleep(1);}
+    while(spInfo(P).Generation!=3){testRequire(xrtTimer()<End,"missed event catch-up via configured backup seed");xrtSleep(1);}
     xredissentineleventinfo Events=seInfo(P);
     xredissentinelpoolinfo Topology=spInfo(P);
     if(Events.Seed!=1 || Topology.PreferredSeed!=1 || Topology.Port!=F.Pool.A.Base.Address.Port)
         fprintf(stderr,"rotation event_seed=%zu topology_seed=%zu actual=%u expected=%u\n",
             Events.Seed,Topology.PreferredSeed,(unsigned)Topology.Port,(unsigned)F.Pool.A.Base.Address.Port);
     testRequire(Events.Seed==1 && Topology.PreferredSeed==1 && Topology.Port==F.Pool.A.Base.Address.Port,
-        "subscriber and discovery rotated to learned seed");
+        "subscriber and discovery rotated to configured backup seed");
     xfuture* Recovered=spAcquire(P,5000);spPing(spLease(Recovered));
     seStop(&F,P);
     xrtFutureDestroy(First);xrtFutureDestroy(Second);xrtFutureDestroy(Waiting);xrtFutureDestroy(Sent);xrtFutureDestroy(Recovered);

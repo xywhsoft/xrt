@@ -50,18 +50,11 @@ static xredispool* seCreate(sefixture* F,size_t Count)
 {
     xredissentinelpoolconfig K;spConfig(&F->Pool,&K);
     xredispoolconfig Options;xredisPoolConfigInit(&Options);Options.WorkItems=1;
-    if(!F->HasBackup)return spCreate(&F->Pool,Count,&Options,&K);
-    xredissentinelpoolseedconfig Seeds;xredisSentinelPoolSeedConfigInit(&Seeds);
-    xredissentinelendpoint Seed={XRT_BYTES_LITERAL("127.0.0.1"),F->Pool.Seed.Base.Address.Port};
-    Seeds.Seeds=&Seed;Seeds.Connect=spSeedEndpoint;Seeds.MaxSeeds=2;Seeds.PeerTimeout=500;
-    K.MaxConnecting=1;
-    xredispool* P=NULL;
-    xnetengine* Engine=F->Pool.Seed.Base.Engine;
-    xredisadmission A=F->Pool.Replicas?xredisSentinelReplicaPoolCreateWithSeeds(Engine,0,Count,&Options,&K,&Seeds,spMaster,8,&P):
-        xredisSentinelPoolCreateWithSeeds(Engine,0,Count,&Options,&K,&Seeds,&P);
-    redisPeerRequire(A==XREDIS_ADMISSION_ACCEPTED,"seeded event pool");
-    xrtAtomicPtrStore(&F->Pool.Pool,P,XMEMORY_RELEASE);
-    return P;
+    if(F->HasBackup){
+        K.Discovery.SeedCount=2;
+        K.MaxConnecting=1;
+    }
+    return spCreate(&F->Pool,Count,&Options,&K);
 }
 static xredissentineleventinfo seInfo(xredispool* P)
 {

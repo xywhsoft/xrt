@@ -80,35 +80,17 @@ Both APIs are safe to call from Notify. Close waits for the probe and its
 native observers before Drop. An accepted hint has no completion Future.
 [Sentinel event guidance](https://redis.io/docs/latest/develop/reference/sentinel-clients/#subscribe-to-sentinel-events-to-improve-responsiveness).
 
-## Discover additional Sentinel seeds
+## Configure Sentinel seeds
 
-Initialize `xredissentinelpoolseedconfig` and supply the configured addresses
-in the order indicated by `Discovery.SeedCount` and `Discovery.PreferredSeed`.
-Use `xredisSentinelPoolCreateWithSeeds` or
-`xredisSentinelReplicaPoolCreateWithSeeds`. The endpoint factory replaces
-`Discovery.ConnectSeed` and uses the same `Discovery.Data` and `Drop`.
-The pool copies the initial addresses. Use the endpoint factory to enforce
-host, port, credential and TLS trust policy before opening a connection to
-an announced address. Returning UNREACHABLE skips an address.
+Set `Discovery.SeedCount` and `Discovery.PreferredSeed`, and resolve each
+stable index in `Discovery.ConnectSeed`. The pool rotates those indexes on
+transient failure and remembers the last seed that led to a verified endpoint.
+The APP owns the address list, endpoint policy, credentials and TLS settings
+through the pool's Drop callback.
 
-The first eligible topology discovery may query `SENTINEL SENTINELS` on
-its already initialized seed connection. At most one discovery per pool
-can query peers at a time. Each discovery sends at most one peer query,
-including when it retries ROLE. The query uses the configured cap and the
-remaining seed and discovery budgets, reserving time for the data-node
-connection and ROLE. A rejected, malformed, over-limit or stalled list
-leaves primary discovery intact. RESP2 arrays and RESP3 maps have the same
-row/payload bounds. Only eligible Sentinel rows from a completely validated
-reply are appended after a verified ROLE result.
-
-Storage is bounded by MaxSeeds and the configured host length. Entries
-are deduplicated by exact host bytes and port. Configured entries are
-retained, and the table skips optional queries once full. One job sees a
-stable count and index assignment. The next job includes appended entries
-and prefers the last Sentinel that led to verified topology. Remote
-authentication, server, protocol and limits errors at learned seeds can
-fall through to other addresses. Configured seed and data-node error
-handling keep their existing semantics. Use
-`xredisSentinelPoolSeedInfo` for the current counts, including after Close.
-Active refresh can learn peers that appear after initial connection.
+The [Sentinel pool example](../examples/sentinel_pool/README.md) issues
+`SENTINEL SENTINELS` on an APP-owned client and enables a preapproved backup
+while the pool runs. Applications can reserve a bounded number of indexes
+and initially return UNREACHABLE for unassigned slots. Publish updates to
+those slots with synchronization appropriate to the pool's callback threads.
 [Redis Sentinel peer discovery guidance](https://redis.io/docs/latest/develop/reference/sentinel-clients/#sentinels-list-automatic-refresh).

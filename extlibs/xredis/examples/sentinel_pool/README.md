@@ -16,8 +16,10 @@ The example issues `xredisSentinelPoolRefresh` after the fixture changes the
 announced endpoint. The old lease stays held until verified replacement
 fences it. The queued native acquisition then receives the new generation.
 
-The last example configures one seed by endpoint. After learning a second
-Sentinel, it makes the configured seed unavailable and repairs a native
-connection through the learned endpoint. The real Redis runner
-`extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py` also checks this
-path with two cooperating Sentinel processes.
+The last example queries `SENTINEL SENTINELS` using a short-lived Redis
+client on the APP owner thread while the pool serves an existing lease.
+The APP enables its preapproved loopback backup after checking the reply.
+The pool discovers the same data node using that index when the first seed
+becomes unavailable and a connection needs repair. The real Redis runner
+`extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py` exercises the same
+APP policy with two cooperating Sentinel processes.
