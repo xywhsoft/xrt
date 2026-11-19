@@ -13,6 +13,7 @@ python tools/build.py --manifest extlibs/xcron/config/modules.json --suite xcron
 | [scheduler](scheduler/main.c) | Register a callback and choose polling or blocking wait |
 | [executor](executor/main.c) | Hand a callback to an APP-owned XRT executor and join its work |
 | [service_checkpoint](service_checkpoint/main.c) | Reload a persisted task name and rule, then rebind the APP callback |
+| [restart_catchup](restart_catchup/main.c) | Replay a bounded number of UTC occurrences after restarting from the last successful action |
 | [timezone](timezone/main.c) | Resolve one civil result using an APP-selected host time zone and fold policy |
 
 The configuration example also accepts `save FILE` followed by `run FILE`
@@ -26,3 +27,20 @@ last-success timestamps in the APP if it needs restart catch-up. The scheduler
 chooses the next time from the current UTC clock after registration. Historical
 service, checkpoint and timezone implementations are available at the previous
 product revision `befcce75`.
+
+
+The catch-up APP fixes its rule at one occurrence per second. Timestamps are
+UTC milliseconds. Use a separate shell command for each simulated process.
+
+```sh
+examples_restart_catchup_main seed checkpoint.txt 1000
+examples_restart_catchup_main replay checkpoint.txt 5000 2
+examples_restart_catchup_main replay checkpoint.txt 5000 2
+```
+
+Each process samples one upper bound and advances through strictly later
+occurrences within its supplied count budget. It atomically replaces its
+single-writer checkpoint after each successful action. An optional final
+timestamp simulates a failed action and leaves that occurrence available
+to retry. A crash between action and checkpoint can replay that action.
+Use the scheduled UTC timestamp as the APP's idempotency key.

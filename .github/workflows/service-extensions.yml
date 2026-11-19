@@ -80,6 +80,12 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Restart catch-up example
+        if: matrix.product == 'xcron'
+        run: >-
+          python extlibs/xcron/tests/interop/run_restart_catchup.py
+          out/gcc/native/xcron_examples/examples_restart_catchup_main
+          out/service-extensions/xcron-restart-catchup-linux.json
       - name: Independent stdio subprocess peer
         if: matrix.product == 'xrpc'
         run: |
@@ -186,6 +192,12 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Restart catch-up example
+        if: matrix.product == 'xcron'
+        run: >-
+          python extlibs/xcron/tests/interop/run_restart_catchup.py
+          out/gcc/native/xcron_examples/examples_restart_catchup_main.exe
+          out/service-extensions/xcron-restart-catchup-windows.json
       - name: Independent stdio subprocess peer
         if: matrix.product == 'xrpc'
         run: |

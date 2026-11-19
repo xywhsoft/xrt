@@ -233,7 +233,8 @@
         "xcron",
         "xcron_scheduler",
         "executor",
-        "time_local"
+        "time_local",
+        "file_whole"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -246,6 +247,7 @@
         "extlibs/xcron/examples/scheduler/main.c",
         "extlibs/xcron/examples/executor/main.c",
         "extlibs/xcron/examples/service_checkpoint/main.c",
+        "extlibs/xcron/examples/restart_catchup/main.c",
         "extlibs/xcron/examples/timezone/main.c"
       ],
       "benchmarks": [],

@@ -16257,3 +16257,15 @@ queue submissions. Mixed producers, wildcard routing, QoS 1/2, native Linux
 and sustained-load acceptance remain open.
 
 [Stage evidence](../../extlibs/xmqtt/tests/results/server-exact-qos0-20261119.json).
+
+## 2026-11-19 xcron restart catch-up APP example
+
+The runnable example reads an APP-owned UTC checkpoint, enumerates missed
+occurrences with a per-run budget and atomically replaces the checkpoint
+after each successful APP action. The scheduled occurrence identifies the
+action if it has to run again after an interruption.
+
+Windows x64 and Ubuntu/WSL x64 passed the example aggregate and a subprocess
+check that restarts after an injected task failure, drains a capped backlog,
+then checks an idle restart, clock rollback and a malformed checkpoint.
+The same subprocess check is registered in both service-extension CI jobs.
