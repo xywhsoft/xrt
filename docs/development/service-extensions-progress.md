@@ -17132,3 +17132,31 @@ session state, QoS 2 duplicate suppression and retained Wills still need
 durable integration. Retained Wills are refused while the backend is enabled.
 Strict release reports 43 developing modules. Native Linux, controlled
 performance comparisons and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT durable retained Wills
+
+A fired retained Will now uses the existing APP commit ticket. Its
+immutable record keeps the original client identity without holding the
+departed connection. If another write owns the retention shard, the Will
+waits in the shard's FIFO under the existing pending-byte budget. Commit
+updates the retained index before live routing. The broker holds detached
+work until the APP completion retires, including during shutdown.
+
+The independent peer checked a Will contending with an active retained
+write, orderly delivery, restart recovery, delayed cancellation on
+reconnect, session expiry before Will Delay, and an MQTT 3.1.1 Will
+tombstone. TLS, WS and WSS checks observed actual retained Will delivery
+after Disconnect with Will Message. The unit fixture restored a due Will,
+held its APP completion after the expiry timer retired, and verified the
+broker stayed unjoined until the detached write completed.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header probes,
+TCP regressions and static and shared package consumers. WSL ASan/UBSan
+with leak checking and TSan passed the unit and independent tests. Raw
+evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-retained-will-*.
+
+Armed Wills remain covered by controlled session checkpoints. Live
+persistence of armed Wills, recipient queues and inbound QoS 2 deduplication,
+native Linux, controlled performance comparisons and 72-hour mixed loads
+remain open.

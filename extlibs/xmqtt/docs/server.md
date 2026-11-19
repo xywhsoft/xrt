@@ -103,14 +103,21 @@ in wire order. Other connections can still receive and publish.
 The submit callback transfers an immutable view to an APP storage worker
 and returns promptly. Different network workers can submit concurrently.
 Bound the backend queue and complete every accepted ticket with
-`xmqttServerCompleteRetained`. A pending operation occupies one
-retained shard and one publishing connection. Concurrent writes to its
-shard and exhausted byte or object quotas return overload. Broker counters
+`xmqttServerCompleteRetained`. A pending client publication occupies one
+retained shard and pauses that publishing connection. Concurrent client writes
+to its shard and exhausted byte or object quotas return overload. Broker counters
 include capacity reserved by pending writes. A confirmed
 rejection keeps the earlier record. An unknown outcome seals the broker
 and recovery starts from the authoritative backend. Broker WaitFor includes
 retained tickets that are still retiring on the broker worker. Join the APP
 completion callers before destroying the broker or its engine.
+
+Once a retained Will is triggered, it uses the same backend. A fired Will
+can wait behind the shard's current write in the bounded ticket queue.
+Committed Wills update retention before live delivery. Broker shutdown waits
+for fired Wills already in this queue. Known admission or backend rejection
+counts as a dropped retained Will and preserves the prior value. Delayed Wills
+continue to use ordinary session cancellation and controlled checkpoints.
 
 The loopback example uses an XRT task pool to replace one persisted topic
 slot with a publication or tombstone. Its file format, clock and retention
@@ -123,9 +130,9 @@ python extlibs/xmqtt/tests/interop/run_server_retained_commit.py <path-to-exampl
 ```
 
 The optional credentials directory adds TLS, WS and WSS to the probe. This
-mode persists retained client publications. Recipient queues, inbound
-QoS 2 deduplication state and retained Wills still need online backend
-integration. CONNECT rejects retained Wills while this mode is enabled.
+mode persists retained client publications and fired retained Wills.
+Recipient queues, inbound QoS 2 deduplication state and Wills that have yet
+to trigger still need online backend integration.
 
 MQTT 5 and 3.1.1 publishers can send QoS 1 and 2. `ReceiveMaximum` limits
 in-flight reliable publications per connection. `MaxIncomingPublishes` limits

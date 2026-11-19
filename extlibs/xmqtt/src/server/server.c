@@ -89,6 +89,7 @@ typedef struct xmqttservershard {
 	xatomic32 WildcardFilters;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	bool RetainedPending; /* Protected by RetainedGate. */
+	xmqttserverretainedticket *WillHead, *WillTail;
 #endif
 } xmqttservershard;
 struct xmqttserverlink {
@@ -141,6 +142,7 @@ struct xmqttserver {
 	xmqttserverretainedsubmit RetainedSubmit;
 	ptr RetainedUser;
 	size_t RetainedPendingLimit;
+	size_t RetainedWillWork; /* Protected by Gate. */
 	xatomic64 RetainedPendingBytes;
 	xatomic32 RetainedFailed;
 #endif
@@ -437,6 +439,10 @@ static void xmqttServerUnlinkTopic(xmqttserverlink* Link)
 
 static void xmqttServerFreeSession(xmqttserversession* Session);
 static void xmqttServerPublishWill(xmqttserver* Server, xmqttserverwill* Will);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
+static bool xmqttServerSubmitRetainedWill(xmqttserver* Server, const xmqttserverwill* Will,
+	xstrview Client, const xmqttpacket* Packet, const xmqttproperty* Expiry);
+#endif
 
 static void xmqttServerDropWill(xmqttserver* Server, xmqttserverwill* Will)
 {
@@ -507,9 +513,17 @@ static void xmqttServerFreeOffline(xmqttserversession* Garbage)
 	}
 }
 
+static bool xmqttServerDrained(const xmqttserver* Server)
+{
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
+	if (Server->RetainedWillWork) return false;
+#endif
+	return !Server->Info.Connections && !Server->ExpiryTimer && !Server->SessionCleanup;
+}
+
 static void xmqttServerSignalDrained(xmqttserver* Server)
 {
-	if (Server->Info.Closing && !Server->Info.Connections && !Server->ExpiryTimer && !Server->SessionCleanup)
+	if (Server->Info.Closing && xmqttServerDrained(Server))
 		xrtCondBroadcast(&Server->Drained);
 }
 
@@ -1406,9 +1420,6 @@ static uint8 xmqttServerTopicPermission(const xmqttserverconfig* Config, xmqttve
 static uint8 xmqttServerPrepareWill(xmqttserverpeer* Peer, const xmqttconnectpacket* Connect)
 {
 	xmqttserver* Server = Peer->Server;
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
-	if (Connect->WillRetain && Server->RetainedSubmit) return 0x9a;
-#endif
 	if (Connect->WillTopic.Size > Server->Config.MaxTopicBytes) return 0x90;
 	if (Connect->WillRetain && !Server->Config.MaxRetainedTopics) return 0x9a;
 	uint8 Reason = xmqttServerTopicPermission(&Server->Config, Peer->Version,
@@ -3167,6 +3178,14 @@ static void xmqttServerPublishWill(xmqttserver* Server, xmqttserverwill* Will)
 		for (size_t Index = 0; Index < Packet.Properties.Count; ++Index)
 			if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = Properties + Index;
 		xstrview Client = {(const char*)Will->Wire + Will->Bytes, Will->ClientBytes};
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
+		if ((Packet.Flags & XMQTT_PUBLISH_RETAIN) && Server->RetainedSubmit) {
+			if (!xmqttServerSubmitRetainedWill(Server, Will, Client, &Packet, Expiry)) {
+				xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+				xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
+			}
+		} else
+#endif
 		(void)xmqttServerDistribute(Server, Will->Version, Will->Identity, Client, &Packet, Expiry, xrtTimer());
 	} else xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
 	xmqttServerDropWill(Server, Will);
@@ -3294,6 +3313,9 @@ static void xmqttServerAcknowledgePublish(xmqttserverpeer* Peer, xmqttserverack*
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 struct xmqttserverretainedticket {
 	xnetpost Completion;
+	xmqttserver* Server;
+	xnetworker* Worker;
+	xmqttserverretainedticket* Next;
 	xmqttserverpeer* Peer;
 	xmqttserverack* Ack;
 	xmqttservershard* Shard;
@@ -3301,35 +3323,42 @@ struct xmqttserverretainedticket {
 	xmqttserverpublication* Publication;
 	xmqttserverretainedrecord Record;
 	xbytesview Key;
-	uint64 Hash;
+	uint64 Hash, Identity;
 	size_t Charge, Growth;
 	double Received;
 	xmqttserverretainedresult Result;
 	bool Remove;
 };
 
-static void xmqttServerDropRetainedTicket(xmqttserverretainedticket* Ticket)
+static void xmqttServerFreeRetainedTicket(xmqttserverretainedticket* Ticket)
 {
-	xmqttserverpeer* Peer = Ticket->Peer;
-	xatomic64* Pending = &Peer->Server->RetainedPendingBytes;
+	xatomic64* Pending = &Ticket->Server->RetainedPendingBytes;
 	size_t Charge = Ticket->Charge;
 	if (Ticket->Publication) xmqttServerFreePublication(Ticket->Publication, NULL, 0);
 	xrtFree(Ticket);
 	xrtAtomic64FetchSub(Pending, Charge, XMEMORY_RELAXED);
-	xmqttServerPeerDrop(Peer);
 }
 
-/* The pending bit keeps the old entry stable across APP work. Readers still
- * see the old index; other writers to this shard fail bounded admission. */
-static bool xmqttServerPrepareRetainedTicket(xmqttserverretainedticket* Ticket)
+static void xmqttServerDropRetainedTicket(xmqttserverretainedticket* Ticket)
 {
-	xmqttserver* Server = Ticket->Peer->Server;
-	xmqttservershard* Shard = Ticket->Shard;
-	xrtRWLockWrite(&Shard->RetainedGate);
-	if (Shard->RetainedPending || xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE)) {
-		xrtRWLockWriteUnlock(&Shard->RetainedGate);
-		return false;
+	xmqttserver* Server = Ticket->Server;
+	xmqttserverpeer* Peer = Ticket->Peer;
+	xmqttServerFreeRetainedTicket(Ticket);
+	if (Peer) xmqttServerPeerDrop(Peer);
+	else {
+		xrtMutexLock(&Server->Gate);
+		--Server->RetainedWillWork;
+		xmqttServerSignalDrained(Server);
+		xrtMutexUnlock(&Server->Gate);
 	}
+}
+
+/* Called with RetainedGate held and the shard unclaimed. */
+static bool xmqttServerReserveRetainedTicket(xmqttserverretainedticket* Ticket)
+{
+	xmqttserver* Server = Ticket->Server;
+	xmqttservershard* Shard = Ticket->Shard;
+	if (xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE)) return false;
 	xmqttServerExpireRetained(Server, Shard, Ticket->Received);
 	Ticket->Previous = xmqttServerFindKey(&Shard->Retained, Ticket->Hash, Ticket->Key);
 	if (!Ticket->Remove) {
@@ -3337,26 +3366,31 @@ static bool xmqttServerPrepareRetainedTicket(xmqttserverretainedticket* Ticket)
 		xmqttserverretained* Previous = Ticket->Previous;
 		size_t Old = Previous ? Previous->Publication->Size + Previous->PublisherIdBytes : 0;
 		Ticket->Growth = Bytes > Old ? Bytes - Old : 0;
-		if (!xmqttServerReserveRetained(Server, Ticket->Growth, !Previous)) {
-			xrtRWLockWriteUnlock(&Shard->RetainedGate);
-			return false;
-		}
+		if (!xmqttServerReserveRetained(Server, Ticket->Growth, !Previous)) return false;
 		Ticket->Entry = Previous ? Previous : xrtMalloc(sizeof(*Ticket->Entry) + Ticket->Key.Size);
 		if (!Ticket->Entry) {
 			xrtAtomic64FetchSub(&Server->RetainedBytes, Ticket->Growth, XMEMORY_RELAXED);
 			xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
-			xrtRWLockWriteUnlock(&Shard->RetainedGate);
 			return false;
 		}
 	}
 	Shard->RetainedPending = true;
-	xrtRWLockWriteUnlock(&Shard->RetainedGate);
 	return true;
+}
+
+/* A queued Will takes priority over new client traffic to its shard. */
+static bool xmqttServerPrepareRetainedTicket(xmqttserverretainedticket* Ticket)
+{
+	xmqttservershard* Shard = Ticket->Shard;
+	xrtRWLockWrite(&Shard->RetainedGate);
+	bool Prepared = !Shard->RetainedPending && !Shard->WillHead && xmqttServerReserveRetainedTicket(Ticket);
+	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+	return Prepared;
 }
 
 static void xmqttServerResolveRetainedTicket(xmqttserverretainedticket* Ticket, bool Apply)
 {
-	xmqttserver* Server = Ticket->Peer->Server;
+	xmqttserver* Server = Ticket->Server;
 	xmqttservershard* Shard = Ticket->Shard;
 	xrtRWLockWrite(&Shard->RetainedGate);
 	if (Apply && Ticket->Entry) {
@@ -3375,40 +3409,88 @@ static void xmqttServerResolveRetainedTicket(xmqttserverretainedticket* Ticket, 
 			xrtFree(Ticket->Entry);
 		}
 	}
-	Shard->RetainedPending = false;
 	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+}
+
+static bool xmqttServerReleaseRetainedShard(xmqttservershard* Shard)
+{
+	xrtRWLockWrite(&Shard->RetainedGate);
+	Shard->RetainedPending = false;
+	bool Waiting = Shard->WillHead != NULL;
+	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+	return Waiting;
 }
 
 static uint8 xmqttServerRouteRetainedTicket(xmqttserverretainedticket* Ticket, double Now)
 {
-	xmqttserverpeer* Peer = Ticket->Peer;
-	xmqttserver* Server = Peer->Server;
+	xmqttserver* Server = Ticket->Server;
+	xmqttversion Version = Ticket->Record.Version;
+	xmqttdirection Direction = Ticket->Peer ? XMQTT_CLIENT_TO_SERVER : XMQTT_SERVER_TO_CLIENT;
 	xmqttproperty Properties[XMQTT_SERVER_MAX_PROPERTIES];
 	const xmqttcodecbuffers Scratch = {Properties, XMQTT_SERVER_MAX_PROPERTIES, NULL, 0};
 	xmqttpacket Packet;
 	xmqttcodecstatus Status;
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
-	if (Peer->Version == XMQTT_VERSION_311)
-		Status = xmqttPacketRead311(Ticket->Record.Publish, XMQTT_CLIENT_TO_SERVER, &Server->Config.Codec, &Scratch, &Packet, NULL);
+	if (Version == XMQTT_VERSION_311)
+		Status = xmqttPacketRead311(Ticket->Record.Publish, Direction, &Server->Config.Codec, &Scratch, &Packet, NULL);
 	else
 #endif
-		Status = xmqttPacketRead5(Ticket->Record.Publish, XMQTT_CLIENT_TO_SERVER, &Server->Config.Codec, &Scratch, &Packet, NULL);
+		Status = xmqttPacketRead5(Ticket->Record.Publish, Direction, &Server->Config.Codec, &Scratch, &Packet, NULL);
 	if (Status != XMQTT_CODEC_DONE) abort(); /* This immutable packet was validated at admission. */
 	xmqttproperty* Expiry = NULL;
 	for (size_t Index = 0; Index < Packet.Properties.Count; ++Index)
 		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = Properties + Index;
 	if (Expiry && Now >= Ticket->Received + Expiry->Value.Number) return 0;
-	uint8 Reason = xmqttServerRoute(Server, Peer->Version, Peer->Session->Identity, &Packet, Expiry, Ticket->Received);
+	uint8 Reason = xmqttServerRoute(Server, Version, Ticket->Identity, &Packet, Expiry, Ticket->Received);
 	return Reason >= 0x80 ? 0 : Reason; /* The retained obligation already committed. */
+}
+
+static bool xmqttServerHandOffRetained(xmqttserverretainedticket* Ticket)
+{
+	xmqttserver* Server = Ticket->Server;
+	xstrview Topic = {(cstr)Ticket->Key.Data, Ticket->Key.Size};
+	return Server->RetainedSubmit(Ticket, Topic, &Ticket->Record, Ticket->Remove, Ticket->Received, Server->RetainedUser);
+}
+
+static void xmqttServerRejectRetainedWill(xmqttserver* Server)
+{
+	xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+	xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
+}
+
+/* The caller still owns a broker lifetime pin while draining. A successful
+ * handoff leaves one active operation, and its completion starts the next. */
+static void xmqttServerDrainRetainedWills(xmqttservershard* Shard, xnetworker* Worker)
+{
+	for (;;) {
+		xrtRWLockWrite(&Shard->RetainedGate);
+		xmqttserverretainedticket* Ticket = Shard->WillHead;
+		if (!Ticket || Shard->RetainedPending) {
+			xrtRWLockWriteUnlock(&Shard->RetainedGate);
+			return;
+		}
+		Shard->WillHead = Ticket->Next;
+		if (!Shard->WillHead) Shard->WillTail = NULL;
+		Ticket->Worker = Worker;
+		Ticket->Received = xrtTimer();
+		bool Prepared = isfinite(Ticket->Received) && xmqttServerReserveRetainedTicket(Ticket);
+		xrtRWLockWriteUnlock(&Shard->RetainedGate);
+		if (Prepared && xmqttServerHandOffRetained(Ticket)) return;
+		if (Prepared) {
+			xmqttServerResolveRetainedTicket(Ticket, false);
+			xmqttServerReleaseRetainedShard(Shard);
+		}
+		xmqttServerRejectRetainedWill(Ticket->Server);
+		xmqttServerDropRetainedTicket(Ticket);
+	}
 }
 
 static void xmqttServerRetainedCompleted(xnetworker* Worker, ptr Data)
 {
-	(void)Worker;
 	xmqttserverretainedticket* Ticket = Data;
 	xmqttserverpeer* Peer = Ticket->Peer;
-	xmqttserver* Server = Peer->Server;
-	Peer->Retaining = NULL;
+	xmqttserver* Server = Ticket->Server;
+	if (Peer) Peer->Retaining = NULL;
 	bool Committed = Ticket->Result == XMQTT_SERVER_RETAINED_COMMITTED;
 	bool Unknown = Ticket->Result == XMQTT_SERVER_RETAINED_UNKNOWN;
 	/* Seal admission before making a shard with an unknown backend outcome writable. */
@@ -3421,9 +3503,14 @@ static void xmqttServerRetainedCompleted(xnetworker* Worker, ptr Data)
 	bool Closing = Server->Info.Closing;
 	xrtMutexUnlock(&Server->Gate);
 	double Now = xrtTimer();
-	if (!Closing && !Peer->Closing && (!isfinite(Now) || (Peer->Timer && Now >= Peer->Deadline)))
+	bool Active = !Closing && !xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE);
+	bool Resume = false;
+	if (Active && Peer && !Peer->Closing && (!isfinite(Now) || (Peer->Timer && Now >= Peer->Deadline)))
 		xmqttServerTimedOut(Peer);
-	if (!Closing && !xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE) && xmqttServerCanRead(Peer)) {
+	if (!Peer) {
+		if (!Committed) xmqttServerRejectRetainedWill(Server);
+		else if (Active && isfinite(Now)) (void)xmqttServerRouteRetainedTicket(Ticket, Now);
+	} else if (Active && xmqttServerCanRead(Peer)) {
 		unsigned Qos = (Ticket->Record.Publish.Data[0] & XMQTT_PUBLISH_QOS_MASK) >> 1;
 		if (Committed) {
 			uint8 Reason = xmqttServerRouteRetainedTicket(Ticket, Now);
@@ -3432,8 +3519,11 @@ static void xmqttServerRetainedCompleted(xnetworker* Worker, ptr Data)
 			xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
 			xmqttServerAcknowledgePublish(Peer, Ticket->Ack, Qos, 0x83);
 		}
-		xmqttServerResumeInput(Peer);
+		Resume = true;
 	} else if (Ticket->Ack) xmqttServerReleaseAck(Ticket->Ack, NULL, 0);
+	if (xmqttServerReleaseRetainedShard(Ticket->Shard))
+		xmqttServerDrainRetainedWills(Ticket->Shard, Worker);
+	if (Resume) xmqttServerResumeInput(Peer);
 	xmqttServerDropRetainedTicket(Ticket);
 }
 
@@ -3443,51 +3533,84 @@ XMQTT_API bool xmqttServerCompleteRetained(xmqttserverretainedticket* Ticket, xm
 		Result != XMQTT_SERVER_RETAINED_REJECTED && Result != XMQTT_SERVER_RETAINED_UNKNOWN))
 		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT retained completion");
 	Ticket->Result = Result;
-	return xrtNetPost(xrtNetStreamWorker(Ticket->Peer->Stream), &Ticket->Completion, xmqttServerRetainedCompleted, Ticket);
+	return xrtNetPost(Ticket->Worker, &Ticket->Completion, xmqttServerRetainedCompleted, Ticket);
 }
 
-static bool xmqttServerSubmitRetained(xmqttserverpeer* Peer, xmqttserverack* Ack,
-	const xmqttpacket* Packet, const xmqttproperty* Expiry, double Now)
+static xmqttserverretainedticket* xmqttServerNewRetainedTicket(xmqttserver* Server, xmqttversion Version,
+	xstrview Client, const xmqttpacket* Packet, const xmqttproperty* Expiry)
 {
-	xmqttserver* Server = Peer->Server;
-	xstrview Client = Peer->Session->ClientName, Name = Packet->Body.Publish.Topic;
+	xstrview Name = Packet->Body.Publish.Topic;
 	size_t Charge = sizeof(xmqttserverretainedticket) + sizeof(xmqttserverpublication) + Packet->Wire.Size +
 		Client.Size + sizeof(xmqttserverretained) + Name.Size;
-	if (!xmqttServerReserveBytes(&Server->RetainedPendingBytes, Server->RetainedPendingLimit, Charge)) return false;
+	if (!xmqttServerReserveBytes(&Server->RetainedPendingBytes, Server->RetainedPendingLimit, Charge)) return NULL;
 	xmqttserverretainedticket* Ticket = xrtCalloc(1, sizeof(*Ticket));
 	if (!Ticket) {
 		xrtAtomic64FetchSub(&Server->RetainedPendingBytes, Charge, XMEMORY_RELAXED);
-		return false;
+		return NULL;
 	}
-	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
-	Ticket->Peer = Peer;
-	Ticket->Ack = Ack;
+	Ticket->Server = Server;
 	Ticket->Charge = Charge;
 	uint8 Flags = Packet->Flags & ~XMQTT_PUBLISH_DUP;
 	Ticket->Publication = xmqttServerCopyPublication(Packet->Wire, Flags, Client);
 	if (!Ticket->Publication || !xrtNetPostInit(&Ticket->Completion)) {
-		xmqttServerDropRetainedTicket(Ticket);
-		return false;
+		xmqttServerFreeRetainedTicket(Ticket);
+		return NULL;
 	}
 	bytes Wire = Ticket->Publication->Wire;
 	Ticket->Key = (xbytesview){Wire + ((cbytes)Name.Data - Packet->Wire.Data), Name.Size};
 	Ticket->Shard = xmqttServerWildcardShard(Server, Ticket->Key);
 	Ticket->Hash = xmqttServerIdHash(Ticket->Key, &Server->HashKey);
-	Ticket->Received = Now;
 	Ticket->Remove = !Packet->Body.Publish.Payload.Size || (Expiry && !Expiry->Value.Number);
 	Ticket->Record = (xmqttserverretainedrecord){
-		Peer->Version, {(cstr)Wire + Packet->Wire.Size, Client.Size}, {Wire, Packet->Wire.Size},
+		Version, {(cstr)Wire + Packet->Wire.Size, Client.Size}, {Wire, Packet->Wire.Size},
 		Expiry ? UINT64_C(1000) * Expiry->Value.Number : 0
 	};
+	return Ticket;
+}
+
+static bool xmqttServerSubmitRetainedWill(xmqttserver* Server, const xmqttserverwill* Will,
+	xstrview Client, const xmqttpacket* Packet, const xmqttproperty* Expiry)
+{
+	xnetworker* Worker = xrtNetEngineCurrent(Server->Engine);
+	if (!Worker || xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE)) return false;
+	xmqttserverretainedticket* Ticket = xmqttServerNewRetainedTicket(Server, Will->Version, Client, Packet, Expiry);
+	if (!Ticket) return false;
+	Ticket->Identity = Will->Identity;
+	xrtMutexLock(&Server->Gate);
+	++Server->RetainedWillWork;
+	xrtMutexUnlock(&Server->Gate);
+	xmqttservershard* Shard = Ticket->Shard;
+	xrtRWLockWrite(&Shard->RetainedGate);
+	if (Shard->WillTail) Shard->WillTail->Next = Ticket;
+	else Shard->WillHead = Ticket;
+	Shard->WillTail = Ticket;
+	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+	xmqttServerDrainRetainedWills(Shard, Worker);
+	return true;
+}
+
+static bool xmqttServerSubmitRetained(xmqttserverpeer* Peer, xmqttserverack* Ack,
+	const xmqttpacket* Packet, const xmqttproperty* Expiry, double Now)
+{
+	xmqttserverretainedticket* Ticket = xmqttServerNewRetainedTicket(Peer->Server, Peer->Version,
+		Peer->Session->ClientName, Packet, Expiry);
+	if (!Ticket) return false;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	Ticket->Peer = Peer;
+	Ticket->Worker = xrtNetStreamWorker(Peer->Stream);
+	Ticket->Ack = Ack;
+	Ticket->Identity = Peer->Session->Identity;
+	Ticket->Received = Now;
 	if (!xmqttServerPrepareRetainedTicket(Ticket)) {
 		xmqttServerDropRetainedTicket(Ticket);
 		return false;
 	}
 	Peer->Retaining = Ticket;
-	xstrview Topic = {(cstr)Ticket->Key.Data, Ticket->Key.Size};
-	if (!Server->RetainedSubmit(Ticket, Topic, &Ticket->Record, Ticket->Remove, Now, Server->RetainedUser)) {
+	if (!xmqttServerHandOffRetained(Ticket)) {
 		Peer->Retaining = NULL;
 		xmqttServerResolveRetainedTicket(Ticket, false);
+		if (xmqttServerReleaseRetainedShard(Ticket->Shard))
+			xmqttServerDrainRetainedWills(Ticket->Shard, Ticket->Worker);
 		xmqttServerDropRetainedTicket(Ticket);
 		return false;
 	}
@@ -4071,10 +4194,6 @@ static bool xmqttServerRestoreWill(xmqttserversession* Session, const xmqttserve
 	if (Packet.Body.Publish.Topic.Size > Server->Config.MaxTopicBytes ||
 		((Packet.Flags & XMQTT_PUBLISH_RETAIN) && !Server->Config.MaxRetainedTopics))
 		return xmqttServerError(XERR_RANGE, "MQTT checkpoint Will exceeds broker limits");
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
-	if ((Packet.Flags & XMQTT_PUBLISH_RETAIN) && Server->RetainedSubmit)
-		return xmqttServerError(XERR_UNSUPPORTED, "MQTT retained Will requires a durable Will backend");
-#endif
 	size_t Bytes = sizeof(xmqttserverwill) + Record->Data.Size + Session->ClientName.Size;
 	if (!xmqttServerReserveBytes(&Server->WillBytes, Server->Config.MaxWillBytes, Bytes))
 		return xmqttServerError(XERR_RANGE, "MQTT checkpoint exceeds broker Will bytes");
@@ -4791,13 +4910,13 @@ XMQTT_API xwaitresult xmqttServerWaitFor(xmqttserver* Server, int64 Timeout)
 		xmqttServerError(XERR_STATE, "close MQTT server before joining");
 		Result = XWAIT_ERROR;
 	}
-	while (Result == XWAIT_OK && (Server->Info.Connections || Server->ExpiryTimer || Server->SessionCleanup)) {
+	while (Result == XWAIT_OK && !xmqttServerDrained(Server)) {
 		int64 Remaining = __xrtWaitRemaining(Deadline);
 		if (Remaining < XRT_WAIT_FOREVER) Result = XWAIT_ERROR;
 		else if (!Remaining) Result = XWAIT_TIMEOUT;
 		else Result = xrtCondWaitFor(&Server->Drained, &Server->Gate, Remaining);
 	}
-	if (Result == XWAIT_TIMEOUT && !Server->Info.Connections && !Server->ExpiryTimer && !Server->SessionCleanup)
+	if (Result == XWAIT_TIMEOUT && xmqttServerDrained(Server))
 		Result = XWAIT_OK;
 	xrtMutexUnlock(&Server->Gate);
 	return Result;

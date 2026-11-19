@@ -10,6 +10,7 @@ import ssl
 import subprocess
 import tempfile
 from threading import Thread
+import time
 
 from run_server_checkpoint import barrier, subscribe
 from run_server_handshake import connect, topic
@@ -80,6 +81,65 @@ def restored(address, payload):
         if payload is not None:
             assert receive(observer) == (0x31, topic(NAME) + b"\0" + payload)
         barrier(observer)
+
+def will_peer(address, name, payload, *, delay=0, expiry=0, version=5):
+    sock = socket.create_connection(address, timeout=8)
+    flags = 0x26
+    body = b"\0\4MQTT" + bytes((version, flags, 0, 0))
+    if version == 5:
+        fields = b"\x11" + expiry.to_bytes(4, "big") if expiry else b""
+        body += bytes((len(fields),)) + fields
+    body += topic(name)
+    if version == 5:
+        fields = b"\x18" + delay.to_bytes(4, "big") if delay else b""
+        body += bytes((len(fields),)) + fields
+    sock.sendall(frame(0x10, body + topic(NAME) + topic(payload)))
+    kind, body = receive(sock)
+    assert kind == 0x20 and body[:2] == b"\0\0", (kind, body)
+    return sock
+
+
+def verify_wills(program, directory):
+    path = directory / "will.bin"
+    with broker(program, "capture", path, 900) as (address, process):
+        with peer(address, b"observer") as observer, peer(address, b"writer") as writer:
+            subscribe(observer, NAME, 1, 8)
+            publish(writer, b"preceding", 1)
+            pending(writer)
+            with will_peer(address, b"disconnected", b"detached") as origin:
+                origin.sendall(b"\xe0\1\4")
+                assert not origin.recv(1)
+            pending(observer)
+            assert receive(writer) == (0x40, b"\0\1")
+            assert receive(observer) == (0x31, topic(NAME) + b"\0preceding")
+            assert receive(observer) == (0x31, topic(NAME) + b"\0detached")
+            crash(process)
+    with broker(program, "restore", path) as (address, process):
+        restored(address, b"detached")
+        with peer(address, b"observer") as observer:
+            subscribe(observer, NAME, 1, 8)
+            assert receive(observer) == (0x31, topic(NAME) + b"\0detached")
+            with will_peer(address, b"cancels", b"must be cancelled", delay=2, expiry=10) as origin:
+                origin.sendall(b"\xe0\1\4")
+                assert not origin.recv(1)
+            with socket.create_connection(address, timeout=8) as successor:
+                successor.sendall(frame(0x10, b"\0\4MQTT\5\0\0\0\5\x11\0\0\0\x0a" + topic(b"cancels")))
+                kind, body = receive(successor)
+                assert kind == 0x20 and body[:2] == b"\1\0"
+                time.sleep(2.1)
+                barrier(observer)
+                successor.sendall(b"\xe0\0")
+            with will_peer(address, b"expires", b"session expired", delay=6, expiry=1) as origin:
+                origin.sendall(b"\xe0\1\4")
+                assert not origin.recv(1)
+            assert receive(observer) == (0x31, topic(NAME) + b"\0session expired")
+            with will_peer(address, b"legacy-will", b"", version=4):
+                pass  # An ungraceful 3.1.1 close publishes the tombstone.
+            assert receive(observer) == (0x31, topic(NAME) + b"\0")
+            crash(process)
+    with broker(program, "restore", path) as (address, _):
+        restored(address, None)
+    return True
 
 
 def verify(program, path):
@@ -174,10 +234,12 @@ def verify_transport(program, directory, credentials, mode):
         tls.minimum_version = ssl.TLSVersion.TLSv1_3
     context = WsContext(tls) if mode in ("ws", "wss") else tls
     path = directory / f"{mode}.bin"
+    will = b"transport-triggered-will"
     with broker(program, "capture", path, 500, mode, credentials) as (address, _):
         with socket.create_connection(address, timeout=8) as transport:
             with context.wrap_socket(transport, server_hostname="localhost") as publisher:
-                publisher.sendall(frame(0x10, b"\0\4MQTT\5\2\0\0\0" + topic(b"transport")))
+                publisher.sendall(frame(0x10, b"\0\4MQTT\5\x26\0\0\0" + topic(b"transport") +
+                                        b"\0" + topic(NAME) + topic(will)))
                 kind, body = receive(publisher)
                 assert kind == 0x20 and body[:2] == b"\0\0"
                 publish(publisher, b"ordered suffix", 1, suffix=PING + PING)
@@ -188,6 +250,17 @@ def verify_transport(program, directory, credentials, mode):
                 publish(publisher, b"qos0", 0, qos=0, suffix=PING)
                 pending(publisher)
                 assert receive(publisher) == PONG
+                with socket.create_connection(address, timeout=8) as observer_socket:
+                    with context.wrap_socket(observer_socket, server_hostname="localhost") as observer:
+                        observer.sendall(frame(0x10, b"\0\4MQTT\5\2\0\0\0" + topic(b"observer")))
+                        kind, body = receive(observer)
+                        assert kind == 0x20 and body[:2] == b"\0\0"
+                        subscribe(observer, NAME, 1, 8)
+                        assert receive(observer) == (0x31, topic(NAME) + b"\0qos0")
+                        publisher.sendall(b"\xe0\1\4")
+                        publisher.unwrap().close()
+                        assert receive(observer) == (0x31, topic(NAME) + b"\0" + will)
+    assert path.read_bytes()[:-4].endswith(will)
     return "pass"
 
 
@@ -199,6 +272,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="xmqtt-live-retained-") as temporary:
         directory = Path(temporary)
         result = verify(args.program, directory / "slot.bin")
+        result["retained_wills"] = verify_wills(args.program, directory)
         if args.credentials:
             result["transports"] = {mode: verify_transport(args.program, directory, args.credentials, mode)
                                     for mode in ("tls", "ws", "wss")}

@@ -6965,8 +6965,8 @@ typedef enum xmqttserverretainedresult {
 	XMQTT_SERVER_RETAINED_UNKNOWN
 } xmqttserverretainedresult;
 
-/* Submit runs on the publishing worker outside broker locks. Different
- * publishing workers can call Submit concurrently. Return promptly.
+/* Submit runs on a broker worker outside broker locks. Different workers
+ * can call Submit concurrently. Return promptly.
  * True transfers one completion duty to the APP. False declines the request
  * before any durable effect. The APP may use the immutable record through
  * successful completion. Record.RemainingMilliseconds is measured at Received,
@@ -6976,10 +6976,11 @@ typedef bool (*xmqttserverretainedsubmit)(xmqttserverretainedticket* Ticket,
 	xstrview Topic, const xmqttserverretainedrecord* Record, bool Remove, double Received, ptr User);
 
 /* Configure a fresh broker before restoring sessions or attaching connections.
- * PendingBytes bounds aggregate ticket memory. One affected shard and one publishing peer
- * per ticket allow unrelated shards/peers to progress concurrently.
- * This mode handles retained client PUBLISH packets with QoS 0, 1 and 2.
- * Retained Wills are refused in CONNECT while the backend is enabled.
+ * PendingBytes bounds live and queued ticket memory. Each shard has one
+ * active retained commit. Fired retained Wills wait behind it in FIFO order.
+ * Handles retained client PUBLISH packets with QoS 0, 1 and 2 and retained
+ * Wills after their publication is triggered. Armed Wills retain the normal
+ * session checkpoint lifecycle.
  * Restore the backend's retained checkpoint before attachment. */
 XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingBytes,
 	xmqttserverretainedsubmit Submit, ptr User);
