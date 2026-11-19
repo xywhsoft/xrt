@@ -141,7 +141,8 @@ struct xmqttserverpeer {
 	xnetstream* Stream;
 	xnetpost Retirement, OutgoingOverload, Takeover;
 	xmqttserverpeer *Previous, *Next;
-	xmqttserversession *Session, *AwaitingSession;
+	xmqttserversession* Session;
+	xmqttserversession* AwaitingSession; /* Resumable old state or reserved fresh state. */
 	xatomic32 OutgoingStopped, TakenOver;
 	xmqttserverdelivery* Replay;
 	uint16 SendMaximum, InFlight;
@@ -436,9 +437,9 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 	xmqttserversession* Session = Peer->Session;
 	xmqttserverpeer* Successor = NULL;
 	xrtMutexLock(&Server->Gate);
+	if (Session) Successor = Session->Successor;
 	if (Session && Session->RegisteredKey.Size) {
 		--Server->Info.Established;
-		Successor = Session->Successor;
 		if (Successor || (!Server->Info.Closing &&
 			xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE)) {
 			xrtMutexLock(&Session->Gate);
@@ -677,6 +678,17 @@ static bool xmqttServerBindOffline(xmqttserverpeer* Peer, xmqttserversession* Se
 	return true;
 }
 
+/* The registry gate serializes reservations with native owner retirement. */
+static bool xmqttServerReserveSuccessor(xmqttserverpeer* Peer, xmqttserversession* Old,
+	xmqttserversession* Awaiting)
+{
+	Old->Successor = Peer;
+	Peer->AwaitingSession = Awaiting;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	xrtNetStreamPause(Peer->Stream);
+	return xmqttServerPeerTryRef(Old->Peer);
+}
+
 static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanStart, double Now)
 {
 	xmqttserver* Server = Peer->Server;
@@ -690,7 +702,7 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 		xmqttServerWakeExpiry(Server, Peer->Worker);
 	xmqttserversession** Entry = xrtMapGet(&Server->Identities, Key);
 	xmqttserversession* Old = Entry ? *Entry : NULL;
-	if (Old && Old->Successor) {
+	if (Old && (Old->Successor || (Old->Peer && Old->Peer->AwaitingSession))) {
 		xrtMutexUnlock(&Server->Gate);
 		return 0x89;
 	}
@@ -710,11 +722,7 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 			uint32 State = XMQTT_SERVER_ONLINE;
 			if (xrtAtomic32CompareExchange(&Old->State, &State, XMQTT_SERVER_OFFLINE,
 				XMEMORY_ACQ_REL, XMEMORY_ACQUIRE) || State == XMQTT_SERVER_OFFLINE) {
-				Peer->AwaitingSession = Old;
-				Old->Successor = Peer;
-				xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
-				xrtNetStreamPause(Peer->Stream);
-				bool Notify = xmqttServerPeerTryRef(Previous);
+				bool Notify = xmqttServerReserveSuccessor(Peer, Old, Old);
 				xrtMutexUnlock(&Old->Gate);
 				xrtMutexUnlock(&Server->Gate);
 				if (Notify) xmqttServerRequestTakeoverClose(Previous);
@@ -768,9 +776,9 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	if (!xrtMapStoredKey(&Server->Identities, Key, &Session->RegisteredKey)) abort();
 	Peer->Session = Session;
 	*Entry = Session;
-	bool AbortOld = Previous && xmqttServerPeerTryRef(Previous);
+	bool Notify = Previous && xmqttServerReserveSuccessor(Peer, Old, Session);
 	xrtMutexUnlock(&Server->Gate);
-	if (AbortOld) xmqttServerRequestTakeoverClose(Previous);
+	if (Notify) xmqttServerRequestTakeoverClose(Previous);
 	else if (Old && !Previous) xmqttServerFreeSession(Old);
 	return 0;
 }
@@ -797,22 +805,27 @@ static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 {
 	xmqttserverpeer* Peer = Data;
 	xmqttserver* Server = Peer->Server;
-	xmqttserversession* Old = Peer->AwaitingSession;
+	xmqttserversession* Saved = Peer->AwaitingSession;
 	double Now = xrtTimer();
 	xrtMutexLock(&Server->Gate);
-	if (!Old || Old->Successor != Peer || Old->Peer) abort();
-	Old->Successor = NULL;
+	if (!Saved) abort();
 	Peer->AwaitingSession = NULL;
 	bool Accepting = !Peer->Closing && !Server->Info.Closing && isfinite(Now) && Now < Peer->Deadline;
-	xmutex* Gate = &Old->Gate;
-	xrtMutexLock(Gate);
-	bool Bound = Accepting && xmqttServerBindOffline(Peer, Old);
-	if (!Bound && !Server->Info.Closing && Old->Expires > Now &&
-		xrtAtomic32Load(&Old->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE) {
-		xmqttServerParkSession(Server, Old, xrtNetWorkerIndex(Worker));
-		Old = NULL;
-	} else if (!Bound) xmqttServerForgetSession(Server, Old);
-	xrtMutexUnlock(Gate);
+	bool Bound = Accepting;
+	if (Saved != Peer->Session) {
+		if (Saved->Successor != Peer || Saved->Peer) abort();
+		Saved->Successor = NULL;
+		xmutex* Gate = &Saved->Gate;
+		xrtMutexLock(Gate);
+		Bound = Accepting && xmqttServerBindOffline(Peer, Saved);
+		if (Bound) Saved = NULL;
+		else if (!Server->Info.Closing && Saved->Expires > Now &&
+			xrtAtomic32Load(&Saved->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE) {
+			xmqttServerParkSession(Server, Saved, xrtNetWorkerIndex(Worker));
+			Saved = NULL;
+		} else xmqttServerForgetSession(Server, Saved);
+		xrtMutexUnlock(Gate);
+	} else Saved = NULL;
 	xrtMutexUnlock(&Server->Gate);
 
 	if (Bound) {
@@ -823,7 +836,7 @@ static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 			if (!Peer->Closing && !xrtNetStreamResume(Peer->Stream)) xmqttServerAbortPeer(Peer);
 		}
 	} else {
-		if (Old) xmqttServerFreeSession(Old);
+		if (Saved) xmqttServerFreeSession(Saved);
 		if (Accepting) xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
 		else if (!Peer->Closing) xmqttServerAbortPeer(Peer);
 	}

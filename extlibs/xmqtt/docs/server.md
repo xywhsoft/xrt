@@ -97,11 +97,12 @@ sessions. An authorized CONNECT with Clean Start disabled resumes saved state
 for the same Client ID and protocol version. If the previous connection is
 still live, the broker asks its worker to close it. For MQTT 5 the broker
 attempts DISCONNECT 0x8E (Session taken over). MQTT 3.1.1 closes the old
-transport. CONNACK with Session Present and any replay wait for that
-transport's retirement. The broker allows one pending successor per session
-and answers another contender with Server Busy. If the successor closes
-during handoff, the session remains eligible for offline resume until expiry.
-Clean Start creates new state and seals the old session immediately.
+transport. CONNACK and any replay wait for that transport's retirement.
+The broker allows one pending successor per Client ID and answers another
+contender with Server Busy. If a resuming successor closes during handoff,
+the session remains eligible for offline resume until expiry. Clean Start
+reserves fresh state and seals the old session immediately, then waits for
+the old transport to retire before acknowledging the new CONNECT.
 
 An MQTT 5 DISCONNECT can shorten, extend or end a nonzero expiry interval.
 The expiry timer releases detached state. Offline admission and reconnect

@@ -16766,3 +16766,28 @@ controlled performance comparisons, native Linux and 72-hour runs remain
 open. Clean replacement still queues the old close asynchronously and can
 acknowledge the new CONNECT before that old transport retires. Review its
 ordering against MQTT 5 section 3.1.4 when adding the Will lifecycle.
+
+## 2026-11-19 MQTT Clean Start takeover ordering
+
+A live Client ID replacement that creates fresh state now reserves the new
+session, seals the old state and pauses the successor's reads. The old
+worker sends the MQTT 5 takeover notification when its transport admits it.
+After the old transport and subscriptions retire, the successor can send
+CONNACK with Session Present clear and begin processing control packets.
+A competing claimant receives Server Busy while the reservation is pending.
+Allocation failure happens before replacement and leaves the prior
+connection usable. A canceled clean successor retires its reservation.
+The previous state stays sealed once its takeover starts.
+
+The held-worker fixture tests both acceptance and cancellation, checks that
+old wildcard and shared links accept no new deliveries while they retire,
+and confirms that the new CONNACK waits for physical retirement. A later
+CONNECT after cancellation starts with an empty session. Windows x64 and
+Ubuntu/WSL x64 ran the MQTT 5-only and dual-version modular and single-header
+suites and separate Python peer checks. WSL passed ASan/UBSan with leak
+checking and the full single-header TSan test. Generated headers and API
+checks passed. Evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-clean-takeover-*.
+
+Will publication and cancellation, durable recovery, transport variants and
+the native Linux and long-duration performance gates remain open.

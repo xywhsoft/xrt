@@ -1721,12 +1721,14 @@ static void serverHoldOldWorker(xnetworker* Worker, ptr Data)
 	}
 }
 
-static void serverTakeoverRoutes(void)
+static void serverTakeoverRoutes(bool Cancel)
 {
 	serverfixture Fixture;
-	serverStart(&Fixture, false, 0);
-	xnetsocket Old = serverDial(&Fixture);
-	serverQos1Connect(Old, XMQTT_VERSION_5, "same");
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xnetsocket Publisher = serverDial(&Fixture), Old = serverDial(&Fixture);
+	serverQos1Connect(Publisher, Version, "prod");
+	serverQos1Connect(Old, Version, "same");
 	const char* Filters[] = {"gone/#", "$share/team/gone/x"};
 	const uint8 Grants[] = {1,1};
 	serverSubscribeWire(Old, XMQTT_VERSION_5, true, 1, Filters, Grants, Grants, 2);
@@ -1749,7 +1751,7 @@ static void serverTakeoverRoutes(void)
 	xrtMutexUnlock(&Fixture.Server->Gate);
 	/* Accept the second TCP stream before blocking the listener's worker. */
 	xnetsocket New = serverDial(&Fixture);
-	serverConnections(&Fixture, 2);
+	serverConnections(&Fixture, 3);
 	xrtMutexLock(&Fixture.Server->Gate);
 	testRequire(Fixture.Server->Peers->Worker != OldPeer->Worker, "takeover uses a second worker");
 	xrtMutexUnlock(&Fixture.Server->Gate);
@@ -1765,18 +1767,46 @@ static void serverTakeoverRoutes(void)
 		xrtSleep(1);
 	}
 
-	serverQos1Connect(New, XMQTT_VERSION_5, "same");
-	serverPublishQos1(New, XMQTT_VERSION_5, "gone/x", "discard", 1, 0);
-	serverExpectPuback(New, XMQTT_VERSION_5, 1, 0x10);
+	unsigned char Wire[40];
+	serverSend(New, Wire, serverPersistentWire(Wire, Version, "same", true, 0, 1));
+	for (;;) {
+		xrtMutexLock(&Fixture.Server->Gate);
+		bool Reserved = OldPeer->Session->Successor != NULL;
+		xrtMutexUnlock(&Fixture.Server->Gate);
+		if (Reserved) break;
+		testRequire(xrtTimer() < Until, "clean successor reserves the identity before close");
+		xrtSleep(1);
+	}
+	xmqttserverpeer Contender = {.Server = Fixture.Server};
+	testRequire(xmqttServerClaimId(&Contender, XRT_STR_LITERAL("same"), true, xrtTimer()) == 0x89 &&
+		!Contender.Session, "one pending clean successor owns the registry slot");
+	size_t Read;
+	testRequire(xrtNetSocketRecv(New, Wire, sizeof(Wire), &Read) == XNET_RESULT_AGAIN,
+		"clean CONNACK waits for physical owner retirement");
+	serverPublishQos1(Publisher, Version, "gone/x", "discard", 1, 0);
+	serverExpectPuback(Publisher, Version, 1, 0x10);
 	xmqttserverinfo Info;
-	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.Connections == 2 && Info.Established == 1 &&
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.Connections == 3 && Info.Established == 2 &&
 		Info.Subscriptions == 2 && !Info.Forwarded && !Info.OutgoingPublishes,
 		"superseded wildcard and shared links stay indexed but cannot accept deliveries");
+	if (Cancel) {
+		xrtMutexLock(&Fixture.Server->Gate);
+		xmqttserverpeer* Pending = OldPeer->Session->Successor;
+		xrtMutexUnlock(&Fixture.Server->Gate);
+		testRequire(xrtNetStreamAbort(Pending->Stream), "abort a clean successor before retirement");
+		serverEof(New);
+	}
 	xrtAtomic32Store(&Gate.Release, 1, XMEMORY_RELEASE);
 	serverTakenOver(Old);
-	serverConnections(&Fixture, 1);
+	if (Cancel) {
+		serverConnections(&Fixture, 1);
+		New = serverDial(&Fixture);
+		serverPersistentConnect(New, Version, "same", false, 0, 1, false, 0);
+	} else serverConnackState(New, Version, 0, false, true, true, 64);
+	serverConnections(&Fixture, 2);
 	serverPingPeer(New);
 	xrtNetSocketClose(New);
+	xrtNetSocketClose(Publisher);
 	serverStop(&Fixture);
 }
 
@@ -2116,7 +2146,8 @@ int main(void)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
 	serverOutgoingOom();
-	serverTakeoverRoutes();
+	serverTakeoverRoutes(false);
+	serverTakeoverRoutes(true);
 	serverLiveHandoff(false);
 	serverLiveHandoff(true);
 	serverOutgoingBackpressure();
