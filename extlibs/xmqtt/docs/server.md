@@ -142,8 +142,37 @@ MQTT 3.1.1 has no Will Delay. Will publication uses the regular routing,
 retention and QoS paths. Message Expiry starts at publication and Will Delay
 is consumed by the broker. Delayed Wills share the session expiry sweep.
 Pending Wills are volatile and are released on broker shutdown. Durable
-restart recovery, enhanced authentication, TLS and WebSocket are in
-development.
+restart recovery, enhanced authentication and WebSocket are in development.
+
+## MQTT over TLS
+
+Select `XMQTT_MODULE_XMQTT_SERVER_TLS` and return
+`xmqttServerAttachTls` from the application's TCP Accept callback. The APP
+supplies the TLS identity, handshake policy and optional stream configuration.
+Keep borrowed TLS callback contexts alive until the broker has drained. The
+MQTT CONNECT deadline starts at TCP attachment and includes the handshake.
+The TLS context's plaintext buffer must fit the MQTT packet cap plus one
+maximum TLS record. The native TCP write limit caps the TLS plaintext FIFO,
+including queued record metadata. XRT separately bounds ciphertext. Each
+worker encrypts its own connection's queued plaintext and continues exact
+short-write suffixes. TLS peers share the identities, routing and session
+state of any TCP peers attached to the same broker.
+
+The loopback example accepts a leaf certificate and an unencrypted
+RSA PKCS#1 or PKCS#8 key, both DER. It prints its bound endpoint and exits
+when stdin receives a line. Use short-lived test credentials with a localhost
+SAN to run the independent peer.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_tls_example
+```
+
+Run the produced `examples_server_tls` with `certificate.der key.der`.
+The interop script `extlibs/xmqtt/tests/interop/run_server_tls.py` accepts the
+example path, a credentials directory containing those files and the trusted
+`certificate.pem`, and a JSON report path. Optional `--ping-samples 1000`
+records one warm-up and three sequential PING runs over an established TLS
+connection. Times include the independent peer's send and receive calls.
 
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS

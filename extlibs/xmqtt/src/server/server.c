@@ -1,4 +1,5 @@
 #include <xmqtt/server.h>
+#include <xmqtt/server_tls.h>
 #include <xmqtt/codec311.h>
 #include <xrt/atomic.h>
 #include <xrt/avl.h>
@@ -145,10 +146,31 @@ struct xmqttserversession {
 	uint16 LastIdentifier;
 };
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+typedef struct xmqttservertlswrite {
+	struct xmqttservertlswrite* Next;
+	size_t Size, Written, Count;
+	xnetref Parts[2];
+	unsigned char Copy[];
+} xmqttservertlswrite;
+
+typedef struct xmqttservertls {
+	xtlsstream* Stream;
+	xmutex Gate;
+	xnetpost Write;
+	xmqttservertlswrite *Head, **Tail;
+	size_t Queued, Limit;
+	bool Stopped, Finishing, Closed, Reading, Driving;
+} xmqttservertls;
+#endif
+
 struct xmqttserverpeer {
 	xatomic32 References;
 	xmqttserver* Server;
 	xnetstream* Stream;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	xmqttservertls* Tls;
+#endif
 	xnetpost Retirement, OutgoingOverload, Takeover;
 	xmqttserverpeer *Previous, *Next;
 	xmqttserversession* Session;
@@ -463,10 +485,59 @@ static void xmqttServerSessionTimer(xnetworker* Worker, uint64 Id, xnetresult Re
 	}
 }
 
+static void xmqttServerAbortTransport(xmqttserverpeer* Peer)
+{
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) {
+		xrtTlsStreamAbort(Peer->Tls->Stream);
+		return;
+	}
+#endif
+	xrtNetStreamAbort(Peer->Stream);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+static void xmqttServerTlsReleaseWrite(xmqttservertlswrite* Write)
+{
+	for (size_t Index = 0; Index < Write->Count; ++Index) {
+		const xnetref* Part = Write->Parts + Index;
+		if (Part->Release) Part->Release(Part->Context, Part->Data, Part->Size);
+	}
+	xrtFree(Write);
+}
+
+/* No new submitter modifies the list after Stopped is set. */
+static void xmqttServerTlsDiscardWrites(xmqttservertls* Tls)
+{
+	while (Tls->Head) {
+		xmqttservertlswrite* Write = Tls->Head;
+		Tls->Head = Write->Next;
+		xmqttServerTlsReleaseWrite(Write);
+	}
+}
+
+static void xmqttServerTlsRetire(xmqttservertls* Tls)
+{
+	if (Tls->Head) abort();
+	xrtTlsStreamDestroy(Tls->Stream);
+	xrtMutexUnit(&Tls->Gate);
+	xrtFree(Tls);
+}
+#endif
+
 static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 {
 	(void)Worker;
 	xmqttserverpeer* Peer = Data;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) {
+		xwaitresult Result = xrtTlsStreamPollRetired(Peer->Tls->Stream);
+		if (Result != XWAIT_OK) {
+			if (Result == XWAIT_ERROR || !xrtNetPost(Worker, &Peer->Retirement, xmqttServerPeerRetire, Peer)) abort();
+			return;
+		}
+	}
+#endif
 	xmqttserver* Server = Peer->Server;
 	xmqttserversession* Session = Peer->Session;
 	xmqttserverpeer* Successor = NULL;
@@ -504,6 +575,11 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 	if (Peer->Next) Peer->Next->Previous = Peer->Previous;
 	/* Charge the connection until its subscriptions and native stream retire. */
 	xrtMutexUnlock(&Server->Gate);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) xmqttServerTlsRetire(Peer->Tls);
+	else
+#endif
+		xrtNetStreamDestroy(Peer->Stream);
 	if (Session && !Closing && Session->Will) {
 		xmqttServerPublishWill(Server, Session->Will);
 		Session->Will = NULL;
@@ -511,7 +587,6 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 	if (Session) xmqttServerFreeSession(Session);
 	if (Will && Publish) xmqttServerPublishWill(Server, Will);
 	else xmqttServerDropWill(Server, Will);
-	xrtNetStreamDestroy(Peer->Stream);
 	xrtFree(Peer);
 	if (Successor && !xrtNetPost(xrtNetStreamWorker(Successor->Stream), &Successor->Takeover,
 		xmqttServerFinishTakeover, Successor)) abort();
@@ -560,6 +635,139 @@ static bool xmqttServerPeerTrace(const void* Data, xrtownershipvisitor Visit, pt
 
 static const xrtownershipops xmqttServerPeerOps = {xmqttServerPeerCount, xmqttServerPeerTrace};
 
+static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer);
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+static void xmqttServerTlsWritePosted(xnetworker* Worker, ptr Data);
+
+/* Run with the TLS queue gate held. */
+static bool xmqttServerTlsSchedule(xmqttserverpeer* Peer)
+{
+	if (xrtNetPostPending(&Peer->Tls->Write)) return true;
+	if (!xmqttServerPeerTryRef(Peer)) return false;
+	if (xrtNetPost(xrtNetStreamWorker(Peer->Stream), &Peer->Tls->Write, xmqttServerTlsWritePosted, Peer))
+		return true;
+	xmqttServerPeerDrop(Peer);
+	return false;
+}
+
+static void xmqttServerTlsDrive(xmqttserverpeer* Peer)
+{
+	xmqttservertls* Tls = Peer->Tls;
+	if (Tls->Driving) return;
+	Tls->Driving = true;
+	xrtMutexLock(&Tls->Gate);
+	size_t Budget = Tls->Queued;
+	while (Budget && Tls->Head && !Tls->Closed) {
+		xmqttservertlswrite* Write = Tls->Head;
+		xnetspan Spans[2];
+		size_t Count = 0, Skip = Write->Written;
+		for (size_t Index = 0; Index < Write->Count; ++Index) {
+			xnetref Part = Write->Parts[Index];
+			if (Skip >= Part.Size) {
+				Skip -= Part.Size;
+				continue;
+			}
+			Spans[Count++] = (xnetspan){Part.Data + Skip, Part.Size - Skip};
+			Skip = 0;
+		}
+		xrtMutexUnlock(&Tls->Gate);
+		size_t Sent = 0;
+		xtlsresult Result = xrtTlsStreamSendVec(Tls->Stream, Spans, Count, &Sent);
+		xrtMutexLock(&Tls->Gate);
+		if (Tls->Closed) break;
+		if (Result != XTLS_OK && Result != XTLS_AGAIN) {
+			xrtMutexUnlock(&Tls->Gate);
+			Tls->Driving = false;
+			xmqttServerAbortTransport(Peer);
+			return;
+		}
+		Write->Written += Sent;
+		if (Write->Written != Write->Size) break;
+		Tls->Head = Write->Next;
+		if (!Tls->Head) Tls->Tail = &Tls->Head;
+		size_t Charge = sizeof(*Write) + Write->Size;
+		Tls->Queued -= Charge;
+		Budget -= Charge;
+		xrtMutexUnlock(&Tls->Gate);
+		xmqttServerTlsReleaseWrite(Write);
+		xrtMutexLock(&Tls->Gate);
+	}
+	bool Finish = Tls->Finishing && !Tls->Head && !Tls->Closed;
+	if (Finish) Tls->Finishing = false;
+	bool Continue = Budget || !Tls->Head || Tls->Closed || xmqttServerTlsSchedule(Peer);
+	xrtMutexUnlock(&Tls->Gate);
+	Tls->Driving = false;
+	if (Tls->Closed) {
+		xmqttServerTlsDiscardWrites(Tls);
+		return;
+	}
+	if (!Continue) xmqttServerAbortTransport(Peer);
+	else if (Finish) {
+		if (!xrtTlsStreamClose(Tls->Stream)) xmqttServerAbortTransport(Peer);
+	} else xmqttServerPumpOutgoing(Peer);
+}
+
+static void xmqttServerTlsWritePosted(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	xmqttServerTlsDrive(Data);
+	xmqttServerPeerDrop(Data);
+}
+
+/* Transfer complete records only. The owner retires references after their
+ * last bytes have entered TLS, or when the channel has physically closed. */
+static xnetresult xmqttServerTlsSend(xmqttserverpeer* Peer, const xnetref* Parts, size_t Count, bool Copy)
+{
+	xmqttservertls* Tls = Peer->Tls;
+	size_t Size = Parts[0].Size + (Count == 2 ? Parts[1].Size : 0);
+	size_t Charge = sizeof(xmqttservertlswrite) + Size;
+	if (Charge > Tls->Limit) return XNET_RESULT_ERROR;
+	xnetresult Result = XNET_RESULT_AGAIN;
+	xrtMutexLock(&Tls->Gate);
+	if (Tls->Stopped) Result = XNET_RESULT_CLOSED;
+	else if (Charge <= Tls->Limit - Tls->Queued) {
+		xmqttservertlswrite* Write = xrtMalloc(sizeof(*Write) + (Copy ? Size : 0));
+		Result = XNET_RESULT_ERROR;
+		if (Write) {
+			if (Tls->Head || xmqttServerTlsSchedule(Peer)) {
+				*Write = (xmqttservertlswrite){.Size = Size, .Count = Count};
+				memcpy(Write->Parts, Parts, Count * sizeof(*Parts));
+				if (Copy) {
+					memcpy(Write->Copy, Parts[0].Data, Size);
+					Write->Parts[0].Data = Write->Copy;
+				}
+				*Tls->Tail = Write;
+				Tls->Tail = &Write->Next;
+				Tls->Queued += Charge;
+				Result = XNET_RESULT_OK;
+			} else xrtFree(Write);
+		}
+	}
+	xrtMutexUnlock(&Tls->Gate);
+	return Result;
+}
+#endif
+
+static xnetresult xmqttServerSend(xmqttserverpeer* Peer, const void* Data, size_t Bytes)
+{
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) {
+		const xnetref Part = {.Data = Data, .Size = Bytes};
+		return xmqttServerTlsSend(Peer, &Part, 1, true);
+	}
+#endif
+	return xrtNetStreamSend(Peer->Stream, Data, Bytes);
+}
+
+static xnetresult xmqttServerSendRefs(xmqttserverpeer* Peer, const xnetref* Parts, size_t Count)
+{
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) return xmqttServerTlsSend(Peer, Parts, Count, false);
+#endif
+	return xrtNetStreamSendRefs(Peer->Stream, Parts, Count);
+}
+
 static void xmqttServerTimeout(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data);
 
 static bool xmqttServerArm(xmqttserverpeer* Peer, double Now)
@@ -587,7 +795,7 @@ static void xmqttServerCancelTimer(xmqttserverpeer* Peer)
 static void xmqttServerAbortPeer(xmqttserverpeer* Peer)
 {
 	Peer->Closing = true;
-	xrtNetStreamAbort(Peer->Stream);
+	xmqttServerAbortTransport(Peer);
 }
 
 static void xmqttServerTimeout(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
@@ -630,10 +838,22 @@ static bool xmqttServerDeadline(xmqttserverpeer* Peer, double Now, unsigned Mill
 static void xmqttServerFinishPeer(xmqttserverpeer* Peer, double Now)
 {
 	Peer->Closing = true;
-	if (!xmqttServerDeadline(Peer, Now, (unsigned)Peer->Server->Config.ConnectTimeout))
-		xrtNetStreamAbort(Peer->Stream);
-	else
-		xrtNetStreamClose(Peer->Stream);
+	if (!xmqttServerDeadline(Peer, Now, (unsigned)Peer->Server->Config.ConnectTimeout)) {
+		xmqttServerAbortTransport(Peer);
+		return;
+	}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Peer->Tls) {
+		xmqttservertls* Tls = Peer->Tls;
+		xrtMutexLock(&Tls->Gate);
+		Tls->Stopped = Tls->Finishing = true;
+		bool Idle = !Tls->Head;
+		xrtMutexUnlock(&Tls->Gate);
+		if (Idle) xmqttServerTlsDrive(Peer);
+		return;
+	}
+#endif
+	xrtNetStreamClose(Peer->Stream);
 }
 
 static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 Reason311, size_t PacketLimit)
@@ -667,7 +887,7 @@ static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 
 		Wire[3] = Reason311;
 		Bytes = 4;
 	}
-	return Bytes <= PacketLimit && xrtNetStreamSend(Peer->Stream, Wire, Bytes) == XNET_RESULT_OK;
+	return Bytes <= PacketLimit && xmqttServerSend(Peer, Wire, Bytes) == XNET_RESULT_OK;
 }
 
 static void xmqttServerRefuse(xmqttserverpeer* Peer, uint8 Reason5, uint8 Reason311,
@@ -712,7 +932,7 @@ static void xmqttServerCloseSuperseded(xnetworker* Worker, ptr Data)
 static void xmqttServerRequestTakeoverClose(xmqttserverpeer* Peer)
 {
 	if (xrtNetPost(xrtNetStreamWorker(Peer->Stream), &Peer->Takeover, xmqttServerCloseSuperseded, Peer)) return;
-	xrtNetStreamAbort(Peer->Stream);
+	xmqttServerAbortTransport(Peer);
 	xmqttServerPeerDrop(Peer);
 }
 
@@ -738,7 +958,10 @@ static bool xmqttServerReserveSuccessor(xmqttserverpeer* Peer, xmqttserversessio
 	Old->Successor = Peer;
 	Peer->AwaitingSession = Awaiting;
 	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
-	xrtNetStreamPause(Peer->Stream);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (!Peer->Tls)
+#endif
+		xrtNetStreamPause(Peer->Stream);
 	return xmqttServerPeerTryRef(Old->Peer);
 }
 
@@ -852,8 +1075,10 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 }
 
 static void xmqttServerActivateSession(xmqttserverpeer* Peer);
-static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xnetbuf* Writable,
-	xmqttserverpeer* Peer);
+static bool xmqttServerReadPackets(xmqttserverpeer* Peer, const xnetbuf* Buffer, xnetbuf* Writable);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+static void xmqttServerTlsRead(xtlsstream* Stream, const xnetbuf* Buffer, ptr Data);
+#endif
 
 static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
 {
@@ -908,9 +1133,18 @@ static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 	if (Bound) {
 		xmqttServerAcceptConnect(Peer, Now);
 		if (Peer->Online && !Peer->Closing) {
-			const xnetbuf* Buffer = xrtNetStreamBuffer(Peer->Stream);
-			if (Buffer) xmqttServerReadPackets(Peer->Stream, Buffer, NULL, Peer);
-			if (!Peer->Closing && !xrtNetStreamResume(Peer->Stream)) xmqttServerAbortPeer(Peer);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+			if (Peer->Tls) {
+				xtlsstream* Stream = Peer->Tls->Stream;
+				const xnetbuf* Buffer = xrtTlsStreamBuffer(Stream);
+				if (Buffer) xmqttServerTlsRead(Stream, Buffer, Peer);
+			} else
+#endif
+			{
+				const xnetbuf* Buffer = xrtNetStreamBuffer(Peer->Stream);
+				if (Buffer) (void)xmqttServerReadPackets(Peer, Buffer, NULL);
+				if (!Peer->Closing && !xrtNetStreamResume(Peer->Stream)) xmqttServerAbortPeer(Peer);
+			}
 		}
 	} else {
 		if (Saved) {
@@ -1217,7 +1451,7 @@ static void xmqttServerProtocolClose(xmqttserverpeer* Peer, uint8 Reason, double
 	const unsigned char Wire[] = {0xe0, 1, Reason};
 	Peer->Closing = true;
 	if (Peer->Version == XMQTT_VERSION_5 && Peer->PacketLimit >= sizeof(Wire) &&
-		xrtNetStreamSend(Peer->Stream, Wire, sizeof(Wire)) == XNET_RESULT_OK)
+		xmqttServerSend(Peer, Wire, sizeof(Wire)) == XNET_RESULT_OK)
 		xmqttServerFinishPeer(Peer, Now);
 	else
 		xmqttServerAbortPeer(Peer);
@@ -1237,7 +1471,7 @@ static void xmqttServerSendId(xmqttserverpeer* Peer, uint8 Header, uint16 Identi
 {
 	unsigned char Wire[5];
 	size_t Bytes = xmqttServerIdWire(Wire, Header, Identifier, Peer->Version == XMQTT_VERSION_5 ? Reason : 0);
-	if (Bytes > Peer->PacketLimit || xrtNetStreamSend(Peer->Stream, Wire, Bytes) != XNET_RESULT_OK)
+	if (Bytes > Peer->PacketLimit || xmqttServerSend(Peer, Wire, Bytes) != XNET_RESULT_OK)
 		xmqttServerAbortPeer(Peer);
 }
 
@@ -1309,7 +1543,7 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 	else
 #endif
 		Encoded = xmqttPacketWrite5(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
-	if (!Encoded || Bytes > Peer->PacketLimit || xrtNetStreamSend(Peer->Stream, Wire, Bytes) != XNET_RESULT_OK) {
+	if (!Encoded || Bytes > Peer->PacketLimit || xmqttServerSend(Peer, Wire, Bytes) != XNET_RESULT_OK) {
 		xmqttServerAbortPeer(Peer);
 		return;
 	}
@@ -1418,8 +1652,8 @@ static bool xmqttServerDeliver(xmqttserverpeer* Peer, xmqttserverpublication* Pu
 	if (!Publication || Publication->Size > Peer->PacketLimit ||
 		xrtAtomic32Load(&Peer->Session->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_ONLINE) return false;
 	xrtAtomic32FetchAdd(&Publication->References, 1, XMEMORY_RELAXED);
-	if (xrtNetStreamSendRef(Peer->Stream, Publication->Wire, Publication->Size,
-		xmqttServerFreePublication, Publication) == XNET_RESULT_OK) return true;
+	const xnetref Part = {Publication->Wire, Publication->Size, xmqttServerFreePublication, Publication};
+	if (xmqttServerSendRefs(Peer, &Part, 1) == XNET_RESULT_OK) return true;
 	xmqttServerFreePublication(Publication, NULL, 0);
 	return false;
 }
@@ -1541,7 +1775,7 @@ static xnetresult xmqttServerSendDelivery(xmqttserverpeer* Peer, xmqttserverdeli
 	};
 	size_t Count = Parts[1].Size ? 2 : 1;
 	Delivery->References += (unsigned)Count;
-	xnetresult Result = xrtNetStreamSendRefs(Peer->Stream, Parts, Count);
+	xnetresult Result = xmqttServerSendRefs(Peer, Parts, Count);
 	if (Result != XNET_RESULT_OK) Delivery->References -= (unsigned)Count;
 	return Result;
 }
@@ -1569,7 +1803,7 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 		if (Release) {
 			unsigned char Wire[5];
 			size_t Bytes = xmqttServerIdWire(Wire, 0x62, Id, 0);
-			Result = xrtNetStreamSend(Peer->Stream, Wire, Bytes);
+			Result = xmqttServerSend(Peer, Wire, Bytes);
 		} else {
 			if (Retry) Delivery->Prefix[0] |= XMQTT_PUBLISH_DUP;
 			else {
@@ -1657,7 +1891,7 @@ static void xmqttServerStopOutgoing(xmqttserverpeer* Peer)
 		xrtAtomic64FetchAdd(&Peer->Server->OutgoingPublishOverloads, 1, XMEMORY_RELAXED);
 		if (xrtNetPost(xrtNetStreamWorker(Peer->Stream), &Peer->OutgoingOverload,
 			xmqttServerPostOverload, Peer)) return;
-		xrtNetStreamAbort(Peer->Stream);
+		xmqttServerAbortTransport(Peer);
 	}
 	xmqttServerPeerDrop(Peer);
 }
@@ -2384,8 +2618,8 @@ static void xmqttServerSendAck(xmqttserverpeer* Peer, xmqttserverack* Ack, uint8
 {
 	bool V5 = Peer->Version == XMQTT_VERSION_5;
 	size_t Bytes = xmqttServerIdWire(Ack->Wire, Header, Ack->Identifier, V5 ? Reason : 0);
-	if ((V5 || Reason < 0x80) && Bytes <= Peer->PacketLimit &&
-		xrtNetStreamSendRef(Peer->Stream, Ack->Wire, Bytes, xmqttServerReleaseAck, Ack) == XNET_RESULT_OK)
+	const xnetref Part = {Ack->Wire, Bytes, xmqttServerReleaseAck, Ack};
+	if ((V5 || Reason < 0x80) && Bytes <= Peer->PacketLimit && xmqttServerSendRefs(Peer, &Part, 1) == XNET_RESULT_OK)
 		return;
 	xmqttServerReleaseAck(Ack, NULL, 0);
 	xmqttServerAbortPeer(Peer);
@@ -2529,23 +2763,23 @@ static void xmqttServerOnline(xmqttserverpeer* Peer, const xmqttpacket* Packet, 
 		break;
 	}
 }
-static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xnetbuf* Writable,
-	xmqttserverpeer* Peer)
+/* True means the remaining prefix needs more input. */
+static bool xmqttServerReadPackets(xmqttserverpeer* Peer, const xnetbuf* Buffer, xnetbuf* Writable)
 {
 	const xmqttcodecconfig* Codec = &Peer->Server->Config.Codec;
 	size_t Available;
 	while (!Peer->Closing && !Peer->AwaitingSession && (Available = xrtNetBufSize(Buffer)) != 0) {
 		bool Sealed = Peer->Session &&
 			xrtAtomic32Load(&Peer->Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_SEALED;
-		if (xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return;
+		if (xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return false;
 		if (Sealed) {
 			xmqttServerAbortPeer(Peer);
-			return;
+			return false;
 		}
 		xnetspan Front;
 		if (!xrtNetBufFront(Buffer, &Front)) {
 			xmqttServerAbortPeer(Peer);
-			return;
+			return false;
 		}
 		unsigned char Prefix[12];
 		size_t Need = Peer->Version ? 5u : sizeof(Prefix);
@@ -2557,24 +2791,24 @@ static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xn
 		xbytesview Input = {Front.Data, Front.Size};
 		if (!Peer->Version) {
 			xmqttwirestatus Status = xmqttConnectVersionRead(Input, Codec->MaxPacketBytes, &Peer->Version);
-			if (Status == XMQTT_WIRE_MORE) return;
+			if (Status == XMQTT_WIRE_MORE) return true;
 			if (Status == XMQTT_WIRE_ERROR) {
 				xmqttServerAbortPeer(Peer);
-				return;
+				return false;
 			}
 		}
 		const xmqttwireconfig Wire = {sizeof(Wire), Peer->Version, Codec->MaxPacketBytes};
 		xmqttfixedheader Header;
 		xmqttwirestatus Status = xmqttHeaderRead(Input, &Wire, &Header);
-		if (Status == XMQTT_WIRE_MORE) return;
+		if (Status == XMQTT_WIRE_MORE) return true;
 		if (Status == XMQTT_WIRE_ERROR) {
 			xmqttServerAbortPeer(Peer);
-			return;
+			return false;
 		}
-		if (Available < Header.PacketBytes) return;
+		if (Available < Header.PacketBytes) return true;
 		if (!Peer->Online && Peer->Version == XMQTT_VERSION_311 && !Peer->Server->Config.Allow311) {
 			xmqttServerRefuse(Peer, 0, 1, XMQTT_PACKET_MAX_BYTES, xrtTimer());
-			return;
+			return false;
 		}
 		if (Peer->Online && Header.Type == XMQTT_PACKET_PINGREQ && !Header.RemainingLength) {
 			static const unsigned char Pong[] = {0xd0, 0x00};
@@ -2582,21 +2816,29 @@ static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xn
 				double Now = xrtTimer();
 				if (!isfinite(Now) || Now >= Peer->Deadline) {
 					xmqttServerAbortPeer(Peer);
-					return;
+					return false;
 				}
 				Peer->Deadline = Now + (double)Peer->KeepAliveMs * 0.001;
 			}
-			if (xrtNetStreamSend(Stream, Pong, sizeof(Pong)) != XNET_RESULT_OK) {
+			if (xmqttServerSend(Peer, Pong, sizeof(Pong)) != XNET_RESULT_OK) {
 				xmqttServerAbortPeer(Peer);
-				return;
+				return false;
 			}
 		} else {
 			unsigned char* Copy = NULL;
 			if (Front.Size < Header.PacketBytes) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+				if (Peer->Tls) {
+					if (!xrtTlsStreamPullup(Peer->Tls->Stream, Header.PacketBytes, &Front)) {
+						xmqttServerAbortPeer(Peer);
+						return false;
+					}
+				} else
+#endif
 				if (Writable) {
 					if (!xrtNetBufPullup(Writable, Header.PacketBytes, &Front)) {
 						xmqttServerAbortPeer(Peer);
-						return;
+						return false;
 					}
 				} else {
 					/* A deferred CONNECT borrows a read-only native buffer. */
@@ -2604,7 +2846,7 @@ static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xn
 					if (!Copy || xrtNetBufPeek(Buffer, 0, Copy, Header.PacketBytes) != Header.PacketBytes) {
 						xrtFree(Copy);
 						xmqttServerAbortPeer(Peer);
-						return;
+						return false;
 					}
 					Front.Data = Copy;
 				}
@@ -2627,7 +2869,7 @@ static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xn
 			if (Decoded != XMQTT_CODEC_DONE || !isfinite(Now) || (Peer->Timer && Now >= Peer->Deadline)) {
 				xrtFree(Copy);
 				xmqttServerAbortPeer(Peer);
-				return;
+				return false;
 			}
 			if (!Peer->Online && Packet.Type == XMQTT_PACKET_CONNECT)
 				xmqttServerConnect(Peer, &Packet, Now);
@@ -2637,14 +2879,25 @@ static void xmqttServerReadPackets(xnetstream* Stream, const xnetbuf* Buffer, xn
 				xmqttServerAbortPeer(Peer);
 			if (Copy) xrtFree(Copy);
 		}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+		if (Peer->Tls) {
+			if (Peer->Tls->Closed) return false;
+			if (!xrtTlsStreamConsume(Peer->Tls->Stream, Header.PacketBytes)) {
+				xmqttServerAbortPeer(Peer);
+				return false;
+			}
+		} else
+#endif
 		if (Writable) xrtNetBufConsume(Writable, Header.PacketBytes);
-		else if (xrtNetStreamConsume(Stream, Header.PacketBytes) != Header.PacketBytes) return;
+		else if (xrtNetStreamConsume(Peer->Stream, Header.PacketBytes) != Header.PacketBytes) return false;
 	}
+	return false;
 }
 
 static void xmqttServerRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
 {
-	xmqttServerReadPackets(Stream, Buffer, Buffer, Data);
+	(void)Stream;
+	(void)xmqttServerReadPackets(Data, Buffer, Buffer);
 }
 
 static void xmqttServerEnd(xnetstream* Stream, ptr Data)
@@ -2660,12 +2913,8 @@ static void xmqttServerDrain(xnetstream* Stream, ptr Data)
 	xmqttServerPumpOutgoing(Data);
 }
 
-static void xmqttServerClosed(xnetstream* Stream, xnetresult Result, const xerror* Cause, ptr Data)
+static void xmqttServerPeerClosed(xmqttserverpeer* Peer)
 {
-	(void)Stream;
-	(void)Result;
-	(void)Cause;
-	xmqttserverpeer* Peer = Data;
 	Peer->Closing = true;
 	xrtAtomic32Store(&Peer->OutgoingStopped, 1, XMEMORY_RELAXED);
 	xmqttServerCancelTimer(Peer);
@@ -2710,6 +2959,76 @@ static void xmqttServerFreeSession(xmqttserversession* Session)
 	if (Session->Persistent) xrtMutexUnit(&Session->Gate);
 	xrtFree(Session);
 }
+
+static void xmqttServerClosed(xnetstream* Stream, xnetresult Result, const xerror* Cause, ptr Data)
+{
+	(void)Stream;
+	(void)Result;
+	(void)Cause;
+	xmqttServerPeerClosed(Data);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+static void xmqttServerTlsRead(xtlsstream* Stream, const xnetbuf* Buffer, ptr Data)
+{
+	xmqttserverpeer* Peer = Data;
+	if (Peer->Tls->Reading) return;
+	Peer->Tls->Reading = true;
+	if (xmqttServerReadPackets(Peer, Buffer, NULL) && !xrtTlsStreamReadMore(Stream))
+		xmqttServerAbortPeer(Peer);
+	Peer->Tls->Reading = false;
+}
+
+static void xmqttServerTlsWritable(xtlsstream* Stream, ptr Data)
+{
+	(void)Stream;
+	xmqttServerTlsDrive(Data);
+}
+
+static void xmqttServerTlsEnd(xtlsstream* Stream, ptr Data)
+{
+	(void)Stream;
+	xmqttserverpeer* Peer = Data;
+	if (!Peer->Closing) xmqttServerFinishPeer(Peer, xrtTimer());
+}
+
+static void xmqttServerTlsClosed(xtlsstream* Stream, xnetresult Result, const xerror* Cause, ptr Data)
+{
+	(void)Stream;
+	(void)Result;
+	(void)Cause;
+	xmqttserverpeer* Peer = Data;
+	xmqttservertls* Tls = Peer->Tls;
+	xrtMutexLock(&Tls->Gate);
+	Tls->Stopped = Tls->Closed = true;
+	xrtMutexUnlock(&Tls->Gate);
+	xmqttServerPeerClosed(Peer);
+	if (!Tls->Driving) xmqttServerTlsDiscardWrites(Tls);
+	xmqttServerPeerDrop(Peer);
+}
+
+static const xtlsstreamevents xmqttServerTlsEvents = {
+	.Read = xmqttServerTlsRead, .End = xmqttServerTlsEnd,
+	.Writable = xmqttServerTlsWritable, .Drain = xmqttServerTlsWritable, .Close = xmqttServerTlsClosed
+};
+
+static bool xmqttServerBindTls(xmqttserverpeer* Peer, const xtlsserverconfig* Config,
+	const xtlsstreamconfig* StreamConfig)
+{
+	xmqttservertls* Tls = xrtCalloc(1, sizeof(*Tls));
+	if (!Tls) return false;
+	bool Gate = xrtMutexInit(&Tls->Gate);
+	Peer->Tls = Tls;
+	Tls->Tail = &Tls->Head;
+	Tls->Limit = xrtNetStreamWriteLimit(Peer->Stream);
+	if (Gate && xrtNetPostInit(&Tls->Write) && xrtTlsStreamAccept(Peer->Stream, Config, StreamConfig,
+		&xmqttServerTlsEvents, Peer, &Tls->Stream)) return true;
+	if (Gate) xrtMutexUnit(&Tls->Gate);
+	xrtFree(Tls);
+	Peer->Tls = NULL;
+	return false;
+}
+#endif
 
 static const xnetstreameventsownershipv1 xmqttServerEvents = {
 	sizeof(xnetstreameventsownershipv1),
@@ -2801,7 +3120,11 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 	return false;
 }
 
-XMQTT_API bool xmqttServerAttach(xmqttserver* Server, xnetstream* Stream)
+static bool xmqttServerAttachNative(xmqttserver* Server, xnetstream* Stream
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	, const xtlsserverconfig* Tls, const xtlsstreamconfig* TlsStream
+#endif
+)
 {
 	if (!Server || !Stream) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT server attachment");
 	xnetworker* Worker = xrtNetStreamWorker(Stream);
@@ -2830,7 +3153,11 @@ XMQTT_API bool xmqttServerAttach(xmqttserver* Server, xnetstream* Stream)
 	double Now = xrtTimer();
 	if (!xrtNetPostInit(&Peer->Retirement) || !xrtNetPostInit(&Peer->OutgoingOverload) || !xrtNetPostInit(&Peer->Takeover) ||
 		!xmqttServerDeadline(Peer, Now, (unsigned)Server->Config.ConnectTimeout) ||
-		!xrtNetStreamSetEventsOwnedV1(Stream, Peer, &xmqttServerEvents)) {
+		!(
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+			Tls ? xmqttServerBindTls(Peer, Tls, TlsStream) :
+#endif
+			xrtNetStreamSetEventsOwnedV1(Stream, Peer, &xmqttServerEvents))) {
 		xmqttServerCancelTimer(Peer);
 		xrtFree(Peer);
 		++Server->Info.Refused;
@@ -2845,6 +3172,29 @@ XMQTT_API bool xmqttServerAttach(xmqttserver* Server, xnetstream* Stream)
 	xrtMutexUnlock(&Server->Gate);
 	return true;
 }
+
+XMQTT_API bool xmqttServerAttach(xmqttserver* Server, xnetstream* Stream)
+{
+	return xmqttServerAttachNative(Server, Stream
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+		, NULL, NULL
+#endif
+	);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+XMQTT_API bool xmqttServerAttachTls(xmqttserver* Server, xnetstream* Stream,
+	const xtlsserverconfig* Tls, const xtlsstreamconfig* TlsStream)
+{
+	if (!Server || !Stream || !Tls || !Tls->Context)
+		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT TLS attachment");
+	const xtlslimits* Limits = xrtTlsContextLimits(Tls->Context);
+	if (!Limits || Limits->PlainLimit < XTLS_RECORD_PLAINTEXT_MAX ||
+		Server->Config.Codec.MaxPacketBytes > Limits->PlainLimit - XTLS_RECORD_PLAINTEXT_MAX)
+		return xmqttServerError(XERR_ARGUMENT, "MQTT TLS plaintext limit must allow an extra record");
+	return xmqttServerAttachNative(Server, Stream, Tls, TlsStream);
+}
+#endif
 
 XMQTT_API bool xmqttServerInfo(xmqttserver* Server, xmqttserverinfo* Info)
 {
@@ -2883,7 +3233,7 @@ XMQTT_API bool xmqttServerClose(xmqttserver* Server)
 		}
 		if (Garbage) ++Server->SessionCleanup;
 		for (xmqttserverpeer* Peer = Server->Peers; Peer; Peer = Peer->Next)
-			xrtNetStreamAbort(Peer->Stream);
+			xmqttServerAbortTransport(Peer);
 		if (Server->ExpiryTimer) (void)xrtNetEngineTimerCancel(Server->Engine, Server->ExpiryTimer);
 	}
 	xrtMutexUnlock(&Server->Gate);

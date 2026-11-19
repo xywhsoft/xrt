@@ -1,9 +1,11 @@
 #ifndef XMQTT_EXAMPLE_SERVER_LISTENER_H
 #define XMQTT_EXAMPLE_SERVER_LISTENER_H
 #include <xmqtt.h>
+#include <xmqtt/server_tls.h>
 #include <xrt/atomic.h>
 #include <xrt/thread.h>
 #include <xrt/time.h>
+#include <stdio.h>
 
 typedef struct serverexample {
 	xmqttserver* Server;
@@ -11,12 +13,24 @@ typedef struct serverexample {
 	xnetlistener* Listener;
 	xnetaddr Address;
 	xatomic32 ListenerClosed;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	const xtlsserverconfig* Tls;
+#endif
 } serverexample;
 
 static bool exampleServerAccept(xnetlistener* Listener, xnetstream* Stream, ptr Data)
 {
 	(void)Listener;
-	return xmqttServerAttach(((serverexample*)Data)->Server, Stream);
+	serverexample* Example = Data;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Example->Tls) {
+		if (xmqttServerAttachTls(Example->Server, Stream, Example->Tls, NULL)) return true;
+		const xerror* Error = xrtGetError();
+		if (Error) fprintf(stderr, "TLS accept: %s\n", xrtErrorMessage(Error));
+		return false;
+	}
+#endif
+	return xmqttServerAttach(Example->Server, Stream);
 }
 
 static void exampleServerListenerClosed(xnetlistener* Listener, ptr Data)
@@ -62,6 +76,9 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Example->Tls) Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
+#endif
 	xrtNetAddrLoopback(&Listen.Address, XNET_FAMILY_IPV4, 0);
 	static const xnetlistenerevents Events = {.Accept = exampleServerAccept, .Close = exampleServerListenerClosed};
 	Example->Listener = xrtNetListen(Example->Engine, &Listen, &Events, NULL, Example);

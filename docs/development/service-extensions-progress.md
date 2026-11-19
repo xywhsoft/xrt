@@ -16905,3 +16905,40 @@ out/service-extensions/scope-reduction-20261119/xmqtt-expiry-ticker-*.
 Durable restart recovery, transport and authentication variants,
 native Linux and the controlled and 72-hour performance gates remain open.
 Strict release still reports 37 developing modules.
+
+## 2026-11-19 MQTT broker TLS transport
+
+The selectable xmqtt_server_tls module attaches a new accepted TCP stream
+through XRT TLS. Application TLS policy and credentials supply the listener's
+identity. The CONNECT deadline covers TLS handshake time. The shared MQTT
+parser pulls up only a complete fragmented record when needed and asks TLS
+for more plaintext when a prefix is incomplete. Session identity, admission,
+routing, Wills, quotas and QoS continue through the existing broker path.
+
+A per-peer plaintext FIFO charges wire bytes and record metadata to the native
+write limit, with independent XRT ciphertext limits. Cross-worker publication
+retains wire references through encryption. Control packets are copied to their
+queue record. The owning worker drains at most the previously queued charge
+per dispatch and retries only the unwritten suffix after a short write. Graceful
+close drains the FIFO before TLS shutdown. Abort discards queued references,
+and takeover waits for TLS and TCP physical retirement. The TLS-only
+dependencies enable AES, SHA-256 and X25519 for the runnable TLS 1.3 example.
+
+Windows x64 and Ubuntu/WSL x64 passed TCP-only broker regressions and
+dependency trims, TLS static and shared package consumers, and certificate-
+verifying Python peers against both modular and single-header TLS listeners.
+The independent probe covers MQTT 5 and 3.1.1, fragmented CONNECT and
+PUBLISH, QoS 1/2 in both directions, active session takeover with replay,
+authenticated closure and 48 queued QoS 1 deliveries read back in order.
+The same probe passed on WSL under ASan/UBSan with leak checking and TSan.
+Generated headers and API coverage checks passed.
+
+One TLS 1.3 loopback connection ran one warm-up and three 1,000-request PING
+replicates. Median Windows throughput was 18,935 PINGs/s with a 71.5 us
+median P99. On WSL, throughput was 12,152 PINGs/s with a 123.8 us median P99.
+The numbers include Python TLS peer processing and exclude the handshake.
+Raw results are in out/service-extensions/scope-reduction-20261119/xmqtt-tls-entry-*.
+
+WebSocket and WSS, enhanced authentication, durable broker recovery, native
+Linux, controlled comparison and 72-hour mixed workloads remain open.
+Strict release reports 38 developing modules.
