@@ -44,7 +44,7 @@ def footer_transitions(footer, year):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--probe',required=True);parser.add_argument('--data',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
-    manifest=json.loads((args.data/'manifest.json').read_text());files=[];totals=dict(queries=0,found=0,none=0,ambiguous=0,missing=0,unknown=0,cursor_steps=0,segments=0,months=0,rule_years=0,checks=0,offsets=0,labels=0)
+    manifest=json.loads((args.data/'manifest.json').read_text());files=[];totals=dict(queries=0,found=0,none=0,ambiguous=0,missing=0,compensated=0,unknown=0,cursor_steps=0,segments=0,months=0,rule_years=0,checks=0,offsets=0,labels=0)
     for name,digest in manifest['files'].items():
         raw=(args.data/name).read_bytes();assert hashlib.sha256(raw).hexdigest()==digest
         zone=ZoneInfo.from_file(io.BytesIO(raw),key=name);times,indices,kinds,footer=decode(raw)
@@ -111,22 +111,35 @@ def main():
                     for label in labels(profile,start,finish):
                         uncertain,values=resolve(local_second(label))
                         if uncertain or not values:
-                            result=payload(-1,9004 if uncertain else 9006,at,0,label);anchor=at;break
-                    if anchor==at and result[0]==-1:break
+                            code=9004 if uncertain else 9006 if missing==1 else 0
+                            result=payload(-1 if code else 1,code,at,0,label)
+                            anchor=at
+                            break
+                    if anchor==at:break
             return result
         selected=[s for s in times if -2208988800<=s<=4133980800];selected=sorted(set(selected[:2]+selected[-6:]+[millis(dt.datetime(y,3,1,tzinfo=UTC))//1000 for y in (2024,2100,2400)]))
         cases=[];expectations=[]
+        forward=set(selected)
+        for year in (2024,2100,2400):
+            forward.update(t for t in footer_transitions(footer,year) if not times or t>times[-1])
+        forward=sorted(t for t in forward if state(t-1) is not None and state(t) is not None and state(t)>state(t-1))
         for number,profile in enumerate(PROFILES[:4]):
             for j,second in enumerate(selected):
                 begin=second*1000-12*3600000+(j%2);end=second*1000+36*3600000;flags=j%2
                 for fold in range(4):
-                    for missing in range(2):cases.append(f'{begin+XRT_EPOCH} {end+XRT_EPOCH} {flags} {fold} {missing} {number}\n');expectations.append(expected(profile,begin,end,flags,fold,missing))
-        run=subprocess.run([args.probe,str(args.data/name)],input=''.join(cases),text=True,capture_output=True,timeout=180,check=True);lines=run.stdout.splitlines();assert lines.pop(0)=='selected_occurrence=2 sync_pair_cursor=3' and len(lines)==len(cases)
+                    for missing in range(3):cases.append(f'{begin+XRT_EPOCH} {end+XRT_EPOCH} {flags} {fold} {missing} {number}\n');expectations.append(expected(profile,begin,end,flags,fold,missing))
+            for second in forward:
+                stamp=second*1000
+                for flags in (0,1):
+                    cases.append(f'{stamp+XRT_EPOCH} {stamp+XRT_EPOCH} {flags} 0 2 {number}\n')
+                    expectations.append(expected(profile,stamp,stamp,flags,0,2))
+        run=subprocess.run([args.probe,str(args.data/name)],input=''.join(cases),text=True,capture_output=True,timeout=180,check=True);lines=run.stdout.splitlines();assert lines.pop(0)=='selected_occurrence=3 sync_pair_cursor=3' and len(lines)==len(cases)
         for index,(line,want) in enumerate(zip(lines,expectations)):
             fields=list(map(int,line.split()));assert fields[:13]==want,(name,cases[index],fields[:13],want)
-            totals['queries']+=1;totals['unknown' if want[1]==9004 else 'ambiguous' if want[1]==9005 else 'missing' if want[1]==9006 else 'found' if want[0] else 'none']+=1
+            totals['queries']+=1;totals['unknown' if want[1]==9004 else 'ambiguous' if want[1]==9005 else 'missing' if want[1]==9006 else 'compensated' if want[0]==1 and want[4]==0 else 'found' if want[0] else 'none']+=1
             for key,value in zip(('cursor_steps','segments','months','rule_years','checks','offsets','labels'),fields[13:]):totals[key]+=value
         files.append(dict(name=name,sha256=digest,queries=len(cases),stdout_sha256=hashlib.sha256(run.stdout.encode()).hexdigest()))
+    assert totals['compensated'], 'corpus must exercise successful compensation'
     totals['synchronous_calls']=totals['queries']*2;totals['cursor_initializations']=totals['queries'];totals['api_calls']=totals['queries']*3+totals['cursor_steps']
-    args.output.write_text(json.dumps(dict(schema=1,version=manifest['version'],zones=len(files),totals=totals,files=files,oracle='Explicit Gregorian labels, all distinct-offset zoneinfo/RFC states and global selection; gap labels anchored at complete stored and independently calculated footer M-rule transitions; per-Step bounds and pending atomicity physically checked by required probe protocol'),indent=2)+'\n');print('[PASS] selected occurrence IANA',len(files),totals)
+    args.output.write_text(json.dumps(dict(schema=2,version=manifest['version'],zones=len(files),totals=totals,files=files,oracle='Explicit Gregorian labels, all distinct-offset zoneinfo/RFC states and global selection; rejection and coalesced compensation anchored at complete stored and independently calculated footer M-rule transitions; per-Step bounds and pending atomicity physically checked by required probe protocol'),indent=2)+'\n');print('[PASS] selected occurrence IANA',len(files),totals)
 if __name__=='__main__':main()

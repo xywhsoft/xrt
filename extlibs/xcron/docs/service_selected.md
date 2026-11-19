@@ -19,6 +19,9 @@ is one worker queue. Each group member counts one attempt; no-effect AGAIN is
 retried individually under that lease's original deadline and attempt limit.
 Every worker outcome and unsent cancellation/rejection/expiry returns the original
 nominal label and complete candidate count without exposing borrowed Data.
+For RUN_AT_TRANSITION the label is the earliest missing match, the count is
+zero and the scheduled time is the UTC transition. The worker's borrowed label
+and the copied completion carry the same values.
 
 Ordinary public structure layouts remain unchanged. Selected sidecars consume
 bounded arena bytes. Active selected runs reuse the future completion storage

@@ -1111,7 +1111,7 @@ XCRON_API bool xcronServiceAddSelectedAsync(xcronservice* S,const xcronjobconfig
     if(!S || !C || !Request || !xcronServiceOutputs(S,C,sizeof(*C),O,N,2) || !xcronServiceMode(S,true) || !C->Zone || !xcronZoneOutputs(C->Zone,C,sizeof(*C),O,N,2) ||
         (C->SearchFlags&~XCRON_SEARCH_EXCLUSIVE) || C->Begin>C->End || C->Misfire<XCRON_MISFIRE_CATCH_UP || C->Misfire>XCRON_MISFIRE_COALESCE ||
         C->Overlap<XCRON_OVERLAP_WAIT || C->Overlap>XCRON_OVERLAP_SKIP || !C->RunningLimit || C->RunningLimit>S->Config.Scheduler.RunLimit || (C->Overlap!=XCRON_OVERLAP_ALLOW && C->RunningLimit!=1) ||
-        Policy.Fold<XCRON_FOLD_ALL || Policy.Fold>XCRON_FOLD_REJECT || Policy.Missing<XCRON_MISSING_SKIP || Policy.Missing>XCRON_MISSING_REJECT)return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
+        Policy.Fold<XCRON_FOLD_ALL || Policy.Fold>XCRON_FOLD_REJECT || Policy.Missing<XCRON_MISSING_SKIP || Policy.Missing>XCRON_MISSING_RUN_AT_TRANSITION)return xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);
     return xcronServiceEnqueue(S,XCRON_REQUEST_ADD,C,&Policy,0,false,Request,Issue);
 }
 #endif

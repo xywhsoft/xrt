@@ -372,6 +372,16 @@ int main(void)
 	DeliveryOK=DeliveryOK && DeliveryStatus==XCRON_DELIVERY_FOUND && SelectedCount==1 && CursorSelected==Selected;
 	xcronexpression OccurrenceExpression;xcronoccurrence Occurrence;
     if(DeliveryOK && (!xcronExpressionCompile(XRT_STR_LITERAL("0 30 1 * * *"),XCRON_SECONDS6,&OccurrenceExpression,NULL) || xcronOccurrenceNext(&OccurrenceExpression,DeliveryZone,Selected-3600000,Selected,0,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Occurrence,NULL)!=XCRON_OCCURRENCE_FOUND || Occurrence.When!=Selected || Occurrence.Candidates!=2))DeliveryOK=false;
+    xtime ForwardTransition;
+    if (DeliveryOK) {
+        DeliveryOK = xrtDateTime(2024,3,10,7,0,0,0,&ForwardTransition) &&
+            xcronExpressionCompile(XRT_STR_LITERAL("0 30 2 * * *"),XCRON_SECONDS6,&OccurrenceExpression,NULL) &&
+            xcronOccurrenceNext(&OccurrenceExpression,DeliveryZone,ForwardTransition-1,ForwardTransition,0,
+                (xcrondeliverypolicy){XCRON_FOLD_FIRST,XCRON_MISSING_RUN_AT_TRANSITION},
+                &Occurrence,NULL)==XCRON_OCCURRENCE_FOUND &&
+            Occurrence.When==ForwardTransition && Occurrence.Candidates==0 &&
+            Occurrence.Local.Hour==2 && Occurrence.Local.Minute==30;
+    }
     xcronZoneRelease(DeliveryZone);
 	if (!DeliveryOK) return 30;
 	if(!consumerSelected())return 31;

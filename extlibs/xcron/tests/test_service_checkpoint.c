@@ -1117,6 +1117,111 @@ static void livePeriodicTest(xroot Root,bool Selected,liveperiodiccase Case)
     testRequire(xcronCheckpointGroupClose(Group)==XCRON_CHECKPOINT_STORE_OK && xrtRootRemove(Root,Path),"remove periodic fixture");
 }
 
+static xcronrunresult liveCompensatedRun(const xcronrun* Run,const xcronexecution* Token,ptr Raw)
+{
+    servicecheckpointfixture* F=Raw;
+    const xcronexecutionlabel* Label=xcronExecutionSelected(Token);
+    xtime Gap;
+    testRequire(xrtDateTime(2024,3,10,7,0,0,0,&Gap) && Run->Data==F && Run->ScheduledAt==Gap &&
+        Label && !Label->Candidates && Label->Local.Year==2024 && Label->Local.Month==3 &&
+        Label->Local.Day==10 && Label->Local.Hour==2 && Label->Local.Minute==30,
+        "restored compensation reaches the original transition with the absent local label");
+    testRequire(xrtEventSet(&F->RunEntered),"record compensated business call");
+    return XCRON_RUN_SUCCEEDED;
+}
+
+static void liveCompensatedCheckpoint(xroot Root)
+{
+    const char Path[]="compensated.xcg";
+    const uint64 GroupId=303;
+    servicecheckpointfixture F={.Selected=true};
+    xtime Gap;
+    testRequire(xrtDateTime(2024,3,10,7,0,0,0,&Gap),"scheduled checkpoint transition");
+    xrtAtomic64Init(&F.Wall,(uint64)(Gap-1));
+    testRequire(xrtEventInit(&F.ClockEntered,true,false) && xrtEventInit(&F.ClockGate,true,true) &&
+        xrtEventInit(&F.RunEntered,true,false),"initialize compensated checkpoint events");
+    xexecutor* Pool=xrtExecutorCreate(&(xexecutorconfig){1,4,0});
+    const xcronselectedserviceconfig Config={.Service={
+        .Scheduler={2,1,16,0,65536},.Executor=Pool,.Proc=liveCompensatedRun,.Context=&F,
+        .Clock=liveClock,.ClockContext=&F,.CommandLimit=2,.CompletionLimit=1,.BatchLimit=1,
+        .CommandWorkLimit=2,.ResampleMilliseconds=2,.RetryIntervalMilliseconds=1,.RetryAttempts=1,
+        .BytesLimit=262144,.AdapterBytesLimit=65536},.SubmissionBatchLimit=1};
+    xcronjobconfig J={.Begin=Gap,.End=Gap,.RunningLimit=1,.Data=&F};
+    testRequire(xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_POSIX,&J.Zone,NULL) &&
+        xcronExpressionCompile(XRT_STR_LITERAL("30 2 * * *"),XCRON_UNIX5,&J.Expression,NULL),
+        "compiled nominal label absent at scheduled time");
+    xcronservice* Service=NULL;
+    xcronrequestid Request;
+    xcronselectedreply Reply;
+    testRequire(Pool && xcronServiceCreateSelectedCheckpointed(&Config,&Service,NULL) &&
+        xcronServiceAddSelectedAsync(Service,&J,(xcrondeliverypolicy){XCRON_FOLD_ALL,XCRON_MISSING_RUN_AT_TRANSITION},
+            &Request,NULL) &&
+        xcronServiceCollectSelected(Service,Request,10000,&Reply,NULL)==XWAIT_OK &&
+        !Reply.Code && !Reply.Error && Reply.Job,"admit compensated checkpointable job");
+    xcroncheckpoint Record;
+    liveCapture(Service,Reply.Job,&Record);
+    liveStop(Service,true,Reply.Job,&F,0);
+    testRequire(xrtEventWaitFor(&F.RunEntered,0)==XWAIT_TIMEOUT,"original service never reaches the gap");
+
+    xcroncheckpointgroup* Store=NULL;
+    testRequire(xcronCheckpointGroupOpen(Root,Path,GroupId,1,true,&Store)==XCRON_CHECKPOINT_STORE_OK &&
+        xcronCheckpointGroupCommit(Store,0,&Record,1)==XCRON_CHECKPOINT_STORE_OK &&
+        xcronCheckpointGroupClose(Store)==XCRON_CHECKPOINT_STORE_OK,"persist selected policy and its due cursor");
+    xrtAtomic64Store(&F.Wall,(uint64)Gap,XMEMORY_RELEASE);
+    for(uint64 Generation=1;Generation<=2;++Generation){
+        xcroncheckpointgroupview View;
+        testRequire(xcronCheckpointGroupOpen(Root,Path,GroupId,1,false,&Store)==XCRON_CHECKPOINT_STORE_OK &&
+            xcronCheckpointGroupRead(Store,&View)==XCRON_CHECKPOINT_STORE_OK &&
+            View.Info.Generation==Generation && View.Count==1,"reopen committed group from storage");
+        const xcronservicecheckpointjob JobConfig={.Config=J,.Key=liveKey};
+        const xcronservicecheckpointgroup Group={&JobConfig,View.Records,1};
+        xcronjobid Job=0;
+        testRequire(xcronServiceCreateSelectedCheckpointedFromGroup(&Config,&Group,&Service,&Job,NULL) && Job &&
+            xcronCheckpointGroupClose(Store)==XCRON_CHECKPOINT_STORE_OK,
+            "restore selected group and release the borrowed storage view");
+        testRequire(xcronServiceInfoAsync(Service,Job,&Request,NULL) &&
+            xcronServiceCollectSelected(Service,Request,10000,&Reply,NULL)==XWAIT_OK && !Reply.Code &&
+            !Reply.Error && Reply.Info.Policy.Missing==XCRON_MISSING_RUN_AT_TRANSITION,
+            "check recovered policy and schedule state");
+        if(Generation==1){
+            testRequire(Reply.Info.HasNext && Reply.Info.Next==Gap &&
+                xrtEventWaitFor(&F.RunEntered,0)==XWAIT_TIMEOUT,"recovered gap is held pending host release");
+            liveSetPaused(Service,true,Job,false);
+            xcronselectedservicecompletion Done;
+            size_t Count=0;
+            double End=xrtTimer()+10.0;
+            while(!Count){
+                testRequire(xcronServiceDrainSelected(Service,&Done,1,&Count,NULL) && xrtTimer()<End,
+                    "wait for recovered compensated completion");
+                if(!Count)xrtThreadYield();
+            }
+            testRequire(Done.Completion.Job==Job && Done.Completion.ScheduledAt==Gap &&
+                Done.Completion.Result==XCRON_RUN_SUCCEEDED && !Done.Completion.Error &&
+                !Done.Candidates && Done.Local.Hour==2 && Done.Local.Minute==30,
+                "checkpoint-restored nominal receipt");
+            liveCapture(Service,Job,&Record);
+        }else{
+            testRequire(Reply.Info.State==XCRON_JOB_EXHAUSTED && !Reply.Info.HasNext &&
+                Reply.Info.Succeeded==1 && xrtEventWaitFor(&F.RunEntered,0)==XWAIT_TIMEOUT,
+                "restart after a committed compensation does not dispatch it again");
+        }
+        liveStop(Service,true,Job,&F,1);
+        if(Generation==1){
+            testRequire(xrtEventReset(&F.RunEntered) &&
+                xcronCheckpointGroupOpen(Root,Path,GroupId,1,false,&Store)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointGroupCommit(Store,1,&Record,1)==XCRON_CHECKPOINT_STORE_OK &&
+                xcronCheckpointGroupClose(Store)==XCRON_CHECKPOINT_STORE_OK,"persist post-compensation state");
+        }
+    }
+    testRequire(xrtRootRemove(Root,Path) && xrtExecutorClose(Pool) &&
+        xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool),
+        "retire restored pool and remove owned group fixture");
+    xcronZoneRelease(J.Zone);
+    xrtEventUnit(&F.RunEntered);
+    xrtEventUnit(&F.ClockGate);
+    xrtEventUnit(&F.ClockEntered);
+}
+
 static void liveCommitTests(void)
 {
     cstr Base=getenv("TMPDIR");
@@ -1132,6 +1237,7 @@ static void liveCommitTests(void)
     testRequire(Parent && xrtRootDirCreate(Parent,Name,0700),"create live commit test directory");
     xroot Root=xrtRootOpenIn(Parent,Name);
     testRequire(Root!=NULL,"open live commit test directory");
+    liveCompensatedCheckpoint(Root);
     liveCommitTest(Root,false,LIVE_COMMIT_OK);
     liveCommitTest(Root,true,LIVE_COMMIT_OK);
     liveCommitTest(Root,false,LIVE_COMMIT_STALE);

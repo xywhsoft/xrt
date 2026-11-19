@@ -30,6 +30,9 @@ calculation progress while output or lease slots are full. Work units are not an
 elapsed-time or scheduler-turn CPU guarantee.
 
 Fold and missing policies follow [complete occurrence selection](occurrence.md).
+RUN_AT_TRANSITION schedules one compensated lease per job at a forward
+transition. ScheduledAt is the UTC anchor, Local is the first missing
+matching label and Candidates is zero. Misfire and overlap use the anchor.
 Each lease snapshots canonical nominal Local and complete Candidates before
 successor calculation changes the job's latest issue. Future faults preserve
 all physical leases and borrowed Data until completion and retirement. Pending
@@ -41,8 +44,9 @@ provide an immutable nominal callback view and complete copied receipts.
 Misfire/overlap policies match the [actual kernel](scheduler.md). Discarded ranges
 are not enumerated or validated. Missing REJECT covers retained recurrence search
 windows; range-skipping/coalescing can deliberately omit gaps inside a discarded
-range. Use catch-up when every selected occurrence must remain eligible. No gap
-compensation or durable recovery is claimed here. The optional
+range. Use catch-up when every selected occurrence must remain eligible.
+The [checkpoint format](checkpoint.md) preserves the selected missing policy.
+The optional
 [selected live service](service_selected.md) integrates command tickets, retries
 and complete selected output/retirement on the existing owner.
 

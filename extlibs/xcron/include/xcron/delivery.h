@@ -8,7 +8,7 @@
 #endif
 #if defined(XCRON_FEATURE_XCRON_DELIVERY)
 typedef enum xcronfoldpolicy {XCRON_FOLD_ALL=0,XCRON_FOLD_FIRST,XCRON_FOLD_LAST,XCRON_FOLD_REJECT} xcronfoldpolicy;
-typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT} xcronmissingpolicy;
+typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT,XCRON_MISSING_RUN_AT_TRANSITION} xcronmissingpolicy;
 typedef struct xcrondeliverypolicy {xcronfoldpolicy Fold;xcronmissingpolicy Missing;} xcrondeliverypolicy;
 typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1,XCRON_DELIVERY_PENDING=2} xcrondeliverystatus;
 typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING,XCRON_DELIVERY_STATE} xcrondeliveryerror;
@@ -26,7 +26,8 @@ XRT_EXTERN_C_BEGIN
  * a later query window. REJECT fails AMBIGUOUS when multiplicity exceeds one.
  * Offset/IsDST/derived civil fields are ignored as in ZoneResolve. Fractions and
  * the full signed-int64 timestamp domain are supported. Missing SKIP returns
- * NONE/Count0; REJECT fails MISSING. Missing includes an otherwise valid civil
+ * NONE/Count0; REJECT fails MISSING. RUN_AT_TRANSITION is a recurring-search
+ * policy and is invalid here. Missing includes an otherwise valid civil
  * label outside the representable timestamp domain. UNKNOWN coverage remains a
  * typed ZONE/UNKNOWN error even if a subset of known candidates might suffice.
  * No silent UTC fallback, gap shifting, expression matching, recurrence search,

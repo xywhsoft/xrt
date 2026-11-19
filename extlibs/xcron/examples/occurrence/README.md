@@ -14,9 +14,9 @@ The retained zone stays live through the last Step and is released on every exit
 The cursor borrows it and owns no cleanup resource. No installed timezone data,
 network, scheduler, background thread or environment mutation is needed.
 
-Expected output: `Selected global last fold through budgeted recurring search.`
+The spring case matches two missing labels and the ordinary transition-boundary
+label. It verifies one compensation at that UTC instant and reports the
+earliest missing nominal label with zero actual candidates.
 
-See the [full contract, gap rules and costs](../../docs/occurrence.md). Existing
-kernel/service jobs still use their original actual-occurrence semantics until
-explicit policy integration; this example does not represent physical delivery
-or gap compensation.
+See the [full contract, gap rules and costs](../../docs/occurrence.md) and the
+[selected service](../../docs/service_selected.md) for live delivery.

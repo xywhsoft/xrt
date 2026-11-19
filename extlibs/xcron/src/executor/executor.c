@@ -194,7 +194,7 @@ static bool xcronExecutorBatchRuns(const xcronexecutor* B,const void* Runs,size_
         if(!xcronExecutorRun(R))return false;
 #if defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
         if(B->Labels){const xcronselectedrun* S=(const xcronselectedrun*)R;
-            if(!S->Candidates || R->ScheduledAt%1000 || S->Local.Offset || S->Local.IsDST!=-1 || S->Local.Millisecond)return false;}
+            if(R->ScheduledAt%1000 || S->Local.Offset || S->Local.IsDST!=-1 || S->Local.Millisecond)return false;}
 #else
         (void)B;
 #endif
@@ -296,7 +296,7 @@ XCRON_API bool xcronExecutorCreateSelected(const xcronexecutorconfig* Config,xcr
 XCRON_API bool xcronExecutorSubmitSelected(xcronexecutor* B,const xcronselectedrun* Run,xcronexecutorissue* Issue)
 {
     void* O[]={Issue};size_t N[]={Issue?sizeof(*Issue):0};
-    if(!B || !Run || !xcronExecutorOutputs(B,Run,sizeof(*Run),O,N,1) || !xcronExecutorMode(B,true) || !xcronExecutorRun(&Run->Run) || !Run->Candidates || Run->Run.ScheduledAt%1000 || Run->Local.Offset || Run->Local.IsDST!=-1 || Run->Local.Millisecond)
+    if(!B || !Run || !xcronExecutorOutputs(B,Run,sizeof(*Run),O,N,1) || !xcronExecutorMode(B,true) || !xcronExecutorRun(&Run->Run) || Run->Run.ScheduledAt%1000 || Run->Local.Offset || Run->Local.IsDST!=-1 || Run->Local.Millisecond)
         return xcronExecutorFail(XCRON_EXECUTOR_ARGUMENT,XERR_NONE,NULL);
     return xcronExecutorSubmitValue(B,&Run->Run,&Run->Local,Run->Candidates,Issue);
 }

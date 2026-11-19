@@ -15,6 +15,7 @@ typedef struct xcronselectedreply {
     xcronselectedjobinfo Info;xcronselectedretired Retired;
     xcronschedulerissue Scheduler;xcronexecutorissue Executor;xerror* Error;
 } xcronselectedreply;
+/* Candidates=0 identifies a compensated occurrence. */
 typedef struct xcronselectedservicecompletion {
     xcronservicecompletion Completion;xdatetime Local;size_t Candidates;
 } xcronselectedservicecompletion;
@@ -42,7 +43,7 @@ XCRON_API bool xcronServiceCreateSelected(const xcronselectedserviceconfig* Conf
  * appear in Info/Retired.LastIssue and keep Data borrowed through retirement.
  * Failed ADD returns original Data through exactly one collected reply. Queue
  * acceptance, job admission, physical execution and retirement remain distinct.
- * No gap compensation or durable recovery is implied by fold/missing selection. */
+ * RUN_AT_TRANSITION reports the first absent matching label with Candidates=0. */
 XCRON_API bool xcronServiceAddSelectedAsync(xcronservice* Service,const xcronjobconfig* Config,xcrondeliverypolicy Policy,xcronrequestid* Request,xcronserviceissue* Issue);
 /* Same total timeout, generation, Error/Data ownership and owner/borrowed-pool
  * self-wait rules as Collect; preserves complete selected Info/Retired fields. */

@@ -78,10 +78,62 @@ static void testSSPolicies(void)
         xcronselectedretired R;bool Found;testRequire(xcronServiceReapStoppedSelected(F.Service,&R,&Found,NULL) && Found && R.Id==Job && R.Data==&F && R.Info.Policy.Fold==(xcronfoldpolicy)Fold,"full selected retirement and original Data");ssClear(&F);ssPoolEnd(E);
     }
 }
+static void testSSCompensatedBatch(void)
+{
+    xtime Gap,Nominal;
+    testRequire(xrtDateTime(2024,3,10,7,0,0,0,&Gap) &&
+        xrtDateTime(2024,3,10,2,0,0,0,&Nominal),"gap batch UTC and nominal clocks");
+    xdatetime Local;
+    xrtTimeSplit(Nominal,&Local);
+    Local.Offset=0;Local.IsDST=-1;
+    xcronzone* Zone=NULL;
+    testRequire(xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),
+        XCRON_ZONE_TZIF3,&Zone,NULL),"gap batch zone");
+    ssfixture F=ssFixture(Gap-1,&Local,0);
+    xexecutor* Pool=ssPool(2,8);
+    xcronselectedserviceconfig C=ssConfig(Pool,&F);
+    ssStart(&F,&C);
+    xcronjobconfig J=ssJob(Zone,&F,Gap,Gap);
+    testRequire(xcronExpressionCompile(XRT_STR_LITERAL("0 0,30 2,3 * * *"),
+        XCRON_SECONDS6,&J.Expression,NULL),"multiple missing labels and real boundary match");
+    const xcrondeliverypolicy P={XCRON_FOLD_ALL,XCRON_MISSING_RUN_AT_TRANSITION};
+    xcronjobid Jobs[]={ssAdd(&F,&J,P),ssAdd(&F,&J,P)};
+    xcronZoneRelease(Zone);
+    double End=xrtTimer()+10;
+    for(size_t I=0;I<2;++I){
+        xcronselectedjobinfo Info;
+        do {
+            Info=ssInfo(F.Service,Jobs[I]);
+            testRequire(xrtTimer()<End && Info.State!=XCRON_JOB_FAULTED,"gap query settles");
+        } while(!Info.HasNext);
+        testRequire(Info.Next==Gap && Info.Policy.Missing==P.Missing,"ready but not yet due");
+    }
+    xrtAtomic64Store(&F.Wall,(uint64)Gap,XMEMORY_RELEASE);
+    xrtAtomic64Store(&F.Mono,101,XMEMORY_RELEASE);
+    testRequire(xcronServiceWake(F.Service,NULL),"wake both compensated jobs");
+    unsigned Seen=0;
+    for(size_t I=0;I<2;++I){
+        xcronselectedservicecompletion Done=ssDone(F.Service);
+        unsigned Index=Done.Completion.Job==Jobs[0]?0:1;
+        testRequire(Done.Completion.Job==Jobs[Index] && !(Seen&(1u<<Index)) &&
+            Done.Completion.ScheduledAt==Gap && Done.Completion.Result==XCRON_RUN_SUCCEEDED &&
+            !Done.Completion.Error && !Done.Candidates && !memcmp(&Done.Local,&Local,sizeof(Local)),
+            "one copied compensation per job after native batch execution");
+        Seen|=1u<<Index;
+    }
+    ssStop(&F);
+    xcronselectedservicestats Stats=ssStats(F.Service);
+    testRequire(Seen==3 && Stats.BatchSubmissions==1 && Stats.BatchedAttempts==2 &&
+        xrtAtomic64Load(&F.Calls,XMEMORY_ACQUIRE)==2 && !Stats.Service.ActiveNativeTimers,
+        "boundary collision never dispatches a second lease");
+    ssClear(&F);
+    ssPoolEnd(Pool);
+}
+
 #include "service_selected_cases.h"
 #include "service_selected_control_cases.h"
 #include "service_selected_concurrency_cases.h"
 #include "service_selected_budget_cases.h"
 #include "service_readable_cases.h"
 int main(void)
-{testServiceReadable(true);testSSPolicies();testSSMissingAndWindows();testSSRetryMetadata();testSSPhysicalAndCredits();testSSCommandsAndModes();testSSSelfWaitAndClock();testSSBudgetsAndWarm();testSSFutureFault();testSSQueuedPoliciesAndStaleUnion();testSSConcurrency();testSSNativeQueuedCancel();testSSBudgetedTurns();testSSFactoryArguments();puts("[PASS] selected live service: full fold/missing/global-UNKNOWN, nominal retries/cancel/Data tails, tickets/self-waits/clock faults,512 concurrent queries, five-budget fairness, OOM and2048 zero-heap cycles");return 0;}
+{testServiceReadable(true);testSSPolicies();testSSCompensatedBatch();testSSMissingAndWindows();testSSRetryMetadata();testSSPhysicalAndCredits();testSSCommandsAndModes();testSSSelfWaitAndClock();testSSBudgetsAndWarm();testSSFutureFault();testSSQueuedPoliciesAndStaleUnion();testSSConcurrency();testSSNativeQueuedCancel();testSSBudgetedTurns();testSSFactoryArguments();puts("[PASS] selected live service: full fold/missing/global-UNKNOWN, nominal retries/cancel/Data tails, tickets/self-waits/clock faults,512 concurrent queries, five-budget fairness, OOM and2048 zero-heap cycles");return 0;}

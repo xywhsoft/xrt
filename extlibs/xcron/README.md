@@ -133,8 +133,9 @@ five global budgets; see its [contract](docs/scheduler_selected.md) and
 keep their original semantics. The optional `xcron_service_selected` mode carries
 these policies through live command tickets, worker retries and full nominal
 completion/retirement receipts; see its [contract](docs/service_selected.md) and
-[service example](examples/service_selected/README.md). Gap compensation and
-durability remain required.
+[service example](examples/service_selected/README.md). The selected path can
+[compensate a missing match once at the transition](docs/occurrence.md) and
+restores that policy through [checkpoints](docs/checkpoint.md).
 
 The [real fixed-arrival workloads](docs/service_arrivals.md) measure selected
 service start/receipt tails with1/2/4/8 workers and a full-output consumer stall,

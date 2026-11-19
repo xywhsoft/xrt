@@ -21,22 +21,31 @@ static bool occurrenceBenchBaseline(const xcronexpression* E,const xcronzone* Z,
 int main(int Argc,char** Argv)
 {
     uint32 Batches=Argc>1?(uint32)strtoul(Argv[1],NULL,10):10000,Kind=Argc>2?(uint32)strtoul(Argv[2],NULL,10):0,Budget=Argc>3?(uint32)strtoul(Argv[3],NULL,10):0;
-    if(!Batches || Batches>100000 || Kind>3 || (Kind==3 && Budget))return 1;
+    if(!Batches || Batches>100000 || Kind>4 || (Kind==3 && Budget))return 1;
     xcronzone* Z=NULL;xcronexpression E;double* Samples=NULL;int Exit=2;xtime Begin,End,Expected;uint64 Sum=0,Steps=0,Segments=0,Months=0,Years=0,Checks=0,Offsets=0,Labels=0;
-    xstrview Rule=Kind==2?XRT_STR_LITERAL("STD0DST,J60/2,J300/2"):XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0");xstrview Text=Kind==2?XRT_STR_LITERAL("0 30 2 1 MAR *"):Kind==1?XRT_STR_LITERAL("0 30 2 * * *"):XRT_STR_LITERAL("0 30 1 * * *");
+    bool Gap=Kind==1 || Kind==4,Reject=Kind==1 || Kind==2;
+    xstrview Rule=Kind==2?XRT_STR_LITERAL("STD0DST,J60/2,J300/2"):XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0");xstrview Text=Kind==2?XRT_STR_LITERAL("0 30 2 1 MAR *"):Gap?XRT_STR_LITERAL("0 30 2 * * *"):XRT_STR_LITERAL("0 30 1 * * *");
     if(!xcronZoneCreatePosix(Rule,XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(Text,XCRON_SECONDS6,&E,NULL) || !(Samples=xrtMalloc(Batches*sizeof(*Samples))))goto Done;
     if(Kind==2){if(!xrtDateTime(2000,1,1,0,0,0,0,&Begin) || !xrtDateTime(2000,3,1,2,0,0,0,&Expected))goto Done;End=INT64_MAX;}
-    else if(Kind==1){if(!xrtDateTime(2024,3,10,6,0,0,0,&Begin) || !xrtDateTime(2024,3,10,7,0,0,0,&Expected))goto Done;End=Begin+2*XRT_TIME_DAY;}
+    else if(Gap){if(!xrtDateTime(2024,3,10,6,0,0,0,&Begin) || !xrtDateTime(2024,3,10,7,0,0,0,&Expected))goto Done;End=Begin+2*XRT_TIME_DAY;}
     else {if(!xrtDateTime(2024,11,3,5,30,0,0,&Begin) || !xrtDateTime(2024,11,3,6,30,0,0,&Expected))goto Done;End=Expected;}
     double Start=xrtTimer();
     for(uint32 K=0;K<Batches;++K){double T=xrtTimer();
-        for(unsigned J=0;J<32;++J){xcronoccurrence Out={.When=777};xcronoccurrenceissue I;xcronoccurrencestatus S;xcrondeliverypolicy Policy=Kind==1 || Kind==2?(xcrondeliverypolicy){0,1}:(xcrondeliverypolicy){2,0};
+        for(unsigned J=0;J<32;++J){xcronoccurrence Out={.When=777};xcronoccurrenceissue I;xcronoccurrencestatus S;xcrondeliverypolicy Policy={XCRON_FOLD_LAST,XCRON_MISSING_SKIP};
+            if(Reject)Policy=(xcrondeliverypolicy){XCRON_FOLD_ALL,XCRON_MISSING_REJECT};
+            else if(Kind==4)Policy=(xcrondeliverypolicy){XCRON_FOLD_ALL,XCRON_MISSING_RUN_AT_TRANSITION};
             if(Kind==3){if(!occurrenceBenchBaseline(&E,Z,Begin,End,&I))goto Done;S=XCRON_OCCURRENCE_FOUND;Out.When=I.When;Out.Local=I.Local;Out.Candidates=I.Candidates;}
             else if(!Budget)S=xcronOccurrenceNext(&E,Z,Begin,End,0,Policy,&Out,&I);
             else {xcronoccurrencecursor C;if(!xcronOccurrenceCursorInit(&C,&E,Z,Begin,End,0,Policy,NULL))goto Done;
                 do{S=xcronOccurrenceCursorStep(&C,Z,(xcronoccurrencebudget){Budget,Budget,Budget,Budget,Budget},&Out,&I);++Steps;}while(S==XCRON_OCCURRENCE_PENDING);
             }
-            if(I.When!=Expected || ((Kind==1 || Kind==2)?S!=XCRON_OCCURRENCE_ERROR || I.Code!=XCRON_OCCURRENCE_MISSING || Out.When!=777:S!=XCRON_OCCURRENCE_FOUND || I.Candidates!=2 || Out.When!=Expected))goto Done;
+            if(I.When!=Expected)goto Done;
+            if(Reject){if(S!=XCRON_OCCURRENCE_ERROR || I.Code!=XCRON_OCCURRENCE_MISSING || Out.When!=777)goto Done;}
+            else {
+                size_t Candidates=Gap?0:2;
+                if(S!=XCRON_OCCURRENCE_FOUND || I.Code || I.Candidates!=Candidates ||
+                   Out.When!=Expected || Out.Candidates!=Candidates || (Gap && (Out.Local.Hour!=2 || Out.Local.Minute!=30)))goto Done;
+            }
             if(I.Local.Offset || I.Local.IsDST!=-1 || I.Local.Millisecond)goto Done;
             Sum+=(uint64)I.When+I.Candidates+I.Code+(uint64)I.Local.Year+(uint64)(I.Local.Month+I.Local.Day+I.Local.Hour+I.Local.Minute+I.Local.Second+I.Local.YearDay+I.Local.Weekday);Segments+=I.SegmentsExamined;Months+=I.MonthsExamined;Years+=I.RuleYearsExamined;Checks+=I.ChecksExamined;Offsets+=I.OffsetsExamined;Labels+=I.LabelsExamined;
             if(S==XCRON_OCCURRENCE_ERROR)xrtClearError();

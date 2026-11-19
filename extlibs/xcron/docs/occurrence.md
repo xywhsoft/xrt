@@ -6,12 +6,13 @@ complete nominal resolution. It adds no scheduler, executor, file, network,
 clock, callback, ownership reference or shared runtime. The smaller delivery
 leaf keeps its original timezone-only dependency closure.
 
-`OccurrenceNext` returns the earliest selected actual instant in the inclusive
+`OccurrenceNext` returns the earliest selected instant in the inclusive
 UTC window, or excludes Begin with `XCRON_SEARCH_EXCLUSIVE`. Whole-second
 rounding, BCE/fractional bounds and signed-int64 endpoints match ZonedNext.
 FOUND alone writes the occurrence. Its Local is a canonical floating civil
 label: Offset0, IsDST-1, fraction0, derived Weekday/YearDay retained. Candidates
 counts the COMPLETE global multiplicity before policy or window filtering.
+Zero identifies a compensated occurrence. Its When is the UTC transition.
 
 ALL returns every actual matching instant through successive queries. FIRST
 and LAST use the globally first/last candidate for each label. A later fold
@@ -24,19 +25,25 @@ finding a plausible candidate. Empty rounded windows need no zone mapping.
 
 ## Missing labels and ordering
 
-SKIP ignores absent labels. REJECT associates missing-label checks with each
-positive-offset transition T in the rounded UTC window. It enumerates matching
-labels in `[T+Before.Offset,T+After.Offset)`, then completely resolves each one.
-A label is missing only if its global candidate set is empty: another historical
-or future segment can fill an apparent local gap. The earliest actually missing
-matching label causes MISSING anchored at T. T==Begin is included unless exclusive.
-A query starting after T does not retroactively reject that gap.
+SKIP ignores absent labels. REJECT and RUN_AT_TRANSITION check each forward
+offset transition T in the rounded UTC window. Search examines matching local
+labels in `[T+Before.Offset,T+After.Offset)` in ascending order. A label is absent
+only when its complete global candidate set is empty. Another historical or
+future segment can fill an apparent gap. TZif types apply from their transition
+instant and supply the UTC offset for the corresponding interval. [RFC 9636 §3.2](https://www.rfc-editor.org/rfc/rfc9636.html#section-3.2)
 
-Gap failures at T precede an actual result/error at the same T. Unknown before/
-after mapping needed to decide a gap is ZONE/UNKNOWN. The Issue exposes its UTC
-anchor and canonical nominal label when known; unknown state without a known
-label leaves Local zero. Other policy/mapping errors carry their actual search
-anchor. This is explicit rejection, not shifted or compensated delivery.
+REJECT reports MISSING at T for the first absent matching label.
+RUN_AT_TRANSITION returns one occurrence at T with that label and
+`Candidates=0`. Further missing matches and any ordinary occurrence at T
+coalesce into that one delivery. Earlier UTC occurrences retain precedence.
+T==Begin is included with inclusive search. Exclusive search from T advances
+past the compensation. The policy acts on timezone offset transitions.
+Wall-clock jumps remain under the scheduler's misfire policies.
+
+Required unknown mapping yields ZONE/UNKNOWN. Issue identifies the error
+anchor and nominal label when known. The single-label APIs accept SKIP and
+REJECT. RUN_AT_TRANSITION uses the recurrence window and ordered traversal
+provided by the occurrence APIs.
 
 The engine traverses UTC segments in order. At each segment start it checks the
 gap before searching actual labels, so an earlier missing event supersedes a
@@ -54,8 +61,8 @@ the periodic suffix. No arbitrary lookahead discards a500-year historical prefix
 Actual absence can be proved at an earlier actual400-year bound while no actual
 matching label has been encountered, or by a complete continuous civil cycle.
 Once any actual label matches, selected absence requires the global proof bound.
-Even after actual absence is proved, missing REJECT continues checking gaps and
-mapping through its global limit.
+Even after actual absence is proved, policies that search missing labels
+continue checking gaps and mapping through the global limit.
 
 ## Budgeted execution and lifetime
 
@@ -108,5 +115,6 @@ REJECT errors. The public-API composition comparator covers LAST+SKIP only.
 These calculations do not reconfigure existing scheduler/service jobs. The
 optional [selected kernel](scheduler_selected.md), [worker adapter](executor_selected.md)
 and [live service](service_selected.md) integrate explicit selected jobs through
-physical retirement. Gap compensation and durable recovery remain required,
-along with qualified native Windows/Linux performance and>=72h mixed-load gates.
+physical retirement, including compensated jobs. Selected checkpoints retain
+this policy. Native Windows/Linux performance and 72-hour mixed-load release
+qualification remain open.

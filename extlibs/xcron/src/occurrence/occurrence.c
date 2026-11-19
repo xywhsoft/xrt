@@ -25,6 +25,13 @@ static xcronoccurrencestatus xcronOccurrenceFail(xcronoccurrencevalue* V,xcronoc
     if(Local)V->Work.Local=*Local;
     return V->Status=XCRON_OCCURRENCE_ERROR;
 }
+static xcronoccurrencestatus xcronOccurrenceFound(xcronoccurrencevalue* V)
+{
+    V->Work.When=V->Candidate.When;
+    V->Work.Local=V->Candidate.Local;
+    V->Work.Candidates=V->Candidate.Candidates;
+    return V->Status=XCRON_OCCURRENCE_FOUND;
+}
 static void xcronOccurrenceGapBegin(xcronoccurrencevalue* V,int32 Before)
 {
     xdatetime First,End;xcronOccurrenceLocal(V->First,Before,&First);xcronOccurrenceLocal(V->First-1,V->Offset,&End);End.Millisecond=0;
@@ -63,12 +70,12 @@ xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* V,const xcr
             if(!B.Segments)return V->Status;
             --B.Segments;++V->Work.SegmentsExamined;
             int32 Before;
-            if(Initial){V->Offset=xcronZoneStateValue(Z,V->First).Offset;Before=V->Policy.Missing==XCRON_MISSING_REJECT?xcronZoneStateValue(Z,V->First-1).Offset:V->Offset;}
+            if(Initial){V->Offset=xcronZoneStateValue(Z,V->First).Offset;Before=V->Policy.Missing!=XCRON_MISSING_SKIP?xcronZoneStateValue(Z,V->First-1).Offset:V->Offset;}
             else{V->First=V->Transition.Result.When;V->Offset=V->Transition.Result.After.Offset;Before=V->Transition.Result.Before.Offset;}
             V->WalkReady=V->AfterReady=false;
-            if(V->Offset==XCRON_ZONE_OFFSET_UNKNOWN || (V->Policy.Missing==XCRON_MISSING_REJECT && Before==XCRON_ZONE_OFFSET_UNKNOWN))
+            if(V->Offset==XCRON_ZONE_OFFSET_UNKNOWN || (V->Policy.Missing!=XCRON_MISSING_SKIP && Before==XCRON_ZONE_OFFSET_UNKNOWN))
                 return xcronOccurrenceFail(V,XCRON_OCCURRENCE_ZONE,XCRON_ZONE_UNKNOWN,V->First,NULL,0);
-            if(V->Policy.Missing==XCRON_MISSING_REJECT && V->Offset>Before){xcronOccurrenceGapBegin(V,Before);continue;}
+            if(V->Policy.Missing!=XCRON_MISSING_SKIP && V->Offset>Before){xcronOccurrenceGapBegin(V,Before);continue;}
             V->Phase=XCRON_OCCURRENCE_PHASE_READY;
         }
         if(V->Phase==XCRON_OCCURRENCE_PHASE_READY){
@@ -121,8 +128,7 @@ xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* V,const xcr
                 else{V->AfterReady=true;V->Phase=XCRON_OCCURRENCE_PHASE_WALK_BEGIN;}
                 continue;
             }
-            V->Work.When=V->Candidate.When;V->Work.Local=V->Candidate.Local;V->Work.Candidates=V->Candidate.Candidates;
-            return V->Status=XCRON_OCCURRENCE_FOUND;
+            return xcronOccurrenceFound(V);
         }
         if(V->Phase==XCRON_OCCURRENCE_PHASE_GAP){
             uint32 Before=V->Calendar.Months;xcroncalendarstatus S=xcronCalendarValueStep(&V->Expression,&V->Calendar,B.Months);uint32 Used=V->Calendar.Months-Before;
@@ -136,14 +142,19 @@ xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* V,const xcr
         if(V->Phase==XCRON_OCCURRENCE_PHASE_GAP_RESOLVE){
             xcronzonestatus S=xcronOccurrenceResolve(V,Z,&B);if(S==XCRON_ZONE_WALK_PENDING)return V->Status;
             if(S==XCRON_ZONE_ERROR)return xcronOccurrenceFail(V,XCRON_OCCURRENCE_ZONE,V->Resolve.Error,V->First,&V->Calendar.Date,0);
-            if(!V->Resolve.Count)return xcronOccurrenceFail(V,XCRON_OCCURRENCE_MISSING,XCRON_ZONE_OK,V->First,&V->Calendar.Date,0);
+            if(!V->Resolve.Count){
+                if(V->Policy.Missing==XCRON_MISSING_REJECT)
+                    return xcronOccurrenceFail(V,XCRON_OCCURRENCE_MISSING,XCRON_ZONE_OK,V->First,&V->Calendar.Date,0);
+                V->Candidate=(xcronoccurrence){.When=V->First,.Local=V->Calendar.Date,.Candidates=0};
+                return xcronOccurrenceFound(V);
+            }
             xcronCalendarValueAfter(&V->Expression,&V->Calendar.Date,&V->Calendar.End,&V->Calendar);V->Phase=XCRON_OCCURRENCE_PHASE_GAP;
         }
     }
     return V->Status;
 }
 static bool xcronOccurrencePolicy(xcrondeliverypolicy P)
-{return P.Fold>=XCRON_FOLD_ALL && P.Fold<=XCRON_FOLD_REJECT && P.Missing>=XCRON_MISSING_SKIP && P.Missing<=XCRON_MISSING_REJECT;}
+{return P.Fold>=XCRON_FOLD_ALL && P.Fold<=XCRON_FOLD_REJECT && P.Missing>=XCRON_MISSING_SKIP && P.Missing<=XCRON_MISSING_RUN_AT_TRANSITION;}
 static void xcronOccurrenceReport(xcronoccurrenceissue Work,xcronoccurrenceissue* Issue)
 {
     if(Issue)*Issue=Work;

@@ -1301,6 +1301,126 @@
       ]
     },
     {
+      "name": "xcron_occurrence_gap_run_sync",
+      "system": "occurrence",
+      "description": "Complete missing-label resolution with one compensated delivery at the forward transition",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_gap_run_sync",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "10000",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xcron_occurrence_gap_run_cursor1",
+      "system": "occurrence",
+      "description": "Complete missing-label resolution with one compensated delivery at the forward transition",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_gap_run_cursor1",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "10000",
+            "4",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
+        }
+      ]
+    },
+    {
       "name": "xcron_occurrence_cycle_reject_cursor16",
       "system": "occurrence",
       "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap yearly nominal label with an unbounded UTC query window; originally exposed a sequential400-year proof before early missing rejection; no production qualification",

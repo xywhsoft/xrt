@@ -15911,3 +15911,56 @@ favor retaining the current mainline runtime. Native Linux, connection
 scaling and long-run production qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/tcp-owner-20261119.json).
+
+## 2026-11-19 xcron compensation at forward transitions
+
+An opt-in recurring-job policy runs once at a forward offset transition
+when the gap contains a matching nominal time with zero global UTC
+candidates. The service delivers the earliest missing label with the
+transition as the scheduled instant. Additional missing matches and an
+actual match at the same instant coalesce into the same delivery.
+
+The selected-service batch test executes two eligible jobs and verifies
+the local label on each callback and receipt. A file-backed checkpoint
+group is committed and reopened before the transition. The restored job
+executes on schedule. A second commit and reopen verifies that the
+exhausted job retains one recorded success and does not replay.
+Checkpoint readers must be upgraded before writing the new policy.
+
+Tests ran from D:/GIT/xrt master on Windows and Ubuntu in WSL.
+Each host ran 21 modular and 25 single-header programs, two package
+consumers for static and shared builds, and the occurrence example.
+Windows skipped two symlink fixtures with system error 1314.
+WSL occurrence and checkpoint tests passed ASan/UBSan with leak checking.
+Selected-service and checkpoint tests passed TSan. GCC's standalone atomic
+fence is outside that instrumentation.
+
+The independent tzdb 2026e oracle ran 195,416 queries per host across
+422 zones, with 3,808 compensated results. Per-zone results matched on
+both hosts. The oracle checks both synchronous forms and every bounded
+cursor step, including forward transitions from history and footer rules
+and inclusive and exclusive queries at the transition.
+
+| Host | Policy and API | Queries/s | Batch P99 (us) | Batch P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Compensate, synchronous | 1,258,981 | 39.2 | 45.4 |
+| Windows | Compensate, cursor budget 1 | 981,347 | 52.3 | 57.7 |
+| WSL | Compensate, synchronous | 1,242,075 | 48.1 | 99.0 |
+| WSL | Compensate, cursor budget 1 | 954,323 | 59.6 | 112.7 |
+
+The table uses medians of nine pinned runs with 320,000 queries per run
+and 32 queries per timed batch. Both runs exceeded the existing sample
+variability limits. The cursor completed the fixture in four steps per
+query. The reports preserve unpinned and pinned measurements.
+
+The same-harness control compared the previous and current builds with
+12 pairs per workload and host. The paired median throughput change
+ranged from +0.7% to +3.5% for folded LAST/SKIP and gap REJECT. Paired
+median batch P99 changes ranged from -5.4% to -0.6%. The unpinned WSL
+folded case had a +11.5% paired P99.9 change. The 12-pair pinned follow-up
+measured -1.9% by the same paired statistic and absolute medians of
+92.9 and 95.9 us. Native Linux and stable tail and soak qualification
+remain open. Generated outputs and maturity metadata pass, and the
+strict xcron release gate still reports 18 developing modules.
+
+[Stage evidence](../../extlibs/xcron/tests/results/gap-delivery-20261119.json).

@@ -9,7 +9,8 @@
 typedef enum xcronoccurrencestatus {XCRON_OCCURRENCE_ERROR=-1,XCRON_OCCURRENCE_NONE=0,XCRON_OCCURRENCE_FOUND=1,XCRON_OCCURRENCE_PENDING=2} xcronoccurrencestatus;
 typedef enum xcronoccurrenceerror {XCRON_OCCURRENCE_OK=0,XCRON_OCCURRENCE_ARGUMENT=9001,XCRON_OCCURRENCE_EXPRESSION,XCRON_OCCURRENCE_WINDOW,XCRON_OCCURRENCE_ZONE,XCRON_OCCURRENCE_AMBIGUOUS,XCRON_OCCURRENCE_MISSING,XCRON_OCCURRENCE_STATE,XCRON_OCCURRENCE_RANGE} xcronoccurrenceerror;
 /* Local is canonical floating civil metadata: Offset0, IsDST-1, fraction0.
- * Candidates is its complete global multiplicity, before window/policy filtering. */
+ * Candidates is its complete global multiplicity, before window/policy filtering.
+ * Zero identifies a compensated occurrence at its UTC transition anchor. */
 typedef struct xcronoccurrence {xtime When;xdatetime Local;size_t Candidates;} xcronoccurrence;
 typedef struct xcronoccurrencebudget {uint32 Segments,Months,RuleYears,Checks,Offsets;} xcronoccurrencebudget;
 typedef struct xcronoccurrenceissue {
@@ -20,22 +21,23 @@ typedef struct xcronoccurrenceissue {
 #define XCRON_OCCURRENCE_CURSOR_BYTES 1024u
 typedef union xcronoccurrencecursor {uint64 Alignment;uint8 Storage[XCRON_OCCURRENCE_CURSOR_BYTES];} xcronoccurrencecursor;
 XRT_EXTERN_C_BEGIN
-/* Earliest selected actual occurrence in [Begin,End], or (Begin,End] with
+/* Earliest selected occurrence in [Begin,End], or (Begin,End] with
  * EXCLUSIVE. Whole-second rounding/full-int64 bounds match ZonedNext. Each
  * matching label is resolved COMPLETELY before fold selection: FIRST/LAST refer
  * to global candidates, including candidates outside this query window. REJECT
  * fails AMBIGUOUS at the first actual matching instant in the window whose label
  * has multiple global candidates. UNKNOWN completeness is never waived by policy.
  *
- * Missing SKIP ignores absent labels. Missing REJECT checks each positive-offset
- * transition T in the rounded UTC window: enumerate matching labels in
- * [T+Before.Offset,T+After.Offset), and reject the earliest label having ZERO
- * global candidates. Another historical/future mapping can fill that apparent
- * gap, so a positive offset change alone does not prove missing. Missing errors
- * are anchored at T, including T==Begin unless exclusive. On a tie they precede
- * an actual result/error at T. Mapping failures have their first encountered UTC
- * anchor. Issue identifies that anchor/label when known. Before/after unknown
- * mapping needed to decide a gap is ZONE/UNKNOWN. No shift/compensation occurs.
+ * SKIP ignores absent labels. REJECT and RUN_AT_TRANSITION check each forward
+ * offset change T in the rounded UTC window. They enumerate matching labels in
+ * [T+Before.Offset,T+After.Offset) and resolve each examined label completely.
+ * Another historical/future mapping can fill part or all of the apparent gap.
+ * REJECT fails at the first truly missing matching label. RUN_AT_TRANSITION
+ * delivers one occurrence at T with that first nominal label and Candidates=0.
+ * This coalesces other missing matches and any actual occurrence at T. Earlier
+ * UTC results still precede the gap. T==Begin is included unless exclusive.
+ * Required unknown mapping is ZONE/UNKNOWN. Issue identifies the first error
+ * anchor and nominal label when known.
  *
  * History is completed before any periodic proof. A complete400-year suffix is
  * applied only after the maximum legal offset window lies in the periodic zone;

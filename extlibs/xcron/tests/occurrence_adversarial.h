@@ -29,7 +29,7 @@ static void testOccurrenceArguments(void)
     testRequire(!xcronOccurrenceCursorInit(&C,&E,Z,0,1000,2,(xcrondeliverypolicy){0,0},&I) && !memcmp(&I,&Previous,sizeof(I)) && !memcmp(&C,&Before,sizeof(C)),"invalid flags are structural and atomic");xrtClearError();
     testRequire(!xcronOccurrenceCursorInit(&C,(const xcronexpression*)&C,Z,0,1000,0,(xcrondeliverypolicy){0,0},&I) && !memcmp(&I,&Previous,sizeof(I)) && !memcmp(&C,&Before,sizeof(C)),"init expression/cursor alias");xrtClearError();
     testRequire(!xcronOccurrenceCursorInit(&C,&E,Z,0,1000,0,(xcrondeliverypolicy){4,0},&I) && !memcmp(&I,&Previous,sizeof(I)),"invalid fold policy");xrtClearError();
-    testRequire(!xcronOccurrenceCursorInit(&C,&E,Z,0,1000,0,(xcrondeliverypolicy){0,2},&I) && !memcmp(&I,&Previous,sizeof(I)),"invalid missing policy");xrtClearError();
+    testRequire(!xcronOccurrenceCursorInit(&C,&E,Z,0,1000,0,(xcrondeliverypolicy){0,3},&I) && !memcmp(&I,&Previous,sizeof(I)),"invalid missing policy");xrtClearError();
     testRequire(!xcronOccurrenceCursorInit(&C,&Bad,Z,0,1000,0,(xcrondeliverypolicy){0,0},&I) && I.Code==XCRON_OCCURRENCE_EXPRESSION && I.Field==XCRON_FIELD_MINUTE && !memcmp(&C,&Before,sizeof(C)),"typed invalid expression preserves cursor");xrtClearError();
     testRequire(!xcronOccurrenceCursorInit(&C,&E,Z,1000,0,0,(xcrondeliverypolicy){0,0},&I) && I.Code==XCRON_OCCURRENCE_WINDOW && !memcmp(&C,&Before,sizeof(C)),"reversed window preserves cursor");xrtClearError();
     testRequire(xcronOccurrenceCursorStep(&C,Z,(xcronoccurrencebudget){1,1,1,1,1},&Out,&I)==XCRON_OCCURRENCE_ERROR && I.Code==XCRON_OCCURRENCE_STATE && !memcmp(&C,&Before,sizeof(C)) && !memcmp(&Out,&Old,sizeof(Out)),"uninitialized cursor typed state");xrtClearError();
@@ -56,7 +56,11 @@ static void testOccurrenceWarmAndOOM(void)
 #endif
     testRequire(!Scope.Rejections && xrtAllocationBudgetLeave(&Scope),"normal operations cause no quota rejection");xrtClearError();xcronZoneRelease(Z);
     Z=occurrenceZone("EST5EDT,M3.2.0,M11.1.0");E=occurrenceExpr("0 30 2 * * *");xtime Gap=occurrenceTime(2024,3,10,7,0,0);xcronoccurrence Out,Old;memset(&Out,0x5a,sizeof(Out));memcpy(&Old,&Out,sizeof(Old));xcronoccurrenceissue I;
-    testRequire(xrtAllocationBudgetEnter(B,&Scope),"missing diagnostic OOM scope");testRequire(xcronOccurrenceNext(&E,Z,Gap,Gap,0,(xcrondeliverypolicy){0,1},&Out,&I)==XCRON_OCCURRENCE_ERROR && I.Code==XCRON_OCCURRENCE_MISSING && I.When==Gap && I.Local.Hour==2 && I.Local.Minute==30 && !memcmp(&Out,&Old,sizeof(Out)),"missing error metadata/atomicity survives diagnostic OOM");testRequire(xrtAllocationBudgetLeave(&Scope),"leave OOM scope");xrtClearError();xrtAllocationBudgetFree(B);xcronZoneRelease(Z);
+    testRequire(xrtAllocationBudgetEnter(B,&Scope),"missing diagnostic OOM scope");testRequire(xcronOccurrenceNext(&E,Z,Gap,Gap,0,(xcrondeliverypolicy){0,1},&Out,&I)==XCRON_OCCURRENCE_ERROR && I.Code==XCRON_OCCURRENCE_MISSING && I.When==Gap && I.Local.Hour==2 && I.Local.Minute==30 && !memcmp(&Out,&Old,sizeof(Out)),"missing error metadata/atomicity survives diagnostic OOM");xrtClearError();
+    testRequire(xcronOccurrenceNext(&E,Z,Gap,Gap,0,(xcrondeliverypolicy){0,XCRON_MISSING_RUN_AT_TRANSITION},&Out,&I)==XCRON_OCCURRENCE_FOUND &&
+        I.Code==XCRON_OCCURRENCE_OK && Out.When==Gap && !Out.Candidates && Out.Local.Hour==2 && Out.Local.Minute==30 &&
+        !xrtGetError(),"compensated result succeeds under a one-byte heap quota");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"leave OOM scope");xrtAllocationBudgetFree(B);xcronZoneRelease(Z);
 }
 #if defined(XRT_FEATURE_THREAD)
 typedef struct occurrencehandoff {xcronoccurrencecursor* C;xcronzone* Z;xcronoccurrence Out;xcronoccurrencestatus Status;} occurrencehandoff;

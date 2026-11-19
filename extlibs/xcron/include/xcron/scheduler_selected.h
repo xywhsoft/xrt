@@ -6,6 +6,7 @@
 #error "selected scheduler requires scheduler and complete occurrence calculation"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
+/* Candidates is zero for a compensated nominal label. Run.ScheduledAt is the UTC anchor. */
 typedef struct xcronselectedrun {xcronrun Run;xdatetime Local;size_t Candidates;} xcronselectedrun;
 typedef struct xcronselectedpoll {xcronpoll Poll;xcronoccurrencebudget Used;uint32 Searching;} xcronselectedpoll;
 typedef struct xcronselectedjobinfo {
@@ -28,8 +29,9 @@ XCRON_API bool xcronSchedulerCreateSelected(const xcronschedulerconfig* Config,x
  * window. Data is borrowed from success through Reap, including initial faults.
  * Invalid expression/policy/window fails admission; zone/fold/missing calculation
  * faults are discovered by Poll and recorded in LastIssue without diagnostics.
- * ALL/FIRST/LAST/REJECT and SKIP/REJECT use complete global occurrence semantics.
- * There is no nominal gap shift/compensation. Other job policies match Add. */
+ * Fold and missing policies use complete global occurrence semantics, including
+ * one coalesced delivery at a transition with RUN_AT_TRANSITION. Other job
+ * policies match Add. */
 XCRON_API bool xcronSchedulerAddSelected(xcronscheduler* Scheduler,const xcronjobconfig* Config,xcrondeliverypolicy Policy,xcronjobid* Id,xcronschedulerissue* Issue);
 /* Five independent nonnegative global traversal budgets; zeros are allowed.
  * WorkLimit bounds heap/queue actions. Pending queries receive FIFO one-unit

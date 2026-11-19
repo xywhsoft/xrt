@@ -1,0 +1,586 @@
+{
+  "schema": 1,
+  "branch": "master",
+  "workspace": "D:/GIT/xrt",
+  "base_revision": "06264b1747d32150358cfa41fb705b2b1901d6d0",
+  "source_lf_sha256": {
+    "extlibs/xcron/README.md": "2fd61c1043a233baddba04b461d3ca7ed0122e3b2a696743e8eb21d1657912f8",
+    "extlibs/xcron/bench/bench_occurrence.c": "b93a076c2638c7198242e82235a8633ca3de4c20100c396c6d9fc3d60e81a7e0",
+    "extlibs/xcron/config/performance_profiles.json": "d4bd98fc40c4280c54ab3f8a77b173088746b485c66f730187a7771efa321d41",
+    "extlibs/xcron/docs/api/reference.md": "d4052d271084349159b7fbe30f8f5ced3f4e7b0e4951c13537314459317b414d",
+    "extlibs/xcron/docs/checkpoint.md": "867f667ec30fe869ea401772df75ed54247f226fd54fd2d081a8805dac7d80cb",
+    "extlibs/xcron/docs/occurrence.md": "99aefcc15dfbd217464ad3ec91ff882c1e033eb932b52743107d49ecbfd4cd15",
+    "extlibs/xcron/docs/scheduler_selected.md": "f01817c61b03e317385a4aec2aa8f4348728096d1256121316672eea824f705e",
+    "extlibs/xcron/docs/service_selected.md": "a1a8f234d0bbd947551585e15fcf1d0744aa29a571bb30e2345a8ea488051ec9",
+    "extlibs/xcron/examples/occurrence/README.md": "7d036e0e06aa1a8d72a34bdbd00aba75376f237f16acc701de206590e67c6774",
+    "extlibs/xcron/examples/occurrence/main.c": "7a7faf237d54467059dd86ba20ada65b3389cd1da394b254aeaf812c8bf215ad",
+    "extlibs/xcron/include/xcron/delivery.h": "627a82f75f7c1423a6aa4b0dfd1849736e2e20678b11590f0ba08f0b5ef420ed",
+    "extlibs/xcron/include/xcron/executor_selected.h": "c4787daae7b24311e966459fc5fdfd69b240a166a94a0de8f27b180cc0e15a49",
+    "extlibs/xcron/include/xcron/occurrence.h": "d5cb112793638659056cc58495fb4ddd0141a2bcfb045eeb6635dfaaaae233c7",
+    "extlibs/xcron/include/xcron/scheduler_selected.h": "ecb04e2eae75e95e00c1b67097ce809b1d30af9d4530071a5da309b22cdd2e7c",
+    "extlibs/xcron/include/xcron/service_selected.h": "6926391a531a35b8b199facf04bfd4e83fadd8e6ede3e116b86c44df9e45b1a1",
+    "extlibs/xcron/src/checkpoint/checkpoint.c": "fa49b0b58e594ccbe8a33c987c4f0df8fc0b9271331d91ed0ad137fc125a3f89",
+    "extlibs/xcron/src/executor/executor.c": "195d48e02d3cbb02df95add07a32f6762e218d596ff8886b7c2f61944cfd0410",
+    "extlibs/xcron/src/occurrence/occurrence.c": "4b81beafddc389ccb0afde020dbe10dde422e5197dffd1adbbc4032facaab892",
+    "extlibs/xcron/src/scheduler/scheduler.c": "63397b6b843193c9046efe60a56c24e33bf8b68c44a5f27dbecffc738fc904f1",
+    "extlibs/xcron/src/service/service.c": "787f650e8c9df0fb39208bab7864f6efadad4d92c74d5f88be3a6ba90cee92b8",
+    "extlibs/xcron/tests/executor_selected_cases.h": "4f85e79b1cd1916f5ca669dc731a2005a4e481b66aee7b604de27e719d58751c",
+    "extlibs/xcron/tests/occurrence_adversarial.h": "92813a2705f15d427b006a75149acce6218b36aaf6edc31233b262aeb20698a7",
+    "extlibs/xcron/tests/occurrence_probe.c": "1ae7f59127f5167729e354848fa5232205497b4521f34f0277f7316da66361a9",
+    "extlibs/xcron/tests/package/test_consumer.c": "ae4ea3283c69626b37e920b178340df2bcb79b18dbf0cffc13210b9444cafac5",
+    "extlibs/xcron/tests/test_occurrence.c": "fd3b528880a2ae12e53271ac3442cec75c3ba5e72188a219b392f5855cdf5d6b",
+    "extlibs/xcron/tests/test_occurrence_reference.py": "6893ea68fa3c59993d930f7f63ee29ae9e9bbe8aeee396ba3234abd0e51c2d20",
+    "extlibs/xcron/tests/test_service_checkpoint.c": "8d5da6b59d83dbbcbb453a76c73794d24d90d21b2a4768ab20a51f14679796f1",
+    "extlibs/xcron/tests/test_service_selected.c": "8e6c7c37cb3babb788717db441fc3be48dbf3e865c57947f0a6b5fa6a2be29f7",
+    "single/extlibs/xcron.h": "9e2e1d232d5414e0138bcc020215af189d50315197adba60e6e319f87a653bf4",
+    "single/extlibs/xcron_decl.h": "dc732dcd03d1fbf484edbce5e688f2b46f8b6a96f37f6d56ccffba46b4e784c5"
+  },
+  "verified_ancestry": [
+    "c2a8b434",
+    "05dc625d",
+    "f0e0955c"
+  ],
+  "scope": [
+    "Opt-in recurring missing-label compensation coalesces the first truly absent matching local label and all matches at the UTC anchor into one delivery.",
+    "Restart before the transition retains the pending nominal label and physical execution. A reopened committed exhausted group records one success and gives no replay.",
+    "Both package types execute a forward-gap query against the installed package layout.",
+    "3,072 fixed-seed comparisons with independently enumerated synthetic offset histories. The corpus validation separately compares synchronous-with-issue, synchronous-without-issue and bounded cursor APIs."
+  ],
+  "tests": {
+    "windows": {
+      "platform": "native Windows x64",
+      "suite": "xcron_tests,event_waiter",
+      "modular_programs": 21,
+      "single_header_programs": 25,
+      "skips": [
+        "[SKIP] native symbolic link fixture: system=1314",
+        "[SKIP] native symbolic link fixture: system=1314"
+      ],
+      "suite_log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/final-windows.log",
+        "sha256": "3d7e343764411d366047c8dc51b29c641cc6ceae24b3d461bd6c5011f66e0976"
+      },
+      "example": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/example-windows.log",
+        "sha256": "03e1bc2e22a1e86ded5481fe0068dbe67eecdfb004c8f095f0e600745d36e8f7"
+      },
+      "package_consumers": [
+        {
+          "kind": "static",
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/package-final-windows-static.log",
+          "sha256": "6dde483643bb5d2d10c605f32fb4aa71c34fbdd14b10e939d0e7aee744c15aa1"
+        },
+        {
+          "kind": "shared",
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/package-final-windows-shared.log",
+          "sha256": "22a9eed781a6a55bcac4ad518c220fafff7bc86d60ee47667318031a059e3821"
+        }
+      ],
+      "oracle_report": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/windows-occurrence-oracle.json",
+        "sha256": "232800670c183908d5b532b487b614c8463bc835a3637b563ac41d0e6850c5bf"
+      },
+      "oracle_log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/run-occurrence-oracle-windows.log",
+        "sha256": "c9140d973eeeba570a4c7ed36e04012d6b479b87c612e9d2d33a7a96f40a0f5f"
+      }
+    },
+    "wsl": {
+      "platform": "Ubuntu in WSL x64",
+      "suite": "xcron_tests,event_waiter",
+      "modular_programs": 21,
+      "single_header_programs": 25,
+      "skips": [],
+      "suite_log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/final-wsl.log",
+        "sha256": "89c11b5d30a10448783203a3f84b57713d8453c6c387451525916d277afd0187"
+      },
+      "example": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/example-wsl.log",
+        "sha256": "c393faca1f7aa3079a9c10fa38f2d05a3db3bc43801ea8e2ebb8af061064178f"
+      },
+      "package_consumers": [
+        {
+          "kind": "static",
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/package-final-wsl-static.log",
+          "sha256": "d21aab07d9d807cc005235188010396e5556971c74bd1211e5bab6b2ee6b18b1"
+        },
+        {
+          "kind": "shared",
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/package-final-wsl-shared.log",
+          "sha256": "313573441e71970f49e417e5a308c6f38f9fca53b6894dcd964323179cb01003"
+        }
+      ],
+      "oracle_report": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/wsl-occurrence-oracle.json",
+        "sha256": "819b4124f4e5d6cf4c88ef5d8d9e859352a1b5ceea79e36119a8d1e62869a40e"
+      },
+      "oracle_log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/run-occurrence-oracle-wsl.log",
+        "sha256": "3051bd8befea26b977d9cce452e44782cd3ef8f5dd03626dfafff7a94ab33b15"
+      }
+    }
+  },
+  "oracle": {
+    "tzdb_version": "2026e",
+    "zones": 422,
+    "totals_per_host": {
+      "queries": 195416,
+      "found": 170264,
+      "none": 12147,
+      "ambiguous": 2844,
+      "missing": 2860,
+      "compensated": 3808,
+      "unknown": 3493,
+      "cursor_steps": 544435,
+      "segments": 266791,
+      "months": 353359,
+      "rule_years": 31035,
+      "checks": 184892,
+      "offsets": 692860,
+      "labels": 184892,
+      "synchronous_calls": 390832,
+      "cursor_initializations": 195416,
+      "api_calls": 1130683
+    },
+    "per_zone_results_byte_equivalent_after_text_translation": true,
+    "corpus_manifest": {
+      "path": "out/service-extensions/master-migration-verification-20261119/legacy-evidence/artifacts/xcron-zoned-cursor/corpus/manifest.json",
+      "sha256": "70f52a75a7ef5d3d9ea819cb3229140ca10ec5f92ed4bb9b751dd603a9656a59"
+    }
+  },
+  "sanitizers": {
+    "wsl_asan_ubsan": {
+      "leak_detection": true,
+      "programs": [
+        "test_service_checkpoint",
+        "test_occurrence"
+      ],
+      "log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/asan.log",
+        "sha256": "1829d342e08e7d90d380c06f791b821c83ab7a14a4f33fa32582bb526f348a30"
+      }
+    },
+    "wsl_tsan": {
+      "programs": [
+        "test_service_selected",
+        "test_service_checkpoint"
+      ],
+      "atomic_thread_fence_instrumented": false,
+      "log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/tsan.log",
+        "sha256": "38ef78f5fbf75e470b67528073c3ad21e5a9811598df0559e825c0f9cada4845"
+      }
+    }
+  },
+  "rerun": {
+    "initial_failures": "Both full suites reached executor argument-validation tests that treated a zero candidate count as invalid. These cases now use malformed civil metadata and verify the same failure atomicity.",
+    "logs": [
+      {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/tests-windows.log",
+        "sha256": "0d3b60a0e05ab572c8640bd706f915c9b52d89aeb4310b01453835ba36bce4b2"
+      },
+      {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/tests-wsl.log",
+        "sha256": "4ab5dc5b8b16aaa54fd8c056a4aef9fb863dc3450c8e56e78b7f671125a2b584"
+      }
+    ]
+  },
+  "performance": {
+    "unit": "Timings are microseconds per 32 queries.",
+    "test_design": "The control binaries use the same benchmark source, unchanged XRT single header, flags and host. Old policies have identical checksums and counted work in every pair. Each process runs 320,000 queries. New profiles use the standard modular runner.",
+    "quality": "Both pinned feature runs finished the samples with variance above the existing quality thresholds. These values characterize this host and are not a qualified release baseline.",
+    "windows": {
+      "build": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/windows/benchmark-binaries.json",
+        "sha256": "bd5cdc9afb2e9135230ef78e314aa95f46f2321ab8822830546ae6fc443e64ab"
+      },
+      "matched_samples": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/windows/matched-performance.json",
+        "sha256": "82c2f91572855d1eb469741ab9629258f199a7e29c8cc3d4e64a020de5ba57bd"
+      },
+      "runs_per_arm_per_workload": 12,
+      "matched_summary": {
+        "fold_last_skip": {
+          "baseline": {
+            "queries_per_sec": 1086993.3715,
+            "batch_p50_us": 27.4,
+            "batch_p95_us": 45.400000000000006,
+            "batch_p99_us": 48.599999999999994,
+            "batch_p999_us": 57.05
+          },
+          "current": {
+            "queries_per_sec": 1072314.5025,
+            "batch_p50_us": 27.6,
+            "batch_p95_us": 44.599999999999994,
+            "batch_p99_us": 47.45,
+            "batch_p999_us": 57.2
+          },
+          "paired_delta_pct": {
+            "queries_per_sec": 1.572756118712304,
+            "batch_p50_us": 0.7299270072992803,
+            "batch_p95_us": -2.558203777754642,
+            "batch_p99_us": -2.1115631483402453,
+            "batch_p999_us": -5.82726050657989
+          }
+        },
+        "forward_gap_reject": {
+          "baseline": {
+            "queries_per_sec": 1217916.111,
+            "batch_p50_us": 24.1,
+            "batch_p95_us": 41.25,
+            "batch_p99_us": 44.15,
+            "batch_p999_us": 52.3
+          },
+          "current": {
+            "queries_per_sec": 1244755.4270000001,
+            "batch_p50_us": 24.0,
+            "batch_p95_us": 38.75,
+            "batch_p99_us": 43.650000000000006,
+            "batch_p999_us": 54.0
+          },
+          "paired_delta_pct": {
+            "queries_per_sec": 3.4554365524483543,
+            "batch_p50_us": -0.4149377593361092,
+            "batch_p95_us": -0.5270021616020859,
+            "batch_p99_us": -0.5677228953091085,
+            "batch_p999_us": -2.699741051439053
+          }
+        }
+      },
+      "pinned_feature_profiles": {
+        "report": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-pinned-windows.json",
+          "sha256": "a6aaf486e5eb35fd7432f08da251c4eab03a4c04037b7fbec623ce206ccf1a80"
+        },
+        "log": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-pinned-windows-retry.log",
+          "sha256": "14c5f7bc707b4ef556dfadbab2c66dd80d1b510e5b582affa96d5371d7100715"
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "platform_release": "10",
+        "affinity": "0x4/0xfff",
+        "repeats": 9,
+        "warmups": 2,
+        "quality_failures": 15,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "profiles": {
+          "xcron_occurrence_gap_run_sync": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "0",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "0",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 1258981.059,
+              "batch_p50_us": 21.4,
+              "batch_p95_us": 37.1,
+              "batch_p99_us": 39.2,
+              "batch_p999_us": 45.4
+            }
+          },
+          "xcron_occurrence_gap_run_cursor1": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "1",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "1280000",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 981347.347,
+              "batch_p50_us": 27.5,
+              "batch_p95_us": 49.5,
+              "batch_p99_us": 52.3,
+              "batch_p999_us": 57.7
+            }
+          }
+        }
+      },
+      "unpinned_feature_profiles": {
+        "report": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-new-windows.json",
+          "sha256": "ff9956950b12c9b14e36ad1033471270cbdeec43618a5efa1b99590113e7bcb8"
+        },
+        "log": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-new-windows.log",
+          "sha256": "15546ab10f011fc86f18a0d3fa3993787639b20b1940f0b0bf27242b574820cc"
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "platform_release": "10",
+        "affinity": "0xfff/0xfff",
+        "repeats": 6,
+        "warmups": 1,
+        "quality_failures": 13,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "profiles": {
+          "xcron_occurrence_gap_run_sync": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "0",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "0",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 1100823.687,
+              "batch_p50_us": 29.75,
+              "batch_p95_us": 38.2,
+              "batch_p99_us": 43.45,
+              "batch_p999_us": 78.75
+            }
+          },
+          "xcron_occurrence_gap_run_cursor1": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "1",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "1280000",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 899053.6435,
+              "batch_p50_us": 28.9,
+              "batch_p95_us": 52.75,
+              "batch_p99_us": 57.25,
+              "batch_p999_us": 88.75
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "build": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/wsl/benchmark-binaries.json",
+        "sha256": "2a9da022a8d1d98369be0574b0a00ead42cd8fadbdd356b1159c796854da08a4"
+      },
+      "matched_samples": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/wsl/matched-performance.json",
+        "sha256": "05972af0852ab5e4d2534a184ef7a1ee0aea56d5c8039c35ef5aff5b483c8899"
+      },
+      "runs_per_arm_per_workload": 12,
+      "matched_summary": {
+        "fold_last_skip": {
+          "baseline": {
+            "queries_per_sec": 973786.7495,
+            "batch_p50_us": 29.5,
+            "batch_p95_us": 48.25,
+            "batch_p99_us": 56.7,
+            "batch_p999_us": 76.19999999999999
+          },
+          "current": {
+            "queries_per_sec": 994366.6340000001,
+            "batch_p50_us": 29.6,
+            "batch_p95_us": 47.599999999999994,
+            "batch_p99_us": 55.05,
+            "batch_p999_us": 84.2
+          },
+          "paired_delta_pct": {
+            "queries_per_sec": 0.8991844693066131,
+            "batch_p50_us": 0.33843369906314535,
+            "batch_p95_us": -3.3450906642139233,
+            "batch_p99_us": -2.9925620719178037,
+            "batch_p999_us": 11.453259760099188
+          }
+        },
+        "forward_gap_reject": {
+          "baseline": {
+            "queries_per_sec": 1148369.7425,
+            "batch_p50_us": 25.2,
+            "batch_p95_us": 42.2,
+            "batch_p99_us": 49.099999999999994,
+            "batch_p999_us": 74.8
+          },
+          "current": {
+            "queries_per_sec": 1151594.4425,
+            "batch_p50_us": 25.4,
+            "batch_p95_us": 42.599999999999994,
+            "batch_p99_us": 47.95,
+            "batch_p999_us": 71.45
+          },
+          "paired_delta_pct": {
+            "queries_per_sec": 0.6843901909003192,
+            "batch_p50_us": 0.590935470715559,
+            "batch_p95_us": -0.1025803085936583,
+            "batch_p99_us": -5.39728474207819,
+            "batch_p999_us": -3.4424822173166447
+          }
+        }
+      },
+      "pinned_feature_profiles": {
+        "report": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-pinned-wsl.json",
+          "sha256": "3ef02a36f6cf615aa9049854640cda497fa85ad159f1800f85f6b8a2beac373e"
+        },
+        "log": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/perf-pinned-wsl.log",
+          "sha256": "74bc88ace4383428805dd236eacf316e5e423fa8bce6b3e776b0f806088e770a"
+        },
+        "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "affinity": "2",
+        "repeats": 9,
+        "warmups": 2,
+        "quality_failures": 14,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "profiles": {
+          "xcron_occurrence_gap_run_sync": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "0",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "0",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 1242074.791,
+              "batch_p50_us": 22.8,
+              "batch_p95_us": 39.0,
+              "batch_p99_us": 48.1,
+              "batch_p999_us": 99.0
+            }
+          },
+          "xcron_occurrence_gap_run_cursor1": {
+            "facts": {
+              "batch_size": "32",
+              "kind": "4",
+              "budget": "1",
+              "queries": "320000",
+              "checksum": "1983864182974928384"
+            },
+            "observation_per_run": {
+              "steps": "1280000",
+              "segments": "640000",
+              "months": "640000",
+              "rule_years": "640000",
+              "checks": "320000",
+              "offsets": "640000",
+              "labels": "320000"
+            },
+            "metrics": {
+              "queries_per_sec": 954322.541,
+              "batch_p50_us": 30.4,
+              "batch_p95_us": 51.5,
+              "batch_p99_us": 59.6,
+              "batch_p999_us": 112.7
+            }
+          }
+        }
+      },
+      "pinned_fold_control": {
+        "samples": {
+          "path": "out/service-extensions/xcron-gap-delivery-20261119/wsl/matched-followup.json",
+          "sha256": "d82a8182aa191af333d36de2fcb362f4418574ba0e31f128f388e9f24efac013"
+        },
+        "affinity": [
+          2
+        ],
+        "runs_per_arm": 12,
+        "summary": {
+          "fold_last_skip": {
+            "baseline": {
+              "queries_per_sec": 976786.485,
+              "batch_p50_us": 29.55,
+              "batch_p95_us": 46.5,
+              "batch_p99_us": 52.55,
+              "batch_p999_us": 92.9
+            },
+            "current": {
+              "queries_per_sec": 1002747.0390000001,
+              "batch_p50_us": 29.45,
+              "batch_p95_us": 43.150000000000006,
+              "batch_p99_us": 53.15,
+              "batch_p999_us": 95.94999999999999
+            },
+            "paired_delta_pct": {
+              "queries_per_sec": 2.9548780781026185,
+              "batch_p50_us": 0.16835016835017313,
+              "batch_p95_us": -4.020355715101576,
+              "batch_p99_us": -6.004316069057114,
+              "batch_p999_us": -1.865998513079714
+            }
+          }
+        }
+      }
+    }
+  },
+  "gates": {
+    "generated_headers": {
+      "path": "out/service-extensions/xcron-gap-delivery-20261119/gate-amalgamate.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "generated_api": {
+      "path": "out/service-extensions/xcron-gap-delivery-20261119/gate-generate_api_reference.log",
+      "sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+    },
+    "maturity": {
+      "path": "out/service-extensions/xcron-gap-delivery-20261119/gate-check_release_maturity.log",
+      "sha256": "eeab5c226711d080c79bfb296aae1fa96a1fbf9d1643ac6c138bb42901253ba7"
+    },
+    "strict_release": {
+      "status": "blocked",
+      "developing_modules": 18,
+      "log": {
+        "path": "out/service-extensions/xcron-gap-delivery-20261119/gate-release-strict.log",
+        "sha256": "2d67cbf9181eea8a11767201acbb600869da375902e0a3e5d82eeec29448ab2f"
+      }
+    }
+  },
+  "remaining": [
+    "Run on native Linux and collect qualified tail and soak evidence before a production release.",
+    "Upgrade checkpoint readers before enabling missing-policy value 2. Existing readers reject the value and can choose an older compatible slot."
+  ]
+}

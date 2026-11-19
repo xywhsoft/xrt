@@ -6,6 +6,7 @@
 #error "selected executor requires executor and selected scheduling"
 #endif
 #if defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
+/* Candidates=0 identifies a compensated occurrence. */
 typedef struct xcronexecutionlabel {xdatetime Local;size_t Candidates;} xcronexecutionlabel;
 typedef struct xcronselectedcompletion {
     xcronselectedrun Run;xcronrunresult Result;xcronexecutorerror Code;xerror* Error;

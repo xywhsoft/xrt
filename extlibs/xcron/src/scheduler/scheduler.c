@@ -560,7 +560,7 @@ XCRON_API bool xcronSchedulerCreateSelected(const xcronschedulerconfig* C,xcrons
 {return xcronSchedulerCreateMode(C,S,Issue,true);}
 XCRON_API bool xcronSchedulerAddSelected(xcronscheduler* S,const xcronjobconfig* C,xcrondeliverypolicy Policy,xcronjobid* Id,xcronschedulerissue* Issue)
 {
-    if(Policy.Fold<XCRON_FOLD_ALL || Policy.Fold>XCRON_FOLD_REJECT || Policy.Missing<XCRON_MISSING_SKIP || Policy.Missing>XCRON_MISSING_REJECT)
+    if(Policy.Fold<XCRON_FOLD_ALL || Policy.Fold>XCRON_FOLD_REJECT || Policy.Missing<XCRON_MISSING_SKIP || Policy.Missing>XCRON_MISSING_RUN_AT_TRANSITION)
         return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
     if(!xcronSchedulerAdmissionArgs(S,C,Id,Issue,true))return false;
     if(!xcronZoneRetain(C->Zone))return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);

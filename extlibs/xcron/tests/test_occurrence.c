@@ -33,7 +33,7 @@ static void occurrenceExpect(const xcronexpression* E,const xcronzone* Z,xtime B
 static void testOccurrenceGolden(void)
 {
     xcronzone* Z=occurrenceZone("EST5EDT,M3.2.0,M11.1.0");xcronexpression E=occurrenceExpr("0 30 1 * * *");xtime A=occurrenceTime(2024,11,3,5,30,0),B=A+3600000;
-    for(int Missing=0;Missing<2;++Missing){
+    for(int Missing=0;Missing<=XCRON_MISSING_RUN_AT_TRANSITION;++Missing){
         occurrenceExpect(&E,Z,A-1,B,0,(xcrondeliverypolicy){XCRON_FOLD_ALL,Missing},XCRON_OCCURRENCE_FOUND,0,A,2);
         occurrenceExpect(&E,Z,A,B,XCRON_SEARCH_EXCLUSIVE,(xcrondeliverypolicy){XCRON_FOLD_ALL,Missing},XCRON_OCCURRENCE_FOUND,0,B,2);
         occurrenceExpect(&E,Z,A,B,XCRON_SEARCH_EXCLUSIVE,(xcrondeliverypolicy){XCRON_FOLD_FIRST,Missing},XCRON_OCCURRENCE_NONE,0,0,0);
@@ -55,6 +55,43 @@ static void testOccurrenceGolden(void)
     occurrenceExpect(&E,Z,INT64_MAX-1000,INT64_MAX,0,(xcrondeliverypolicy){0,1},XCRON_OCCURRENCE_FOUND,0,INT64_MAX-807,1);
     occurrenceExpect(&E,Z,INT64_MAX,INT64_MAX,0,(xcrondeliverypolicy){0,1},XCRON_OCCURRENCE_NONE,0,0,0);xcronZoneRelease(Z);
 }
+static void testOccurrenceCompensation(void)
+{
+    const xcrondeliverypolicy P={XCRON_FOLD_FIRST,XCRON_MISSING_RUN_AT_TRANSITION};
+    xcronzone* Z=occurrenceZone("EST5EDT,M3.2.0,M11.1.0");
+    xcronexpression E=occurrenceExpr("0 0,30 2,3 * * *");
+    xtime Gap=occurrenceTime(2024,3,10,7,0,0),Later=Gap+30*XRT_TIME_MINUTE;
+    occurrenceExpect(&E,Z,Gap,Gap,0,P,XCRON_OCCURRENCE_FOUND,0,Gap,0);
+    occurrenceExpect(&E,Z,Gap-1,Later,0,P,XCRON_OCCURRENCE_FOUND,0,Gap,0);
+    occurrenceExpect(&E,Z,Gap,Later,XCRON_SEARCH_EXCLUSIVE,P,XCRON_OCCURRENCE_FOUND,0,Later,1);
+    occurrenceExpect(&E,Z,Gap+1,Later,0,P,XCRON_OCCURRENCE_FOUND,0,Later,1);
+    xcronoccurrence Out;
+    testRequire(xcronOccurrenceNext(&E,Z,Gap,Gap,0,P,&Out,NULL)==XCRON_OCCURRENCE_FOUND &&
+        Out.Local.Year==2024 && Out.Local.Month==3 && Out.Local.Day==10 &&
+        Out.Local.Hour==2 && !Out.Local.Minute && !Out.Local.Second,
+        "first missing match wins over later missing matches and the real transition-boundary match");
+
+    size_t Count=777;
+    xtime Candidate=888;
+    testRequire(xcronDeliveryResolve(Z,&Out.Local,P,&Candidate,1,&Count,NULL)==XCRON_DELIVERY_ERROR &&
+        Count==777 && Candidate==888,"single-label API requires an explicit recurring anchor");
+    xrtClearError();
+    xcronZoneRelease(Z);
+
+    tzifblob Blob;
+    const int64 Times[]={-1800,0,3600};
+    const uint8 Indices[]={1,0,1};
+    const tzifkind Types[]={{3600,false,"OLD"},{0,false,"UTC"}};
+    tzifBuild(&Blob,'3',Times,Indices,3,Types,2,"UTC0");
+    testRequire(xcronZoneCreateTzif((xbytesview){Blob.Data,Blob.Size},&Z,NULL),"globally filled gap for compensation");
+    E=occurrenceExpr("0 15,30 0 * * *");
+    occurrenceExpect(&E,Z,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH,0,P,XCRON_OCCURRENCE_FOUND,0,XRT_TIME_UNIX_EPOCH,0);
+    testRequire(xcronOccurrenceNext(&E,Z,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH,0,P,&Out,NULL)==XCRON_OCCURRENCE_FOUND &&
+        Out.Local.Hour==0 && Out.Local.Minute==30,"search advances beyond an earlier globally filled label");
+    E=occurrenceExpr("0 15 0 * * *");
+    occurrenceExpect(&E,Z,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH,0,P,XCRON_OCCURRENCE_NONE,0,0,0);
+    xcronZoneRelease(Z);
+}
 static uint64 OccurrenceRandom=UINT64_C(0x7345258a712c9431);
 static uint32 occurrenceRandom(void){OccurrenceRandom^=OccurrenceRandom<<13;OccurrenceRandom^=OccurrenceRandom>>7;OccurrenceRandom^=OccurrenceRandom<<17;return (uint32)OccurrenceRandom;}
 static int occurrenceOffset(int64 T,const int64* Times,const uint8* Indices,const int32* Offsets)
@@ -68,16 +105,29 @@ static void testOccurrenceBrute(void)
     const int32 Offsets[]={0,60,-60,120,-120};const tzifkind Types[]={{0,false,"UTC"},{60,false,"AAA"},{-60,false,"BBB"},{120,false,"CCC"},{-120,false,"DDD"}};xcronexpression E=occurrenceExpr("*/17 * * * * *");
     for(unsigned H=0;H<32;++H){int64 Times[8];uint8 Indices[8];for(unsigned I=0;I<8;++I){Times[I]=-100+(int64)I*50;Indices[I]=(uint8)(occurrenceRandom()%5);}Indices[7]=0;tzifblob Blob;tzifBuild(&Blob,'3',Times,Indices,8,Types,5,"UTC0");xcronzone* Z=NULL;testRequire(xcronZoneCreateTzif((xbytesview){Blob.Data,Blob.Size},&Z,NULL),"independent small history model");
         for(unsigned W=0;W<8;++W){int64 Begin=-160+(int64)(occurrenceRandom()%400),End=Begin+1+occurrenceRandom()%80;uint32 Flags=W%2?XCRON_SEARCH_EXCLUSIVE:0;
-            for(int F=0;F<4;++F)for(int M=0;M<2;++M){xcronoccurrencestatus S=XCRON_OCCURRENCE_NONE;xcronoccurrenceerror Code=0;int64 Result=0;size_t Count=0;
+            for(int F=0;F<4;++F)for(int M=0;M<=XCRON_MISSING_RUN_AT_TRANSITION;++M){xcronoccurrencestatus S=XCRON_OCCURRENCE_NONE;xcronoccurrenceerror Code=0;int64 Result=0,Nominal=0;size_t Count=0;
                 for(int64 T=Begin+(Flags?1:0);T<=End;++T){int64 L=T+occurrenceOffset(T,Times,Indices,Offsets);if(!occurrenceModelMatch(L))continue;int64 First=0,Last=0;size_t N=occurrenceModelCandidates(L,Times,Indices,Offsets,&First,&Last);
                     if(F==XCRON_FOLD_REJECT && N>1){S=XCRON_OCCURRENCE_ERROR;Code=XCRON_OCCURRENCE_AMBIGUOUS;Result=T;Count=N;break;}
                     if((F==XCRON_FOLD_FIRST && T!=First) || (F==XCRON_FOLD_LAST && T!=Last))continue;
                     S=XCRON_OCCURRENCE_FOUND;Result=T;Count=N;break;
                 }
                 if(M)for(unsigned J=0;J<8;++J){int64 T=Times[J];if(T<Begin+(Flags?1:0) || T>End || (S!=XCRON_OCCURRENCE_NONE && T>Result))continue;int Before=J?Offsets[Indices[J-1]]:Offsets[0],After=Offsets[Indices[J]];
-                    for(int64 L=T+Before;L<T+After;++L){if(!occurrenceModelMatch(L))continue;int64 First=0,Last=0;if(occurrenceModelCandidates(L,Times,Indices,Offsets,&First,&Last))continue;S=XCRON_OCCURRENCE_ERROR;Code=XCRON_OCCURRENCE_MISSING;Result=T;Count=0;break;}
+                    for(int64 L=T+Before;L<T+After;++L){if(!occurrenceModelMatch(L))continue;int64 First=0,Last=0;if(occurrenceModelCandidates(L,Times,Indices,Offsets,&First,&Last))continue;S=M==XCRON_MISSING_REJECT?XCRON_OCCURRENCE_ERROR:XCRON_OCCURRENCE_FOUND;
+                        Code=M==XCRON_MISSING_REJECT?XCRON_OCCURRENCE_MISSING:XCRON_OCCURRENCE_OK;
+                        Result=T;Nominal=L;Count=0;break;}
                 }
-                occurrenceExpect(&E,Z,XRT_TIME_UNIX_EPOCH+Begin*1000,XRT_TIME_UNIX_EPOCH+End*1000,Flags,(xcrondeliverypolicy){F,M},S,Code,S==XCRON_OCCURRENCE_NONE?0:XRT_TIME_UNIX_EPOCH+Result*1000,Count);
+                xtime A=XRT_TIME_UNIX_EPOCH+Begin*1000,B=XRT_TIME_UNIX_EPOCH+End*1000;
+                xcrondeliverypolicy P={F,M};
+                occurrenceExpect(&E,Z,A,B,Flags,P,S,Code,S==XCRON_OCCURRENCE_NONE?0:XRT_TIME_UNIX_EPOCH+Result*1000,Count);
+                if(S==XCRON_OCCURRENCE_FOUND && !Count){
+                    xdatetime Label;
+                    xrtTimeSplit(XRT_TIME_UNIX_EPOCH+Nominal*1000,&Label);
+                    xcronoccurrence Out;
+                    testRequire(xcronOccurrenceNext(&E,Z,A,B,Flags,P,&Out,NULL)==XCRON_OCCURRENCE_FOUND &&
+                        Out.Local.Year==Label.Year && Out.Local.Month==Label.Month && Out.Local.Day==Label.Day &&
+                        Out.Local.Hour==Label.Hour && Out.Local.Minute==Label.Minute && Out.Local.Second==Label.Second,
+                        "independent transition model identifies first absent nominal label");
+                }
             }
         }xcronZoneRelease(Z);
     }
@@ -85,7 +135,7 @@ static void testOccurrenceBrute(void)
 #include "occurrence_adversarial.h"
 #include "occurrence_ordered.h"
 int main(void)
-{testOccurrenceGolden();testOccurrenceBrute();testOccurrenceHistory();testOccurrenceOrdered();testOccurrenceReinit();testOccurrenceArguments();testOccurrenceWarmAndOOM();
+{testOccurrenceGolden();testOccurrenceCompensation();testOccurrenceBrute();testOccurrenceHistory();testOccurrenceOrdered();testOccurrenceReinit();testOccurrenceArguments();testOccurrenceWarmAndOOM();
 #if defined(XRT_FEATURE_THREAD)
 testOccurrenceHandoff();
 #endif

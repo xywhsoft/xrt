@@ -3969,7 +3969,7 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XCRON_FEATURE_XCRON_DELIVERY)
 typedef enum xcronfoldpolicy {XCRON_FOLD_ALL=0,XCRON_FOLD_FIRST,XCRON_FOLD_LAST,XCRON_FOLD_REJECT} xcronfoldpolicy;
-typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT} xcronmissingpolicy;
+typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT,XCRON_MISSING_RUN_AT_TRANSITION} xcronmissingpolicy;
 typedef struct xcrondeliverypolicy {xcronfoldpolicy Fold;xcronmissingpolicy Missing;} xcrondeliverypolicy;
 typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1,XCRON_DELIVERY_PENDING=2} xcrondeliverystatus;
 typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING,XCRON_DELIVERY_STATE} xcrondeliveryerror;
@@ -3987,7 +3987,8 @@ XRT_EXTERN_C_BEGIN
  * a later query window. REJECT fails AMBIGUOUS when multiplicity exceeds one.
  * Offset/IsDST/derived civil fields are ignored as in ZoneResolve. Fractions and
  * the full signed-int64 timestamp domain are supported. Missing SKIP returns
- * NONE/Count0; REJECT fails MISSING. Missing includes an otherwise valid civil
+ * NONE/Count0; REJECT fails MISSING. RUN_AT_TRANSITION is a recurring-search
+ * policy and is invalid here. Missing includes an otherwise valid civil
  * label outside the representable timestamp domain. UNKNOWN coverage remains a
  * typed ZONE/UNKNOWN error even if a subset of known candidates might suffice.
  * No silent UTC fallback, gap shifting, expression matching, recurrence search,
@@ -4060,7 +4061,8 @@ XRT_EXTERN_C_END
 typedef enum xcronoccurrencestatus {XCRON_OCCURRENCE_ERROR=-1,XCRON_OCCURRENCE_NONE=0,XCRON_OCCURRENCE_FOUND=1,XCRON_OCCURRENCE_PENDING=2} xcronoccurrencestatus;
 typedef enum xcronoccurrenceerror {XCRON_OCCURRENCE_OK=0,XCRON_OCCURRENCE_ARGUMENT=9001,XCRON_OCCURRENCE_EXPRESSION,XCRON_OCCURRENCE_WINDOW,XCRON_OCCURRENCE_ZONE,XCRON_OCCURRENCE_AMBIGUOUS,XCRON_OCCURRENCE_MISSING,XCRON_OCCURRENCE_STATE,XCRON_OCCURRENCE_RANGE} xcronoccurrenceerror;
 /* Local is canonical floating civil metadata: Offset0, IsDST-1, fraction0.
- * Candidates is its complete global multiplicity, before window/policy filtering. */
+ * Candidates is its complete global multiplicity, before window/policy filtering.
+ * Zero identifies a compensated occurrence at its UTC transition anchor. */
 typedef struct xcronoccurrence {xtime When;xdatetime Local;size_t Candidates;} xcronoccurrence;
 typedef struct xcronoccurrencebudget {uint32 Segments,Months,RuleYears,Checks,Offsets;} xcronoccurrencebudget;
 typedef struct xcronoccurrenceissue {
@@ -4071,22 +4073,23 @@ typedef struct xcronoccurrenceissue {
 #define XCRON_OCCURRENCE_CURSOR_BYTES 1024u
 typedef union xcronoccurrencecursor {uint64 Alignment;uint8 Storage[XCRON_OCCURRENCE_CURSOR_BYTES];} xcronoccurrencecursor;
 XRT_EXTERN_C_BEGIN
-/* Earliest selected actual occurrence in [Begin,End], or (Begin,End] with
+/* Earliest selected occurrence in [Begin,End], or (Begin,End] with
  * EXCLUSIVE. Whole-second rounding/full-int64 bounds match ZonedNext. Each
  * matching label is resolved COMPLETELY before fold selection: FIRST/LAST refer
  * to global candidates, including candidates outside this query window. REJECT
  * fails AMBIGUOUS at the first actual matching instant in the window whose label
  * has multiple global candidates. UNKNOWN completeness is never waived by policy.
  *
- * Missing SKIP ignores absent labels. Missing REJECT checks each positive-offset
- * transition T in the rounded UTC window: enumerate matching labels in
- * [T+Before.Offset,T+After.Offset), and reject the earliest label having ZERO
- * global candidates. Another historical/future mapping can fill that apparent
- * gap, so a positive offset change alone does not prove missing. Missing errors
- * are anchored at T, including T==Begin unless exclusive. On a tie they precede
- * an actual result/error at T. Mapping failures have their first encountered UTC
- * anchor. Issue identifies that anchor/label when known. Before/after unknown
- * mapping needed to decide a gap is ZONE/UNKNOWN. No shift/compensation occurs.
+ * SKIP ignores absent labels. REJECT and RUN_AT_TRANSITION check each forward
+ * offset change T in the rounded UTC window. They enumerate matching labels in
+ * [T+Before.Offset,T+After.Offset) and resolve each examined label completely.
+ * Another historical/future mapping can fill part or all of the apparent gap.
+ * REJECT fails at the first truly missing matching label. RUN_AT_TRANSITION
+ * delivers one occurrence at T with that first nominal label and Candidates=0.
+ * This coalesces other missing matches and any actual occurrence at T. Earlier
+ * UTC results still precede the gap. T==Begin is included unless exclusive.
+ * Required unknown mapping is ZONE/UNKNOWN. Issue identifies the first error
+ * anchor and nominal label when known.
  *
  * History is completed before any periodic proof. A complete400-year suffix is
  * applied only after the maximum legal offset window lies in the periodic zone;
@@ -4142,6 +4145,7 @@ XRT_EXTERN_C_END
 #error "selected scheduler requires scheduler and complete occurrence calculation"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
+/* Candidates is zero for a compensated nominal label. Run.ScheduledAt is the UTC anchor. */
 typedef struct xcronselectedrun {xcronrun Run;xdatetime Local;size_t Candidates;} xcronselectedrun;
 typedef struct xcronselectedpoll {xcronpoll Poll;xcronoccurrencebudget Used;uint32 Searching;} xcronselectedpoll;
 typedef struct xcronselectedjobinfo {
@@ -4164,8 +4168,9 @@ XCRON_API bool xcronSchedulerCreateSelected(const xcronschedulerconfig* Config,x
  * window. Data is borrowed from success through Reap, including initial faults.
  * Invalid expression/policy/window fails admission; zone/fold/missing calculation
  * faults are discovered by Poll and recorded in LastIssue without diagnostics.
- * ALL/FIRST/LAST/REJECT and SKIP/REJECT use complete global occurrence semantics.
- * There is no nominal gap shift/compensation. Other job policies match Add. */
+ * Fold and missing policies use complete global occurrence semantics, including
+ * one coalesced delivery at a transition with RUN_AT_TRANSITION. Other job
+ * policies match Add. */
 XCRON_API bool xcronSchedulerAddSelected(xcronscheduler* Scheduler,const xcronjobconfig* Config,xcrondeliverypolicy Policy,xcronjobid* Id,xcronschedulerissue* Issue);
 /* Five independent nonnegative global traversal budgets; zeros are allowed.
  * WorkLimit bounds heap/queue actions. Pending queries receive FIFO one-unit
@@ -4202,6 +4207,7 @@ XRT_EXTERN_C_END
 #error "selected executor requires executor and selected scheduling"
 #endif
 #if defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
+/* Candidates=0 identifies a compensated occurrence. */
 typedef struct xcronexecutionlabel {xdatetime Local;size_t Candidates;} xcronexecutionlabel;
 typedef struct xcronselectedcompletion {
     xcronselectedrun Run;xcronrunresult Result;xcronexecutorerror Code;xerror* Error;
@@ -4262,6 +4268,7 @@ typedef struct xcronselectedreply {
     xcronselectedjobinfo Info;xcronselectedretired Retired;
     xcronschedulerissue Scheduler;xcronexecutorissue Executor;xerror* Error;
 } xcronselectedreply;
+/* Candidates=0 identifies a compensated occurrence. */
 typedef struct xcronselectedservicecompletion {
     xcronservicecompletion Completion;xdatetime Local;size_t Candidates;
 } xcronselectedservicecompletion;
@@ -4289,7 +4296,7 @@ XCRON_API bool xcronServiceCreateSelected(const xcronselectedserviceconfig* Conf
  * appear in Info/Retired.LastIssue and keep Data borrowed through retirement.
  * Failed ADD returns original Data through exactly one collected reply. Queue
  * acceptance, job admission, physical execution and retirement remain distinct.
- * No gap compensation or durable recovery is implied by fold/missing selection. */
+ * RUN_AT_TRANSITION reports the first absent matching label with Candidates=0. */
 XCRON_API bool xcronServiceAddSelectedAsync(xcronservice* Service,const xcronjobconfig* Config,xcrondeliverypolicy Policy,xcronrequestid* Request,xcronserviceissue* Issue);
 /* Same total timeout, generation, Error/Data ownership and owner/borrowed-pool
  * self-wait rules as Collect; preserves complete selected Info/Retired fields. */

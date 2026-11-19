@@ -51,7 +51,7 @@ bool xcronCheckpointIdentify(xbytesview Wire,xcroncheckpointkey* Key)
     const uint8* B=Wire.Data;
     if(Wire.Size!=XCRON_CHECKPOINT_BYTES || memcmp(B,"XCCP",4) || B[4]!=XCC_VERSION ||
        B[5]>1 || B[7] || B[6]>XCRON_JOB_CANCELLED || xcronCheckpointGet(B+XCC_CRC,4)!=xrtCrc32(B,XCC_CRC) ||
-       B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_REJECT ||
+       B[XCC_POLICY]>XCRON_FOLD_REJECT || B[XCC_POLICY+1]>XCRON_MISSING_RUN_AT_TRANSITION ||
        (!B[5] && (B[XCC_POLICY] || B[XCC_POLICY+1])))return false;
     *Key=(xcroncheckpointkey){xcronCheckpointGet(B+XCC_JOB,8),xcronCheckpointGet(B+XCC_JOB+8,8)};
     return true;
