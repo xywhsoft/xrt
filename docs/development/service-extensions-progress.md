@@ -17221,3 +17221,45 @@ Online acceptance of new inbound QoS 2 PUBLISH packets still needs an atomic
 commit with the corresponding recipient delivery obligations. Native Linux,
 performance comparisons and 72-hour workloads remain open. Strict release
 still reports 43 developing modules.
+
+
+## 2026-11-20 MQTT QoS 2 recipient admission before PUBREC
+
+A new non-retained QoS 2 publish reserves all eligible reliable recipient
+deliveries before the broker forwards to any subscriber. Reservations reuse
+the existing per-session count, broker count and broker byte limits. The
+recipient batch shares encoded frames. Allocation failure or insufficient
+queue capacity rolls the batch back and returns MQTT 5 PUBREC 0x97. MQTT
+3.1.1 closes the publishing connection on that failure. Existing subscriber
+queues survive. Queue admission and dispatch are separate, and prepared
+deliveries pin their selected session across dispatch after routing locks
+are released. A retired session discards its reservation.
+
+The socket fixture saturated an offline session and verified that the
+hard refusal produced neither reliable live delivery nor best-effort
+shared delivery. It then freed capacity and reused the same identifier,
+verifying successful ordinary, offline and shared delivery. The
+single-header fixture injected OOM after the first reservation, checked
+charge rollback and retried with a recipient retired before dispatch.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header suites,
+static and shared consumers, independent MQTT 5.0 and 3.1.1 TCP tests,
+checkpoint restart and retained commit regressions across TCP, TLS, WS and
+WSS. WSL ASan/UBSan with leak checking and TSan passed. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-qos2-fanout-*`.
+
+A local QoS 2 loopback comparison against `64e0cab1` used the same GCC
+`-O2` workload and XRT objects on each host, two workers, six interleaved
+samples and one warm-up per revision. With 64 subscribers, the Windows
+median was 85,170 to 89,414 deliveries/s and P99 was 1,026 to 987 us.
+On WSL it was 46,602 to 46,822 deliveries/s and 1,552 to 1,546 us.
+The one-subscriber throughput medians moved by less than 1% on each host.
+The single-subscriber WSL tail samples had high variance. Requested
+allocations per delivery were effectively unchanged in all cases. The
+unbound local comparison covers this workload only.
+
+The recipient batch is an in-memory admission stage. Durably accepting a
+new QoS 2 publish still needs a single APP transaction covering the inbound
+identifier and durable recipient obligations. Retained-route composition,
+native Linux acceptance and the 72-hour gates remain open. Strict release
+still reports 43 developing modules.

@@ -1171,6 +1171,73 @@ static void serverWaitSessions(serverfixture* Fixture, size_t Persistent, size_t
 	}
 }
 
+static void serverQos2Admission(void)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, true, 65536, 4096, 65536, 64, 1, 0);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	const char* Routes[] = {"atomic/x", "seed"};
+	const char* Shared[] = {"$share/team/atomic/+"};
+	const uint8 One[] = {1, 1}, Zero[] = {0};
+	xnetsocket Producer = serverDial(&Fixture), Slow = serverDial(&Fixture);
+	serverQos1Connect(Producer, Version, "prod");
+	serverPersistentConnect(Slow, Version, "slow", true, 60, 1, false, 0);
+	serverSubscribeWire(Slow, Version, true, 1, Routes, One, One, 2);
+	xrtNetSocketClose(Slow);
+	serverWaitSessions(&Fixture, 1, 1);
+	serverConnections(&Fixture, 1);
+
+	xnetsocket Ready = serverDial(&Fixture), Observer = serverDial(&Fixture);
+	serverQos1Connect(Ready, Version, "fast");
+	serverQos1Connect(Observer, Version, "best");
+	serverSubscribeWire(Ready, Version, true, 1, Routes, One, One, 1);
+	serverSubscribeWire(Observer, Version, true, 1, Shared, Zero, Zero, 1);
+
+	serverPublishQos1(Producer, Version, "seed", "queued", 1, 0);
+	serverExpectPuback(Producer, Version, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	serverPublishQos2(Producer, Version, Routes[0], "refused", 2, 0, false);
+	serverExpectFlowReply(Producer, Version, 0x50, 2, 0x97);
+	serverPingPeer(Ready);
+	serverPingPeer(Observer);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	serverWaitSessions(&Fixture, 1, 1);
+
+	xrtNetSocketClose(Observer);
+	serverConnections(&Fixture, 2);
+	Slow = serverDial(&Fixture);
+	serverPersistentConnect(Slow, Version, "slow", false, 60, 1, true, 0);
+	serverExpectQos1(Slow, Version, "seed", "queued", 1, 0, NULL, 0);
+	serverAckDelivery(Slow, Version, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xrtNetSocketClose(Slow);
+	serverWaitSessions(&Fixture, 1, 1);
+	serverConnections(&Fixture, 2);
+	Observer = serverDial(&Fixture);
+	serverQos1Connect(Observer, Version, "best");
+	serverSubscribeWire(Observer, Version, true, 1, Shared, Zero, Zero, 1);
+
+	serverPublishQos2(Producer, Version, Routes[0], "accepted", 2, 0, false);
+	serverExpectFlowReply(Producer, Version, 0x50, 2, 0);
+	serverExpectQos1(Ready, Version, Routes[0], "accepted", 1, 0, NULL, 0);
+	serverExpectPublish(Observer, Version, Routes[0], (cbytes)"accepted", 8, NULL, 0);
+	serverAckDelivery(Ready, Version, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	serverReleaseQos2(Producer, Version, 2);
+
+	xrtNetSocketClose(Observer);
+	serverConnections(&Fixture, 2);
+	Slow = serverDial(&Fixture);
+	serverPersistentConnect(Slow, Version, "slow", false, 0, 1, true, 0);
+	serverExpectQos1(Slow, Version, Routes[0], "accepted", 2, 0, NULL, 0);
+	serverAckDelivery(Slow, Version, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xrtNetSocketClose(Slow);
+	xrtNetSocketClose(Ready);
+	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
 static void serverWillConnect(xnetsocket Socket, xmqttversion Version, const char Id[4],
 	const char Name[4], uint32 Expiry, uint8 Delay, uint8 Qos, bool Retain, uint8 Reason)
 {
@@ -2210,6 +2277,59 @@ static void serverOutgoingOom(void)
 	serverStop(&Fixture);
 }
 
+static void serverPreparedDeliveryLifetime(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xmqttserversession* First = xmqttServerNewSession(Fixture.Server, NULL, Version,
+		XRT_STR_LITERAL("one"), true);
+	xmqttserversession* Second = xmqttServerNewSession(Fixture.Server, NULL, Version,
+		XRT_STR_LITERAL("two"), true);
+	unsigned char Wire[128];
+	size_t Bytes = serverPublishQos1Wire(Wire, Version, "fault", "data", 1, 0, NULL, 0);
+	xmqttserverpublication* Frame = xmqttServerCopyPublication((xbytesview){Wire, Bytes}, 2, (xstrview){0});
+	testRequire(First && Second && Frame, "prepared fan-out fixtures");
+	Frame->IdOffset = 9;
+	xrtAtomic32Store(&First->State, XMQTT_SERVER_OFFLINE, XMEMORY_RELAXED);
+	xrtAtomic32Store(&Second->State, XMQTT_SERVER_OFFLINE, XMEMORY_RELAXED);
+
+	xallocationbudget* Budget;
+	xallocationscope Scope = {0};
+	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverdelivery) + Frame->IdOffset + 2, &Budget) &&
+		xrtAllocationBudgetEnter(Budget, &Scope), "prepared fan-out allocation failpoint");
+	xmqttserverdelivery* Batch = NULL;
+	xmqttserverdelivery** Tail = &Batch;
+	uint64 Dropped = 0;
+	testRequire(xmqttServerReserveRouteDelivery(First, Frame, &Tail, &Dropped) && Batch &&
+		!xmqttServerReserveRouteDelivery(Second, Frame, &Tail, &Dropped),
+		"OOM on the second target leaves only the first reservation");
+	testRequire(xrtAllocationBudgetLeave(&Scope) && !First->OfflineQueue && !Second->OfflineQueue,
+		"the reservations are invisible to offline sessions");
+	xmqttServerResolvePrepared(Batch, false);
+	xallocationbudgetinfo Allocation = {.Size = sizeof(Allocation)};
+	testRequire(xrtAllocationBudgetInfo(Budget, &Allocation) && Allocation.Rejections &&
+		!Allocation.LiveBytes && !Allocation.LiveCount, "rollback releases all reservations");
+	xrtClearError();
+	xrtAllocationBudgetFree(Budget);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+
+	Batch = NULL;
+	Tail = &Batch;
+	testRequire(xmqttServerReserveRouteDelivery(First, Frame, &Tail, &Dropped) &&
+		xmqttServerReserveRouteDelivery(Second, Frame, &Tail, &Dropped) && !Dropped,
+		"retry the complete fan-out");
+	xmqttServerFreeSession(First);
+	xmqttServerResolvePrepared(Batch, true);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	testRequire(Second->OfflineQueue && !Second->OfflineQueue->Next,
+		"commit ignores the retired target and queues the other exactly once");
+	xmqttServerFreeSession(Second);
+	xmqttServerFreePublication(Frame, NULL, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverStop(&Fixture);
+}
+
 static void serverRetainedOomAndExpiry(void)
 {
 	serverfixture Fixture;
@@ -2389,6 +2509,7 @@ int main(void)
 	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2Window();
+	serverQos2Admission();
 	serverWillFlows(XMQTT_VERSION_5);
 	serverExpiryTimerAdmission();
 	serverWillTimerPressure();
@@ -2423,6 +2544,7 @@ int main(void)
 	serverWillOom();
 	serverExpiryCloseFullQueue();
 	serverOutgoingOom();
+	serverPreparedDeliveryLifetime();
 	serverTakeoverRoutes(false);
 	serverTakeoverRoutes(true);
 	serverLiveHandoff(false);

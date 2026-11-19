@@ -160,12 +160,24 @@ expire before delivery and the outgoing expiry interval reflects time queued.
 outstanding reliable deliveries. They include cross-worker handoff and native
 buffer ownership. `MaxOutgoingPublishesPerConnection` caps each destination's
 outstanding delivery count. The byte counter charges the full size of each
-packet, including deliveries that share the immutable body. Allocation or quota
-failure ends the affected clean session, increments `OutgoingPublishOverloads`
-and attempts MQTT 5 DISCONNECT 0x97. A packet exceeding the recipient's
-negotiated Maximum Packet Size is discarded. Broker ACKs describe the broker's
-inbound outcome. The previous quota and counter names are aliases for these
-shared QoS 1 and 2 limits.
+packet, including deliveries that share the immutable body. The previous quota
+and counter names are aliases for these shared QoS 1 and 2 limits.
+
+For a new non-retained QoS 2 PUBLISH, the broker reserves all matching eligible
+QoS 1/2 deliveries before forwarding to any subscriber. If an allocation or
+queue limit prevents a reservation, it releases the whole batch and returns
+MQTT 5 PUBREC 0x97 or closes the MQTT 3.1.1 publisher. Affected subscribers
+keep their existing queues. This includes ordinary and selected shared
+subscribers and eligible offline sessions. A reservation stays with the
+chosen session through transport handoff. If that session ends, its
+reservation is discarded. A packet exceeding the recipient's negotiated
+Maximum Packet Size is also discarded.
+
+The per-recipient admission path used by QoS 1, retained publication routing,
+retained replay and Wills applies the destination's overload policy. It
+increments `OutgoingPublishOverloads` and retires the affected session,
+attempting MQTT 5 DISCONNECT 0x97 for a live connection. Broker ACKs describe
+the broker's inbound outcome.
 
 MQTT 5 Session Expiry and MQTT 3.1.1 Clean Session control how long the broker
 keeps a session in memory. `MaxPersistentSessions` bounds the number of retained
