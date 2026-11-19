@@ -16220,3 +16220,40 @@ acceptance remain open. Raw logs, build products and reports are in
 out/service-extensions/scope-reduction-20261119/.
 
 [Stage evidence](../../extlibs/xmqtt/tests/results/server-tcp-handshake-20261119.json).
+
+## 2026-11-19 MQTT exact-topic QoS 0 routing
+
+The broker now handles SUBSCRIBE and UNSUBSCRIBE with packet-ordered results,
+topic authorization, subscription replacement, and MQTT 5 No Local. Sixteen
+keyed topic shards avoid a connection scan and keep the connection gate out
+of publication admission. Matching native send queues share one immutable
+packet per protocol version. The library bounds aggregate subscriptions and
+fan-out and checks both each subscriber's packet limit and XRT write budget.
+An overloaded destination drops its own QoS 0 delivery. Retirement releases
+every subscription and send reference.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5-only and dual-version modular and
+single-header suites, static and shared package consumers, the server dependency
+trim, and a separate Python mixed-version publisher/subscriber process. Tests
+cover ordered forwarding, rejection codes, subscription allocation and index
+OOM, quota recovery, packet caps and native write-budget refusal. Ubuntu/WSL
+passed ASan/UBSan with leak checking and Clang TSan on the dual-version suite.
+
+The two-worker loopback benchmark sends a 128-byte payload and verifies every
+delivery. With restricted CPU affinity, the following values are medians of
+five samples per workload.
+
+| Host | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | Requested XRT blocks per delivery |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | 22,073 | 165.1 | 589.3 | 2.000100 |
+| Windows | 64 | 198,031 | 531.0 | 634.3 | 1.020203 |
+| Ubuntu/WSL | 1 | 11,616 | 138.5 | 237.8 | 3.000100 |
+| Ubuntu/WSL | 64 | 144,932 | 599.0 | 724.9 | 1.032410 |
+
+The benchmark uses one publisher and sequential peer-side collection per round.
+Both unrestricted and restricted-affinity reports exceeded configured variation
+limits on both hosts. Fan-out admission still holds a topic shard during native
+queue submissions. Mixed producers, wildcard routing, QoS 1/2, native Linux
+and sustained-load acceptance remain open.
+
+[Stage evidence](../../extlibs/xmqtt/tests/results/server-exact-qos0-20261119.json).

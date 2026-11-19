@@ -1,0 +1,556 @@
+{
+  "stage": "TCP exact-topic QoS 0 routing",
+  "artifact_directory": "out/service-extensions/scope-reduction-20261119",
+  "source_sha256_lf": {
+    "extlibs/xmqtt/src/server/server.c": "874ec279c74f4c6d6d7ccde64005155643c357126ef95b0ed4c19847f477b8fa",
+    "extlibs/xmqtt/include/xmqtt/server.h": "3ce40acbc8b7b348e9b4865a5ad7093906f731a3d2659fc84601dd844e93f683",
+    "extlibs/xmqtt/tests/test_server.c": "65206872c6f8ebbc2b135ed1fe7b1ab2df6fa8e849587c6ba50cc1a4aeb5271c",
+    "extlibs/xmqtt/tests/interop/run_server_handshake.py": "4560cded492ee2ddef740524d03b4e4821343e9027a4ad0499e46856cfff984f",
+    "extlibs/xmqtt/bench/bench_server.c": "072db2c35034382c0889f45d867259e3a6344d1bd1cf65facc374bdef754ab4d",
+    "extlibs/xmqtt/config/performance_profiles.json": "467cd560be8a9e4f30e953b153fc0c3b53218d873d0f0722a640ec8518bd08eb"
+  },
+  "checks": [
+    "Windows x64 and Ubuntu/WSL x64 standalone MQTT 5 and dual-version modular and single-header suites",
+    "Both static and shared package consumers and the optional server dependency trim on both hosts",
+    "Version-specific native socket, quota, broker capability, close and OOM assertions",
+    "Separate Python process with MQTT 5 and 3.1.1 exact routes in both directions on both hosts",
+    "Ubuntu/WSL ASan/UBSan with leak checking",
+    "Ubuntu/WSL Clang TSan on the dual-version modular socket suite"
+  ],
+  "performance_scope": "Single loopback producer, 128-byte payload, two XRT workers, 1 or 64 verified subscribers",
+  "performance_status": "All benchmark runs delivered every expected payload. The variation gate failed on each host with and without restricted affinity.",
+  "measurements": {
+    "windows_x64": {
+      "unrestricted": {
+        "generated_at": "2026-11-19T09:07:09.111040+00:00",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "affinity": "0xfff/0xfff",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "cflags": [
+          "-O2"
+        ],
+        "warmups": 1,
+        "repeats": 3,
+        "source_revision": "f575188765c7f98ac945e2eb7035054df157b816",
+        "source_fingerprint": "c339044bf5eb63c2ce68fc10ac8c13248c5c7cca2d4aa12e46462d45c05fb4e0",
+        "benchmark_fingerprint": "13b0c9b8af37b6760414505121b3d103564153b27f7219f4cd4531df8c775d67",
+        "quality_violations": 11,
+        "workloads": [
+          {
+            "subscribers": 1,
+            "publications_per_run": 10000,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 26970.709,
+                "samples": [
+                  13695.885,
+                  26970.709,
+                  27243.584
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 35.5,
+                "samples": [
+                  41.1,
+                  35.3,
+                  35.5
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 60.5,
+                "samples": [
+                  541.9,
+                  60.5,
+                  57.8
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 123.8,
+                "samples": [
+                  6110.6,
+                  123.8,
+                  118.3
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 2.0001,
+                "samples": [
+                  2.0001,
+                  2.0001,
+                  2.0001
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          },
+          {
+            "subscribers": 64,
+            "publications_per_run": 512,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 196447.895,
+                "samples": [
+                  196447.895,
+                  212010.202,
+                  194965.687
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 256.3,
+                "samples": [
+                  256.3,
+                  252.3,
+                  269.8
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 545.6,
+                "samples": [
+                  548.1,
+                  480.8,
+                  545.6
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 639.8,
+                "samples": [
+                  663.3,
+                  543.8,
+                  639.8
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 1.020203,
+                "samples": [
+                  1.02005,
+                  1.020325,
+                  1.020203
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          }
+        ]
+      },
+      "restricted_affinity": {
+        "generated_at": "2026-11-19T09:10:48.942537+00:00",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "affinity": "0x555/0xfff",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "cflags": [
+          "-O2"
+        ],
+        "warmups": 1,
+        "repeats": 5,
+        "source_revision": "f575188765c7f98ac945e2eb7035054df157b816",
+        "source_fingerprint": "c339044bf5eb63c2ce68fc10ac8c13248c5c7cca2d4aa12e46462d45c05fb4e0",
+        "benchmark_fingerprint": "13b0c9b8af37b6760414505121b3d103564153b27f7219f4cd4531df8c775d67",
+        "quality_violations": 12,
+        "workloads": [
+          {
+            "subscribers": 1,
+            "publications_per_run": 10000,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 22073.111,
+                "samples": [
+                  20540.874,
+                  22073.111,
+                  20820.771,
+                  23793.939,
+                  24498.93
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 38.9,
+                "samples": [
+                  33.4,
+                  39.5,
+                  42.0,
+                  38.9,
+                  38.7
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 165.1,
+                "samples": [
+                  234.7,
+                  165.1,
+                  168.7,
+                  98.2,
+                  95.6
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 589.3,
+                "samples": [
+                  2544.8,
+                  589.3,
+                  985.9,
+                  351.2,
+                  253.3
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 2.0001,
+                "samples": [
+                  2.0001,
+                  2.0001,
+                  2.0001,
+                  2.0001,
+                  2.0001
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          },
+          {
+            "subscribers": 64,
+            "publications_per_run": 512,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 198031.41,
+                "samples": [
+                  198031.41,
+                  183755.927,
+                  206219.823,
+                  202022.693,
+                  187295.803
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 265.2,
+                "samples": [
+                  262.6,
+                  290.2,
+                  265.2,
+                  261.1,
+                  280.1
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 531.0,
+                "samples": [
+                  546.3,
+                  545.4,
+                  424.5,
+                  496.4,
+                  531.0
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 634.3,
+                "samples": [
+                  655.6,
+                  639.9,
+                  479.5,
+                  596.6,
+                  634.3
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 1.020203,
+                "samples": [
+                  1.020203,
+                  1.020233,
+                  1.020111,
+                  1.020233,
+                  1.020172
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "ubuntu_wsl_x64": {
+      "unrestricted": {
+        "generated_at": "2026-11-19T09:09:01.688062+00:00",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "cflags": [
+          "-O2"
+        ],
+        "warmups": 1,
+        "repeats": 3,
+        "source_revision": "f575188765c7f98ac945e2eb7035054df157b816",
+        "source_fingerprint": "c339044bf5eb63c2ce68fc10ac8c13248c5c7cca2d4aa12e46462d45c05fb4e0",
+        "benchmark_fingerprint": "13b0c9b8af37b6760414505121b3d103564153b27f7219f4cd4531df8c775d67",
+        "quality_violations": 5,
+        "workloads": [
+          {
+            "subscribers": 1,
+            "publications_per_run": 10000,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 11763.711,
+                "samples": [
+                  11763.711,
+                  11551.591,
+                  11963.64
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 80.2,
+                "samples": [
+                  80.2,
+                  81.5,
+                  79.8
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 136.3,
+                "samples": [
+                  135.9,
+                  138.5,
+                  136.3
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 236.8,
+                "samples": [
+                  236.8,
+                  258.0,
+                  199.8
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 3.0001,
+                "samples": [
+                  3.0001,
+                  3.0002,
+                  3.0
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          },
+          {
+            "subscribers": 64,
+            "publications_per_run": 512,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 146114.031,
+                "samples": [
+                  145407.493,
+                  150253.687,
+                  146114.031
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 329.699,
+                "samples": [
+                  330.2,
+                  319.6,
+                  329.699
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 577.0,
+                "samples": [
+                  593.3,
+                  547.8,
+                  577.0
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 683.0,
+                "samples": [
+                  707.6,
+                  636.0,
+                  683.0
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 1.032471,
+                "samples": [
+                  1.032471,
+                  1.032227,
+                  1.032471
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          }
+        ]
+      },
+      "restricted_affinity": {
+        "generated_at": "2026-11-19T09:11:28.864400+00:00",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "affinity": "0,2,4,6,8,10",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "cflags": [
+          "-O2"
+        ],
+        "warmups": 1,
+        "repeats": 5,
+        "source_revision": "f575188765c7f98ac945e2eb7035054df157b816",
+        "source_fingerprint": "c339044bf5eb63c2ce68fc10ac8c13248c5c7cca2d4aa12e46462d45c05fb4e0",
+        "benchmark_fingerprint": "13b0c9b8af37b6760414505121b3d103564153b27f7219f4cd4531df8c775d67",
+        "quality_violations": 8,
+        "workloads": [
+          {
+            "subscribers": 1,
+            "publications_per_run": 10000,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 11616.167,
+                "samples": [
+                  10055.487,
+                  10763.631,
+                  11616.167,
+                  11880.175,
+                  11782.029
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 81.4,
+                "samples": [
+                  91.7,
+                  88.4,
+                  81.4,
+                  80.6,
+                  81.1
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 138.5,
+                "samples": [
+                  202.3,
+                  166.7,
+                  138.0,
+                  138.5,
+                  133.4
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 237.8,
+                "samples": [
+                  944.3,
+                  356.8,
+                  237.8,
+                  196.7,
+                  202.0
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 3.0001,
+                "samples": [
+                  3.0001,
+                  3.0001,
+                  3.0,
+                  3.0002,
+                  3.0001
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          },
+          {
+            "subscribers": 64,
+            "publications_per_run": 512,
+            "workers": 2,
+            "metrics": {
+              "deliveries_per_sec": {
+                "median": 144932.081,
+                "samples": [
+                  147182.337,
+                  146853.124,
+                  144932.081,
+                  138063.357,
+                  135982.033
+                ],
+                "unit": "deliveries/s"
+              },
+              "delivery_p50_us": {
+                "median": 332.3,
+                "samples": [
+                  324.5,
+                  331.6,
+                  332.3,
+                  347.4,
+                  355.8
+                ],
+                "unit": "us"
+              },
+              "delivery_p99_us": {
+                "median": 599.0,
+                "samples": [
+                  632.9,
+                  548.5,
+                  599.0,
+                  587.9,
+                  610.3
+                ],
+                "unit": "us"
+              },
+              "delivery_p999_us": {
+                "median": 724.9,
+                "samples": [
+                  734.6,
+                  636.4,
+                  691.9,
+                  784.9,
+                  724.9
+                ],
+                "unit": "us"
+              },
+              "xrt_requested_blocks_per_delivery": {
+                "median": 1.03241,
+                "samples": [
+                  1.032349,
+                  1.032288,
+                  1.03241,
+                  1.03241,
+                  1.032532
+                ],
+                "unit": "blocks/delivery"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

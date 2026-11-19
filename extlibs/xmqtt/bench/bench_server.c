@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static bool benchSend(xnetsocket Socket, const unsigned char* Data, size_t Size)
 {
@@ -42,6 +43,35 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		benchReceive(Socket, Reply + 2, Reply[1]) && !Reply[2] && !Reply[3];
 }
 
+static bool benchSubscribe(xnetsocket Socket)
+{
+	const unsigned char Request[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
+	const unsigned char Ack[] = {0x90,4,0,1,0,0};
+	unsigned char Reply[sizeof(Ack)];
+	return benchSend(Socket, Request, sizeof(Request)) && benchReceive(Socket, Reply, sizeof(Reply)) &&
+		memcmp(Reply, Ack, sizeof(Ack)) == 0;
+}
+
+static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, double* Samples)
+{
+	/* MQTT 5 packet with 128 bytes of binary payload and no properties. */
+	unsigned char Frame[138] = {0x30,0x87,1,0,4,'l','o','a','d',0};
+	Frame[sizeof(Frame)-4] = (uint8)(Round >> 24);
+	Frame[sizeof(Frame)-3] = (uint8)(Round >> 16);
+	Frame[sizeof(Frame)-2] = (uint8)(Round >> 8);
+	Frame[sizeof(Frame)-1] = (uint8)Round;
+	double SentAt = xrtTimer();
+	if (!benchSend(Sockets[Peers], Frame, sizeof(Frame))) return false;
+	size_t First = Round % Peers;
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		unsigned char Reply[sizeof(Frame)];
+		if (!benchReceive(Sockets[(First + Offset) % Peers], Reply, sizeof(Reply)) ||
+			memcmp(Reply, Frame, sizeof(Frame))) return false;
+		Samples[Offset] = xrtTimer() - SentAt;
+	}
+	return true;
+}
+
 static int benchOrder(const void* Left, const void* Right)
 {
 	double A = *(const double*)Left, B = *(const double*)Right;
@@ -61,9 +91,10 @@ int main(int Argc, char** Argv)
 	unsigned Workers = Argc > 3 ? strtoul(Argv[3], NULL, 10) : 2;
 	if (Peers < 1 || Peers > 4096 || Rounds < 1 || Rounds > 10000 || Workers < 1 || Workers > 32)
 		return 1;
-	const size_t Count = Peers * Rounds;
-	xnetsocket* Sockets = calloc(Peers, sizeof(*Sockets));
-	double* ConnectSamples = malloc(Peers * sizeof(*ConnectSamples));
+	bool Routing = Argc > 4 && !strcmp(Argv[4], "route");
+	const size_t Connections = Peers + Routing, Count = Peers * Rounds;
+	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
+	double* ConnectSamples = malloc(Connections * sizeof(*ConnectSamples));
 	double* SentAt = malloc(Peers * sizeof(*SentAt));
 	double* PingSamples = malloc(Count * sizeof(*PingSamples));
 	serverexample Example = {0};
@@ -73,13 +104,14 @@ int main(int Argc, char** Argv)
 
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
-	Config.MaxConnections = Peers;
+	Config.MaxConnections = Connections;
+	if (Routing) Config.MaxSubscribersPerTopic = Peers;
 	Stage = "start listener";
 	if (!exampleServerStart(&Example, &Config, Workers)) goto Done;
 
 	Stage = "connect and receive CONNACK";
 	double Start = xrtTimer();
-	for (size_t Index = 0; Index < Peers; ++Index) {
+	for (size_t Index = 0; Index < Connections; ++Index) {
 		double Attempt = xrtTimer();
 		Sockets[Index] = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
 		if (!Sockets[Index] || !benchConnect(Sockets[Index], &Example.Address, Index)) goto Done;
@@ -87,12 +119,22 @@ int main(int Argc, char** Argv)
 	}
 	double ConnectSeconds = xrtTimer() - Start;
 
-	Stage = "send PING and receive PINGRESP";
+	if (Routing) {
+		Stage = "subscribe exact topic";
+		for (size_t Index = 0; Index < Peers; ++Index) {
+			if (!benchSubscribe(Sockets[Index])) goto Done;
+		}
+	}
+	Stage = Routing ? "publish and verify fan-out" : "send PING and receive PINGRESP";
 	xmemstats Before, After;
 	xrtMemStatsEnable(true);
 	xrtMemStatsGet(&Before);
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
+		if (Routing) {
+			if (!benchPublishRound(Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
+			continue;
+		}
 		/* Rotate the first connection to spread sequential peer-side work. */
 		size_t First = Round % Peers;
 		for (size_t Offset = 0; Offset < Peers; ++Offset) {
@@ -112,14 +154,25 @@ int main(int Argc, char** Argv)
 	xrtMemStatsGet(&After);
 	xrtMemStatsEnable(false);
 	if (!(ConnectSeconds > 0) || !(PingSeconds > 0)) goto Done;
-	qsort(ConnectSamples, Peers, sizeof(*ConnectSamples), benchOrder);
+	qsort(ConnectSamples, Connections, sizeof(*ConnectSamples), benchOrder);
 	qsort(PingSamples, Count, sizeof(*PingSamples), benchOrder);
-	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\npings_per_sec: %.3f\n"
-		"ping_p50_us: %.3f\nping_p99_us: %.3f\nping_p999_us: %.3f\n"
-		"xrt_requested_blocks_per_ping: %.6f\n",
-		(double)Peers / ConnectSeconds, benchPercentile(ConnectSamples, Peers, 0.99),
-		(double)Count / PingSeconds, benchPercentile(PingSamples, Count, 0.5),
-		benchPercentile(PingSamples, Count, 0.99), benchPercentile(PingSamples, Count, 0.999),
+	if (Routing) {
+		const unsigned char Ping[] = {0xc0,0};
+		unsigned char Pong[2];
+		xmqttserverinfo Info;
+		if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
+			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count || Info.DroppedDeliveries ||
+			Info.Subscriptions != Peers) goto Done;
+	}
+	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\n",
+		(double)Connections / ConnectSeconds, benchPercentile(ConnectSamples, Connections, 0.99));
+	printf("%s: %.3f\n%s_p50_us: %.3f\n%s_p99_us: %.3f\n%s_p999_us: %.3f\n"
+		"xrt_requested_blocks_per_%s: %.6f\n",
+		Routing ? "deliveries_per_sec" : "pings_per_sec", (double)Count / PingSeconds,
+		Routing ? "delivery" : "ping", benchPercentile(PingSamples, Count, 0.5),
+		Routing ? "delivery" : "ping", benchPercentile(PingSamples, Count, 0.99),
+		Routing ? "delivery" : "ping", benchPercentile(PingSamples, Count, 0.999),
+		Routing ? "delivery" : "ping",
 		(double)(After.BlockAllocCalls - Before.BlockAllocCalls) / (double)Count);
 	OK = true;
 
@@ -136,7 +189,7 @@ Done:
 		OK = false;
 	}
 	if (Sockets) {
-		for (size_t Index = 0; Index < Peers; ++Index) if (Sockets[Index]) xrtNetSocketClose(Sockets[Index]);
+		for (size_t Index = 0; Index < Connections; ++Index) if (Sockets[Index]) xrtNetSocketClose(Sockets[Index]);
 	}
 	free(PingSamples);
 	free(SentAt);

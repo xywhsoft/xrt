@@ -1,4 +1,4 @@
-"""Exercise the standalone MQTT TCP server with a separate literal-wire peer."""
+"""Exercise the standalone MQTT TCP server and exact routes with a separate peer."""
 import argparse
 import json
 from pathlib import Path
@@ -39,6 +39,47 @@ def connect(endpoint, level, client_id):
     return sock, ack.hex()
 
 
+def small_frame(kind, data):
+    assert len(data) < 128
+    return bytes((kind, len(data))) + data
+
+
+def topic(name):
+    return struct.pack("!H", len(name)) + name
+
+
+def check_routes(legacy, modern):
+    name = b"Case/test"
+    payload = b"independent\0\xff"
+    properties = b"\x04\x03\0\x01x"
+
+    legacy.sendall(small_frame(0x82, b"\0\1" + topic(name) + b"\x02"))
+    assert read(legacy, 5) == b"\x90\x03\0\1\0"
+    modern.sendall(small_frame(0x82, b"\0\2\0" + topic(name) + b"\x04"))
+    assert read(modern, 6) == b"\x90\x04\0\2\0\0"
+
+    modern.sendall(small_frame(0x30, topic(name) + properties + payload) + b"\xc0\0")
+    forwarded = small_frame(0x30, topic(name) + payload)
+    assert read(legacy, len(forwarded)) == forwarded
+    assert read(modern, 2) == b"\xd0\0", "No Local must exclude the publishing client"
+
+    legacy.sendall(small_frame(0x30, topic(name) + payload))
+    forwarded = small_frame(0x30, topic(name) + b"\0" + payload)
+    assert read(modern, len(forwarded)) == forwarded
+    forwarded = small_frame(0x30, topic(name) + payload)
+    assert read(legacy, len(forwarded)) == forwarded
+    modern.sendall(small_frame(0xa2, b"\0\3\0" + topic(name)))
+    assert read(modern, 6) == b"\xb0\x04\0\3\0\0"
+
+    wrong_case = small_frame(0x30, topic(name.lower()) + payload)
+    legacy.sendall(wrong_case + b"\xc0\0")
+    assert read(legacy, 2) == b"\xd0\0", "exact filters preserve case"
+    legacy.sendall(small_frame(0x30, topic(name) + payload))
+    assert read(legacy, len(forwarded)) == forwarded
+    modern.sendall(b"\xc0\0")
+    assert read(modern, 2) == b"\xd0\0", "unsubscribed connection must stop receiving"
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -66,6 +107,7 @@ def probe(program):
                         eof(preserved)
                         legacy.sendall(b"\xc0\0")
                         assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
+                        check_routes(legacy, newer)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -75,7 +117,8 @@ def probe(program):
             if server.poll() is None:
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
-            "takeover_connack": duplicate, "remaining_peer_ping": True}
+            "takeover_connack": duplicate, "remaining_peer_ping": True,
+            "dual_version_routes": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -86,7 +129,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, coalesced PING and Client ID takeover")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover and exact-topic routing")
 
 
 if __name__ == "__main__":
