@@ -49,6 +49,59 @@ static void testMqttVbi(void)
 		"MQTT fourth continuation bit waited for fifth byte"); xrtClearError();
 }
 
+static void testMqttConnectVersion(void)
+{
+	for (unsigned Level = 4; Level <= 5; ++Level) {
+		unsigned char Connect[] = {0x10, 14, 0, 4, 'M', 'Q', 'T', 'T', (unsigned char)Level};
+		for (size_t Prefix = 0; Prefix <= sizeof(Connect); ++Prefix) {
+			xmqttversion Version = (xmqttversion)77;
+			xmqttwirestatus Status = xmqttConnectVersionRead(mqttBytes(Connect, Prefix), 16, &Version);
+			testRequire(Prefix < sizeof(Connect) ? (Status == XMQTT_WIRE_MORE && Version == (xmqttversion)77) :
+				(Status == XMQTT_WIRE_DONE && Version == (xmqttversion)Level),
+				"CONNECT version selection at every prefix without the full packet");
+		}
+	}
+	static const struct {
+		unsigned char Wire[14];
+		size_t Bytes, Limit;
+		xerrkind Kind;
+	} Bad[] = {
+		{{0xc0}, 1, 16, XERR_PROTOCOL}, /* Wrong first packet. */
+		{{0x11}, 1, 16, XERR_PROTOCOL}, /* Invalid CONNECT flags. */
+		{{0x10, 0x80, 0x80, 0x80, 0x80}, 5, 16, XERR_PROTOCOL},
+		{{0x10, 14}, 2, 15, XERR_RANGE},
+		{{0x10, 4, 0, 4, 'M', 'Q', 'T', 'T', 5}, 9, 16, XERR_PROTOCOL},
+		{{0x10, 14, 0, 4, 'M', 'Q', 'T', 'T', 6}, 9, 16, XERR_UNSUPPORTED},
+		{{0x10, 14, 0, 4, 'M', 'Q', 'T', 'X', 5}, 9, 16, XERR_UNSUPPORTED},
+		{{0x10, 0x8e, 0, 0, 4, 'M', 'Q', 'T', 'T', 5}, 10, 17, XERR_PROTOCOL},
+	};
+	for (size_t Index = 0; Index < sizeof(Bad)/sizeof(Bad[0]); ++Index) {
+		xmqttversion Version = (xmqttversion)77;
+		testRequire(xmqttConnectVersionRead(mqttBytes(Bad[Index].Wire, Bad[Index].Bytes),
+			Bad[Index].Limit, &Version) == XMQTT_WIRE_ERROR && Version == (xmqttversion)77 &&
+			xrtErrorKind(xrtGetError()) == Bad[Index].Kind, "invalid CONNECT prefix preserves output");
+		xrtClearError();
+	}
+	const unsigned char Compatible[] = {0x10, 0x8e, 0, 0, 4, 'M', 'Q', 'T', 'T', 4};
+	xmqttversion Version = (xmqttversion)77;
+	testRequire(xmqttConnectVersionRead(mqttBytes(Compatible, sizeof(Compatible)), 17, &Version) ==
+		XMQTT_WIRE_DONE && Version == XMQTT_VERSION_311, "3.1.1 keeps the compatibility VBI framing");
+	const unsigned char Large[] = {0x10, 0x80, 0x80, 0x80, 1, 0, 4, 'M', 'Q', 'T', 'T', 5};
+	testRequire(xmqttConnectVersionRead(mqttBytes(Large, sizeof(Large)), XMQTT_PACKET_MAX_BYTES, &Version) ==
+		XMQTT_WIRE_DONE && Version == XMQTT_VERSION_5, "canonical long Remaining Length needs only a prefix");
+	Version = XMQTT_VERSION_311;
+	xrtSetErrorInfo(XERR_STATE, "test", 22, "preceding diagnostic");
+	const xerror* Previous = xrtGetError();
+	testRequire(xmqttConnectVersionRead(mqttBytes(Compatible, 2), 17, &Version) == XMQTT_WIRE_MORE &&
+		xmqttConnectVersionRead(mqttBytes(Compatible, sizeof(Compatible)), 17, &Version) ==
+		XMQTT_WIRE_DONE && xrtGetError() == Previous, "fragmented and complete prefix preserve diagnostics");
+	xrtClearError();
+	testRequire(xmqttConnectVersionRead(mqttBytes(&Version, sizeof(Version)), 17, &Version) ==
+		XMQTT_WIRE_ERROR && Version == XMQTT_VERSION_311 && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+		"aliased CONNECT version output rejected");
+	xrtClearError();
+}
+
 static bool mqttHeaderAllowed(unsigned First, unsigned Version)
 {
 	static const unsigned char Allowed[] = {0x10,0x20,0x30,0x31,0x32,0x33,0x34,0x35,0x3a,0x3b,0x3c,0x3d,0x40,0x50,0x62,0x70,0x82,0x90,0xa2,0xb0,0xc0,0xd0,0xe0,0xf0};
@@ -283,6 +336,8 @@ static void testMqttMutations(void)
 static void testMqttAllocation(void)
 {
 	static const unsigned char Packet[] = {0x32,0x0f,0,3,'a','/','b',0,1,0,'p','a','y','l','o','a','d'};
+	static const unsigned char Connect[] = {0x10,13,0,4,'M','Q','T','T',5};
+	xmqttversion Version = XMQTT_VERSION_311;
 	unsigned char Output[128]; size_t Written, Read; uint32 Number; xmqttframe Frame; xstrview Text; xbytesview Binary;
 	testRequire(xmqttFrameRead(mqttBytes(Packet,sizeof(Packet)),NULL,&Frame) == XMQTT_WIRE_DONE, "MQTT allocation fixture");
 	xrtSetErrorInfo(XERR_VALUE,"xrt.test",777,"ambient"); const xerror* Ambient = xrtGetError();
@@ -295,7 +350,10 @@ static void testMqttAllocation(void)
 			xmqttUtf8StringWrite(Output,sizeof(Output),Text,0,&Written) && xmqttBinaryRead(mqttBytes(Output,Written),&Binary,&Read) == XMQTT_WIRE_DONE &&
 			xmqttBinaryWrite(Output,sizeof(Output),mqttBytes(Packet,3),&Written) && xmqttVbiWrite(Output,sizeof(Output),16384,&Written) &&
 			xmqttVbiRead(mqttBytes(Output,Written),XMQTT_VERSION_5,&Number,&Read) == XMQTT_WIRE_DONE &&
-			xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) && xrtGetError() == Ambient, "MQTT warm success changed ambient error");
+			xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) &&
+			xmqttConnectVersionRead(mqttBytes(Connect,2),15,&Version) == XMQTT_WIRE_MORE &&
+			xmqttConnectVersionRead(mqttBytes(Connect,sizeof(Connect)),15,&Version) == XMQTT_WIRE_DONE &&
+			Version == XMQTT_VERSION_5 && xrtGetError() == Ambient, "MQTT warm success changed ambient error");
 	}
 	#if defined(XRT_FEATURE_MEMORY_STATS)
 	xrtMemStatsGet(&After); xrtMemStatsEnable(false);
@@ -307,6 +365,10 @@ static void testMqttAllocation(void)
 		xmqttFrameRead(mqttBytes(Packet,sizeof(Packet)),NULL,&Frame) == XMQTT_WIRE_DONE, "MQTT wire success under quota");
 	memset(Output,0xa5,sizeof(Output)); Written = 54321;
 	testRequire(!xmqttUtf8StringWrite(Output,sizeof(Output),XRT_STR_LITERAL("a\x00"),0,&Written) && Written == 54321 && Output[0] == 0xa5 && xrtErrorKind(xrtGetError()) == XERR_MEMORY, "MQTT diagnostic OOM changed output");
+	const unsigned char Invalid[] = {0x10, 6};
+	testRequire(xmqttConnectVersionRead(mqttBytes(Invalid,sizeof(Invalid)),15,&Version) == XMQTT_WIRE_ERROR &&
+		Version == XMQTT_VERSION_5 && xrtErrorKind(xrtGetError()) == XERR_MEMORY,
+		"CONNECT diagnostic OOM preserves the version");
 	testRequire(xrtAllocationBudgetLeave(&Scope), "MQTT quota leave"); xallocationbudgetinfo Info = {0}; Info.Size = sizeof(Info);
 	testRequire(xrtAllocationBudgetInfo(Budget,&Info) && Info.LiveBytes == 0 && Info.Rejections != 0, "MQTT wire quota leak");
 	xrtClearError(); xrtAllocationBudgetFree(Budget);
@@ -314,6 +376,6 @@ static void testMqttAllocation(void)
 
 int main(void)
 {
-	testMqttVbi(); testMqttHeaders(); testMqttFrames(); testMqttUtf8(); testMqttFields(); testMqttWriteFailures(); testMqttApi(); testMqttMutations(); testMqttAllocation();
-	printf("[PASS] xmqtt wire: versions/VBI/flags/frame-bounds/Unicode/binary/atomicity/zero-heap/OOM\n"); return 0;
+	testMqttVbi(); testMqttConnectVersion(); testMqttHeaders(); testMqttFrames(); testMqttUtf8(); testMqttFields(); testMqttWriteFailures(); testMqttApi(); testMqttMutations(); testMqttAllocation();
+	printf("[PASS] xmqtt wire: CONNECT prefix/versions/VBI/flags/frame-bounds/Unicode/binary/atomicity/zero-heap/OOM\n"); return 0;
 }

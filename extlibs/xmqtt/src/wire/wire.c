@@ -184,6 +184,48 @@ XMQTT_API xmqttwirestatus xmqttFrameRead(xbytesview Input, const xmqttwireconfig
 	return XMQTT_WIRE_DONE;
 }
 
+XMQTT_API xmqttwirestatus xmqttConnectVersionRead(xbytesview Input, size_t MaxPacketBytes,
+	xmqttversion* Version)
+{
+	if (!xmqttWireSpan(Input) || !xmqttWireReadOutput(Version, sizeof(*Version), Input))
+		return XMQTT_WIRE_ERROR;
+	if (MaxPacketBytes < 2u || MaxPacketBytes > XMQTT_PACKET_MAX_BYTES) {
+		xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid MQTT CONNECT packet limit");
+		return XMQTT_WIRE_ERROR;
+	}
+	if (Input.Size == 0) return XMQTT_WIRE_MORE;
+	if (Input.Data[0] != 0x10u) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "first MQTT packet must be CONNECT with zero flags");
+		return XMQTT_WIRE_ERROR;
+	}
+
+	/* Read Remaining Length under the more permissive framing rules until
+	 * the level is known. A redundant terminal zero is illegal for MQTT 5. */
+	const xmqttwireconfig Config = {sizeof(Config), XMQTT_VERSION_311, MaxPacketBytes};
+	xmqttfixedheader Header;
+	xmqttwirestatus Status = xmqttInternalHeader(Input, &Config, &Header, NULL);
+	if (Status != XMQTT_WIRE_DONE) return Status;
+	if (Header.RemainingLength < 7u) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "MQTT CONNECT protocol prefix crosses packet boundary");
+		return XMQTT_WIRE_ERROR;
+	}
+	if (Input.Size - Header.HeaderBytes < 7u) return XMQTT_WIRE_MORE;
+	const unsigned char* Body = Input.Data + Header.HeaderBytes;
+	const unsigned char Protocol[] = {0, 4, 'M', 'Q', 'T', 'T'};
+	if (memcmp(Body, Protocol, sizeof(Protocol)) || !xmqttWireVersion((xmqttversion)Body[sizeof(Protocol)])) {
+		xmqttWireFail(XERR_UNSUPPORTED, XMQTT_WIRE_VERSION, "unsupported MQTT CONNECT protocol");
+		return XMQTT_WIRE_ERROR;
+	}
+
+	xmqttversion Level = (xmqttversion)Body[sizeof(Protocol)];
+	if (Level == XMQTT_VERSION_5 && Header.HeaderBytes > 2u && Input.Data[Header.HeaderBytes-1u] == 0) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "MQTT 5 variable integer is not minimally encoded");
+		return XMQTT_WIRE_ERROR;
+	}
+	*Version = Level;
+	return XMQTT_WIRE_DONE;
+}
+
 static bool xmqttWireUtf8Flags(uint32 Flags)
 {
 	if (Flags & ~XMQTT_UTF8_REJECT_DISALLOWED)

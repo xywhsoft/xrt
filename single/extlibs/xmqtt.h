@@ -819,7 +819,7 @@ typedef enum xmqttwirestatus {
 
 typedef enum xmqttwireerror {
 	XMQTT_WIRE_ARGUMENT = 1001, XMQTT_WIRE_MALFORMED, XMQTT_WIRE_LIMIT,
-	XMQTT_WIRE_CAPACITY, XMQTT_WIRE_UTF8
+	XMQTT_WIRE_CAPACITY, XMQTT_WIRE_UTF8, XMQTT_WIRE_VERSION
 } xmqttwireerror;
 
 typedef struct xmqttwireconfig {
@@ -881,6 +881,17 @@ XMQTT_API bool xmqttHeaderWrite(ptr Output, size_t Capacity, xmqttpackettype Typ
  * Header/size failures are detected without inspecting/copying the body. */
 XMQTT_API xmqttwirestatus xmqttFrameRead(xbytesview Input,
 	const xmqttwireconfig* Config, xmqttframe* Frame);
+
+/* Select the codec for an accepted connection from its first CONNECT prefix.
+ * MaxPacketBytes is 2..XMQTT_PACKET_MAX_BYTES. Check the fixed-header limit
+ * before buffering the body. DONE recognizes protocol level 4 or 5 as soon
+ * as it is readable, even if the rest of CONNECT has not arrived. Decode and
+ * validate the complete CONNECT with the selected codec before accepting it.
+ * The prefix never crosses into a following packet. MORE and ERROR leave
+ * Version unchanged. Unsupported protocol names and levels use XMQTT_WIRE_VERSION.
+ * MQTT 5 rejects nonminimal Remaining Length; 3.1.1 follows xmqttVbiRead. */
+XMQTT_API xmqttwirestatus xmqttConnectVersionRead(xbytesview Input, size_t MaxPacketBytes,
+	xmqttversion* Version);
 
 /* MQTT length-prefixed string data (<=65535 bytes), excluding its two-byte
  * prefix. Always require well-formed Unicode scalar UTF-8 and reject U+0000.
@@ -4450,6 +4461,48 @@ XMQTT_API xmqttwirestatus xmqttFrameRead(xbytesview Input, const xmqttwireconfig
 	if (Status != XMQTT_WIRE_DONE) return Status;
 	if (Input.Size < Header.PacketBytes) return XMQTT_WIRE_MORE;
 	*Frame = (xmqttframe){Header, {Input.Data, Header.PacketBytes}, {Input.Data+Header.HeaderBytes, Header.RemainingLength}};
+	return XMQTT_WIRE_DONE;
+}
+
+XMQTT_API xmqttwirestatus xmqttConnectVersionRead(xbytesview Input, size_t MaxPacketBytes,
+	xmqttversion* Version)
+{
+	if (!xmqttWireSpan(Input) || !xmqttWireReadOutput(Version, sizeof(*Version), Input))
+		return XMQTT_WIRE_ERROR;
+	if (MaxPacketBytes < 2u || MaxPacketBytes > XMQTT_PACKET_MAX_BYTES) {
+		xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid MQTT CONNECT packet limit");
+		return XMQTT_WIRE_ERROR;
+	}
+	if (Input.Size == 0) return XMQTT_WIRE_MORE;
+	if (Input.Data[0] != 0x10u) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "first MQTT packet must be CONNECT with zero flags");
+		return XMQTT_WIRE_ERROR;
+	}
+
+	/* Read Remaining Length under the more permissive framing rules until
+	 * the level is known. A redundant terminal zero is illegal for MQTT 5. */
+	const xmqttwireconfig Config = {sizeof(Config), XMQTT_VERSION_311, MaxPacketBytes};
+	xmqttfixedheader Header;
+	xmqttwirestatus Status = xmqttInternalHeader(Input, &Config, &Header, NULL);
+	if (Status != XMQTT_WIRE_DONE) return Status;
+	if (Header.RemainingLength < 7u) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "MQTT CONNECT protocol prefix crosses packet boundary");
+		return XMQTT_WIRE_ERROR;
+	}
+	if (Input.Size - Header.HeaderBytes < 7u) return XMQTT_WIRE_MORE;
+	const unsigned char* Body = Input.Data + Header.HeaderBytes;
+	const unsigned char Protocol[] = {0, 4, 'M', 'Q', 'T', 'T'};
+	if (memcmp(Body, Protocol, sizeof(Protocol)) || !xmqttWireVersion((xmqttversion)Body[sizeof(Protocol)])) {
+		xmqttWireFail(XERR_UNSUPPORTED, XMQTT_WIRE_VERSION, "unsupported MQTT CONNECT protocol");
+		return XMQTT_WIRE_ERROR;
+	}
+
+	xmqttversion Level = (xmqttversion)Body[sizeof(Protocol)];
+	if (Level == XMQTT_VERSION_5 && Header.HeaderBytes > 2u && Input.Data[Header.HeaderBytes-1u] == 0) {
+		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "MQTT 5 variable integer is not minimally encoded");
+		return XMQTT_WIRE_ERROR;
+	}
+	*Version = Level;
 	return XMQTT_WIRE_DONE;
 }
 

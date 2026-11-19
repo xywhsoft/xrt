@@ -127,6 +127,10 @@ int main(void)
        xmqttReconnectSubscriptionsInfo(NULL,NULL) || xmqttReconnectSubscriptionInfo(NULL,(xstrview){0},NULL))return 32;
     xrtClearError();
 #endif
+	const unsigned char ConnectName[] = {0x10,13,0,4,'M','Q','T','T',5};
+	xmqttversion AcceptedVersion = XMQTT_VERSION_311;
+	if (xmqttConnectVersionRead((xbytesview){ConnectName,sizeof(ConnectName)},15,&AcceptedVersion) != XMQTT_WIRE_DONE ||
+		AcceptedVersion != XMQTT_VERSION_5) return 33;
 	unsigned char Output[128]; size_t Written; xmqttframe Frame;
 	if (!xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) || Written != 2 ||
 		xmqttFrameRead((xbytesview){Output,Written},NULL,&Frame) != XMQTT_WIRE_DONE || Frame.Header.Type != XMQTT_PACKET_PINGREQ) return 1;

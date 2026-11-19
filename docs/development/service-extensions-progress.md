@@ -16152,3 +16152,20 @@ and whole-product dependency trims. The Windows static and Ubuntu/WSL shared
 consumers linked and ran with both options selected. The trim pass includes the
 previously saved MQTT dependency guard edits. Evidence is under
 out/service-extensions/scope-reduction-20261119/.
+
+## 2026-11-19 MQTT accepted connection protocol prefix
+
+The wire module selects MQTT 5.0 or 3.1.1 from up to 12 bytes of CONNECT.
+It rejects oversized packet declarations before the body is buffered. The
+selected existing codec still validates the complete packet before acceptance.
+The tests cover fragmented input, incorrect first packets, unknown protocols,
+declared packet boundaries, compatibility integer forms, zero allocations and
+diagnostic OOM. Windows x64 and Ubuntu/WSL x64 passed modular and single-header
+wire and codec tests, and the wire example. Ubuntu/WSL passed ASan/UBSan.
+The Windows shared and Ubuntu/WSL static wire consumers passed.
+
+The reconnect change at 0bdf6c94 also passed 12 real-broker TCP replay cases with
+Mosquitto 2.0.22 on the Windows and Ubuntu/WSL client builds, covering both
+protocol levels and a cut at PUBACK, PUBREC or PUBCOMP. The broker report and
+wire logs are under out/service-extensions/scope-reduction-20261119/.
+The broker runtime, server-side QoS/routing and load acceptance are open.

@@ -3,6 +3,13 @@
 
 int main(void)
 {
+	/* An accepted connection can select a decoder before the CONNECT body arrives. */
+	const unsigned char ConnectPrefix[] = {0x10,13,0,4,'M','Q','T','T',5};
+	xmqttversion Version;
+	if (xmqttConnectVersionRead((xbytesview){ConnectPrefix,sizeof(ConnectPrefix)},1024,&Version) != XMQTT_WIRE_DONE)
+		return 3;
+	printf("CONNECT protocol level=%d\n",(int)Version);
+
 	/* Offline example: no broker, network, heap-owned result or cleanup needed.
 	 * Inspect two coalesced MQTT 5.0 PING packets using borrowed frame views. */
 	const unsigned char Input[] = {0xc0,0,0xd0,0}; size_t Position = 0;

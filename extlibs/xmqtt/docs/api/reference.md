@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `212` 个函数、`305` 个常量或宏、
+当前登记 `213` 个函数、`306` 个常量或宏、
 `124` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -1051,10 +1051,11 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/wire.h)
 
-### 函数 (11)
+### 函数 (12)
 
 - `xmqttBinaryRead`
 - `xmqttBinaryWrite`
+- `xmqttConnectVersionRead`
 - `xmqttFrameRead`
 - `xmqttHeaderRead`
 - `xmqttHeaderWrite`
@@ -1065,7 +1066,7 @@
 - `xmqttVbiWrite`
 - `xmqttWireConfigInit`
 
-### 常量与宏 (33)
+### 常量与宏 (34)
 
 - `XMQTT_CLIENT_TO_SERVER`
 - `XMQTT_PACKET_AUTH`
@@ -1100,6 +1101,7 @@
 - `XMQTT_WIRE_MALFORMED`
 - `XMQTT_WIRE_MORE`
 - `XMQTT_WIRE_UTF8`
+- `XMQTT_WIRE_VERSION`
 
 ### 类型 (5)
 
