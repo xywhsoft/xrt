@@ -17462,3 +17462,42 @@ Raw evidence is under
 `out/service-extensions/scope-reduction-20261119/xredis-app-sentinel-replicas/`.
 The strict xredis gate reports 32 developing modules. Native Linux and the
 72-hour mixed-load acceptance remain open.
+
+## 2026-11-20 xredis COMMAND catalogue and route selection owned by the APP
+
+The runnable examples parse an application-selected COMMAND or COMMAND INFO
+reply, own a bounded immutable command catalogue, and compute a common key
+slot before calling the native client. The full reply can be released after
+construction. The catalogue saves only names, keywords and lookup data. The
+examples retain typed preflight decisions and require an explicit keyless
+fallback slot and finite timeout. The adapter charges evaluation to that
+timeout before handing the remaining milliseconds to the native operation.
+
+The library shrank by 334 lines under src. It retains the public key-to-slot
+helper, asynchronous and synchronous explicit-slot calls, bounded admission,
+MOVED/ASK recovery and native Future ownership. Three former feature leaves
+became APP build targets. Generated headers and static/shared symbol checks
+confirm that catalogue and automatic dispatch are outside the shipped API.
+
+Windows x64 and Ubuntu/WSL x64 passed the four modular migration tests,
+five selected single-header tests and five runnable examples. The existing
+pool, reconnect, Pub/Sub, Tracking and subscription suites passed on both
+platforms. Static and shared package consumers passed on both. Five selected WSL
+single-header tests passed ASan/UBSan with leak detection. A Redis
+8.0.5 fixture under WSL verified the 216-invocation COMMAND corpus with the
+Windows and WSL probes over RESP2 and RESP3. Each client also passed 36 real
+Cluster cases with catalogue fetch, explicit/metadata synchronous routing,
+real MOVED/ASK and exact business effects.
+
+Each platform completed all 24 command key, Cluster routing and synchronous
+routing benchmark smoke cases. These single-repeat runs verify the workloads.
+
+The initial dual-platform build reused an object directory and was replaced
+with platform-specific output. Tests now check source reply independence
+and the APP timeout budget while retaining the explicit native deadline
+probes. The ordinary maturity check passes. Strict release still reports
+29 developing xredis modules. Native Linux, the equal-condition performance
+comparison and 72-hour mixed-load acceptance remain open.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xredis-app-command-catalogue/`.

@@ -3,7 +3,7 @@
 From the repository root:
 
 ```
-python tools/build.py --manifest extlibs/xredis/config/modules.json --suite xredis_cluster_command --exclude-test "*" --no-single
+python tools/build.py --manifest extlibs/xredis/config/modules.json --suite xredis_app_cluster_command --exclude-test "*" --no-single
 ```
 
 This runnable local-peer example creates a Cluster client and a retained command
@@ -13,8 +13,9 @@ literal peer echoes GET's key as its value; real server semantics are checked by
 the owned Redis interoperability probe. There are no external service settings.
 
 Applications fetch COMMAND/COMMAND INFO using their authorized server connection,
-create an immutable catalogue and keep one owner throughout each CallCommand.
+create an immutable catalogue and keep one owner throughout each `appClusterCallCommand`.
 Only ACCEPTED publishes a Future. UNKNOWN/UNSUPPORTED need explicit metadata or
 server-assistance policy; CROSS_SLOT is a local refusal. NO_SLOT rejects keyless
-commands; a0..16383 fallback is an explicit application choice. This stage adds
-no automatic command metadata fetch or server-assisted extraction.
+commands. The application can supply a fallback from 0 to 16383 and a finite
+call timeout. See the [cache example](../cluster_command_cache/README.md) for
+fetching and replacing the metadata snapshot.

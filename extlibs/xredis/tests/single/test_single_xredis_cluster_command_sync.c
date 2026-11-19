@@ -1,5 +1,5 @@
 #define XREDIS_CLUSTER_SYNC_WHITEBOX
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #define XRT_MODULE_MEMORY_STATS
 #define XRT_MODULE_THREAD
 #include <xredis/features.h>
@@ -17,5 +17,5 @@ static xwaitresult swWait(xfuture* F)
 #define XREDIS_IMPLEMENTATION
 #include "../../../../single/extlibs/xredis.h"
 #undef xrtFutureWait
-#undef xrtTimer
 #include "../test_cluster_sync.c"
+#undef xrtTimer

@@ -1,5 +1,5 @@
 #define XREDIS_CLUSTER_COMMAND_WHITEBOX
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XRT_MODULE_MEMORY_STATS
 #define XRT_MODULE_THREAD
 #include <xredis/features.h>
@@ -13,5 +13,5 @@ static double qpClock(void)
 #define xrtTimer qpClock
 #define XREDIS_IMPLEMENTATION
 #include "../../../../single/extlibs/xredis.h"
-#undef xrtTimer
 #include "../test_cluster_command.c"
+#undef xrtTimer

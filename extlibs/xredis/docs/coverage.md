@@ -136,7 +136,7 @@ are covered below.
 
 ## Command key specifications
 
-The developing `xredis_command_keys` leaf owns a bounded immutable metadata
+The [APP example](../examples/command_keys/README.md) owns a bounded immutable metadata
 catalogue and evaluates every routing key before a caller submits business.
 It accepts positional command rows with RESP2 arrays/RESP3 set collections,
 legacy non-movable metadata, nested/partial subcommands, index/keyword searches,
@@ -148,19 +148,18 @@ mutation, concurrent retained readers and warmed allocation/error preservation.
 Actual COMMAND/INFO and GETKEYSANDFLAGS/server-slot corpus checks are distinct
 from synthetic specifications; channels use the standard position plus server
 slot because GETKEYS excludes `not_key`. See [contracts](command_keys.md).
-The optional [Cluster command adapter](cluster_command.md) submits complete
-metadata-derived slots through the existing async client with one original
-deadline and no additional catalogue/command lifetime. Its tests distinguish
+The [APP Cluster command adapter](cluster_command.md) submits complete
+metadata-derived slots through the existing async client using the remaining
+caller budget and the native command lifetime. Its tests distinguish
 keyless policy, unknown/incomplete/cross-slot/budget refusals from native quota,
 close, timeout/cancel and MOVED/ASK outcomes. Held-worker budgets compare actual
-caller blocks/bytes; caller-clock and native-owner probes verify exact deadlines.
-Automatic metadata fetch/cache replacement, server-assisted exotic extraction,
-replica policy and final acceptance remain open.
+caller blocks and bytes. Clock probes verify the APP budget and the exact native
+queue deadline. The APP cache example covers fetch and replacement.
 
 ## Synchronous Cluster calls
 
-Optional [synchronous facades](cluster_sync.md) cover explicit slots and metadata
-routing without a second runtime. Both dependent Engines' workers are refused
+The optional [synchronous facade](cluster_sync.md) accepts an explicit or
+APP-calculated slot on the existing runtime. Both dependent Engines' workers are refused
 before admission. Actual wait outcomes remain separate from admission and typed
 Redis results, and accepted Futures transfer even on native wait failure.
 Tests cover cold/default/zero calls, local refusals, MOVED/ASK, overload/Close,

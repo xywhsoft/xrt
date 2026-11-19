@@ -1,5 +1,5 @@
 /* Consume owned-server metadata and binary invocation corpus on stdin. */
-#include <xredis/command_keys.h>
+#include "../../examples/command_keys/catalogue.h"
 #include <xrt/memory.h>
 #include <stdio.h>
 #include <stdlib.h>

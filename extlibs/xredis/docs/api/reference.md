@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `223` 个函数、`364` 个常量或宏、
-`161` 个公共类型。
+当前登记 `215` 个函数、`329` 个常量或宏、
+`153` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -169,47 +169,6 @@
 ### 类型 (1)
 
 - `xredisclusterwait`
-
-## `extlibs/xredis/include/xredis/cluster_command.h`
-
-[查看带契约注释的公共头](../../include/xredis/cluster_command.h)
-
-### 函数 (1)
-
-- `xredisClusterClientCallCommand`
-
-### 常量与宏 (13)
-
-- `XREDIS_CLUSTER_COMMAND_ACCEPTED`
-- `XREDIS_CLUSTER_COMMAND_ARGUMENTS`
-- `XREDIS_CLUSTER_COMMAND_CLOSED`
-- `XREDIS_CLUSTER_COMMAND_CROSS_SLOT`
-- `XREDIS_CLUSTER_COMMAND_ERROR`
-- `XREDIS_CLUSTER_COMMAND_KEYLESS`
-- `XREDIS_CLUSTER_COMMAND_LIMIT`
-- `XREDIS_CLUSTER_COMMAND_NO_SLOT`
-- `XREDIS_CLUSTER_COMMAND_OVERLOADED`
-- `XREDIS_CLUSTER_COMMAND_UNKNOWN`
-- `XREDIS_CLUSTER_COMMAND_UNSUPPORTED`
-- `XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND`
-- `XREDIS_FEATURE_XREDIS_COMMAND_KEYS`
-
-### 类型 (2)
-
-- `xredisclustercommandadmission`
-- `xrediscommandcatalog`
-
-## `extlibs/xredis/include/xredis/cluster_command_sync.h`
-
-[查看带契约注释的公共头](../../include/xredis/cluster_command_sync.h)
-
-### 函数 (1)
-
-- `xredisClusterClientCallCommandSync`
-
-### 常量与宏 (1)
-
-- `XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC`
 
 ## `extlibs/xredis/include/xredis/cluster_nodes.h`
 
@@ -428,52 +387,6 @@
 ### 类型 (1)
 
 - `xrediscommanderror`
-
-## `extlibs/xredis/include/xredis/command_keys.h`
-
-[查看带契约注释的公共头](../../include/xredis/command_keys.h)
-
-### 函数 (6)
-
-- `xredisCommandCatalogCreate`
-- `xredisCommandCatalogEvaluate`
-- `xredisCommandCatalogInfo`
-- `xredisCommandCatalogRelease`
-- `xredisCommandCatalogRetain`
-- `xredisCommandKeyLimitsInit`
-
-### 常量与宏 (21)
-
-- `XREDIS_KEYS_ARGUMENTS`
-- `XREDIS_KEYS_CROSS_SLOT`
-- `XREDIS_KEYS_ERROR`
-- `XREDIS_KEYS_LIMIT`
-- `XREDIS_KEYS_MALFORMED`
-- `XREDIS_KEYS_MEMORY`
-- `XREDIS_KEYS_NONE`
-- `XREDIS_KEYS_OK`
-- `XREDIS_KEYS_SERVER_ERROR`
-- `XREDIS_KEYS_UNKNOWN`
-- `XREDIS_KEYS_UNSUPPORTED`
-- `XREDIS_KEY_ACCESS`
-- `XREDIS_KEY_DELETE`
-- `XREDIS_KEY_INSERT`
-- `XREDIS_KEY_NOT_KEY`
-- `XREDIS_KEY_OW`
-- `XREDIS_KEY_RM`
-- `XREDIS_KEY_RO`
-- `XREDIS_KEY_RW`
-- `XREDIS_KEY_UPDATE`
-- `XREDIS_KEY_VARIABLE`
-
-### 类型 (6)
-
-- `xrediscommandcataloginfo`
-- `xrediscommandkey`
-- `xrediscommandkeylimits`
-- `xrediscommandkeyresult`
-- `xrediskeyflag`
-- `xrediskeysstatus`
 
 ## `extlibs/xredis/include/xredis/dial.h`
 

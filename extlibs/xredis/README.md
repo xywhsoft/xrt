@@ -274,25 +274,16 @@ Cluster refresh automatically retains bounded discovered masters, query origin
 and explicit bootstrap fallbacks; failed cohorts rotate start candidates.
 See [metadata seed contracts](docs/cluster_refresh.md).
 
-Select `XREDIS_MODULE_XREDIS_COMMAND_KEYS` for an immutable COMMAND/COMMAND INFO
-catalogue and allocation-free key extraction. It supports legacy and modern
-rules, subcommands, binary keys and complete cross-slot checks with bounded
-search/key-byte work. Unknown/incomplete rules require explicit server help;
-they are never treated as keyless. See [contracts](docs/command_keys.md) and
-the [runnable offline example](examples/command_keys/README.md).
+The [command key example](examples/command_keys/README.md) builds an immutable
+COMMAND/COMMAND INFO catalogue with bounded, allocation-free key extraction.
+The APP owns metadata fetch and snapshot replacement. See the
+[catalogue cache example](examples/cluster_command_cache/README.md) for an
+explicit primary fetch and the [routing example](examples/cluster_command/README.md)
+for preflight checks before submitting a slot to the native client.
 
-`XREDIS_MODULE_XREDIS_CLUSTER_COMMAND` adds metadata-checked asynchronous
-`xredisClusterClientCallCommand`: complete key/slot checks before native
-admission, typed refusals, explicit keyless routing and one entry deadline.
-Catalogue ownership stays with the caller and is not retained by pending work.
-See the [APP-owned catalogue example](examples/cluster_command_cache/README.md)
-for loading and replacing a snapshot through an explicit primary slot.
-See [contracts](docs/cluster_command.md) and the
-[local-peer example](examples/cluster_command/README.md).
-
-Optional [synchronous Cluster facades](docs/cluster_sync.md) provide explicit-slot
-and metadata-routed blocking calls on the existing async runtime. Both dependent
-Engines refuse worker blocking. Admission, actual native wait and typed Redis
-outcome remain separate; an accepted Future transfers even after wait failure.
+The optional [synchronous Cluster facade](docs/cluster_sync.md) takes an explicit
+slot. Both dependent Engines refuse worker blocking. Admission, native wait
+status and the Redis result are separate. An accepted Future transfers even
+after wait failure.
 Runnable [explicit](examples/cluster_sync/README.md) and
 [metadata](examples/cluster_command_sync/README.md) examples own local peers.

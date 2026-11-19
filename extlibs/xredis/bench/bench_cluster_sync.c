@@ -19,8 +19,8 @@ int main(int Argc,char** Argv)
         switch(Mode){
         case 0:redisPeerRequire(xredisClusterClientCall(C,1,A,2,10000,&W.Future)==XREDIS_ADMISSION_ACCEPTED,"explicit async admission");W.Wait=xrtFutureWait(W.Future);break;
         case 1:redisPeerRequire(xredisClusterClientCallSync(C,1,A,2,10000,&W)==XREDIS_ADMISSION_ACCEPTED,"explicit sync admission");break;
-        case 2:redisPeerRequire(xredisClusterClientCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W.Future)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata async admission");W.Wait=xrtFutureWait(W.Future);break;
-        default:redisPeerRequire(xredisClusterClientCallCommandSync(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata sync admission");break;}
+        case 2:redisPeerRequire(appClusterCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W.Future)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata async admission");W.Wait=xrtFutureWait(W.Future);break;
+        default:redisPeerRequire(appClusterCallCommandSync(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata sync admission");break;}
         redisPeerRequire(W.Wait==XWAIT_OK,"sync benchmark wait");const xredisclusterclientresult* R=xrtFutureValue(W.Future);xredisreplyvalue V;redisPeerRequire(R && R->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && R->RouteObserved && R->Route.Query.Status==XREDIS_REQUEST_OK && xredisReplyGet(R->Route.Query.Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"owned\0{22179}",13),"sync benchmark result");Samples[N]=(xrtTimer()-Start)*1e6;++Sum;xrtFutureDestroy(W.Future);}
     double Seconds=xrtTimer()-Began;
 #if defined(XRT_FEATURE_MEMORY_STATS)

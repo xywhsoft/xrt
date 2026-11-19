@@ -45,7 +45,7 @@ int main(int Argc,char** Argv)
             const xredisrequestresult* Q=&Result->Route.Query;
             redisPeerRequire(Q && Q->Status==XREDIS_REQUEST_OK,"benchmark native status");xredisreplyvalue V;redisPeerRequire(xredisReplyGet(Q->Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"owned\0{22179}",13),"benchmark binary result");Samples[N-Pipeline]=(xrtTimer()-Submitted[I])*1e6;++Sum;xrtFutureDestroy(Futures[I]);Futures[I]=NULL;}
         if(N<Count){Submitted[I]=xrtTimer();
-            if(Mode==2)redisPeerRequire(xredisClusterClientCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Futures[I])==XREDIS_CLUSTER_COMMAND_ACCEPTED,"integrated command benchmark admission");
+            if(Mode==2)redisPeerRequire(appClusterCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Futures[I])==XREDIS_CLUSTER_COMMAND_ACCEPTED,"integrated command benchmark admission");
             else {uint16 Slot=1;if(Mode==1 || Mode==3){xrediscommandkeyresult Keys={0};Keys.Size=sizeof(Keys);redisPeerRequire(xredisCommandCatalogEvaluate(Catalogue,A,2,NULL,0,&Keys)==XREDIS_KEYS_OK,"manual metadata benchmark");Slot=Keys.Slot;}
                 redisPeerRequire(xredisClusterClientCall(C,Slot,A,2,10000,&Futures[I])==XREDIS_ADMISSION_ACCEPTED,"explicit command benchmark admission");}}
     }

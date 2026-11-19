@@ -42,10 +42,9 @@ unchanged maps avoid rebuilding the command or allocating another route.
 Native admission waits remain cumulative across maps. A missing slot without
 confirmed outage still gets one refresh. Recovery depends on a reachable,
 authorized metadata node reporting the promotion.
-The optional [command adapter](cluster_command.md) calculates complete routing
-keys from a caller-owned catalogue before admission, with explicit keyless
-policy. Command metadata cache and server-assisted metadata fallback remain
-work. Optional synchronous facades are described below.
+The [APP command adapter](cluster_command.md) calculates a slot from an owned
+catalogue and calls the explicit-slot API. The application owns metadata fetch,
+snapshot replacement, keyless routing and server-assisted fallback.
 
 ## Replica reads in the application
 

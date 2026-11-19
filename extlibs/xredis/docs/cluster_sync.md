@@ -1,10 +1,10 @@
 # Synchronous Cluster facades (developing)
 
-`xredis_cluster_client_sync` adds `xredisClusterClientCallSync` for an explicit
-slot without requiring command metadata. `xredis_cluster_command_sync` adds
-`xredisClusterClientCallCommandSync` with the complete immutable-catalogue key
-checks and explicit keyless policy of CallCommand. Both reuse the existing
-operation, Future, bounded native pools, redirects and progress owner.
+`xredis_cluster_client_sync` provides
+`xredisClusterClientCallSync` for a caller-selected slot. The
+[APP metadata example](../examples/cluster_command_sync/README.md) computes a
+slot from an immutable catalogue before calling this API. Both paths use the
+existing operation, Future, bounded pools, redirects and progress owner.
 
 ## Outcomes and ownership
 
@@ -26,15 +26,16 @@ Input descriptors/bytes and catalogue are borrowed during validation/admission;
 the normal asynchronous path owns its copies. This facade adds no catalogue
 reference. Callers keep stable owners through return and must not concurrently
 modify borrowed storage. Result must be disjoint from Client, current map, input
-descriptors/bytes and, for metadata calls, the catalogue and its retained Reply.
+descriptors/bytes and, in the APP example, the immutable catalogue.
 The complete output span is checked, including its trailing Future field.
 
 ## Deadlines, workers and retirement
 
 Capture one monotonic timestamp at synchronous function entry. Worker/output
-checks, metadata validation, allocation, bootstrap, provider/admission waits and
-redirects consume the same original deadline. Timeout -1 uses Route.Timeout,
-zero is immediately due, and the maximum is24 hours. Waiting adds no new
+checks, allocation, bootstrap, provider/admission waits and redirects consume
+the same native deadline. The APP example deducts metadata evaluation from its
+finite caller budget before invoking the public function. Timeout -1 uses Route.Timeout,
+zero is immediately due, and the maximum is 24 hours. Waiting adds no new
 relative operation timeout. Metadata remains bounded synchronous CPU work.
 
 Every worker of the progress Engine and the maintained Nodes Engine is refused
@@ -71,7 +72,7 @@ pending, preserving the same four-allocation warm bound.
 Selected single tests interpose caller-only clocks and native waits, inspect
 actual operation/route/native deadlines, and prove wait-error Future transfer.
 The standalone examples own literal peers and require no external service.
-The real Redis Cluster matrix conditionally uses both synchronous APIs while
+The real Redis Cluster matrix conditionally uses both explicit and APP-selected slots through the synchronous API while
 preserving actual owner-change/ASK,32 unique INCR effects and retained results.
 
 The benchmark uses one outstanding binary GET. Modes0/1 compare explicit
@@ -82,5 +83,5 @@ storage outside the timer. Separate heap runs include native callback overlap.
 It is closed-loop local evidence, not fixed-arrival, multi-producer contention,
 TLS, independent comparator, native Linux, CPU/RSS or>=72h acceptance.
 
-Automatic catalogue fetch/replacement, authorized exotic-command extraction,
-replica policy and complete four-library production/performance gates remain open.
+The APP examples cover catalogue fetch and replacement. Production performance
+and long-duration validation remain open.

@@ -205,39 +205,15 @@ static int testPubSubPackage(void)
 #include "../../examples/cluster_client/main.c"
 #undef main
 #endif
-#if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-#define main commandKeysPackageExample
-#include "../../examples/command_keys/main.c"
-#undef main
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#define main clusterCommandPackageExample
-#include "../../examples/cluster_command/main.c"
-#undef main
-#endif
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 #define main clusterSyncPackageExample
 #include "../../examples/cluster_sync/main.c"
-#undef main
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-#define main clusterCommandSyncPackageExample
-#include "../../examples/cluster_command_sync/main.c"
 #undef main
 #endif
 int main(void)
 {
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
     if(clusterSyncPackageExample())return 1;
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-    if(clusterCommandSyncPackageExample())return 1;
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-    if(clusterCommandPackageExample())return 1;
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-    if(commandKeysPackageExample())return 1;
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
     if(clusterClientPackageExample())return 1;

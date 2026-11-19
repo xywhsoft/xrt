@@ -1,5 +1,7 @@
 #ifndef XREDIS_TEST_CLUSTER_COMMAND_PEER_H
 #define XREDIS_TEST_CLUSTER_COMMAND_PEER_H
+
+#include "../../examples/cluster_command/route.h"
 #include "cluster_client_peer.h"
 #include "command_keys_fixture.h"
 /* The literal peer returns the requested GET key as its value, making copied
@@ -29,7 +31,7 @@ static inline xrediscommandcatalog* qpCatalogueWire(const char* Wire,const xredi
 static inline xrediscommandcatalog* qpCatalogue(unsigned Version,const xrediscommandkeylimits* Limits)
 {return qpCatalogueWire(Version?CK_METADATA3:CK_METADATA2,Limits);}
 static inline xfuture* qpGet(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,int64 Timeout)
-{xbytesview A[]={XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("owned\0{22179}")};xfuture* F=NULL;redisPeerRequire(xredisClusterClientCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,Timeout,&F)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata command admission");return F;}
+{xbytesview A[]={XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("owned\0{22179}")};xfuture* F=NULL;redisPeerRequire(appClusterCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,Timeout,&F)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata command admission");return F;}
 static inline void qpValue(xfuture* F)
 {const xredisclusterclientresult* R=cfWait(F);xredisreplyvalue V;redisPeerRequire(R->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && R->RouteObserved && R->Route.Query.Status==XREDIS_REQUEST_OK && xredisReplyGet(R->Route.Query.Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"owned\0{22179}",13),"metadata command binary result");}
 #endif

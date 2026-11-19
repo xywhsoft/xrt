@@ -5711,13 +5711,14 @@
     },
     {
       "name": "xredis_command_keys",
-      "system": "command_keys",
+      "system": "cluster_topology",
       "description": "Bounded metadata extraction versus explicitly preselected-key CRC reference; no network or equivalent-client parity claim",
       "benchmarks": [
         {
           "name": "xredis_command_keys_0",
           "source": "extlibs/xredis/bench/bench_command_keys.c",
-          "suite": "xredis_command_keys,time,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h"],
+          "suite": "xredis_app_command_keys,time,memory_stats",
           "args": [
             "1000000",
             "0",
@@ -5742,7 +5743,8 @@
         {
           "name": "xredis_command_keys_1",
           "source": "extlibs/xredis/bench/bench_command_keys.c",
-          "suite": "xredis_command_keys,time,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h"],
+          "suite": "xredis_app_command_keys,time,memory_stats",
           "args": [
             "1000000",
             "1",
@@ -5767,7 +5769,8 @@
         {
           "name": "xredis_command_keys_2",
           "source": "extlibs/xredis/bench/bench_command_keys.c",
-          "suite": "xredis_command_keys,time,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h"],
+          "suite": "xredis_app_command_keys,time,memory_stats",
           "args": [
             "1000",
             "2",
@@ -5792,7 +5795,8 @@
         {
           "name": "xredis_command_keys_3",
           "source": "extlibs/xredis/bench/bench_command_keys.c",
-          "suite": "xredis_command_keys,time,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h"],
+          "suite": "xredis_app_command_keys,time,memory_stats",
           "args": [
             "1000000",
             "3",
@@ -5824,7 +5828,8 @@
         {
           "name": "xredis_cluster_command_a0_p1_m0",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "0",
@@ -5853,7 +5858,8 @@
         {
           "name": "xredis_cluster_command_a0_p1_m1",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "1",
@@ -5882,7 +5888,8 @@
         {
           "name": "xredis_cluster_command_a0_p1_m2",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "2",
@@ -5911,7 +5918,8 @@
         {
           "name": "xredis_cluster_command_a0_p32_m0",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "0",
@@ -5940,7 +5948,8 @@
         {
           "name": "xredis_cluster_command_a0_p32_m1",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "1",
@@ -5969,7 +5978,8 @@
         {
           "name": "xredis_cluster_command_a0_p32_m2",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "2",
@@ -5998,7 +6008,8 @@
         {
           "name": "xredis_cluster_command_a1_p1_m0",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "0",
@@ -6027,7 +6038,8 @@
         {
           "name": "xredis_cluster_command_a1_p1_m1",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "1",
@@ -6056,7 +6068,8 @@
         {
           "name": "xredis_cluster_command_a1_p1_m2",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "2",
@@ -6085,7 +6098,8 @@
         {
           "name": "xredis_cluster_command_a1_p32_m0",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "0",
@@ -6114,7 +6128,8 @@
         {
           "name": "xredis_cluster_command_a1_p32_m1",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "1",
@@ -6143,7 +6158,8 @@
         {
           "name": "xredis_cluster_command_a1_p32_m2",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command,memory_stats",
           "args": [
             "20000",
             "2",
@@ -6179,7 +6195,8 @@
         {
           "name": "xredis_cluster_sync_a0_m0",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "0",
@@ -6206,7 +6223,8 @@
         {
           "name": "xredis_cluster_sync_a0_m1",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "1",
@@ -6233,7 +6251,8 @@
         {
           "name": "xredis_cluster_sync_a0_m2",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "2",
@@ -6260,7 +6279,8 @@
         {
           "name": "xredis_cluster_sync_a0_m3",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "3",
@@ -6287,7 +6307,8 @@
         {
           "name": "xredis_cluster_sync_a1_m0",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "0",
@@ -6314,7 +6335,8 @@
         {
           "name": "xredis_cluster_sync_a1_m1",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "1",
@@ -6341,7 +6363,8 @@
         {
           "name": "xredis_cluster_sync_a1_m2",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "2",
@@ -6368,7 +6391,8 @@
         {
           "name": "xredis_cluster_sync_a1_m3",
           "source": "extlibs/xredis/bench/bench_cluster_sync.c",
-          "suite": "xredis_cluster_command_sync,memory_stats",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
+          "suite": "xredis_app_cluster_command_sync,memory_stats",
           "args": [
             "10000",
             "3",
@@ -6402,6 +6426,7 @@
         {
           "name": "xredis_app_command_cache_p1_explicit",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
           "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
@@ -6438,6 +6463,7 @@
         {
           "name": "xredis_app_command_cache_p1_cached",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
           "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
@@ -6474,6 +6500,7 @@
         {
           "name": "xredis_app_command_cache_p32_explicit",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
           "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
@@ -6510,6 +6537,7 @@
         {
           "name": "xredis_app_command_cache_p32_cached",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "inputs": ["extlibs/xredis/examples/command_keys/catalogue.h", "extlibs/xredis/examples/cluster_command/route.h"],
           "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",

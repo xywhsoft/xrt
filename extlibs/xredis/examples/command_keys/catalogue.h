@@ -1,12 +1,76 @@
-#include <xredis/command_keys.h>
-#include "../internal/cluster_reply.h"
-#include "../internal/cluster_slot.h"
-#include "../internal/command_keys_internal.h"
-#include <xrt/memory.h>
+#ifndef XREDIS_EXAMPLE_COMMAND_CATALOGUE_H
+#define XREDIS_EXAMPLE_COMMAND_CATALOGUE_H
+
+#include <xredis/cluster_topology.h>
 #include <xrt/atomic.h>
+#include <xrt/memory.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
+
+typedef struct xrediscommandcatalog xrediscommandcatalog;
+typedef enum xrediskeysstatus {
+    XREDIS_KEYS_ERROR=-1,XREDIS_KEYS_MALFORMED=-2,XREDIS_KEYS_LIMIT=-3,
+    XREDIS_KEYS_MEMORY=-4,XREDIS_KEYS_SERVER_ERROR=-5,
+    XREDIS_KEYS_OK=1,XREDIS_KEYS_NONE,XREDIS_KEYS_UNKNOWN,
+    XREDIS_KEYS_UNSUPPORTED,XREDIS_KEYS_CROSS_SLOT,XREDIS_KEYS_ARGUMENTS
+} xrediskeysstatus;
+typedef enum xrediskeyflag {
+    XREDIS_KEY_RO=1,XREDIS_KEY_RW=2,XREDIS_KEY_OW=4,XREDIS_KEY_RM=8,
+    XREDIS_KEY_ACCESS=16,XREDIS_KEY_UPDATE=32,XREDIS_KEY_INSERT=64,
+    XREDIS_KEY_DELETE=128,XREDIS_KEY_NOT_KEY=256,XREDIS_KEY_VARIABLE=512
+} xrediskeyflag;
+typedef struct xrediscommandkeylimits {
+    size_t Size,MaxCommands,MaxSpecifications,MaxNameBytes,MaxDepth,
+        MaxReplyNodes,MaxPayloadBytes,MaxOwnedBytes,MaxArguments,MaxArgumentBytes,MaxKeys,
+        MaxKeyBytes,MaxSearchWork;
+} xrediscommandkeylimits;
+typedef struct xrediscommandcataloginfo {
+    size_t Size,Commands,Specifications,LookupDepth,StorageBytes,SourceReplyBytes;
+} xrediscommandcataloginfo;
+/* Flags are specification possibilities; VARIABLE is not an exact access decision.
+ * NOT_KEY still participates in Cluster slot calculation (for example channels).
+ * Specification order and repeated argument occurrences are preserved. */
+typedef struct xrediscommandkey {size_t Argument;uint32 Flags;} xrediscommandkey;
+typedef struct xrediscommandkeyresult {
+    size_t Size,Command,Keys;uint16 Slot;bool HasSlot,Legacy,VariableFlags;
+} xrediscommandkeyresult;
+/* Defaults:8192 commands,32768 specs,256-byte names,16 levels,1M reply nodes,
+ * 16MiB metadata payload,64MiB cold reply and catalogue storage,65536 arguments/keys,64MiB args
+ * and extracted key bytes,1M search inspections/matched bytes per pass.
+ * Hard maxima:65535 commands,262144 specs,4096-byte names,16 levels,
+ * 1M arguments/keys,1GiB byte caps. Zero is a limit, except Size. */
+static inline bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* Limits);
+/* Complete COMMAND/COMMAND INFO collection, including nested subcommands and null
+ * unknown entries. RESP3 sets are supported for non-positional collections;
+ * command rows remain positional arrays. One immutable allocation holds
+ * commands, specs, the name hash, and copied names and keywords. The caller
+ * owns Reply and can release it immediately. Use separate output storage.
+ * Legacy six-field entries are supported. Unknown or incomplete key rules
+ * require a server oracle. Failure leaves Catalog unchanged. */
+static inline xrediskeysstatus xredisCommandCatalogCreate(xredisreply* Reply,
+    const xrediscommandkeylimits* Limits,xrediscommandcatalog** Catalog);
+static inline bool xredisCommandCatalogRetain(xrediscommandcatalog* Catalog);
+static inline void xredisCommandCatalogRelease(xrediscommandcatalog* Catalog);
+static inline bool xredisCommandCatalogInfo(const xrediscommandcatalog* Catalog,
+    xrediscommandcataloginfo* Info);
+/* Arguments include the command and subcommand tokens. ASCII command/keyword
+ * matching is case-insensitive; keys are binary and use Redis hash tags.
+ * No allocation, lock, refcount, I/O or input retention. Immutable owners can
+ * evaluate concurrently. NULL Keys/zero Capacity computes count/slot alone.
+ * OK/NONE alone publish Result and optional Keys, atomically after validation;
+ * short capacity and every other status leave all outputs unchanged.
+ * UNKNOWN means absent metadata; UNSUPPORTED means full extraction needs
+ * COMMAND GETKEYS/GETKEYSANDFLAGS (including incomplete/unknown specs/flags).
+ * Neither may be treated as NONE or routed using a guessed first argument.
+ * CROSS_SLOT checks every extracted routing key, including NOT_KEY. ARGUMENTS
+ * checks arity and extraction indices/counts, not the command's entire grammar.
+ * Flags may overapproximate access; they do not authorize replica routing.
+ * Outputs must be disjoint from the catalogue, descriptors and input bytes.
+ * Successful and typed non-API outcomes preserve the ambient error. */
+static inline xrediskeysstatus xredisCommandCatalogEvaluate(const xrediscommandcatalog* Catalog,
+    const xbytesview* Arguments,size_t Count,xrediscommandkey* Keys,size_t Capacity,
+    xrediscommandkeyresult* Result);
+
 enum {XRK_INDEX=1,XRK_KEYWORD,XRK_RANGE,XRK_KEYNUM};
 typedef struct xrediskeyspec {
     xbytesview Keyword;int64 Index,Last,Step,Limit,Number,First;
@@ -17,13 +81,14 @@ typedef struct xrediskeycommand {
     bool Movable,Modern,Children,Unsupported;
 } xrediskeycommand;
 struct xrediscommandcatalog {
-    xatomic32 References;xredisreply* Reply;xrediscommandkeylimits Limits;
+    xatomic32 References;xrediscommandkeylimits Limits;
     xrediscommandcataloginfo Info;size_t Buckets;
     xrediskeycommand* Commands;xrediskeyspec* Specs;uint32* Hash;
 };
 typedef struct xrediskeysbuild {
     xredisreply* Reply;const xrediscommandkeylimits* Limits;xrediscommandcatalog* Out;
-    size_t Commands,Specs,Depth;
+    size_t Commands,Specs,Depth,TextBytes;
+    unsigned char* Text;
 } xrediskeysbuild;
 static bool xredisKeysError(cstr Text)
 {xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_REPLY_ARGUMENT,Text);return false;}
@@ -80,6 +145,18 @@ static bool xredisKeysRule(const xredisreply* R,size_t Index,bool Begin,xrediske
         return xredisKeysFields(R,Spec,N,3,A) && xredisKeysInteger(R,A[0],&S->Number) && xredisKeysInteger(R,A[1],&S->First) && xredisKeysInteger(R,A[2],&S->Step) && S->Number>=0 && S->First>=0 && S->Step>0;}
     S->Unsupported=true;return true; /* An unfamiliar rule's spec stays opaque. */
 }
+/* The count pass budgets text, and the fill pass makes it independent of Reply. */
+static xbytesview xredisKeysCopyText(xrediskeysbuild* Build,xbytesview Value)
+{
+    if (!Value.Size) return Value;
+    if (Build->Text) {
+        unsigned char* Target=Build->Text+Build->TextBytes;
+        memcpy(Target,Value.Data,Value.Size);
+        Value.Data=Target;
+    }
+    Build->TextBytes+=Value.Size;
+    return Value;
+}
 static xrediskeysstatus xredisKeysSpecs(xrediskeysbuild* B,xredisreplyvalue V,xrediskeycommand* C)
 {
     if(!xredisKeysSequence(V))return XREDIS_KEYS_MALFORMED;
@@ -89,7 +166,7 @@ static xrediskeysstatus xredisKeysSpecs(xrediskeysbuild* B,xredisreplyvalue V,xr
         if(!xredisKeysFields(B->Reply,X,N,4,F) || F[0]==XREDIS_REPLY_NONE || F[1]==XREDIS_REPLY_NONE || F[2]==XREDIS_REPLY_NONE ||
             !xredisKeysFlags(B->Reply,xredisKeysGet(B->Reply,F[0]),&S,NULL) || !xredisKeysRule(B->Reply,F[1],true,&S) || !xredisKeysRule(B->Reply,F[2],false,&S) ||
             (F[3]!=XREDIS_REPLY_NONE && !xredisKeysText(xredisKeysGet(B->Reply,F[3]))))return XREDIS_KEYS_MALFORMED;
-        C->Unsupported|=S.Unsupported;if(B->Out)B->Out->Specs[B->Specs]=S;++B->Specs;I=X.Next;
+        C->Unsupported|=S.Unsupported;S.Keyword=xredisKeysCopyText(B,S.Keyword);if(B->Out)B->Out->Specs[B->Specs]=S;++B->Specs;I=X.Next;
     }
     return XREDIS_KEYS_OK;
 }
@@ -108,7 +185,7 @@ static xrediskeysstatus xredisKeysCommands(xrediskeysbuild* B,xredisreplyvalue V
         if(Depth>B->Limits->MaxDepth)return XREDIS_KEYS_LIMIT;
         if(Depth>B->Depth)B->Depth=Depth;
         if(Parent.Size){if(Name.Data.Size<=Parent.Size+1 || Name.Data.Data[Parent.Size]!='|' || !xredisKeysEqual((xbytesview){Name.Data.Data,Parent.Size},Parent) || memchr(Name.Data.Data+Parent.Size+1,'|',Name.Data.Size-Parent.Size-1))return XREDIS_KEYS_MALFORMED;}
-        xrediskeycommand C={0};C.Name=Name.Data;
+        xrediskeycommand C={0};C.Name=xredisKeysCopyText(B,Name.Data);
         if(!xredisKeysInteger(B->Reply,F[1],&C.Arity) || !C.Arity || C.Arity==INT64_MIN || !xredisKeysFlags(B->Reply,xredisKeysGet(B->Reply,F[2]),NULL,&C) ||
             !xredisKeysInteger(B->Reply,F[3],&C.First) || !xredisKeysInteger(B->Reply,F[4],&C.Last) || !xredisKeysInteger(B->Reply,F[5],&C.Step) ||
             C.First<0 || (C.First && C.Step<=0) || (!C.First && (C.Last || C.Step)))return XREDIS_KEYS_MALFORMED;
@@ -124,12 +201,8 @@ static uint64 xredisKeysHash(uint64 H,xbytesview V)
 static bool xredisKeysCharge(size_t* Used,size_t N,size_t Limit)
 {if(N>Limit-*Used)return false;*Used+=N;return true;}
 static bool xredisKeysOutput(const xrediscommandcatalog* C,const void* P,size_t N)
-{return C && __xredisClusterReplyOutput(C->Reply,P,N) && !xrtMemRangesOverlap(C,C->Info.StorageBytes,P,N);}
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-bool __xredisCommandCatalogOutput(const xrediscommandcatalog* C,const void* P,size_t N)
-{return xredisKeysOutput(C,P,N);}
-#endif
-XREDIS_API bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* K)
+{return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->Info.StorageBytes,P,N);}
+static inline bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* K)
 {
     if(!xrtMemRangeValid(K,sizeof(*K)))return xredisKeysError("invalid command key limits output");
     *K=(xrediscommandkeylimits){sizeof(*K),8192,32768,256,16,1048576,16u*1024u*1024u,64u*1024u*1024u,65536,64u*1024u*1024u,65536,64u*1024u*1024u,1048576};return true;
@@ -141,36 +214,43 @@ static bool xredisCommandKeyLimitsValid(const xrediscommandkeylimits* K)
         K->MaxOwnedBytes<=1073741824 && K->MaxPayloadBytes<=1073741824 && K->MaxArgumentBytes<=1073741824 &&
         K->MaxKeyBytes<=1073741824 && K->MaxSearchWork<=1073741824;
 }
-XREDIS_API xrediskeysstatus xredisCommandCatalogCreate(xredisreply* R,const xrediscommandkeylimits* Config,xrediscommandcatalog** Out)
+static inline xrediskeysstatus xredisCommandCatalogCreate(xredisreply* R,const xrediscommandkeylimits* Config,xrediscommandcatalog** Out)
 {
-    if(!__xredisClusterReplyOutput(R,Out,sizeof(*Out)) || (Config && (!__xredisClusterReplyOutput(R,Config,sizeof(*Config)) || Config->Size!=sizeof(*Config) || xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))return xredisKeysError("invalid command catalogue arguments"),XREDIS_KEYS_ERROR;
-    xrediscommandkeylimits K;if(Config)K=*Config;else xredisCommandKeyLimitsInit(&K);
+    if (!R || !xrtMemRangeValid(Out,sizeof(*Out)) || xrtMemRangesOverlap(R,1,Out,sizeof(*Out)) ||
+        (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) ||
+            xrtMemRangesOverlap(R,1,Config,sizeof(*Config)) ||
+            xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))
+        return xredisKeysError("invalid command catalogue arguments"),XREDIS_KEYS_ERROR;
+    xrediscommandkeylimits K;
+    if(Config)K=*Config;else xredisCommandKeyLimitsInit(&K);
     if(!xredisCommandKeyLimitsValid(&K))return xredisKeysError("invalid command key bounds"),XREDIS_KEYS_ERROR;
-    xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(R,&I);if(I.Nodes>K.MaxReplyNodes || I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_KEYS_LIMIT;
+    xredisreplyinfo I={.Size=sizeof(I)};
+    if(!xredisReplyInfo(R,&I))return XREDIS_KEYS_ERROR;
+    if(I.Nodes>K.MaxReplyNodes || I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_KEYS_LIMIT;
     xredisreplyvalue Root=xredisKeysGet(R,I.Root);if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_KEYS_SERVER_ERROR;
     xrediskeysbuild B={0};B.Reply=R;B.Limits=&K;xrediskeysstatus S=xredisKeysCommands(&B,Root,1,(xbytesview){0});if(S!=XREDIS_KEYS_OK)return S;
     size_t Buckets=2;while(Buckets<2*B.Commands)Buckets*=2;
-    size_t Bytes=sizeof(xrediscommandcatalog)+B.Commands*sizeof(xrediskeycommand)+B.Specs*sizeof(xrediskeyspec)+Buckets*sizeof(uint32);
+    size_t Bytes=sizeof(xrediscommandcatalog)+B.Commands*sizeof(xrediskeycommand)+B.Specs*sizeof(xrediskeyspec)+Buckets*sizeof(uint32)+B.TextBytes;
     if(Bytes>K.MaxOwnedBytes || I.ReservedBytes>K.MaxOwnedBytes-Bytes)return XREDIS_KEYS_LIMIT;
     xrediscommandcatalog* C=xrtCalloc(1,Bytes);if(!C)return XREDIS_KEYS_MEMORY;
     C->Commands=(xrediskeycommand*)(C+1);C->Specs=(xrediskeyspec*)(C->Commands+B.Commands);C->Hash=(uint32*)(C->Specs+B.Specs);C->Buckets=Buckets;C->Limits=K;
     C->Info=(xrediscommandcataloginfo){sizeof(C->Info),B.Commands,B.Specs,B.Depth,Bytes,I.ReservedBytes};
-    xrediskeysbuild Fill={0};Fill.Reply=R;Fill.Limits=&K;Fill.Out=C;S=xredisKeysCommands(&Fill,Root,1,(xbytesview){0});
+    xrediskeysbuild Fill={0};Fill.Reply=R;Fill.Limits=&K;Fill.Out=C;Fill.Text=(unsigned char*)(C->Hash+Buckets);S=xredisKeysCommands(&Fill,Root,1,(xbytesview){0});
     size_t Work=0;
     if(S==XREDIS_KEYS_OK)for(size_t N=0;N<B.Commands;++N){xbytesview Name=C->Commands[N].Name;if(!xredisKeysCharge(&Work,Name.Size+1,K.MaxSearchWork)){S=XREDIS_KEYS_LIMIT;break;}size_t H=(size_t)xredisKeysHash(14695981039346656037ull,Name)&(Buckets-1);
         while(C->Hash[H]){if(!xredisKeysCharge(&Work,Name.Size+1,K.MaxSearchWork)){S=XREDIS_KEYS_LIMIT;break;}if(xredisKeysEqual(Name,C->Commands[C->Hash[H]-1].Name)){S=XREDIS_KEYS_MALFORMED;break;}H=(H+1)&(Buckets-1);}if(S!=XREDIS_KEYS_OK)break;C->Hash[H]=(uint32)N+1;}
-    if(S!=XREDIS_KEYS_OK || !xredisReplyRetain(R)){xrtFree(C);return S!=XREDIS_KEYS_OK?S:XREDIS_KEYS_ERROR;}
-    C->Reply=R;xrtAtomic32Init(&C->References,1);*Out=C;return XREDIS_KEYS_OK;
+    if(S!=XREDIS_KEYS_OK){xrtFree(C);return S;}
+    xrtAtomic32Init(&C->References,1);*Out=C;return XREDIS_KEYS_OK;
 }
-XREDIS_API bool xredisCommandCatalogRetain(xrediscommandcatalog* C)
+static inline bool xredisCommandCatalogRetain(xrediscommandcatalog* C)
 {
     if(!C)return xredisKeysError("command catalogue is NULL");
     uint32 N=xrtAtomic32Load(&C->References,XMEMORY_RELAXED);
     for(;;){if(N==UINT32_MAX){xrtSetErrorInfo(XERR_RANGE,"xrt.redis",XREDIS_REPLY_LIMIT,"command catalogue reference overflow");return false;}if(xrtAtomic32CompareExchange(&C->References,&N,N+1,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
 }
-XREDIS_API void xredisCommandCatalogRelease(xrediscommandcatalog* C)
-{if(C && xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)==1){xredisReplyRelease(C->Reply);xrtFree(C);}}
-XREDIS_API bool xredisCommandCatalogInfo(const xrediscommandcatalog* C,xrediscommandcataloginfo* I)
+static inline void xredisCommandCatalogRelease(xrediscommandcatalog* C)
+{if(C && xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)==1)xrtFree(C);}
+static inline bool xredisCommandCatalogInfo(const xrediscommandcatalog* C,xrediscommandcataloginfo* I)
 {if(!xredisKeysOutput(C,I,sizeof(*I)) || I->Size!=sizeof(*I))return xredisKeysError("invalid command catalogue info output");*I=C->Info;return true;}
 typedef struct xrediskeyseval {
     const xrediscommandcatalog* Catalog;const xbytesview* Arguments;size_t Count;
@@ -218,7 +298,12 @@ static xrediskeysstatus xredisKeysAdd(xrediskeyseval* E,size_t At,uint32 Flags)
     if(E->Keys>=K->MaxKeys || A.Size>K->MaxKeyBytes-E->Bytes)return XREDIS_KEYS_LIMIT;
     E->Bytes+=A.Size;
     if(E->Fill)E->Output[E->Keys]=(xrediscommandkey){At,Flags};
-    else {uint16 Slot=xredisClusterSlotRaw(A);if(E->HasSlot && E->Slot!=Slot)E->Cross=true;else E->Slot=Slot;E->HasSlot=true;}
+    else {
+        uint16 Slot;
+        if(!xredisClusterKeySlot(A,&Slot))return XREDIS_KEYS_ERROR;
+        if(E->HasSlot && E->Slot!=Slot)E->Cross=true;else E->Slot=Slot;
+        E->HasSlot=true;
+    }
     ++E->Keys;E->Variable|=(Flags&XREDIS_KEY_VARIABLE)!=0;return XREDIS_KEYS_OK;
 }
 static xrediskeysstatus xredisKeysExtract(xrediskeyseval* E,const xrediskeyspec* S)
@@ -262,7 +347,7 @@ static xrediskeysstatus xredisKeysEvaluatePass(xrediskeyseval* E,const xrediskey
         return xredisKeysExtract(E,&S);}
     return XREDIS_KEYS_OK;
 }
-XREDIS_API xrediskeysstatus xredisCommandCatalogEvaluate(const xrediscommandcatalog* C,const xbytesview* A,size_t Count,xrediscommandkey* Keys,size_t Capacity,xrediscommandkeyresult* Out)
+static inline xrediskeysstatus xredisCommandCatalogEvaluate(const xrediscommandcatalog* C,const xbytesview* A,size_t Count,xrediscommandkey* Keys,size_t Capacity,xrediscommandkeyresult* Out)
 {
     if(!xredisKeysOutput(C,Out,sizeof(*Out)) || Out->Size!=sizeof(*Out))return xredisKeysError("invalid key extraction result output"),XREDIS_KEYS_ERROR;
     if(Count>C->Limits.MaxArguments || Capacity>C->Limits.MaxKeys)return XREDIS_KEYS_LIMIT;
@@ -285,4 +370,5 @@ XREDIS_API xrediskeysstatus xredisCommandCatalogEvaluate(const xrediscommandcata
         Status=xredisKeysEvaluatePass(&Fill,Command);if(Status!=XREDIS_KEYS_OK)abort();}
     *Out=Result;return E.Keys?XREDIS_KEYS_OK:XREDIS_KEYS_NONE;
 }
+
 #endif

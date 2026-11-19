@@ -18,7 +18,5 @@ static xwaitresult swWait(xfuture* F)
 #include "../../../../single/extlibs/xredis.h"
 #undef xrtFutureWait
 #undef xrtTimer
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#error "Explicit-slot synchronous leaf must not require a command catalogue"
-#endif
+#define XREDIS_TEST_EXPLICIT_SYNC_ONLY
 #include "../test_cluster_sync.c"

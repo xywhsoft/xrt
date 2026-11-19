@@ -1,4 +1,3 @@
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #define XRT_MODULE_MEMORY_STATS
 #define XRT_MODULE_THREAD
@@ -7,6 +6,7 @@
 #include "../../../../single/xrt.h"
 #define XREDIS_IMPLEMENTATION
 #include "../../../../single/extlibs/xredis.h"
+#include "../../examples/command_keys/catalogue.h"
 
 static xallocationbudget* AppCatalogBudget;
 static xrediskeysstatus appCatalogAllocate(xredisreply* Reply, const xrediscommandkeylimits* Limits,

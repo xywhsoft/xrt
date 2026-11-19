@@ -1,7 +1,7 @@
 #ifndef XREDIS_EXAMPLE_APP_CATALOG_H
 #define XREDIS_EXAMPLE_APP_CATALOG_H
 #include <xredis/cluster_client_sync.h>
-#include <xredis/command_keys.h>
+#include "../command_keys/catalogue.h"
 #include <xrt/time.h>
 
 /* One APP control thread owns the pointer and any replacements. Commands

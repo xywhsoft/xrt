@@ -1,4 +1,4 @@
-#include <xredis/command_keys.h>
+#include "../examples/command_keys/catalogue.h"
 #include <xrt.h>
 #include "../src/internal/cluster_slot.h"
 #include "../tests/support/command_keys_fixture.h"

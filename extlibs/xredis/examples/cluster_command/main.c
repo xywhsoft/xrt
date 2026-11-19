@@ -1,4 +1,4 @@
-#include <xredis/cluster_command.h>
+#include "route.h"
 #include "../../tests/support/cluster_command_peer.h"
 int main(void)
 {

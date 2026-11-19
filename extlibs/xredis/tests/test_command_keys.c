@@ -1,3 +1,4 @@
+#include "../examples/command_keys/catalogue.h"
 #include "test.h"
 #include "support/command_keys_fixture.h"
 #include "support/command_keys_invalid.h"
@@ -71,7 +72,7 @@ static void ckModels(void)
 static void ckAtomicAndLimits(void)
 {
     xredisreply* Reply=ckReply(CK_METADATA2,1);xrediscommandcatalog* C=NULL;testRequire(xredisCommandCatalogCreate(Reply,NULL,&C)==XREDIS_KEYS_OK,"split metadata catalogue");xrediscommandcataloginfo I={0};I.Size=sizeof(I);xredisCommandCatalogInfo(C,&I);
-    xrediscommandkeylimits K;xredisCommandKeyLimitsInit(&K);K.MaxOwnedBytes=I.StorageBytes+I.RetainedReplyBytes;
+    xrediscommandkeylimits K;xredisCommandKeyLimitsInit(&K);K.MaxOwnedBytes=I.StorageBytes+I.SourceReplyBytes;
     xrediscommandcatalog* Exact=NULL;testRequire(xredisCommandCatalogCreate(Reply,&K,&Exact)==XREDIS_KEYS_OK,"exact retained storage bound");xredisCommandCatalogRelease(Exact);--K.MaxOwnedBytes;Exact=(void*)(uintptr_t)1;
     testRequire(xredisCommandCatalogCreate(Reply,&K,&Exact)==XREDIS_KEYS_LIMIT && Exact==(void*)(uintptr_t)1,"retained storage cap atomicity");
     xbytesview A[]={XRT_BYTES_LITERAL("mset"),XRT_BYTES_LITERAL("a{tag}"),XRT_BYTES_LITERAL("x"),XRT_BYTES_LITERAL("b{tag}"),XRT_BYTES_LITERAL("y")};
@@ -132,7 +133,15 @@ static void ckMutations(void)
 static void ckReferenceBounds(void)
 {
     xrediscommandcatalog* C=ckCatalog(CK_METADATA2,NULL);xrtAtomic32Store(&C->References,UINT32_MAX,XMEMORY_RELAXED);testRequire(!xredisCommandCatalogRetain(C) && xrtAtomic32Load(&C->References,XMEMORY_RELAXED)==UINT32_MAX,"catalogue reference wrap");xrtAtomic32Store(&C->References,1,XMEMORY_RELAXED);xrtClearError();xredisCommandCatalogRelease(C);
-    xredisreply* R=ckReply("*0\r\n",1);xrtAtomic32Store(&R->References,UINT32_MAX,XMEMORY_RELAXED);C=(void*)(uintptr_t)1;testRequire(xredisCommandCatalogCreate(R,NULL,&C)==XREDIS_KEYS_ERROR && C==(void*)(uintptr_t)1,"catalogue adopted overflowing reply");xrtAtomic32Store(&R->References,1,XMEMORY_RELAXED);xrtClearError();xredisReplyRelease(R);
+    xredisreply* R=ckReply("*0\r\n",1);
+    xrtAtomic32Store(&R->References,UINT32_MAX,XMEMORY_RELAXED);
+    C=NULL;
+    testRequire(xredisCommandCatalogCreate(R,NULL,&C)==XREDIS_KEYS_OK && C &&
+        xrtAtomic32Load(&R->References,XMEMORY_RELAXED)==UINT32_MAX,
+        "detached catalogue mutated source ownership");
+    xrtAtomic32Store(&R->References,1,XMEMORY_RELAXED);
+    xredisReplyRelease(R);
+    xredisCommandCatalogRelease(C);
 }
 #endif
 int main(void)

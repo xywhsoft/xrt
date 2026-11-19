@@ -1,9 +1,8 @@
 #include <xredis/cluster_client.h>
-#include <xredis/cluster_command.h>
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#include "../../examples/cluster_command/route.h"
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
 #include "../../examples/cluster_command_cache/app_catalog.h"
 #endif
-#include <xredis/cluster_command_sync.h>
 #include <xredis/pool_shared_connect.h>
 #include <xredis/dial.h>
 #include <xrt.h>
@@ -71,7 +70,7 @@ static void rrOwner(rrcontext* C,const char* Slot,unsigned Owner,char Ids[3][41]
 typedef struct rrproducer {
     xredisclusterclient* Client;uint16 Slot;bool Stale;size_t Moved,Case;
     int64 Values[8];xfuture* Saved;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
     const xrediscommandcatalog* Catalogue;
 #endif
 } rrproducer;
@@ -79,13 +78,13 @@ static int32 rrProduce(ptr Data)
 {
     rrproducer* P=Data;const xbytesview A[]={XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter")};
     for(unsigned N=0;N<8;++N){xfuture* F=NULL;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#if (defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY))
         xredisclusterwait W={0};
-        if(N&1)rrRequire(xredisClusterClientCallCommandSync(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"synchronous metadata INCR route");
+        if(N&1)rrRequire(appClusterCallCommandSync(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"synchronous metadata INCR route");
         else rrRequire(xredisClusterClientCallSync(P->Client,P->Slot,A,2,10000,&W)==XREDIS_ADMISSION_ACCEPTED,"synchronous explicit INCR route");
         rrRequire(W.Wait==XWAIT_OK,"synchronous native wait");F=W.Future;
-#elif defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-        rrRequire(xredisClusterClientCallCommand(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&F)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata-selected INCR route");
+#elif !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
+        rrRequire(appClusterCallCommand(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&F)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata-selected INCR route");
 #else
         rrRequire(xredisClusterClientCall(P->Client,P->Slot,A,2,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"managed route call");
 #endif
@@ -123,7 +122,7 @@ int main(int Argc,char** Argv)
         xredisclusterclientconfig CC;xredisClusterClientConfigInit(&CC);CC.RefreshMin=1;CC.RefreshRetryMax=5;CC.Refresh.RetryDelay=1;CC.Route.RetryDelay=1;CC.Refresh.Format=Format?XREDIS_CLUSTER_LEGACY_SLOTS:XREDIS_CLUSTER_SHARDS;
         xredisclusteraddress Seed={XRT_BYTES_LITERAL("127.0.0.1"),Ports[0],0,false,0};xredisclusterclient* Client=NULL;rrRequire(xredisClusterClientCreate(E,1,Context.Cache,&Seed,1,&CC,&Client)==XREDIS_ADMISSION_ACCEPTED,"managed owned Cluster client");xfuture* Ready=xredisClusterClientReady(Client);const xredisclusterclientready* ReadyResult=rrWait(Ready);rrRequire(ReadyResult->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && ReadyResult->Generation==1,"real asynchronous bootstrap");xrtFutureDestroy(Ready);
         xbytesview Reset[]={XRT_BYTES_LITERAL("SET"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter"),XRT_BYTES_LITERAL("0")};uint16 Slot;rrRequire(xredisClusterKeySlot(Reset[1],&Slot),"counter slot");char SlotText[6];snprintf(SlotText,sizeof(SlotText),"%u",(unsigned)Slot);
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
         xrediscommandcatalog* Catalogue=NULL;
         rrRequire(appCatalogRefresh(Client,Slot,10000,NULL,&Catalogue),"APP fetches actual authorized managed COMMAND into an immutable catalogue");
@@ -131,14 +130,14 @@ int main(int Argc,char** Argv)
         xbytesview Meta[]={XRT_BYTES_LITERAL("COMMAND"),XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("MSET"),XRT_BYTES_LITERAL("PING"),XRT_BYTES_LITERAL("SORT")};xfuture* Metadata=rrCall(Context.Nodes[0].Pool,Meta,7);const xredisrequestresult* MR=rrWait(Metadata);xrediscommandcatalog* Catalogue=NULL;rrRequire(MR->Status==XREDIS_REQUEST_OK && xredisCommandCatalogCreate(MR->Reply,NULL,&Catalogue)==XREDIS_KEYS_OK,"actual authorized COMMAND INFO snapshot");xrtFutureDestroy(Metadata);
 #endif
         uint64 AdmissionBefore=rrInfo(Client).Accepted;xfuture* Refused=(void*)(uintptr_t)1;xbytesview Cross[]={XRT_BYTES_LITERAL("MSET"),Reset[1],XRT_BYTES_LITERAL("0"),XRT_BYTES_LITERAL("xrt-owned:other:{distinct}\0key"),XRT_BYTES_LITERAL("0")};uint16 OtherSlot;rrRequire(xredisClusterKeySlot(Cross[3],&OtherSlot) && OtherSlot!=Slot,"distinct oracle slot");
-        rrRequire(xredisClusterClientCallCommand(Client,Catalogue,Cross,5,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Refused)==XREDIS_CLUSTER_COMMAND_CROSS_SLOT && Refused==(void*)(uintptr_t)1,"actual metadata cross-slot admission");
-        xbytesview Ping[]={XRT_BYTES_LITERAL("PING")},Sort[]={XRT_BYTES_LITERAL("SORT"),Reset[1]};rrRequire(xredisClusterClientCallCommand(Client,Catalogue,Ping,1,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Refused)==XREDIS_CLUSTER_COMMAND_KEYLESS && Refused==(void*)(uintptr_t)1,"keyless command guessed node");rrRequire(xredisClusterClientCallCommand(Client,Catalogue,Sort,2,Slot,10000,&Refused)==XREDIS_CLUSTER_COMMAND_UNSUPPORTED && Refused==(void*)(uintptr_t)1 && rrInfo(Client).Accepted==AdmissionBefore,"incomplete key rule submitted business");
-        xfuture* Pinged=NULL;rrRequire(xredisClusterClientCallCommand(Client,Catalogue,Ping,1,Slot,10000,&Pinged)==XREDIS_CLUSTER_COMMAND_ACCEPTED && ((const xredisclusterclientresult*)rrWait(Pinged))->Route.Query.Status==XREDIS_REQUEST_OK,"explicit keyless command");xrtFutureDestroy(Pinged);
+        rrRequire(appClusterCallCommand(Client,Catalogue,Cross,5,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Refused)==XREDIS_CLUSTER_COMMAND_CROSS_SLOT && Refused==(void*)(uintptr_t)1,"actual metadata cross-slot admission");
+        xbytesview Ping[]={XRT_BYTES_LITERAL("PING")},Sort[]={XRT_BYTES_LITERAL("SORT"),Reset[1]};rrRequire(appClusterCallCommand(Client,Catalogue,Ping,1,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Refused)==XREDIS_CLUSTER_COMMAND_KEYLESS && Refused==(void*)(uintptr_t)1,"keyless command guessed node");rrRequire(appClusterCallCommand(Client,Catalogue,Sort,2,Slot,10000,&Refused)==XREDIS_CLUSTER_COMMAND_UNSUPPORTED && Refused==(void*)(uintptr_t)1 && rrInfo(Client).Accepted==AdmissionBefore,"incomplete key rule submitted business");
+        xfuture* Pinged=NULL;rrRequire(appClusterCallCommand(Client,Catalogue,Ping,1,Slot,10000,&Pinged)==XREDIS_CLUSTER_COMMAND_ACCEPTED && ((const xredisclusterclientresult*)rrWait(Pinged))->Route.Query.Status==XREDIS_REQUEST_OK,"explicit keyless command");xrtFutureDestroy(Pinged);
 #endif
         if(Stale)rrOwner(&Context,SlotText,1,Ids);
         xfuture* F=NULL;if(Stale)F=rrCall(Context.Nodes[1].Pool,Reset,3);else rrRequire(xredisSharedPoolAskingCall(Context.Nodes[1].Pool,Reset,3,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"owned importing initialization");const xredisrequestresult* ResetResult=rrWait(F);rrRequire(ResetResult->Status==XREDIS_REQUEST_OK,"owned counter reset");xrtFutureDestroy(F);
         rrproducer Work[4];xthread* Threads[4];for(unsigned I=0;I<4;++I){Work[I]=(rrproducer){.Client=Client,.Slot=Slot,.Stale=Stale!=0,.Case=Cases};
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
             Work[I].Catalogue=Catalogue;
 #endif
             Threads[I]=xrtThreadCreate(rrProduce,&Work[I],0);rrRequire(Threads[I]!=NULL,"route producer");}
@@ -150,8 +149,8 @@ int main(int Argc,char** Argv)
         else rrRequire(rrInfo(Client).Generation==1 && !rrInfo(Client).Moved && rrInfo(Client).Refreshes==1,"ASK refreshed shared map");
         bool Dirty=true;rrRequire(xredisClusterClientSnapshot(Client,&Maps[Cases],&Dirty)==XREDIS_CLUSTER_VALUE && !Dirty,"managed acquired real map");Generations[Cases]=rrInfo(Client).Generation;
         if(Stale){xbytesview Probe[]={XRT_BYTES_LITERAL("GET"),Reset[1]};xfuture* P=NULL;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-            rrRequire(xredisClusterClientCallCommand(Client,Catalogue,Probe,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&P)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata post-MOVED route");
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
+            rrRequire(appClusterCallCommand(Client,Catalogue,Probe,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&P)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata post-MOVED route");
 #else
             rrRequire(xredisClusterClientCall(Client,Slot,Probe,2,10000,&P)==XREDIS_ADMISSION_ACCEPTED,"post-MOVED route");
 #endif
@@ -160,7 +159,7 @@ int main(int Argc,char** Argv)
         uint64 BeforeSeedFailure=rrInfo(Client).Generation;xrtAtomic32Store(&Context.DenySeed,1,XMEMORY_RELEASE);rrRequire(xredisClusterClientInvalidate(Client),"original seed denial demand");double SeedDue=xrtTimer()+15;
         while(rrInfo(Client).Generation<=BeforeSeedFailure || rrInfo(Client).Dirty){rrRequire(xrtTimer()<SeedDue,"metadata stranded at denied original seed");xrtSleep(1);}
         xredisclustermap* NewOrigin=NULL;bool SeedDirty=true;rrRequire(xredisClusterClientSnapshot(Client,&NewOrigin,&SeedDirty)==XREDIS_CLUSTER_VALUE && !SeedDirty,"new query origin map");xredisclustermapinfo NewInfo={0};NewInfo.Size=sizeof(NewInfo);rrRequire(xredisClusterMapInfo(NewOrigin,&NewInfo) && NewInfo.Origin.Port!=Ports[0] && xrtAtomic32Load(&Context.SeedDenied,XMEMORY_ACQUIRE)>0,"metadata did not use discovered authorized endpoint");xredisClusterMapRelease(NewOrigin);
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
         xredisCommandCatalogRelease(Catalogue);
 #endif
         xfuture* ClientClosed=xredisClusterClientClosed(Client);rrRequire(xredisClusterClientClose(Client) && xrtFutureWaitFor(ClientClosed,15000)==XWAIT_OK && !rrInfo(Client).Requests && !rrInfo(Client).APIs && !rrInfo(Client).StorageBytes,"managed physical observer/post/timer close");xrtFutureDestroy(ClientClosed);xredisClusterClientRelease(Client);xrtAtomic32Store(&Context.DenySeed,0,XMEMORY_RELEASE);
@@ -176,13 +175,13 @@ int main(int Argc,char** Argv)
     rrRequire(Cases==36 && Retained==144 && xrtNetResolverDestroy(Resolver) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"all native owners joined");
     for(size_t I=0;I<Retained;++I){const xredisclusterclientresult* R=rrWait(Saved[I]);rrRequire(R->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && R->Route.Query.Status==XREDIS_REQUEST_OK && rrValue(R->Route.Query.Reply).Integer==Expected[I],"retained managed native result");xrtFutureDestroy(Saved[I]);}
     for(size_t I=0;I<Cases;++I){xredisclustermapinfo M={0};M.Size=sizeof(M);rrRequire(xredisClusterMapInfo(Maps[I],&M) && M.Generation==Generations[I],"retained managed map after engine teardown");xredisClusterMapRelease(Maps[I]);}
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
     puts("[PASS] cached command routing: APP-owned snapshot from explicit-slot COMMAND");
 #endif
     puts("[PASS] metadata command routing: actual server metadata, complete key preflight, explicit keyless policy and unchanged native duties");
 #endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#if (defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY))
     puts("[PASS] synchronous Cluster routing: explicit and metadata calls, actual wait outcomes, four producers and exactly32 unique INCR effects per case");
 #endif
     puts("[PASS] real Cluster client: 36 SHARDS/SLOTS numeric/DNS/prepared RESP2/3/AUTO migrating ASK/actual-owner-change MOVED cases; automatic bootstrap/refresh, denied original seed with discovered endpoint recovery, four producers, exactly32 INCR executions, new-map direct routes and retained native outcomes");return 0;

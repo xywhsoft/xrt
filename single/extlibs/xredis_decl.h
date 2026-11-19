@@ -42,12 +42,6 @@
 #if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC 1
 #endif
-#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND 1
-#endif
-#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC 1
-#endif
 #if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_NODES 1
 #endif
@@ -62,9 +56,6 @@
 #endif
 #if !defined(XREDIS_FEATURE_XREDIS_COMMAND)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND 1
-#endif
-#if !defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND_KEYS 1
 #endif
 #if !defined(XREDIS_FEATURE_XREDIS_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL 1
@@ -159,12 +150,6 @@
 #if !defined(XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC 1
 #endif
-#if !defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND 1
-#endif
-#if !defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC 1
-#endif
 #if !defined(XREDIS_MODULE_XREDIS_CLUSTER_NODES)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_NODES 1
 #endif
@@ -179,9 +164,6 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_COMMAND)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND 1
-#endif
-#if !defined(XREDIS_MODULE_XREDIS_COMMAND_KEYS)
-#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND_KEYS 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL 1
@@ -2854,30 +2836,8 @@
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #endif
-#ifndef XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#define XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#endif
-#endif
-
-/* xredis_cluster_command_sync 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC)
-#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
-#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
 #endif
 #endif
 
@@ -2888,29 +2848,6 @@
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#endif
-#endif
-
-/* xredis_cluster_command 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND)
-#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#endif
-#ifndef XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#define XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#endif
-#endif
-
-/* xredis_command_keys 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_COMMAND_KEYS)
-#ifndef XREDIS_FEATURE_XREDIS_COMMAND_KEYS
-#define XREDIS_FEATURE_XREDIS_COMMAND_KEYS
-#endif
-#ifndef XREDIS_MODULE_XREDIS_REPLY
-#define XREDIS_MODULE_XREDIS_REPLY
 #endif
 #endif
 
@@ -6023,134 +5960,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/command_keys.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_COMMAND_KEYS_H
-#define XREDIS_COMMAND_KEYS_H
-#if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS) && !defined(XREDIS_FEATURE_XREDIS_REPLY)
-#error "Command key specifications require immutable replies"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-typedef struct xrediscommandcatalog xrediscommandcatalog;
-typedef enum xrediskeysstatus {
-    XREDIS_KEYS_ERROR=-1,XREDIS_KEYS_MALFORMED=-2,XREDIS_KEYS_LIMIT=-3,
-    XREDIS_KEYS_MEMORY=-4,XREDIS_KEYS_SERVER_ERROR=-5,
-    XREDIS_KEYS_OK=1,XREDIS_KEYS_NONE,XREDIS_KEYS_UNKNOWN,
-    XREDIS_KEYS_UNSUPPORTED,XREDIS_KEYS_CROSS_SLOT,XREDIS_KEYS_ARGUMENTS
-} xrediskeysstatus;
-typedef enum xrediskeyflag {
-    XREDIS_KEY_RO=1,XREDIS_KEY_RW=2,XREDIS_KEY_OW=4,XREDIS_KEY_RM=8,
-    XREDIS_KEY_ACCESS=16,XREDIS_KEY_UPDATE=32,XREDIS_KEY_INSERT=64,
-    XREDIS_KEY_DELETE=128,XREDIS_KEY_NOT_KEY=256,XREDIS_KEY_VARIABLE=512
-} xrediskeyflag;
-typedef struct xrediscommandkeylimits {
-    size_t Size,MaxCommands,MaxSpecifications,MaxNameBytes,MaxDepth,
-        MaxReplyNodes,MaxPayloadBytes,MaxOwnedBytes,MaxArguments,MaxArgumentBytes,MaxKeys,
-        MaxKeyBytes,MaxSearchWork;
-} xrediscommandkeylimits;
-typedef struct xrediscommandcataloginfo {
-    size_t Size,Commands,Specifications,LookupDepth,StorageBytes,RetainedReplyBytes;
-} xrediscommandcataloginfo;
-/* Flags are specification possibilities; VARIABLE is not an exact access decision.
- * NOT_KEY still participates in Cluster slot calculation (for example channels).
- * Specification order and repeated argument occurrences are preserved. */
-typedef struct xrediscommandkey {size_t Argument;uint32 Flags;} xrediscommandkey;
-typedef struct xrediscommandkeyresult {
-    size_t Size,Command,Keys;uint16 Slot;bool HasSlot,Legacy,VariableFlags;
-} xrediscommandkeyresult;
-XRT_EXTERN_C_BEGIN
-/* Defaults:8192 commands,32768 specs,256-byte names,16 levels,1M reply nodes,
- * 16MiB metadata payload,64MiB retained storage,65536 arguments/keys,64MiB args
- * and extracted key bytes,1M search inspections/matched bytes per pass.
- * Hard maxima:65535 commands,262144 specs,4096-byte names,16 levels,
- * 1M arguments/keys,1GiB byte caps. Zero is a limit, except Size. */
-XREDIS_API bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* Limits);
-/* Complete COMMAND/COMMAND INFO collection, including nested subcommands and null
- * unknown entries. RESP3 sets are supported for non-positional collections;
- * command rows remain positional arrays. Retains Reply once; one additional immutable allocation holds
- * commands/specs/name hash. Two passes validate before publication. Legacy six-
- * field entries are supported; movable/incomplete/unknown key rules require a
- * server oracle. Unknown future metadata fields are preserved by the Reply.
- * No I/O. Failure leaves Catalog and ownership unchanged; OK includes empty. */
-XREDIS_API xrediskeysstatus xredisCommandCatalogCreate(xredisreply* Reply,
-    const xrediscommandkeylimits* Limits,xrediscommandcatalog** Catalog);
-XREDIS_API bool xredisCommandCatalogRetain(xrediscommandcatalog* Catalog);
-XREDIS_API void xredisCommandCatalogRelease(xrediscommandcatalog* Catalog);
-XREDIS_API bool xredisCommandCatalogInfo(const xrediscommandcatalog* Catalog,
-    xrediscommandcataloginfo* Info);
-/* Arguments include the command and subcommand tokens. ASCII command/keyword
- * matching is case-insensitive; keys are binary and use Redis hash tags.
- * No allocation, lock, refcount, I/O or input retention. Immutable owners can
- * evaluate concurrently. NULL Keys/zero Capacity computes count/slot alone.
- * OK/NONE alone publish Result and optional Keys, atomically after validation;
- * short capacity and every other status leave all outputs unchanged.
- * UNKNOWN means absent metadata; UNSUPPORTED means full extraction needs
- * COMMAND GETKEYS/GETKEYSANDFLAGS (including incomplete/unknown specs/flags).
- * Neither may be treated as NONE or routed using a guessed first argument.
- * CROSS_SLOT checks every extracted routing key, including NOT_KEY. ARGUMENTS
- * checks arity and extraction indices/counts, not the command's entire grammar.
- * Flags may overapproximate access; they do not authorize replica routing.
- * All outputs must be disjoint from catalog/reply, descriptors and input bytes.
- * Successful and typed non-API outcomes preserve the ambient error. */
-XREDIS_API xrediskeysstatus xredisCommandCatalogEvaluate(const xrediscommandcatalog* Catalog,
-    const xbytesview* Arguments,size_t Count,xrediscommandkey* Keys,size_t Capacity,
-    xrediscommandkeyresult* Result);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/cluster_command.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_CLUSTER_COMMAND_H
-#define XREDIS_CLUSTER_COMMAND_H
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND) && (!defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT) || !defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS))
-#error "Cluster commands require the asynchronous client and command key catalogue"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-typedef enum xredisclustercommandadmission {
-    XREDIS_CLUSTER_COMMAND_ERROR=-1,XREDIS_CLUSTER_COMMAND_ACCEPTED=0,
-    XREDIS_CLUSTER_COMMAND_OVERLOADED,XREDIS_CLUSTER_COMMAND_CLOSED,
-    XREDIS_CLUSTER_COMMAND_UNKNOWN,XREDIS_CLUSTER_COMMAND_UNSUPPORTED,
-    XREDIS_CLUSTER_COMMAND_CROSS_SLOT,XREDIS_CLUSTER_COMMAND_ARGUMENTS,
-    XREDIS_CLUSTER_COMMAND_LIMIT,XREDIS_CLUSTER_COMMAND_KEYLESS
-} xredisclustercommandadmission;
-#define XREDIS_CLUSTER_COMMAND_NO_SLOT UINT16_MAX
-XRT_EXTERN_C_BEGIN
-/* Nonblocking metadata-checked Call. All routing keys must agree on one slot.
- * KeylessSlot is an explicit0..16383 fallback for NONE; NO_SLOT returns KEYLESS
- * without admission. It is ignored when actual routing keys exist. Unknown,
- * incomplete/future, cross-slot, arity/extraction or catalogue/client argument
- * limit failures return their typed admission without network work. No metadata
- * fetch, server fallback, replica inference or accepted-business replay is added.
- * Preflight refusals leave client admission counters unchanged; native capacity/
- * close decisions use existing counters and map to OVERLOADED/CLOSED/ERROR.
- * Only ACCEPTED publishes one existing xredisclusterclientresult Future.
- * Every other result preserves Future, inputs and ownership. Catalogue and
- * arguments are borrowed only during this function; no catalogue ref is held
- * afterward. Async command data is copied by the existing native Call path.
- * One function-entry monotonic deadline covers metadata/spans/slot validation,
- * allocation, bootstrap, queue/provider waits and redirects. Timeout-1 uses
- * Route.Timeout;0 is due;maximum24h. Metadata itself is a bounded synchronous
- * CPU phase, not an interruptible task; configure catalogue work/byte caps.
- * Future must be disjoint from Client/current map/Catalogue/Reply/input storage.
- * Caller holds stable Client/Catalogue owners throughout the call. Do not wait
- * on the progress Engine's workers. Existing close/native physical duties and
- * retained outcome guarantees are unchanged. Typed preflight refusals preserve
- * ambient error; ERROR reports invalid API/native admission failure as before. */
-XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommand(
-    xredisclusterclient* Client,const xrediscommandcatalog* Catalogue,
-    const xbytesview* Arguments,size_t Count,uint16 KeylessSlot,int64 Timeout,
-    xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/cluster_client_sync.h */
 /* ========================================================================== */
 
@@ -6183,34 +5992,6 @@ XRT_EXTERN_C_BEGIN
  * introduced; use asynchronous Call for independently cancellable submissions. */
 XREDIS_API xredisadmission xredisClusterClientCallSync(xredisclusterclient* Client,
     uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,
-    xredisclusterwait* Result);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/cluster_command_sync.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_CLUSTER_COMMAND_SYNC_H
-#define XREDIS_CLUSTER_COMMAND_SYNC_H
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC) && (!defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) || !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND))
-#error "Synchronous metadata routing requires Cluster sync and command routing"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-XRT_EXTERN_C_BEGIN
-/* Blocking CallCommand with the same typed preflight decisions and one original
- * entry deadline through metadata and native work. Catalogue is borrowed only
- * for preflight/admission; the facade retains no catalogue reference. Result is
- * published only on ACCEPTED and also disjoint from Catalogue/retained Reply.
- * All progress/Nodes Engine workers are refused before metadata/admission.
- * Wait/Future ownership, native wait failure and physical retirement follow
- * CallSync. There is no automatic metadata fetch, exotic-command server query,
- * replica inference, independently cancellable wait or new replay policy. */
-XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommandSync(
-    xredisclusterclient* Client,const xrediscommandcatalog* Catalogue,
-    const xbytesview* Arguments,size_t Count,uint16 KeylessSlot,int64 Timeout,
     xredisclusterwait* Result);
 XRT_EXTERN_C_END
 #endif
@@ -6353,20 +6134,8 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
 #endif
 
-#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_COMMAND_KEYS"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND"
-#endif
-
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
 #endif
 
 #endif
@@ -6385,14 +6154,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 #undef XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#undef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
-#undef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
 #undef XREDIS_FEATURE_XREDIS_CLUSTER_NODES
@@ -6413,10 +6174,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND)
 #undef XREDIS_FEATURE_XREDIS_COMMAND
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
-#undef XREDIS_FEATURE_XREDIS_COMMAND_KEYS
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND_KEYS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL)
 #undef XREDIS_FEATURE_XREDIS_DIAL
@@ -6542,14 +6299,6 @@ XRT_EXTERN_C_END
 #undef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND)
-#undef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC)
-#undef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_NODES)
 #undef XREDIS_MODULE_XREDIS_CLUSTER_NODES
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_CLUSTER_NODES
@@ -6569,10 +6318,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND)
 #undef XREDIS_MODULE_XREDIS_COMMAND
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND_KEYS)
-#undef XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND_KEYS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL)
 #undef XREDIS_MODULE_XREDIS_DIAL
@@ -8481,30 +8226,8 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #endif
-#ifndef XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#define XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
-#endif
-#endif
-
-/* xredis_cluster_command_sync 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC)
-#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
-#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
 #endif
 #endif
 
@@ -8515,29 +8238,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#endif
-#endif
-
-/* xredis_cluster_command 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND)
-#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
-#endif
-#ifndef XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#define XREDIS_MODULE_XREDIS_COMMAND_KEYS
-#endif
-#endif
-
-/* xredis_command_keys 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_COMMAND_KEYS)
-#ifndef XREDIS_FEATURE_XREDIS_COMMAND_KEYS
-#define XREDIS_FEATURE_XREDIS_COMMAND_KEYS
-#endif
-#ifndef XREDIS_MODULE_XREDIS_REPLY
-#define XREDIS_MODULE_XREDIS_REPLY
 #endif
 #endif
 
