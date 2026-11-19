@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "684fb39f43ca3d977d8642757eb616f4e9b62386",
+  "source_lf_sha256": {
+    "src/network/tcp_dial.c": "1a7dc079fdefe76365eefcf557487ca8ea94bd2c76f22568e4469afaa246f0ba",
+    "single/xrt.h": "58cc852398644a32861b8b0770e2f6a772a91541c21092be7a686e656e26bbde",
+    "tests/network/test_net_tcp_dial.c": "e000f2b2ecfe17311a365e87ee172abd192a7e2f102c0b3f7ab70727c97f272f",
+    "tests/single/test_single_net_tcp_dial.c": "a8d5b2a0cbd1e8dedf09041d2e936f29c91ed0ded79a1add8e1ae824d9deb963"
+  },
+  "behavior": "A current successful fallback timer launches the next eligible candidate while an older connection is pending. The owner drives the remaining queue and preserves terminal, cancellation and timer ownership rules.",
+  "regression_fixture": "The same single-header test holds the first candidate pending at native connect/select and requires the real IPv4 candidate to win with peak concurrency two. The exact baseline header times out on both hosts.",
+  "tests": {
+    "windows": {
+      "native_backend": "IOCP",
+      "baseline_timeout": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/baseline-final-windows.log",
+        "sha256": "9db0b1a5854b4cce87bef8e4f0213d294178aeebaeb39e54c30d5e7da738c80b"
+      },
+      "enabled_modular_programs": 12,
+      "single_header_programs": 4,
+      "core_regressions": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/green-windows.log",
+        "sha256": "810dce5b8385b0bc9932798c3763a7ae19ea3d0ab2661913e998ebca1026fb69"
+      },
+      "xmqtt_regressions_and_examples": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/mqtt-windows.log",
+        "sha256": "a6ca00108e00a1638ad9182212fb89697add5265ad29e051fd37a5d1f7ac239b"
+      },
+      "xmqtt_packages": {
+        "static": {
+          "path": "out/service-extensions/xrt-dial-fallback-20261119/package-windows-static.log",
+          "sha256": "86468ac05c2b632f3a69600be8f593bfbfb653cdd6c30b343f35c9512c9744ff"
+        },
+        "shared": {
+          "path": "out/service-extensions/xrt-dial-fallback-20261119/package-windows-shared.log",
+          "sha256": "7dddcf8d3ed022480171d52379493c565bad2928f755633b3b0b524f93ba1060"
+        }
+      }
+    },
+    "wsl": {
+      "native_backend": "io_uring in WSL",
+      "baseline_timeout": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/baseline-final-wsl.log",
+        "sha256": "9db0b1a5854b4cce87bef8e4f0213d294178aeebaeb39e54c30d5e7da738c80b"
+      },
+      "enabled_modular_programs": 12,
+      "single_header_programs": 4,
+      "core_regressions": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/green-wsl.log",
+        "sha256": "60b57f2f1f95ed1709ce48011a945b1caa6a3f627251e8dcdf1a1a7f546cfed5"
+      },
+      "xmqtt_regressions_and_examples": {
+        "path": "out/service-extensions/xrt-dial-fallback-20261119/mqtt-wsl.log",
+        "sha256": "cad89ddb7ef04b4eb89cc8fa7ad60d580aa71d56d2cc5d5643fafc5d9aea7a56"
+      },
+      "xmqtt_packages": {
+        "static": {
+          "path": "out/service-extensions/xrt-dial-fallback-20261119/package-wsl-static.log",
+          "sha256": "21d1a0eef749dd889be4e728a57f28d4e249b786be08c77975f955e47fc6e360"
+        },
+        "shared": {
+          "path": "out/service-extensions/xrt-dial-fallback-20261119/package-wsl-shared.log",
+          "sha256": "5ff7723f313ac17df2dd330c5bc5b04b86cea9e0a526691895c2bd24f67166b9"
+        }
+      }
+    }
+  },
+  "generated_header_check": {
+    "path": "out/service-extensions/xrt-dial-fallback-20261119/headers.log",
+    "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+  },
+  "sanitizers": {
+    "wsl_asan_ubsan_leaks": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/asan.log",
+      "sha256": "7593e069a5e572563d21b3ccf431be9829ad4de0008379d814550d104f84222c"
+    },
+    "wsl_clang_tsan": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/tsan.log",
+      "sha256": "40f25724bdae419473d915a4dbf7c10b68e5f801583d0cbbfc4b97594051ecc0"
+    }
+  },
+  "windows_native_core_comparison": {
+    "workload": "Eight alternating pairs per mode, loopback IPv4-only listener, fixed 250 ms fallback, same benchmark source and GCC flags, timing to the native Dial done callback.",
+    "samples": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/matched-control.json",
+      "sha256": "1ec83474129dd4331a24a20f1e297e8e7a6bcfe05f2f2a3ec31c76c6e65dc914"
+    },
+    "harness": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/matched-control.py",
+      "sha256": "bb8f5f5bca75c13ae6428ad1216b4d70031f4c924c96c7dab7be3f11c043c9ec"
+    },
+    "probes": {
+      "baseline": {
+        "exe": "baseline.exe",
+        "sha256": "92c838f4589cb57ebd00d69c0018825d3fac7b0ec51dbcd0694cb1f07aca61c3",
+        "header_lf_sha256": "e9ff748e2fbb101e058cb651f95d6d9ed70ac59d26f876e5888a1aa371694ede"
+      },
+      "patched": {
+        "exe": "patched.exe",
+        "sha256": "5f44d938fbe94aed7549196640be209cebe7ac9114e0207be000eac9fca307ce",
+        "header_lf_sha256": "58cc852398644a32861b8b0770e2f6a772a91541c21092be7a686e656e26bbde"
+      }
+    },
+    "summary": {
+      "host": {
+        "baseline": {
+          "median_ms": 2031.7815,
+          "max_ms": 2048.408
+        },
+        "patched": {
+          "median_ms": 251.59449999999998,
+          "max_ms": 252.308
+        }
+      },
+      "prepared": {
+        "baseline": {
+          "median_ms": 2034.8020000000001,
+          "max_ms": 2047.337
+        },
+        "patched": {
+          "median_ms": 251.075,
+          "max_ms": 251.516
+        }
+      }
+    }
+  },
+  "mqtt_interop": {
+    "verified_deliveries_after": 64,
+    "baseline_report": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/broker-full.json",
+      "sha256": "7d3100ff3cd686b9db17a348231d577961d47c493e9563e1c8ffe57f8adff1a9"
+    },
+    "post_fix_report": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/mqtt-broker.json",
+      "sha256": "55804ca893fd40f80b321b35427b43ba8245ad1fb77cbb3d477639da488f977f"
+    },
+    "post_fix_broker_transcript": {
+      "path": "out/service-extensions/xrt-dial-fallback-20261119/mqtt-broker-artifacts/broker.log",
+      "sha256": "c682179c350a5df7c1dba169db34f1e782e1e0b48335cf20d1b7068efffa90ca"
+    },
+    "windows_hostname_full_process_medians_ms": {
+      "5": {
+        "baseline": 2124.825046,
+        "after": 338.60675000000003
+      },
+      "311": {
+        "baseline": 2120.735571,
+        "after": 333.03025
+      }
+    },
+    "measurement_scope": "Separate Mosquitto cohorts. Observational total example-process time including journal work and the WSL relay."
+  }
+}

@@ -288,7 +288,8 @@ static int testDialLifecycle(int64 Timeout)
 		(DialStats.State == XNET_DIAL_CONNECTED) &&
 		(DialStats.Addresses == 2) &&
 		(DialStats.AttemptsStarted == 2) &&
-		(DialStats.AttemptsFailed == 1) &&
+		((DialStats.AttemptsFailed == 1) ||
+		 ((DialStats.AttemptsFailed == 0) && (DialStats.PeakAttempts == 2))) &&
 		(DialStats.ActiveAttempts == 0) &&
 		DialStats.HasWinner && (DialStats.WinnerIndex == 1),
 		"managed TCP dial statistics mismatch");

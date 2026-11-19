@@ -1,33 +1,105 @@
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+typedef SOCKET dial_native_socket;
+typedef int dial_socklen;
+#define DIAL_INVALID_SOCKET INVALID_SOCKET
+#else
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <errno.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <unistd.h>
+typedef int dial_native_socket;
+typedef socklen_t dial_socklen;
+#define DIAL_INVALID_SOCKET (-1)
+#endif
+
+static _Thread_local dial_native_socket TestHeldSocket = DIAL_INVALID_SOCKET;
+
+static int testDialNativeConnect(dial_native_socket Socket,const struct sockaddr* Address,dial_socklen Length)
+{
+	if ( Address->sa_family != AF_INET6 ) {
+		return connect(Socket, Address, Length);
+	}
+	TestHeldSocket = Socket;
+#if defined(_WIN32) || defined(_WIN64)
+	WSASetLastError(WSAEWOULDBLOCK);
+#else
+	errno = EINPROGRESS;
+#endif
+	return -1;
+}
+
+/* Keep the first native candidate pending while the select worker runs its
+ * real fallback timer and opens the IPv4 connection. */
+static int testDialNativeSelect(int Max,fd_set* Read,fd_set* Write,fd_set* Error,struct timeval* Timeout)
+{
+	if ( TestHeldSocket != DIAL_INVALID_SOCKET ) {
+		if ( Read ) FD_CLR(TestHeldSocket, Read);
+		if ( Write ) FD_CLR(TestHeldSocket, Write);
+		if ( Error ) FD_CLR(TestHeldSocket, Error);
+	}
+	return select(Max, Read, Write, Error, Timeout);
+}
+
+static int testDialNativeClose(dial_native_socket Socket)
+{
+	if ( Socket == TestHeldSocket ) {
+		TestHeldSocket = DIAL_INVALID_SOCKET;
+	}
+#if defined(_WIN32) || defined(_WIN64)
+	return closesocket(Socket);
+#else
+	return close(Socket);
+#endif
+}
+
+#define connect testDialNativeConnect
+#define select testDialNativeSelect
+#if defined(_WIN32) || defined(_WIN64)
+#define closesocket testDialNativeClose
+#else
+#define close testDialNativeClose
+#endif
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#undef connect
+#undef select
+#undef closesocket
+#undef close
 #include "net_engine_test.h"
+#include <stdio.h>
 
 
 
 typedef struct testsingledial {
 	xnetstream* Client;
-	xnetstream* Server;
+	xatomicptr Server;
 	xatomic32 Done;
+	xnetresult Result;
 } testsingledial;
 
 
 
-/* 返回单头文件 Dial 使用的 IPv4 回环解析结果。 */
+/* IPv6 is held pending by the native fixture. IPv4 has a real listener. */
 static xnetaddrlist* testSingleDialLookup(
 	cstr sHost,
 	xnetfamily Family,
 	ptr pData
 )
 {
-	xnetaddr Address;
+	xnetaddr Addresses[2];
 
 	(void)sHost;
 	(void)Family;
 	(void)pData;
-	if ( !xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, 0) ) {
+	if ( !xrtNetAddrLoopback(&Addresses[0], XNET_FAMILY_IPV6, 0) ||
+		 !xrtNetAddrLoopback(&Addresses[1], XNET_FAMILY_IPV4, 0) ) {
 		return NULL;
 	}
-	return xrtNetAddrListCreate(&Address, 1);
+	return xrtNetAddrListCreate(Addresses, 2);
 }
 
 
@@ -42,7 +114,7 @@ static bool testSingleDialAccept(
 	testsingledial* pState = (testsingledial*)pData;
 
 	(void)pListener;
-	pState->Server = pStream;
+	xrtAtomicPtrStore(&pState->Server, pStream, XMEMORY_RELEASE);
 	return true;
 }
 
@@ -63,8 +135,9 @@ static void testSingleDialDone(
 	if ( (Result == XNET_RESULT_OK) &&
 		 (pStream != NULL) && (pError == NULL) ) {
 		pState->Client = pStream;
-		xrtAtomic32Store(&pState->Done, 1, XMEMORY_RELEASE);
 	}
+	pState->Result = Result;
+	xrtAtomic32Store(&pState->Done, 1, XMEMORY_RELEASE);
 }
 
 
@@ -82,9 +155,14 @@ int main(void)
 	xnetlistener* pListener;
 	xnetdial* pDial;
 	xnetaddr Address;
+	xnetdialconfig DialConfig;
+	xnetdialstats Stats;
+	xnetstream* pServer;
 	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
+	xrtAtomicPtrInit(&State.Server, NULL);
+	xrtAtomic32Init(&State.Done, 0);
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
 	ListenerEvents.Accept = testSingleDialAccept;
 	xrtNetEngineConfigInit(&EngineConfig);
@@ -117,12 +195,15 @@ int main(void)
 		 !xrtNetListenerLocal(pListener, &Address) ) {
 		return 3;
 	}
+	xrtNetDialConfigInit(&DialConfig);
+	DialConfig.FallbackDelay = 25;
+	DialConfig.Timeout = 2000;
 	pDial = xrtNetDial(
 		pEngine,
 		pResolver,
 		"single.test",
 		Address.Port,
-		NULL,
+		&DialConfig,
 		NULL,
 		NULL,
 		testSingleDialDone,
@@ -133,18 +214,29 @@ int main(void)
 	}
 	iDeadline = __xrtWaitAfter(3000);
 	while ( (xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0) ||
-		 (State.Server == NULL) ) {
+		 (State.Client && !xrtAtomicPtrLoad(&State.Server, XMEMORY_ACQUIRE)) ) {
 		if ( __xrtWaitExpired(iDeadline) ) {
 			return 5;
 		}
 		xrtThreadYield();
 	}
+	if ( !State.Client ) {
+		fprintf(stderr, "fallback did not win while the first candidate was pending: result=%d\n",
+			(int)State.Result);
+		return 5;
+	}
+	if ( !xrtNetDialStats(pDial, &Stats) || !Stats.HasWinner ||
+		 (Stats.WinnerIndex != 1) || (Stats.PeakAttempts != 2) ||
+		 (Stats.AttemptsFailed != 0) || (Stats.ActiveAttempts != 0) ) {
+		return 10;
+	}
+	pServer = xrtAtomicPtrLoad(&State.Server, XMEMORY_ACQUIRE);
 	if ( !xrtNetStreamClose(State.Client) ||
-		 !xrtNetStreamClose(State.Server) ) {
+		 !xrtNetStreamClose(pServer) ) {
 		return 6;
 	}
 	while ( (xrtNetStreamState(State.Client) != XNET_STREAM_CLOSED) ||
-		 (xrtNetStreamState(State.Server) != XNET_STREAM_CLOSED) ) {
+		 (xrtNetStreamState(pServer) != XNET_STREAM_CLOSED) ) {
 		if ( __xrtWaitExpired(iDeadline) ) {
 			return 7;
 		}
@@ -155,11 +247,13 @@ int main(void)
 		xrtThreadYield();
 	}
 	xrtNetStreamDestroy(State.Client);
-	xrtNetStreamDestroy(State.Server);
+	xrtNetStreamDestroy(pServer);
 	xrtNetDialDestroy(pDial);
 	xrtNetListenerDestroy(pListener);
 	if ( !xrtNetResolverDestroy(pResolver) ) {
 		return 8;
 	}
-	return testSingleNetEngineDestroy(pEngine) ? 0 : 9;
+	if ( !testSingleNetEngineDestroy(pEngine) ) return 9;
+	puts("[PASS] timed TCP fallback races a candidate while the first remains pending");
+	return 0;
 }

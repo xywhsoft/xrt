@@ -254282,6 +254282,9 @@ static void __xrtNetDialFallbackTimer(
 	}
 	if ( bCurrent && (Result == XNET_RESULT_OK) &&
 		 __xrtNetDialCanDrive(pDial) ) {
+		if ( !pDial->WinnerPending && (pDial->NextAddress < pDial->Count) ) {
+			(void)__xrtNetDialLaunchOne(pDial);
+		}
 		__xrtNetDialDrive(pDial);
 	} else if ( bCurrent && (Result == XNET_RESULT_ERROR) &&
 		 __xrtNetDialCanDrive(pDial) ) {

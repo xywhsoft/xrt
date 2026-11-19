@@ -16008,3 +16008,38 @@ Generated headers and the API reference match. The strict release gate
 reports 36 developing xmqtt modules.
 
 [Stage evidence](../../extlibs/xmqtt/tests/results/store-dial-20261119.json).
+
+## 2026-11-19 Timed TCP candidate fallback
+
+The Core dialer now starts one additional eligible address when the
+positive fallback delay elapses while a connection is pending. Its worker
+still drives remaining candidates, cancels losers and retires their native
+I/O before publishing the terminal result. The baseline timer entered the
+normal drive loop while the first attempt was active and re-armed itself
+without launching the next address.
+
+The single-header regression holds the first candidate active at the
+native connect/select boundary. The second connects to a real listener.
+The exact previous header times out under the same fixture. The fixed
+build wins with two concurrent attempts. Windows and WSL each pass 12
+modular and four single-header Core programs, with IOCP and io_uring
+coverage respectively. WSL also passes ASan/UBSan with leak checking
+and Clang TSan on the held-candidate fixture. The ordinary and durable
+xmqtt Client tests and examples pass on both hosts.
+Both hosts also rebuild and verify the static and shared xmqtt packages.
+
+| Windows dial to an IPv4-only listener, fallback 250 ms | Baseline median (ms) | Fixed median (ms) |
+| --- | ---: | ---: |
+| Hostname | 2,031.8 | 251.6 |
+| Prepared addresses | 2,034.8 | 251.1 |
+
+The Core comparison uses eight alternating pairs per workload with the
+same GCC flags and probe. Both arms attempt two addresses. The 64-sample
+Mosquitto follow-up verifies the actual subscriber payloads and journal
+results again for both MQTT levels. Windows hostname example median
+full-process times in the separate broker cohorts were 2,125 / 339 ms
+for MQTT 5.0 and 2,121 / 333 ms for 3.1.1. These exercise an IPv4-only
+listener and include process creation, journal operations and the WSL
+localhost relay.
+
+[Stage evidence](service-extensions-dial-fallback-20261119.json).
