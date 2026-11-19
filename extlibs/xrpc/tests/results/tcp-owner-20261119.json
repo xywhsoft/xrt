@@ -1,0 +1,723 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "356faacee288666ad866aed333610f34a9a68f63",
+  "inside_step_sources_lf_sha256": {
+    "extlibs/xrpc/src/duplex/duplex.c": "05b9928f5972963b32497220a47922900d10df41496bfe1227490de748703785",
+    "extlibs/xrpc/src/internal/xrpc_duplex_internal.h": "1dd4c32860c3f0382f52ae74f0f16df14ad54c595f1ba294f30ae7ee74ab241c",
+    "extlibs/xrpc/src/tcp/tcp.c": "aefb3887721c65c0aaf392c0105f2012b6e8f0d8fe88c75e02e8d9580df2b87d",
+    "extlibs/xrpc/tests/interop/tcp_gather.c": "e02f9b98029a3ed1172a9fe2f4decdd25f9cb80e0ce76ea02f57270c501e0686",
+    "single/extlibs/xrpc.h": "8c480b45342e5cd7063f4325b8645e06cfebff9df7ab483a179b80cefa4e95ba"
+  },
+  "performance": {
+    "windows": {
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "binaries": [
+        {
+          "path": "out/service-extensions/xrpc-tcp-owner-20261119/windows/binaries.json",
+          "sha256": "80c855ac331d9565d3ad675b35434d6ef131b07254609a52dd979a930ba0aa2b"
+        },
+        {
+          "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/windows/binaries.json",
+          "sha256": "3e6348fa25da4448bfe52ebf4d26924345f09cee1a1a8644f9aeab80343f306f"
+        }
+      ],
+      "samples": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/windows/three-way.json",
+        "sha256": "2d6853bcebad404b231406729e4fe8d1a01c5452d6ec3a01669a840150b241c1"
+      },
+      "profiles": {
+        "closed_w32": {
+          "settings": {
+            "runs": 12,
+            "calls": 131072,
+            "window": 32,
+            "propagate": false
+          },
+          "medians": {
+            "baseline": {
+              "calls_per_sec": 93308.2642,
+              "process_cpu_ns_per_call": 28967.8573605
+            },
+            "separate_query": {
+              "calls_per_sec": 90813.8036485,
+              "process_cpu_ns_per_call": 29146.671295
+            },
+            "inside_step": {
+              "calls_per_sec": 91700.089508,
+              "process_cpu_ns_per_call": 29623.508453000002
+            }
+          }
+        },
+        "closed_w1": {
+          "settings": {
+            "runs": 6,
+            "calls": 8192,
+            "window": 1,
+            "propagate": true
+          },
+          "medians": {
+            "baseline": {
+              "calls_per_sec": 14088.5875455,
+              "process_cpu_ns_per_call": 83923.3398435,
+              "closed_loop_p99_us": 118.2000855,
+              "closed_loop_p999_us": 193.899963
+            },
+            "separate_query": {
+              "calls_per_sec": 14528.0548905,
+              "process_cpu_ns_per_call": 86784.36279300001,
+              "closed_loop_p99_us": 114.44999849999999,
+              "closed_loop_p999_us": 198.34999699999997
+            },
+            "inside_step": {
+              "calls_per_sec": 14483.560498499999,
+              "process_cpu_ns_per_call": 87738.0371095,
+              "closed_loop_p99_us": 113.84999350000001,
+              "closed_loop_p999_us": 186.750025
+            }
+          }
+        },
+        "fixed_16000_plain": {
+          "settings": {
+            "runs": 6,
+            "offers": 32000,
+            "rate": 16000,
+            "mode": "plain",
+            "client_limit": 32
+          },
+          "medians": {
+            "baseline": {
+              "completed_per_sec": 15999.9448007015,
+              "rejected": 0.0,
+              "all_p99_us": 141.1499106325,
+              "all_p999_us": 260.600063484,
+              "submit_p99_us": 133.499968797,
+              "offer_lateness_p99_us": 2.900022082,
+              "observer_lag_p99_us": 8.050061296500001,
+              "cpu_us_per_offer": 139.16015625
+            },
+            "separate_query": {
+              "completed_per_sec": 15999.9520002475,
+              "rejected": 0.0,
+              "all_p99_us": 142.8499817845,
+              "all_p999_us": 264.04997333899996,
+              "submit_p99_us": 134.39997565049998,
+              "offer_lateness_p99_us": 2.300075721,
+              "observer_lag_p99_us": 8.200004231,
+              "cpu_us_per_offer": 138.916015625
+            },
+            "inside_step": {
+              "completed_per_sec": 15994.249261795001,
+              "rejected": 11.0,
+              "all_p99_us": 201.3499615715,
+              "all_p999_us": 849.3500063195,
+              "submit_p99_us": 178.4000196495,
+              "offer_lateness_p99_us": 21.549931261500003,
+              "observer_lag_p99_us": 23.849948774999998,
+              "cpu_us_per_offer": 136.962890625
+            }
+          },
+          "refusals_total": {
+            "baseline": 712.0,
+            "separate_query": 0.0,
+            "inside_step": 1209.0
+          }
+        },
+        "fixed_4000_deadline": {
+          "settings": {
+            "runs": 6,
+            "offers": 8000,
+            "rate": 4000,
+            "mode": "deadline",
+            "client_limit": 32
+          },
+          "medians": {
+            "baseline": {
+              "completed_per_sec": 4000.362532824,
+              "rejected": 0.0,
+              "all_p99_us": 128.7499908355,
+              "all_p999_us": 205.94999659849998,
+              "submit_p99_us": 125.10002125049999,
+              "offer_lateness_p99_us": 1.6499543564999999,
+              "observer_lag_p99_us": 0.300002284,
+              "cpu_us_per_offer": 337.890625
+            },
+            "separate_query": {
+              "completed_per_sec": 4000.3398288945,
+              "rejected": 0.0,
+              "all_p99_us": 130.24994405,
+              "all_p999_us": 231.849960983,
+              "submit_p99_us": 126.600032672,
+              "offer_lateness_p99_us": 0.399944838,
+              "observer_lag_p99_us": 0.350002665,
+              "cpu_us_per_offer": 340.8203125
+            },
+            "inside_step": {
+              "completed_per_sec": 4000.3658334485,
+              "rejected": 0.0,
+              "all_p99_us": 130.1500014965,
+              "all_p999_us": 233.8999765925,
+              "submit_p99_us": 126.349972561,
+              "offer_lateness_p99_us": 1.050007995,
+              "observer_lag_p99_us": 0.300002284,
+              "cpu_us_per_offer": 343.75
+            }
+          },
+          "refusals_total": {
+            "baseline": 81.0,
+            "separate_query": 0.0,
+            "inside_step": 0.0
+          }
+        }
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "binaries": [
+        {
+          "path": "out/service-extensions/xrpc-tcp-owner-20261119/wsl/binaries.json",
+          "sha256": "3226697e9cabf412c6f9a96a795b973de6f6d80e20366e5562844a75f777014f"
+        },
+        {
+          "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/wsl/binaries.json",
+          "sha256": "37885e02134e2178f603450e5f55ecf148db7e660bfb1999ec339afa2793bd5e"
+        }
+      ],
+      "samples": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/wsl/three-way.json",
+        "sha256": "49b099470218b68692d3b5a694a2510a7c11a294c7057f522d803d828e8a9bfb"
+      },
+      "profiles": {
+        "closed_w32": {
+          "settings": {
+            "runs": 6,
+            "calls": 65536,
+            "window": 32,
+            "propagate": false
+          },
+          "medians": {
+            "baseline": {
+              "calls_per_sec": 40035.785288,
+              "process_cpu_ns_per_call": 53349.9755855
+            },
+            "separate_query": {
+              "calls_per_sec": 39530.087266999995,
+              "process_cpu_ns_per_call": 54052.024841
+            },
+            "inside_step": {
+              "calls_per_sec": 38693.241222,
+              "process_cpu_ns_per_call": 54866.630554
+            }
+          }
+        },
+        "closed_w1": {
+          "settings": {
+            "runs": 6,
+            "calls": 8192,
+            "window": 1,
+            "propagate": true
+          },
+          "medians": {
+            "baseline": {
+              "calls_per_sec": 6274.339124,
+              "process_cpu_ns_per_call": 191748.5961915,
+              "closed_loop_p99_us": 246.55,
+              "closed_loop_p999_us": 303.55
+            },
+            "separate_query": {
+              "calls_per_sec": 6395.860055499999,
+              "process_cpu_ns_per_call": 188353.088379,
+              "closed_loop_p99_us": 240.2,
+              "closed_loop_p999_us": 288.8
+            },
+            "inside_step": {
+              "calls_per_sec": 6182.5372795,
+              "process_cpu_ns_per_call": 193878.6621095,
+              "closed_loop_p99_us": 246.8,
+              "closed_loop_p999_us": 316.1
+            }
+          }
+        },
+        "fixed_16000_plain": {
+          "settings": {
+            "runs": 6,
+            "offers": 32000,
+            "rate": 16000,
+            "mode": "plain",
+            "client_limit": 32,
+            "guest_cpu_list": [
+              2,
+              4,
+              6,
+              8,
+              10
+            ]
+          },
+          "medians": {
+            "baseline": {
+              "completed_per_sec": 15980.795938129,
+              "rejected": 37.0,
+              "all_p99_us": 303.8560000165,
+              "all_p999_us": 1682.2565000324998,
+              "submit_p99_us": 301.00000003549997,
+              "offer_lateness_p99_us": 11.100999984,
+              "observer_lag_p99_us": 12.0500000095,
+              "cpu_us_per_offer": 167.127375
+            },
+            "separate_query": {
+              "completed_per_sec": 15999.2687308675,
+              "rejected": 0.0,
+              "all_p99_us": 285.9549999245,
+              "all_p999_us": 575.6615000219999,
+              "submit_p99_us": 282.19999995850003,
+              "offer_lateness_p99_us": 4.254500027,
+              "observer_lag_p99_us": 11.900000061,
+              "cpu_us_per_offer": 169.875328125
+            },
+            "inside_step": {
+              "completed_per_sec": 15992.188118999,
+              "rejected": 14.5,
+              "all_p99_us": 280.9535000095,
+              "all_p999_us": 642.1564999645,
+              "submit_p99_us": 278.099999946,
+              "offer_lateness_p99_us": 3.6565000415,
+              "observer_lag_p99_us": 12.099999992499999,
+              "cpu_us_per_offer": 169.49859375
+            }
+          },
+          "refusals_total": {
+            "baseline": 3789.0,
+            "separate_query": 252.0,
+            "inside_step": 1278.0
+          }
+        },
+        "fixed_16000_deadline": {
+          "settings": {
+            "runs": 6,
+            "offers": 32000,
+            "rate": 16000,
+            "mode": "deadline",
+            "client_limit": 32,
+            "guest_cpu_list": [
+              2,
+              4,
+              6,
+              8,
+              10
+            ]
+          },
+          "medians": {
+            "baseline": {
+              "completed_per_sec": 15999.0210682865,
+              "rejected": 0.0,
+              "all_p99_us": 258.654000049,
+              "all_p999_us": 584.496499982,
+              "submit_p99_us": 253.49999998549998,
+              "offer_lateness_p99_us": 5.1470000245000005,
+              "observer_lag_p99_us": 9.599999942,
+              "cpu_us_per_offer": 166.69165625
+            },
+            "separate_query": {
+              "completed_per_sec": 15999.3073343395,
+              "rejected": 0.0,
+              "all_p99_us": 250.55099996500002,
+              "all_p999_us": 630.4654999669999,
+              "submit_p99_us": 248.449999958,
+              "offer_lateness_p99_us": 7.355499974500001,
+              "observer_lag_p99_us": 10.099999997,
+              "cpu_us_per_offer": 167.054265625
+            },
+            "inside_step": {
+              "completed_per_sec": 15999.4433514385,
+              "rejected": 0.0,
+              "all_p99_us": 269.7470000045,
+              "all_p999_us": 741.463499992,
+              "submit_p99_us": 264.4500000315,
+              "offer_lateness_p99_us": 6.1095000205000005,
+              "observer_lag_p99_us": 10.6500000355,
+              "cpu_us_per_offer": 167.7674375
+            }
+          },
+          "refusals_total": {
+            "baseline": 39.0,
+            "separate_query": 316.0,
+            "inside_step": 325.0
+          }
+        },
+        "fixed_4000_plain": {
+          "settings": {
+            "runs": 6,
+            "offers": 8000,
+            "rate": 4000,
+            "mode": "plain",
+            "client_limit": 32,
+            "guest_cpu_list": [
+              2,
+              4,
+              6,
+              8,
+              10
+            ]
+          },
+          "medians": {
+            "baseline": {
+              "completed_per_sec": 4000.210035029,
+              "rejected": 0.0,
+              "all_p99_us": 229.6749999575,
+              "all_p999_us": 302.6630000705,
+              "submit_p99_us": 226.5999999625,
+              "offer_lateness_p99_us": 2.666000057,
+              "observer_lag_p99_us": 0.8000000094999999,
+              "cpu_us_per_offer": 423.026
+            },
+            "separate_query": {
+              "completed_per_sec": 4000.172868474,
+              "rejected": 0.0,
+              "all_p99_us": 226.2685000005,
+              "all_p999_us": 286.4195000715,
+              "submit_p99_us": 224.650000007,
+              "offer_lateness_p99_us": 1.6530000834999998,
+              "observer_lag_p99_us": 0.8000000094999999,
+              "cpu_us_per_offer": 420.465125
+            },
+            "inside_step": {
+              "completed_per_sec": 4000.203477375,
+              "rejected": 0.0,
+              "all_p99_us": 239.563499974,
+              "all_p999_us": 318.2609999615,
+              "submit_p99_us": 236.749999999,
+              "offer_lateness_p99_us": 2.9070000665,
+              "observer_lag_p99_us": 0.800000066,
+              "cpu_us_per_offer": 425.66593750000004
+            }
+          },
+          "refusals_total": {
+            "baseline": 0.0,
+            "separate_query": 0.0,
+            "inside_step": 0.0
+          }
+        }
+      }
+    }
+  },
+  "separate_query": {
+    "full_report": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/first-candidate-report.json",
+      "sha256": "1593b3f6cfe2427fdcd5ea40f9a67e90a48b2d73ac5750ba4a67e16c853fe829"
+    },
+    "source_hashes": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/first-candidate-hashes.json",
+      "sha256": "60a1da2b37da53ea5aa70e80cf6031134c635a2f01f1fe621381f36f84b7efa9"
+    },
+    "windows_w32_unpinned_retest": {
+      "samples": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/windows/closed-w32-retest.json",
+        "sha256": "b02a7ef33ff09f2afd300fde5af4ecc57e65eea3aa07fbc8b9739d7eedba3acc"
+      },
+      "settings": {
+        "calls": 131072,
+        "runs": 12,
+        "window": 32
+      },
+      "medians": {
+        "previous": {
+          "calls_per_sec": 102578.60004349999,
+          "process_cpu_ns_per_call": 27298.927307500002
+        },
+        "current": {
+          "calls_per_sec": 97971.057874,
+          "process_cpu_ns_per_call": 29385.089874
+        }
+      }
+    },
+    "wsl_fixed_16000_affinity_retest": {
+      "settings": {
+        "runs": 8,
+        "offered_per_sec": 16000,
+        "offered": 32000,
+        "client_limit": 32
+      },
+      "medians": {
+        "previous_plain": {
+          "completed_per_sec": 15999.377240456,
+          "rejected": 0.0,
+          "all_p99_us": 227.90349996150002,
+          "all_p999_us": 314.64849999449996,
+          "submit_p99_us": 226.84999999000001,
+          "offer_lateness_p99_us": 1.1504999974999999,
+          "observer_lag_p99_us": 5.049999999000001,
+          "cpu_us_per_offer": 163.97296875
+        },
+        "previous_deadline": {
+          "completed_per_sec": 15995.653186193,
+          "rejected": 7.5,
+          "all_p99_us": 274.697500004,
+          "all_p999_us": 1514.1525000505,
+          "submit_p99_us": 271.84999999,
+          "offer_lateness_p99_us": 5.800000025,
+          "observer_lag_p99_us": 6.200000001,
+          "cpu_us_per_offer": 164.61746875
+        },
+        "current_plain": {
+          "completed_per_sec": 15996.140416714501,
+          "rejected": 7.0,
+          "all_p99_us": 352.5994999905,
+          "all_p999_us": 1031.0520000015,
+          "submit_p99_us": 351.399999971,
+          "offer_lateness_p99_us": 3.098999997,
+          "observer_lag_p99_us": 5.3500000095,
+          "cpu_us_per_offer": 163.87528125
+        },
+        "current_deadline": {
+          "completed_per_sec": 15989.598994811,
+          "rejected": 20.0,
+          "all_p99_us": 273.250999982,
+          "all_p999_us": 1599.249999998,
+          "submit_p99_us": 270.049999983,
+          "offer_lateness_p99_us": 4.149000006,
+          "observer_lag_p99_us": 5.0499999985,
+          "cpu_us_per_offer": 163.779640625
+        }
+      },
+      "refusals_total": {
+        "previous_plain": 26.0,
+        "previous_deadline": 589.0,
+        "current_plain": 604.0,
+        "current_deadline": 646.0
+      }
+    },
+    "negative_control": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/gather-negative-windows.log",
+      "sha256": "5472c2fcf27cc6e9ea24fc985218db9d1b0e255610841c5235d0f9691be23677",
+      "observed_extra_live_snapshot": 1
+    }
+  },
+  "metadata": {
+    "amalgamate": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/amalgamate.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/api.log",
+      "sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa"
+    },
+    "maturity": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/maturity.log",
+      "sha256": "ec5b45027266c56899b8557529fdfffc7891b5b720da31d02530c9caf80c19e0"
+    },
+    "strict": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/strict.log",
+      "sha256": "462576ca46e76dc203369dfe43c7d8aecde0daca502f63c0b2c8f7593360ebd0",
+      "expected_exit": 1,
+      "developing_modules": 20
+    }
+  },
+  "scope": "One warmed native loopback TCP connection. Matched Windows x64 and WSL x64 GCC builds with memory stats selected and disabled during timing. WSL fixed arrivals use five guest logical CPUs. CPU covers all process threads.",
+  "pending": [
+    "Native Linux and isolated load generation",
+    "Connection scaling and saturation with tail thresholds",
+    "72-hour release qualification",
+    "Standalone HTTP POST negotiated extensions"
+  ],
+  "selected_runtime": "baseline",
+  "inside_step_validation": {
+    "windows": {
+      "combined": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/tests-windows.log",
+        "sha256": "084a19bc3ff14dd463bf4d0e128aa43d77429723e402ac9dd2fdf8a40b38dc42",
+        "programs": [
+          "test_tcp",
+          "test_tcp_dial",
+          "test_duplex",
+          "test_single_xrpc_tcp_dial"
+        ],
+        "skips": []
+      },
+      "single_tcp": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/single-final-windows-tcp.log",
+        "sha256": "bc98707f23c8a32f5f056f1035b1975eb4c761422190d2a3dead587d7f30b6ed",
+        "programs": [
+          "test_single_xrpc_tcp"
+        ],
+        "skips": []
+      },
+      "single_duplex": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/single-final-windows-duplex.log",
+        "sha256": "53ea61ca76e9ba0084f897dd4bf16d71654d68dc42c194ceb2fc9e2e5a7e674e",
+        "programs": [
+          "test_single_xrpc_duplex"
+        ],
+        "skips": []
+      },
+      "native_gather": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-windows.log",
+        "sha256": "4adcebc63d486c5908c5f369871bd647b324738dafdc50db57c3e0ca30a530de",
+        "owner_snapshots_live": 1,
+        "owner_snapshots_closing": 2,
+        "sealed_native_read_checks": 0,
+        "tested_closure_reasons": [
+          "protocol",
+          "limit",
+          "memory",
+          "transport"
+        ]
+      },
+      "example": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/example-windows.log",
+        "sha256": "aa768d3263315eb9dfd44732f39d965e371f6160c5d37429549835818194c859",
+        "programs": [
+          "examples_tcp_main"
+        ],
+        "skips": []
+      },
+      "static_consumer": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/package-windows-static.log",
+        "sha256": "8845ddd09dff5a38b630f7a1398a26767d0623d578880b3b31fa082bb2a11022"
+      },
+      "shared_consumer": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/package-windows-shared.log",
+        "sha256": "aee364693594b34698b7a8bbe23acf3f23caade95e291eeb569c871612ec99ca"
+      }
+    },
+    "wsl": {
+      "combined": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/tests-wsl.log",
+        "sha256": "eb517afe432cc8ecc96c4cc0bdb226a87df6537d1475e2cff64e7211fba86052",
+        "programs": [
+          "test_tcp",
+          "test_tcp_dial",
+          "test_duplex",
+          "test_single_xrpc_tcp_dial"
+        ],
+        "skips": []
+      },
+      "single_tcp": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/single-final-wsl-tcp.log",
+        "sha256": "2e8f2534c75ca8cc5982ca5c5d916c09eaa4e44c308348afb8cc5cac59414172",
+        "programs": [
+          "test_single_xrpc_tcp"
+        ],
+        "skips": []
+      },
+      "single_duplex": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/single-final-wsl-duplex.log",
+        "sha256": "84791c18c53fc27ad2ba9f7a28ab6e0f6b269c669d2e2e62ae3438293e59b1a7",
+        "programs": [
+          "test_single_xrpc_duplex"
+        ],
+        "skips": []
+      },
+      "native_gather": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-wsl.log",
+        "sha256": "09b52efb6b58f4a0ebf19405a14b427e376748f08dcc0782703e278964158f47",
+        "owner_snapshots_live": 1,
+        "owner_snapshots_closing": 2,
+        "sealed_native_read_checks": 0,
+        "tested_closure_reasons": [
+          "protocol",
+          "limit",
+          "memory",
+          "transport"
+        ]
+      },
+      "example": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/example-wsl.log",
+        "sha256": "99cb51af06f9505c72fdf8526307f301959121ac758ccc344ea845fe41d68536",
+        "programs": [
+          "examples_tcp_main"
+        ],
+        "skips": []
+      },
+      "static_consumer": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/package-wsl-static.log",
+        "sha256": "af64616492486dc514aab15be76fd25ae0c2e4eea7298e17e0563430130beba3"
+      },
+      "shared_consumer": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/package-wsl-shared.log",
+        "sha256": "3f47221c6376fc79d6dcf048457f18dd53fdda602ed4dc07bbba5a6ce212d327"
+      }
+    }
+  },
+  "inside_step_sanitizers": {
+    "asan_ubsan_leak_wsl": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-asan.log",
+      "sha256": "117f40e5bcc3fcf78d010cbf59e8e3ac939bd4096b9a69d469782b0e3507238c",
+      "owner_snapshots_live": 1,
+      "owner_snapshots_closing": 2,
+      "sealed_native_read_checks": 0,
+      "tested_closure_reasons": [
+        "protocol",
+        "limit",
+        "memory",
+        "transport"
+      ]
+    },
+    "tsan_wsl": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-tsan.log",
+      "sha256": "8338dfbeba0533eb7b6e410f914767e232c4c75cd79d93f451249dc8cc088f22",
+      "owner_snapshots_live": 1,
+      "owner_snapshots_closing": 2,
+      "sealed_native_read_checks": 0,
+      "tested_closure_reasons": [
+        "protocol",
+        "limit",
+        "memory",
+        "transport"
+      ],
+      "compiler_limitation": "GCC leaves standalone atomic_thread_fence uninstrumented."
+    }
+  },
+  "decision": "The two candidates establish that one redundant diagnostic snapshot can be removed. The independent query raised Windows window-32 CPU in the longer retest and WSL pinned plain-call tail latency. Returning the reason from Step raised Windows plain-call P99 and refusals at 16,000 offers/s in the three-way test. This stage keeps the baseline runtime and adds closure-ordering regression coverage.",
+  "inside_step_sources_artifacts": {
+    "extlibs/xrpc/src/duplex/duplex.c": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/candidate-source/extlibs/xrpc/src/duplex/duplex.c",
+      "sha256": "05b9928f5972963b32497220a47922900d10df41496bfe1227490de748703785"
+    },
+    "extlibs/xrpc/src/internal/xrpc_duplex_internal.h": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/candidate-source/extlibs/xrpc/src/internal/xrpc_duplex_internal.h",
+      "sha256": "1dd4c32860c3f0382f52ae74f0f16df14ad54c595f1ba294f30ae7ee74ab241c"
+    },
+    "extlibs/xrpc/src/tcp/tcp.c": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/candidate-source/extlibs/xrpc/src/tcp/tcp.c",
+      "sha256": "aefb3887721c65c0aaf392c0105f2012b6e8f0d8fe88c75e02e8d9580df2b87d"
+    },
+    "extlibs/xrpc/tests/interop/tcp_gather.c": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/candidate-source/extlibs/xrpc/tests/interop/tcp_gather.c",
+      "sha256": "e02f9b98029a3ed1172a9fe2f4decdd25f9cb80e0ce76ea02f57270c501e0686"
+    },
+    "single/extlibs/xrpc.h": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/candidate-source/single/extlibs/xrpc.h",
+      "sha256": "8c480b45342e5cd7063f4325b8645e06cfebff9df7ab483a179b80cefa4e95ba"
+    }
+  },
+  "retained_runtime_validation": {
+    "gather": {
+      "gather-retained-windows": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-retained-windows.log",
+        "sha256": "0deaf4247f45f3efe7924bf297aa73bffd72d2dba5aa68fc33085e59c1d9a155"
+      },
+      "gather-retained-wsl": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-retained-wsl.log",
+        "sha256": "6bfa97c69333484833518cb955ebb9d49c6da565d7f6e5e30a8ed7979386009b"
+      },
+      "gather-retained-asan": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-retained-asan.log",
+        "sha256": "07823bde55f55f0130ece0a10b48360ee155d4f18d40b51e0a3653dec4e73a5a"
+      },
+      "gather-retained-tsan": {
+        "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-retained-tsan.log",
+        "sha256": "e8b4c303c001d9177cbd61f6d4a30378d6cdd6965b579ca6c9ddb21dc9d89010"
+      }
+    },
+    "negative_control": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/gather-deferred-close-windows.log",
+      "sha256": "dd72af5894cdd052d438eb2ade7e20ade942db9aa965b05561fb1b670e7006eb"
+    },
+    "negative_control_source": {
+      "path": "out/service-extensions/xrpc-tcp-owner-20261119/step-locked/tcp-deferred-close.c",
+      "sha256": "75b5001e8702aebb8e5484008831acecf95113381c9229a81c05891784c163a7"
+    }
+  },
+  "selected_probe_lf_sha256": "c713e4a2a72e8a0c38ad13831bc7fe05450c70912e624e8c1656feb07e1e29b2"
+}

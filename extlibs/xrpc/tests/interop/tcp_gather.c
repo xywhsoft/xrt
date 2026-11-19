@@ -10,11 +10,13 @@ static xnetresult tcpGatherSendVec(xnetstream*,const xnetspan*,size_t);
 #endif
 static size_t tcpGatherWritable(xnetstream*);
 static size_t tcpGatherPending(const xnetstream*);
+static size_t tcpGatherAvailable(const xnetstream*);
 static bool tcpGatherDuplexInfo(xrpcduplex*,xrpcduplexinfo*);
 #define xrpcDuplexInfo tcpGatherDuplexInfo
 #define xrtNetStreamSend tcpGatherSend
 #define xrtNetStreamSendVec tcpGatherSendVec
 #define xrtNetStreamWritable tcpGatherWritable
+#define xrtNetStreamAvailable tcpGatherAvailable
 #define xrtNetStreamPending tcpGatherPending
 #ifndef XRPC_TCP_PROBE_SOURCE
 #define XRPC_TCP_PROBE_SOURCE "../../src/tcp/tcp.c"
@@ -23,6 +25,7 @@ static bool tcpGatherDuplexInfo(xrpcduplex*,xrpcduplexinfo*);
 #undef xrtNetStreamSend
 #undef xrtNetStreamSendVec
 #undef xrtNetStreamWritable
+#undef xrtNetStreamAvailable
 #undef xrtNetStreamPending
 #undef xrpcDuplexInfo
 #define main tcpGatherOrdinaryMain
@@ -32,7 +35,7 @@ static xatomic64 TcpGatherOffers,TcpGatherVectors,TcpGatherNative;
 static xatomic32 TcpGatherBlockWrites;
 typedef struct tcpGatherState {
     bool Active,Again,Memory,Pending;
-    size_t Credit,Bytes,Offers,Vectors,Largest,Snapshots,CreditQueries;
+    size_t Credit,Bytes,Offers,Vectors,Largest,Snapshots,CreditQueries,ReadChecks;
     xfuture* CancelOnCredit;
     unsigned char Wire[4096];
 } tcpGatherState;
@@ -76,6 +79,12 @@ static bool tcpGatherDuplexInfo(xrpcduplex* D,xrpcduplexinfo* Info)
 }
 static size_t tcpGatherPending(const xnetstream* S)
 {return TcpGather.Active?(TcpGather.Pending?1:0):xrtNetStreamPending(S);}
+static size_t tcpGatherAvailable(const xnetstream* Stream)
+{
+    if(!TcpGather.Active)return xrtNetStreamAvailable(Stream);
+    ++TcpGather.ReadChecks;
+    return 0;
+}
 /* These delegates replace only the corresponding calls in a separately
  * compiled native tcp.c. They count kernel-facing public send offers, not
  * an operating-system syscall trace or a general syscall-count guarantee. */
@@ -90,6 +99,45 @@ static void tcpGatherCleanup(xrpctcp* P,xfuture* F,xrpccallstatus Status)
     testRequire(xrpcDuplexDestroy(P->Duplex),"gather endpoint retirement");xrtFutureDestroy(F);xrtMutexUnit(&P->Gate);xrtClearError();
 }
 #if !defined(XRPC_TCP_GATHER_BASELINE)
+static void tcpGatherOwnerTurn(xrpccallstatus Seal,xrpctcpreason Expected)
+{
+    xrpctcp P={0};
+    testRequire(xrtMutexInit(&P.Gate) && xrtMutexInit(&P.Retirement) &&
+        xrtCondInit(&P.Retired) && xrpcTcpConfigInit(&P.Config) &&
+        xrpcFrameReaderCreate(&P.Config.Frame,&P.Reader) &&
+        xrpcDuplexCreate(NULL,&P.Duplex),"owner turn setup");
+    P.Info.State=XRPC_TCP_CONNECTING;
+    P.Started=P.EventsGone=true;
+    P.ConnectDeadline=P.TimerAt=INFINITY;
+    xrtAtomic32Init(&P.References,3); /* Host, runtime and owner post. */
+    memset(&TcpGather,0,sizeof(TcpGather));
+    TcpGather.Active=true;
+    xrpcTcpWork(NULL,&P);
+    printf("owner_open: snapshots=%zu read_checks=%zu\n",TcpGather.Snapshots,TcpGather.ReadChecks);
+    testRequire(!TcpGather.ReadChecks &&
+        P.Info.Duplex.Size==sizeof(P.Info.Duplex) && !P.Info.Duplex.Closing &&
+        P.Info.State==XRPC_TCP_CONNECTING &&
+        xrtAtomic32Load(&P.References,XMEMORY_ACQUIRE)==2,"publish live owner diagnostics");
+
+    /* Mark I/O eligible so an accidentally delayed close would reach Read.
+     * The fake peer has no native handle to abort. */
+    P.Open=true;
+    P.Info.State=XRPC_TCP_OPEN;
+    testRequire(xrpcDuplexClose(P.Duplex,Seal),"seal duplex before native I/O");
+    xrpcTcpRef(&P);
+    xrpcTcpWork(NULL,&P);
+    printf("owner_closed: snapshots=%zu read_checks=%zu reason=%d\n",
+        TcpGather.Snapshots,TcpGather.ReadChecks,(int)P.Info.Reason);
+    testRequire(!TcpGather.ReadChecks && !TcpGather.CreditQueries &&
+        P.Info.State==XRPC_TCP_CLOSED && P.Info.Reason==Expected &&
+        P.Info.Duplex.Drained && P.Info.Duplex.Reason==Seal && !P.Duplex &&
+        xrtAtomic32Load(&P.References,XMEMORY_ACQUIRE)==1,"sealed owner stops before I/O and retires");
+    TcpGather.Active=false;
+    xrpcFrameReaderDestroy(P.Reader);
+    xrtCondUnit(&P.Retired);
+    xrtMutexUnit(&P.Retirement);
+    xrtMutexUnit(&P.Gate);
+}
 static void tcpGatherWriteReadiness(void)
 {
     xrpctcp P={0};
@@ -205,6 +253,10 @@ int main(void)
 {
     xrtAtomic64Init(&TcpGatherOffers,0);xrtAtomic64Init(&TcpGatherVectors,0);xrtAtomic64Init(&TcpGatherNative,0);xrtAtomic32Init(&TcpGatherBlockWrites,0);(void)tcpGatherPending;
 #if !defined(XRPC_TCP_GATHER_BASELINE)
+    tcpGatherOwnerTurn(XRPC_CALL_PROTOCOL,XRPC_TCP_PROTOCOL);
+    tcpGatherOwnerTurn(XRPC_CALL_LIMIT,XRPC_TCP_LIMIT);
+    tcpGatherOwnerTurn(XRPC_CALL_MEMORY,XRPC_TCP_MEMORY);
+    tcpGatherOwnerTurn(XRPC_CALL_CLOSED,XRPC_TCP_TRANSPORT);
     tcpGatherWriteReadiness();
 #endif
     tcpGatherNativeProof();tcpGatherQueuePacking();tcpGatherBoundaries();testRequire(tcpGatherOrdinaryMain()==0,"gather full real TCP suite");puts("[PASS] production-TU TCP gather: 156 empty/queued framing/budget/chunk/writable boundaries, AGAIN/no-advance, memory refusal, native send offer proof/actual buffer packing, full real TCP suite");return 0;

@@ -15867,3 +15867,47 @@ observations on Windows and WSL. Native Linux, pinned host/connection
 scaling, saturation and sustained qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/tcp-arrival-20261119.json).
+
+## 2026-11-19 xrpc TCP owner closure ordering
+
+The production-TU TCP probe seals the duplex before native I/O and
+checks protocol, limit, memory and transport outcomes. It verifies the
+final diagnostics, physical retirement and zero native read or
+write-credit queries. An injected deferred close reaches the receive
+path and fails the same assertion. The retained mainline runtime
+passes the native probe on Windows and WSL, including the real TCP
+suite. WSL ASan/UBSan with leak checking and TSan also pass. GCC leaves
+its standalone atomic fence uninstrumented.
+
+Two candidates removed one full diagnostic snapshot per live turn.
+One queried the close reason in a separate lock acquisition. The other
+returned it under the existing Step lock. Windows and WSL candidate
+tests exercised modular and single-header TCP, TCP dial and duplex,
+standalone examples and both package consumers. The first candidate's
+12-pair Windows window-32 follow-up measured
+27,299 / 29,385 process CPU ns/call.
+The WSL affinity follow-up at 16,000 ordinary offers/s measured
+226.8 / 351.4 us submit-to-terminal P99.
+
+| Host | Workload | Metric | Baseline | Separate lookup | Inside Step |
+| --- | --- | --- | ---: | ---: | ---: |
+| Windows | Ordinary closed loop, window 32 | CPU ns/call | 28,968 | 29,147 | 29,624 |
+| Windows | Negotiated closed loop, window 1 | P99 us | 118.2 | 114.4 | 113.8 |
+| Windows | 16,000 ordinary offers/s | P99 us | 133.5 | 134.4 | 178.4 |
+| Windows | 4,000 negotiated offers/s | P99 us | 125.1 | 126.6 | 126.3 |
+| WSL | Ordinary closed loop, window 32 | CPU ns/call | 53,350 | 54,052 | 54,867 |
+| WSL | Negotiated closed loop, window 1 | P99 us | 246.6 | 240.2 | 246.8 |
+| WSL | 16,000 ordinary offers/s | P99 us | 301.0 | 282.2 | 278.1 |
+| WSL | 16,000 negotiated offers/s | P99 us | 253.5 | 248.4 | 264.5 |
+| WSL | 4,000 ordinary offers/s | P99 us | 226.6 | 224.7 | 236.7 |
+
+The three binaries use identical benchmark source, compiler flags and
+Core on each host. The table reports medians of six interleaved runs per
+arm and 12 for Windows window 32. WSL fixed arrivals ran on guest CPUs
+2, 4, 6, 8 and 10. At 16,000 ordinary offers/s Windows reported
+712 / 0 / 1,209
+refusals across 192,000 offers per arm. The performance tradeoffs
+favor retaining the current mainline runtime. Native Linux, connection
+scaling and long-run production qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/tcp-owner-20261119.json).

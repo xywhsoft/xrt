@@ -129,7 +129,10 @@ advancement and delivery uncertainty. The writer checks its cached selection
 token at the start of each write turn and consults native write credit only
 when output is pending. The probe cancels a notification just before the
 first send and checks that completing the final queued frame skips an empty
-continuation. It also runs real sockets with the ordinary TCP suite. A separate
+continuation. The owner probes seal the duplex before the read phase and verify
+that protocol, limit, memory and transport closure reach physical retirement
+without a native read or write-credit query. The probe also runs real sockets
+with the ordinary TCP suite. A separate
 instrumented native TCP object counts kernel-facing public send offers for one
 request/reply pair. This is an API-offer count, not an OS syscall trace or a
 system-wide guarantee. A controlled native 16-notification burst also measures
