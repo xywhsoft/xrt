@@ -794,7 +794,8 @@
         "extlibs/xmqtt/examples/qos2_receive/main.c",
         "extlibs/xmqtt/examples/subscriptions/main.c",
         "extlibs/xmqtt/examples/receive_alias/main.c",
-        "extlibs/xmqtt/examples/send_alias/main.c"
+        "extlibs/xmqtt/examples/send_alias/main.c",
+        "extlibs/xmqtt/examples/inbox/main.c"
       ],
       "benchmarks": [
         "extlibs/xmqtt/bench/bench_client_qos1.c",
@@ -1313,9 +1314,7 @@
       "sources": [],
       "tests": [],
       "single_tests": [],
-      "examples": [
-        "extlibs/xmqtt/examples/inbox/main.c"
-      ],
+      "examples": [],
       "benchmarks": [
         "extlibs/xmqtt/bench/bench_client_inbox.c"
       ],
@@ -1328,7 +1327,7 @@
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xmqtt_client_inbox",
+        "xmqtt_client_session",
         "memory_stats",
         "thread"
       ],

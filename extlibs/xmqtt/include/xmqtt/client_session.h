@@ -10,9 +10,12 @@
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XRT_EXTERN_C_BEGIN
-/* Explicit numeric TCP connection using caller-owned protocol Session and
- * application Inbox, both claimed exclusively through actual Client Destroy.
- * Version/ClientId must match Session; Inbox has the same four Client caps.
+/* Explicit numeric TCP connection using a caller-owned protocol Session.
+ * The optional Inbox and the Session are exclusive through Client Destroy.
+ * Version/ClientId must match Session. A supplied Inbox must match the four
+ * Client object/message caps. With NULL Inbox, receive messages are queued
+ * on the connection. Take owned messages before Destroy to keep them across
+ * connections. Protocol recovery works with either receive queue.
  * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
  * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
  * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
@@ -33,8 +36,8 @@ XRT_EXTERN_C_BEGIN
  * A prior-generation ACK arriving during a partial PUBLISH replay commits its
  * protocol progress and retires that transport with SESSION status. This avoids
  * continuing an abandoned frame or introducing an unnecessary second delivery.
- * Accepted incoming QoS2 deliveries enter Inbox once before PUBREC and survive
- * reconnect; duplicate identities do not deliver another application message.
+ * Accepted incoming QoS 2 deliveries enter the selected receive queue once
+ * before PUBREC. The Session keeps their duplicate identities across reconnect.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
  * QoS1/2 admission takes one immutable Session snapshot shared by the

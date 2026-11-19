@@ -1,10 +1,11 @@
 # Explicit Client Session recovery (developing)
 
 Select `XMQTT_MODULE_XMQTT_CLIENT_SESSION` and call `xmqttClientConnectSession`
-with a caller-owned Session and Inbox. This optional numeric TCP factory joins
-the existing protocol state and accepted application queue to the existing
-Client sender/receiver. It creates no Engine, worker, background reconnect timer
-or disk store. [Runnable example](../examples/client_session/README.md).
+with a caller-owned Session and an optional Inbox. Passing NULL for Inbox uses
+the connection's bounded receive queue. To preserve accepted application
+messages across connections, the APP takes them before destroying the old
+Client and keeps their owned references. The Session factory attaches protocol
+state to the Client sender and receiver on the supplied Engine. [Runnable example](../examples/client_session/README.md).
 
 The optional [client_session_dial](client_session_dial.md) leaf adds hostname and
 prepared TCP. Selecting Client Auth also enables numeric Session Auth without
@@ -13,7 +14,7 @@ contract with numeric/hostname/prepared TLS and MQTT5 enhanced authentication.
 
 ## Identity, ownership and reconnect
 
-Use one ClientId and MQTT version for all three objects. Fixed-id sessions use
+Use the same ClientId and MQTT version for CONNECT and Session. Fixed-id sessions use
 the same nonempty id from creation. For MQTT5 server assignment, create a bounded
 unassigned Session, use an empty first CONNECT, then use `xmqttSessionClientId`
 for each reconnect. Assignment is committed only after successful CONNACK and
@@ -26,11 +27,12 @@ failed Ready, so the retry does not request a different server identity. Read th
 one logical broker/security principal. Non-packet Client codec bounds must fit
 the Session bounds, with the same UTF-8 policy. The connection packet cap may
 increase to render an alias-expanded retained packet; Session's physical memory
-budget still applies. The Inbox has the same four receive/object caps as Client.
-Both objects are claimed exclusively until actual Client Destroy, including
+budget still applies. A supplied Inbox has the same version and four
+receive/object caps as Client. Session and any supplied Inbox are claimed
+exclusively until actual Client Destroy, including
 after graceful native close. Stable-owner Info/Take and retained packet access
 remain available; public Session mutations and owner destruction are refused.
-Constructor failure leaves the output unchanged and releases both claims.
+Constructor failure leaves the output unchanged and releases any claims.
 
 QoS1/2 publication reserves Session object/id/byte capacity at public
 admission, including before CONNACK. SessionInfo.Objects/LiveBytes include that
@@ -49,7 +51,8 @@ MQTT5 missing server state discards old protocol state; MQTT3.1.1 mismatch fails
 closed until an explicit offline reset. Expired local state cannot adopt a
 server-present session. A failed handshake does not extend its expiry. Actual
 network termination starts expiry; a fully accepted DISCONNECT expiry override
-is honored. Accepted application Inbox messages survive protocol reset/expiry.
+is honored. Taken messages and messages in an explicitly attached Inbox
+survive protocol reset and expiry.
 
 Only unacknowledged sent QoS1/2 publications and incoming QoS2 identities are
 protocol recovery state. Unsent requests, subscriptions, pings, application
@@ -74,8 +77,8 @@ transport closes with SESSION status. A later explicit connection continues any
 remaining PUBREL obligation. This avoids continuing an abandoned partial frame
 or causing an unnecessary second application delivery.
 
-New incoming QoS2 state commits while holding the Inbox gate, before queue
-publication and PUBREC. Resumed duplicates are acknowledged without another
+New incoming QoS 2 state commits after the selected receive queue admits the
+message, under its lock and before queue publication and PUBREC. Resumed duplicates are acknowledged without another
 application message. Known old PUBREL completes without consuming or refunding
 a new-connection receive slot. Physical packet/request quotas and identifiers
 remain charged through the actual last allocator free. Retained native sends
@@ -129,8 +132,8 @@ of remaining allocation/locking costs and production/performance acceptance rema
 required work. The local recovery tests cover both protocol versions, QoS
 stages, deduplication, resets, expiry, aliases, early ACKs, zero/partial native
 output, physical retirement and controlled constructor/replay allocation failure.
-The closed-loop Session benchmark uses the same echo fixture and observer as
-ordinary Client/Inbox; it is not an independent broker or one-way receiver test.
+The closed-loop benchmarks use the same echo fixture and observer to compare
+connection-local and shared receive queues with the Session attached.
 
 Snapshots allocate in the scope active in PublishAsync. A sent packet retained
 by Session keeps that scope charged across Client/Engine destruction until actual

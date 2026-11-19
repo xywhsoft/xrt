@@ -17749,3 +17749,41 @@ Ordinary maturity passes. Strict release still reports 43 developing
 modules. Moving the remaining storage backend and application Inbox
 duties, native Linux acceptance, controlled comparisons and 72-hour
 mixed loads remain open.
+
+## 2026-11-20 MQTT APP-owned receive delivery with explicit Session
+
+The standalone shared Inbox connection factory was removed. The ordinary
+Client example takes bounded owned references and verifies their payloads
+after both Clients and Engines retire. TCP, Dial, TLS and WebSocket
+Session factories accept a connection-local receive queue. A caller can
+close, wait and transfer the accepted messages before Client Destroy.
+
+For a connection-local QoS 2 delivery, the Client commits the Session
+receive identity under the queue lock before releasing the message and
+PUBREC. The new regression initially exposed the missing state transition.
+Both MQTT versions now verify that a retained APP delivery survives two
+Engines and that resumed duplicates complete without another delivery.
+When the queue is full the Client rolls back the reservation, sends no
+PUBREC for the refused message, and accepts its later redelivery.
+
+Windows x64 and Ubuntu/WSL passed the ordinary Client example, modular
+and single-header Session, shared Inbox, TLS, WS, WSS and WS reconnect
+tests, and static and shared Session consumers. The WS reconnect test
+fixture now uses the current constructor with its subscription plan.
+WSL ASan/UBSan with leak detection and TSan passed the Session suite.
+The three echo profiles passed ten smoke cases per environment.
+
+The pinned Mosquitto 2.1.2 TCP probe passed 16 APP-owned receive cases
+across the native Windows and WSL clients, plus eight shared Inbox
+control cases in WSL. The proxy drops incoming QoS 2 PUBREC or PUBCOMP
+under each MQTT version and fragmentation setting. The probe verifies
+packet replay and the APP's final delivery count and retained bytes.
+The broker runs in WSL and the qualification reports include binary
+hashes.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-inbox/`.
+Ordinary maturity passes. Strict release still lists 43 developing
+modules. Reconnect-owned shared receive storage, durable application
+acknowledgements and physical backends, native Linux qualification,
+controlled comparisons and 72-hour mixed loads remain open.

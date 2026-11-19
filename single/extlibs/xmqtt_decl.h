@@ -5024,17 +5024,6 @@ XRT_EXTERN_C_BEGIN
  * Config is copied; fixed object/mutex/quota metadata is outside these budgets. */
 XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* Config);
 XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Inbox);
-/* One numeric TCP Client at a time. Version and the four Client object/message
- * caps must exactly match Inbox. The exclusive attachment lasts through actual
- * Client Destroy, including failed/closed connections; failure changes no output.
- * Only accepted PUBLISH messages enter Inbox. Ready/ACK/result objects share its
- * quota, including retained objects from earlier Clients and Engines.
- * This preserves application messages, not MQTT session protocol state: CONNACK
- * SessionPresent without local state still fails. No automatic reconnect/replay.
- * Optional client_session and client_session_tls factories add protocol recovery
- * and TLS/Dial/Auth composition while retaining these passive Inbox bounds. */
-XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
 /* Thread-safe with stable owner. Transfer one reference, false/unchanged when
  * empty. ClientTakeMessage consumes this same queue, including earlier messages.
  * No callback runs under Inbox locks. Take works while offline; neither Take
@@ -5066,9 +5055,12 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XRT_EXTERN_C_BEGIN
-/* Explicit numeric TCP connection using caller-owned protocol Session and
- * application Inbox, both claimed exclusively through actual Client Destroy.
- * Version/ClientId must match Session; Inbox has the same four Client caps.
+/* Explicit numeric TCP connection using a caller-owned protocol Session.
+ * The optional Inbox and the Session are exclusive through Client Destroy.
+ * Version/ClientId must match Session. A supplied Inbox must match the four
+ * Client object/message caps. With NULL Inbox, receive messages are queued
+ * on the connection. Take owned messages before Destroy to keep them across
+ * connections. Protocol recovery works with either receive queue.
  * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
  * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
  * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
@@ -5089,8 +5081,8 @@ XRT_EXTERN_C_BEGIN
  * A prior-generation ACK arriving during a partial PUBLISH replay commits its
  * protocol progress and retires that transport with SESSION status. This avoids
  * continuing an abandoned frame or introducing an unnecessary second delivery.
- * Accepted incoming QoS2 deliveries enter Inbox once before PUBREC and survive
- * reconnect; duplicate identities do not deliver another application message.
+ * Accepted incoming QoS 2 deliveries enter the selected receive queue once
+ * before PUBREC. The Session keeps their duplicate identities across reconnect.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
  * QoS1/2 admission takes one immutable Session snapshot shared by the
@@ -5447,7 +5439,7 @@ typedef struct xmqttclientwsconfig {
 XRT_EXTERN_C_BEGIN
 /* Native client role and exact mqtt subprotocol;1 MiB frame/message/staging caps,
  *64 KiB staging retention. No compression. Optional Inbox/Session/Auth pointers
- * require their existing feature selections; Session also requires Inbox.
+ * require their existing feature selections. NULL Inbox uses the local queue.
  * Public layout is selection-independent. No additional MQTT runtime. */
 XMQTT_API bool xmqttClientWsConfigInit(xmqttclientwsconfig* Config);
 /* Owning native Worker only, OPEN transport, exclusive handoff. The host must

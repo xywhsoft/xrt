@@ -25,7 +25,7 @@ typedef struct xmqttclientwsconfig {
 XRT_EXTERN_C_BEGIN
 /* Native client role and exact mqtt subprotocol;1 MiB frame/message/staging caps,
  *64 KiB staging retention. No compression. Optional Inbox/Session/Auth pointers
- * require their existing feature selections; Session also requires Inbox.
+ * require their existing feature selections. NULL Inbox uses the local queue.
  * Public layout is selection-independent. No additional MQTT runtime. */
 XMQTT_API bool xmqttClientWsConfigInit(xmqttclientwsconfig* Config);
 /* Owning native Worker only, OPEN transport, exclusive handoff. The host must

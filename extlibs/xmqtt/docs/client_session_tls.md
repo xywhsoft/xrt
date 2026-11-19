@@ -4,7 +4,7 @@ Select `xmqtt_client_session_tls` / `XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS`.
 The numeric, hostname and prepared-address factories combine existing
 [Session/Inbox](client_session.md) ownership with [TLS](client_tls.md).
 `xmqttClientTlsConnectSession`, `xmqttClientTlsDialSession` and
-`xmqttClientTlsDialAddressesSession` require both passive owners. When
+`xmqttClientTlsDialAddressesSession` take a Session and an optional Inbox. When
 `xmqtt_client_auth` is also selected, their `SessionAuth` variants support MQTT5
 challenge, final proof and subsequent reauthentication. TLS client-certificate
 authentication remains independent and follows the existing TLS config.
@@ -26,7 +26,7 @@ Coalesced post-CONNACK frames are backpressured before receive preflight or
 application delivery. Proof rejection cannot reset, open or replay old state.
 
 Reconnect is explicit after physical Client Destroy. A new Engine is permitted.
-Both passive objects stay exclusively claimed through Destroy; constructor
+The Session and any supplied Inbox stay exclusively claimed through Destroy. Constructor
 failure changes no output and refunds every claim. Original Futures never migrate
 to a later connection. The application must handle original uncertain outcomes.
 

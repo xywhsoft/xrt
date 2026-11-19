@@ -20,17 +20,6 @@ XRT_EXTERN_C_BEGIN
  * Config is copied; fixed object/mutex/quota metadata is outside these budgets. */
 XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* Config);
 XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Inbox);
-/* One numeric TCP Client at a time. Version and the four Client object/message
- * caps must exactly match Inbox. The exclusive attachment lasts through actual
- * Client Destroy, including failed/closed connections; failure changes no output.
- * Only accepted PUBLISH messages enter Inbox. Ready/ACK/result objects share its
- * quota, including retained objects from earlier Clients and Engines.
- * This preserves application messages, not MQTT session protocol state: CONNACK
- * SessionPresent without local state still fails. No automatic reconnect/replay.
- * Optional client_session and client_session_tls factories add protocol recovery
- * and TLS/Dial/Auth composition while retaining these passive Inbox bounds. */
-XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
 /* Thread-safe with stable owner. Transfer one reference, false/unchanged when
  * empty. ClientTakeMessage consumes this same queue, including earlier messages.
  * No callback runs under Inbox locks. Take works while offline; neither Take

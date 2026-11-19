@@ -93,7 +93,19 @@ static inline xmqttreconnect* wrCreate(wrService* S,int64 Recovery,bool Subscrib
 {
     xmqttreconnectconfig K;xmqttReconnectConfigInit(&K);K.Factory=wrFactory;K.FactoryData=S;K.Client.Version=S->Version;K.Client.Notify=WR_GET(S,NoNotify)?NULL:wrNotice;K.Client.User=S;K.Client.SetupTimeout=10000;K.InitialDelay=5;K.MaxDelay=20;K.JitterPermille=0;K.RecoveryTimeout=Recovery;K.MaxAttempts=WR_GET(S,RejectTLS)?1:4;if(S->Version==XMQTT_VERSION_311&&!WR_GET(S,Present))K.CleanStartFirstOnly=false;
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.CleanStart=S->Version==XMQTT_VERSION_5||!WR_GET(S,Present);Q.Body.Connect.ClientId=XRT_STR_LITERAL("ws-managed");xmqttproperty P[2]={{0}};size_t Count=0;if(S->Version==XMQTT_VERSION_5){P[Count].Id=XMQTT_PROPERTY_SESSION_EXPIRY;P[Count].Type=XMQTT_PROPERTY_UINT32;P[Count++].Value.Number=60;}if(WR_GET(S,Auth)){P[Count].Id=XMQTT_PROPERTY_AUTH_METHOD;P[Count].Type=XMQTT_PROPERTY_STRING;P[Count++].Value.Text=XRT_STR_LITERAL("m");}Q.Properties=(xmqttpropertylist){P,Count};xmqttreconnect* R=NULL;
-    if(Subscribed){xmqttsubscriptionsconfig SC;xmqttSubscriptionsConfigInit(&SC);SC.MaxFilters=4;SC.MaxBatch=1;xmqttsubscription Topic={XRT_STR_LITERAL("managed/#"),1};xmqttpacket Initial;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);Initial.Body.Topics=(xmqttsubscriptionlist){&Topic,1};testRequire(xmqttReconnectCreateSubscribed(S->Engine,S->Pool,1,&K,&SC,&Q,&Initial,1,&R),"automatic WS subscription controller");}else testRequire(xmqttReconnectCreate(S->Engine,S->Pool,1,&K,&Q,&R),"automatic WS controller");return R;
+    xmqttsubscriptionsconfig SC;
+    xmqttsubscription Topic={XRT_STR_LITERAL("managed/#"),1};
+    xmqttpacket Initial;
+    const xmqttreconnectsubscriptionplan Plan={.Config=&SC,.Initial=&Initial,.Count=1};
+    if(Subscribed){
+        xmqttSubscriptionsConfigInit(&SC);
+        SC.MaxFilters=4;SC.MaxBatch=1;
+        xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);
+        Initial.Body.Topics=(xmqttsubscriptionlist){&Topic,1};
+        K.Subscriptions=&Plan;
+    }
+    testRequire(xmqttReconnectCreate(S->Engine,S->Pool,1,&K,&Q,&R),"automatic WS controller");
+    return R;
 }
 static inline void wrOnline(xmqttreconnect* R,uint64 Connections,xmqttclientlease* Lease)
 {double End=xrtTimer()+15;for(;;){xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I),"controller info");if(I.State>=XMQTT_RECONNECT_STOPPED||xrtTimer()>=End){fprintf(stderr,"[online] state=%d status=%d gen=%llu attempts=%llu connections=%llu target=%llu\n",I.State,I.LastStatus,(unsigned long long)I.Generation,(unsigned long long)I.Attempts,(unsigned long long)I.Connections,(unsigned long long)Connections);testRequire(false,"automatic WS online deadline");}if(I.State==XMQTT_RECONNECT_ONLINE&&I.Connections==Connections&&xmqttReconnectAcquire(R,Lease))return;xrtSleep(1);}}

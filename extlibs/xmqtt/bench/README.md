@@ -98,8 +98,11 @@ is established by these workloads. Generated reports/binaries can be removed
 after inspection. All sockets/threads/client/stream/listener/engine and retained
 message/Future owners are released on successful completion.
 
-`xmqtt_client_session` uses the same combined QoS1 echo workload as ordinary
-Client/Inbox, with explicit protocol Session attachment. Unaliased QoS1 shares one
+`xmqtt_client_session` uses the combined QoS 1 echo workload with an explicit
+protocol Session and a connection-local receive queue. `xmqtt_client_inbox`
+runs the same Session workload with the optional shared queue. Archived
+shared-Inbox-only samples measured the retired standalone connection factory.
+Unaliased QoS 1 shares one
 snapshot; independent request/packet headers still require two allocations. The
 benchmark does not exercise outgoing aliases. Compare
 uninstrumented timing separately from instrumented heap counts; recovery itself

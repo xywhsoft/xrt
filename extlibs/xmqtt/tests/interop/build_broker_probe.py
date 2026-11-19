@@ -19,7 +19,10 @@ def main():
     parser.add_argument('--compiler', default='gcc')
     parser.add_argument('--sanitize', help='GCC sanitizer list, for example address,undefined')
     parser.add_argument('--probe', choices=['ordinary', 'session', 'tls-session', 'assigned-session', 'assigned-tls-session', 'reconnect', 'reconnect-tls', 'reconnect-subscriptions'], default='ordinary')
+    parser.add_argument('--app-inbox', action='store_true', help='retain received references in the Session probe APP')
     args = parser.parse_args()
+    if args.app_inbox and args.probe != 'session':
+        parser.error('--app-inbox requires --probe session')
     if args.kind in ['static', 'shared'] and not args.package_dir:
         parser.error('--package-dir is required for a library consumer')
     suite = ('xmqtt_client_session_tls,xmqtt_client_tls_resume,tls_identity_rsa'
@@ -33,6 +36,8 @@ def main():
     command = [args.compiler, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
                '-I' + str(root / 'include'), '-I' + str(root / 'extlibs/xmqtt/include')]
     command += ['-D' + item for item in modules[4]]
+    if args.app_inbox:
+        command += ['-DXMQTT_SESSION_BROKER_APP_QUEUE']
     if os.name != 'nt':
         command += ['-pthread']
     if args.sanitize:

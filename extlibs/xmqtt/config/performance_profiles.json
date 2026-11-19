@@ -2722,12 +2722,12 @@
     {
       "name": "xmqtt_client_inbox",
       "system": "client",
-      "description": "Same closed-loop local QoS1 echo workload through a shared Inbox. Includes Client and peer costs, extra Inbox gate, observer, window32/payload32; not fixed-arrival tail latency or broker/native deployment qualification.",
+      "description": "Closed-loop QoS 1 echo through a Session with a shared Inbox. Includes the extra Inbox gate, client, peer and observer.",
       "benchmarks": [
         {
           "name": "xmqtt_inbox_5",
           "source": "extlibs/xmqtt/bench/bench_client_inbox.c",
-          "suite": "xmqtt_client_inbox,time",
+          "suite": "xmqtt_client_session,time",
           "inputs": [
             "extlibs/xmqtt/examples/common/client_peer.h",
             "extlibs/xmqtt/bench/bench_client_receive.c"
@@ -2766,7 +2766,7 @@
         {
           "name": "xmqtt_inbox_4",
           "source": "extlibs/xmqtt/bench/bench_client_inbox.c",
-          "suite": "xmqtt_client_inbox,time",
+          "suite": "xmqtt_client_session,time",
           "inputs": [
             "extlibs/xmqtt/examples/common/client_peer.h",
             "extlibs/xmqtt/bench/bench_client_receive.c"
@@ -2805,7 +2805,7 @@
         {
           "name": "xmqtt_inbox_5_alloc",
           "source": "extlibs/xmqtt/bench/bench_client_inbox.c",
-          "suite": "xmqtt_client_inbox,time,memory_stats",
+          "suite": "xmqtt_client_session,time,memory_stats",
           "inputs": [
             "extlibs/xmqtt/examples/common/client_peer.h",
             "extlibs/xmqtt/bench/bench_client_receive.c"
@@ -2852,7 +2852,7 @@
         {
           "name": "xmqtt_inbox_4_alloc",
           "source": "extlibs/xmqtt/bench/bench_client_inbox.c",
-          "suite": "xmqtt_client_inbox,time,memory_stats",
+          "suite": "xmqtt_client_session,time,memory_stats",
           "inputs": [
             "extlibs/xmqtt/examples/common/client_peer.h",
             "extlibs/xmqtt/bench/bench_client_receive.c"
@@ -2901,7 +2901,7 @@
     {
       "name": "xmqtt_client_session",
       "system": "client",
-      "description": "Same closed-loop local QoS1 echo workload through a shared Inbox. Includes Client and peer costs, extra Inbox gate, observer, window32/payload32; not fixed-arrival tail latency or broker/native deployment qualification.",
+      "description": "Closed-loop QoS 1 echo through a Session and the connection-local receive queue. The peer takes each owned message.",
       "benchmarks": [
         {
           "name": "xmqtt_client_session_5",

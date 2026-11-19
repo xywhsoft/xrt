@@ -88,11 +88,12 @@ ticket for explicit subsequent connections, including WSS with the separate leaf
 Durable sessions, application cache policy and complete WebSocket acceptance remain pending.
 The developing WS/WSS stages above have separate evidence. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
-Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages
-and one shared physical object quota through sequential Client/Engine destruction.
-Its ordinary factory preserves application payloads; the optional Client Session
-factories additionally restore protocol state over numeric/hostname/prepared TCP or verified TLS.
-No broker or production/performance acceptance is claimed.
+The [APP Inbox example](examples/inbox/README.md) keeps taken messages across
+Client and Engine destruction. Explicit [Client Session](docs/client_session.md)
+factories restore protocol state over the supported transports. Pass NULL for
+Inbox to use the connection's receive queue. The optional
+[shared Inbox](docs/client_inbox.md) remains available to Session and WebSocket
+callers that share a queue and object budget between connections.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt
 manifest and `--suite xmqtt_client --no-single`. It asserts handshake, QoS-0

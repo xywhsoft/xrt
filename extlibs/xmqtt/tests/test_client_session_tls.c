@@ -36,7 +36,7 @@ static const void* stResult(xfuture* F)
 static xmqttsessioninfo stInfo(xmqttsession* S)
 {xmqttsessioninfo I;testRequire(xmqttSessionInfo(S,&I),"TLS Session gauges");return I;}
 static void stPair(xmqttversion V,xmqttsession** S,xmqttclientinbox** I)
-{xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("tls-session");testRequire(xmqttSessionCreate(&K,S),"TLS passive Session");xmqttclientinboxconfig B;xmqttClientInboxConfigInit(&B);B.Version=V;testRequire(xmqttClientInboxCreate(&B,I),"TLS passive Inbox");}
+{xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("tls-session");testRequire(xmqttSessionCreate(&K,S),"TLS passive Session");if(I){xmqttclientinboxconfig B;xmqttClientInboxConfigInit(&B);B.Version=V;testRequire(xmqttClientInboxCreate(&B,I),"TLS passive Inbox");}}
 static void stClose(xmqttclient* C)
 {testRequire(xmqttClientClose(C) && xmqttClientWaitFor(C,15000)==XWAIT_OK && xmqttClientDestroy(C),"TLS Session physical retirement");}
 static void stDone(xmqttsession* S,xmqttclient* C)
@@ -97,15 +97,24 @@ static xfuture* stPublish(xmqttclient* C,xmqttversion V,unsigned Qos,bool Alias,
 }
 static void stRoundtrip(xmqttversion V,unsigned Factory,unsigned Phase,bool Tiny,bool Auth)
 {
-    xmqttsession* S;xmqttclientinbox* I;stPair(V,&S,&I);stPeer P;stStart(&P,V,Auth?MQTT_TLS_AUTH:0,false,Phase==2?2:1,true);xfuture *Ready,*Next;xmqttclient* C=stConnect(&P,S,I,Factory,Tiny,NULL,&Ready);stReady(C,Ready,S,false,Auth);
+    xmqttsession* S;xmqttclientinbox* I=NULL;stPair(V,&S,Tiny?&I:NULL);
+    xmqttmessage* M=NULL;
+    stPeer P;stStart(&P,V,Auth?MQTT_TLS_AUTH:0,false,Phase==2?2:1,true);xfuture *Ready,*Next;xmqttclient* C=stConnect(&P,S,I,Factory,Tiny,NULL,&Ready);stReady(C,Ready,S,false,Auth);
     xfuture* F=stPublish(C,V,Phase?2:1,V==XMQTT_VERSION_5,false,23);mqttTlsWait(&P.Publishes,1,"old TLS PUBLISH observed");if(Phase==2)mqttTlsWait(&P.Releases,1,"old TLS PUBREL observed");
     double End=xrtTimer()+15;while(stInfo(S).Incoming!=1){testRequire(xrtTimer()<End,"old incoming TLS QoS2 committed");xrtSleep(1);}
+    if(!I){
+        testRequire(xmqttClientClose(C)&&xmqttClientWaitFor(C,15000)==XWAIT_OK,"stop TLS connection before APP drain");
+        testRequire(xmqttClientTakeMessage(C,&M),"APP retains accepted TLS message");
+    }
     stClose(C);mqttTlsStop(&P.TLS);const xmqttwriteresult* Old=stResult(F);testRequire(Old->Status==XMQTT_STATUS_CLOSED && Old->AcceptedBytes && Old->PubrecReceived==(Phase==2) && !Old->PubcompReceived && stInfo(S).ActiveOutgoing==1,"old TLS Future and protocol obligation survive old Engine");
     stStart(&P,V,Auth?MQTT_TLS_AUTH:0,true,0,true);C=stConnect(&P,S,I,Factory,Tiny,NULL,&Next);stReady(C,Next,S,true,Auth);stDone(S,C);
     if(Phase==2){mqttTlsWait(&P.Releases,1,"resumed TLS PUBREL");testRequire(!xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE),"QoS2 never replays completed PUBLISH");}
     else {mqttTlsWait(&P.Publishes,1,"resumed TLS DUP");testRequire(P.Log[0].Id==23 && (P.Log[0].Flags&8) && P.Log[0].Topic==9 && !P.Log[0].Alias,"TLS replay canonical full topic/id/DUP without old alias");}
     if(V==XMQTT_VERSION_5){xfuture* A=stPublish(C,V,1,true,false,24);testRequire(((const xmqttwriteresult*)stResult(A))->Status==XMQTT_STATUS_OK,"four-span shared TLS alias");xrtFutureDestroy(A);A=stPublish(C,V,2,true,true,25);testRequire(((const xmqttwriteresult*)stResult(A))->Status==XMQTT_STATUS_OK,"compact two-span shared TLS alias");xrtFutureDestroy(A);}
-    stDone(S,C);xmqttmessage *M=NULL,*Other=NULL;testRequire(xmqttClientInboxTake(I,&M) && !xmqttClientInboxTake(I,&Other),"incoming resumed TLS QoS2 delivered once");
+    stDone(S,C);
+    if(I)testRequire(xmqttClientInboxTake(I,&M),"take carried TLS message");
+    xmqttmessage* Other=NULL;
+    testRequire(M&&!xmqttClientTakeMessage(C,&Other),"incoming resumed TLS QoS2 delivered once");
     xfuture* D=NULL;testRequire(xmqttClientDisconnectAsync(C,NULL,10000,&D)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)stResult(D))->Status==XMQTT_STATUS_OK,"TLS Session authenticated graceful close");stClose(C);mqttTlsStop(&P.TLS);
     testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"TLS passive owners after physical close");const xmqttpacket* Held=xmqttMessagePacket(M);testRequire(Held->Body.Publish.Payload.Size==3 && !memcmp(Held->Body.Publish.Payload.Data,"x\0z",3) && Old->Status==XMQTT_STATUS_CLOSED,"TLS retained data after all owners/Engines");xmqttMessageRelease(M);xrtFutureDestroy(D);xrtFutureDestroy(F);xrtFutureDestroy(Ready);xrtFutureDestroy(Next);
 }

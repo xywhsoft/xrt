@@ -15,7 +15,7 @@ detached shared lookups, family filtering, fallback and MaxAttempts follow Dial.
 Client-owned host scratch uses MaxPrivateBytes; native Resolver/Dial buffers
 retain their separately bounded Core configurations.
 
-Session/Inbox are exclusive through actual Client Destroy. Failed constructors
+The Session and any supplied Inbox are exclusive through actual Client Destroy. Failed constructors
 refund claims and leave output untouched. DNS/refusal, setup timeout/cancellation
 and denied final proof preserve old offline obligations and expiry. Session
 opening/reset and replay begin only after accepted MQTT/local proof gates.

@@ -49,8 +49,7 @@ static void stCtor(void)
     xmqttclienttlsconfig T;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* V=mqttTlsConfigure(&P.TLS,&T,Name,&Protocol,Alpn);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("tls-session");xmqttclient* C=(xmqttclient*)(uintptr_t)1;
     testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,NULL,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"NULL Session preserves constructor output");
-    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,NULL,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"NULL Inbox preserves constructor output");
-    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,NULL,1,NULL,&T,S,I,&Q,&C) && !xmqttClientTlsDialAddressesSession(P.TLS.Engine,NULL,1,NULL,&T,S,I,&Q,&C),"invalid TLS Session endpoints");
+    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,NULL,1,NULL,&T,S,NULL,&Q,&C) && !xmqttClientTlsDialAddressesSession(P.TLS.Engine,NULL,1,NULL,&T,S,NULL,&Q,&C),"invalid TLS Session endpoints");
     xmqttclientconfig K;xmqttClientConfigInit(&K);K.MaxPrivateBytes=1;testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,&K,&T,S,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"combined TLS/driver private bound before claim publication");
     Q.Body.Connect.ClientId=XRT_STR_LITERAL("wrong-id");testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"identity mismatch rolls back prepared TLS");
     xrtTlsVerifierRelease(V);testRequire(xrtAtomic32Load(&P.TLS.VerifierDrops,XMEMORY_ACQUIRE)==1,"failed constructor retains no native verifier");

@@ -44,16 +44,34 @@ static xmqttclient* connectSession(xnetengine* E,uint16 Port,xmqttsession* S,xmq
 #endif
     return C;
 }
-static void retire(xmqttclient* C,xnetengine* E,bool Graceful)
-{
-    if(Graceful){xfuture* F=NULL;check(xmqttClientDisconnectAsync(C,NULL,10000,&F)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)outcome(F))->Status==XMQTT_STATUS_OK,"graceful disconnect");xrtFutureDestroy(F);}
-    check(xmqttClientClose(C) && xmqttClientWaitFor(C,15000)==XWAIT_OK && xmqttClientDestroy(C),"physical Client retirement");
-    check(xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"physical Engine retirement");
-}
 static void message(xmqttmessage* M)
 {
     const xmqttpacket* P=xmqttMessagePacket(M);check(P && P->Type==XMQTT_PACKET_PUBLISH && P->Body.Publish.Topic.Size==Topic.Size && !memcmp(P->Body.Publish.Topic.Data,Topic.Data,Topic.Size) && P->Body.Publish.Payload.Size==PayloadBytes && ((P->Flags>>1)&3u)==(Mode?2u:1u),"logical topic/QoS/binary length");
     for(size_t I=0;I<PayloadBytes;++I)check(P->Body.Publish.Payload.Data[I]==(uint8)(I*37u+Mode),"immutable binary payload");
+}
+typedef struct probeinbox {
+    xmqttclientinbox* Shared;
+    xmqttmessage* Held;
+    unsigned Count;
+} probeinbox;
+
+static void drain(xmqttclient* Client,probeinbox* Inbox)
+{
+    xmqttmessage* M=NULL;
+    while(Inbox->Shared?xmqttClientInboxTake(Inbox->Shared,&M):xmqttClientTakeMessage(Client,&M)){
+        message(M);
+        ++Inbox->Count;
+        if(!Inbox->Held)Inbox->Held=M;
+        else xmqttMessageRelease(M);
+    }
+}
+static void retire(xmqttclient* C,xnetengine* E,bool Graceful,probeinbox* Inbox)
+{
+    if(Graceful){xfuture* F=NULL;check(xmqttClientDisconnectAsync(C,NULL,10000,&F)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)outcome(F))->Status==XMQTT_STATUS_OK,"graceful disconnect");xrtFutureDestroy(F);}
+    check(xmqttClientClose(C)&&xmqttClientWaitFor(C,15000)==XWAIT_OK,"stop the live client");
+    if(!Inbox->Shared)drain(C,Inbox);
+    check(xmqttClientDestroy(C),"physical Client retirement");
+    check(xrtNetEngineStop(E)&&xrtNetEngineDestroy(E),"physical Engine retirement");
 }
 int main(int Argc,char** Argv)
 {
@@ -67,15 +85,19 @@ int main(int Argc,char** Argv)
 #endif
     check(PayloadBytes && PayloadBytes<=1024u*1024u,"bounded probe payload");
     xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=Version;SK.ClientId=XRT_STR_LITERAL("xrt-session-recovery");xmqttsession* S=NULL;check(xmqttSessionCreate(&SK,&S),"passive Session");
-    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=Version;xmqttclientinbox* Inbox=NULL;check(xmqttClientInboxCreate(&IK,&Inbox),"passive Inbox");
-    xfuture *R1=NULL,*R2=NULL,*F=NULL;xnetengine* E=engine();xmqttclient* C=connectSession(E,(uint16)Port,S,Inbox,false,Fragment,&R1);subscribe(C,Topic);
+    probeinbox Inbox={0};
+#if !defined(XMQTT_SESSION_BROKER_APP_QUEUE)
+    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=Version;
+    check(xmqttClientInboxCreate(&IK,&Inbox.Shared),"passive Inbox");
+#endif
+    xfuture *R1=NULL,*R2=NULL,*F=NULL;xnetengine* E=engine();xmqttclient* C=connectSession(E,(uint16)Port,S,Inbox.Shared,false,Fragment,&R1);subscribe(C,Topic);
     uint8* Payload=malloc(PayloadBytes);check(Payload!=NULL,"bounded caller payload allocation");for(size_t I=0;I<PayloadBytes;++I)Payload[I]=(uint8)(I*37u+Mode);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=Mode?4:2;Q.Body.Publish.Topic=Topic;Q.Body.Publish.Payload=(xbytesview){Payload,PayloadBytes};
     xmqttproperty Alias={0};if(Version==XMQTT_VERSION_5){Alias.Id=XMQTT_PROPERTY_TOPIC_ALIAS;Alias.Type=XMQTT_PROPERTY_UINT16;Alias.Value.Number=1;Q.Properties=(xmqttpropertylist){&Alias,1};}
     check(xmqttClientPublishAsync(C,&Q,10000,&F)==XMQTT_ADMISSION_ACCEPTED,"shared Session snapshot admission");memset(Payload,0,PayloadBytes);
     barrier("WAIT_CUT","cut\n");
     if(Mode>=3){const xmqttwriteresult* R=outcome(F);check(R->Status==XMQTT_STATUS_OK && R->PubcompReceived,"independent outgoing QoS2 completes before incoming interruption");}
-    retire(C,E,false);const xmqttwriteresult* Old=outcome(F);
+    retire(C,E,false,&Inbox);const xmqttwriteresult* Old=outcome(F);
 #if defined(XMQTT_SESSION_BROKER_OLD_RESULT)
     XMQTT_SESSION_BROKER_OLD_RESULT(Old,&Q);
 #endif
@@ -85,20 +107,22 @@ int main(int Argc,char** Argv)
 #if defined(XMQTT_SESSION_BROKER_REPLACE_SESSION)
     XMQTT_SESSION_BROKER_REPLACE_SESSION(&SK,&S);
 #endif
-    E=engine();C=connectSession(E,(uint16)Port,S,Inbox,true,Fragment,&R2);
+    E=engine();C=connectSession(E,(uint16)Port,S,Inbox.Shared,true,Fragment,&R2);
     barrier("WAIT_DRAIN","drain\n");
     /* Independent wire barrier first; then a broker round trip on another topic. */
     subscribe(C,XRT_STR_LITERAL("xrt/qual/session/barrier"));
     double End=xrtTimer()+15;
-    for(;;){xmqttsessioninfo SI={0};xmqttclientinfo CI={0};xmqttclientinboxinfo II={0};SI.Size=sizeof(SI);CI.Size=sizeof(CI);II.Size=sizeof(II);
-        check(xmqttSessionInfo(S,&SI) && xmqttClientInfo(C,&CI) && xmqttClientInboxInfo(Inbox,&II),"live gauges");
-        if(!SI.ActiveOutgoing && !SI.Objects && !SI.Incoming && !SI.Prepared && !CI.Requests && II.Messages)break;
+    for(;;){xmqttsessioninfo SI={0};xmqttclientinfo CI={0};SI.Size=sizeof(SI);CI.Size=sizeof(CI);
+        check(xmqttSessionInfo(S,&SI)&&xmqttClientInfo(C,&CI),"live gauges");
+        if(!SI.ActiveOutgoing&&!SI.Objects&&!SI.Incoming&&!SI.Prepared&&!CI.Requests&&
+           (Inbox.Count||CI.Messages))break;
         check(CI.State==XMQTT_CLIENT_OPEN && xrtTimer()<End,"recovery protocol/native quiescence");xrtSleep(1);}
-    retire(C,E,true);xmqttmessage *Held=NULL,*M=NULL;unsigned Count=0;
-    while(xmqttClientInboxTake(Inbox,&M)){message(M);++Count;if(!Held)Held=M;else xmqttMessageRelease(M);}
-    check(Mode?Count==1:Count>=1,"QoS2 exactly one local delivery; QoS1 at least once");
-    check(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(Inbox),"passive owners destroyed");message(Held);
+    retire(C,E,true,&Inbox);
+    if(Inbox.Shared)drain(NULL,&Inbox);
+    check(Mode?Inbox.Count==1:Inbox.Count>=1,"QoS2 exactly one local delivery; QoS1 at least once");
+    check(xmqttSessionDestroy(S)&&xmqttClientInboxDestroy(Inbox.Shared),"passive owners destroyed");
+    message(Inbox.Held);
     check(Old==xrtFutureValue(F) && Old->Status==(Mode>=3?XMQTT_STATUS_OK:XMQTT_STATUS_CLOSED) && ((const xmqttreadyresult*)xrtFutureValue(R2))->Negotiated.SessionPresent,"results survive both Clients/Engines and passive owners");
-    xmqttMessageRelease(Held);xrtFutureDestroy(F);xrtFutureDestroy(R1);xrtFutureDestroy(R2);
-    printf("[PASS] broker Session recovery MQTT%lu mode%u fragmented%u messages%u\n",V,Mode,Fragment?1u:0u,Count);return 0;
+    xmqttMessageRelease(Inbox.Held);xrtFutureDestroy(F);xrtFutureDestroy(R1);xrtFutureDestroy(R2);
+    printf("[PASS] broker Session recovery MQTT%lu mode%u fragmented%u messages%u\n",V,Mode,Fragment?1u:0u,Inbox.Count);return 0;
 }

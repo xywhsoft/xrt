@@ -7,7 +7,10 @@ static xmqttsessioninfo csInfo(xmqttsession* S)
 static void csPair(xmqttversion V,xmqttsession** S,xmqttclientinbox** I)
 {
     xmqttsessionconfig K;testRequire(xmqttSessionConfigInit(&K),"Session defaults");K.Version=V;K.ClientId=XRT_STR_LITERAL("session-client");testRequire(xmqttSessionCreate(&K,S),"Client Session create");
-    xmqttclientinboxconfig B;xmqttClientInboxConfigInit(&B);B.Version=V;testRequire(xmqttClientInboxCreate(&B,I),"Client Session Inbox");
+    if(I){
+        xmqttclientinboxconfig B;xmqttClientInboxConfigInit(&B);B.Version=V;
+        testRequire(xmqttClientInboxCreate(&B,I),"Client Session Inbox");
+    }
 }
 static xmqttclient* csConnect(mqttResumePeer* P,xmqttsession* S,xmqttclientinbox* I,xfuture** F,const xmqttclientconfig* Config)
 {
@@ -24,20 +27,20 @@ static void csDone(xmqttsession* S,xmqttclient* C)
 }
 static void csOutgoing(xmqttversion V,unsigned Phase,bool Alias)
 {
-    xmqttsession* S;xmqttclientinbox* I;csPair(V,&S,&I);mqttResumePeer P;
+    xmqttsession* S;csPair(V,&S,NULL);mqttResumePeer P;
     mqttResumeCaps Caps={0};Caps.MaximumQos=2;Caps.AliasMaximum=Alias?1:0;
     mqttResumeStartWith(&P,V,Phase==0?MQTT_RESUME_HOLD_ACK:Phase==1?MQTT_RESUME_HOLD_REC:MQTT_RESUME_HOLD_COMP,false,&Caps);
-    xfuture* Ready;xmqttclient* C=csConnect(&P,S,I,&Ready,NULL);csReady(Ready);
+    xfuture* Ready;xmqttclient* C=csConnect(&P,S,NULL,&Ready,NULL);csReady(Ready);
     testRequire(xmqttSessionReset(S)==XMQTT_SESSION_STATE_ERROR && !xmqttSessionDestroy(S),"claimed Session blocks public mutations/destruction");xrtClearError();
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=Phase?4:2;Q.Identifier=23;Q.Body.Publish.Topic=XRT_STR_LITERAL("recover/topic");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("retained payload");xmqttproperty A=mqttResumeNumber(XMQTT_PROPERTY_TOPIC_ALIAS,1);if(Alias)Q.Properties=(xmqttpropertylist){&A,1};
     xfuture* F=NULL;testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED,"Session publication");mqttResumeWait(Phase==2?&P.Releases:&P.Publishes,1);
     testRequire(csInfo(S).ActiveOutgoing==1 && xrtFutureState(F)==XFUTURE_PENDING,"unacknowledged obligation is in Session");
     csClose(C);mqttResumeStop(&P);testRequire(!csInfo(S).Connected && csInfo(S).ActiveOutgoing==1,"obligation outlives old Engine");
     const xmqttwriteresult* W=csResult(F);testRequire(W->Status==XMQTT_STATUS_CLOSED && W->AcceptedBytes && W->Delivery==XMQTT_MAY_HAVE_REACHED_PEER && W->PubrecReceived==(Phase==2),"old Future settles with original connection prefix");
-    mqttResumeStart(&P,V,0,true);xfuture* Next;C=csConnect(&P,S,I,&Next,NULL);csReady(Next);csDone(S,C);
+    mqttResumeStart(&P,V,0,true);xfuture* Next;C=csConnect(&P,S,NULL,&Next,NULL);csReady(Next);csDone(S,C);
     if(Phase==2){mqttResumeWait(&P.Releases,1);testRequire(!xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE) && xrtAtomic32Load(&P.Releases,XMEMORY_ACQUIRE)==1,"PUBREL-only recovery");}
     else {mqttResumeWait(&P.Publishes,1);testRequire(P.Log[0].Id==23 && (P.Log[0].Flags&8u) && P.Log[0].Topic==13 && P.Log[0].Payload==16 && !P.Log[0].Alias,"DUP replay has canonical full topic without old aliases");}
-    testRequire(!csInfo(S).Objects,"recovery physical packet references retired");csClose(C);mqttResumeStop(&P);testRequire(xmqttClientInboxDestroy(I) && xmqttSessionDestroy(S),"destroy passive owners before old results");
+    testRequire(!csInfo(S).Objects,"recovery physical packet references retired");csClose(C);mqttResumeStop(&P);testRequire(xmqttSessionDestroy(S),"destroy Session before old results");
     W=csResult(F);if(Phase==2)testRequire(W->Pubrec && xmqttMessagePacket(W->Pubrec)->Type==XMQTT_PACKET_PUBREC,"old ACK metadata remains owned");xrtFutureDestroy(F);xrtFutureDestroy(Ready);xrtFutureDestroy(Next);
 }
 static void csIncomingPacket(mqttResumePeer* P,uint16 Id,bool Duplicate,const char* Payload)
@@ -68,6 +71,89 @@ static void csIncoming(xmqttversion V,bool Duplicate)
     xfuture* D=NULL;testRequire(xmqttClientDisconnect(C,NULL,5000,&D)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)csResult(D))->Status==XMQTT_STATUS_OK,"known old PUBREL does not underflow new receive-window accounting");
     testRequire(xmqttSessionReset(S)==XMQTT_SESSION_STATE_ERROR,"exclusive lease lasts after graceful native end");xrtClearError();csClose(C);mqttResumeStop(&P);
     testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"destroy states with taken payload and old readiness retained");csMessage(M,"held");xmqttMessageRelease(M);xrtFutureDestroy(D);xrtFutureDestroy(Ready);xrtFutureDestroy(Next);
+}
+static void csAppDelivery(xmqttversion V)
+{
+    xmqttsession* S;
+    csPair(V,&S,NULL);
+    mqttResumePeer P;
+    mqttResumeStart(&P,V,0,false);
+    xfuture *Ready,*Next;
+    xmqttclient* C=csConnect(&P,S,NULL,&Ready,NULL);
+    csReady(Ready);
+    csIncomingPacket(&P,77,false,"APP retained");
+    mqttResumeWait(&P.Pubrecs,1);
+
+    testRequire(xmqttClientClose(C)&&xmqttClientWaitFor(C,8000)==XWAIT_OK,"stop accepting publications before draining");
+    xmqttmessage* Saved=NULL;
+    testRequire(xmqttClientTakeMessage(C,&Saved)&&csInfo(S).Incoming==1,"APP takes delivery and Session keeps QoS 2 identity");
+    testRequire(xmqttClientDestroy(C),"retire connection after draining");
+    mqttResumeStop(&P);
+
+    mqttResumeStart(&P,V,0,true);
+    C=csConnect(&P,S,NULL,&Next,NULL);
+    csReady(Next);
+    csIncomingPacket(&P,77,true,"APP retained");
+    mqttResumeWait(&P.Pubrecs,1);
+    xmqttmessage* Duplicate=NULL;
+    testRequire(!xmqttClientTakeMessage(C,&Duplicate)&&!Duplicate,"no duplicate into the new connection queue");
+    mqttResumeAck(&P,XMQTT_PACKET_PUBREL,77);
+    mqttResumeWait(&P.Pubcomps,1);
+    testRequire(!csInfo(S).Incoming,"complete retained QoS 2 exchange");
+    csClose(C);
+    mqttResumeStop(&P);
+    testRequire(xmqttSessionDestroy(S),"retire passive Session");
+    csMessage(Saved,"APP retained");
+    xmqttMessageRelease(Saved);
+    xrtFutureDestroy(Ready);
+    xrtFutureDestroy(Next);
+}
+static void csAppQueueLimit(xmqttversion V)
+{
+    xmqttsession* S;
+    csPair(V,&S,NULL);
+    xmqttclientconfig K;
+    xmqttClientConfigInit(&K);
+    K.MaxMessages=1;
+    mqttResumePeer P;
+    mqttResumeStart(&P,V,0,false);
+    xfuture *Ready,*Next;
+    xmqttclient* C=csConnect(&P,S,NULL,&Ready,&K);
+    csReady(Ready);
+
+    xmqttpacket Filler;
+    xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Filler);
+    Filler.Body.Publish.Topic=XRT_STR_LITERAL("inbound");
+    Filler.Body.Publish.Payload=XRT_BYTES_LITERAL("queue filler");
+    mqttResumePacket(&P,&Filler);
+    csIncomingPacket(&P,78,false,"retry after refusal");
+    testRequire(xmqttClientWaitFor(C,8000)==XWAIT_OK,"local receive queue refuses excess message");
+    xmqttclientinfo Info;
+    testRequire(xmqttClientInfo(C,&Info)&&Info.CloseStatus==XMQTT_STATUS_LIMIT&&Info.Messages==1&&
+        !csInfo(S).Incoming&&!xrtAtomic32Load(&P.Pubrecs,XMEMORY_ACQUIRE),
+        "refusal neither commits identity nor emits PUBREC");
+    xmqttmessage* M=NULL;
+    testRequire(xmqttClientTakeMessage(C,&M),"drain the message that was accepted");
+    csMessage(M,"queue filler");
+    xmqttMessageRelease(M);
+    csClose(C);
+    mqttResumeStop(&P);
+
+    mqttResumeStart(&P,V,0,true);
+    C=csConnect(&P,S,NULL,&Next,&K);
+    csReady(Next);
+    csIncomingPacket(&P,78,true,"retry after refusal");
+    mqttResumeWait(&P.Pubrecs,1);
+    testRequire(xmqttClientTakeMessage(C,&M),"redelivery is admitted on the new connection");
+    csMessage(M,"retry after refusal");
+    xmqttMessageRelease(M);
+    mqttResumeAck(&P,XMQTT_PACKET_PUBREL,78);
+    mqttResumeWait(&P.Pubcomps,1);
+    csClose(C);
+    mqttResumeStop(&P);
+    testRequire(xmqttSessionDestroy(S),"retire bounded Session");
+    xrtFutureDestroy(Ready);
+    xrtFutureDestroy(Next);
 }
 static void csMissingState(xmqttversion V)
 {
@@ -205,7 +291,7 @@ int main(void)
     csIdentifierPhysicalRace(XMQTT_VERSION_5);csIdentifierPhysicalRace(XMQTT_VERSION_311);
     for(unsigned V=0;V<2;++V)for(unsigned Phase=0;Phase<3;++Phase)csOutgoing(V?XMQTT_VERSION_311:XMQTT_VERSION_5,Phase,false);
     csOutgoing(XMQTT_VERSION_5,0,true);csAliasExpansion();
-    for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csIncoming(Version,false);csIncoming(Version,true);csMissingState(Version);csCancellationBudget(Version);csAdmissionAndWindow(Version);}
+    for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csIncoming(Version,false);csIncoming(Version,true);csAppDelivery(Version);csAppQueueLimit(Version);csMissingState(Version);csCancellationBudget(Version);csAdmissionAndWindow(Version);}
     csFactoryOom();csExpiry();csPendingPhysical(XMQTT_VERSION_5);csPendingPhysical(XMQTT_VERSION_311);csSnapshotOom(XMQTT_VERSION_5);csSnapshotOom(XMQTT_VERSION_311);csConcurrentSnapshots(XMQTT_VERSION_5);csConcurrentSnapshots(XMQTT_VERSION_311);csAliasRollbackBudget();csConcurrentAliases();csOutgoing(XMQTT_VERSION_5,1,true);csOutgoing(XMQTT_VERSION_5,2,true);
 #if defined(XMQTT_CLIENT_SESSION_SINGLE_TEST)
     csIdentifierWordScan();csIdentifierFullMap(XMQTT_VERSION_5);csIdentifierFullMap(XMQTT_VERSION_311);

@@ -34,16 +34,16 @@ static void wsAuth(bool TLS,xnetportbackend B)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 static void wsSession(bool TLS,xmqttversion V,xnetportbackend B)
 {
-    xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("ws-fixture");xmqttsession* S=NULL;xmqttclientinbox* I=NULL;xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=V;testRequire(xmqttSessionCreate(&K,&S)&&xmqttClientInboxCreate(&IK,&I),"WS passive protocol state");
+    xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("ws-fixture");xmqttsession* S=NULL;testRequire(xmqttSessionCreate(&K,&S),"WS passive protocol state");
     xmqttproperty Expiry={0};Expiry.Id=XMQTT_PROPERTY_SESSION_EXPIRY;Expiry.Type=XMQTT_PROPERTY_UINT32;Expiry.Value.Number=60;xfuture* Old=NULL;
-    for(unsigned Round=0;Round<2;++Round){mqttWsPeer P;mqttWsInit(&P,TLS,V,B);P.HoldAck=Round==0;P.SessionPresent=Round!=0;P.WsConfig.Session=S;P.WsConfig.Inbox=I;P.Connect.Body.Connect.CleanStart=false;if(V==XMQTT_VERSION_5)P.Connect.Properties=(xmqttpropertylist){&Expiry,1};xmqttclient* C=mqttWsStart(&P);wsReady(C);
+    for(unsigned Round=0;Round<2;++Round){mqttWsPeer P;mqttWsInit(&P,TLS,V,B);P.HoldAck=Round==0;P.SessionPresent=Round!=0;P.WsConfig.Session=S;P.Connect.Body.Connect.CleanStart=false;if(V==XMQTT_VERSION_5)P.Connect.Properties=(xmqttpropertylist){&Expiry,1};xmqttclient* C=mqttWsStart(&P);wsReady(C);
         if(!Round){xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Identifier=23;Q.Body.Publish.Topic=XRT_STR_LITERAL("ws/topic");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("x\0z");testRequire(xmqttClientPublishAsync(C,&Q,10000,&Old)==XMQTT_ADMISSION_ACCEPTED,"WS Session publication");}
         mqttWsWait(&P.Publishes,1,"WS original or canonical replay publication");xmqttsessioninfo Info;double End=xrtTimer()+5;
         do{testRequire(xmqttSessionInfo(S,&Info),"WS Session info");if(Round&&Info.ActiveOutgoing){testRequire(xrtTimer()<End,"WS replay acknowledgement");xrtSleep(1);}}while(Round&&Info.ActiveOutgoing);
         testRequire(Round?Info.ActiveOutgoing==0:Info.ActiveOutgoing==1,"WS state preserved then replayed");mqttWsCloseClient(C);mqttWsStop(&P);
         if(!Round)testRequire(((const xmqttwriteresult*)mqttWsFuture(Old))->Status==XMQTT_STATUS_CLOSED,"old connection Future settles separately from passive replay");
     }
-    testRequire(xmqttClientInboxDestroy(I)&&xmqttSessionDestroy(S),"WS passive state real lease release");xrtFutureDestroy(Old);
+    testRequire(xmqttSessionDestroy(S),"WS passive state real lease release");xrtFutureDestroy(Old);
 }
 #endif
 int main(int Argc,char** Argv)

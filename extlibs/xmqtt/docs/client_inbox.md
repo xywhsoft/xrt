@@ -1,10 +1,12 @@
 # Client Inbox (developing)
 
 Select `XMQTT_MODULE_XMQTT_CLIENT_INBOX` before Core feature processing.
-`xmqttClientInboxCreate` creates a passive queue with no Engine, worker, Future,
-timer, transport or callback. `xmqttClientConnectInbox` attaches one numeric TCP
-Client. Its MQTT version and four object/message caps must exactly match the
-Inbox configuration. The default caps match `xmqttClientConfigInit`.
+`xmqttClientInboxCreate` creates a passive queue. A Client can attach it through
+the explicit [Session factory](client_session.md) or a WebSocket policy.
+Its MQTT version and four object/message caps match the Inbox configuration.
+The default caps match `xmqttClientConfigInit`. For APP-owned receive storage,
+take messages from the local receive queue as in the
+[two-connection example](../examples/inbox/README.md).
 
 Attachment lasts until actual Client Destroy, including after Close/Wait and
 failed readiness. A second attachment and Inbox Destroy fail while attached.
@@ -40,13 +42,7 @@ The opt-in Client adds one pointer; builds selecting only ordinary Client omit
 that field and Inbox code. The enabled receive path takes the existing Client
 gate plus one Inbox gate. Public Client configuration/result layouts are unchanged.
 
-The ordinary Inbox factory preserves application payloads. For protocol recovery
-use the optional [Client Session factory](client_session.md), which additionally
-attaches the in-memory Session. Ordinary factories still reject SessionPresent
-without local state. No durable storage, automatic reconnect, cross-process
-recovery or TLS/Dial/Auth Inbox factory is provided by this phase.
-
-Runnable example: [two Engines](../examples/inbox/README.md). Tests cover both
+Tests cover both
 MQTT versions, incoming QoS0/1/2, FIFO across three Engines, independent result
 retention, count/byte queue overflow across reconnect, physical object limits,
 exclusive attachment and allocation-budget constructor failures.
