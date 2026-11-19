@@ -140,3 +140,44 @@ Production code contains no test hooks. Explicit
 `--source <old-tcp.c> --baseline` supports a recorded old/current comparison
 without changing branches. Sanitizer support depends on the compiler/host;
 GCC's standalone-fence TSan warning must remain visible.
+
+## Fixed-arrival TCP measurements
+
+The `xrpc_tcp_arrival` profile runs ordinary calls and calls with negotiated
+deadline propagation over one warmed native Content-Length TCP connection.
+Both peers share the test Engine. The client admits up to 32 outstanding
+operations in the standard profile. The server runs on the existing bounded
+business executor. Every completed call must return the exact seven-byte
+`[1,2,3]` result.
+
+Offers use absolute monotonic arrival times and proceed independently of
+previous outcomes. P99 and P99.9 from the planned time include late offering
+and queueing. Submit-to-terminal P99 and the collector lag let you distinguish
+those components. An overload refusal remains in the offer population with
+the admission-return timestamp. Compare tails together with the offered,
+accepted, rejected and failed counts.
+A valid run completes the offered schedule, drains the accepted calls and
+records at least one accepted offer.
+
+HTTP and framed TCP share the benchmark-only Future Watch observer and
+collector. A pending Watch timestamps terminal notification. If registration
+returns READY, the caller observation is an upper bound and has its own
+count. CPU includes every process thread, including the yielding load
+generator. For diagnostic use `sleep` instead of `yield` to see the effect
+of Sleep(1) on planned arrivals. Use CPU affinity and controlled host load
+for release baselines.
+
+```sh
+python tools/measure_performance.py --compiler gcc --arch native --config extlibs/xrpc/config/performance_profiles.json --profiles xrpc_tcp_arrival --smoke
+python extlibs/xrpc/tests/interop/http_measurement.py --tcp
+python extlibs/xrpc/tests/interop/http_measurement.py --tcp --burst --label tcp-burst
+```
+
+Use `--arch x64` on Linux and `--binary` to point the oracle at any built
+benchmark. The benchmark accepts `COUNT RATE plain|deadline LIMIT yield|sleep
+[TRACE.csv]`. LIMIT selects the client admission bound in the range 1–64.
+The optional CSV records each offer's planned, submitted, terminal and
+collected times with its admission status, typed result, delivery and Watch
+provenance. The independent oracle recomputes the percentile ranks from that
+trace. The burst mode uses a client limit of one and verifies actual admission
+refusals with later completions.

@@ -1,4 +1,4 @@
-"""Recompute benchmark statistics from per-offer CSV, without implementation code.
+"""Recompute HTTP or framed TCP statistics from per-offer CSV.
 
 Use --binary to select the built matched TCP/TLS benchmark. Diagnostic sleep and
 yield samples are NOT stable performance baselines. CSV I/O happens after timing.
@@ -22,8 +22,12 @@ parser.add_argument('--binary', type=Path)
 parser.add_argument('--report', type=Path)
 parser.add_argument('--label', default=name)
 parser.add_argument('--burst', action='store_true')
+parser.add_argument('--tcp', action='store_true', help='use the framed TCP arrival benchmark')
 args = parser.parse_args()
-binary = (args.binary or root/'out/performance/gnu'/arch/'xrpc'/('xrpc_http_server_tls_tls_ordinary'+suffix)).resolve()
+if args.tcp:
+    out = root/'out/service-extensions/xrpc-tcp-arrival'
+benchmark = 'xrpc_tcp_arrival_plain_4000' if args.tcp else 'xrpc_http_server_tls_tls_ordinary'
+binary = (args.binary or root/'out/performance/gnu'/arch/'xrpc'/(benchmark+suffix)).resolve()
 report = args.report or out/(args.label+'-trace-oracle.json')
 assert re.fullmatch(r'[a-z0-9_-]+', args.label)
 sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
@@ -44,14 +48,25 @@ def rank(values, percent):
     return sorted(values)[math.ceil(len(values)*percent/100)-1]
 
 
+def command_for(feature, mode, wait, count, rate, trace):
+    if args.tcp:
+        extension = 'deadline' if feature else 'plain'
+        return [str(binary), str(count), str(rate), extension, '1' if args.burst else '32', wait, str(trace)]
+    return [str(binary), str(count), str(rate), str(mode), str(feature), wait, str(trace)]
+
+
 cases = []
 workloads = [(s, m, w, 200, 1000) for s in [0, 1] for m in [0, 1, 16] for w in ['sleep', 'yield']]
 if args.burst:
     workloads = [(0, 0, 'yield', 2000, 1000000), (1, 16, 'yield', 2000, 1000000)]
-for secure, mode, wait, count, rate in workloads:
-    tag = f'{args.label}-trace-{secure}-{mode}-{wait}'
+if args.tcp:
+    workloads = [(d, 0, w, 512, 2000) for d in [0, 1] for w in ['sleep', 'yield']]
+    if args.burst:
+        workloads = [(d, 0, 'yield', 4096, 1000000) for d in [0, 1]]
+for feature, mode, wait, count, rate in workloads:
+    tag = f'{args.label}-trace-{feature}-{mode}-{wait}'
     trace = out/(tag+'.csv')
-    command = [str(binary), str(count), str(rate), str(mode), str(secure), wait, str(trace)]
+    command = command_for(feature, mode, wait, count, rate, trace)
     r = subprocess.run(command, env=env, check=True, capture_output=True, text=True, timeout=60)
     assert not r.stderr, r.stderr
     (out/(tag+'.log')).write_text(r.stdout, encoding='utf-8')
@@ -84,6 +99,10 @@ for secure, mode, wait, count, rate in workloads:
         service.append(terminal-submitted)
         lateness.append(submitted-planned)
     assert accepted > 0 and accepted+rejected == count
+    if args.tcp and args.burst:
+        assert rejected > 0, values
+        first_refused = next(i for i, row in enumerate(rows) if int(row['admission']) != 0)
+        assert any(int(row['admission']) == 0 for row in rows[first_refused+1:]), values
     for field, expected in {'offered': count, 'accepted': accepted, 'completed': accepted,
                             'rejected': rejected, 'failed': 0, 'latency_samples': count,
                             'observer_samples': accepted, 'watch_ready': ready,
@@ -112,14 +131,14 @@ for secure, mode, wait, count, rate in workloads:
                   'trace_sha256': sha(trace), 'metrics': values, 'exit_code': r.returncode})
 
 # Trace output failure is observable after normal client/server cleanup.
-failure = subprocess.run([str(binary), '8', '1000', '0', '1', 'yield', str(out)],
+failure = subprocess.run(command_for(1, 0, 'yield', 8, 1000, out),
                          env=env, capture_output=True, text=True, timeout=60)
 assert failure.returncode == 5 and not failure.stderr, (failure.returncode, failure.stderr)
-bad = subprocess.run([str(binary), '8', '1000', '0', '1', 'invalid'], capture_output=True, timeout=10)
+bad = subprocess.run(command_for(1, 0, 'invalid', 8, 1000, out), capture_output=True, timeout=10)
 assert bad.returncode == 1
 assert sha(binary) == before
 report.write_text(json.dumps({'binary': str(binary), 'binary_sha256': before,
-    'script_sha256': sha(Path(__file__)), 'platform': platform.platform(), 'label': args.label, 'burst': args.burst, 'cases': cases,
+    'script_sha256': sha(Path(__file__)), 'platform': platform.platform(), 'label': args.label, 'burst': args.burst, 'tcp': args.tcp, 'cases': cases,
     'io_failure_exit': failure.returncode, 'invalid_mode_exit': bad.returncode,
     'limitation': 'Diagnostic per-offer oracle and complete count populations, not performance acceptance or proof of every overload/fault path'}, indent=2)+'\n', encoding='utf-8')
 print('[PASS] independent CSV oracle:', len(cases), 'traces; counts/provenance/percentiles/elapsed/CPU/memory; trace I/O failure and invalid wait mode; refusals='+str(sum(c['metrics']['rejected'] for c in cases)))

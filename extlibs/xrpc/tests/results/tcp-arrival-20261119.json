@@ -1,0 +1,493 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "tested_current_library": "abc5148f53c38d2d246933ea2405dfd07ea6ee62",
+  "comparison_library": "bdc2cee0e4acc9fec441e025323bb7bf2e28824a",
+  "scope": "Single-connection loopback over warmed native TCP; Windows x64 and WSL x64; fixed offered arrivals; process-wide CPU and unpinned host scheduling.",
+  "sources_lf_sha256": {
+    "extlibs/xrpc/bench/fixed_arrival.h": "5ef452fe1256be6259aa98b7eaaf8d2fe14bd278c9c4bdc26aae4c68a704bc0a",
+    "extlibs/xrpc/bench/bench_tcp_arrival.c": "7c1f88c36ee629052c1af053df8db7a90a9a9ff58ffb39f7bbcdc92855afbc97",
+    "extlibs/xrpc/bench/bench_http_server_tls.c": "e30b4b958ce7f388fdd52c4354b40ea4505d119a6237f5db812efdcaf243cc6f",
+    "extlibs/xrpc/config/modules.json": "3bf104f153e0f2ee0ab8d2d2e7ac9d4b3b2a474424f9aaf3756705f2bf93aa6a",
+    "extlibs/xrpc/config/performance_profiles.json": "f5ece3f655d2faa57e4ecd3118a338aae12e93e64f73b357aaa8bdc931efd4c4",
+    "extlibs/xrpc/tests/interop/http_measurement.py": "3908837275ea8709fda9f17097fc973037ccb512f567d7eed7b19f1007c9c408"
+  },
+  "environments": {
+    "windows": {
+      "observer_two_programs": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/observer-windows.log",
+        "sha256": "619269b90065a3a75544244303928329d11ea8048262996647e6708ad6348ffe"
+      },
+      "registered_profile_smoke": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/final-smoke-windows.json",
+        "sha256": "1a108038ccf987213c09eae5e38b904e95b4fdcfecf30c05e921dbe3caba4dee"
+      },
+      "csv_oracles": {
+        "tcp": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows-tcp-oracle.json",
+            "sha256": "9a9f1c2b1cae41e8c0465091e89bd2cda57e6b1228ced8d5b2bbde2d16d984ce"
+          },
+          "traces": 4,
+          "offered": 2048.0,
+          "rejected": 78.0,
+          "burst": false
+        },
+        "tcp-burst": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows-tcp-burst-oracle.json",
+            "sha256": "e24b4dccedc636540885875c4d333362a4dd76a982e15419794889481825dc32"
+          },
+          "traces": 2,
+          "offered": 8192.0,
+          "rejected": 8121.0,
+          "burst": true
+        },
+        "http": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows-http-oracle.json",
+            "sha256": "8946c7280bd46b5168895da00afbea1de61083aeae92ef51380cd90cf2ddfc8e"
+          },
+          "traces": 12,
+          "offered": 2400.0,
+          "rejected": 0.0,
+          "burst": false
+        },
+        "http-burst": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows-http-burst-oracle.json",
+            "sha256": "f7d26575c5adfe35482b5471ec6bfaa6cc925537ca7072fc6a032c3919c5c5ef"
+          },
+          "traces": 2,
+          "offered": 4000.0,
+          "rejected": 3695.0,
+          "burst": true
+        }
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "matched_binaries": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows/binaries.json",
+        "sha256": "5db1ee5c105fd7dd5235c4de8dd4d5f289972a3e69bf1a5e2bcfd3a9453537cb"
+      },
+      "matched_samples": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/windows/matched.json",
+        "sha256": "beb6e8704d7ee64514a9c168acb66baa9a36b624404428b98fec5600300feee7"
+      },
+      "workloads": {
+        "4000": {
+          "medians": {
+            "previous_plain": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.241681246,
+              "all_p99_us": 105.899991468,
+              "all_p999_us": 145.8499464205,
+              "submit_p99_us": 105.44998804100001,
+              "offer_lateness_p99_us": 0.199885108,
+              "observer_lag_p99_us": 0.200001523,
+              "cpu_us_per_offer": 328.125
+            },
+            "previous_deadline": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.2425481025,
+              "all_p99_us": 104.7999830915,
+              "all_p999_us": 137.900060508,
+              "submit_p99_us": 104.399980046,
+              "offer_lateness_p99_us": 0.199885108,
+              "observer_lag_p99_us": 0.200001523,
+              "cpu_us_per_offer": 320.96354166649996
+            },
+            "current_plain": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.244148231,
+              "all_p99_us": 107.1500591935,
+              "all_p999_us": 141.350028571,
+              "submit_p99_us": 106.899999082,
+              "offer_lateness_p99_us": 0.100117177,
+              "observer_lag_p99_us": 0.200001523,
+              "cpu_us_per_offer": 326.82291666649996
+            },
+            "current_deadline": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.242081375,
+              "all_p99_us": 109.649961814,
+              "all_p999_us": 150.7999841125,
+              "submit_p99_us": 109.3999599105,
+              "offer_lateness_p99_us": 0.199885108,
+              "observer_lag_p99_us": 0.200001523,
+              "cpu_us_per_offer": 328.77604166649996
+            }
+          },
+          "calls_per_run": 12000,
+          "interleaved_repetitions": 8,
+          "refusals_across_runs": {
+            "previous_plain": 0.0,
+            "previous_deadline": 0.0,
+            "current_plain": 0.0,
+            "current_deadline": 0.0
+          },
+          "submit_p99_ranges_us": {
+            "previous_plain": [
+              102.900085039,
+              447.499915026
+            ],
+            "previous_deadline": [
+              102.799967863,
+              114.200054668
+            ],
+            "current_plain": [
+              104.099977762,
+              118.199968711
+            ],
+            "current_deadline": [
+              104.3000957,
+              124.300015159
+            ]
+          }
+        },
+        "16000": {
+          "medians": {
+            "previous_plain": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 16000.043733165,
+              "all_p99_us": 111.35003296650001,
+              "all_p999_us": 141.2500278095,
+              "submit_p99_us": 110.750028398,
+              "offer_lateness_p99_us": 0.2999440765,
+              "observer_lag_p99_us": 3.0500232240000003,
+              "cpu_us_per_offer": 127.76692708350001
+            },
+            "previous_deadline": {
+              "accepted": 47999.5,
+              "rejected": 0.5,
+              "completed_per_sec": 15999.877066370002,
+              "all_p99_us": 115.75006647000001,
+              "all_p999_us": 177.3000112735,
+              "submit_p99_us": 114.3499976025,
+              "offer_lateness_p99_us": 0.500003807,
+              "observer_lag_p99_us": 4.4500338845,
+              "cpu_us_per_offer": 131.022135417
+            },
+            "current_plain": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 16000.0346663885,
+              "all_p99_us": 113.350048196,
+              "all_p999_us": 161.6500667295,
+              "submit_p99_us": 112.650042865,
+              "offer_lateness_p99_us": 0.350002665,
+              "observer_lag_p99_us": 3.849971108,
+              "cpu_us_per_offer": 130.859375
+            },
+            "current_deadline": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 16000.041066464,
+              "all_p99_us": 110.4500261135,
+              "all_p999_us": 140.699907206,
+              "submit_p99_us": 109.85002154450001,
+              "offer_lateness_p99_us": 0.2500019035,
+              "observer_lag_p99_us": 3.3499673010000004,
+              "cpu_us_per_offer": 128.58072916650002
+            }
+          },
+          "calls_per_run": 48000,
+          "interleaved_repetitions": 8,
+          "refusals_across_runs": {
+            "previous_plain": 10.0,
+            "previous_deadline": 249.0,
+            "current_plain": 343.0,
+            "current_deadline": 151.0
+          },
+          "submit_p99_ranges_us": {
+            "previous_plain": [
+              105.600105599,
+              213.49999588
+            ],
+            "previous_deadline": [
+              111.899920739,
+              117.200077511
+            ],
+            "current_plain": [
+              106.799998321,
+              194.299966097
+            ],
+            "current_deadline": [
+              107.100000605,
+              128.100044094
+            ]
+          }
+        }
+      }
+    },
+    "wsl": {
+      "observer_two_programs": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/observer-wsl.log",
+        "sha256": "6703240b0b8a24538d8dcacaca2957bc08537f7326222410fd3ecd8094f9ed79"
+      },
+      "registered_profile_smoke": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/final-smoke-wsl.json",
+        "sha256": "e89946f9ad68ecd25233f17c2698f3cacb868bdc79a1b7aa7d9624202083d5ee"
+      },
+      "csv_oracles": {
+        "tcp": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl-tcp-oracle.json",
+            "sha256": "a9465db49d6709bf9ba7cc4a5cd37acdd861351f3d21812845fd7cc638375405"
+          },
+          "traces": 4,
+          "offered": 2048.0,
+          "rejected": 0.0,
+          "burst": false
+        },
+        "tcp-burst": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl-tcp-burst-oracle.json",
+            "sha256": "e0ec808f66e55e06563b44f35e9e58e4ae94fb6d2fbd3e15035bcc4292df5bd7"
+          },
+          "traces": 2,
+          "offered": 8192.0,
+          "rejected": 8157.0,
+          "burst": true
+        },
+        "http": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl-http-oracle.json",
+            "sha256": "e3364a3ea35a5ab17e2c87a3e631952f9e7ee236799515dcfde4bede2dbf8f5f"
+          },
+          "traces": 12,
+          "offered": 2400.0,
+          "rejected": 0.0,
+          "burst": false
+        },
+        "http-burst": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl-http-burst-oracle.json",
+            "sha256": "bc047484ce0a22c7ec61e64c42640ed8af640b8812c483c7906a170071691fdd"
+          },
+          "traces": 2,
+          "offered": 4000.0,
+          "rejected": 3709.0,
+          "burst": true
+        },
+        "tcp-asan": {
+          "report": {
+            "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl-tcp-asan-oracle.json",
+            "sha256": "b62acc142ff5f8bfd129d2de9cd037d5b7b49bfbc3a6c3a14e6d2aa61f3dec15"
+          },
+          "traces": 4,
+          "offered": 2048.0,
+          "rejected": 0.0,
+          "burst": false
+        }
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "matched_binaries": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl/binaries.json",
+        "sha256": "8bf5bbae45590e9814780c153617e9e3c968a7a8d648eb43c81246271d8f242e"
+      },
+      "matched_samples": {
+        "path": "out/service-extensions/xrpc-tcp-arrival-20261119/wsl/matched.json",
+        "sha256": "95755b08e60d294b247af5edc97432cd8398b9e0539bf0e0ef7850f587058392"
+      },
+      "workloads": {
+        "4000": {
+          "medians": {
+            "previous_plain": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.1377214135,
+              "all_p99_us": 220.999499959,
+              "all_p999_us": 289.45549996700004,
+              "submit_p99_us": 218.749999988,
+              "offer_lateness_p99_us": 0.7449999655,
+              "observer_lag_p99_us": 0.700000044,
+              "cpu_us_per_offer": 423.24908333350004
+            },
+            "previous_deadline": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.1452792765,
+              "all_p99_us": 222.037500066,
+              "all_p999_us": 279.643000056,
+              "submit_p99_us": 220.7,
+              "offer_lateness_p99_us": 0.7429999869999999,
+              "observer_lag_p99_us": 0.700000044,
+              "cpu_us_per_offer": 422.47783333300004
+            },
+            "current_plain": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.1469060645004,
+              "all_p99_us": 217.303999989,
+              "all_p999_us": 273.2734999995,
+              "submit_p99_us": 216.34999996,
+              "offer_lateness_p99_us": 0.6849999179999999,
+              "observer_lag_p99_us": 0.699999987,
+              "cpu_us_per_offer": 420.027916667
+            },
+            "current_deadline": {
+              "accepted": 12000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 4000.143477146,
+              "all_p99_us": 216.60099997700001,
+              "all_p999_us": 262.803000055,
+              "submit_p99_us": 215.95000004050002,
+              "offer_lateness_p99_us": 0.618999991,
+              "observer_lag_p99_us": 0.700000044,
+              "cpu_us_per_offer": 419.97195833349997
+            }
+          },
+          "calls_per_run": 12000,
+          "interleaved_repetitions": 8,
+          "refusals_across_runs": {
+            "previous_plain": 0.0,
+            "previous_deadline": 9.0,
+            "current_plain": 0.0,
+            "current_deadline": 0.0
+          },
+          "submit_p99_ranges_us": {
+            "previous_plain": [
+              212.70000002,
+              242.500000013
+            ],
+            "previous_deadline": [
+              212.199999964,
+              226.399999974
+            ],
+            "current_plain": [
+              211.699999909,
+              233.200000025
+            ],
+            "current_deadline": [
+              211.199999967,
+              219.300000026
+            ]
+          }
+        },
+        "16000": {
+          "medians": {
+            "previous_plain": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 15999.649119782502,
+              "all_p99_us": 231.948000021,
+              "all_p999_us": 347.242999965,
+              "submit_p99_us": 230.699999975,
+              "offer_lateness_p99_us": 2.8974999964999997,
+              "observer_lag_p99_us": 8.250000007499999,
+              "cpu_us_per_offer": 165.958697917
+            },
+            "previous_deadline": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 15999.6421413405,
+              "all_p99_us": 229.355499982,
+              "all_p999_us": 330.393000013,
+              "submit_p99_us": 228.4999999915,
+              "offer_lateness_p99_us": 1.494000003,
+              "observer_lag_p99_us": 7.299999993,
+              "cpu_us_per_offer": 165.611302083
+            },
+            "current_plain": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 15999.604985756501,
+              "all_p99_us": 230.0544999795,
+              "all_p999_us": 312.347999966,
+              "submit_p99_us": 229.20000003500002,
+              "offer_lateness_p99_us": 1.4240000039999998,
+              "observer_lag_p99_us": 7.1999999705,
+              "cpu_us_per_offer": 165.27418749999998
+            },
+            "current_deadline": {
+              "accepted": 48000.0,
+              "rejected": 0.0,
+              "completed_per_sec": 15999.6656497035,
+              "all_p99_us": 233.1979999895,
+              "all_p999_us": 335.247500004,
+              "submit_p99_us": 232.099999948,
+              "offer_lateness_p99_us": 1.295000061,
+              "observer_lag_p99_us": 8.200000025,
+              "cpu_us_per_offer": 165.9033229165
+            }
+          },
+          "calls_per_run": 48000,
+          "interleaved_repetitions": 8,
+          "refusals_across_runs": {
+            "previous_plain": 1433.0,
+            "previous_deadline": 16.0,
+            "current_plain": 57.0,
+            "current_deadline": 37.0
+          },
+          "submit_p99_ranges_us": {
+            "previous_plain": [
+              219.700000002,
+              2867.199999969
+            ],
+            "previous_deadline": [
+              224.899999921,
+              274.900000022
+            ],
+            "current_plain": [
+              220.399999989,
+              337.100000024
+            ],
+            "current_deadline": [
+              226.100000077,
+              275.100000067
+            ]
+          }
+        }
+      }
+    }
+  },
+  "metadata": {
+    "maturity": {
+      "path": "out/service-extensions/xrpc-tcp-arrival-20261119/maturity.log",
+      "sha256": "ec5b45027266c56899b8557529fdfffc7891b5b720da31d02530c9caf80c19e0"
+    },
+    "amalgamation": {
+      "path": "out/service-extensions/xrpc-tcp-arrival-20261119/amalgamation.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api-reference": {
+      "path": "out/service-extensions/xrpc-tcp-arrival-20261119/api-reference.log",
+      "sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa"
+    },
+    "strict_release": {
+      "path": "out/service-extensions/xrpc-tcp-arrival-20261119/strict-release.log",
+      "sha256": "462576ca46e76dc203369dfe43c7d8aecde0daca502f63c0b2c8f7593360ebd0",
+      "exit_code": 1,
+      "developing_modules": 20
+    }
+  },
+  "pending": [
+    "Native Linux and pinned production variants",
+    "Connection scaling and fixed-arrival saturation",
+    "Sustained production qualification",
+    "Standalone HTTP POST extension integration"
+  ],
+  "formatting_equivalence": {
+    "change": "Removed one trailing blank line from each of two files.",
+    "compiled_lf_sha256": {
+      "extlibs/xrpc/bench/bench_tcp_arrival.c": "87126424e403e3cccc7f96b9a9525da7240018f6c660df42861c8e6d35bdff94",
+      "extlibs/xrpc/bench/fixed_arrival.h": "62b4c7529fbaba0a6748b759dfea476cdce01fbeb13b3b6b763734ab8f5f1d80"
+    },
+    "preprocessed_sha256": {
+      "windows": {
+        "tcp": "76ebffdbd7442bbea4ff0aed83db787f5b33557fbaf97d7ce28577c13be6f014",
+        "http": "edc0007963f89f958323d389013340f95d00efc6d73a3686155faef19b12cc23"
+      },
+      "wsl": {
+        "tcp": "9d2aab6709f1121e47571daae861ee4f8529210c74cefe3d9b20cae67fddddb0",
+        "http": "9f30ad1abdf55c7596be3c3ec1e7eec4c43d18a4bd92a830fdb20fb44f590384"
+      }
+    }
+  }
+}

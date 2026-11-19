@@ -1894,6 +1894,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2034,6 +2035,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2174,6 +2176,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2314,6 +2317,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2454,6 +2458,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2594,6 +2599,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2750,6 +2756,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -2899,6 +2906,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3048,6 +3056,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3197,6 +3206,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3531,6 +3541,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3683,6 +3694,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3835,6 +3847,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -3987,6 +4000,7 @@
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
             "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/fixed_arrival.h",
             "extlibs/xrpc/bench/http_measure.h",
             "extlibs/xrpc/bench/process_cpu.h"
           ]
@@ -4823,6 +4837,329 @@
               "direction": "lower"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "xrpc_tcp_arrival",
+      "system": "tcp",
+      "description": "Absolute offered arrivals over one warmed native TCP connection with plain or negotiated deadlines; all counts, terminal-watch tails and load-generator CPU",
+      "benchmarks": [
+        {
+          "name": "xrpc_tcp_arrival_plain_4000",
+          "source": "extlibs/xrpc/bench/bench_tcp_arrival.c",
+          "suite": "xrpc_tcp",
+          "args": [
+            "12000",
+            "4000",
+            "plain",
+            "32",
+            "yield"
+          ],
+          "smoke_args": [
+            "128",
+            "2000",
+            "plain",
+            "32",
+            "yield"
+          ],
+          "metrics": {
+            "offered": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "accepted": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "completed": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "rejected": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "failed": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "completed_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "cpu_us_per_offer": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "submit_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "offer_lateness_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "observer_lag_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "extensions",
+            "arrival_wait"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/fixed_arrival.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h",
+            "extlibs/xrpc/examples/common/tcp_service.h"
+          ]
+        },
+        {
+          "name": "xrpc_tcp_arrival_plain_16000",
+          "source": "extlibs/xrpc/bench/bench_tcp_arrival.c",
+          "suite": "xrpc_tcp",
+          "args": [
+            "48000",
+            "16000",
+            "plain",
+            "32",
+            "yield"
+          ],
+          "smoke_args": [
+            "128",
+            "2000",
+            "plain",
+            "32",
+            "yield"
+          ],
+          "metrics": {
+            "offered": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "accepted": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "completed": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "rejected": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "failed": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "completed_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "cpu_us_per_offer": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "submit_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "offer_lateness_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "observer_lag_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "extensions",
+            "arrival_wait"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/fixed_arrival.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h",
+            "extlibs/xrpc/examples/common/tcp_service.h"
+          ]
+        },
+        {
+          "name": "xrpc_tcp_arrival_deadline_4000",
+          "source": "extlibs/xrpc/bench/bench_tcp_arrival.c",
+          "suite": "xrpc_tcp",
+          "args": [
+            "12000",
+            "4000",
+            "deadline",
+            "32",
+            "yield"
+          ],
+          "smoke_args": [
+            "128",
+            "2000",
+            "deadline",
+            "32",
+            "yield"
+          ],
+          "metrics": {
+            "offered": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "accepted": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "completed": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "rejected": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "failed": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "completed_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "cpu_us_per_offer": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "submit_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "offer_lateness_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "observer_lag_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "extensions",
+            "arrival_wait"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/fixed_arrival.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h",
+            "extlibs/xrpc/examples/common/tcp_service.h"
+          ]
+        },
+        {
+          "name": "xrpc_tcp_arrival_deadline_16000",
+          "source": "extlibs/xrpc/bench/bench_tcp_arrival.c",
+          "suite": "xrpc_tcp",
+          "args": [
+            "48000",
+            "16000",
+            "deadline",
+            "32",
+            "yield"
+          ],
+          "smoke_args": [
+            "128",
+            "2000",
+            "deadline",
+            "32",
+            "yield"
+          ],
+          "metrics": {
+            "offered": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "accepted": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "completed": {
+              "unit": "calls",
+              "direction": "higher"
+            },
+            "rejected": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "failed": {
+              "unit": "calls",
+              "direction": "lower"
+            },
+            "completed_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "cpu_us_per_offer": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "all_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "submit_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "offer_lateness_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "observer_lag_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "extensions",
+            "arrival_wait"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/fixed_arrival.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h",
+            "extlibs/xrpc/examples/common/tcp_service.h"
+          ]
         }
       ]
     },

@@ -1474,7 +1474,8 @@
         "extlibs/xrpc/examples/tcp/main.c"
       ],
       "benchmarks": [
-        "extlibs/xrpc/bench/bench_tcp.c"
+        "extlibs/xrpc/bench/bench_tcp.c",
+        "extlibs/xrpc/bench/bench_tcp_arrival.c"
       ],
       "docs": [
         "extlibs/xrpc/docs/tcp.md",

@@ -15826,3 +15826,44 @@ both hosts. Native Linux, fixed-arrival and sustained release qualification
 remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/tcp-write-20261119.json).
+
+## 2026-11-19 xrpc fixed-arrival TCP
+
+The TCP benchmark now offers calls at absolute times over one warmed
+connection with ordinary or negotiated deadlines. Each result must match
+the seven-byte echo. The benchmark shares the Future Watch collector
+with HTTP and records planned arrival, actual submission, terminal
+observation and collection. Refusals are accounted for at admission
+return, and READY registrations are counted separately.
+
+Windows and WSL each passed four registered smoke workloads, two
+modular/single observer programs, six framed TCP oracle traces and
+14 existing HTTP/TLS oracle traces. The framed TCP burst probes exercised
+rejection with an admission cap of one and verified acceptance after
+refusal. WSL ASan/UBSan with leak checking independently passed four TCP
+traces. The CSV oracle recomputes counts and percentile ranks and checks
+trace I/O errors. Windows Sleep(1) diagnostic runs at 2,000 offers/s
+recorded 39 refusals per mode. Yield-mode diagnostic runs at the same
+rate recorded zero. The normal maturity check passes with 96 benchmarks.
+
+| Host | Offers/s | Mode | Completed/s | Planned P99 (us) | Submit P99 (us) | Refusals, all runs |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Windows | 4,000 | plain | 4,000 / 4,000 | 105.9 / 107.2 | 105.4 / 106.9 | 0 / 0 |
+| Windows | 4,000 | deadline | 4,000 / 4,000 | 104.8 / 109.6 | 104.4 / 109.4 | 0 / 0 |
+| Windows | 16,000 | plain | 16,000 / 16,000 | 111.4 / 113.4 | 110.8 / 112.7 | 10 / 343 |
+| Windows | 16,000 | deadline | 16,000 / 16,000 | 115.8 / 110.5 | 114.3 / 109.9 | 249 / 151 |
+| WSL | 4,000 | plain | 4,000 / 4,000 | 221.0 / 217.3 | 218.7 / 216.3 | 0 / 0 |
+| WSL | 4,000 | deadline | 4,000 / 4,000 | 222.0 / 216.6 | 220.7 / 216.0 | 9 / 0 |
+| WSL | 16,000 | plain | 16,000 / 16,000 | 231.9 / 230.1 | 230.7 / 229.2 | 1,433 / 57 |
+| WSL | 16,000 | deadline | 16,000 / 16,000 | 229.4 / 233.2 | 228.5 / 232.1 | 16 / 37 |
+
+The table compares bdc2cee0 and abc5148f with the same harness and
+Core. Both were built from their exact checked-in single headers with
+the same per-host compiler and flags. Each cell shows two medians from
+eight interleaved 3-second runs, except refusals which are totals.
+The raw data retains terminal and collector timing, per-run rejection
+counts and inclusive process CPU. These are unpinned loopback
+observations on Windows and WSL. Native Linux, pinned host/connection
+scaling, saturation and sustained qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/tcp-arrival-20261119.json).

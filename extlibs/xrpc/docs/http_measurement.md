@@ -59,3 +59,7 @@ CSV oracle recomputes counts/provenance/percentiles/elapsed/CPU/harness memory,
 checks trace I/O failure and can exercise actual burst admission refusals. Run
 performance measurements serially after compilers, sanitizers and diagnostic
 loads have stopped. A smoke or diagnostic trace is not a stable baseline.
+
+The framed TCP arrival profile uses the same observer, collector and trace
+format. The TCP guide documents its transport options and independent
+oracle invocation. [TCP benchmark](tcp.md#fixed-arrival-tcp-measurements).
