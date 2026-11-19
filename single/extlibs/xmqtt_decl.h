@@ -6575,8 +6575,11 @@ typedef struct xmqttserverconfig {
 	size_t MaxSubscriptions, MaxSubscriptionsPerConnection, MaxSubscribersPerTopic, MaxTopicBytes;
 	size_t MaxWildcardNodes; /* Zero disables wildcard subscriptions. */
 	size_t MaxRetainedTopics, MaxRetainedBytes; /* Either zero disables retention. */
-	size_t MaxOutgoingQos1, MaxOutgoingQos1PerConnection, MaxOutgoingQos1Bytes;
-	size_t MaxIncomingQos1; /* Broker-wide acknowledgements awaiting native retirement. */
+	/* QoS 1 and 2 share these quotas. The QoS 1 field names are compatible aliases. */
+	union { size_t MaxOutgoingPublishes, MaxOutgoingQos1; };
+	union { size_t MaxOutgoingPublishesPerConnection, MaxOutgoingQos1PerConnection; };
+	union { size_t MaxOutgoingPublishBytes, MaxOutgoingQos1Bytes; };
+	union { size_t MaxIncomingPublishes, MaxIncomingQos1; };
 	uint16 ReceiveMaximum; /* Per connection, advertised in MQTT 5 CONNACK. */
 	int64 ConnectTimeout;
 	xmqttcodecconfig Codec;
@@ -6588,13 +6591,15 @@ typedef struct xmqttserverconfig {
 
 typedef struct xmqttserverinfo {
 	size_t Connections, Established, Subscriptions, WildcardNodes;
-	size_t IncomingQos1, OutgoingQos1, OutgoingQos1Bytes;
+	union { size_t IncomingPublishes, IncomingQos1; };
+	union { size_t OutgoingPublishes, OutgoingQos1; };
+	union { size_t OutgoingPublishBytes, OutgoingQos1Bytes; };
 	size_t RetainedTopics, RetainedBytes; /* Resident records and bytes for wire data and publisher IDs. */
 	uint64 Accepted, Refused, TimedOut;
 	/* Forwarded counts native queue acceptance. DroppedDeliveries counts
 	 * matching deliveries refused before acceptance. */
 	uint64 Forwarded, DroppedDeliveries, RejectedPublications, DroppedRetained;
-	uint64 OutgoingQos1Overloads;
+	union { uint64 OutgoingPublishOverloads, OutgoingQos1Overloads; };
 	bool Closing;
 } xmqttserverinfo;
 
@@ -6603,10 +6608,11 @@ typedef struct xmqttserverinfo {
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
  * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
  * Wildcard filters have at most 128 levels. Retention defaults to 4096
- * topics and 16 MiB for wire data and publisher IDs. Inbound QoS 1 defaults
- * to 64 outstanding acknowledgements per connection and 65536 per server.
- * Outbound QoS 1 defaults to 256 deliveries per connection, 16384 per
- * server and 64 MiB of charged wire bytes. Authorizers default to anonymous access. Install application policy before listening externally.
+ * topics and 16 MiB for wire data and publisher IDs. Inbound QoS 1/2 defaults
+ * to 64 outstanding publications per connection and 65536 per server.
+ * Outbound QoS 1/2 defaults to 256 deliveries per connection, 16384 per server
+ * and 64 MiB of charged wire bytes. Authorizers default to anonymous access.
+ * Install application policy before listening externally.
  * Compile xmqtt_codec311 as well to enable Allow311. */
 XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config);
 XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Config,

@@ -55,7 +55,7 @@ def check_routes(legacy, modern):
     properties = b"\x04\x03\0\x01x"
 
     legacy.sendall(small_frame(0x82, b"\0\1" + topic(name) + b"\x02"))
-    assert read(legacy, 5) == b"\x90\x03\0\1\1"
+    assert read(legacy, 5) == b"\x90\x03\0\1\2"
     modern.sendall(small_frame(0x82, b"\0\2\0" + topic(name) + b"\x04"))
     assert read(modern, 6) == b"\x90\x04\0\2\0\0"
 
@@ -196,6 +196,44 @@ def check_qos1(legacy, modern):
     modern.sendall(b"\x40\x03\0\1\x80\xc0\0")
     assert read(modern, 2) == b"\xd0\0"
 
+def check_qos2(legacy, modern):
+    key = topic(b"flow/qos2")
+    payload = b"binary\0\xff"
+    legacy.sendall(small_frame(0x82, b"\0\x0d" + key + b"\2"))
+    assert read(legacy, 5) == b"\x90\x03\0\x0d\2"
+    modern.sendall(small_frame(0x82, b"\0\x0e\0" + key + b"\1"))
+    assert read(modern, 6) == b"\x90\x04\0\x0e\0\1"
+    modern.sendall(small_frame(0x34, key + b"\0\x51\0" + payload))
+    assert read(modern, 4) == b"\x50\x02\0\x51"
+    downgraded = small_frame(0x32, key + b"\0\2\0" + payload)
+    assert read(modern, len(downgraded)) == downgraded
+    modern.sendall(b"\x40\x02\0\2")
+    expected = small_frame(0x34, key + b"\0\3" + payload)
+    assert read(legacy, len(expected)) == expected
+    modern.sendall(small_frame(0x3c, key + b"\0\x51\0" + payload))
+    assert read(modern, 4) == b"\x50\x02\0\x51"
+    modern.sendall(b"\x62\x02\0\x51")
+    assert read(modern, 4) == b"\x70\x02\0\x51"
+    legacy.sendall(b"\x50\x02\0\3")
+    assert read(legacy, 4) == b"\x62\x02\0\3"
+    legacy.sendall(b"\x70\x02\0\3\xc0\0")
+    assert read(legacy, 2) == b"\xd0\0", "no duplicate forwarding after PUBREC"
+
+    key = topic(b"flow/reverse")
+    modern.sendall(small_frame(0x82, b"\0\x0d\0" + key + b"\2"))
+    assert read(modern, 6) == b"\x90\x04\0\x0d\0\2"
+    legacy.sendall(small_frame(0x34, key + b"\0\x52" + payload))
+    assert read(legacy, 4) == b"\x50\x02\0\x52"
+    legacy.sendall(b"\x62\x02\0\x52")
+    assert read(legacy, 4) == b"\x70\x02\0\x52"
+    expected = small_frame(0x34, key + b"\0\3\0" + payload)
+    assert read(modern, len(expected)) == expected
+    modern.sendall(b"\x50\x02\0\3")
+    assert read(modern, 4) == b"\x62\x02\0\3"
+    modern.sendall(b"\x70\x02\0\3\xc0\0")
+    assert read(modern, 2) == b"\xd0\0"
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -229,6 +267,7 @@ def probe(program):
                         check_retained(legacy, newer)
                         check_retained_parallel(endpoint, legacy)
                         check_qos1(legacy, newer)
+                        check_qos2(legacy, newer)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -239,7 +278,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -250,7 +289,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing and bidirectional QoS 1")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing and bidirectional QoS 1/2")
 
 
 if __name__ == "__main__":

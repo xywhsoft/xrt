@@ -16551,3 +16551,46 @@ comparisons, native Linux, sustained mixed load, QoS 2 and durable session
 recovery remain open. The initial QoS 0 versus QoS 1 subscriber comparison and
 final source-matched measurements are preserved in
 out/service-extensions/scope-reduction-20261119/xmqtt-qos1-outbound-*.
+
+## 2026-11-19 MQTT server bidirectional QoS 2
+
+MQTT 5 and 3.1.1 peers can publish and subscribe at QoS 2. Inbound handling
+records the identifier before applying route and retain effects. It remembers
+the PUBREC result and suppresses duplicate effects until PUBREL. Positive
+handshakes hold the receive slot through native PUBCOMP retirement. Onward
+QoS follows the lower of the source QoS and subscription grant. The outbound
+state holds the identifier across PUBREC and PUBREL until PUBCOMP or a negative
+PUBREC. Both QoS levels share the existing connection and broker budgets. The
+original public QoS 1 quota and counter names remain valid aliases.
+
+Windows x64 and Ubuntu/WSL x64 passed both version selections in modular and
+single-header builds, independent Python peers, listener examples, static and
+shared consumers, dependency trims and forbidden-symbol probes. Socket tests
+cover duplicate PUBLISH and PUBREC, unknown identifiers, mixed-version
+conversion, QoS 2 to 1 downgrade, retained replay, shared subscriptions, an
+expired QoS 2 publication, negative replies, a mixed QoS 1/2 receive window,
+and close with both QoS 2 exchanges active. WSL ASan/UBSan with leak checks and
+focused TSan passed. The codec-only text size stayed fixed. The same server
+feature closure added 2,216 text bytes on Windows and 2,477 on WSL compared
+with the preceding stage. The strict release check still rejects 37 developing
+modules.
+
+The loopback benchmark sends 128-byte MQTT 5 payloads through two broker
+workers. One publisher completes its QoS 2 exchange. Each subscriber verifies
+its PUBLISH and sends PUBREC before the benchmark waits for any subscriber
+PUBREL. Timing ends when that subscriber sends PUBCOMP. The final assertion
+waits for all reserved broker credits to retire. Each of three unpinned runs
+sends 10,000 publications for one subscriber or 512 for 64.
+
+| Host | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 8,319 | 173.2 | 278.5 | 5.0001 |
+| Windows x64 | 64 | 56,546 | 2226.5 | 4343.0 | 3.0401 |
+| Ubuntu/WSL x64 | 1 | 2,723 | 1739.1 | 4794.4 | 8.9835 |
+| Ubuntu/WSL x64 | 64 | 20,801 | 9420.6 | 14374.0 | 5.0607 |
+
+Every measured delivery completed. Both variation checks returned exit 1,
+with 10 violations on Windows and 13 on WSL. Native Linux performance,
+controlled comparisons, 72-hour mixed-load runs and reconnect recovery remain
+open. Reports are in
+out/service-extensions/scope-reduction-20261119/xmqtt-qos2-*.
