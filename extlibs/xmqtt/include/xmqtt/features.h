@@ -2,6 +2,16 @@
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
 
+/* xmqtt_server_retained_commit 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_RETAINED_COMMIT)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT
+#define XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER_STORE
+#define XMQTT_MODULE_XMQTT_SERVER_STORE
+#endif
+#endif
+
 /* xmqtt_server_store 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_STORE)
 #ifndef XMQTT_FEATURE_XMQTT_SERVER_STORE

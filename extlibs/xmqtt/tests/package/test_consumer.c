@@ -30,6 +30,11 @@ int main(void)
         xmqttServerRestoreSessions(NULL, NULL, 0, 0)) return 73;
     xrtClearError();
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
+    if (xmqttServerSetRetainedCommit(NULL, 0, NULL, NULL) ||
+        xmqttServerCompleteRetained(NULL, XMQTT_SERVER_RETAINED_UNKNOWN)) return 74;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
     xmqttjournalworkerconfig WC;xmqttjournalworker* Worker=(xmqttjournalworker*)(uintptr_t)1;xfuture* WF=(xfuture*)(uintptr_t)1;
     if(!xmqttJournalWorkerConfigInit(&WC)||WC.Size!=sizeof(WC)||WC.MaxRequests!=128||WC.MaxTasks!=2||WC.WorkTransactions!=32)return 56;

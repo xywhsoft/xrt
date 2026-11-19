@@ -1,0 +1,16 @@
+#define XMQTT_MODULE_XMQTT_SERVER_RETAINED_COMMIT
+#define XMQTT_MODULE_XMQTT_CODEC311
+#define XMQTT_MODULE_XMQTT_SERVER_TLS
+#define XMQTT_MODULE_XMQTT_SERVER_WS_TLS
+#define XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_HTTP1_TLS
+#define XRT_MODULE_WEBSOCKET_UPGRADE_STREAM
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TASK_POOL
+#define XRT_MODULE_CRC32
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../../examples/server/retained_commit.c"

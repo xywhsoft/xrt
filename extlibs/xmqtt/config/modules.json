@@ -5,6 +5,7 @@
     "xmqtt_server",
     "xmqtt_server_auth",
     "xmqtt_server_store",
+    "xmqtt_server_retained_commit",
     "xmqtt_server_tls",
     "xmqtt_server_ws",
     "xmqtt_server_ws_tls"
@@ -513,6 +514,57 @@
       "docs": [
         "extlibs/xmqtt/docs/server.md"
       ]
+    },
+    {
+      "name": "xmqtt_server_retained_commit",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT",
+      "depends": [
+        "xmqtt_server_store"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/server_retained_commit.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_limits.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/server.md"
+      ]
+    },
+    {
+      "name": "xmqtt_server_retained_commit_example",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_server_retained_commit",
+        "xmqtt_codec311",
+        "xmqtt_server_tls",
+        "xmqtt_server_ws_tls",
+        "http1_tls",
+        "websocket_upgrade_stream",
+        "tls_identity_rsa",
+        "file_whole",
+        "crc32",
+        "task_pool"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_commit.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/server/retained_commit.c"
+      ],
+      "benchmarks": [],
+      "docs": []
     },
     {
       "name": "xmqtt_server_checkpoint_example",
@@ -1052,6 +1104,7 @@
         "xmqtt_server_dual_tests",
         "xmqtt_server_auth_example",
         "xmqtt_server_checkpoint_example",
+        "xmqtt_server_retained_commit_example",
         "xmqtt_server_tls_example",
         "xmqtt_server_ws_example"
       ],
@@ -1162,6 +1215,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_store.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_checkpoint.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_commit.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_limits.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c"
       ],
@@ -1237,6 +1292,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c": "xmqtt_server_auth",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_store.c": "xmqtt_server_store",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_checkpoint.c": "xmqtt_server_checkpoint_example",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_commit.c": "xmqtt_server_retained_commit_example",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_retained_limits.c": "xmqtt_server_retained_commit",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c": "xmqtt_server_tls_example",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c": "xmqtt_server_ws_example"
       }

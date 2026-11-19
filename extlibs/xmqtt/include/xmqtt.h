@@ -21,6 +21,7 @@
 #include <xmqtt/server.h>
 #include <xmqtt/server_auth.h>
 #include <xmqtt/server_store.h>
+#include <xmqtt/server_retained_commit.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_NEGOTIATION"
 #endif

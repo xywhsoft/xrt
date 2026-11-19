@@ -90,6 +90,43 @@ owns the file format, CRC, UTC clock check and atomic file replacement.
 The same file also carries the session checkpoint described below. The APP
 example can reload its earlier retained-only files.
 
+### Online retained commits
+
+Select `XMQTT_MODULE_XMQTT_SERVER_RETAINED_COMMIT` and install an APP submit
+callback with `xmqttServerSetRetainedCommit` before restoring sessions or
+attaching connections. The broker reserves retained quota and memory for
+the proposed publication or deletion. The old value remains visible until
+the backend confirms the replacement. QoS 1 PUBACK and QoS 2 PUBREC follow
+the durable outcome. Coalesced packets on the publishing connection resume
+in wire order. Other connections can still receive and publish.
+
+The submit callback transfers an immutable view to an APP storage worker
+and returns promptly. Different network workers can submit concurrently.
+Bound the backend queue and complete every accepted ticket with
+`xmqttServerCompleteRetained`. A pending operation occupies one
+retained shard and one publishing connection. Concurrent writes to its
+shard and exhausted byte or object quotas return overload. Broker counters
+include capacity reserved by pending writes. A confirmed
+rejection keeps the earlier record. An unknown outcome seals the broker
+and recovery starts from the authoritative backend. Broker WaitFor includes
+retained tickets that are still retiring on the broker worker. Join the APP
+completion callers before destroying the broker or its engine.
+
+The loopback example uses an XRT task pool to replace one persisted topic
+slot with a publication or tombstone. Its file format, clock and retention
+policy belong to the APP. The test probe terminates its own broker process
+before and after the commit, then starts a fresh broker from the slot.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_retained_commit_example
+python extlibs/xmqtt/tests/interop/run_server_retained_commit.py <path-to-examples_server_retained_commit> <credentials-directory>
+```
+
+The optional credentials directory adds TLS, WS and WSS to the probe. This
+mode persists retained client publications. Recipient queues, inbound
+QoS 2 deduplication state and retained Wills still need online backend
+integration. CONNECT rejects retained Wills while this mode is enabled.
+
 MQTT 5 and 3.1.1 publishers can send QoS 1 and 2. `ReceiveMaximum` limits
 in-flight reliable publications per connection. `MaxIncomingPublishes` limits
 those publications across the broker. MQTT 5 advertises its receive window

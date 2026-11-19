@@ -17099,3 +17099,36 @@ out/service-extensions/scope-reduction-20261119/xmqtt-session-checkpoint-*.
 Live store commits before protocol acknowledgments for unexpected restart,
 native Linux, controlled performance comparisons and 72-hour mixed loads
 remain open.
+
+## 2026-11-20 MQTT live retained commit
+
+The selectable backend interface reserves the retained index and budget
+before submitting a publication or tombstone to the APP. The asynchronous
+ticket holds an immutable PUBLISH and retires on its connection worker.
+Confirmed commit applies the retained state before publication and PUBACK
+or PUBREC. Known failure preserves the prior version. Unknown outcome seals
+admission and requires recovery from the authoritative backend. One pending
+ticket holds a retained shard and pauses its publishing peer while other
+peers keep operating.
+
+The APP example owns a single retained topic slot, a bounded XRT task pool,
+the file format and atomic file replacement. The independent TCP peer
+terminated fresh broker processes before and after commits. It checked
+restart of successful QoS 1/2 and 3.1.1 writes, interrupted replacement,
+committed deletion, pending writes during shutdown, and admission sealing
+after a write failure. TLS, WS and WSS probes exercised QoS 0 and QoS 1
+and verified that coalesced PING packets remained ordered across the pause.
+The unit test covered precommit invisibility, overlapping shard admission,
+OOM and quota rollback.
+
+Windows x64 and Ubuntu/WSL x64 passed the modular and single-header probes,
+TCP regressions, and static and shared package consumers. WSL ASan/UBSan
+with leak checking and TSan passed the commit unit and independent probes.
+Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-retained-live-*.
+
+This path persists retained client PUBLISH packets. Online recipient
+session state, QoS 2 duplicate suppression and retained Wills still need
+durable integration. Retained Wills are refused while the backend is enabled.
+Strict release reports 43 developing modules. Native Linux, controlled
+performance comparisons and 72-hour mixed loads remain open.
