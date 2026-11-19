@@ -1,27 +1,74 @@
+#if !defined(_WIN32)
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <xcron.h>
-#include <xrt/memory.h>
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-static int schedulerCompare(const void* A,const void* B)
-{double X=*(const double*)A,Y=*(const double*)B;return (X>Y)-(X<Y);}
-int main(int Argc,char** Argv)
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <time.h>
+#endif
+
+static double processCpuMilliseconds(void)
 {
-    uint32 Count=Argc>1?(uint32)strtoul(Argv[1],NULL,10):200000,Jobs=Argc>2?(uint32)strtoul(Argv[2],NULL,10):1;
-    if(!Count || Count>1000000 || !Jobs || Jobs>10000)return 1;
-    xcronscheduler* S=NULL;xcronzone* Z=NULL;xcronexpression E;xcronrun* Runs=NULL;double* Samples=NULL;int Exit=2;
-    xcronschedulerconfig C={Jobs,Jobs,Jobs*3+1,0,64*1024*1024};uint64 Sum=0;
-    if(!xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&E,NULL) ||
-        !xcronSchedulerCreate(&C,&S,NULL) || !(Runs=xrtMalloc((size_t)Jobs*sizeof(*Runs))) || !(Samples=xrtMalloc((size_t)Count*sizeof(*Samples))))goto Done;
-    for(uint32 I=0;I<Jobs;++I){xcronjobconfig J={.Expression=E,.Zone=Z,.Begin=0,.End=INT64_MAX,.RunningLimit=1};xcronjobid Id;if(!xcronSchedulerAdd(S,&J,&Id,NULL))goto Done;}
-    double Start=xrtTimer();
-    for(uint32 I=0;I<Count;++I){xcronpoll P;double T=xrtTimer();if(!xcronSchedulerPoll(S,(xcronclock){(xtime)I*1000,(uint64)I*1000},Runs,Jobs,&P,NULL) || P.Count!=Jobs)goto Done;
-        for(uint32 J=0;J<Jobs;++J){Sum+=(uint64)Runs[J].ScheduledAt;if(!xcronSchedulerComplete(S,Runs[J].Id,XCRON_RUN_SUCCEEDED,NULL))goto Done;}
-        Samples[I]=(xrtTimer()-T)*1e6;
+#if defined(_WIN32)
+    FILETIME Created, Exited, Kernel, User;
+    if (!GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User)) return -1;
+    uint64 K = ((uint64)Kernel.dwHighDateTime << 32) | Kernel.dwLowDateTime;
+    uint64 U = ((uint64)User.dwHighDateTime << 32) | User.dwLowDateTime;
+    return (double)(K + U) / 10000.0;
+#else
+    struct timespec Time;
+    if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &Time)) return -1;
+    return (double)Time.tv_sec * 1000.0 + (double)Time.tv_nsec / 1000000.0;
+#endif
+}
+
+static void sample(void* Context)
+{
+    *(xtime*)Context = xrtNow();
+}
+
+static int byTime(const void* L, const void* R)
+{
+    xtime A = *(const xtime*)L, B = *(const xtime*)R;
+    return (A > B) - (A < B);
+}
+
+int main(int Argc, char** Argv)
+{
+    unsigned long Samples = Argc > 1 ? strtoul(Argv[1], NULL, 10) : 16;
+    if (!Samples || Samples > 64) return 1;
+    xcronscheduler* Scheduler = NULL;
+    if (!xcronSchedulerCreate(1, XCRON_SECONDS6, &Scheduler)) return 2;
+    const unsigned Polls = 100000;
+    double Start = xrtTimer();
+    for (unsigned I = 0; I < Polls; ++I)
+        if (xcronSchedulerPoll(Scheduler, NULL) != XCRON_SCHEDULE_IDLE) return 3;
+    double PollSeconds = xrtTimer() - Start;
+
+    xcronjobid Job;
+    xtime Fired = 0, Lateness[64];
+    xcronpoll Result;
+    if (!xcronSchedulerAdd(Scheduler, XRT_STR_LITERAL("* * * * * *"), sample, &Fired, &Job) ||
+        xcronSchedulerPoll(Scheduler, &Result) == XCRON_SCHEDULE_ERROR || !Result.HasNext) return 4;
+    double CpuStart = processCpuMilliseconds();
+    Start = xrtTimer();
+    for (unsigned long I = 0; I < Samples; ++I) {
+        xtime Due = Result.Next;
+        if (xcronSchedulerWait(Scheduler, 3000, &Result) != XCRON_SCHEDULE_DISPATCHED ||
+            Result.Count != 1 || !Result.HasNext || Fired < Due) return 5;
+        Lateness[I] = Fired - Due;
     }
-    double Elapsed=xrtTimer()-Start;if(!(Elapsed>0))goto Done;qsort(Samples,Count,sizeof(*Samples),schedulerCompare);
-    printf("dispatches_per_sec: %.3f\nbatch_p99_us: %.3f\nbatch_size: %u\nchecksum: %" PRIu64 "\n",(double)Count*Jobs/Elapsed,Samples[(Count-1)*99/100],Jobs,Sum);Exit=0;
-Done:
-    if(S){xcronSchedulerClose(S,NULL);xcronretired R;bool Found;do{Found=false;xcronSchedulerReap(S,&R,&Found,NULL);}while(Found);if(!xcronSchedulerDestroy(S,NULL))Exit=3;}
-    xrtFree(Samples);xrtFree(Runs);xcronZoneRelease(Z);xrtClearError();return Exit;
+    double WaitSeconds = xrtTimer() - Start;
+    double CpuEnd = processCpuMilliseconds();
+    if (PollSeconds <= 0 || WaitSeconds <= 0 || CpuStart < 0 || CpuEnd < CpuStart ||
+        !xcronSchedulerDestroy(Scheduler)) return 6;
+    qsort(Lateness, Samples, sizeof(*Lateness), byTime);
+    printf("idle_polls_per_sec: %.3f\n", Polls / PollSeconds);
+    printf("wait_cpu_percent: %.6f\n", (CpuEnd - CpuStart) / (WaitSeconds * 10.0));
+    printf("wake_lateness_p99_ms: %lld\n", (long long)Lateness[(Samples * 99 + 99) / 100 - 1]);
+    printf("wake_samples: %lu\n", Samples);
+    return 0;
 }

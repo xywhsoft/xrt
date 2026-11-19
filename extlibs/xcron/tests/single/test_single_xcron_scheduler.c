@@ -1,4 +1,5 @@
 #define XCRON_MODULE_XCRON_SCHEDULER
+#define XRT_MODULE_THREAD
 #define XRT_MODULE_MEMORY_STATS
 #include <xcron/features.h>
 #define XRT_IMPLEMENTATION

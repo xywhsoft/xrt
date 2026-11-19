@@ -1,13 +1,27 @@
-/* Independent explicit rules; no host TZ, installed database or external IO. */
 #include <xcron.h>
+#include <xrt/time.h>
+#include <inttypes.h>
 #include <stdio.h>
-#include <stdlib.h>
-static void require(bool B){if(!B){fprintf(stderr,"[FAIL] %s\n",xrtErrorMessage(xrtGetError()));exit(1);}}
+
 int main(void)
 {
-    xcronzone* Z=NULL;require(xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&Z,NULL));
-    xdatetime Local={.Year=2024,.Month=11,.Day=3,.Hour=1,.Minute=30};xtime Times[2],A,B;size_t Count=0;
-    require(xcronZoneResolve(Z,&Local,Times,2,&Count,NULL)==XCRON_ZONE_FOUND && Count==2 && xrtDateTime(2024,11,3,5,30,0,0,&A) && xrtDateTime(2024,11,3,6,30,0,0,&B) && Times[0]==A && Times[1]==B);
-    Local.Month=3;Local.Day=10;Local.Hour=2;require(xcronZoneResolve(Z,&Local,Times,2,&Count,NULL)==XCRON_ZONE_NONE && !Count);
-    xcronZoneRelease(Z);puts("[PASS] explicit zone: fold has two instants, gap has none, owner released");return 0;
+    /* The APP chooses how a civil time becomes a physical instant. This sample
+     * resolves one civil label with the host zone and prefers the earlier fold. */
+    xcronexpression Rule;
+    xdatetime Local, Next, Display;
+    xtime Instant;
+    if (!xrtTimeLocal(xrtNow(), &Local) ||
+        !xcronExpressionCompile(XRT_STR_LITERAL("0 9 * * *"), XCRON_UNIX5, &Rule, NULL))
+        return 1;
+    xdatetime End = {.Year = Local.Year + 2, .Month = 1, .Day = 1};
+    if (xcronCalendarNextCivil(&Rule, &Local, &End, XCRON_SEARCH_EXCLUSIVE, &Next, NULL)
+        != XCRON_CALENDAR_FOUND) return 2;
+    if (!xrtTimeFromLocal(&Next, XTIME_FOLD_EARLIER, &Instant)) {
+        puts("APP zone rejected this local label (such as a DST gap)");
+        return 0;
+    }
+    if (!xrtTimeLocal(Instant, &Display)) return 3;
+    printf("APP local time=%" PRId64 "-%02d-%02d %02d:%02d\n",
+        Display.Year, Display.Month, Display.Day, Display.Hour, Display.Minute);
+    return 0;
 }

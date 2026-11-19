@@ -25,18 +25,23 @@ not complete a product.
   unfinished products remain `developing`. Never register empty feature stubs as
   implemented. Generated outputs are committed with their actual inputs.
 
-## Final product scope
+## Current product boundaries
 
-| Product | Required final scope |
-| --- | --- |
-| xredis | RESP2/3, binary commands, bounded incremental replies, async/sync calls, pipelines, pools, TLS, transactions, blocking commands, Pub/Sub, Sentinel, Cluster, tracking |
-| xrpc | JSON-RPC 2.0 client/server, lossless IDs, notifications, batches, bounded dispatch, bidirectional calls, HTTP, WebSocket and explicitly framed stdio, negotiated deadline/cancellation extensions |
-| xmqtt | MQTT 5.0 primary and 3.1.1 compatibility, full client packet/property rules, QoS 0/1/2, authentication, sessions, expiry, aliases, subscriptions, reconnect, durable state, TCP/TLS/WebSocket |
-| xcron | Explicit Unix/seconds dialects, optional separate Quartz dialect, compiled expressions, IANA time zones, DST rules, clock jumps, misfires, overlap policies, executors and durable recovery |
+The approved November 19 scope puts business execution, deployment policy and
+application data in host applications. The libraries own protocol behavior,
+bounded resources and the lifetime of their own state.
 
-Redis server, MQTT broker, arbitrary business exactly-once effects and distributed
-scheduler coordination are outside these four products. Protocol completeness
-and resource correctness are not weakened to obtain a benchmark result.
+| Product | Library scope | APP examples |
+| --- | --- | --- |
+| xcron | Unix five-field and seconds-first six-field expressions, UTC/civil recurrence, optional host-driven UTC callback scheduler | Poll and blocking wait loops, executor submission, task configuration and restart, local time and catch-up policies |
+| xrpc | Host-driven JSON-RPC 2.0 messages, dispatch, request tokens, response correlation, notification/batch behavior and local timeouts | Transport/framing, authentication, subprocesses, host execution and optional private wire policies |
+| xmqtt | MQTT 5.0, optional 3.1.1, native client transports, QoS/session recovery, bounded reconnect, externally supplied subscriptions and optional protocol state persistence | Storage, business Inbox/queues, application acknowledgement, log rotation and compaction |
+| xredis | RESP2/3, generic calls and pipelines, TLS, native pools and leases, transactions, Pub/Sub, tracking notifications, base Sentinel and explicit-route Cluster | Cache policy, replica selection, dynamic Sentinel discovery and automatic command catalogues |
+
+Migrate existing APP use cases to runnable examples using public XRT and
+extension APIs. Examples may combine reloading configuration, timers and
+executors. Remove the old library entry points after validating their intended
+uses against the reduced contract.
 
 ## Execution contracts
 
@@ -74,16 +79,14 @@ Planned module families (not declarations of implemented modules):
 
 ## Ordered work packages
 
-1. P0: freeze scope, source identity, protocol matrices, lifecycle contracts and
-   reproducible performance workloads; inventory public-API gaps.
-2. P1: binary Redis command encoding, then bounded incremental RESP parsing;
-   independent JSON-RPC/MQTT codecs and Cron expression/calendar calculation.
-3. P2: complete the xredis request/response, deadlines, backpressure, reconnect
-   and close vertical slice; measure all overhead before extending its model.
-4. P3: xrpc transports/dispatch, xmqtt sessions/persistence and xcron time zone/
-   scheduler/recovery; finish Redis HA/tracking and the final feature matrices.
-5. P4: interoperability, faults/OOM/lifetimes, performance acceptance, native
-   Windows/Linux long runs and final package consumers for each product.
+1. Reduce xcron to expression/calendar and the optional callback scheduler.
+   Validate both drive modes and the APP examples before retiring the old service.
+2. Complete host-driven asynchronous replies in xrpc, then remove the embedded
+   transport and execution runtimes. Validate the protocol endpoint without them.
+3. Consolidate xmqtt connection configuration and QoS paths. Separate APP storage
+   and compose protocol recovery with host-supplied subscription intent.
+4. Simplify xredis paired commands and Sentinel discovery. Exercise explicit
+   Cluster routing and retire automatic command catalogue management from the library.
 
 ## Acceptance evidence
 
@@ -96,7 +99,7 @@ Planned module families (not declarations of implemented modules):
   result. Security material is runtime-only and is not recorded in evidence.
 - Linux ASan/UBSan and applicable TSan, Windows handle/resource checks, independent
   protocol peers and crash-recovery tests remain required even after smoke passes.
-- Final candidates require native Windows and Linux mixed-load runs of at least
+- Final Redis and MQTT client candidates require native Windows and Linux mixed-load runs of at least
   72 continuous hours, plus separately recorded failure-injection runs. Process
   kill is not represented as proof of power-loss durability.
 - Product destruction returns resources to a documented baseline: live operations

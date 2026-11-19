@@ -1,171 +1,21 @@
-# xcron (developing)
+# xcron
 
-Independent pure-C scheduling extension using public XRT APIs.
-**Bounded expression compilation and UTC/civil Gregorian calendar search are
-implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
-transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
-Owned non-leap TZif v1..4 binary history loading is implemented, including
-unknown/truncated coverage and more than two fold candidates. Explicit named
-database snapshots and reload are available. The pull scheduler can recover
-one quiescent job from a committed checkpoint. Leap-aware conversion, live
-durable recovery and production performance qualification remain open.
+Compile a Unix five-field or seconds-first six-field Cron expression and find
+the next matching time. The calendar API works with UTC instants and floating
+civil labels. A compiled expression is a caller-owned value. Reuse it for
+matching and search without allocating on the normal calculation path.
 
-`XCRON_MODULE_XCRON_TZDB` provides exact named lookup, immutable retained snapshots,
-CAS publication and one aggregate quota across current/old/candidate generations.
-`XCRON_MODULE_XCRON_TZDB_FILE` additionally loads an explicit immutable release
-manifest under an anchored XRT directory root. Existing jobs keep their original
-zone; new lookups use the new publication. See [source/lifetime/cost contracts](docs/tzdb.md)
-and the runnable [snapshot](examples/tzdb/README.md) and [file](examples/tzdb_file/README.md)
-examples. The root module selects both leaves; timezone/scheduler leaves keep their
-file-free dependency closure.
+The default `XCRON_MODULE_XCRON` selects expression and calendar. Explicitly
+enable `XCRON_MODULE_XCRON_SCHEDULER` to register UTC jobs with an APP callback
+and context. Drive it from the APP's loop with `xcronSchedulerPoll` or block the
+APP's thread using `xcronSchedulerWait`. One instance supports both paths.
 
-`XCRON_MODULE_XCRON_SCHEDULER` adds a bounded explicit-clock pull kernel with
-catch-up/skip/coalesced misfires, wait/allow/skip overlap, fair work budgets,
-generation IDs and physical run leases. Cancellation/close preserve active data
-until completion and a retirement receipt. The kernel creates no threads/timers.
-See [scheduler contracts and example](docs/scheduler.md).
-The optional checkpoint module restores a validated next occurrence or terminal
-state with fresh process-local data. [Checkpoint contract](docs/checkpoint.md).
-The optional file-backed store commits one job using two fixed slots, a native
-exclusive lock and generation-checked commits. [File-backed store](docs/checkpoint_store.md).
+- [Calendar contracts](docs/calendar.md)
+- [Scheduler contract](docs/scheduler.md)
+- [Runnable APP examples](examples/README.md)
+- [API reference](docs/api/reference.md)
 
-`XCRON_MODULE_XCRON_EXECUTOR` dispatches actual leases through a borrowed XRT
-Executor, with preallocated slots, cooperative cancellation, owned worker-error
-receipts and protected publication/notification tails. The owner drains results,
-completes kernel leases and reaps jobs before releasing Data. See
-[execution contracts and runnable example](docs/executor.md).
-
-`XCRON_MODULE_XCRON_SERVICE` supplies real wall/monotonic driving on a dedicated
-public-XRT owner thread and borrowed pool. Bounded asynchronous commands/replies,
-reserved completion output, no-effect overload retries, self-wait protection,
-controlled clock-failure shutdown and explicit post-stop Data retirement are
-implemented. See [live contracts/costs](docs/service.md) and
-[runnable real-UTC example](examples/service/README.md). Nominal DST delivery,
-durable recovery and final native/performance/long-run
-qualification remain pending. Actual owner admission/advancement now share global
-segment/month/rule-year budgets, with provisional ADD rollback and independent
-command progress. See the live guide for costs, stats ABI and remaining cold scans.
-
-`XCRON_MODULE_XCRON_ZONED` adds exact local-field matching and earliest actual
-occurrence in a UTC window. It searches ordered fixed-offset segments, returns
-every actual fold instance and skips nonexistent labels; typed unknown coverage
-prevents guessed results. History is completed before using a periodic suffix's
-400-year completeness bound. See [zoned contracts/examples/costs](docs/zoned.md).
-Nominal gap compensation, fold selection and execution remain scheduler policies.
-
-Zoned Init/Step cursors bound segment starts, calendar months and transition-rule
-years independently. They borrow an explicitly supplied live zone and copy the
-expression/window into stable caller storage. See [budget/lifetime/cost details](docs/zoned.md).
-The live owner uses the shared typed engine with global per-turn budgets.
-
-Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly
-choose `XCRON_UNIX5` (minute/hour/day/month/weekday, second zero) or
-`XCRON_SECONDS6` (second followed by the same five fields). Compile into a
-caller-owned `xcronexpression` value. It contains immutable field bitmaps and
-day-star flags, borrows nothing and can be copied/shared between threads.
-
-Supported syntax: decimal values, ascending inclusive ranges, comma lists,
-range/star steps anchored at the range start, JAN..DEC and SUN..SAT names
-(ASCII case insensitive), Sunday 0/7, space/tab separators, and calendar aliases
-`@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, `@hourly`.
-No field-count auto-detection occurs. Single-value steps are rejected; use an
-explicit range. Reversed/wrapping ranges are rejected; write weekday `5-7`
-for Friday through Sunday. Steps stay within a field, never mean elapsed time.
-
-Day flags preserve whether each day field contains a star, including mixed
-lists and star steps. Calendar matching requires both day masks when either
-contains a star, otherwise either restricted day mask suffices. An explicit
-numeric full range remains restricted. This follows the documented
-[Cronie expression model](https://www.man7.org/linux/man-pages/man5/crontab.5.html),
-with the six-field form explicitly defined by this library. Randomization,
-`@reboot`, Quartz operators/year fields, crontab commands/environment assignments
-and multiline input are rejected. A separate Quartz dialect can be added later.
-
-Select `XCRON_MODULE_XCRON_CALENDAR` for exact matching and earliest recurrence in
-an explicit inclusive/exclusive interval. UTC APIs cover the full int64 millisecond
-range. Civil APIs accept floating Gregorian labels over all nonzero int64 years;
-offset/DST/derived input metadata is ignored and recomputed. Candidates occur at
-whole seconds (second zero for Unix5). Search skips date/time bitmaps and visits
-at most 4801 months to cover a complete 400-year recurrence cycle. NONE preserves
-outputs and ambient error; it is not an arbitrary lookahead failure. Normal
-matching/search allocates nothing and retains no input. See [calendar contracts,
-costs and examples](docs/calendar.md), including the remaining zone-transition
-segment/gap/fold work. Root `XCRON_MODULE_XCRON` selects all current leaves.
-
-UTC and civil `xcronCalendarCursorInit`/`Step` counterparts add resumable
-single-result queries with a positive per-call month budget. A 256-byte stable
-caller context snapshots the input; PENDING yields without changing the result.
-Obvious impossible month/day conjunctions are proven in constant work. The
-[calendar guide](docs/calendar.md) covers copies, handoff, costs and limits.
-Zone traversal and live scheduler work still need incremental integration.
-
-The input is bounded at 4096 bytes. Success allocates nothing and preserves the
-ambient XRT error. Failure preserves the compiled output. An optional local
-issue records the field and byte offset, even if allocating the `xrt.cron`
-diagnostic fails and XRT falls back to XERR_MEMORY. API pointer/span/dialect and
-alias errors leave both outputs intact. See [coverage and contracts](docs/coverage.md),
-[public reference](docs/api/reference.md) and [example](examples/expression/main.c).
-
-```sh
-python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_tests --cflag=-O2
-python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron --no-single --cflag=-O2
-python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron --trim-only
-python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron --kind static --verify
-python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron --kind shared --verify
-python tools/measure_performance.py --config extlibs/xcron/config/performance_profiles.json --smoke
-```
-
-The product root stays developing even if current asset audits pass. An unpinned
-compilation/calendar benchmark is workload evidence, not scheduler throughput or tail
-latency acceptance. The [full goal](../../docs/development/service-extensions-plan.md)
-and [progress ledger](../../docs/development/service-extensions-progress.md)
-preserve the remaining delivery scope.
-
-The developing `xcron_delivery` leaf provides explicit single-label fold/missing
-selection after complete resolution. Run its [offline example](examples/delivery/README.md)
-and read [selection semantics/costs](docs/delivery.md). The separate
-`xcron_occurrence` leaf adds budgeted complete recurring fold selection and
-transition-anchored missing-label rejection; see its [contract](docs/occurrence.md)
-and [runnable example](examples/occurrence/README.md). The optional
-`xcron_scheduler_selected` mode admits policy-aware jobs and advances them with
-five global budgets; see its [contract](docs/scheduler_selected.md) and
-[offline lease example](examples/scheduler_selected/README.md). Actual-mode jobs
-keep their original semantics. The optional `xcron_service_selected` mode carries
-these policies through live command tickets, worker retries and full nominal
-completion/retirement receipts; see its [contract](docs/service_selected.md) and
-[service example](examples/service_selected/README.md). The selected path can
-[compensate a missing match once at the transition](docs/occurrence.md) and
-restores that policy through [checkpoints](docs/checkpoint.md).
-
-The [real fixed-arrival workloads](docs/service_arrivals.md) measure selected
-service start/receipt tails with1/2/4/8 workers and a full-output consumer stall,
-while verifying every expected callback, nominal receipt and Data retirement.
-They complement the synthetic throughput fixture; production qualification is
-still open.
-
-Both live service modes support [completion readiness](docs/service_readable.md)
-through `xcronServiceWaitReadable`, sharing the existing condition without
-consuming metadata or Data duties. The matched polling/readiness profiles retain
-complete event accounting and an explicit first-arrival counter-window guard.
-
-The optional `xcron_executor_selected` adapter copies selected nominal metadata
-into bounded per-slot storage, exposes it through an immutable callback token
-view and returns complete physical receipts. Read its
-[contract](docs/executor_selected.md) and run the
-[worker example](examples/executor_selected/README.md).
-
-Both executor modes support bounded atomic admission of up to64 already-ready
-leases through the existing XRT batch API. Each lease retains its own cancellation
-token and physical receipt; no fill wait or additional retained arena is added.
-See the [batch contract](docs/executor.md#bounded-atomic-admission) and the
-[two-fold batch example](examples/executor_batch/README.md).
-
-Both live service modes support [checkpoint capture and restore](docs/service_checkpoint.md)
-through bounded command tickets. Use the [file-backed restart example](examples/service_checkpoint/README.md)
-to capture a quiescent cursor, commit it from the caller and restore it into
-a new live service.
-
-The optional [checkpoint group](docs/checkpoint_group.md) commits a bounded
-set of jobs together with one file flush. The [asynchronous writer](docs/checkpoint_writer.md)
-runs the commit on a host-supplied storage executor. The [runnable example](examples/checkpoint_group/README.md)
-stages the recovered jobs paused before resuming dispatch.
+Select `--suite xcron` for calendar packages or `--suite xcron_scheduler` for
+packages with the scheduler. For single-header builds, include the selected
+extension features, the XRT single header, and then the xcron single header with
+`XCRON_IMPLEMENTATION` defined in one translation unit.

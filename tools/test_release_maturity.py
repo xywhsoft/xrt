@@ -127,6 +127,22 @@ class ReleaseMaturityTest(unittest.TestCase):
 			errors,
 		)
 
+		with self.subTest("explicit optional feature"):
+			errors.clear()
+			_check_product_root(
+				{"product": "sample", "optional_product_modules": ["sample_extra"]},
+				modules, modules, errors,
+			)
+			self.assertEqual([], errors)
+
+		with self.subTest("default feature cannot be declared optional"):
+			errors.clear()
+			_check_product_root(
+				{"product": "sample", "optional_product_modules": ["sample_core"]},
+				modules, modules, errors,
+			)
+			self.assertTrue(errors)
+
 
 
 if __name__ == "__main__":

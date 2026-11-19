@@ -113,6 +113,12 @@ jobs:
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Optional xcron scheduler package and dependencies
+        if: matrix.product == 'xcron'
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --trim-only
+          python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind shared --verify
       - name: Workload smoke only
         run: >-
           python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
@@ -201,6 +207,12 @@ jobs:
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Optional xcron scheduler package and dependencies
+        if: matrix.product == 'xcron'
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --trim-only
+          python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind shared --verify
       - name: Workload smoke only
         run: >-
           python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json

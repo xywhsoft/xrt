@@ -98,6 +98,18 @@ def _check_product_root(
 			[product], modules, all_platforms=True
 		)
 	}
+	optional = manifest.get("optional_product_modules", [])
+	if not isinstance(optional, list) or any(
+		not isinstance(name, str) or name not in public - closure
+		for name in optional
+	):
+		errors.append(f"扩展可选模块必须是默认根未选择的公开模块: {product}")
+		return
+	if optional:
+		closure.update(
+			module["name"]
+			for module in dependency_closure(optional, modules, all_platforms=True)
+		)
 	missing = sorted(public - closure)
 	if missing:
 		errors.append(

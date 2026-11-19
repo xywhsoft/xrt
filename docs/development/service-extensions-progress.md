@@ -16089,3 +16089,27 @@ mixed-load performance qualification remain open. The size checks found no forbi
 dependencies. The strict xredis gate still reports 33 developing modules.
 
 [Stage evidence](../../extlibs/xredis/tests/results/cluster-command-cache-20261119.json).
+
+## 2026-11-19 xcron application boundary
+
+The default product is expression and calendar. The explicit scheduler leaf
+shares a UTC deadline heap between Poll and Wait, and invokes callbacks on the
+APP owner thread. The APP examples cover both drive modes, XRT executor
+submission, reloading a saved task from another process and host-local time.
+The previous service, durable checkpoint and named-zone implementations are
+available in the Git history at befcce75. The paused xcron-only trim edits
+are retained in the local proof directory as xcron-prior-trim.patch.
+
+Windows x64 and Ubuntu/WSL x64 passed the three modular tests, three single
+tests, six examples, two-process configuration reload, default/optional
+dependency trims and both static/shared consumers for both package selections.
+Ubuntu/WSL also passed ASan/UBSan for the modular and single suites.
+The default and scheduler single-object size profiles passed their excluded
+dependency symbols. The product asset, API and optional-root checks passed.
+The repository-wide strict-release test continues to report developing modules.
+
+The library source is 43,054 bytes including the scheduler. Local evidence is
+under out/service-extensions/scope-reduction-20261119/. In one unpinned
+16-wake run per platform the sampled P99 lateness was 1 ms. The measured
+process CPU share while waiting was 0 at the Windows counter resolution and
+0.002926 percent in Ubuntu/WSL. These are local measurements.
