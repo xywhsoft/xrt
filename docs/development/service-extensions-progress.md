@@ -17038,3 +17038,34 @@ out/service-extensions/scope-reduction-20261119/xmqtt-auth-transport-*.
 Durable broker restart recovery, native Linux, controlled performance
 comparisons and 72-hour mixed loads remain open. Strict release reports
 41 developing modules.
+
+## 2026-11-20 MQTT broker retained checkpoint recovery
+
+The optional broker store module visits retained publications after close and
+drain, before destruction. Each borrowed record includes the source wire and
+version, publisher ID and remaining lifetime. Restore validates the complete
+set and copies it into a new broker before attachment. It deducts downtime,
+enforces existing retained quotas and rolls back all copies on a failed
+record. The normal replay path preserves MQTT 5 No Local and recodes
+retained messages for a different protocol version.
+
+The loopback APP example owns the versioned file format, CRC, UTC check and
+atomic replacement. An independent Python peer captured retained QoS 1 and
+MQTT 3.1.1 messages, restarted the broker twice, and verified the newest
+binary payload, publisher suppression, cross-version replay, expiry during
+downtime and an already cleared topic. It also verified that truncated,
+corrupt and future-dated files prevent startup and remain intact.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header restart
+probes, MQTT TCP regressions, and static and shared package consumers. The
+offline recovery tests covered wire and expiry validation, duplicate keys,
+byte limits and OOM rollback. On WSL, these tests and the restart probe
+passed ASan/UBSan with leak checking and TSan. The shared listener also
+passed enhanced authentication over TCP, TLS, WS and WSS on both hosts.
+Generated files and API coverage passed. Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-retained-restart-*.
+
+Broker session and Will recovery, durable acknowledgment ordering on
+unexpected restart, native Linux, controlled performance comparisons and
+72-hour mixed loads remain open. Strict release reports 42 developing
+modules.

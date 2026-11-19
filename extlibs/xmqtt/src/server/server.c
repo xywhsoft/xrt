@@ -1,5 +1,6 @@
 #include <xmqtt/server.h>
 #include <xmqtt/server_auth.h>
+#include <xmqtt/server_store.h>
 #include <xmqtt/server_tls.h>
 #include <xmqtt/server_ws.h>
 #include <xmqtt/codec311.h>
@@ -1681,6 +1682,12 @@ static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 static void xmqttServerRemoveRetained(xmqttserver* Server, xmqttservershard* Shard,
 	xmqttserverretained* Retained);
 
+static void xmqttServerClearRetained(xmqttserver* Server, xmqttservershard* Shard)
+{
+	while (Shard->Retained.Root)
+		xmqttServerRemoveRetained(Server, Shard, (xmqttserverretained*)Shard->Retained.Root);
+}
+
 static bool xmqttServerInitTopics(xmqttserver* Server)
 {
 	for (; Server->ShardCount < sizeof(Server->Shards) / sizeof(Server->Shards[0]); ++Server->ShardCount) {
@@ -1707,8 +1714,7 @@ static void xmqttServerUnitTopics(xmqttserver* Server)
 		xmqttservershard* Shard = Server->Shards + --Server->ShardCount;
 		if (Shard->WildcardRoot.Children.Root || Shard->Topics.Root) abort();
 		if (Server->Config.MaxRetainedTopics && Server->ShardCount < XMQTT_SERVER_TOPIC_SHARDS) {
-			while (Shard->Retained.Root)
-				xmqttServerRemoveRetained(Server, Shard, (xmqttserverretained*)Shard->Retained.Root);
+			xmqttServerClearRetained(Server, Shard);
 			xrtRWLockUnit(&Shard->RetainedGate);
 		}
 		xrtRWLockUnit(&Shard->Gate);
@@ -2443,15 +2449,16 @@ static bool xmqttServerReserveRetained(xmqttserver* Server, size_t Bytes, bool N
 	return false;
 }
 
-static bool xmqttServerStoreRetained(xmqttserver* Server, xmqttversion Version, xstrview Client,
-	const xmqttpacket* Packet, const xmqttproperty* Expiry, double Now)
+static bool xmqttServerStoreRetainedAt(xmqttserver* Server, xmqttversion Version, xstrview Client,
+	const xmqttpacket* Packet, const xmqttproperty* Expiry, double Now, double Age)
 {
 	xstrview Name = Packet->Body.Publish.Topic;
 	xbytesview Key = {(cbytes)Name.Data, Name.Size};
 	xmqttservershard* Shard = xmqttServerWildcardShard(Server, Key);
 	uint64 Hash = xmqttServerIdHash(Key, &Server->HashKey);
 	size_t Bytes = Packet->Wire.Size + Client.Size;
-	bool Store = Packet->Body.Publish.Payload.Size && (!Expiry || Expiry->Value.Number);
+	double Remaining = Expiry ? Expiry->Value.Number - Age : 0;
+	bool Store = Packet->Body.Publish.Payload.Size && (!Expiry || Remaining > 0);
 	bool Room = Bytes <= Server->Config.MaxRetainedBytes;
 
 	xrtRWLockWrite(&Shard->RetainedGate);
@@ -2520,8 +2527,8 @@ static bool xmqttServerStoreRetained(xmqttserver* Server, xmqttversion Version, 
 	Entry->Publication = Copy;
 	Entry->Version = Version;
 	Entry->PublisherIdBytes = Client.Size;
-	Entry->Received = Now;
-	Entry->Expires = Expiry ? Now + Expiry->Value.Number : 0;
+	Entry->Received = Now - Age;
+	Entry->Expires = Expiry ? Now + Remaining : 0;
 	if (Entry->Expires) {
 		xrtAVLNodeInit(&Entry->ExpiryNode);
 		if (xrtAVLInsert(&Shard->RetainedExpiry, &Entry->ExpiryNode, Entry,
@@ -2531,6 +2538,124 @@ static bool xmqttServerStoreRetained(xmqttserver* Server, xmqttversion Version, 
 	xrtRWLockWriteUnlock(&Shard->RetainedGate);
 	return true;
 }
+
+static bool xmqttServerStoreRetained(xmqttserver* Server, xmqttversion Version, xstrview Client,
+	const xmqttpacket* Packet, const xmqttproperty* Expiry, double Now)
+{
+	return xmqttServerStoreRetainedAt(Server, Version, Client, Packet, Expiry, Now, 0);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+XMQTT_API bool xmqttServerVisitRetained(xmqttserver* Server, xmqttserverretainedvisitor Visit, ptr User)
+{
+	if (!Server || !Visit) return xmqttServerError(XERR_ARGUMENT, "invalid retained checkpoint visit");
+	if (xmqttServerWaitFor(Server, 0) != XWAIT_OK)
+		return xmqttServerError(XERR_STATE, "drain MQTT broker before visiting retained state");
+	if (!Server->Config.MaxRetainedTopics) return true;
+	double Now = xrtTimer();
+	if (!isfinite(Now)) return xmqttServerError(XERR_STATE, "invalid MQTT retained checkpoint clock");
+	for (size_t Index = 0; Index < XMQTT_SERVER_TOPIC_SHARDS; ++Index) {
+		xavliter Iterator;
+		xrtAVLIterBegin(&Server->Shards[Index].Retained, &Iterator);
+		const xmqttserverretained* Entry;
+		while ((Entry = (const xmqttserverretained*)xrtAVLIterNext(&Iterator)) != NULL) {
+			uint64 Remaining = 0;
+			if (Entry->Expires) {
+				double Milliseconds = (Entry->Expires - Now) * 1000.0;
+				if (Milliseconds < 1) continue;
+				Remaining = (uint64)Milliseconds;
+			}
+			const xmqttserverpublication* Publication = Entry->Publication;
+			const xmqttserverretainedrecord Record = {
+				Entry->Version, {(cstr)(Publication->Wire + Publication->Size), Entry->PublisherIdBytes},
+				{Publication->Wire, Publication->Size}, Remaining
+			};
+			if (!Visit(&Record, User)) return false;
+		}
+	}
+	return true;
+}
+
+static bool xmqttServerRestoreRetainedRecord(xmqttserver* Server, const xmqttserverretainedrecord* Record,
+	uint64 ElapsedMilliseconds, double Now)
+{
+	const xmqttcodecconfig* Codec = &Server->Config.Codec;
+	if (!Record->PublisherId.Size || Record->PublisherId.Size > Server->Config.MaxClientIdBytes ||
+		!xmqttUtf8StringCheck(Record->PublisherId, Codec->Utf8Flags, NULL))
+		return xmqttServerError(XERR_PROTOCOL, "invalid retained checkpoint publisher");
+
+	xmqttproperty Properties[XMQTT_SERVER_MAX_PROPERTIES];
+	const xmqttcodecbuffers Scratch = {Properties, XMQTT_SERVER_MAX_PROPERTIES, NULL, 0};
+	xmqttpacket Packet;
+	xmqttcodecstatus Decoded;
+	if (Record->Version == XMQTT_VERSION_5)
+		Decoded = xmqttPacketRead5(Record->Publish, XMQTT_CLIENT_TO_SERVER, Codec, &Scratch, &Packet, NULL);
+#if defined(XMQTT_FEATURE_XMQTT_CODEC311)
+	else if (Record->Version == XMQTT_VERSION_311 && Server->Config.Allow311)
+		Decoded = xmqttPacketRead311(Record->Publish, XMQTT_CLIENT_TO_SERVER, Codec, &Scratch, &Packet, NULL);
+#endif
+	else return xmqttServerError(XERR_UNSUPPORTED, "unsupported retained checkpoint MQTT version");
+	if (Decoded != XMQTT_CODEC_DONE || Packet.Type != XMQTT_PACKET_PUBLISH ||
+		Packet.Wire.Size != Record->Publish.Size || !(Packet.Flags & XMQTT_PUBLISH_RETAIN) ||
+		(Packet.Flags & XMQTT_PUBLISH_DUP) || !Packet.Body.Publish.Payload.Size ||
+		Packet.Body.Publish.Topic.Size > Server->Config.MaxTopicBytes)
+		return xmqttServerError(XERR_PROTOCOL, "invalid retained checkpoint PUBLISH");
+	const xmqttproperty* Expiry = NULL;
+	for (size_t Index = 0; Index < Packet.Properties.Count; ++Index) {
+		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = &Properties[Index];
+		if (Properties[Index].Id == XMQTT_PROPERTY_TOPIC_ALIAS)
+			return xmqttServerError(XERR_PROTOCOL, "retained checkpoint contains a topic alias");
+	}
+	double Age = 0;
+	if (Expiry) {
+		uint64 Original = UINT64_C(1000) * Expiry->Value.Number;
+		if (!Record->RemainingMilliseconds || Record->RemainingMilliseconds > Original)
+			return xmqttServerError(XERR_PROTOCOL, "invalid retained checkpoint expiry");
+		if (ElapsedMilliseconds >= Record->RemainingMilliseconds) return true;
+		Age = (double)(Original - Record->RemainingMilliseconds + ElapsedMilliseconds) / 1000.0;
+	} else if (Record->RemainingMilliseconds)
+		return xmqttServerError(XERR_PROTOCOL, "retained checkpoint expiry has no MQTT property");
+	xbytesview Key = {(cbytes)Packet.Body.Publish.Topic.Data, Packet.Body.Publish.Topic.Size};
+	xmqttservershard* Shard = xmqttServerWildcardShard(Server, Key);
+	if (xmqttServerFindKey(&Shard->Retained, xmqttServerIdHash(Key, &Server->HashKey), Key))
+		return xmqttServerError(XERR_PROTOCOL, "duplicate retained checkpoint topic");
+	size_t Bytes = Packet.Wire.Size + Record->PublisherId.Size;
+	if (Bytes > Server->Config.MaxRetainedBytes - xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED))
+		return xmqttServerError(XERR_RANGE, "retained checkpoint exceeds byte limit");
+	return xmqttServerStoreRetainedAt(Server, Record->Version, Record->PublisherId, &Packet, Expiry, Now, Age);
+}
+
+XMQTT_API bool xmqttServerRestoreRetained(xmqttserver* Server,
+	const xmqttserverretainedrecord* Records, size_t Count, uint64 ElapsedMilliseconds)
+{
+	if (!Server || Count > SIZE_MAX / sizeof(*Records) ||
+		(Count && !xrtMemRangeValid(Records, Count * sizeof(*Records))))
+		return xmqttServerError(XERR_ARGUMENT, "invalid retained checkpoint records");
+	if (Count > Server->Config.MaxRetainedTopics)
+		return xmqttServerError(XERR_RANGE, "retained checkpoint exceeds topic limit");
+	if (xrtNetEngineCurrent(Server->Engine))
+		return xmqttServerError(XERR_STATE, "restore retained state outside MQTT broker workers");
+	double Now = xrtTimer();
+	if (!isfinite(Now)) return xmqttServerError(XERR_STATE, "invalid MQTT retained recovery clock");
+	xrtMutexLock(&Server->Gate);
+	if (Server->Info.Closing || Server->Info.Accepted ||
+		xrtAtomic32Load(&Server->RetainedTopics, XMEMORY_RELAXED)) {
+		xrtMutexUnlock(&Server->Gate);
+		return xmqttServerError(XERR_STATE, "restore retained state before the first broker attachment");
+	}
+	bool Restored = true;
+	for (size_t Index = 0; Index < Count; ++Index) {
+		if (xmqttServerRestoreRetainedRecord(Server, &Records[Index], ElapsedMilliseconds, Now)) continue;
+		Restored = false;
+		for (size_t Shard = 0; Shard < XMQTT_SERVER_TOPIC_SHARDS; ++Shard)
+			xmqttServerClearRetained(Server, Server->Shards + Shard);
+		xrtAtomic64Store(&Server->DroppedRetained, 0, XMEMORY_RELAXED);
+		break;
+	}
+	xrtMutexUnlock(&Server->Gate);
+	return Restored;
+}
+#endif
 
 static bool xmqttServerRetainedMatch(xbytesview Filter, xbytesview Name)
 {

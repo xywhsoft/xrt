@@ -23,6 +23,11 @@ int main(void)
         Server != (xmqttserver*)(uintptr_t)1) return 72;
     xrtClearError();
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+    if (xmqttServerVisitRetained(NULL, NULL, NULL) ||
+        xmqttServerRestoreRetained(NULL, NULL, 0, 0)) return 73;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
     xmqttjournalworkerconfig WC;xmqttjournalworker* Worker=(xmqttjournalworker*)(uintptr_t)1;xfuture* WF=(xfuture*)(uintptr_t)1;
     if(!xmqttJournalWorkerConfigInit(&WC)||WC.Size!=sizeof(WC)||WC.MaxRequests!=128||WC.MaxTasks!=2||WC.WorkTransactions!=32)return 56;

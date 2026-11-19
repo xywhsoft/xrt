@@ -13,6 +13,8 @@ typedef struct serverexample {
 	xnetlistener* Listener;
 	xnetaddr Address;
 	xatomic32 ListenerClosed;
+	bool (*Prepare)(xmqttserver* Server, ptr Data);
+	ptr PrepareData;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
 	xatomic32 Upgrades;
 	bool WebSocket;
@@ -53,7 +55,7 @@ static void exampleServerListenerClosed(xnetlistener* Listener, ptr Data)
 	xrtAtomic32Store(&((serverexample*)Data)->ListenerClosed, 1, XMEMORY_RELEASE);
 }
 
-static bool exampleServerStop(serverexample* Example)
+static bool exampleServerDrain(serverexample* Example)
 {
 	if (Example->Server && !xmqttServerClose(Example->Server)) return false;
 	if (Example->Listener) {
@@ -75,9 +77,14 @@ static bool exampleServerStop(serverexample* Example)
 		}
 	}
 #endif
+	return !Example->Server || xmqttServerWaitFor(Example->Server, 5000) == XWAIT_OK;
+}
+
+static bool exampleServerStop(serverexample* Example)
+{
+	if (!exampleServerDrain(Example)) return false;
 	if (Example->Server) {
-		if (xmqttServerWaitFor(Example->Server, 5000) != XWAIT_OK ||
-			!xmqttServerDestroy(Example->Server)) return false;
+		if (!xmqttServerDestroy(Example->Server)) return false;
 		Example->Server = NULL;
 	}
 	if (Example->Engine) {
@@ -103,6 +110,7 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 #else
 	if (!xmqttServerCreate(Example->Engine, Config, &Example->Server)) goto Failed;
 #endif
+	if (Example->Prepare && !Example->Prepare(Example->Server, Example->PrepareData)) goto Failed;
 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);

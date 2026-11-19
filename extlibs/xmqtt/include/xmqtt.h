@@ -20,6 +20,7 @@
 #include <xmqtt/codec311.h>
 #include <xmqtt/server.h>
 #include <xmqtt/server_auth.h>
+#include <xmqtt/server_store.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_NEGOTIATION"
 #endif

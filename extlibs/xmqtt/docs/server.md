@@ -33,7 +33,7 @@ last subscription. A selected member whose native queue refuses a QoS 0
 delivery drops that delivery. MQTT 3.1.1 treats the shared prefix as literal
 filter text.
 
-The in-memory QoS 0 store keeps the latest retained publication for each topic.
+The in-memory store keeps the latest retained publication for each topic.
 An empty retained publication clears the record and is still sent to matching
 live subscribers. Either retention limit set to zero disables retention.
 When a replacement exceeds the budget or allocation fails, the old record is
@@ -57,6 +57,40 @@ Retained writes reclaim due records in their shard and try other shards under
 quota pressure. Idle expired entries can remain resident until reclamation.
 Unmodified same-version replay shares the immutable stored bytes with the
 native send queues. Elapsed expiry and protocol conversion require encoding.
+
+### Retained checkpoints across restarts
+
+Select `XMQTT_MODULE_XMQTT_SERVER_STORE` for retained checkpoint support.
+After closing and joining the broker, call `xmqttServerVisitRetained` before
+destroying it. Each borrowed record includes the original publisher Client
+ID, source protocol version, complete retained PUBLISH and remaining
+lifetime. The publisher ID preserves MQTT 5 No Local behavior after restart.
+Store records under the broker's own application identity. A visitor that
+stops early leaves an incomplete checkpoint for the application to discard.
+
+Before the first attachment on a new broker, pass the records and elapsed time
+since capture to `xmqttServerRestoreRetained`. Supply trusted records and
+a trusted elapsed time. Restore validates MQTT wire, identity and expiry
+metadata, discards expired records, and enforces the broker's topic and byte
+limits. On any rejected record it releases the entire provisional set, so the
+application can retry. Apply storage trust and tenant policy before passing
+records to the broker.
+
+Build the loopback file example and run the independent restart probe.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_store,xmqtt_server_checkpoint_example
+python extlibs/xmqtt/tests/interop/run_server_checkpoint.py <path-to-examples_server_checkpoint>
+```
+
+Run the example directly as `examples_server_checkpoint capture checkpoint.bin`,
+then send it a line on stdin after publishing retained messages. Use
+`examples_server_checkpoint restore checkpoint.bin` for later runs. The example
+owns the file format, CRC, UTC clock check and atomic file replacement.
+The checkpoint covers retained publications from controlled shutdown.
+Persistent sessions, pending Wills and protocol acknowledgments committed
+against an active backend before an unexpected restart require further broker
+storage integration.
 
 MQTT 5 and 3.1.1 publishers can send QoS 1 and 2. `ReceiveMaximum` limits
 in-flight reliable publications per connection. `MaxIncomingPublishes` limits

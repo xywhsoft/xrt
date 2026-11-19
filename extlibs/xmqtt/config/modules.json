@@ -4,6 +4,7 @@
   "optional_product_modules": [
     "xmqtt_server",
     "xmqtt_server_auth",
+    "xmqtt_server_store",
     "xmqtt_server_tls",
     "xmqtt_server_ws",
     "xmqtt_server_ws_tls"
@@ -485,6 +486,54 @@
       ],
       "examples": [
         "extlibs/xmqtt/examples/server/auth.c"
+      ],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_server_store",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SERVER_STORE",
+      "depends": [
+        "xmqtt_server"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/server_store.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_server_store.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_store.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/server.md"
+      ]
+    },
+    {
+      "name": "xmqtt_server_checkpoint_example",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_server_store",
+        "xmqtt_codec311",
+        "file_whole",
+        "buffer",
+        "crc32"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_checkpoint.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/server/checkpoint.c"
       ],
       "benchmarks": [],
       "docs": []
@@ -1002,6 +1051,7 @@
         "xmqtt_store_compact_online_tests",
         "xmqtt_server_dual_tests",
         "xmqtt_server_auth_example",
+        "xmqtt_server_checkpoint_example",
         "xmqtt_server_tls_example",
         "xmqtt_server_ws_example"
       ],
@@ -1045,7 +1095,8 @@
         "extlibs/xmqtt/tests/test_journal_worker_file.c",
         "extlibs/xmqtt/tests/test_journal_worker_concurrent.c",
         "extlibs/xmqtt/tests/test_journal_worker_faults.c",
-        "extlibs/xmqtt/tests/test_server.c"
+        "extlibs/xmqtt/tests/test_server.c",
+        "extlibs/xmqtt/tests/test_server_store.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -1109,6 +1160,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_store.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_checkpoint.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c"
       ],
@@ -1182,6 +1235,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c": "xmqtt_server_dual_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth.c": "xmqtt_server_auth_example",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c": "xmqtt_server_auth",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_store.c": "xmqtt_server_store",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_checkpoint.c": "xmqtt_server_checkpoint_example",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c": "xmqtt_server_tls_example",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c": "xmqtt_server_ws_example"
       }

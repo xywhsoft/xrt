@@ -1,0 +1,11 @@
+#define XMQTT_MODULE_XMQTT_SERVER_STORE
+#define XMQTT_MODULE_XMQTT_CODEC311
+#define XRT_MODULE_FILE_WHOLE
+#define XRT_MODULE_BUFFER
+#define XRT_MODULE_CRC32
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../../examples/server/checkpoint.c"

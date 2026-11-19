@@ -132,6 +132,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_AUTH 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_STORE 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS 1
 #endif
@@ -278,6 +281,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_SERVER_AUTH)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_AUTH 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_SERVER_STORE)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_STORE 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_SERVER_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_TLS 1
@@ -2872,6 +2878,16 @@
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
+
+/* xmqtt_server_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_STORE
+#define XMQTT_FEATURE_XMQTT_SERVER_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#endif
 
 /* xmqtt_server_ws_tls 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
@@ -6816,6 +6832,55 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/server_store.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_SERVER_STORE_H
+#define XMQTT_SERVER_STORE_H
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER)
+#error "MQTT broker state storage requires the broker"
+#endif
+XRT_EXTERN_C_BEGIN
+
+typedef struct xmqttserverretainedrecord {
+	xmqttversion Version;
+	xstrview PublisherId;
+	xbytesview Publish;
+	uint64 RemainingMilliseconds; /* Zero means the publication has no expiry. */
+} xmqttserverretainedrecord;
+
+/* The record and both views borrow broker storage for this call only. Return
+ * false to stop the visit. The application chooses how to store the records. */
+typedef bool (*xmqttserverretainedvisitor)(const xmqttserverretainedrecord* Record, ptr User);
+
+/* Visit the retained state of a closed, drained broker before Destroy, on
+ * its application owner thread. One monotonic cut for all records. Expired
+ * publications are omitted and finite lifetimes rounded down to milliseconds.
+ * Each record includes a complete source-version PUBLISH and original
+ * publisher ID. Callbacks run outside broker locks and must leave the broker
+ * alive. False means the caller should discard an incomplete checkpoint. */
+XMQTT_API bool xmqttServerVisitRetained(xmqttserver* Server, xmqttserverretainedvisitor Visit, ptr User);
+
+/* Restore a complete retained set into an empty broker on the application
+ * owner thread, before sharing the broker with other threads or attaching
+ * connections. ElapsedMilliseconds is time
+ * since capture, including downtime. The caller validates its storage clock
+ * and supplies trusted records. All wire packets, publisher IDs and expiry
+ * bounds are validated, expired records are omitted and duplicate live topics
+ * are rejected. On success the broker owns its copies. Failure leaves the
+ * retained set empty. Application policy applies to later MQTT operations.
+ * Restore MQTT 3.1.1 records only on a broker configured for MQTT 3.1.1. */
+XMQTT_API bool xmqttServerRestoreRetained(xmqttserver* Server,
+	const xmqttserverretainedrecord* Records, size_t Count, uint64 ElapsedMilliseconds);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -7098,6 +7163,10 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_SERVER_AUTH
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_AUTH
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_STORE)
+#undef XMQTT_FEATURE_XMQTT_SERVER_STORE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_STORE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS)
 #undef XMQTT_FEATURE_XMQTT_SERVER_TLS
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS
@@ -7293,6 +7362,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_AUTH)
 #undef XMQTT_MODULE_XMQTT_SERVER_AUTH
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_AUTH
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_STORE)
+#undef XMQTT_MODULE_XMQTT_SERVER_STORE
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_STORE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_TLS)
 #undef XMQTT_MODULE_XMQTT_SERVER_TLS
@@ -9132,6 +9205,16 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
+
+/* xmqtt_server_store 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_STORE)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_STORE
+#define XMQTT_FEATURE_XMQTT_SERVER_STORE
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#endif
 
 /* xmqtt_server_ws_tls 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
