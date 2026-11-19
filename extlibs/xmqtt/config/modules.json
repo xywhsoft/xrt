@@ -3,7 +3,9 @@
   "product": "xmqtt",
   "optional_product_modules": [
     "xmqtt_server",
-    "xmqtt_server_tls"
+    "xmqtt_server_tls",
+    "xmqtt_server_ws",
+    "xmqtt_server_ws_tls"
   ],
   "module_prefix": "XMQTT_MODULE_",
   "package_ownership": "separate",
@@ -486,6 +488,73 @@
       "docs": []
     },
     {
+      "name": "xmqtt_server_ws",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SERVER_WS",
+      "depends": [
+        "xmqtt_server",
+        "websocket_stream_ref",
+        "websocket_stream_retire"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/server_ws.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/server.md"
+      ]
+    },
+    {
+      "name": "xmqtt_server_ws_tls",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SERVER_WS_TLS",
+      "depends": [
+        "xmqtt_server_ws",
+        "websocket_stream_tls",
+        "tls_stream_retire"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/server.md"
+      ]
+    },
+    {
+      "name": "xmqtt_server_ws_example",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_server_ws_tls",
+        "xmqtt_server_tls",
+        "xmqtt_codec311",
+        "http1_tls",
+        "websocket_upgrade_stream",
+        "tls_identity_rsa"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/server/ws.c"
+      ],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
       "name": "xmqtt_server_dual_tests",
       "state": "implemented",
       "feature": null,
@@ -883,7 +952,8 @@
         "xmqtt_store_compact_tests",
         "xmqtt_store_compact_online_tests",
         "xmqtt_server_dual_tests",
-        "xmqtt_server_tls_example"
+        "xmqtt_server_tls_example",
+        "xmqtt_server_ws_example"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -987,7 +1057,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_session/main.c",
@@ -1057,7 +1128,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c": "xmqtt_store_compact_online_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c": "xmqtt_server",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c": "xmqtt_server_dual_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c": "xmqtt_server_tls_example"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c": "xmqtt_server_tls_example",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c": "xmqtt_server_ws_example"
       }
     },
     {

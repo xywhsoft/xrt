@@ -16942,3 +16942,46 @@ Raw results are in out/service-extensions/scope-reduction-20261119/xmqtt-tls-ent
 WebSocket and WSS, enhanced authentication, durable broker recovery, native
 Linux, controlled comparison and 72-hour mixed workloads remain open.
 Strict release reports 38 developing modules.
+
+## 2026-11-19 MQTT broker WS and WSS handoff
+
+Selectable WS and WSS modules take the native transport on its worker after
+HTTP Upgrade. The call hands XRT the header prefix to consume and preserves
+the suffix. The common broker parser handles binary frames as a byte stream.
+It reads complete packets from the current decoded span and stages partial
+packets or a paused takeover suffix under the MQTT packet cap. A non-binary
+data message schedules WebSocket close 1003.
+
+The broker shares the bounded worker-owned output queue with direct TLS.
+WS transfers single immutable references to XRT and joins reliable prefix
+and payload when one frame needs both. Close drains queued data and worker
+retirement waits for the physical WebSocket and transport tails. The loopback
+APP example validates the mqtt subprotocol on /mqtt, supplies optional TLS
+credentials and bounds pending Upgrade count and time.
+
+Windows x64 and Ubuntu/WSL x64 passed TCP broker regressions, direct TLS
+interop and both WS/WSS static and shared package consumers. The independent
+peer passed against modular and single-header samples for WS and WSS. It
+checks exactly negotiated mqtt, rejects a missing mqtt offer and text data,
+pipelines a WebSocket suffix at Upgrade, splits MQTT across continuations
+and distinct messages, coalesces packets, verifies bidirectional QoS 1/2,
+replays an active takeover and reads 48 queued QoS deliveries in order.
+The same test waits for an unfinished Upgrade to retire during sample
+shutdown. It passed WSL ASan/UBSan with leak checking and TSan.
+Generated headers and API checks passed.
+
+Each modular sample ran one warm-up and three 1,000-request sequential
+PING runs on an established connection. Measurements include Python peer
+processing. Throughput and P99 are the medians of the three runs.
+
+| Host | Transport | PINGs/s | P99 (us) |
+| --- | --- | ---: | ---: |
+| Windows x64 | WS | 22,074 | 74.0 |
+| Windows x64 | WSS | 15,019 | 104.5 |
+| Ubuntu/WSL x64 | WS | 12,717 | 123.3 |
+| Ubuntu/WSL x64 | WSS | 9,895 | 174.0 |
+
+Raw evidence is under out/service-extensions/scope-reduction-20261119/xmqtt-ws-*.
+Enhanced authentication, durable broker recovery, native Linux, controlled
+performance comparison and 72-hour mixed loads remain open. The strict
+release gate still reports 40 developing modules.

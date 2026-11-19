@@ -132,6 +132,12 @@
 #if !defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS 1
+#endif
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER_WS_TLS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS_TLS 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SESSION 1
 #endif
@@ -269,6 +275,12 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_SERVER_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_TLS 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_SERVER_WS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS_TLS 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SESSION 1
@@ -1608,8 +1620,14 @@
 #if !defined(XRT_MODULE_UNICODE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE 1
 #endif
+#if !defined(XRT_MODULE_WEBSOCKET_STREAM_REF)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF 1
+#endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_RETIRE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_RETIRE 1
+#endif
+#if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS 1
 #endif
 #if !defined(XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET 1
@@ -2848,6 +2866,38 @@
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
+
+/* xmqtt_server_ws_tls 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
+#define XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER_WS
+#define XMQTT_MODULE_XMQTT_SERVER_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#endif
+
+/* xmqtt_server_ws 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_WS
+#define XMQTT_FEATURE_XMQTT_SERVER_WS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_REF
+#define XRT_MODULE_WEBSOCKET_STREAM_REF
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#define XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#endif
+#endif
 
 /* xmqtt_server_tls 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_TLS)
@@ -6789,6 +6839,44 @@ XMQTT_API bool xmqttServerAttachTls(xmqttserver* Server, xnetstream* Stream,
 XRT_EXTERN_C_END
 #endif
 #endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/server_ws.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_SERVER_WS_H
+#define XMQTT_SERVER_WS_H
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_REF) || !defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+#error "MQTT WebSocket broker requires the MQTT broker and XRT WebSocket reference send and retirement"
+#endif
+XRT_EXTERN_C_BEGIN
+
+/* Call on the owning Worker after validating the HTTP Upgrade and queuing
+ * its response. Prefix is the HTTP header length still in the native input
+ * buffer, or zero if already consumed. The broker owns the received transport
+ * credit on success. Preserve no extra transport aliases after a successful
+ * handoff. Config selects server role and the mqtt subprotocol, with frame
+ * and message limits at least Codec.MaxPacketBytes. Extensions are disabled.
+ * The MQTT CONNECT deadline starts at handoff. */
+XMQTT_API bool xmqttServerAttachWs(xmqttserver* Server, xnetstream* Stream,
+	size_t Prefix, const xwsstreamconfig* Config);
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_WS_TLS)
+#if !defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || !defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#error "MQTT WSS broker requires XRT WebSocket TLS and TLS physical retirement"
+#endif
+/* Same handoff after TLS Upgrade. The OPEN TLS event binding must be
+ * replaceable by xrtWsStreamAttachTls. */
+XMQTT_API bool xmqttServerAttachWss(xmqttserver* Server, xtlsstream* Stream,
+	size_t Prefix, const xwsstreamconfig* Config);
+#endif
+
+XRT_EXTERN_C_END
+#endif
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT)
 #undef XMQTT_FEATURE_XMQTT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT
@@ -6924,6 +7012,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS)
 #undef XMQTT_FEATURE_XMQTT_SERVER_TLS
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS)
+#undef XMQTT_FEATURE_XMQTT_SERVER_WS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS_TLS)
+#undef XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SESSION)
 #undef XMQTT_FEATURE_XMQTT_SESSION
@@ -7108,6 +7204,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_TLS)
 #undef XMQTT_MODULE_XMQTT_SERVER_TLS
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS)
+#undef XMQTT_MODULE_XMQTT_SERVER_WS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
+#undef XMQTT_MODULE_XMQTT_SERVER_WS_TLS
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SERVER_WS_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SESSION)
 #undef XMQTT_MODULE_XMQTT_SESSION
@@ -8893,9 +8997,17 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_UNICODE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF)
+#undef XRT_MODULE_WEBSOCKET_STREAM_REF
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_REF
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_RETIRE)
 #undef XRT_MODULE_WEBSOCKET_STREAM_RETIRE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS)
+#undef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET)
 #undef XRT_MODULE_WEBSOCKET_STREAM_TLS_TICKET
@@ -8927,6 +9039,38 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
+
+/* xmqtt_server_ws_tls 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS_TLS)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
+#define XMQTT_FEATURE_XMQTT_SERVER_WS_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER_WS
+#define XMQTT_MODULE_XMQTT_SERVER_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#endif
+
+/* xmqtt_server_ws 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_WS)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_WS
+#define XMQTT_FEATURE_XMQTT_SERVER_WS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_REF
+#define XRT_MODULE_WEBSOCKET_STREAM_REF
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#define XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#endif
+#endif
 
 /* xmqtt_server_tls 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_TLS)

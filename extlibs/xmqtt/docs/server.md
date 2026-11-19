@@ -142,7 +142,7 @@ MQTT 3.1.1 has no Will Delay. Will publication uses the regular routing,
 retention and QoS paths. Message Expiry starts at publication and Will Delay
 is consumed by the broker. Delayed Wills share the session expiry sweep.
 Pending Wills are volatile and are released on broker shutdown. Durable
-restart recovery, enhanced authentication and WebSocket are in development.
+restart recovery and enhanced authentication are in development.
 
 ## MQTT over TLS
 
@@ -173,6 +173,35 @@ example path, a credentials directory containing those files and the trusted
 `certificate.pem`, and a JSON report path. Optional `--ping-samples 1000`
 records one warm-up and three sequential PING runs over an established TLS
 connection. Times include the independent peer's send and receive calls.
+
+## MQTT over WebSocket
+
+Select `XMQTT_MODULE_XMQTT_SERVER_WS` for WS, or
+`XMQTT_MODULE_XMQTT_SERVER_WS_TLS` for WSS. The application validates the
+HTTP Upgrade, selects the `mqtt` subprotocol and queues the response. On
+the owning worker, call `xmqttServerAttachWs` or `xmqttServerAttachWss` with
+the still-buffered HTTP header length, or zero after consuming it. A
+successful handoff transfers the transport reference with its buffered
+suffix. The MQTT CONNECT deadline starts at handoff. Use server-role
+WebSocket settings whose frame and message limits accommodate the MQTT
+packet cap. This transport uses uncompressed binary MQTT messages.
+
+Complete packets are read directly from the current WebSocket data span.
+Input spanning callbacks is staged up to the MQTT packet cap. A paused
+takeover retains the already-delivered suffix within the same bound.
+Egress shares the worker-owned bounded TLS/WS queue. A whole owned
+payload can pass through XRT reference send. A reliable split prefix and
+payload are joined into one WebSocket message when needed.
+
+Build the loopback `/mqtt` example with
+`python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_ws_example`.
+Run `examples_server_ws wait` for WS or append `certificate.der key.der`
+for WSS. The example gives HTTP Upgrade and any preceding TLS handshake a
+three-second budget and limits pending handoffs to 64. The independent
+interop script `extlibs/xmqtt/tests/interop/run_server_ws.py` takes the
+example path, the same credentials directory as the TLS probe and a JSON
+report path. Optional `--ping-samples 1000` records sequential loopback PING
+round trips for both transports.
 
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS

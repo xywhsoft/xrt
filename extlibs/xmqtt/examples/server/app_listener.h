@@ -13,15 +13,25 @@ typedef struct serverexample {
 	xnetlistener* Listener;
 	xnetaddr Address;
 	xatomic32 ListenerClosed;
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	xatomic32 Upgrades;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	const xtlsserverconfig* Tls;
 #endif
 } serverexample;
 
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+static bool exampleServerWsAccept(serverexample* Example, xnetstream* Stream);
+#endif
+
 static bool exampleServerAccept(xnetlistener* Listener, xnetstream* Stream, ptr Data)
 {
 	(void)Listener;
 	serverexample* Example = Data;
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	return exampleServerWsAccept(Example, Stream);
+#else
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	if (Example->Tls) {
 		if (xmqttServerAttachTls(Example->Server, Stream, Example->Tls, NULL)) return true;
@@ -31,6 +41,7 @@ static bool exampleServerAccept(xnetlistener* Listener, xnetstream* Stream, ptr 
 	}
 #endif
 	return xmqttServerAttach(Example->Server, Stream);
+#endif
 }
 
 static void exampleServerListenerClosed(xnetlistener* Listener, ptr Data)
@@ -52,6 +63,15 @@ static bool exampleServerStop(serverexample* Example)
 		xrtNetListenerDestroy(Example->Listener);
 		Example->Listener = NULL;
 	}
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	if (Example->Engine) {
+		double Until = xrtTimer() + 5.0;
+		while (xrtAtomic32Load(&Example->Upgrades, XMEMORY_ACQUIRE)) {
+			if (xrtTimer() >= Until) return false;
+			xrtSleep(1);
+		}
+	}
+#endif
 	if (Example->Server) {
 		if (xmqttServerWaitFor(Example->Server, 5000) != XWAIT_OK ||
 			!xmqttServerDestroy(Example->Server)) return false;
@@ -67,6 +87,9 @@ static bool exampleServerStop(serverexample* Example)
 static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* Config, uint32 Workers)
 {
 	xrtAtomic32Init(&Example->ListenerClosed, 0);
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	xrtAtomic32Init(&Example->Upgrades, 0);
+#endif
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = Workers;
@@ -76,7 +99,9 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
+#elif defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	if (Example->Tls) Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
 #endif
 	xrtNetAddrLoopback(&Listen.Address, XNET_FAMILY_IPV4, 0);
