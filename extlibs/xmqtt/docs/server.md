@@ -68,11 +68,31 @@ QoS 1 publication. Reuse of an ID after acknowledgement is a new publication.
 An unacknowledged ID remains reserved.
 
 A failed QoS 1 retained replacement preserves the previous record and reports
-quota exhaustion. QoS 1 publications and retained replays both use the current
-subscriber grant of QoS 0. PUBACK acknowledges the broker-side outcome. The
-subscriber deliveries follow their own grant and are independently subject to
-their native queue and packet limits. Outbound QoS 1, QoS 2, persistent sessions,
-Wills, enhanced authentication, TLS and WebSocket are in development.
+quota exhaustion. Live delivery and retained replay use the lower of source QoS
+and the granted subscription QoS. Requests for QoS 2 receive a QoS 1 grant.
+Overlapping ordinary subscriptions use the highest matching grant within each
+retained-flag variant. Shared subscriptions keep their own delivery.
+
+The destination XRT worker owns a pending FIFO and assigns an independent
+packet ID to each QoS 1 delivery. A subscriber PUBACK releases its window,
+including MQTT 5 PUBACKs with an error reason. The worker also observes the
+MQTT 5 CONNECT Receive Maximum and Maximum Packet Size. Pending messages with
+Message Expiry can expire or have their remaining interval patched before send.
+Control replies continue while the publish window is full. Native write
+backpressure resumes on stream drain. A shared immutable packet and a small
+recipient-specific prefix carry the payload without copying it for each peer.
+
+`MaxOutgoingQos1` and `MaxOutgoingQos1Bytes` limit broker-wide outstanding
+deliveries, including cross-worker handoff and native buffer ownership.
+`MaxOutgoingQos1PerConnection` limits each destination's deliveries. The byte
+counter charges the full wire length for every delivery, even when storage is
+shared. Allocation or quota failure ends the affected clean session and
+increments `OutgoingQos1Overloads`. MQTT 5 attempts to send DISCONNECT 0x97.
+Packets exceeding the subscriber's negotiated Maximum Packet Size are discarded
+as specified. Broker PUBACK still reports the broker's inbound outcome.
+
+QoS 2, persistent sessions and reconnect replay, Wills, enhanced authentication,
+TLS and WebSocket are in development.
 
 Each peer stays on its original XRT worker. The handshake and connection
 retirement update the bounded identity index under a short gate. The steady
@@ -104,7 +124,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1,xmqtt_server_outbound_qos1
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -121,5 +141,8 @@ It reuses the same stored frame for all measured requests and includes
 native queue and peer-side receive costs.
 The inbound QoS 1 profile verifies every publisher PUBACK and every QoS 0
 subscriber delivery, collecting subscriber latency after verifying PUBACK.
+The outbound QoS 1 profile grants QoS 1 to each subscriber with Receive Maximum
+1. It verifies a QoS 1 frame and emits PUBACK on every subscriber, then checks
+that all delivery credits retire.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).

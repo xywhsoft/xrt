@@ -16475,9 +16475,10 @@ quota rollback, legal identifier reuse with DUP, retained replay and complete
 worker retirement. Dual WSL ASan/UBSan with leak checks and focused Clang
 TSan passed. Manifest, generated headers and API documentation checks passed.
 
-Three unpinned runs per configuration verified 10,000 128-byte publications
-with one publisher and two broker workers. Inbound QoS 1 timing starts at the
-publisher and includes verification of PUBACK followed by each subscriber
+Three unpinned runs per configuration verified 128-byte publications with one
+publisher and two broker workers. Each run sent 10,000 publications for one
+subscriber and 512 for 64. Inbound QoS 1 timing starts at the publisher and
+includes verification of PUBACK followed by each subscriber
 receive. The QoS 0 comparison has no publisher acknowledgement. Rates count
 subscriber deliveries and the allocation column counts XRT-requested blocks.
 
@@ -16498,3 +16499,55 @@ The results are loopback observations. Outbound QoS 1, QoS 2, durable
 sessions, controlled performance comparisons, native Linux and sustained
 mixed load remain open. Logs and reports are in
 out/service-extensions/scope-reduction-20261119/xmqtt-qos1-inbound-*.
+
+## 2026-11-19 MQTT server bidirectional QoS 1
+
+MQTT 5 and 3.1.1 subscribers can receive QoS 1. A request for QoS 2 receives
+QoS 1. Delivery respects source QoS and the highest matching subscription
+grant for the same retained-flag variant. Shared groups and retained replays
+use the same outgoing delivery path. The destination's worker owns the pending
+FIFO and active identifiers. PUBACK, including an MQTT 5 negative reason,
+releases protocol credit. Native buffer release independently retires the
+shared payload reference. Each recipient copies only the packet prefix it
+needs to patch. The broker charges the full packet size against its byte quota.
+
+The broker enforces the subscriber's Receive Maximum and negotiated packet
+size. TCP backpressure keeps the pending message until drain. Expired waiting
+messages retire without starting a send. Fresh sends adjust the expiry property
+without changing User Property order. Exhaustion terminates the affected clean
+session, with DISCONNECT 0x97 attempted on MQTT 5. Control replies can proceed
+while the PUBLISH window is full.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5 and dual-version modular and
+single-header tests, listener examples, separate Python peers, static and shared
+consumers, dependency trimming and forbidden-symbol probes. The socket suite
+covers cross-version wire conversion, retained and shared QoS 1, overlapping
+grants, per-publisher ordering with two concurrent producers, Receive Maximum 1,
+negative and unsolicited PUBACK, queued expiry and the largest wire expiry
+value. A single-header fixture fills the actual TCP queue and checks that AGAIN
+keeps the delivery in order through drain. Quota and allocation failures retire
+all charges. WSL ASan/UBSan with leak checks and focused Clang TSan passed. The
+codec-only object retained its text size and excluded server symbols. The
+single server object added 5,960 text bytes on Windows and 6,079 on WSL with
+the same selected feature closures.
+
+Each final benchmark run uses two broker workers and a single MQTT 5 publisher
+sending 128-byte payloads. A run sends 10,000 publications to one subscriber or
+512 to 64 subscribers. Each subscriber advertises Receive Maximum 1. The timer
+includes the publisher PUBACK, subscriber frame verification and sending the
+subscriber PUBACK. A terminal check waits for all delivery credits and charged
+bytes to retire. The table shows the medians of three unpinned replicates.
+
+| Host | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 17,059 | 170.5 | 506.5 | 5.0001 |
+| Windows x64 | 64 | 78,760 | 1183.1 | 2486.1 | 3.0369 |
+| Ubuntu/WSL x64 | 1 | 8,033 | 203.6 | 362.4 | 6.9994 |
+| Ubuntu/WSL x64 | 64 | 45,299 | 1901.6 | 3020.7 | 4.0469 |
+
+All measured deliveries completed. The final variation checks returned exit 1
+with 11 violations on Windows and eight on WSL. Controlled performance
+comparisons, native Linux, sustained mixed load, QoS 2 and durable session
+recovery remain open. The initial QoS 0 versus QoS 1 subscriber comparison and
+final source-matched measurements are preserved in
+out/service-extensions/scope-reduction-20261119/xmqtt-qos1-outbound-*.

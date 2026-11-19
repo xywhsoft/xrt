@@ -58,7 +58,8 @@ static xmqttserverpermission serverAuthorizeTopic(xmqttversion Version, xstrview
 }
 
 static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing,
-	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes, uint16 ReceiveMaximum)
+	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes, uint16 ReceiveMaximum,
+	size_t OutgoingLimit)
 {
 	memset(Fixture, 0, sizeof(*Fixture));
 	xrtAtomic32Init(&Fixture->ListenerClosed, 0);
@@ -77,6 +78,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 	Config.MaxRetainedTopics = RetainedTopics;
 	Config.MaxRetainedBytes = RetainedBytes;
 	Config.ReceiveMaximum = ReceiveMaximum;
+	if (OutgoingLimit) Config.MaxOutgoingQos1PerConnection = OutgoingLimit;
 	Config.Authorize = serverAuthorize;
 	Config.User = Fixture;
 	if (Routing) {
@@ -120,7 +122,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget,
 	bool Routing, size_t WildcardNodes)
 {
-	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64);
+	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64, 0);
 }
 
 static void serverStart(serverfixture* Fixture, bool Allow311, size_t Budget)
@@ -141,7 +143,8 @@ static void serverStop(serverfixture* Fixture)
 		xmqttServerWaitFor(Fixture->Server, 0) == XWAIT_OK, "retire MQTT streams and timers");
 	xmqttserverinfo Info;
 	testRequire(xmqttServerInfo(Fixture->Server, &Info) && Info.Closing &&
-		!Info.Connections && !Info.Established && !Info.Subscriptions && !Info.WildcardNodes,
+		!Info.Connections && !Info.Established && !Info.Subscriptions && !Info.WildcardNodes &&
+		!Info.IncomingQos1 && !Info.OutgoingQos1 && !Info.OutgoingQos1Bytes,
 		"all server identities, connections and subscriptions drained");
 	testRequire(xmqttServerDestroy(Fixture->Server), "destroy MQTT broker");
 	xrtNetListenerDestroy(Fixture->Listener);
@@ -453,11 +456,11 @@ static void serverRouting(xmqttversion OtherVersion)
 
 	const char* Mixed[] = {"data", "bad", "aux", "max"};
 	const uint8 Options[] = {2, 0, 0, 0};
-	const uint8 MixedReasons[] = {0, 0x87, 0, 0x97}, Grant[] = {0}, Quota[] = {0x97};
+	const uint8 MixedReasons[] = {1, 0x87, 0, 0x97}, Grant[] = {0}, Grant1[] = {1}, Quota[] = {0x97};
 	const char* Self[] = {"self"}, *Data[] = {"data"}, *Remove[] = {"data", "data"};
 	serverSubscribeWire(Consumer, XMQTT_VERSION_5, true, 1, Mixed, Options, MixedReasons, 4);
 	serverSubscribeWire(Consumer, XMQTT_VERSION_5, true, 2, Data, Options + 1, Grant, 1);
-	serverSubscribeWire(Other, OtherVersion, true, 1, Data, Options, Grant, 1);
+	serverSubscribeWire(Other, OtherVersion, true, 1, Data, Options, Grant1, 1);
 	serverSubscribeWire(Producer, XMQTT_VERSION_5, true, 1, Data, Options, Quota, 1);
 	const uint8 NoLocal[] = {4};
 	serverSubscribeWire(Producer, XMQTT_VERSION_5, true, 2, Self, NoLocal, Grant, 1);
@@ -761,7 +764,7 @@ static void serverRetainedRoutes(xmqttversion Origin, xmqttversion Target)
 static void serverRetainedLimits(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -796,19 +799,29 @@ static void serverRetainedLimits(void)
 	serverEof(Consumer);
 }
 
-static void serverPublishQos1(xnetsocket Socket, xmqttversion Version, const char* Topic,
-	const char* Payload, uint16 Identifier, uint8 Flags)
+static size_t serverInsertId(unsigned char* Wire, size_t Size, size_t At, uint16 Identifier, uint8 Flags)
 {
-	unsigned char Wire[128];
-	size_t Size = serverPublishWire(Wire, Version, Topic, (cbytes)Payload, strlen(Payload), NULL, 0);
-	size_t At = 4 + strlen(Topic);
-	testRequire(Size + 2 <= sizeof(Wire) && Wire[1] < 126, "short QoS 1 fixture");
+	testRequire(Size + 2 <= 128 && Wire[1] < 126, "short QoS 1 fixture");
 	memmove(Wire + At + 2, Wire + At, Size - At);
 	Wire[0] = 0x32 | Flags;
 	Wire[1] += 2;
 	Wire[At] = (uint8)(Identifier >> 8);
 	Wire[At + 1] = (uint8)Identifier;
-	serverSend(Socket, Wire, Size + 2);
+	return Size + 2;
+}
+
+static size_t serverPublishQos1Wire(unsigned char* Wire, xmqttversion Version, const char* Topic,
+	const char* Payload, uint16 Identifier, uint8 Flags, const unsigned char* Properties, uint8 PropertyBytes)
+{
+	size_t Size = serverPublishWire(Wire, Version, Topic, (cbytes)Payload, strlen(Payload), Properties, PropertyBytes);
+	return serverInsertId(Wire, Size, 4 + strlen(Topic), Identifier, Flags);
+}
+
+static void serverPublishQos1(xnetsocket Socket, xmqttversion Version, const char* Topic,
+	const char* Payload, uint16 Identifier, uint8 Flags)
+{
+	unsigned char Wire[128];
+	serverSend(Socket, Wire, serverPublishQos1Wire(Wire, Version, Topic, Payload, Identifier, Flags, NULL, 0));
 }
 
 static void serverExpectPuback(xnetsocket Socket, xmqttversion Version, uint16 Identifier, uint8 Reason)
@@ -825,7 +838,7 @@ static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
 {
 	serverfixture Fixture;
 	serverStartLimits(&Fixture, Origin == XMQTT_VERSION_311 || Target == XMQTT_VERSION_311,
-		0, true, 65536, 1, 34, 1);
+		0, true, 65536, 1, 34, 1, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, Origin, true, 0, "qos1"));
@@ -834,7 +847,7 @@ static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
 	serverConnackConfigured(Consumer, Target, 0, true, true, 1);
 
 	const char* Root[] = {"work/#"};
-	const uint8 Granted[] = {0}, Requested[] = {1};
+	const uint8 Granted[] = {0}, Requested[] = {0};
 	serverSubscribeWire(Consumer, Target, true, 1, Root, Requested, Granted, 1);
 	for (unsigned Index = 0; Index < 64; ++Index) {
 		uint8 Flags = Index ? XMQTT_PUBLISH_DUP : 0;
@@ -883,11 +896,162 @@ static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
 	serverEof(Consumer);
 }
 
+static void serverExpectQos1(xnetsocket Socket, xmqttversion Version, const char* Topic,
+	const char* Payload, uint16 Identifier, uint8 Flags, const unsigned char* Properties, uint8 PropertyBytes)
+{
+	unsigned char Wire[128], Expected[128];
+	size_t Bytes = serverPublishQos1Wire(Expected, Version, Topic, Payload, Identifier, Flags, Properties, PropertyBytes);
+	serverRecv(Socket, Wire, Bytes);
+	testRequire(!memcmp(Wire, Expected, Bytes), "outgoing QoS 1 wire, receiver ID and body");
+}
+
+static void serverAckDelivery(xnetsocket Socket, xmqttversion Version, uint16 Id, uint8 Reason)
+{
+	size_t Bytes = Version == XMQTT_VERSION_5 && Reason ? 5 : 4;
+	const unsigned char Wire[] = {0x40, (uint8)(Bytes - 2), (uint8)(Id >> 8), (uint8)Id, Reason};
+	serverSend(Socket, Wire, Bytes);
+}
+
+static void serverQos1Connect(xnetsocket Socket, xmqttversion Version, const char Name[4])
+{
+	unsigned char Wire[32];
+	size_t Bytes = serverConnectWire(Wire, Version, true, 0, Name);
+	if (Version == XMQTT_VERSION_5) {
+		const unsigned char ReceiveOne[] = {33,0,1};
+		memmove(Wire + 13 + sizeof(ReceiveOne), Wire + 13, Bytes - 13);
+		memcpy(Wire + 13, ReceiveOne, sizeof(ReceiveOne));
+		Wire[12] = sizeof(ReceiveOne);
+		Wire[1] += sizeof(ReceiveOne);
+		Bytes += sizeof(ReceiveOne);
+	}
+	serverSend(Socket, Wire, Bytes);
+	serverConnack(Socket, Version, 0);
+}
+
+static void serverWaitOutgoing(xmqttserver* Server, size_t Count, uint64 Overloads)
+{
+	double Until = xrtTimer() + 5.0;
+	for (;;) {
+		xmqttserverinfo Info;
+		testRequire(xmqttServerInfo(Server, &Info), "outgoing QoS 1 stats");
+		if (Info.OutgoingQos1 == Count && Info.OutgoingQos1Overloads == Overloads &&
+			(Info.OutgoingQos1Bytes != 0) == (Count != 0)) return;
+		testRequire(xrtTimer() < Until, "outgoing QoS 1 obligations retire");
+		xrtSleep(1);
+	}
+}
+
+static void serverOutgoingQos1(xmqttversion Origin, xmqttversion Target)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, Origin == XMQTT_VERSION_311 || Target == XMQTT_VERSION_311, 0, true, 65536);
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverQos1Connect(Producer, Origin, "prod");
+	serverQos1Connect(Consumer, Target, "sink");
+	const char* Overlap[] = {"order/x", "order/#"};
+	const uint8 Options[] = {0,2}, Grants[] = {0,1}, One[] = {1};
+	serverSubscribeWire(Consumer, Target, true, 1, Overlap, Options, Grants, 2);
+
+	serverPublishQos1(Producer, Origin, "order/x", "first", 91, XMQTT_PUBLISH_DUP);
+	serverExpectPuback(Producer, Origin, 91, 0);
+	serverExpectQos1(Consumer, Target, "order/x", "first", 1, 0, NULL, 0);
+	serverPublishQos1(Producer, Origin, "order/x", "second", 91, 0);
+	serverExpectPuback(Producer, Origin, 91, 0);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+	if (Target == XMQTT_VERSION_5)
+		serverPingPeer(Consumer); /* No PUBLISH can precede PINGRESP while a PUBACK is outstanding. */
+	serverAckDelivery(Consumer, Target, 1, 0x80);
+	serverExpectQos1(Consumer, Target, "order/x", "second", 2, 0, NULL, 0);
+	serverAckDelivery(Consumer, Target, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+
+	serverPublishQos1(Producer, Origin, "state", "retain", 92, XMQTT_PUBLISH_RETAIN);
+	serverExpectPuback(Producer, Origin, 92, 0x10);
+	serverSubscribeWire(Consumer, Target, false, 2, Overlap, NULL, (const uint8[]){0,0}, 2);
+	const char* State[] = {"state"};
+	serverSubscribeWire(Consumer, Target, true, 3, State, One, One, 1);
+	serverExpectQos1(Consumer, Target, "state", "retain", 3, XMQTT_PUBLISH_RETAIN, NULL, 0);
+	serverAckDelivery(Consumer, Target, 3, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverAckDelivery(Consumer, Target, 63, 0);
+	if (Target == XMQTT_VERSION_5) {
+		unsigned char Wire[3];
+		serverRecv(Consumer, Wire, sizeof(Wire));
+		testRequire(!memcmp(Wire, (const unsigned char[]){0xe0,1,0x82}, sizeof(Wire)), "unsolicited PUBACK is a protocol error");
+	}
+	serverEof(Consumer);
+	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
+static void serverOutgoingExpiry(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverQos1Connect(Producer, XMQTT_VERSION_5, "prod");
+	serverQos1Connect(Consumer, XMQTT_VERSION_5, "sink");
+	const char* Filter[] = {"$share/team/expiry"};
+	const uint8 One[] = {1};
+	serverSubscribeWire(Consumer, XMQTT_VERSION_5, true, 1, Filter, One, One, 1);
+	serverPublishQos1(Producer, XMQTT_VERSION_5, "expiry", "first", 1, 0);
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 1, 0);
+	serverExpectQos1(Consumer, XMQTT_VERSION_5, "expiry", "first", 1, 0, NULL, 0);
+	unsigned char Wire[128];
+	const unsigned char Gone[] = {2,0,0,0,1};
+	const unsigned char Live[] = {0x26,0,1,'x',0,1,'1',2,0,0,0,5,0x26,0,1,'x',0,1,'2'};
+	serverSend(Producer, Wire, serverPublishQos1Wire(Wire, XMQTT_VERSION_5, "expiry", "gone", 2, 0, Gone, sizeof(Gone)));
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 2, 0);
+	serverSend(Producer, Wire, serverPublishQos1Wire(Wire, XMQTT_VERSION_5, "expiry", "live", 3, 0, Live, sizeof(Live)));
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 3, 0);
+	serverWaitOutgoing(Fixture.Server, 3, 0);
+	xrtSleep(1150);
+	serverAckDelivery(Consumer, XMQTT_VERSION_5, 1, 0);
+	const unsigned char Reduced[] = {2,0,0,0,4,0x26,0,1,'x',0,1,'1',0x26,0,1,'x',0,1,'2'};
+	serverExpectQos1(Consumer, XMQTT_VERSION_5, "expiry", "live", 2, 0, Reduced, sizeof(Reduced));
+	serverAckDelivery(Consumer, XMQTT_VERSION_5, 2, 0);
+	const unsigned char MaxExpiry[] = {2,0xff,0xff,0xff,0xff};
+	serverSend(Producer, Wire, serverPublishQos1Wire(Wire, XMQTT_VERSION_5, "expiry", "max", 4, 0, MaxExpiry, sizeof(MaxExpiry)));
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 4, 0);
+	serverExpectQos1(Consumer, XMQTT_VERSION_5, "expiry", "max", 3, 0, MaxExpiry, sizeof(MaxExpiry));
+	serverAckDelivery(Consumer, XMQTT_VERSION_5, 3, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xrtNetSocketClose(Consumer);
+	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
+static void serverOutgoingLimit(void)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2);
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverQos1Connect(Producer, XMQTT_VERSION_5, "prod");
+	serverQos1Connect(Consumer, XMQTT_VERSION_5, "slow");
+	const char* Filter[] = {"queue"};
+	const uint8 One[] = {1};
+	serverSubscribeWire(Consumer, XMQTT_VERSION_5, true, 1, Filter, One, One, 1);
+	for (uint16 Id = 1; Id <= 3; ++Id) {
+		serverPublishQos1(Producer, XMQTT_VERSION_5, "queue", "payload", Id, 0);
+		serverExpectPuback(Producer, XMQTT_VERSION_5, Id, 0);
+		if (Id == 1) serverExpectQos1(Consumer, XMQTT_VERSION_5, "queue", "payload", 1, 0, NULL, 0);
+	}
+	unsigned char Wire[3];
+	serverRecv(Consumer, Wire, sizeof(Wire));
+	testRequire(!memcmp(Wire, (const unsigned char[]){0xe0,1,0x97}, sizeof(Wire)), "outgoing quota ends clean session");
+	serverEof(Consumer);
+	serverWaitOutgoing(Fixture.Server, 0, 1);
+	serverPingPeer(Producer);
+	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
 typedef struct serverWildcardSender {
 	xnetsocket Socket;
 	xatomic32* Start;
 	const char* Topic;
 	uint8 Source, Rounds;
+	bool Qos1;
 } serverWildcardSender;
 
 static int32 serverWildcardSend(ptr Data)
@@ -899,10 +1063,12 @@ static int32 serverWildcardSend(ptr Data)
 		xrtSleep(1);
 	}
 	for (uint8 Index = 0; Index < Sender->Rounds; ++Index) {
-		unsigned char Wire[32];
+		unsigned char Wire[128];
 		const unsigned char Payload[] = {Sender->Source, Index};
 		size_t Size = serverPublishWire(Wire, XMQTT_VERSION_5, Sender->Topic, Payload, sizeof(Payload), NULL, 0);
+		if (Sender->Qos1) Size = serverInsertId(Wire, Size, 4 + strlen(Sender->Topic), Index + 1, 0);
 		serverSend(Sender->Socket, Wire, Size);
+		if (Sender->Qos1) serverExpectPuback(Sender->Socket, XMQTT_VERSION_5, Index + 1, 0);
 	}
 	serverPingPeer(Sender->Socket);
 	return 0;
@@ -910,30 +1076,27 @@ static int32 serverWildcardSend(ptr Data)
 
 typedef enum serverroutepattern { SERVER_EXACT, SERVER_WILDCARD, SERVER_SHARED } serverroutepattern;
 
-static void serverConcurrentRoutes(serverroutepattern Pattern)
+static void serverConcurrentRoutes(serverroutepattern Pattern, bool Qos1)
 {
 	serverfixture Fixture;
 	serverStartConfigured(&Fixture, false, 0, true, 65536);
 	xnetsocket Socket[3];
 	const char* Ids[] = {"src0", "src1", "sink"};
 	for (size_t Index = 0; Index < 3; ++Index) {
-		unsigned char Wire[32];
 		Socket[Index] = serverDial(&Fixture);
-		size_t Size = serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, Ids[Index]);
-		serverSend(Socket[Index], Wire, Size);
-		serverConnack(Socket[Index], XMQTT_VERSION_5, 0);
+		serverQos1Connect(Socket[Index], XMQTT_VERSION_5, Ids[Index]);
 	}
 	bool Shared = Pattern == SERVER_SHARED;
 	bool Exact = Pattern == SERVER_EXACT;
 	const char* Filters[] = {Exact ? "a/x" : "#", Shared ? "$share/group/+/+" : "a/+"};
-	const uint8 Accepted[] = {0, 0};
+	const uint8 Accepted[] = {Qos1, Qos1};
 	serverSubscribeWire(Socket[2], XMQTT_VERSION_5, true, 1, Filters, Accepted, Accepted, Exact ? 1 : 2);
 	const char* Topics[] = {"a/x", Exact ? "a/x" : "b/x"};
 	xatomic32 Start;
 	xrtAtomic32Init(&Start, 0);
-	const uint8 Copies = Shared ? 2 : 1, Rounds = Shared ? 3 : 4;
+	const uint8 Copies = Shared ? 2 : 1, Rounds = Qos1 ? 24 : (Shared ? 3 : 4);
 	serverWildcardSender Senders[] = {
-		{Socket[0], &Start, Topics[0], 0, Rounds}, {Socket[1], &Start, Topics[1], 1, Rounds}
+		{Socket[0], &Start, Topics[0], 0, Rounds, Qos1}, {Socket[1], &Start, Topics[1], 1, Rounds, Qos1}
 	};
 	xthread* Threads[2] = {
 		xrtThreadCreate(serverWildcardSend, &Senders[0], 0), xrtThreadCreate(serverWildcardSend, &Senders[1], 0)
@@ -944,15 +1107,16 @@ static void serverConcurrentRoutes(serverroutepattern Pattern)
 	for (size_t Index = 0; Index < 2u * Copies * Rounds; ++Index) {
 		/* Overlapping ordinary matches give one copy. A matching shared
 		 * subscription contributes its own delivery to the same peer. */
-		unsigned char Received[10];
-		serverRecv(Socket[2], Received, sizeof(Received));
-		uint8 Source = Received[8];
+		unsigned char Received[12], Expected[128];
+		size_t Bytes = Qos1 ? 12 : 10;
+		serverRecv(Socket[2], Received, Bytes);
+		uint8 Source = Received[Bytes - 2];
 		testRequire(Source < 2 && Next[Source] < Copies * Rounds, "bounded wildcard source sequence");
-		unsigned char Expected[10];
 		const unsigned char Payload[] = {Source, Next[Source]++ / Copies};
-		testRequire(serverPublishWire(Expected, XMQTT_VERSION_5, Topics[Source], Payload, sizeof(Payload),
-			NULL, 0) == sizeof(Expected) && !memcmp(Received, Expected, sizeof(Expected)),
-			"concurrent wildcard publication order and bytes");
+		size_t Size = serverPublishWire(Expected, XMQTT_VERSION_5, Topics[Source], Payload, sizeof(Payload), NULL, 0);
+		if (Qos1) Size = serverInsertId(Expected, Size, 7, (uint16)(Index + 1), 0);
+		testRequire(Size == Bytes && !memcmp(Received, Expected, Bytes), "concurrent publication order and bytes");
+		if (Qos1) serverAckDelivery(Socket[2], XMQTT_VERSION_5, (uint16)(Index + 1), 0);
 	}
 	serverPingPeer(Socket[2]);
 	for (size_t Index = 0; Index < 2; ++Index) {
@@ -990,7 +1154,7 @@ static void serverWildcardQuota(void)
 static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64);
+	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0);
 	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
@@ -1052,7 +1216,7 @@ static void serverPostAckFixture(serverfixture* Fixture, uint32 Worker, serverac
 static void serverQos1Exceeded(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1, 0);
 	xnetsocket Socket = serverDial(&Fixture);
 	unsigned char Wire[32];
 	serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "full"));
@@ -1116,6 +1280,110 @@ static void serverAckQuota(void)
 	serverStop(&Fixture);
 }
 
+typedef struct serverbackpressure {
+	xmqttserverpeer* Peer;
+	xatomic32 Ready, Full;
+} serverbackpressure;
+
+static void serverHoldWriteCredit(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	serverbackpressure* State = Data;
+	xmqttserverpeer* Peer = State->Peer;
+	testRequire(Peer->Waiting && Peer->Outgoing.Count == 1, "outbound publish waits behind a full receive window");
+	xrtAtomic32Store(&State->Ready, 1, XMEMORY_RELEASE);
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&State->Full, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "external writer fills native queue");
+		xrtSleep(1);
+	}
+	xmqttpacket Ack = {.Type = XMQTT_PACKET_PUBACK, .Identifier = 1};
+	xmqttServerOnline(Peer, &Ack, NULL, xrtTimer());
+	testRequire(!Peer->Closing && !Peer->Outgoing.Count && Peer->Waiting,
+		"native AGAIN keeps the pending delivery without charging an extra packet ID");
+}
+
+static void serverOutgoingBackpressure(void)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverQos1Connect(Producer, XMQTT_VERSION_5, "prod");
+	serverQos1Connect(Consumer, XMQTT_VERSION_5, "sink");
+	const char* Filter[] = {"drain"};
+	const uint8 One[] = {1};
+	serverSubscribeWire(Consumer, XMQTT_VERSION_5, true, 1, Filter, One, One, 1);
+	serverPublishQos1(Producer, XMQTT_VERSION_5, "drain", "first", 1, 0);
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 1, 0);
+	serverExpectQos1(Consumer, XMQTT_VERSION_5, "drain", "first", 1, 0, NULL, 0);
+	serverPublishQos1(Producer, XMQTT_VERSION_5, "drain", "second", 2, 0);
+	serverExpectPuback(Producer, XMQTT_VERSION_5, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+	serverPingPeer(Consumer);
+
+	serverbackpressure State;
+	xrtAtomic32Init(&State.Ready, 0);
+	xrtAtomic32Init(&State.Full, 0);
+	xrtMutexLock(&Fixture.Server->Gate);
+	State.Peer = Fixture.Server->Peers;
+	for (; State.Peer && memcmp(State.Peer->ClientName.Data, "sink", 4); State.Peer = State.Peer->Next) { }
+	testRequire(State.Peer != NULL, "backpressured subscriber still exists");
+	xnetworker* Worker = xrtNetStreamWorker(State.Peer->Stream);
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	xnetpost Post;
+	testRequire(xrtNetPostInit(&Post) && xrtNetPost(Worker, &Post, serverHoldWriteCredit, &State), "hold subscriber worker");
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&State.Ready, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "subscriber worker reached credit fixture");
+		xrtSleep(1);
+	}
+	unsigned char Fill[128] = {0}, Wire[128];
+	for (size_t Index = 0; Index < sizeof(Fill); Index += 2) Fill[Index] = 0xd0;
+	testRequire(xrtNetStreamSend(State.Peer->Stream, Fill, sizeof(Fill)) == XNET_RESULT_OK, "reserve the entire TCP send queue");
+	xrtAtomic32Store(&State.Full, 1, XMEMORY_RELEASE);
+	serverRecv(Consumer, Wire, sizeof(Wire));
+	testRequire(!memcmp(Wire, Fill, sizeof(Wire)), "native send completes ahead of pending publish");
+	serverExpectQos1(Consumer, XMQTT_VERSION_5, "drain", "second", 2, 0, NULL, 0);
+	serverAckDelivery(Consumer, XMQTT_VERSION_5, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xrtNetSocketClose(Consumer);
+	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
+static void serverOutgoingOom(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	xnetsocket Consumer = serverDial(&Fixture);
+	serverQos1Connect(Consumer, XMQTT_VERSION_5, "sink");
+	unsigned char Wire[128];
+	size_t Bytes = serverPublishQos1Wire(Wire, XMQTT_VERSION_5, "fault", "data", 1, 0, NULL, 0);
+	xmqttserverpublication* Frame = xmqttServerCopyPublication((xbytesview){Wire, Bytes}, 2, (xstrview){0});
+	testRequire(Frame != NULL, "outgoing OOM fixture");
+	Frame->IdOffset = 9;
+	xallocationbudget* Budget;
+	xallocationscope Scope = {0};
+	xrtMutexLock(&Fixture.Server->Gate);
+	testRequire(xrtAllocationBudgetCreate(1, &Budget) && xrtAllocationBudgetEnter(Budget, &Scope),
+		"outgoing delivery allocation failpoint");
+	bool Queued = xmqttServerQueueOutgoing(Fixture.Server->Peers, Frame);
+	testRequire(xrtAllocationBudgetLeave(&Scope) && !Queued &&
+		xrtAtomic32Load(&Frame->References, XMEMORY_RELAXED) == 1, "failed delivery leaves payload ownership unchanged");
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	xrtClearError();
+	xallocationbudgetinfo Allocation = {.Size = sizeof(Allocation)};
+	testRequire(xrtAllocationBudgetInfo(Budget, &Allocation) && Allocation.Rejections &&
+		!Allocation.LiveBytes && !Allocation.LiveCount, "failed delivery has no surviving allocation");
+	xrtAllocationBudgetFree(Budget);
+	xmqttServerFreePublication(Frame, NULL, 0);
+	serverRecv(Consumer, Wire, 3);
+	testRequire(!memcmp(Wire, (const unsigned char[]){0xe0,1,0x97}, 3), "allocation failure ends QoS 1 clean session");
+	serverEof(Consumer);
+	serverWaitOutgoing(Fixture.Server, 0, 1);
+	serverStop(&Fixture);
+}
+
 static void serverRetainedOomAndExpiry(void)
 {
 	serverfixture Fixture;
@@ -1154,7 +1422,7 @@ static void serverRetainedOomAndExpiry(void)
 	const xmqttserverretained* Entry = xmqttServerFindKey(&Shard->Retained,
 		xmqttServerIdHash(Key, &Fixture.Server->HashKey), Key);
 	testRequire(Entry && Entry->Received == 7 && Entry->Expires == 10, "one deadline from receipt");
-	xmqttserverpublication* Copy = xmqttServerRecodeRetained(&Peer, Entry, 1);
+	xmqttserverpublication* Copy = xmqttServerRecodeRetained(&Peer, Entry, 1, false);
 	unsigned char Expected[32];
 	size_t ExpectedSize = serverPublishWire(Expected, XMQTT_VERSION_5, Topic, Value, sizeof(Value), Reduced, sizeof(Reduced));
 	Expected[0] |= XMQTT_PUBLISH_RETAIN;
@@ -1289,9 +1557,14 @@ int main(void)
 	serverRetainedRoutes(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverRetainedLimits();
 	serverInboundQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
-	serverConcurrentRoutes(SERVER_EXACT);
-	serverConcurrentRoutes(SERVER_WILDCARD);
-	serverConcurrentRoutes(SERVER_SHARED);
+	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
+	serverOutgoingExpiry();
+	serverOutgoingLimit();
+	serverConcurrentRoutes(SERVER_EXACT, false);
+	serverConcurrentRoutes(SERVER_WILDCARD, false);
+	serverConcurrentRoutes(SERVER_SHARED, false);
+	serverConcurrentRoutes(SERVER_EXACT, true);
+	serverConcurrentRoutes(SERVER_SHARED, true);
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	serverCompatibility();
 	serverRouting(XMQTT_VERSION_311);
@@ -1300,10 +1573,14 @@ int main(void)
 	serverRetainedRoutes(XMQTT_VERSION_311, XMQTT_VERSION_5);
 	serverInboundQos1(XMQTT_VERSION_311, XMQTT_VERSION_5);
 	serverInboundQos1(XMQTT_VERSION_5, XMQTT_VERSION_311);
+	serverOutgoingQos1(XMQTT_VERSION_311, XMQTT_VERSION_5);
+	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_311);
 #endif
 #if defined(XMQTT_IMPLEMENTATION_ONCE)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
+	serverOutgoingOom();
+	serverOutgoingBackpressure();
 	serverAckQuota();
 	serverQos1Exceeded();
 #endif
@@ -1312,6 +1589,6 @@ int main(void)
 	xnetsocket Socket = serverDial(&Fixture);
 	serverEof(Socket);
 	serverStop(&Fixture);
-	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained QoS0 routing, inbound QoS1, quotas, authorization, takeover, deadlines, OOM and retirement");
+	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained routing, bidirectional QoS1, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;
 }

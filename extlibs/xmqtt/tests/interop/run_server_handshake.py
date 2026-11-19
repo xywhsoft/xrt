@@ -55,7 +55,7 @@ def check_routes(legacy, modern):
     properties = b"\x04\x03\0\x01x"
 
     legacy.sendall(small_frame(0x82, b"\0\1" + topic(name) + b"\x02"))
-    assert read(legacy, 5) == b"\x90\x03\0\1\0"
+    assert read(legacy, 5) == b"\x90\x03\0\1\1"
     modern.sendall(small_frame(0x82, b"\0\2\0" + topic(name) + b"\x04"))
     assert read(modern, 6) == b"\x90\x04\0\2\0\0"
 
@@ -175,25 +175,26 @@ def check_retained_parallel(endpoint, publisher):
 def check_qos1(legacy, modern):
     key = topic(b"qos/in")
     legacy.sendall(small_frame(0x82, b"\0\x0b" + key + b"\x01"))
-    assert read(legacy, 5) == b"\x90\x03\0\x0b\0"
+    assert read(legacy, 5) == b"\x90\x03\0\x0b\1"
     data = key + b"\0\x47\0qos-one"
-    for kind in (0x32, 0x3a):
+    for identifier, kind in enumerate((0x32, 0x3a), start=1):
         modern.sendall(small_frame(kind, data))
         assert read(modern, 4) == b"\x40\x02\0\x47"
-        expected = small_frame(0x30, key + b"qos-one")
+        packet_id = struct.pack("!H", identifier)
+        expected = small_frame(0x32, key + packet_id + b"qos-one")
         assert read(legacy, len(expected)) == expected
+        legacy.sendall(small_frame(0x40, packet_id))
     modern.sendall(small_frame(0x32, topic(b"qos/unmatched") + b"\0\x48\0payload"))
     assert read(modern, 5) == b"\x40\x03\0\x48\x10"
-    legacy.sendall(small_frame(0x82, b"\0\x0c" + topic(b"qos/legacy") + b"\x01"))
-    assert read(legacy, 5) == b"\x90\x03\0\x0c\0"
-    modern.sendall(small_frame(0x82, b"\0\x0c\0" + topic(b"qos/legacy") + b"\x01"))
-    assert read(modern, 6) == b"\x90\x04\0\x0c\0\0"
-    legacy.sendall(small_frame(0x32, topic(b"qos/legacy") + b"\0\x49payload"))
-    expected = small_frame(0x30, topic(b"qos/legacy") + b"payload")
-    assert read(legacy, len(expected) + 4) == expected + b"\x40\x02\0\x49"
-    expected = small_frame(0x30, topic(b"qos/legacy") + b"\0payload")
+    key = topic(b"qos/legacy")
+    modern.sendall(small_frame(0x82, b"\0\x0c\0" + key + b"\x01"))
+    assert read(modern, 6) == b"\x90\x04\0\x0c\0\1"
+    legacy.sendall(small_frame(0x32, key + b"\0\x49payload"))
+    assert read(legacy, 4) == b"\x40\x02\0\x49"
+    expected = small_frame(0x32, key + b"\0\1\0payload")
     assert read(modern, len(expected)) == expected
-
+    modern.sendall(b"\x40\x03\0\1\x80\xc0\0")
+    assert read(modern, 2) == b"\xd0\0"
 
 def eof(sock):
     try:
@@ -238,7 +239,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "inbound_qos1": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -249,7 +250,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing and inbound QoS 1")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing and bidirectional QoS 1")
 
 
 if __name__ == "__main__":
