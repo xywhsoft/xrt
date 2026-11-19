@@ -3603,9 +3603,13 @@ xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex*,xstrview,xbytesview,dou
 bool xrpcDuplexEnableExtensions(xrpcduplex*,uint32,size_t);
 xrpcduplexadmission xrpcDuplexNegotiateExtensionEntered(xrpcduplex*,xrpcduplexextension,int64,xfuture**,double);
 #endif
-#if defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
 /* Owner-only, no new wire reference. Check write credit before measuring expiry. */
 size_t xrpcDuplexNextSize(const xrpcduplex*);
+#endif
+#if defined(XRPC_FEATURE_XRPC_TCP)
+/* A transport can still own the wire after the owner revoked its selection. */
+bool xrpcDuplexSelectionIs(const xrpcduplex*,uint64);
 #endif
 #endif
 #endif
@@ -8822,9 +8826,14 @@ static void xrpcDuplexStampDeadline(xrpcduplexoutput* O)
     }
 }
 
-#if defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
 size_t xrpcDuplexNextSize(const xrpcduplex* D)
 {return D->OutputHead?D->OutputHead->Wire.Size:0;}
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_TCP)
+bool xrpcDuplexSelectionIs(const xrpcduplex* D,uint64 Token)
+{return Token && D->SelectedToken==Token;}
 #endif
 
 XRPC_API int xrpcDuplexNext(xrpcduplex* D,xrpcduplexoutput** Output,uint64* Token)
@@ -9646,15 +9655,19 @@ static void xrpcTcpOutputClear(xrpctcp* P)
 static void xrpcTcpWrite(xrpctcp* P)
 {
     size_t Budget=P->Config.WriteBytes,Units=P->Config.WorkFrames;
+    /* Step or Receive can revoke an unsent selection between writer turns. */
+    if(P->Output && !xrpcDuplexSelectionIs(P->Duplex,P->Token))xrpcTcpOutputClear(P);
     while(Budget && Units-- && !xrpcTcpClosing(P)){
-        xrpcduplexinfo D={0};D.Size=sizeof(D);if(!xrpcDuplexInfo(P->Duplex,&D)){xrpcTcpFail(P,XRPC_TCP_PROTOCOL);break;}
-        if(P->Output && !D.Selected)xrpcTcpOutputClear(P);
+        if(!P->Output && !xrpcDuplexNextSize(P->Duplex))return;
         size_t N=xrtNetStreamWritable(P->Stream);if(!N)return;if(N>Budget)N=Budget;if(N>P->Config.WriteChunkBytes)N=P->Config.WriteChunkBytes;
-        if(!P->Output){int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(Next<0){xrpcTcpFail(P,xrpcTcpLocalFailure());
-                break;}if(!Next)return;
-            xstrview Body=xrpcDuplexOutputWire(P->Output);
-            if(!xrpcFrameHeaderWrite(Body.Size,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){xrpcTcpFail(P,XRPC_TCP_LIMIT);break;}}
-        xstrview Body=xrpcDuplexOutputWire(P->Output);size_t Head=P->HeaderBytes-P->HeaderOffset,Left=Head+Body.Size-P->BodyOffset;
+        bool NewOutput=!P->Output;
+        if(NewOutput){int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(Next<0){xrpcTcpFail(P,xrpcTcpLocalFailure());
+                break;}if(!Next)return;}
+        xstrview Body=xrpcDuplexOutputWire(P->Output);
+        if(NewOutput && !xrpcFrameHeaderWrite(Body.Size,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){
+            xrpcTcpFail(P,XRPC_TCP_LIMIT);break;
+        }
+        size_t Head=P->HeaderBytes-P->HeaderOffset,Left=Head+Body.Size-P->BodyOffset;
         if(N>Left)N=Left;
         /* A queued stream can append into its existing tail. Native SendVec
          * builds separate atomic buffers, so reserve it for an empty queue. */
@@ -9671,7 +9684,8 @@ static void xrpcTcpWrite(xrpctcp* P)
             if(!xrpcDuplexSent(P->Duplex,P->Token)){xrpcTcpFail(P,XRPC_TCP_PROTOCOL);break;}
             xrtMutexLock(&P->Gate);++P->Info.WriteFrames;xrtMutexUnlock(&P->Gate);xrpcTcpOutputClear(P);}
     }
-    if(!xrpcTcpClosing(P) && xrtNetStreamWritable(P->Stream))xrpcTcpWake(P);
+    if((P->Output || xrpcDuplexNextSize(P->Duplex)) && !xrpcTcpClosing(P) &&
+       xrtNetStreamWritable(P->Stream))xrpcTcpWake(P);
 }
 static void xrpcTcpWork(xnetworker* Worker,ptr Data)
 {

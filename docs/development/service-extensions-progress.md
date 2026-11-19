@@ -15771,3 +15771,58 @@ Standalone HTTP POST integration, fixed-arrival profiles and native
 sustained release qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/network-extensions-20261119.json).
+
+## 2026-11-19 xrpc TCP writer readiness
+
+The serialized owner checks the existing selection token after duplex
+work may have revoked it. An idle writer skips the duplex diagnostic
+snapshot and the native credit query. Pending output still checks credit
+before deadline stamping. Completing the last queued frame skips an empty
+continuation.
+
+The older service-extension branch tip and its migration and revalidation
+commits are ancestors of the tested master revision. The 26 original paths
+remain present on master and their preserved source hashes match the migration
+inventory. Retest counts below cover modular and single-header programs
+run on master after the TCP changes. The Windows xcron programs report two
+skipped native symlink cases because this account lacks the required
+privilege. The same suite has no reported skips on WSL. Windows MQTT
+session dial with enhanced authentication also passes an isolated 94-second
+recheck after a stack sample during the original run.
+
+| Product | Windows modular / single | WSL modular / single |
+| --- | ---: | ---: |
+| xredis | 43 / 55 | 43 / 55 |
+| xrpc | 29 / 34 | 29 / 34 |
+| xmqtt | 40 / 59 | 40 / 59 |
+| xcron | 21 / 25 | 21 / 25 |
+
+The production-TU probes cover cancellation before the first send, credit
+exhaustion, both framing profiles, 156 send boundaries and native sockets.
+A probe against the previous writer reports a snapshot and credit query
+on the empty queue. Both platforms verify TCP static and shared consumer
+packages and run the native TCP example. The WSL probes run ASan/UBSan
+with leak checking and TSan. GCC leaves its standalone atomic fence
+uninstrumented under TSan. Generated headers and API references pass
+for all four libraries. The normal maturity check passes and the strict
+release check still lists 20 developing xrpc modules.
+
+| Retest profile | Calls/s | Process CPU (ns/call) | P99 (us) | P99.9 (us) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows ordinary, window 32 | 106,379 / 105,714 | 27,061 / 25,392 | — | — |
+| Windows 32 KiB, window 4 | 3,980 / 4,325 | 614,166 / 547,409 | — | — |
+| Windows negotiated, window 1 | 15,479 / 14,897 | 76,294 / 78,678 | 96.8 / 106.4 | 127.8 / 137.7 |
+| WSL negotiated, window 1 | 6,684 / 6,608 | 179,182 / 181,408 | 212.9 / 233.7 | 322.6 / 336.1 |
+
+Every row shows separate medians of the previous and current builds over
+12 interleaved local loopback repetitions. Run sizes are 131,072 calls
+for small ordinary TCP at window 32, 4,096 for the 32 KiB profile and
+16,384 for negotiated window one. The longer fragmented retest reverses
+the throughput drop observed in the first sample. On Windows ordinary
+TCP at window 32 the pre-negotiation build measured
+27,239 process CPU ns/call
+in the same rounds. Negotiated window-one tail latency remains higher on
+both hosts. Native Linux, fixed-arrival and sustained release qualification
+remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/tcp-write-20261119.json).

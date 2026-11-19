@@ -124,8 +124,12 @@ python extlibs/xrpc/tests/interop/run_tcp_gather.py --compiler gcc --arch x64 --
 ```
 
 Use `--arch native` with the Windows compiler. It verifies both framing formats
-at empty/queued chunk/byte/writable boundaries, refusal without byte advancement and delivery
-uncertainty, then runs real sockets with the ordinary TCP suite. A separate
+at empty/queued chunk/byte/writable boundaries and checks refusal without byte
+advancement and delivery uncertainty. The writer checks its cached selection
+token at the start of each write turn and consults native write credit only
+when output is pending. The probe cancels a notification just before the
+first send and checks that completing the final queued frame skips an empty
+continuation. It also runs real sockets with the ordinary TCP suite. A separate
 instrumented native TCP object counts kernel-facing public send offers for one
 request/reply pair. This is an API-offer count, not an OS syscall trace or a
 system-wide guarantee. A controlled native 16-notification burst also measures

@@ -970,9 +970,14 @@ static void xrpcDuplexStampDeadline(xrpcduplexoutput* O)
     }
 }
 
-#if defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
 size_t xrpcDuplexNextSize(const xrpcduplex* D)
 {return D->OutputHead?D->OutputHead->Wire.Size:0;}
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_TCP)
+bool xrpcDuplexSelectionIs(const xrpcduplex* D,uint64 Token)
+{return Token && D->SelectedToken==Token;}
 #endif
 
 XRPC_API int xrpcDuplexNext(xrpcduplex* D,xrpcduplexoutput** Output,uint64* Token)

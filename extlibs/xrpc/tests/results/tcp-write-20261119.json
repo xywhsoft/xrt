@@ -1,0 +1,607 @@
+{
+  "schema": 1,
+  "branch": "master",
+  "workspace": "D:/GIT/xrt",
+  "base_revision": "bdc2cee0e4acc9fec441e025323bb7bf2e28824a",
+  "migration": {
+    "ancestors": {
+      "c2a8b434": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+      "05dc625d": "05dc625df2a0c6c0f34f8f79b612777dd09e0d17",
+      "f0e0955c": "f0e0955c7609d8bc1015874596c6c0208196292c",
+      "400d85e4": "400d85e4aa539f579ea5c26692fefea2be6ad974"
+    },
+    "legacy_branch_unique_commits": 0,
+    "historical_migration_verification": {
+      "path": "out/service-extensions/master-migration-verification-20261119/verification.json",
+      "sha256": "b150d469fda1707a6f359f85a2dc1c4f6a9ee08aaf3f6415111d7e543280ff37"
+    },
+    "historical_pending_files_verified": 26,
+    "master_path_and_backup_hash_audit": {
+      "path": "out/service-extensions/xrpc-tcp-write-20261119/migration-audit.log",
+      "sha256": "3757a7b561aa30a09cbea91a639700d79d74c8410035e3e7781f71868987dfeb"
+    }
+  },
+  "functional": {
+    "windows": {
+      "xrpc": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xrpc.log",
+        "sha256": "e39d263d9d2347f07632b65dd70f99636a046b27e04509c40e131a0e9a86fde3",
+        "suite": "xrpc_tests",
+        "modular_tests": 29,
+        "single_tests": 34,
+        "reported_skips": []
+      },
+      "xredis": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xredis.log",
+        "sha256": "15477f7fc7bdbc77aa4e9569c0a0f62caefc7cfaeee5a96c16af981220467173",
+        "suite": "xredis_tests,time,atomic",
+        "modular_tests": 43,
+        "single_tests": 55,
+        "reported_skips": []
+      },
+      "xmqtt": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xmqtt.log",
+        "sha256": "8dc26c55f233f7c9dc60ee1f83196ea67b1cbc4d94fcae830d0679691a69875a",
+        "suite": "xmqtt_tests,time,atomic",
+        "modular_tests": 40,
+        "single_tests": 59,
+        "reported_skips": []
+      },
+      "xcron": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xcron.log",
+        "sha256": "7990a5b61bdc2ade36caeda0a69c012cba2a2b1b8750fe63d123a638c27d4573",
+        "suite": "xcron_tests,event_waiter",
+        "modular_tests": 21,
+        "single_tests": 25,
+        "reported_skips": [
+          "[SKIP] native symbolic link fixture: system=1314",
+          "[SKIP] native symbolic link fixture: system=1314"
+        ]
+      },
+      "gather_negative_control": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-gather-negative.log",
+        "sha256": "1020641827b14a0a12b76ae2a1f7681e8e78d8853ce084022867a4cc2ed4580f",
+        "expected_failure": "Old writer queries both diagnostics and native credit on an empty queue."
+      },
+      "tcp_static": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-tcp-static.log",
+        "sha256": "2733b4d3f5673df5ef2cf44e98eaa1fd4ef83521fe17234ae6b81c741288972d",
+        "consumer_passed": true
+      },
+      "tcp_shared": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-tcp-shared.log",
+        "sha256": "f0d3a59ae0a06fd70e5a80006718856e919b83fffa469f9943a7402510d6b247",
+        "consumer_passed": true
+      },
+      "gather": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/gather-windows.log",
+        "sha256": "5e92ac8238843b7c13e250198d88d8858d3dc5f8bc884ea02b73e4503d50e288",
+        "send_boundaries": 156
+      },
+      "tcp_example": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/example-windows.log",
+        "sha256": "c8cad794058fa3a8cff9d89d12102b6c1b751195f9926901726e67b4fb62c3b2"
+      },
+      "xmqtt_auth_process_sample": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xmqtt-session-dial-auth-stacks.log",
+        "sha256": "51d9438aa2fb2fed7d53cf4c2dafab1ae88aa77e1cae074da7e669a063008662"
+      },
+      "xmqtt_auth_standalone": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/windows-xmqtt-auth-standalone.log",
+        "sha256": "53288c411c9f90fc8aceb6d8a14715bb1cfa7c94c68d200ceba2fc4847dbdf6c"
+      }
+    },
+    "wsl": {
+      "xrpc": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-xrpc.log",
+        "sha256": "9b83ae0bd33bd3981e30e31e2399c7877a969fec9e38814d965b13df24fd5665",
+        "suite": "xrpc_tests",
+        "modular_tests": 29,
+        "single_tests": 34,
+        "reported_skips": []
+      },
+      "xredis": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-xredis.log",
+        "sha256": "550c967726d6918e4458e738fa3dac03f5a246c61ea6a7f843e91bf32bcc48ab",
+        "suite": "xredis_tests,time,atomic",
+        "modular_tests": 43,
+        "single_tests": 55,
+        "reported_skips": []
+      },
+      "xmqtt": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-xmqtt.log",
+        "sha256": "eca83e50a8603e52d7ff194b6023787f9ffab417950b4c0b51fea362c6533c95",
+        "suite": "xmqtt_tests,time,atomic",
+        "modular_tests": 40,
+        "single_tests": 59,
+        "reported_skips": []
+      },
+      "xcron": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-xcron.log",
+        "sha256": "94121cad35fe0d92d23b5d4df53f9013c1ddf9af23735e9583f07ec78ae34e90",
+        "suite": "xcron_tests,event_waiter",
+        "modular_tests": 21,
+        "single_tests": 25,
+        "reported_skips": []
+      },
+      "gather_address": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-gather-address.log",
+        "sha256": "2f9572d1831e9204a11a5056f9fe15e6ba5f57a67c532daf10e493492e422ad0",
+        "sanitizer": "ASan/UBSan with leak checks",
+        "standalone_atomic_fence_warning": false
+      },
+      "gather_thread": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-gather-thread.log",
+        "sha256": "afe26b771aed504d3b31620aed8e1e654fcefc14d8fd64ee19bf55ce135b2519",
+        "sanitizer": "TSan",
+        "standalone_atomic_fence_warning": true
+      },
+      "tcp_static": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-tcp-static.log",
+        "sha256": "b2359b3ac2380b7a9256af7d4c6eac5522216298dba1a1feed1ca84a99ce23b8",
+        "consumer_passed": true
+      },
+      "tcp_shared": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl-tcp-shared.log",
+        "sha256": "2e101037bdc0eccc81abcb9cba62172b3cffd2af48d166f6028e063f2d16e053",
+        "consumer_passed": true
+      },
+      "gather": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/gather-wsl.log",
+        "sha256": "364e4550358b60de8f40bf54b4e61f670ab665a1ad774a414afce3467f9eb8b7",
+        "send_boundaries": 156
+      },
+      "tcp_example": {
+        "path": "out/service-extensions/xrpc-tcp-write-20261119/example-wsl.log",
+        "sha256": "215852d377c2e40dd37164b53af1b792f8a21ea1b06e7b9f0ab6cd84ac5e6096"
+      }
+    }
+  },
+  "performance": {
+    "windows": [
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-windows-negotiated_window1.json",
+          "sha256": "5bf5e5873a4794ff59fc87eb275592ade0d9ed22bae476fd676a002c371a4966"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/windows/binaries.json",
+          "sha256": "cd16d1f039921d10ba88b33b2a2873f368542b14ce11d7c31892db55fa43a1bc"
+        },
+        "profiles": {
+          "negotiated_window1": {
+            "rounds": 12,
+            "calls": 16384,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 15478.5797255,
+                "process_cpu_ns_per_call": 76293.9453125,
+                "closed_loop_p99_us": 96.849981,
+                "closed_loop_p999_us": 127.7999835
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 14897.1652335,
+                "process_cpu_ns_per_call": 78678.1311035,
+                "closed_loop_p99_us": 106.3999955,
+                "closed_loop_p999_us": 137.6500005
+              }
+            }
+          }
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0"
+      },
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-windows-ordinary_fragmented.json",
+          "sha256": "8b4d4a80f44f83ec7fc95e520f334ffe519084c73fd0a79d257a3851fe455aee"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/windows/binaries.json",
+          "sha256": "cd16d1f039921d10ba88b33b2a2873f368542b14ce11d7c31892db55fa43a1bc"
+        },
+        "profiles": {
+          "ordinary_fragmented": {
+            "rounds": 12,
+            "calls": 4096,
+            "window": 4,
+            "payload_bytes": 32768,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 4118.3910005,
+                "process_cpu_ns_per_call": 600814.8193359999
+              },
+              "network_extensions": {
+                "calls_per_sec": 3980.4069925000003,
+                "process_cpu_ns_per_call": 614166.259766
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 4325.4497075,
+                "process_cpu_ns_per_call": 547409.0576170001
+              }
+            }
+          }
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0"
+      },
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-windows-ordinary_window32.json",
+          "sha256": "4918826cd0dd29e1b34d2cee724b486e218ea7e9aa83aca5edf9c82dacc603e7"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/windows/binaries.json",
+          "sha256": "cd16d1f039921d10ba88b33b2a2873f368542b14ce11d7c31892db55fa43a1bc"
+        },
+        "profiles": {
+          "ordinary_window32": {
+            "rounds": 12,
+            "calls": 131072,
+            "window": 32,
+            "payload_bytes": 7,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 105864.432012,
+                "process_cpu_ns_per_call": 27239.322662500002
+              },
+              "network_extensions": {
+                "calls_per_sec": 106378.6585505,
+                "process_cpu_ns_per_call": 27060.508728
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 105713.8417305,
+                "process_cpu_ns_per_call": 25391.578674
+              }
+            }
+          }
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0"
+      },
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-windows.json",
+          "sha256": "d3107e87e5281a6519b9489548416f23c3f3950233a1c6bf74edbc183ec1b9bf"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/windows/binaries.json",
+          "sha256": "cd16d1f039921d10ba88b33b2a2873f368542b14ce11d7c31892db55fa43a1bc"
+        },
+        "profiles": {
+          "ordinary_window32": {
+            "rounds": 6,
+            "calls": 65536,
+            "window": 32,
+            "payload_bytes": 7,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 107951.997865,
+                "process_cpu_ns_per_call": 25391.5786745
+              },
+              "network_extensions": {
+                "calls_per_sec": 108239.54999150001,
+                "process_cpu_ns_per_call": 26941.2994385
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 106588.111479,
+                "process_cpu_ns_per_call": 27060.508728
+              }
+            }
+          },
+          "ordinary_window1": {
+            "rounds": 6,
+            "calls": 16384,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 15523.8665215,
+                "process_cpu_ns_per_call": 80108.642578,
+                "closed_loop_p99_us": 83.74993900000001
+              },
+              "network_extensions": {
+                "calls_per_sec": 15545.833911,
+                "process_cpu_ns_per_call": 83446.5026855,
+                "closed_loop_p99_us": 84.14994250000001
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 15411.435847,
+                "process_cpu_ns_per_call": 79631.80541999999,
+                "closed_loop_p99_us": 86.350017
+              }
+            }
+          },
+          "ordinary_fragmented": {
+            "rounds": 6,
+            "calls": 2048,
+            "window": 4,
+            "payload_bytes": 32768,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 3677.1433575,
+                "process_cpu_ns_per_call": 617980.957031
+              },
+              "network_extensions": {
+                "calls_per_sec": 3756.0749800000003,
+                "process_cpu_ns_per_call": 602722.1679690001
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 3360.098957,
+                "process_cpu_ns_per_call": 560760.498047
+              }
+            }
+          },
+          "negotiated_window32": {
+            "rounds": 6,
+            "calls": 32768,
+            "window": 32,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 109906.778893,
+                "process_cpu_ns_per_call": 26941.2994385
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 112649.73605949999,
+                "process_cpu_ns_per_call": 27418.136597
+              }
+            }
+          },
+          "negotiated_window1": {
+            "rounds": 6,
+            "calls": 8192,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 15563.8018885,
+                "process_cpu_ns_per_call": 79154.9682615,
+                "closed_loop_p99_us": 92.99995150000001,
+                "closed_loop_p999_us": 120.749988
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 14829.720561999999,
+                "process_cpu_ns_per_call": 85830.6884765,
+                "closed_loop_p99_us": 105.849933,
+                "closed_loop_p999_us": 156.5500275
+              }
+            }
+          }
+        },
+        "compiler": "gcc.exe (GCC) 16.2.0"
+      }
+    ],
+    "wsl": [
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-wsl-negotiated_window1.json",
+          "sha256": "33b53a6948ad491430c45f61497d3969236b7b135bb0853430c61a38076525d9"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl/binaries.json",
+          "sha256": "57db2325de149e3dd6326d9eeb865fdf6a8bf605c0eb1c63be982236b5445f41"
+        },
+        "profiles": {
+          "negotiated_window1": {
+            "rounds": 12,
+            "calls": 16384,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 6684.4377535,
+                "process_cpu_ns_per_call": 179182.434082,
+                "closed_loop_p99_us": 212.95,
+                "closed_loop_p999_us": 322.6
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 6607.683168,
+                "process_cpu_ns_per_call": 181408.203125,
+                "closed_loop_p99_us": 233.7,
+                "closed_loop_p999_us": 336.15
+              }
+            }
+          }
+        },
+        "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+      },
+      {
+        "raw": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/perf-wsl.json",
+          "sha256": "62b22489296806976d8c8f370ccd33f47206d8aa3a5314c68a315b2ec6a98b92"
+        },
+        "binaries": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/wsl/binaries.json",
+          "sha256": "57db2325de149e3dd6326d9eeb865fdf6a8bf605c0eb1c63be982236b5445f41"
+        },
+        "profiles": {
+          "ordinary_window32": {
+            "rounds": 6,
+            "calls": 65536,
+            "window": 32,
+            "payload_bytes": 7,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 52272.110313,
+                "process_cpu_ns_per_call": 43651.8554685
+              },
+              "network_extensions": {
+                "calls_per_sec": 52322.088537,
+                "process_cpu_ns_per_call": 43569.206238
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 52731.3694945,
+                "process_cpu_ns_per_call": 43157.623290999996
+              }
+            }
+          },
+          "ordinary_window1": {
+            "rounds": 6,
+            "calls": 16384,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 6731.946448000001,
+                "process_cpu_ns_per_call": 178768.52417,
+                "closed_loop_p99_us": 210.35
+              },
+              "network_extensions": {
+                "calls_per_sec": 6691.3976955,
+                "process_cpu_ns_per_call": 178817.260742,
+                "closed_loop_p99_us": 215.3495
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 6749.3271884999995,
+                "process_cpu_ns_per_call": 176632.3242185,
+                "closed_loop_p99_us": 210.05
+              }
+            }
+          },
+          "ordinary_fragmented": {
+            "rounds": 6,
+            "calls": 2048,
+            "window": 4,
+            "payload_bytes": 32768,
+            "negotiated": false,
+            "medians": {
+              "before_network_extensions": {
+                "calls_per_sec": 2925.560552,
+                "process_cpu_ns_per_call": 687555.1757815001
+              },
+              "network_extensions": {
+                "calls_per_sec": 2916.8175495,
+                "process_cpu_ns_per_call": 694166.5039065
+              },
+              "tcp_optimized": {
+                "calls_per_sec": 2977.5895195000003,
+                "process_cpu_ns_per_call": 680904.296875
+              }
+            }
+          },
+          "negotiated_window32": {
+            "rounds": 6,
+            "calls": 32768,
+            "window": 32,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 51325.8870445,
+                "process_cpu_ns_per_call": 45462.814331
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 51642.903917,
+                "process_cpu_ns_per_call": 44813.9190675
+              }
+            }
+          },
+          "negotiated_window1": {
+            "rounds": 6,
+            "calls": 8192,
+            "window": 1,
+            "payload_bytes": 7,
+            "negotiated": true,
+            "medians": {
+              "network_extensions_propagation": {
+                "calls_per_sec": 6804.484399,
+                "process_cpu_ns_per_call": 176541.93115249998,
+                "closed_loop_p99_us": 201.1,
+                "closed_loop_p999_us": 250.25
+              },
+              "tcp_propagation_optimized": {
+                "calls_per_sec": 6705.9974915,
+                "process_cpu_ns_per_call": 177940.8569335,
+                "closed_loop_p99_us": 209.7,
+                "closed_loop_p999_us": 306.65
+              }
+            }
+          }
+        },
+        "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+      }
+    ]
+  },
+  "source_lf_sha256": {
+    "extlibs/xrpc/src/duplex/duplex.c": "d4f5ded8e378e4fb9e18e9ce634fc82b99551a7cc7f3afb382905b1c490812f1",
+    "extlibs/xrpc/src/internal/xrpc_duplex_internal.h": "c3f52d0771cfe26154b9a8a3bc77899f6f3234ea01ee4b511f124418310f8019",
+    "extlibs/xrpc/src/tcp/tcp.c": "54a11a3e308fc5214f3f281ac476e6f2681827d1fe50cd259b0c1209f800a655",
+    "extlibs/xrpc/tests/interop/tcp_gather.c": "252fbe2d8caf93ff3bb74e97a6eeb4363c6687248c917213267eaba459f827fc",
+    "single/extlibs/xrpc.h": "065fb2105d82ca0aecf5fa6ea98d45fa4dae4ea4ccf0af03d54339e4c6ed81c2"
+  },
+  "metadata": {
+    "amalgamation": {
+      "path": "out/service-extensions/xrpc-tcp-write-20261119/amalgamation.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api-reference": {
+      "path": "out/service-extensions/xrpc-tcp-write-20261119/api-reference.log",
+      "sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa"
+    },
+    "maturity": {
+      "path": "out/service-extensions/xrpc-tcp-write-20261119/maturity.log",
+      "sha256": "8acb43deca6c9161938b7fff9f21fd3357152e75ed300080157bfbff2ab45c0b"
+    },
+    "strict": {
+      "path": "out/service-extensions/xrpc-tcp-write-20261119/strict.log",
+      "sha256": "83b53dd890a4e94191ca63846f7189e36e48149ab949f5333f2dc753f7c47ee1",
+      "developing_modules": 20
+    },
+    "other_extensions": {
+      "xredis": {
+        "amalgamation": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xredis-amalgamation.log",
+          "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        "api-reference": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xredis-api-reference.log",
+          "sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92"
+        },
+        "maturity": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xredis-maturity.log",
+          "sha256": "68a46b9c6861c496d81a6e079a386b5bfec39446e1f22740fdbef59a59cd3382"
+        }
+      },
+      "xmqtt": {
+        "amalgamation": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xmqtt-amalgamation.log",
+          "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        "api-reference": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xmqtt-api-reference.log",
+          "sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+        },
+        "maturity": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xmqtt-maturity.log",
+          "sha256": "89912c2689ed6a24a4ff2be2e9558587fde76d10c7638316d1d3a481458ec561"
+        }
+      },
+      "xcron": {
+        "amalgamation": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xcron-amalgamation.log",
+          "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        "api-reference": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xcron-api-reference.log",
+          "sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        "maturity": {
+          "path": "out/service-extensions/xrpc-tcp-write-20261119/xcron-maturity.log",
+          "sha256": "f06ed19c912aa83106be530f9c7b23871c613efc7aea6268e26aa076a5dd7c8e"
+        }
+      }
+    }
+  },
+  "scope": "Windows x64 and WSL x64 mainline tests, with unpinned TCP loopback measurements. Window-one includes closed-loop tail latency. Native Linux, fixed-arrival and sustained qualification remain open."
+}
