@@ -11,7 +11,7 @@ auth snapshots, candidates, TCP, TLS, HTTP Upgrade and CONNACK/local proof. Queu
 request deadlines also retain their original API-entry times. No MQTT output is
 sent before a strict101 response bound to the fresh random Key, correct Accept
 and exact mqtt subprotocol. Binary parsing then uses the existing QoS/aliases/
-subscriptions/Auth/Session/Inbox logic. No redirect, proxy, credential retry,
+subscriptions, authentication and protocol Session logic. No redirect, proxy, credential retry,
 compression offer, fallback or implicit replay is added.
 
 ## Configuration and lifetime
@@ -32,9 +32,9 @@ responses are accepted by default (hard maximum16);100/103 do not refresh time.
 Non101 statuses resolve Ready as REJECTED, while malformed negotiation uses a
 protocol outcome. There is no authentication challenge retry or redirect follow.
 
-Optional WebSocket.Auth/Session/Inbox use their existing explicit feature and
-ownership contracts. False factory return leaves output unchanged and transfers
-no prepared caller reference. Success returns the unique Client in CONNECTING;
+Optional WebSocket.Auth and WebSocket.Session use their existing explicit
+feature and ownership contracts. On a false return the caller retains the
+prepared address list and the output is unchanged. Success returns the unique Client in CONNECTING;
 Ready is a typed outcome and may still fail. Close/Wait/Destroy preserve actual
 candidate/raw/TLS/WS duties, including pre-Upgrade aliases and original TLS owner
 credits. The borrowed Resolver remains alive through Client retirement; its own
@@ -57,17 +57,16 @@ required on an IOCP receive reservation. Request/descriptor/cache storage and th
 Key are wiped/freed after handoff or setup stop; small HTTP diagnostic state stays
 through Client destruction.
 
-Measured x64 public config344/info80 and private HTTP state240 bytes are the same
-on both tested hosts. Selecting connection setup adds8 bytes to the existing cold
-WS state288->296; the direct Client instance and existing public config272/info160
-remain unchanged in the measured selection. HTTP state/request/descriptors/cache
+Earlier x64 builds measured 80 bytes for connection info, 240 bytes for private
+HTTP state and an 8-byte pointer in the optional WS connection state. HTTP
+state, request, descriptors and cache
 are charged to MaxPrivateBytes. Native Dial/Resolver/WS/TLS/TCP/buffer/allocator
 storage and host CA-file I/O remain separate real costs.
 
 [Runnable CLI](../examples/ws_connect/README.md) performs native DNS, actual
 Upgrade and optional CA verification. Plain/full/root and stats-off singles,
 modular tests, separate static/shared protocol consumers and declaration consumers
-pass. Positive/fault/atomicity/Auth/Session/Inbox tests cover numeric/DNS/prepared,
+pass. Positive, fault, atomicity, authentication and Session tests cover numeric/DNS/prepared,
 MQTT5/3.1.1, tiny work quotas, split records, interim responses, rejected/malformed
 headers, setup/queued-request deadlines, detached DNS, constructor OOM and real
 pre-Upgrade native aliases. Windows select/IOCP and WSL select/epoll pass the

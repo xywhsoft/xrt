@@ -30,7 +30,7 @@ IPv4/IPv6, including an escaped strict IPv4 host, bypass Resolver. Names borrow
 Resolver under the existing physical Client lifetime contract. The raw authority
 becomes HTTP Host, including brackets and any explicit port. URI replaces the
 policy's Host/Target views; NULL policy selects defaults, and all other bounds,
-Origin/extra fields, native WS/Dial/Auth/Session/Inbox policies retain their contracts.
+Origin/extra fields, native WS/Dial/Auth/Session policies retain their contracts.
 
 Explicit plain/secure factories require their matching scheme and never downgrade.
 WSS requires an explicit native TLS trust policy. With ServerNameFromHost true,

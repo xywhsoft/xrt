@@ -7,7 +7,7 @@
 typedef struct wrService wrService;
 typedef struct wrConnection {mqttWsConnectPeer Peer;wrService* Service;unsigned Index;} wrConnection;
 struct wrService {
-    xnetengine* Engine;xnetlistener* Listener;xnetresolver* Resolver;xtaskpool* Pool;xmqttclientinbox* Inbox;xnetaddr Address;
+    xnetengine* Engine;xnetlistener* Listener;xnetresolver* Resolver;xtaskpool* Pool;xnetaddr Address;
     xmqttversion Version;bool TLS;unsigned Route;xatomic32 Auth,Present,BlockDns,HoldHttp,RejectTLS,Cut,RejectHttp,Initialized,Cleanup,NoNotify,NoIncoming; xnetpost CleanupPost;
     char Authority[128],URI[256];wrConnection Connections[8];
     xatomic32 Accepted,Factories,Connacks,Publishes,Replays,Pubrels,Received,Subscriptions,ListenerClosed,DnsEntered,DnsRelease;
@@ -81,7 +81,7 @@ static inline void wrNotice(xmqttclient* C,ptr Data)
 {wrService* S=Data;xfuture* F=xmqttClientReady(C);if(F&&xrtFutureDone(F)&&xrtFutureState(F)==XFUTURE_RESOLVED){const xmqttreadyresult* Ready=xrtFutureValue(F);if(Ready->Status!=XMQTT_STATUS_OK){fprintf(stderr,"[ready] status=%d cause=%s\n",Ready->Status,Ready->Cause?xrtErrorMessage(Ready->Cause):"none");}}xrtFutureDestroy(F);xmqttauthticket* T=NULL;if(xmqttClientTakeAuth(C,&T)){testRequire(!xrtAtomicPtrLoad(&S->Ticket,XMEMORY_ACQUIRE),"one active recovery auth ticket");xrtAtomicPtrStore(&S->Client,C,XMEMORY_RELEASE);xrtAtomicPtrStore(&S->Ticket,T,XMEMORY_RELEASE);}}
 static inline xmqttclientstatus wrFactory(xnetengine* E,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* Session,const xmqttpacket* Q,ptr Data,xmqttclient** C)
 {
-    wrService* S=Data;testRequire(E==S->Engine&&xrtNetEngineCurrent(E)==xrtNetEngineWorker(E,Affinity),"factory runs on the existing owner");xmqttclientwsconnectconfig W;xmqttClientWsConnectConfigInit(&W);W.Host=XRT_STR_LITERAL("example.com");W.Target=XRT_STR_LITERAL("/mqtt?x=%00");W.WebSocket.Session=Session;W.WebSocket.Inbox=S->Inbox;xmqttauthconfig Auth;if(WR_GET(S,Auth)){xmqttAuthConfigInit(&Auth);W.WebSocket.Auth=&Auth;}bool OK=false;xerror* Saved=xrtTakeError();xallocationscope Scope={0};if(S->Budget)testRequire(xrtAllocationBudgetEnter(S->Budget,&Scope),"recovery factory budget");
+    wrService* S=Data;testRequire(E==S->Engine&&xrtNetEngineCurrent(E)==xrtNetEngineWorker(E,Affinity),"factory runs on the existing owner");xmqttclientwsconnectconfig W;xmqttClientWsConnectConfigInit(&W);W.Host=XRT_STR_LITERAL("example.com");W.Target=XRT_STR_LITERAL("/mqtt?x=%00");W.WebSocket.Session=Session;xmqttauthconfig Auth;if(WR_GET(S,Auth)){xmqttAuthConfigInit(&Auth);W.WebSocket.Auth=&Auth;}bool OK=false;xerror* Saved=xrtTakeError();xallocationscope Scope={0};if(S->Budget)testRequire(xrtAllocationBudgetEnter(S->Budget,&Scope),"recovery factory budget");
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
     xmqttclienttlsconfig T;if(S->TLS){xmqttClientTlsConfigInit(&T);T.Session.ResumeLimit=0;T.Session.Context=S->Context;T.Session.Verifier=S->Verifier;if(S->Route<3)T.Session.ServerName=XRT_STR_LITERAL("example.com");
         if(S->Route==0)OK=xmqttClientWssConnect(E,&S->Address,Affinity,K,&W,&T,Q,C);else if(S->Route==1)OK=xmqttClientWssDial(E,S->Resolver,XRT_STR_LITERAL("example.com"),S->Address.Port,Affinity,K,&W,&T,Q,C);else if(S->Route==2){xnetaddrlist* L=xrtNetAddrListCreate(&S->Address,1);if(L){OK=xmqttClientWssDialAddresses(E,L,Affinity,K,&W,&T,Q,C);xrtNetAddrListDestroy(L);}}else OK=xmqttClientWssConnectUri(E,S->Resolver,(xstrview){S->URI,strlen(S->URI)},Affinity,K,&W,&T,Q,C);
@@ -92,10 +92,6 @@ static inline xmqttclientstatus wrFactory(xnetengine* E,uint64 Affinity,const xm
 }
 static inline xmqttreconnect* wrCreate(wrService* S,int64 Recovery,bool Subscribed)
 {
-    if(!WR_GET(S,NoIncoming)){
-        xmqttclientinboxconfig I;xmqttClientInboxConfigInit(&I);I.Version=S->Version;
-        testRequire(!S->Inbox&&xmqttClientInboxCreate(&I,&S->Inbox),"APP-owned WS receive queue");
-    }
     xmqttreconnectconfig K;xmqttReconnectConfigInit(&K);K.Factory=wrFactory;K.FactoryData=S;K.Client.Version=S->Version;K.Client.Notify=WR_GET(S,NoNotify)?NULL:wrNotice;K.Client.User=S;K.Client.SetupTimeout=10000;K.InitialDelay=5;K.MaxDelay=20;K.JitterPermille=0;K.RecoveryTimeout=Recovery;K.MaxAttempts=WR_GET(S,RejectTLS)?1:4;if(S->Version==XMQTT_VERSION_311&&!WR_GET(S,Present))K.CleanStartFirstOnly=false;
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.CleanStart=S->Version==XMQTT_VERSION_5||!WR_GET(S,Present);Q.Body.Connect.ClientId=XRT_STR_LITERAL("ws-managed");xmqttproperty P[2]={{0}};size_t Count=0;if(S->Version==XMQTT_VERSION_5){P[Count].Id=XMQTT_PROPERTY_SESSION_EXPIRY;P[Count].Type=XMQTT_PROPERTY_UINT32;P[Count++].Value.Number=60;}if(WR_GET(S,Auth)){P[Count].Id=XMQTT_PROPERTY_AUTH_METHOD;P[Count].Type=XMQTT_PROPERTY_STRING;P[Count++].Value.Text=XRT_STR_LITERAL("m");}Q.Properties=(xmqttpropertylist){P,Count};xmqttreconnect* R=NULL;
     xmqttsubscriptionsconfig SC;
@@ -126,7 +122,6 @@ static inline void wrServerCleanup(xnetworker* Worker,ptr Data)
 }
 static inline void wrStopService(wrService* S)
 {
-    testRequire(xmqttClientInboxDestroy(S->Inbox),"APP retires the detached inbox");
     xrtAtomic32Store(&S->DnsRelease,1,XMEMORY_RELEASE);testRequire(xrtNetResolverDestroy(S->Resolver),"shared detached lookup joined");testRequire(xrtNetListenerClose(S->Listener),"WS recovery listener close");wrWait(&S->ListenerClosed,1,"WS recovery listener closed");
     testRequire(xrtNetPostInit(&S->CleanupPost)&&xrtNetPost(xrtNetEngineWorker(S->Engine,0),&S->CleanupPost,wrServerCleanup,S),"native cleanup on actual server owner");wrWait(&S->Cleanup,1,"server cleanup queued all physical native duties");
     xrtNetListenerDestroy(S->Listener);testRequire(xrtTaskPoolClose(S->Pool)&&xrtTaskPoolWaitFor(S->Pool,15000)==XWAIT_OK&&xrtTaskPoolDestroy(S->Pool)&&xrtNetEngineDestroy(S->Engine),"Pool/Engine real joins");

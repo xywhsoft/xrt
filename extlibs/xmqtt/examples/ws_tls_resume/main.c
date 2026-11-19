@@ -6,10 +6,10 @@ int main(int Argc,char** Argv)
 {
     if(Argc==1){puts("Usage: xmqtt-wss-resume WSS_URI SERVER_CA.pem [5|311] [strict|fallback]");return 0;}
     if(Argc<3||Argc>5||(Argc>3&&strcmp(Argv[3],"5")&&strcmp(Argv[3],"311"))||(Argc>4&&strcmp(Argv[4],"strict")&&strcmp(Argv[4],"fallback")))return 2;
-    xmqttversion Version=Argc>3&&!strcmp(Argv[3],"311")?XMQTT_VERSION_311:XMQTT_VERSION_5;bool Fallback=Argc>4&&!strcmp(Argv[4],"fallback");int Code=1;bool Joined=true;mqttWsEndpoint E={0};xnetengine* Engine=NULL;xmqttclient* C=NULL;xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;xtlsresume* Credential=NULL;xfuture* Results[6]={0};
+    xmqttversion Version=Argc>3&&!strcmp(Argv[3],"311")?XMQTT_VERSION_311:XMQTT_VERSION_5;bool Fallback=Argc>4&&!strcmp(Argv[4],"fallback");int Code=1;bool Joined=true;mqttWsEndpoint E={0};xnetengine* Engine=NULL;xmqttclient* C=NULL;xmqttsession* Session=NULL;xtlsresume* Credential=NULL;xfuture* Results[6]={0};
     if(!mqttWsEndpointInit(&E,(xstrview){Argv[1],strlen(Argv[1])},Argv[2])||!E.Secure)goto Done;
     E.TLS.Session.ResumeLimit=4;xnetengineconfig N;xrtNetEngineConfigInit(&N);N.Workers=2;Engine=xrtNetEngineCreate(&N);if(!Engine||!xrtNetEngineStart(Engine))goto Done;
-    xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=Version;SC.ClientId=XRT_STR_LITERAL("xrt-wss-resume-example");xmqttclientinboxconfig IC;xmqttClientInboxConfigInit(&IC);IC.Version=Version;if(!xmqttSessionCreate(&SC,&Session)||!xmqttClientInboxCreate(&IC,&Inbox))goto Done;E.Policy.WebSocket.Session=Session;E.Policy.WebSocket.Inbox=Inbox;
+    xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=Version;SC.ClientId=XRT_STR_LITERAL("xrt-wss-resume-example");if(!xmqttSessionCreate(&SC,&Session))goto Done;E.Policy.WebSocket.Session=Session;
     for(unsigned Round=0;Round<2;++Round){xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=Version;E.TLS.Session.Resume=Credential;E.TLS.Session.ResumeOnly=Round&&!Fallback;
         xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("xrt-wss-resume-example");Q.Body.Connect.CleanStart=false;xmqttproperty Expiry={0};Expiry.Id=XMQTT_PROPERTY_SESSION_EXPIRY;Expiry.Type=XMQTT_PROPERTY_UINT32;Expiry.Value.Number=60;if(Version==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){&Expiry,1};
         if(!xmqttClientWssConnectUri(Engine,E.Resolver,E.URI,1,&K,&E.Policy,&E.TLS,&Q,&C))goto Done;
@@ -26,6 +26,6 @@ int main(int Argc,char** Argv)
 Done:
     if(C&&(!xmqttClientClose(C)||xmqttClientWaitFor(C,15000)!=XWAIT_OK||!xmqttClientDestroy(C))){Joined=false;Code=1;}
     if(!Joined)return 1; /* Still-owned callback contexts cannot be freed. */
-    xrtTlsResumeRelease(Credential);if(Session&&!xmqttSessionDestroy(Session)){Joined=false;Code=1;}if(Inbox&&!xmqttClientInboxDestroy(Inbox)){Joined=false;Code=1;}if(!mqttWsEndpointClear(&E)){Joined=false;Code=1;}if(Engine&&!xrtNetEngineDestroy(Engine)){Joined=false;Code=1;}
+    xrtTlsResumeRelease(Credential);if(Session&&!xmqttSessionDestroy(Session)){Joined=false;Code=1;}if(!mqttWsEndpointClear(&E)){Joined=false;Code=1;}if(Engine&&!xrtNetEngineDestroy(Engine)){Joined=false;Code=1;}
     if(Joined&&Engine){puts("[JOIN] Client/WS/TLS/TCP/Resolver/Engine physically retired");}for(unsigned I=0;I<6;++I)xrtFutureDestroy(Results[I]);if(Code&&xrtGetError())fprintf(stderr,"%s\n",xrtErrorMessage(xrtGetError()));return Code;
 }

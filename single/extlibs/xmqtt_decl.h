@@ -5429,18 +5429,19 @@ XRT_EXTERN_C_END
 #error "MQTT WSS resume requires native WSS ticket observation and existing TLS cache"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
-struct xmqttclientinbox;struct xmqttsession;struct xmqttauthconfig;
+struct xmqttsession;struct xmqttauthconfig;
 typedef struct xmqttclientwsconfig {
     size_t Size;xwsstreamconfig Stream;
     size_t MaxStagedBytes,KeepStagedBytes;
-    struct xmqttclientinbox* Inbox;struct xmqttsession* Session;
+    struct xmqttsession* Session;
     const struct xmqttauthconfig* Auth;
 } xmqttclientwsconfig;
 #define XMQTT_WS_STAGED_MAX 16777216u
 XRT_EXTERN_C_BEGIN
 /* Native client role and exact mqtt subprotocol;1 MiB frame/message/staging caps,
- *64 KiB staging retention. No compression. Optional Inbox/Session/Auth pointers
- * require their existing feature selections. NULL Inbox uses the local queue.
+ *64 KiB staging retention. No compression. Optional Session/Auth pointers
+ * require their existing feature selections. Take received messages with
+ * xmqttClientTakeMessage and retain their references in the application.
  * Public layout is selection-independent. No additional MQTT runtime. */
 XMQTT_API bool xmqttClientWsConfigInit(xmqttclientwsconfig* Config);
 /* Owning native Worker only, OPEN transport, exclusive handoff. The host must
@@ -5518,7 +5519,7 @@ XMQTT_API bool xmqttClientWsConnectConfigInit(xmqttclientwsconnectconfig* Config
  * Dial Host is the counted network name, separately used for default TLS SNI.
  * Numeric/prepared WSS requires explicit TLS peer identity. Config.Dial controls
  * WS and WSS candidates (the TLS argument supplies Session/Stream/metadata).
- * Optional WebSocket.Auth/Session/Inbox compose existing selected features.
+ * Optional WebSocket.Auth and WebSocket.Session compose existing selected features.
  * API success returns an owned Client in CONNECTING; Ready reports typed setup
  * outcomes. Accepted request deadlines include setup queueing. False leaves
  * output unchanged and transfers no caller resources. Resolver is borrowed
@@ -5592,7 +5593,7 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
 XRT_EXTERN_C_BEGIN
 /* ws:// only. URI replaces WebSocket.Host/Target; NULL WebSocket selects defaults.
- * Remaining HTTP/native WS/Dial and optional Auth/Session/Inbox policies apply.
+ * Remaining HTTP/native WS/Dial and optional Auth/Session policies apply.
  * Host decodes once to valid UTF-8, rejecting ASCII controls and routing
  * delimiters. Encoded path/query stay byte-exact. Strict numeric IP bypasses
  * Resolver; names borrow Resolver under its existing lifetime contract. No
@@ -6380,7 +6381,7 @@ XRT_EXTERN_C_END
 XRT_EXTERN_C_BEGIN
 /* Durable MQTT 5.0 and 3.1.1 over ws://. Use the matching Session and
  * Inbox-mode Writer as in Client Store. WebSocket may be NULL for defaults.
- * Its embedded volatile Session and Inbox must be NULL. Optional Auth uses
+ * Its embedded Session must be NULL. Optional Auth uses
  * the existing ticket API and gates OPEN on acceptance of final proof.
  * The original SetupTimeout includes DNS, Upgrade, MQTT and durable OPEN.
  * Graceful Disconnect waits for clean WebSocket closure and durable END.

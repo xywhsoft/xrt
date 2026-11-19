@@ -14,7 +14,7 @@ routing. The existing controller has separate [automatic recovery](reconnect_ws.
 evidence. Optional [WSS credential handoff](client_ws_tls_resume.md) connects the
 same native ticket queue to the existing bounded TLS cache.
 
-One ordinary Client owns all existing packet/QoS/auth/Session/Inbox state. Binary
+One ordinary Client uses the common packet, QoS, authentication and Session paths. Binary
 bytes span arbitrary WS frames/messages; Text closes the transport. WS control
 frames stay with Core. CONNECT/config/auth snapshot before native handoff; false
 leaves output/native/read-ahead ownership unchanged. Native attachment success
@@ -35,12 +35,12 @@ or completes bounded MQTT DISCONNECT plus WS/TLS close, polls real native retire
 and destroys the WS owner before its owned Client reference can retire. Borrowed
 native aliases can delay this barrier. The host separately joins Engine/code.
 
-The 176-byte public WS config layout is independent of optional Auth/Session/
-Inbox and plain/WSS selection on x64. Selecting WS adds an 8-byte pointer to the
-private Client even when the connection uses TCP; an attached WS client adds a
-288-byte cold state plus bounded staging (296 bytes when the optional HTTP
-connection factories are selected). These are real costs. The existing
-Client public config272/info160 layouts stay unchanged on both tested x64 hosts.
+The public WS config layout is independent of Auth, Session and WSS selection.
+Removing Inbox changes the layout of `xmqttclientwsconfig` and the containing
+`xmqttclientwsconnectconfig`. They measure 168 and 336 bytes on Windows x64
+and Ubuntu/WSL x64. Recompile applications that use either structure.
+Selecting WS adds an 8-byte pointer to the private Client on x64. An attached
+WS client uses separate transport state and bounded staging.
 The request fence is24 bytes plus its existing alignment. A valid UINT64_MAX cut
 uses the explicit pending-owner identity and can complete while still open.
 
@@ -56,7 +56,7 @@ executions, plain/full/root singles, full stats-off, ASan/UBSan/leaks and separa
 TSan. Coverage includes tiny work budgets, split/coalesced messages, QoS0/1/2,
 subscription and incoming-QoS1 metadata, Text rejection, timeout, constructor OOM
 and transactional retries, actual alias-held retirement, AUTH/final proof/reauth,
-and explicit Session/Inbox outgoing replay across connections. Static/shared and
+and explicit Session outgoing replay across connections. Static/shared and
 standalone declaration consumers use separate XRT/MQTT libraries; all three APIs
 export and the internal bridge stays hidden. These tests use a literal local
 post-Upgrade data peer, not an external HTTP/broker interoperability witness.
@@ -74,8 +74,9 @@ All new leaves remain developing. See the source-bound
 The later [native connection stage](client_ws_connect.md) separately records
 numeric/DNS/prepared HTTP Upgrade and independent peer/broker evidence.
 The later [automatic recovery stage](reconnect_ws.md) composes ordinary factories
-with generation leases and a shared protocol Session. The application chooses
-the receive queue. Durable state, strict clean broker interoperability, broader
+with generation leases and a shared protocol Session. Received messages use
+the connection-local queue. The application can take and retain references
+before the Client is destroyed. Durable state, strict clean broker interoperability, broader
 async-OOM, slow-peer, malformed and load tests, controlled throughput, tail
 latency and CPU measurements, and native Linux/Windows
 soak qualification remain required. No complete WS/WSS product acceptance is claimed.

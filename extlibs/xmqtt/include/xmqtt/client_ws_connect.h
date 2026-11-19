@@ -42,7 +42,7 @@ XMQTT_API bool xmqttClientWsConnectConfigInit(xmqttclientwsconnectconfig* Config
  * Dial Host is the counted network name, separately used for default TLS SNI.
  * Numeric/prepared WSS requires explicit TLS peer identity. Config.Dial controls
  * WS and WSS candidates (the TLS argument supplies Session/Stream/metadata).
- * Optional WebSocket.Auth/Session/Inbox compose existing selected features.
+ * Optional WebSocket.Auth and WebSocket.Session compose existing selected features.
  * API success returns an owned Client in CONNECTING; Ready reports typed setup
  * outcomes. Accepted request deadlines include setup queueing. False leaves
  * output unchanged and transfers no caller resources. Resolver is borrowed

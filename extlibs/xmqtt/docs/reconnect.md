@@ -34,7 +34,7 @@ transport closure, wait for the Client to retire, drain its queue and return the
 lease. Destroy releases messages still queued on the connection. Use a bounded
 APP queue sized for the workload. The [automatic reconnect example](../examples/reconnect/main.c)
 uses one APP slot for its single echo. An adapter can also supply an APP-owned
-shared Inbox through a Session factory when it needs a common quota for several
+shared Inbox through a TCP Session factory when it needs a common quota for several
 connections. Keep the Inbox alive through controller Destroy.
 
 Defaults retry transport, timeout and server-disconnect failures only. Exponential

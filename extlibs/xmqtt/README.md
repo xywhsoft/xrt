@@ -52,7 +52,7 @@ performance acceptance remain required. See the [native CLI](examples/ws_connect
 
 The developing [WS/WSS attachment](docs/client_ws.md) now reuses the ordinary
 Client for Binary MQTT traffic, QoS, subscriptions, selected enhanced auth and
-explicit Session/Inbox recovery. The host supplies an already checked Upgrade
+explicit protocol Session recovery. The host supplies an already checked Upgrade
 and native OPEN connection to these attachment APIs; the connection factories
 above perform native network/HTTP setup. URI input uses the separate factory;
 automatic reconnect composition uses the controller adapter above. See the [local runnable example](examples/ws/README.md).

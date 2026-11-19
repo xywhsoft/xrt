@@ -14,18 +14,19 @@
 #error "MQTT WSS resume requires native WSS ticket observation and existing TLS cache"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
-struct xmqttclientinbox;struct xmqttsession;struct xmqttauthconfig;
+struct xmqttsession;struct xmqttauthconfig;
 typedef struct xmqttclientwsconfig {
     size_t Size;xwsstreamconfig Stream;
     size_t MaxStagedBytes,KeepStagedBytes;
-    struct xmqttclientinbox* Inbox;struct xmqttsession* Session;
+    struct xmqttsession* Session;
     const struct xmqttauthconfig* Auth;
 } xmqttclientwsconfig;
 #define XMQTT_WS_STAGED_MAX 16777216u
 XRT_EXTERN_C_BEGIN
 /* Native client role and exact mqtt subprotocol;1 MiB frame/message/staging caps,
- *64 KiB staging retention. No compression. Optional Inbox/Session/Auth pointers
- * require their existing feature selections. NULL Inbox uses the local queue.
+ *64 KiB staging retention. No compression. Optional Session/Auth pointers
+ * require their existing feature selections. Take received messages with
+ * xmqttClientTakeMessage and retain their references in the application.
  * Public layout is selection-independent. No additional MQTT runtime. */
 XMQTT_API bool xmqttClientWsConfigInit(xmqttclientwsconfig* Config);
 /* Owning native Worker only, OPEN transport, exclusive handoff. The host must

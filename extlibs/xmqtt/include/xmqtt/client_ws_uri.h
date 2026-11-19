@@ -2,6 +2,7 @@
 #define XMQTT_CLIENT_WS_URI_H
 #include <xmqtt/features.h>
 #include <xmqtt/export.h>
+#include <xrt/features.h>
 #include <xrt/http.h>
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
 #include <xmqtt/client_ws_connect.h>
@@ -39,7 +40,7 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
 XRT_EXTERN_C_BEGIN
 /* ws:// only. URI replaces WebSocket.Host/Target; NULL WebSocket selects defaults.
- * Remaining HTTP/native WS/Dial and optional Auth/Session/Inbox policies apply.
+ * Remaining HTTP/native WS/Dial and optional Auth/Session policies apply.
  * Host decodes once to valid UTF-8, rejecting ASCII controls and routing
  * delimiters. Encoded path/query stay byte-exact. Strict numeric IP bypasses
  * Resolver; names borrow Resolver under its existing lifetime contract. No

@@ -2603,18 +2603,19 @@ XRT_EXTERN_C_END
 #error "MQTT WSS resume requires native WSS ticket observation and existing TLS cache"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
-struct xmqttclientinbox;struct xmqttsession;struct xmqttauthconfig;
+struct xmqttsession;struct xmqttauthconfig;
 typedef struct xmqttclientwsconfig {
     size_t Size;xwsstreamconfig Stream;
     size_t MaxStagedBytes,KeepStagedBytes;
-    struct xmqttclientinbox* Inbox;struct xmqttsession* Session;
+    struct xmqttsession* Session;
     const struct xmqttauthconfig* Auth;
 } xmqttclientwsconfig;
 #define XMQTT_WS_STAGED_MAX 16777216u
 XRT_EXTERN_C_BEGIN
 /* Native client role and exact mqtt subprotocol;1 MiB frame/message/staging caps,
- *64 KiB staging retention. No compression. Optional Inbox/Session/Auth pointers
- * require their existing feature selections. NULL Inbox uses the local queue.
+ *64 KiB staging retention. No compression. Optional Session/Auth pointers
+ * require their existing feature selections. Take received messages with
+ * xmqttClientTakeMessage and retain their references in the application.
  * Public layout is selection-independent. No additional MQTT runtime. */
 XMQTT_API bool xmqttClientWsConfigInit(xmqttclientwsconfig* Config);
 /* Owning native Worker only, OPEN transport, exclusive handoff. The host must
@@ -2692,7 +2693,7 @@ XMQTT_API bool xmqttClientWsConnectConfigInit(xmqttclientwsconnectconfig* Config
  * Dial Host is the counted network name, separately used for default TLS SNI.
  * Numeric/prepared WSS requires explicit TLS peer identity. Config.Dial controls
  * WS and WSS candidates (the TLS argument supplies Session/Stream/metadata).
- * Optional WebSocket.Auth/Session/Inbox compose existing selected features.
+ * Optional WebSocket.Auth and WebSocket.Session compose existing selected features.
  * API success returns an owned Client in CONNECTING; Ready reports typed setup
  * outcomes. Accepted request deadlines include setup queueing. False leaves
  * output unchanged and transfers no caller resources. Resolver is borrowed
@@ -2766,7 +2767,7 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI)
 XRT_EXTERN_C_BEGIN
 /* ws:// only. URI replaces WebSocket.Host/Target; NULL WebSocket selects defaults.
- * Remaining HTTP/native WS/Dial and optional Auth/Session/Inbox policies apply.
+ * Remaining HTTP/native WS/Dial and optional Auth/Session policies apply.
  * Host decodes once to valid UTF-8, rejecting ASCII controls and routing
  * delimiters. Encoded path/query stay byte-exact. Strict numeric IP bypasses
  * Resolver; names borrow Resolver under its existing lifetime contract. No
@@ -3554,7 +3555,7 @@ XRT_EXTERN_C_END
 XRT_EXTERN_C_BEGIN
 /* Durable MQTT 5.0 and 3.1.1 over ws://. Use the matching Session and
  * Inbox-mode Writer as in Client Store. WebSocket may be NULL for defaults.
- * Its embedded volatile Session and Inbox must be NULL. Optional Auth uses
+ * Its embedded Session must be NULL. Optional Auth uses
  * the existing ticket API and gates OPEN on acceptance of final proof.
  * The original SetupTimeout includes DNS, Upgrade, MQTT and durable OPEN.
  * Graceful Disconnect waits for clean WebSocket closure and durable END.
@@ -9389,7 +9390,7 @@ static bool xmqttWsAttach(xmqttclient* C,const xmqttwsplan* P)
 #endif
     C->WS->Stream=xrtWsStreamAttachOwnedV1(P->Native,P->Initial,&P->Config.Stream,C,&XmqttWsEvents);
     if(!C->WS->Stream)return false;
-    C->WS->Config.Stream.Protocol=xrtWsStreamProtocol(C->WS->Stream);C->WS->Config.Auth=NULL;C->WS->Config.Session=NULL;C->WS->Config.Inbox=NULL;return true;
+    C->WS->Config.Stream.Protocol=xrtWsStreamProtocol(C->WS->Stream);C->WS->Config.Auth=NULL;C->WS->Config.Session=NULL;return true;
 }
 static bool xmqttWsClose(xmqttclient* C,bool Abort)
 {
@@ -10954,9 +10955,6 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
 #endif
     {Worker=xrtNetStreamWorker(Native);if(xrtNetStreamState(Native)!=XNET_STREAM_OPEN)return xmqttClientError(XERR_STATE,"WS requires OPEN native TCP");}
     if(!xrtNetWorkerIsCurrent(Worker))return xmqttClientError(XERR_STATE,"WS handoff requires the exclusive native owner");
-#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(K.Inbox)return xmqttClientError(XERR_UNSUPPORTED,"Inbox feature is not selected");
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(K.Session)return xmqttClientError(XERR_UNSUPPORTED,"Session feature is not selected");
 #endif
@@ -10967,7 +10965,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
     if(K.Auth)return xmqttClientError(XERR_UNSUPPORTED,"Auth feature is not selected");
 #endif
     xmqttwsplan P={.Native=Native,.TLS=TLS,.Initial=Initial,.Config=K};xnetengine* Engine=xrtNetWorkerEngine(Worker);
-    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,K.Inbox,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,NULL,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 
@@ -10982,19 +10980,16 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!Policy||!xrtMemRangeValid(Policy,sizeof(*Policy))||xrtMemRangesOverlap(Policy,sizeof(*Policy),Out,sizeof(*Out))||!Q||!xrtMemRangeValid(Q,sizeof(*Q))||xrtMemRangesOverlap(Q,sizeof(*Q),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid WS connect input/output");
     xmqttclientwsconnectconfig K=*Policy;xmqttclientwsconfig W=K.WebSocket;
     if(W.Size!=sizeof(W)||W.Stream.Role!=XWS_ROLE_CLIENT||W.Stream.Protocol.Size!=4||!xrtMemRangeValid(W.Stream.Protocol.Data,4)||memcmp(W.Stream.Protocol.Data,"mqtt",4)||xrtMemRangesOverlap(W.Stream.Protocol.Data,4,Out,sizeof(*Out))||!W.MaxStagedBytes||W.MaxStagedBytes>XMQTT_WS_STAGED_MAX||W.KeepStagedBytes>W.MaxStagedBytes||W.Stream.FrameLimit>W.MaxStagedBytes||W.Stream.DeflateEnabled||!xrtWsStreamConfigValid(&W.Stream))return xmqttClientError(XERR_ARGUMENT,"invalid MQTT WS connect transport policy");
-#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(W.Inbox)return xmqttClientError(XERR_UNSUPPORTED,"WS Inbox feature is not selected");
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(W.Session)return xmqttClientError(XERR_UNSUPPORTED,"WS Session feature is not selected");
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
     xmqttclientstoreplan Durable;
     if(StoreSession||Store){
-        if(W.Session||W.Inbox)return xmqttClientError(XERR_ARGUMENT,"durable WS policy cannot carry a volatile Session or Inbox");
+        if(W.Session)return xmqttClientError(XERR_ARGUMENT,"durable WS policy supplies its Session separately");
         if(!xmqttStorePlanCreate(StoreSession,Store,Out,&Durable))return false;
         W.Session=StoreSession;
-    }else
+    }
 #else
     (void)StoreSession;(void)Store;
 #endif
@@ -11017,7 +11012,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     xmqttwshttp* H=xmqttInternalWsHttpCreate(&K,Out);if(!H)return false;H->Info.Secure=TLS!=NULL;
     W.Stream.Protocol=XRT_STR_LITERAL("mqtt");xmqttwsplan P={.Config=W,.Http=H};xnetaddrlist* Temporary=NULL;
     if(Address){Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary){xmqttInternalWsHttpDrop(H);return false;}Addresses=Temporary;}
-    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,W.Inbox,W.Session,&P
+    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,NULL,W.Session,&P
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
         XMQTT_CLIENT_STORE_ARG(Store?&Durable:NULL)
 #else

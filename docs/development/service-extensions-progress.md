@@ -17820,3 +17820,39 @@ Ordinary maturity passes. Strict release still lists 43 developing
 modules. Moving the remaining shared receive storage, durable APP
 acknowledgements and physical backends, native Linux qualification,
 controlled comparisons and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT WebSocket receive queue ownership
+
+WS/WSS attachment and connection factories use their Client's receive
+queue. The WS policy no longer carries a shared Inbox. The APP may hold a
+Client lease through physical retirement, drain its receive queue and keep
+the owned references. The automated recovery test takes an original
+message before the lease returns, checks the replacement queue and retains
+the exact binary payload beyond both generations and Engine destruction.
+The WSS credential handoff example shares only the protocol Session.
+
+Removing the field changes the public WS and WS connect configuration
+layouts. Direct-header probes measured 168 and 336 bytes on both x64
+environments. The URI header resolves the Core feature selections before
+including HTTP so the WS-only URI selection builds by itself. The combined
+build exposed a dangling else in the existing durable WS branch. Fixing it
+lets the same build select both ordinary and durable WS factories.
+
+Windows x64 and Ubuntu/WSL passed six modular and single-header suites
+covering attach, native connect, URI, reconnect, TLS resumption and
+durable WS. Both static and shared packages passed their consumer tests.
+The 72 reconnect cases also passed on IOCP and WSL epoll. Each
+environment passed six WS/WSS benchmark smoke workloads.
+
+Through the independent WS gateway to pinned Mosquitto 2.0.22 in WSL,
+Windows and WSL clients passed 48 incoming QoS 2 acknowledgement-loss
+cases. These span MQTT 5 and 3.1.1, WS, WSS with TLS 1.2 and 1.3, the
+PUBREC and PUBCOMP cuts and normal/fragmented delivery. WSL ASan/UBSan
+with leak detection also passed the automatic WS/WSS recovery suite.
+
+Evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-ws-receive/`.
+Strict release still lists 43 developing MQTT modules. Shared receive
+storage on TCP/TLS and durable business acknowledgements and physical
+backends remain to be migrated. Native Linux qualification, controlled
+performance comparisons and 72-hour mixed-load acceptance remain open.

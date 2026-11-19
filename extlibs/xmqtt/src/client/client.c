@@ -2541,7 +2541,7 @@ static bool xmqttWsAttach(xmqttclient* C,const xmqttwsplan* P)
 #endif
     C->WS->Stream=xrtWsStreamAttachOwnedV1(P->Native,P->Initial,&P->Config.Stream,C,&XmqttWsEvents);
     if(!C->WS->Stream)return false;
-    C->WS->Config.Stream.Protocol=xrtWsStreamProtocol(C->WS->Stream);C->WS->Config.Auth=NULL;C->WS->Config.Session=NULL;C->WS->Config.Inbox=NULL;return true;
+    C->WS->Config.Stream.Protocol=xrtWsStreamProtocol(C->WS->Stream);C->WS->Config.Auth=NULL;C->WS->Config.Session=NULL;return true;
 }
 static bool xmqttWsClose(xmqttclient* C,bool Abort)
 {
@@ -4106,9 +4106,6 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
 #endif
     {Worker=xrtNetStreamWorker(Native);if(xrtNetStreamState(Native)!=XNET_STREAM_OPEN)return xmqttClientError(XERR_STATE,"WS requires OPEN native TCP");}
     if(!xrtNetWorkerIsCurrent(Worker))return xmqttClientError(XERR_STATE,"WS handoff requires the exclusive native owner");
-#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(K.Inbox)return xmqttClientError(XERR_UNSUPPORTED,"Inbox feature is not selected");
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(K.Session)return xmqttClientError(XERR_UNSUPPORTED,"Session feature is not selected");
 #endif
@@ -4119,7 +4116,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
     if(K.Auth)return xmqttClientError(XERR_UNSUPPORTED,"Auth feature is not selected");
 #endif
     xmqttwsplan P={.Native=Native,.TLS=TLS,.Initial=Initial,.Config=K};xnetengine* Engine=xrtNetWorkerEngine(Worker);
-    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,K.Inbox,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,NULL,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 
@@ -4134,19 +4131,16 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     if(!Out||!xrtMemRangeValid(Out,sizeof(*Out))||!Policy||!xrtMemRangeValid(Policy,sizeof(*Policy))||xrtMemRangesOverlap(Policy,sizeof(*Policy),Out,sizeof(*Out))||!Q||!xrtMemRangeValid(Q,sizeof(*Q))||xrtMemRangesOverlap(Q,sizeof(*Q),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid WS connect input/output");
     xmqttclientwsconnectconfig K=*Policy;xmqttclientwsconfig W=K.WebSocket;
     if(W.Size!=sizeof(W)||W.Stream.Role!=XWS_ROLE_CLIENT||W.Stream.Protocol.Size!=4||!xrtMemRangeValid(W.Stream.Protocol.Data,4)||memcmp(W.Stream.Protocol.Data,"mqtt",4)||xrtMemRangesOverlap(W.Stream.Protocol.Data,4,Out,sizeof(*Out))||!W.MaxStagedBytes||W.MaxStagedBytes>XMQTT_WS_STAGED_MAX||W.KeepStagedBytes>W.MaxStagedBytes||W.Stream.FrameLimit>W.MaxStagedBytes||W.Stream.DeflateEnabled||!xrtWsStreamConfigValid(&W.Stream))return xmqttClientError(XERR_ARGUMENT,"invalid MQTT WS connect transport policy");
-#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(W.Inbox)return xmqttClientError(XERR_UNSUPPORTED,"WS Inbox feature is not selected");
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(W.Session)return xmqttClientError(XERR_UNSUPPORTED,"WS Session feature is not selected");
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
     xmqttclientstoreplan Durable;
     if(StoreSession||Store){
-        if(W.Session||W.Inbox)return xmqttClientError(XERR_ARGUMENT,"durable WS policy cannot carry a volatile Session or Inbox");
+        if(W.Session)return xmqttClientError(XERR_ARGUMENT,"durable WS policy supplies its Session separately");
         if(!xmqttStorePlanCreate(StoreSession,Store,Out,&Durable))return false;
         W.Session=StoreSession;
-    }else
+    }
 #else
     (void)StoreSession;(void)Store;
 #endif
@@ -4169,7 +4163,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     xmqttwshttp* H=xmqttInternalWsHttpCreate(&K,Out);if(!H)return false;H->Info.Secure=TLS!=NULL;
     W.Stream.Protocol=XRT_STR_LITERAL("mqtt");xmqttwsplan P={.Config=W,.Http=H};xnetaddrlist* Temporary=NULL;
     if(Address){Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary){xmqttInternalWsHttpDrop(H);return false;}Addresses=Temporary;}
-    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,W.Inbox,W.Session,&P
+    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,NULL,W.Session,&P
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
         XMQTT_CLIENT_STORE_ARG(Store?&Durable:NULL)
 #else

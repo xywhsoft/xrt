@@ -3,15 +3,15 @@
 Use the existing `xmqtt_reconnect` or `xmqtt_reconnect_subscriptions` controller
 with the ordinary [native WS/WSS](client_ws_connect.md) or [URI](client_ws_uri.md)
 connection factories. Pass the supplied Session, Engine and affinity to each
-connection. Factories use the copied Client config and can supply their own
-receive queue policy.
+connection. The copied Client config carries the APP's receive notification.
 
 The [runnable example](../examples/reconnect_ws/README.md) includes a small
 application-owned [endpoint adapter](../examples/reconnect_ws/endpoint.h). Bind
-WebSocket.Session to the controller Session. WebSocket.Inbox is an optional
-APP owner. URI/HTTP/TLS/CONNECT/auth
-snapshot per attempt; the persistent endpoint's URI, policy, Resolver, trust and
-callback/code lifetimes still extend through controller Destroy. Do not release
+WebSocket.Session to the controller Session. The application can take messages
+in Client.Notify or drain a retired Client while it holds the lease.
+The factory snapshots URI, HTTP, TLS, CONNECT and authentication per attempt.
+Keep the endpoint's URI, policy, Resolver, trust and callback code alive
+through controller Destroy. Do not release
 its verifier after Create if a later Factory will reuse it. Construction refusals
 return an explicit typed status from a fresh diagnostic scope; stale ambient
 errors do not select retry policy. No second protocol runtime or payload/Future
@@ -55,7 +55,7 @@ The [source-bound report](../../../docs/development/xmqtt-websocket-reconnect-20
 records actual final checks and original/compressed binary identities. Literal
 native peers exercise numeric/DNS/prepared and three URI routes, both MQTT versions,
 three outgoing ACK cuts, conservative old outcomes, canonical identifier/DUP/
-PUBREL replay, Inbox, retained/lost subscriptions, original HTTP/DNS deadlines,
+PUBREL replay, APP message retention, retained/lost subscriptions, original HTTP/DNS deadlines,
 stop, actual OOM/owner balance, held tickets/native aliases and proof/reauth.
 
 The independent [gateway](../tests/interop/reconnect_ws_gateway.py) implements

@@ -8,7 +8,7 @@ uses it for the second connection before DNS. The caller alias is released as
 soon as admission retains it. Each connection still performs fresh CONNACK and
 QoS1 PUBACK. Both perform strict MQTT/WS/TLS shutdown and actual native joins.
 The MQTT5 Session Expiry is60s;311 uses persistent Clean Session from the first
-connection. One bounded local Session and Inbox live across both Client owners;
+connection. One bounded protocol Session lives across both Client owners;
 accepting broker SessionPresent without corresponding local state is an error.
 TLS resumption is separate from MQTT session continuity.
 
