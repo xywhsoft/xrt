@@ -5970,6 +5970,91 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_server_shared",
+      "system": "server",
+      "description": "One TCP publisher routes 128-byte QoS 0 payloads to exactly one member of a shared subscription on two XRT workers.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_server_shared_1",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "1",
+            "10000",
+            "2",
+            "shared"
+          ],
+          "smoke_args": [
+            "1",
+            "8",
+            "2",
+            "shared"
+          ],
+          "metrics": {
+            "deliveries_per_sec": {
+              "direction": "higher",
+              "unit": "deliveries/s"
+            },
+            "delivery_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_delivery": {
+              "direction": "lower",
+              "unit": "blocks/delivery"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_server_shared_64",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "64",
+            "10000",
+            "2",
+            "shared"
+          ],
+          "smoke_args": [
+            "64",
+            "8",
+            "2",
+            "shared"
+          ],
+          "metrics": {
+            "deliveries_per_sec": {
+              "direction": "higher",
+              "unit": "deliveries/s"
+            },
+            "delivery_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_delivery": {
+              "direction": "lower",
+              "unit": "blocks/delivery"
+            }
+          }
+        }
+      ]
     }
   ]
 }

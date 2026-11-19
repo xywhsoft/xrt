@@ -43,18 +43,21 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		benchReceive(Socket, Reply + 2, Reply[1]) && !Reply[2] && !Reply[3];
 }
 
-static bool benchSubscribe(xnetsocket Socket, bool Overlap)
+static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared)
 {
 	const unsigned char Request[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
+	const unsigned char Group[] = {0x82,19,0,1,0,0,13,'$','s','h','a','r','e','/','g','/','l','o','a','d',0};
 	const unsigned char Extra[] = {0x82,16,0,1,0,0,4,'l','o','a','d',0,0,3,'+','/','#',0};
 	const unsigned char Ack[] = {0x90,4,0,1,0,0}, ExtraAck[] = {0x90,5,0,1,0,0,0};
 	unsigned char Reply[sizeof(ExtraAck)];
 	size_t Bytes = Overlap ? sizeof(ExtraAck) : sizeof(Ack);
-	return benchSend(Socket, Overlap ? Extra : Request, Overlap ? sizeof(Extra) : sizeof(Request)) &&
+	const unsigned char* Wire = Shared ? Group : (Overlap ? Extra : Request);
+	size_t WireSize = Shared ? sizeof(Group) : (Overlap ? sizeof(Extra) : sizeof(Request));
+	return benchSend(Socket, Wire, WireSize) &&
 		benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Overlap ? ExtraAck : Ack, Bytes);
 }
 
-static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, double* Samples)
+static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, size_t Deliveries, bool Shared, double* Samples)
 {
 	/* MQTT 5 packet with 128 bytes of binary payload and no properties. */
 	unsigned char Frame[138] = {0x30,0x87,1,0,4,'l','o','a','d',0};
@@ -65,7 +68,10 @@ static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Ro
 	double SentAt = xrtTimer();
 	if (!benchSend(Sockets[Peers], Frame, sizeof(Frame))) return false;
 	size_t First = Round % Peers;
-	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+	/* Group membership adds to the head. The first joiner starts the
+	 * cursor and later joiners are traversed in reverse join order. */
+	if (Shared && First) First = Peers - First;
+	for (size_t Offset = 0; Offset < Deliveries; ++Offset) {
 		unsigned char Reply[sizeof(Frame)];
 		if (!benchReceive(Sockets[(First + Offset) % Peers], Reply, sizeof(Reply)) ||
 			memcmp(Reply, Frame, sizeof(Frame))) return false;
@@ -94,8 +100,10 @@ int main(int Argc, char** Argv)
 	if (Peers < 1 || Peers > 4096 || Rounds < 1 || Rounds > 10000 || Workers < 1 || Workers > 32)
 		return 1;
 	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
-	bool Routing = Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
-	const size_t Connections = Peers + Routing, Count = Peers * Rounds;
+	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
+	bool Routing = Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
+	const size_t Connections = Peers + Routing, Deliveries = Shared ? 1 : Peers;
+	const size_t Count = Deliveries * Rounds;
 	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
 	double* ConnectSamples = malloc(Connections * sizeof(*ConnectSamples));
 	double* SentAt = malloc(Peers * sizeof(*SentAt));
@@ -123,9 +131,9 @@ int main(int Argc, char** Argv)
 	double ConnectSeconds = xrtTimer() - Start;
 
 	if (Routing) {
-		Stage = "subscribe exact topic";
+		Stage = "subscribe topic";
 		for (size_t Index = 0; Index < Peers; ++Index) {
-			if (!benchSubscribe(Sockets[Index], Overlap)) goto Done;
+			if (!benchSubscribe(Sockets[Index], Overlap, Shared)) goto Done;
 		}
 	}
 	Stage = Routing ? "publish and verify fan-out" : "send PING and receive PINGRESP";
@@ -135,7 +143,7 @@ int main(int Argc, char** Argv)
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
 		if (Routing) {
-			if (!benchPublishRound(Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
+			if (!benchPublishRound(Sockets, Peers, Round, Deliveries, Shared, PingSamples + Round * Deliveries)) goto Done;
 			continue;
 		}
 		/* Rotate the first connection to spread sequential peer-side work. */

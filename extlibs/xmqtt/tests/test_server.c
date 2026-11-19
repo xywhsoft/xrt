@@ -221,7 +221,7 @@ static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uin
 	serverRecv(Socket, Reply + 2, Bytes);
 	testRequire(Reply[2] == 0 && Reply[3] == Reason, "CONNACK session flag and reason");
 	if (Version == XMQTT_VERSION_5 && !Reason) {
-		const unsigned char Limits[] = {15, 36, 0, 37, 0, 40, Wildcard, 41, 0, 42, 0, 39, 0, 0, 1, 0};
+		const unsigned char Limits[] = {15, 36, 0, 37, 0, 40, Wildcard, 41, 0, 42, 1, 39, 0, 0, 1, 0};
 		testRequire(Bytes == 2 + sizeof(Limits) && !memcmp(Reply + 4, Limits, sizeof(Limits)),
 			"CONNACK advertises negotiated limits");
 	}
@@ -562,11 +562,81 @@ static void serverWildcardRoutes(xmqttversion Version)
 	serverEof(Consumer);
 }
 
+static void serverSharedRoutes(void)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	unsigned char Wire[64];
+	xnetsocket Producer = serverDial(&Fixture), A = serverDial(&Fixture), B = serverDial(&Fixture);
+	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
+	serverConnack(Producer, XMQTT_VERSION_5, 0);
+	serverSend(A, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "team"));
+	serverConnack(A, XMQTT_VERSION_5, 0);
+	serverSend(B, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "peer"));
+	serverConnack(B, XMQTT_VERSION_5, 0);
+
+	const char* Team[] = {"$share/team/data/#"};
+	const char* Ordinary[] = {"data/item"};
+	const char* OtherGroup[] = {"$share/alt/+/#"};
+	const char* ExactGroup[] = {"$share/exact/data/item"};
+	const uint8 Grant[] = {0}, Absent[] = {0x11}, Quota[] = {0x97};
+	serverSubscribeWire(A, XMQTT_VERSION_5, true, 1, Team, Grant, Grant, 1);
+	serverSubscribeWire(A, XMQTT_VERSION_5, true, 2, Team, Grant, Grant, 1);
+	serverSubscribeWire(B, XMQTT_VERSION_5, true, 1, Team, Grant, Grant, 1);
+	serverSubscribeWire(A, XMQTT_VERSION_5, true, 3, Ordinary, Grant, Grant, 1);
+	serverSubscribeWire(B, XMQTT_VERSION_5, true, 2, OtherGroup, Grant, Grant, 1);
+	serverSubscribeWire(A, XMQTT_VERSION_5, true, 4, ExactGroup, Grant, Quota, 1);
+
+	const unsigned char Payload[] = {0, 0x74, 0xff};
+	for (unsigned Round = 0; Round < 2; ++Round) {
+		serverSend(Producer, Wire, serverPublishWire(Wire, XMQTT_VERSION_5, "data/item",
+			Payload, sizeof(Payload), NULL, 0));
+		serverPingPeer(Producer);
+		/* The same shared filter alternates independently of the ordinary
+		 * match and the second, overlapping shared filter. */
+		for (unsigned I = 0; I < 2 - Round; ++I)
+			serverExpectPublish(A, XMQTT_VERSION_5, "data/item", Payload, sizeof(Payload), NULL, 0);
+		for (unsigned I = 0; I < 1 + Round; ++I)
+			serverExpectPublish(B, XMQTT_VERSION_5, "data/item", Payload, sizeof(Payload), NULL, 0);
+		serverPingPeer(A);
+		serverPingPeer(B);
+	}
+	serverSend(Producer, Wire, serverPublishWire(Wire, XMQTT_VERSION_5, "$SYS/time",
+		Payload, sizeof(Payload), NULL, 0));
+	serverPingPeer(Producer);
+	serverPingPeer(A);
+	serverPingPeer(B);
+
+	serverSubscribeWire(A, XMQTT_VERSION_5, false, 5, Team, NULL, Grant, 1);
+	serverSubscribeWire(A, XMQTT_VERSION_5, false, 6, Team, NULL, Absent, 1);
+	serverSubscribeWire(A, XMQTT_VERSION_5, true, 7, ExactGroup, Grant, Grant, 1);
+	serverSend(Producer, Wire, serverPublishWire(Wire, XMQTT_VERSION_5, "data/item",
+		Payload, sizeof(Payload), NULL, 0));
+	serverPingPeer(Producer);
+	for (unsigned I = 0; I < 2; ++I) {
+		serverExpectPublish(A, XMQTT_VERSION_5, "data/item", Payload, sizeof(Payload), NULL, 0);
+		serverExpectPublish(B, XMQTT_VERSION_5, "data/item", Payload, sizeof(Payload), NULL, 0);
+	}
+
+	const unsigned char Disconnect[] = {0xe0, 0};
+	serverSend(B, Disconnect, sizeof(Disconnect));
+	serverEof(B);
+	serverConnections(&Fixture, 2);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) &&
+		Info.Subscriptions == 2 && !Info.WildcardNodes, "retirement removes empty shared groups and trie branches");
+	serverSubscribeWire(A, XMQTT_VERSION_5, false, 8, Ordinary, NULL, Grant, 1);
+	serverPublishCheck(Producer, A, XMQTT_VERSION_5, "data/item", true);
+	serverStop(&Fixture);
+	serverEof(Producer);
+	serverEof(A);
+}
+
 typedef struct serverWildcardSender {
 	xnetsocket Socket;
 	xatomic32* Start;
 	const char* Topic;
-	uint8 Source;
+	uint8 Source, Rounds;
 } serverWildcardSender;
 
 static int32 serverWildcardSend(ptr Data)
@@ -577,7 +647,7 @@ static int32 serverWildcardSend(ptr Data)
 		testRequire(xrtTimer() < Until, "wildcard producer start");
 		xrtSleep(1);
 	}
-	for (uint8 Index = 0; Index < 4; ++Index) {
+	for (uint8 Index = 0; Index < Sender->Rounds; ++Index) {
 		unsigned char Wire[32];
 		const unsigned char Payload[] = {Sender->Source, Index};
 		size_t Size = serverPublishWire(Wire, XMQTT_VERSION_5, Sender->Topic, Payload, sizeof(Payload), NULL, 0);
@@ -587,7 +657,7 @@ static int32 serverWildcardSend(ptr Data)
 	return 0;
 }
 
-static void serverConcurrentWildcards(void)
+static void serverConcurrentRoutes(bool Shared)
 {
 	serverfixture Fixture;
 	serverStartConfigured(&Fixture, false, 0, true, 65536);
@@ -600,14 +670,15 @@ static void serverConcurrentWildcards(void)
 		serverSend(Socket[Index], Wire, Size);
 		serverConnack(Socket[Index], XMQTT_VERSION_5, 0);
 	}
-	const char* Filters[] = {"#", "a/+"};
+	const char* Filters[] = {"#", Shared ? "$share/group/+/+" : "a/+"};
 	const uint8 Accepted[] = {0, 0};
 	serverSubscribeWire(Socket[2], XMQTT_VERSION_5, true, 1, Filters, Accepted, Accepted, 2);
 	const char* Topics[] = {"a/x", "b/x"};
 	xatomic32 Start;
 	xrtAtomic32Init(&Start, 0);
+	const uint8 Copies = Shared ? 2 : 1, Rounds = Shared ? 3 : 4;
 	serverWildcardSender Senders[] = {
-		{Socket[0], &Start, Topics[0], 0}, {Socket[1], &Start, Topics[1], 1}
+		{Socket[0], &Start, Topics[0], 0, Rounds}, {Socket[1], &Start, Topics[1], 1, Rounds}
 	};
 	xthread* Threads[2] = {
 		xrtThreadCreate(serverWildcardSend, &Senders[0], 0), xrtThreadCreate(serverWildcardSend, &Senders[1], 0)
@@ -615,15 +686,15 @@ static void serverConcurrentWildcards(void)
 	testRequire(Threads[0] && Threads[1], "concurrent wildcard producers");
 	xrtAtomic32Store(&Start, 1, XMEMORY_RELEASE);
 	uint8 Next[] = {0, 0};
-	for (size_t Index = 0; Index < 8; ++Index) {
-		/* This literal wire fixture receives exactly one copy from the
-		 * matching root and literal-prefix filters. */
+	for (size_t Index = 0; Index < 2u * Copies * Rounds; ++Index) {
+		/* Overlapping ordinary matches give one copy. A matching shared
+		 * subscription contributes its own delivery to the same peer. */
 		unsigned char Received[10];
 		serverRecv(Socket[2], Received, sizeof(Received));
 		uint8 Source = Received[8];
-		testRequire(Source < 2 && Next[Source] < 4, "bounded wildcard source sequence");
+		testRequire(Source < 2 && Next[Source] < Copies * Rounds, "bounded wildcard source sequence");
 		unsigned char Expected[10];
-		const unsigned char Payload[] = {Source, Next[Source]++};
+		const unsigned char Payload[] = {Source, Next[Source]++ / Copies};
 		testRequire(serverPublishWire(Expected, XMQTT_VERSION_5, Topics[Source], Payload, sizeof(Payload),
 			NULL, 0) == sizeof(Expected) && !memcmp(Received, Expected, sizeof(Expected)),
 			"concurrent wildcard publication order and bytes");
@@ -633,7 +704,7 @@ static void serverConcurrentWildcards(void)
 		testRequire(xrtThreadWaitFor(Threads[Index], 5000) == XWAIT_OK, "wildcard producer joins");
 		xrtThreadDestroy(Threads[Index]);
 	}
-	testRequire(Next[0] == 4 && Next[1] == 4, "both wildcard producers fully delivered");
+	testRequire(Next[0] == Copies * Rounds && Next[1] == Copies * Rounds, "both wildcard producers fully delivered");
 	serverStop(&Fixture);
 	for (size_t Index = 0; Index < 3; ++Index) serverEof(Socket[Index]);
 }
@@ -665,9 +736,10 @@ static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
 	serverStartConfigured(&Fixture, false, 0, false, 0);
-	static const struct {unsigned char Wire[16]; size_t Size; uint8 Reason;} Cases[] = {
+	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
+		{{0x82,16,0,1,0,0,10,'$','s','h','a','r','e','/','g','/','a',4}, 18, 0},
 		{{0x82,9,0,1,2,11,1,0,1,'a',0}, 11, 0xa1},
 		{{0x31,4,0,1,'a',0}, 6, 0x9a},
 		{{0x32,6,0,1,'a',0,1,0}, 8, 0x9b},
@@ -702,7 +774,7 @@ static void serverRoutingOom(void)
 		xallocationscope Scope = {0};
 		testRequire(xrtAllocationBudgetCreate(Limits[Index], &Budget) &&
 			xrtAllocationBudgetEnter(Budget, &Scope), "index failpoint scope");
-		uint8 Reason = xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), false);
+		uint8 Reason = xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, false);
 		testRequire(xrtAllocationBudgetLeave(&Scope) && Reason == 0x83 && !Peer.Links &&
 			!Peer.LinkCount, "subscription node or topic insertion OOM rolls back");
 		xallocationbudgetinfo Allocation = {.Size = sizeof(Allocation)};
@@ -713,8 +785,8 @@ static void serverRoutingOom(void)
 	}
 	xmqttserverinfo Info;
 	testRequire(xmqttServerInfo(Fixture.Server, &Info) && !Info.Subscriptions, "aggregate quota restored");
-	testRequire(xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), false) == 0 &&
-		xmqttServerUnsubscribe(&Peer, XRT_BYTES_LITERAL("index-failure")), "successful retry after OOM");
+	testRequire(xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, false) == 0 &&
+		xmqttServerUnsubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}), "successful retry after OOM");
 	xallocationbudget* TrieBudget;
 	xallocationscope TrieScope = {0};
 	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverwildnode) + 1, &TrieBudget) &&
@@ -758,6 +830,46 @@ static void serverRoutingOom(void)
 		xmqttServerAddTarget(&Targets, TargetsFixture) && Targets.Count == 49,
 		"recipient set retry and deduplication after growth");
 	xrtFree(Targets.Slots);
+
+	xbytesview SharedKey = XRT_BYTES_LITERAL("shared/#"), Team = XRT_BYTES_LITERAL("team");
+	testRequire(xmqttServerSubscribe(&Peer, SharedKey, (xbytesview){0}, false) == 0,
+		"ordinary route anchors the group allocation failpoint");
+	xallocationbudget* GroupBudget;
+	xallocationscope GroupScope = {0};
+	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverlink), &GroupBudget) &&
+		xrtAllocationBudgetEnter(GroupBudget, &GroupScope), "shared group failpoint scope");
+	uint8 SharedResult = xmqttServerSubscribe(&Peer, SharedKey, Team, false);
+	testRequire(xrtAllocationBudgetLeave(&GroupScope) && SharedResult == 0x83 &&
+		Peer.LinkCount == 1 && !Peer.Links->Topic->Shares, "shared group OOM preserves existing route");
+	xallocationbudgetinfo GroupAllocation = {.Size = sizeof(GroupAllocation)};
+	testRequire(xrtAllocationBudgetInfo(GroupBudget, &GroupAllocation) &&
+		GroupAllocation.Rejections && !GroupAllocation.LiveBytes, "shared group OOM rolls back its link and quota");
+	xrtClearError();
+	xrtAllocationBudgetFree(GroupBudget);
+	testRequire(xmqttServerSubscribe(&Peer, SharedKey, Team, false) == 0 &&
+		xmqttServerUnsubscribe(&Peer, SharedKey, Team) &&
+		xmqttServerUnsubscribe(&Peer, SharedKey, (xbytesview){0}), "shared group allocation retries cleanly");
+
+	xmqttservershare Shares[17] = {0};
+	for (size_t Index = 0; Index < 15; ++Index) Shares[Index].Next = Shares + Index + 1;
+	xmqttservertopic SharedTopic = {.Shares = Shares};
+	Targets.Shares = Targets.LocalShares;
+	Targets.ShareCapacity = sizeof(Targets.LocalShares) / sizeof(Targets.LocalShares[0]);
+	testRequire(xmqttServerCollectShares(&Targets, &SharedTopic) && Targets.ShareCount == 16,
+		"shared groups fit within the local batch");
+	SharedTopic.Shares = Shares + 16;
+	xallocationbudget* ShareBatchBudget;
+	xallocationscope ShareBatchScope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &ShareBatchBudget) &&
+		xrtAllocationBudgetEnter(ShareBatchBudget, &ShareBatchScope), "group batch growth failpoint");
+	bool Collected = xmqttServerCollectShares(&Targets, &SharedTopic);
+	testRequire(xrtAllocationBudgetLeave(&ShareBatchScope) && !Collected && Targets.ShareCount == 16 &&
+		Targets.Shares == Targets.LocalShares, "group batch allocation failure preserves matching groups");
+	xrtClearError();
+	xrtAllocationBudgetFree(ShareBatchBudget);
+	testRequire(xmqttServerCollectShares(&Targets, &SharedTopic) && Targets.ShareCount == 17 &&
+		Targets.Shares[0] == Shares && Targets.Shares[16] == Shares + 16, "group batch growth retry");
+	xrtFree(Targets.Shares);
 	serverStop(&Fixture);
 }
 #endif
@@ -769,7 +881,9 @@ int main(void)
 	serverAdvertisedCapabilities();
 	serverWildcardRoutes(XMQTT_VERSION_5);
 	serverWildcardQuota();
-	serverConcurrentWildcards();
+	serverSharedRoutes();
+	serverConcurrentRoutes(false);
+	serverConcurrentRoutes(true);
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	serverCompatibility();
 	serverRouting(XMQTT_VERSION_311);
@@ -783,6 +897,6 @@ int main(void)
 	xnetsocket Socket = serverDial(&Fixture);
 	serverEof(Socket);
 	serverStop(&Fixture);
-	puts("[PASS] MQTT TCP CONNECT, exact and wildcard QoS0 routing, quotas, authorization, takeover, deadlines, OOM and retirement");
+	puts("[PASS] MQTT TCP CONNECT, exact, wildcard and shared QoS0 routing, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;
 }

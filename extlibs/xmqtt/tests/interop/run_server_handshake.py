@@ -100,6 +100,33 @@ def check_wildcards(legacy, modern):
     assert read(legacy, 2) == b"\xd0\0", "unsubscribe removes the matching wildcard paths"
 
 
+def check_shared(endpoint, legacy, modern):
+    peer, _ = connect(endpoint, 5, b"group")
+    group = b"$share/g/Case/+"
+    with peer:
+        for consumer in (modern, peer):
+            consumer.sendall(small_frame(0x82, b"\0\x06\0" + topic(group) + b"\0"))
+            assert read(consumer, 6) == b"\x90\x04\0\x06\0\0"
+        for winner, other in ((modern, peer), (peer, modern)):
+            data = topic(b"Case/item")
+            legacy.sendall(small_frame(0x30, data + b"payload") + b"\xc0\0")
+            assert read(legacy, 2) == b"\xd0\0"
+            expected = small_frame(0x30, data + b"\0payload")
+            assert read(winner, len(expected)) == expected
+            other.sendall(b"\xc0\0")
+            assert read(other, 2) == b"\xd0\0", "one peer per shared subscription"
+
+        legacy.sendall(small_frame(0x82, b"\0\x07" + topic(group) + b"\0"))
+        assert read(legacy, 5) == b"\x90\x03\0\x07\0"
+        data = topic(b"$share/g/Case/item")
+        modern.sendall(small_frame(0x30, data + b"\0literal"))
+        expected = small_frame(0x30, data + b"literal")
+        assert read(legacy, len(expected)) == expected
+        for consumer in (modern, peer):
+            consumer.sendall(b"\xc0\0")
+            assert read(consumer, 2) == b"\xd0\0"
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -129,6 +156,7 @@ def probe(program):
                         assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
                         check_routes(legacy, newer)
                         check_wildcards(legacy, newer)
+                        check_shared(endpoint, legacy, newer)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -139,7 +167,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -150,7 +178,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact and wildcard routing")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard and shared routing")
 
 
 if __name__ == "__main__":

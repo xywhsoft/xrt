@@ -16376,3 +16376,33 @@ producer. Every measured call completed correctly. The variation gate
 reported 14 violations on Windows and 11 on WSL. The native Linux, controlled
 baseline and transport workload gates remain open. Raw reports are in
 out/service-extensions/scope-reduction-20261119/xrpc-concurrent-*.json.
+
+## 2026-11-19 MQTT 5 shared subscription routing
+
+QoS 0 publishers route each matched share name and topic filter to one member.
+A per-group atomic round-robin cursor runs under the existing shard read lock.
+Ordinary subscriptions and different matching groups keep their own deliveries.
+MQTT 3.1.1 keeps literal prefix behavior. Group memory is released when the
+last member unsubscribes or retires.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5 and dual-version modular and
+single-header tests, static and shared consumers, server dependency trimming
+and an independent Python peer. Tests cover shared and ordinary overlap,
+parallel publishers, wildcard namespace boundaries, duplicate subscribe,
+No Local rejection, membership retirement and allocation rollback. Dual
+WSL ASan/UBSan and focused Clang TSan also passed.
+
+Three unpinned runs per host routed 10,000 verified 128-byte loopback
+publications with two workers and one publisher per workload.
+
+| Host | Shared group members | Deliveries/s | P99 (us) | P99.9 (us) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 35,376 | 51.7 | 100.4 |
+| Windows x64 | 64 | 45,257 | 44.4 | 93.3 |
+| Ubuntu/WSL x64 | 1 | 12,296 | 133.3 | 228.2 |
+| Ubuntu/WSL x64 | 64 | 14,909 | 127.6 | 211.3 |
+
+Every round reached the expected member. Exact-topic comparison workloads
+also completed. The variation gate reported 13 violations on Windows and
+seven on WSL. Reports, compiler details and raw logs are in
+out/service-extensions/scope-reduction-20261119/xmqtt-shared-*.
