@@ -516,7 +516,8 @@
         "xredis_command_keys",
         "xredis_cluster_command",
         "xredis_cluster_client_sync",
-        "xredis_cluster_command_sync"
+        "xredis_cluster_command_sync",
+        "xredis_cluster_command_cache"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -959,7 +960,8 @@
         "xredis_cluster_client_tests",
         "xredis_command_keys_tests",
         "xredis_cluster_command_tests",
-        "xredis_cluster_sync_tests"
+        "xredis_cluster_sync_tests",
+        "xredis_cluster_command_cache_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -1058,7 +1060,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_command_keys.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_client_sync.c",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_sync.c"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_sync.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1120,7 +1123,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_command_keys.c": "xredis_command_keys",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c": "xredis_cluster_command",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_client_sync.c": "xredis_cluster_client_sync",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_sync.c": "xredis_cluster_command_sync"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_sync.c": "xredis_cluster_command_sync",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c": "xredis_cluster_command_cache_tests"
       }
     },
     {
@@ -2406,6 +2410,41 @@
       "docs": [
         "extlibs/xredis/docs/cluster_sync.md"
       ]
+    },
+    {
+      "name": "xredis_cluster_command_cache",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE",
+      "depends": [
+        "xredis_cluster_client_sync",
+        "xredis_cluster_command"
+      ],
+      "public_headers": ["extlibs/xredis/include/xredis/cluster_command_cache.h"],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": ["extlibs/xredis/examples/cluster_command_cache/main.c"],
+      "benchmarks": ["extlibs/xredis/bench/bench_cluster_command.c"],
+      "docs": [
+        "extlibs/xredis/docs/cluster_command_cache.md",
+        "extlibs/xredis/examples/cluster_command_cache/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_command_cache_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": ["xredis_cluster_command_cache", "memory_stats", "thread"],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": ["extlibs/xredis/tests/test_cluster_command_cache.c"],
+      "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c"],
+      "examples": [],
+      "benchmarks": [],
+      "docs": ["extlibs/xredis/docs/cluster_command_cache.md"]
     }
   ]
 }

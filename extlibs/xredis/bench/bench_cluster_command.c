@@ -13,8 +13,22 @@ int main(int Argc,char** Argv)
 {
     size_t Count=Argc>1?(size_t)strtoull(Argv[1],NULL,10):20000;unsigned Mode=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):1;bool Heap=Argc>3 && strtoul(Argv[3],NULL,10)!=0;size_t Pipeline=Argc>4?(size_t)strtoull(Argv[4],NULL,10):32;
     unsigned Affinity=Argc>5?(unsigned)strtoul(Argv[5],NULL,10):1;
-    if(!Count || Count>1000000 || Mode>2 || !Pipeline || Pipeline>32 || Affinity>1 || Argc>6)return 2;
-    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");rffixture* F=qpStart();xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);xrediscommandcatalog* Catalogue=qpCatalogue(1,NULL);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+    const unsigned MaxMode=3;
+#else
+    const unsigned MaxMode=2;
+#endif
+    if(!Count || Count>1000000 || Mode>MaxMode || !Pipeline || Pipeline>32 || Affinity>1 || Argc>6)return 2;
+    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");rffixture* F=qpStart();xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);
+    xrediscommandcatalog* Catalogue=Mode==3?NULL:qpCatalogue(1,NULL);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+    if(Mode==3){
+        xredisclusterwait Metadata;
+        redisPeerRequire(xredisClusterClientRefreshCommandCatalog(C,1,NULL,5000,&Metadata)==XREDIS_CLUSTER_CATALOG_READY,
+            "benchmark warms real catalogue cache before measurement");
+        xrtFutureDestroy(Metadata.Future);
+    }
+#endif
     xredisclusteraddress Address=nnAddress(F->Base,0);xredispool* Pool=NULL;redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"managed benchmark shared baseline");nnReady(Pool,1);
     xfuture* Futures[32]={0};double Submitted[32]={0};const xbytesview A[]={XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("owned\0{22179}")};uint64 Sum=0;
 #if defined(XRT_FEATURE_MEMORY_STATS)
@@ -24,11 +38,17 @@ int main(int Argc,char** Argv)
 #endif
     double Began=xrtTimer();
     for(size_t N=0;N<Count+Pipeline;++N){size_t I=N%Pipeline;
-        if(N>=Pipeline && Futures[I]){redisPeerRequire(xrtFutureWaitFor(Futures[I],15000)==XWAIT_OK,"managed benchmark bounded wait");const xredisrequestresult* Q;
-            if(Mode<=2){const xredisclusterclientresult* V=xrtFutureValue(Futures[I]);redisPeerRequire(V && V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");Q=&V->Route.Query;}
-            else Q=xrtFutureValue(Futures[I]);
+        if(N>=Pipeline && Futures[I]){redisPeerRequire(xrtFutureWaitFor(Futures[I],15000)==XWAIT_OK,"managed benchmark bounded wait");const xredisclusterclientresult* Result=xrtFutureValue(Futures[I]);
+            redisPeerRequire(Result && Result->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
+                Result->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");
+            const xredisrequestresult* Q=&Result->Route.Query;
             redisPeerRequire(Q && Q->Status==XREDIS_REQUEST_OK,"benchmark native status");xredisreplyvalue V;redisPeerRequire(xredisReplyGet(Q->Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"owned\0{22179}",13),"benchmark binary result");Samples[N-Pipeline]=(xrtTimer()-Submitted[I])*1e6;++Sum;xrtFutureDestroy(Futures[I]);Futures[I]=NULL;}
         if(N<Count){Submitted[I]=xrtTimer();
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+            if(Mode==3)redisPeerRequire(xredisClusterClientCallCachedCommand(C,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Futures[I])
+                ==XREDIS_CLUSTER_COMMAND_ACCEPTED,"cached command benchmark admission");
+            else
+#endif
             if(Mode==2)redisPeerRequire(xredisClusterClientCallCommand(C,Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&Futures[I])==XREDIS_CLUSTER_COMMAND_ACCEPTED,"integrated command benchmark admission");
             else {uint16 Slot=1;if(Mode==1){xrediscommandkeyresult Keys={0};Keys.Size=sizeof(Keys);redisPeerRequire(xredisCommandCatalogEvaluate(Catalogue,A,2,NULL,0,&Keys)==XREDIS_KEYS_OK,"manual metadata benchmark");Slot=Keys.Slot;}
                 redisPeerRequire(xredisClusterClientCall(C,Slot,A,2,10000,&Futures[I])==XREDIS_ADMISSION_ACCEPTED,"explicit command benchmark admission");}}

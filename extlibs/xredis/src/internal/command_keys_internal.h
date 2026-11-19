@@ -4,4 +4,7 @@
 #if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS) && defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
 bool __xredisCommandCatalogOutput(const xrediscommandcatalog* Catalogue,const void* Output,size_t Bytes);
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+bool __xredisCommandKeyLimitsValid(const xrediscommandkeylimits* Limits);
+#endif
 #endif

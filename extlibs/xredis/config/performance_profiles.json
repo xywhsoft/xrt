@@ -6667,6 +6667,157 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_cluster_command_cache",
+      "system": "cluster_client",
+      "description": "Explicit retained catalogue versus cached admission after a separate real COMMAND load. Same wire bytes, deadlines and caller-observed timings.",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_command_cache_p1_explicit",
+          "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "suite": "xredis_cluster_command_cache,memory_stats",
+          "args": [
+            "10000",
+            "2",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        },
+        {
+          "name": "xredis_cluster_command_cache_p1_cached",
+          "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "suite": "xredis_cluster_command_cache,memory_stats",
+          "args": [
+            "10000",
+            "3",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        },
+        {
+          "name": "xredis_cluster_command_cache_p32_explicit",
+          "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "suite": "xredis_cluster_command_cache,memory_stats",
+          "args": [
+            "10000",
+            "2",
+            "0",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "1",
+            "32",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        },
+        {
+          "name": "xredis_cluster_command_cache_p32_cached",
+          "source": "extlibs/xredis/bench/bench_cluster_command.c",
+          "suite": "xredis_cluster_command_cache,memory_stats",
+          "args": [
+            "10000",
+            "3",
+            "0",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "1",
+            "32",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        }
+      ]
     }
   ]
 }

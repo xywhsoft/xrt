@@ -16043,3 +16043,49 @@ listener and include process creation, journal operations and the WSL
 localhost relay.
 
 [Stage evidence](service-extensions-dial-fallback-20261119.json).
+
+## 2026-11-19 Managed Cluster command catalogue
+
+The optional catalogue cache fetches a full COMMAND response from a
+caller-selected authorized primary. A control caller validates it and
+publishes it before the original deadline. Concurrent refresh returns
+BUSY, and prior valid snapshots survive failures. Explicit invalidation
+fences an in-flight response. Close seals publication. Cached calls
+take a retained snapshot before existing immutable key evaluation and
+admission. The caller chooses when to refresh.
+
+Windows and WSL passed the cache, command-key and synchronous Cluster
+programs, the standalone cache fixture and example, and separate static
+and shared package consumers. The cache fixture covers ACL refusal,
+malformed metadata, limits, allocation and wait failure, stale
+replacement, a late timeout reply and close. WSL ASan/UBSan with leak
+checking and Clang TSan passed.
+
+Redis 8.0.5 exercised all 36 native cases per host with full COMMAND
+and cached INCR, using numeric, DNS and prepared endpoints. RESP2,
+RESP3 and AUTO were covered with SHARDS/SLOTS and actual ASK/MOVED.
+Four producers verified each distinct integer from 1 to 32 and the final
+server value in every case. The harness joined all owned nodes.
+
+| Host | Window | Requests/s explicit / cached | P99 us explicit / cached | P99.9 us explicit / cached |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1 | 18,462 / 18,199 | 77.9 / 82.6 | 92.9 / 95.1 |
+| Windows | 32 | 153,818 / 153,909 | 311.0 / 338.6 | 357.4 / 581.1 |
+| WSL | 1 | 8,085 / 8,234 | 207.0 / 205.9 | 312.5 / 326.0 |
+| WSL | 32 | 56,446 / 41,561 | 884.6 / 2274.8 | 1017.4 / 4391.9 |
+
+The table shows medians from seven pinned-host runs per workload.
+The quality tool reported 19 Windows and 18 WSL variation
+threshold violations. A second window-32 comparison alternated 12 pairs
+in the same binary on each host. Each run completed 32,768 calls. The
+paired median throughput change was +0.7% on
+Windows and -1.8% on WSL. Paired P99 changes
+were -11.1% and +0.3%.
+The larger initial WSL window-32 difference did not recur at that scale.
+A cached call adds one gate acquisition and one catalogue retain/release
+pair. Both modes used 14 requested heap blocks and 3,051 bytes per call
+in the instrumented Windows window-one runs. Native Linux and sustained
+mixed-load performance qualification remain open. The size checks found no forbidden
+dependencies. The strict xredis gate still reports 33 developing modules.
+
+[Stage evidence](../../extlibs/xredis/tests/results/cluster-command-cache-20261119.json).

@@ -8,6 +8,11 @@ static bool qpCommand(redispeer* P,xredisreply* Reply,ptr Data)
 {
     if(rfCommand(P,Reply,Data))return true;
     xredisreplyvalue Root,Name,Key;redisPeerRequire(xredisReplyGet(Reply,0,&Root) && xredisReplyGet(Reply,Root.FirstChild,&Name),"command fixture name");
+    if(redisPeerName(Name,"COMMAND")){
+        redisPeerRequire(Root.ChildCount==1,"catalog refresh uses exact COMMAND");
+        redisPeerSend(P,CK_METADATA3,sizeof(CK_METADATA3)-1);
+        return true;
+    }
     if(!redisPeerName(Name,"GET"))return false;
     redisPeerRequire(xredisReplyGet(Reply,Name.Next,&Key),"command fixture key");char Head[40];int N=snprintf(Head,sizeof(Head),"$%zu\r\n",Key.Data.Size);redisPeerSend(P,Head,(size_t)N);if(Key.Data.Size)redisPeerSend(P,Key.Data.Data,Key.Data.Size);redisPeerSend(P,"\r\n",2);return true;
 }

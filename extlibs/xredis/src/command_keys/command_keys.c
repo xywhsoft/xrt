@@ -134,11 +134,21 @@ XREDIS_API bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* K)
     if(!xrtMemRangeValid(K,sizeof(*K)))return xredisKeysError("invalid command key limits output");
     *K=(xrediscommandkeylimits){sizeof(*K),8192,32768,256,16,1048576,16u*1024u*1024u,64u*1024u*1024u,65536,64u*1024u*1024u,65536,64u*1024u*1024u,1048576};return true;
 }
+#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+static
+#endif
+bool __xredisCommandKeyLimitsValid(const xrediscommandkeylimits* K)
+{
+    return K->Size==sizeof(*K) && K->MaxCommands<=65535 && K->MaxSpecifications<=262144 &&
+        K->MaxNameBytes<=4096 && K->MaxDepth<=16 && K->MaxArguments<=1048576 && K->MaxKeys<=1048576 &&
+        K->MaxOwnedBytes<=1073741824 && K->MaxPayloadBytes<=1073741824 && K->MaxArgumentBytes<=1073741824 &&
+        K->MaxKeyBytes<=1073741824 && K->MaxSearchWork<=1073741824;
+}
 XREDIS_API xrediskeysstatus xredisCommandCatalogCreate(xredisreply* R,const xrediscommandkeylimits* Config,xrediscommandcatalog** Out)
 {
     if(!__xredisClusterReplyOutput(R,Out,sizeof(*Out)) || (Config && (!__xredisClusterReplyOutput(R,Config,sizeof(*Config)) || Config->Size!=sizeof(*Config) || xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))return xredisKeysError("invalid command catalogue arguments"),XREDIS_KEYS_ERROR;
     xrediscommandkeylimits K;if(Config)K=*Config;else xredisCommandKeyLimitsInit(&K);
-    if(K.MaxCommands>65535 || K.MaxSpecifications>262144 || K.MaxNameBytes>4096 || K.MaxDepth>16 || K.MaxArguments>1048576 || K.MaxKeys>1048576 || K.MaxOwnedBytes>1073741824 || K.MaxPayloadBytes>1073741824 || K.MaxArgumentBytes>1073741824 || K.MaxKeyBytes>1073741824 || K.MaxSearchWork>1073741824)return xredisKeysError("invalid command key bounds"),XREDIS_KEYS_ERROR;
+    if(!__xredisCommandKeyLimitsValid(&K))return xredisKeysError("invalid command key bounds"),XREDIS_KEYS_ERROR;
     xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(R,&I);if(I.Nodes>K.MaxReplyNodes || I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_KEYS_LIMIT;
     xredisreplyvalue Root=xredisKeysGet(R,I.Root);if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_KEYS_SERVER_ERROR;
     xrediskeysbuild B={0};B.Reply=R;B.Limits=&K;xrediskeysstatus S=xredisKeysCommands(&B,Root,1,(xbytesview){0});if(S!=XREDIS_KEYS_OK)return S;

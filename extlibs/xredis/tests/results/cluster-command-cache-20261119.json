@@ -1,0 +1,434 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "82762f782b400bb32635296a1f074c364e6f6cef",
+  "sources_lf_sha256": {
+    "extlibs/xredis/bench/bench_cluster_command.c": "ca994c955aefddd41501b8cc46ddc90fc036989d33f7aaf66830d42b1c410fad",
+    "extlibs/xredis/config/modules.json": "e7b5013c2461494a959ed083131090d2edcdd6f3512f2ddc14c2f3798bdbb56e",
+    "extlibs/xredis/config/performance_profiles.json": "614ef59956df6ffde060f945c9edbedd0fbc4935cebaa431febffae304ee1bfe",
+    "extlibs/xredis/config/size_profiles.json": "4334b7b3d501fe0fe2ced2e7008eb46afcee3b8ef356bbb2898bf435aab8f7a4",
+    "extlibs/xredis/docs/api/reference.md": "962890adc21761a1e93f68768dcd5252a3391b41b5bff905f99e820ef0aa9c4c",
+    "extlibs/xredis/docs/cluster_command.md": "2a15a74d971ace00e149795acb988830010155b96b6acdabe62bceb065b63bb4",
+    "extlibs/xredis/docs/cluster_command_cache.md": "02e2370d6f8260bc8a82d9589f83ef41c246feb32fe4fad7667bed6945cb057c",
+    "extlibs/xredis/examples/cluster_command_cache/README.md": "71393ffb86427d411e8efd78ab75fd7d1ea86c1d744b47b286ce72d584c72e38",
+    "extlibs/xredis/examples/cluster_command_cache/main.c": "fab886003b9a2ae6ef11484f2c082c8b86486780b8eeb3aff19941f15624ac51",
+    "extlibs/xredis/include/xredis.h": "fa7c1f6bdb5a7b9d814f400eeea19fb0d7ec7ba0eef47ca64391d0d3cebd61dc",
+    "extlibs/xredis/include/xredis/cluster_command.h": "1c1905f6bc7d312bccb0ddd726f3588c0fffe70f4b050660f2fbe2c6de7e5468",
+    "extlibs/xredis/include/xredis/cluster_command_cache.h": "6b0ce548b4542c7ea9e8b9f4d5a490d8827868aa3d2ce9e9a91cbba3292b08be",
+    "extlibs/xredis/include/xredis/features.h": "8b835226e071cb25e83f278a3c9909d47ba3d6d09aecad292ee6f92f561e83b6",
+    "extlibs/xredis/src/cluster_client/cluster_client.c": "2ff35fd11fa970c446e257f650b04b244339b4db1818b19e195768bae63ba723",
+    "extlibs/xredis/src/command_keys/command_keys.c": "37107856040e59182283f5d2979bbea068b0e5055ab1fdd565d165f448436018",
+    "extlibs/xredis/src/internal/command_keys_internal.h": "4403e84cddc053c598a4e2d93230d4d45f7c21853977d5dbbfaefd584da92569",
+    "extlibs/xredis/tests/interop/redis_cluster_client.c": "a732cbccc3bef71448dacb6e9bb12d72d667cf4ca056bccd2338866de2a88c63",
+    "extlibs/xredis/tests/interop/run_redis_cluster_client.py": "aca34173720d648449cd6816ce8c580d6dd519e4b193f9ca1016f062ed5feeb8",
+    "extlibs/xredis/tests/package/test_consumer.c": "3d22fb302dd0ade9f429ecbbe34964ab423a30c007870f9b4e389863e090ec7a",
+    "extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c": "ba81e4fd0ffbb5a94e45fbbf8efd944c10e8bc900c104fcfce97ea5dc6934b35",
+    "extlibs/xredis/tests/support/cluster_command_peer.h": "2eb9ef718780d2825011c6dc43d0b6e9e4503a4c623ee1951e95403f8c7230f1",
+    "extlibs/xredis/tests/test_cluster_command_cache.c": "90afc05391e6c4f3ad8fcc5ac9a56124e2498ac5fa6d2ad671fe3a208af8c6e4",
+    "single/extlibs/xredis.h": "c1e2cfc9888908163bfd89903cc6d87a072153788086f000548eec9eb9c209fc",
+    "single/extlibs/xredis_decl.h": "1b391c53db76ac599a42604018fdd59f10bc69fa13f6d3fbd66a42857f86117f"
+  },
+  "scope": "A bounded per-client snapshot cache populated by fixed COMMAND through an authorized managed primary route. Explicit control-thread refresh, separate cached business admission, stale/close/timeout fencing, previous valid snapshot retention and independently owned native outcomes.",
+  "hosts": {
+    "windows": {
+      "platform": "Windows",
+      "modular_tests": 3,
+      "single_header_tests": 1,
+      "logs": {
+        "final": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/final-windows.log",
+          "sha256": "7c32099a8ba267d4e14ee4b4b3d4267ec2529ceb3fe77734ac8a9c62c80223bf"
+        },
+        "edge-final": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/edge-final-windows.log",
+          "sha256": "fea2ec73b8cfbb7744f98498d417df0e26197b20d18f5dd4c762a01b1f19b971"
+        },
+        "example": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/example-windows.log",
+          "sha256": "d24cf11976f9ed6c018499fe9cb0e0404841befe0e5d76a76208a4ecd571423e"
+        },
+        "shared": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/package-windows-shared.log",
+          "sha256": "a6f88841ee321b1de1314501f75d95791d1e1dcf7ccb47601aec801d1652986a"
+        },
+        "static": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/package-windows-static.log",
+          "sha256": "3a06023d2a11001de340e279c9ac3e074dbac196ca7b6613582536443902f693"
+        }
+      },
+      "size_report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/size-windows.json",
+        "sha256": "e48602e4e912ff72d513b87288b88ba6806f94facb6e0f1e2ad7c74ee20d0e2b"
+      },
+      "single_text_bytes": 496208,
+      "forbidden_size_symbols": 0
+    },
+    "wsl": {
+      "platform": "WSL",
+      "modular_tests": 3,
+      "single_header_tests": 1,
+      "logs": {
+        "final": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/final-wsl.log",
+          "sha256": "7724633dcb3e25f7976b5e500304080d8d96c4c8b1c53e6aa5a6b4ebc7e0cb52"
+        },
+        "edge-final": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/edge-final-wsl.log",
+          "sha256": "f731939e51e3e7e6997c47aa9cb7f5699d10777ce20fb52cb23780ec9f8db6c9"
+        },
+        "example": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/example-wsl.log",
+          "sha256": "0cf448d5cecf138833ae2a7d6ccb2da68b5287636622fa952528ffbc8d6a9ef1"
+        },
+        "shared": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/package-wsl-shared.log",
+          "sha256": "b63e17868bac9cd4355196eeb9cb0476a8d1dbc3955def8ef6f83798edcf672d"
+        },
+        "static": {
+          "path": "out/service-extensions/xredis-cluster-command-cache-20261119/package-wsl-static.log",
+          "sha256": "5415b2bf58b65d1cf39d8d992c524830d21cfa1ac100bc859aa25000323aef16"
+        }
+      },
+      "size_report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/size-wsl.json",
+        "sha256": "b967b911abb0eeaae16cb174393e5686a43d710c4953bf46aa4676168cc18a4e"
+      },
+      "single_text_bytes": 513122,
+      "forbidden_size_symbols": 0
+    }
+  },
+  "failure_coverage": [
+    "Native NOPERM, malformed frame shape, metadata size/count limits, stale publication fence, bounded concurrent refresh refusal, deadline with late wire reply, and close with in-flight native reply.",
+    "Scoped parser OOM and injected native wait failure with the accepted result Future retained in the standalone single fixture."
+  ],
+  "sanitizers": {
+    "wsl_asan_ubsan_leaks": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/asan.log",
+      "sha256": "c206bce1a29e5b5703739f76141009d59dfe65ef8af2d22feff8a35cab95b3e8"
+    },
+    "wsl_clang_tsan": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/tsan-final.log",
+      "sha256": "67b71eb5be70529ea02fb0220ea7deb2765d1c603f69b4af62faf8f9abced4f1"
+    },
+    "initial_tsan_compile": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/tsan.log",
+      "sha256": "d90a27567000bd484e24384cb6d8e8db31ef2b4ff5d6dca628a1c2cc8e50c18f"
+    },
+    "tsan_note": "Shared literal-peer guards exit on failure. Clang's sometimes-uninitialized warnings for those older guards were retained as warnings during TSan."
+  },
+  "interop": {
+    "report": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/redis-interop-final.json",
+      "sha256": "28b5d2559883620b5dc87fabfb2136f62bdcceee9d139d0788f8bb66f22b9e2d"
+    },
+    "log": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/redis-interop-final.log",
+      "sha256": "84015932fe25a2794bbe43f764f2018c8acfe30f0b721326f5c9f4cc9fbed1c4"
+    },
+    "server": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+    "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+    "cases_per_host": 36,
+    "total_cached_incr_confirmed": 2304,
+    "scope": "Owned Redis Cluster, RESP2/RESP3/AUTO, SHARDS/SLOTS, three native factories, real ASK and ownership-change MOVED, cached routing and exact INCR sequence."
+  },
+  "performance": {
+    "method": "Same release harness, binary GET, pipeline windows 1 and 32, successful replies checked. Full timed offer-to-observed-result interval. Cold catalog preparation stays outside the timed window.",
+    "windows": {
+      "matched_report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/matched-windows-shared-gate.json",
+        "sha256": "faec922da72a16cdb50ad6659e177c7fb5fb22da75f8f58cdaf5a0a9cbd749eb"
+      },
+      "matched_log": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/matched-windows.log",
+        "sha256": "0a13edd52fcafc12dac4b9ad0c3cf5487b843fa135fdf573c2bc5ed9f74ea2cf"
+      },
+      "matched_summary": {
+        "explicit": {
+          "requests_per_sec": 171891.611221,
+          "latency_p99_us": 321.8000055,
+          "latency_p999_us": 680.850062
+        },
+        "cached": {
+          "requests_per_sec": 173638.38686700002,
+          "latency_p99_us": 299.40001,
+          "latency_p999_us": 454.300025
+        },
+        "paired_difference_pct": {
+          "requests_per_sec": 0.7234566910786278,
+          "latency_p99_us": -11.136745259519465,
+          "latency_p999_us": -20.786400178049934
+        }
+      },
+      "allocation_shape": {
+        "explicit": {
+          "requests_per_sec": 16891.352025,
+          "latency_p50_us": 52.799936,
+          "latency_p95_us": 79.400023,
+          "latency_p99_us": 95.70003,
+          "latency_p999_us": 202.900032,
+          "checksum": 8192.0,
+          "heap_blocks_per_request": 14.0,
+          "heap_bytes_per_request": 3051.0,
+          "heap_backing_allocs_per_request": 0.000488,
+          "heap_direct_blocks_per_request": 0.0,
+          "heap_pooled_blocks_per_request": 14.0
+        },
+        "cached": {
+          "requests_per_sec": 17575.265559,
+          "latency_p50_us": 52.700052,
+          "latency_p95_us": 74.500102,
+          "latency_p99_us": 85.799955,
+          "latency_p999_us": 108.200009,
+          "checksum": 8192.0,
+          "heap_blocks_per_request": 14.0,
+          "heap_bytes_per_request": 3051.0,
+          "heap_backing_allocs_per_request": 0.00061,
+          "heap_direct_blocks_per_request": 0.0,
+          "heap_pooled_blocks_per_request": 14.0
+        }
+      },
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/perf-windows-final.json",
+        "sha256": "2bb0f8d527a47fd701d47df7b561935f40562239c6b170d335554a46a40fe40e"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/perf-windows-final.log",
+        "sha256": "fb6da1919024da0280372b4e595ffdfb406b699e028081299401e5ca75a3a03c"
+      },
+      "affinity": "0x54/0xfff",
+      "repeats": 7,
+      "warmups": 2,
+      "quality_failures": 19,
+      "cases": {
+        "p1_explicit": {
+          "requests_per_sec": {
+            "median": 18461.591857,
+            "relative_mad": 0.008045341872493063,
+            "relative_central_range": 0.026976418114842367
+          },
+          "latency_p99_us": {
+            "median": 77.900011,
+            "relative_mad": 0.044929736916211764,
+            "relative_central_range": 0.12451805687164787
+          },
+          "latency_p999_us": {
+            "median": 92.899892,
+            "relative_mad": 0.06135558263081715,
+            "relative_central_range": 0.21528589075216573
+          }
+        },
+        "p1_cached": {
+          "requests_per_sec": {
+            "median": 18199.461735,
+            "relative_mad": 0.007731667015700228,
+            "relative_central_range": 0.028763252925952675
+          },
+          "latency_p99_us": {
+            "median": 82.600047,
+            "relative_mad": 0.05205848127422977,
+            "relative_central_range": 0.1053290199701702
+          },
+          "latency_p999_us": {
+            "median": 95.099909,
+            "relative_mad": 0.02839018489491934,
+            "relative_central_range": 0.4058883379162854
+          }
+        },
+        "p32_explicit": {
+          "requests_per_sec": {
+            "median": 153818.466444,
+            "relative_mad": 0.11178052845338772,
+            "relative_central_range": 0.1897253771713075
+          },
+          "latency_p99_us": {
+            "median": 310.999923,
+            "relative_mad": 0.18649476964661502,
+            "relative_central_range": 1.5826367455402874
+          },
+          "latency_p999_us": {
+            "median": 357.399927,
+            "relative_mad": 0.21208732647558703,
+            "relative_central_range": 1.4423617047912827
+          }
+        },
+        "p32_cached": {
+          "requests_per_sec": {
+            "median": 153909.138262,
+            "relative_mad": 0.03276804517880399,
+            "relative_central_range": 0.08871170122957571
+          },
+          "latency_p99_us": {
+            "median": 338.600017,
+            "relative_mad": 0.07353830995229975,
+            "relative_central_range": 0.2365627288199457
+          },
+          "latency_p999_us": {
+            "median": 581.100001,
+            "relative_mad": 0.2345553377481409,
+            "relative_central_range": 0.527103976033206
+          }
+        }
+      }
+    },
+    "wsl": {
+      "matched_report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/matched-wsl-shared-gate.json",
+        "sha256": "e41f5e3459af4fd2f85a811e04016d4f8c22f2afce3a68c76910ea3dc21dd876"
+      },
+      "matched_log": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/matched-wsl.log",
+        "sha256": "2044075e03f3741dfee78e5951dd654c489fa4c32d78cb8e806fd605d4c0f974"
+      },
+      "matched_summary": {
+        "explicit": {
+          "requests_per_sec": 54056.512693,
+          "latency_p99_us": 1039.75,
+          "latency_p999_us": 1659.85
+        },
+        "cached": {
+          "requests_per_sec": 54575.0620705,
+          "latency_p99_us": 926.6,
+          "latency_p999_us": 1124.8
+        },
+        "paired_difference_pct": {
+          "requests_per_sec": -1.8095310961262823,
+          "latency_p99_us": 0.26868724378785735,
+          "latency_p999_us": 1.1808553621332596
+        }
+      },
+      "allocation_shape": {
+        "explicit": {
+          "requests_per_sec": 8229.866422,
+          "latency_p50_us": 109.9,
+          "latency_p95_us": 166.0,
+          "latency_p99_us": 208.9,
+          "latency_p999_us": 336.9,
+          "checksum": 8192.0,
+          "heap_blocks_per_request": 16.011475,
+          "heap_bytes_per_request": 3867.642578,
+          "heap_backing_allocs_per_request": 0.000854,
+          "heap_direct_blocks_per_request": 0.0,
+          "heap_pooled_blocks_per_request": 16.011475
+        },
+        "cached": {
+          "requests_per_sec": 8102.490155,
+          "latency_p50_us": 110.9,
+          "latency_p95_us": 171.7,
+          "latency_p99_us": 205.8,
+          "latency_p999_us": 357.6,
+          "checksum": 8192.0,
+          "heap_blocks_per_request": 16.013428,
+          "heap_bytes_per_request": 3867.751953,
+          "heap_backing_allocs_per_request": 0.000977,
+          "heap_direct_blocks_per_request": 0.0,
+          "heap_pooled_blocks_per_request": 16.013428
+        }
+      },
+      "report": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/perf-wsl.json",
+        "sha256": "3f7f57b4def01230859df70424fddf7c1d94ec7bbce8b47d1cc27c440706d530"
+      },
+      "log": {
+        "path": "out/service-extensions/xredis-cluster-command-cache-20261119/perf-wsl.log",
+        "sha256": "ddb2eab4686895a2836679beb4903ae9352f97b83f7b710a5d072d299306a99c"
+      },
+      "affinity": "2,4,6",
+      "repeats": 7,
+      "warmups": 2,
+      "quality_failures": 18,
+      "cases": {
+        "p1_explicit": {
+          "requests_per_sec": {
+            "median": 8085.448913,
+            "relative_mad": 0.021288949426573472,
+            "relative_central_range": 0.09779743802828728
+          },
+          "latency_p99_us": {
+            "median": 207.0,
+            "relative_mad": 0.024154589371980676,
+            "relative_central_range": 0.10434782608695649
+          },
+          "latency_p999_us": {
+            "median": 312.5,
+            "relative_mad": 0.09983999999999997,
+            "relative_central_range": 0.3728
+          }
+        },
+        "p1_cached": {
+          "requests_per_sec": {
+            "median": 8233.622762,
+            "relative_mad": 0.002541078284101117,
+            "relative_central_range": 0.017415393095465186
+          },
+          "latency_p99_us": {
+            "median": 205.9,
+            "relative_mad": 0.03351141330743082,
+            "relative_central_range": 0.114618746964546
+          },
+          "latency_p999_us": {
+            "median": 326.0,
+            "relative_mad": 0.04509202453987726,
+            "relative_central_range": 0.3325153374233128
+          }
+        },
+        "p32_explicit": {
+          "requests_per_sec": {
+            "median": 56446.373405,
+            "relative_mad": 0.011058562354773122,
+            "relative_central_range": 0.023721270370957073
+          },
+          "latency_p99_us": {
+            "median": 884.6,
+            "relative_mad": 0.049626950033913604,
+            "relative_central_range": 0.09382771874293466
+          },
+          "latency_p999_us": {
+            "median": 1017.4,
+            "relative_mad": 0.04599960684096713,
+            "relative_central_range": 0.1167682327501475
+          }
+        },
+        "p32_cached": {
+          "requests_per_sec": {
+            "median": 41561.41239,
+            "relative_mad": 0.1297426344995298,
+            "relative_central_range": 0.32420693891630276
+          },
+          "latency_p99_us": {
+            "median": 2274.8,
+            "relative_mad": 0.4054861965887111,
+            "relative_central_range": 1.3562510989977141
+          },
+          "latency_p999_us": {
+            "median": 4391.9,
+            "relative_mad": 0.488080329697853,
+            "relative_central_range": 1.0903936792732074
+          }
+        }
+      }
+    }
+  },
+  "gates": {
+    "headers": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/gate-amalgamate.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/gate-generate_api_reference.log",
+      "sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92"
+    },
+    "maturity": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/gate-check_release_maturity.log",
+      "sha256": "e7feee3256abb24befed793317810e1eb0684b85bf1bff74c8b4bca31d47d65f"
+    },
+    "strict": {
+      "path": "out/service-extensions/xredis-cluster-command-cache-20261119/gate-strict.log",
+      "sha256": "abbbe43645bb811e7343c453bc07cdc94dbd884ba59598e0465497962d758771"
+    },
+    "developing_modules": 33
+  },
+  "qualification_open": [
+    "Refresh scheduling remains caller-controlled. Server-assisted incomplete-key extraction, native Linux and sustained mixed-load/72-hour qualification remain open."
+  ]
+}
