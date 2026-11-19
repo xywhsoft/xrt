@@ -16301,3 +16301,16 @@ A controlled comparison, sustained load, and native Linux qualification
 remain open.
 
 [Stage evidence](../../extlibs/xmqtt/tests/results/server-wildcard-qos0-20261119.json).
+
+## 2026-11-19 xrpc TCP and executor APP example
+
+The loopback example accepts LF-delimited JSON-RPC over TCP, copies one
+bounded APP job, executes it on an XRT executor worker and publishes the
+reply on the endpoint owner. The owner reports whole-document send
+completion. The socket, framing and executor belong to the APP.
+
+Windows x64 and Ubuntu/WSL x64 passed the example aggregate plus independent
+TCP and stdio peers. TCP coverage includes a split send, multiple records
+in one send, notifications, batches, parse errors, oversized records and
+premature EOF. The generated feature and single headers passed freshness
+checks. Both CI jobs now run the independent peer.

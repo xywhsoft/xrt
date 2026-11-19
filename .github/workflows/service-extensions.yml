@@ -90,6 +90,12 @@ jobs:
         if: matrix.product == 'xrpc'
         run: |
           python extlibs/xrpc/tests/interop/run_stdio.py out/gcc/native/xrpc_examples/examples_stdio_main out/service-extensions/xrpc-stdio-linux.json
+      - name: Independent TCP peer and APP executor
+        if: matrix.product == 'xrpc'
+        run: >-
+          python extlibs/xrpc/tests/interop/run_tcp_worker.py
+          out/gcc/native/xrpc_examples/examples_tcp_worker_main
+          out/service-extensions/xrpc-tcp-worker-linux.json
       - name: Address and undefined behavior sanitizers
         run: >-
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json
@@ -202,6 +208,12 @@ jobs:
         if: matrix.product == 'xrpc'
         run: |
           python extlibs/xrpc/tests/interop/run_stdio.py out/gcc/native/xrpc_examples/examples_stdio_main.exe out/service-extensions/xrpc-stdio-windows.json
+      - name: Independent TCP peer and APP executor
+        if: matrix.product == 'xrpc'
+        run: >-
+          python extlibs/xrpc/tests/interop/run_tcp_worker.py
+          out/gcc/native/xrpc_examples/examples_tcp_worker_main.exe
+          out/service-extensions/xrpc-tcp-worker-windows.json
       - name: Check isolated MQTT codec and broker size closures
         if: matrix.product == 'xmqtt'
         run: >-

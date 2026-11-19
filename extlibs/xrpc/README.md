@@ -14,5 +14,6 @@ typed Futures, notifications, batches, local deadlines and cancellation.
 
 The APP owns framing, I/O, worker execution, authentication and shutdown
 policy. See the [transport-free example](examples/duplex/README.md), the
-[stdio APP](examples/stdio/main.c), [endpoint contract](docs/duplex.md) and
+[stdio APP](examples/stdio/main.c), [TCP and XRT executor APP](examples/tcp_worker/main.c),
+[endpoint contract](docs/duplex.md) and
 [API reference](docs/api/reference.md).

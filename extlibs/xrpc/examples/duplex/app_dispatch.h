@@ -50,17 +50,19 @@ static bool appEmit(const xrpcoutgoing* Message, bool Batch, size_t Bytes, ptr D
     return true;
 }
 
-static bool appFinish(xrpcduplex* Endpoint, apprequest* Job)
+static bool appPrepare(apprequest* Job)
 {
-    if (!Job->Token) return true;
-    if (!Job->Ready) {
-        xrpcmessage Scratch[16];
-        xrpcdispatchinfo Info = {.Size = sizeof(Info)};
-        if (!xrpcDispatch((xstrview){Job->Input, Job->InputBytes}, NULL, Scratch, 16,
-            appEcho, NULL, appEmit, Job, &Info)) return false;
-        if (Job->ReplyBytes && Info.Batch) Job->Reply[Job->ReplyBytes++] = ']';
-        Job->Ready = true;
-    }
+    xrpcmessage Scratch[16];
+    xrpcdispatchinfo Info = {.Size = sizeof(Info)};
+    if (!xrpcDispatch((xstrview){Job->Input, Job->InputBytes}, NULL, Scratch, 16,
+        appEcho, NULL, appEmit, Job, &Info)) return false;
+    if (Job->ReplyBytes && Info.Batch) Job->Reply[Job->ReplyBytes++] = ']';
+    Job->Ready = true;
+    return true;
+}
+
+static bool appPublish(xrpcduplex* Endpoint, apprequest* Job)
+{
     xrpcduplexadmission Status = xrpcDuplexReply(Endpoint, Job->Token,
         (xstrview){Job->Reply, Job->ReplyBytes});
     if (Status == XRPC_DUPLEX_OVERLOADED) return true;
@@ -69,5 +71,9 @@ static bool appFinish(xrpcduplex* Endpoint, apprequest* Job)
     Job->ReplyBytes = 0;
     Job->Ready = false;
     return true;
+}
+static inline bool appFinish(xrpcduplex* Endpoint, apprequest* Job)
+{
+    return !Job->Token || ((Job->Ready || appPrepare(Job)) && appPublish(Endpoint, Job));
 }
 #endif

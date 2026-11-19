@@ -180,7 +180,10 @@
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xrpc"
+        "xrpc",
+        "net_socket",
+        "executor",
+        "event"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -191,7 +194,8 @@
       "tests": [],
       "single_tests": [],
       "examples": [
-        "extlibs/xrpc/examples/stdio/main.c"
+        "extlibs/xrpc/examples/stdio/main.c",
+        "extlibs/xrpc/examples/tcp_worker/main.c"
       ],
       "benchmarks": [],
       "docs": [
