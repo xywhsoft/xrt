@@ -3,12 +3,15 @@
 #include <xrt/crc32.h>
 #include <xrt/file.h>
 #include <xrt/memory.h>
+#include <xrt/task.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* Application-owned binary fixture for a single loopback broker. */
 enum { CheckpointHeader = 20, CheckpointRecord = 15, SessionRecord = 22, CheckpointChecksum = 4, RetainedTopics = 4096 };
 static const unsigned char CheckpointMagic[8] = {'X','M','Q','R','E','T','0','2'};
 static const size_t RetainedBytes = 16u * 1024u * 1024u;
+static const size_t CheckpointLimit = 192u * 1024u * 1024u; /* Aggregate default protocol quotas. */
 
 static void checkpointWriteNumber(bytes Output, size_t Width, uint64 Number)
 {
@@ -101,7 +104,7 @@ static bool checkpointParseRetained(xbytesview* Cursor, xmqttserverretainedrecor
 		Input.Data += CheckpointRecord;
 		Input.Size -= CheckpointRecord;
 		if (Id > Input.Size || Wire > Input.Size - Id) return false;
-		Records[Index] = (xmqttserverretainedrecord){
+		if (Records) Records[Index] = (xmqttserverretainedrecord){
 			(xmqttversion)Header[0], {(cstr)Input.Data, Id}, {Input.Data + Id, Wire},
 			checkpointReadNumber(Header + 7, 8)
 		};
@@ -112,26 +115,31 @@ static bool checkpointParseRetained(xbytesview* Cursor, xmqttserverretainedrecor
 	return true;
 }
 
+static bool checkpointReadSession(xbytesview* Input, xmqttserversessionrecord* Record)
+{
+	if (Input->Size < SessionRecord) return false;
+	cbytes Header = Input->Data;
+	size_t Data = (size_t)checkpointReadNumber(Header + 16, 4);
+	size_t Group = (size_t)checkpointReadNumber(Header + 20, 2);
+	Input->Data += SessionRecord;
+	Input->Size -= SessionRecord;
+	if (Data > Input->Size || Group > Input->Size - Data) return false;
+	*Record = (xmqttserversessionrecord){
+		.Kind = (xmqttserverrecordkind)Header[0], .Code = Header[1],
+		.Identifier = (uint16)checkpointReadNumber(Header + 2, 2),
+		.Value = (uint32)checkpointReadNumber(Header + 4, 4),
+		.Milliseconds = checkpointReadNumber(Header + 8, 8),
+		.Data = {Input->Data, Data}, .Group = {Input->Data + Data, Group}
+	};
+	Input->Data += Data + Group;
+	Input->Size -= Data + Group;
+	return true;
+}
+
 static bool checkpointParseSessions(xbytesview Input, xmqttserversessionrecord* Records, size_t Count)
 {
-	for (size_t Index = 0; Index < Count; ++Index) {
-		if (Input.Size < SessionRecord) return false;
-		cbytes Header = Input.Data;
-		size_t Data = (size_t)checkpointReadNumber(Header + 16, 4);
-		size_t Group = (size_t)checkpointReadNumber(Header + 20, 2);
-		Input.Data += SessionRecord;
-		Input.Size -= SessionRecord;
-		if (Data > Input.Size || Group > Input.Size - Data) return false;
-		Records[Index] = (xmqttserversessionrecord){
-			.Kind = (xmqttserverrecordkind)Header[0], .Code = Header[1],
-			.Identifier = (uint16)checkpointReadNumber(Header + 2, 2),
-			.Value = (uint32)checkpointReadNumber(Header + 4, 4),
-			.Milliseconds = checkpointReadNumber(Header + 8, 8),
-			.Data = {Input.Data, Data}, .Group = {Input.Data + Data, Group}
-		};
-		Input.Data += Data + Group;
-		Input.Size -= Data + Group;
-	}
+	for (size_t Index = 0; Index < Count; ++Index)
+		if (!checkpointReadSession(&Input, &Records[Index])) return false;
 	return Input.Size == 0;
 }
 
@@ -150,40 +158,142 @@ static bool checkpointRestoreSessions(xmqttserver* Server, xbytesview Input, uin
 	return Restored;
 }
 
-static bool checkpointLoad(xmqttserver* Server, ptr Data)
+static bytes checkpointOpen(cstr Path, xbytesview* Cursor, size_t* Count)
 {
-	const size_t Limit = 192u * 1024u * 1024u; /* Aggregate default protocol quotas and record headers. */
 	size_t Bytes;
-	bytes Image = xrtFileReadAllLimit(Data, Limit, &Bytes);
-	if (!Image) return false;
-	bool Restored = false;
+	bytes Image = xrtFileReadAllLimit(Path, CheckpointLimit, &Bytes);
+	if (!Image) return NULL;
 	if (Bytes >= CheckpointHeader + CheckpointChecksum && !memcmp(Image, CheckpointMagic, 7) &&
 		(Image[7] == '1' || Image[7] == '2')) {
 		size_t Content = Bytes - CheckpointChecksum;
-		uint64 SavedAt = checkpointReadNumber(Image + 8, 8);
-		size_t Count = (size_t)checkpointReadNumber(Image + 16, 4);
-		if (Count <= RetainedTopics && xrtCrc32(Image, Content) == checkpointReadNumber(Image + Content, CheckpointChecksum)) {
-			xmqttserverretainedrecord* Records = Count ? xrtCalloc(Count, sizeof(*Records)) : NULL;
-			xbytesview Cursor = {Image + CheckpointHeader, Content - CheckpointHeader};
-			int64 Now;
-			Restored = (!Count || Records) &&
-				checkpointParseRetained(&Cursor, Records, Count) &&
-				xrtTimeToUnixMs(xrtNow(), &Now) && Now >= 0 && (uint64)Now >= SavedAt &&
-				xmqttServerRestoreRetained(Server, Records, Count, (uint64)Now - SavedAt);
-			if (Restored)
-				Restored = Image[7] == '1' ? Cursor.Size == 0 :
-					checkpointRestoreSessions(Server, Cursor, (uint64)Now - SavedAt);
-			xrtFree(Records);
+		*Count = (size_t)checkpointReadNumber(Image + 16, 4);
+		if (*Count <= RetainedTopics && xrtCrc32(Image, Content) == checkpointReadNumber(Image + Content, CheckpointChecksum)) {
+			*Cursor = (xbytesview){Image + CheckpointHeader, Content - CheckpointHeader};
+			return Image;
 		}
 	}
+	xrtFree(Image);
+	return NULL;
+}
+
+static bool checkpointLoad(xmqttserver* Server, ptr Data)
+{
+	xbytesview Cursor;
+	size_t Count;
+	bytes Image = checkpointOpen(Data, &Cursor, &Count);
+	if (!Image) return false;
+	uint64 SavedAt = checkpointReadNumber(Image + 8, 8);
+	xmqttserverretainedrecord* Records = Count ? xrtCalloc(Count, sizeof(*Records)) : NULL;
+	int64 Now;
+	bool Restored = (!Count || Records) && checkpointParseRetained(&Cursor, Records, Count) &&
+		xrtTimeToUnixMs(xrtNow(), &Now) && Now >= 0 && (uint64)Now >= SavedAt &&
+		xmqttServerRestoreRetained(Server, Records, Count, (uint64)Now - SavedAt);
+	if (Restored)
+		Restored = Image[7] == '1' ? Cursor.Size == 0 :
+			checkpointRestoreSessions(Server, Cursor, (uint64)Now - SavedAt);
+	xrtFree(Records);
 	xrtFree(Image);
 	return Restored;
 }
 
+typedef struct checkpointstore {
+	cstr Path;
+	xtaskpool* Writer;
+	int64 Delay;
+} checkpointstore;
+
+typedef struct checkpointreset {
+	checkpointstore* Store;
+	xmqttserversessionresetticket* Ticket;
+	xstrview ClientId;
+} checkpointreset;
+
+static xmqttserversessionresetresult checkpointDiscard(const checkpointreset* Reset, bytes Image,
+	xbytesview Cursor, size_t Count)
+{
+	if (!checkpointParseRetained(&Cursor, NULL, Count))
+		return XMQTT_SERVER_SESSION_RESET_REJECTED;
+	if (Image[7] == '1')
+		return Cursor.Size ? XMQTT_SERVER_SESSION_RESET_REJECTED : XMQTT_SERVER_SESSION_RESET_COMMITTED;
+	if (Cursor.Size < 4) return XMQTT_SERVER_SESSION_RESET_REJECTED;
+	bytes CountField = Image + (Cursor.Data - Image);
+	Count = (size_t)checkpointReadNumber(CountField, 4);
+	Cursor.Data += 4;
+	Cursor.Size -= 4;
+	if (Count > Cursor.Size / SessionRecord) return XMQTT_SERVER_SESSION_RESET_REJECTED;
+	bytes Output = CountField + 4;
+	size_t Kept = 0;
+	bool Discard = false;
+	for (size_t Index = 0; Index < Count; ++Index) {
+		cbytes Start = Cursor.Data;
+		xmqttserversessionrecord Record;
+		if (!checkpointReadSession(&Cursor, &Record) ||
+			(!Index && Record.Kind != XMQTT_SERVER_RECORD_SESSION))
+			return XMQTT_SERVER_SESSION_RESET_REJECTED;
+		if (Record.Kind == XMQTT_SERVER_RECORD_SESSION)
+			Discard = Record.Data.Size == Reset->ClientId.Size &&
+				!memcmp(Record.Data.Data, Reset->ClientId.Data, Record.Data.Size);
+		if (Discard) continue;
+		size_t Size = (size_t)(Cursor.Data - Start);
+		memmove(Output, Start, Size);
+		Output += Size;
+		++Kept;
+	}
+	if (Cursor.Size) return XMQTT_SERVER_SESSION_RESET_REJECTED;
+	if (Kept == Count) return XMQTT_SERVER_SESSION_RESET_COMMITTED;
+	checkpointWriteNumber(CountField, 4, Kept);
+	size_t Size = (size_t)(Output - Image);
+	checkpointWriteNumber(Output, CheckpointChecksum, xrtCrc32(Image, Size));
+	return xrtFileWriteAtomic(Reset->Store->Path, (xbytesview){Image, Size + CheckpointChecksum}) ?
+		XMQTT_SERVER_SESSION_RESET_COMMITTED : XMQTT_SERVER_SESSION_RESET_UNKNOWN;
+}
+
+static xtaskoutcome checkpointResetTask(xcancel* Cancel, ptr Data, xtaskvalue* Value)
+{
+	(void)Cancel;
+	(void)Value;
+	checkpointreset* Reset = Data;
+	if (Reset->Store->Delay) xrtSleep(Reset->Store->Delay);
+	xbytesview Cursor;
+	size_t Count;
+	bytes Image = checkpointOpen(Reset->Store->Path, &Cursor, &Count);
+	xmqttserversessionresetresult Result = Image ? checkpointDiscard(Reset, Image, Cursor, Count) :
+		XMQTT_SERVER_SESSION_RESET_REJECTED;
+	xrtFree(Image);
+	if (!xmqttServerCompleteSessionReset(Reset->Ticket, Result)) abort();
+	xrtFree(Reset);
+	return XTASK_SUCCESS;
+}
+
+static bool checkpointSubmitReset(xmqttserversessionresetticket* Ticket, xstrview ClientId, ptr User)
+{
+	checkpointstore* Store = User;
+	checkpointreset* Reset = xrtMalloc(sizeof(*Reset));
+	if (!Reset) return false;
+	*Reset = (checkpointreset){Store, Ticket, ClientId};
+	xfuture* Write = xrtTaskSubmit(Store->Writer, checkpointResetTask, Reset, NULL);
+	if (!Write) {
+		xrtFree(Reset);
+		return false;
+	}
+	xrtFutureDestroy(Write);
+	return true;
+}
+
+static bool checkpointPrepare(xmqttserver* Server, ptr User)
+{
+	checkpointstore* Store = User;
+	return (!Store->Writer || xmqttServerSetSessionReset(Server, checkpointSubmitReset, Store)) &&
+		checkpointLoad(Server, (ptr)Store->Path);
+}
+
 int main(int Argc, char** Argv)
 {
-	if (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))) {
+	bool Fenced = Argc >= 3 && !strcmp(Argv[1], "restore-fenced");
+	if ((Fenced && Argc > 4) ||
+		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
 		puts("usage: examples_server_checkpoint capture|restore checkpoint.bin");
+		puts("       examples_server_checkpoint restore-fenced checkpoint.bin [delay-ms]");
 		return Argc == 1 ? 0 : 1;
 	}
 	xmqttserverconfig Config;
@@ -193,10 +303,17 @@ int main(int Argc, char** Argv)
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	Config.Allow311 = true;
 #endif
+	checkpointstore Store = {.Path = Argv[2], .Delay = Argc == 4 ? strtol(Argv[3], NULL, 10) : 0};
+	if (Store.Delay < 0 || Store.Delay > 2000) return 1;
+	if (Fenced) {
+		const xtaskpoolconfig PoolConfig = {.Threads = 1, .QueueLimit = 16};
+		Store.Writer = xrtTaskPoolCreate(&PoolConfig);
+		if (!Store.Writer) return 1;
+	}
 	serverexample Example = {0};
-	if (!strcmp(Argv[1], "restore")) {
-		Example.Prepare = checkpointLoad;
-		Example.PrepareData = Argv[2];
+	if (strcmp(Argv[1], "capture")) {
+		Example.Prepare = checkpointPrepare;
+		Example.PrepareData = &Store;
 	}
 	char Endpoint[80];
 	bool Ready = exampleServerStart(&Example, &Config, 2) &&
@@ -206,9 +323,13 @@ int main(int Argc, char** Argv)
 		fflush(stdout);
 		(void)getchar();
 	}
-	bool Saved = Ready && xmqttServerCloseForCheckpoint(Example.Server) &&
-		exampleServerDrain(&Example) && checkpointSave(Example.Server, Argv[2]);
-	bool Closed = exampleServerStop(&Example);
+	bool Capture = Ready && xmqttServerCloseForCheckpoint(Example.Server);
+	bool Drained = exampleServerDrain(&Example);
+	bool Joined = Drained && (!Store.Writer ||
+		(xrtTaskPoolClose(Store.Writer) && xrtTaskPoolWaitFor(Store.Writer, 5000) == XWAIT_OK &&
+		xrtTaskPoolDestroy(Store.Writer)));
+	bool Saved = Capture && Joined && checkpointSave(Example.Server, Store.Path);
+	bool Closed = Joined && exampleServerStop(&Example);
 	if (!Saved) fputs("broker checkpoint could not be restored or saved\n", stderr);
 	return Saved && Closed ? 0 : 1;
 }

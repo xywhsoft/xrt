@@ -6940,6 +6940,39 @@ XMQTT_API bool xmqttServerVisitSessions(xmqttserver* Server, xmqttserversessionv
 XMQTT_API bool xmqttServerRestoreSessions(xmqttserver* Server,
 	const xmqttserversessionrecord* Records, size_t Count, uint64 ElapsedMilliseconds);
 
+typedef struct xmqttserversessionresetticket xmqttserversessionresetticket;
+typedef enum xmqttserversessionresetresult {
+	XMQTT_SERVER_SESSION_RESET_COMMITTED = 0,
+	XMQTT_SERVER_SESSION_RESET_REJECTED,
+	XMQTT_SERVER_SESSION_RESET_UNKNOWN
+} xmqttserversessionresetresult;
+
+/* For a fresh session, durably discard all old session records for ClientId.
+ * This also applies when Clean Start is false and the broker finds no
+ * resumable session. The callback runs outside broker locks on the connection
+ * worker. Return promptly. Different Client IDs can be submitted concurrently.
+ * False refuses the connection before any durable effect. True transfers one
+ * completion duty and ClientId remains borrowed until successful completion.
+ * Complete accepted tickets even if the connection times out or closes. */
+typedef bool (*xmqttserversessionresetsubmit)(xmqttserversessionresetticket* Ticket,
+	xstrview ClientId, ptr User);
+
+/* Install once before session restore or transport attachment. With the hook
+ * installed, a new session requires COMMITTED before the broker sends success.
+ * The connection limit bounds outstanding resets. Until the reset retires,
+ * other CONNECTs for the same Client ID receive Server Busy (3.1.1 code 3).
+ * Keep Submit and User alive until the broker and APP workers drain. */
+XMQTT_API bool xmqttServerSetSessionReset(xmqttserver* Server,
+	xmqttserversessionresetsubmit Submit, ptr User);
+
+/* Thread safe for the unique completion owner. True consumes Ticket and ends
+ * access to ClientId. False leaves it owned by the caller. REJECTED certifies
+ * no durable effect. UNKNOWN closes broker admission and requires a restart
+ * from the authoritative store. WaitFor includes pending reset retirement.
+ * Join APP completion callers before destroying the broker and engine. */
+XMQTT_API bool xmqttServerCompleteSessionReset(xmqttserversessionresetticket* Ticket,
+	xmqttserversessionresetresult Result);
+
 XRT_EXTERN_C_END
 #endif
 #endif

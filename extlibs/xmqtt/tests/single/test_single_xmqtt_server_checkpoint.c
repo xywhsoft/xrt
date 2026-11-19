@@ -3,6 +3,7 @@
 #define XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_BUFFER
 #define XRT_MODULE_CRC32
+#define XRT_MODULE_TASK_POOL
 #include <xmqtt/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"

@@ -242,6 +242,31 @@ Checkpoints capture completed, controlled shutdowns. Durability across
 unexpected process loss requires an active backend that commits protocol
 state before emitting the associated acknowledgment.
 
+### Durably discarding stale session checkpoints
+
+With server storage enabled, register an application reset callback using
+`xmqttServerSetSessionReset` before restoring sessions or attaching transports.
+For a fresh session it receives the Client ID whose previous records must be
+discarded. This covers both Clean Start and a CONNECT that has no resumable
+session. A normal resume leaves the stored state intact. The broker withholds
+the successful CONNACK and pauses further input until the callback confirms
+the discard. Another CONNECT for the same ID is refused while the reset is
+pending. The connection limit also bounds resets in flight.
+
+Execute storage work outside the broker worker and complete each accepted
+ticket even if the connection has timed out or closed. A definite rejection
+returns a temporary connection failure. An unknown outcome closes broker
+admission and invalidates session checkpoint export. Recover by loading the
+authoritative store into a new broker. This operation covers discarded
+checkpoints. Live QoS state still follows the controlled checkpoint contract.
+
+Run `examples_server_checkpoint restore-fenced checkpoint.bin` to see a minimal
+application implementation. One application worker removes that ID's record
+group and atomically replaces the image while keeping other records and the
+original capture time. The example's whole-file rewrite demonstrates ordering
+and process restart on a small broker. Production storage must provide its
+own power-loss guarantees.
+
 ## MQTT 5 enhanced authentication
 
 Select `XMQTT_MODULE_XMQTT_SERVER_AUTH`, initialize the optional config with

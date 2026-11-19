@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `232` 个函数、`335` 个常量或宏、
-`144` 个公共类型。
+当前登记 `234` 个函数、`338` 个常量或宏、
+`147` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -887,15 +887,17 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/server_store.h)
 
-### 函数 (5)
+### 函数 (7)
 
 - `xmqttServerCloseForCheckpoint`
+- `xmqttServerCompleteSessionReset`
 - `xmqttServerRestoreRetained`
 - `xmqttServerRestoreSessions`
+- `xmqttServerSetSessionReset`
 - `xmqttServerVisitRetained`
 - `xmqttServerVisitSessions`
 
-### 常量与宏 (6)
+### 常量与宏 (9)
 
 - `XMQTT_SERVER_RECORD_INCOMING_QOS2`
 - `XMQTT_SERVER_RECORD_QUEUED`
@@ -903,12 +905,18 @@
 - `XMQTT_SERVER_RECORD_SESSION`
 - `XMQTT_SERVER_RECORD_SUBSCRIPTION`
 - `XMQTT_SERVER_RECORD_WILL`
+- `XMQTT_SERVER_SESSION_RESET_COMMITTED`
+- `XMQTT_SERVER_SESSION_RESET_REJECTED`
+- `XMQTT_SERVER_SESSION_RESET_UNKNOWN`
 
-### 类型 (4)
+### 类型 (7)
 
 - `xmqttserverrecordkind`
 - `xmqttserverretainedvisitor`
 - `xmqttserversessionrecord`
+- `xmqttserversessionresetresult`
+- `xmqttserversessionresetsubmit`
+- `xmqttserversessionresetticket`
 - `xmqttserversessionvisitor`
 
 ## `extlibs/xmqtt/include/xmqtt/server_tls.h`

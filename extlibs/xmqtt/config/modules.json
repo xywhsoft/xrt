@@ -575,7 +575,8 @@
         "xmqtt_codec311",
         "file_whole",
         "buffer",
-        "crc32"
+        "crc32",
+        "task_pool"
       ],
       "public_headers": [],
       "internal_headers": [],

@@ -3,6 +3,7 @@
 import argparse
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
 import queue
 import socket
@@ -27,8 +28,8 @@ PONG = (0xd0, b"")
 
 
 @contextmanager
-def broker(program, mode, image):
-    with subprocess.Popen([str(program.resolve()), mode, str(image)], stdin=subprocess.PIPE,
+def broker(program, mode, image, *options, crash=False, exit_code=0):
+    with subprocess.Popen([str(program.resolve()), mode, str(image), *options], stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, text=True) as process:
         lines = queue.Queue()
         Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
@@ -37,14 +38,19 @@ def broker(program, mode, image):
             assert host == "127.0.0.1"
             yield host, int(port)
         finally:
-            if process.poll() is None:
-                process.stdin.write("\n")
-                process.stdin.flush()
-            try:
-                assert process.wait(timeout=10) == 0, "broker did not publish its retained checkpoint"
-            except subprocess.TimeoutExpired:
+            if crash:
+                assert process.poll() is None, "broker stopped before the restart probe"
                 process.kill()
-                raise
+                process.wait(timeout=10)
+            else:
+                if process.poll() is None:
+                    process.stdin.write("\n")
+                    process.stdin.flush()
+                try:
+                    assert process.wait(timeout=10) == exit_code, "unexpected checkpoint broker exit"
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    raise
 
 
 def publish(sock, name, payload, expiry=None):
@@ -146,14 +152,21 @@ def verify(program, directory):
             "finite_expiry_and_no_local": True, "corruption_and_clock_rejection": True}
 
 
-def persistent(address, client_id, clean, present=False, *, version=5, will=b""):
-    peer = socket.create_connection(address, timeout=8)
+def persistent_connect(client_id, clean, *, version=5, will=b""):
     fields = b"\5\x11\0\0\0\x3c" if version == 5 else b""
     flags = (2 if clean else 0) | (0x24 if will else 0)
-    peer.sendall(frame(0x10, b"\0\4MQTT" + bytes((version, flags, 0, 0)) +
-                       fields + topic(client_id) + will))
+    return frame(0x10, b"\0\4MQTT" + bytes((version, flags, 0, 0)) + fields + topic(client_id) + will)
+
+
+def expect_connack(peer, present=False, reason=0):
     kind, body = receive(peer)
-    assert kind == 0x20 and body[:2] == bytes((present, 0)), (kind, body)
+    assert kind == 0x20 and body[:2] == bytes((present, reason)), (kind, body)
+
+
+def persistent(address, client_id, clean, present=False, *, version=5, will=b""):
+    peer = socket.create_connection(address, timeout=8)
+    peer.sendall(persistent_connect(client_id, clean, version=version, will=will))
+    expect_connack(peer, present)
     return peer
 
 
@@ -228,13 +241,128 @@ def verify_sessions(program, directory):
             "offline_fifo_and_subscriptions": True, "delayed_will": True}
 
 
+def expect_silence(peer):
+    peer.settimeout(0.15)
+    try:
+        raise AssertionError(f"peer returned {peer.recv(1)!r} before the reset completed")
+    except socket.timeout:
+        pass
+    finally:
+        peer.settimeout(8)
+
+
+@contextmanager
+def prevent_replacement(image):
+    if os.name == "nt":
+        # A Python CRT file handle permits reads and denies delete sharing.
+        with image.open("rb"):
+            yield
+        return
+    # The sample can read through a symlink, but xrtFileWriteAtomic refuses
+    # to replace it. Keep the original data available through that pathname.
+    original = image.with_suffix(".target")
+    image.rename(original)
+    image.symlink_to(original)
+    try:
+        yield
+    finally:
+        image.unlink()
+        original.rename(image)
+
+
+def verify_reset(program, directory):
+    image = directory / "session-reset.bin"
+    replaced, kept = b"replace-on-clean-start", b"keep-other-session"
+    identifier = b"\0\x19"
+    pubrel = frame(0x62, identifier)
+    with broker(program, "capture", image) as address:
+        for client_id in (replaced, kept):
+            with persistent(address, client_id, True) as peer:
+                subscribe(peer, b"reset/input", 1, 1)
+                peer.sendall(frame(0x34, topic(b"reset/no-matches") + identifier + b"\0old"))
+                assert receive(peer) == (0x50, identifier + b"\x10")
+                peer.sendall(b"\xe0\0")
+                assert not peer.recv(1)
+    original = image.read_bytes()
+
+    with broker(program, "restore-fenced", image, "1500", crash=True) as address:
+        with socket.create_connection(address, timeout=8) as replacement:
+            replacement.sendall(persistent_connect(replaced, True) + PING)
+            expect_silence(replacement)
+            with socket.create_connection(address, timeout=8) as competing:
+                competing.sendall(persistent_connect(replaced, False))
+                expect_connack(competing, reason=0x89)
+    assert image.read_bytes() == original, "crash before commit changed the checkpoint"
+
+    with broker(program, "restore-fenced", image, "750", crash=True) as address:
+        with socket.create_connection(address, timeout=8) as replacement:
+            replacement.sendall(persistent_connect(replaced, True) + PING)
+            expect_silence(replacement)
+            with persistent(address, kept, False, True) as neighbor:
+                neighbor.sendall(pubrel)
+                assert receive(neighbor) == (0x70, identifier)
+            expect_connack(replacement)
+            assert receive(replacement) == PONG
+            assert image.read_bytes() != original, "CONNACK preceded checkpoint replacement"
+
+    with broker(program, "restore-fenced", image, crash=True) as address:
+        with persistent(address, replaced, False) as replacement:
+            replacement.sendall(pubrel)
+            assert receive(replacement) == (0x70, identifier + b"\x92")
+        with persistent(address, kept, False, True) as neighbor:
+            neighbor.sendall(pubrel)
+            assert receive(neighbor) == (0x70, identifier)
+
+    # A storage read rejected before atomic replacement preserves the backend
+    # image and refuses CONNECT. The broker may still serve other clients.
+    image.write_bytes(original)
+    moved = image.with_suffix(".saved")
+    with broker(program, "restore-fenced", image, crash=True) as address:
+        image.rename(moved)
+        with socket.create_connection(address, timeout=8) as replacement:
+            replacement.sendall(persistent_connect(replaced, True))
+            expect_connack(replacement, reason=0x88)
+            assert not replacement.recv(1)
+        moved.rename(image)
+        with persistent(address, kept, False, True) as neighbor:
+            barrier(neighbor)
+    assert image.read_bytes() == original
+
+    with prevent_replacement(image):
+        with broker(program, "restore-fenced", image, exit_code=1) as address:
+            for client_id, clean in ((replaced, True), (kept, False)):
+                with socket.create_connection(address, timeout=8) as rejected:
+                    try:
+                        rejected.sendall(persistent_connect(client_id, clean))
+                        assert not rejected.recv(1), "broker sent a reply after an unknown outcome"
+                    except ConnectionResetError:
+                        pass
+    assert image.read_bytes() == original, "unknown outcome allowed checkpoint export"
+
+    # Retire the server while the replacement is still queued in the APP.
+    with broker(program, "restore-fenced", image, "750") as address:
+        with socket.create_connection(address, timeout=8) as replacement:
+            replacement.sendall(persistent_connect(replaced, True))
+            expect_silence(replacement)
+    with broker(program, "restore", image, crash=True) as address:
+        with persistent(address, replaced, False) as replacement:
+            replacement.sendall(pubrel)
+            assert receive(replacement) == (0x70, identifier + b"\x92")
+        with persistent(address, kept, False, True) as neighbor:
+            barrier(neighbor)
+    return {"session_reset_before_connack": True, "reset_crash_before_and_after_commit": True,
+            "reset_same_identity_exclusion": True, "reset_checkpoint_rejection": True,
+            "reset_unknown_seals_broker": True, "reset_retires_during_shutdown": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
-        print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder)}))
+        print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
+                          **verify_reset(args.program, folder)}))
 
 
 if __name__ == "__main__":

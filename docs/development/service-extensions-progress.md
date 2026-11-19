@@ -17160,3 +17160,32 @@ Armed Wills remain covered by controlled session checkpoints. Live
 persistence of armed Wills, recipient queues and inbound QoS 2 deduplication,
 native Linux, controlled performance comparisons and 72-hour mixed loads
 remain open.
+
+
+## 2026-11-20 MQTT durable session reset before CONNACK
+
+The optional broker store can commit removal of a Client ID's old session
+records before success CONNACK for a fresh session. The broker waits for the
+application completion on the connection's worker and preserves buffered
+input order. One reset can be in flight per Client ID. Resumes bypass the
+callback. A definite rejection refuses the connection and an unknown result
+seals admission and invalidates session checkpoint export. The checkpoint
+APP sample removes that client's record group, including any incoming QoS 2
+identifiers, by atomic file replacement on a bounded writer pool.
+
+Independent TCP tests killed the broker before and after the commit, verified
+same-ID exclusion, checked the success CONNACK and coalesced PING order, and
+confirmed that the unrelated session and its QoS 2 record survived. The same
+tests forced a storage read rejection and a rejected atomic replacement,
+then checked retirement of an in-flight completion during shutdown.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header restart
+probes and static and shared package consumers. The retained-commit
+regression passed TCP, TLS, WS and WSS. WSL ASan/UBSan with leak checking
+and TSan passed the store tests and restart probes. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-session-reset-*`.
+
+The test file backend was checked against process termination. Live QoS 2
+deduplication and recipient queues still need an online commit path. The
+strict release check reports 43 developing modules. Native Linux performance
+comparisons and the Windows/Linux 72-hour mixed-load gates remain open.

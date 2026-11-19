@@ -118,6 +118,15 @@ typedef struct xmqttserverack {
 	unsigned char Wire[5];
 } xmqttserverack;
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+struct xmqttserversessionresetticket {
+	xmqttserverpeer* Peer;
+	xnetworker* Worker;
+	xnetpost Completion;
+	xmqttserversessionresetresult Result;
+};
+#endif
+
 struct xmqttserver {
 	xnetengine* Engine;
 	xmqttserverconfig Config;
@@ -147,7 +156,10 @@ struct xmqttserver {
 	xatomic32 RetainedFailed;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	xmqttserversessionresetsubmit ResetSubmit;
+	ptr ResetUser;
 	bool Checkpoint; /* Written once with the admission gate held. */
+	bool ResetFailed; /* Protected by Gate. */
 #endif
 	xmqttserverinfo Info;
 };
@@ -163,6 +175,9 @@ struct xmqttserversession {
 	xmqttserversession *OfflineNext, **OfflinePrevious;
 	double Expires;
 	bool Persistent;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	bool ResetPending; /* Published and changed under the registry gate. */
+#endif
 	xmqttversion Version;
 	xbytesview RegisteredKey; /* Borrows the registry key under Server->Gate. */
 	xstrview ClientName;
@@ -234,6 +249,9 @@ struct xmqttserverpeer {
 	uint32 Worker;
 	xmqttversion Version;
 	bool Online, Closing;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	xmqttserversessionresetticket* Reset; /* Connection worker only. */
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	xmqttserverretainedticket* Retaining; /* Publishing worker only. */
 #endif
@@ -1187,13 +1205,8 @@ static bool xmqttServerBindOffline(xmqttserverpeer* Peer, xmqttserversession* Se
 	return true;
 }
 
-/* The registry gate serializes reservations with native owner retirement. */
-static bool xmqttServerReserveSuccessor(xmqttserverpeer* Peer, xmqttserversession* Old,
-	xmqttserversession* Awaiting)
+static void xmqttServerPauseInput(xmqttserverpeer* Peer)
 {
-	Old->Successor = Peer;
-	Peer->AwaitingSession = Awaiting;
-	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
 	if (Peer->Ws) xrtWsStreamPause(Peer->Ws);
 	else
@@ -1202,6 +1215,16 @@ static bool xmqttServerReserveSuccessor(xmqttserverpeer* Peer, xmqttserversessio
 	if (!Peer->Tls)
 #endif
 		xrtNetStreamPause(Peer->Stream);
+}
+
+/* The registry gate serializes reservations with native owner retirement. */
+static bool xmqttServerReserveSuccessor(xmqttserverpeer* Peer, xmqttserversession* Old,
+	xmqttserversession* Awaiting)
+{
+	Old->Successor = Peer;
+	Peer->AwaitingSession = Awaiting;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	xmqttServerPauseInput(Peer);
 	return xmqttServerPeerTryRef(Old->Peer);
 }
 
@@ -1210,13 +1233,21 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	xmqttserver* Server = Peer->Server;
 	xbytesview Key = {(cbytes)Id.Data, Id.Size};
 	xrtMutexLock(&Server->Gate);
-	if (Server->Info.Closing) {
+	if (Server->Info.Closing
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		|| Server->ResetFailed
+#endif
+	) {
 		xrtMutexUnlock(&Server->Gate);
 		return 0x88;
 	}
 	xmqttserversession** Entry = xrtMapGet(&Server->Identities, Key);
 	xmqttserversession* Old = Entry ? *Entry : NULL;
-	if (Old && (Old->Successor || (Old->Peer && Old->Peer->AwaitingSession))) {
+	if (Old && (Old->Successor || (Old->Peer && Old->Peer->AwaitingSession)
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		|| Old->ResetPending
+#endif
+	)) {
 		xrtMutexUnlock(&Server->Gate);
 		return 0x89;
 	}
@@ -1291,6 +1322,9 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 		if (Old->Persistent) --Server->Info.PersistentSessions;
 	}
 	Session->Identity = Old ? Old->Identity : xrtNetWorkerOperationId(xrtNetStreamWorker(Peer->Stream));
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	Session->ResetPending = Server->ResetSubmit != NULL;
+#endif
 	if (Session->Persistent) ++Server->Info.PersistentSessions;
 	if (!Previous) ++Server->Info.Established;
 	if (!xrtMapStoredKey(&Server->Identities, Key, &Session->RegisteredKey)) abort();
@@ -1341,7 +1375,7 @@ static void xmqttServerResumeInput(xmqttserverpeer* Peer)
 	if (xmqttServerCanRead(Peer) && !xrtNetStreamResume(Peer->Stream)) xmqttServerAbortPeer(Peer);
 }
 
-static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
+static void xmqttServerAcceptSession(xmqttserverpeer* Peer, double Now)
 {
 	if (Peer->Closing || xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return;
 	if (!xmqttServerDeadline(Peer, Now, Peer->KeepAliveMs) ||
@@ -1360,6 +1394,81 @@ static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
 		Peer->Online = true;
 		xmqttServerActivateSession(Peer);
 	}
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+static void xmqttServerSessionResetCompleted(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	xmqttserversessionresetticket* Ticket = Data;
+	xmqttserverpeer* Peer = Ticket->Peer;
+	xmqttserver* Server = Peer->Server;
+	xmqttserversessionresetresult Result = Ticket->Result;
+	Peer->Reset = NULL;
+	xrtFree(Ticket);
+	xrtMutexLock(&Server->Gate);
+	if (Result == XMQTT_SERVER_SESSION_RESET_UNKNOWN) Server->ResetFailed = true;
+	bool Closing = Server->Info.Closing || Server->ResetFailed;
+	xrtMutexUnlock(&Server->Gate);
+
+	if (Result == XMQTT_SERVER_SESSION_RESET_UNKNOWN) xmqttServerClose(Server);
+	else if (!Closing && !Peer->Closing) {
+		double Now = xrtTimer();
+		if (!isfinite(Now) || Now >= Peer->Deadline) xmqttServerTimedOut(Peer);
+		else if (Result == XMQTT_SERVER_SESSION_RESET_REJECTED)
+			xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
+		else {
+			xmqttServerAcceptSession(Peer, Now);
+			if (Peer->Online) {
+				xrtMutexLock(&Server->Gate);
+				Peer->Session->ResetPending = false;
+				xrtMutexUnlock(&Server->Gate);
+				xmqttServerResumeInput(Peer);
+			}
+		}
+	}
+	xmqttServerPeerDrop(Peer);
+}
+
+XMQTT_API bool xmqttServerCompleteSessionReset(xmqttserversessionresetticket* Ticket,
+	xmqttserversessionresetresult Result)
+{
+	if (!Ticket || (Result != XMQTT_SERVER_SESSION_RESET_COMMITTED &&
+		Result != XMQTT_SERVER_SESSION_RESET_REJECTED && Result != XMQTT_SERVER_SESSION_RESET_UNKNOWN))
+		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT session reset completion");
+	Ticket->Result = Result;
+	return xrtNetPost(Ticket->Worker, &Ticket->Completion, xmqttServerSessionResetCompleted, Ticket);
+}
+
+static void xmqttServerSubmitSessionReset(xmqttserverpeer* Peer, double Now)
+{
+	xmqttserversessionresetticket* Ticket = xrtMalloc(sizeof(*Ticket));
+	if (!Ticket || !xrtNetPostInit(&Ticket->Completion)) {
+		xrtFree(Ticket);
+		xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
+		return;
+	}
+	Ticket->Peer = Peer;
+	Ticket->Worker = xrtNetStreamWorker(Peer->Stream);
+	Peer->Reset = Ticket;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	xmqttServerPauseInput(Peer);
+	xmqttserver* Server = Peer->Server;
+	if (Server->ResetSubmit(Ticket, Peer->Session->ClientName, Server->ResetUser)) return;
+	Ticket->Result = XMQTT_SERVER_SESSION_RESET_REJECTED;
+	xmqttServerSessionResetCompleted(Ticket->Worker, Ticket);
+}
+#endif
+
+static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
+{
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->Session->ResetPending) {
+		if (!Peer->Closing) xmqttServerSubmitSessionReset(Peer, Now);
+		return;
+	}
+#endif
+	xmqttServerAcceptSession(Peer, Now);
 }
 
 static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
@@ -3614,14 +3723,7 @@ static bool xmqttServerSubmitRetained(xmqttserverpeer* Peer, xmqttserverack* Ack
 		xmqttServerDropRetainedTicket(Ticket);
 		return false;
 	}
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
-	if (Peer->Ws) xrtWsStreamPause(Peer->Ws);
-	else
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
-	if (!Peer->Tls)
-#endif
-		xrtNetStreamPause(Peer->Stream);
+	xmqttServerPauseInput(Peer);
 	return true;
 }
 #endif
@@ -3725,6 +3827,9 @@ static bool xmqttServerCanRead(xmqttserverpeer* Peer)
 {
 	if (Peer->Closing || Peer->AwaitingSession ||
 		xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return false;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->Reset) return false;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	if (Peer->Retaining) return false;
 #endif
@@ -3987,6 +4092,7 @@ XMQTT_API bool xmqttServerVisitSessions(xmqttserver* Server, xmqttserversessionv
 	if (!Server || !Visit) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT session checkpoint visit");
 	if (xmqttServerWaitFor(Server, 0) != XWAIT_OK || !Server->Checkpoint)
 		return xmqttServerError(XERR_STATE, "close for checkpoint and drain MQTT broker before visiting sessions");
+	if (Server->ResetFailed) return xmqttServerError(XERR_STATE, "MQTT session reset outcome unknown");
 	double Now = xrtTimer();
 	if (!isfinite(Now)) return xmqttServerError(XERR_STATE, "invalid MQTT session checkpoint clock");
 	for (const xmqttserversession* Session = Server->Offline; Session; Session = Session->OfflineNext)
@@ -4482,9 +4588,12 @@ static void xmqttServerWsRead(xwsstream* Stream, xbytesview Data, ptr User)
 			Data.Size -= Header.PacketBytes;
 		}
 	}
-	/* Pause takes effect at the end of this native callback. Keep its
-	 * unconsumed suffix while the old connection's session retires. */
+	/* Pause takes effect at the end of this native callback. Preserve its
+	 * unconsumed suffix until the pending operation finishes. */
 	bool Paused = Peer->AwaitingSession != NULL;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	Paused = Paused || Peer->Reset != NULL;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	Paused = Paused || Peer->Retaining != NULL;
 #endif
@@ -4692,6 +4801,23 @@ XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingB
 }
 #endif
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+XMQTT_API bool xmqttServerSetSessionReset(xmqttserver* Server,
+	xmqttserversessionresetsubmit Submit, ptr User)
+{
+	if (!Server || !Submit) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT session reset setup");
+	xrtMutexLock(&Server->Gate);
+	if (Server->Info.Closing || Server->Info.Accepted || Server->ExpiryTimer || Server->ResetSubmit) {
+		xrtMutexUnlock(&Server->Gate);
+		return xmqttServerError(XERR_STATE, "configure MQTT session reset before attachment and restore");
+	}
+	Server->ResetSubmit = Submit;
+	Server->ResetUser = User;
+	xrtMutexUnlock(&Server->Gate);
+	return true;
+}
+#endif
+
 static bool xmqttServerAttachNative(xmqttserver* Server, xnetstream* Stream
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
 	, const xmqttserverwsattach* Ws
@@ -4708,6 +4834,9 @@ static bool xmqttServerAttachNative(xmqttserver* Server, xnetstream* Stream
 
 	xrtMutexLock(&Server->Gate);
 	if (Server->Info.Closing || Server->Info.Connections == Server->Config.MaxConnections
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		|| Server->ResetFailed
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 		|| xrtAtomic32Load(&Server->RetainedFailed, XMEMORY_ACQUIRE)
 #endif
