@@ -17675,3 +17675,43 @@ Raw evidence is under
 The ordinary maturity check passes. Strict release still reports 43
 developing modules. Native Linux performance, controlled comparisons and
 72-hour mixed-load acceptance remain open.
+
+## 2026-11-20 xrpc TCP APP latency and direct dispatch baseline
+
+The TCP APP now enables TCP_NODELAY and passes the reply and LF delimiter
+to the same XRT scatter/gather send. A short send consumes just the written
+prefix. The `--dispatch-only` mode uses the same xrpc dispatcher, bounded
+copy, framing and XRT executor while skipping the duplex endpoint. The TCP
+peer checks both modes, including a single 128-request write that crosses
+the APP receive buffer. The full independent peer passed on Windows x64,
+Ubuntu/WSL x64, and WSL ASan/UBSan with leak detection.
+The xrpc modular and single-header suites passed on Windows and WSL.
+
+A short before/after check at pipeline depth 1 used three samples of 40
+requests per version. Median sample P50 was 45.3 us before and 38.8 us
+after on Windows. On WSL it was 43,997.2 us before and 78.4 us after.
+This comparison measures the two transport changes together.
+
+The following comparison uses the updated executable for both modes.
+Client and server inherit an affinity mask for four logical CPUs on each
+environment. Each mode runs seven samples of 12,000 checked replies
+after warming up 256 calls per connection. Both modes use one loopback
+connection. The client sends a new batch after draining the last one.
+Latency includes the queue wait from the start of the batch send.
+
+| Environment | Depth | Duplex calls/s | Dispatch calls/s | Duplex P99 (us) | Dispatch P99 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 22,778 | 24,877 | 61.0 | 55.2 |
+| Windows x64 | 8 | 35,564 | 39,926 | 251.6 | 231.2 |
+| Windows x64 | 32 | 38,920 | 43,549 | 897.4 | 808.6 |
+| Ubuntu/WSL x64 | 1 | 12,278 | 13,163 | 136.2 | 122.6 |
+| Ubuntu/WSL x64 | 8 | 18,954 | 20,893 | 494.4 | 441.7 |
+| Ubuntu/WSL x64 | 32 | 21,046 | 23,380 | 1,618.7 | 1,450.0 |
+
+Four of twelve throughput and P99 series exceeded the configured variation
+limits on each environment. The repeat samples, P50/P95/P99.9, executable
+hashes and build logs are under
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-baseline/`.
+The ordinary maturity check passes. Strict release still reports xrpc and
+xrpc_duplex as developing. Native Linux and the controlled release
+performance workload remain open.
