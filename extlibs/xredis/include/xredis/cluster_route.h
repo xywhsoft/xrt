@@ -27,9 +27,9 @@ typedef enum xredisclusterroutestep {
 } xredisclusterroutestep;
 typedef struct xredisclusteraddress {
     xbytesview Host; uint16 Port, Slot; bool Tls;
-    /* Zero for a topology primary, REPLICA_READ for an initial replica
-     * selection, or a validated MOVED/ASK. ASK applies only to this route
-     * and must not change a shared slot map. */
+    /* Cluster routes use zero for a topology primary or a validated
+     * MOVED/ASK. ASK applies only to this route. APP-selected READONLY
+     * pools use REPLICA_READ. */
     xredisclusterredirectkind Reason;
 } xredisclusteraddress;
 /* Runs on the Step caller, outside all library gates. Nonblocking; no reentry

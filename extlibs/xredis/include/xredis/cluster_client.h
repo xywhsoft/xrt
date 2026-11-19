@@ -65,15 +65,6 @@ XREDIS_API void xredisClusterClientRelease(xredisclusterclient* Client);
  * publication and stays caller-owned. Do not wait on this Engine's worker. */
 XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* Client,
     uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
-/* Stale-tolerant, explicitly slotted read. Caller classifies the command and
- * all its keys. Selects an eligible replica from the shard with a rotated
- * starting index. A missing, refused or unavailable replica can fall back to
- * the eligible primary before native acceptance. Every endpoint goes through
- * Nodes authorization, and replica pools require managed READONLY. After
- * native acceptance only validated MOVED/ASK can route to another endpoint.
- * Shares Call's ownership, cost bounds, output and original deadline. */
-XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* Client,
-    uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
 /* Ready resolves on the first valid map, or typed stop; metadata failures are
  * visible in Info while bootstrap retries. Acquired views are retained Maps.
  * MOVED from the current generation invalidates once per generation and starts

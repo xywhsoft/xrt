@@ -21,7 +21,7 @@ struct xredisclusteroperation {
     xredisclusterroute* Route;xredisclusterwatch Watch;
     xfuture* Future;xpromise* Promise;xcancel* Token;xcancelwatch* Cancel;
     xbytesview* Arguments;size_t Count,Wire,Reservation,Heap;
-    int64 Timeout;uint32 ReplicaCursor;uint16 Slot;bool Recovering,Stopping;
+    int64 Timeout;uint16 Slot;bool Recovering,Stopping;
     double Entered,Deadline,Due,Started;
     size_t Moved;uint32 MapWaits;bool Queued,WaitingMap,Publishing;
 };
@@ -35,7 +35,6 @@ struct xredisclusterclient {
     xpromise *ReadyPromise,*ClosePromise;xfuture *ReadyFuture,*ClosedFuture;
     xredisclusterclientready *ReadyValue,*CloseValue;
     uint64 Timer,InvalidatedGeneration;double TimerDue,RefreshDue;int64 Backoff;
-    uint32 ReplicaCursor;
     bool Posted,Finished,Invalidation;
 };
 static void xredisClusterWork(xnetworker*,ptr);
@@ -187,8 +186,8 @@ static void xredisClusterOperationStep(xredisclusterclient* C,xredisclusteropera
         if(O->WaitingMap && O->Route && M.Generation<=O->Result.Generation){xredisClusterMapWait(C,O);return;}
         xredisclusterrouteconfig K=xredisClusterRouteConfigFor(C,O,M.Origin.Tls);xredisclusterroute* R=NULL;
         xredisclusterroutestatus Failure=XREDIS_CLUSTER_ROUTE_MEMORY;
-        xredisadmission A=O->Route?__xredisClusterRouteRetryMissing(O->Route,M.Topology,M.Origin.Host,O->ReplicaCursor,&K,&R,&Failure):
-            __xredisClusterRouteCreate(M.Topology,M.Origin.Host,O->Slot,O->ReplicaCursor,O->Arguments,O->Count,&K,&R,O->Entered,&Failure);
+        xredisadmission A=O->Route?__xredisClusterRouteRetryMissing(O->Route,M.Topology,M.Origin.Host,&K,&R,&Failure):
+            __xredisClusterRouteCreate(M.Topology,M.Origin.Host,O->Slot,O->Arguments,O->Count,&K,&R,O->Entered,&Failure);
         if(A!=XREDIS_ADMISSION_ACCEPTED){xredisClusterStopOperation(C,O,Failure==XREDIS_CLUSTER_ROUTE_LIMIT?XREDIS_CLUSTER_CLIENT_LIMIT:XREDIS_CLUSTER_CLIENT_MEMORY);return;}
         xredisClusterMapWaitRemove(C,O);
         if(O->Route!=R){
@@ -323,25 +322,23 @@ XREDIS_API xredisadmission xredisClusterClientCreate(xnetengine* E,uint64 Affini
 static bool xredisClusterClientOutput(xredisclusterclient* C,const void* P,size_t N)
 {return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->Bytes,P,N);}
 static xredisadmission xredisClusterClientCallAt(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,
-    int64 Timeout,xfuture** Out,double E,bool Replica)
+    int64 Timeout,xfuture** Out,double E)
 {
     if(!xredisClusterClientOutput(C,Out,sizeof(*Out)) || Slot>=XREDIS_CLUSTER_SLOTS || Timeout< -1 || Timeout>86400000 || !Count || Count>C->Config.Route.MaxArguments || !xrtMemRangeValid(A,Count*sizeof(*A)) || xrtMemRangesOverlap(A,Count*sizeof(*A),Out,sizeof(*Out))){xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster call");return XREDIS_ADMISSION_ERROR;}
     if(Timeout==-1)Timeout=C->Config.Route.Timeout;
     size_t Wire=0,Payload=0;if(!xredisCommandSize(A,Count,&Wire) || Wire>C->Config.Route.MaxCommandBytes){xredisClusterClientError(XERR_RANGE,"Cluster call command limit");return XREDIS_ADMISSION_ERROR;}
     for(size_t I=0;I<Count;++I){if(xrtMemRangesOverlap(A[I].Data,A[I].Size,Out,sizeof(*Out))){xredisClusterClientError(XERR_ARGUMENT,"Cluster output aliases command");return XREDIS_ADMISSION_ERROR;}Payload+=A[I].Size;}
     size_t Inputs=Count*sizeof(*A)+Payload;
-    size_t Reservation=XREDIS_CLUSTER_OPERATION_PREFIX+2*(__xredisClusterRouteBaseBytes()+Inputs+(Replica?5u:4u)*C->Config.Route.MaxHostBytes);
+    size_t Reservation=XREDIS_CLUSTER_OPERATION_PREFIX+2*(__xredisClusterRouteBaseBytes()+Inputs+4u*C->Config.Route.MaxHostBytes);
     xrtMutexLock(&C->Gate);if(!__xredisClusterMapOutput(C->Map,Out,sizeof(*Out))){xrtMutexUnlock(&C->Gate);xredisClusterClientError(XERR_ARGUMENT,"Cluster output aliases published map");return XREDIS_ADMISSION_ERROR;}if(C->Info.Closing){xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_CLOSED;}
     if(C->Info.Requests>=C->Config.MaxRequests || Wire>C->Config.MaxCommandBytes-C->Info.CommandBytes || Reservation>C->Config.MaxStorageBytes-C->Info.StorageBytes){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_OVERLOADED;}
-    uint32 Cursor=0;
-    if(Replica){if(++C->ReplicaCursor==0)++C->ReplicaCursor;Cursor=C->ReplicaCursor;}
     ++C->Info.Requests;++C->Info.APIs;C->Info.CommandBytes+=Wire;C->Info.StorageBytes+=Reservation;xredisclustermap* Map=C->Map;if(Map)xredisClusterMapRetain(Map);xrtMutexUnlock(&C->Gate);
     xredisclusteroperation* O=NULL;xredisclusterroute* Route=NULL;uint64 Generation=0;
     if(Map){xredisclustermapinfo M={0};M.Size=sizeof(M);xredisClusterMapInfo(Map,&M);xredisclusterrouteconfig K=xredisClusterRouteConfigFor(C,NULL,M.Origin.Tls);K.Timeout=Timeout;ptr Context=NULL;
-        if(__xredisClusterRouteCreateContext(M.Topology,M.Origin.Host,Slot,Cursor,A,Count,&K,XREDIS_CLUSTER_OPERATION_PREFIX,&Context,&Route,E)==XREDIS_ADMISSION_ACCEPTED){O=Context;Generation=M.Generation;}}
+        if(__xredisClusterRouteCreateContext(M.Topology,M.Origin.Host,Slot,A,Count,&K,XREDIS_CLUSTER_OPERATION_PREFIX,&Context,&Route,E)==XREDIS_ADMISSION_ACCEPTED){O=Context;Generation=M.Generation;}}
     else O=xrtCalloc(1,sizeof(*O));
     bool OK=O!=NULL;
-    if(O){O->Client=C;O->Watch.Client=C;O->Watch.Operation=O;O->Heap=SIZE_MAX;O->Entered=E;O->Deadline=xredisClusterDeadline(E,Timeout);O->Slot=Slot;O->ReplicaCursor=Cursor;O->Timeout=Timeout;O->Count=Count;O->Wire=Wire;O->Reservation=Reservation;O->Result.Size=sizeof(O->Result);
+    if(O){O->Client=C;O->Watch.Client=C;O->Watch.Operation=O;O->Heap=SIZE_MAX;O->Entered=E;O->Deadline=xredisClusterDeadline(E,Timeout);O->Slot=Slot;O->Timeout=Timeout;O->Count=Count;O->Wire=Wire;O->Reservation=Reservation;O->Result.Size=sizeof(O->Result);
         O->Route=Route;O->Result.Generation=Generation;
         O->Promise=xrtPromiseCreate(&O->Future,NULL);if(O->Promise)O->Token=xrtPromiseCancelToken(O->Promise);if(O->Token)O->Cancel=xrtCancelWatch(O->Token,xredisClusterCancelled,O);OK=O->Promise && O->Token && O->Cancel;
         if(OK && !Map){O->Arguments=xrtMalloc(Inputs);OK=O->Arguments!=NULL;if(OK){unsigned char* P=(unsigned char*)(O->Arguments+Count);for(size_t I=0;I<Count;++I){O->Arguments[I]=(xbytesview){P,A[I].Size};if(A[I].Size)memcpy(P,A[I].Data,A[I].Size);P+=A[I].Size;}}}
@@ -352,9 +349,7 @@ static xredisadmission xredisClusterClientCallAt(xredisclusterclient* C,uint16 S
     if(O){xrtCancelUnwatch(O->Cancel);xrtCancelDestroy(O->Token);xrtPromiseDestroy(O->Promise);xrtFutureDestroy(O->Future);xredisClusterOperationFree(O,NULL);}return Closing?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ERROR;
 }
 XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xfuture** Out)
-{return xredisClusterClientCallAt(C,Slot,A,Count,Timeout,Out,xrtTimer(),false);}
-XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xfuture** Out)
-{return xredisClusterClientCallAt(C,Slot,A,Count,Timeout,Out,xrtTimer(),true);}
+{return xredisClusterClientCallAt(C,Slot,A,Count,Timeout,Out,xrtTimer());}
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
 static xredisclustercommandadmission xredisClusterClientCallCommandAt(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out,double Entered)
 {
@@ -374,7 +369,7 @@ static xredisclustercommandadmission xredisClusterClientCallCommandAt(xredisclus
     case XREDIS_KEYS_LIMIT:return XREDIS_CLUSTER_COMMAND_LIMIT;
     default:return XREDIS_CLUSTER_COMMAND_ERROR;
     }
-    xredisadmission Admission=xredisClusterClientCallAt(C,Keys.HasSlot?Keys.Slot:KeylessSlot,A,Count,Timeout,Out,Entered,false);
+    xredisadmission Admission=xredisClusterClientCallAt(C,Keys.HasSlot?Keys.Slot:KeylessSlot,A,Count,Timeout,Out,Entered);
     switch(Admission){case XREDIS_ADMISSION_ACCEPTED:return XREDIS_CLUSTER_COMMAND_ACCEPTED;case XREDIS_ADMISSION_OVERLOADED:return XREDIS_CLUSTER_COMMAND_OVERLOADED;case XREDIS_ADMISSION_CLOSED:return XREDIS_CLUSTER_COMMAND_CLOSED;default:return XREDIS_CLUSTER_COMMAND_ERROR;}
 }
 XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommand(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out)
@@ -403,7 +398,7 @@ static bool xredisClusterSyncOutput(xredisclusterclient* C,const xbytesview* A,s
 XREDIS_API xredisadmission xredisClusterClientCallSync(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xredisclusterwait* Out)
 {
     double Entered=xrtTimer();if(!xredisClusterSyncOutput(C,A,Count,Out))return XREDIS_ADMISSION_ERROR;
-    xfuture* F=NULL;xredisadmission S=xredisClusterClientCallAt(C,Slot,A,Count,Timeout,&F,Entered,false);
+    xfuture* F=NULL;xredisadmission S=xredisClusterClientCallAt(C,Slot,A,Count,Timeout,&F,Entered);
     if(S==XREDIS_ADMISSION_ACCEPTED){xwaitresult W=xrtFutureWait(F);*Out=(xredisclusterwait){W,F};}return S;
 }
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)

@@ -2,6 +2,7 @@
 #define XREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #include <xredis.h>
+#include "../../examples/cluster_client/replica_policy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -187,25 +188,32 @@ static bool clusterConnect(const xredisclusteraddress* Endpoint, xnetengine* Eng
     return xredisClientConnectInit(Engine, &Address, 0, NULL, &Init, Client);
 }
 
-static void checkManagedRead(xredisclusterclient* Client, uint16 Slot, bool PreferReplica, uint16 Port,
-    xredisclusterredirectkind Profile, size_t Lookups)
+static void checkManagedRead(xredisclusterclient* Client, xredisclusternodes* Nodes,
+    uint16 Slot, bool PreferReplica, uint16 Port, xredisclusterredirectkind Profile)
 {
     xfuture* Future = NULL;
-    xredisadmission Admission = PreferReplica ? xredisClusterClientCallReplica(Client, Slot, Get, 2, 5000, &Future) :
-        xredisClusterClientCall(Client, Slot, Get, 2, 5000, &Future);
-    require(Admission == XREDIS_ADMISSION_ACCEPTED, "managed GET admission");
+    if (PreferReplica) {
+        xredispool* Pool = NULL;
+        uint16 SelectedPort = 0;
+        xredisclusterpoolstatus Selected = appReplicaPool(Client, Nodes, Slot, 5000, &Pool, &SelectedPort);
+        if (Selected == XREDIS_CLUSTER_POOL_READY) {
+            require(Profile == XREDIS_CLUSTER_REPLICA_READ && SelectedPort == Port, "APP selected replica");
+            require(xredisSharedPoolCallAsync(Pool, Get, 2, 5000, &Future) == XREDIS_ADMISSION_ACCEPTED,
+                "explicit replica GET admission");
+            xredisPoolRelease(Pool);
+            checkValue(root(Future, XREDIS_REQUEST_OK));
+            xrtFutureDestroy(Future);
+            return;
+        }
+        require(Selected == XREDIS_CLUSTER_POOL_DENIED, "replica denied before native admission");
+    }
+    require(!Profile && xredisClusterClientCall(Client, Slot, Get, 2, 5000, &Future) == XREDIS_ADMISSION_ACCEPTED,
+        "managed primary GET admission");
     const xredisclusterclientresult* Result = waitValue(Future);
-    bool Selected = Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
+    require(Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
         Result->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Result->Route.Attempts == 1 &&
-        Result->Route.AttemptAddress.Port == Port && Result->Route.AttemptAddress.Reason == Profile &&
-        Result->Route.ProviderCalls == Lookups;
-    if (!Selected)
-        fprintf(stderr, "managed read expected port=%u profile=%d lookups=%zu; got status=%d observed=%d route=%d query=%d port=%u profile=%d lookups=%zu attempts=%zu generation=%llu\n",
-            (unsigned)Port, (int)Profile, Lookups, (int)Result->Status, (int)Result->RouteObserved,
-            (int)Result->Route.Status, (int)Result->Route.Query.Status, (unsigned)Result->Route.AttemptAddress.Port,
-            (int)Result->Route.AttemptAddress.Reason, Result->Route.ProviderCalls, Result->Route.Attempts,
-            (unsigned long long)Result->Generation);
-    require(Selected, "managed selected endpoint");
+        Result->Route.AttemptAddress.Port == Port && !Result->Route.AttemptAddress.Reason &&
+        Result->Route.ProviderCalls == 1,"primary GET endpoint");
     checkValue(root(Result->Native, XREDIS_REQUEST_OK));
     xrtFutureDestroy(Future);
 }
@@ -247,10 +255,10 @@ static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xre
     require(xredisClusterClientCreate(Engine, 0, Nodes, &Seed, 1, &Config, &Client) == XREDIS_ADMISSION_ACCEPTED, "managed Cluster startup");
     uint16 Slot;
     require(xredisClusterKeySlot(Get[1], &Slot), "local binary key slot");
-    checkManagedRead(Client, Slot, true, Replica, XREDIS_CLUSTER_REPLICA_READ, 1);
-    checkManagedRead(Client, Slot, false, Primary, 0, 1);
+    checkManagedRead(Client, Nodes, Slot, false, Primary, 0);
+    checkManagedRead(Client, Nodes, Slot, true, Replica, XREDIS_CLUSTER_REPLICA_READ);
     xrtAtomic32Store(&Fixture.DenyReplica, 1, XMEMORY_RELEASE);
-    checkManagedRead(Client, Slot, true, Primary, 0, 2);
+    checkManagedRead(Client, Nodes, Slot, true, Primary, 0);
     closeManaged(Client, Nodes);
     xredisPoolRelease(ReadPool);
 }
@@ -344,8 +352,8 @@ static int checkPromotion(int argc, char** argv)
     const xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), {(cbytes)Counter, (size_t)Size}};
     require(xredisClusterKeySlot(Get[1], &Slot) && xredisClusterKeySlot(Increment[1], &CounterSlot) && Slot == CounterSlot,
         "promotion slot");
-    checkManagedRead(Client, Slot, false, Fixture.Primary, 0, 1);
-    checkManagedRead(Client, Slot, true, Fixture.Replica, XREDIS_CLUSTER_REPLICA_READ, 1);
+    checkManagedRead(Client, Nodes, Slot, false, Fixture.Primary, 0);
+    checkManagedRead(Client, Nodes, Slot, true, Fixture.Replica, XREDIS_CLUSTER_REPLICA_READ);
     xredisclusterclientinfo Before = clientInfo(Client);
     xfuture* Blocked = NULL;
     if (Inflight) {

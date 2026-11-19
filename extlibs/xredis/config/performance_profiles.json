@@ -5640,12 +5640,13 @@
     {
       "name": "xredis_cluster_replica_warm",
       "system": "cluster_client",
-      "description": "Warm managed primary and replica routing on the same synthetic topology, different loopback node engines, pipeline32, 20000 samples. Includes observed completion, excludes socket setup.",
+      "description": "Warm managed primary routing and APP-selected native READONLY pool on the same synthetic topology, different loopback node engines, pipeline32, 20000 samples. Includes observed completion, excludes selection and setup.",
       "benchmarks": [
         {
           "name": "xredis_cluster_primary_warm",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "inputs": [
+            "extlibs/xredis/examples/cluster_client/replica_policy.h",
             "extlibs/xredis/tests/support/cluster_client_peer.h",
             "extlibs/xredis/tests/support/cluster_refresh_peer.h",
             "extlibs/xredis/tests/support/cluster_nodes_peer.h",
@@ -5696,6 +5697,7 @@
           "name": "xredis_cluster_replica_warm",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "inputs": [
+            "extlibs/xredis/examples/cluster_client/replica_policy.h",
             "extlibs/xredis/tests/support/cluster_client_peer.h",
             "extlibs/xredis/tests/support/cluster_refresh_peer.h",
             "extlibs/xredis/tests/support/cluster_nodes_peer.h",

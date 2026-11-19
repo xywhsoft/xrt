@@ -47,46 +47,28 @@ keys from a caller-owned catalogue before admission, with explicit keyless
 policy. Command metadata cache and server-assisted metadata fallback remain
 work. Optional synchronous facades are described below.
 
-## Replica reads
+## Replica reads in the application
 
-Use `xredisClusterClientCallReplica` for an explicitly stale-tolerant read.
-The caller classifies the command, computes its slot and verifies that all
-keys agree on that slot. Ordinary, synchronous and catalogue-based calls
-select the primary. Replication is asynchronous and a replica can return
-older data. [Redis Cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/#scaling-reads-using-replica-nodes)
+The [runnable example](../examples/cluster_client/README.md) uses the client's
+retained topology snapshot to choose a replica for an explicitly
+stale-tolerant read. The application classifies the command, computes its slot,
+and verifies that all keys agree. It can use its own lag, authority, and
+fallback policy. Redis replication is asynchronous.
+[Redis Cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/#scaling-reads-using-replica-nodes)
 
-The slot index locates the shard. The replica call scans only that shard's
-contiguous node entries, rotating the start position across calls. It chooses
-the first usable replica with an eligible health, endpoint and transport
-port. SHARDS requires an online replica. Legacy SLOTS reports no health and
-uses the transport of the metadata query. Endpoint resolution uses the
-original metadata query host for SOURCE and rejects UNKNOWN.
+Use `xredisClusterNodesGetPool` with the exact endpoint and
+`XREDIS_CLUSTER_REPLICA_READ`. The separate pool identity requires a managed
+client initialized with `XREDIS_INIT_CLUSTER_READONLY`. Release the topology
+snapshot after the lookup and keep the retained pool while needed. Use the
+native pool call for the selected read. An application can use the slotted
+primary client after an explicit replica rejection before native admission.
+Once admitted, keep the native result and delivery state.
+[Connection setup](client-init.md)
 
-The exact endpoint goes through Nodes authorization and a separate maintained
-pool identified by `XREDIS_CLUSTER_REPLICA_READ`. The factory receives the same
-marker and uses `XREDIS_INIT_CLUSTER_READONLY`. Pool maintenance drains clients
-that lack this flag, and native readiness requires the server acknowledgment.
-Optional ROLE checks can also run during setup. [Connection setup](client-init.md)
-
-When a replica is absent, denied, waiting on its provider, or has no native
-admission capacity, the route can use the eligible primary under the original
-deadline. The primary has its own authorization and ordinary pool. A cold
-replica pool can warm while the first read goes to the primary. Once a native
-attempt accepts the query, another attempt requires validated matching-slot
-MOVED or ASK. Redirect destinations use ordinary pools. A timeout, disconnect
-or cancellation keeps its native certainty and ownership contract.
-
-The topology stores two bytes per shard plus a two-byte sentinel in the
-existing allocation. Replica admission scans at most the selected shard's
-node count and copies the eligible primary host into the same route allocation
-when needed for fallback. It reuses the admission gate. Benchmark cases in
-`xredis_cluster_replica_warm` measure prewarmed primary and replica requests
-over loopback with pipeline depth 32. Wider replication lag policies and native
-deployment performance remain qualification work.
-
-```sh
-python tools/measure_performance.py --compiler gcc --manifest extlibs/xredis/config/modules.json --config extlibs/xredis/config/performance_profiles.json --profiles xredis_cluster_replica_warm --warmups 1 --repeats 3
-```
+The `xredis_cluster_replica_warm` profile measures native requests to the
+APP-selected READONLY pool and managed primary requests on the same loopback
+fixture. Both cases use the prewarmed pools. Selection and setup are outside
+the timed window.
 
 Each operation inherits one Call-entry deadline through allocation, queue,
 bootstrap, provider waits and native redirects. Cancellation stops only that

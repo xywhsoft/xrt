@@ -17400,3 +17400,32 @@ Evidence is under
 `out/service-extensions/scope-reduction-20261119/xredis-app-sentinel-seeds/`.
 Sentinel and Cluster replica selection migrations remain open. The strict
 xredis gate still reports 32 developing modules.
+
+## 2026-11-20 xredis Cluster replica selection owned by the APP
+
+Removed the managed replica-call entry point and its rotation, fallback host
+storage and shard side index. Library source shrank by 58 lines. The default
+Cluster client still routes explicit slots and handles MOVED and ASK.
+The example selects an eligible replica from the published topology and
+uses a separate READONLY pool with the existing endpoint authorization.
+A native read preserves the original result and delivery state. The real
+probe exercises an explicit primary call after replica policy rejects an
+endpoint before command admission.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header tests,
+the runnable example and static/shared package consumers. A real Redis
+8.0.5 Cluster under WSL passed READONLY, SHARDS and SLOTS on both client
+platforms. Killing the primary also passed the in-flight disconnection,
+unsent write and pre-promotion election probes on both client platforms.
+The runner confirmed convergence and exactly one increment for each
+accepted post-failure write.
+
+The unpinned warm profile timed 20,000 calls per sample with a 32-request
+pipeline and excluded route selection and setup for the APP replica pool.
+In the five-sample run, Windows medians were 179,119 requests/s and P99
+258.2 us for the managed primary, and 313,835 requests/s and P99 158.5 us
+for the APP-selected native replica. WSL medians were 49,113 requests/s
+and P99 941.9 us for the primary, and 61,298 requests/s and P99 796.6 us
+for the replica. Both environments exceeded the sample-variability gate.
+Native Linux and the 72-hour workloads remain open. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xredis-app-cluster-replicas/`.

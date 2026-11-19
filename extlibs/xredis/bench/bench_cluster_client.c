@@ -1,4 +1,5 @@
 #include <xredis.h>
+#include "../examples/cluster_client/replica_policy.h"
 #include "../tests/support/cluster_client_peer.h"
 #include <inttypes.h>
 static int cbCompare(const void* A,const void* B)
@@ -21,7 +22,13 @@ int main(int Argc,char** Argv)
     xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);
     xredisclusteraddress Address=nnAddress(F->Base,Replica?1:0);
     Address.Reason=Replica?XREDIS_CLUSTER_REPLICA_READ:0;
-    xredispool* Pool=NULL;redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"managed benchmark shared baseline");nnReady(Pool,1);
+    xredispool* Pool=NULL;
+    uint16 SelectedPort=0;
+    if(Replica)redisPeerRequire(appReplicaPool(C,F->Base->Cache,1,5000,&Pool,&SelectedPort)==XREDIS_CLUSTER_POOL_READY &&
+        SelectedPort==Address.Port,"APP selects one warm READONLY pool");
+    else redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,
+        "managed benchmark shared baseline");
+    nnReady(Pool,1);
     xfuture* Futures[32]={0};double Submitted[32]={0};const xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("managed\0route")};uint64 Sum=0;
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xmemstats Before,After;xrtMemStatsEnable(Heap);xrtMemStatsGet(&Before);
@@ -31,7 +38,7 @@ int main(int Argc,char** Argv)
     double Began=xrtTimer();
     for(size_t N=0;N<Count+Pipeline;++N){size_t I=N%Pipeline;
         if(N>=Pipeline && Futures[I]){redisPeerRequire(xrtFutureWaitFor(Futures[I],15000)==XWAIT_OK,"managed benchmark bounded wait");const xredisrequestresult* Q;
-            if(Mode){const xredisclusterclientresult* V=xrtFutureValue(Futures[I]);redisPeerRequire(V && V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");
+            if(Mode && !Replica){const xredisclusterclientresult* V=xrtFutureValue(Futures[I]);redisPeerRequire(V && V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->RouteObserved && V->Route.Status==XREDIS_CLUSTER_ROUTE_COMPLETE,"managed benchmark typed result");
                 if(Mode>=2)redisPeerRequire(V->Route.Attempts==1 && V->Route.AttemptAddress.Port==Address.Port &&
                     V->Route.AttemptAddress.Reason==Address.Reason,"benchmark expected warm profile");
                 Q=&V->Route.Query;}
@@ -39,8 +46,8 @@ int main(int Argc,char** Argv)
             redisPeerRequire(Q && Q->Status==XREDIS_REQUEST_OK,"benchmark native status");xredisreplyvalue V;redisPeerRequire(xredisReplyGet(Q->Reply,0,&V) && V.Data.Size==13 && !memcmp(V.Data.Data,"managed\0route",13),"benchmark binary result");Samples[N-Pipeline]=(xrtTimer()-Submitted[I])*1e6;++Sum;xrtFutureDestroy(Futures[I]);Futures[I]=NULL;}
         if(N<Count){
             Submitted[I]=xrtTimer();
-            xredisadmission S=Replica?xredisClusterClientCallReplica(C,1,A,2,10000,&Futures[I]):
-                Mode?xredisClusterClientCall(C,1,A,2,10000,&Futures[I]):xredisSharedPoolCallAsync(Pool,A,2,10000,&Futures[I]);
+            xredisadmission S=Mode && !Replica?xredisClusterClientCall(C,1,A,2,10000,&Futures[I]):
+                xredisSharedPoolCallAsync(Pool,A,2,10000,&Futures[I]);
             redisPeerRequire(S==XREDIS_ADMISSION_ACCEPTED,"benchmark no hidden admission loss");
         }
     }

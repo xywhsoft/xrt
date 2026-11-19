@@ -5655,9 +5655,9 @@ typedef enum xredisclusterroutestep {
 } xredisclusterroutestep;
 typedef struct xredisclusteraddress {
     xbytesview Host; uint16 Port, Slot; bool Tls;
-    /* Zero for a topology primary, REPLICA_READ for an initial replica
-     * selection, or a validated MOVED/ASK. ASK applies only to this route
-     * and must not change a shared slot map. */
+    /* Cluster routes use zero for a topology primary or a validated
+     * MOVED/ASK. ASK applies only to this route. APP-selected READONLY
+     * pools use REPLICA_READ. */
     xredisclusterredirectkind Reason;
 } xredisclusteraddress;
 /* Runs on the Step caller, outside all library gates. Nonblocking; no reentry
@@ -6024,15 +6024,6 @@ XREDIS_API void xredisClusterClientRelease(xredisclusterclient* Client);
  * Caller-retained result/route/native storage leaves client quotas at logical
  * publication and stays caller-owned. Do not wait on this Engine's worker. */
 XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* Client,
-    uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
-/* Stale-tolerant, explicitly slotted read. Caller classifies the command and
- * all its keys. Selects an eligible replica from the shard with a rotated
- * starting index. A missing, refused or unavailable replica can fall back to
- * the eligible primary before native acceptance. Every endpoint goes through
- * Nodes authorization, and replica pools require managed READONLY. After
- * native acceptance only validated MOVED/ASK can route to another endpoint.
- * Shares Call's ownership, cost bounds, output and original deadline. */
-XREDIS_API xredisadmission xredisClusterClientCallReplica(xredisclusterclient* Client,
     uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
 /* Ready resolves on the first valid map, or typed stop; metadata failures are
  * visible in Info while bootstrap retries. Acquired views are retained Maps.

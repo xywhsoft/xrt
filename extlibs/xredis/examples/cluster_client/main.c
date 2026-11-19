@@ -1,4 +1,5 @@
 #include <xredis.h>
+#include "replica_policy.h"
 #include "../../tests/support/cluster_client_peer.h"
 int main(void)
 {
@@ -9,20 +10,19 @@ int main(void)
     const xredisclusterclientresult* Result=cfWait(Primary);
     redisPeerRequire(Result->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && Result->Route.Query.Status==XREDIS_REQUEST_OK,
         "primary route after metadata bootstrap");
-    xredisclusteraddress Address=nnAddress(F->Base,1);
-    Address.Reason=XREDIS_CLUSTER_REPLICA_READ;
+    uint16 Port=0;
     xredispool* Pool=NULL;
-    redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,
-        "replica prewarm");
-    nnReady(Pool,1);xredisPoolRelease(Pool);
+    redisPeerRequire(appReplicaPool(C,F->Base->Cache,1,5000,&Pool,&Port)==XREDIS_CLUSTER_POOL_READY &&
+        Port==F->Base->Peers[1].Address.Port,"APP chooses an advertised replica");
+    nnReady(Pool,1);
     const xbytesview Args[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("sample")};
     xfuture* Replica=NULL;
-    redisPeerRequire(xredisClusterClientCallReplica(C,1,Args,2,5000,&Replica)==XREDIS_ADMISSION_ACCEPTED,
-        "stale-tolerant route admission");
-    Result=cfWait(Replica);
-    redisPeerRequire(Result->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && Result->Route.Query.Status==XREDIS_REQUEST_OK &&
-        Result->Route.AttemptAddress.Port==Address.Port && Result->Route.AttemptAddress.Reason==Address.Reason,
-        "replica route after READONLY");
+    redisPeerRequire(xredisSharedPoolCallAsync(Pool,Args,2,5000,&Replica)==XREDIS_ADMISSION_ACCEPTED &&
+        xrtFutureWaitFor(Replica,5000)==XWAIT_OK,"send directly to the selected READONLY pool");
+    const xredisrequestresult* Read=xrtFutureValue(Replica);
+    redisPeerRequire(Read && Read->Status==XREDIS_REQUEST_OK && Read->Delivery==XREDIS_REPLIED,
+        "native replica read result");
+    xredisPoolRelease(Pool);
     cfStop(F,C);xrtFutureDestroy(Primary);xrtFutureDestroy(Replica);
-    puts("Automatic metadata bootstrap, primary and replica routes, and shared node cache close");return 0;
+    puts("Automatic metadata bootstrap, primary routing, APP replica selection and shared node cache close");return 0;
 }
