@@ -514,7 +514,7 @@ def verify_pubrel_commit(program, directory):
 
 
 def session_records(data):
-    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05", b"XMQRET06")
+    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05", b"XMQRET06", b"XMQRET07")
     at = 20
     retained_header = 15 if data[7:8] == b"3" else 23
     for _ in range(int.from_bytes(data[16:20], "big")):
@@ -528,6 +528,8 @@ def session_records(data):
         body = at + {1: 46, 4: 30}.get(kind, 22)
         if data[7:8] >= b"5" and kind in (4, 5):
             body += 16
+        if data[7:8] >= b"7" and kind == 6:
+            body += 8
         size = int.from_bytes(data[at + 16:at + 20], "big")
         group = int.from_bytes(data[at + 20:at + 22], "big")
         yield at, body, body + size + group
@@ -1252,6 +1254,158 @@ def verify_stored_will_transactions(program, directory):
             "saved_will_fenced_resume_and_clean_start": True}
 
 
+def verify_online_will_transactions(program, directory):
+    image = directory / "armed-will.bin"
+    mode = "restore-online-will"
+    source = b"armed-source"
+
+    def fields(name, payload, seconds, version=5):
+        delay = b"\x05\x18" + seconds.to_bytes(4, "big") if version == 5 else b""
+        return delay + topic(name) + topic(payload)
+
+    def wills():
+        data = image.read_bytes()
+        return [(int.from_bytes(data[at + 8:at + 16], "big"), data[body:end])
+                for at, body, end in session_records(data) if data[at] == 6]
+
+    def wait_write(previous):
+        deadline = time.monotonic() + 6
+        while image.stat().st_mtime_ns == previous:
+            assert time.monotonic() < deadline, "Will transaction did not reach the checkpoint"
+            time.sleep(0.025)
+
+    def killed_connection(name, payload, delay, version=5, expiry=60):
+        peer = None
+        try:
+            with broker(program, mode, image, crash=True) as address:
+                peer = persistent(address, source, True, version=version, expiry=expiry,
+                                  will=fields(name, payload, delay, version), will_qos=1)
+                assert image.read_bytes()[:8] == b"XMQRET07"
+                assert wills()[0][0] == delay * 1000
+                if delay:
+                    time.sleep(delay + 0.25)
+                    barrier(peer)
+                    assert wills()[0][0] == delay * 1000
+        finally:
+            if peer is not None:
+                peer.close()
+
+    with broker(program, "capture", image):
+        pass
+    name = b"armed/crash"
+    killed_connection(name, b"crash-armed", 2)
+    # Rebase the still-armed Will once, then kill again before it is due.
+    with broker(program, mode, image, crash=True):
+        assert len(wills()) == 1
+    previous = image.stat().st_mtime_ns
+    with broker(program, mode, image, crash=True):
+        wait_write(previous)
+        assert not wills()
+    with broker(program, mode, image, crash=True) as address:
+        observer, _ = connect(address, 5, b"armed-observer")
+        with observer:
+            check_retained_value(observer, name, 1, b"crash-armed")
+
+    graceful = b"armed/graceful"
+    with broker(program, mode, image, "500", crash=True) as address:
+        with persistent(address, source, True, will=fields(graceful, b"cancelled", 20)) as peer:
+            assert len(wills()) == 1
+            peer.sendall(b"\xe0\0")
+            expect_silence(peer)
+            expect_disconnect(peer)
+            assert not wills()
+    with broker(program, mode, image, crash=True) as address:
+        observer, _ = connect(address, 5, b"armed-observer")
+        with observer:
+            subscribe(observer, graceful, 1, 0)
+            barrier(observer)
+
+    delayed = b"armed/disconnect-delay"
+    with broker(program, mode, image, "500", crash=True) as address:
+        with persistent(address, source, True, will=fields(delayed, b"closed", 4)) as peer:
+            previous = image.stat().st_mtime_ns
+            peer.sendall(frame(0xe0, b"\x04\x05\x11\0\0\0\x02"))
+            expect_disconnect(peer)
+            wait_write(previous)
+            pending = wills()
+            assert len(pending) == 1 and 400 < pending[0][0] < 1900, pending
+    previous = image.stat().st_mtime_ns
+    with broker(program, mode, image, crash=True):
+        wait_write(previous)
+        assert not wills()
+
+    earlier, later = b"armed/before-resume", b"armed/after-resume"
+    with broker(program, mode, image, "300", crash=True) as address:
+        with persistent(address, source, True, will=fields(earlier, b"old", 15)) as old:
+            with persistent(address, source, False, True, will=fields(later, b"new", 9)) as new:
+                assert receive(old) == (0xe0, b"\x8e")
+                armed = wills()
+                assert len(armed) == 1 and later in armed[0][1] and earlier not in armed[0][1]
+                new.sendall(b"\xe0\0")
+                expect_disconnect(new)
+                assert not wills()
+
+    replaced = b"armed/clean-start"
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, source, True, will=fields(replaced, b"replaced", 20)) as old:
+            with socket.create_connection(address, timeout=8) as peer:
+                peer.sendall(persistent_connect(source, True))
+                expect_connack(peer, reason=0x89)
+            assert receive(old) == (0xe0, b"\x8e")
+            due = time.monotonic() + 6
+            while True:
+                with socket.create_connection(address, timeout=8) as peer:
+                    peer.sendall(persistent_connect(source, True))
+                    kind, result = receive(peer)
+                    assert kind == 0x20
+                    if result[:2] == b"\0\0":
+                        break
+                    assert result[:2] == b"\0\x89" and time.monotonic() < due
+                time.sleep(0.05)
+        observer, _ = connect(address, 5, b"armed-observer")
+        with observer:
+            check_retained_value(observer, replaced, 1, b"replaced")
+
+    for version in (5, 4):
+        ephemeral = b"armed/zero-" + bytes((48 + version,))
+        killed_connection(ephemeral, b"zero-expiry", 0, version=version, expiry=0)
+        with broker(program, mode, image, crash=True) as address:
+            observer, _ = connect(address, 5, b"armed-observer")
+            with observer:
+                # This subscription also covers a still-pending publication.
+                subscribe(observer, ephemeral, 1, 0)
+                kind, body = receive(observer)
+                assert kind in (0x30, 0x31) and body == topic(ephemeral) + b"\0zero-expiry"
+            with persistent(address, source, False, False, version=version, expiry=0) as clean:
+                barrier(clean)
+
+    legacy_cancelled = b"armed/cancelled-311"
+    with broker(program, mode, image, "1000", crash=True) as address:
+        with persistent(address, source, True, version=4, expiry=0,
+                        will=fields(legacy_cancelled, b"cancelled-311", 0, 4)) as peer:
+            assert len(wills()) == 1
+            peer.sendall(b"\xe0\0")
+            expect_disconnect(peer)
+            data = image.read_bytes()
+            assert not wills()
+            # Cancellation commits before CLOSE removes the zero-expiry group.
+            assert any(data[at] == 1 and data[at + 4:at + 8] == b"\0\0\0\1" and
+                       data[at + 8:at + 16] == bytes(8) and data[body:end] == source
+                       for at, body, end in session_records(data))
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, source, False, False, version=4, expiry=0) as clean:
+            barrier(clean)
+        observer, _ = connect(address, 5, b"armed-observer")
+        with observer:
+            subscribe(observer, legacy_cancelled, 1, 0)
+            barrier(observer)
+
+    return {"online_will_armed_before_connack_and_rebased_after_crash": True,
+            "online_will_311_recovers_after_cancel_before_close": True,
+            "online_will_cancelled_before_eof": True, "online_will_delay_committed_on_close": True,
+            "online_will_live_resume_and_clean_start": True, "online_will_zero_expiry_5_and_311": True}
+
+
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
     kind, body = receive(peer)
@@ -1426,6 +1580,7 @@ def main():
                           **verify_subscription_transactions(args.program, folder),
                           **verify_session_expiry_transactions(args.program, folder),
                           **verify_stored_will_transactions(args.program, folder),
+                          **verify_online_will_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 

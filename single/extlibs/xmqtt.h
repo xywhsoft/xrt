@@ -4175,7 +4175,8 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_START,
 	XMQTT_SERVER_SESSION_RESUME,
 	XMQTT_SERVER_SESSION_CLOSE,
-	XMQTT_SERVER_SESSION_PUBLISH_WILL
+	XMQTT_SERVER_SESSION_PUBLISH_WILL,
+	XMQTT_SERVER_SESSION_CANCEL_WILL
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -4225,6 +4226,8 @@ typedef struct xmqttservertransaction {
 	uint64 OfflineLifetimeMs; /* CLOSE: lifetime at ClosedAt, UINT64_MAX for no expiry. */
 	double ClosedAt; /* CLOSE: XRT monotonic time of network closure. */
 	bool EndSession; /* PUBLISH_WILL: the source session has ended. */
+	xbytesview WillPublish; /* START/RESUME: armed PUBLISH. CLOSE: Will to keep. */
+	uint32 WillDelay; /* Seconds before expiry is applied. */
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
@@ -4285,7 +4288,11 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * the enumerated durable recipients and any retained mutation atomically.
  * Remove the source session as part of the commit when EndSession is set.
  * A mismatched key or missing Will must fail the transaction. For a RESUME
- * admitted before the delay, remove the older saved Will in the same commit.
+ * admitted before the delay, replace the older saved Will with WillPublish
+ * or remove it when the view is empty. START saves an armed Will with the
+ * new session. CLOSE schedules a kept Will from ClosedAt, bounded by the
+ * offline lifetime, including zero. CANCEL_WILL removes the armed Will
+ * and updates the connected ExpiryInterval before normal disconnect.
  *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
@@ -4331,9 +4338,11 @@ XMQTT_API bool xmqttServerEnableSessionExpiryTransactions(xmqttserver* Server);
 /* Opt in before restore or attach, after enabling session expiry and outbound
  * transactions. Brokers with retention enabled also need combined retained
  * transactions. Restored Wills retire through PUBLISH_WILL before routing.
- * Keep the transaction backend alive through WaitFor. The broker may defer
- * publication when resources are busy. An uncommitted failure preserves the
- * backend record. Fresh connection Will storage is a separate concern. */
+ * CONNECT with a Will commits its armed record before CONNACK, including
+ * zero-expiry connections. These records consume session and Will quotas.
+ * Normal DISCONNECT cancels it before finishing the transport. Keep the
+ * transaction backend alive through WaitFor. The broker may defer publication
+ * when resources are busy. An uncommitted failure preserves the backend record. */
 XMQTT_API bool xmqttServerEnableWillTransactions(xmqttserver* Server);
 
 /* Visit final per-filter edits for one subscription transaction before its
@@ -16285,6 +16294,9 @@ struct xmqttserversession {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 	bool ResetPending; /* Published and changed under the registry gate. */
 	bool WillPending; /* Durable firing in progress, under the registry gate. */
+	bool WillArmed; /* Committed live record, under the registry gate. */
+	uint32 ArmedWillDelay;
+	double ClosingWillDue; /* Protected by the session gate. */
 	xmqttserversessionkey Key;
 #endif
 	xmqttversion Version;
@@ -16361,6 +16373,8 @@ struct xmqttserverpeer {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 	xmqttserversessionticket* SessionCommit; /* Connection worker only. */
 	xmqttserversessionticket* ExpiryClose; /* Reserved before committing CONNECT. */
+	xmqttserversessionticket* WillCancel;
+	xatomic32 EndArmedSession;
 	bool ExpiryOpen;
 	xmqttserverdelivery* FirstPublish;
 #endif
@@ -16839,6 +16853,7 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 	/* At zero references, earlier protocol and store work has retired.
 	 * CLOSE takes a new owner pin before the peer and successor can retire. */
 	if (Peer->ExpiryClose && xmqttServerSubmitExpiryClose(Peer)) return;
+	xrtFree(Peer->WillCancel);
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
 	if (Peer->Auth) {
@@ -16854,21 +16869,32 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 	xrtMutexLock(&Server->Gate);
 	bool Closing = Server->Info.Closing;
 	bool Publish = !Closing && Peer->Online;
-	if (Will && Publish) Will->Identity = Session->Identity;
+	bool StoreWill = false;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	StoreWill = Will && Will->Durable;
+	if (Session) {
+		Session->WillArmed = false;
+		Session->ResetPending = false;
+	}
+#endif
+	if (Will && (Publish || StoreWill)) Will->Identity = Session->Identity;
 	if (Session) Successor = Session->Successor;
 	if (Session && Session->RegisteredKey.Size) {
 		--Server->Info.Established;
 		if (Successor || (xmqttServerKeepsSessions(Server) &&
-			xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE)) {
+			(StoreWill || xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE))) {
 			xrtMutexLock(&Session->Gate);
 			Session->Peer = NULL;
 			uint32 Expiry = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+			if (xrtAtomic32Load(&Peer->EndArmedSession, XMEMORY_ACQUIRE)) Expiry = 0;
+#endif
 			Session->Expires = !Peer->Online && Peer->Resumed ? Peer->ResumeExpiry :
 				(Expiry == UINT32_MAX ? INFINITY : Peer->ClosedAt + Expiry);
-			if (Will && Publish && Will->Delay &&
-				xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE) {
+			if (StoreWill || (Will && Publish && Will->Delay &&
+				xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE)) {
 				Will->Due = fmin(Peer->ClosedAt + Will->Delay, Session->Expires);
-				if (Will->Due > xrtTimer()) {
+				if (StoreWill || Will->Due > xrtTimer()) {
 					if (Session->Will) abort();
 					Session->Will = Will;
 					Will = NULL;
@@ -16903,7 +16929,7 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 		Session->Will = NULL;
 	}
 	if (Session) xmqttServerFreeSession(Session);
-	if (Will && Publish) xmqttServerPublishWill(Server, Will);
+	if (Will && Publish && !StoreWill) xmqttServerPublishWill(Server, Will);
 	else xmqttServerDropWill(Server, Will);
 	xrtFree(Peer);
 	if (Successor && !xrtNetPost(xrtNetStreamWorker(Successor->Stream), &Successor->Takeover,
@@ -17372,6 +17398,10 @@ static bool xmqttServerBindOffline(xmqttserverpeer* Peer, xmqttserversession* Se
 	Peer->Resumed = true;
 	Peer->ResumeExpiry = Session->Expires;
 	Session->Expires = 0;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	Session->ClosingWillDue = 0;
+	if (Server->WillTransactions) Session->ResetPending = true;
+#endif
 	++Server->Info.Established;
 	return true;
 }
@@ -17423,6 +17453,27 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 		return 0x89;
 	}
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Old && Old->Peer && Old->WillArmed) {
+		xmqttserverpeer* Previous = Old->Peer;
+		xrtMutexLock(&Old->Gate);
+		bool End = CleanStart || !xrtAtomic32Load(&Previous->SessionExpiry, XMEMORY_RELAXED) ||
+			(Old->Expires > 0 && Old->Expires <= Now);
+		bool Due = !Old->ArmedWillDelay || (Old->ClosingWillDue > 0 && Old->ClosingWillDue <= Now);
+		if (End || Due) {
+			if (End) {
+				xrtAtomic32Store(&Previous->EndArmedSession, 1, XMEMORY_RELEASE);
+				xrtAtomic32Store(&Old->State, XMQTT_SERVER_SEALED, XMEMORY_RELEASE);
+			}
+			bool Notify = !xrtAtomic32Load(&Previous->TakenOver, XMEMORY_ACQUIRE) &&
+				xmqttServerPeerTryRef(Previous);
+			if (Notify) xrtAtomic32Store(&Previous->TakenOver, 1, XMEMORY_RELEASE);
+			xrtMutexUnlock(&Old->Gate);
+			xrtMutexUnlock(&Server->Gate);
+			if (Notify) xmqttServerRequestTakeoverClose(Previous);
+			return 0x89;
+		}
+		xrtMutexUnlock(&Old->Gate);
+	}
 	if (Old && !Old->Peer && Old->Will && Old->Will->Durable &&
 		(CleanStart || Old->Will->Due <= Now || Old->Expires <= Now)) {
 		/* The expiry worker must retire the committed Will before replacing
@@ -17473,6 +17524,9 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	}
 
 	bool Persistent = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED) != 0;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	Persistent = Persistent || (Server->WillTransactions && Peer->Will);
+#endif
 	size_t Persisting = Server->Info.PersistentSessions - (Old && Old->Persistent ? 1u : 0u);
 	if (Persistent && Persisting >= Server->Config.MaxPersistentSessions) {
 		xrtMutexUnlock(&Server->Gate);
@@ -17651,8 +17705,9 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 		xrtAtomic32Store(&Server->RetainedFailed, 1, XMEMORY_RELEASE);
 #endif
 	bool ExpiryClose = Change.Operation == XMQTT_SERVER_SESSION_CLOSE;
+	bool CancelWill = Change.Operation == XMQTT_SERVER_SESSION_CANCEL_WILL;
 	bool Failed = Result == XMQTT_SERVER_SESSION_UNKNOWN ||
-		(ExpiryClose && Result != XMQTT_SERVER_SESSION_COMMITTED);
+		((ExpiryClose || CancelWill) && Result != XMQTT_SERVER_SESSION_COMMITTED);
 	if (Result == XMQTT_SERVER_SESSION_COMMITTED &&
 		(Change.Operation == XMQTT_SERVER_SESSION_START || Change.Operation == XMQTT_SERVER_SESSION_RESUME)) {
 		Peer->ExpiryOpen = true;
@@ -17665,6 +17720,13 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 		}
 	}
 	xrtMutexLock(&Server->Gate);
+	if (Change.WillPublish.Size && Peer->ExpiryOpen &&
+		(Change.Operation == XMQTT_SERVER_SESSION_START || Change.Operation == XMQTT_SERVER_SESSION_RESUME)) {
+		Peer->Will->Durable = true;
+		Peer->Session->WillArmed = true;
+		Peer->Session->ArmedWillDelay = Peer->Will->Delay;
+	}
+	if (CancelWill && Result == XMQTT_SERVER_SESSION_COMMITTED) Peer->Session->WillArmed = false;
 	if (Failed) Server->SessionStoreFailed = true;
 	bool Active = !Server->Info.Closing && !Server->SessionStoreFailed;
 	xrtMutexUnlock(&Server->Gate);
@@ -17708,6 +17770,12 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 				Resume = true;
 			} else xmqttServerReleaseAck(Ack, NULL, 0);
 		} else if (Active) xmqttServerAbortPeer(Peer);
+	} else if (CancelWill) {
+		if (Result == XMQTT_SERVER_SESSION_COMMITTED) {
+			xmqttServerDropWill(Server, Peer->Will);
+			Peer->Will = NULL;
+			if (Active) xmqttServerFinishPeer(Peer, Now);
+		}
 	} else if (Active && !ExpiryClose) {
 		if (Result == XMQTT_SERVER_SESSION_REJECTED)
 			xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
@@ -17810,8 +17878,13 @@ static bool xmqttServerSubmitExpiryClose(xmqttserverpeer* Peer)
 		Lifetime = isinf(Peer->ResumeExpiry) ? UINT64_MAX :
 			(uint64)((Peer->ResumeExpiry - Peer->ClosedAt) * 1000.0);
 	}
+	if (xrtAtomic32Load(&Peer->EndArmedSession, XMEMORY_ACQUIRE)) Lifetime = 0;
 	Ticket->Change.OfflineLifetimeMs = Lifetime;
 	Ticket->Change.ClosedAt = Peer->ClosedAt;
+	if (Peer->Online && Peer->Will && Peer->Will->Durable) {
+		Ticket->Change.WillPublish = (xbytesview){Peer->Will->Wire, Peer->Will->Bytes};
+		Ticket->Change.WillDelay = Peer->Will->Delay;
+	} else if (Peer->Will) Peer->Will->Durable = false;
 	xmqttServerDispatchSessionTicket(Ticket);
 	return true;
 }
@@ -17864,6 +17937,18 @@ static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
 			xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
 			return;
 		}
+		if (Peer->Server->WillTransactions) {
+			if (Peer->Will) {
+				Peer->WillCancel = xmqttServerNewSessionTicket(Peer, XMQTT_SERVER_SESSION_CANCEL_WILL, 0);
+				if (!Peer->WillCancel) {
+					xrtFree(Open);
+					xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
+					return;
+				}
+				Open->Change.WillPublish = (xbytesview){Peer->Will->Wire, Peer->Will->Bytes};
+				Open->Change.WillDelay = Peer->Will->Delay;
+			}
+		}
 		xmqttServerDispatchSessionTicket(Open);
 		return;
 	}
@@ -17893,10 +17978,15 @@ static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 		Saved->Successor = NULL;
 		xmutex* Gate = &Saved->Gate;
 		xrtMutexLock(Gate);
+		bool PreserveWill = false;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		PreserveWill = Saved->Will && Saved->Will->Durable;
+#endif
 		Bound = Accepting && xmqttServerBindOffline(Peer, Saved);
 		if (Bound) Saved = NULL;
-		else if (xmqttServerKeepsSessions(Server) && (Saved->Expires > Now || (Closing && Saved->Will)) &&
-			xrtAtomic32Load(&Saved->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE) {
+		else if (xmqttServerKeepsSessions(Server) && (PreserveWill ||
+			((Saved->Expires > Now || (Closing && Saved->Will)) &&
+			xrtAtomic32Load(&Saved->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE))) {
 			xmqttServerParkSession(Server, Saved);
 			Saved = NULL;
 		} else xmqttServerForgetSession(Server, Saved);
@@ -20793,6 +20883,15 @@ static void xmqttServerOnline(xmqttserverpeer* Peer, const xmqttpacket* Packet, 
 			xrtAtomic32Store(&Peer->SessionExpiry, Expiry, XMEMORY_RELAXED);
 		}
 		if (!Packet->Reason) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+			if (Peer->Will && Peer->Will->Durable) {
+				xmqttserversessionticket* Ticket = Peer->WillCancel;
+				Peer->WillCancel = NULL;
+				Ticket->Change.ExpiryInterval = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED);
+				xmqttServerDispatchSessionTicket(Ticket);
+				return;
+			}
+#endif
 			xmqttServerDropWill(Peer->Server, Peer->Will);
 			Peer->Will = NULL;
 		}
@@ -21142,7 +21241,7 @@ static xmqttserversession* xmqttServerRestoreSession(xmqttserver* Server,
 		(Server->TransactionSubmit && !Record->Key.High && !Record->Key.Low) ||
 		(Record->Milliseconds != UINT64_MAX && Record->Milliseconds > XMQTT_SERVER_MAX_LIFETIME_MS) ||
 		(Version != XMQTT_VERSION_5 && (Version != XMQTT_VERSION_311 || !Server->Config.Allow311)) ||
-		(Version == XMQTT_VERSION_311 && Record->Milliseconds != UINT64_MAX) ||
+		(Version == XMQTT_VERSION_311 && Record->Milliseconds != UINT64_MAX && Record->Milliseconds) ||
 		!Id.Size || Id.Size > Server->Config.MaxClientIdBytes ||
 		!xmqttUtf8StringCheck(Id, Server->Config.Codec.Utf8Flags, NULL) ||
 		xrtMapGet(&Server->Identities, Record->Data)) {
@@ -21324,7 +21423,8 @@ static bool xmqttServerRestoreWill(xmqttserversession* Session, const xmqttserve
 	uint64 Elapsed, double Now)
 {
 	xmqttserver* Server = Session->Server;
-	if (Session->Will || Session->Version != XMQTT_VERSION_5 || Record->Milliseconds > XMQTT_SERVER_MAX_LIFETIME_MS)
+	if (Session->Will || Record->Milliseconds > XMQTT_SERVER_MAX_LIFETIME_MS ||
+		(Session->Version == XMQTT_VERSION_311 && Record->Milliseconds))
 		return xmqttServerError(XERR_PROTOCOL, "invalid or duplicate MQTT checkpoint Will");
 	xmqttproperty Properties[XMQTT_SERVER_MAX_PROPERTIES];
 	const xmqttcodecbuffers Scratch = {Properties, XMQTT_SERVER_MAX_PROPERTIES, NULL, 0};
@@ -21414,6 +21514,7 @@ XMQTT_API bool xmqttServerRestoreSessions(xmqttserver* Server, const xmqttserver
 		for (Session = Server->Offline; Session;) {
 			xmqttserversession* Next = Session->OfflineNext;
 			if (!Session->Will && Session->Expires <= Now) {
+				/* Cancellation can commit before CLOSE removes the expired group. */
 				xmqttServerForgetSession(Server, Session);
 				xmqttServerFreeSession(Session);
 			}
@@ -21448,6 +21549,8 @@ static void xmqttServerPeerClosed(xmqttserverpeer* Peer)
 		xrtMutexLock(&Session->Gate);
 		Session->Expires = !Peer->Online && Peer->Resumed ? Peer->ResumeExpiry :
 			(Expiry == UINT32_MAX ? INFINITY : Peer->ClosedAt + Expiry);
+		if (Peer->Will && Peer->Will->Durable)
+			Session->ClosingWillDue = fmin(Peer->ClosedAt + Peer->Will->Delay, Session->Expires);
 		xrtMutexUnlock(&Session->Gate);
 	}
 #endif
@@ -22014,6 +22117,9 @@ static bool xmqttServerAttachNative(xmqttserver* Server, xnetstream* Stream
 	xrtAtomic32Init(&Peer->OutgoingStopped, 0);
 	xrtAtomic32Init(&Peer->TakenOver, 0);
 	xrtAtomic32Init(&Peer->SessionExpiry, 0);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	xrtAtomic32Init(&Peer->EndArmedSession, 0);
+#endif
 	Peer->Server = Server;
 	Peer->Stream = Stream;
 	Peer->Worker = xrtNetWorkerIndex(Worker);

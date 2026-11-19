@@ -17641,3 +17641,37 @@ The ordinary maturity check passes. Strict release still reports 43
 developing modules. Arming new Wills in online storage and persisting the
 delay on native disconnect remain open. Native Linux performance and
 72-hour production acceptance are also open.
+
+## 2026-11-20 MQTT online Will transactions
+
+With online Will storage enabled, START and RESUME commit the canonical
+Will and its delay before CONNACK. Normal DISCONNECT commits cancellation
+and the negotiated expiry interval before finishing the transport. CLOSE
+schedules the Will from the observed network-close time, bounded by
+session expiry. Zero-expiry connections reserve a keyed session until
+cancellation or publication. Clean Start and immediate Wills can fence
+takeover until the previous Will retires.
+
+The APP example version 7 records a per-Will time. It starts the delay at
+the first recovery when no close was observed and writes the result before
+opening its listener. A later restart uses the recorded deadline.
+Publication continues to retire the keyed Will in the same write as
+retained state and durable recipient deliveries.
+
+Windows x64 and Ubuntu/WSL passed broker storage tests, the full
+checkpoint TCP probe with modular and single-header builds, and static
+and shared package consumers. The new probe checks two successive process
+terminations, cancellation, DISCONNECT expiry override, same-ID resume and
+Clean Start, and zero-expiry Will recovery in MQTT 5 and MQTT 3.1.1.
+A dedicated MQTT 3.1.1 case kills the broker after cancellation commits
+and before CLOSE commits. It reproduced startup rejection before the fix
+and now verifies a fresh session with the Will still cancelled.
+The complete WSL checkpoint probe passed ASan/UBSan with leak detection
+and TSan. The default in-memory Will workload passed both smoke cases
+on each platform.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-online-will/`.
+The ordinary maturity check passes. Strict release still reports 43
+developing modules. Native Linux performance, controlled comparisons and
+72-hour mixed-load acceptance remain open.

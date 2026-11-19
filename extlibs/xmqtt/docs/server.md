@@ -391,29 +391,38 @@ sessions. If a process stops before recording a close, the example uses the
 first successful recovery as its observation of connection loss. It writes
 that deadline before opening the listener, so later restarts count the
 elapsed time. Observed closes retain their actual deadlines. The example
-continues to read versions 1 through 5 in their supported modes. Will data
-for live connections and online delayed Wills still need their own durable
-records.
+continues to read versions 1 through 5 in their supported modes.
 
-### Publishing saved Wills
+### Durable Will lifecycle
 
 Use `xmqttServerEnableWillTransactions` after enabling online session
 expiry and outbound state. A broker with retention enabled also needs
-combined retained transactions. The expiry worker then submits one
-transaction for a due checkpoint Will. The APP retires the keyed Will
-together with the durable recipient queues and any retained mutation.
-The broker releases the prepared deliveries after confirmation. A process
-stop after commit can still interrupt deliveries to volatile recipients.
-Resource pressure can defer a due record to a later expiry tick. Failed writes
-seal admission and preserve the authoritative record for recovery.
+combined retained transactions. START and RESUME include the new Will
+before a successful CONNACK. Zero-expiry connections with an armed Will
+also consume session and Will quotas. The Will Delay begins when the
+connection closes. CLOSE records that time and bounds the delay by the
+offline session lifetime. A normal DISCONNECT commits CANCEL_WILL before
+finishing the connection.
 
-A resume admitted before the delay cancels the older saved Will as part
-of its transaction, including when the store replies after the deadline.
-A CONNECT that races a pending firing may receive Server Busy. Clean Start
-requests termination of the saved session, so a saved Will can become due
-before the client retries the connection. The
-`restore-online-will` example mode enables this behavior for already
-checkpointed Wills. Online arming for new live connections remains separate.
+A resume admitted before the old Will is due replaces or cancels it in the
+same write. A CONNECT can receive Server Busy while an earlier Will retires.
+Clean Start terminates the prior session and brings its Will due. A Will with
+zero delay also becomes due when its connection closes during takeover.
+
+The expiry worker submits PUBLISH_WILL once a stored Will becomes due.
+The APP retires the keyed Will together with the durable recipient queues
+and any retained mutation. The broker releases prepared deliveries after
+confirmation. A process stop after commit can interrupt delivery to
+volatile recipients. Resource pressure can defer work to a later expiry
+tick. A failed cancellation, retirement, or publication write seals
+admission and requires authoritative recovery.
+
+Run `examples_server_checkpoint restore-online-will checkpoint.bin` to
+exercise these operations. The version 7 image stores Will timing.
+If a process stops with a connected marker, the first successful
+recovery records connection loss and rebases the Will delay and session
+lifetime before opening the listener. Later recoveries keep that recorded
+timeline. The mode also reads earlier supported online image versions.
 
 Run `examples_server_checkpoint capture checkpoint.bin`, then
 `examples_server_checkpoint restore-online checkpoint.bin`. Online mode
