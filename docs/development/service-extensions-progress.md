@@ -17069,3 +17069,33 @@ Broker session and Will recovery, durable acknowledgment ordering on
 unexpected restart, native Linux, controlled performance comparisons and
 72-hour mixed loads remain open. Strict release reports 42 developing
 modules.
+
+## 2026-11-20 MQTT broker session checkpoints
+
+Close for checkpoint seals admission and drains native owners while
+preserving persistent sessions. The owner visits records with one monotonic
+cut for session state. Restore rebuilds existing indexes and quotas before
+attachment. It keeps subscription options, incoming QoS 2 deduplication,
+unsent FIFO order, sent identifiers and acknowledgment phases, and already
+scheduled delayed Wills. Failed restore retires the provisional sessions.
+The APP file example saves these records alongside retained messages and
+loads its previous retained-only format.
+
+An independent peer restarted MQTT 5 and 3.1.1 sessions in another process.
+It verified QoS 1 DUP with the original packet identifier, QoS 2 PUBREL
+continuation, incoming QoS 2 duplicate suppression, offline delivery through
+the recovered wildcard subscription, and publication of a delayed Will that
+became due during downtime. The suite included a still-connected persistent
+client at the shutdown boundary. Recovery unit tests covered expired session
+removal, duplicate identifier rejection, quota accounting and OOM rollback.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header restart
+probes, TCP broker regression tests, and static and shared package consumers.
+WSL ASan/UBSan with leak checking and TSan passed the recovery tests and
+independent peer probe. Generated headers and API coverage checks passed.
+Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-session-checkpoint-*.
+
+Live store commits before protocol acknowledgments for unexpected restart,
+native Linux, controlled performance comparisons and 72-hour mixed loads
+remain open.

@@ -87,10 +87,8 @@ Run the example directly as `examples_server_checkpoint capture checkpoint.bin`,
 then send it a line on stdin after publishing retained messages. Use
 `examples_server_checkpoint restore checkpoint.bin` for later runs. The example
 owns the file format, CRC, UTC clock check and atomic file replacement.
-The checkpoint covers retained publications from controlled shutdown.
-Persistent sessions, pending Wills and protocol acknowledgments committed
-against an active backend before an unexpected restart require further broker
-storage integration.
+The same file also carries the session checkpoint described below. The APP
+example can reload its earlier retained-only files.
 
 MQTT 5 and 3.1.1 publishers can send QoS 1 and 2. `ReceiveMaximum` limits
 in-flight reliable publications per connection. `MaxIncomingPublishes` limits
@@ -175,8 +173,30 @@ replacement ends the old session and releases its Will for publication.
 MQTT 3.1.1 has no Will Delay. Will publication uses the regular routing,
 retention and QoS paths. Message Expiry starts at publication and Will Delay
 is consumed by the broker. Delayed Wills share the session expiry sweep.
-Pending Wills are volatile and are released on broker shutdown. Durable
-restart recovery is in development.
+Ordinary broker shutdown releases remaining Wills. Close for checkpoint can
+keep a delayed Will that was already scheduled before shutdown.
+
+### Session checkpoints across controlled restarts
+
+Call `xmqttServerCloseForCheckpoint` to seal admission and retire transports
+while preserving persistent sessions. After `xmqttServerWaitFor` succeeds,
+visit records with `xmqttServerVisitSessions` and destroy the broker after the
+application has saved the checkpoint. The records include the Client ID and
+protocol version, subscriptions, incoming QoS 2 deduplication IDs, unsent
+deliveries in FIFO order, sent deliveries with their original identifiers and
+acknowledgment phases, and previously scheduled delayed Wills. The broker's
+ordinary policy for Wills on live connections applies during this shutdown.
+
+Restore retained messages first and then call `xmqttServerRestoreSessions`
+before accepting connections. Supply trusted elapsed milliseconds from the
+checkpoint. Expired queued messages are discarded, active exchanges keep
+their protocol phase, and the original subscription index and resource
+limits apply. The existing expiry worker runs due Wills. A reconnect must
+still pass admission and authentication policy.
+
+Checkpoints capture completed, controlled shutdowns. Durability across
+unexpected process loss requires an active backend that commits protocol
+state before emitting the associated acknowledgment.
 
 ## MQTT 5 enhanced authentication
 

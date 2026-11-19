@@ -25,7 +25,9 @@ int main(void)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
     if (xmqttServerVisitRetained(NULL, NULL, NULL) ||
-        xmqttServerRestoreRetained(NULL, NULL, 0, 0)) return 73;
+        xmqttServerRestoreRetained(NULL, NULL, 0, 0) ||
+        xmqttServerCloseForCheckpoint(NULL) || xmqttServerVisitSessions(NULL, NULL, NULL) ||
+        xmqttServerRestoreSessions(NULL, NULL, 0, 0)) return 73;
     xrtClearError();
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)

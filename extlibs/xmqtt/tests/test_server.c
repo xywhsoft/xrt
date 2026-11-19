@@ -1805,8 +1805,8 @@ static void serverAckQuota(void)
 	xmqttserversession FirstSession = {0}, SecondSession = {0};
 	xmqttserverpeer First = {.Server = Fixture.Server, .Session = &FirstSession};
 	xmqttserverpeer Second = {.Server = Fixture.Server, .Session = &SecondSession};
-	xmqttServerSessionInit(&FirstSession, &First, XRT_STR_LITERAL("one"));
-	xmqttServerSessionInit(&SecondSession, &Second, XRT_STR_LITERAL("two"));
+	xmqttServerSessionInit(&FirstSession, First.Server, &First, First.Version, XRT_STR_LITERAL("one"));
+	xmqttServerSessionInit(&SecondSession, Second.Server, &Second, Second.Version, XRT_STR_LITERAL("two"));
 	xrtAtomic32Init(&First.References, 1);
 	xrtAtomic32Init(&Second.References, 1);
 	uint8 Reason;
@@ -2216,7 +2216,7 @@ static void serverRetainedOomAndExpiry(void)
 	serverStart(&Fixture, false, 0);
 	xmqttserversession Session = {0};
 	xmqttserverpeer Peer = {.Server = Fixture.Server, .Version = XMQTT_VERSION_5, .Session = &Session};
-	xmqttServerSessionInit(&Session, &Peer, XRT_STR_LITERAL("prod"));
+	xmqttServerSessionInit(&Session, Peer.Server, &Peer, Peer.Version, XRT_STR_LITERAL("prod"));
 	const char* Topic = "stored";
 	const unsigned char Value[] = {'p'}, Expiry[] = {2, 0, 0, 0, 3}, Reduced[] = {2, 0, 0, 0, 2};
 	unsigned char Wire[32];
@@ -2266,7 +2266,7 @@ static void serverRoutingOom(void)
 	serverStart(&Fixture, false, 0);
 	xmqttserversession Session = {0};
 	xmqttserverpeer Peer = {.Server = Fixture.Server, .Session = &Session};
-	xmqttServerSessionInit(&Session, &Peer, XRT_STR_LITERAL("test"));
+	xmqttServerSessionInit(&Session, Peer.Server, &Peer, Peer.Version, XRT_STR_LITERAL("test"));
 	const size_t Limits[] = {1, sizeof(xmqttserverlink)};
 	for (size_t Index = 0; Index < sizeof(Limits)/sizeof(Limits[0]); ++Index) {
 		xallocationbudget* Budget;

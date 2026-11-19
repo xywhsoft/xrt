@@ -6875,6 +6875,55 @@ XMQTT_API bool xmqttServerVisitRetained(xmqttserver* Server, xmqttserverretained
 XMQTT_API bool xmqttServerRestoreRetained(xmqttserver* Server,
 	const xmqttserverretainedrecord* Records, size_t Count, uint64 ElapsedMilliseconds);
 
+typedef enum xmqttserverrecordkind {
+	XMQTT_SERVER_RECORD_SESSION = 1,
+	XMQTT_SERVER_RECORD_SUBSCRIPTION,
+	XMQTT_SERVER_RECORD_INCOMING_QOS2,
+	XMQTT_SERVER_RECORD_QUEUED,
+	XMQTT_SERVER_RECORD_SENT,
+	XMQTT_SERVER_RECORD_WILL
+} xmqttserverrecordkind;
+
+/* Records follow their SESSION record. Unused fields contain zero.
+ * SESSION: Data is Client ID, Code is MQTT version, Milliseconds is lifetime
+ * and Identifier is the last outbound Packet Identifier allocated.
+ * SUBSCRIPTION: Data is the filter, Group is the optional shared group and
+ * Code is SUBSCRIBE options. INCOMING_QOS2: Identifier and PUBREC reason Code.
+ * QUEUED: Data is a PUBLISH template with Packet Identifier 1, Milliseconds
+ * is its lifetime. SENT: same template with original Identifier, Code is the
+ * expected ACK packet type and Value is the last wire Message Expiry Interval.
+ * WILL: Data is a delayed Will PUBLISH, Milliseconds is time until publication.
+ * UINT64_MAX represents an unlimited SESSION or QUEUED lifetime. */
+typedef struct xmqttserversessionrecord {
+	xmqttserverrecordkind Kind;
+	xbytesview Data, Group;
+	uint64 Milliseconds;
+	uint32 Value;
+	uint16 Identifier;
+	uint8 Code;
+} xmqttserversessionrecord;
+
+typedef bool (*xmqttserversessionvisitor)(const xmqttserversessionrecord* Record, ptr User);
+
+/* Seal admission and retire all transports, keeping persistent sessions and
+ * previously armed delayed Wills for an application-owned checkpoint. The
+ * ordinary shutdown policy for armed Wills on live connections applies.
+ * This owner-thread operation is irreversible and repeatable after success. */
+XMQTT_API bool xmqttServerCloseForCheckpoint(xmqttserver* Server);
+
+/* After CloseForCheckpoint and WaitFor, visit session state outside locks.
+ * The owner keeps the broker alive. Views are borrowed only for this call.
+ * Keep the emitted order, including sent packet order and unsent FIFO order.
+ * A visitor returning false leaves the checkpoint incomplete. */
+XMQTT_API bool xmqttServerVisitSessions(xmqttserver* Server, xmqttserversessionvisitor Visit, ptr User);
+
+/* On a new unattached broker owned by the caller, restore checkpoint records
+ * with downtime deducted. Existing resource limits apply. Records are borrowed
+ * only through this call. On failure no restored session is left installed.
+ * A due delayed Will is routed by the broker's existing expiry worker. */
+XMQTT_API bool xmqttServerRestoreSessions(xmqttserver* Server,
+	const xmqttserversessionrecord* Records, size_t Count, uint64 ElapsedMilliseconds);
+
 XRT_EXTERN_C_END
 #endif
 #endif
