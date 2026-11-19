@@ -161,12 +161,12 @@ def verify(program, directory):
             "finite_expiry_and_no_local": True, "corruption_and_clock_rejection": True}
 
 
-def persistent_connect(client_id, clean, *, version=5, will=b"", max_packet=None, expiry=60):
+def persistent_connect(client_id, clean, *, version=5, will=b"", max_packet=None, expiry=60, will_qos=0):
     fields = b"\x11" + expiry.to_bytes(4, "big")
     if max_packet is not None:
         fields += b"\x27" + max_packet.to_bytes(4, "big")
     fields = bytes((len(fields),)) + fields if version == 5 else b""
-    flags = (2 if clean else 0) | (0x24 if will else 0)
+    flags = (2 if clean else 0) | ((0x24 | will_qos << 3) if will else 0)
     return frame(0x10, b"\0\4MQTT" + bytes((version, flags, 0, 0)) + fields + topic(client_id) + will)
 
 
@@ -175,9 +175,10 @@ def expect_connack(peer, present=False, reason=0):
     assert kind == 0x20 and body[:2] == bytes((present, reason)), (kind, body)
 
 
-def persistent(address, client_id, clean, present=False, *, version=5, will=b"", max_packet=None, expiry=60):
+def persistent(address, client_id, clean, present=False, *, version=5, will=b"", max_packet=None, expiry=60, will_qos=0):
     peer = socket.create_connection(address, timeout=8)
-    peer.sendall(persistent_connect(client_id, clean, version=version, will=will, max_packet=max_packet, expiry=expiry))
+    peer.sendall(persistent_connect(client_id, clean, version=version, will=will, max_packet=max_packet,
+                                    expiry=expiry, will_qos=will_qos))
     expect_connack(peer, present)
     return peer
 
@@ -1155,6 +1156,102 @@ def verify_session_expiry_transactions(program, directory):
             "online_expiry_takeover_order": True, "online_expiry_reconnect_at_deadline": True}
 
 
+def verify_stored_will_transactions(program, directory):
+    image = directory / "stored-will.bin"
+    mode = "restore-online-will"
+    source, target, name = b"will-source", b"will-recipient", b"will/stored"
+
+    def capture(path, delay, provision=False):
+        fields = b"\x05\x18" + delay.to_bytes(4, "big") + topic(name) + topic(b"from-will")
+        with broker(program, "capture", path) as address:
+            if provision:
+                writer, _ = connect(address, 5, b"will-retained-seed")
+                with writer:
+                    publish(writer, name, b"previous")
+                with persistent(address, target, True) as recipient:
+                    subscribe(recipient, name, 1, 0x22)
+            with persistent(address, source, True, will=fields, will_qos=1) as peer:
+                barrier(peer)
+            # Let the server park the disconnected source before checkpoint close.
+            time.sleep(0.18)
+        data = path.read_bytes()
+        assert sum(data[at] == 6 for at, _, _ in session_records(data)) == 1
+        return data
+
+    def wait_file(path, previous):
+        deadline = time.monotonic() + 6
+        while path.stat().st_mtime_ns == previous:
+            assert time.monotonic() < deadline, "Will did not reach the checkpoint"
+            time.sleep(0.02)
+
+    before = capture(image, 3, True)
+    time.sleep(3.1)
+    with broker(program, mode, image, "1500", crash=True):
+        # The first expiry tick submits the due Will to a delayed writer.
+        time.sleep(1.25)
+    assert image.read_bytes() == before
+
+    rejected = directory / "stored-will-rejected.bin"
+    rejected.write_bytes(before)
+    with broker(program, mode, rejected, "700", exit_code=1):
+        moved = rejected.with_suffix(".unavailable")
+        rejected.rename(moved)
+        try:
+            time.sleep(2.05)
+        finally:
+            moved.rename(rejected)
+    assert rejected.read_bytes() == before
+
+    previous = image.stat().st_mtime_ns
+    with broker(program, mode, image, crash=True):
+        wait_file(image, previous)
+    committed = image.read_bytes()
+    kinds = [committed[at] for at, _, _ in session_records(committed)]
+    assert 6 not in kinds and kinds.count(4) == 1
+
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, target, False, True) as recipient:
+            identifier = received_publish(recipient, 0x32, name, b"from-will")
+            recipient.sendall(frame(0x40, identifier))
+            barrier(recipient)
+        observer, _ = connect(address, 5, b"will-checker")
+        with observer:
+            check_retained_value(observer, name, 1, b"from-will")
+
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, target, False, True) as recipient:
+            barrier(recipient)
+            expect_silence(recipient)
+
+    cancelled = directory / "stored-will-cancelled.bin"
+    capture(cancelled, 5)
+    time.sleep(3.1)
+    with broker(program, mode, cancelled, "2000", crash=True) as address:
+        # Admit RESUME before the deadline and complete it after the deadline.
+        with persistent(address, source, False, True) as peer:
+            barrier(peer)
+            data = cancelled.read_bytes()
+            assert not any(data[at] == 6 for at, _, _ in session_records(data))
+            assert int.from_bytes(data[16:20], "big") == 0
+
+    replaced = directory / "stored-will-replaced.bin"
+    capture(replaced, 10)
+    with broker(program, mode, replaced, crash=True) as address:
+        previous = replaced.stat().st_mtime_ns
+        with socket.create_connection(address, timeout=8) as peer:
+            peer.sendall(persistent_connect(source, True))
+            expect_connack(peer, reason=0x89)
+        wait_file(replaced, previous)
+        data = replaced.read_bytes()
+        assert not any(data[at] == 1 and data[body:end] == source for at, body, end in session_records(data))
+        with persistent(address, source, True) as peer:
+            barrier(peer)
+    return {"saved_will_recovers_after_pending_write": True,
+            "saved_will_commits_retained_and_queued_delivery": True,
+            "saved_will_backend_refusal_preserves_record": True,
+            "saved_will_fenced_resume_and_clean_start": True}
+
+
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
     kind, body = receive(peer)
@@ -1328,6 +1425,7 @@ def main():
                           **verify_qos1_transactions(args.program, folder),
                           **verify_subscription_transactions(args.program, folder),
                           **verify_session_expiry_transactions(args.program, folder),
+                          **verify_stored_will_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 

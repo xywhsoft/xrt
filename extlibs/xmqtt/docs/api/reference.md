@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `244` 个函数、`353` 个常量或宏、
+当前登记 `245` 个函数、`354` 个常量或宏、
 `156` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -888,7 +888,7 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/server_store.h)
 
-### 函数 (16)
+### 函数 (17)
 
 - `xmqttServerCloseForCheckpoint`
 - `xmqttServerCompleteSessionCommit`
@@ -897,6 +897,7 @@
 - `xmqttServerEnableQos1Transactions`
 - `xmqttServerEnableSessionExpiryTransactions`
 - `xmqttServerEnableSubscriptionTransactions`
+- `xmqttServerEnableWillTransactions`
 - `xmqttServerRestoreRetained`
 - `xmqttServerRestoreSessions`
 - `xmqttServerSetSessionCommit`
@@ -907,7 +908,7 @@
 - `xmqttServerVisitTransactionRecipients`
 - `xmqttServerVisitTransactionSubscriptions`
 
-### 常量与宏 (24)
+### 常量与宏 (25)
 
 - `XMQTT_SERVER_RECORD_INCOMING_QOS2`
 - `XMQTT_SERVER_RECORD_QUEUED`
@@ -922,6 +923,7 @@
 - `XMQTT_SERVER_SESSION_DISCARD`
 - `XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2`
 - `XMQTT_SERVER_SESSION_FINISH_OUTGOING`
+- `XMQTT_SERVER_SESSION_PUBLISH_WILL`
 - `XMQTT_SERVER_SESSION_REJECTED`
 - `XMQTT_SERVER_SESSION_RELEASE_OUTGOING`
 - `XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS`

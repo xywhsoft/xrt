@@ -17615,3 +17615,29 @@ Raw evidence is under
 Strict release still reports 43 developing modules. Durable armed and
 delayed Wills, controlled performance comparisons, native Linux and
 72-hour production acceptance remain open.
+
+## 2026-11-20 MQTT durable publication of saved Wills
+
+The optional Will transaction carries the keyed retirement of a restored
+delayed Will, any retained mutation, and the durable recipient queues.
+The broker releases prepared routing only after the write commits. A
+resume admitted before the delay cancels the saved record in the same
+write as the new session state. A due Will pins its source until the
+transaction retires. Clean Start can bring the prior Will due and can
+return Server Busy while the pending state drains.
+
+The TCP checkpoint probes cover a killed process during a pending write,
+definite store rejection, a second restart after commit, one queued
+QoS 1 delivery to an offline QoS 2 subscriber, retained replacement,
+resume cancellation across the deadline, and Clean Start retirement.
+The default in-memory Will profile passed two smoke workloads on each
+platform. Windows x64 and Ubuntu/WSL passed modular, single-header,
+static and shared checks, and WSL passed ASan/UBSan, leak detection and
+TSan on the checkpoint probe.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-stored-will/`.
+The ordinary maturity check passes. Strict release still reports 43
+developing modules. Arming new Wills in online storage and persisting the
+delay on native disconnect remain open. Native Linux performance and
+72-hour production acceptance are also open.

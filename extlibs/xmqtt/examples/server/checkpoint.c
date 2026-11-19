@@ -290,7 +290,7 @@ typedef struct checkpointstore {
 	cstr Path;
 	xtaskpool* Writer;
 	int64 Delay;
-	bool Online, Expiry;
+	bool Online, Expiry, Wills;
 } checkpointstore;
 
 typedef struct checkpointchange {
@@ -365,7 +365,8 @@ static bool checkpointCollectRecipient(const xmqttservertransactionrecipient* Re
 static bool checkpointAcceptsPublication(xmqttserversessionoperation Operation)
 {
 	return Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1 ||
-		Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2;
+		Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2 ||
+		Operation == XMQTT_SERVER_SESSION_PUBLISH_WILL;
 }
 
 static bool checkpointEditsSubscriptions(xmqttserversessionoperation Operation)
@@ -445,6 +446,8 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 	bool Matching = false, MatchedGroup = false, Found = !checkpointHasKey(Change->Key);
 	bool Closing = Change->Operation == XMQTT_SERVER_SESSION_CLOSE;
 	bool Resuming = Change->Operation == XMQTT_SERVER_SESSION_RESUME;
+	bool PublishingWill = Change->Operation == XMQTT_SERVER_SESSION_PUBLISH_WILL;
+	bool RemovedWill = false;
 	bool Replacing = Change->Operation == XMQTT_SERVER_SESSION_DISCARD ||
 		Change->Operation == XMQTT_SERVER_SESSION_START;
 	for (size_t At = 0; At < Count; ++At) {
@@ -467,6 +470,17 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 				Offset = Elapsed;
 			}
 		}
+		if (Matching && PublishingWill) {
+			if (!checkpointKeyEqual(Change->Key, Group.Key)) return false;
+			if (Record.Kind == XMQTT_SERVER_RECORD_WILL) {
+				if (RemovedWill) return false;
+				RemovedWill = true;
+				continue;
+			}
+			if (Change->EndSession) continue;
+		}
+		if (Matching && Resuming && Request->Store->Wills && Record.Kind == XMQTT_SERVER_RECORD_WILL)
+			continue;
 		/* A resume reserved before expiry may be queued behind this write.
 		 * Preserve its key if time elapsed in the writer. A zero lifetime
 		 * at the close event ends the session and removes all state. */
@@ -522,6 +536,8 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 	case XMQTT_SERVER_SESSION_SEND_OUTGOING:
 	case XMQTT_SERVER_SESSION_RELEASE_OUTGOING:
 		return Found;
+	case XMQTT_SERVER_SESSION_PUBLISH_WILL:
+		return MatchedGroup && RemovedWill;
 	case XMQTT_SERVER_SESSION_FINISH_OUTGOING:
 	case XMQTT_SERVER_SESSION_RESUME:
 	case XMQTT_SERVER_SESSION_CLOSE:
@@ -713,19 +729,20 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 		 xmqttServerEnableQos1Transactions(Server) && xmqttServerEnableSubscriptionTransactions(Server)) :
 		(!Store->Writer || xmqttServerSetSessionCommit(Server, checkpointSubmit, Store));
 	return Ready && (!Store->Expiry || xmqttServerEnableSessionExpiryTransactions(Server)) &&
-		checkpointLoad(Server, Store->Path, Store->Online);
+		(!Store->Wills || xmqttServerEnableWillTransactions(Server)) && checkpointLoad(Server, Store->Path, Store->Online);
 }
 
 int main(int Argc, char** Argv)
 {
-	bool Expiry = Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry");
+	bool Wills = Argc >= 3 && !strcmp(Argv[1], "restore-online-will");
+	bool Expiry = Wills || (Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry"));
 	bool Online = Expiry || (Argc >= 3 && !strcmp(Argv[1], "restore-online"));
 	bool Fenced = Online || (Argc >= 3 && !strcmp(Argv[1], "restore-fenced"));
 	if ((Fenced && Argc > 4) ||
 		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
 		puts("usage: examples_server_checkpoint capture|restore checkpoint.bin");
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
-		puts("       examples_server_checkpoint restore-online-expiry checkpoint.bin [delay-ms]");
+		puts("       examples_server_checkpoint restore-online-expiry|restore-online-will checkpoint.bin [delay-ms]");
 		return Argc == 1 ? 0 : 1;
 	}
 	xmqttserverconfig Config;
@@ -736,7 +753,7 @@ int main(int Argc, char** Argv)
 	Config.Allow311 = true;
 #endif
 	checkpointstore Store = {.Path = Argv[2], .Delay = Argc == 4 ? strtol(Argv[3], NULL, 10) : 0,
-		.Online = Online, .Expiry = Expiry};
+		.Online = Online, .Expiry = Expiry, .Wills = Wills};
 	if (Store.Delay < 0 || Store.Delay > 2000) return 1;
 	if (Fenced) {
 		const xtaskpoolconfig PoolConfig = {.Threads = 1, .QueueLimit = 16};

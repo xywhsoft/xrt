@@ -148,7 +148,8 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS,
 	XMQTT_SERVER_SESSION_START,
 	XMQTT_SERVER_SESSION_RESUME,
-	XMQTT_SERVER_SESSION_CLOSE
+	XMQTT_SERVER_SESSION_CLOSE,
+	XMQTT_SERVER_SESSION_PUBLISH_WILL
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -197,6 +198,7 @@ typedef struct xmqttservertransaction {
 	uint8 OutgoingPhase; /* Expected ACK after SEND or RELEASE; before FINISH. */
 	uint64 OfflineLifetimeMs; /* CLOSE: lifetime at ClosedAt, UINT64_MAX for no expiry. */
 	double ClosedAt; /* CLOSE: XRT monotonic time of network closure. */
+	bool EndSession; /* PUBLISH_WILL: the source session has ended. */
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
@@ -253,6 +255,12 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * If a crash leaves a connected record, the APP supplies the time of network
  * loss or the first observation of the outage when calculating restore expiry.
  *
+ * PUBLISH_WILL retires the saved Will for this ClientId and Key and commits
+ * the enumerated durable recipients and any retained mutation atomically.
+ * Remove the source session as part of the commit when EndSession is set.
+ * A mismatched key or missing Will must fail the transaction. For a RESUME
+ * admitted before the delay, remove the older saved Will in the same commit.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -293,6 +301,14 @@ XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server);
  * The APP handles START, RESUME and CLOSE for persistent sessions, including
  * connections with an unchanged expiry interval. Will storage is separate. */
 XMQTT_API bool xmqttServerEnableSessionExpiryTransactions(xmqttserver* Server);
+
+/* Opt in before restore or attach, after enabling session expiry and outbound
+ * transactions. Brokers with retention enabled also need combined retained
+ * transactions. Restored Wills retire through PUBLISH_WILL before routing.
+ * Keep the transaction backend alive through WaitFor. The broker may defer
+ * publication when resources are busy. An uncommitted failure preserves the
+ * backend record. Fresh connection Will storage is a separate concern. */
+XMQTT_API bool xmqttServerEnableWillTransactions(xmqttserver* Server);
 
 /* Visit final per-filter edits for one subscription transaction before its
  * completion. Each record has Kind SUBSCRIPTION. Data is the filter, Group

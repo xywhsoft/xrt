@@ -395,6 +395,26 @@ continues to read versions 1 through 5 in their supported modes. Will data
 for live connections and online delayed Wills still need their own durable
 records.
 
+### Publishing saved Wills
+
+Use `xmqttServerEnableWillTransactions` after enabling online session
+expiry and outbound state. A broker with retention enabled also needs
+combined retained transactions. The expiry worker then submits one
+transaction for a due checkpoint Will. The APP retires the keyed Will
+together with the durable recipient queues and any retained mutation.
+The broker releases the prepared deliveries after confirmation. A process
+stop after commit can still interrupt deliveries to volatile recipients.
+Resource pressure can defer a due record to a later expiry tick. Failed writes
+seal admission and preserve the authoritative record for recovery.
+
+A resume admitted before the delay cancels the older saved Will as part
+of its transaction, including when the store replies after the deadline.
+A CONNECT that races a pending firing may receive Server Busy. Clean Start
+requests termination of the saved session, so a saved Will can become due
+before the client retries the connection. The
+`restore-online-will` example mode enables this behavior for already
+checkpointed Wills. Online arming for new live connections remains separate.
+
 Run `examples_server_checkpoint capture checkpoint.bin`, then
 `examples_server_checkpoint restore-online checkpoint.bin`. Online mode
 reads v3 through v5 files. The v5 file adds a stable key to each reliable
