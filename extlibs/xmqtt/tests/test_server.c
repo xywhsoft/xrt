@@ -59,13 +59,14 @@ static xmqttserverpermission serverAuthorizeTopic(xmqttversion Version, xstrview
 
 static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing,
 	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes, uint16 ReceiveMaximum,
-	size_t OutgoingLimit)
+	size_t OutgoingLimit, size_t TimerLimit)
 {
 	memset(Fixture, 0, sizeof(*Fixture));
 	xrtAtomic32Init(&Fixture->ListenerClosed, 0);
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = 2;
+	if (TimerLimit) EngineConfig.TimerLimit = TimerLimit;
 	Fixture->Engine = xrtNetEngineCreate(&EngineConfig);
 	testRequire(Fixture->Engine && xrtNetEngineStart(Fixture->Engine), "server engine");
 	xmqttserverconfig Config;
@@ -122,7 +123,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget,
 	bool Routing, size_t WildcardNodes)
 {
-	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64, 0);
+	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64, 0, 0);
 }
 
 static void serverStart(serverfixture* Fixture, bool Allow311, size_t Budget)
@@ -780,7 +781,7 @@ static void serverRetainedRoutes(xmqttversion Origin, xmqttversion Target)
 static void serverRetainedLimits(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64, 0, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -859,7 +860,7 @@ static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
 {
 	serverfixture Fixture;
 	serverStartLimits(&Fixture, Origin == XMQTT_VERSION_311 || Target == XMQTT_VERSION_311,
-		0, true, 65536, 1, 34, 1, 0);
+		0, true, 65536, 1, 34, 1, 0, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, Origin, true, 0, "qos1"));
@@ -1118,7 +1119,7 @@ static void serverQos2(xmqttversion Origin, xmqttversion Target)
 static void serverQos2Window(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 1, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 1, 0, 0);
 	xnetsocket Publisher = serverDial(&Fixture);
 	unsigned char Wire[32];
 	serverSend(Publisher, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -1313,6 +1314,68 @@ static void serverWillFlows(xmqttversion Origin)
 	serverEof(Publisher);
 }
 
+static void serverFillTimer(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
+{
+	(void)Worker;
+	(void)Id;
+	(void)Data;
+	testRequire(Result == XNET_RESULT_CANCELLED || Result == XNET_RESULT_CLOSED,
+		"test timers outlive the expiry deadline");
+}
+
+static void serverExpiryTimerAdmission(void)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 1);
+	xnetsocket Socket = serverDial(&Fixture);
+	serverWillConnect(Socket, XMQTT_VERSION_5, "gone", "last", 10, 1, 0, false, 0x89);
+	serverEof(Socket);
+	serverConnections(&Fixture, 0);
+	serverWaitSessions(&Fixture, 0, 0);
+	serverWaitWills(&Fixture, false);
+	Socket = serverDial(&Fixture);
+	serverQos1Connect(Socket, XMQTT_VERSION_5, "gone");
+	serverPingPeer(Socket);
+	xrtNetSocketClose(Socket);
+	serverStop(&Fixture);
+}
+
+static void serverWillTimerPressure(void)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 2);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xnetsocket Observer = serverDial(&Fixture);
+	serverQos1Connect(Observer, Version, "sink");
+	const char* Topic[] = {"last"};
+	const uint8 Qos[] = {0};
+	serverSubscribeWire(Observer, Version, true, 1, Topic, Qos, Qos, 1);
+	xnetsocket Publisher = serverDial(&Fixture);
+	serverWillConnect(Publisher, Version, "gone", "last", 2, 1, 0, false, 0);
+	serverWaitWills(&Fixture, true);
+
+	/* Consume every unreserved timer credit after CONNACK. Keep both workers
+	 * saturated throughout the Will Delay and Session Expiry deadlines. */
+	for (uint32 Worker = 0; Worker < 2; ++Worker) {
+		unsigned Count = 0;
+		while (xrtNetEngineAfter(Fixture.Engine, Worker, 30000, serverFillTimer, NULL))
+			++Count;
+		testRequire(Count > 0 && Count <= 2 && xrtErrorKind(xrtGetError()) == XERR_AGAIN,
+			"saturate native timer admission on both workers");
+		xrtClearError();
+	}
+	double Start = xrtTimer();
+	xrtNetSocketClose(Publisher);
+	const unsigned char Expiry[] = {2,0,0,0,5};
+	serverExpectPublish(Observer, Version, "last", (cbytes)"gone", 4, Expiry, sizeof(Expiry));
+	testRequire(xrtTimer() >= Start + 0.9, "timer pressure preserves Will Delay");
+	serverWaitWills(&Fixture, false);
+	serverWaitSessions(&Fixture, 0, 0);
+	serverPingPeer(Observer);
+	xrtNetSocketClose(Observer);
+	serverStop(&Fixture);
+}
+
 static void serverPersistentFlows(void)
 {
 	serverfixture Fixture;
@@ -1400,7 +1463,7 @@ static void serverPersistentFlows(void)
 static void serverOfflineLimit(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 1);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 1, 0);
 	const xmqttversion Version = XMQTT_VERSION_5;
 	xnetsocket Publisher = serverDial(&Fixture), Subscriber = serverDial(&Fixture);
 	serverQos1Connect(Publisher, Version, "prod");
@@ -1519,7 +1582,7 @@ static void serverOutgoingExpiry(void)
 static void serverOutgoingLimit(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2, 0);
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverQos1Connect(Producer, XMQTT_VERSION_5, "prod");
 	serverQos1Connect(Consumer, XMQTT_VERSION_5, "slow");
@@ -1649,7 +1712,7 @@ static void serverWildcardQuota(void)
 static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0);
+	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0, 0);
 	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
@@ -1710,7 +1773,7 @@ static void serverPostAckFixture(serverfixture* Fixture, uint32 Worker, serverac
 static void serverQos1Exceeded(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1, 0, 0);
 	xnetsocket Socket = serverDial(&Fixture);
 	unsigned char Wire[32];
 	serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "full"));
@@ -1862,6 +1925,45 @@ static void serverHoldOldWorker(xnetworker* Worker, ptr Data)
 		testRequire(xrtTimer() < Until, "takeover test releases the old worker");
 		xrtSleep(1);
 	}
+}
+
+static void serverOccupyCommand(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	(void)Data;
+}
+
+static void serverExpiryCloseFullQueue(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	xnetsocket Socket = serverDial(&Fixture);
+	serverPersistentConnect(Socket, XMQTT_VERSION_5, "hold", true, 60, 1, false, 0);
+	xrtMutexLock(&Fixture.Server->Gate);
+	xnetworker* Worker = xrtNetStreamWorker(Fixture.Server->Peers->Stream);
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	servertakeovergate Gate;
+	xrtAtomic32Init(&Gate.Ready, 0);
+	xrtAtomic32Init(&Gate.Release, 0);
+	xnetpost Post;
+	testRequire(xrtNetPostInit(&Post) && xrtNetPost(Worker, &Post, serverHoldOldWorker, &Gate),
+		"hold the expiry timer's worker");
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&Gate.Ready, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "expiry timer worker is held");
+		xrtSleep(1);
+	}
+
+	size_t Count = 0;
+	while (xrtNetEnginePost(Fixture.Engine, xrtNetWorkerIndex(Worker), serverOccupyCommand, NULL))
+		++Count;
+	testRequire(Count && xrtErrorKind(xrtGetError()) == XERR_AGAIN, "fill timer cancellation command queue");
+	xrtClearError();
+	testRequire(xmqttServerClose(Fixture.Server) && xmqttServerWaitFor(Fixture.Server, 0) == XWAIT_TIMEOUT,
+		"close keeps the broker pinned when cancellation could not be queued");
+	xrtAtomic32Store(&Gate.Release, 1, XMEMORY_RELEASE);
+	serverStop(&Fixture);
+	serverEof(Socket);
 }
 
 static void serverTakeoverRoutes(bool Cancel)
@@ -2288,6 +2390,8 @@ int main(void)
 	serverQos2(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2Window();
 	serverWillFlows(XMQTT_VERSION_5);
+	serverExpiryTimerAdmission();
+	serverWillTimerPressure();
 	serverPersistentFlows();
 	serverExpiredSession();
 	serverOfflineLimit();
@@ -2317,6 +2421,7 @@ int main(void)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
 	serverWillOom();
+	serverExpiryCloseFullQueue();
 	serverOutgoingOom();
 	serverTakeoverRoutes(false);
 	serverTakeoverRoutes(true);

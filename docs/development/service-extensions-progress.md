@@ -16848,3 +16848,60 @@ timer-capacity fault injection, transport and authentication variants,
 native Linux and the controlled and 72-hour performance gates remain open.
 Strict release still reports 37 developing modules. Raw results are under
 out/service-extensions/scope-reduction-20261119/xmqtt-wills-*.
+
+## 2026-11-19 MQTT expiry under native timer pressure
+
+The fault fixture configures two timer credits on each of two workers.
+After CONNACK it fills every credit still available, closes the publisher
+and waits for its one-second Will Delay and two-second Session Expiry.
+Before the fix the Will receive timed out with no other traffic to trigger
+expiry scheduling.
+
+The broker now reserves its first expiry sweep before admitting the first
+persistent session. Core commit a1c4146e adds xrtNetEngineEvery, which keeps
+the same timer ID, node and worker credit across ticks. The initial timer
+ceiling returns Server Busy before committing a session. The broker uses one
+credit until shutdown and wakes once a second after first persistent use,
+including when the offline list is empty. No allocation or queue command is
+needed to schedule the next sweep. The one-shot node's heap index fits in
+32 bits under TimerLimit. Packing the period next to that index preserved the
+64-byte node cache class. An earlier layout exceeded the class and failed
+the existing cached-timer OOM test.
+
+The first regression fixture verifies Will Delay, Will publication, memory
+credit return and actual session expiry with both workers still saturated.
+The admission fixture leaves a single credit per worker, verifies refusal
+before persistent state is installed, then connects without persistence.
+A third fixture fills the expiry worker's command queue during Close and
+checks the ticker retires on its own worker. The core tests cover repeated
+triggers with the only credit held, self-cancellation, reuse and shutdown.
+
+Windows x64 and Ubuntu/WSL x64 passed the XRT engine and ownership suites,
+the MQTT 5-only and dual-version modular and single-header broker suites,
+the static and shared package consumers, and the independent Python peer.
+WSL passed ASan/UBSan with leak checking and the full single-header TSan
+run. One parallel WSL MQTT 5-only run stopped at a loopback connect
+assertion. The sequential rerun passed modular, example and single-header
+tests. Generated headers and API coverage checks passed.
+
+The Will fan-out and live takeover profiles completed three unpinned
+runs per configuration on each host. The source and benchmark
+fingerprints matched. The 64-subscriber medians follow.
+
+| Host | Workload | Deliveries or takeovers/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Will fan-out | 125,544 | 454.5 | 529.2 |
+| Windows x64 | Live takeover | 4,004 | 323.9 | 372.4 |
+| Ubuntu/WSL x64 | Will fan-out | 111,478 | 608.3 | 667.5 |
+| Ubuntu/WSL x64 | Live takeover | 4,769 | 269.8 | 324.4 |
+
+The broker variation gate recorded 12 violations on Windows and eight
+on WSL. The existing one-shot network timer profile completed
+1,000 waits per backend and replicate. Its Windows variation gate passed.
+WSL had one variation violation. These are observations for the measured
+source snapshot. Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-expiry-ticker-*.
+
+Durable restart recovery, transport and authentication variants,
+native Linux and the controlled and 72-hour performance gates remain open.
+Strict release still reports 37 developing modules.

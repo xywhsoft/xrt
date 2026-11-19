@@ -105,8 +105,12 @@ reserves fresh state and seals the old session immediately, then waits for
 the old transport to retire before acknowledging the new CONNECT.
 
 An MQTT 5 DISCONNECT can shorten, extend or end a nonzero expiry interval.
-The expiry timer releases detached state. Offline admission and reconnect
-check the session deadline directly.
+The first persistent CONNECT reserves one XRT timer credit on its worker
+for the broker's one-second expiry sweep. It uses that credit until close,
+even when there are no offline sessions. Initial timer saturation returns
+Server Busy before the broker accepts the persistent CONNECT. Each sweep
+reuses the credit and releases expired detached state. Offline admission
+and reconnect check the session deadline directly.
 
 Offline ordinary subscriptions queue QoS 1/2 within the same count and byte
 budgets. QoS 0 requires a live recipient. Shared rotation selects connected

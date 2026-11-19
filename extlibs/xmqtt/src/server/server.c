@@ -398,20 +398,13 @@ static void xmqttServerForgetSession(xmqttserver* Server, xmqttserversession* Se
 	if (Session->Persistent) --Server->Info.PersistentSessions;
 }
 
-static void xmqttServerWakeExpiry(xmqttserver* Server, uint32 Worker)
-{
-	if (Server->Offline && !Server->ExpiryTimer && !Server->Info.Closing)
-		Server->ExpiryTimer = xrtNetEngineAfter(Server->Engine, Worker, 1000, xmqttServerSessionTimer, Server);
-}
-
-static void xmqttServerParkSession(xmqttserver* Server, xmqttserversession* Session, uint32 Worker)
+static void xmqttServerParkSession(xmqttserver* Server, xmqttserversession* Session)
 {
 	Session->OfflinePrevious = &Server->Offline;
 	Session->OfflineNext = Server->Offline;
 	if (Server->Offline) Server->Offline->OfflinePrevious = &Session->OfflineNext;
 	Server->Offline = Session;
 	++Server->Info.OfflineSessions;
-	xmqttServerWakeExpiry(Server, Worker);
 }
 
 static void xmqttServerSignalDrained(xmqttserver* Server)
@@ -427,13 +420,25 @@ static void xmqttServerSessionTimer(xnetworker* Worker, uint64 Id, xnetresult Re
 	xmqttserverwill* Due = NULL;
 	xrtMutexLock(&Server->Gate);
 	if (Server->ExpiryTimer != Id) abort();
+	if (Result != XNET_RESULT_OK) {
+		Server->ExpiryTimer = 0;
+		xmqttServerSignalDrained(Server);
+		xrtMutexUnlock(&Server->Gate);
+		return;
+	}
+	if (Server->Info.Closing) {
+		/* Close can still finish when its asynchronous cancellation
+		 * could not allocate or the command queue was full. */
+		xrtMutexUnlock(&Server->Gate);
+		if (!xrtNetEngineTimerCancelCurrent(xrtNetWorkerEngine(Worker), Id)) abort();
+		return;
+	}
 	double Now = xrtTimer();
-	bool Closing = Server->Info.Closing;
 	for (xmqttserversession* Session = Server->Offline; Session;) {
 		xmqttserversession* Next = Session->OfflineNext;
-		bool Remove = Closing || Session->Expires <= Now ||
+		bool Remove = Session->Expires <= Now ||
 			xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_SEALED;
-		if (!Closing && Session->Will && (Remove || Session->Will->Due <= Now)) {
+		if (Session->Will && (Remove || Session->Will->Due <= Now)) {
 			Session->Will->Next = Due;
 			Due = Session->Will;
 			Session->Will = NULL;
@@ -456,15 +461,11 @@ static void xmqttServerSessionTimer(xnetworker* Worker, uint64 Id, xnetresult Re
 		xmqttServerFreeSession(Garbage);
 		Garbage = Next;
 	}
-	xrtMutexLock(&Server->Gate);
-	Server->ExpiryTimer = 0;
-	if (Result == XNET_RESULT_OK) xmqttServerWakeExpiry(Server, xrtNetWorkerIndex(Worker));
-	xmqttServerSignalDrained(Server);
-	xrtMutexUnlock(&Server->Gate);
 }
 
 static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 {
+	(void)Worker;
 	xmqttserverpeer* Peer = Data;
 	xmqttserver* Server = Peer->Server;
 	xmqttserversession* Session = Peer->Session;
@@ -494,7 +495,7 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 				}
 			}
 			xrtMutexUnlock(&Session->Gate);
-			if (!Successor) xmqttServerParkSession(Server, Session, xrtNetWorkerIndex(Worker));
+			if (!Successor) xmqttServerParkSession(Server, Session);
 			Session = NULL;
 		} else xmqttServerForgetSession(Server, Session);
 	}
@@ -750,8 +751,6 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 		xrtMutexUnlock(&Server->Gate);
 		return 0x88;
 	}
-	if (Server->Offline && !Server->ExpiryTimer)
-		xmqttServerWakeExpiry(Server, Peer->Worker);
 	xmqttserversession** Entry = xrtMapGet(&Server->Identities, Key);
 	xmqttserversession* Old = Entry ? *Entry : NULL;
 	if (Old && (Old->Successor || (Old->Peer && Old->Peer->AwaitingSession))) {
@@ -794,6 +793,17 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	if (Persistent && Persisting >= Server->Config.MaxPersistentSessions) {
 		xrtMutexUnlock(&Server->Gate);
 		return 0x97;
+	}
+	if (Persistent && !Server->ExpiryTimer) {
+		/* Admission owns the future wakeup before the broker commits
+		 * session state. Every tick continues to use this one credit. */
+		Server->ExpiryTimer = xrtNetEngineEvery(Server->Engine, Peer->Worker, 1000,
+			xmqttServerSessionTimer, Server);
+		if (!Server->ExpiryTimer) {
+			uint8 Reason = xrtErrorKind(xrtGetError()) == XERR_AGAIN ? 0x89 : 0x88;
+			xrtMutexUnlock(&Server->Gate);
+			return Reason;
+		}
 	}
 	xmqttserversession* Session = xrtCalloc(1, sizeof(*Session) + Id.Size);
 	if (!Session || (Persistent && !xrtMutexInit(&Session->Gate))) {
@@ -868,6 +878,7 @@ static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
 
 static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 {
+	(void)Worker;
 	xmqttserverpeer* Peer = Data;
 	xmqttserver* Server = Peer->Server;
 	xmqttserversession* Saved = Peer->AwaitingSession;
@@ -887,7 +898,7 @@ static void xmqttServerFinishTakeover(xnetworker* Worker, ptr Data)
 		if (Bound) Saved = NULL;
 		else if (!Server->Info.Closing && Saved->Expires > Now &&
 			xrtAtomic32Load(&Saved->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_OFFLINE) {
-			xmqttServerParkSession(Server, Saved, xrtNetWorkerIndex(Worker));
+			xmqttServerParkSession(Server, Saved);
 			Saved = NULL;
 		} else xmqttServerForgetSession(Server, Saved);
 		xrtMutexUnlock(Gate);
@@ -2873,6 +2884,7 @@ XMQTT_API bool xmqttServerClose(xmqttserver* Server)
 		if (Garbage) ++Server->SessionCleanup;
 		for (xmqttserverpeer* Peer = Server->Peers; Peer; Peer = Peer->Next)
 			xrtNetStreamAbort(Peer->Stream);
+		if (Server->ExpiryTimer) (void)xrtNetEngineTimerCancel(Server->Engine, Server->ExpiryTimer);
 	}
 	xrtMutexUnlock(&Server->Gate);
 	if (Garbage) {
