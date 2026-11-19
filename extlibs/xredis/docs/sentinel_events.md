@@ -1,7 +1,7 @@
 # Sentinel event listening
 
 The optional xredis_sentinel_events module adds a reconnecting Redis Pub/Sub
-listener to automatic master and replica pools. Start it with
+listener to automatic master pools. Start it with
 xredisSentinelPoolListen, then inspect xredisSentinelPoolEventInfo.
 The existing subscription session and pool use the same engine worker.
 The listener connects through the pool's indexed seed factory.

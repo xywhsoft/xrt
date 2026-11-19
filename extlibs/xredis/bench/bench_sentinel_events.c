@@ -42,13 +42,13 @@ int main(int argc,char** argv)
     size_t Slots=argc>2?(size_t)strtoull(argv[2],NULL,10):1;
     unsigned Mode=argc>3?(unsigned)strtoul(argv[3],NULL,10):1;
     unsigned Replica=argc>4?(unsigned)strtoul(argv[4],NULL,10):0;
-    if(argc>5 || !Count || Count>8192 || !Slots || Slots>SE_BENCH_MAX_SLOTS || Mode>1 || Replica>1)return 2;
+    if(argc>5 || !Count || Count>8192 || !Slots || Slots>SE_BENCH_MAX_SLOTS || Mode>1 || Replica)return 2;
     double* Samples=malloc(2*Count*sizeof(*Samples));
     redisPeerRequire(Samples!=NULL,"latency samples");
     double* Complete=Samples+Count;
 
     sefixture Fixture;
-    seStart(&Fixture,Replica!=0,false,false,false);
+    seStart(&Fixture,false,false,false);
     Fixture.Pool.ReapClosed=true;
     xrtAtomic32Store(&Fixture.Pool.Seed.Base.SkipLive,1,XMEMORY_RELEASE);
     xrtAtomic32Store(&Fixture.Pool.A.Base.SkipLive,1,XMEMORY_RELEASE);

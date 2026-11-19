@@ -1,7 +1,7 @@
 #include "../../tests/support/sentinel_events_peer.h"
 int main(void)
 {
-    sefixture F;seStart(&F,false,false,false,false);
+    sefixture F;seStart(&F,false,false,false);
     xredispool* P=seCreate(&F,1);
     xfuture* First=spAcquire(P,5000);spPing(spLease(First));
     seListen(P,50);

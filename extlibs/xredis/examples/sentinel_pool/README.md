@@ -6,11 +6,13 @@ The existing pool worker discovers and verifies the endpoint, retires the old
 generation and supplies another native lease. The example runs without a Redis
 installation or credentials.
 
-The example also runs the replica pool through the same generation
-switch. For a real failover fixture, pass `--replicas` to
-`extlibs/xredis/tests/interop/run_redis_sentinel_pool.py` with the native
-probe. It verifies the new replica identity and the original blocking read's
-native outcome across Sentinel promotion.
+The application-owned replica example queries `SENTINEL REPLICAS`,
+verifies a connected replica with ROLE and builds a regular native pool.
+The application prepares a replacement pool on refresh and closes the
+old pool. The fixture verifies the old sent command keeps its native
+delivery uncertainty and is never replayed. The real Redis runner
+accepts `--replicas` to exercise the same application policy through
+Sentinel promotion.
 
 The example issues `xredisSentinelPoolRefresh` after the fixture changes the
 announced endpoint. The old lease stays held until verified replacement

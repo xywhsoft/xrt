@@ -161,8 +161,7 @@ static inline void spConfig(spfixture* F,xredissentinelpoolconfig* K)
 static inline xredispool* spCreate(spfixture* F,size_t Count,const xredispoolconfig* Options,const xredissentinelpoolconfig* K)
 {
     xredispool* P=NULL;
-    xredisadmission A=F->Replicas?xredisSentinelReplicaPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,spMaster,8,&P):
-        xredisSentinelPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,&P);
+    xredisadmission A=xredisSentinelPoolCreate(F->Seed.Base.Engine,0,Count,Options,K,&P);
     redisPeerRequire(A==XREDIS_ADMISSION_ACCEPTED,"Sentinel pool create");
     xrtAtomicPtrStore(&F->Pool,P,XMEMORY_RELEASE);return P;
 }

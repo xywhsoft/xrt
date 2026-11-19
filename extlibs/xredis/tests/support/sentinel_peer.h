@@ -75,14 +75,6 @@ static inline void sentinelConfig(sentinelfixture* F,xredissentinelconfig* K)
 {xredisSentinelConfigInit(K);K->Service=(xbytesview)XRT_BYTES_LITERAL("cache");K->ConnectSeed=sentinelSeedConnect;K->ConnectMaster=sentinelMasterConnect;K->Data=F;K->Protocol=F->Mode==XREDIS_INIT_RESP2?XREDIS_RESP2:XREDIS_RESP3;K->SeedTimeout=2000;K->RetryDelay=10;}
 static inline xredissentineldiscovery* sentinelCreate(sentinelfixture* F,const xredissentinelconfig* K)
 {xredissentineldiscovery* D=NULL;redisPeerRequire(xredisSentinelDiscoveryCreate(roleClientPeerInit(&F->Seeds[0]->Peer)->Peer.Engine,K,&D)==XREDIS_ADMISSION_ACCEPTED,"discovery create");return D;}
-static inline xredissentineldiscovery* sentinelReplicaCreate(sentinelfixture* F,xredissentinelconfig* K,size_t MaxReplicas)
-{
-    xredissentineldiscovery* D=NULL;
-    K->ConnectMaster=NULL;
-    redisPeerRequire(xredisSentinelReplicaDiscoveryCreate(roleClientPeerInit(&F->Seeds[0]->Peer)->Peer.Engine,
-        K,sentinelMasterConnect,MaxReplicas,&D)==XREDIS_ADMISSION_ACCEPTED,"replica discovery create");
-    return D;
-}
 static inline size_t sentinelReplicaRow(char* Output,size_t Capacity,bool Map,unsigned Port,cstr Flags)
 {
     int N=snprintf(Output,Capacity,"%s\r\n+ip\r\n+127.0.0.1\r\n+port\r\n+%u\r\n+flags\r\n+%s\r\n",

@@ -1,4 +1,5 @@
 #include <xredis/sentinel.h>
+#include "../../examples/sentinel/replica_policy.h"
 #include <xredis/dial.h>
 #include <xrt.h>
 #include <stdio.h>
@@ -30,14 +31,46 @@ int main(int Argc,char** Argv)
     if(!Port || Port>65535 || Master>65535 || Data.Factory>2 || strlen(Argv[3])!=40)return 2;
     xnetengineconfig Engine;xrtNetEngineConfigInit(&Engine);Engine.Workers=2;xnetengine* E=xrtNetEngineCreate(&Engine);sentinelRealRequire(E && xrtNetEngineStart(E),"engine start");Data.Resolver=xrtNetResolverCreate(NULL);sentinelRealRequire(Data.Resolver!=NULL,"resolver");
     xredissentinelconfig K;xredisSentinelConfigInit(&K);K.Service=(xbytesview){(cbytes)Argv[4],strlen(Argv[4])};K.ConnectSeed=sentinelRealSeed;K.ConnectMaster=sentinelRealMaster;K.Data=&Data;K.Protocol=Data.Mode==XREDIS_INIT_RESP2?XREDIS_RESP2:XREDIS_RESP3;K.SeedTimeout=2000;K.Timeout=5000;K.MaxRounds=2;
-    xredissentineldiscovery* D=NULL;
-    xredisadmission A=Replica?xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelRealMaster,16,&D):xredisSentinelDiscoveryCreate(E,&K,&D);
-    sentinelRealRequire(A==XREDIS_ADMISSION_ACCEPTED,"discovery create");double Limit=xrtTimer()+12;
-    for(;;){sentinelRealRequire(xrtTimer()<Limit,"drive deadline");xredissentinelstep S=xredisSentinelDiscoveryStep(D);sentinelRealRequire(S!=XREDIS_SENTINEL_STEP_ERROR,"Step");if(S==XREDIS_SENTINEL_DONE)break;if(S==XREDIS_SENTINEL_WAIT){int64 Ms=(int64)ceil((xredisSentinelDiscoveryNextWake(D)-xrtTimer())*1000);if(Ms<1)Ms=1;if(Ms>20)Ms=20;xfuture* F=xredisSentinelDiscoveryPending(D);if(F){(void)xrtFutureWaitFor(F,Ms);xrtFutureDestroy(F);}else xrtSleep(Ms);}}
-    xredissentinelresult R={0};R.Size=sizeof(R);sentinelRealRequire(xredisSentinelDiscoveryResult(D,&R) && R.Status==(xredissentinelstatus)Expected,"expected discovery result");
-    if(Expected==XREDIS_SENTINEL_OK){sentinelRealRequire(R.Endpoint.Port==Master && R.SeedAttempts==1 && R.MasterAttempts==1,"announced and verified data endpoint");xredisclient* C=NULL;sentinelRealRequire(xredisSentinelDiscoveryTakeClient(D,&C),"native endpoint transfer");xredisSentinelDiscoveryDestroy(D);D=NULL;
+    xredisclient* C=NULL;
+    if(Replica){
+        appreplicapick Pick;
+        bool Picked=appReplicaPick(E,&K,16,(xredissentinelendpoint){0},xrtTimer()+5,&Pick,&C);
+        sentinelRealRequire(Pick.Status==(xredissentinelstatus)Expected,"expected APP replica result");
+        if(Picked)sentinelRealRequire(Pick.Port==Master && Pick.SeedAttempts==1 && Pick.Candidates==1,
+            "APP verifies the announced replica");
+        else sentinelRealRequire(!Pick.Candidates,"unknown service did not dial a replica");
+    }else{
+        xredissentineldiscovery* D=NULL;
+        sentinelRealRequire(xredisSentinelDiscoveryCreate(E,&K,&D)==XREDIS_ADMISSION_ACCEPTED,"discovery create");
+        double Limit=xrtTimer()+12;
+        for(;;){
+            sentinelRealRequire(xrtTimer()<Limit,"drive deadline");
+            xredissentinelstep S=xredisSentinelDiscoveryStep(D);
+            sentinelRealRequire(S!=XREDIS_SENTINEL_STEP_ERROR,"Step");
+            if(S==XREDIS_SENTINEL_DONE)break;
+            if(S==XREDIS_SENTINEL_WAIT){
+                int64 Ms=(int64)ceil((xredisSentinelDiscoveryNextWake(D)-xrtTimer())*1000);
+                if(Ms<1)Ms=1;
+                if(Ms>20)Ms=20;
+                xfuture* F=xredisSentinelDiscoveryPending(D);
+                if(F){(void)xrtFutureWaitFor(F,Ms);xrtFutureDestroy(F);}
+                else xrtSleep(Ms);
+            }
+        }
+        xredissentinelresult R={.Size=sizeof(R)};
+        sentinelRealRequire(xredisSentinelDiscoveryResult(D,&R) && R.Status==(xredissentinelstatus)Expected,
+            "expected master discovery result");
+        if(Expected==XREDIS_SENTINEL_OK)
+            sentinelRealRequire(R.Endpoint.Port==Master && R.SeedAttempts==1 && R.MasterAttempts==1 &&
+                xredisSentinelDiscoveryTakeClient(D,&C),"announced and verified master");
+        else sentinelRealRequire(!R.MasterAttempts && R.UnknownReplies==1,"unknown service never dials a master");
+        xredisSentinelDiscoveryDestroy(D);
+    }
+    if(Expected==XREDIS_SENTINEL_OK){
+        sentinelRealRequire(C!=NULL,"native endpoint transfer");
         xbytesview Args[]={XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("SERVER")};xfuture* F=NULL;sentinelRealRequire(xredisClientCallAsync(C,Args,2,5000,&F)==XREDIS_ADMISSION_ACCEPTED,"native business call");const xredisrequestresult* B=sentinelRealWait(F);sentinelRealRequire(B->Status==XREDIS_REQUEST_OK && B->Delivery==XREDIS_REPLIED,"native business success");xredisreplyinfo Info={0};Info.Size=sizeof(Info);xredisReplyInfo(B->Reply,&Info);xredisreplyvalue V;xredisReplyGet(B->Reply,Info.Root,&V);bool Match=false;for(size_t I=0;I+47<=V.Data.Size;++I)if(!memcmp(V.Data.Data+I,"run_id:",7) && !memcmp(V.Data.Data+I+7,Argv[3],40)){Match=true;break;}sentinelRealRequire(Match,"transferred connection reaches verified owned identity");
         xfuture* Closed=xredisClientClosed(C);xredisClientClose(C);sentinelRealRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"data connection physical close");xrtFutureDestroy(Closed);xredisClientRelease(C);sentinelRealRequire(xrtNetResolverDestroy(Data.Resolver) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"physical owners joined");sentinelRealRequire(((const xredisrequestresult*)sentinelRealWait(F))->Status==XREDIS_REQUEST_OK,"result retained after engine");xrtFutureDestroy(F);
-    }else {sentinelRealRequire(R.MasterAttempts==0 && R.UnknownReplies==1,"unknown service never contacts a data endpoint");xredisSentinelDiscoveryDestroy(D);sentinelRealRequire(xrtNetResolverDestroy(Data.Resolver) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"unknown physical owners joined");}
+    }else sentinelRealRequire(!C && xrtNetResolverDestroy(Data.Resolver) &&
+        xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"unknown physical owners joined");
     printf("[PASS] real Sentinel discovery status=%u factory=%u protocol=%u target=%lu role=%s\n",Expected,Data.Factory,(unsigned)Data.Mode,Master,Replica?"replica":"master");return 0;
 }

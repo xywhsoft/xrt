@@ -28,35 +28,6 @@ establish consensus/freshness. Enable the optional [Sentinel event listener](sen
 to request verified refreshes from native subscriptions.
 [Runnable example](../examples/sentinel_pool/README.md).
 
-## Replica pools
-
-Initialize the usual Sentinel pool configuration and call
-`xredisSentinelReplicaPoolCreate` with the replica connection factory and a
-list bound. The initial slot establishes one chosen replica before parallel
-refill. Every subsequent connection rediscovers Sentinel and verifies with
-ROLE that the candidate is a connected replica. A repair tries the current
-exact host and port first when they remain eligible in the reply. This keeps
-healthy members in place when Sentinel changes list order. If that endpoint
-reports that it has become a primary before the seed reports a promotion,
-the worker retires the probe and requests fresh topology before trying
-other rows from that seed. When Sentinel reports a promoted endpoint,
-replacement connections must already follow it.
-
-Each generation serves one verified endpoint. A different verified replica
-closes the old generation's admission gate and drains its connections before
-the new generation can serve acquisitions. Accepted old requests preserve
-their native outcome. An empty eligible list remains retryable with the
-existing jitter and per-attempt bounds. Unknown services and fatal discovery
-errors still close the pool. The status snapshot retains NO_REPLICA while a
-replica is unavailable. Existing acquisition deadlines span the outage.
-
-The pool uses native lease calls with the caller's command permissions. It
-provides point-in-time verification on connection setup; replica freshness,
-read-after-write expectations and routing across multiple replicas require
-an explicit application policy. Missing slots trigger discovery even when
-active refresh is disabled.
-[Sentinel client specification](https://redis.io/docs/latest/develop/reference/sentinel-clients/#connect-to-replicas).
-
 ## Active refresh
 
 Call `xredisSentinelPoolRefresh` to request one probe, for example from a
@@ -79,6 +50,16 @@ A probe failure updates LastStatus and retains the current generation.
 Both APIs are safe to call from Notify. Close waits for the probe and its
 native observers before Drop. An accepted hint has no completion Future.
 [Sentinel event guidance](https://redis.io/docs/latest/develop/reference/sentinel-clients/#subscribe-to-sentinel-events-to-improve-responsiveness).
+
+## Application replica pools
+
+The [runnable example](../examples/sentinel_pool/README.md) selects and verifies
+a replica on the application owner thread and builds a regular native pool.
+It prepares a replacement after the application sees a topology change.
+Closing the old pool retires its acquisitions and preserves each sent
+command's native delivery state. New acquisitions go to the replacement.
+Applications decide when to refresh, what replication lag to accept, and
+how to handle their queued work during the switch.
 
 ## Configure Sentinel seeds
 

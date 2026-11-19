@@ -1,12 +1,13 @@
 #include "../../tests/support/sentinel_pool_peer.h"
 #include "seed_policy.h"
-static void spExample(bool Replicas)
+#include "replica_pool.h"
+static void spExample(void)
 {
-    spfixture F;spStart(&F,0,false,false);F.Replicas=Replicas;xredissentinelpoolconfig K;spConfig(&F,&K);xredispool* P=spCreate(&F,1,NULL,&K);
+    spfixture F;spStart(&F,0,false,false);xredissentinelpoolconfig K;spConfig(&F,&K);xredispool* P=spCreate(&F,1,NULL,&K);
     xfuture* First=spAcquire(P,5000);spPing(spLease(First));xrtAtomic32Store(&F.Current,1,XMEMORY_RELEASE);
     redisPeerRequire(xredisSentinelPoolRefresh(P)==XREDIS_ADMISSION_ACCEPTED,"request verified refresh");
     xfuture* Next=spAcquire(P,5000);spPing(spLease(Next));redisPeerRequire(spInfo(P).Generation==2,"automatic generation replacement");spReturn(spLease(Next),false);
-    spClose(&F,P);spStop(&F);xredisPoolRelease(P);xrtFutureDestroy(First);xrtFutureDestroy(Next);printf("Native pool rediscovered and replaced its %s generation\n",Replicas?"replica":"master");
+    spClose(&F,P);spStop(&F);xredisPoolRelease(P);xrtFutureDestroy(First);xrtFutureDestroy(Next);puts("Native Sentinel pool rediscovered and replaced its master generation");
 }
 static xredissentinelstatus appPoolSeed(xnetengine* Engine, size_t Index, int64 Timeout,
     ptr Context, xredisclient** Client)
@@ -59,5 +60,65 @@ static void spSeedExample(void)
     xredisPoolRelease(P);xrtFutureDestroy(First);xrtFutureDestroy(Next);
     puts("Native pool recovered using a Sentinel seed selected by the APP");
 }
+static void appClosePool(xredispool* Pool)
+{
+    xfuture* Closed=xredisPoolClosed(Pool);
+    redisPeerRequire(xredisPoolClose(Pool) && xrtFutureWaitFor(Closed,5000)==XWAIT_OK,
+        "retire the APP pool generation");
+    xrtFutureDestroy(Closed);
+}
+
+static void appReplicaExample(void)
+{
+    spfixture Peers;
+    spStart(&Peers,0,false,false);
+    Peers.Replicas=true;
+    xredissentinelpoolconfig Config;
+    spConfig(&Peers,&Config);
+    xnetengine* Engine=Peers.Seed.Base.Engine;
+    appreplicapick First;
+    xredispool* Active=NULL;
+    redisPeerRequire(appReplicaPoolOpen(Engine,&Config.Discovery,NULL,1,0,&First,&Active) &&
+        First.Port==Peers.A.Base.Address.Port,"prepare the first replica pool");
+    xfuture* Existing=spAcquire(Active,5000);
+    xredislease* Old=spLease(Existing);
+    spPing(Old);
+    uint32 Before=xrtAtomic32Load(&Peers.A.Base.Commands,XMEMORY_ACQUIRE);
+    xbytesview Hold=XRT_BYTES_LITERAL("HOLD");
+    xfuture* Pending=NULL;
+    redisPeerRequire(xredisLeaseCallAsync(Old,&Hold,1,5000,&Pending)==XREDIS_ADMISSION_ACCEPTED,
+        "send a command on the old pool");
+    redisPeerWait(&Peers.A.Base.Commands,Before+1);
+
+    xrtAtomic32Store(&Peers.Current,1,XMEMORY_RELEASE);
+    appreplicapick Second;
+    xredispool* Replacement=NULL;
+    redisPeerRequire(appReplicaPoolOpen(Engine,&Config.Discovery,NULL,1,&First,&Second,&Replacement) &&
+        Second.Port==Peers.B.Base.Address.Port,"APP refresh selects replacement replica");
+    appClosePool(Active);
+    const xredisrequestresult* PreviouslySent=spWait(Pending);
+    redisPeerRequire(PreviouslySent->Status!=XREDIS_REQUEST_OK &&
+        PreviouslySent->Delivery==XREDIS_MAY_HAVE_EXECUTED &&
+        !xrtAtomic32Load(&Peers.B.Base.Commands,XMEMORY_ACQUIRE),"retain old outcome without replay");
+    xredisPoolRelease(Active);
+    Active=Replacement;
+    xfuture* Next=spAcquire(Active,5000);
+    spPing(spLease(Next));
+    spReturn(spLease(Next),false);
+    appClosePool(Active);
+    xredisPoolRelease(Active);
+    xrtFutureDestroy(Existing);
+    xrtFutureDestroy(Pending);
+    xrtFutureDestroy(Next);
+    spDrop(&Peers);
+    spStop(&Peers);
+    puts("APP verified and replaced a native replica pool");
+}
+
 int main(void)
-{spExample(false);spExample(true);spSeedExample();return 0;}
+{
+    spExample();
+    appReplicaExample();
+    spSeedExample();
+    return 0;
+}

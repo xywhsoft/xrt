@@ -27,9 +27,8 @@ Ordinary business calls use the original native API without a proxy. Preserve
 Result.PreferredSeed for the next discovery and rediscover after every lost
 connection. ROLE is point-in-time identity, not freshness/consensus. Retrying
 business commands is never implicit. [Automatic native pools](sentinel_pool.md) provide pool-wide generation
-replacement. The same discovery owner also supports standalone replica
-selection. Optional Sentinel list refresh, event subscriptions and continuous
-replica pool maintenance remain separate work.
+replacement. The native Sentinel listener can request master rediscovery
+from a Pub/Sub event.
 
 Service bytes are copied once, host bytes once per positive query, one allocation
 holds helper plus bounded service/host capacity. Existing reply reader bounds
@@ -39,42 +38,13 @@ are 1..65535 decimal strings with at most five digits. Result views borrow the
 helper through Destroy; outputs must be disjoint writable caller storage.
 [Runnable example](../examples/sentinel/README.md).
 
-## Replica discovery
+## Application replica discovery
 
-Initialize the base configuration with `xredisSentinelConfigInit` and call
-`xredisSentinelReplicaDiscoveryCreate` with a replica connection factory and
-an explicit list limit. Drive the resulting object with the normal Step,
-Pending and NextWake calls. TakeClient transfers the verified native
-connection and its close duty. The procedure follows the public Sentinel
-client specification for replica discovery and ROLE verification.
-
-The seed query uses SENTINEL REPLICAS. The complete RESP2 array or RESP3 map
-list is validated before a data connection begins. Each row must carry one
-IP/host, port and flag field. The library skips rows without the replica
-flag and rows marked subjectively down, objectively down or disconnected.
-The first candidate with a native ROLE reply identifying a connected replica
-wins. When the snapshot marks a replica as promoted, discovery excludes
-that node and requires other candidates to report its exact host and port as
-their replication upstream. A connected candidate still following the old
-primary is retired before another candidate is tried. Conflicting promoted
-endpoints remain retryable. These checks reuse the original REPLICAS and ROLE
-commands and the retained reply. Host aliases must match byte-for-byte during
-the promotion snapshot. The factory can authorize or map Sentinel-announced
-addresses at the caller's network boundary.
-
-The configured seed timeout bounds each seed query and each candidate setup
-plus ROLE. The original total deadline covers the complete operation,
-including retry delay and pending physical duties. Exhausting a list advances
-to the next seed. A round can report NO_REPLICA when known services have no
-eligible candidates, UNREACHABLE for unsuccessful transport attempts or
-STALE_ROLE when a candidate no longer meets the requested role. The exact
-unknown-service reply and null replies participate in UNKNOWN_SERVICE.
-ACL errors and invalid or over-budget lists stop discovery.
-
-Discovery reserves a bounded endpoint descriptor array in its existing
-allocation. It retains one immutable seed reply through candidate attempts
-and copies a host only when selecting a candidate. The native reply budget,
-the additional payload cap, list length and pair count bound the retained
-reply and parsing work. Successful data requests use the native Client.
-Replication lag, read-after-write visibility and replica pool policy depend
-on the caller's workload.
+The [runnable example](../examples/sentinel/README.md) issues
+SENTINEL REPLICAS through a native client on the application owner thread.
+It validates the bounded RESP2 or RESP3 reply before dialing, skips down
+and disconnected candidates and verifies a connected replica with ROLE.
+During promotion, a candidate must follow the exact upstream reported by
+the seed snapshot. Applications supply their endpoint policy and choose
+how to trade replication lag against availability.
+[Sentinel client specification](https://redis.io/docs/latest/develop/reference/sentinel-clients/#connect-to-replicas).

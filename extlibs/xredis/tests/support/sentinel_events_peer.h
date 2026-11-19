@@ -32,10 +32,10 @@ static bool seCommand(redispeer* Peer,xredisreply* Reply,ptr Data)
     redisPeerSend(Peer,Frame,sizeof(Frame));
     return true;
 }
-static void seStart(sefixture* F,bool Replica,bool Secure,bool Resp2,bool Backup)
+static void seStart(sefixture* F,bool Secure,bool Resp2,bool Backup)
 {
     memset(F,0,sizeof(*F));spStart(&F->Pool,0,Secure,Resp2);
-    F->Pool.Replicas=Replica;F->HasBackup=Backup;
+    F->HasBackup=Backup;
     F->Pool.Seed.Base.Hook=(redispeerhook){seCommand,&F->Pool.Seed};
     if(Backup){
         redisConnectPeerStart(&F->Backup.Base);

@@ -1,5 +1,6 @@
 #include <xredis/sentinel_pool.h>
 #include "../../examples/sentinel_pool/seed_policy.h"
+#include "../../examples/sentinel_pool/replica_pool.h"
 #include <xredis/sentinel_events.h>
 #include <xredis/dial.h>
 #include <xrt.h>
@@ -152,12 +153,14 @@ static bool sprContains(xbytesview V,cstr Text)
 {size_t N=strlen(Text);for(size_t I=0;I+N<=V.Size;++I)if(!memcmp(V.Data+I,Text,N))return true;return false;}
 static xfuture* sprIdentity(xredislease* L,cstr Run)
 {xbytesview A[]={XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("SERVER")};xfuture* F=sprCall(L,A,2);xredisreplyvalue V=sprValue(F);char Needle[60];snprintf(Needle,sizeof(Needle),"run_id:%s",Run);sprRequire(sprContains(V.Data,Needle),"owned member run identity");return F;}
-static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
+static void sprClosePool(xredispool* P)
 {
     xfuture* Closed=xredisPoolClosed(P);
-    sprRequire(xredisPoolClose(P) && xrtFutureWaitFor(Closed,30000)==XWAIT_OK &&
-        xrtAtomic32Load(&D->Drops,XMEMORY_ACQUIRE)==1,"physical pool close/context drop");
+    sprRequire(xredisPoolClose(P) && xrtFutureWaitFor(Closed,30000)==XWAIT_OK,"physical pool close");
     xrtFutureDestroy(Closed);
+}
+static void sprStop(xnetengine* E,sprcontext* D)
+{
     sprRequire(xrtNetResolverDestroy(D->Resolver) && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"physical owners joined");
 #if defined(SPR_TLS)
     if(D->Version){
@@ -168,10 +171,16 @@ static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
     }
 #endif
 }
+static void sprClose(xredispool* P,xnetengine* E,sprcontext* D)
+{
+    sprClosePool(P);
+    sprRequire(xrtAtomic32Load(&D->Drops,XMEMORY_ACQUIRE)==1,"master pool drops context");
+    sprStop(E,D);
+}
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
 #include "sentinel_load_support.h"
 #endif
-static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredislease** L,cstr Run,uint16 Port,bool Replicas)
+static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredislease** L,cstr Run,uint16 Port)
 {
     sprRequire(D->Learned && !xrtAtomic32Load(&D->LearnedDials,XMEMORY_ACQUIRE),
         "APP selected the alternate before the pool's first dial");
@@ -191,8 +200,76 @@ static void sprSeedRecovery(xredispool* P,xnetengine* E,sprcontext* D,xredisleas
         "learned Sentinel repaired the missing slot on the existing generation");
     sprClose(P,E,D);
     xrtFutureDestroy(Waiting);
-    printf("[PASS] real Sentinel seed recovery role=%s learned=1 preferred=1 generation=1 observers_peak=%zu\n",
-        Replicas?"replica":"master",D->Peak);
+    printf("[PASS] real Sentinel seed recovery role=master learned=1 preferred=1 generation=1 observers_peak=%zu\n",D->Peak);
+}
+static void sprReplicaRun(xnetengine* Engine,sprcontext* Data,const xredissentinelconfig* Discovery,
+    const xredispoolconfig* Config,cstr Initial,cstr Target,uint16 TargetPort,bool Learn)
+{
+    appreplicapick First;
+    xredispool* OldPool=NULL;
+    sprRequire(appReplicaPoolOpen(Engine,Discovery,Config,3,0,&First,&OldPool),"APP prepares native replica pool");
+    xfuture* Acquired[3];
+    xredislease* Leases[3];
+    for(size_t I=0;I<3;++I){
+        Acquired[I]=sprAcquire(OldPool);
+        Leases[I]=sprLease(Acquired[I]);
+        xrtFutureDestroy(sprIdentity(Leases[I],Initial));
+    }
+    const xbytesview Read[]={XRT_BYTES_LITERAL("XREAD"),XRT_BYTES_LITERAL("BLOCK"),XRT_BYTES_LITERAL("0"),
+        XRT_BYTES_LITERAL("STREAMS"),XRT_BYTES_LITERAL("xredis-owned-failover-empty"),XRT_BYTES_LITERAL("$")};
+    const xbytesview Clients[]={XRT_BYTES_LITERAL("CLIENT"),XRT_BYTES_LITERAL("LIST")};
+    xfuture* Old=NULL;
+    if(!Learn){
+        Old=sprCall(Leases[0],Read,6);
+        double Deadline=xrtTimer()+5;
+        for(;;){
+            xfuture* List=sprCall(Leases[1],Clients,2);
+            bool Sent=sprContains(sprValue(List).Data,"cmd=xread");
+            xrtFutureDestroy(List);
+            if(Sent)break;
+            sprRequire(xrtTimer()<Deadline,"old replica observed the blocking read");
+            xrtSleep(1);
+        }
+    }
+    xfuture* Waiting=sprAcquire(OldPool);
+    sprRequire(!xrtFutureDone(Waiting),"all APP leases currently held");
+    puts("READY");
+    fflush(stdout);
+    char Go[16];
+    sprRequire(fgets(Go,sizeof(Go),stdin) && !strcmp(Go,"GO\n"),"fixture releases APP refresh");
+
+    appreplicapick Next;
+    xredispool* Replacement=NULL;
+    sprRequire(appReplicaPoolOpen(Engine,Discovery,Config,3,&First,&Next,&Replacement) &&
+        Next.Port==TargetPort,"APP selects verified replacement");
+    if(Learn)sprRequire(Next.Seed==1 && xrtAtomic32Load(&Data->LearnedDials,XMEMORY_ACQUIRE)==1,
+        "APP query rotates to its backup seed");
+    sprClosePool(OldPool);
+    const xredisleaseresult* Rejected=sprWait(Waiting);
+    sprRequire(Rejected->Status!=XREDIS_REQUEST_OK && !Rejected->Lease,"old queued acquisition retires with old pool");
+    if(Old){
+        const xredisrequestresult* Result=sprWait(Old);
+        sprRequire(Result->Status!=XREDIS_REQUEST_OK && Result->Delivery==XREDIS_MAY_HAVE_EXECUTED,
+            "old replica command preserves native uncertainty");
+    }
+    xredisPoolRelease(OldPool);
+
+    xfuture* Grant=sprAcquire(Replacement);
+    xredislease* Member=sprLease(Grant);
+    xrtFutureDestroy(sprIdentity(Member,Target));
+    xfuture* List=sprCall(Member,Clients,2);
+    sprRequire(!sprContains(sprValue(List).Data,"cmd=xread"),"old read never replayed on replacement");
+    xrtFutureDestroy(List);
+    sprClosePool(Replacement);
+    xredisPoolRelease(Replacement);
+    xrtFutureDestroy(Old);
+    xrtFutureDestroy(Waiting);
+    xrtFutureDestroy(Grant);
+    for(size_t I=0;I<3;++I)xrtFutureDestroy(Acquired[I]);
+    sprDrop(Data);
+    sprStop(Engine,Data);
+    puts(Learn?"[PASS] APP Sentinel replica pool recovered through its backup seed":
+        "[PASS] APP Sentinel replica pool replaced after real failover");
 }
 int main(int Argc,char** Argv)
 {
@@ -205,9 +282,8 @@ int main(int Argc,char** Argv)
 #endif
     bool Learn=Argc==10 && (!strcmp(Argv[8],"seed-master") || !strcmp(Argv[8],"seed-replica"));
     bool Secure=Argc==13;
-    bool Listen=(Argc==9 || Secure) && (!strcmp(Argv[8],"events-master") || !strcmp(Argv[8],"events-replica"));
-    bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica")) ||
-        (Listen&&!strcmp(Argv[8],"events-replica"));
+    bool Listen=(Argc==9 || Secure) && !strcmp(Argv[8],"events-master");
+    bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica"));
     bool Refresh=Argc==9&&!strcmp(Argv[8],"refresh");
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     if(Listen)return 2;
@@ -246,8 +322,11 @@ int main(int Argc,char** Argv)
         K.Discovery.SeedCount=2;
         K.MaxConnecting=1;
     }
-    xredisadmission Pool=Replicas?xredisSentinelReplicaPoolCreate(E,1,Count,&O,&K,sprMaster,8,&P):
-        xredisSentinelPoolCreate(E,1,Count,&O,&K,&P);
+    if(Replicas){
+        sprReplicaRun(E,&D,&K.Discovery,&O,Argv[3],Argv[4],(uint16)Next,Learn);
+        return 0;
+    }
+    xredisadmission Pool=xredisSentinelPoolCreate(E,1,Count,&O,&K,&P);
     sprRequire(Pool==XREDIS_ADMISSION_ACCEPTED,"pool create");xfuture* Acquired[3];xredislease* L[3];for(size_t N=0;N<Count;++N){Acquired[N]=sprAcquire(P);L[N]=sprLease(Acquired[N]);xfuture* ID=sprIdentity(L[N],Argv[3]);xrtFutureDestroy(ID);}
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     uint64 PreviousHints=0;
@@ -283,16 +362,14 @@ int main(int Argc,char** Argv)
     }
 #endif
     if(Learn){
-        sprSeedRecovery(P,E,&D,L,Argv[3],(uint16)Next,Replicas);
+        sprSeedRecovery(P,E,&D,L,Argv[3],(uint16)Next);
         for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);
         xredisPoolRelease(P);
         return 0;
     }
     const xbytesview Block[]={XRT_BYTES_LITERAL("BLPOP"),XRT_BYTES_LITERAL("xredis-owned-failover-empty"),XRT_BYTES_LITERAL("0")};
-    const xbytesview Read[]={XRT_BYTES_LITERAL("XREAD"),XRT_BYTES_LITERAL("BLOCK"),XRT_BYTES_LITERAL("0"),
-        XRT_BYTES_LITERAL("STREAMS"),XRT_BYTES_LITERAL("xredis-owned-failover-empty"),XRT_BYTES_LITERAL("$")};
-    const char* Command=Replicas?"cmd=xread":"cmd=blpop";
-    xfuture* Old=Replicas?sprCall(L[0],Read,6):sprCall(L[0],Block,3);
+    const char* Command="cmd=blpop";
+    xfuture* Old=sprCall(L[0],Block,3);
     xbytesview Clients[]={XRT_BYTES_LITERAL("CLIENT"),XRT_BYTES_LITERAL("LIST")};double Limit=xrtTimer()+5;
     for(;;){xfuture* F=sprCall(L[1],Clients,2);xredisreplyvalue V=sprValue(F);bool Sent=sprContains(V.Data,Command);xrtFutureDestroy(F);if(Sent)break;sprRequire(xrtTimer()<Limit,"old blocking command reached owned server");xrtSleep(1);}
     xfuture* Waiting=sprAcquire(P);sprRequire(!xrtFutureDone(Waiting),"all old leases held while new acquisition waits");puts("READY");fflush(stdout);char Go[16];sprRequire(fgets(Go,sizeof(Go),stdin) && !strcmp(Go,"GO\n"),"owned failover release");
@@ -316,6 +393,6 @@ int main(int Argc,char** Argv)
         printf("event matched=%llu hints=%llu\n",(unsigned long long)Snapshot.Matched,(unsigned long long)Snapshot.Hints);
     }
 #endif
-    sprClose(P,E,&D);sprRequire(sprValue(Current).Data.Size>0 && ((const xredisrequestresult*)sprWait(Old))->Delivery==XREDIS_MAY_HAVE_EXECUTED && xredisSentinelPoolInfo(P,&I) && I.Phase==XREDIS_SENTINEL_POOL_CLOSED,"retained outcomes after engine teardown");xredisPoolRelease(P);for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);xrtFutureDestroy(Waiting);xrtFutureDestroy(Old);xrtFutureDestroy(Current);printf("[PASS] automatic Sentinel %s pool: %s, native queued lease, no replay, retained uncertainty and physical close; observers_peak=%zu\n",Listen?(Replicas?"events-replica":"events-master"):Replicas?"replica":Refresh?"refresh":"master",
+    sprClose(P,E,&D);sprRequire(sprValue(Current).Data.Size>0 && ((const xredisrequestresult*)sprWait(Old))->Delivery==XREDIS_MAY_HAVE_EXECUTED && xredisSentinelPoolInfo(P,&I) && I.Phase==XREDIS_SENTINEL_POOL_CLOSED,"retained outcomes after engine teardown");xredisPoolRelease(P);for(size_t N=0;N<Count;++N)xrtFutureDestroy(Acquired[N]);xrtFutureDestroy(Waiting);xrtFutureDestroy(Old);xrtFutureDestroy(Current);printf("[PASS] automatic Sentinel %s pool: %s, native queued lease, no replay, retained uncertainty and physical close; observers_peak=%zu\n",Listen?"events-master":Refresh?"refresh":"master",
         Refresh?"live Sentinel remap":"real failover",D.Peak);return 0;
 }

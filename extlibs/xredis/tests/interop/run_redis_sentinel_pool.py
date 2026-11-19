@@ -21,7 +21,7 @@ def main():
  mode=parser.add_mutually_exclusive_group()
  mode.add_argument('--replicas',action='store_true')
  mode.add_argument('--refresh',action='store_true')
- mode.add_argument('--listen',choices=('master','replica'))
+ mode.add_argument('--listen',choices=('master',))
  parser.add_argument('--client',type=Path,required=True)
  parser.add_argument('--report',type=Path,required=True)
  parser.add_argument('--server',default=shutil.which('redis-server') or 'redis-server')
@@ -31,12 +31,8 @@ def main():
  parser.add_argument('--case',type=int,nargs=2,metavar=('FACTORY','PROTOCOL'))
  parser.add_argument('--load',type=int,nargs=4,metavar=('COUNT','RATE','SLOTS','TIMEOUT_MS'))
  parser.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
- parser.add_argument('--standby',action='store_true',
-                     help='add a non-promotable replica after the pool has leased from the first replica')
  a=parser.parse_args()
  if a.control and not a.load:parser.error('--control requires --load')
- if a.standby and not (a.listen=='replica' and a.load and a.case):
-  parser.error('--standby requires --listen replica, --load and one --case')
  if a.load:
   count,rate,slots,timeout=a.load
   if not a.listen or not (0<rate<=100000 and 3*rate<=count<=min(300000,30*rate) and 1<=slots<=1024 and 1<=timeout<=10000):
@@ -46,10 +42,9 @@ def main():
  if a.case:
   if tuple(a.case) not in matrix:parser.error('expected factory 0..2 and protocol 0, 2 or 3')
   matrix=[tuple(a.case)]
- a.replicas=a.replicas or a.listen=='replica'
  client=a.client.absolute();report=a.report.absolute();report.parent.mkdir(parents=True,exist_ok=True)
  transport='mutual TLS 1.'+str(a.tls-10)+' with Redis ACL' if a.tls else 'plaintext'
- result=dict(schema=1,complete=False,mode='events-'+a.listen if a.listen else 'replica' if a.replicas else 'refresh' if a.refresh else 'master',transport=transport,client_sha256=sha(client),server_version=subprocess.check_output([a.server,'--version'],text=True).strip(),server_sha256=sha(a.server),runner_sha256=sha(__file__),fixtures=[],cases=[],limits=['Owned loopback fixture; server and client run on the same host.','Each C pool keeps three old leases and one queued acquisition; the old blocking command is observed server-side and checked for replay.','Refresh mode remaps Sentinel to another master and confirms the old node and connections remain live before the hint.' if a.refresh else 'Failover mode triggers a real Sentinel election.']);children=[];logs=[]
+ result=dict(schema=1,complete=False,mode='events-'+a.listen if a.listen else 'replica' if a.replicas else 'refresh' if a.refresh else 'master',transport=transport,client_sha256=sha(client),server_version=subprocess.check_output([a.server,'--version'],text=True).strip(),server_sha256=sha(a.server),runner_sha256=sha(__file__),fixtures=[],cases=[],limits=['Owned loopback fixture; server and client run on the same host.','Each probe holds three old leases and one queued acquisition; the old blocking command is observed server-side and checked for replay.','Refresh mode remaps Sentinel to another master and confirms the old node and connections remain live before the hint.' if a.refresh else 'Failover mode triggers a real Sentinel election.']);children=[];logs=[]
  if a.load:
   result['load']=dict(schedule=a.load,control=a.control,pool_members=3,engine_workers=2,
       ledger_helper_sha256=sha(Path(__file__).with_name('sentinel_load_report.py')))
@@ -58,8 +53,6 @@ def main():
       'Three exclusive pool members; binary PING on each lease. Per-offer latency starts at the planned arrival.',
       'Windows probe may use loopback forwarding to the WSL Redis host. Client and controller clocks are independent.',
   ]
- if a.standby:
-  result['limits'].append('The standby joins before the workload starts and has replication priority zero.')
  def save():report.write_text(json.dumps(result,indent=2)+'\n')
  def identity(port):
   data,_=exchange(port,['INFO','SERVER']);return dict(line.split(b':',1) for line in data.split(b'\r\n') if b':' in line)
@@ -81,11 +74,10 @@ def main():
    result['openssl_sha256']=sha(tls.openssl)
    result['tls_fixture_sha256']=sha(Path(__file__).with_name('sentinel_tls_fixture.py'))
    exchange=tls.exchange
-  master,replica,sentinel,standby=ports
+  master,replica,sentinel,_=ports
   def start(name,port):
    directory=runtime/name;directory.mkdir();log=(directory/'server.log').open('wb');logs.append((name,log));args=[a.server,'--bind','127.0.0.1','--port',str(port),'--dir',str(directory),'--save','','--appendonly','no','--repl-diskless-sync-delay','0']
    if name=='replica':args+=['--replicaof','127.0.0.1',str(master)]
-   if name=='standby':args+=['--replica-priority','0']
    if name=='sentinel':
     config=directory/'sentinel.conf';config.write_text(f'bind 127.0.0.1\nport {port}\ndir {json.dumps(str(directory))}\nsentinel monitor cache 127.0.0.1 {master} 1\nsentinel down-after-milliseconds cache 5000\nsentinel failover-timeout cache 10000\n');args=[a.server,str(config),'--sentinel']
    if tls:
@@ -109,10 +101,6 @@ def main():
     if int(fields[b'port'])==port and not any(flag in flags for flag in (b's_down',b'o_down',b'disconnected')):
      return fields
    return None
-
-  def follows(role,primary):
-   return (len(role)==5 and role[0]==b'slave' and role[1]==b'127.0.0.1' and
-           role[2]==primary and role[3]==b'connected')
 
   due=time.monotonic()+15
   while True:
@@ -141,12 +129,6 @@ def main():
    initial,destination=(target,current) if a.replicas else (current,target)
    if a.control:destination=initial
    initial_run=run(initial)
-   if a.standby:
-    # Start an isolated standby so its process identity can be supplied to the
-    # probe. It joins the real replication group only after the probe is ready.
-    start('standby',standby)
-    assert listed_replica(standby) is None
-    if not a.control:destination=standby
    args=[str(client),str(sentinel),str(destination),initial_run,run(destination),str(factory),str(protocol),'3']
    if a.listen:args.append('events-'+a.listen)
    elif a.replicas:args.append('replica')
@@ -167,19 +149,6 @@ def main():
       assert time.monotonic()<due,f'probe did not reach {marker}'
     expect('READY',25)
     case['ready']=True;save();owned()
-    if a.standby:
-     exchange(standby,['REPLICAOF','127.0.0.1',str(current)])
-     due=time.monotonic()+15
-     while True:
-      role,_=exchange(standby,['ROLE'])
-      fields=listed_replica(standby)
-      if follows(role,current) and fields is not None:
-       priority=int(fields[b'slave-priority'])
-       assert priority==0
-       case['standby_before_load']=dict(port=standby,upstream=current,priority=priority)
-       case['promotion_port']=target;save();break
-      assert time.monotonic()<due,'Sentinel did not see the connected standby'
-      time.sleep(.05)
     if a.load:
      probe.stdin.write('GO\n');probe.stdin.flush()
      expect('ELECT',10);marker=time.monotonic()
@@ -202,21 +171,6 @@ def main():
      case['manual_failover_requests']=1
      if a.load:case['controller_timing_seconds']=dict(marker_to_send=sent-marker,send_to_ack=ack-sent)
      case['interrupted_control_reads']=0
-     if a.standby:
-      expect('REPLACED',15)
-      replacement_sec=time.monotonic()-sent
-      follower,_=exchange(standby,['ROLE'])
-      promoted,_=exchange(target,['ROLE'])
-      old_role,_=exchange(current,['ROLE'])
-      standby_role=follower[0]
-      case['standby_at_replacement']=dict(
-          send_to_replacement_reply_seconds=replacement_sec,
-          standby_role=standby_role.decode(),
-          standby_upstream=follower[2] if standby_role==b'slave' else None,
-          standby_state=follower[3].decode() if standby_role==b'slave' else None,
-          promoted_role=promoted[0].decode(),old_primary_role=old_role[0].decode())
-      save()
-      assert follows(follower,target) and promoted[0]==old_role[0]==b'master',case['standby_at_replacement']
      while True:
       try:
        endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache'])

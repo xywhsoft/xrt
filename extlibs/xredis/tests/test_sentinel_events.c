@@ -12,10 +12,10 @@ static void seWaitState(xredispool* P,uint64 Generation,xredissubscriptionsessio
         xrtSleep(1);
     }
 }
-static void seBehavior(bool Replica,bool Secure,bool Resp2)
+static void seBehavior(bool Secure,bool Resp2)
 {
-    printf("listener replica=%u TLS=%u RESP2=%u\n",(unsigned)Replica,(unsigned)Secure,(unsigned)Resp2);
-    sefixture F;seStart(&F,Replica,Secure,Resp2,true);
+    printf("listener TLS=%u RESP2=%u\n",(unsigned)Secure,(unsigned)Resp2);
+    sefixture F;seStart(&F,Secure,Resp2,true);
     xredispool* P=seCreate(&F,2);
     xfuture *First=spAcquire(P,5000), *Second=spAcquire(P,5000);
     xredislease *L=spLease(First), *Other=spLease(Second);
@@ -90,7 +90,7 @@ static void seBehavior(bool Replica,bool Secure,bool Resp2)
 }
 static void seFailure(uint32 Mode)
 {
-    sefixture F;seStart(&F,false,false,false,false);
+    sefixture F;seStart(&F,false,false,false);
     xredispool* P=seCreate(&F,1);
     xfuture* A=spAcquire(P,5000);xredislease* L=spLease(A);
     xrtAtomic32Store(&F.Mode,Mode,XMEMORY_RELEASE);
@@ -125,7 +125,7 @@ static void seBudgetLeave(xnetworker* Worker,ptr Data)
 }
 static void seOOM(void)
 {
-    sefixture F;seStart(&F,false,false,false,false);
+    sefixture F;seStart(&F,false,false,false);
     xredispool* P=seCreate(&F,1);
     xfuture* A=spAcquire(P,5000);xredislease* L=spLease(A);
     sebudget B={0};
@@ -146,9 +146,9 @@ static void seOOM(void)
 }
 int main(void)
 {
-    seBehavior(false,false,true);seBehavior(true,false,false);
+    seBehavior(false,true);seBehavior(false,false);
 #if SP_TLS
-    seBehavior(false,true,false);seBehavior(true,true,true);
+    seBehavior(true,false);seBehavior(true,true);
 #endif
     seFailure(1);seFailure(2);seOOM();
     puts("Sentinel event listener tests passed");

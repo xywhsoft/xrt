@@ -1,5 +1,6 @@
 #include "test.h"
 #include "support/sentinel_peer.h"
+#include "../examples/sentinel/replica_policy.h"
 #include "../src/internal/sentinel_config.h"
 static void sentinelSuccess(void)
 {
@@ -108,14 +109,13 @@ static void sentinelReplicaSuccess(void)
                 roleClientPeerInit(&F.Masters[I]->Peer)->Peer.Address.Port,"slave");
         sentinelSeed(&F,Wire,false,false);
         xredissentinelconfig K;sentinelConfig(&F,&K);
-        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,4);
-        xredissentinelresult R=sentinelDrive(D);
-        testRequire(R.Status==XREDIS_SENTINEL_OK&&R.SeedAttempts==1&&R.MasterAttempts==3&&R.StaleReplies==2&&
-            R.Rounds==1&&R.Endpoint.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
-            "skip down row, retire stale master and syncing replica, select connected replica");
+        appreplicapick R;
         xredisclient* C=NULL;
-        testRequire(xredisSentinelDiscoveryTakeClient(D,&C),"transfer native replica");
-        xredisSentinelDiscoveryDestroy(D);
+        xnetengine* Engine=roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine;
+        testRequire(appReplicaPick(Engine,&K,4,(xredissentinelendpoint){0},xrtTimer()+5,&R,&C) &&
+            R.SeedAttempts==1 && R.Candidates==3 && R.Stale==2 && R.Rounds==1 &&
+            R.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
+            "APP skips down row, stale master and syncing replica");
         xfuture* F1=roleClientPing(C,5000);
         testRequire(((const xredisrequestresult*)roleClientWait(F1))->Status==XREDIS_REQUEST_OK,"transferred replica PING");
         xrtFutureDestroy(F1);xredisClientClose(C);xredisClientRelease(C);
@@ -138,12 +138,14 @@ static void sentinelReplicaPromotion(void)
         sentinelReplicaRow(Wire+N,sizeof(Wire)-N,V!=0,6379,"slave,promoted,disconnected");
         sentinelSeed(&F,Wire,false,false);
         xredissentinelconfig K;sentinelConfig(&F,&K);
-        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,4);
-        xredissentinelresult R=sentinelDrive(D);
-        testRequire(R.Status==XREDIS_SENTINEL_OK && R.SeedAttempts==1 && R.MasterAttempts==3 &&
-            R.StaleReplies==2 && R.Endpoint.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
+        appreplicapick R;
+        xredisclient* C=NULL;
+        xnetengine* Engine=roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine;
+        testRequire(appReplicaPick(Engine,&K,4,(xredissentinelendpoint){0},xrtTimer()+5,&R,&C) && R.SeedAttempts==1 && R.Candidates==3 &&
+            R.Stale==2 && R.Port==roleClientPeerInit(&F.Masters[2]->Peer)->Peer.Address.Port,
             "promotion requires exact upstream host and port even with a disconnected promoted row");
-        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+        testRequire(appReplicaClose(C,xrtTimer()+5),"APP closes the selected replica");
+        sentinelFixtureStop(&F);
     }
 
     sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
@@ -153,10 +155,12 @@ static void sentinelReplicaPromotion(void)
     sentinelReplicaRow(Wire+N,sizeof(Wire)-N,true,6381,"slave");
     sentinelSeed(&F,Wire,false,false);
     xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=1;
-    xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,3);
-    xredissentinelresult R=sentinelDrive(D);
-    testRequire(R.Status==XREDIS_SENTINEL_NO_REPLICA && !R.MasterAttempts,"conflicting promoted endpoints retry without dialing");
-    xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+    appreplicapick R;
+    xredisclient* C=NULL;
+    testRequire(!appReplicaPick(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,&K,3,(xredissentinelendpoint){0},xrtTimer()+5,&R,&C) &&
+        R.Status==XREDIS_SENTINEL_UNREACHABLE && !R.Candidates && !C,
+        "conflicting promoted endpoints are rejected before dialing");
+    sentinelFixtureStop(&F);
 }
 static void sentinelReplicaRefreshOnPromotion(void)
 {
@@ -172,42 +176,39 @@ static void sentinelReplicaRefreshOnPromotion(void)
     sentinelReplicaRow(After+N,sizeof(After)-N,true,Replacement,"slave");
     sentinelSeed(&F,Before,false,false);sentinelSeed(&F,After,false,false);
     xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=2;
-    xredissentinelendpoint Preferred={XRT_BYTES_LITERAL("127.0.0.1"),Previous};
-    xredissentineldiscovery* D=NULL;
-    testRequire(__xredisSentinelReplicaCreateUntil(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,
-        &K,xrtTimer()+5,2,&Preferred,&D)==XREDIS_ADMISSION_ACCEPTED,"preferred replica discovery");
-    xredissentinelresult R=sentinelDrive(D);
-    testRequire(R.Status==XREDIS_SENTINEL_OK && R.SeedAttempts==2 && R.MasterAttempts==2 &&
-        R.StaleReplies==1 && R.Rounds==2 && R.Endpoint.Port==Replacement,
-        "promotion of the preferred replica invalidates the whole stale snapshot");
-    xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+    appreplicapick R;
+    xredisclient* C=NULL;
+    testRequire(appReplicaPick(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,&K,2,
+        (xredissentinelendpoint){XRT_BYTES_LITERAL("127.0.0.1"),Previous},xrtTimer()+5,&R,&C) &&
+        R.SeedAttempts==2 && R.Candidates==2 && R.Stale==1 && R.Rounds==2 && R.Port==Replacement,
+        "promotion of the preferred replica invalidates the old snapshot");
+    testRequire(appReplicaClose(C,xrtTimer()+5),"APP closes the replacement");
+    sentinelFixtureStop(&F);
 }
 static void sentinelReplicaNextSeed(void)
 {
-    for(unsigned Cancel=0;Cancel<2;++Cancel){
-        sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
-        sentinelMaster(&F,ROLE_REPLICA_REPLY,true,false);
-        sentinelMaster(&F,ROLE_REPLICA_REPLY,false,false);
-        char First[180]="*1\r\n",Second[180]="*1\r\n";
-        sentinelReplicaRow(First+4,sizeof(First)-4,true,roleClientPeerInit(&F.Masters[0]->Peer)->Peer.Address.Port,"slave");
-        sentinelReplicaRow(Second+4,sizeof(Second)-4,true,roleClientPeerInit(&F.Masters[1]->Peer)->Peer.Address.Port,"slave");
-        sentinelSeed(&F,First,false,false);sentinelSeed(&F,Second,false,false);
-        xredissentinelconfig K;sentinelConfig(&F,&K);K.SeedCount=2;K.MaxRounds=1;K.SeedTimeout=500;
-        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,1);
-        if(Cancel){
-            double End=xrtTimer()+4;
-            while(xrtAtomic32Load(&roleClientPeerInit(&F.Masters[0]->Peer)->StepsSeen,XMEMORY_ACQUIRE)<2){
-                testRequire(xrtTimer()<End,"held replica ROLE started");xredisSentinelDiscoveryStep(D);xrtSleep(1);
-            }
-            testRequire(xredisSentinelDiscoveryCancel(D),"cancel with retained list and held ROLE");
-        }
-        xredissentinelresult R=sentinelDrive(D);
-        if(Cancel)testRequire(R.Status==XREDIS_SENTINEL_CANCELLED&&R.MasterAttempts==1&&!R.Endpoint.Host.Data,
-            "cancel retires candidate and clears endpoint");
-        else testRequire(R.Status==XREDIS_SENTINEL_OK&&R.SeedAttempts==2&&R.MasterAttempts==2&&R.PreferredSeed==1&&
-            R.Rounds==1&&F.Order[0]==0&&F.Order[1]==1,"candidate timeout proceeds to next seed within round");
-        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
-    }
+    sentinelfixture F;
+    sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);
+    F.Replicas=true;
+    sentinelMaster(&F,ROLE_REPLICA_REPLY,true,false);
+    sentinelMaster(&F,ROLE_REPLICA_REPLY,false,false);
+    char First[180]="*1\r\n",Second[180]="*1\r\n";
+    sentinelReplicaRow(First+4,sizeof(First)-4,true,roleClientPeerInit(&F.Masters[0]->Peer)->Peer.Address.Port,"slave");
+    sentinelReplicaRow(Second+4,sizeof(Second)-4,true,roleClientPeerInit(&F.Masters[1]->Peer)->Peer.Address.Port,"slave");
+    sentinelSeed(&F,First,false,false);
+    sentinelSeed(&F,Second,false,false);
+    xredissentinelconfig K;
+    sentinelConfig(&F,&K);
+    K.SeedCount=2;
+    K.MaxRounds=1;
+    K.SeedTimeout=500;
+    appreplicapick R;
+    xredisclient* C=NULL;
+    testRequire(appReplicaPick(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,&K,1,(xredissentinelendpoint){0},xrtTimer()+5,&R,&C) &&
+        R.SeedAttempts==2 && R.Candidates==2 && R.Seed==1 && F.Order[0]==0 && F.Order[1]==1,
+        "APP timeout proceeds to the next configured seed within the deadline");
+    testRequire(appReplicaClose(C,xrtTimer()+5),"APP closes the selected replica");
+    sentinelFixtureStop(&F);
 }
 static void sentinelReplicaErrors(void)
 {
@@ -217,9 +218,9 @@ static void sentinelReplicaErrors(void)
         "*0\r\n","*0\r\n","*0\r\n","*0\r\n","_\r\n"
     };
     const xredissentinelstatus Status[]={
-        XREDIS_SENTINEL_NO_REPLICA,XREDIS_SENTINEL_UNKNOWN_SERVICE,XREDIS_SENTINEL_SERVER_ERROR,
+        XREDIS_SENTINEL_UNREACHABLE,XREDIS_SENTINEL_UNKNOWN_SERVICE,XREDIS_SENTINEL_SERVER_ERROR,
         XREDIS_SENTINEL_PROTOCOL,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_PROTOCOL,
-        XREDIS_SENTINEL_NO_REPLICA,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_UNKNOWN_SERVICE
+        XREDIS_SENTINEL_UNREACHABLE,XREDIS_SENTINEL_LIMIT,XREDIS_SENTINEL_UNKNOWN_SERVICE
     };
     for(size_t I=0;I<sizeof(Status)/sizeof(*Status);++I){
         sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
@@ -234,35 +235,14 @@ static void sentinelReplicaErrors(void)
         sentinelSeed(&F,Response,false,false);
         xredissentinelconfig K;sentinelConfig(&F,&K);K.MaxRounds=1;
         if(I==7)K.Role.MaxPayloadBytes=1;
-        xredissentineldiscovery* D=sentinelReplicaCreate(&F,&K,I==4?1:4);
-        xredissentinelresult R=sentinelDrive(D);
-        testRequire(R.Status==Status[I]&&!R.MasterAttempts&&!R.Endpoint.Host.Data,
-            "complete list validation and typed failures before data factory");
-        xredisSentinelDiscoveryDestroy(D);sentinelFixtureStop(&F);
+        appreplicapick R;
+        xredisclient* C=NULL;
+        testRequire(!appReplicaPick(roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine,&K,I==4?1:4,
+            (xredissentinelendpoint){0},xrtTimer()+5,&R,&C) &&
+            R.Status==Status[I] && !R.Candidates && !C,"APP validates the full replica list before dialing");
+        sentinelFixtureStop(&F);
     }
 }
-static void sentinelReplicaBounds(void)
-{
-    sentinelfixture F;sentinelFixtureStart(&F,0,false,XREDIS_INIT_RESP3);F.Replicas=true;
-    sentinelSeed(&F,"*0\r\n",false,false);
-    xredissentinelconfig K;sentinelConfig(&F,&K);K.ConnectMaster=NULL;
-    xnetengine* E=roleClientPeerInit(&F.Seeds[0]->Peer)->Peer.Engine;
-    xredissentineldiscovery* D=(xredissentineldiscovery*)(uintptr_t)1;
-    testRequire(xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,0,&D)==XREDIS_ADMISSION_ERROR&&
-        xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,257,&D)==XREDIS_ADMISSION_ERROR&&
-        xredisSentinelReplicaDiscoveryCreate(E,&K,NULL,1,&D)==XREDIS_ADMISSION_ERROR&&
-        D==(xredissentineldiscovery*)(uintptr_t)1,"invalid replica admission preserves output");
-    xrtClearError();
-    xallocationbudget* B=NULL;xallocationscope Scope={0};
-    testRequire(xrtAllocationBudgetCreate(1,&B)&&xrtAllocationBudgetEnter(B,&Scope),"bounded replica constructor OOM");
-    testRequire(xredisSentinelReplicaDiscoveryCreate(E,&K,sentinelMasterConnect,64,&D)==XREDIS_ADMISSION_ERROR&&
-        D==(xredissentineldiscovery*)(uintptr_t)1,"allocation refusal preserves output");
-    testRequire(xrtAllocationBudgetLeave(&Scope),"exit replica constructor scope");
-    xrtClearError();
-    xallocationbudgetinfo Info={.Size=sizeof(Info)};
-    testRequire(xrtAllocationBudgetInfo(B,&Info)&&!Info.LiveCount&&!Info.LiveBytes,"replica allocation rolls back");
-    xrtAllocationBudgetFree(B);sentinelFixtureStop(&F);
-}
 int main(void)
-{sentinelReplicaSuccess();sentinelReplicaPromotion();sentinelReplicaRefreshOnPromotion();sentinelReplicaNextSeed();sentinelReplicaErrors();sentinelReplicaBounds();
+{sentinelReplicaSuccess();sentinelReplicaPromotion();sentinelReplicaRefreshOnPromotion();sentinelReplicaNextSeed();sentinelReplicaErrors();
  puts("Sentinel replica selection tests passed");sentinelSuccess();sentinelStale();sentinelErrors();sentinelStops();sentinelAdditional();sentinelRoleCaps();sentinelNativeFailures();sentinelBounds();puts("Sentinel discovery tests passed");return 0;}

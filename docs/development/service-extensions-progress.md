@@ -17429,3 +17429,36 @@ and P99 941.9 us for the primary, and 61,298 requests/s and P99 796.6 us
 for the replica. Both environments exceeded the sample-variability gate.
 Native Linux and the 72-hour workloads remain open. Raw evidence is under
 `out/service-extensions/scope-reduction-20261119/xredis-app-cluster-replicas/`.
+
+## 2026-11-20 xredis Sentinel replica selection owned by the APP
+
+The library retains fixed-seed master discovery, target ROLE verification,
+master generation fencing and event-triggered refresh. The replica discovery
+and automatic replica pool constructors were removed with their private
+policies. Library source shrank by 202 lines.
+
+The runnable examples use an application-owned deadline to query SENTINEL
+REPLICAS, validate the list, select a connected replica with ROLE and prepare
+a native pool. The application closes the old generation before acquiring
+from its replacement. Existing requests keep their original native outcome.
+A queued acquisition on the old pool receives a terminal result. The former
+automatic replica event benchmark is historical. The current event benchmark
+covers the retained master pool.
+
+The final Windows x64 and Ubuntu/WSL x64 suites passed modular, plain and TLS
+single-header tests, runnable examples and static/shared package consumers.
+The ordinary pool, reconnect, Pub/Sub, Tracking and subscription regressions
+passed on both client platforms. The Redis 8.0.5 fixture under WSL passed
+54 discovery cases per platform, including real promotion, rediscovery and
+unknown services. Each client also passed a native master event failover,
+an application-owned replica pool replacement and nine replica cases with
+the configured Sentinel physically stopped. The replica pool probe checked
+process identity, pending acquisition retirement and no replay of the
+already sent read. Initial interop relinking hit a relative-path error and
+then followed a host junction outside the repository spelling. The final
+probe command uses an absolute path rooted at the repository spelling.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xredis-app-sentinel-replicas/`.
+The strict xredis gate reports 32 developing modules. Native Linux and the
+72-hour mixed-load acceptance remain open.
