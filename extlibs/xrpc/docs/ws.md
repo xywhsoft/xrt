@@ -24,6 +24,7 @@ capacity is checked before Started, and current budget before each whole-message
 offer. AGAIN never replays an accepted message. Notification success means native
 acceptance, not business acknowledgement. Encoding and gate wait share the
 original call deadline. Unknown execution after disconnection is never replayed.
+Peers can opt in to [remote deadlines and cancellation](network_extensions.md).
 
 Close aborts and composes Duplex jobs, post/timer references, native WS/TCP barriers,
 actual send-release and event/Data tail. Buffered complete messages precede remote

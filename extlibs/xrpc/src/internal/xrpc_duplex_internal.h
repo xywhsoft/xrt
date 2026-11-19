@@ -8,4 +8,13 @@ void xrpcDuplexEndInput(xrpcduplex*);
 xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex*,const xrpcduplexitem*,size_t,bool,int64,xfuture**,double);
 xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex*,xstrview,xbytesview,double);
 #endif
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+/* Concurrent internal admissions. The transport pins its facade through return. */
+bool xrpcDuplexEnableExtensions(xrpcduplex*,uint32,size_t);
+xrpcduplexadmission xrpcDuplexNegotiateExtensionEntered(xrpcduplex*,xrpcduplexextension,int64,xfuture**,double);
+#endif
+#if defined(XRPC_FEATURE_XRPC_TLS) || defined(XRPC_FEATURE_XRPC_WS)
+/* Owner-only, no new wire reference. Check write credit before measuring expiry. */
+size_t xrpcDuplexNextSize(const xrpcduplex*);
+#endif
 #endif

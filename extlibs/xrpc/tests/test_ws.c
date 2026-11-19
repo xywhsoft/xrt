@@ -1,4 +1,5 @@
 #include "test.h"
+#include "network_extensions.h"
 #include <xrpc/ws.h>
 #include <xrt/memory_stats.h>
 #include "../examples/common/ws_service.h"
@@ -13,6 +14,63 @@ static void wsRoundtrip(bool TLS)
     xrpcwsinfo Info={0};Info.Size=sizeof(Info);testRequire(xrpcWsInfo(S.Client,&Info)&&Info.State==XRPC_WS_OPEN&&Info.ProtocolBytes==7&&!memcmp(Info.Protocol,"jsonrpc",7)&&Info.Encrypted==TLS&&(!TLS||Info.Version)&&Info.ReadMessages&&Info.WriteMessages&&Info.PeakReceiveBytes<=S.ClientConfig.MaxReceiveBytes,"WS native metadata/ledger");
     rpcWsServiceStop(&S);wsResult(F[0],XRPC_CALL_OK,XRPC_REPLIED);for(unsigned N=0;N<10;++N)xrtFutureDestroy(F[N]);
 }
+static void wsExtensions(bool TLS)
+{
+    xrpcwsconfig Config;
+    xrpcWsConfigInit(&Config);
+    Config.Duplex.IncomingTimeout=RPC_TEST_REMOTE_LIMIT;
+    rpcWsService S;
+    rpcWsServiceStart(&S,TLS,&Config,true);
+    testRequire(xrpcWsEnableExtensions(S.Client,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED &&
+        xrpcWsEnableExtensions(S.Accepted,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED,
+        "opt in with native WS and WSS reference sends");
+    xfuture* F=NULL;
+    testRequire(xrpcWsNegotiateExtension(S.Client,XRPC_DUPLEX_EXTENSION_CANCELLATION,5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"negotiate WS cancellation");
+    rpcTestNetworkOfferResult(F,true);
+    testRequire(xrpcWsNegotiateExtension(S.Client,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"negotiate WS deadline");
+    rpcTestNetworkOfferResult(F,true);
+
+    xrpcwsinfo Info={.Size=sizeof(Info)};
+    testRequire(xrpcWsInfo(S.Accepted,&Info),"WS receiver before sending the job");
+    uint64 Read=Info.ReadMessages,Written=Info.WriteMessages;
+    testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("held"),(xstrview){0},5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"send WS request before remote cancellation");
+    rpcWsServiceAwait(&S.HandlerEntered);
+    testRequire(xrtFutureCancel(F),"cancel a fully sent WS request");
+    wsResult(F,XRPC_CALL_CANCELLED,XRPC_MAY_HAVE_EXECUTED);
+    double End=xrtTimer()+8.;
+    do {
+        testRequire(xrpcWsInfo(S.Accepted,&Info) && xrtTimer()<End,"observe WS abandonment message");
+        xrtSleep(1);
+    } while(Info.ReadMessages<Read+2);
+    testRequire(Info.ReadMessages==Read+2 && Info.State==XRPC_WS_OPEN,
+        "only cancellation control reached the running WS document");
+    xrtAtomic32Store(&S.HandlerPermit,1,XMEMORY_RELEASE);
+    do {
+        testRequire(xrpcWsInfo(S.Accepted,&Info) && xrtTimer()<End,"observe physical WS handler retirement");
+        xrtSleep(1);
+    } while(Info.Duplex.Incoming);
+    testRequire(Info.State==XRPC_WS_OPEN && Info.WriteMessages==Written,"WS peer suppresses abandoned result");
+    xrtFutureDestroy(F);
+
+    xrtAtomic32Store(&S.HandlerEntered,0,XMEMORY_RELEASE);
+    xrtAtomic32Store(&S.HandlerPermit,0,XMEMORY_RELEASE);
+    testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("held"),(xstrview){0},5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"admit second WS request with deadline");
+    rpcWsServiceAwait(&S.HandlerEntered);
+    double Release=xrtTimer()+RPC_TEST_REMOTE_LIMIT*.001+.01;
+    while(xrtTimer()<Release)xrtSleep(1);
+    xrtAtomic32Store(&S.HandlerPermit,1,XMEMORY_RELEASE);
+    rpcTestNetworkDeadlineResult(F);
+    testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[7]"),5000,&F)==
+        XRPC_DUPLEX_ACCEPTED,"reuse WS connection after expiry");
+    wsResult(F,XRPC_CALL_OK,XRPC_REPLIED);
+    xrtFutureDestroy(F);
+    rpcWsServiceStop(&S);
+}
+
 static void wsCancellation(bool TLS)
 {
     for(unsigned Mode=0;Mode<3;++Mode){rpcWsService S;rpcWsServiceStart(&S,TLS,NULL,true);xfuture* F=NULL;testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("held"),XRT_STR_LITERAL("[]"),Mode==0?50:5000,&F)==XRPC_DUPLEX_ACCEPTED,"held WS call");rpcWsServiceAwait(&S.HandlerEntered);
@@ -55,9 +113,9 @@ static void wsTimerQuota(bool TLS)
 }
 int main(void)
 {
-    setbuf(stdout,NULL);puts("[case] WS basic");wsRoundtrip(false);puts("[case] WS cancel");wsCancellation(false);puts("[case] WS concurrent");wsConcurrency(false);puts("[case] WS timer quota");wsTimerQuota(false);
+    setbuf(stdout,NULL);puts("[case] WS basic");wsRoundtrip(false);puts("[case] WS extensions");wsExtensions(false);puts("[case] WS cancel");wsCancellation(false);puts("[case] WS concurrent");wsConcurrency(false);puts("[case] WS timer quota");wsTimerQuota(false);
 #if defined(XRPC_FEATURE_XRPC_WS_TLS)
-    puts("[case] WSS basic");wsRoundtrip(true);puts("[case] WSS cancel");wsCancellation(true);puts("[case] WSS concurrent");wsConcurrency(true);puts("[case] WSS timer quota");wsTimerQuota(true);
+    puts("[case] WSS basic");wsRoundtrip(true);puts("[case] WSS extensions");wsExtensions(true);puts("[case] WSS cancel");wsCancellation(true);puts("[case] WSS concurrent");wsConcurrency(true);puts("[case] WSS timer quota");wsTimerQuota(true);
 #endif
-    wsFaults();puts("[PASS] WS bidirectional calls/batch/notify/retained results/reference sends/metadata/physical close/call timeout+cancel/raw fragmentation+ping/UTF8+mask+opcode+binary faults/message+growth peak bounds/assembly timeout/final response before EOF/constructor OOM+rollback/Initial transfer/native alias");return 0;
+    wsFaults();puts("[PASS] WS bidirectional calls/batch/notify/retained results/reference sends/metadata/physical close/call timeout+cancel/raw fragmentation+ping/UTF8+mask+opcode+binary faults/message+growth peak bounds/assembly timeout/final response before EOF/constructor OOM+rollback/Initial transfer/native alias/negotiated-network-extensions");return 0;
 }

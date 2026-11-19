@@ -69,6 +69,13 @@ XRPC_API bool xrpcTlsAccept(xnetstream* Stream,const xtlsserverconfig* Server,
  * through this peer's Destroy; existing native socket/TLS settings are retained.
  * Already buffered plaintext is driven explicitly, never assumed replayed. */
 XRPC_API bool xrpcTlsAttach(xtlsstream* Stream,const xrpctlsconfig* Config,xrpctls** Peer);
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcTlsEnableExtensions(xrpctls* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcTlsNegotiateExtension(xrpctls* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsCall(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsNotify(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsBatch(xrpctls* Peer,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);

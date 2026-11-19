@@ -12,6 +12,10 @@
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
 typedef struct xrpcduplex xrpcduplex;
 typedef struct xrpcduplexoutput xrpcduplexoutput;
+typedef enum xrpcduplexextension {
+    XRPC_DUPLEX_EXTENSION_CANCELLATION=1u,
+    XRPC_DUPLEX_EXTENSION_DEADLINE=2u
+} xrpcduplexextension;
 typedef struct xrpcduplexitem {bool Notify;xstrview Method,Params;} xrpcduplexitem;
 typedef struct xrpcduplexconfig {
     size_t Size;

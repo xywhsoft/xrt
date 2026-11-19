@@ -5010,6 +5010,10 @@ XRT_EXTERN_C_END
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
 typedef struct xrpcduplex xrpcduplex;
 typedef struct xrpcduplexoutput xrpcduplexoutput;
+typedef enum xrpcduplexextension {
+    XRPC_DUPLEX_EXTENSION_CANCELLATION=1u,
+    XRPC_DUPLEX_EXTENSION_DEADLINE=2u
+} xrpcduplexextension;
 typedef struct xrpcduplexitem {bool Notify;xstrview Method,Params;} xrpcduplexitem;
 typedef struct xrpcduplexconfig {
     size_t Size;
@@ -5336,6 +5340,13 @@ XRPC_API bool xrpcTcpAttach(xnetstream* Stream,const xrpctcpconfig* Config,xrpct
 /* Concurrent bounded admission; input copied before return; only ACCEPTED
  * writes Future. API entry time includes facade gate/admission and encoding.
  * Native typed call/batch results and independent retained payloads are used. */
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcTcpEnableExtensions(xrpctcp* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcTcpNegotiateExtension(xrpctcp* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpCall(xrpctcp* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpNotify(xrpctcp* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpBatch(xrpctcp* Peer,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);
@@ -5436,6 +5447,13 @@ XRPC_API bool xrpcTlsAccept(xnetstream* Stream,const xtlsserverconfig* Server,
  * through this peer's Destroy; existing native socket/TLS settings are retained.
  * Already buffered plaintext is driven explicitly, never assumed replayed. */
 XRPC_API bool xrpcTlsAttach(xtlsstream* Stream,const xrpctlsconfig* Config,xrpctls** Peer);
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcTlsEnableExtensions(xrpctls* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcTlsNegotiateExtension(xrpctls* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsCall(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsNotify(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTlsBatch(xrpctls* Peer,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);
@@ -5634,6 +5652,13 @@ XRPC_API bool xrpcWsAttachTls(xtlsstream* Stream,xnetbuf* Initial,const xrpcwsco
  * Immutable output references survive physical send; unmasked TCP server avoids
  * an adapter payload copy, clients mask and TLS copies in Core. Native opaque
  * reference graphs may refuse collection until drained. No zero-copy claim. */
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcWsEnableExtensions(xrpcws* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcWsNegotiateExtension(xrpcws* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcWsCall(xrpcws*,xstrview,xstrview,int64,xfuture**);
 XRPC_API xrpcduplexadmission xrpcWsNotify(xrpcws*,xstrview,xstrview,int64,xfuture**);
 XRPC_API xrpcduplexadmission xrpcWsBatch(xrpcws*,const xrpcduplexitem*,size_t,int64,xfuture**);

@@ -20,13 +20,29 @@ static bool benchTcpCycle(xrpctcp* Peer,size_t N,double* Latency)
     if(Latency)*Latency=(xrtTimer()-Start)*1e6;
     return true;
 }
+static bool benchTcpEnableDeadline(xrpctcp* Peer)
+{
+    xrpcduplexextension Deadline=XRPC_DUPLEX_EXTENSION_DEADLINE;
+    xfuture* F=NULL;
+    if(xrpcTcpEnableExtensions(Peer,Deadline)!=XRPC_DUPLEX_ACCEPTED ||
+       xrpcTcpEnableExtensions(Accepted,Deadline)!=XRPC_DUPLEX_ACCEPTED ||
+       xrpcTcpNegotiateExtension(Peer,Deadline,10000,&F)!=XRPC_DUPLEX_ACCEPTED)return false;
+    const xrpccallresult* R=xrtFutureWaitFor(F,15000)==XWAIT_OK?xrtFutureValue(F):NULL;
+    xrpcresponseinfo Info={.Size=sizeof(Info)};
+    bool OK=R && R->Status==XRPC_CALL_OK && xrpcResponsesInfo(R->Responses,&Info) &&
+        Info.Count==1 && Info.Messages[0].Result.Raw.Size==4 &&
+        !memcmp(Info.Messages[0].Result.Raw.Data,"true",4);
+    xrtFutureDestroy(F);
+    return OK;
+}
 static int benchTcpCompare(const void* A,const void* B)
 {double X=*(const double*)A,Y=*(const double*)B;return (X>Y)-(X<Y);}
 int main(int Argc,char** Argv)
 {
     size_t Count=Argc>1?(size_t)strtoull(Argv[1],NULL,10):2000,Width=Argc>2?(size_t)strtoull(Argv[2],NULL,10):1;bool Heap=Argc>3 && strtoul(Argv[3],NULL,10);
     size_t PayloadBytes=Argc>4?(size_t)strtoull(Argv[4],NULL,10):0;
-    if(!Count || Count>1000000 || !Width || Width>32 || Argc>5 || (PayloadBytes && (PayloadBytes<4 || PayloadBytes>524288)))return 1;
+    unsigned Propagate=Argc>5?(unsigned)strtoul(Argv[5],NULL,10):0;
+    if(!Count || Count>1000000 || !Width || Width>32 || Argc>6 || Propagate>1 || (PayloadBytes && (PayloadBytes<4 || PayloadBytes>524288)))return 1;
     char* Payload=PayloadBytes?xrtMalloc(PayloadBytes):NULL;if(PayloadBytes && !Payload)return 16;
     if(Payload){Payload[0]='[';Payload[1]='"';memset(Payload+2,'x',PayloadBytes-4);Payload[PayloadBytes-2]='"';Payload[PayloadBytes-1]=']';BenchTcpParams=(xstrview){Payload,PayloadBytes};}
     xrtAtomic32Init(&Ready,0);xnetengineconfig C;xrtNetEngineConfigInit(&C);C.Workers=2;xnetengine* E=xrtNetEngineCreate(&C);if(!E || !xrtNetEngineStart(E))return 2;
@@ -35,6 +51,7 @@ int main(int Argc,char** Argv)
     if(!Listener || !xrtNetListenerLocal(Listener,&Remote))return 4;
     xrpctcp* Peer=NULL;if(!xrpcTcpConnect(E,&Remote,1,&Config,&Peer))return 5;double End=xrtTimer()+10;
     while(!xrtAtomic32Load(&Ready,XMEMORY_ACQUIRE)){if(xrtTimer()>=End)return 6;xrtSleep(1);}
+    if(Propagate && !benchTcpEnableDeadline(Peer))return 17;
     double* Latency=Width==1?xrtMalloc(Count*sizeof(double)):NULL;if(Width==1 && !Latency)return 7;
     for(unsigned I=0;I<100;++I)if(!benchTcpCycle(Peer,Width,NULL))return 8;
     xmemstats Before,After;xrtMemStatsEnable(Heap);xrtMemStatsGet(&Before);double CpuStart,CpuEnd;if(!rpcBenchProcessCpu(&CpuStart))return 9;
@@ -42,7 +59,8 @@ int main(int Argc,char** Argv)
     if(!rpcBenchProcessCpu(&CpuEnd))return 11;
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
     printf("calls_per_sec: %.6f\nns_per_call: %.6f\nprocess_cpu_ns_per_call: %.6f\ncompleted: %zu\n",Count/Seconds,Seconds*1e9/Count,(CpuEnd-CpuStart)*1000./Count,Count);
-    if(Latency){qsort(Latency,Count,sizeof(double),benchTcpCompare);printf("closed_loop_p50_us: %.6f\nclosed_loop_p99_us: %.6f\n",Latency[(Count-1)/2],Latency[(Count*99-1)/100]);}
+    if(Latency){qsort(Latency,Count,sizeof(double),benchTcpCompare);printf("closed_loop_p50_us: %.6f\nclosed_loop_p99_us: %.6f\nclosed_loop_p999_us: %.6f\n",
+        Latency[(Count-1)/2],Latency[(Count*99-1)/100],Latency[Count-Count/1000u-1u]);}
     if(Heap)printf("heap_blocks_per_call: %.6f\nheap_bytes_per_call: %.6f\n",(double)(After.BlockAllocCalls-Before.BlockAllocCalls)/Count,(double)(After.BlockAllocBytes-Before.BlockAllocBytes)/Count);
     printf("payload_bytes: %zu\n",BenchTcpParams.Size);
     puts("scope: native loopback TCP/Content-Length; one connection, shared executor, closed-loop pipeline1 or barrier-window32; P99 only pipeline1 includes caller wait/collection and has coordinated omission; all process threads in CPU; unpinned, no fixed-arrival/connection-scale/native-Linux production acceptance");

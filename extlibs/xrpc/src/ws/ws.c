@@ -180,14 +180,21 @@ static void xrpcWsWrite(xrpcws* P)
     while(Budget && Units-- && !xrpcWsClosing(P)){
         xrpcduplexinfo D={0};D.Size=sizeof(D);if(!xrpcDuplexInfo(P->Duplex,&D)){xrpcWsFail(P,XRPC_WS_PROTOCOL);return;}
         if(P->Output && !D.Selected)xrpcWsOutputClear(P);
-        if(!P->Output){int R=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(R<0){xrpcWsFail(P,xrpcWsLocalFailure());return;}if(!R)return;}
-        xstrview Wire=xrpcDuplexOutputWire(P->Output);size_t Required=0;bool Compress=false;
+        size_t Bytes=P->Output?xrpcDuplexOutputWire(P->Output).Size:xrpcDuplexNextSize(P->Duplex);
+        if(!Bytes)return;
+        size_t Required=0;bool Compress=false;
         #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
-        Compress=P->Config.CompressOutput&&P->Config.Stream.DeflateEnabled&&Wire.Size>=P->Config.CompressMinBytes;
+        Compress=P->Config.CompressOutput&&P->Config.Stream.DeflateEnabled&&Bytes>=P->Config.CompressMinBytes;
         #endif
-        if(Wire.Size>P->Config.MaxMessageBytes || !xrtWsStreamSendSize(P->Stream,Compress?0:Wire.Size,&Required) || Required>xrtWsStreamWriteLimit(P->Stream)){xrpcWsFail(P,XRPC_WS_LIMIT);return;}
-        if(Wire.Size>Budget){xrpcWsWake(P);return;}
+        if(Bytes>P->Config.MaxMessageBytes || !xrtWsStreamSendSize(P->Stream,Compress?0:Bytes,&Required) || Required>xrtWsStreamWriteLimit(P->Stream)){xrpcWsFail(P,XRPC_WS_LIMIT);return;}
+        if(Bytes>Budget){xrpcWsWake(P);return;}
         if(Required>xrtWsStreamWritable(P->Stream))return;
+        if(!P->Output){
+            int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);
+            if(Next<0){xrpcWsFail(P,xrpcWsLocalFailure());return;}
+            if(!Next)return;
+        }
+        xstrview Wire=xrpcDuplexOutputWire(P->Output);
         if(!P->Offered){if(!xrpcDuplexStarted(P->Duplex,P->Token)){xrpcWsWake(P);return;}P->Offered=true;}
         xnetresult R;
         #if defined(XRPC_FEATURE_XRPC_WS_DEFLATE)
@@ -326,21 +333,66 @@ XRPC_API bool xrpcWsAttachTcp(xnetstream* S,xnetbuf* Initial,const xrpcwsconfig*
 #if defined(XRPC_FEATURE_XRPC_WS_TLS)
 XRPC_API bool xrpcWsAttachTls(xtlsstream* S,xnetbuf* Initial,const xrpcwsconfig* C,xrpcws** Out){return xrpcWsAttach(S,true,Initial,C,Out);}
 #endif
-static xrpcduplexadmission xrpcWsSubmit(xrpcws* P,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
+static xrpcduplexadmission xrpcWsEnterSubmit(xrpcws* P)
 {
-    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS submission output"),XRPC_DUPLEX_ERROR;
-    xrtMutexLock(&P->Gate);if(xrpcWsTerminal(P->Info.State)){xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_CLOSED;}
-    if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_OVERLOADED;}
-    ++P->Info.Submitters;xrpcWsRef(P);xrtMutexUnlock(&P->Gate);
-    xrpcduplexadmission A=xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
-    xerror* Error=xrtTakeError();xrtMutexLock(&P->Gate);--P->Info.Submitters;if(xrpcWsTerminal(P->Info.State))(void)xrpcWsWakeLocked(P);xrtMutexUnlock(&P->Gate);xrpcWsDrop(P);xrtClearError();xrtSetErrorTake(Error);return A;
+    xrtMutexLock(&P->Gate);
+    xrpcduplexadmission Result=XRPC_DUPLEX_ACCEPTED;
+    if(xrpcWsTerminal(P->Info.State))Result=XRPC_DUPLEX_CLOSED;
+    else if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;Result=XRPC_DUPLEX_OVERLOADED;}
+    else {++P->Info.Submitters;xrpcWsRef(P);}
+    xrtMutexUnlock(&P->Gate);
+    return Result;
 }
+
+static void xrpcWsLeaveSubmit(xrpcws* P)
+{
+    xerror* Error=xrtTakeError();
+    xrtMutexLock(&P->Gate);
+    --P->Info.Submitters;
+    if(xrpcWsTerminal(P->Info.State))(void)xrpcWsWakeLocked(P);
+    xrtMutexUnlock(&P->Gate);
+    xrpcWsDrop(P);
+    xrtClearError();xrtSetErrorTake(Error);
+}
+
+static xrpcduplexadmission xrpcWsSubmit(xrpcws* P,const xrpcduplexitem* Items,size_t Count,bool Batch,
+    int64 Timeout,xfuture** Future,double Entered,xrpcduplexextension Extension)
+{
+    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))
+        return xrpcWsReport(XERR_ARGUMENT,"invalid RPC WS submission output"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcWsEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    Result=Extension?xrpcDuplexNegotiateExtensionEntered(P->Duplex,Extension,Timeout,Future,Entered):
+        xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
+    xrpcWsLeaveSubmit(P);
+    return Result;
+}
+
+XRPC_API xrpcduplexadmission xrpcWsEnableExtensions(xrpcws* P,uint32 Extensions)
+{
+    if(!P)return xrpcWsReport(XERR_ARGUMENT,"RPC WS peer is NULL"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcWsEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    size_t WireLimit=P->Config.MaxMessageBytes;
+    if(P->Config.Stream.MessageLimit<WireLimit)WireLimit=(size_t)P->Config.Stream.MessageLimit;
+    if(P->Config.Stream.FrameLimit<WireLimit)WireLimit=(size_t)P->Config.Stream.FrameLimit;
+    bool Enabled=xrpcDuplexEnableExtensions(P->Duplex,Extensions,WireLimit);
+    xrpcWsLeaveSubmit(P);
+    return Enabled?XRPC_DUPLEX_ACCEPTED:XRPC_DUPLEX_ERROR;
+}
+
+XRPC_API xrpcduplexadmission xrpcWsNegotiateExtension(xrpcws* P,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future)
+{
+    return xrpcWsSubmit(P,NULL,0,false,Timeout,Future,xrtTimer(),Extension);
+}
+
 XRPC_API xrpcduplexadmission xrpcWsCall(xrpcws* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcWsSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcWsSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcWsNotify(xrpcws* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcWsSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcWsSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcWsBatch(xrpcws* P,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future)
-{return xrpcWsSubmit(P,Items,Count,true,Timeout,Future,xrtTimer());}
+{return xrpcWsSubmit(P,Items,Count,true,Timeout,Future,xrtTimer(),0);}
 XRPC_API bool xrpcWsClose(xrpcws* P)
 {if(!P)return xrpcWsReport(XERR_ARGUMENT,"RPC WS peer is NULL");xrpcWsFail(P,XRPC_WS_LOCAL);xrtMutexLock(&P->Gate);
     #if defined(XRPC_FEATURE_XRPC_WS_HTTP)

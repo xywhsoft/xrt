@@ -1,0 +1,2408 @@
+{
+  "schema": 1,
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "baseline_revision": "4626922112601b9f45303c2f55e77591d32b07ce",
+  "raw_directory": "out/service-extensions/xrpc-network-extensions-20261119",
+  "source_lf_sha256": {
+    "extlibs/xrpc/config/modules.json": "9073e1e127c0417f86d4a00f959267b40b87907aca30c2ad4466704c527f086e",
+    "extlibs/xrpc/config/performance_profiles.json": "6684dd95ee089a5294809feb62516e04dd1608f7d5f65eed6c4f17f97b8b2b9a",
+    "extlibs/xrpc/include/xrpc/duplex.h": "97925b62fa59fe8cb07fc07ce06d8651466e867f9ba99bcf049acb52660ac9d1",
+    "extlibs/xrpc/include/xrpc/tcp.h": "72d72433ef9dc98cb83b9080119ac8cbbc17990e360edf62d27e33f1c1f8ce64",
+    "extlibs/xrpc/include/xrpc/tls.h": "f0f2397ced87ebc92d16c71f34b0792921120e2b392c7f6fbc310099a57d20c7",
+    "extlibs/xrpc/include/xrpc/ws.h": "f6e52f85a699f2ded4144c45b1967148088625248c1f153ea3bd877bea54f7c1",
+    "extlibs/xrpc/src/internal/xrpc_duplex_internal.h": "de78725e601e8c5ea19ad0d518fbf55398c86e2d3bc459e4858a188ea1e0e66c",
+    "extlibs/xrpc/src/duplex/duplex.c": "114ac440abbb3b9a2ea340d613e380b189e98ee08e1baab752c2624d1c30d1a9",
+    "extlibs/xrpc/src/tcp/tcp.c": "45b73d370e3ae6b3dc7ec0698589c382cdce2e4b67794e4b2510ed760db8f25f",
+    "extlibs/xrpc/src/tls/tls.c": "288ad262a5d118443a8ee773c5f6957cd14de76226c0fcd4293a4351551c2c8d",
+    "extlibs/xrpc/src/ws/ws.c": "405bdb113c012ae19c7a94350206f83cffe911a94611dbbbcd4f3769650f1525",
+    "extlibs/xrpc/examples/tcp/main.c": "82696217dbde120c36bf5e1511ebae694330096c0164b07bbffc8d36838b8a31",
+    "extlibs/xrpc/tests/network_extensions.h": "e5cadbd36a166901d720d998ddad2d9bfbec2faf07903dcb7f1c7e9a5741ce95",
+    "extlibs/xrpc/tests/test_duplex.c": "17af942328532dad3026116388dc3de65b99cbb199fcc881571a33df15bdffe3",
+    "extlibs/xrpc/tests/test_tcp.c": "b2b93b6d75efcbeb728f35689f3b3e6dc4de1bf704edea70203ea38b82a4b209",
+    "extlibs/xrpc/tests/test_tls.c": "acdebd64384126a3d7eb373e8afbf0bc0b0c9d60204dd5016ae64c09fddaec02",
+    "extlibs/xrpc/tests/test_ws.c": "e6d1ec5af73c96f876318c09f88a985fa28a717828bff36a930d2b229a72a523",
+    "extlibs/xrpc/tests/test_ws_http.c": "1bbf2e9ec6e7394005229529650236f351144a31b8c893572520e082b6b06197",
+    "extlibs/xrpc/tests/package/test_consumer.c": "11ec5ff3b6047b5d8b1080b65cfcab98235eefcf6acd32779e19d0e351f21a3b",
+    "extlibs/xrpc/bench/bench_tcp.c": "df21e6ed166a3da1f41c1ce7951e9aa6498d5d8ffc344092096435740cf7b157",
+    "extlibs/xrpc/bench/bench_tls.c": "1d5aa36d6bb6a44c3a0d2e8b3051420ff37542f1b92d0b2806e08b500bf43513",
+    "extlibs/xrpc/bench/bench_ws.c": "b27bfa512dfd164bd08313530da942805bef4c6db994bef38b5c074ee5479f85",
+    "extlibs/xrpc/examples/common/ws_service.h": "3527d3e0cd5eeff7369e6e58db0711c8b993678afc95f2ae54dfa7f17951531d",
+    "single/xrt.h": "e9ff748e2fbb101e058cb651f95d6d9ed70ac59d26f876e5888a1aa371694ede",
+    "single/extlibs/xrpc.h": "6af0cbf59562e6e07368283afacd03242c330dc636846d8b2ff54e704fec34f7",
+    "single/extlibs/xrpc_decl.h": "0c2c3ecbdde9f740c5d077b11a078ea77b94059997d67aa4208be1c389ab48f9"
+  },
+  "platforms": {
+    "windows": {
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "aggregate": {
+        "programs_passed": 63,
+        "file": "root-windows.log",
+        "sha256": "f898afe143aa3857432d7e23400902665d7ccc5a02624fccb125334a5c1e215d"
+      },
+      "selected_modular": {
+        "programs_passed": 8,
+        "file": "modular-test-windows.log",
+        "sha256": "d8eb59adcb560dc500ca38db6c5d81a395e9e06ddbd744f8d2bb302d5141e16a"
+      },
+      "tcp_example": {
+        "file": "example-windows.log",
+        "sha256": "bef872d0bcbcf4247d07a45cbec404571578731f9dd2741cb1b30a009d39b0ca"
+      },
+      "packages": {
+        "xrpc_tcp_static": {
+          "file": "package-windows-xrpc_tcp-static.log",
+          "sha256": "fedd48342ae895e9877d3a1e6f3a4aabbefcccd7f255c807f86acbb3c9de53a5"
+        },
+        "xrpc_tcp_shared": {
+          "file": "package-windows-xrpc_tcp-shared.log",
+          "sha256": "43a06e13f5212685db2ad05f1fdf0c302616cf680faedef810a59bc2616ba222"
+        },
+        "xrpc_static": {
+          "file": "package-windows-xrpc-static.log",
+          "sha256": "78c89f09aa34316d6f097ae59b75cc488090c0face2f69b803598da7062f1043"
+        },
+        "xrpc_shared": {
+          "file": "package-windows-xrpc-shared.log",
+          "sha256": "9ceceec85f3c7fe5fdd769e04c9afac87b2ba559e4abe5ef4c187953b538c938"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-windows.json",
+          "sha256": "5370e797a2a57ca52529a0aa5610136e84b65fb8db47150923116c7a1e397720"
+        },
+        "single_object_sections": {
+          "xrpc_tcp": {
+            "text": 642776,
+            "data": 2712,
+            "bss": 11168,
+            "file": 927028,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_tls": {
+            "text": 1309540,
+            "data": 2712,
+            "bss": 11200,
+            "file": 1743314,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_ws": {
+            "text": 695264,
+            "data": 2712,
+            "bss": 11200,
+            "file": 997107,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "benchmark_build": {
+        "file": "bench-build-final-windows.log",
+        "sha256": "e3ce33090b202baebe9dc4e98861eea76448a3111092b1c0f70e1ad76cf52f49"
+      },
+      "matched_loopback": {
+        "file": "perf-windows.json",
+        "sha256": "d0d37bcd641df441ad8f238039b1461aad9012294e4b2a3cb02738516032d2e9",
+        "binaries": {
+          "compiler": "gcc.exe (GCC) 16.2.0",
+          "baseline_revision": "4626922112601b9f45303c2f55e77591d32b07ce",
+          "baseline_header_sha256": "02cfb1fc36bdc69ff868ca1b9a6e92c4be9a4b2dcce75c1d0907890d89fbd81a",
+          "candidate_header_sha256": "6af0cbf59562e6e07368283afacd03242c330dc636846d8b2ff54e704fec34f7",
+          "executables": {
+            "tcp_baseline.exe": "fe8f42a861b393c23936fd278aefd1522f99b5074ff0de3a55976efdfadecc3e",
+            "tcp_candidate.exe": "5506a5e5d59d4d4af1f388155b60bdf657e70319bcd6d9d2503fbff4f8f93c99",
+            "tcp_propagation.exe": "c7ca88b031f962bbfc04d989e4c88097097be95d06e9a1667ac1798f56c15842",
+            "tls_baseline.exe": "b603155a927e40bd7a197d29479cdb7b777a60409fc7a15852f4e1a12ccf73af",
+            "tls_candidate.exe": "0facec2701386f0aa14fbac1dd9baaa881b92a910e9a826eca4823d007fcbdcb",
+            "ws_baseline.exe": "1fd347585902e32f85a37fd5d4494a4079124578e6ff52c7c80e06185d8bd2f3",
+            "ws_candidate.exe": "da8a654119f9de6739bffb3c2bc1ccfa082cfab1fd842d5cb820c6907b16fc3b"
+          }
+        },
+        "rounds_per_arm": 6,
+        "profiles": {
+          "tcp_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 15929.877425,
+                  "ns_per_call": 62775.122075,
+                  "process_cpu_ns_per_call": 68664.550781,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.600003,
+                  "closed_loop_p99_us": 92.900009,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15803.283079,
+                  "ns_per_call": 63277.990719,
+                  "process_cpu_ns_per_call": 66757.202148,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.000006,
+                  "closed_loop_p99_us": 90.799993,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 16254.893881,
+                  "ns_per_call": 61519.934079,
+                  "process_cpu_ns_per_call": 70571.899414,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 60.799997,
+                  "closed_loop_p99_us": 86.400076,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 16064.824076,
+                  "ns_per_call": 62247.802731,
+                  "process_cpu_ns_per_call": 64849.853516,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.2,
+                  "closed_loop_p99_us": 92.700007,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15978.681566,
+                  "ns_per_call": 62583.386239,
+                  "process_cpu_ns_per_call": 83923.339844,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.400002,
+                  "closed_loop_p99_us": 89.799985,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15869.525841,
+                  "ns_per_call": 63013.854984,
+                  "process_cpu_ns_per_call": 68664.550781,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.900006,
+                  "closed_loop_p99_us": 89.199981,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 15833.721185,
+                  "ns_per_call": 63156.347665,
+                  "process_cpu_ns_per_call": 72479.248047,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.400002,
+                  "closed_loop_p99_us": 91.599999,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15907.098817,
+                  "ns_per_call": 62865.014641,
+                  "process_cpu_ns_per_call": 76293.945312,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.800005,
+                  "closed_loop_p99_us": 93.400013,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15647.601945,
+                  "ns_per_call": 63907.556154,
+                  "process_cpu_ns_per_call": 62942.504883,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.400009,
+                  "closed_loop_p99_us": 91.7,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15685.562676,
+                  "ns_per_call": 63752.89307,
+                  "process_cpu_ns_per_call": 72479.248047,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.50001,
+                  "closed_loop_p99_us": 91.399997,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15451.906978,
+                  "ns_per_call": 64716.931149,
+                  "process_cpu_ns_per_call": 70571.899414,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.800013,
+                  "closed_loop_p99_us": 96.700038,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15185.094287,
+                  "ns_per_call": 65854.052735,
+                  "process_cpu_ns_per_call": 72479.248047,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.400009,
+                  "closed_loop_p99_us": 138.999894,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 15954.279495499999,
+                "process_cpu_ns_per_call": 68664.550781,
+                "closed_loop_p99_us": 90.29998900000001
+              },
+              "candidate": {
+                "calls_per_sec": 15666.5823105,
+                "process_cpu_ns_per_call": 72479.248047,
+                "closed_loop_p99_us": 92.5500065
+              }
+            }
+          },
+          "tcp_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 107616.791217,
+                  "ns_per_call": 9292.230224,
+                  "process_cpu_ns_per_call": 23841.85791,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 108339.152366,
+                  "ns_per_call": 9230.273434,
+                  "process_cpu_ns_per_call": 25749.206543,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 109795.259685,
+                  "ns_per_call": 9107.861331,
+                  "process_cpu_ns_per_call": 24795.532227,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 105165.187131,
+                  "ns_per_call": 9508.850098,
+                  "process_cpu_ns_per_call": 22888.183594,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 108147.570203,
+                  "ns_per_call": 9246.624757,
+                  "process_cpu_ns_per_call": 27656.555176,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 110080.376672,
+                  "ns_per_call": 9084.271241,
+                  "process_cpu_ns_per_call": 26702.880859,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 104199.128152,
+                  "ns_per_call": 9597.009281,
+                  "process_cpu_ns_per_call": 31471.252441,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 109724.964335,
+                  "ns_per_call": 9113.696287,
+                  "process_cpu_ns_per_call": 25749.206543,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 99825.135398,
+                  "ns_per_call": 10017.517091,
+                  "process_cpu_ns_per_call": 30517.578125,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 103716.289398,
+                  "ns_per_call": 9641.687008,
+                  "process_cpu_ns_per_call": 24795.532227,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 106997.900437,
+                  "ns_per_call": 9345.97778,
+                  "process_cpu_ns_per_call": 30517.578125,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 108832.475379,
+                  "ns_per_call": 9188.433843,
+                  "process_cpu_ns_per_call": 34332.275391,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 108243.36128449999,
+                "process_cpu_ns_per_call": 25272.369384999998
+              },
+              "candidate": {
+                "calls_per_sec": 105598.5142945,
+                "process_cpu_ns_per_call": 30517.578125
+              }
+            }
+          },
+          "tls_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 13285.795097,
+                  "ns_per_call": 75268.359382,
+                  "process_cpu_ns_per_call": 80108.642578,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.199968,
+                  "closed_loop_p95_us": 91.399997,
+                  "closed_loop_p99_us": 114.499941,
+                  "closed_loop_p999_us": 154.20001,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13547.69294,
+                  "ns_per_call": 73813.305661,
+                  "process_cpu_ns_per_call": 97274.780273,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 71.899965,
+                  "closed_loop_p95_us": 82.800048,
+                  "closed_loop_p99_us": 104.699982,
+                  "closed_loop_p999_us": 150.399981,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13610.198078,
+                  "ns_per_call": 73474.316409,
+                  "process_cpu_ns_per_call": 85830.688477,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 71.599963,
+                  "closed_loop_p95_us": 82.300045,
+                  "closed_loop_p99_us": 103.999977,
+                  "closed_loop_p999_us": 141.499913,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13544.545799,
+                  "ns_per_call": 73830.456543,
+                  "process_cpu_ns_per_call": 91552.734375,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 71.800081,
+                  "closed_loop_p95_us": 84.299943,
+                  "closed_loop_p99_us": 107.100001,
+                  "closed_loop_p999_us": 149.199972,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13365.991252,
+                  "ns_per_call": 74816.748054,
+                  "process_cpu_ns_per_call": 93460.083008,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.099967,
+                  "closed_loop_p95_us": 89.899986,
+                  "closed_loop_p99_us": 112.000038,
+                  "closed_loop_p999_us": 145.000056,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13259.375198,
+                  "ns_per_call": 75418.334958,
+                  "process_cpu_ns_per_call": 89645.385742,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 71.999966,
+                  "closed_loop_p95_us": 90.299989,
+                  "closed_loop_p99_us": 133.399968,
+                  "closed_loop_p999_us": 236.800057,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 13362.420085,
+                  "ns_per_call": 74836.743167,
+                  "process_cpu_ns_per_call": 91552.734375,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.49997,
+                  "closed_loop_p95_us": 85.300067,
+                  "closed_loop_p99_us": 112.100039,
+                  "closed_loop_p999_us": 146.900071,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13377.351877,
+                  "ns_per_call": 74753.210441,
+                  "process_cpu_ns_per_call": 82015.991211,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.400086,
+                  "closed_loop_p95_us": 86.000073,
+                  "closed_loop_p99_us": 110.49991,
+                  "closed_loop_p999_us": 148.000079,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13407.969722,
+                  "ns_per_call": 74582.507324,
+                  "process_cpu_ns_per_call": 83923.339844,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.299968,
+                  "closed_loop_p95_us": 86.299959,
+                  "closed_loop_p99_us": 109.900022,
+                  "closed_loop_p999_us": 146.300066,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 13342.795338,
+                  "ns_per_call": 74946.813967,
+                  "process_cpu_ns_per_call": 78201.293945,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 73.100091,
+                  "closed_loop_p95_us": 84.299943,
+                  "closed_loop_p99_us": 108.899898,
+                  "closed_loop_p999_us": 153.200002,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 12053.645786,
+                  "ns_per_call": 82962.451174,
+                  "process_cpu_ns_per_call": 106811.523438,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 73.900097,
+                  "closed_loop_p95_us": 117.999967,
+                  "closed_loop_p99_us": 137.799885,
+                  "closed_loop_p999_us": 173.900044,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 12886.835119,
+                  "ns_per_call": 77598.571778,
+                  "process_cpu_ns_per_call": 97274.780273,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 72.699971,
+                  "closed_loop_p95_us": 96.800039,
+                  "closed_loop_p99_us": 131.799956,
+                  "closed_loop_p999_us": 304.49999,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 13455.2685255,
+                "process_cpu_ns_per_call": 90599.0600585,
+                "closed_loop_p99_us": 109.5500195,
+                "closed_loop_p999_us": 149.7999765
+              },
+              "candidate": {
+                "calls_per_sec": 13352.6077115,
+                "process_cpu_ns_per_call": 87738.0371095,
+                "closed_loop_p99_us": 111.29997449999999,
+                "closed_loop_p999_us": 150.6000405
+              }
+            }
+          },
+          "tls_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 73451.418651,
+                  "ns_per_call": 13614.440924,
+                  "process_cpu_ns_per_call": 31471.252441,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 74559.89457,
+                  "ns_per_call": 13412.036132,
+                  "process_cpu_ns_per_call": 31471.252441,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 71395.888988,
+                  "ns_per_call": 14006.408691,
+                  "process_cpu_ns_per_call": 30517.578125,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 71258.049914,
+                  "ns_per_call": 14033.502197,
+                  "process_cpu_ns_per_call": 35285.949707,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 72594.766654,
+                  "ns_per_call": 13775.097656,
+                  "process_cpu_ns_per_call": 27656.555176,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 72852.779501,
+                  "ns_per_call": 13726.312254,
+                  "process_cpu_ns_per_call": 26702.880859,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 66545.54922,
+                  "ns_per_call": 15027.301025,
+                  "process_cpu_ns_per_call": 35285.949707,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 69797.857174,
+                  "ns_per_call": 14327.087399,
+                  "process_cpu_ns_per_call": 32424.926758,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 72309.713653,
+                  "ns_per_call": 13829.400636,
+                  "process_cpu_ns_per_call": 30517.578125,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 73225.333717,
+                  "ns_per_call": 13656.475829,
+                  "process_cpu_ns_per_call": 37193.29834,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 73128.492645,
+                  "ns_per_call": 13674.560542,
+                  "process_cpu_ns_per_call": 28610.229492,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 73991.814102,
+                  "ns_per_call": 13515.008547,
+                  "process_cpu_ns_per_call": 29563.903809,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 72723.7730775,
+                "process_cpu_ns_per_call": 30994.415283000002
+              },
+              "candidate": {
+                "calls_per_sec": 72719.103149,
+                "process_cpu_ns_per_call": 31471.2524415
+              }
+            }
+          },
+          "ws_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 58345.645956,
+                  "process_cpu_ns_per_call": 38146.972656,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 57327.062707,
+                  "process_cpu_ns_per_call": 41007.995605,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 59303.659799,
+                  "process_cpu_ns_per_call": 42915.344238,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 59318.582109,
+                  "process_cpu_ns_per_call": 44822.692871,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 59299.045044,
+                  "process_cpu_ns_per_call": 44822.692871,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 60486.557946,
+                  "process_cpu_ns_per_call": 38146.972656,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 59226.12022,
+                  "process_cpu_ns_per_call": 50544.73877,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 59422.753522,
+                  "process_cpu_ns_per_call": 50544.73877,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 61016.984499,
+                  "process_cpu_ns_per_call": 42915.344238,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 60606.508985,
+                  "process_cpu_ns_per_call": 43869.018555,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 60538.789318,
+                  "process_cpu_ns_per_call": 41961.669922,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 61275.467711,
+                  "process_cpu_ns_per_call": 46730.041504,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 59301.3524215,
+                "process_cpu_ns_per_call": 41961.6699215
+              },
+              "candidate": {
+                "calls_per_sec": 60572.6491515,
+                "process_cpu_ns_per_call": 45299.530029500005
+              }
+            }
+          },
+          "wss_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 50180.919619,
+                  "process_cpu_ns_per_call": 47683.71582,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 51189.714071,
+                  "process_cpu_ns_per_call": 46730.041504,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 48476.470677,
+                  "process_cpu_ns_per_call": 50544.73877,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 50981.004713,
+                  "process_cpu_ns_per_call": 48637.390137,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 48658.418735,
+                  "process_cpu_ns_per_call": 39100.646973,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 50217.83334,
+                  "process_cpu_ns_per_call": 45776.367188,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 52344.2452,
+                  "process_cpu_ns_per_call": 46730.041504,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 51314.73653,
+                  "process_cpu_ns_per_call": 41007.995605,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 50432.496207,
+                  "process_cpu_ns_per_call": 55313.110352,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 51145.514047,
+                  "process_cpu_ns_per_call": 53405.761719,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 51483.691223,
+                  "process_cpu_ns_per_call": 52452.087402,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 48735.868787,
+                  "process_cpu_ns_per_call": 44822.692871,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 50199.3764795,
+                "process_cpu_ns_per_call": 47206.878662
+              },
+              "candidate": {
+                "calls_per_sec": 51230.1252885,
+                "process_cpu_ns_per_call": 49591.064453
+              }
+            }
+          },
+          "tcp_propagation_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 15876.581286,
+                  "ns_per_call": 62985.852054,
+                  "process_cpu_ns_per_call": 61035.15625,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.300001,
+                  "closed_loop_p99_us": 101.79996,
+                  "closed_loop_p999_us": 122.900004,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 16044.718387,
+                  "ns_per_call": 62325.805658,
+                  "process_cpu_ns_per_call": 70571.899414,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 59.89999,
+                  "closed_loop_p99_us": 93.800016,
+                  "closed_loop_p999_us": 127.60004,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 16087.409305,
+                  "ns_per_call": 62160.412597,
+                  "process_cpu_ns_per_call": 66757.202148,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 60.599996,
+                  "closed_loop_p99_us": 92.600007,
+                  "closed_loop_p999_us": 124.90002,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15841.038884,
+                  "ns_per_call": 63127.172865,
+                  "process_cpu_ns_per_call": 82015.991211,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.500003,
+                  "closed_loop_p99_us": 99.799945,
+                  "closed_loop_p999_us": 127.60004,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15594.153032,
+                  "ns_per_call": 64126.599113,
+                  "process_cpu_ns_per_call": 83923.339844,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.700004,
+                  "closed_loop_p99_us": 104.200095,
+                  "closed_loop_p999_us": 202.200026,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15426.821276,
+                  "ns_per_call": 64822.167971,
+                  "process_cpu_ns_per_call": 83923.339844,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.600003,
+                  "closed_loop_p99_us": 104.099978,
+                  "closed_loop_p999_us": 127.800042,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 15767.357566,
+                  "ns_per_call": 63422.167969,
+                  "process_cpu_ns_per_call": 76293.945312,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.000006,
+                  "closed_loop_p99_us": 91.499998,
+                  "closed_loop_p999_us": 129.999942,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 16062.001834,
+                  "ns_per_call": 62258.740243,
+                  "process_cpu_ns_per_call": 74386.59668,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 60.800114,
+                  "closed_loop_p99_us": 91.399997,
+                  "closed_loop_p999_us": 125.400024,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15782.862337,
+                  "ns_per_call": 63359.86329,
+                  "process_cpu_ns_per_call": 78201.293945,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.400002,
+                  "closed_loop_p99_us": 95.400028,
+                  "closed_loop_p999_us": 135.199982,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15988.183731,
+                  "ns_per_call": 62546.191415,
+                  "process_cpu_ns_per_call": 85830.688477,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 60.099992,
+                  "closed_loop_p99_us": 94.500021,
+                  "closed_loop_p999_us": 131.999957,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15915.20491,
+                  "ns_per_call": 62832.995596,
+                  "process_cpu_ns_per_call": 62942.504883,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 61.600003,
+                  "closed_loop_p99_us": 94.30002,
+                  "closed_loop_p999_us": 119.199976,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 15757.403689,
+                  "ns_per_call": 63462.231452,
+                  "process_cpu_ns_per_call": 74386.59668,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 62.100007,
+                  "closed_loop_p99_us": 90.200105,
+                  "closed_loop_p999_us": 114.90006,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 15858.810085000001,
+                "process_cpu_ns_per_call": 76293.9453125,
+                "closed_loop_p99_us": 100.79995249999999,
+                "closed_loop_p999_us": 127.60004
+              },
+              "candidate": {
+                "calls_per_sec": 15849.0336235,
+                "process_cpu_ns_per_call": 75340.270996,
+                "closed_loop_p99_us": 92.90000900000001,
+                "closed_loop_p999_us": 127.699983
+              }
+            }
+          },
+          "tcp_propagation_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 91880.281937,
+                  "ns_per_call": 10883.728031,
+                  "process_cpu_ns_per_call": 24795.532227,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 97552.494581,
+                  "ns_per_call": 10250.891116,
+                  "process_cpu_ns_per_call": 29563.903809,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 107979.716855,
+                  "ns_per_call": 9260.998539,
+                  "process_cpu_ns_per_call": 28610.229492,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 108848.59926,
+                  "ns_per_call": 9187.072749,
+                  "process_cpu_ns_per_call": 25749.206543,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 107204.012797,
+                  "ns_per_call": 9328.009035,
+                  "process_cpu_ns_per_call": 20027.160645,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 106701.747615,
+                  "ns_per_call": 9371.917727,
+                  "process_cpu_ns_per_call": 25749.206543,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 110779.949294,
+                  "ns_per_call": 9026.904294,
+                  "process_cpu_ns_per_call": 26702.880859,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 113907.268189,
+                  "ns_per_call": 8779.071045,
+                  "process_cpu_ns_per_call": 26702.880859,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 113821.883748,
+                  "ns_per_call": 8785.656739,
+                  "process_cpu_ns_per_call": 30517.578125,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 110101.97737,
+                  "ns_per_call": 9082.489015,
+                  "process_cpu_ns_per_call": 22888.183594,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 113783.862031,
+                  "ns_per_call": 8788.592531,
+                  "process_cpu_ns_per_call": 20980.834961,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 111680.739177,
+                  "ns_per_call": 8954.095463,
+                  "process_cpu_ns_per_call": 23841.85791,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 106952.880206,
+                "process_cpu_ns_per_call": 25749.206543
+              },
+              "candidate": {
+                "calls_per_sec": 112732.30060399999,
+                "process_cpu_ns_per_call": 25272.3693845
+              }
+            }
+          }
+        }
+      },
+      "longer_retests": {
+        "tcp_window32": {
+          "file": "perf-windows-tcp_window32.json",
+          "sha256": "3ec7fa388745dc6e47f470a5d32baf2eeaf7810c677749ecd659e1db61c3c850",
+          "binaries": {
+            "compiler": "gcc.exe (GCC) 16.2.0",
+            "baseline_revision": "4626922112601b9f45303c2f55e77591d32b07ce",
+            "baseline_header_sha256": "02cfb1fc36bdc69ff868ca1b9a6e92c4be9a4b2dcce75c1d0907890d89fbd81a",
+            "candidate_header_sha256": "6af0cbf59562e6e07368283afacd03242c330dc636846d8b2ff54e704fec34f7",
+            "executables": {
+              "tcp_baseline.exe": "fe8f42a861b393c23936fd278aefd1522f99b5074ff0de3a55976efdfadecc3e",
+              "tcp_candidate.exe": "5506a5e5d59d4d4af1f388155b60bdf657e70319bcd6d9d2503fbff4f8f93c99",
+              "tcp_propagation.exe": "c7ca88b031f962bbfc04d989e4c88097097be95d06e9a1667ac1798f56c15842",
+              "tls_baseline.exe": "b603155a927e40bd7a197d29479cdb7b777a60409fc7a15852f4e1a12ccf73af",
+              "tls_candidate.exe": "0facec2701386f0aa14fbac1dd9baaa881b92a910e9a826eca4823d007fcbdcb",
+              "ws_baseline.exe": "1fd347585902e32f85a37fd5d4494a4079124578e6ff52c7c80e06185d8bd2f3",
+              "ws_candidate.exe": "da8a654119f9de6739bffb3c2bc1ccfa082cfab1fd842d5cb820c6907b16fc3b"
+            }
+          },
+          "rounds_per_arm": 10,
+          "profiles": {
+            "tcp_window32": {
+              "calls_per_run": 65536,
+              "window": 32,
+              "runs": {
+                "baseline": [
+                  {
+                    "calls_per_sec": 106733.409781,
+                    "ns_per_call": 9369.137574,
+                    "process_cpu_ns_per_call": 24557.113647,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 108222.881388,
+                    "ns_per_call": 9240.190126,
+                    "process_cpu_ns_per_call": 25510.787964,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 105392.132038,
+                    "ns_per_call": 9488.374328,
+                    "process_cpu_ns_per_call": 29087.06665,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 105869.526336,
+                    "ns_per_call": 9445.588685,
+                    "process_cpu_ns_per_call": 25987.625122,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 107092.859299,
+                    "ns_per_call": 9337.690734,
+                    "process_cpu_ns_per_call": 25749.206543,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 107811.922684,
+                    "ns_per_call": 9275.411987,
+                    "process_cpu_ns_per_call": 25510.787964,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 99037.177183,
+                    "ns_per_call": 10097.218322,
+                    "process_cpu_ns_per_call": 27656.555176,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 106277.587605,
+                    "ns_per_call": 9409.321594,
+                    "process_cpu_ns_per_call": 27418.136597,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 105043.552305,
+                    "ns_per_call": 9519.860839,
+                    "process_cpu_ns_per_call": 27894.973755,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 101260.315148,
+                    "ns_per_call": 9875.53711,
+                    "process_cpu_ns_per_call": 24318.695068,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  }
+                ],
+                "candidate": [
+                  {
+                    "calls_per_sec": 107010.82911,
+                    "ns_per_call": 9344.848632,
+                    "process_cpu_ns_per_call": 26464.46228,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 106946.653134,
+                    "ns_per_call": 9350.456239,
+                    "process_cpu_ns_per_call": 28848.648071,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 107575.543435,
+                    "ns_per_call": 9295.793152,
+                    "process_cpu_ns_per_call": 28848.648071,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 106073.095857,
+                    "ns_per_call": 9427.461242,
+                    "process_cpu_ns_per_call": 31948.0896,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 107377.131376,
+                    "ns_per_call": 9312.96997,
+                    "process_cpu_ns_per_call": 29325.485229,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 104791.422125,
+                    "ns_per_call": 9542.765808,
+                    "process_cpu_ns_per_call": 23603.439331,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 105861.009924,
+                    "ns_per_call": 9446.348573,
+                    "process_cpu_ns_per_call": 29802.322388,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 106694.225883,
+                    "ns_per_call": 9372.578429,
+                    "process_cpu_ns_per_call": 27656.555176,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 107233.710285,
+                    "ns_per_call": 9325.425721,
+                    "process_cpu_ns_per_call": 27656.555176,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  },
+                  {
+                    "calls_per_sec": 97859.38566,
+                    "ns_per_call": 10218.743897,
+                    "process_cpu_ns_per_call": 26702.880859,
+                    "completed": 65536.0,
+                    "payload_bytes": 7.0
+                  }
+                ]
+              },
+              "median": {
+                "baseline": {
+                  "calls_per_sec": 106073.5569705,
+                  "process_cpu_ns_per_call": 25868.415832500003
+                },
+                "candidate": {
+                  "calls_per_sec": 106820.4395085,
+                  "process_cpu_ns_per_call": 28252.6016235
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "aggregate": {
+        "programs_passed": 63,
+        "file": "root-wsl.log",
+        "sha256": "2458c08a410abc095faae7477256f6963ccb94b270519e729183c64ff8431a78"
+      },
+      "selected_modular": {
+        "programs_passed": 8,
+        "file": "modular-test-wsl.log",
+        "sha256": "3dc08ea87d0aed8692ed923bcd41c29c47426cebd6eefebbeb63912aa392cc53"
+      },
+      "tcp_example": {
+        "file": "example-wsl.log",
+        "sha256": "fcb549196fc1c533eb0d640a3eae3719ad0588e3f8746f619f11973fda377a59"
+      },
+      "packages": {
+        "xrpc_tcp_static": {
+          "file": "package-wsl-xrpc_tcp-static.log",
+          "sha256": "13fa87020ef81c2f79f1a62aa10c80adf263c2077b7cd5e53dceb4cd16f10732"
+        },
+        "xrpc_tcp_shared": {
+          "file": "package-wsl-xrpc_tcp-shared.log",
+          "sha256": "bbface68b4a97c4d570ab445588abc2eaa25e17c0815e141bfa95f7a6335583a"
+        },
+        "xrpc_static": {
+          "file": "package-wsl-xrpc-static.log",
+          "sha256": "34ffe5ee3c4c2a48610b576bbd055a63e9213435c7bd89ada4292507dea776ff"
+        },
+        "xrpc_shared": {
+          "file": "package-wsl-xrpc-shared.log",
+          "sha256": "83aa8e12981bc6f4f9e225767ad059476342f238be0ee4a4d0ada80c5e2f8c5a"
+        }
+      },
+      "size": {
+        "artifact": {
+          "file": "size-wsl.json",
+          "sha256": "5a2157cd419b6a6a3b5d8301fb0a522abe5b41b00ee954eff49afe991a804641"
+        },
+        "single_object_sections": {
+          "xrpc_tcp": {
+            "text": 663486,
+            "data": 5728,
+            "bss": 10948,
+            "file": 1170320,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_tls": {
+            "text": 1338975,
+            "data": 7024,
+            "bss": 10948,
+            "file": 2199808,
+            "forbidden_symbol_count": 0
+          },
+          "xrpc_ws": {
+            "text": 714534,
+            "data": 6112,
+            "bss": 10948,
+            "file": 1260888,
+            "forbidden_symbol_count": 0
+          }
+        }
+      },
+      "benchmark_build": {
+        "file": "bench-build-verified-wsl.log",
+        "sha256": "3a3706808e7dd7e8a781d59491ecad81347b451dfbb0d6025c404bb14e7e9d83"
+      },
+      "matched_loopback": {
+        "file": "perf-wsl.json",
+        "sha256": "36cc6a33e7fef19f5c2836693340f8ef504ea9bfbf603898c6e5c209864e5524",
+        "binaries": {
+          "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "baseline_revision": "4626922112601b9f45303c2f55e77591d32b07ce",
+          "baseline_header_sha256": "02cfb1fc36bdc69ff868ca1b9a6e92c4be9a4b2dcce75c1d0907890d89fbd81a",
+          "candidate_header_sha256": "6af0cbf59562e6e07368283afacd03242c330dc636846d8b2ff54e704fec34f7",
+          "executables": {
+            "tcp_baseline": "fd921422aadf8176566e2710c64827ae9a96a48d54e38d973dff4ff20d5cff78",
+            "tcp_candidate": "59765537edea4ea8fb91b285d3413b05f9e883ba5bc52dee765e719fe239729c",
+            "tcp_propagation": "a7c347911be4c190aee5026e786a16e3bd7c7d32f837327d4093c9a9e6f21812",
+            "tls_baseline": "3ca79c41bcae60c7dfc23a262c8a849e1aeea3c9044d7c841f89ad0b5c223d26",
+            "tls_candidate": "ee5a359794b714adaf9e8a81da9c92ba72fcd9f146ed30262ff1a4c42c152f3c",
+            "ws_baseline": "0366659ac71bb3057be253688cb5618df7aa88e286f4d799b816b2ecfcf074de",
+            "ws_candidate": "09e82a08a3962d787b7428c6ce0c0fcdbd41545fe393e91a3cac49cea30eed07"
+          }
+        },
+        "rounds_per_arm": 6,
+        "profiles": {
+          "tcp_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 6862.145135,
+                  "ns_per_call": 145727.025635,
+                  "process_cpu_ns_per_call": 176680.419922,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 140.2,
+                  "closed_loop_p99_us": 220.7,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6784.583051,
+                  "ns_per_call": 147392.992676,
+                  "process_cpu_ns_per_call": 178130.004883,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 143.3,
+                  "closed_loop_p99_us": 208.4,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6911.166021,
+                  "ns_per_call": 144693.384155,
+                  "process_cpu_ns_per_call": 175899.291992,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 139.3,
+                  "closed_loop_p99_us": 208.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6787.251384,
+                  "ns_per_call": 147335.046753,
+                  "process_cpu_ns_per_call": 178838.867188,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 140.5,
+                  "closed_loop_p99_us": 219.5,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6877.390268,
+                  "ns_per_call": 145403.992065,
+                  "process_cpu_ns_per_call": 176305.175781,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 140.8,
+                  "closed_loop_p99_us": 211.3,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6698.401724,
+                  "ns_per_call": 149289.344116,
+                  "process_cpu_ns_per_call": 180044.555664,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.2,
+                  "closed_loop_p99_us": 209.2,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 6682.036798,
+                  "ns_per_call": 149654.967529,
+                  "process_cpu_ns_per_call": 180044.555664,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.1,
+                  "closed_loop_p99_us": 208.8,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6748.477713,
+                  "ns_per_call": 148181.56665,
+                  "process_cpu_ns_per_call": 179106.811523,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 142.8,
+                  "closed_loop_p99_us": 212.9,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6680.701669,
+                  "ns_per_call": 149684.875854,
+                  "process_cpu_ns_per_call": 180602.661133,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 143.4,
+                  "closed_loop_p99_us": 224.5,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6840.285658,
+                  "ns_per_call": 146192.724976,
+                  "process_cpu_ns_per_call": 177310.791016,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 141.4,
+                  "closed_loop_p99_us": 206.8,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6821.009759,
+                  "ns_per_call": 146605.859741,
+                  "process_cpu_ns_per_call": 177710.693359,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 141.0,
+                  "closed_loop_p99_us": 219.1,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6742.046649,
+                  "ns_per_call": 148322.913208,
+                  "process_cpu_ns_per_call": 178204.956055,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 144.4,
+                  "closed_loop_p99_us": 205.7,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 6824.6982595,
+                "process_cpu_ns_per_call": 177405.21240249998,
+                "closed_loop_p99_us": 210.25
+              },
+              "candidate": {
+                "calls_per_sec": 6745.262181,
+                "process_cpu_ns_per_call": 178655.88378899998,
+                "closed_loop_p99_us": 210.85000000000002
+              }
+            }
+          },
+          "tcp_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 54711.594993,
+                  "ns_per_call": 18277.661255,
+                  "process_cpu_ns_per_call": 42758.361816,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 52004.608477,
+                  "ns_per_call": 19229.065063,
+                  "process_cpu_ns_per_call": 44472.290039,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 48059.534405,
+                  "ns_per_call": 20807.525757,
+                  "process_cpu_ns_per_call": 47053.100586,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 52355.669266,
+                  "ns_per_call": 19100.128296,
+                  "process_cpu_ns_per_call": 44196.899414,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 54192.026097,
+                  "ns_per_call": 18452.899292,
+                  "process_cpu_ns_per_call": 43117.004395,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 53688.055137,
+                  "ns_per_call": 18626.117065,
+                  "process_cpu_ns_per_call": 43199.21875,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 53580.655149,
+                  "ns_per_call": 18663.452271,
+                  "process_cpu_ns_per_call": 43272.094727,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 52054.027327,
+                  "ns_per_call": 19210.809448,
+                  "process_cpu_ns_per_call": 44439.147949,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 51389.063254,
+                  "ns_per_call": 19459.393433,
+                  "process_cpu_ns_per_call": 44863.830566,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 52814.403963,
+                  "ns_per_call": 18934.228638,
+                  "process_cpu_ns_per_call": 43968.200684,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 54092.58367,
+                  "ns_per_call": 18486.822632,
+                  "process_cpu_ns_per_call": 42965.454102,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 53869.13093,
+                  "ns_per_call": 18563.507202,
+                  "process_cpu_ns_per_call": 43374.938965,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 53021.8622015,
+                "process_cpu_ns_per_call": 43698.059082
+              },
+              "candidate": {
+                "calls_per_sec": 53197.529555999994,
+                "process_cpu_ns_per_call": 43671.5698245
+              }
+            }
+          },
+          "tls_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 6306.749258,
+                  "ns_per_call": 158560.291382,
+                  "process_cpu_ns_per_call": 184866.821289,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 154.4,
+                  "closed_loop_p95_us": 187.3,
+                  "closed_loop_p99_us": 221.1,
+                  "closed_loop_p999_us": 268.5,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6371.319575,
+                  "ns_per_call": 156953.357666,
+                  "process_cpu_ns_per_call": 184334.960938,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 152.3,
+                  "closed_loop_p95_us": 185.3,
+                  "closed_loop_p99_us": 222.6,
+                  "closed_loop_p999_us": 261.7,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6429.77586,
+                  "ns_per_call": 155526.416748,
+                  "process_cpu_ns_per_call": 181629.882812,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 150.2,
+                  "closed_loop_p95_us": 185.2,
+                  "closed_loop_p99_us": 226.1,
+                  "closed_loop_p999_us": 274.5,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6470.977498,
+                  "ns_per_call": 154536.157837,
+                  "process_cpu_ns_per_call": 182315.551758,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 149.8,
+                  "closed_loop_p95_us": 183.7,
+                  "closed_loop_p99_us": 215.7,
+                  "closed_loop_p999_us": 266.5,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6231.360378,
+                  "ns_per_call": 160478.601685,
+                  "process_cpu_ns_per_call": 187752.075195,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 155.5,
+                  "closed_loop_p95_us": 190.8,
+                  "closed_loop_p99_us": 223.1,
+                  "closed_loop_p999_us": 277.8,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6410.496662,
+                  "ns_per_call": 155994.153442,
+                  "process_cpu_ns_per_call": 183069.824219,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 150.1,
+                  "closed_loop_p95_us": 189.5,
+                  "closed_loop_p99_us": 228.7,
+                  "closed_loop_p999_us": 283.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 6497.697419,
+                  "ns_per_call": 153900.672119,
+                  "process_cpu_ns_per_call": 180444.213867,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 148.7,
+                  "closed_loop_p95_us": 185.0,
+                  "closed_loop_p99_us": 220.0,
+                  "closed_loop_p999_us": 269.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6491.857728,
+                  "ns_per_call": 154039.112061,
+                  "process_cpu_ns_per_call": 180687.62207,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 148.8,
+                  "closed_loop_p95_us": 184.3,
+                  "closed_loop_p99_us": 222.1,
+                  "closed_loop_p999_us": 280.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6222.856634,
+                  "ns_per_call": 160697.901123,
+                  "process_cpu_ns_per_call": 188311.889648,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 154.0,
+                  "closed_loop_p95_us": 202.3,
+                  "closed_loop_p99_us": 246.2,
+                  "closed_loop_p999_us": 284.2,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6329.329545,
+                  "ns_per_call": 157994.617432,
+                  "process_cpu_ns_per_call": 184269.897461,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 154.4,
+                  "closed_loop_p95_us": 185.4,
+                  "closed_loop_p99_us": 219.7,
+                  "closed_loop_p999_us": 280.8,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6249.640466,
+                  "ns_per_call": 160009.20459,
+                  "process_cpu_ns_per_call": 186559.692383,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 154.9,
+                  "closed_loop_p95_us": 192.7,
+                  "closed_loop_p99_us": 229.5,
+                  "closed_loop_p999_us": 285.8,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6253.8065,
+                  "ns_per_call": 159902.612915,
+                  "process_cpu_ns_per_call": 186881.713867,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 155.1,
+                  "closed_loop_p95_us": 190.3,
+                  "closed_loop_p99_us": 230.0,
+                  "closed_loop_p999_us": 284.9,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 6390.9081185,
+                "process_cpu_ns_per_call": 183702.3925785,
+                "closed_loop_p99_us": 222.85,
+                "closed_loop_p999_us": 271.5
+              },
+              "candidate": {
+                "calls_per_sec": 6291.5680225,
+                "process_cpu_ns_per_call": 185414.79492199997,
+                "closed_loop_p99_us": 225.8,
+                "closed_loop_p999_us": 282.5
+              }
+            }
+          },
+          "tls_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 40529.726193,
+                  "ns_per_call": 24673.248352,
+                  "process_cpu_ns_per_call": 55315.551758,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 38428.349464,
+                  "ns_per_call": 26022.455139,
+                  "process_cpu_ns_per_call": 57745.544434,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 38161.057757,
+                  "ns_per_call": 26204.724365,
+                  "process_cpu_ns_per_call": 57864.135742,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39723.814362,
+                  "ns_per_call": 25173.816162,
+                  "process_cpu_ns_per_call": 56460.327148,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39917.134426,
+                  "ns_per_call": 25051.898499,
+                  "process_cpu_ns_per_call": 56181.396484,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 40192.759904,
+                  "ns_per_call": 24880.102844,
+                  "process_cpu_ns_per_call": 55653.686523,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 35696.645307,
+                  "ns_per_call": 28013.836914,
+                  "process_cpu_ns_per_call": 61230.34668,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39638.060285,
+                  "ns_per_call": 25228.277893,
+                  "process_cpu_ns_per_call": 56618.041992,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39296.726273,
+                  "ns_per_call": 25447.412415,
+                  "process_cpu_ns_per_call": 56554.504395,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39928.963878,
+                  "ns_per_call": 25044.476562,
+                  "process_cpu_ns_per_call": 55811.584473,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39575.242,
+                  "ns_per_call": 25268.323059,
+                  "process_cpu_ns_per_call": 56241.271973,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 39156.518779,
+                  "ns_per_call": 25538.531799,
+                  "process_cpu_ns_per_call": 56955.810547,
+                  "completed": 16384.0,
+                  "tls_version": 772.0,
+                  "tls_cipher": 4865.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 39820.474394,
+                "process_cpu_ns_per_call": 56320.861816
+              },
+              "candidate": {
+                "calls_per_sec": 39435.9841365,
+                "process_cpu_ns_per_call": 56586.273193500005
+              }
+            }
+          },
+          "ws_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26726.426722,
+                  "process_cpu_ns_per_call": 86240.661621,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 27720.731041,
+                  "process_cpu_ns_per_call": 84162.353516,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26770.388633,
+                  "process_cpu_ns_per_call": 86714.233398,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26309.408367,
+                  "process_cpu_ns_per_call": 86672.607422,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26560.205202,
+                  "process_cpu_ns_per_call": 86298.64502,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24934.91548,
+                  "process_cpu_ns_per_call": 92023.4375,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26458.294378,
+                  "process_cpu_ns_per_call": 86837.768555,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 27074.32805,
+                  "process_cpu_ns_per_call": 86082.15332,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24720.114411,
+                  "process_cpu_ns_per_call": 91404.663086,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 23243.019623,
+                  "process_cpu_ns_per_call": 97232.23877,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25323.561474,
+                  "process_cpu_ns_per_call": 88617.675781,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 26405.257029,
+                  "process_cpu_ns_per_call": 86094.543457,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 26643.315962,
+                "process_cpu_ns_per_call": 86485.626221
+              },
+              "candidate": {
+                "calls_per_sec": 25864.4092515,
+                "process_cpu_ns_per_call": 87727.72216800001
+              }
+            }
+          },
+          "wss_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24775.464602,
+                  "process_cpu_ns_per_call": 90817.749023,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24699.26385,
+                  "process_cpu_ns_per_call": 90947.387695,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25022.308899,
+                  "process_cpu_ns_per_call": 89584.16748,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25056.688502,
+                  "process_cpu_ns_per_call": 90009.643555,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24540.262948,
+                  "process_cpu_ns_per_call": 91746.032715,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 23541.102022,
+                  "process_cpu_ns_per_call": 94420.898438,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25641.38652,
+                  "process_cpu_ns_per_call": 88456.787109,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25055.611752,
+                  "process_cpu_ns_per_call": 89391.113281,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 23009.729723,
+                  "process_cpu_ns_per_call": 96404.602051,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24014.428309,
+                  "process_cpu_ns_per_call": 92795.043945,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 24944.565674,
+                  "process_cpu_ns_per_call": 90788.574219,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "completed": 16384.0,
+                  "calls_per_sec": 25294.001431,
+                  "process_cpu_ns_per_call": 90158.02002,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 24737.364225999998,
+                "process_cpu_ns_per_call": 90882.568359
+              },
+              "candidate": {
+                "calls_per_sec": 25000.088713,
+                "process_cpu_ns_per_call": 90473.2971195
+              }
+            }
+          },
+          "tcp_propagation_single": {
+            "calls_per_run": 8192,
+            "window": 1,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 6011.909941,
+                  "ns_per_call": 166336.490356,
+                  "process_cpu_ns_per_call": 199910.522461,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 148.9,
+                  "closed_loop_p99_us": 275.9,
+                  "closed_loop_p999_us": 490.7,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6489.116728,
+                  "ns_per_call": 154104.178101,
+                  "process_cpu_ns_per_call": 185892.822266,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 144.4,
+                  "closed_loop_p99_us": 244.5,
+                  "closed_loop_p999_us": 279.6,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6517.164737,
+                  "ns_per_call": 153440.957886,
+                  "process_cpu_ns_per_call": 185234.863281,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.9,
+                  "closed_loop_p99_us": 234.9,
+                  "closed_loop_p999_us": 284.3,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6572.944391,
+                  "ns_per_call": 152138.819458,
+                  "process_cpu_ns_per_call": 183733.398438,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.0,
+                  "closed_loop_p99_us": 227.9,
+                  "closed_loop_p999_us": 270.4,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6681.077045,
+                  "ns_per_call": 149676.46582,
+                  "process_cpu_ns_per_call": 180051.391602,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 144.5,
+                  "closed_loop_p99_us": 212.4,
+                  "closed_loop_p999_us": 258.6,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6713.090143,
+                  "ns_per_call": 148962.695068,
+                  "process_cpu_ns_per_call": 179738.40332,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 141.8,
+                  "closed_loop_p99_us": 224.9,
+                  "closed_loop_p999_us": 276.6,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 6494.20696,
+                  "ns_per_call": 153983.389526,
+                  "process_cpu_ns_per_call": 185641.479492,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.9,
+                  "closed_loop_p99_us": 239.2,
+                  "closed_loop_p999_us": 276.4,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6497.90966,
+                  "ns_per_call": 153895.645264,
+                  "process_cpu_ns_per_call": 183826.660156,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 146.1,
+                  "closed_loop_p99_us": 230.9,
+                  "closed_loop_p999_us": 267.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6427.206612,
+                  "ns_per_call": 155588.587769,
+                  "process_cpu_ns_per_call": 187696.411133,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.5,
+                  "closed_loop_p99_us": 238.7,
+                  "closed_loop_p999_us": 278.6,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6471.425283,
+                  "ns_per_call": 154525.464844,
+                  "process_cpu_ns_per_call": 185967.895508,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.6,
+                  "closed_loop_p99_us": 235.7,
+                  "closed_loop_p999_us": 314.4,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6859.283658,
+                  "ns_per_call": 145787.818359,
+                  "process_cpu_ns_per_call": 176862.670898,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 140.1,
+                  "closed_loop_p99_us": 215.3,
+                  "closed_loop_p999_us": 411.2,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 6673.115455,
+                  "ns_per_call": 149855.04248,
+                  "process_cpu_ns_per_call": 179364.013672,
+                  "completed": 8192.0,
+                  "closed_loop_p50_us": 145.8,
+                  "closed_loop_p99_us": 206.4,
+                  "closed_loop_p999_us": 251.3,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 6545.054564,
+                "process_cpu_ns_per_call": 184484.1308595,
+                "closed_loop_p99_us": 231.4,
+                "closed_loop_p999_us": 278.1
+              },
+              "candidate": {
+                "calls_per_sec": 6496.05831,
+                "process_cpu_ns_per_call": 184734.069824,
+                "closed_loop_p99_us": 233.3,
+                "closed_loop_p999_us": 277.5
+              }
+            }
+          },
+          "tcp_propagation_window32": {
+            "calls_per_run": 16384,
+            "window": 32,
+            "runs": {
+              "baseline": [
+                {
+                  "calls_per_sec": 53819.266297,
+                  "ns_per_call": 18580.706665,
+                  "process_cpu_ns_per_call": 43192.138672,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 53240.094192,
+                  "ns_per_call": 18782.836792,
+                  "process_cpu_ns_per_call": 43236.938477,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 53146.266434,
+                  "ns_per_call": 18815.997192,
+                  "process_cpu_ns_per_call": 43387.329102,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 52260.429772,
+                  "ns_per_call": 19134.936401,
+                  "process_cpu_ns_per_call": 44013.305664,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 54182.008783,
+                  "ns_per_call": 18456.310913,
+                  "process_cpu_ns_per_call": 42920.776367,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 53640.210865,
+                  "ns_per_call": 18642.730591,
+                  "process_cpu_ns_per_call": 43167.236328,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ],
+              "candidate": [
+                {
+                  "calls_per_sec": 51403.187483,
+                  "ns_per_call": 19454.046509,
+                  "process_cpu_ns_per_call": 45511.108398,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 51836.192393,
+                  "ns_per_call": 19291.540405,
+                  "process_cpu_ns_per_call": 45127.441406,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 50736.569322,
+                  "ns_per_call": 19709.649536,
+                  "process_cpu_ns_per_call": 45854.064941,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 51732.40763,
+                  "ns_per_call": 19330.242798,
+                  "process_cpu_ns_per_call": 45195.007324,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 51890.402289,
+                  "ns_per_call": 19271.386536,
+                  "process_cpu_ns_per_call": 44910.827637,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                },
+                {
+                  "calls_per_sec": 50089.500589,
+                  "ns_per_call": 19964.263733,
+                  "process_cpu_ns_per_call": 46314.39209,
+                  "completed": 16384.0,
+                  "payload_bytes": 7.0
+                }
+              ]
+            },
+            "median": {
+              "baseline": {
+                "calls_per_sec": 53440.152528499995,
+                "process_cpu_ns_per_call": 43214.5385745
+              },
+              "candidate": {
+                "calls_per_sec": 51567.7975565,
+                "process_cpu_ns_per_call": 45353.057860999994
+              }
+            }
+          }
+        }
+      },
+      "longer_retests": {}
+    }
+  },
+  "behavior": [
+    "Concurrent bounded opt-in and distinct directional offers on TCP, TLS, WS and WSS, including HTTP Upgrade owners.",
+    "Positive publication can be observed by a call submitted directly in the capability completion watch.",
+    "Combined opt-in OOM rollback, method-not-found fallback and retry, duplicate pending offer, transport wire-limit refusal.",
+    "Both Content-Length and UINT32_BE on TCP and TLS, WS/WSS cancellation, deadline error, continued connection use.",
+    "Offers queued behind HTTP authorization send after upgrade or expire with NOT_SENT under the original setup deadline.",
+    "Owner preflights native credit before stamping unexposed deadline output and retains immutable wire through native retry."
+  ],
+  "wsl_sanitizers": {
+    "asan_ubsan_leaks": {
+      "programs_passed": 7,
+      "file": "asan-wsl.log",
+      "sha256": "3d5010095a04c0319635f76d777750cdd320daca69e1e967979997edc0ac2e73"
+    },
+    "tsan": {
+      "programs_passed": 2,
+      "file": "tsan-wsl.log",
+      "sha256": "724c717ed452b397c54dad200a3a9d75a1e2e58be7f45bc7937c43e70b3ed335",
+      "compiler_note": "GCC atomic_thread_fence is not instrumented."
+    }
+  },
+  "tooling": {
+    "file": "tools.log",
+    "sha256": "4ac97a60c87fa7424f781e8abc53e4b3d2100e5d2cbb8c2cb5bafaadfa115a2f",
+    "tests": 43
+  },
+  "docs": {
+    "file": "api.log",
+    "sha256": "18bae4680fd69a340408eb8a4a0b7cccfde98c6bbc0f218aed07bac165b5a5b1"
+  },
+  "release_maturity": {
+    "file": "maturity.log",
+    "sha256": "8acb43deca6c9161938b7fff9f21fd3357152e75ed300080157bfbff2ab45c0b"
+  },
+  "strict": {
+    "artifact": {
+      "file": "strict.log",
+      "sha256": "83b53dd890a4e94191ca63846f7189e36e48149ab949f5333f2dc753f7c47ee1"
+    },
+    "developing": 20,
+    "same_refusals_as_baseline": true,
+    "passed": false
+  },
+  "performance_profile": {
+    "file": "performance-profile.log",
+    "sha256": "6abe416cacb491d73b9f453fc4fff715bbffe1bf8e08c97596d42ed9eedfa621"
+  },
+  "benchmark_scope": [
+    "Ordinary TCP, TLS, WS and WSS compare the committed original runtime and current runtime.",
+    "Both runtimes use the same ordinary benchmark source and unchanged Core header. TCP propagation uses one current binary.",
+    "Window-1 quantiles measure closed-loop caller collection with coordinated omission. No fixed-arrival or mixed-load claim.",
+    "TCP and TLS use Content-Length. WS and WSS use Text and window 32. TLS handshake and all setup run outside timing."
+  ],
+  "open": [
+    "standalone HTTP POST extension semantics",
+    "Windows ordinary TCP window-32 process CPU increase",
+    "native Linux, fixed-arrival and sustained production qualification"
+  ]
+}

@@ -10,10 +10,9 @@ JSON-RPC Method Not Found response. [JSON-RPC 2.0 extensions](https://www.jsonrp
 Call xrpcDuplexEnableDeadline on each serialized owner, then call
 xrpcDuplexNegotiateDeadline on the sending owner. The returned ordinary
 RPC Future carries the capability reply. A successful boolean true
-activates propagation when the owner processes the reply. Wait for
-the owner operation to finish before submitting work that requires
-propagation. A concurrent submission during reply processing may still
-use ordinary wire format. Offers may be retried after a failure.
+activates propagation for subsequent admissions. An application can
+submit from the successful Future watch or from another thread after
+it observes the reply. Offers may be retried after a failure.
 
 Use xrpcStdioEnableDeadline and xrpcStdioNegotiateDeadline for a framed
 stdio owner. They also work on xrpcStdioProcessEndpoint. The normal
@@ -76,8 +75,9 @@ the usual transport delivery evidence. Already entered business may
 have taken effect and must stop cooperatively.
 
 The [duplex example](../examples/duplex/README.md) demonstrates the
-remote error and continued bidirectional calls. Network adapter
-configuration and native sustained qualification remain open.
+remote error and continued bidirectional calls. TCP, TLS and WebSocket
+have [network opt-in APIs](network_extensions.md). Native sustained
+qualification remains open.
 
 ## Benchmark
 

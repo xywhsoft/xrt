@@ -1,4 +1,5 @@
 #include "test.h"
+#include "network_extensions.h"
 #include <xrpc/ws_http.h>
 #include "../examples/common/ws_http_service.h"
 static void wsHttpResult(xfuture* F,xrpccallstatus Status,xrpcdelivery Delivery)
@@ -32,11 +33,25 @@ static void wsHttpHeld(bool TLS,xnetportbackend Backend,unsigned Mode)
     if(Mode==2)Client.SetupTimeout=500;
     rpcWsHttpServiceStartEx(&S,TLS,NULL,false,0,&Client,&Server,Backend);rpcWsHttpServiceAwait(&A.Entered);
     xrpcwsinfo I={.Size=sizeof(I)};testRequire(xrpcWsInfo(S.Client,&I)&&I.State==XRPC_WS_UPGRADING&&!I.WriteMessages&&!I.ReadMessages&&!xrtAtomic32Load(&S.Calls,XMEMORY_ACQUIRE),"no RPC bytes or business before authorization/101");
+    xfuture* Offer=NULL;
+    if(Mode!=1){
+        testRequire(xrpcWsEnableExtensions(S.Client,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED &&
+            xrpcWsEnableExtensions(S.Accepted,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED &&
+            xrpcWsNegotiateExtension(S.Client,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&Offer)==XRPC_DUPLEX_ACCEPTED,
+            "capability offer queues behind HTTP authorization");
+    }
     xfuture *Timeout=NULL,*Cancel=NULL;testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("echo"),(xstrview){0},0,&Timeout)==XRPC_DUPLEX_ACCEPTED&&xrpcWsCall(S.Client,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&Cancel)==XRPC_DUPLEX_ACCEPTED&&xrtFutureCancel(Cancel),"calls retain original deadline and cancel during HTTP setup");wsHttpResult(Timeout,XRPC_CALL_TIMEOUT,XRPC_NOT_SENT);wsHttpResult(Cancel,XRPC_CALL_CANCELLED,XRPC_NOT_SENT);
     if(Mode==2){xrpcwshttpinfo H={.Size=sizeof(H)};testRequire(xrpcWsHttpInfo(S.Client,&H)&&xrtFutureWaitFor(S.Initial,1500)==XWAIT_OK&&xrtTimer()<H.Deadline+1,"whole setup timeout completes before independent 5s call deadline");wsHttpResult(S.Initial,XRPC_CALL_TIMEOUT,XRPC_NOT_SENT);testRequire(xrpcWsClose(S.Accepted)&&xrpcWsWaitFor(S.Accepted,20)==XWAIT_TIMEOUT,"close joins noncooperative authorization physical tail");}
     xrtAtomic32Store(&A.Permit,1,XMEMORY_RELEASE);
     if(!Mode){wsHttpExact(S.Initial,"[7]");xfuture* Who=NULL;testRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("who"),(xstrview){0},5000,&Who)==XRPC_DUPLEX_ACCEPTED,"authorized request context");wsHttpExact(Who,"[42]");xrtFutureDestroy(Who);wsHttpOpen(&S);}
     else if(Mode==1){wsHttpResult(S.Initial,XRPC_CALL_HTTP_ERROR,XRPC_NOT_SENT);xrpcwshttpinfo H={.Size=sizeof(H)};testRequire(xrpcWsHttpInfo(S.Client,&H)&&H.Outcome==XRPC_WS_HTTP_REJECTED&&H.Status==401&&!xrtAtomic32Load(&S.Calls,XMEMORY_ACQUIRE),"authorization denial HTTP401 without business or replay");}
+    if(Offer){
+        if(Mode==0)rpcTestNetworkOfferResult(Offer,true);
+        else{
+            wsHttpResult(Offer,XRPC_CALL_TIMEOUT,XRPC_NOT_SENT);
+            xrtFutureDestroy(Offer);
+        }
+    }
     rpcWsHttpServiceStop(&S);testRequire(xrtAtomic32Load(&A.Calls,XMEMORY_ACQUIRE)==1,"one authorization execution");xrtFutureDestroy(S.Initial);xrtFutureDestroy(Timeout);xrtFutureDestroy(Cancel);
 }
 int main(int Argc,char** Argv)
@@ -49,5 +64,5 @@ int main(int Argc,char** Argv)
         1
         #endif
         ;++TLS){printf("[case] WS HTTP basic TLS%u\n",TLS);wsHttpBasic(TLS!=0,B);for(unsigned Mode=0;Mode<3;++Mode){printf("[case] WS HTTP auth TLS%u mode%u\n",TLS,Mode);wsHttpHeld(TLS!=0,B,Mode);}}
-    puts("[PASS] same-handle HTTP Upgrade, queued bidirectional RPC/batch/notify, shared executor authorization, immutable request/context, original call/setup deadlines, cancellation, HTTP401 and physical auth/native/host joins");return 0;
+    puts("[PASS] same-handle HTTP Upgrade, queued bidirectional RPC/batch/notify, shared executor authorization, immutable request/context, original call/setup deadlines, cancellation, HTTP401, negotiated-network-extensions and physical auth/native/host joins");return 0;
 }

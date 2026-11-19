@@ -241,12 +241,21 @@ static void xrpcTlsPeerWrite(xrpctls* P)
     while(Budget && Units-- && !xrpcTlsPeerClosing(P)){
         xrpcduplexinfo D={0};D.Size=sizeof(D);if(!xrpcDuplexInfo(P->Duplex,&D)){xrpcTlsPeerFail(P,XRPC_TLS_PROTOCOL);break;}
         if(P->Output && !D.Selected)xrpcTlsPeerOutputClear(P);
-        if(!P->Output){int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(Next<0){xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());break;}if(!Next)return;
-            xstrview Body=xrpcDuplexOutputWire(P->Output);if(!xrpcFrameHeaderWrite(Body.Size,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){xrpcTlsPeerFail(P,XRPC_TLS_LIMIT);break;}}
-        xstrview Body=xrpcDuplexOutputWire(P->Output);size_t Head=P->HeaderBytes-P->HeaderOffset,Left=Head+Body.Size-P->BodyOffset,N=Left;
+        size_t BodyBytes=P->Output?xrpcDuplexOutputWire(P->Output).Size:xrpcDuplexNextSize(P->Duplex);
+        if(!BodyBytes)return;
+        if(!P->Output && !xrpcFrameHeaderWrite(BodyBytes,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){
+            xrpcTlsPeerFail(P,XRPC_TLS_LIMIT);break;
+        }
+        size_t Head=P->HeaderBytes-P->HeaderOffset,N=Head+BodyBytes-P->BodyOffset;
         if(N>Budget)N=Budget;
         if(N>P->Config.WriteChunkBytes)N=P->Config.WriteChunkBytes;
         N=xrpcTlsPeerWriteRoom(P,N);if(!N)return;
+        if(!P->Output){
+            int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);
+            if(Next<0){xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());break;}
+            if(!Next)return;
+        }
+        xstrview Body=xrpcDuplexOutputWire(P->Output);
         size_t H=Head<N?Head:N;xnetspan Spans[2];size_t Count=0;if(H)Spans[Count++]=(xnetspan){P->Header+P->HeaderOffset,H};if(N>H)Spans[Count++]=(xnetspan){(const unsigned char*)Body.Data+P->BodyOffset,N-H};
         if(!P->Offered){if(!xrpcDuplexStarted(P->Duplex,P->Token)){xrpcTlsPeerWake(P);return;}P->Offered=true;}
         size_t Written=0;xtlsresult S=Count==1?xrtTlsStreamSend(P->Stream,Spans[0].Data,Spans[0].Size,&Written):xrtTlsStreamSendVec(P->Stream,Spans,Count,&Written);
@@ -433,21 +442,64 @@ XRPC_API bool xrpcTlsAttach(xtlsstream* Stream,const xrpctlsconfig* Config,xrpct
     xrtMutexLock(&P->Gate);P->Active=true;xrpcTlsPeerRef(P);*Out=P;if(!xrpcTlsPeerWakeLocked(P)){P->Info.State=XRPC_TLS_CLOSING;P->Info.Reason=XRPC_TLS_LIMIT;}xrtMutexUnlock(&P->Gate);return true;
 }
 
-static xrpcduplexadmission xrpcTlsPeerSubmit(xrpctls* P,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
+static xrpcduplexadmission xrpcTlsPeerEnterSubmit(xrpctls* P)
 {
-    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS submission output"),XRPC_DUPLEX_ERROR;
-    xrtMutexLock(&P->Gate);if(P->Info.State>=XRPC_TLS_CLOSING){xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_CLOSED;}
-    if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_OVERLOADED;}
-    ++P->Info.Submitters;xrpcTlsPeerRef(P);xrtMutexUnlock(&P->Gate);
-    xrpcduplexadmission A=xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
-    xerror* Error=xrtTakeError();xrtMutexLock(&P->Gate);--P->Info.Submitters;if(P->Info.State>=XRPC_TLS_CLOSING)(void)xrpcTlsPeerWakeLocked(P);xrtMutexUnlock(&P->Gate);xrpcTlsPeerDrop(P);xrtClearError();xrtSetErrorTake(Error);return A;
+    xrtMutexLock(&P->Gate);
+    xrpcduplexadmission Result=XRPC_DUPLEX_ACCEPTED;
+    if(P->Info.State>=XRPC_TLS_CLOSING)Result=XRPC_DUPLEX_CLOSED;
+    else if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;Result=XRPC_DUPLEX_OVERLOADED;}
+    else {++P->Info.Submitters;xrpcTlsPeerRef(P);}
+    xrtMutexUnlock(&P->Gate);
+    return Result;
 }
+
+static void xrpcTlsPeerLeaveSubmit(xrpctls* P)
+{
+    xerror* Error=xrtTakeError();
+    xrtMutexLock(&P->Gate);
+    --P->Info.Submitters;
+    if(P->Info.State>=XRPC_TLS_CLOSING)(void)xrpcTlsPeerWakeLocked(P);
+    xrtMutexUnlock(&P->Gate);
+    xrpcTlsPeerDrop(P);
+    xrtClearError();xrtSetErrorTake(Error);
+}
+
+static xrpcduplexadmission xrpcTlsPeerSubmit(xrpctls* P,const xrpcduplexitem* Items,size_t Count,bool Batch,
+    int64 Timeout,xfuture** Future,double Entered,xrpcduplexextension Extension)
+{
+    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))
+        return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS submission output"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcTlsPeerEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    Result=Extension?xrpcDuplexNegotiateExtensionEntered(P->Duplex,Extension,Timeout,Future,Entered):
+        xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
+    xrpcTlsPeerLeaveSubmit(P);
+    return Result;
+}
+
+XRPC_API xrpcduplexadmission xrpcTlsEnableExtensions(xrpctls* P,uint32 Extensions)
+{
+    if(!P)return xrpcTlsPeerReport(XERR_ARGUMENT,"RPC TLS peer is NULL"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcTlsPeerEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    size_t WireLimit=P->Config.Frame.MaxBodyBytes;
+    bool Enabled=xrpcDuplexEnableExtensions(P->Duplex,Extensions,WireLimit);
+    xrpcTlsPeerLeaveSubmit(P);
+    return Enabled?XRPC_DUPLEX_ACCEPTED:XRPC_DUPLEX_ERROR;
+}
+
+XRPC_API xrpcduplexadmission xrpcTlsNegotiateExtension(xrpctls* P,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future)
+{
+    return xrpcTlsPeerSubmit(P,NULL,0,false,Timeout,Future,xrtTimer(),Extension);
+}
+
 XRPC_API xrpcduplexadmission xrpcTlsCall(xrpctls* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcTlsPeerSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcTlsPeerSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcTlsNotify(xrpctls* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcTlsPeerSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcTlsPeerSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcTlsBatch(xrpctls* P,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future)
-{return xrpcTlsPeerSubmit(P,Items,Count,true,Timeout,Future,xrtTimer());}
+{return xrpcTlsPeerSubmit(P,Items,Count,true,Timeout,Future,xrtTimer(),0);}
 XRPC_API bool xrpcTlsClose(xrpctls* P)
 {if(!P)return xrpcTlsPeerReport(XERR_ARGUMENT,"RPC TLS peer is NULL");xrpcTlsPeerFail(P,XRPC_TLS_LOCAL);xrtMutexLock(&P->Gate);bool OK=xrpcTlsPeerWakeLocked(P);xrtMutexUnlock(&P->Gate);return OK;}
 XRPC_API bool xrpcTlsInfo(xrpctls* P,xrpctlsinfo* I)

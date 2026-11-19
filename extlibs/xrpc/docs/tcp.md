@@ -21,7 +21,9 @@ the Future output. Up to 128 facade submissions can construct concurrently by
 default, additionally bounded by Duplex operations/IDs/workspace. API-entry
 monotonic deadlines include facade-lock waiting, encoding and native send queue
 waiting. The numeric connect timeout also includes the initial worker-post wait.
-No reconnect, replay, remote deadline or remote cancellation extension is emitted.
+Explicit [network extension negotiation](network_extensions.md) can enable
+remote deadlines and cancellation. The adapter keeps its existing connection
+ordering and delivery evidence.
 A cancelled or expired call that was offered to the native stream can have
 executed remotely. Notification completion means native acceptance of the whole
 framed message, not business acknowledgement. Retained typed results outlive the
@@ -96,7 +98,7 @@ socket peer exercises Unicode/NUL IDs, exact large integers, batches and native
 callback calls. These local tests do not constitute production acceptance.
 Developing [native TLS](tls.md) and [TCP DNS/prepared sources](tcp_dial.md) are
 available separately. TLS DNS/prepared setup, reconnect policy, WebSocket/stdio,
-remote deadline/cancel negotiation, authentication, broad hostile-peer campaigns,
+authentication, broad hostile-peer campaigns,
 fixed-arrival P99, connection scaling and native Windows/Linux >=72h gates remain
 open. Loopback performance is only the explicitly scoped baseline below.
 

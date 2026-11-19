@@ -161,6 +161,27 @@ int main(int Argc,char** Argv)
 #if defined(XRPC_FEATURE_XRPC_TCP)
     xrpctcpconfig TcpConfig;if(!xrpcTcpConfigInit(&TcpConfig) || TcpConfig.Size!=sizeof(TcpConfig) || TcpConfig.Duplex.Wake || TcpConfig.Duplex.User || !xrpcTcpDestroy(NULL))return 20;
 #endif
+#if defined(XRPC_FEATURE_XRPC_TCP)
+    xfuture* TcpOffer=NULL;
+    if(xrpcTcpEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
+       xrpcTcpNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&TcpOffer)!=XRPC_DUPLEX_ERROR ||
+       TcpOffer)return 20;
+    xrtClearError();
+#endif
+#if defined(XRPC_FEATURE_XRPC_TLS)
+    xfuture* TlsOffer=NULL;
+    if(xrpcTlsEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
+       xrpcTlsNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&TlsOffer)!=XRPC_DUPLEX_ERROR ||
+       TlsOffer)return 34;
+    xrtClearError();
+#endif
+#if defined(XRPC_FEATURE_XRPC_WS)
+    xfuture* WsOffer=NULL;
+    if(xrpcWsEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
+       xrpcWsNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&WsOffer)!=XRPC_DUPLEX_ERROR ||
+       WsOffer)return 35;
+    xrtClearError();
+#endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;

@@ -80,5 +80,5 @@ The [duplex example](../examples/duplex/README.md) observes cancellation on
 the executor and then makes new calls on the same connection. The
 subprocess regression exercises this wire exchange under Content-Length and
 UINT32_BE with an independent wire fixture. [Remote deadline negotiation](deadline.md)
-is independent of cancellation. Transport-specific opt-in on TCP, TLS,
-WebSocket and HTTP remains open.
+is independent of cancellation. TCP, TLS and WebSocket use
+[network opt-in APIs](network_extensions.md).

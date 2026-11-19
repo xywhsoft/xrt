@@ -15720,3 +15720,54 @@ and P99.9 of 66.2 / 69.7 us. Both sets of samples are retained.
 Network transports and native sustained release qualification remain open.
 
 [Stage evidence](../../extlibs/xrpc/tests/results/deadline-20261119.json).
+
+## 2026-11-19 xrpc negotiated network extensions
+
+TCP, TLS and WS/WSS expose concurrent opt-in and directional negotiation
+using the duplex wire and existing admission and retirement. Complete
+extension wire fits the existing transport cap. Before
+selecting output, the owner checks its current native write credit.
+The resulting immutable buffer uses the same native send and release.
+HTTP Upgrade peers can queue an offer behind authentication and setup.
+
+Windows and WSL each passed 63 aggregate and eight focused network test
+programs. TCP and TLS cover both frame formats. WS and WSS cover actual
+cancellation and expiry, and the HTTP Upgrade tests cover queued offers,
+a timeout before 101 and later negotiated requests. The TCP example,
+eight root/TCP static and shared package consumers, and the ASan/UBSan
+and TSan targets pass. GCC leaves atomic_thread_fence uninstrumented
+under TSan. Isolated TCP, TLS and WS single objects contain no forbidden
+symbols. The strict gate retains the same 20 developing xrpc modules.
+
+| Environment | Profile | Calls/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | TCP window 1 | 15,954 / 15,667 | 90.3 / 92.6 | — |
+| Windows | TCP window 32 | 108,243 / 105,599 | — | — |
+| Windows | TLS window 1 | 13,455 / 13,353 | 109.6 / 111.3 | 149.8 / 150.6 |
+| Windows | TLS window 32 | 72,724 / 72,719 | — | — |
+| Windows | WS window 32 | 59,301 / 60,573 | — | — |
+| Windows | WSS window 32 | 50,199 / 51,230 | — | — |
+| Windows | TCP deadlines, window 1 | 15,859 / 15,849 | 100.8 / 92.9 | 127.6 / 127.7 |
+| Windows | TCP deadlines, window 32 | 106,953 / 112,732 | — | — |
+| WSL | TCP window 1 | 6,825 / 6,745 | 210.2 / 210.9 | — |
+| WSL | TCP window 32 | 53,022 / 53,198 | — | — |
+| WSL | TLS window 1 | 6,391 / 6,292 | 222.8 / 225.8 | 271.5 / 282.5 |
+| WSL | TLS window 32 | 39,820 / 39,436 | — | — |
+| WSL | WS window 32 | 26,643 / 25,864 | — | — |
+| WSL | WSS window 32 | 24,737 / 25,000 | — | — |
+| WSL | TCP deadlines, window 1 | 6,545 / 6,496 | 231.4 / 233.3 | 278.1 / 277.5 |
+| WSL | TCP deadlines, window 32 | 53,440 / 51,568 | — | — |
+
+Ordinary rows compare the previous and current builds. TCP deadlines
+compare disabled and enabled in one current binary. The table uses six
+paired repetitions with 8,192 window-one calls or 16,384 window-32 calls.
+These are loopback samples with connection setup outside the timed loop.
+Windows TCP window 32 repeated at 65,536 calls and 10 pairs. The retest
+measured 106,074 / 106,820 calls/s and 25,868 / 28,253 process CPU
+ns/call. The first comparison measured 25,272 / 30,518 process CPU
+ns/call. The higher per-call process CPU remains open for profiling.
+
+Standalone HTTP POST integration, fixed-arrival profiles and native
+sustained release qualification remain open.
+
+[Stage evidence](../../extlibs/xrpc/tests/results/network-extensions-20261119.json).

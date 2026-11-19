@@ -1,10 +1,11 @@
 #include "test.h"
+#include "network_extensions.h"
 #include <xrpc/tcp.h>
 #include <xrt/thread.h>
 #include <string.h>
 typedef struct tcpTest {
     xnetengine* Engine;xnetlistener* Listener;xrpcserver* Server;xrpctcp *Left,*Right;
-    xrpctcpconfig Config;xatomic32 Ready,Calls,Held,Permit;char Context[4];
+    xrpctcpconfig Config;xatomic32 Ready,Calls,Held,Permit,RemoteEntered,RemoteCancelled;char Context[4];
 } tcpTest;
 static bool tcpTestMethod(const xrpcmessage* M,cstr Name)
 {size_t N=strlen(Name);return M->Method.Raw.Size==N+2 && !memcmp(M->Method.Raw.Data+1,Name,N);}
@@ -14,6 +15,8 @@ static bool tcpTestBusiness(const xrpcmessage* M,xrpcreply* R,const xrpcserverco
     testRequire(Context->Data.Size==4 && !memcmp(Context->Data.Data,"meta",4),"TCP request context not independently copied");
     xrtAtomic32FetchAdd(&T->Calls,1,XMEMORY_RELAXED);
     if(tcpTestMethod(M,"hold")){xrtAtomic32Store(&T->Held,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&T->Permit,XMEMORY_ACQUIRE))xrtSleep(1);}
+    if(tcpTestMethod(M,"remote-hold"))
+        return rpcTestNetworkHeld(Context,&T->RemoteEntered,&T->RemoteCancelled);
     if(tcpTestMethod(M,"error"))return xrpcReplyError(R,XRT_STR_LITERAL("-100"),XRT_STR_LITERAL("error"),(xstrview){0});
     return xrpcReplyResult(R,M->Params.Raw.Size?M->Params.Raw:XRT_STR_LITERAL("null"));
 }
@@ -22,12 +25,14 @@ static bool tcpTestAccept(xnetlistener* L,xnetstream* S,ptr User)
     (void)L;tcpTest* T=User;bool OK=xrpcTcpAttach(S,&T->Config,&T->Right);
     if(OK){testRequire(xrpcTcpWaitFor(T->Right,0)==XWAIT_ERROR && !xrpcTcpDestroy(T->Right),"TCP self-worker wait/destroy accepted");xrtClearError();xrtAtomic32Store(&T->Ready,1,XMEMORY_RELEASE);}return OK;
 }
-static void tcpTestStartEx(tcpTest* T,unsigned Format,bool Fragment,size_t TimerLimit)
+static void tcpTestStartEx(tcpTest* T,unsigned Format,bool Fragment,size_t TimerLimit,int64 Incoming)
 {
-    memset(T,0,sizeof(*T));xrtAtomic32Init(&T->Ready,0);xrtAtomic32Init(&T->Calls,0);xrtAtomic32Init(&T->Held,0);xrtAtomic32Init(&T->Permit,0);memcpy(T->Context,"meta",4);
+    memset(T,0,sizeof(*T));xrtAtomic32Init(&T->Ready,0);xrtAtomic32Init(&T->Calls,0);xrtAtomic32Init(&T->Held,0);xrtAtomic32Init(&T->Permit,0);xrtAtomic32Init(&T->RemoteEntered,0);xrtAtomic32Init(&T->RemoteCancelled,0);memcpy(T->Context,"meta",4);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;if(TimerLimit)E.TimerLimit=TimerLimit;T->Engine=xrtNetEngineCreate(&E);testRequire(T->Engine && xrtNetEngineStart(T->Engine),"TCP Engine start");
     xrpcserverconfig S;xrpcServerConfigInit(&S);S.Call=tcpTestBusiness;S.User=T;testRequire(xrpcServerCreate(&S,&T->Server),"TCP shared executor");
     xrpcTcpConfigInit(&T->Config);T->Config.Duplex.Server=T->Server;T->Config.RequestContext=(xbytesview){(const unsigned char*)T->Context,4};T->Config.Frame.Format=(xrpcframeformat)Format;
+    T->Config.Duplex.IncomingTimeout=Incoming;
+    if(Incoming==RPC_TEST_REMOTE_LIMIT)T->Config.Frame.MaxBodyBytes=256;
     if(Fragment){T->Config.ReadChunkBytes=3;T->Config.ReadBytes=7;T->Config.WriteChunkBytes=1;T->Config.WriteBytes=5;T->Config.WorkFrames=2;T->Config.Stream.WriteHighWater=32;T->Config.Stream.WriteLowWater=16;T->Config.Stream.WriteLimit=64;}
     xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrParse(&L.Address,"127.0.0.1",0);L.Stream=T->Config.Stream;
     xnetlistenerevents Events={tcpTestAccept,NULL,NULL};T->Listener=xrtNetListen(T->Engine,&L,&Events,NULL,T);testRequire(T->Listener!=NULL,"TCP listen");xnetaddr Remote;
@@ -35,7 +40,7 @@ static void tcpTestStartEx(tcpTest* T,unsigned Format,bool Fragment,size_t Timer
     double End=xrtTimer()+10;while(!xrtAtomic32Load(&T->Ready,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"TCP accept did not attach");xrtSleep(1);}memset(T->Context,'x',4);
 }
 static void tcpTestStart(tcpTest* T,unsigned Format,bool Fragment)
-{tcpTestStartEx(T,Format,Fragment,0);}
+{tcpTestStartEx(T,Format,Fragment,0,5000);}
 static const xrpccallresult* tcpTestResult(xfuture* F,xrpccallstatus Status,xrpcdelivery Delivery)
 {xfutureresult R;testRequire(xrtFutureWaitFor(F,15000)==XWAIT_OK && xrtFutureResult(F,&R) && R.State==XFUTURE_RESOLVED && R.Value,"TCP typed Future completion");const xrpccallresult* C=R.Value;testRequire(C->Status==Status && C->Delivery==Delivery,"TCP result status/delivery");return C;}
 static void tcpTestFinish(tcpTest* T)
@@ -64,6 +69,117 @@ static void testTcpDuplex(void)
         tcpTestFinish(&T);tcpTestResult(F[0],XRPC_CALL_OK,XRPC_REPLIED);for(size_t N=0;N<5;++N)xrtFutureDestroy(F[N]);
     }
 }
+typedef struct tcpExtensionWatch {
+    xrpctcp* Peer;
+    xfuture* Call;
+    xfuturewatch Watch;
+    xatomic32 Released;
+} tcpExtensionWatch;
+
+static void tcpExtensionSubmit(ptr Data)
+{
+    tcpExtensionWatch* W=Data;
+    testRequire(xrpcTcpCall(W->Peer,XRT_STR_LITERAL("remote-hold"),(xstrview){0},5000,&W->Call)==XRPC_DUPLEX_ACCEPTED,
+        "submit timed request inside deadline offer completion watch");
+}
+
+static void tcpExtensionReleased(ptr Data)
+{
+    tcpExtensionWatch* W=Data;
+    xrtAtomic32Store(&W->Released,1,XMEMORY_RELEASE);
+}
+
+typedef struct tcpExtensionBarrier {xnetpost Post;xatomic32 Entered,Permit,Done;} tcpExtensionBarrier;
+
+static void tcpExtensionGate(xnetworker* Owner,ptr Data)
+{
+    (void)Owner;
+    tcpExtensionBarrier* G=Data;
+    xrtAtomic32Store(&G->Entered,1,XMEMORY_RELEASE);
+    rpcTestNetworkWait(&G->Permit);
+    xrtAtomic32Store(&G->Done,1,XMEMORY_RELEASE);
+}
+
+static void testTcpExtensions(void)
+{
+    for(unsigned Format=1;Format<=2;++Format){
+        tcpTest T;
+        tcpTestStartEx(&T,Format,true,0,RPC_TEST_REMOTE_LIMIT);
+        if(Format==1){
+            xallocationbudget* Budget=NULL;
+            xallocationscope Scope={0};
+            testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),
+                "network extension enable allocation scope");
+            testRequire(xrpcTcpEnableExtensions(T.Left,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ERROR &&
+                xrtAllocationBudgetLeave(&Scope),"cancel index refusal rolls back both flags");
+            xrtClearError();
+            xallocationbudgetinfo I={.Size=sizeof(I)};
+            testRequire(xrtAllocationBudgetInfo(Budget,&I) && !I.LiveBytes,"network extension OOM credits returned");
+            xrtAllocationBudgetFree(Budget);
+            xfuture* Unchanged=(xfuture*)(uintptr_t)1;
+            testRequire(xrpcTcpNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&Unchanged)==
+                XRPC_DUPLEX_ERROR && Unchanged==(xfuture*)(uintptr_t)1,"failed combined opt-in leaves deadline disabled");
+            xrtClearError();
+        }
+        testRequire(xrpcTcpEnableExtensions(T.Left,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED,
+            "enable network extensions on TCP dialer");
+        xfuture* F=NULL;
+        testRequire(xrpcTcpNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&F)==XRPC_DUPLEX_ACCEPTED,
+            "TCP capability attempt to disabled receiver");
+        rpcTestNetworkOfferResult(F,false);
+        testRequire(xrpcTcpEnableExtensions(T.Right,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED,
+            "enable network extensions on attached TCP peer");
+
+        tcpExtensionBarrier G={0};
+        xrtAtomic32Init(&G.Entered,0);xrtAtomic32Init(&G.Permit,0);xrtAtomic32Init(&G.Done,0);
+        testRequire(xrtNetPostInit(&G.Post) && xrtNetPost(xrtNetEngineWorker(T.Engine,1),&G.Post,tcpExtensionGate,&G),
+            "TCP block owner until capability watch is installed");
+        rpcTestNetworkWait(&G.Entered);
+        testRequire(xrpcTcpNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&F)==XRPC_DUPLEX_ACCEPTED,
+            "TCP retry after legacy reply");
+        xfuture* Unchanged=(xfuture*)(uintptr_t)1;
+        testRequire(xrpcTcpNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&Unchanged)==
+            XRPC_DUPLEX_ERROR && Unchanged==(xfuture*)(uintptr_t)1,"TCP duplicate offer while first is queued");
+        xrtClearError();
+        tcpExtensionWatch W={.Peer=T.Left};
+        xrtAtomic32Init(&W.Released,0);
+        testRequire(xrtFutureWatchInit(&W.Watch,tcpExtensionSubmit,tcpExtensionReleased,&W) &&
+            xrtFutureWatchAdd(F,&W.Watch)==XFUTURE_WATCH_PENDING,"TCP capability completion watch");
+        xrtAtomic32Store(&G.Permit,1,XMEMORY_RELEASE);
+        rpcTestNetworkWait(&G.Done);
+        rpcTestNetworkWait(&W.Released);
+        rpcTestNetworkOfferResult(F,true);
+        rpcTestNetworkDeadlineResult(W.Call);
+
+        xrtAtomic32Store(&T.RemoteEntered,0,XMEMORY_RELEASE);
+        testRequire(xrpcTcpNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_CANCELLATION,5000,&F)==
+            XRPC_DUPLEX_ACCEPTED,"negotiate remote cancellation after deadline");
+        rpcTestNetworkOfferResult(F,true);
+        testRequire(xrpcTcpCall(T.Left,XRT_STR_LITERAL("remote-hold"),(xstrview){0},5000,&F)==
+            XRPC_DUPLEX_ACCEPTED,"send job for remote cancellation");
+        rpcTestNetworkWait(&T.RemoteEntered);
+        testRequire(xrtFutureCancel(F),"cancel network Future");
+        rpcTestNetworkReply(F,XRPC_CALL_CANCELLED,XRPC_MAY_HAVE_EXECUTED);
+        rpcTestNetworkWait(&T.RemoteCancelled);
+        xrtFutureDestroy(F);
+
+        char Params[181];
+        memset(Params,' ',sizeof(Params));
+        Params[0]='[';
+        Params[sizeof(Params)-1]=']';
+        xfuture* Outside=(xfuture*)(uintptr_t)1;
+        testRequire(xrpcTcpCall(T.Left,XRT_STR_LITERAL("echo"),(xstrview){Params,sizeof(Params)},5000,&Outside)==
+            XRPC_DUPLEX_ERROR && xrtErrorCode(xrtGetError())==XRPC_DUPLEX_LIMIT && Outside==(xfuture*)(uintptr_t)1,
+            "deadline envelope counts against network frame limit before admission");
+        xrtClearError();
+        testRequire(xrpcTcpCall(T.Left,XRT_STR_LITERAL("echo"),(xstrview){Params,sizeof(Params)},XRT_WAIT_FOREVER,&F)==
+            XRPC_DUPLEX_ACCEPTED,"infinite timeout retains ordinary wire and connection");
+        rpcTestNetworkReply(F,XRPC_CALL_OK,XRPC_REPLIED);
+        xrtFutureDestroy(F);
+        tcpTestFinish(&T);
+    }
+}
+
 static void testTcpStops(void)
 {
     tcpTest T;tcpTestStart(&T,1,false);xfuture* F=NULL;
@@ -146,7 +262,7 @@ static void tcpTestTimerBarrier(xnetworker* W,ptr Data)
 }
 static void testTcpTimerExhaustion(void)
 {
-    tcpTest T;tcpTestStartEx(&T,1,false,2);
+    tcpTest T;tcpTestStartEx(&T,1,false,2,5000);
     double ReadyEnd=xrtTimer()+5;xrpctcpinfo Ready={0};Ready.Size=sizeof(Ready);
     do{testRequire(xrpcTcpInfo(T.Left,&Ready) && xrtTimer()<ReadyEnd,"TCP timer left open");xrtSleep(1);}while(Ready.State!=XRPC_TCP_OPEN);
     tcpTimerFill Fill;xrtAtomic32Init(&Fill.Filled,0);testRequire(xrtNetPostInit(&Fill.First) && xrtNetPostInit(&Fill.Second) && xrtNetPost(xrtNetEngineWorker(T.Engine,1),&Fill.First,tcpTestTimerBarrier,&Fill),"TCP timer owner barrier");
@@ -170,4 +286,4 @@ static void testTcpTimerAndFactory(void)
     testRequire(Failed && Passed,"TCP constructor failure/success boundary");testRequire(xrtNetEngineDestroy(E),"TCP timer/constructor pin leak");
 }
 int main(void)
-{testTcpDuplex();testTcpStops();testTcpConcurrency();testTcpFaults();testTcpTimerExhaustion();testTcpTimerAndFactory();puts("[PASS] xrpc TCP: actual native bidirectional sockets/content-length/binary32/partial-copy/backpressure/notification/batch/deadline/cancel/concurrent-producers/correlation/retained-result/shared-executor/physical-retirement/protocol-limit-truncated-EOF-timeout/final-response-before-EOF/timer-exhaustion/constructor-OOM");return 0;}
+{testTcpDuplex();testTcpExtensions();testTcpStops();testTcpConcurrency();testTcpFaults();testTcpTimerExhaustion();testTcpTimerAndFactory();puts("[PASS] xrpc TCP: actual native bidirectional sockets/content-length/binary32/partial-copy/backpressure/notification/batch/deadline/cancel/concurrent-producers/correlation/retained-result/shared-executor/physical-retirement/protocol-limit-truncated-EOF-timeout/final-response-before-EOF/timer-exhaustion/constructor-OOM/negotiated-network-extensions");return 0;}

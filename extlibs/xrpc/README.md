@@ -29,7 +29,8 @@ bounded copy sends and physical peer retirement. The developing [TLS peer](docs/
 The [subprocess adapter](docs/stdio_process.md) launches a child through XRT and
 drives its framed I/O. Duplex and stdio support explicitly
 [negotiated cancellation](docs/cancellation.md) and
-[remote deadlines](docs/deadline.md). Native production acceptance remains pending.
+[remote deadlines](docs/deadline.md). TCP, TLS and WebSocket expose the same
+[negotiated extensions](docs/network_extensions.md). Native production acceptance remains pending.
 
 Optional [WS compression](docs/ws_deflate.md) now covers negotiation and explicit
 thresholded output. Defaults stay off; dictionaries, buffers and CPU are counted.
@@ -261,8 +262,9 @@ The optional [WS/WSS dial leaf](docs/ws_dial.md) creates one peer directly from 
 numeric endpoint, borrowed asynchronous Resolver or retained prepared endpoints.
 It composes verified TLS and checked HTTP Upgrade under one original setup clock,
 with queued RPC operations, native typed results and physical close/owner joins.
-Run [the client-establishment example](examples/ws_dial/README.md). Negotiated
-remote extensions and production/performance qualification remain open.
+Run [the client-establishment example](examples/ws_dial/README.md). Its peer
+supports [negotiated extensions](docs/network_extensions.md). Production
+qualification remains open.
 
 Optional [WS/WSS URI input](docs/ws_uri.md) adds bounded zero-heap syntax parsing
 and same-peer ws/wss factories with exact authority/resource preservation, decoded

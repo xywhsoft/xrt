@@ -21,6 +21,7 @@ copy-before-return bounded concurrent admission, typed native Futures and
 independent retained results. Frame formats remain explicit Content-Length or
 binary32; no ALPN or framing standard is invented or auto-detected. Native ALPN
 selection is copied into Info, with no secret/session-key material exposed.
+Peers can [negotiate remote deadlines and cancellation](network_extensions.md).
 
 Sends use immutable header/body spans and advance by the native accepted prefix,
 including positive prefixes with AGAIN. Native SendVec may produce two records;

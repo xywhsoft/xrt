@@ -1,11 +1,12 @@
 #include "test.h"
+#include "network_extensions.h"
 #include <xrpc/tls.h>
 #include <xrt/thread.h>
 #include "../../../tests/fixtures/tls_server.h"
 #include <string.h>
 typedef struct tlsTest {
     xnetengine* Engine;xnetlistener* Listener;xrpcserver* Server;xrpctls *Left,*Right;
-    xrpctlsconfig Config;xatomic32 Ready,Calls,Held,Permit;char Context[4];
+    xrpctlsconfig Config;xatomic32 Ready,Calls,Held,Permit,RemoteEntered,RemoteCancelled;char Context[4];
     xtlscontext* TLSContext;xtlsidentity* Identity;xtlsverifier* Verifier;xtlsserverconfig TLSConfig;
     bool Reject,AdoptExisting,AdoptPosted;
     char ServerProtocolData[8];xstrview ServerProtocol;
@@ -23,6 +24,8 @@ static bool tlsTestBusiness(const xrpcmessage* M,xrpcreply* R,const xrpcserverco
     testRequire(Context->Data.Size==4 && !memcmp(Context->Data.Data,"meta",4),"TLS request context not independently copied");
     xrtAtomic32FetchAdd(&T->Calls,1,XMEMORY_RELAXED);
     if(tlsTestMethod(M,"hold")){xrtAtomic32Store(&T->Held,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&T->Permit,XMEMORY_ACQUIRE))xrtSleep(1);}
+    if(tlsTestMethod(M,"remote-hold"))
+        return rpcTestNetworkHeld(Context,&T->RemoteEntered,&T->RemoteCancelled);
     if(tlsTestMethod(M,"error"))return xrpcReplyError(R,XRT_STR_LITERAL("-100"),XRT_STR_LITERAL("error"),(xstrview){0});
     return xrpcReplyResult(R,M->Params.Raw.Size?M->Params.Raw:XRT_STR_LITERAL("null"));
 }
@@ -61,9 +64,9 @@ static bool tlsTestAccept(xnetlistener* L,xnetstream* S,ptr User)
     if(!OK)fprintf(stderr,"TLS accept failed: %s %d %s\n",xrtErrorDomain(xrtGetError()),(int)xrtErrorCode(xrtGetError()),xrtErrorMessage(xrtGetError()));
     if(OK){testRequire(xrpcTlsWaitFor(T->Right,0)==XWAIT_ERROR && !xrpcTlsDestroy(T->Right),"TLS self-worker wait/destroy accepted");xrtClearError();xrtAtomic32Store(&T->Ready,1,XMEMORY_RELEASE);}return OK;
 }
-static void tlsTestStartEx(tlsTest* T,unsigned Format,bool Fragment,bool Adopt,bool Reject)
+static void tlsTestStartEx(tlsTest* T,unsigned Format,bool Fragment,bool Adopt,bool Reject,int64 Incoming)
 {
-    TlsActive=T;memset(T,0,sizeof(*T));T->AdoptExisting=Adopt;T->Reject=Reject;xrtAtomic32Init(&T->VerifyEntered,0);xrtAtomic32Init(&T->VerifyPermit,0);xrtAtomic32Init(&T->ContextRefs,1);xrtAtomic32Init(&T->ContextDrops,0);xrtAtomic32Init(&T->BufferedBeforeAdopt,0);testRequire(xrtNetPostInit(&T->AdoptPost),"TLS adoption post init");xrtAtomic32Init(&T->Ready,0);xrtAtomic32Init(&T->Calls,0);xrtAtomic32Init(&T->Held,0);xrtAtomic32Init(&T->Permit,0);memcpy(T->Context,"meta",4);
+    TlsActive=T;memset(T,0,sizeof(*T));T->AdoptExisting=Adopt;T->Reject=Reject;xrtAtomic32Init(&T->VerifyEntered,0);xrtAtomic32Init(&T->VerifyPermit,0);xrtAtomic32Init(&T->ContextRefs,1);xrtAtomic32Init(&T->ContextDrops,0);xrtAtomic32Init(&T->BufferedBeforeAdopt,0);testRequire(xrtNetPostInit(&T->AdoptPost),"TLS adoption post init");xrtAtomic32Init(&T->Ready,0);xrtAtomic32Init(&T->Calls,0);xrtAtomic32Init(&T->Held,0);xrtAtomic32Init(&T->Permit,0);xrtAtomic32Init(&T->RemoteEntered,0);xrtAtomic32Init(&T->RemoteCancelled,0);memcpy(T->Context,"meta",4);
     T->TLSContext=testTlsServerContext();T->Identity=testTlsServerIdentity();testRequire(T->TLSContext && T->Identity,"TLS fixture context/identity");
     xtlsverifierconfig V;xrtTlsVerifierConfigInit(&V);V.Verify=tlsTestVerify;V.Context=T;T->Verifier=xrtTlsVerifierCreate(&V);testRequire(T->Verifier!=NULL,"TLS explicit fixture pin");
     xrtTlsServerConfigInit(&T->TLSConfig);T->TLSConfig.Context=T->TLSContext;T->TLSConfig.Identity=T->Identity;
@@ -71,6 +74,8 @@ static void tlsTestStartEx(tlsTest* T,unsigned Format,bool Fragment,bool Adopt,b
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;if(TlsTestTimerLimit)E.TimerLimit=TlsTestTimerLimit;T->Engine=xrtNetEngineCreate(&E);testRequire(T->Engine && xrtNetEngineStart(T->Engine),"TLS Engine start");
     xrpcserverconfig S;xrpcServerConfigInit(&S);S.Call=tlsTestBusiness;S.User=T;testRequire(xrpcServerCreate(&S,&T->Server),"TLS shared executor");
     xrpcTlsConfigInit(&T->Config);T->Config.Duplex.Server=T->Server;T->Config.RequestContext=(xbytesview){(const unsigned char*)T->Context,4};T->Config.Frame.Format=(xrpcframeformat)Format;
+    T->Config.Duplex.IncomingTimeout=Incoming;
+    if(Incoming==RPC_TEST_REMOTE_LIMIT)T->Config.Frame.MaxBodyBytes=256;
     if(Fragment){T->Config.ReadChunkBytes=3;T->Config.ReadBytes=7;T->Config.WriteChunkBytes=1;T->Config.WriteBytes=5;T->Config.WorkFrames=2;T->Config.MaxCipherBytes=256;}
     xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrParse(&L.Address,"127.0.0.1",0);L.Stream=T->Config.Stream;
     xnetlistenerevents Events={tlsTestAccept,NULL,NULL};T->Listener=xrtNetListen(T->Engine,&L,&Events,NULL,T);testRequire(T->Listener!=NULL,"TLS listen");xnetaddr Remote;
@@ -80,7 +85,7 @@ static void tlsTestStartEx(tlsTest* T,unsigned Format,bool Fragment,bool Adopt,b
     double End=xrtTimer()+10;while(!xrtAtomic32Load(&T->Ready,XMEMORY_ACQUIRE)){if(xrtTimer()>=End){xrpctlsinfo I={0};I.Size=sizeof(I);xrpcTlsInfo(T->Left,&I);fprintf(stderr,"left state=%d reason=%d timer=%llu posts=%llu native=%s/%d/%d\n",I.State,I.Reason,(unsigned long long)I.TimerFailures,(unsigned long long)I.PostFailures,I.NativeErrorDomain,I.NativeErrorKind,I.NativeErrorCode);testRequire(false,"TLS accept did not attach");}xrtSleep(1);}memset(T->Context,'x',4);if(TlsTestAlpn)memset(T->ServerProtocolData,'x',8);
 }
 static void tlsTestStart(tlsTest* T,unsigned Format,bool Fragment)
-{tlsTestStartEx(T,Format,Fragment,false,false);}
+{tlsTestStartEx(T,Format,Fragment,false,false,5000);}
 static const xrpccallresult* tlsTestResult(xfuture* F,xrpccallstatus Status,xrpcdelivery Delivery)
 {xfutureresult R;testRequire(xrtFutureWaitFor(F,15000)==XWAIT_OK && xrtFutureResult(F,&R) && R.State==XFUTURE_RESOLVED && R.Value,"TLS typed Future completion");const xrpccallresult* C=R.Value;if(C->Status!=Status || C->Delivery!=Delivery){fprintf(stderr,"TLS result actual=%d/%d expected=%d/%d\n",C->Status,C->Delivery,Status,Delivery);if(TlsActive){for(unsigned N=0;N<2;++N){xrpctls* P=N?TlsActive->Right:TlsActive->Left;if(!P)continue;xrpctlsinfo I={0};I.Size=sizeof(I);xrpcTlsInfo(P,&I);fprintf(stderr,"peer%u state=%d reason=%d bytes=%llu/%llu frames=%llu/%llu cipher=%zu blocked=%llu short=%llu native=%s/%d/%d\n",N,I.State,I.Reason,(unsigned long long)I.ReadBytes,(unsigned long long)I.WriteBytes,(unsigned long long)I.ReadFrames,(unsigned long long)I.WriteFrames,I.CipherBytes,(unsigned long long)I.BlockedWrites,(unsigned long long)I.ShortWrites,I.NativeErrorDomain,I.NativeErrorKind,I.NativeErrorCode);}}}testRequire(C->Status==Status && C->Delivery==Delivery,"TLS result status/delivery");return C;}
 static void tlsTestFinish(tlsTest* T)
@@ -110,6 +115,51 @@ static void testTlsDuplex(void)
         tlsTestFinish(&T);tlsTestResult(F[0],XRPC_CALL_OK,XRPC_REPLIED);for(size_t N=0;N<5;++N)xrtFutureDestroy(F[N]);
     }
 }
+static void testTlsExtensions(void)
+{
+    for(unsigned Format=1;Format<=2;++Format){
+        tlsTest T;
+        tlsTestStartEx(&T,Format,true,false,false,RPC_TEST_REMOTE_LIMIT);
+        testRequire(xrpcTlsEnableExtensions(T.Left,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED &&
+            xrpcTlsEnableExtensions(T.Right,RPC_TEST_EXTENSIONS)==XRPC_DUPLEX_ACCEPTED,
+            "enable network extensions on encrypted peers");
+        xfuture* F=NULL;
+        testRequire(xrpcTlsNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_DEADLINE,5000,&F)==XRPC_DUPLEX_ACCEPTED,
+            "negotiate deadline across encrypted frames");
+        rpcTestNetworkOfferResult(F,true);
+        testRequire(xrpcTlsCall(T.Left,XRT_STR_LITERAL("remote-hold"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED,
+            "send finite encrypted request");
+        rpcTestNetworkDeadlineResult(F);
+
+        xrtAtomic32Store(&T.RemoteEntered,0,XMEMORY_RELEASE);
+        testRequire(xrpcTlsNegotiateExtension(T.Left,XRPC_DUPLEX_EXTENSION_CANCELLATION,5000,&F)==
+            XRPC_DUPLEX_ACCEPTED,"negotiate remote cancellation after deadline");
+        rpcTestNetworkOfferResult(F,true);
+        testRequire(xrpcTlsCall(T.Left,XRT_STR_LITERAL("remote-hold"),(xstrview){0},5000,&F)==
+            XRPC_DUPLEX_ACCEPTED,"send job for remote cancellation");
+        rpcTestNetworkWait(&T.RemoteEntered);
+        testRequire(xrtFutureCancel(F),"cancel network Future");
+        rpcTestNetworkReply(F,XRPC_CALL_CANCELLED,XRPC_MAY_HAVE_EXECUTED);
+        rpcTestNetworkWait(&T.RemoteCancelled);
+        xrtFutureDestroy(F);
+
+        char Params[181];
+        memset(Params,' ',sizeof(Params));
+        Params[0]='[';
+        Params[sizeof(Params)-1]=']';
+        xfuture* Outside=(xfuture*)(uintptr_t)1;
+        testRequire(xrpcTlsCall(T.Left,XRT_STR_LITERAL("echo"),(xstrview){Params,sizeof(Params)},5000,&Outside)==
+            XRPC_DUPLEX_ERROR && xrtErrorCode(xrtGetError())==XRPC_DUPLEX_LIMIT && Outside==(xfuture*)(uintptr_t)1,
+            "deadline envelope counts against network frame limit before admission");
+        xrtClearError();
+        testRequire(xrpcTlsCall(T.Left,XRT_STR_LITERAL("echo"),(xstrview){Params,sizeof(Params)},XRT_WAIT_FOREVER,&F)==
+            XRPC_DUPLEX_ACCEPTED,"infinite timeout retains ordinary wire and connection");
+        rpcTestNetworkReply(F,XRPC_CALL_OK,XRPC_REPLIED);
+        xrtFutureDestroy(F);
+        tlsTestFinish(&T);
+    }
+}
+
 static void testTlsStops(void)
 {
     tlsTest T;tlsTestStart(&T,1,false);xfuture* F=NULL;
@@ -142,7 +192,7 @@ static void testTlsConcurrency(void)
 
 static void testTlsAdopt(void)
 {
-    tlsTest T;tlsTestStartEx(&T,1,false,true,false);testRequire(xrtAtomic32Load(&T.BufferedBeforeAdopt,XMEMORY_ACQUIRE)==1,"TLS adoption test lacked actual buffered input");
+    tlsTest T;tlsTestStartEx(&T,1,false,true,false,5000);testRequire(xrtAtomic32Load(&T.BufferedBeforeAdopt,XMEMORY_ACQUIRE)==1,"TLS adoption test lacked actual buffered input");
     tlsTestResult(T.Early,XRPC_CALL_OK,XRPC_REPLIED);xfuture* F=NULL;testRequire(xrpcTlsCall(T.Right,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[8]"),5000,&F)==XRPC_DUPLEX_ACCEPTED,"TLS adopted reverse call");tlsTestResult(F,XRPC_CALL_OK,XRPC_REPLIED);
     testRequire(xrpcTlsClose(T.Right) && xrpcTlsWaitFor(T.Right,20)==XWAIT_TIMEOUT && !xrpcTlsDestroy(T.Right),"TLS native alias omitted from physical barrier");xrtClearError();
     testRequire(!xrtAtomic32Load(&T.ContextDrops,XMEMORY_ACQUIRE),"TLS original session data dropped before native owner");xrtTlsStreamDestroy(T.Alias);T.Alias=NULL;
@@ -150,7 +200,7 @@ static void testTlsAdopt(void)
 }
 static void testTlsRejectedVerifier(void)
 {
-    tlsTest T;tlsTestStartEx(&T,2,false,false,true);double End=xrtTimer()+5;while(!xrtAtomic32Load(&T.VerifyEntered,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"TLS verifier did not enter");xrtSleep(1);}
+    tlsTest T;tlsTestStartEx(&T,2,false,false,true,5000);double End=xrtTimer()+5;while(!xrtAtomic32Load(&T.VerifyEntered,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"TLS verifier did not enter");xrtSleep(1);}
     xfuture* F=NULL;testRequire(xrpcTlsCall(T.Left,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[1]"),5000,&F)==XRPC_DUPLEX_ACCEPTED,"TLS queued before verification");xrpctlsinfo I={0};I.Size=sizeof(I);testRequire(xrpcTlsInfo(T.Left,&I) && !I.WriteBytes && !I.WriteFrames && xrtFutureState(F)==XFUTURE_PENDING,"TLS application data passed held verification");xrtAtomic32Store(&T.VerifyPermit,1,XMEMORY_RELEASE);
     tlsTestResult(F,XRPC_CALL_TRANSPORT,XRPC_NOT_SENT);testRequire(xrpcTlsWaitFor(T.Left,5000)==XWAIT_OK,"TLS rejected verifier retirement");
     testRequire(xrpcTlsInfo(T.Left,&I) && I.Reason==XRPC_TLS_HANDSHAKE && I.NativeErrorKind && I.NativeErrorCode && I.NativeErrorDomain[0] && !I.ReadFrames && !I.WriteFrames,"TLS verification failure classification/unverified application IO");tlsTestFinish(&T);xrtFutureDestroy(F);
@@ -243,4 +293,4 @@ static void testTlsSetupDeadline(void)
 }
 
 int main(void)
-{setbuf(stdout,NULL);testTlsDuplex();puts("[case] TLS stops");testTlsStops();puts("[case] TLS concurrency");testTlsConcurrency();puts("[case] TLS adopt");testTlsAdopt();puts("[case] TLS reject");testTlsRejectedVerifier();puts("[case] TLS framing faults/overload");testTlsFaults();puts("[case] TLS budgets");testTlsFactoryBudgets();puts("[case] TLS timer quota");testTlsTimerExhaustion();puts("[case] TLS metadata snapshot");testTlsMetadata();puts("[case] TLS original setup deadline");testTlsSetupDeadline();puts("[PASS] xrpc TLS: actual encrypted bidirectional framing/pin/reject/snapshot/ALPN/owned buffered adoption/native-alias/copy/bounds/batch/notify/cancel/producers/retained/shared-executor/physical/framing-faults/overload/final-before-EOF/OOM/timer-exhaustion");return 0;}
+{setbuf(stdout,NULL);testTlsDuplex();testTlsExtensions();puts("[case] TLS stops");testTlsStops();puts("[case] TLS concurrency");testTlsConcurrency();puts("[case] TLS adopt");testTlsAdopt();puts("[case] TLS reject");testTlsRejectedVerifier();puts("[case] TLS framing faults/overload");testTlsFaults();puts("[case] TLS budgets");testTlsFactoryBudgets();puts("[case] TLS timer quota");testTlsTimerExhaustion();puts("[case] TLS metadata snapshot");testTlsMetadata();puts("[case] TLS original setup deadline");testTlsSetupDeadline();puts("[PASS] xrpc TLS: actual encrypted bidirectional framing/pin/reject/snapshot/ALPN/owned buffered adoption/native-alias/copy/bounds/batch/notify/cancel/producers/retained/shared-executor/physical/framing-faults/overload/final-before-EOF/OOM/timer-exhaustion/negotiated-network-extensions");return 0;}

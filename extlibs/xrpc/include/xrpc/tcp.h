@@ -54,6 +54,13 @@ XRPC_API bool xrpcTcpAttach(xnetstream* Stream,const xrpctcpconfig* Config,xrpct
 /* Concurrent bounded admission; input copied before return; only ACCEPTED
  * writes Future. API entry time includes facade gate/admission and encoding.
  * Native typed call/batch results and independent retained payloads are used. */
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcTcpEnableExtensions(xrpctcp* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcTcpNegotiateExtension(xrpctcp* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpCall(xrpctcp* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpNotify(xrpctcp* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcTcpBatch(xrpctcp* Peer,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);

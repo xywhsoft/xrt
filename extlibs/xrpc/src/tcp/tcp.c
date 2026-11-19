@@ -180,11 +180,11 @@ static void xrpcTcpWrite(xrpctcp* P)
     while(Budget && Units-- && !xrpcTcpClosing(P)){
         xrpcduplexinfo D={0};D.Size=sizeof(D);if(!xrpcDuplexInfo(P->Duplex,&D)){xrpcTcpFail(P,XRPC_TCP_PROTOCOL);break;}
         if(P->Output && !D.Selected)xrpcTcpOutputClear(P);
-        if(!P->Output){int N=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(N<0){xrpcTcpFail(P,xrpcTcpLocalFailure());
-                break;}if(!N)return;
+        size_t N=xrtNetStreamWritable(P->Stream);if(!N)return;if(N>Budget)N=Budget;if(N>P->Config.WriteChunkBytes)N=P->Config.WriteChunkBytes;
+        if(!P->Output){int Next=xrpcDuplexNext(P->Duplex,&P->Output,&P->Token);if(Next<0){xrpcTcpFail(P,xrpcTcpLocalFailure());
+                break;}if(!Next)return;
             xstrview Body=xrpcDuplexOutputWire(P->Output);
             if(!xrpcFrameHeaderWrite(Body.Size,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){xrpcTcpFail(P,XRPC_TCP_LIMIT);break;}}
-        size_t N=xrtNetStreamWritable(P->Stream);if(!N)return;if(N>Budget)N=Budget;if(N>P->Config.WriteChunkBytes)N=P->Config.WriteChunkBytes;
         xstrview Body=xrpcDuplexOutputWire(P->Output);size_t Head=P->HeaderBytes-P->HeaderOffset,Left=Head+Body.Size-P->BodyOffset;
         if(N>Left)N=Left;
         /* A queued stream can append into its existing tail. Native SendVec
@@ -342,21 +342,64 @@ XRPC_API bool xrpcTcpAttach(xnetstream* Stream,const xrpctcpconfig* Config,xrpct
     P->Stream=Stream;P->Open=true;P->ConnectDeadline=INFINITY;if(xrtNetStreamAvailable(Stream))P->ReadEpoch=Entered;
     xrtMutexLock(&P->Gate);P->Active=true;P->Info.State=XRPC_TCP_OPEN;xrpcTcpRef(P);*Out=P;(void)xrpcTcpWakeLocked(P);xrtMutexUnlock(&P->Gate);return true;
 }
-static xrpcduplexadmission xrpcTcpSubmit(xrpctcp* P,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
+static xrpcduplexadmission xrpcTcpEnterSubmit(xrpctcp* P)
 {
-    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))return xrpcTcpReport(XERR_ARGUMENT,"invalid RPC TCP submission output"),XRPC_DUPLEX_ERROR;
-    xrtMutexLock(&P->Gate);if(P->Info.State>=XRPC_TCP_CLOSING){xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_CLOSED;}
-    if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;xrtMutexUnlock(&P->Gate);return XRPC_DUPLEX_OVERLOADED;}
-    ++P->Info.Submitters;xrpcTcpRef(P);xrtMutexUnlock(&P->Gate);
-    xrpcduplexadmission A=xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
-    xerror* Error=xrtTakeError();xrtMutexLock(&P->Gate);--P->Info.Submitters;if(P->Info.State>=XRPC_TCP_CLOSING)(void)xrpcTcpWakeLocked(P);xrtMutexUnlock(&P->Gate);xrpcTcpDrop(P);xrtClearError();xrtSetErrorTake(Error);return A;
+    xrtMutexLock(&P->Gate);
+    xrpcduplexadmission Result=XRPC_DUPLEX_ACCEPTED;
+    if(P->Info.State>=XRPC_TCP_CLOSING)Result=XRPC_DUPLEX_CLOSED;
+    else if(P->Info.Submitters==P->Config.MaxSubmitters){++P->Info.Overloaded;Result=XRPC_DUPLEX_OVERLOADED;}
+    else {++P->Info.Submitters;xrpcTcpRef(P);}
+    xrtMutexUnlock(&P->Gate);
+    return Result;
 }
+
+static void xrpcTcpLeaveSubmit(xrpctcp* P)
+{
+    xerror* Error=xrtTakeError();
+    xrtMutexLock(&P->Gate);
+    --P->Info.Submitters;
+    if(P->Info.State>=XRPC_TCP_CLOSING)(void)xrpcTcpWakeLocked(P);
+    xrtMutexUnlock(&P->Gate);
+    xrpcTcpDrop(P);
+    xrtClearError();xrtSetErrorTake(Error);
+}
+
+static xrpcduplexadmission xrpcTcpSubmit(xrpctcp* P,const xrpcduplexitem* Items,size_t Count,bool Batch,
+    int64 Timeout,xfuture** Future,double Entered,xrpcduplexextension Extension)
+{
+    if(!P || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || xrtMemRangesOverlap(P,P->Info.FixedBytes,Future,sizeof(*Future)))
+        return xrpcTcpReport(XERR_ARGUMENT,"invalid RPC TCP submission output"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcTcpEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    Result=Extension?xrpcDuplexNegotiateExtensionEntered(P->Duplex,Extension,Timeout,Future,Entered):
+        xrpcDuplexSubmitEntered(P->Duplex,Items,Count,Batch,Timeout,Future,Entered);
+    xrpcTcpLeaveSubmit(P);
+    return Result;
+}
+
+XRPC_API xrpcduplexadmission xrpcTcpEnableExtensions(xrpctcp* P,uint32 Extensions)
+{
+    if(!P)return xrpcTcpReport(XERR_ARGUMENT,"RPC TCP peer is NULL"),XRPC_DUPLEX_ERROR;
+    xrpcduplexadmission Result=xrpcTcpEnterSubmit(P);
+    if(Result!=XRPC_DUPLEX_ACCEPTED)return Result;
+    size_t WireLimit=P->Config.Frame.MaxBodyBytes;
+    bool Enabled=xrpcDuplexEnableExtensions(P->Duplex,Extensions,WireLimit);
+    xrpcTcpLeaveSubmit(P);
+    return Enabled?XRPC_DUPLEX_ACCEPTED:XRPC_DUPLEX_ERROR;
+}
+
+XRPC_API xrpcduplexadmission xrpcTcpNegotiateExtension(xrpctcp* P,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future)
+{
+    return xrpcTcpSubmit(P,NULL,0,false,Timeout,Future,xrtTimer(),Extension);
+}
+
 XRPC_API xrpcduplexadmission xrpcTcpCall(xrpctcp* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcTcpSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={false,Method,Params};return xrpcTcpSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcTcpNotify(xrpctcp* P,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
-{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcTcpSubmit(P,&I,1,false,Timeout,Future,E);}
+{double E=xrtTimer();xrpcduplexitem I={true,Method,Params};return xrpcTcpSubmit(P,&I,1,false,Timeout,Future,E,0);}
 XRPC_API xrpcduplexadmission xrpcTcpBatch(xrpctcp* P,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future)
-{return xrpcTcpSubmit(P,Items,Count,true,Timeout,Future,xrtTimer());}
+{return xrpcTcpSubmit(P,Items,Count,true,Timeout,Future,xrtTimer(),0);}
 XRPC_API bool xrpcTcpClose(xrpctcp* P)
 {if(!P)return xrpcTcpReport(XERR_ARGUMENT,"RPC TCP peer is NULL");xrpcTcpFail(P,XRPC_TCP_LOCAL);xrtMutexLock(&P->Gate);bool OK=xrpcTcpWakeLocked(P);xrtMutexUnlock(&P->Gate);return OK;}
 XRPC_API bool xrpcTcpInfo(xrpctcp* P,xrpctcpinfo* I)

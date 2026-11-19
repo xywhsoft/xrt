@@ -127,7 +127,8 @@ auth final release; the reserved handler context is part of normal FixedBytes.
 Legacy validated-attach peers return STATE and preserve this output.
 
 Modular/single suites cover queued bidirectional RPC, batches/notifications,
-held auth, snapshot lifetime, cancellation/deadlines, HTTP401, real OOM credits,
+held auth, snapshot lifetime, queued [extension offers](network_extensions.md),
+cancellation/deadlines, HTTP401, real OOM credits,
 prebuffered TLS and physical joins. The independent stdlib/OpenSSL peer checks
 both roles over TCP/TLS, byte-split and coalesced101/first frame, exact typed
 failure classes, strict key/protocol/framing failures and acknowledged close.

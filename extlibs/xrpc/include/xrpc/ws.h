@@ -64,6 +64,13 @@ XRPC_API bool xrpcWsAttachTls(xtlsstream* Stream,xnetbuf* Initial,const xrpcwsco
  * Immutable output references survive physical send; unmasked TCP server avoids
  * an adapter payload copy, clients mask and TLS copies in Core. Native opaque
  * reference graphs may refuse collection until drained. No zero-copy claim. */
+/* Concurrent, using the ordinary bounded submission and retirement contract.
+ * Enable on each peer with the OR of the chosen extension flags. Negotiate
+ * sends one offer and only ACCEPTED writes Future. A timely true response
+ * activates that direction. Other replies preserve ordinary call behavior. */
+XRPC_API xrpcduplexadmission xrpcWsEnableExtensions(xrpcws* Peer,uint32 Extensions);
+XRPC_API xrpcduplexadmission xrpcWsNegotiateExtension(xrpcws* Peer,xrpcduplexextension Extension,
+    int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcWsCall(xrpcws*,xstrview,xstrview,int64,xfuture**);
 XRPC_API xrpcduplexadmission xrpcWsNotify(xrpcws*,xstrview,xstrview,int64,xfuture**);
 XRPC_API xrpcduplexadmission xrpcWsBatch(xrpcws*,const xrpcduplexitem*,size_t,int64,xfuture**);

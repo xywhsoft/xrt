@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `189` 个函数、`268` 个常量或宏、
-`127` 个公共类型。
+当前登记 `195` 个函数、`270` 个常量或宏、
+`128` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -164,12 +164,14 @@
 - `xrpcDuplexStarted`
 - `xrpcDuplexStep`
 
-### 常量与宏 (13)
+### 常量与宏 (15)
 
 - `XRPC_DUPLEX_ACCEPTED`
 - `XRPC_DUPLEX_ARGUMENT`
 - `XRPC_DUPLEX_CLOSED`
 - `XRPC_DUPLEX_ERROR`
+- `XRPC_DUPLEX_EXTENSION_CANCELLATION`
+- `XRPC_DUPLEX_EXTENSION_DEADLINE`
 - `XRPC_DUPLEX_LIMIT`
 - `XRPC_DUPLEX_MEMORY`
 - `XRPC_DUPLEX_OVERLOADED`
@@ -180,12 +182,13 @@
 - `XRPC_FEATURE_XRPC_RESULT_QUOTA`
 - `XRPC_FEATURE_XRPC_SERVER`
 
-### 类型 (9)
+### 类型 (10)
 
 - `xrpcduplex`
 - `xrpcduplexadmission`
 - `xrpcduplexconfig`
 - `xrpcduplexerror`
+- `xrpcduplexextension`
 - `xrpcduplexinfo`
 - `xrpcduplexitem`
 - `xrpcduplexoutput`
@@ -666,7 +669,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/tcp.h)
 
-### 函数 (11)
+### 函数 (13)
 
 - `xrpcTcpAttach`
 - `xrpcTcpBatch`
@@ -675,7 +678,9 @@
 - `xrpcTcpConfigInit`
 - `xrpcTcpConnect`
 - `xrpcTcpDestroy`
+- `xrpcTcpEnableExtensions`
 - `xrpcTcpInfo`
+- `xrpcTcpNegotiateExtension`
 - `xrpcTcpNotify`
 - `xrpcTcpPollRetired`
 - `xrpcTcpWaitFor`
@@ -725,7 +730,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/tls.h)
 
-### 函数 (12)
+### 函数 (14)
 
 - `xrpcTlsAccept`
 - `xrpcTlsAttach`
@@ -735,7 +740,9 @@
 - `xrpcTlsConfigInit`
 - `xrpcTlsConnect`
 - `xrpcTlsDestroy`
+- `xrpcTlsEnableExtensions`
 - `xrpcTlsInfo`
+- `xrpcTlsNegotiateExtension`
 - `xrpcTlsNotify`
 - `xrpcTlsPollRetired`
 - `xrpcTlsWaitFor`
@@ -821,7 +828,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/ws.h)
 
-### 函数 (11)
+### 函数 (13)
 
 - `xrpcWsAttachTcp`
 - `xrpcWsAttachTls`
@@ -830,7 +837,9 @@
 - `xrpcWsClose`
 - `xrpcWsConfigInit`
 - `xrpcWsDestroy`
+- `xrpcWsEnableExtensions`
 - `xrpcWsInfo`
+- `xrpcWsNegotiateExtension`
 - `xrpcWsNotify`
 - `xrpcWsPollRetired`
 - `xrpcWsWaitFor`

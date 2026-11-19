@@ -4680,6 +4680,153 @@
       ]
     },
     {
+      "name": "xrpc_tcp_propagation",
+      "system": "tcp",
+      "description": "Native Content-Length TCP with finite calls and independent write budgets, paired with and without negotiated deadlines",
+      "benchmarks": [
+        {
+          "name": "xrpc_tcp_ordinary_latency",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "8192",
+            "1",
+            "0",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "1",
+            "0",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "closed_loop_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_deadline_latency",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "8192",
+            "1",
+            "0",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "1",
+            "0",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "closed_loop_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_ordinary_throughput",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "32768",
+            "32",
+            "0",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "32",
+            "0",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_deadline_throughput",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "32768",
+            "32",
+            "0",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "32",
+            "0",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xrpc_tls",
       "system": "tls",
       "description": "Verified native TLS13 framed RPC on one loopback connection; shared executor, validated bytes, windows1/32 and 7B/16KiB, ciphertext copies included, handshake excluded, no production tail claim",
