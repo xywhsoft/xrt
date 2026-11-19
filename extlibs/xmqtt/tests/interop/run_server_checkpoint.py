@@ -127,7 +127,7 @@ def verify(program, directory):
             publish(source, CLEARED, b"")
             publish(source, SHORT, b"expires while down", 3)
     stored = image.read_bytes()
-    assert stored[:8] == b"XMQRET02" and int.from_bytes(stored[16:20], "big") == 4
+    assert stored[:8] == b"XMQRET03" and int.from_bytes(stored[16:20], "big") == 4
     time.sleep(3.1)
     with broker(program, "restore", image) as address:
         first_expiry = verify_restored(address)
@@ -141,6 +141,10 @@ def verify(program, directory):
     previous = b"XMQRET01" + stored[8:offset]
     previous_path = directory / "retained-v1.bin"
     previous_path.write_bytes(previous + zlib.crc32(previous).to_bytes(4, "big"))
+    with broker(program, "restore", previous_path) as address:
+        assert verify_restored(address) <= first_expiry
+    version_two = b"XMQRET02" + stored[8:offset] + b"\0\0\0\0"
+    previous_path.write_bytes(version_two + zlib.crc32(version_two).to_bytes(4, "big"))
     with broker(program, "restore", previous_path) as address:
         assert verify_restored(address) <= first_expiry
     bad = directory / "invalid.bin"
@@ -215,6 +219,22 @@ def verify_sessions(program, directory):
         if producer is not None:
             producer.close()
     time.sleep(4.1)
+    saved = image.read_bytes()
+    corrupted = bytearray(saved[:-4])
+    sent = next(at for at, _, _ in session_records(saved) if saved[at] == 5)
+    corrupted[sent + 8:sent + 16] = (1).to_bytes(8, "big")
+    rejected_image(program, directory / "sent-with-lifetime.bin",
+                   corrupted + zlib.crc32(corrupted).to_bytes(4, "big"))
+
+    historical = bytearray(b"XMQRET02" + saved[8:24])
+    for at, body, end in session_records(saved):
+        historical += saved[at:at + 22] + saved[body:end]
+    historical_path = directory / "historical-sessions.bin"
+    historical_path.write_bytes(historical + zlib.crc32(historical).to_bytes(4, "big"))
+    with broker(program, "restore", historical_path, crash=True) as address:
+        with persistent(address, b"producer", False, True) as peer:
+            barrier(peer)
+
     with broker(program, "restore", image) as address:
         with persistent(address, b"legacy-worker", False, True, version=4) as legacy:
             kind, body = receive(legacy)
@@ -469,6 +489,133 @@ def verify_pubrel_commit(program, directory):
             "pubrel_takeover_and_lost_pubcomp": True, "pubrel_unknown_seals_broker": True}
 
 
+def session_records(data):
+    assert data[:8] == b"XMQRET03" and data[16:20] == b"\0" * 4
+    at = 24
+    for _ in range(int.from_bytes(data[20:24], "big")):
+        body = at + {1: 46, 4: 30}.get(data[at], 22)
+        size = int.from_bytes(data[at + 16:at + 20], "big")
+        group = int.from_bytes(data[at + 20:at + 22], "big")
+        yield at, body, body + size + group
+        at = body + size + group
+    assert at == len(data) - 4
+
+
+def session_keys(image):
+    data = image.read_bytes()
+    keys = {}
+    for at, body, end in session_records(data):
+        if data[at] == 1:
+            key = data[at + 22:at + 38]
+            assert key != b"\0" * 16
+            keys[data[body:end]] = key
+    return keys
+
+
+def verify_online_transactions(program, directory):
+    image = directory / "online-qos2.bin"
+    alice, bob, carol = b"online-source", b"offline-target", b"legacy-target"
+    name, identifier = b"atomic/queue", b"\0\x31"
+    publish = lambda header: frame(header, topic(name) + identifier + b"\5\x02\0\0\0\x1ecommit")
+    pubrec = (0x50, identifier)
+
+    with broker(program, "capture", image) as address:
+        with persistent(address, alice, True) as publisher:
+            barrier(publisher)
+        with persistent(address, bob, True) as target:
+            subscribe(target, name, 1, 1)
+        with persistent(address, carol, False, version=4) as legacy:
+            legacy.sendall(frame(0x82, b"\0\1" + topic(name) + b"\1"))
+            assert receive(legacy) == (0x90, b"\0\1\1")
+    original = image.read_bytes()
+    keys = session_keys(image)
+    assert len(set(keys.values())) == 3
+
+    with broker(program, "restore-online", image, "1200", crash=True) as address:
+        with persistent(address, alice, False, True) as publisher:
+            observer, _ = connect(address, 5, b"online-observer")
+            with observer:
+                subscribe(observer, name, 1, 0)
+                publisher.sendall(publish(0x34))
+                expect_silence(publisher)
+                expect_silence(observer)
+    assert image.read_bytes() == original, "the uncommitted publication changed the checkpoint"
+
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, alice, False, True) as publisher:
+            observer, _ = connect(address, 5, b"online-observer")
+            with observer:
+                subscribe(observer, name, 1, 0)
+                publisher.sendall(publish(0x34) + PING)
+                expect_silence(observer)
+                assert receive(publisher) == pubrec
+                assert receive(publisher) == PONG
+                kind, body = receive(observer)
+                assert kind == 0x30 and body.startswith(topic(name)) and body.endswith(b"commit")
+                assert image.read_bytes() != original, "PUBREC preceded the store transaction"
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, alice, False, True) as publisher:
+            publisher.sendall(publish(0x3c))
+            assert receive(publisher) == pubrec
+            with persistent(address, bob, False, True) as target:
+                kind, body = receive(target)
+                at = len(topic(name))
+                assert kind == 0x32 and body[:at] == topic(name)
+                assert body[at + 2:at + 4] == b"\5\x02" and body[at + 8:] == b"commit"
+                assert 1 <= int.from_bytes(body[at + 4:at + 8], "big") <= 30
+                target.sendall(frame(0x40, body[at:at + 2]))
+                barrier(target)
+            with persistent(address, carol, False, True, version=4) as target:
+                kind, body = receive(target)
+                at = len(topic(name))
+                assert kind == 0x32 and body[:at] == topic(name) and body[at + 2:] == b"commit"
+                target.sendall(frame(0x40, body[at:at + 2]))
+                barrier(target)
+            publisher.sendall(frame(0x62, identifier))
+            assert receive(publisher) == (0x70, identifier)
+
+    image.write_bytes(original)
+    saved = image.with_suffix(".unavailable")
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, alice, False, True) as publisher:
+            image.rename(saved)
+            publisher.sendall(publish(0x34))
+            assert receive(publisher) == (0x50, identifier + b"\x83")
+            saved.rename(image)
+            assert image.read_bytes() == original
+            with persistent(address, bob, False, True) as target:
+                barrier(target)
+
+    with prevent_replacement(image):
+        with broker(program, "restore-online", image, exit_code=1) as address:
+            with persistent(address, alice, False, True) as publisher:
+                publisher.sendall(publish(0x34))
+                expect_disconnect(publisher)
+    assert image.read_bytes() == original
+
+    with broker(program, "restore-online", image, "500", crash=True) as address:
+        publisher, _ = connect(address, 5, b"volatile-source")
+        with publisher:
+            publisher.sendall(publish(0x34))
+            expect_silence(publisher)
+            with persistent(address, bob, True) as replacement:
+                barrier(replacement)
+            assert receive(publisher) == pubrec
+    replaced = session_keys(image)
+    assert set(replaced) == set(keys)
+    assert replaced[bob] != keys[bob] and replaced[alice] == keys[alice] and replaced[carol] == keys[carol]
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, bob, False, True) as replacement:
+            barrier(replacement)
+        with persistent(address, carol, False, True, version=4) as remaining:
+            kind, body = receive(remaining)
+            assert kind == 0x32 and body[:len(topic(name))] == topic(name) and body.endswith(b"commit")
+    return {"atomic_pubrec_and_recipient_recovery": ["5.0", "3.1.1"], "durable_fanout_deferred": True,
+            "transaction_rejection_is_invisible": True, "transaction_unknown_seals": True,
+            "fresh_session_fences_prior_recipient": True, "volatile_source_durable_fanout": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
@@ -476,7 +623,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
-                          **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder)}))
+                          **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
+                          **verify_online_transactions(args.program, folder)}))
 
 
 if __name__ == "__main__":

@@ -17263,3 +17263,44 @@ new QoS 2 publish still needs a single APP transaction covering the inbound
 identifier and durable recipient obligations. Retained-route composition,
 native Linux acceptance and the 72-hour gates remain open. Strict release
 still reports 43 developing modules.
+
+
+## 2026-11-20 MQTT atomic non-retained QoS 2 acceptance
+
+The optional session transaction API submits the inbound QoS 2 identifier
+and the queued records for persistent recipients in one APP transaction.
+The broker waits for completion before sending a successful PUBREC or
+dispatching the prepared deliveries. Reliable reservations take precedence
+over temporary QoS 0 delivery reserves. Determinate refusal releases the
+batch and an unknown outcome seals admission. PUBREL removes the durable
+source identifier through the same keyed backend before PUBCOMP.
+
+Persistent session keys survive normal resume and checkpoint recovery. A
+fresh session gets a different key even when its Client ID is reused.
+Recipient records include the Client ID and key so the backend can avoid
+writing to a replacement session. The v3 file example implements the
+transaction with an atomic image replacement and a bounded APP writer.
+Its controlled restore path can still read v1/v2 files.
+
+Independent TCP peers verified process termination before and after commit,
+delayed best-effort dispatch, restored duplicate suppression, delivery to
+two recovered offline sessions of both MQTT versions, finite message
+expiry metadata, explicit rejection, unknown outcome, and a replacement
+session which received none of its predecessor's queued data. A volatile
+publisher with durable recipients exercised the transaction without a
+source record. The final checkpoint run also covered an unkeyed v2 session
+image and rejection of an invalid v3 SENT lifetime. An earlier executable
+built before the timed-record fix accepted that malformed SENT fixture.
+The rebuilt example and single-header binaries reject it.
+
+Windows x64 and Ubuntu/WSL x64 passed modular and single-header tests,
+static and shared package consumers and the separate TCP and retained
+transport regressions. WSL ASan/UBSan with leak checking and TSan passed
+the store suites and transaction restart tests. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-qos2-transaction-*`.
+
+Retained QoS 2 acceptance still needs composition with this transaction.
+The outgoing SENT and terminal acknowledgement phases, as well as live
+updates to subscriptions and session expiry, still use controlled
+checkpoints. Native Linux performance and 72-hour mixed loads remain
+open. Strict release reports 43 developing modules.

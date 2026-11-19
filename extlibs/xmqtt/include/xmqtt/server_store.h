@@ -39,6 +39,11 @@ XMQTT_API bool xmqttServerVisitRetained(xmqttserver* Server, xmqttserverretained
 XMQTT_API bool xmqttServerRestoreRetained(xmqttserver* Server,
 	const xmqttserverretainedrecord* Records, size_t Count, uint64 ElapsedMilliseconds);
 
+/* An opaque session identity. Compare both words and the Client ID. */
+typedef struct xmqttserversessionkey {
+	uint64 High, Low;
+} xmqttserversessionkey;
+
 typedef enum xmqttserverrecordkind {
 	XMQTT_SERVER_RECORD_SESSION = 1,
 	XMQTT_SERVER_RECORD_SUBSCRIPTION,
@@ -50,7 +55,9 @@ typedef enum xmqttserverrecordkind {
 
 /* Records follow their SESSION record. Unused fields contain zero.
  * SESSION: Data is Client ID, Code is MQTT version, Milliseconds is lifetime
- * and Identifier is the last outbound Packet Identifier allocated.
+ * and Identifier is the last outbound Packet Identifier allocated. Key
+ * identifies this session across resumes and checkpoints. All-zero Key
+ * denotes an older unkeyed checkpoint, accepted with the older callbacks.
  * SUBSCRIPTION: Data is the filter, Group is the optional shared group and
  * Code is SUBSCRIBE options. INCOMING_QOS2: Identifier and PUBREC reason Code.
  * QUEUED: Data is a PUBLISH template with Packet Identifier 1, Milliseconds
@@ -65,6 +72,7 @@ typedef struct xmqttserversessionrecord {
 	uint32 Value;
 	uint16 Identifier;
 	uint8 Code;
+	xmqttserversessionkey Key;
 } xmqttserversessionrecord;
 
 typedef bool (*xmqttserversessionvisitor)(const xmqttserversessionrecord* Record, ptr User);
@@ -128,7 +136,8 @@ typedef xmqttserversessionresetticket xmqttserversessionticket;
 typedef xmqttserversessionresetresult xmqttserversessionresult;
 typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_DISCARD = 1,
-	XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2
+	XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2,
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -159,6 +168,57 @@ XMQTT_API bool xmqttServerSetSessionCommit(xmqttserver* Server,
  * Join APP completion callers before destroying the broker and engine. */
 XMQTT_API bool xmqttServerCompleteSessionCommit(xmqttserversessionticket* Ticket,
 	xmqttserversessionresult Result);
+
+typedef struct xmqttservertransaction {
+	xmqttserversessionoperation Operation;
+	xstrview ClientId;
+	xmqttserversessionkey Key;
+	xmqttversion Version;
+	uint32 ExpiryInterval; /* Seconds negotiated at CONNECT. */
+	uint16 Identifier;
+	uint8 Reason;
+} xmqttservertransaction;
+
+typedef struct xmqttservertransactionrecipient {
+	xstrview ClientId;
+	xmqttserversessionkey Key;
+	xbytesview Publish; /* Recipient-version template with Packet Identifier 1. */
+	uint64 RemainingMilliseconds; /* UINT64_MAX for no message expiry. */
+} xmqttservertransactionrecipient;
+
+typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipient* Recipient, ptr User);
+
+/* DISCARD replaces the old ClientId group before a successful fresh CONNECT.
+ * Atomically install a new session header when Key is nonzero; a zero Key
+ * discards the group. FINISH_INCOMING_QOS2 removes the matching inbound ID
+ * for this ClientId and Key before PUBCOMP. Treat a missing record as done.
+ * ACCEPT_INCOMING_QOS2 commits one non-retained PUBLISH. In one transaction
+ * add its inbound ID (if Key is nonzero) and all durable recipients enumerated
+ * by xmqttServerVisitTransactionRecipients. Compare the current key for each
+ * group. Skip replaced or expired recipient groups. A mismatched source key
+ * makes the publication transaction fail. Volatile peers are handled by the broker.
+ *
+ * The callback runs on a worker outside broker locks. Return promptly.
+ * True transfers the completion duty and borrows Change until completion.
+ * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
+ * report a result. Accepted requests must complete even after broker Close. */
+typedef bool (*xmqttservertransactionsubmit)(xmqttserversessionticket* Ticket,
+	const xmqttservertransaction* Change, ptr User);
+
+/* Configure a fresh broker before restore or attach. Select one of the
+ * session storage callbacks. Restore must supply a nonzero key for every
+ * SESSION record. The APP supplies the backend and its time/expiry policy.
+ * A positive PUBREC follows confirmation of the acceptance transaction.
+ * Outbound send and acknowledgement phases still use session checkpoints. */
+XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,
+	xmqttservertransactionsubmit Submit, ptr User);
+
+/* The ticket owner may visit durable recipients before completing an
+ * acceptance transaction. The callback borrows each record and all views
+ * for its duration. Remaining time is sampled once per visit; expired
+ * deliveries are omitted. False from the visitor ends the visit. */
+XMQTT_API bool xmqttServerVisitTransactionRecipients(const xmqttserversessionticket* Ticket,
+	xmqttservertransactionvisitor Visit, ptr User);
 
 XRT_EXTERN_C_END
 #endif

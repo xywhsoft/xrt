@@ -287,6 +287,39 @@ records and the original capture time. The example's whole-file rewrite
 demonstrates ordering and process restart on a small broker. Production
 storage must provide its own power-loss guarantees.
 
+### Atomic non-retained QoS 2 acceptance
+
+`xmqttServerSetSessionTransactions` enables keyed session transactions before
+restore or attachment. The APP implements storage. Each persistent session
+has an opaque key. Resume and checkpoint restore keep that key, and a fresh
+session gets a new one. The APP uses the Client ID and key together when
+changing a stored group. A fresh CONNECT waits for the replacement of its
+group to commit before success. Use the reset-only and completion-only hooks
+for older checkpoint integrations.
+
+For a non-retained QoS 2 PUBLISH with a durable source or reliable durable
+recipients, the broker submits one acceptance transaction. The callback
+commits the source's inbound identifier together with the queued PUBLISH
+templates for durable recipients. `xmqttServerVisitTransactionRecipients`
+provides those templates with their remaining lifetime. This operation
+skips replaced or expired recipient groups and checks the source key.
+Reliable and best-effort delivery wait for the same completion and broker
+workers continue to run while the APP writes. Best-effort delivery uses
+only the credits left after reliable reservations. A definite rejection releases
+prepared deliveries and replies with PUBREC 0x83 in MQTT 5. An unknown
+outcome closes broker admission. PUBREL retires the durable identifier
+through the session callback before PUBCOMP.
+
+Run `examples_server_checkpoint capture checkpoint.bin`, then
+`examples_server_checkpoint restore-online checkpoint.bin` with a v3
+checkpoint. The example uses a bounded worker, preserves unrelated groups
+and atomically replaces the complete file. The controlled `restore` mode
+reads historical v1 and v2 files and writes v3 on shutdown. The example
+uses the checkpoint's existing expiry for restored session groups and sets
+a new group's recovery lifetime at creation. Live session expiry updates
+and outbound send/acknowledgement phases still use controlled checkpoints.
+Retained publication commits have their own storage path.
+
 ## MQTT 5 enhanced authentication
 
 Select `XMQTT_MODULE_XMQTT_SERVER_AUTH`, initialize the optional config with
