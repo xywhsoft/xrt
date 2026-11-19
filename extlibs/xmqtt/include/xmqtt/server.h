@@ -3,14 +3,15 @@
 #include <xmqtt/codec5.h>
 #include <xrt/tcp.h>
 
-#if defined(XMQTT_FEATURE_XMQTT_SERVER) && (!defined(XMQTT_FEATURE_XMQTT_CODEC5) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_MAP) || !defined(XRT_FEATURE_HASH_KEYED) || !defined(XRT_FEATURE_RANDOM_SECURE))
-#error "MQTT server requires codec5, native TCP, condition variables, map, keyed hash and secure random"
+#if defined(XMQTT_FEATURE_XMQTT_SERVER) && (!defined(XMQTT_FEATURE_XMQTT_CODEC5) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_MAP) || !defined(XRT_FEATURE_AVL) || !defined(XRT_FEATURE_RWLOCK) || !defined(XRT_FEATURE_HASH_KEYED) || !defined(XRT_FEATURE_RANDOM_SECURE))
+#error "MQTT server requires codec5, native TCP, condition variables, map, AVL, read-write locks, keyed hash and secure random"
 #endif
 
 #if defined(XMQTT_FEATURE_XMQTT_SERVER)
 XRT_EXTERN_C_BEGIN
 #define XMQTT_SERVER_MAX_PROPERTIES 64u
 #define XMQTT_SERVER_MAX_FILTERS 128u
+#define XMQTT_SERVER_MAX_WILDCARD_LEVELS 128u
 
 typedef struct xmqttserver xmqttserver;
 typedef enum xmqttserverpermission {
@@ -32,6 +33,7 @@ typedef xmqttserverpermission (*xmqttserverauthorizetopic)(xmqttversion Version,
 typedef struct xmqttserverconfig {
 	size_t Size, MaxConnections, MaxClientIdBytes;
 	size_t MaxSubscriptions, MaxSubscriptionsPerConnection, MaxSubscribersPerTopic, MaxTopicBytes;
+	size_t MaxWildcardNodes; /* Zero disables wildcard subscriptions. */
 	int64 ConnectTimeout;
 	xmqttcodecconfig Codec;
 	bool Allow311;
@@ -41,7 +43,7 @@ typedef struct xmqttserverconfig {
 } xmqttserverconfig;
 
 typedef struct xmqttserverinfo {
-	size_t Connections, Established, Subscriptions;
+	size_t Connections, Established, Subscriptions, WildcardNodes;
 	uint64 Accepted, Refused, TimedOut;
 	/* Forwarded counts native queue acceptance. DroppedDeliveries counts
 	 * matching deliveries refused before acceptance. */
@@ -52,7 +54,8 @@ typedef struct xmqttserverinfo {
 /* Defaults: 1024 connections, 256-byte IDs, 5 s CONNECT deadline, 16 KiB
  * wire cap, max 64 properties and 128 filters per request. MQTT 5.0 only.
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
- * per exact topic, and 1024 bytes per topic/filter. Authorizers default to
+ * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
+ * Wildcard filters have at most 128 levels. Authorizers default to
  * anonymous access. Install application policy before listening externally.
  * Compile xmqtt_codec311 as well to enable Allow311. */
 XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config);

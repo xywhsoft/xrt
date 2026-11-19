@@ -5924,6 +5924,52 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_server_wildcards",
+      "system": "server",
+      "description": "One TCP publisher sends 128-byte QoS 0 payloads to 64 subscribers with overlapping exact and root wildcard filters on two XRT workers.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_server_overlap_64",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "64",
+            "512",
+            "2",
+            "overlap"
+          ],
+          "smoke_args": [
+            "64",
+            "8",
+            "2",
+            "overlap"
+          ],
+          "metrics": {
+            "deliveries_per_sec": {
+              "direction": "higher",
+              "unit": "deliveries/s"
+            },
+            "delivery_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_delivery": {
+              "direction": "lower",
+              "unit": "blocks/delivery"
+            }
+          }
+        }
+      ]
     }
   ]
 }

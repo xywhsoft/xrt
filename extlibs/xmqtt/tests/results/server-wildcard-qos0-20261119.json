@@ -1,0 +1,600 @@
+{
+  "stage": "TCP wildcard QoS 0 routing",
+  "artifact_directory": "out/service-extensions/scope-reduction-20261119",
+  "source_sha256_lf": {
+    "extlibs/xmqtt/src/server/server.c": "0301b0588f82b0e4148b77adc4391671a40cdc2fe40fba57675744a7b20a53c4",
+    "extlibs/xmqtt/include/xmqtt/server.h": "7d6cc1a54619cab9bf8296669e94b17d4a81bb522dceb18b915c6974362b497f",
+    "extlibs/xmqtt/tests/test_server.c": "76fd42c6d9c80274eaddd4cdca6df411ed817352f5626f2928053aef9a69b632",
+    "extlibs/xmqtt/tests/interop/run_server_handshake.py": "2e416a5ddac152569b2122bb5b226010233035622982c6c5b40996cb32e04867",
+    "extlibs/xmqtt/bench/bench_server.c": "83481281a7cdf62801c7d0aef04bb21e26dffe0139460f9545dcb754d57e7bce",
+    "extlibs/xmqtt/config/modules.json": "72f332f2e7fbdb9a94a9be1beb075e9dc6184146fc7549ecb7db1b5135083a32",
+    "extlibs/xmqtt/config/performance_profiles.json": "431ead78e4e578c288af1fbdd1519231a98f7f0fd19082b42b86b8f5d8efb8bf"
+  },
+  "checks": [
+    "Windows x64 and Ubuntu/WSL x64 MQTT 5-only and dual-version modular and single-header socket suites",
+    "Independent server static and shared package consumers and server dependency trim on both hosts",
+    "Independent Python MQTT 5 and 3.1.1 publisher/subscriber interop with overlapping subscriptions and unsubscribe",
+    "Two publisher threads on separate workers with overlapping filters, order per publisher, and one copy per peer",
+    "Wildcard quota, maximum depth, trie insertion rollback and deduplication set growth OOM",
+    "Ubuntu/WSL ASan and UBSan on both dual-version builds and focused Clang TSan on the modular socket suite",
+    "Standalone MQTT 3.1.1 codec and MQTT 5 server forbidden-symbol size probes on Windows and WSL"
+  ],
+  "performance_scope": "One loopback publisher, 128-byte QoS 0 payload, two XRT workers; unpinned",
+  "performance_status": "Every workload sample verified delivery. Both hosts failed the configured variation gate.",
+  "measurements": {
+    "Windows x64": {
+      "generated_at": "2026-11-19T09:43:03.482759+00:00",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "compiler_version": "gcc.exe (GCC) 16.2.0",
+      "cflags": [
+        "-O2"
+      ],
+      "warmups": 1,
+      "repeats": 3,
+      "source_revision": "407f68ac341ff2016ca37e638bf0e33dd7176a3a",
+      "source_fingerprint": "2a93fffbaa8dc893a64123a182cce4b258c4f99918f7259eaeefde890bdab1cb",
+      "benchmark_fingerprint": "39b476acc1638df9f49dc0921d40a6c897ab9dd3f36d99f90c2e554918ba2807",
+      "quality_violations": 23,
+      "workloads": {
+        "xmqtt_server_route_1": {
+          "deliveries_per_sec": {
+            "samples": [
+              25012.613,
+              23631.779,
+              28119.642
+            ],
+            "median": 25012.613,
+            "mean": 25588.011333333332,
+            "min": 23631.779,
+            "max": 28119.642,
+            "mad": 1380.8340000000026,
+            "relative_mad": 0.055205507717246596,
+            "range": 4487.863000000001,
+            "relative_range": 0.17942399700503106,
+            "central_range": 4487.863000000001,
+            "relative_central_range": 0.17942399700503106,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              141.1,
+              139.2,
+              61.1
+            ],
+            "median": 139.2,
+            "mean": 113.8,
+            "min": 61.1,
+            "max": 141.1,
+            "mad": 1.9000000000000057,
+            "relative_mad": 0.013649425287356364,
+            "range": 80.0,
+            "relative_range": 0.574712643678161,
+            "central_range": 80.0,
+            "relative_central_range": 0.574712643678161,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              828.7,
+              622.4,
+              218.3
+            ],
+            "median": 622.4,
+            "mean": 556.4666666666667,
+            "min": 218.3,
+            "max": 828.7,
+            "mad": 206.30000000000007,
+            "relative_mad": 0.3314588688946017,
+            "range": 610.4000000000001,
+            "relative_range": 0.9807197943444732,
+            "central_range": 610.4000000000001,
+            "relative_central_range": 0.9807197943444732,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              2.0001,
+              2.0001,
+              2.0001
+            ],
+            "median": 2.0001,
+            "mean": 2.0001,
+            "min": 2.0001,
+            "max": 2.0001,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        },
+        "xmqtt_server_route_64": {
+          "deliveries_per_sec": {
+            "samples": [
+              131624.454,
+              159758.957,
+              153283.804
+            ],
+            "median": 153283.804,
+            "mean": 148222.405,
+            "min": 131624.454,
+            "max": 159758.957,
+            "mad": 6475.152999999991,
+            "relative_mad": 0.04224290388826722,
+            "range": 28134.502999999997,
+            "relative_range": 0.18354517741482979,
+            "central_range": 28134.502999999997,
+            "relative_central_range": 0.18354517741482979,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              859.7,
+              675.1,
+              780.4
+            ],
+            "median": 780.4,
+            "mean": 771.7333333333332,
+            "min": 675.1,
+            "max": 859.7,
+            "mad": 79.30000000000007,
+            "relative_mad": 0.10161455663762183,
+            "range": 184.60000000000002,
+            "relative_range": 0.23654536135315227,
+            "central_range": 184.60000000000002,
+            "relative_central_range": 0.23654536135315227,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              1498.4,
+              766.1,
+              1329.0
+            ],
+            "median": 1329.0,
+            "mean": 1197.8333333333333,
+            "min": 766.1,
+            "max": 1498.4,
+            "mad": 169.4000000000001,
+            "relative_mad": 0.12746425884123408,
+            "range": 732.3000000000001,
+            "relative_range": 0.5510158013544019,
+            "central_range": 732.3000000000001,
+            "relative_central_range": 0.5510158013544019,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              1.020325,
+              1.020233,
+              1.020782
+            ],
+            "median": 1.020325,
+            "mean": 1.0204466666666667,
+            "min": 1.020233,
+            "max": 1.020782,
+            "mad": 9.199999999998099e-05,
+            "relative_mad": 9.016734863889544e-05,
+            "range": 0.0005490000000001327,
+            "relative_range": 0.0005380638522040847,
+            "central_range": 0.0005490000000001327,
+            "relative_central_range": 0.0005380638522040847,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        },
+        "xmqtt_server_overlap_64": {
+          "deliveries_per_sec": {
+            "samples": [
+              176244.815,
+              195716.784,
+              225573.796
+            ],
+            "median": 195716.784,
+            "mean": 199178.465,
+            "min": 176244.815,
+            "max": 225573.796,
+            "mad": 19471.969000000012,
+            "relative_mad": 0.09949054241561628,
+            "range": 49328.981,
+            "relative_range": 0.2520426710056711,
+            "central_range": 49328.981,
+            "relative_central_range": 0.2520426710056711,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              557.5,
+              606.1,
+              480.0
+            ],
+            "median": 557.5,
+            "mean": 547.8666666666667,
+            "min": 480.0,
+            "max": 606.1,
+            "mad": 48.60000000000002,
+            "relative_mad": 0.08717488789237672,
+            "range": 126.10000000000002,
+            "relative_range": 0.22618834080717493,
+            "central_range": 126.10000000000002,
+            "relative_central_range": 0.22618834080717493,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              604.3,
+              663.9,
+              689.2
+            ],
+            "median": 663.9,
+            "mean": 652.4666666666667,
+            "min": 604.3,
+            "max": 689.2,
+            "mad": 25.300000000000068,
+            "relative_mad": 0.03810814881759311,
+            "range": 84.90000000000009,
+            "relative_range": 0.1278807049254407,
+            "central_range": 84.90000000000009,
+            "relative_central_range": 0.1278807049254407,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              1.035797,
+              1.035736,
+              1.035522
+            ],
+            "median": 1.035736,
+            "mean": 1.035685,
+            "min": 1.035522,
+            "max": 1.035797,
+            "mad": 6.100000000008876e-05,
+            "relative_mad": 5.889531695344061e-05,
+            "range": 0.0002750000000000252,
+            "relative_range": 0.0002655116747897391,
+            "central_range": 0.0002750000000000252,
+            "relative_central_range": 0.0002655116747897391,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        }
+      }
+    },
+    "Ubuntu/WSL x64": {
+      "generated_at": "2026-11-19T09:45:44.371371+00:00",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cflags": [
+        "-O2"
+      ],
+      "warmups": 1,
+      "repeats": 3,
+      "source_revision": "407f68ac341ff2016ca37e638bf0e33dd7176a3a",
+      "source_fingerprint": "2a93fffbaa8dc893a64123a182cce4b258c4f99918f7259eaeefde890bdab1cb",
+      "benchmark_fingerprint": "39b476acc1638df9f49dc0921d40a6c897ab9dd3f36d99f90c2e554918ba2807",
+      "quality_violations": 19,
+      "workloads": {
+        "xmqtt_server_route_1": {
+          "deliveries_per_sec": {
+            "samples": [
+              10425.246,
+              11747.184,
+              11249.416
+            ],
+            "median": 11249.416,
+            "mean": 11140.615333333333,
+            "min": 10425.246,
+            "max": 11747.184,
+            "mad": 497.76800000000003,
+            "relative_mad": 0.04424834142501265,
+            "range": 1321.938,
+            "relative_range": 0.11751170016292403,
+            "central_range": 1321.938,
+            "relative_central_range": 0.11751170016292403,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              150.4,
+              133.8,
+              141.2
+            ],
+            "median": 141.2,
+            "mean": 141.79999999999998,
+            "min": 133.8,
+            "max": 150.4,
+            "mad": 7.399999999999977,
+            "relative_mad": 0.05240793201133129,
+            "range": 16.599999999999994,
+            "relative_range": 0.1175637393767705,
+            "central_range": 16.599999999999994,
+            "relative_central_range": 0.1175637393767705,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              224.0,
+              174.1,
+              205.4
+            ],
+            "median": 205.4,
+            "mean": 201.16666666666666,
+            "min": 174.1,
+            "max": 224.0,
+            "mad": 18.599999999999994,
+            "relative_mad": 0.0905550146056475,
+            "range": 49.900000000000006,
+            "relative_range": 0.2429406037000974,
+            "central_range": 49.900000000000006,
+            "relative_central_range": 0.2429406037000974,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              3.0,
+              3.0001,
+              3.0001
+            ],
+            "median": 3.0001,
+            "mean": 3.0000666666666667,
+            "min": 3.0,
+            "max": 3.0001,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.00010000000000021103,
+            "relative_range": 3.3332222259328365e-05,
+            "central_range": 0.00010000000000021103,
+            "relative_central_range": 3.3332222259328365e-05,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        },
+        "xmqtt_server_route_64": {
+          "deliveries_per_sec": {
+            "samples": [
+              126685.429,
+              142051.057,
+              147568.958
+            ],
+            "median": 142051.057,
+            "mean": 138768.48133333333,
+            "min": 126685.429,
+            "max": 147568.958,
+            "mad": 5517.901000000013,
+            "relative_mad": 0.038844490963555536,
+            "range": 20883.52900000001,
+            "relative_range": 0.14701424572997024,
+            "central_range": 20883.52900000001,
+            "relative_central_range": 0.14701424572997024,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              716.5,
+              588.2,
+              571.8
+            ],
+            "median": 588.2,
+            "mean": 625.5,
+            "min": 571.8,
+            "max": 716.5,
+            "mad": 16.40000000000009,
+            "relative_mad": 0.027881672900374174,
+            "range": 144.70000000000005,
+            "relative_range": 0.24600476028561719,
+            "central_range": 144.70000000000005,
+            "relative_central_range": 0.24600476028561719,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              968.9,
+              668.3,
+              642.1
+            ],
+            "median": 668.3,
+            "mean": 759.7666666666668,
+            "min": 642.1,
+            "max": 968.9,
+            "mad": 26.199999999999932,
+            "relative_mad": 0.03920395032171171,
+            "range": 326.79999999999995,
+            "relative_range": 0.4890019452341762,
+            "central_range": 326.79999999999995,
+            "relative_central_range": 0.4890019452341762,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              1.032349,
+              1.032166,
+              1.03241
+            ],
+            "median": 1.032349,
+            "mean": 1.0323083333333332,
+            "min": 1.032166,
+            "max": 1.03241,
+            "mad": 6.100000000008876e-05,
+            "relative_mad": 5.908854466860409e-05,
+            "range": 0.000244000000000133,
+            "relative_range": 0.00023635417867420128,
+            "central_range": 0.000244000000000133,
+            "relative_central_range": 0.00023635417867420128,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        },
+        "xmqtt_server_overlap_64": {
+          "deliveries_per_sec": {
+            "samples": [
+              116939.069,
+              88984.476,
+              117279.253
+            ],
+            "median": 116939.069,
+            "mean": 107734.266,
+            "min": 88984.476,
+            "max": 117279.253,
+            "mad": 340.18399999999383,
+            "relative_mad": 0.0029090705348440377,
+            "range": 28294.777000000002,
+            "relative_range": 0.24196170913589196,
+            "central_range": 28294.777000000002,
+            "relative_central_range": 0.24196170913589196,
+            "direction": "higher",
+            "unit": "deliveries/s",
+            "limit": 0.05,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p99_us": {
+            "samples": [
+              721.4,
+              2369.8,
+              717.3
+            ],
+            "median": 721.4,
+            "mean": 1269.5,
+            "min": 717.3,
+            "max": 2369.8,
+            "mad": 4.100000000000023,
+            "relative_mad": 0.005683393401718912,
+            "range": 1652.5000000000002,
+            "relative_range": 2.290684779595232,
+            "central_range": 1652.5000000000002,
+            "relative_central_range": 2.290684779595232,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "delivery_p999_us": {
+            "samples": [
+              838.7,
+              6739.7,
+              1042.2
+            ],
+            "median": 1042.2,
+            "mean": 2873.5333333333333,
+            "min": 838.7,
+            "max": 6739.7,
+            "mad": 203.5,
+            "relative_mad": 0.19526002686624447,
+            "range": 5901.0,
+            "relative_range": 5.662061024755325,
+            "central_range": 5901.0,
+            "relative_central_range": 5.662061024755325,
+            "direction": "lower",
+            "unit": "us",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          },
+          "xrt_requested_blocks_per_delivery": {
+            "samples": [
+              1.048157,
+              1.048828,
+              1.048096
+            ],
+            "median": 1.048157,
+            "mean": 1.0483603333333333,
+            "min": 1.048096,
+            "max": 1.048828,
+            "mad": 6.100000000008876e-05,
+            "relative_mad": 5.819738836843026e-05,
+            "range": 0.000732000000000177,
+            "relative_range": 0.0006983686604203158,
+            "central_range": 0.000732000000000177,
+            "relative_central_range": 0.0006983686604203158,
+            "direction": "lower",
+            "unit": "blocks/delivery",
+            "limit": 0.1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06
+          }
+        }
+      }
+    }
+  }
+}

@@ -408,6 +408,8 @@
         "net_tcp",
         "cond",
         "map",
+        "avl",
+        "rwlock",
         "hash_keyed",
         "random_secure"
       ],

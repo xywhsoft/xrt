@@ -16269,3 +16269,35 @@ Windows x64 and Ubuntu/WSL x64 passed the example aggregate and a subprocess
 check that restarts after an injected task failure, drains a capped backlog,
 then checks an idle restart, clock rollback and a malformed checkpoint.
 The same subprocess check is registered in both service-extension CI jobs.
+
+## 2026-11-19 MQTT wildcard QoS 0 routing
+
+The broker handles single- and multi-level wildcards, empty levels, parent
+matches and dollar-prefixed topic rules. A destination matching several filters
+receives one copy if any of them permits the delivery. Sixteen keyed shards
+index first-literal filters and one shard indexes leading wildcards. Shared
+read locks let publishers traverse the same shard concurrently. Filter
+updates and connection retirement take the corresponding write lock.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5-only and dual-version modular and
+single-header tests, static and shared package consumers, dependency trimming,
+and the independent Python peer. The socket suite tests two concurrently
+publishing workers, overlapping filters, ordered delivery per publisher,
+allocation failure and trie rollback. The WSL dual-version suite also passed
+ASan/UBSan and a focused Clang TSan run.
+
+Two-worker, single-publisher loopback medians from three unpinned samples are
+below. Both workloads verify each 128-byte payload at all 64 destinations.
+
+| Host | Filters per destination | Deliveries/s | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Exact | 153,284 | 780.4 | 1329.0 |
+| Windows | Exact and wildcard | 195,717 | 557.5 | 663.9 |
+| Ubuntu/WSL | Exact | 142,051 | 588.2 | 668.3 |
+| Ubuntu/WSL | Exact and wildcard | 116,939 | 721.4 | 1042.2 |
+
+The variation gate reported 23 violations on Windows and 19 on WSL.
+A controlled comparison, sustained load, and native Linux qualification
+remain open.
+
+[Stage evidence](../../extlibs/xmqtt/tests/results/server-wildcard-qos0-20261119.json).

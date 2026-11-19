@@ -43,13 +43,15 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		benchReceive(Socket, Reply + 2, Reply[1]) && !Reply[2] && !Reply[3];
 }
 
-static bool benchSubscribe(xnetsocket Socket)
+static bool benchSubscribe(xnetsocket Socket, bool Overlap)
 {
 	const unsigned char Request[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
-	const unsigned char Ack[] = {0x90,4,0,1,0,0};
-	unsigned char Reply[sizeof(Ack)];
-	return benchSend(Socket, Request, sizeof(Request)) && benchReceive(Socket, Reply, sizeof(Reply)) &&
-		memcmp(Reply, Ack, sizeof(Ack)) == 0;
+	const unsigned char Extra[] = {0x82,16,0,1,0,0,4,'l','o','a','d',0,0,3,'+','/','#',0};
+	const unsigned char Ack[] = {0x90,4,0,1,0,0}, ExtraAck[] = {0x90,5,0,1,0,0,0};
+	unsigned char Reply[sizeof(ExtraAck)];
+	size_t Bytes = Overlap ? sizeof(ExtraAck) : sizeof(Ack);
+	return benchSend(Socket, Overlap ? Extra : Request, Overlap ? sizeof(Extra) : sizeof(Request)) &&
+		benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Overlap ? ExtraAck : Ack, Bytes);
 }
 
 static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, double* Samples)
@@ -91,7 +93,8 @@ int main(int Argc, char** Argv)
 	unsigned Workers = Argc > 3 ? strtoul(Argv[3], NULL, 10) : 2;
 	if (Peers < 1 || Peers > 4096 || Rounds < 1 || Rounds > 10000 || Workers < 1 || Workers > 32)
 		return 1;
-	bool Routing = Argc > 4 && !strcmp(Argv[4], "route");
+	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
+	bool Routing = Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
 	const size_t Connections = Peers + Routing, Count = Peers * Rounds;
 	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
 	double* ConnectSamples = malloc(Connections * sizeof(*ConnectSamples));
@@ -122,7 +125,7 @@ int main(int Argc, char** Argv)
 	if (Routing) {
 		Stage = "subscribe exact topic";
 		for (size_t Index = 0; Index < Peers; ++Index) {
-			if (!benchSubscribe(Sockets[Index])) goto Done;
+			if (!benchSubscribe(Sockets[Index], Overlap)) goto Done;
 		}
 	}
 	Stage = Routing ? "publish and verify fan-out" : "send PING and receive PINGRESP";
@@ -162,7 +165,7 @@ int main(int Argc, char** Argv)
 		xmqttserverinfo Info;
 		if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
 			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count || Info.DroppedDeliveries ||
-			Info.Subscriptions != Peers) goto Done;
+			Info.Subscriptions != Peers * (Overlap ? 2u : 1u)) goto Done;
 	}
 	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\n",
 		(double)Connections / ConnectSeconds, benchPercentile(ConnectSamples, Connections, 0.99));

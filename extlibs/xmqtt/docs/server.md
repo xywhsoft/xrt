@@ -8,7 +8,8 @@ large as the MQTT packet cap. Choose appropriate XRT accept, read and write
 limits for the aggregate connection budget.
 
 The TCP stage implements bounded CONNECT admission, one active binding per
-Client ID, keep alive, and exact-topic QoS 0 subscriptions and routing. The APP
+Client ID, keep alive, and QoS 0 subscriptions and routing with exact topics and
+wildcard filters. The APP
 can inspect borrowed CONNECT credentials and authorize individual publishes
 and subscriptions in worker-local callbacks. The default policy is anonymous.
 Run the example on loopback and install application policy before enabling
@@ -21,8 +22,12 @@ matching preserves case and bytes. MQTT 5 No Local excludes the same Client ID.
 MQTT 5 properties follow MQTT 5 deliveries, while 3.1.1 deliveries carry the
 topic and payload. MQTT 5 capability declarations cover the current QoS,
 retain, wildcard, shared subscription and subscription identifier limits.
-Wildcard routing, shared subscriptions, retained messages, QoS 1/2, persistent
-sessions, Wills, enhanced authentication, TLS and WebSocket remain upcoming.
+Wildcard filters support `+`, `#`, empty topic levels and the leading-dollar
+namespace rule. Each eligible connection receives one copy across overlapping
+filters. A zero `MaxWildcardNodes` disables wildcard subscriptions. Other values
+set the aggregate trie node limit. A wildcard filter can contain up to 128 topic
+levels. Shared subscriptions, retained messages, QoS 1/2, persistent sessions,
+Wills, enhanced authentication, TLS and WebSocket are in development.
 
 Each peer stays on its original XRT worker. The handshake and connection
 retirement update the bounded identity index under a short gate. The steady
@@ -34,8 +39,10 @@ requests stream aborts. Subscriptions are released before the connection
 quota is returned, after the native event owner and its pending timer retire. Join listener callbacks and
 then join the broker outside its workers before destruction.
 
-Sixteen keyed topic shards index current subscriptions. The matched shard
-serializes publication admission and unsubscribe for that topic. The library
+Sixteen keyed shards index exact topics and filters whose first level is
+literal. A separate trie holds filters that begin with a wildcard. Publishers
+share read locks on the relevant shards while updating a subscription takes a
+write lock. The library
 builds one immutable packet per required protocol version and shares it across
 the native send queues. The per-connection send limits and the subscriber limit
 bound queued work. A destination with a full queue or smaller Maximum Packet
@@ -52,7 +59,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -60,6 +67,7 @@ round-trip throughput and latency with 1, 64 and 1024 TCP clients. Each round
 queues a PING on each socket before collecting replies. Numbers include local
 peer-side collection and memory instrumentation. The route benchmark verifies
 128-byte QoS 0 payloads at every subscriber and measures one publisher with
-one or 64 subscribers on two XRT workers.
+one or 64 subscribers on two XRT workers. The overlap benchmark verifies one
+delivery per subscriber with both an exact and a wildcard filter registered.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).

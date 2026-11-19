@@ -1,4 +1,4 @@
-"""Exercise the standalone MQTT TCP server and exact routes with a separate peer."""
+"""Exercise the standalone MQTT TCP server and subscription routes with a separate peer."""
 import argparse
 import json
 from pathlib import Path
@@ -80,6 +80,26 @@ def check_routes(legacy, modern):
     assert read(modern, 2) == b"\xd0\0", "unsubscribed connection must stop receiving"
 
 
+def check_wildcards(legacy, modern):
+    legacy.sendall(small_frame(0x82, b"\0\4" + topic(b"Case/#") + b"\0" + topic(b"#") + b"\0"))
+    assert read(legacy, 6) == b"\x90\x04\0\4\0\0"
+    for label in (b"Case", b"Case/test", b"Case//suffix"):
+        modern.sendall(small_frame(0x30, topic(label) + b"\0payload"))
+        forwarded = small_frame(0x30, topic(label) + b"payload")
+        assert read(legacy, len(forwarded)) == forwarded
+    modern.sendall(small_frame(0x30, topic(b"$SYS/ignored") + b"\0payload") + b"\xc0\0")
+    assert read(modern, 2) == b"\xd0\0"
+    legacy.sendall(b"\xc0\0")
+    assert read(legacy, 2) == b"\xd0\0", "root wildcards exclude $ and overlapping filters forward once"
+
+    legacy.sendall(small_frame(0xa2, b"\0\5" + topic(b"#") + topic(b"Case/#") + topic(b"Case/test")))
+    assert read(legacy, 4) == b"\xb0\x02\0\5"
+    modern.sendall(small_frame(0x30, topic(b"Case/test") + b"\0payload") + b"\xc0\0")
+    assert read(modern, 2) == b"\xd0\0"
+    legacy.sendall(b"\xc0\0")
+    assert read(legacy, 2) == b"\xd0\0", "unsubscribe removes the matching wildcard paths"
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -108,6 +128,7 @@ def probe(program):
                         legacy.sendall(b"\xc0\0")
                         assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
                         check_routes(legacy, newer)
+                        check_wildcards(legacy, newer)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -118,7 +139,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -129,7 +150,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover and exact-topic routing")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact and wildcard routing")
 
 
 if __name__ == "__main__":

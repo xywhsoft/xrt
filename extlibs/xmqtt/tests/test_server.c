@@ -56,7 +56,7 @@ static xmqttserverpermission serverAuthorizeTopic(xmqttversion Version, xstrview
 	return Topic.Size == 3 && !memcmp(Topic.Data, "bad", 3) ? XMQTT_SERVER_DENY : XMQTT_SERVER_ALLOW;
 }
 
-static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing)
+static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing, size_t WildcardNodes)
 {
 	memset(Fixture, 0, sizeof(*Fixture));
 	xrtAtomic32Init(&Fixture->ListenerClosed, 0);
@@ -71,6 +71,7 @@ static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t 
 	Config.MaxConnections = 2;
 	Config.ConnectTimeout = 1800;
 	Config.Codec.MaxPacketBytes = 256;
+	Config.MaxWildcardNodes = WildcardNodes;
 	Config.Authorize = serverAuthorize;
 	Config.User = Fixture;
 	if (Routing) {
@@ -113,7 +114,7 @@ static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t 
 
 static void serverStart(serverfixture* Fixture, bool Allow311, size_t Budget)
 {
-	serverStartConfigured(Fixture, Allow311, Budget, false);
+	serverStartConfigured(Fixture, Allow311, Budget, false, 65536);
 }
 
 static void serverStop(serverfixture* Fixture)
@@ -129,7 +130,7 @@ static void serverStop(serverfixture* Fixture)
 		xmqttServerWaitFor(Fixture->Server, 0) == XWAIT_OK, "retire MQTT streams and timers");
 	xmqttserverinfo Info;
 	testRequire(xmqttServerInfo(Fixture->Server, &Info) && Info.Closing &&
-		!Info.Connections && !Info.Established && !Info.Subscriptions,
+		!Info.Connections && !Info.Established && !Info.Subscriptions && !Info.WildcardNodes,
 		"all server identities, connections and subscriptions drained");
 	testRequire(xmqttServerDestroy(Fixture->Server), "destroy MQTT broker");
 	xrtNetListenerDestroy(Fixture->Listener);
@@ -210,7 +211,7 @@ static size_t serverConnectWire(unsigned char* Wire, xmqttversion Version, bool 
 	return Pos + 4;
 }
 
-static void serverConnack(xnetsocket Socket, xmqttversion Version, uint8 Reason)
+static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uint8 Reason, bool Wildcard)
 {
 	unsigned char Reply[32];
 	serverRecv(Socket, Reply, 2);
@@ -220,10 +221,15 @@ static void serverConnack(xnetsocket Socket, xmqttversion Version, uint8 Reason)
 	serverRecv(Socket, Reply + 2, Bytes);
 	testRequire(Reply[2] == 0 && Reply[3] == Reason, "CONNACK session flag and reason");
 	if (Version == XMQTT_VERSION_5 && !Reason) {
-		const unsigned char Limits[] = {15, 36, 0, 37, 0, 40, 0, 41, 0, 42, 0, 39, 0, 0, 1, 0};
+		const unsigned char Limits[] = {15, 36, 0, 37, 0, 40, Wildcard, 41, 0, 42, 0, 39, 0, 0, 1, 0};
 		testRequire(Bytes == 2 + sizeof(Limits) && !memcmp(Reply + 4, Limits, sizeof(Limits)),
 			"CONNACK advertises negotiated limits");
 	}
+}
+
+static void serverConnack(xnetsocket Socket, xmqttversion Version, uint8 Reason)
+{
+	serverConnackConfigured(Socket, Version, Reason, true);
 }
 
 static void serverConnections(serverfixture* Fixture, size_t Count)
@@ -411,7 +417,7 @@ static void serverPingPeer(xnetsocket Socket)
 static void serverRouting(xmqttversion OtherVersion)
 {
 	serverfixture Fixture;
-	serverStartConfigured(&Fixture, OtherVersion == XMQTT_VERSION_311, 0, true);
+	serverStartConfigured(&Fixture, OtherVersion == XMQTT_VERSION_311, 0, true, 65536);
 	unsigned char Wire[256];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture), Other = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -499,10 +505,166 @@ static void serverRouting(xmqttversion OtherVersion)
 	serverEof(Other);
 }
 
+static void serverPublishCheck(xnetsocket Producer, xnetsocket Consumer, xmqttversion Version,
+	const char* Name, bool Expected)
+{
+	const unsigned char Payload[] = {0, 0x74, 0xff};
+	unsigned char Wire[60];
+	serverSend(Producer, Wire, serverPublishWire(Wire, XMQTT_VERSION_5, Name, Payload, sizeof(Payload), NULL, 0));
+	serverPingPeer(Producer);
+	if (Expected) serverExpectPublish(Consumer, Version, Name, Payload, sizeof(Payload), NULL, 0);
+	serverPingPeer(Consumer);
+}
+
+static void serverWildcardRoutes(xmqttversion Version)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, Version == XMQTT_VERSION_311, 0);
+	unsigned char Wire[32];
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "wild"));
+	serverConnack(Producer, XMQTT_VERSION_5, 0);
+	serverSend(Consumer, Wire, serverConnectWire(Wire, Version, true, 0, "sink"));
+	serverConnack(Consumer, Version, 0);
+
+	const char* Filters[] = {"a/#", "a/+/c", "a//c", "$SYS/+", "/+"};
+	const uint8 Granted[5] = {0};
+	serverSubscribeWire(Consumer, Version, true, 1, Filters, Granted, Granted, 5);
+	serverPublishCheck(Producer, Consumer, Version, "a", true);
+	serverPublishCheck(Producer, Consumer, Version, "a//c", true);
+	serverPublishCheck(Producer, Consumer, Version, "/", true);
+	serverPublishCheck(Producer, Consumer, Version, "$SYS/time", true);
+	serverPublishCheck(Producer, Consumer, Version, "$SYS/time/extra", false);
+	serverPublishCheck(Producer, Consumer, Version, "A", false);
+	serverSubscribeWire(Consumer, Version, false, 2, Filters, NULL, Granted, 1);
+	serverPublishCheck(Producer, Consumer, Version, "a", false);
+	serverPublishCheck(Producer, Consumer, Version, "a//c", true);
+	const char* Root[] = {"+/#", "#"};
+	serverSubscribeWire(Consumer, Version, true, 3, Root, Granted, Granted, 2);
+	serverPublishCheck(Producer, Consumer, Version, "alone", true);
+	serverPublishCheck(Producer, Consumer, Version, "$OTHER/status", false);
+	serverPublishCheck(Producer, Consumer, Version, "$SYS/time", true);
+	/* A matching No Local branch must not suppress overlapping matches
+	 * whose options permit the same publisher to receive the publication. */
+	const char* Own[] = {"local/#", "local/+"};
+	const uint8 NoLocal[] = {4, 0};
+	serverSubscribeWire(Producer, XMQTT_VERSION_5, true, 4, Own, NoLocal, Granted, 2);
+	const unsigned char Payload[] = {0x68, 0, 0xff};
+	serverSend(Producer, Wire, serverPublishWire(Wire, XMQTT_VERSION_5, "local/x", Payload, sizeof(Payload), NULL, 0));
+	serverExpectPublish(Producer, XMQTT_VERSION_5, "local/x", Payload, sizeof(Payload), NULL, 0);
+	serverExpectPublish(Consumer, Version, "local/x", Payload, sizeof(Payload), NULL, 0);
+	serverPingPeer(Producer);
+	serverPingPeer(Consumer);
+	/* Retirement of a clean session also prunes the exact and wildcard
+	 * index entries. All socket owners are still alive during broker Close. */
+	serverStop(&Fixture);
+	serverEof(Producer);
+	serverEof(Consumer);
+}
+
+typedef struct serverWildcardSender {
+	xnetsocket Socket;
+	xatomic32* Start;
+	const char* Topic;
+	uint8 Source;
+} serverWildcardSender;
+
+static int32 serverWildcardSend(ptr Data)
+{
+	serverWildcardSender* Sender = Data;
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(Sender->Start, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "wildcard producer start");
+		xrtSleep(1);
+	}
+	for (uint8 Index = 0; Index < 4; ++Index) {
+		unsigned char Wire[32];
+		const unsigned char Payload[] = {Sender->Source, Index};
+		size_t Size = serverPublishWire(Wire, XMQTT_VERSION_5, Sender->Topic, Payload, sizeof(Payload), NULL, 0);
+		serverSend(Sender->Socket, Wire, Size);
+	}
+	serverPingPeer(Sender->Socket);
+	return 0;
+}
+
+static void serverConcurrentWildcards(void)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	xnetsocket Socket[3];
+	const char* Ids[] = {"src0", "src1", "sink"};
+	for (size_t Index = 0; Index < 3; ++Index) {
+		unsigned char Wire[32];
+		Socket[Index] = serverDial(&Fixture);
+		size_t Size = serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, Ids[Index]);
+		serverSend(Socket[Index], Wire, Size);
+		serverConnack(Socket[Index], XMQTT_VERSION_5, 0);
+	}
+	const char* Filters[] = {"#", "a/+"};
+	const uint8 Accepted[] = {0, 0};
+	serverSubscribeWire(Socket[2], XMQTT_VERSION_5, true, 1, Filters, Accepted, Accepted, 2);
+	const char* Topics[] = {"a/x", "b/x"};
+	xatomic32 Start;
+	xrtAtomic32Init(&Start, 0);
+	serverWildcardSender Senders[] = {
+		{Socket[0], &Start, Topics[0], 0}, {Socket[1], &Start, Topics[1], 1}
+	};
+	xthread* Threads[2] = {
+		xrtThreadCreate(serverWildcardSend, &Senders[0], 0), xrtThreadCreate(serverWildcardSend, &Senders[1], 0)
+	};
+	testRequire(Threads[0] && Threads[1], "concurrent wildcard producers");
+	xrtAtomic32Store(&Start, 1, XMEMORY_RELEASE);
+	uint8 Next[] = {0, 0};
+	for (size_t Index = 0; Index < 8; ++Index) {
+		/* This literal wire fixture receives exactly one copy from the
+		 * matching root and literal-prefix filters. */
+		unsigned char Received[10];
+		serverRecv(Socket[2], Received, sizeof(Received));
+		uint8 Source = Received[8];
+		testRequire(Source < 2 && Next[Source] < 4, "bounded wildcard source sequence");
+		unsigned char Expected[10];
+		const unsigned char Payload[] = {Source, Next[Source]++};
+		testRequire(serverPublishWire(Expected, XMQTT_VERSION_5, Topics[Source], Payload, sizeof(Payload),
+			NULL, 0) == sizeof(Expected) && !memcmp(Received, Expected, sizeof(Expected)),
+			"concurrent wildcard publication order and bytes");
+	}
+	serverPingPeer(Socket[2]);
+	for (size_t Index = 0; Index < 2; ++Index) {
+		testRequire(xrtThreadWaitFor(Threads[Index], 5000) == XWAIT_OK, "wildcard producer joins");
+		xrtThreadDestroy(Threads[Index]);
+	}
+	testRequire(Next[0] == 4 && Next[1] == 4, "both wildcard producers fully delivered");
+	serverStop(&Fixture);
+	for (size_t Index = 0; Index < 3; ++Index) serverEof(Socket[Index]);
+}
+
+static void serverWildcardQuota(void)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, false, 3);
+	unsigned char Wire[32];
+	xnetsocket Socket = serverDial(&Fixture);
+	serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "quot"));
+	serverConnack(Socket, XMQTT_VERSION_5, 0);
+	unsigned char Granted[] = {0}, Quota[] = {0x97};
+	const char* First[] = {"a/#"}, *Second[] = {"b/h/#"};
+	serverSubscribeWire(Socket, XMQTT_VERSION_5, true, 1, First, Granted, Granted, 1);
+	serverSubscribeWire(Socket, XMQTT_VERSION_5, true, 2, Second, Granted, Quota, 1);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.Subscriptions == 1 && Info.WildcardNodes == 2,
+		"node capacity failure prunes partially inserted prefix and keeps old route");
+	serverSubscribeWire(Socket, XMQTT_VERSION_5, false, 3, First, NULL, Granted, 1);
+	serverSubscribeWire(Socket, XMQTT_VERSION_5, true, 4, Second, Granted, Granted, 1);
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.Subscriptions == 1 && Info.WildcardNodes == 3,
+		"remaining trie budget is reusable after unsubscribe");
+	serverStop(&Fixture);
+	serverEof(Socket);
+}
+
 static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
-	serverStart(&Fixture, false, 0);
+	serverStartConfigured(&Fixture, false, 0, false, 0);
 	static const struct {unsigned char Wire[16]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
@@ -515,7 +677,7 @@ static void serverAdvertisedCapabilities(void)
 		unsigned char Wire[32];
 		xnetsocket Socket = serverDial(&Fixture);
 		serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "caps"));
-		serverConnack(Socket, XMQTT_VERSION_5, 0);
+		serverConnackConfigured(Socket, XMQTT_VERSION_5, 0, false);
 		serverSend(Socket, Cases[Index].Wire, Cases[Index].Size);
 		if (Cases[Index].Reason) {
 			serverRecv(Socket, Wire, 3);
@@ -553,6 +715,49 @@ static void serverRoutingOom(void)
 	testRequire(xmqttServerInfo(Fixture.Server, &Info) && !Info.Subscriptions, "aggregate quota restored");
 	testRequire(xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), false) == 0 &&
 		xmqttServerUnsubscribe(&Peer, XRT_BYTES_LITERAL("index-failure")), "successful retry after OOM");
+	xallocationbudget* TrieBudget;
+	xallocationscope TrieScope = {0};
+	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverwildnode) + 1, &TrieBudget) &&
+		xrtAllocationBudgetEnter(TrieBudget, &TrieScope), "trie node failpoint scope");
+	xmqttservertopic Filter = {.Key = XRT_BYTES_LITERAL("x/y/+/#")};
+	xmqttservershard* Shard = xmqttServerWildcardShard(Fixture.Server, Filter.Key);
+	uint8 Reason = xmqttServerAddWildcard(Fixture.Server, Shard, &Filter);
+	testRequire(xrtAllocationBudgetLeave(&TrieScope) && Reason == 0x83 && !Filter.Wildcard &&
+		!Shard->WildcardRoot.Children.Root && xmqttServerInfo(Fixture.Server, &Info) &&
+		!Info.WildcardNodes, "trie OOM prunes partial branch");
+	xallocationbudgetinfo TrieAllocation = {.Size = sizeof(TrieAllocation)};
+	testRequire(xrtAllocationBudgetInfo(TrieBudget, &TrieAllocation) &&
+		TrieAllocation.Rejections && !TrieAllocation.LiveBytes, "partial trie leaves no live allocations");
+	xrtClearError();
+	xrtAllocationBudgetFree(TrieBudget);
+	unsigned char Deep[XMQTT_SERVER_MAX_WILDCARD_LEVELS + 1];
+	memset(Deep, '/', sizeof(Deep) - 1);
+	Deep[sizeof(Deep) - 1] = '#';
+	Filter.Key = (xbytesview){Deep, sizeof(Deep)};
+	Shard = xmqttServerWildcardShard(Fixture.Server, Filter.Key);
+	testRequire(xmqttServerAddWildcard(Fixture.Server, Shard, &Filter) == 0x97 &&
+		!Shard->WildcardRoot.Children.Root && xmqttServerInfo(Fixture.Server, &Info) &&
+		!Info.WildcardNodes, "depth limit rolls back empty path");
+
+	xmqttservertargets Targets = {0};
+	Targets.Slots = Targets.Local;
+	Targets.Capacity = sizeof(Targets.Local) / sizeof(Targets.Local[0]);
+	xmqttserverpeer TargetsFixture[49];
+	for (size_t Index = 0; Index < 48; ++Index)
+		testRequire(xmqttServerAddTarget(&Targets, TargetsFixture + Index), "local recipient set");
+	xallocationbudget* SetBudget;
+	xallocationscope SetScope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &SetBudget) &&
+		xrtAllocationBudgetEnter(SetBudget, &SetScope), "recipient growth failpoint scope");
+	bool Added = xmqttServerAddTarget(&Targets, TargetsFixture + 48);
+	testRequire(xrtAllocationBudgetLeave(&SetScope) && !Added && Targets.Count == 48 &&
+		Targets.Slots == Targets.Local, "recipient set growth failure keeps original entries");
+	xrtClearError();
+	xrtAllocationBudgetFree(SetBudget);
+	testRequire(xmqttServerAddTarget(&Targets, TargetsFixture + 48) && Targets.Count == 49 &&
+		xmqttServerAddTarget(&Targets, TargetsFixture) && Targets.Count == 49,
+		"recipient set retry and deduplication after growth");
+	xrtFree(Targets.Slots);
 	serverStop(&Fixture);
 }
 #endif
@@ -562,9 +767,13 @@ int main(void)
 	serverControl();
 	serverRouting(XMQTT_VERSION_5);
 	serverAdvertisedCapabilities();
+	serverWildcardRoutes(XMQTT_VERSION_5);
+	serverWildcardQuota();
+	serverConcurrentWildcards();
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	serverCompatibility();
 	serverRouting(XMQTT_VERSION_311);
+	serverWildcardRoutes(XMQTT_VERSION_311);
 #endif
 #if defined(XMQTT_IMPLEMENTATION_ONCE)
 	serverRoutingOom();
@@ -574,6 +783,6 @@ int main(void)
 	xnetsocket Socket = serverDial(&Fixture);
 	serverEof(Socket);
 	serverStop(&Fixture);
-	puts("[PASS] MQTT TCP CONNECT, QoS0 routing, quotas, authorization, takeover, deadlines, OOM and retirement");
+	puts("[PASS] MQTT TCP CONNECT, exact and wildcard QoS0 routing, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;
 }

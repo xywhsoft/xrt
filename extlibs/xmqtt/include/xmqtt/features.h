@@ -19,6 +19,12 @@
 #ifndef XRT_MODULE_MAP
 #define XRT_MODULE_MAP
 #endif
+#ifndef XRT_MODULE_AVL
+#define XRT_MODULE_AVL
+#endif
+#ifndef XRT_MODULE_RWLOCK
+#define XRT_MODULE_RWLOCK
+#endif
 #ifndef XRT_MODULE_HASH_KEYED
 #define XRT_MODULE_HASH_KEYED
 #endif
