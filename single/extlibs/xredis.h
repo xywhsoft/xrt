@@ -3814,6 +3814,9 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE"
+#endif
 
 #endif
 
@@ -6647,29 +6650,42 @@ static void xredisClientAbandon(xredisrequest* Request, xredisrequeststatus Stat
 	}
 }
 
-#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
-static void xredisCachingFinish(xredisrequest* R)
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING) || defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+/* Retire a paired command after both writes and both ordered replies. A timer
+ * or cancellation may already have completed the caller while the two wire
+ * obligations were still pending. */
+static void xredisPairFinish(xredisrequest* Request,bool Written,unsigned Seen,
+    xredisrequeststatus Status,xredisreply** Query)
 {
-    xrediscachingstate* S=xredisCachingState(R);xredisclient* C=R->Client;
-    if(!S->Written || S->Seen!=2)return;
-    if(R->Promise){
-        xredisrequeststatus Status=S->QueryStatus;
-        if(xrtAtomic32Load(&R->Cancelled,XMEMORY_ACQUIRE))Status=XREDIS_REQUEST_CANCELLED;
-        else if(xrtTimer()>=R->Deadline)Status=XREDIS_REQUEST_TIMEOUT;
-        xredisreply* Reply=S->Query;S->Query=NULL;
+    if(!Written || Seen!=2)return;
+    xredisclient* Client=Request->Client;
+    if(Request->Promise){
+        if(xrtAtomic32Load(&Request->Cancelled,XMEMORY_ACQUIRE))Status=XREDIS_REQUEST_CANCELLED;
+        else if(xrtTimer()>=Request->Deadline)Status=XREDIS_REQUEST_TIMEOUT;
+        xredisreply* Reply=*Query;
+        *Query=NULL;
         if(Status==XREDIS_REQUEST_CANCELLED || Status==XREDIS_REQUEST_TIMEOUT){
-            xredisReplyRelease(Reply);Reply=NULL;
-            xrtMutexLock(&C->Gate);++C->Info.DiscardedReplies;xrtMutexUnlock(&C->Gate);
+            xredisReplyRelease(Reply);
+            Reply=NULL;
+            xrtMutexLock(&Client->Gate);++Client->Info.DiscardedReplies;xrtMutexUnlock(&Client->Gate);
         }
-        xredisClientComplete(R,Status,XREDIS_REPLIED,Reply,NULL);
+        xredisClientComplete(Request,Status,XREDIS_REPLIED,Reply,NULL);
     }
-    xredisClientUnlink(R);R->Phase=XREDIS_R_DONE;
-    xredisClientCancelTimer(R);xredisRequestRelease(R);xredisClientWake(C);
+    xredisClientUnlink(Request);
+    Request->Phase=XREDIS_R_DONE;
+    xredisClientCancelTimer(Request);
+    xredisRequestRelease(Request);
+    xredisClientWake(Client);
 }
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
 static void xredisCachingWritten(xredisrequest* R)
 {
     if(!xredisCachingPair(R))return;
-    xredisCachingState(R)->Written=true;xredisCachingFinish(R);
+    xrediscachingstate* S=xredisCachingState(R);
+    S->Written=true;
+    xredisPairFinish(R,true,S->Seen,S->QueryStatus,&S->Query);
 }
 static void xredisCachingFrame(xredisrequest* R,xredisreply* Reply,const xredisreplyvalue* Root,uint64 Sequence)
 {
@@ -6688,27 +6704,18 @@ static void xredisCachingFrame(xredisrequest* R,xredisreply* Reply,const xredisr
         S->QueryStatus=Error?XREDIS_REQUEST_SERVER_ERROR:XREDIS_REQUEST_OK;
         if(R->Promise){S->Query=Reply;S->QuerySequence=Sequence;}
         else {xredisReplyRelease(Reply);xrtMutexLock(&C->Gate);++C->Info.DiscardedReplies;xrtMutexUnlock(&C->Gate);}
-        xredisCachingFinish(R);
+        xredisPairFinish(R,S->Written,S->Seen,S->QueryStatus,&S->Query);
     }
 }
 #endif
 
 #if defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
-static void xredisAskingFinish(xredisrequest* R)
-{
-    xredisaskingstate* S=xredisAskingState(R);xredisclient* C=R->Client;
-    if(!S->Written || S->Seen!=2)return;
-    if(R->Promise){xredisrequeststatus Status=S->QueryStatus;
-        if(xrtAtomic32Load(&R->Cancelled,XMEMORY_ACQUIRE))Status=XREDIS_REQUEST_CANCELLED;
-        else if(xrtTimer()>=R->Deadline)Status=XREDIS_REQUEST_TIMEOUT;
-        xredisreply* Reply=S->Query;S->Query=NULL;
-        if(Status==XREDIS_REQUEST_CANCELLED || Status==XREDIS_REQUEST_TIMEOUT){xredisReplyRelease(Reply);Reply=NULL;xrtMutexLock(&C->Gate);++C->Info.DiscardedReplies;xrtMutexUnlock(&C->Gate);}
-        xredisClientComplete(R,Status,XREDIS_REPLIED,Reply,NULL);
-    }
-    xredisClientUnlink(R);R->Phase=XREDIS_R_DONE;xredisClientCancelTimer(R);xredisRequestRelease(R);xredisClientWake(C);
-}
 static void xredisAskingWritten(xredisrequest* R)
-{xredisAskingState(R)->Written=true;xredisAskingFinish(R);}
+{
+    xredisaskingstate* S=xredisAskingState(R);
+    S->Written=true;
+    xredisPairFinish(R,true,S->Seen,S->QueryStatus,&S->Query);
+}
 static void xredisAskingFrame(xredisrequest* R,xredisreply* Reply,const xredisreplyvalue* Root)
 {
     xredisaskingstate* S=xredisAskingState(R);xredisclient* C=R->Client;
@@ -6723,7 +6730,7 @@ static void xredisAskingFrame(xredisrequest* R,xredisreply* Reply,const xredisre
     }else{
         S->QueryStatus=Error?XREDIS_REQUEST_SERVER_ERROR:XREDIS_REQUEST_OK;
         if(R->Promise)S->Query=Reply;else{xredisReplyRelease(Reply);xrtMutexLock(&C->Gate);++C->Info.DiscardedReplies;xrtMutexUnlock(&C->Gate);}
-        xredisAskingFinish(R);
+        xredisPairFinish(R,S->Written,S->Seen,S->QueryStatus,&S->Query);
     }
 }
 #endif

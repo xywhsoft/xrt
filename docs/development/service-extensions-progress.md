@@ -16169,3 +16169,14 @@ Mosquitto 2.0.22 on the Windows and Ubuntu/WSL client builds, covering both
 protocol levels and a cut at PUBACK, PUBREC or PUBCOMP. The broker report and
 wire logs are under out/service-extensions/scope-reduction-20261119/.
 The broker runtime, server-side QoS/routing and load acceptance are open.
+
+## 2026-11-19 Redis paired-command completion
+
+CLIENT CACHING and ASKING now share retirement after their two writes and two
+ordered replies. Both keep their own reply metadata and control-command error
+handling. Cancellation and timeout preserve each connection's FIFO until the
+outstanding wire replies are drained. Windows x64 and Ubuntu/WSL x64 passed
+the modular and single-header caching and Cluster client/synchronous suites,
+including TLS caching where selected, plus the whole-product dependency trims.
+The trim pass includes the previously saved Cluster catalogue dependency guard.
+Logs are under out/service-extensions/scope-reduction-20261119/.
