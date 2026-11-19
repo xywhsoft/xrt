@@ -8,6 +8,7 @@ import socket
 import struct
 import subprocess
 from threading import Thread
+import time
 
 
 def read(sock, size):
@@ -241,6 +242,54 @@ def eof(sock):
         pass
 
 
+def open_session(endpoint, level, clean, present):
+    client_id = b"saved" + bytes((ord("0") + level,))
+    body = b"\0\4MQTT" + bytes((level, 2 if clean else 0, 0, 0))
+    if level == 5:
+        body += b"\5\x11\0\0\0\x1e"
+    body += topic(client_id)
+    deadline = time.monotonic() + 3
+    while True:
+        sock = socket.create_connection(endpoint, timeout=5)
+        try:
+            sock.sendall(small_frame(0x10, body))
+            header = read(sock, 2)
+            assert header[0] == 0x20
+            ack = read(sock, header[1])
+            if ack[:2] == bytes((int(present), 0)):
+                return sock
+            assert present and ack[0] == 0 and ack[1] == (0x89 if level == 5 else 3), ack.hex()
+            eof(sock)
+        except BaseException:
+            sock.close()
+            raise
+        sock.close()
+        assert time.monotonic() < deadline, "old TCP owner did not retire"
+        time.sleep(0.01)
+
+
+def check_session_resume(endpoint, publisher, level):
+    key = topic(b"resume/" + bytes((ord("0") + level,)))
+    properties = b"\0" if level == 5 else b""
+    payload = b"resend\0with-binary"
+    with open_session(endpoint, level, clean=(level == 5), present=False) as peer:
+        peer.sendall(small_frame(0x82, b"\0\1" + properties + key + b"\1"))
+        ack = small_frame(0x90, b"\0\1" + properties + b"\1")
+        assert read(peer, len(ack)) == ack
+        publisher.sendall(small_frame(0x32, key + b"\0\x59\0" + payload))
+        assert read(publisher, 4) == b"\x40\x02\0\x59"
+        body = key + b"\0\1" + properties + payload
+        frame = small_frame(0x32, body)
+        assert read(peer, len(frame)) == frame
+        peer.sendall(b"\xe0\0")
+        eof(peer)
+    with open_session(endpoint, level, clean=False, present=True) as peer:
+        retry = small_frame(0x3a, body)
+        assert read(peer, len(retry)) == retry
+        peer.sendall(b"\x40\x02\0\1\xc0\0")
+        assert read(peer, 2) == b"\xd0\0"
+
+
 def probe(program):
     with subprocess.Popen(
         [str(program.resolve()), "wait"],
@@ -268,6 +317,8 @@ def probe(program):
                         check_retained_parallel(endpoint, legacy)
                         check_qos1(legacy, newer)
                         check_qos2(legacy, newer)
+                        check_session_resume(endpoint, newer, 5)
+                        check_session_resume(endpoint, newer, 4)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -278,7 +329,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -289,7 +340,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing and bidirectional QoS 1/2")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2 and persistent resume")
 
 
 if __name__ == "__main__":

@@ -6395,6 +6395,91 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_server_session_resume",
+      "system": "server",
+      "description": "Disconnect, publish a 128-byte QoS 1 message to offline sessions, verify Session Present and acknowledge each replay.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_server_resume_1",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "1",
+            "1000",
+            "2",
+            "resume"
+          ],
+          "smoke_args": [
+            "1",
+            "8",
+            "2",
+            "resume"
+          ],
+          "metrics": {
+            "deliveries_per_sec": {
+              "direction": "higher",
+              "unit": "deliveries/s"
+            },
+            "delivery_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_delivery": {
+              "direction": "lower",
+              "unit": "blocks/delivery"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_server_resume_64",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "64",
+            "64",
+            "2",
+            "resume"
+          ],
+          "smoke_args": [
+            "64",
+            "8",
+            "2",
+            "resume"
+          ],
+          "metrics": {
+            "deliveries_per_sec": {
+              "direction": "higher",
+              "unit": "deliveries/s"
+            },
+            "delivery_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "delivery_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_delivery": {
+              "direction": "lower",
+              "unit": "blocks/delivery"
+            }
+          }
+        }
+      ]
     }
   ]
 }

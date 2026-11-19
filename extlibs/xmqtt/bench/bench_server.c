@@ -27,22 +27,28 @@ static bool benchReceive(xnetsocket Socket, unsigned char* Data, size_t Size)
 	return true;
 }
 
-static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window)
+static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window,
+	bool Persistent, bool Resume)
 {
 	/* Eight ASCII digits keep each identity distinct and valid in MQTT. */
-	unsigned char Frame[26] = {0x10,21,0,4,'M','Q','T','T',5,2,0,0,0,0,8};
-	size_t First = 15, Size = 23;
+	unsigned char Frame[31] = {0x10,0,0,4,'M','Q','T','T',5,Resume ? 0 : 2,0,0};
+	size_t Size = 13;
 	if (Window) {
-		Frame[1] += 3;
-		Frame[12] = 3;
-		Frame[13] = 0x21;
-		Frame[14] = 0;
-		Frame[15] = 1;
-		Frame[16] = 0;
-		Frame[17] = 8;
-		First += 3;
-		Size += 3;
+		Frame[Size++] = 0x21;
+		Frame[Size++] = 0;
+		Frame[Size++] = 1;
 	}
+	if (Persistent) {
+		const unsigned char Expiry[] = {0x11,0,0,0,60};
+		memcpy(Frame + Size, Expiry, sizeof(Expiry));
+		Size += sizeof(Expiry);
+	}
+	Frame[12] = (uint8)(Size - 13);
+	Frame[Size++] = 0;
+	Frame[Size++] = 8;
+	size_t First = Size;
+	Size += 8;
+	Frame[1] = (uint8)(Size - 2);
 	for (size_t Pos = Size; Pos > First;) {
 		Frame[--Pos] = '0' + (unsigned char)(Index % 10u);
 		Index /= 10u;
@@ -52,7 +58,7 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		xrtNetSocketConnect(Socket, Address) == XNET_RESULT_OK &&
 		benchSend(Socket, Frame, Size) && benchReceive(Socket, Reply, 2) &&
 		Reply[0] == 0x20 && Reply[1] >= 3 && Reply[1] <= sizeof(Reply) - 2 &&
-		benchReceive(Socket, Reply + 2, Reply[1]) && !Reply[2] && !Reply[3];
+		benchReceive(Socket, Reply + 2, Reply[1]) && Reply[2] == Resume && !Reply[3];
 }
 
 static const unsigned char ExactSubscribe[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
@@ -161,6 +167,43 @@ static bool benchReplayRound(const xnetsocket* Sockets, size_t Peers, size_t Rou
 	return true;
 }
 
+static bool benchPersistentRound(serverexample* Example, xnetsocket* Sockets, size_t Peers, size_t Round, double* Samples)
+{
+	const unsigned char Disconnect[] = {0xe0, 0};
+	for (size_t Index = 0; Index < Peers; ++Index)
+		if (!benchSend(Sockets[Index], Disconnect, sizeof(Disconnect))) return false;
+	for (size_t Index = 0; Index < Peers; ++Index) {
+		unsigned char Extra;
+		size_t Read;
+		if (xrtNetSocketRecv(Sockets[Index], &Extra, sizeof(Extra), &Read) != XNET_RESULT_CLOSED) return false;
+		xrtNetSocketClose(Sockets[Index]);
+		Sockets[Index] = NULL;
+	}
+	double Deadline = xrtTimer() + 5.0;
+	for (;;) {
+		xmqttserverinfo Info;
+		if (!xmqttServerInfo(Example->Server, &Info) || xrtTimer() >= Deadline || Info.OutgoingPublishOverloads) return false;
+		if (Info.OfflineSessions == Peers && Info.Connections == 1) break;
+		xrtSleep(1);
+	}
+	uint16 Id = (uint16)(Round + 1);
+	unsigned char Wire[140] = {0x32,0x89,1,0,4,'l','o','a','d',(uint8)(Id >> 8),(uint8)Id,0};
+	Wire[sizeof(Wire) - 2] = (uint8)(Round >> 8);
+	Wire[sizeof(Wire) - 1] = (uint8)Round;
+	double SentAt = xrtTimer();
+	if (!benchSend(Sockets[Peers], Wire, sizeof(Wire)) || !benchReceiveFlowReply(Sockets[Peers], 0x40, Id)) return false;
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		size_t Index = (Round + Offset) % Peers;
+		Sockets[Index] = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+		unsigned char Reply[sizeof(Wire)];
+		if (!Sockets[Index] || !benchConnect(Sockets[Index], &Example->Address, Index, true, true, true) ||
+			!benchReceive(Sockets[Index], Reply, sizeof(Reply)) || memcmp(Wire, Reply, sizeof(Wire)) ||
+			!benchSendFlowReply(Sockets[Index], 0x40, Id)) return false;
+		Samples[Offset] = xrtTimer() - SentAt;
+	}
+	return true;
+}
+
 static int benchOrder(const void* Left, const void* Right)
 {
 	double A = *(const double*)Left, B = *(const double*)Right;
@@ -183,8 +226,9 @@ int main(int Argc, char** Argv)
 	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
 	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
 	bool Replay = Argc > 4 && !strcmp(Argv[4], "retained");
+	bool Persistent = Argc > 4 && !strcmp(Argv[4], "resume");
 	bool Qos2 = Argc > 4 && !strcmp(Argv[4], "outbound2");
-	bool Outgoing = Qos2 || (Argc > 4 && !strcmp(Argv[4], "outbound1"));
+	bool Outgoing = Persistent || Qos2 || (Argc > 4 && !strcmp(Argv[4], "outbound1"));
 	uint8 Qos = Qos2 ? 2 : (Outgoing || (Argc > 4 && !strcmp(Argv[4], "inbound1")));
 	bool Routing = Qos || Replay || Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
 	const size_t Connections = Peers + Routing, Deliveries = Shared ? 1 : Peers;
@@ -201,6 +245,7 @@ int main(int Argc, char** Argv)
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
 	Config.MaxConnections = Connections;
+	if (Persistent) Config.MaxPersistentSessions = Peers;
 	if (Routing) Config.MaxSubscribersPerTopic = Peers;
 	Stage = "start listener";
 	if (!exampleServerStart(&Example, &Config, Workers)) goto Done;
@@ -210,7 +255,8 @@ int main(int Argc, char** Argv)
 	for (size_t Index = 0; Index < Connections; ++Index) {
 		double Attempt = xrtTimer();
 		Sockets[Index] = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
-		if (!Sockets[Index] || !benchConnect(Sockets[Index], &Example.Address, Index, Outgoing && Index < Peers)) goto Done;
+		if (!Sockets[Index] || !benchConnect(Sockets[Index], &Example.Address, Index,
+			Outgoing && Index < Peers, Persistent && Index < Peers, false)) goto Done;
 		ConnectSamples[Index] = xrtTimer() - Attempt;
 	}
 	double ConnectSeconds = xrtTimer() - Start;
@@ -234,6 +280,11 @@ int main(int Argc, char** Argv)
 	xrtMemStatsGet(&Before);
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
+		if (Persistent) {
+			Stage = "reconnect and verify offline delivery";
+			if (!benchPersistentRound(&Example, Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
+			continue;
+		}
 		if (Replay) {
 			if (!benchReplayRound(Sockets, Peers, Round, SentAt, PingSamples + Round * Peers)) goto Done;
 			continue;

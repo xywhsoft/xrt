@@ -32,6 +32,7 @@ typedef xmqttserverpermission (*xmqttserverauthorizetopic)(xmqttversion Version,
 
 typedef struct xmqttserverconfig {
 	size_t Size, MaxConnections, MaxClientIdBytes;
+	size_t MaxPersistentSessions; /* Zero disables session retention across disconnect. */
 	size_t MaxSubscriptions, MaxSubscriptionsPerConnection, MaxSubscribersPerTopic, MaxTopicBytes;
 	size_t MaxWildcardNodes; /* Zero disables wildcard subscriptions. */
 	size_t MaxRetainedTopics, MaxRetainedBytes; /* Either zero disables retention. */
@@ -51,6 +52,7 @@ typedef struct xmqttserverconfig {
 
 typedef struct xmqttserverinfo {
 	size_t Connections, Established, Subscriptions, WildcardNodes;
+	size_t PersistentSessions, OfflineSessions;
 	union { size_t IncomingPublishes, IncomingQos1; };
 	union { size_t OutgoingPublishes, OutgoingQos1; };
 	union { size_t OutgoingPublishBytes, OutgoingQos1Bytes; };
@@ -65,6 +67,7 @@ typedef struct xmqttserverinfo {
 
 /* Defaults: 1024 connections, 256-byte IDs, 5 s CONNECT deadline, 16 KiB
  * wire cap, max 64 properties and 128 filters per request. MQTT 5.0 only.
+ * Up to 1024 persistent sessions, held in memory across TCP connections.
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
  * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
  * Wildcard filters have at most 128 levels. Retention defaults to 4096

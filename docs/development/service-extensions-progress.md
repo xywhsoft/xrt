@@ -16650,3 +16650,60 @@ loopback behavior for this source snapshot. Reconnect session restoration,
 offline delivery, controlled performance comparisons, native Linux and 72-hour
 mixed-load validation remain open. The evidence is in
 out/service-extensions/scope-reduction-20261119/xmqtt-session-boundary-*.
+
+## 2026-11-19 MQTT server in-memory session resume
+
+MQTT 5 Session Expiry and MQTT 3.1.1 Clean Session now control retained
+session lifetime. The broker keeps subscriptions, inbound QoS 2 duplicate
+identifiers, the outbound sent order and pending queues across disconnect.
+`MaxPersistentSessions` caps retained session count. Outgoing count and wire
+byte budgets cover offline queues and continuing exchanges. Offline ordinary
+subscriptions admit QoS 1/2. Shared selection uses online members. Resource
+exhaustion seals the affected session. Expiry and shutdown release retained
+subscriptions, send records and the scheduler callback.
+
+After the old native owner retires, CONNACK reports Session Present. Replay
+uses original packet identifiers and DUP for PUBLISH. An exchange waiting for
+PUBCOMP resumes with PUBREL. The new Receive Maximum applies to replayed
+PUBLISH packets. New offline deliveries follow the previous exchanges and
+expired unsent records are discarded. A same-ID resume request while the old
+TCP owner is still present receives Server Busy. Resume currently requires the
+same protocol version.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5-only and dual modular and single
+builds, listener examples, independent Python peers, static and shared
+consumers, dependency trims and unwanted-symbol probes. The socket suite
+covers QoS 1 and both QoS 2 outbound phases, inbound QoS 2 deduplication, a
+smaller reconnect window, offline ordering and expiry, offline quota
+termination, Session Present, legacy Clean Session and a live resume refusal.
+WSL ASan/UBSan with leak checking and full single-header TSan passed. The
+codec-only text size stayed fixed. The server single object added 3,992 text
+bytes on Windows and 5,262 on WSL. Strict release still rejects the developing
+modules.
+
+The resume profile uses two broker workers and 128-byte QoS 1 messages. In
+each round the subscribers disconnect, the broker queues a publication, and
+the subscribers reconnect serially. Each reader verifies Session Present and
+the packet before sending PUBACK. Delivery latency starts before that round's
+publish and includes the preceding subscriber reconnects in the same round.
+The throughput timer also includes disconnect and offline-state confirmation.
+Each run sends 1,000 publications for one subscriber or 64 publications for
+64 subscribers. The live QoS 0 comparison uses 10,000 and 512 publications
+respectively. The following numbers are medians of three unpinned runs.
+
+| Host | Path | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | Live QoS 0 | 1 | 35,720 | 46.7 | 70.0 | 2.0001 |
+| Windows x64 | Live QoS 0 | 64 | 191,043 | 554.2 | 636.0 | 1.0202 |
+| Windows x64 | Resume QoS 1 | 1 | 2,114 | 369.7 | 534.0 | 10.0040 |
+| Windows x64 | Resume QoS 1 | 64 | 4,953 | 12127.6 | 13025.7 | 8.0444 |
+| Ubuntu/WSL x64 | Live QoS 0 | 1 | 12,591 | 109.9 | 274.7 | 3.0000 |
+| Ubuntu/WSL x64 | Live QoS 0 | 64 | 149,908 | 564.1 | 693.9 | 1.0321 |
+| Ubuntu/WSL x64 | Resume QoS 1 | 1 | 4,423 | 241.7 | 299.6 | 13.1120 |
+| Ubuntu/WSL x64 | Resume QoS 1 | 64 | 7,075 | 8113.2 | 8750.7 | 11.0518 |
+
+All workloads completed and retired their credits. Both variation checks
+returned exit 1 with 18 violations on Windows and 13 on WSL. Live persistent
+handoff, process restart recovery, controlled comparison, native Linux and the
+72-hour gate remain open. Raw evidence is in
+out/service-extensions/scope-reduction-20261119/xmqtt-persistent-*.
