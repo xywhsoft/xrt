@@ -291,6 +291,36 @@ def check_session_resume(endpoint, publisher, level):
             assert read(successor, 2) == b"\xd0\0"
 
 
+
+def check_will(endpoint, subscriber, level):
+    name, payload = b"will/peer", b"offline\0"
+    subscriber.sendall(small_frame(0x82, b"\0\x61\0" + topic(name) + b"\0"))
+    assert read(subscriber, 6) == b"\x90\x04\0\x61\0\0"
+    for graceful in (True, False):
+        delay = 1 if level == 5 else 0
+        connect_properties = b"\x05\x11\0\0\0\x03" if level == 5 else b""
+        will_properties = b"\x05\x18\0\0\0" + bytes((delay,)) if level == 5 else b""
+        body = b"\0\4MQTT" + bytes((level, 6, 0, 0)) + connect_properties
+        body += topic(b"will-peer") + will_properties + topic(name) + topic(payload)
+        with socket.create_connection(endpoint, timeout=5) as peer:
+            peer.sendall(small_frame(0x10, body))
+            header = read(peer, 2)
+            assert header[0] == 0x20 and read(peer, header[1])[:2] == b"\0\0"
+            start = time.monotonic()
+            if graceful:
+                peer.sendall(b"\xe0\0")
+            else:
+                peer.shutdown(socket.SHUT_WR)
+            eof(peer)
+        if graceful:
+            subscriber.sendall(b"\xc0\0")
+            assert read(subscriber, 2) == b"\xd0\0", "graceful DISCONNECT suppresses the Will"
+        else:
+            expected = small_frame(0x30, topic(name) + b"\0" + payload)
+            assert read(subscriber, len(expected)) == expected, "independent Will publication"
+            assert time.monotonic() - start >= delay - 0.1, "Will Delay must elapse"
+
+
 def probe(program):
     with subprocess.Popen(
         [str(program.resolve()), "wait"],
@@ -321,6 +351,8 @@ def probe(program):
                         check_qos2(legacy, newer)
                         check_session_resume(endpoint, newer, 5)
                         check_session_resume(endpoint, newer, 4)
+                        check_will(endpoint, newer, 5)
+                        check_will(endpoint, newer, 4)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -331,7 +363,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -342,7 +374,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2 and persistent resume")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2, persistent resume and Wills")
 
 
 if __name__ == "__main__":

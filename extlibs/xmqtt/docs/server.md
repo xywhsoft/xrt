@@ -12,8 +12,8 @@ Client ID, keep alive, and QoS 0 routing for exact, wildcard and shared
 subscriptions. The APP can inspect borrowed CONNECT credentials and authorize individual publishes
 and subscriptions in worker-local callbacks. The default policy is anonymous.
 Run the example on loopback and install application policy before enabling
-external access. A peer supplies a nonempty Client ID and a connection-scoped
-session.
+external access. A peer supplies a nonempty Client ID and chooses session
+lifetime in CONNECT.
 
 SUBACK and MQTT 5 UNSUBACK return results in packet order. Repeat SUBSCRIBE
 replaces that connection's options without consuming another slot. Exact
@@ -121,8 +121,25 @@ and pending PUBREL phase across reconnect.
 Offline admission exhaustion ends that session and increments
 `OutgoingPublishOverloads`. Server shutdown releases in-memory state and drains
 its expiry callback. In-process resume covers orderly and abrupt TCP closure
-and live takeover. Durable restart recovery, Wills, enhanced authentication,
-TLS and WebSocket are in development.
+and live takeover.
+
+The broker copies an authorized CONNECT Will into its own storage. Topic
+authorization runs during admission. `MaxWillBytes` counts the canonical
+publication, publisher identity and control record while the Will is live or
+delayed. A zero limit disables admission, and exhausting the budget returns
+MQTT 5 CONNACK 0x97. `WillBytes` reports currently charged storage.
+
+A normal client DISCONNECT suppresses the Will. Closure without that
+notification, or MQTT 5 DISCONNECT 0x04, makes the Will eligible for
+publication. MQTT 5 waits until Will Delay or session expiry, whichever
+comes first. Early session resume cancels the previous Will. A Clean Start
+replacement ends the old session and releases its Will for publication.
+MQTT 3.1.1 has no Will Delay. Will publication uses the regular routing,
+retention and QoS paths. Message Expiry starts at publication and Will Delay
+is consumed by the broker. Delayed Wills share the session expiry sweep.
+Pending Wills are volatile and are released on broker shutdown. Durable
+restart recovery, enhanced authentication, TLS and WebSocket are in
+development.
 
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS
@@ -158,7 +175,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1,xmqtt_server_outbound_qos1,xmqtt_server_outbound_qos2,xmqtt_server_session_resume,xmqtt_server_live_takeover
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1,xmqtt_server_outbound_qos1,xmqtt_server_outbound_qos2,xmqtt_server_session_resume,xmqtt_server_live_takeover,xmqtt_server_will
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -185,6 +202,9 @@ profile leaves a QoS 1 delivery unacknowledged on each old connection. It
 measures the successor's connect through the verified duplicate PUBLISH
 after Session Present, checks DISCONNECT 0x8E and EOF on the old socket, and
 acknowledges the replay. The throughput measurement includes original delivery
-and retransmission.
+and retransmission. The Will benchmark registers a 128-byte binary payload
+on each new publisher connection and verifies all subscribers receive it
+after DISCONNECT 0x04. Throughput includes registration. Delivery latency
+starts at DISCONNECT.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).

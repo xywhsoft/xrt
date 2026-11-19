@@ -27,6 +27,17 @@ static bool benchReceive(xnetsocket Socket, unsigned char* Data, size_t Size)
 	return true;
 }
 
+static bool benchConnectFrame(xnetsocket Socket, const xnetaddr* Address,
+	const unsigned char* Frame, size_t Size, bool Resume)
+{
+	unsigned char Reply[48];
+	return xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) &&
+		xrtNetSocketConnect(Socket, Address) == XNET_RESULT_OK &&
+		benchSend(Socket, Frame, Size) && benchReceive(Socket, Reply, 2) &&
+		Reply[0] == 0x20 && Reply[1] >= 3 && Reply[1] <= sizeof(Reply) - 2 &&
+		benchReceive(Socket, Reply + 2, Reply[1]) && Reply[2] == Resume && !Reply[3];
+}
+
 static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window,
 	bool Persistent, bool Resume)
 {
@@ -53,12 +64,7 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		Frame[--Pos] = '0' + (unsigned char)(Index % 10u);
 		Index /= 10u;
 	}
-	unsigned char Reply[48];
-	return xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) &&
-		xrtNetSocketConnect(Socket, Address) == XNET_RESULT_OK &&
-		benchSend(Socket, Frame, Size) && benchReceive(Socket, Reply, 2) &&
-		Reply[0] == 0x20 && Reply[1] >= 3 && Reply[1] <= sizeof(Reply) - 2 &&
-		benchReceive(Socket, Reply + 2, Reply[1]) && Reply[2] == Resume && !Reply[3];
+	return benchConnectFrame(Socket, Address, Frame, Size, Resume);
 }
 
 static const unsigned char ExactSubscribe[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
@@ -239,6 +245,34 @@ static bool benchLiveTakeoverRound(serverexample* Example, xnetsocket* Sockets, 
 	return true;
 }
 
+static bool benchWillRound(const serverexample* Example, const xnetsocket* Sockets, size_t Peers,
+	size_t Round, double* Samples)
+{
+	unsigned char Expected[138] = {0x30,0x87,1,0,4,'l','o','a','d',0};
+	Expected[sizeof(Expected) - 2] = (uint8)(Round >> 8);
+	Expected[sizeof(Expected) - 1] = (uint8)Round;
+	unsigned char Connect[157] = {0x10,0x9a,1,0,4,'M','Q','T','T',5,6,0,0,0,
+		0,4,'w','i','l','l',0,0,4,'l','o','a','d',0,128};
+	memcpy(Connect + sizeof(Connect) - 128, Expected + sizeof(Expected) - 128, 128);
+	xnetsocket Publisher = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+	if (!Publisher) return false;
+	bool Ready = benchConnectFrame(Publisher, &Example->Address, Connect, sizeof(Connect), false);
+	const unsigned char Disconnect[] = {0xe0,1,0x04};
+	unsigned char Reply[sizeof(Expected)];
+	size_t Read;
+	double SentAt = xrtTimer();
+	Ready = Ready && benchSend(Publisher, Disconnect, sizeof(Disconnect)) &&
+		xrtNetSocketRecv(Publisher, Reply, 1, &Read) == XNET_RESULT_CLOSED;
+	xrtNetSocketClose(Publisher);
+	if (!Ready) return false;
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		size_t Index = (Round + Offset) % Peers;
+		if (!benchReceive(Sockets[Index], Reply, sizeof(Reply)) || memcmp(Reply, Expected, sizeof(Reply))) return false;
+		Samples[Offset] = xrtTimer() - SentAt;
+	}
+	return true;
+}
+
 static int benchOrder(const void* Left, const void* Right)
 {
 	double A = *(const double*)Left, B = *(const double*)Right;
@@ -262,12 +296,13 @@ int main(int Argc, char** Argv)
 	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
 	bool Replay = Argc > 4 && !strcmp(Argv[4], "retained");
 	bool Takeover = Argc > 4 && !strcmp(Argv[4], "takeover");
+	bool Will = Argc > 4 && !strcmp(Argv[4], "will");
 	bool Persistent = Takeover || (Argc > 4 && !strcmp(Argv[4], "resume"));
 	bool Qos2 = Argc > 4 && !strcmp(Argv[4], "outbound2");
 	bool Outgoing = Persistent || Qos2 || (Argc > 4 && !strcmp(Argv[4], "outbound1"));
 	uint8 Qos = Qos2 ? 2 : (Outgoing || (Argc > 4 && !strcmp(Argv[4], "inbound1")));
-	bool Routing = Qos || Replay || Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
-	const size_t Connections = Peers + Routing, Deliveries = Shared ? 1 : Peers;
+	bool Routing = Qos || Replay || Shared || Overlap || Will || (Argc > 4 && !strcmp(Argv[4], "route"));
+	const size_t Connections = Peers + (Routing && !Will), Deliveries = Shared ? 1 : Peers;
 	const size_t Count = Deliveries * Rounds;
 	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
 	double* ConnectSamples = malloc(Connections * sizeof(*ConnectSamples));
@@ -280,7 +315,7 @@ int main(int Argc, char** Argv)
 
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
-	Config.MaxConnections = Connections + Takeover;
+	Config.MaxConnections = Connections + (Will ? 2u : (size_t)Takeover);
 	if (Persistent) Config.MaxPersistentSessions = Peers;
 	if (Routing) Config.MaxSubscribersPerTopic = Peers;
 	Stage = "start listener";
@@ -316,6 +351,11 @@ int main(int Argc, char** Argv)
 	xrtMemStatsGet(&Before);
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
+		if (Will) {
+			Stage = "close publisher and verify its Will";
+			if (!benchWillRound(&Example, Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
+			continue;
+		}
 		if (Takeover) {
 			Stage = "verify the persistent takeover exchange";
 			if (!benchLiveTakeoverRound(&Example, Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
@@ -370,8 +410,17 @@ int main(int Argc, char** Argv)
 		const unsigned char Ping[] = {0xc0,0};
 		unsigned char Pong[2];
 		xmqttserverinfo Info;
-		if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
-			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count * (Takeover ? 2u : 1u) || Info.DroppedDeliveries ||
+		Stage = "verify publisher and delivery totals";
+		if (Will) {
+			double Deadline = xrtTimer() + 5.0;
+			do {
+				if (!xmqttServerInfo(Example.Server, &Info) || xrtTimer() >= Deadline) goto Done;
+				if (Info.Connections == Peers && !Info.WillBytes) break;
+				xrtSleep(1);
+			} while (true);
+		} else if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
+			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info)) goto Done;
+		if (Info.Forwarded != Count * (Takeover ? 2u : 1u) || Info.DroppedDeliveries ||
 			Info.Subscriptions != Peers * (Overlap ? 2u : 1u) || Info.RetainedTopics != (size_t)Replay) goto Done;
 	}
 	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\n",

@@ -48,6 +48,7 @@ typedef struct xmqttserverconfig {
 	xmqttserverauthorize Authorize;
 	xmqttserverauthorizetopic AuthorizeTopic;
 	ptr User;
+	size_t MaxWillBytes; /* Aggregate stored Will memory. Zero disables Will admission. */
 } xmqttserverconfig;
 
 typedef struct xmqttserverinfo {
@@ -63,6 +64,7 @@ typedef struct xmqttserverinfo {
 	uint64 Forwarded, DroppedDeliveries, RejectedPublications, DroppedRetained;
 	union { uint64 OutgoingPublishOverloads, OutgoingQos1Overloads; };
 	bool Closing;
+	size_t WillBytes; /* Live and delayed Will storage including control records and Client IDs. */
 } xmqttserverinfo;
 
 /* Defaults: 1024 connections, 256-byte IDs, 5 s CONNECT deadline, 16 KiB
@@ -71,7 +73,8 @@ typedef struct xmqttserverinfo {
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
  * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
  * Wildcard filters have at most 128 levels. Retention defaults to 4096
- * topics and 16 MiB for wire data and publisher IDs. Inbound QoS 1/2 defaults
+ * topics and 16 MiB for wire data and publisher IDs. Wills have a separate
+ * 16 MiB storage budget. Inbound QoS 1/2 defaults
  * to 64 outstanding publications per connection and 65536 per server.
  * Outbound QoS 1/2 defaults to 256 deliveries per connection, 16384 per server
  * and 64 MiB of charged wire bytes. Authorizers default to anonymous access.

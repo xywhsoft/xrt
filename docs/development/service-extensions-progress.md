@@ -16791,3 +16791,60 @@ out/service-extensions/scope-reduction-20261119/xmqtt-clean-takeover-*.
 
 Will publication and cancellation, durable recovery, transport variants and
 the native Linux and long-duration performance gates remain open.
+
+## 2026-11-19 MQTT server in-memory Wills
+
+The broker admits version 5 and 3.1.1 Wills through CONNECT and topic
+authorization. It owns a canonical PUBLISH and the Client ID in one
+allocation. MaxWillBytes defaults to 16 MiB and limits live and detached
+records. WillBytes exposes the charge. MQTT 5 refuses quota excess with
+0x97 and allocation failure with 0x88. A refused or unaccepted CONNECT
+does not arm its Will.
+
+Normal DISCONNECT disarms the record. Network closure and MQTT 5 reason
+0x04 release it after the earlier of Will Delay and Session Expiry.
+An eligible resume cancels a still-pending Will, and Clean Start ends
+the old session and publishes its pending Will. The expiry sweep and
+old-transport retirement each detach the owned records before routing
+outside the registry lock. Publication reuses the broker's existing
+routing, retention and offline QoS path. Message Expiry starts when the
+Will becomes a publication. Shutdown releases pending volatile Wills.
+The configuration and information structures each gained one field.
+
+The socket suite covers clean and abnormal closure, 0x04, Will Delay,
+earlier session expiry, duration of Message Expiry, live and offline
+resume, Clean Start against live and offline state, retained QoS 1,
+offline QoS 1, topic admission, OOM and storage quota. The separate Python
+peer verifies normal suppression and abnormal publication for MQTT 5 and
+3.1.1 over the native listener. Both hosts passed MQTT 5-only and dual-version
+modular and single-header builds and static and shared package consumers.
+The first ASan single-header run exposed a test assumption about the order
+in which two accept callbacks were registered. The fixture now completes
+the publisher's CONNECT before dialing the old session. The final WSL
+ASan/UBSan and single-header TSan runs passed. Generated headers and API
+checks passed. The codec-only text size stayed fixed. Compared with
+60e20e07, the MQTT 5 broker single object added 1,960 text bytes on Windows
+and 2,747 on WSL across the Clean Start and Will changes.
+
+The performance profile registers a 128-byte Will on a fresh MQTT 5
+connection in each round and sends DISCONNECT 0x04. Every receiver verifies
+its complete payload. Throughput includes the publisher CONNECT and
+registration. Latency starts before the closing DISCONNECT. Two broker
+workers serve one or 64 subscribers with 1,000 or 64 rounds respectively.
+
+| Host | Subscribers | Will deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 3,996 | 95.5 | 136.7 | 10.0070 |
+| Windows x64 | 64 | 106,259 | 739.6 | 767.0 | 1.1802 |
+| Ubuntu/WSL x64 | 1 | 5,719 | 137.7 | 201.9 | 12.0030 |
+| Ubuntu/WSL x64 | 64 | 116,708 | 524.4 | 606.5 | 1.1855 |
+
+All three unpinned runs per configuration completed. Both hosts used the
+same source and benchmark fingerprints. The Will profile recorded nine
+variation violations on Windows and five on WSL. The combined Will,
+exact routing and persistent takeover run recorded 19 on Windows and 10
+on WSL. These are observations for this snapshot. Durable restart recovery,
+timer-capacity fault injection, transport and authentication variants,
+native Linux and the controlled and 72-hour performance gates remain open.
+Strict release still reports 37 developing modules. Raw results are under
+out/service-extensions/scope-reduction-20261119/xmqtt-wills-*.

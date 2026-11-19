@@ -144,7 +144,7 @@ static void serverStop(serverfixture* Fixture)
 	xmqttserverinfo Info;
 	testRequire(xmqttServerInfo(Fixture->Server, &Info) && Info.Closing &&
 		!Info.Connections && !Info.Established && !Info.Subscriptions && !Info.WildcardNodes &&
-		!Info.IncomingQos1 && !Info.OutgoingQos1 && !Info.OutgoingQos1Bytes && !Info.OfflineSessions && !Info.PersistentSessions,
+		!Info.IncomingQos1 && !Info.OutgoingQos1 && !Info.OutgoingQos1Bytes && !Info.OfflineSessions && !Info.PersistentSessions && !Info.WillBytes,
 		"all server identities, connections and subscriptions drained");
 	testRequire(xmqttServerDestroy(Fixture->Server), "destroy MQTT broker");
 	xrtNetListenerDestroy(Fixture->Listener);
@@ -1170,6 +1170,149 @@ static void serverWaitSessions(serverfixture* Fixture, size_t Persistent, size_t
 	}
 }
 
+static void serverWillConnect(xnetsocket Socket, xmqttversion Version, const char Id[4],
+	const char Name[4], uint32 Expiry, uint8 Delay, uint8 Qos, bool Retain, uint8 Reason)
+{
+	unsigned char Wire[64];
+	size_t Pos = serverPersistentWire(Wire, Version, Id, true, Expiry, 1);
+	Wire[9] |= 4 | (Qos << 3) | (Retain ? 32 : 0);
+	if (Version == XMQTT_VERSION_5) {
+		const bool MessageExpiry = Delay == 1;
+		const unsigned char Props[] = {MessageExpiry ? 10 : 5,24,0,0,0,Delay,2,0,0,0,5};
+		size_t Bytes = Props[0] + 1u;
+		memcpy(Wire + Pos, Props, Bytes);
+		Pos += Bytes;
+	}
+	const unsigned char Body[] = {0,4,0,0,0,0,0,4,'g','o','n','e'};
+	memcpy(Wire + Pos, Body, sizeof(Body));
+	memcpy(Wire + Pos + 2, Name, 4);
+	Pos += sizeof(Body);
+	Wire[1] = (uint8)(Pos - 2);
+	serverSend(Socket, Wire, Pos);
+	serverConnackState(Socket, Version, Reason, false, true, true, 64);
+}
+
+static void serverWaitWills(serverfixture* Fixture, bool Present)
+{
+	double Until = xrtTimer() + 5.0;
+	for (;;) {
+		xmqttserverinfo Info;
+		testRequire(xmqttServerInfo(Fixture->Server, &Info), "Will budget counters");
+		if ((Info.WillBytes != 0) == Present) return;
+		testRequire(xrtTimer() < Until, "Will storage reaches the expected state");
+		xrtSleep(1);
+	}
+}
+
+static void serverWillFlows(xmqttversion Origin)
+{
+	serverfixture Fixture;
+	const xmqttversion Target = XMQTT_VERSION_5;
+	serverStartConfigured(&Fixture, Origin == XMQTT_VERSION_311, 0, true, 65536);
+	xnetsocket Observer = serverDial(&Fixture), Publisher = serverDial(&Fixture);
+	serverQos1Connect(Observer, Target, "sink");
+	const char* Topic[] = {"last"};
+	const uint8 One[] = {1};
+	serverSubscribeWire(Observer, Target, true, 1, Topic, One, One, 1);
+	serverWillConnect(Publisher, Origin, "gone", "last", 0, 0, 1, true, 0);
+	serverWaitWills(&Fixture, true);
+	xrtNetSocketClose(Publisher);
+	serverExpectQos1(Observer, Target, "last", "gone", 1, 0, NULL, 0);
+	serverAckDelivery(Observer, Target, 1, 0);
+	serverWaitWills(&Fixture, false);
+	serverSubscribeWire(Observer, Target, true, 2, Topic, One, One, 1);
+	serverExpectQos1(Observer, Target, "last", "gone", 2, XMQTT_PUBLISH_RETAIN, NULL, 0);
+	serverAckDelivery(Observer, Target, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverConnections(&Fixture, 1);
+
+	Publisher = serverDial(&Fixture);
+	serverWillConnect(Publisher, Origin, "gone", "last", 0, 0, 0, false, 0);
+	serverSend(Publisher, (const unsigned char[]){0xe0,0}, 2);
+	serverEof(Publisher);
+	serverWaitWills(&Fixture, false);
+	serverPingPeer(Observer);
+
+	if (Origin == XMQTT_VERSION_5) {
+		serverConnections(&Fixture, 1);
+		Publisher = serverDial(&Fixture);
+		serverWillConnect(Publisher, Origin, "gone", "busy", 0, 0, 0, false, 0x97);
+		serverEof(Publisher);
+		serverWaitWills(&Fixture, false);
+		serverConnections(&Fixture, 1);
+		Publisher = serverDial(&Fixture);
+		serverWillConnect(Publisher, Origin, "gone", "last", 0, 30, 0, false, 0);
+		serverSend(Publisher, (const unsigned char[]){0xe0,1,0x04}, 3);
+		serverEof(Publisher);
+		serverExpectPublish(Observer, Target, "last", (cbytes)"gone", 4, NULL, 0);
+		serverWaitWills(&Fixture, false);
+
+		for (unsigned Case = 0; Case < 2; ++Case) {
+			serverConnections(&Fixture, 1);
+			Publisher = serverDial(&Fixture);
+			/* Run one Will Delay deadline and one earlier Session Expiry deadline. */
+			serverWillConnect(Publisher, Origin, "gone", "last", Case ? 1 : 60, Case ? 60 : 1, 0, false, 0);
+			double Start = xrtTimer();
+			xrtNetSocketClose(Publisher);
+			serverWaitSessions(&Fixture, 1, 1);
+			serverWaitWills(&Fixture, true);
+			const unsigned char ExpiryProperty[] = {2,0,0,0,5};
+			serverExpectPublish(Observer, Target, "last", (cbytes)"gone", 4,
+				Case ? NULL : ExpiryProperty, Case ? 0 : sizeof(ExpiryProperty));
+			testRequire(xrtTimer() >= Start + 0.9, "a delayed Will cannot publish before its first deadline");
+			serverWaitWills(&Fixture, false);
+			Publisher = serverDial(&Fixture);
+			serverPersistentConnect(Publisher, Origin, "gone", true, 0, 1, false, 0);
+			xrtNetSocketClose(Publisher);
+		}
+
+		for (unsigned Case = 0; Case < 4; ++Case) {
+			bool Live = (Case & 1u) != 0, Clean = (Case & 2u) != 0;
+			serverConnections(&Fixture, 1);
+			Publisher = serverDial(&Fixture);
+			serverWillConnect(Publisher, Origin, "gone", "last", 60, 60, 0, false, 0);
+			if (!Live) {
+				xrtNetSocketClose(Publisher);
+				serverWaitSessions(&Fixture, 1, 1);
+			}
+			xnetsocket Successor = serverDial(&Fixture);
+			serverPersistentConnect(Successor, Origin, "gone", Clean, 0, 1, !Clean, 0);
+			if (Live) serverTakenOver(Publisher);
+			serverWaitWills(&Fixture, false);
+			if (Clean) serverExpectPublish(Observer, Target, "last", (cbytes)"gone", 4, NULL, 0);
+			serverPingPeer(Observer);
+			xrtNetSocketClose(Successor);
+		}
+	}
+	xrtNetSocketClose(Observer);
+	serverConnections(&Fixture, 0);
+	Observer = serverDial(&Fixture);
+	serverPersistentConnect(Observer, Target, "sink", true, 60, 1, false, 0);
+	const char* OfflineTopic[] = {"miss"};
+	serverSubscribeWire(Observer, Target, true, 1, OfflineTopic, One, One, 1);
+	xrtNetSocketClose(Observer);
+	serverWaitSessions(&Fixture, 1, 1);
+	serverConnections(&Fixture, 0);
+
+	Publisher = serverDial(&Fixture);
+	serverWillConnect(Publisher, Origin, "gone", "miss", 0, 0, 1, false, 0);
+	xrtNetSocketClose(Publisher);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	serverWaitWills(&Fixture, false);
+	Observer = serverDial(&Fixture);
+	serverPersistentConnect(Observer, Target, "sink", false, 0, 1, true, 0);
+	serverExpectQos1(Observer, Target, "miss", "gone", 1, 0, NULL, 0);
+	serverAckDelivery(Observer, Target, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+
+	Publisher = serverDial(&Fixture);
+	serverWillConnect(Publisher, Origin, "gone", "miss", 0, 0, 0, false, 0);
+	serverWaitWills(&Fixture, true);
+	serverStop(&Fixture);
+	serverEof(Observer);
+	serverEof(Publisher);
+}
+
 static void serverPersistentFlows(void)
 {
 	serverfixture Fixture;
@@ -1726,8 +1869,9 @@ static void serverTakeoverRoutes(bool Cancel)
 	serverfixture Fixture;
 	serverStartConfigured(&Fixture, false, 0, true, 65536);
 	const xmqttversion Version = XMQTT_VERSION_5;
-	xnetsocket Publisher = serverDial(&Fixture), Old = serverDial(&Fixture);
+	xnetsocket Publisher = serverDial(&Fixture);
 	serverQos1Connect(Publisher, Version, "prod");
+	xnetsocket Old = serverDial(&Fixture);
 	serverQos1Connect(Old, Version, "same");
 	const char* Filters[] = {"gone/#", "$share/team/gone/x"};
 	const uint8 Grants[] = {1,1};
@@ -1906,6 +2050,31 @@ static void serverLiveHandoff(bool Cancel)
 	serverStop(&Fixture);
 }
 
+static void serverWillOom(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	xmqttserverpeer Peer = {.Server = Fixture.Server, .Version = XMQTT_VERSION_5};
+	xmqttconnectpacket Connect = {.ClientId = XRT_STR_LITERAL("gone"),
+		.WillTopic = XRT_STR_LITERAL("last"), .WillPayload = XRT_BYTES_LITERAL("gone")};
+	xallocationbudget* Budget;
+	xallocationscope Scope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &Budget) && xrtAllocationBudgetEnter(Budget, &Scope),
+		"Will storage OOM budget");
+	uint8 Reason = xmqttServerPrepareWill(&Peer, &Connect);
+	testRequire(xrtAllocationBudgetLeave(&Scope) && Reason == 0x88 && !Peer.Will,
+		"unaccepted Will allocation failure preserves ownership");
+	xrtClearError();
+	xrtAllocationBudgetFree(Budget);
+	serverWaitWills(&Fixture, false);
+
+	Fixture.Server->Config.MaxWillBytes = 1;
+	testRequire(xmqttServerPrepareWill(&Peer, &Connect) == 0x97 && !Peer.Will,
+		"aggregate Will quota refuses admission and releases no publication");
+	serverWaitWills(&Fixture, false);
+	serverStop(&Fixture);
+}
+
 static void serverOutgoingOom(void)
 {
 	serverfixture Fixture;
@@ -1963,7 +2132,7 @@ static void serverRetainedOomAndExpiry(void)
 		xallocationscope Scope = {0};
 		testRequire(xrtAllocationBudgetCreate(Limits[Index], &Budget) &&
 			xrtAllocationBudgetEnter(Budget, &Scope), "retained failpoint");
-		xmqttServerStoreRetained(&Peer, &Packet, Decoded, 7);
+		xmqttServerStoreRetained(Peer.Server, Peer.Version, Peer.Session->ClientName, &Packet, Decoded, 7);
 		testRequire(xrtAllocationBudgetLeave(&Scope), "leave retained failpoint");
 		xallocationbudgetinfo BudgetInfo = {.Size = sizeof(BudgetInfo)};
 		testRequire(xrtAllocationBudgetInfo(Budget, &BudgetInfo) && BudgetInfo.Rejections &&
@@ -1972,7 +2141,7 @@ static void serverRetainedOomAndExpiry(void)
 		xrtClearError();
 		xrtAllocationBudgetFree(Budget);
 	}
-	xmqttServerStoreRetained(&Peer, &Packet, Decoded, 7);
+	xmqttServerStoreRetained(Peer.Server, Peer.Version, Peer.Session->ClientName, &Packet, Decoded, 7);
 	xbytesview Key = XRT_BYTES_LITERAL("stored");
 	xmqttservershard* Shard = xmqttServerWildcardShard(Fixture.Server, Key);
 	const xmqttserverretained* Entry = xmqttServerFindKey(&Shard->Retained,
@@ -2118,6 +2287,7 @@ int main(void)
 	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2Window();
+	serverWillFlows(XMQTT_VERSION_5);
 	serverPersistentFlows();
 	serverExpiredSession();
 	serverOfflineLimit();
@@ -2131,6 +2301,7 @@ int main(void)
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	serverCompatibility();
 	serverPersistent311();
+	serverWillFlows(XMQTT_VERSION_311);
 	serverRouting(XMQTT_VERSION_311);
 	serverWildcardRoutes(XMQTT_VERSION_311);
 	serverRetainedRoutes(XMQTT_VERSION_5, XMQTT_VERSION_311);
@@ -2145,6 +2316,7 @@ int main(void)
 #if defined(XMQTT_IMPLEMENTATION_ONCE)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
+	serverWillOom();
 	serverOutgoingOom();
 	serverTakeoverRoutes(false);
 	serverTakeoverRoutes(true);
@@ -2159,6 +2331,6 @@ int main(void)
 	xnetsocket Socket = serverDial(&Fixture);
 	serverEof(Socket);
 	serverStop(&Fixture);
-	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained routing, bidirectional QoS 1/2, persistent sessions, quotas, authorization, takeover, deadlines, OOM and retirement");
+	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained routing, bidirectional QoS 1/2, persistent sessions, Wills, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;
 }
