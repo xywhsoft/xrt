@@ -789,7 +789,7 @@ def verify_qos1_transactions(program, directory):
         with persistent(address, source, True) as publisher:
             barrier(publisher)
         with persistent(address, subscriber, True) as recipient:
-            subscribe(recipient, name, 1, 0x21)
+            subscribe(recipient, name, 1, 0x22)
     before = image.read_bytes()
 
     with broker(program, "restore-online", image, "1200", crash=True) as address:
@@ -833,10 +833,13 @@ def verify_qos1_transactions(program, directory):
             observer, _ = connect(address, 5, b"qos1-observer")
             with observer:
                 subscribe(observer, name, 1, 0x20)
+                subscribe(observer, b"$share/qos1-group/" + name, 2, 0x22)
                 publisher.sendall(original + PING)
                 expect_silence(publisher)
                 expect_silence(observer)
                 assert receive(publisher) == success and receive(publisher) == PONG
+                received_id = received_publish(observer, 0x32, name, b"new")
+                observer.sendall(frame(0x40, received_id))
                 assert receive(observer) == (0x30, topic(name) + b"\0new")
     committed = image.read_bytes()
     assert [committed[at] for at, _, _ in session_records(committed)].count(4) == 1

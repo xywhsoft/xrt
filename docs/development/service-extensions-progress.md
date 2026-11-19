@@ -17538,3 +17538,17 @@ modules. Live subscription and expiry updates still rely on controlled
 checkpoints. Native Linux performance and the 72-hour acceptance workloads
 remain open. Process termination tests exercise recovery from a killed
 broker, and power-loss durability depends on the production backend.
+
+## 2026-11-20 MQTT durable QoS negotiation during fan-out
+
+The reservation pass now indexes publications at the lower of source and
+subscription QoS. It uses the same source QoS as frame creation for exact,
+wildcard and shared routing. Reserving a QoS 1 delivery for a QoS 2 subscriber
+now uses the encoded QoS 1 frame.
+
+Windows x64 and Ubuntu/WSL x64 passed the broker and storage suites and the
+checkpoint TCP probe. The probe covers QoS 1 to a QoS 2 offline subscriber,
+a QoS 2 online shared subscriber, and a separate best-effort delivery.
+The reliable reservation OOM test uses the same QoS downgrade. The complete
+WSL checkpoint probe passed ASan/UBSan with leak checking. Raw results are
+under out/service-extensions/scope-reduction-20261119/xmqtt-qos1-grant/.

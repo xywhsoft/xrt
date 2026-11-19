@@ -19536,11 +19536,12 @@ static xmqttserverlink* xmqttServerRouteNext(xmqttserverrouteiter* Iter)
 }
 
 static bool xmqttServerReserveRouteClass(const xmqttserverrouteiter* Start, const xmqttservertargets* Targets,
-	xmqttserverpublication* const* Frames, bool Reliable, xmqttserverdelivery*** Tail, uint64* Dropped)
+	xmqttserverpublication* const* Frames, unsigned SourceQos, bool Reliable,
+	xmqttserverdelivery*** Tail, uint64* Dropped)
 {
 	xmqttserverrouteiter Iter = *Start;
 	for (xmqttserverlink* Link; (Link = xmqttServerRouteNext(&Iter)) != NULL;) {
-		unsigned Mode = xmqttServerDeliveryMode(Link, Targets->Retain, 2);
+		unsigned Mode = xmqttServerDeliveryMode(Link, Targets->Retain, SourceQos);
 		if ((Mode >= 3) != Reliable) continue;
 		if (!xmqttServerReserveRouteDelivery(Link->Session, Frames[Mode], Tail, Dropped)) {
 			if (Reliable) return false;
@@ -19550,7 +19551,7 @@ static bool xmqttServerReserveRouteClass(const xmqttserverrouteiter* Start, cons
 	for (size_t Index = 0; Index < Targets->ShareCount; ++Index) {
 		xmqttserverlink* Member = Targets->Shares[Index].Member;
 		if (!Member) continue;
-		unsigned Mode = xmqttServerDeliveryMode(Member, Targets->Retain, 2);
+		unsigned Mode = xmqttServerDeliveryMode(Member, Targets->Retain, SourceQos);
 		if ((Mode >= 3) != Reliable) continue;
 		if (!xmqttServerReserveRouteDelivery(Member->Session, Frames[Mode], Tail, Dropped)) {
 			if (Reliable) return false;
@@ -19662,14 +19663,14 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 	}
 	if (ReserveReliable) {
 		xmqttserverdelivery** Tail = &Batch;
-		if (!xmqttServerReserveRouteClass(&Start, &Targets, Frames, true, &Tail, &Dropped)) {
+		if (!xmqttServerReserveRouteClass(&Start, &Targets, Frames, SourceQos, true, &Tail, &Dropped)) {
 			Reason = 0x97;
 			Rejected = true;
 			goto Done;
 		}
 		if (Prepared) {
 			/* Keep best-effort publications within the leftover credits. */
-			(void)xmqttServerReserveRouteClass(&Start, &Targets, Frames, false, &Tail, &Dropped);
+			(void)xmqttServerReserveRouteClass(&Start, &Targets, Frames, SourceQos, false, &Tail, &Dropped);
 			goto Done;
 		}
 	}

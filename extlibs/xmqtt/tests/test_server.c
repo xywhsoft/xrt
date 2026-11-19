@@ -2324,13 +2324,13 @@ static void serverPreparedDeliveryLifetime(void)
 	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverdelivery) + Frame->IdOffset + 2, &Budget) &&
 		xrtAllocationBudgetEnter(Budget, &Scope), "one reliable delivery fits");
 	xrtMutexLock(&Fixture.Server->Gate);
-	xmqttserverlink Reliable = {.Session = First, .Options = 1};
+	xmqttserverlink Reliable = {.Session = First, .Options = 2};
 	xmqttserverlink Optional = {.Session = Fixture.Server->Peers->Session, .Next = &Reliable};
 	xmqttserverrouteiter Start = {.Link = &Optional};
 	xmqttservertargets Targets = {0};
 	xmqttserverpublication* Frames[9] = {[1] = BestEffort, [4] = Frame};
-	testRequire(xmqttServerReserveRouteClass(&Start, &Targets, Frames, true, &Tail, &Dropped) &&
-		xmqttServerReserveRouteClass(&Start, &Targets, Frames, false, &Tail, &Dropped) &&
+	testRequire(xmqttServerReserveRouteClass(&Start, &Targets, Frames, 1, true, &Tail, &Dropped) &&
+		xmqttServerReserveRouteClass(&Start, &Targets, Frames, 1, false, &Tail, &Dropped) &&
 		Batch && Batch->Session == First && !Batch->Next && Dropped == 1,
 		"best-effort OOM preserves previously reserved reliable admission");
 	xrtMutexUnlock(&Fixture.Server->Gate);
