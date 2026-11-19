@@ -1,110 +1,55 @@
 #ifndef XRPC_H
 #define XRPC_H
 #include <xrpc/features.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DECODE)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_DECODE"
 #endif
+#include <xrpc/decode.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ENCODE)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ENCODE"
 #endif
+#include <xrpc/encode.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DISPATCH)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_DISPATCH"
 #endif
+#include <xrpc/dispatch.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_METHODS)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_METHODS"
 #endif
+#include <xrpc/methods.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ID)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ID"
 #endif
-#include <xrpc/decode.h>
-#include <xrpc/encode.h>
-#include <xrpc/dispatch.h>
-#include <xrpc/methods.h>
 #include <xrpc/id.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_PENDING)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_PENDING"
 #endif
 #include <xrpc/pending.h>
-#if defined(XRPC_FEATURE_XRPC) && (!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRPC_FEATURE_XRPC_RECEIVE))
-#error "XRPC_FEATURE_XRPC requires response and receive"
+
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_RESPONSE)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_RESPONSE"
 #endif
 #include <xrpc/response.h>
+
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_RECEIVE)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_RECEIVE"
+#endif
 #include <xrpc/receive.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_CALL)
-#error "XRPC_FEATURE_XRPC requires call"
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_CALL"
 #endif
 #include <xrpc/call.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
-#error "XRPC_FEATURE_XRPC requires http_client"
-#endif
-#include <xrpc/http_client.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_SERVER)
-#error "XRPC_FEATURE_XRPC requires server"
-#endif
-#include <xrpc/server.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
-#error "XRPC_FEATURE_XRPC requires http_server"
-#endif
-#include <xrpc/http_server.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
-#error "XRPC_FEATURE_XRPC requires http_dial"
-#endif
-#include <xrpc/http_dial.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_TLS)
-#error "XRPC_FEATURE_XRPC requires http_tls"
-#endif
-#include <xrpc/http_tls.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
-#error "XRPC_FEATURE_XRPC requires http_server_tls"
-#endif
-#include <xrpc/http_server_tls.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_FRAME)
-#error "XRPC_FEATURE_XRPC requires frame"
-#endif
-#include <xrpc/frame.h>
+
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DUPLEX)
-#error "XRPC_FEATURE_XRPC requires duplex"
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_DUPLEX"
 #endif
 #include <xrpc/duplex.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_STDIO)
-#error "XRPC_FEATURE_XRPC requires stdio"
-#endif
-#include <xrpc/stdio.h>
-#include <xrpc/stdio_process.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP)
-#error "XRPC_FEATURE_XRPC requires tcp"
-#endif
-#include <xrpc/tcp.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TLS)
-#error "XRPC_FEATURE_XRPC requires tls"
-#endif
-#include <xrpc/tls.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP_DIAL)
-#error "XRPC_FEATURE_XRPC requires tcp_dial"
-#endif
-#include <xrpc/tcp_dial.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TLS_DIAL)
-#error "XRPC_FEATURE_XRPC requires tls_dial"
-#endif
-#include <xrpc/tls_dial.h>
 
-#if defined(XRPC_FEATURE_XRPC_WS)
-#include <xrpc/ws.h>
-#endif
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_TLS)
-#error "XRPC_FEATURE_XRPC requires WS HTTP Upgrade"
-#endif
-#include <xrpc/ws_http.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_HTTP_DEFLATE)
-#error "XRPC_FEATURE_XRPC requires optional WS HTTP compression support"
-#endif
-#include <xrpc/ws_deflate.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_DIAL_TLS)
-#error "XRPC_FEATURE_XRPC requires WS/WSS connection setup"
-#endif
-#include <xrpc/ws_dial.h>
-#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_WS_URI_TLS)
-#error "XRPC_FEATURE_XRPC requires WS/WSS URI input"
-#endif
-#include <xrpc/ws_uri.h>
 #endif

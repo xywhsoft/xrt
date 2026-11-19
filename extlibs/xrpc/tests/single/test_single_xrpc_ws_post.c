@@ -1,9 +1,0 @@
-#define XRPC_MODULE_XRPC_WS
-#define XRT_MODULE_MEMORY_STATS
-#define XRT_MODULE_THREAD
-#include <xrpc/features.h>
-#define XRT_IMPLEMENTATION
-#include "../../../../single/xrt.h"
-#define XRPC_IMPLEMENTATION
-#include "../../../../single/extlibs/xrpc.h"
-#include "../test_ws_post.c"

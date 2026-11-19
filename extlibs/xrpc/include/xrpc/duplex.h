@@ -2,35 +2,37 @@
 #define XRPC_DUPLEX_H
 #include <xrpc/call.h>
 #include <xrpc/pending.h>
-#include <xrpc/server.h>
 #include <xrpc/encode.h>
 #if defined(XRPC_FEATURE_XRPC_DUPLEX) && (!defined(XRPC_FEATURE_XRPC_CALL) || \
- !defined(XRPC_FEATURE_XRPC_PENDING) || !defined(XRPC_FEATURE_XRPC_SERVER) || \
+ !defined(XRPC_FEATURE_XRPC_PENDING) || \
  !defined(XRPC_FEATURE_XRPC_ENCODE) || !defined(XRPC_FEATURE_XRPC_RESULT_QUOTA))
-#error "xrpc duplex requires call, pending, server, encode and result quota"
+#error "xrpc duplex requires call, pending, encode and result quota"
 #endif
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
 typedef struct xrpcduplex xrpcduplex;
 typedef struct xrpcduplexoutput xrpcduplexoutput;
-typedef enum xrpcduplexextension {
-    XRPC_DUPLEX_EXTENSION_CANCELLATION=1u,
-    XRPC_DUPLEX_EXTENSION_DEADLINE=2u
-} xrpcduplexextension;
 typedef struct xrpcduplexitem {bool Notify;xstrview Method,Params;} xrpcduplexitem;
+/* Called on the owner after request validation and reservation. Input and
+ * Context are borrowed for this call; copy them before deferring. Document
+ * and Messages are NULL for malformed JSON, which expects a Parse error.
+ * Return false to reject without work; true transfers the job token to the
+ * APP. Reply is driven later by the owner, outside this callback. */
+typedef bool (*xrpcduplexrequesthandler)(uint64 Token, xstrview Input,
+    xbytesview Context, const xrpcdocument* Document, const xrpcmessage* Messages, ptr User);
+
 typedef struct xrpcduplexconfig {
     size_t Size;
-    xrpcserver* Server; /* Borrowed shared executor; alive through Destroy. */
     xrpcencodeconfig Encode;
     xrpcresponseconfig Response;
     size_t MaxOperations,MaxPendingCalls,MaxIncoming,MaxControlBytes,MaxFixedBytes;
     size_t MaxOutputs,MaxOutputBytes,MaxResults,MaxResultBytes,MaxTemporaryBytes;
     size_t MaxWork;
-    int64 IncomingTimeout;
     /* Signal/post ONLY, no waits, business or endpoint reentry. May run on any
-     * submitting/cancelling/executor thread. Context/code live through Destroy;
+     * submitting or cancelling thread. Context/code live through Destroy;
      * an asynchronous posted action needs its own lifetime discipline. */
     void (*Wake)(ptr User);
     ptr User;
+    xrpcduplexrequesthandler OnRequest;
 } xrpcduplexconfig;
 typedef enum xrpcduplexadmission {
     XRPC_DUPLEX_ERROR=-1,XRPC_DUPLEX_ACCEPTED=0,XRPC_DUPLEX_OVERLOADED,
@@ -58,26 +60,10 @@ typedef struct xrpcduplexinfo {
 XRT_EXTERN_C_BEGIN
 /* 128 operations/1024 request IDs/64 incoming jobs; 2 MiB control metadata,
  * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB aggregate concurrent encoding workspace,
- * 16 MiB endpoint/pending fixed storage, 64 owner units/Step, 5000 ms incoming document deadline. No new thread,
- * engine, timer, listener or shared runtime. NULL Server is client-only. */
+ * 16 MiB endpoint/pending fixed storage and 64 owner units per Step. The APP
+ * drives all progress. NULL OnRequest selects a client-only endpoint. */
 XRPC_API bool xrpcDuplexConfigInit(xrpcduplexconfig* Config);
 XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Result);
-/* Opt in on the serialized owner. A server endpoint reserves its bounded
- * cancellation index from MaxFixedBytes. Disabled endpoints keep baseline
- * JSON-RPC behavior. Enable is idempotent and a failed enable changes nothing. */
-XRPC_API bool xrpcDuplexEnableCancellation(xrpcduplex* Duplex);
-/* Owner-only, after Enable. One ordinary rpc.xrt.cancel.v1 call per attempt.
- * A timely successful result of true authorizes outbound cancellation for
- * requests whose first send starts afterward. Unsupported peers give a normal
- * RPC error or false. At most one offer is pending and an agreed capability
- * lasts through this connection. Only ACCEPTED writes the owned Future. */
-XRPC_API xrpcduplexadmission xrpcDuplexNegotiateCancellation(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
-/* Owner-only opt-in for connection-local deadline propagation. A successful
- * rpc.xrt.deadline.v1 reply enables finite admissions after owner processing.
- * The remaining budget is stamped before Next exposes the immutable wire.
- * Enabling and negotiating are independent of cancellation. */
-XRPC_API bool xrpcDuplexEnableDeadline(xrpcduplex* Duplex);
-XRPC_API xrpcduplexadmission xrpcDuplexNegotiateDeadline(xrpcduplex* Duplex,int64 Timeout,xfuture** Future);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
  * lock/validation/encoding. Only counter/range reservation and publication hold
@@ -90,10 +76,8 @@ XRPC_API xrpcduplexadmission xrpcDuplexNegotiateDeadline(xrpcduplex* Duplex,int6
  * Fresh string IDs never repeat in one endpoint.
  * Dropping a Future does not cancel. Use native FutureCancel from any thread.
  * Batch has 1..Encode.MaxMessages items; notification indices are SIZE_MAX.
- * Success Future holds native call/batch result, independent of endpoint/server.
- * No replay. Opted-in, negotiated cancellation abandons a fully sent call or
- * batch when its local Future is cancelled or expires. No wire cancellation
- * is sent for unsent requests, incomplete frames or notifications. */
+ * Success Future holds native call/batch result, independent of the endpoint.
+ * Cancellation and deadlines are local. A sent call can still execute remotely. */
 XRPC_API xrpcduplexadmission xrpcDuplexCall(xrpcduplex* Duplex,xstrview Method,
     xstrview Params,int64 Timeout,xfuture** Future);
 XRPC_API xrpcduplexadmission xrpcDuplexNotify(xrpcduplex* Duplex,xstrview Method,
@@ -105,20 +89,24 @@ XRPC_API xrpcduplexadmission xrpcDuplexBatch(xrpcduplex* Duplex,const xrpcduplex
  * exactly one whole transport message. It validates/classifies the complete
  * document before executing business/correlating any ID. Mixed request/response
  * documents, ambiguous or invalid responses close with PROTOCOL, without
- * partial matching. Malformed JSON/invalid requests go to the shared Server
- * for standard RPC errors. Input/context copied on accepted request admission;
- * response snapshots copy once and retain independently. OVERLOADED has no
- * effects and retains no input: adapter applies bounded retry/backpressure.
+ * partial matching. Malformed JSON/invalid requests go to the APP handler
+ * for standard RPC errors. Request input/context are borrowed during the APP
+ * handler. Outbound result snapshots copy once and retain independently.
+ * OVERLOADED retains no input; the adapter applies bounded backpressure.
  * Ordinary call response shape is object; batch response is one complete array
  * in arbitrary order, omitting notifications. Unknown-only valid responses are
  * ignored/counted; duplicates/extra/missing IDs for a live group are protocol
  * failures. Replies cannot complete unsent or partially sent requests. */
 XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* Duplex,xstrview Input,xbytesview Context);
-/* Drive submitted work, due/cancelled calls, executor completions and closing.
- * Call at NextDeadline and after Wake/input. A partial selected send stopped by
- * deadline/cancel closes the channel: adapter MUST abort the transport. Incoming
- * handlers are cooperatively cancelled; close waits for their Future/Watch tails.
- * Shared Server itself is never closed/cancelled/destroyed by this endpoint. */
+/* Complete an APP request token on the owner. Use the original response shape
+ * and the exact raw IDs in request order, omitting notifications. A job with
+ * no replies completes with an empty span. An accepted nonempty reply is
+ * copied into the ordinary output queue. Error/overload retains the token and
+ * publishes no bytes. Closing invalidates all outstanding APP tokens. */
+XRPC_API xrpcduplexadmission xrpcDuplexReply(xrpcduplex* Duplex, uint64 Token, xstrview Reply);
+/* Drive submitted work, due/cancelled calls and close. Call at NextDeadline
+ * and after Wake or input. A deadline or cancellation during a partial send
+ * closes the endpoint. The APP must then stop the transport. */
 XRPC_API bool xrpcDuplexStep(xrpcduplex* Duplex);
 /* 1 selects an immutable output and transfers one independent reference;
  * 0 empty (outputs unchanged); -1 API/local failure. One selection at a time.
@@ -131,7 +119,7 @@ XRPC_API bool xrpcDuplexStep(xrpcduplex* Duplex);
 XRPC_API int xrpcDuplexNext(xrpcduplex* Duplex,xrpcduplexoutput** Output,uint64* Token);
 XRPC_API bool xrpcDuplexStarted(xrpcduplex* Duplex,uint64 Token);
 XRPC_API bool xrpcDuplexSent(xrpcduplex* Duplex,uint64 Token);
-/* Concurrent immutable output refs; may outlive endpoint/server/transport.
+/* Concurrent immutable output refs; may outlive the endpoint and transport.
  * Wire is borrowed through a holding reference. Physical retained wires continue
  * charging their independent quota. Final release never touches the endpoint. */
 XRPC_API xstrview xrpcDuplexOutputWire(const xrpcduplexoutput* Output);
@@ -141,7 +129,7 @@ XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
  * TIMEOUT/HTTP_ERROR. TIMEOUT also represents an adapter's earlier whole-setup deadline;
  * individual call clocks do not get refreshed. Existing NOT_SENT/uncertain
  * delivery knowledge is preserved. Owner Step drives typed completion and
- * physical incoming work; no forced interruption/rollback. */
+ * retires outstanding APP reply tokens. The APP manages its own work. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
  * not a global atomic snapshot. Closing with only physical pins remaining has

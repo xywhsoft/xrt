@@ -1,49 +1,34 @@
 #include "test.h"
 #include <xrpc/duplex.h>
 #include <xrt/thread.h>
-#include <string.h>
 #include <math.h>
-typedef struct duplexTestContext {xatomic32 Calls,Entered,Permit,Wakes,RemoteStop;uint64 Owner;} duplexTestContext;
-static void duplexTestInit(duplexTestContext* C)
-{memset(C,0,sizeof(*C));xrtAtomic32Init(&C->Calls,0);xrtAtomic32Init(&C->Entered,0);xrtAtomic32Init(&C->Permit,0);xrtAtomic32Init(&C->Wakes,0);xrtAtomic32Init(&C->RemoteStop,0);C->Owner=xrtThreadCurrentId();}
-static void duplexTestWake(ptr Data)
-{duplexTestContext* C=Data;xrtAtomic32FetchAdd(&C->Wakes,1,XMEMORY_RELAXED);}
-static bool duplexTestMethod(const xrpcmessage* R,cstr Name)
-{size_t N=strlen(Name);return R->Method.Raw.Size==N+2 && !memcmp(R->Method.Raw.Data+1,Name,N);}
-static bool duplexTestBusiness(const xrpcmessage* R,xrpcreply* Reply,const xrpcservercontext* Context,ptr Data)
+#include "../examples/duplex/app_dispatch.h"
+
+typedef struct duplexTestContext {xatomic32 Wakes;} duplexTestContext;
+
+static void duplexTestInit(duplexTestContext* Context)
 {
-    duplexTestContext* C=Data;testRequire(xrtThreadCurrentId()!=C->Owner,"duplex business entered I/O owner");
-    xrtAtomic32FetchAdd(&C->Calls,1,XMEMORY_RELAXED);
-    if(duplexTestMethod(R,"hold")){xrtAtomic32Store(&C->Entered,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&C->Permit,XMEMORY_ACQUIRE))xrtSleep(1);}
-    if(duplexTestMethod(R,"remote-hold")){
-        xrtAtomic32Store(&C->Entered,1,XMEMORY_RELEASE);
-        for(;;){
-            if(xrtCancelRequested(Context->Cancel)){
-                xrtAtomic32Store(&C->RemoteStop,1,XMEMORY_RELEASE);
-                return false;
-            }
-            if(xrtAtomic32Load(&C->Permit,XMEMORY_ACQUIRE))break;
-            xrtSleep(1);
-        }
-    }
-    if(duplexTestMethod(R,"deadline-hold")){
-        double End=xrtTimer()+6.;
-        while(xrtTimer()<Context->Deadline){
-            testRequire(xrtTimer()<End,"negotiated handler has a bounded deadline");
-            xrtSleep(1);
-        }
-        xrtAtomic32Store(&C->RemoteStop,1,XMEMORY_RELEASE);
-        return false;
-    }
-    if(duplexTestMethod(R,"context"))testRequire(Context->Data.Size==4 && !memcmp(Context->Data.Data,"data",4),"duplex context was not copied");
-    if(duplexTestMethod(R,"error"))return xrpcReplyError(Reply,XRT_STR_LITERAL("-100"),XRT_STR_LITERAL("error"),(xstrview){0});
-    if(duplexTestMethod(R,"missing"))return false;
-    return xrpcReplyResult(Reply,R->Params.Raw.Size?R->Params.Raw:XRT_STR_LITERAL("true"));
+    xrtAtomic32Init(&Context->Wakes, 0);
 }
-static xrpcserver* duplexTestServer(duplexTestContext* C)
-{xrpcserverconfig K;xrpcServerConfigInit(&K);K.Call=duplexTestBusiness;K.User=C;xrpcserver* S=NULL;testRequire(xrpcServerCreate(&K,&S),"duplex shared server");return S;}
-static xrpcduplex* duplexTestCreate(xrpcserver* S,duplexTestContext* C,xrpcduplexconfig* Config)
-{xrpcduplexconfig K;if(Config)K=*Config;else xrpcDuplexConfigInit(&K);K.Server=S;K.Wake=duplexTestWake;K.User=C;xrpcduplex* D=NULL;testRequire(xrpcDuplexCreate(&K,&D),"duplex create");return D;}
+
+static void duplexTestWake(ptr Data)
+{
+    duplexTestContext* Context = Data;
+    xrtAtomic32FetchAdd(&Context->Wakes, 1, XMEMORY_RELAXED);
+}
+
+static xrpcduplex* duplexTestCreate(duplexTestContext* Context, const xrpcduplexconfig* Config)
+{
+    xrpcduplexconfig K;
+    if (Config) K = *Config;
+    else xrpcDuplexConfigInit(&K);
+    K.Wake = duplexTestWake;
+    K.User = Context;
+    xrpcduplex* D = NULL;
+    testRequire(xrpcDuplexCreate(&K, &D), "duplex create");
+    return D;
+}
+
 static xrpcduplexinfo duplexTestInfo(xrpcduplex* D)
 {xrpcduplexinfo I={0};I.Size=sizeof(I);testRequire(xrpcDuplexInfo(D,&I),"duplex info");return I;}
 static void duplexTestClose(xrpcduplex* D)
@@ -67,40 +52,11 @@ static bool duplexTestPump(xrpcduplex* A,xrpcduplex* B)
     testRequire(xrpcDuplexReceive(B,xrpcDuplexOutputWire(O),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"duplex peer receive");
     xrpcDuplexOutputRelease(O);return true;
 }
-static void duplexTestUntil(xrpcduplex* A,xrpcduplex* B,xfuture** Futures,size_t Count)
-{
-    double End=xrtTimer()+10;
-    for(;;){bool Done=true;for(size_t I=0;I<Count;++I)Done&=xrtFutureDone(Futures[I]);if(Done)return;
-        testRequire(xrpcDuplexStep(A) && xrpcDuplexStep(B),"duplex step");
-        bool Progress=duplexTestPump(A,B);Progress|=duplexTestPump(B,A);testRequire(xrtTimer()<End,"duplex response timeout");if(!Progress)xrtSleep(0);
-    }
-}
-static void testDuplexBidirectional(void)
-{
-    duplexTestContext C;duplexTestInit(&C);xrpcserver* S=duplexTestServer(&C);xrpcduplex* A=duplexTestCreate(S,&C,NULL),*B=duplexTestCreate(S,&C,NULL);
-    xfuture* F[5]={0};char Method[]="echo",Params[]="[1,2,3]";
-    testRequire(xrpcDuplexCall(A,(xstrview){Method,4},(xstrview){Params,7},5000,F)==XRPC_DUPLEX_ACCEPTED &&
-        xrpcDuplexCall(B,XRT_STR_LITERAL("error"),(xstrview){0},5000,F+1)==XRPC_DUPLEX_ACCEPTED &&
-        xrpcDuplexNotify(A,XRT_STR_LITERAL("missing"),(xstrview){0},5000,F+2)==XRPC_DUPLEX_ACCEPTED,"duplex simultaneous admissions");
-    memset(Method,'x',4);memset(Params,'x',7);
-    xrpcduplexitem Batch[]={{false,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[7]")},{true,XRT_STR_LITERAL("echo"),(xstrview){0}},{false,XRT_STR_LITERAL("error"),(xstrview){0}}};
-    testRequire(xrpcDuplexBatch(B,Batch,3,5000,F+3)==XRPC_DUPLEX_ACCEPTED,"duplex batch admit");
-    Batch[0].Notify=true;Batch[2].Notify=true;testRequire(xrpcDuplexBatch(A,Batch,3,5000,F+4)==XRPC_DUPLEX_ACCEPTED,"duplex notification batch");
-    duplexTestUntil(A,B,F,5);
-    const xrpccallresult* R=duplexTestResult(F[0],XRPC_CALL_OK,XRPC_REPLIED);xrpcresponseinfo I={0};I.Size=sizeof(I);
-    testRequire(xrpcResponsesInfo(R->Responses,&I) && I.Messages[R->Index].Result.Raw.Size==7 && !memcmp(I.Messages[R->Index].Result.Raw.Data,"[1,2,3]",7),"duplex copied input/result");
-    duplexTestResult(F[1],XRPC_CALL_REMOTE_ERROR,XRPC_REPLIED);duplexTestResult(F[2],XRPC_CALL_NOTIFY_DONE,XRPC_MAY_HAVE_EXECUTED);
-    const xrpcbatchcallresult* BR=(const xrpcbatchcallresult*)duplexTestResult(F[3],XRPC_CALL_BATCH_DONE,XRPC_REPLIED);
-    testRequire(BR->Count==3 && BR->Indices[0]==0 && BR->Indices[1]==SIZE_MAX && BR->Indices[2]==1,"duplex batch map");
-    duplexTestResult(F[4],XRPC_CALL_NOTIFY_DONE,XRPC_MAY_HAVE_EXECUTED);
-    duplexTestClose(A);duplexTestClose(B);testRequire(xrpcServerDestroy(S),"duplex shared server close");
-    duplexTestResult(F[0],XRPC_CALL_OK,XRPC_REPLIED);for(size_t N=0;N<5;++N)xrtFutureDestroy(F[N]);
-}
 static xrpcduplexoutput* duplexTestSend(xrpcduplex* D,uint64* Token)
 {testRequire(xrpcDuplexStep(D),"duplex send step");xrpcduplexoutput* O=NULL;testRequire(xrpcDuplexNext(D,&O,Token)==1 && xrpcDuplexStarted(D,*Token) && xrpcDuplexSent(D,*Token),"duplex manual send");return O;}
 static void testDuplexStops(void)
 {
-    for(unsigned Mode=0;Mode<5;++Mode){duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);xfuture* F=NULL;uint64 T=0;xrpcduplexoutput* O=NULL;
+    for(unsigned Mode=0;Mode<5;++Mode){duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);xfuture* F=NULL;uint64 T=0;xrpcduplexoutput* O=NULL;
         testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("effect"),(xstrview){0},Mode==0?0:XRT_WAIT_FOREVER,&F)==XRPC_DUPLEX_ACCEPTED,"duplex stop admit");
         if(Mode==1)testRequire(xrtFutureCancel(F),"duplex cancel before send");
         if(Mode>=2){testRequire(xrpcDuplexStep(D) && xrpcDuplexNext(D,&O,&T)==1 && xrpcDuplexStarted(D,T),"duplex partial send");
@@ -122,44 +78,25 @@ static void testDuplexResponseAtomicity(void)
         "[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"method\":\"effect\"}]",
         "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}",
         "[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":2,\"error\":{}}]"};
-    for(size_t K=0;K<sizeof(Bad)/sizeof(Bad[0]);++K){duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);xfuture* F=NULL;
+    for(size_t K=0;K<sizeof(Bad)/sizeof(Bad[0]);++K){duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);xfuture* F=NULL;
         xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("echo"),(xstrview){0}},{true,XRT_STR_LITERAL("note"),(xstrview){0}},{false,XRT_STR_LITERAL("echo"),(xstrview){0}}};
         testRequire(xrpcDuplexBatch(D,Items,3,5000,&F)==XRPC_DUPLEX_ACCEPTED,"duplex atomic batch admit");uint64 T;xrpcduplexoutput* O=duplexTestSend(D,&T);
         testRequire(xrpcDuplexReceive(D,(xstrview){Bad[K],strlen(Bad[K])},(xbytesview){0})==XRPC_DUPLEX_PROTOCOL && xrtFutureState(F)==XFUTURE_PENDING,"bad response partially completed live batch");
         testRequire(xrpcDuplexStep(D),"duplex protocol close step");duplexTestResult(F,XRPC_CALL_PROTOCOL,XRPC_MAY_HAVE_EXECUTED);duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);xrtClearError();
     }
-    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);xfuture* F=NULL;
+    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);xfuture* F=NULL;
     testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED && xrpcDuplexStep(D),"duplex unsent admit");
     testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":true}"),(xbytesview){0})==XRPC_DUPLEX_PROTOCOL,"unsent response accepted");
     duplexTestClose(D);duplexTestResult(F,XRPC_CALL_PROTOCOL,XRPC_NOT_SENT);xrtFutureDestroy(F);
-    D=duplexTestCreate(NULL,&C,NULL);xrpcduplexitem B[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{true,XRT_STR_LITERAL("b"),(xstrview){0}},{false,XRT_STR_LITERAL("c"),(xstrview){0}}};
+    D=duplexTestCreate(&C,NULL);xrpcduplexitem B[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{true,XRT_STR_LITERAL("b"),(xstrview){0}},{false,XRT_STR_LITERAL("c"),(xstrview){0}}};
     testRequire(xrpcDuplexBatch(D,B,3,5000,&F)==XRPC_DUPLEX_ACCEPTED,"duplex reordered admit");uint64 T;xrpcduplexoutput* O=duplexTestSend(D,&T);
     testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":2},{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}]"),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"duplex reordered response");
     const xrpcbatchcallresult* R=(const xrpcbatchcallresult*)duplexTestResult(F,XRPC_CALL_BATCH_DONE,XRPC_REPLIED);testRequire(R->Indices[0]==1 && R->Indices[1]==SIZE_MAX && R->Indices[2]==0,"duplex reordered mapping");
     duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
 }
-static void testDuplexLimitsAndJobs(void)
-{
-    duplexTestContext C;duplexTestInit(&C);xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxOperations=2;K.MaxIncoming=1;K.MaxPendingCalls=2;K.MaxOutputs=1;K.MaxWork=1;
-    xrpcduplex* D=duplexTestCreate(NULL,&C,&K);xfuture* F=NULL,*G=(xfuture*)(uintptr_t)1;uint64 T;
-    testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED,"duplex wire quota first");
-    testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},5000,&G)==XRPC_DUPLEX_OVERLOADED && G==(xfuture*)(uintptr_t)1,"wire quota failed transfer");
-    testRequire(xrpcDuplexStep(D) && duplexTestInfo(D).More,"bounded attach requests another turn");xrpcduplexoutput* O=NULL;
-    testRequire(xrpcDuplexNext(D,&O,&T)==1 && xrpcDuplexStarted(D,T) && xrpcDuplexSent(D,T) && xrtFutureCancel(F) && xrpcDuplexStep(D),"retained wire setup");
-    testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},5000,&G)==XRPC_DUPLEX_OVERLOADED && duplexTestInfo(D).Outputs==1,"logical completion refunded physical wire");
-    xrpcDuplexOutputRelease(O);testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},5000,&G)==XRPC_DUPLEX_ACCEPTED,"released wire did not refund");
-    duplexTestClose(D);xrtFutureDestroy(F);xrtFutureDestroy(G);
-    xrpcserver* S=duplexTestServer(&C);D=duplexTestCreate(S,&C,&K);
-    char Context[]="data";
-    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"hold\",\"id\":1}"),(xbytesview){(const unsigned char*)Context,4})==XRPC_DUPLEX_ACCEPTED,"incoming hold admission");
-    double End=xrtTimer()+5;while(!xrtAtomic32Load(&C.Entered,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"duplex hold enter");xrtSleep(1);}
-    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"context\",\"id\":2}"),(xbytesview){(const unsigned char*)Context,4})==XRPC_DUPLEX_OVERLOADED,"incoming quota did not refuse");
-    testRequire(xrpcDuplexClose(D,XRPC_CALL_CLOSED) && xrpcDuplexStep(D) && !duplexTestInfo(D).Drained && !xrpcDuplexDestroy(D),"close ignored live handler duty");xrtClearError();
-    xrtAtomic32Store(&C.Permit,1,XMEMORY_RELEASE);duplexTestClose(D);testRequire(xrpcServerDestroy(S),"incoming server retirement");
-}
 static void testDuplexAllocation(void)
 {
-    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);unsigned Failed=0,Passed=0;
+    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);unsigned Failed=0,Passed=0;
     for(size_t Limit=1;Limit<=4096;++Limit){xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&Scope),"duplex allocation budget");
         xfuture* F=NULL;xrpcduplexadmission A=xrpcDuplexCall(D,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[1]"),5000,&F);
         testRequire(xrtAllocationBudgetLeave(&Scope),"duplex allocation leave");
@@ -191,37 +128,23 @@ static int32 duplexTestProduce(ptr Data)
 }
 static void testDuplexConcurrency(void)
 {
-    for(unsigned Race=0;Race<2;++Race){duplexTestContext C;duplexTestInit(&C);xrpcserver* S=duplexTestServer(&C);
+    for(unsigned Race=0;Race<2;++Race){duplexTestContext C;duplexTestInit(&C);
         xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxWork=1;K.MaxOperations=8;K.MaxIncoming=4;
-        xrpcduplex* A=duplexTestCreate(S,&C,&K),*B=duplexTestCreate(S,&C,NULL);
+        xrpcduplex* A=duplexTestCreate(&C,&K),*B=NULL;
+        apprequest Job={0};
+        xrpcDuplexConfigInit(&K); K.OnRequest=appTakeRequest; K.User=&Job;
+        testRequire(xrpcDuplexCreate(&K,&B),"APP hosted concurrent peer");
         xatomic32 Done;xrtAtomic32Init(&Done,0);duplexTestProducer P[4];xthread* T[4];
         for(unsigned N=0;N<4;++N){P[N]=(duplexTestProducer){A,&Done,N,Race!=0};T[N]=xrtThreadCreate(duplexTestProduce,P+N,0);testRequire(T[N]!=NULL,"duplex producer thread");}
         double End=xrtTimer()+20;
         while(xrtAtomic32Load(&Done,XMEMORY_ACQUIRE)!=4){
             testRequire(xrpcDuplexStep(A) && xrpcDuplexStep(B) && xrtTimer()<End,"concurrent duplex owner stalled");
             if(Race){if(duplexTestInfo(A).Accepted>=4)testRequire(xrpcDuplexClose(A,XRPC_CALL_CLOSED),"concurrent admission close");}
-            else {duplexTestPump(A,B);duplexTestPump(B,A);}
+            else {duplexTestPump(A,B);testRequire(appFinish(B,&Job),"APP completes deferred echo");duplexTestPump(B,A);}
             xrtSleep(0);
         }
         for(unsigned N=0;N<4;++N){testRequire(xrtThreadWaitFor(T[N],5000)==XWAIT_OK,"duplex producer physical join");xrtThreadDestroy(T[N]);}
-        duplexTestClose(A);duplexTestClose(B);testRequire(xrpcServerDestroy(S),"concurrent duplex shared executor join");
-    }
-}
-static void testDuplexIncomingDocuments(void)
-{
-    duplexTestContext C;duplexTestInit(&C);xrpcserver* S=duplexTestServer(&C);xrpcduplex* D=duplexTestCreate(S,&C,NULL);
-    const char* Wire[]={"[{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":1},!","[]","{\"jsonrpc\":\"2.0\",\"id\":\"x\\u0000y\",\"method\":\"context\",\"params\":[7]}"};
-    for(unsigned N=0;N<3;++N){char Context[]="data";testRequire(xrpcDuplexReceive(D,(xstrview){Wire[N],strlen(Wire[N])},(xbytesview){(const unsigned char*)Context,4})==XRPC_DUPLEX_ACCEPTED,"incoming document receive");memset(Context,'x',4);
-        double End=xrtTimer()+10;xrpcduplexoutput* O=NULL;uint64 Token=0;
-        while(!O){testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"incoming document completion");int Out=xrpcDuplexNext(D,&O,&Token);testRequire(Out>=0,"incoming output select");if(!Out)xrtSleep(0);}
-        testRequire(!xrpcDuplexSent(D,Token),"response sent without first acceptance");
-        xrpcdecodeconfig K;xrpcDecodeConfigInit(&K);K.Mode=XRPC_DECODE_RESPONSES;xrpcmessage Message;xrpcdocument Doc;
-        testRequire(xrpcDecode(xrpcDuplexOutputWire(O),&K,&Message,1,&Doc)==XRPC_DECODE_DONE,"incoming standard response");
-        if(N<2)testRequire(Message.Kind==XRPC_MESSAGE_ERROR && xrtAtomic32Load(&C.Calls,XMEMORY_RELAXED)==0,"malformed/invalid request executed business");
-        else testRequire(Message.Kind==XRPC_MESSAGE_RESULT && Message.Id.Raw.Size==10,"incoming raw escaped ID changed");
-        testRequire(xrpcDuplexStarted(D,Token) && xrpcDuplexSent(D,Token),"incoming response acceptance");
-        if(N==2){duplexTestClose(D);testRequire(xrpcServerDestroy(S),"retained server-wire join");testRequire(xrpcDuplexOutputWire(O).Size>0,"server response wire did not outlive server/endpoint");}
-        xrpcDuplexOutputRelease(O);
+        duplexTestClose(A);duplexTestClose(B);
     }
 }
 typedef struct duplexTestReentry {xrpcduplex* D;xfuture* Extra;unsigned Calls;} duplexTestReentry;
@@ -241,19 +164,15 @@ static void testDuplexFailureAndReentry(void)
         xrtClearError();xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(B,&I) && !I.LiveBytes,"duplex failed constructor leak");xrtAllocationBudgetFree(B);
     }
     testRequire(Passed && Failed,"duplex constructor OOM limits");
-    xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);xfuture* F=NULL;testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},0,&F)==XRPC_DUPLEX_ACCEPTED,"reentry call");
+    xrpcduplex* D=duplexTestCreate(&C,NULL);xfuture* F=NULL;testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("m"),(xstrview){0},0,&F)==XRPC_DUPLEX_ACCEPTED,"reentry call");
     duplexTestReentry R={D,NULL,0};xfuturewatch W;testRequire(xrtFutureWatchInit(&W,duplexTestReenter,NULL,&R) && xrtFutureWatchAdd(F,&W)==XFUTURE_WATCH_PENDING,"reentry watch");
     testRequire(xrpcDuplexStep(D) && R.Calls==1 && R.Extra,"reentry completion publication");duplexTestClose(D);xrtFutureDestroy(F);xrtFutureDestroy(R.Extra);
     xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxFixedBytes=1;D=(xrpcduplex*)(uintptr_t)1;
     testRequire(!xrpcDuplexCreate(&K,&D) && D==(xrpcduplex*)(uintptr_t)1,"fixed-storage bound changed output");xrtClearError();
-    xrpcserver* S=duplexTestServer(&C);xrpcDuplexConfigInit(&K);K.MaxOutputBytes=1;D=duplexTestCreate(S,&C,&K);
-    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"echo\"}"),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"oversized response incoming");
-    double End=xrtTimer()+5;while(!duplexTestInfo(D).Closing){testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"impossible reply size retried forever");xrtSleep(0);}
-    testRequire(duplexTestInfo(D).Reason==XRPC_CALL_LIMIT && duplexTestInfo(D).OutputRefusals>0,"impossible output typed limit/counter");duplexTestClose(D);testRequire(xrpcServerDestroy(S),"reply-limit executor join");
 }
 static void testDuplexCompactCorrelation(void)
 {
-    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);
+    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);
     testRequire(duplexTestInfo(D).OwnedBytes<256u*1024u,"compact default endpoint exceeds 256 KiB");
     xfuture* F=NULL;testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED,"escaped response call");
     uint64 T;xrpcduplexoutput* O=duplexTestSend(D,&T);
@@ -268,7 +187,7 @@ static void testDuplexCompactCorrelation(void)
     const xrpccallresult* R=duplexTestResult(F,XRPC_CALL_OK,XRPC_REPLIED);xrpcresponseinfo I={0};I.Size=sizeof(I);
     testRequire(xrpcResponsesInfo(R->Responses,&I) && I.Messages[R->Index].Id.Raw.Size==8 && !memcmp(I.Messages[R->Index].Id.Raw.Data,"\"\\u0031\"",8),"correlation normalized retained response bytes");
     duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
-    D=duplexTestCreate(NULL,&C,NULL);xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{false,XRT_STR_LITERAL("b"),(xstrview){0}}};
+    D=duplexTestCreate(&C,NULL);xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{false,XRT_STR_LITERAL("b"),(xstrview){0}}};
     testRequire(xrpcDuplexBatch(D,Items,2,5000,&F)==XRPC_DUPLEX_ACCEPTED,"escaped duplicate group admit");O=duplexTestSend(D,&T);
     testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":\"\\u0031\",\"result\":2}]"),(xbytesview){0})==XRPC_DUPLEX_PROTOCOL && !xrtFutureDone(F),"escaped duplicate partially completed a batch");
     duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
@@ -276,7 +195,7 @@ static void testDuplexCompactCorrelation(void)
 static void testDuplexSetupTimeout(void)
 {
     for(unsigned Reason=0;Reason<2;++Reason)for(unsigned Batch=0;Batch<2;++Batch)for(unsigned Mode=0;Mode<3;++Mode){
-        duplexTestContext C;duplexTestInit(&C);xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxWork=1;xrpcduplex* D=duplexTestCreate(NULL,&C,&K);xfuture* F=NULL;
+        duplexTestContext C;duplexTestInit(&C);xrpcduplexconfig K;xrpcDuplexConfigInit(&K);K.MaxWork=1;xrpcduplex* D=duplexTestCreate(&C,&K);xfuture* F=NULL;
         xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{true,XRT_STR_LITERAL("note"),(xstrview){0}}};
         testRequire((Batch?xrpcDuplexBatch(D,Items,2,60000,&F):xrpcDuplexCall(D,XRT_STR_LITERAL("a"),(xstrview){0},60000,&F))==XRPC_DUPLEX_ACCEPTED,"setup timeout long-lived call/batch");
         xrpcduplexoutput* O=NULL;uint64 Token=0;double End=xrtTimer()+1;int Selected=0;
@@ -308,7 +227,7 @@ static void testDuplexIndexedDeadlines(void)
     duplexTestContext C;duplexTestInit(&C);
     xrpcduplexconfig K;xrpcDuplexConfigInit(&K);
     K.MaxOperations=Window+1;K.MaxWork=1;
-    xrpcduplex* D=duplexTestCreate(NULL,&C,&K);
+    xrpcduplex* D=duplexTestCreate(&C,&K);
     for(size_t N=0;N<Window;++N)
         testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("held"),(xstrview){0},N?60000:30000,Older+N)==XRPC_DUPLEX_ACCEPTED,
                     "populate mixed-deadline pending window");
@@ -355,378 +274,118 @@ static void testDuplexIndexedDeadlines(void)
     for(size_t N=0;N<Window;++N)xrtFutureDestroy(Older[N]);
     xrtFutureDestroy(Short);
 }
-static void duplexTestRemoteWait(xatomic32* Flag)
+typedef struct duplexHostTest {
+    uint64 Token;
+    size_t Requests;
+    size_t Count;
+    bool ParseError;
+    bool Reject;
+} duplexHostTest;
+
+static bool duplexHostRequest(uint64 Token, xstrview Input, xbytesview Context,
+    const xrpcdocument* Document, const xrpcmessage* Messages, ptr User)
 {
-    double End=xrtTimer()+8;
-    while(!xrtAtomic32Load(Flag,XMEMORY_ACQUIRE)){
-        testRequire(xrtTimer()<End,"remote cancellation fixture wait");
-        xrtSleep(1);
-    }
+    duplexHostTest* Host = User;
+    testRequire(Token && Input.Size && Context.Size == 1 &&
+        Context.Data[0] == 42 && (Messages != NULL) == (Document != NULL),
+        "host receives borrowed complete request and APP context");
+    if (Host->Reject) return false;
+    Host->Token = Token;
+    Host->Count = Document ? Document->Count : 0;
+    Host->ParseError = !Document;
+    ++Host->Requests;
+    return true;
 }
 
-static void testDuplexNegotiatedCancellation(void)
+static void testDuplexHost(void)
 {
-    for(unsigned Mode=0;Mode<5;++Mode){
-        duplexTestContext C;duplexTestInit(&C);
-        xrpcserver* S=duplexTestServer(&C);
-        xrpcduplexconfig Sender;
-        xrpcDuplexConfigInit(&Sender);
-        if(Mode==3)Sender.MaxOutputs=1;
-        xrpcduplex* A=duplexTestCreate(NULL,&C,&Sender);
-        xrpcduplex* B=duplexTestCreate(S,&C,NULL);
-        testRequire(xrpcDuplexEnableCancellation(A),"enable outbound cancel support");
-        if(Mode){
-            size_t Base=duplexTestInfo(B).OwnedBytes;
-            if(Mode==1){
-                xallocationbudget* Budget=NULL;xallocationscope Scope={0};
-                testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),
-                    "cancel index allocation budget");
-                testRequire(!xrpcDuplexEnableCancellation(B) && xrtAllocationBudgetLeave(&Scope) &&
-                    duplexTestInfo(B).OwnedBytes==Base,"enable failure preserves fixed storage");
-                xrtClearError();
-                xallocationbudgetinfo I={.Size=sizeof(I)};
-                testRequire(xrtAllocationBudgetInfo(Budget,&I) && !I.LiveBytes,"cancel index OOM rollback");
-                xrtAllocationBudgetFree(Budget);
-            }
-            testRequire(xrpcDuplexEnableCancellation(B),"receiver cancellation opt-in");
-            size_t Enabled=duplexTestInfo(B).OwnedBytes;
-            testRequire(Enabled>Base && xrpcDuplexEnableCancellation(B) &&
-                duplexTestInfo(B).OwnedBytes==Enabled,"single bounded receiver index");
-        }
-        xfuture* Offer=NULL;
-        testRequire(xrpcDuplexNegotiateCancellation(A,5000,&Offer)==XRPC_DUPLEX_ACCEPTED,"send capability offer");
-        xfuture* Unchanged=(xfuture*)(uintptr_t)1;
-        testRequire(xrpcDuplexNegotiateCancellation(A,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
-            Unchanged==(xfuture*)(uintptr_t)1,"one capability exchange per connection at a time");
-        xrtClearError();
-        duplexTestUntil(A,B,&Offer,1);
-        const xrpccallresult* Negotiated=duplexTestResult(Offer,Mode?XRPC_CALL_OK:XRPC_CALL_REMOTE_ERROR,XRPC_REPLIED);
-        xrpcresponseinfo Reply={.Size=sizeof(Reply)};
-        testRequire(xrpcResponsesInfo(Negotiated->Responses,&Reply) && Reply.Count==1,"offer result shape");
-        xrpcvalue V=Mode?Reply.Messages[0].Result:Reply.Messages[0].ErrorCode;
-        testRequire(V.Raw.Size==(Mode?4u:6u) && !memcmp(V.Raw.Data,Mode?"true":"-32601",V.Raw.Size),
-            "affirmative capability or standard legacy error");
-        xrtFutureDestroy(Offer);
-        testRequire(!xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE),"reserved capability does not invoke business");
-
-        xfuture* Call=NULL;
-        if(Mode==1){
-            xrpcduplexitem Batch[]={
-                {true,XRT_STR_LITERAL("notify"),{0}},
-                {false,XRT_STR_LITERAL("remote-hold"),{0}},
-                {false,XRT_STR_LITERAL("unreached"),{0}},
-            };
-            testRequire(xrpcDuplexBatch(A,Batch,3,5000,&Call)==XRPC_DUPLEX_ACCEPTED,"whole batch cancellation");
-        }else testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("remote-hold"),(xstrview){0},
-            Mode==2?300:5000,&Call)==XRPC_DUPLEX_ACCEPTED,"sent call for stop");
-        uint64 Token=0;
-        xrpcduplexoutput* Out=NULL;
-        if(Mode==4){
-            testRequire(xrpcDuplexStep(A) && xrpcDuplexNext(A,&Out,&Token)==1 &&
-                xrpcDuplexStarted(A,Token),"selected frame stays partial");
-        }else{
-            Out=duplexTestSend(A,&Token);
-            testRequire(xrpcDuplexReceive(B,xrpcDuplexOutputWire(Out),(xbytesview){0})==
-                XRPC_DUPLEX_ACCEPTED,"deliver original request");
-            duplexTestRemoteWait(&C.Entered);
-        }
-        if(Mode!=3)xrpcDuplexOutputRelease(Out);
-
-        xfuture* Following=NULL;
-        if(Mode==1 || Mode==2){
-            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("after"),XRT_STR_LITERAL("[7]"),5000,&Following)==
-                XRPC_DUPLEX_ACCEPTED && xrpcDuplexStep(A) && duplexTestInfo(A).Outputs==1,
-                "ordinary output queued before cancellation");
-        }
-        if(Mode==2){
-            double Deadline=duplexTestInfo(A).NextDeadline;
-            while(xrtTimer()<Deadline)xrtSleep(1);
-        }else testRequire(xrtFutureCancel(Call),"request cancellation");
-
-        double End=xrtTimer()+8;
-        while(!xrtFutureDone(Call)){
-            testRequire(xrpcDuplexStep(A) && xrtTimer()<End,"publish original typed local stop");
-        }
-        duplexTestResult(Call,Mode==2?XRPC_CALL_TIMEOUT:XRPC_CALL_CANCELLED,XRPC_MAY_HAVE_EXECUTED);
-        xrtFutureDestroy(Call);
-        if(Mode==1 || Mode==2){
-            /* Control moves ahead of an earlier unsent application output. */
-            Out=duplexTestSend(A,&Token);
-            xstrview Notice=xrpcDuplexOutputWire(Out);
-            xstrview Expected=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.cancel\",\"params\":[\"2\"]}");
-            testRequire(Notice.Size==Expected.Size && !memcmp(Notice.Data,Expected.Data,Expected.Size),
-                "priority cancellation names the first call in the sent document");
-            for(unsigned Retry=0;Retry<2;++Retry)
-                testRequire(xrpcDuplexReceive(B,Notice,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-                    "receiver processes live or repeated control");
-            duplexTestRemoteWait(&C.RemoteStop);
-            xrpcDuplexOutputRelease(Out);
-            duplexTestUntil(A,B,&Following,1);
-            duplexTestResult(Following,XRPC_CALL_OK,XRPC_REPLIED);
-            xrtFutureDestroy(Following);
-            testRequire(!duplexTestInfo(B).Closing && duplexTestInfo(A).UnknownResponses==0,
-                "abandoned result is suppressed and the same channel stays usable");
-        }else{
-            xrpcduplexoutput* None=NULL;
-            testRequire(xrpcDuplexNext(A,&None,&Token)==0,"no control after a legacy, exhausted, or partial write");
-            xrpcduplexinfo I=duplexTestInfo(A);
-            testRequire(I.Closing==(Mode!=0) &&
-                (!I.Closing || I.Reason==(Mode==3?XRPC_CALL_LIMIT:XRPC_CALL_TRANSPORT)),
-                "partial frame and output quota retire transport");
-            testRequire(!xrtAtomic32Load(&C.RemoteStop,XMEMORY_ACQUIRE),"unnegotiated or unsent control has no effect");
-            if(Mode==3)xrpcDuplexOutputRelease(Out);
-        }
-        xrtAtomic32Store(&C.Permit,1,XMEMORY_RELEASE);
-        duplexTestClose(A);duplexTestClose(B);
-        testRequire(xrpcServerDestroy(S),"cancel test shared executor retirement");
-    }
-}
-
-static void testDuplexCancellationReceivePolicy(void)
-{
-    xstrview Offer=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"rpc.xrt.cancel.v1\"}");
-    xstrview Request=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"remote-hold\"}");
-    xstrview Cancel=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.cancel\",\"params\":[ \"\\u0031\" ]}");
-    for(unsigned Mode=0;Mode<4;++Mode){
-        duplexTestContext C;duplexTestInit(&C);
-        xrpcserver* S=duplexTestServer(&C);
-        xrpcduplex* D=duplexTestCreate(S,&C,NULL);
-        testRequire(xrpcDuplexEnableCancellation(D) &&
-            xrpcDuplexReceive(D,Offer,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"accept synthetic wire offer");
-        if(Mode){
-            uint64 Token;
-            xrpcDuplexOutputRelease(duplexTestSend(D,&Token));
-        }
-        testRequire(xrpcDuplexReceive(D,Request,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"accept original incoming call");
-        duplexTestRemoteWait(&C.Entered);
-        if(Mode==0){
-            testRequire(xrpcDuplexReceive(D,Cancel,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-                "ignore a well-formed notice before acknowledgement is sent");
-            testRequire(!xrtAtomic32Load(&C.RemoteStop,XMEMORY_ACQUIRE),"pre-ack notice cannot cancel a job");
-        }else if(Mode==1){
-            testRequire(xrpcDuplexReceive(D,
-                XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.cancel\",\"params\":[\"999\"]}"),
-                (xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"unknown target leaves the connection open");
-            testRequire(xrpcDuplexReceive(D,Cancel,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-                "escaped target ID matches its decoded string");
-            duplexTestRemoteWait(&C.RemoteStop);
-        }else{
-            xstrview Invalid=Mode==2?
-                XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"\\u0031\",\"method\":\"echo\"}"):
-                XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":\"3\"},{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.cancel\",\"params\":[\"1\"]}]");
-            testRequire(xrpcDuplexReceive(D,Invalid,(xbytesview){0})==XRPC_DUPLEX_PROTOCOL &&
-                xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE)==1,
-                "duplicate live ID or control in a batch fails before business");
-        }
-        xrtAtomic32Store(&C.Permit,1,XMEMORY_RELEASE);
-        if(Mode==0){
-            double End=xrtTimer()+8;
-            while(duplexTestInfo(D).Incoming){
-                testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"complete pre-ack business normally");
-                xrtSleep(1);
-            }
-            testRequire(!xrtAtomic32Load(&C.RemoteStop,XMEMORY_ACQUIRE) && !duplexTestInfo(D).Closing,
-                "without acknowledgement the running handler did not observe cancellation");
-        }
-        duplexTestClose(D);
-        testRequire(xrpcServerDestroy(S),"synthetic control server retirement");
-    }
-}
-
-
-#define DUPLEX_TEST_DEADLINE_PREFIX "{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline\",\"params\":[\""
-#define DUPLEX_TEST_DEADLINE_OFFER "{\"jsonrpc\":\"2.0\",\"method\":\"rpc.xrt.deadline.v1\",\"id\":9}"
-#define DUPLEX_TEST_CALL "{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":\"1\"}"
-
-static void duplexTestDeadlineCode(xrpcvalue Code)
-{
-    testRequire(Code.Kind==XRPC_VALUE_NUMBER && Code.Raw.Size==6 && !memcmp(Code.Raw.Data,"-32001",6),
-        "response carries the negotiated deadline error");
-}
-
-static void testDuplexNegotiatedDeadline(void)
-{
-    for(unsigned Mode=0;Mode<3;++Mode){
-        duplexTestContext C;
-        duplexTestInit(&C);
-        xrpcserver* S=duplexTestServer(&C);
-        xrpcduplexconfig Limits;
-        xrpcDuplexConfigInit(&Limits);
-        Limits.IncomingTimeout=120;
-        xrpcduplexconfig Sender;
-        xrpcDuplexConfigInit(&Sender);
-        Sender.Encode.MaxOutputBytes=1024;
-        xrpcduplex* A=duplexTestCreate(NULL,&C,&Sender);
-        xrpcduplex* B=duplexTestCreate(Mode==1?NULL:S,&C,&Limits);
-        xfuture* Offer=NULL;
-        xfuture* Unchanged=(xfuture*)(uintptr_t)1;
-        testRequire(xrpcDuplexNegotiateDeadline(A,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
-            Unchanged==(xfuture*)(uintptr_t)1,"disabled offer does not publish a Future");
-        xrtClearError();
-        testRequire(xrpcDuplexEnableDeadline(A) && xrpcDuplexEnableDeadline(A) &&
-            (!Mode || xrpcDuplexEnableDeadline(B)) &&
-            xrpcDuplexNegotiateDeadline(A,5000,&Offer)==XRPC_DUPLEX_ACCEPTED,
-            "negotiate remote deadline");
-        testRequire(xrpcDuplexNegotiateDeadline(A,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
-            Unchanged==(xfuture*)(uintptr_t)1,"one pending deadline offer");
-        xrtClearError();
-        duplexTestUntil(A,B,&Offer,1);
-        const xrpccallresult* R=duplexTestResult(Offer,Mode?XRPC_CALL_OK:XRPC_CALL_REMOTE_ERROR,XRPC_REPLIED);
-        xrpcresponseinfo Reply={.Size=sizeof(Reply)};
-        testRequire(xrpcResponsesInfo(R->Responses,&Reply) && Reply.Count==1,"deadline offer reply");
-        xrpcvalue V=Mode?Reply.Messages[0].Result:Reply.Messages[0].ErrorCode;
-        const char* Expected=Mode==0?"-32601":Mode==1?"false":"true";
-        testRequire(V.Raw.Size==strlen(Expected) && !memcmp(V.Raw.Data,Expected,V.Raw.Size),
-            "positive, negative and legacy acknowledgements");
-        xrtFutureDestroy(Offer);
-
-        xfuture* First=NULL;
-        testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[42]"),4000,&First)==
-            XRPC_DUPLEX_ACCEPTED,"admit finite call");
-        double Now=xrtTimer();
-        while(xrtTimer()<Now+.06)xrtSleep(1);
-        uint64 Token=0;
-        xrpcduplexoutput* Wire=duplexTestSend(A,&Token);
-        xstrview View=xrpcDuplexOutputWire(Wire);
-        xstrview Prefix=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX);
-        bool Wrapped=View.Size>Prefix.Size+21 && !memcmp(View.Data,Prefix.Data,Prefix.Size);
-        testRequire(Wrapped==(Mode==2),"only positive negotiation enables propagation");
-        if(Wrapped){
-            int64 Budget=0;
-            for(size_t I=0;I<19;++I){
-                char Digit=View.Data[Prefix.Size+I];
-                testRequire(Digit>='0' && Digit<='9',"exact fixed-width budget");
-                Budget=Budget*10+(Digit-'0');
-            }
-            testRequire(Budget>0 && Budget<3950,"budget excludes time waiting in the owner queue");
-        }
-        if(Mode!=1){
-            testRequire(xrpcDuplexReceive(B,View,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-                "finite call reaches a legacy or negotiated server");
-            duplexTestUntil(A,B,&First,1);
-            duplexTestResult(First,XRPC_CALL_OK,XRPC_REPLIED);
-        }
-        xrpcDuplexOutputRelease(Wire);
-        xrtFutureDestroy(First);
-        if(Mode==2){
-            char Params[925];
-            memset(Params,' ',sizeof(Params));
-            Params[0]='[';
-            Params[sizeof(Params)-1]=']';
-            xstrview Large={Params,sizeof(Params)};
-            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),Large,5000,&Unchanged)==XRPC_DUPLEX_ERROR &&
-                xrtErrorCode(xrtGetError())==XRPC_DUPLEX_LIMIT && Unchanged==(xfuture*)(uintptr_t)1 &&
-                !duplexTestInfo(A).Operations && !duplexTestInfo(A).Outputs,
-                "deadline envelope consumes wire limit and rolls back admission");
-            xrtClearError();
-            xfuture* Plain=NULL;
-            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),Large,XRT_WAIT_FOREVER,&Plain)==
-                XRPC_DUPLEX_ACCEPTED && xrtFutureCancel(Plain) && xrpcDuplexStep(A),
-                "same unwrapped payload fits the wire limit");
-            duplexTestResult(Plain,XRPC_CALL_CANCELLED,XRPC_NOT_SENT);
-            xrtFutureDestroy(Plain);
-            xrpcduplexitem Batch[]={
-                {true,XRT_STR_LITERAL("notice"),{0}},
-                {false,XRT_STR_LITERAL("echo"),{0}},
-                {false,XRT_STR_LITERAL("deadline-hold"),{0}},
-                {false,XRT_STR_LITERAL("unreached"),{0}},
-            };
-            xfuture* Future=NULL;
-            testRequire(xrpcDuplexBatch(A,Batch,4,4000,&Future)==XRPC_DUPLEX_ACCEPTED,
-                "single propagated budget for a mixed batch");
-            duplexTestUntil(A,B,&Future,1);
-            const xrpcbatchcallresult* BR=(const xrpcbatchcallresult*)
-                duplexTestResult(Future,XRPC_CALL_BATCH_DONE,XRPC_REPLIED);
-            testRequire(BR->Count==4 && BR->Indices[0]==SIZE_MAX &&
-                xrpcResponsesInfo(BR->Call.Responses,&Reply) && Reply.Batch && Reply.Count==3,
-                "expired batch has a reply for each call only");
-            for(size_t I=1;I<4;++I){
-                testRequire(BR->Indices[I]<Reply.Count,"original batch IDs remain mapped");
-                duplexTestDeadlineCode(Reply.Messages[BR->Indices[I]].ErrorCode);
-            }
-            testRequire(xrtAtomic32Load(&C.RemoteStop,XMEMORY_ACQUIRE) &&
-                xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE)==4 && !duplexTestInfo(B).Closing,
-                "server clamp stops the handler and discards partial batch output");
-            xrtFutureDestroy(Future);
-
-            testRequire(xrpcDuplexCall(A,XRT_STR_LITERAL("echo"),(xstrview){0},XRT_WAIT_FOREVER,&Future)==
-                XRPC_DUPLEX_ACCEPTED,"infinite call after expiration");
-            Wire=duplexTestSend(A,&Token);
-            View=xrpcDuplexOutputWire(Wire);
-            testRequire(View.Size<Prefix.Size || memcmp(View.Data,Prefix.Data,Prefix.Size),
-                "no envelope for infinite timeout");
-            testRequire(xrpcDuplexReceive(B,View,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-                "server accepts plain call following timed out work");
-            duplexTestUntil(A,B,&Future,1);
-            duplexTestResult(Future,XRPC_CALL_OK,XRPC_REPLIED);
-            xrpcDuplexOutputRelease(Wire);
-            xrtFutureDestroy(Future);
-        }
-        duplexTestClose(A);
-        duplexTestClose(B);
-        testRequire(xrpcServerDestroy(S),"deadline test server retirement");
-    }
-}
-
-static void testDuplexDeadlineWirePolicy(void)
-{
-    static const char* Bad[]={
-        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\"," DUPLEX_TEST_CALL "]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "9223372036854775808\"," DUPLEX_TEST_CALL "]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "000000000000000000x\"," DUPLEX_TEST_CALL "]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000001\",{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":true}]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\",[" DUPLEX_TEST_CALL ",null]]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\"," DUPLEX_TEST_DEADLINE_OFFER "]}",
-        DUPLEX_TEST_DEADLINE_PREFIX "0000000000000001000\"," DUPLEX_TEST_CALL "," DUPLEX_TEST_CALL "]}",
-    };
-    duplexTestContext C;
-    duplexTestInit(&C);
-    xrpcserver* S=duplexTestServer(&C);
-    xstrview Offer=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_OFFER);
-    for(size_t I=0;I<sizeof(Bad)/sizeof(*Bad);++I){
-        xrpcduplex* D=duplexTestCreate(S,&C,NULL);
-        testRequire(xrpcDuplexEnableDeadline(D) && xrpcDuplexReceive(D,Offer,(xbytesview){0})==
-            XRPC_DUPLEX_ACCEPTED,"accept independent deadline offer");
-        uint64 Token=0;
-        if(I)xrpcDuplexOutputRelease(duplexTestSend(D,&Token));
-        testRequire(xrpcDuplexReceive(D,(xstrview){Bad[I],strlen(Bad[I])},(xbytesview){0})==
-            XRPC_DUPLEX_PROTOCOL,"reject pre-ack or malformed envelope without partial execution");
-        duplexTestClose(D);
-    }
+    duplexHostTest Host = {0};
     xrpcduplexconfig Config;
-    xrpcDuplexConfigInit(&Config);
-    Config.IncomingTimeout=XRT_WAIT_FOREVER;
-    xrpcduplex* D=duplexTestCreate(S,&C,&Config);
-    testRequire(xrpcDuplexEnableDeadline(D) && xrpcDuplexReceive(D,Offer,(xbytesview){0})==
-        XRPC_DUPLEX_ACCEPTED,"accept standalone wire offer");
-    uint64 Token=0;
-    xrpcDuplexOutputRelease(duplexTestSend(D,&Token));
-    xstrview Expired=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\"," DUPLEX_TEST_CALL "]}");
-    testRequire(xrpcDuplexReceive(D,Expired,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-        "zero budget expires before business admission to a worker");
-    double End=xrtTimer()+8.;
-    while(duplexTestInfo(D).Incoming){
-        testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"retire expired document");
-        xrtSleep(1);
-    }
-    xrpcduplexoutput* O=duplexTestSend(D,&Token);
-    xstrview Expected=XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32001,\"message\":\"Deadline exceeded\"},\"id\":\"1\"}");
-    xstrview Actual=xrpcDuplexOutputWire(O);
-    testRequire(Actual.Size==Expected.Size && !memcmp(Actual.Data,Expected.Data,Expected.Size),
-        "independent peer receives exact expired wire response");
-    xrpcDuplexOutputRelease(O);
-    xstrview Notice=XRT_STR_LITERAL(DUPLEX_TEST_DEADLINE_PREFIX "0000000000000000000\",{\"jsonrpc\":\"2.0\",\"method\":\"echo\"}]}");
-    testRequire(xrpcDuplexReceive(D,Notice,(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,
-        "finite notification uses the same expiry");
-    while(duplexTestInfo(D).Incoming){
-        testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"retire expired notification");
-        xrtSleep(1);
-    }
-    testRequire(!duplexTestInfo(D).Closing && xrpcDuplexNext(D,&O,&Token)==0 &&
-        !xrtAtomic32Load(&C.Calls,XMEMORY_ACQUIRE),"expired notifications have no reply or handler effect");
-    duplexTestClose(D);
-    testRequire(xrpcServerDestroy(S),"deadline wire policy server retirement");
+    testRequire(xrpcDuplexConfigInit(&Config), "host config");
+    Config.OnRequest = duplexHostRequest;
+    Config.User = &Host;
+    Config.MaxIncoming = 1;
+    Config.MaxOutputs = 1;
+    xrpcduplex *Client = NULL, *Server = NULL;
+    testRequire(xrpcDuplexCreate(NULL, &Client) && xrpcDuplexCreate(&Config, &Server),
+        "host endpoints need no executor instance");
+    unsigned char Byte = 42;
+    xbytesview Context = {&Byte, 1};
+
+    xfuture* Future = NULL;
+    testRequire(xrpcDuplexCall(Client, XRT_STR_LITERAL("echo"), XRT_STR_LITERAL("[42]"),
+        5000, &Future) == XRPC_DUPLEX_ACCEPTED, "host peer call");
+    uint64 Selection = 0;
+    xrpcduplexoutput* Wire = duplexTestSend(Client, &Selection);
+    testRequire(xrpcDuplexReceive(Server, xrpcDuplexOutputWire(Wire), Context) ==
+        XRPC_DUPLEX_ACCEPTED && Host.Count == 1 && Host.Requests == 1,
+        "host observes parsed call");
+    xrpcDuplexOutputRelease(Wire);
+
+    const xstrview Request = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}");
+    testRequire(xrpcDuplexReceive(Server, Request, Context) == XRPC_DUPLEX_OVERLOADED &&
+        Host.Requests == 1, "host bounded pending tokens");
+    const xstrview Wrong = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"other\",\"result\":0}");
+    uint64 Token = Host.Token;
+    testRequire(xrpcDuplexReply(Server, Token, Wrong) == XRPC_DUPLEX_ERROR &&
+        duplexTestInfo(Server).Incoming == 1, "mismatched reply preserves token");
+    xrtClearError();
+    const xstrview Reply = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":42}");
+    testRequire(xrpcDuplexReply(Server, Token, Reply) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexReply(Server, Token, Reply) == XRPC_DUPLEX_ERROR, "host reply consumes token once");
+    xrtClearError();
+    Wire = duplexTestSend(Server, &Selection);
+    testRequire(xrpcDuplexReceive(Client, xrpcDuplexOutputWire(Wire), (xbytesview){0}) ==
+        XRPC_DUPLEX_ACCEPTED && xrpcDuplexStep(Client), "host response reaches other endpoint");
+    duplexTestResult(Future, XRPC_CALL_OK, XRPC_REPLIED);
+    xrtFutureDestroy(Future);
+
+    Host.Reject = true;
+    testRequire(xrpcDuplexReceive(Server, Request, Context) == XRPC_DUPLEX_OVERLOADED &&
+        !duplexTestInfo(Server).Incoming, "host rejection rolls back reservation");
+    Host.Reject = false;
+    testRequire(xrpcDuplexReceive(Server, Request, Context) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexReply(Server, Host.Token, (xstrview){0}) == XRPC_DUPLEX_ACCEPTED,
+        "notification succeeds without output");
+
+    const xstrview Batch = XRT_STR_LITERAL(
+        "[{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"id\":71},{\"jsonrpc\":\"2.0\",\"method\":\"note\"}]");
+    const xstrview BatchReply = XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":71,\"result\":true}]");
+    testRequire(xrpcDuplexReceive(Server, Batch, Context) == XRPC_DUPLEX_ACCEPTED &&
+        Host.Count == 2 && xrpcDuplexReply(Server, Host.Token, BatchReply) ==
+        XRPC_DUPLEX_OVERLOADED && duplexTestInfo(Server).Incoming == 1,
+        "retained output backpressure preserves deferred batch");
+    xrpcDuplexOutputRelease(Wire);
+    testRequire(xrpcDuplexReply(Server, Host.Token, BatchReply) == XRPC_DUPLEX_ACCEPTED,
+        "retry host reply after output credit returns");
+    Wire = duplexTestSend(Server, &Selection);
+    xrpcDuplexOutputRelease(Wire);
+
+    testRequire(xrpcDuplexReceive(Server, XRT_STR_LITERAL("["), Context) == XRPC_DUPLEX_ACCEPTED &&
+        Host.ParseError && !Host.Count, "host handles malformed JSON independently");
+    const xstrview ParseReply = XRT_STR_LITERAL(
+        "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error\"}}");
+    testRequire(xrpcDuplexReply(Server, Host.Token, ParseReply) == XRPC_DUPLEX_ACCEPTED,
+        "parse error accepts null ID");
+    Wire = duplexTestSend(Server, &Selection);
+    xrpcDuplexOutputRelease(Wire);
+    testRequire(xrpcDuplexReceive(Server, Batch, Context) == XRPC_DUPLEX_ACCEPTED,
+        "last host job remains open for close test");
+    duplexTestClose(Server);
+    duplexTestClose(Client);
 }
 
 int main(void)
-{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();testDuplexSetupTimeout();testDuplexIndexedDeadlines();testDuplexNegotiatedCancellation();testDuplexCancellationReceivePolicy();testDuplexNegotiatedDeadline();testDuplexDeadlineWirePolicy();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs/earlier-setup-timeout/indexed-deadline-order/raw-token-cancel/negotiated-wire-cancel/negotiated-wire-deadline");return 0;}
+{
+    testDuplexHost();
+    testDuplexStops();
+    testDuplexResponseAtomicity();
+    testDuplexAllocation();
+    testDuplexConcurrency();
+    testDuplexFailureAndReentry();
+    testDuplexCompactCorrelation();
+    testDuplexSetupTimeout();
+    testDuplexIndexedDeadlines();
+    puts("[PASS] xrpc duplex: APP reply tokens, wire/backpressure, exact IDs, typed stops, OOM, producers, lifetime and deadlines");
+    return 0;
+}

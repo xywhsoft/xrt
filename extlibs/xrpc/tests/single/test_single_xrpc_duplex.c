@@ -1,4 +1,5 @@
 #define XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DISPATCH
 #define XRT_MODULE_MEMORY_STATS
 #define XRT_MODULE_THREAD
 #include <xrpc/features.h>

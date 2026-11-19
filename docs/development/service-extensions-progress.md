@@ -16113,3 +16113,25 @@ under out/service-extensions/scope-reduction-20261119/. In one unpinned
 16-wake run per platform the sampled P99 lateness was 1 ms. The measured
 process CPU share while waiting was 0 at the Windows counter resolution and
 0.002926 percent in Ubuntu/WSL. These are local measurements.
+
+## 2026-11-19 xrpc host-driven JSON-RPC boundary
+
+The endpoint now accepts complete JSON-RPC documents from the host. The host
+can dispatch on its own executor and complete a bounded incoming request on
+the endpoint owner. Tokens validate response shape and request IDs and survive
+temporary output backpressure. Outbound calls retain their typed timeouts,
+cancellation and uncertain-result handling. The in-memory and stdio examples
+demonstrate application-owned dispatch. Transport, framing, process supervision
+and the application executor have left the library. The previous implementations
+and paused trim patch remain available at befcce75 and in the local proof directory,
+respectively.
+
+The library implementation fell from 510,817 to 141,419 bytes. Windows x64
+and Ubuntu/WSL x64 passed the modular and single-header test suite, both examples,
+default and leaf trim checks, static/shared consumers and the independent Python
+stdio peer. ASan/UBSan passed for the Ubuntu/WSL duplex suite. Object symbol
+checks verified the absence of the excluded transport and executor dependencies.
+Local evidence is in out/service-extensions/scope-reduction-20261119/. A single
+unrestricted run of 100,000 in-memory round trips measured about 140,260 calls/s
+on Windows and 97,644 calls/s on Ubuntu/WSL. Native Linux and sustained-load
+qualification remain open.

@@ -63,176 +63,29 @@
       "description": "Native typed call/Future lifetime and owned response closure; no transport/engine"
     },
     {
-      "name": "xrpc_http_client",
-      "system": "http_client",
-      "suite": "xrpc_http_client",
-      "description": "Bounded ordinary HTTP/TCP call runtime plus actual Core closure; no TLS/DNS or full client/server acceptance"
-    },
-    {
-      "name": "xrpc_server",
-      "system": "server",
-      "suite": "xrpc_server",
-      "description": "Bounded server executor/dispatch/quota/Future closure, no network transport"
-    },
-    {
-      "name": "xrpc_http_server",
-      "system": "http_server",
-      "suite": "xrpc_http_server",
-      "description": "Production HTTP listener/peer/parser/executor/Future closure; numeric plain TCP"
-    },
-    {
       "name": "xrpc_result_quota",
       "system": "result_quota",
       "suite": "xrpc_result_quota",
       "description": "Private allocation/retention quota ledger and actual response/mutex/atomic dependency closure"
     },
     {
-      "name": "xrpc_http_dial",
-      "system": "http_dial",
-      "suite": "xrpc_http_dial",
-      "description": "Asynchronous HTTP DNS/prepared-candidate connection source with actual client/resolver/dial closure"
-    },
-    {
-      "name": "xrpc_http_tls",
-      "system": "http_tls",
-      "suite": "xrpc_http_tls",
-      "description": "Verified HTTP TLS client and actual Core TLS/cipher/dial closure"
-    },
-    {
-      "name": "xrpc_http_server_tls",
-      "system": "http_server_tls",
-      "suite": "xrpc_http_server_tls",
-      "description": "Production HTTP TLS server/executor and actual Core identity/cipher dependency closure"
-    },
-    {
-      "name": "xrpc_frame",
-      "system": "frame",
-      "suite": "xrpc_frame",
-      "description": "Bounded Content-Length/uint32 stream framing without JSON, futures, workers or I/O",
-      "forbid_symbols": [
-        "xrtNet",
-        "xrtTls",
-        "xrtJson",
-        "xrtFuture",
-        "xrtTask",
-        "xrtExecutor",
-        "xrtProcess",
-        "xrtHttp",
-        "xrtWebSocket"
-      ]
-    },
-    {
       "name": "xrpc_duplex",
       "system": "duplex",
       "suite": "xrpc_duplex",
-      "description": "Bidirectional messages using the existing Core executor/Future and independent quota ledgers; no transport runtime",
+      "description": "Host-driven RPC message endpoint",
       "forbid_symbols": [
-        "xrtNet",
-        "xrtTls",
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess"
-      ]
-    },
-    {
-      "name": "xrpc_stdio",
-      "system": "stdio",
-      "suite": "xrpc_stdio",
-      "description": "Host-driven bidirectional framing with the existing executor and Future closure",
-      "forbid_symbols": [
-        "xrtNet",
-        "xrtTls",
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess"
-      ]
-    },
-    {
-      "name": "xrpc_stdio_process",
-      "system": "stdio",
-      "suite": "xrpc_stdio_process",
-      "description": "Native framed stdio with XRT Process and bounded pipe I/O",
-      "forbid_symbols": [
-        "xrtNet",
-        "xrtTls",
-        "xrtHttp",
-        "xrtWebSocket"
-      ]
-    },
-    {
-      "name": "xrpc_tcp",
-      "system": "tcp",
-      "suite": "xrpc_tcp",
-      "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
-      "forbid_symbols": [
-        "xrtTls",
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess",
-        "xrtNetResolver"
-      ]
-    },
-    {
-      "name": "xrpc_tls",
-      "system": "tls",
-      "suite": "xrpc_tls",
-      "description": "Bidirectional native TLS and framing, independent of HTTP/WebSocket/DNS/process adapters",
-      "forbid_symbols": [
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess",
-        "xrtNetResolver"
-      ]
-    },
-    {
-      "name": "xrpc_tcp_dial",
-      "system": "tcp_dial",
-      "suite": "xrpc_tcp_dial",
-      "description": "Framed TCP peer with host DNS/prepared candidate controller, no TLS/HTTP/WebSocket/process",
-      "forbid_symbols": [
-        "xrtTls",
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess"
-      ]
-    },
-    {
-      "name": "xrpc_tls_dial",
-      "system": "tls_dial",
-      "suite": "xrpc_tls_dial",
-      "description": "Native framed TLS peer with host DNS/prepared TCP candidates and explicit trust snapshot; no HTTP/WebSocket/process",
-      "forbid_symbols": [
-        "xrtHttp",
-        "xrtWebSocket",
-        "xrtProcess"
-      ]
-    },
-    {
-      "name": "xrpc_ws",
-      "system": "ws",
-      "suite": "xrpc_ws",
-      "description": "Text WS native message transport and physical retirement, no HTTP/TLS/stdio runtime",
-      "forbid_symbols": [
-        "xrtHttp",
-        "xrtTls",
-        "xrtProcess",
-        "xrpcTcp",
-        "xrpcFrame"
-      ]
-    },
-    {
-      "name": "xrpc_ws_uri_parse",
-      "system": "ws_uri",
-      "suite": "xrpc_ws_uri_parse",
-      "description": "Allocation-free WS URI syntax and resource accounting, independent of all native transport/client runtimes",
-      "forbid_symbols": [
-        "xrtNet",
-        "xrtTls",
-        "xrtWebSocket",
-        "xrtProcess",
-        "xrpcWsConnect",
-        "xrpcWsDial",
-        "xrpcServer"
+        "xrtNetEngineCreate",
+        "xrtExecutorCreate",
+        "xrtTaskPoolCreate",
+        "xrtProcessCreate",
+        "xrtTlsStreamClient",
+        "xrtWsStreamAttach",
+        "_xrtNetEngineCreate",
+        "_xrtExecutorCreate",
+        "_xrtTaskPoolCreate",
+        "_xrtProcessCreate",
+        "_xrtTlsStreamClient",
+        "_xrtWsStreamAttach"
       ]
     }
   ]

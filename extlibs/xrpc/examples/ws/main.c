@@ -1,3 +1,0 @@
-#include <xrpc/ws.h>
-#include "../common/ws_service.h"
-int main(int Argc,char** Argv){bool TLS=Argc>1&&strtoul(Argv[1],NULL,10);rpcWsService S;rpcWsServiceStart(&S,TLS,NULL,false);xfuture* F=NULL;rpcWsServiceRequire(xrpcWsCall(S.Client,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[42]"),5000,&F)==XRPC_DUPLEX_ACCEPTED,"WS call");const xrpccallresult* R=rpcWsServiceResult(F);rpcWsServiceRequire(R->Status==XRPC_CALL_OK&&R->Delivery==XRPC_REPLIED,"WS result");rpcWsServiceStop(&S);rpcWsServiceRequire(R->Status==XRPC_CALL_OK,"result survives WS/Server/Engine");xrtFutureDestroy(F);puts("[PASS] WS RPC and physical retirement");return 0;}

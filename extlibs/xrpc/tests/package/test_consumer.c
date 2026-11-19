@@ -18,62 +18,15 @@ static bool rpcConsumerEmit(const xrpcoutgoing* Response, bool Batch, size_t Enc
 		memcmp(User, "{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}", Written) == 0;
 }
 #endif
-#if defined(XRPC_FEATURE_XRPC_SERVER)
-static bool rpcConsumerServerCall(const xrpcmessage* Request,xrpcreply* Reply,const xrpcservercontext* Context,ptr User)
-{if(xrtCancelRequested(Context->Cancel) || xrtTimer()>=Context->Deadline)return false;return rpcConsumerCall(Request,Reply,User);}
-#endif
-#if defined(XRPC_FEATURE_XRPC_FRAME)
-#define main framePackageExample
-#include "../../examples/frame/main.c"
-#undef main
-#endif
-#if defined(XRPC_FEATURE_XRPC_STDIO)
-static xrpcstdioio rpcConsumerStdioEof(ptr User,bytes Data,size_t Size,size_t* Count)
-{(void)User;(void)Data;(void)Size;(void)Count;return XRPC_STDIO_IO_EOF;}
-static xrpcstdioio rpcConsumerStdioWrite(ptr User,cbytes Data,size_t Size,size_t* Count)
-{(void)User;(void)Data;(void)Size;(void)Count;return XRPC_STDIO_IO_ERROR;}
-static bool rpcConsumerStdio(void)
-{
-    xrpcstdioconfig Config;
-    if(!xrpcStdioConfigInit(&Config))return false;
-    Config.Read=rpcConsumerStdioEof;
-    Config.Write=rpcConsumerStdioWrite;
-    xrpcstdio* S=NULL;
-    if(!xrpcStdioCreate(&Config,&S) || !xrpcStdioEnableCancellation(S) || !xrpcStdioEnableDeadline(S))return false;
-    xrpcstdioinfo Info={.Size=sizeof(Info)};
-    for(unsigned N=0;N<4;++N){
-        if(!xrpcStdioStep(S) || !xrpcStdioInfo(S,&Info))return false;
-        if(Info.Drained)return Info.Reason==XRPC_STDIO_EOF && xrpcStdioDestroy(S);
-    }
-    return false;
-}
-#endif
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
 #define main cancelDuplexPackageExample
 #include "../../examples/duplex/main.c"
 #undef main
 #endif
-#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
-#define main stdioProcessPackageExample
-#include "../../examples/stdio_process/main.c"
-#undef main
-#endif
-int main(int Argc,char** Argv)
+int main(void)
 {
-#if defined(XRPC_FEATURE_XRPC_STDIO_PROCESS)
-    if(Argc>1)return stdioProcessPackageExample(Argc,Argv);
-    if(stdioProcessPackageExample(Argc,Argv))return 32;
-#else
-    (void)Argc;(void)Argv;
-#endif
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
     if(cancelDuplexPackageExample())return 33;
-#endif
-#if defined(XRPC_FEATURE_XRPC_FRAME)
-    if(framePackageExample())return 1;
-#endif
-#if defined(XRPC_FEATURE_XRPC_STDIO)
-    if(!rpcConsumerStdio())return 31;
 #endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	xrpcmessage Message; xrpcdocument Doc;
@@ -141,46 +94,12 @@ int main(int Argc,char** Argv)
 		((const xrpccallresult*)Ready.Value)->Status!=XRPC_CALL_CANCELLED || ((const xrpccallresult*)Ready.Value)->Delivery!=XRPC_MAY_HAVE_EXECUTED)return 16;
 	xrtFutureDestroy(Future);
 #endif
-#if defined(XRPC_FEATURE_XRPC_SERVER)
-	xfuture* ServerFuture=NULL;xfutureresult ServerReady;
-	xrpcserverconfig ServerConfig;xrpcServerConfigInit(&ServerConfig);ServerConfig.Call=rpcConsumerServerCall;xrpcserver* Server=NULL;
-	if(!xrpcServerCreate(&ServerConfig,&Server) || xrpcServerSubmit(Server,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"id\":1e9999}"),5000,&ServerFuture)!=XRPC_SERVER_ACCEPTED ||
-		xrtFutureWaitFor(ServerFuture,5000)!=XWAIT_OK || !xrtFutureResult(ServerFuture,&ServerReady) || ServerReady.State!=XFUTURE_RESOLVED || !ServerReady.Value || !xrpcServerDestroy(Server))return 17;
-	const xrpcserverresult* Served=ServerReady.Value;
-	if(Served->Status!=XRPC_SERVER_DONE || Served->Dispatch.Replies!=1 || Served->Wire.Size!=sizeof("{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}")-1u ||
-		memcmp(Served->Wire.Data,"{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}",Served->Wire.Size))return 18;
-	xrtFutureDestroy(ServerFuture);
-#endif
 #if defined(XRPC_FEATURE_XRPC_DUPLEX)
     xrpcduplex* Duplex=NULL;xfuture* DuplexFuture=NULL;xfutureresult DuplexResult;
     if(!xrpcDuplexCreate(NULL,&Duplex) || xrpcDuplexCall(Duplex,XRT_STR_LITERAL("echo"),(xstrview){0},0,&DuplexFuture)!=XRPC_DUPLEX_ACCEPTED ||
        !xrpcDuplexStep(Duplex) || !xrtFutureResult(DuplexFuture,&DuplexResult) || DuplexResult.State!=XFUTURE_RESOLVED || !DuplexResult.Value ||
        ((const xrpccallresult*)DuplexResult.Value)->Status!=XRPC_CALL_TIMEOUT || !xrpcDuplexClose(Duplex,XRPC_CALL_CLOSED) || !xrpcDuplexStep(Duplex) || !xrpcDuplexDestroy(Duplex))return 19;
     xrtFutureDestroy(DuplexFuture);
-#endif
-#if defined(XRPC_FEATURE_XRPC_TCP)
-    xrpctcpconfig TcpConfig;if(!xrpcTcpConfigInit(&TcpConfig) || TcpConfig.Size!=sizeof(TcpConfig) || TcpConfig.Duplex.Wake || TcpConfig.Duplex.User || !xrpcTcpDestroy(NULL))return 20;
-#endif
-#if defined(XRPC_FEATURE_XRPC_TCP)
-    xfuture* TcpOffer=NULL;
-    if(xrpcTcpEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
-       xrpcTcpNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&TcpOffer)!=XRPC_DUPLEX_ERROR ||
-       TcpOffer)return 20;
-    xrtClearError();
-#endif
-#if defined(XRPC_FEATURE_XRPC_TLS)
-    xfuture* TlsOffer=NULL;
-    if(xrpcTlsEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
-       xrpcTlsNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&TlsOffer)!=XRPC_DUPLEX_ERROR ||
-       TlsOffer)return 34;
-    xrtClearError();
-#endif
-#if defined(XRPC_FEATURE_XRPC_WS)
-    xfuture* WsOffer=NULL;
-    if(xrpcWsEnableExtensions(NULL,XRPC_DUPLEX_EXTENSION_DEADLINE)!=XRPC_DUPLEX_ERROR ||
-       xrpcWsNegotiateExtension(NULL,XRPC_DUPLEX_EXTENSION_CANCELLATION,1,&WsOffer)!=XRPC_DUPLEX_ERROR ||
-       WsOffer)return 35;
-    xrtClearError();
 #endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
