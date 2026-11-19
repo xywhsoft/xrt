@@ -30,10 +30,16 @@ typedef bool (*xmqttserverretainedsubmit)(xmqttserverretainedticket* Ticket,
  * active retained commit. Fired retained Wills wait behind it in FIFO order.
  * Handles retained client PUBLISH packets with QoS 0, 1 and 2 and retained
  * Wills after their publication is triggered. Armed Wills retain the normal
- * session checkpoint lifecycle.
- * Restore the backend's retained checkpoint before attachment. */
+ * session checkpoint lifecycle. Restore the retained checkpoint before
+ * attachment. */
 XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingBytes,
 	xmqttserverretainedsubmit Submit, ptr User);
+
+/* After configuring both commit hooks against the same authoritative store,
+ * opt in to the combined retained QoS 2 session transaction. Configure before
+ * restoring sessions or attaching transports. Both paths reserve from the
+ * same retention budgets. */
+XMQTT_API bool xmqttServerEnableRetainedTransactions(xmqttserver* Server);
 
 /* Thread safe for the unique completion owner. COMMITTED confirms durability.
  * REJECTED certifies no durable change. UNKNOWN seals broker admission and

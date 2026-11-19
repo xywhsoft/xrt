@@ -177,6 +177,10 @@ typedef struct xmqttservertransaction {
 	uint32 ExpiryInterval; /* Seconds negotiated at CONNECT. */
 	uint16 Identifier;
 	uint8 Reason;
+	const xmqttserverretainedrecord* Retained; /* Optional mutation in the same commit. */
+	xstrview RetainedTopic;
+	double RetainedReceived; /* XRT monotonic time at admission. */
+	bool RemoveRetained;
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
@@ -192,11 +196,16 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * Atomically install a new session header when Key is nonzero; a zero Key
  * discards the group. FINISH_INCOMING_QOS2 removes the matching inbound ID
  * for this ClientId and Key before PUBCOMP. Treat a missing record as done.
- * ACCEPT_INCOMING_QOS2 commits one non-retained PUBLISH. In one transaction
- * add its inbound ID (if Key is nonzero) and all durable recipients enumerated
+ * ACCEPT_INCOMING_QOS2 commits one PUBLISH. In one transaction
+ * add its inbound ID (if Key is nonzero), the optional Retained mutation
+ * and all durable recipients enumerated
  * by xmqttServerVisitTransactionRecipients. Compare the current key for each
  * group. Skip replaced or expired recipient groups. A mismatched source key
  * makes the publication transaction fail. Volatile peers are handled by the broker.
+ * If Retained is supplied, update RetainedTopic or remove it when RemoveRetained
+ * is set. Its lifetime is measured at RetainedReceived. Remove an expired value.
+ * Enable retained QoS 2 composition with xmqttServerEnableRetainedTransactions
+ * after configuring both runtime commit hooks against the same store.
  *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.

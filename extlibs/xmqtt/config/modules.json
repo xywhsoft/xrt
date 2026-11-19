@@ -571,7 +571,7 @@
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xmqtt_server_store",
+        "xmqtt_server_retained_commit",
         "xmqtt_codec311",
         "file_whole",
         "buffer",

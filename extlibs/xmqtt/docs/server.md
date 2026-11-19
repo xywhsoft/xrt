@@ -287,7 +287,7 @@ records and the original capture time. The example's whole-file rewrite
 demonstrates ordering and process restart on a small broker. Production
 storage must provide its own power-loss guarantees.
 
-### Atomic non-retained QoS 2 acceptance
+### Atomic QoS 2 acceptance
 
 `xmqttServerSetSessionTransactions` enables keyed session transactions before
 restore or attachment. The APP implements storage. Each persistent session
@@ -310,15 +310,26 @@ prepared deliveries and replies with PUBREC 0x83 in MQTT 5. An unknown
 outcome closes broker admission. PUBREL retires the durable identifier
 through the session callback before PUBCOMP.
 
+Configure `xmqttServerSetRetainedCommit` against the same authoritative store
+and call `xmqttServerEnableRetainedTransactions` before restoring sessions.
+The session transaction then includes the retained
+replacement or deletion, the inbound identifier, and the queued recipient
+records. The retained hook continues to handle QoS 0, QoS 1 and fired Wills.
+Both paths use the same shard reservation and retention budgets. A definite
+failure rolls back the reservation and preserves the previous unexpired
+value. A subscriber can still replay that value while the transaction waits.
+An unknown combined outcome invalidates both checkpoint exports.
+
 Run `examples_server_checkpoint capture checkpoint.bin`, then
-`examples_server_checkpoint restore-online checkpoint.bin` with a v3
-checkpoint. The example uses a bounded worker, preserves unrelated groups
-and atomically replaces the complete file. The controlled `restore` mode
-reads historical v1 and v2 files and writes v3 on shutdown. The example
-uses the checkpoint's existing expiry for restored session groups and sets
-a new group's recovery lifetime at creation. Live session expiry updates
-and outbound send/acknowledgement phases still use controlled checkpoints.
-Retained publication commits have their own storage path.
+`examples_server_checkpoint restore-online checkpoint.bin` with a v3 or v4
+checkpoint. The example uses one bounded APP writer for both hooks and
+atomically replaces the complete file. The v4 file records the time of
+each retained write so expiry survives transaction delay and restart.
+The controlled `restore` mode reads historical v1 through v4 files. The
+example uses the checkpoint's existing expiry for restored session groups
+and sets a new group's recovery lifetime at creation. Live session expiry
+updates and outbound send/acknowledgement phases still use controlled
+checkpoints.
 
 ## MQTT 5 enhanced authentication
 

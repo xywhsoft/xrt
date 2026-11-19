@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `238` 个函数、`344` 个常量或宏、
+当前登记 `239` 个函数、`344` 个常量或宏、
 `156` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -863,9 +863,10 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/server_retained_commit.h)
 
-### 函数 (2)
+### 函数 (3)
 
 - `xmqttServerCompleteRetained`
+- `xmqttServerEnableRetainedTransactions`
 - `xmqttServerSetRetainedCommit`
 
 ### 常量与宏 (5)

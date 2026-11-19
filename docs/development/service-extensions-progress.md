@@ -17304,3 +17304,38 @@ The outgoing SENT and terminal acknowledgement phases, as well as live
 updates to subscriptions and session expiry, still use controlled
 checkpoints. Native Linux performance and 72-hour mixed loads remain
 open. Strict release reports 43 developing modules.
+
+
+## 2026-11-20 MQTT retained QoS 2 joined to the acceptance transaction
+
+Applications can explicitly enable retained QoS 2 composition once both
+commit hooks point at their authoritative store. The session transaction
+then applies the retained replacement or deletion, the inbound identifier
+and durable recipient queues together before PUBREC. Prepared delivery and
+retention state become visible after confirmation. The retained-only path
+still handles QoS 0, QoS 1 and triggered Wills. The two paths share the
+existing shard reservations and retention budgets.
+
+The v4 file example uses one bounded writer for both hooks. It records a
+capture offset per retained value and preserves prior file read support.
+The independent TCP probes covered process termination around the combined
+commit, duplicate replay, offline recovery, competing same-shard writes,
+explicit refusal, unknown outcome, empty retained PUBLISH and expiry while
+the commit was pending. Both MQTT 5.0 and 3.1.1 were exercised.
+
+The pre-fix writer-saturation probe reproduced an input-order failure when
+the APP refused a ticket inline. The broker now pauses and drains input only
+for an accepted deferred commit. Inline refusal keeps the native read
+callback in control. The probe repeats PUBREC 0x83 and PINGRESP on the same
+connection and verifies that the retained reservation is released.
+
+Windows x64 and Ubuntu/WSL x64 passed modular, single-header, static and
+shared tests. The retained-only transport regressions passed TCP, TLS, WS
+and WSS. WSL ASan/UBSan with leak checking and TSan passed the retained
+limit tests and combined checkpoint probes. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-qos2-retained-transaction-*`.
+
+The outgoing send and acknowledgement phases and live session and
+subscription updates still need online persistence. Native Linux performance
+and the Windows/Linux 72-hour workloads remain open. Strict release still
+reports 43 developing modules.

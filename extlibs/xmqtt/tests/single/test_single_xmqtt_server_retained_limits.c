@@ -43,19 +43,34 @@ static bool checkRestoredWill(const xmqttserverretainedrecord* Record, ptr User)
 	return true;
 }
 
+static bool noSessionTransaction(xmqttserversessionticket* Ticket, const xmqttservertransaction* Change, ptr User)
+{
+	(void)Ticket;
+	(void)Change;
+	(void)User;
+	testRequire(false, "a fired retained Will uses the retained callback");
+	return false;
+}
+
 static void detachedWill(xmqttserver* Server)
 {
 	xatomicptr Pending;
 	xrtAtomicPtrInit(&Pending, NULL);
-	testRequire(xmqttServerSetRetainedCommit(Server, 4096, captureRestoredWill, &Pending),
-		"install detached Will backend on fresh broker");
+	testRequire(xmqttServerSetRetainedCommit(Server, 4096, captureRestoredWill, &Pending) &&
+		!xmqttServerEnableRetainedTransactions(Server), "composition requires a session transaction callback");
+	xrtClearError();
+	testRequire(xmqttServerSetSessionTransactions(Server, noSessionTransaction, NULL) &&
+		!Server->RetainedTransactions && xmqttServerEnableRetainedTransactions(Server),
+		"composition requires explicit opt-in after both callbacks");
 	static const unsigned char Will[] = {0x31, 5, 0, 1, 'a', 0, 'w'};
 	const xmqttserversessionrecord Records[] = {
 		{.Kind = XMQTT_SERVER_RECORD_SESSION, .Data = XRT_BYTES_INIT("source"),
-			.Milliseconds = 20000, .Code = XMQTT_VERSION_5},
+			.Milliseconds = 20000, .Code = XMQTT_VERSION_5, .Key = {1, 2}},
 		{.Kind = XMQTT_SERVER_RECORD_WILL, .Data = {Will, sizeof(Will)}}
 	};
-	testRequire(xmqttServerRestoreSessions(Server, Records, 2, 0), "restore a due retained Will");
+	testRequire(xmqttServerRestoreSessions(Server, Records, 2, 0) &&
+		!xmqttServerEnableRetainedTransactions(Server), "restore a due retained Will and lock the commit configuration");
+	xrtClearError();
 	double Deadline = xrtTimer() + 5.0;
 	xmqttserverretainedticket* Ticket;
 	while (!(Ticket = xrtAtomicPtrLoad(&Pending, XMEMORY_ACQUIRE))) {

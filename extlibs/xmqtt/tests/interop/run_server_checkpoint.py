@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Verify restored retained messages against a new broker process."""
 import argparse
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 import json
 import os
 from pathlib import Path
 import queue
+from select import select
 import socket
 import subprocess
 import tempfile
@@ -127,26 +128,30 @@ def verify(program, directory):
             publish(source, CLEARED, b"")
             publish(source, SHORT, b"expires while down", 3)
     stored = image.read_bytes()
-    assert stored[:8] == b"XMQRET03" and int.from_bytes(stored[16:20], "big") == 4
+    assert stored[:8] == b"XMQRET04" and int.from_bytes(stored[16:20], "big") == 4
     time.sleep(3.1)
     with broker(program, "restore", image) as address:
         first_expiry = verify_restored(address)
     with broker(program, "restore", image) as address:
         assert verify_restored(address) <= first_expiry
     offset = 20
+    prior_retained = bytearray(stored[8:20])
     for _ in range(4):
         publisher_bytes = int.from_bytes(stored[offset + 1:offset + 3], "big")
         wire_bytes = int.from_bytes(stored[offset + 3:offset + 7], "big")
-        offset += 15 + publisher_bytes + wire_bytes
-    previous = b"XMQRET01" + stored[8:offset]
+        end = offset + 23 + publisher_bytes + wire_bytes
+        prior_retained += stored[offset:offset + 15] + stored[offset + 23:end]
+        offset = end
+    previous = b"XMQRET01" + prior_retained
     previous_path = directory / "retained-v1.bin"
     previous_path.write_bytes(previous + zlib.crc32(previous).to_bytes(4, "big"))
     with broker(program, "restore", previous_path) as address:
         assert verify_restored(address) <= first_expiry
-    version_two = b"XMQRET02" + stored[8:offset] + b"\0\0\0\0"
-    previous_path.write_bytes(version_two + zlib.crc32(version_two).to_bytes(4, "big"))
-    with broker(program, "restore", previous_path) as address:
-        assert verify_restored(address) <= first_expiry
+    for magic in (b"XMQRET02", b"XMQRET03"):
+        version = magic + prior_retained + b"\0\0\0\0"
+        previous_path.write_bytes(version + zlib.crc32(version).to_bytes(4, "big"))
+        with broker(program, "restore", previous_path) as address:
+            assert verify_restored(address) <= first_expiry
     bad = directory / "invalid.bin"
     rejected_image(program, bad, stored[:-1])
     rejected_image(program, bad, stored[:-1] + bytes((stored[-1] ^ 1,)))
@@ -490,7 +495,7 @@ def verify_pubrel_commit(program, directory):
 
 
 def session_records(data):
-    assert data[:8] == b"XMQRET03" and data[16:20] == b"\0" * 4
+    assert data[:8] in (b"XMQRET03", b"XMQRET04") and data[16:20] == b"\0" * 4
     at = 24
     for _ in range(int.from_bytes(data[20:24], "big")):
         body = at + {1: 46, 4: 30}.get(data[at], 22)
@@ -616,6 +621,166 @@ def verify_online_transactions(program, directory):
             "fresh_session_fences_prior_recipient": True, "volatile_source_durable_fanout": True}
 
 
+def check_retained_value(peer, name, identifier, value, expiry=False):
+    subscribe(peer, name, identifier, 0)
+    kind, body = receive(peer)
+    assert kind == 0x31 and body.startswith(topic(name)) and body.endswith(value)
+    header = body[len(topic(name)):-len(value)]
+    if expiry:
+        assert header[:2] == b"\5\x02" and len(header) == 6
+        assert 1 <= int.from_bytes(header[2:], "big") <= 120
+    else:
+        assert header == b"\0"
+
+
+def verify_retained_transactions(program, directory):
+    image = directory / "online-retained-qos2.bin"
+    source, target = b"retain-source", b"retain-target"
+    name, identifier = b"atomic/retained", b"\0\x35"
+    def wire(payload, expires, packet_id=identifier):
+        properties = b"\5\x02" + expires.to_bytes(4, "big") if expires is not None else b"\0"
+        return frame(0x35, topic(name) + packet_id + properties + payload)
+
+    with broker(program, "capture", image) as address:
+        owner, _ = connect(address, 5, b"old-retained-owner")
+        with owner:
+            publish(owner, name, b"old")
+        with persistent(address, source, True) as publisher:
+            barrier(publisher)
+        with persistent(address, target, True) as recipient:
+            subscribe(recipient, name, 1, 0x22)
+    original = image.read_bytes()
+    replacement = wire(b"new", 120)
+    pubrec = (0x50, identifier)
+
+    with broker(program, "restore-online", image, "1500", crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"retained-observer")
+            with observer:
+                publisher.sendall(replacement)
+                expect_silence(publisher)
+                check_retained_value(observer, name, 1, b"old")
+                observer.sendall(frame(0x33, topic(name) + b"\0\x44\0competing"))
+                assert receive(observer) == (0x40, b"\0\x44\x97")
+    assert image.read_bytes() == original
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"retained-observer")
+            with observer:
+                moved = image.with_suffix(".unavailable")
+                image.rename(moved)
+                publisher.sendall(replacement)
+                assert receive(publisher) == (0x50, identifier + b"\x83")
+                check_retained_value(observer, name, 1, b"old")
+                moved.rename(image)
+    assert image.read_bytes() == original
+
+    with prevent_replacement(image):
+        with broker(program, "restore-online", image, exit_code=1) as address:
+            with persistent(address, source, False, True) as publisher:
+                publisher.sendall(replacement)
+                expect_disconnect(publisher)
+    assert image.read_bytes() == original
+
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"retained-observer")
+            with observer:
+                subscribe(observer, name, 1, 0x20)
+                publisher.sendall(replacement + PING)
+                expect_silence(observer)
+                assert receive(publisher) == pubrec and receive(publisher) == PONG
+                assert image.read_bytes() != original
+                kind, body = receive(observer)
+                assert kind == 0x30 and body.startswith(topic(name)) and body.endswith(b"new")
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            publisher.sendall(bytes((0x3d,)) + replacement[1:])
+            assert receive(publisher) == pubrec
+            with persistent(address, target, False, True) as recipient:
+                kind, body = receive(recipient)
+                assert kind == 0x34 and body.startswith(topic(name)) and body.endswith(b"new")
+                at = len(topic(name))
+                delivered = body[at:at + 2]
+                assert body[at + 2:at + 4] == b"\5\x02"
+                recipient.sendall(frame(0x50, delivered))
+                assert receive(recipient) == (0x62, delivered)
+                recipient.sendall(frame(0x70, delivered))
+                barrier(recipient)
+            observer, _ = connect(address, 5, b"retained-observer")
+            with observer:
+                check_retained_value(observer, name, 1, b"new", expiry=True)
+                publisher.sendall(frame(0x62, identifier))
+                assert receive(publisher) == (0x70, identifier)
+                publisher.sendall(wire(b"", None, b"\0\x36"))
+                assert receive(publisher) == (0x50, b"\0\x36")
+                assert receive(observer) == (0x30, topic(name) + b"\0")
+
+    legacy_name = b"atomic/retained-311"
+    with broker(program, "restore-online", image, crash=True) as address:
+        observer, _ = connect(address, 5, b"retained-observer")
+        with observer:
+            subscribe(observer, name, 1, 0)
+            barrier(observer)
+        old_client, _ = connect(address, 4, b"retained-legacy")
+        with old_client:
+            previous = image.read_bytes()
+            old_client.sendall(frame(0x31, topic(legacy_name) + b"standalone") + PING)
+            assert receive(old_client) == PONG and image.read_bytes() != previous
+            old_client.sendall(frame(0x35, topic(legacy_name) + identifier + b"legacy"))
+            assert receive(old_client) == pubrec
+    with broker(program, "restore-online", image, crash=True) as address:
+        observer, _ = connect(address, 5, b"retained-observer")
+        with observer:
+            check_retained_value(observer, legacy_name, 1, b"legacy")
+
+    image.write_bytes(original)
+    with broker(program, "restore-online", image, "1400", crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"retained-observer")
+            with observer:
+                subscribe(observer, name, 1, 0x20)
+                publisher.sendall(wire(b"expires-during-commit", 1))
+                assert receive(publisher) == pubrec
+                barrier(observer)
+    with broker(program, "restore-online", image, crash=True) as address:
+        observer, _ = connect(address, 5, b"retained-observer")
+        with observer:
+            subscribe(observer, name, 1, 0)
+            barrier(observer)
+    return {"retained_atomic_recovery": ["5.0", "3.1.1"], "retained_rejection_preserves_old_value": True,
+            "retained_writes_share_shard_lease": True, "retained_combined_unknown_seals": True,
+            "retained_combined_tombstone_and_expiry": True}
+
+
+def verify_full_writer(program, directory):
+    image = directory / "retained-full-writer.bin"
+    peers = [f"transaction-writer-{i}".encode() for i in range(22)]
+    with broker(program, "capture", image) as address:
+        for client_id in peers:
+            with persistent(address, client_id, True) as peer:
+                barrier(peer)
+    original = image.read_bytes()
+    identifier = b"\0\x45"
+    with broker(program, "restore-online", image, "2000", crash=True) as address:
+        with ExitStack() as owners:
+            connected = [owners.enter_context(persistent(address, client_id, False, True)) for client_id in peers]
+            for peer in connected[:-1]:
+                peer.sendall(frame(0x34, topic(b"writer/fill") + identifier + b"\0pending"))
+            readable, _, _ = select(connected[:-1], [], [], 1.0)
+            assert readable, "the writer queue did not reach its bound"
+            assert receive(readable[0]) == (0x50, identifier + b"\x83")
+            candidate = frame(0x35, topic(b"writer/rejected") + identifier + b"\0retained")
+            for _ in range(2):
+                connected[-1].sendall(candidate + PING)
+                assert receive(connected[-1]) == (0x50, identifier + b"\x83")
+                assert receive(connected[-1]) == PONG
+    assert image.read_bytes() == original
+    return {"full_writer_preserves_input_order_and_releases_retained_lease": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
@@ -624,7 +789,9 @@ def main():
         folder = Path(directory)
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
-                          **verify_online_transactions(args.program, folder)}))
+                          **verify_online_transactions(args.program, folder),
+                          **verify_retained_transactions(args.program, folder),
+                          **verify_full_writer(args.program, folder)}))
 
 
 if __name__ == "__main__":

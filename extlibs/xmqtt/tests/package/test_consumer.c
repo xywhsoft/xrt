@@ -38,6 +38,7 @@ int main(void)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
     if (xmqttServerSetRetainedCommit(NULL, 0, NULL, NULL) ||
+        xmqttServerEnableRetainedTransactions(NULL) ||
         xmqttServerCompleteRetained(NULL, XMQTT_SERVER_RETAINED_UNKNOWN)) return 74;
     xrtClearError();
 #endif
