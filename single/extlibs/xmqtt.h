@@ -4169,7 +4169,9 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_SEND_OUTGOING,
 	XMQTT_SERVER_SESSION_RELEASE_OUTGOING,
 	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
-	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1,
+	XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS,
+	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -4257,6 +4259,12 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * only after its phase is committed. A rejection closes that transport
  * and leaves the previous phase in memory for resume.
  *
+ * UPSERT_SUBSCRIPTIONS and REMOVE_SUBSCRIPTIONS edit one keyed session
+ * before the broker sends SUBACK or UNSUBACK. In one transaction verify
+ * ClientId and Key, then upsert or remove the filters given by
+ * xmqttServerVisitTransactionSubscriptions. Match both filter and shared
+ * group. A missing removal is already done. Preserve unrelated records.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -4283,6 +4291,21 @@ XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server);
  * MQTT 5 returns a negative PUBACK and MQTT 3.1.1 closes without PUBACK.
  * A broker without this option keeps its existing QoS 1 path. */
 XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
+
+/* Opt in after configuring SetSessionTransactions and before restoring or
+ * attaching. Each packet with successful edits to a persistent session
+ * submits one operation. Existing routing stays active pending completion.
+ * New filters start matching after COMMITTED. On REJECTED the previous
+ * state is preserved. MQTT 3.1.1 closes if removal cannot be acknowledged. */
+XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server);
+
+/* Visit final per-filter edits for one subscription transaction before its
+ * completion. Each record has Kind SUBSCRIPTION. Data is the filter, Group
+ * is the share name or empty, and Code is the options for an upsert.
+ * Repeated filters expose the final successful edit only. Views are
+ * borrowed for the visit. False from Visit ends the visit. */
+XMQTT_API bool xmqttServerVisitTransactionSubscriptions(const xmqttserversessionticket* Ticket,
+	xmqttserversessionvisitor Visit, ptr User);
 
 /* The ticket owner may visit durable recipients before completing an
  * acceptance transaction. The callback borrows each record and all views
@@ -16078,6 +16101,7 @@ typedef struct xmqttservershare {
 	xbytesview Name;
 	struct xmqttservershare *Previous, *Next;
 	xmqttserverlink* Head;
+	size_t Count; /* Active members and reservations under the shard gate. */
 	xatomicptr Cursor; /* Structural changes take the topic shard's write lock. */
 } xmqttservershare;
 typedef struct xmqttservertopic {
@@ -16111,7 +16135,14 @@ struct xmqttserverlink {
 	xmqttservershare* Share;
 	xmqttserverlink *Previous, *Next, *SessionNext;
 	uint8 Options;
+	bool Staged; /* Charged but not linked into a routing list. */
 };
+
+typedef struct xmqttserverfilteredit {
+	xmqttserverlink* Link;
+	uint8 Reason, Options;
+	bool Created, Replay;
+} xmqttserverfilteredit;
 
 typedef enum xmqttserverackphase {
 	XMQTT_SERVER_ACK_TERMINAL = 0,
@@ -16147,6 +16178,8 @@ struct xmqttserversessionresetticket {
 	xmqttservertransaction Change;
 	xmqttserversessionresult Result;
 	bool DiscardOutgoing;
+	size_t FilterCount;
+	xmqttserverfilteredit Filters[];
 };
 #endif
 
@@ -16186,6 +16219,7 @@ struct xmqttserver {
 	ptr SessionStoreUser;
 	uint64 OutboundEpoch;
 	bool Qos1Transactions;
+	bool SubscriptionTransactions;
 	bool Checkpoint; /* Written once with the admission gate held. */
 	bool SessionStoreFailed; /* Protected by Gate. */
 #endif
@@ -16457,6 +16491,18 @@ static void xmqttServerRemoveTopic(xmqttserver* Server, xmqttservershard* Shard,
 	xrtFree(Topic);
 }
 
+/* The caller holds the topic shard write lock. */
+static void xmqttServerLinkTopic(xmqttserverlink* Link)
+{
+	xmqttservershare* Share = Link->Share;
+	xmqttserverlink** Head = Share ? &Share->Head : &Link->Topic->Head;
+	Link->Next = *Head;
+	if (Link->Next) Link->Next->Previous = Link;
+	else if (Share) xrtAtomicPtrStore(&Share->Cursor, Link, XMEMORY_RELAXED);
+	*Head = Link;
+	Link->Staged = false;
+}
+
 static void xmqttServerUnlinkTopic(xmqttserverlink* Link)
 {
 	xmqttserversession* Session = Link->Session;
@@ -16466,11 +16512,13 @@ static void xmqttServerUnlinkTopic(xmqttserverlink* Link)
 	xmqttservershare* Share = Link->Share;
 	xmqttserverlink** Head = Share ? &Share->Head : &Topic->Head;
 	xrtRWLockWrite(&Shard->Gate);
-	if (Link->Previous) Link->Previous->Next = Link->Next;
-	else *Head = Link->Next;
-	if (Link->Next) Link->Next->Previous = Link->Previous;
+	if (!Link->Staged) {
+		if (Link->Previous) Link->Previous->Next = Link->Next;
+		else *Head = Link->Next;
+		if (Link->Next) Link->Next->Previous = Link->Previous;
+	}
 	if (Share) {
-		if (!Share->Head) {
+		if (!--Share->Count) {
 			if (Share->Previous) Share->Previous->Next = Share->Next;
 			else Topic->Shares = Share->Next;
 			if (Share->Next) Share->Next->Previous = Share->Previous;
@@ -17455,6 +17503,8 @@ static void xmqttServerFinishOutgoingCommit(xmqttserverpeer* Peer, xmqttserverde
 	const xmqttservertransaction* Change, xmqttserversessionresult Result, bool Active, bool Discard);
 static void xmqttServerOwnIncomingQos2(xmqttserverpeer* Peer, xmqttserverack* Ack, uint8 Reason);
 static void xmqttServerAcknowledgePublish(xmqttserverpeer* Peer, xmqttserverack* Ack, unsigned Qos, uint8 Reason);
+static bool xmqttServerFinishFilterCommit(xmqttserverpeer* Peer, const xmqttserversessionticket* Ticket,
+	bool Accepted, bool Active);
 
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 static void xmqttServerDescribeTransactionRetained(xmqttservertransaction* Change,
@@ -17492,7 +17542,6 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 	xmqttserversessionresult Result = Ticket->Result;
 	bool Discard = Ticket->DiscardOutgoing;
 	Peer->SessionCommit = NULL;
-	xrtFree(Ticket);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	if (Retained && Result == XMQTT_SERVER_SESSION_UNKNOWN)
 		xrtAtomic32Store(&Server->RetainedFailed, 1, XMEMORY_RELEASE);
@@ -17532,6 +17581,8 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 			else xmqttServerReleaseAck(Ack, NULL, 0);
 		}
 		Resume = Active;
+	} else if (Ticket->FilterCount) {
+		Resume = xmqttServerFinishFilterCommit(Peer, Ticket, Result == XMQTT_SERVER_SESSION_COMMITTED, Active);
 	} else if (Ack) {
 		if (Result == XMQTT_SERVER_SESSION_COMMITTED) {
 			if (Active) {
@@ -17552,6 +17603,7 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 			}
 		}
 	}
+	xrtFree(Ticket);
 	if (Deferred && Resume) {
 		xmqttServerResumeInput(Peer);
 		xmqttServerPumpOutgoing(Peer);
@@ -17581,15 +17633,16 @@ XMQTT_API bool xmqttServerCompleteSessionReset(xmqttserversessionresetticket* Ti
 }
 
 static xmqttserversessionticket* xmqttServerNewSessionTicket(xmqttserverpeer* Peer,
-	xmqttserversessionoperation Operation)
+	xmqttserversessionoperation Operation, size_t FilterCount)
 {
-	xmqttserversessionticket* Ticket = xrtCalloc(1, sizeof(*Ticket));
+	xmqttserversessionticket* Ticket = xrtCalloc(1, sizeof(*Ticket) + FilterCount * sizeof(*Ticket->Filters));
 	if (!Ticket || !xrtNetPostInit(&Ticket->Completion)) {
 		xrtFree(Ticket);
 		return NULL;
 	}
 	Ticket->Peer = Peer;
 	Ticket->Worker = xrtNetStreamWorker(Peer->Stream);
+	Ticket->FilterCount = FilterCount;
 	Ticket->Change = (xmqttservertransaction){
 		.Operation = Operation, .ClientId = Peer->Session->ClientName,
 		.Key = Peer->Session->Key, .Version = Peer->Version,
@@ -17627,7 +17680,7 @@ static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack
 #if !defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	(void)Retained;
 #endif
-	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation);
+	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation, 0);
 	if (!Ticket) {
 		unsigned Qos = xmqttServerTransactionQos(Operation);
 		if (Qos) {
@@ -18151,7 +18204,7 @@ static xmqttserverlink** xmqttServerFindLink(xmqttserversession* Session, xbytes
 }
 
 static uint8 xmqttServerSubscribeSession(xmqttserversession* Session, xbytesview Key, xbytesview Name,
-	uint8 Options, xbytesview* Replay)
+	uint8 Options, xbytesview* Replay, xmqttserverfilteredit* Edit)
 {
 	xmqttserver* Server = Session->Server;
 	uint8 Grant = Options & XMQTT_SUBSCRIBE_QOS_MASK;
@@ -18160,7 +18213,8 @@ static uint8 xmqttServerSubscribeSession(xmqttserversession* Session, xbytesview
 	xmqttserverlink* Existing = *xmqttServerFindLink(Session, Key, Name);
 	if (Existing) {
 		xrtRWLockWrite(&Existing->Shard->Gate);
-		Existing->Options = Options;
+		if (Edit) Edit->Link = Existing;
+		else Existing->Options = Options;
 		if (Replay && Retained && !Handling) *Replay = Existing->Topic->Key.Text;
 		xrtRWLockWriteUnlock(&Existing->Shard->Gate);
 		return Grant;
@@ -18203,14 +18257,16 @@ static uint8 xmqttServerSubscribeSession(xmqttserversession* Session, xbytesview
 		xrtAtomic32FetchSub(&Server->Subscriptions, 1, XMEMORY_RELAXED);
 		return Rejected;
 	}
-	xmqttserverlink** Head = Share ? &Share->Head : &Topic->Head;
 	*Link = (xmqttserverlink){
-		.Session = Session, .Topic = Topic, .Shard = Shard, .Share = Share, .Next = *Head,
+		.Session = Session, .Topic = Topic, .Shard = Shard, .Share = Share,
 		.SessionNext = Session->Links, .Options = Options
 	};
-	if (Link->Next) Link->Next->Previous = Link;
-	else if (Share) xrtAtomicPtrStore(&Share->Cursor, Link, XMEMORY_RELAXED);
-	*Head = Link;
+	if (Share) ++Share->Count;
+	if (Edit) {
+		Link->Staged = true;
+		Edit->Link = Link;
+		Edit->Created = true;
+	} else xmqttServerLinkTopic(Link);
 	++Topic->Count;
 	Session->Links = Link;
 	++Session->LinkCount;
@@ -18219,20 +18275,11 @@ static uint8 xmqttServerSubscribeSession(xmqttserversession* Session, xbytesview
 	return Grant;
 }
 
-static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesview Name,
-	uint8 Options, xbytesview* Replay)
+static void xmqttServerRemoveFilter(xmqttserverlink** Place)
 {
-	return xmqttServerSubscribeSession(Peer->Session, Key, Name, Options, Replay);
-}
-
-static bool xmqttServerUnsubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesview Name)
-{
-	xmqttserverlink** Place = xmqttServerFindLink(Peer->Session, Key, Name);
 	xmqttserverlink* Link = *Place;
-	if (!Link) return false;
 	*Place = Link->SessionNext;
 	xmqttServerUnlinkTopic(Link);
-	return true;
 }
 
 static void xmqttServerProtocolClose(xmqttserverpeer* Peer, uint8 Reason, double Now)
@@ -18271,6 +18318,73 @@ static uint8 xmqttServerTopicReason(xmqttserverpeer* Peer, xstrview Topic, bool 
 
 static void xmqttServerReplayRetained(xmqttserverpeer* Peer, xbytesview Filter, uint8 Options);
 
+static bool xmqttServerFilterReply(xmqttserverpeer* Peer, bool Subscribe, uint16 Identifier, xbytesview Reasons)
+{
+	bool V5 = Peer->Version == XMQTT_VERSION_5;
+	xmqttpacket Reply;
+	xmqttPacketInit(Subscribe ? XMQTT_PACKET_SUBACK : XMQTT_PACKET_UNSUBACK, &Reply);
+	Reply.Identifier = Identifier;
+	if (Subscribe || V5) Reply.Body.Reasons = Reasons;
+	unsigned char Wire[XMQTT_SERVER_MAX_FILTERS + 10];
+	size_t Bytes = 0;
+	bool Encoded;
+#if defined(XMQTT_FEATURE_XMQTT_CODEC311)
+	if (!V5)
+		Encoded = xmqttPacketWrite311(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
+	else
+#endif
+		Encoded = xmqttPacketWrite5(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
+	if (!Encoded || Bytes > Peer->PacketLimit || xmqttServerSend(Peer, Wire, Bytes) != XNET_RESULT_OK) {
+		xmqttServerAbortPeer(Peer);
+		return false;
+	}
+	return true;
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+static bool xmqttServerFinishFilterCommit(xmqttserverpeer* Peer, const xmqttserversessionticket* Ticket,
+	bool Accepted, bool Active)
+{
+	unsigned char Reasons[XMQTT_SERVER_MAX_FILTERS];
+	bool Subscribe = Ticket->Change.Operation == XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS;
+	bool V5 = Peer->Version == XMQTT_VERSION_5;
+	for (size_t Index = 0; Index < Ticket->FilterCount; ++Index) {
+		const xmqttserverfilteredit* Edit = Ticket->Filters + Index;
+		Reasons[Index] = Edit->Reason;
+		if (!Accepted && Edit->Reason < (Subscribe ? 3 : 1))
+			Reasons[Index] = V5 ? 0x83 : 0x80;
+		if (Accepted && Subscribe && Edit->Link) {
+			xmqttserverlink* Link = Edit->Link;
+			xrtRWLockWrite(&Link->Shard->Gate);
+			Link->Options = Edit->Options;
+			if (Link->Staged) xmqttServerLinkTopic(Link);
+			xrtRWLockWriteUnlock(&Link->Shard->Gate);
+		} else if ((Accepted && !Subscribe && Edit->Link) || (!Accepted && Edit->Created)) {
+			xmqttserverlink* Link = Edit->Link;
+			xbytesview Group = Link->Share ? Link->Share->Name : (xbytesview){0};
+			xmqttserverlink** Place = xmqttServerFindLink(Peer->Session, Link->Topic->Key.Text, Group);
+			if (*Place != Link) abort();
+			xmqttServerRemoveFilter(Place);
+		}
+	}
+	if (!Active || !xmqttServerCanRead(Peer)) return false;
+	if (!Accepted && !Subscribe && !V5) {
+		xmqttServerAbortPeer(Peer);
+		return false;
+	}
+	if (!xmqttServerFilterReply(Peer, Subscribe, Ticket->Change.Identifier,
+		(xbytesview){Reasons, Ticket->FilterCount})) return false;
+	if (Accepted && Subscribe) {
+		for (size_t Index = 0; Index < Ticket->FilterCount && !Peer->Closing; ++Index) {
+			const xmqttserverfilteredit* Edit = Ticket->Filters + Index;
+			if (Edit->Replay) xmqttServerReplayRetained(Peer, Edit->Link->Topic->Key.Text,
+				Edit->Options & (XMQTT_SUBSCRIBE_QOS_MASK | XMQTT_SUBSCRIBE_NO_LOCAL));
+		}
+	}
+	return !Peer->Closing;
+}
+#endif
+
 static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* Packet, double Now)
 {
 	bool Subscribe = Packet->Type == XMQTT_PACKET_SUBSCRIBE;
@@ -18294,6 +18408,25 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 	}
 
 	unsigned char Reasons[XMQTT_SERVER_MAX_FILTERS];
+	xmqttserverfilteredit* Edits = NULL;
+	bool Changed = false;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	xmqttserversessionticket* Ticket = NULL;
+	if (Peer->Session->Persistent && Peer->Server->SubscriptionTransactions) {
+		Ticket = xmqttServerNewSessionTicket(Peer, Subscribe ? XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS :
+			XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS, Filters.Count);
+		if (!Ticket) {
+			if (!V5 && !Subscribe) xmqttServerAbortPeer(Peer);
+			else {
+				memset(Reasons, V5 ? 0x83 : 0x80, Filters.Count);
+				xmqttServerFilterReply(Peer, Subscribe, Packet->Identifier, (xbytesview){Reasons, Filters.Count});
+			}
+			return;
+		}
+		Ticket->Change.Identifier = Packet->Identifier;
+		Edits = Ticket->Filters;
+	}
+#endif
 	struct { xbytesview Filter; uint8 Options; } Replay[XMQTT_SERVER_MAX_FILTERS];
 	size_t ReplayCount = 0;
 	for (size_t Index = 0; Index < Filters.Count; ++Index) {
@@ -18301,8 +18434,20 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 		xbytesview Key = {(cbytes)Filter->Filter.Data, Filter->Filter.Size};
 		xbytesview Name = xmqttServerShareName(&Key, V5);
 		uint8 Reason;
+		xmqttserverfilteredit* Edit = Edits ? Edits + Index : NULL;
 		if (!Subscribe) {
-			Reason = xmqttServerUnsubscribe(Peer, Key, Name) ? 0 : 0x11;
+			xmqttserverlink** Place = xmqttServerFindLink(Peer->Session, Key, Name);
+			xmqttserverlink* Link = *Place;
+			if (Link && Edit) {
+				for (size_t Previous = 0; Previous < Index; ++Previous)
+					if (Edits[Previous].Link == Link) {
+						Link = NULL;
+						break;
+					}
+				Edit->Link = Link;
+			}
+			Reason = Link ? 0 : 0x11;
+			if (!Reason && !Edit) xmqttServerRemoveFilter(Place);
 		} else if (Filter->Filter.Size > Peer->Server->Config.MaxTopicBytes ||
 			(!V5 && !Peer->Server->Config.MaxWildcardNodes && xmqttServerHasWildcard(Key))) {
 			Reason = 0x8f;
@@ -18310,32 +18455,32 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 			/* Keep the topic-owned filter through native sends. This peer
 			 * owns its link until the deferred connection retirement. */
 			xbytesview FilterToReplay = {0};
-			Reason = xmqttServerSubscribe(Peer, Key, Name, Filter->Options, &FilterToReplay);
-			if (FilterToReplay.Data) {
+			Reason = xmqttServerSubscribeSession(Peer->Session, Key, Name, Filter->Options, &FilterToReplay, Edit);
+			if (Edit) {
+				Edit->Options = Filter->Options;
+				Edit->Replay = FilterToReplay.Data != NULL;
+			} else if (FilterToReplay.Data) {
 				Replay[ReplayCount].Filter = FilterToReplay;
 				Replay[ReplayCount++].Options = (Filter->Options & XMQTT_SUBSCRIBE_NO_LOCAL) | Reason;
 			}
 		}
 		Reasons[Index] = V5 || Reason < 0x80 ? Reason : 0x80;
+		if (Edit) {
+			Edit->Reason = Reasons[Index];
+			Changed |= Edit->Link != NULL;
+		}
 	}
-
-	xmqttpacket Reply;
-	xmqttPacketInit(Subscribe ? XMQTT_PACKET_SUBACK : XMQTT_PACKET_UNSUBACK, &Reply);
-	Reply.Identifier = Packet->Identifier;
-	if (Subscribe || V5) Reply.Body.Reasons = (xbytesview){Reasons, Filters.Count};
-	unsigned char Wire[XMQTT_SERVER_MAX_FILTERS + 10];
-	size_t Bytes = 0;
-	bool Encoded;
-#if defined(XMQTT_FEATURE_XMQTT_CODEC311)
-	if (!V5)
-		Encoded = xmqttPacketWrite311(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
-	else
-#endif
-		Encoded = xmqttPacketWrite5(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
-	if (!Encoded || Bytes > Peer->PacketLimit || xmqttServerSend(Peer, Wire, Bytes) != XNET_RESULT_OK) {
-		xmqttServerAbortPeer(Peer);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Changed) {
+		xmqttServerDispatchSessionTicket(Ticket);
 		return;
 	}
+	xrtFree(Ticket);
+#else
+	(void)Changed;
+#endif
+
+	if (!xmqttServerFilterReply(Peer, Subscribe, Packet->Identifier, (xbytesview){Reasons, Filters.Count})) return;
 	for (size_t Index = 0; Index < ReplayCount && !Peer->Closing; ++Index)
 		xmqttServerReplayRetained(Peer, Replay[Index].Filter, Replay[Index].Options);
 }
@@ -18600,7 +18745,7 @@ static void xmqttServerKeyPrepared(xmqttserversessionticket* Ticket)
 static void xmqttServerSubmitOutgoing(xmqttserverpeer* Peer, xmqttserverdelivery* Delivery,
 	xmqttserversessionoperation Operation, uint16 Identifier, bool Discard)
 {
-	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation);
+	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation, 0);
 	if (!Ticket) {
 		xmqttServerAbortPeer(Peer);
 		return;
@@ -19443,6 +19588,9 @@ static bool xmqttServerAddTarget(xmqttservertargets* Targets, xmqttserverlink* L
 static bool xmqttServerCollectShares(xmqttservertargets* Targets, const xmqttservertopic* Topic)
 {
 	for (xmqttservershare* Share = Topic ? Topic->Shares : NULL; Share; Share = Share->Next) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (!Share->Head) continue;
+#endif
 		if (Targets->ShareCount == Targets->ShareCapacity) {
 			if (Targets->ShareCapacity > SIZE_MAX / 2 / sizeof(*Targets->Shares)) return false;
 			size_t Capacity = Targets->ShareCapacity * 2;
@@ -20615,6 +20763,27 @@ XMQTT_API bool xmqttServerVisitTransactionRecipients(const xmqttserversessiontic
 	return true;
 }
 
+XMQTT_API bool xmqttServerVisitTransactionSubscriptions(const xmqttserversessionticket* Ticket,
+	xmqttserversessionvisitor Visit, ptr User)
+{
+	if (!Ticket || !Visit || !Ticket->FilterCount)
+		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT subscription transaction visit");
+	for (size_t Index = 0; Index < Ticket->FilterCount; ++Index) {
+		const xmqttserverfilteredit* Edit = Ticket->Filters + Index;
+		const xmqttserverlink* Link = Edit->Link;
+		if (!Link) continue;
+		size_t Next = Index + 1;
+		while (Next < Ticket->FilterCount && Ticket->Filters[Next].Link != Link) ++Next;
+		if (Next < Ticket->FilterCount) continue;
+		const xmqttserversessionrecord Record = {
+			.Kind = XMQTT_SERVER_RECORD_SUBSCRIPTION, .Data = Link->Topic->Key.Text,
+			.Group = Link->Share ? Link->Share->Name : (xbytesview){0}, .Code = Edit->Options
+		};
+		if (!Visit(&Record, User)) return false;
+	}
+	return true;
+}
+
 static bool xmqttServerVisitDelivery(const xmqttserverdelivery* Item, bool Sent, double Now,
 	xmqttserversessionvisitor Visit, ptr User)
 {
@@ -20789,7 +20958,7 @@ static bool xmqttServerRestoreSubscription(xmqttserversession* Session, const xm
 	}
 	xrtFree(Shared);
 	if (!Valid) return xmqttServerError(XERR_PROTOCOL, "invalid MQTT checkpoint filter or options");
-	uint8 Result = xmqttServerSubscribeSession(Session, Filter, Group, Record->Code, NULL);
+	uint8 Result = xmqttServerSubscribeSession(Session, Filter, Group, Record->Code, NULL, NULL);
 	return Result < 0x80 || xmqttServerError(XERR_AGAIN, "cannot admit MQTT checkpoint subscription");
 }
 
@@ -21489,6 +21658,18 @@ XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server)
 	if (Ready) Server->Qos1Transactions = true;
 	xrtMutexUnlock(&Server->Gate);
 	return Ready || xmqttServerError(XERR_STATE, "enable MQTT QoS 1 transactions after outbound setup and before attachment or restore");
+}
+
+XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server)
+{
+	if (!Server) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT subscription transaction setup");
+	xrtMutexLock(&Server->Gate);
+	bool Ready = Server->TransactionSubmit && !Server->SubscriptionTransactions &&
+		!Server->Info.Closing && !Server->Info.Accepted && !Server->ExpiryTimer &&
+		!Server->Info.PersistentSessions;
+	if (Ready) Server->SubscriptionTransactions = true;
+	xrtMutexUnlock(&Server->Gate);
+	return Ready || xmqttServerError(XERR_STATE, "enable MQTT subscription transactions before attachment or restore");
 }
 
 XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,

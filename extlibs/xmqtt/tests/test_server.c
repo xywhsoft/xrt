@@ -2421,7 +2421,7 @@ static void serverRoutingOom(void)
 		xallocationscope Scope = {0};
 		testRequire(xrtAllocationBudgetCreate(Limits[Index], &Budget) &&
 			xrtAllocationBudgetEnter(Budget, &Scope), "index failpoint scope");
-		uint8 Reason = xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, 0, NULL);
+		uint8 Reason = xmqttServerSubscribeSession(&Session, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, 0, NULL, NULL);
 		testRequire(xrtAllocationBudgetLeave(&Scope) && Reason == 0x83 && !Session.Links &&
 			!Session.LinkCount, "subscription node or topic insertion OOM rolls back");
 		xallocationbudgetinfo Allocation = {.Size = sizeof(Allocation)};
@@ -2432,8 +2432,9 @@ static void serverRoutingOom(void)
 	}
 	xmqttserverinfo Info;
 	testRequire(xmqttServerInfo(Fixture.Server, &Info) && !Info.Subscriptions, "aggregate quota restored");
-	testRequire(xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, 0, NULL) == 0 &&
-		xmqttServerUnsubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}), "successful retry after OOM");
+	testRequire(xmqttServerSubscribeSession(&Session, XRT_BYTES_LITERAL("index-failure"),
+		(xbytesview){0}, 0, NULL, NULL) == 0, "successful subscription retry after OOM");
+	xmqttServerRemoveFilter(&Session.Links);
 	xallocationbudget* TrieBudget;
 	xallocationscope TrieScope = {0};
 	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverwildnode) + 1, &TrieBudget) &&
@@ -2481,25 +2482,32 @@ static void serverRoutingOom(void)
 	xrtFree(Targets.Slots);
 
 	xbytesview SharedKey = XRT_BYTES_LITERAL("shared/#"), Team = XRT_BYTES_LITERAL("team");
-	testRequire(xmqttServerSubscribe(&Peer, SharedKey, (xbytesview){0}, 0, NULL) == 0,
+	testRequire(xmqttServerSubscribeSession(&Session, SharedKey, (xbytesview){0}, 0, NULL, NULL) == 0,
 		"ordinary route anchors the group allocation failpoint");
 	xallocationbudget* GroupBudget;
 	xallocationscope GroupScope = {0};
 	testRequire(xrtAllocationBudgetCreate(sizeof(xmqttserverlink), &GroupBudget) &&
 		xrtAllocationBudgetEnter(GroupBudget, &GroupScope), "shared group failpoint scope");
-	uint8 SharedResult = xmqttServerSubscribe(&Peer, SharedKey, Team, 0, NULL);
-	testRequire(xrtAllocationBudgetLeave(&GroupScope) && SharedResult == 0x83 &&
+	xmqttserverfilteredit Reservation = {0};
+	uint8 SharedResult = xmqttServerSubscribeSession(&Session, SharedKey, Team, 0, NULL, &Reservation);
+	testRequire(xrtAllocationBudgetLeave(&GroupScope) && SharedResult == 0x83 && !Reservation.Link &&
 		Session.LinkCount == 1 && !Session.Links->Topic->Shares, "shared group OOM preserves existing route");
 	xallocationbudgetinfo GroupAllocation = {.Size = sizeof(GroupAllocation)};
 	testRequire(xrtAllocationBudgetInfo(GroupBudget, &GroupAllocation) &&
 		GroupAllocation.Rejections && !GroupAllocation.LiveBytes, "shared group OOM rolls back its link and quota");
 	xrtClearError();
 	xrtAllocationBudgetFree(GroupBudget);
-	testRequire(xmqttServerSubscribe(&Peer, SharedKey, Team, 0, NULL) == 0 &&
-		xmqttServerUnsubscribe(&Peer, SharedKey, Team) &&
-		xmqttServerUnsubscribe(&Peer, SharedKey, (xbytesview){0}), "shared group allocation retries cleanly");
+	testRequire(xmqttServerSubscribeSession(&Session, SharedKey, Team, 0, NULL, &Reservation) == 0 &&
+		Reservation.Created && Reservation.Link == Session.Links && Reservation.Link->Staged &&
+		Reservation.Link->Share->Count == 1 && !Reservation.Link->Share->Head,
+		"shared group retry reserves capacity before becoming visible");
+	xmqttServerRemoveFilter(&Session.Links);
+	testRequire(Session.LinkCount == 1 && !Session.Links->Topic->Shares,
+		"rolling back the reserved group leaves its active ordinary filter");
+	xmqttServerRemoveFilter(&Session.Links);
 
 	xmqttservershare Shares[17] = {0};
+	for (size_t Index = 0; Index < 17; ++Index) Shares[Index].Head = TargetsFixture;
 	for (size_t Index = 0; Index < 15; ++Index) Shares[Index].Next = Shares + Index + 1;
 	xmqttservertopic SharedTopic = {.Shares = Shares};
 	Targets.Shares = Targets.LocalShares;

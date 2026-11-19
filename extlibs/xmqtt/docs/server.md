@@ -350,6 +350,23 @@ Retransmission can create a second delivery, as allowed for at-least-once
 delivery. On the recipient side, the committed delivery key tracks first
 PUBLISH, retransmission and retirement through the existing outbound hook.
 
+### Online subscription updates
+
+Call `xmqttServerEnableSubscriptionTransactions` after configuring
+`xmqttServerSetSessionTransactions` and before restore or attachment.
+Each SUBSCRIBE or UNSUBSCRIBE with accepted edits to a persistent session
+uses one keyed transaction. A successful ACK follows the commit. The APP
+visits only the final change for each filter and shared group. The broker
+keeps the per-filter reasons and retained replay rules from the packet.
+
+New filters reserve capacity without joining routing lists. Existing filters
+and their options remain active while storage is pending. On confirmation
+the reserves become visible and removals take effect. Definite refusal
+releases reserves and retains the previous subscriptions. MQTT 5 reports
+failed edits in SUBACK or UNSUBACK. MQTT 3.1.1 returns SUBACK failures and
+closes when a failed removal cannot be acknowledged. An unknown outcome
+seals the broker and requires restore from the authoritative backend.
+
 Run `examples_server_checkpoint capture checkpoint.bin`, then
 `examples_server_checkpoint restore-online checkpoint.bin`. Online mode
 reads v3 through v5 files. The v5 file adds a stable key to each reliable
@@ -357,8 +374,9 @@ recipient committed online. The example uses one bounded APP writer for
 both hooks and atomically replaces the complete file. Record times preserve
 retained expiry independently of later writes. The controlled `restore`
 mode reads v1 through v5 files. Deliveries with a zero key, including those
-loaded from older files, and live subscription and session expiry changes
-are captured by controlled checkpoints. The example uses the existing expiry
+loaded from older files, and live session expiry changes are captured by
+controlled checkpoints. Online mode stores subscription edits in the existing
+session record layout and verifies the session key on each update. The example uses the existing expiry
 for restored session groups and sets a new group's recovery lifetime at
 creation.
 

@@ -884,6 +884,144 @@ def verify_qos1_transactions(program, directory):
             "online_qos1_pending_shutdown": True}
 
 
+def verify_subscription_transactions(program, directory):
+    image = directory / "online-subscriptions.bin"
+    client, legacy = b"subscription-owner", b"subscription-legacy"
+    old, new = b"edit/old", b"edit/new"
+    wild, shared, legacy_topic = b"edit/wild/#", b"edit/shared", b"edit/legacy"
+    group1, group2 = b"$share/first/" + shared, b"$share/second/" + shared
+    identifier = b"\x00\x41"
+
+    def sub(*items, version=5):
+        props = b"\0" if version == 5 else b""
+        return frame(0x82, identifier + props + b"".join(topic(name) + bytes((option,)) for name, option in items))
+
+    def unsub(*items, version=5):
+        props = b"\0" if version == 5 else b""
+        return frame(0xa2, identifier + props + b"".join(map(topic, items)))
+
+    def publish0(peer, name, payload):
+        peer.sendall(frame(0x30, topic(name) + b"\0" + payload) + PING)
+        assert receive(peer) == PONG
+
+    with broker(program, "capture", image) as address:
+        with persistent(address, client, True) as peer:
+            subscribe(peer, old, 1, 0x21)
+        with persistent(address, legacy, False, version=4) as peer:
+            peer.sendall(sub((legacy_topic, 1), version=4))
+            assert receive(peer) == (0x90, identifier + b"\x01")
+
+    before = image.read_bytes()
+    request = sub((old, 0x22), (new, 0x22), (new, 0x25), (wild, 0x21), (group1, 0x22), (group2, 0x21))
+    with broker(program, "restore-online", image, "1400", crash=True) as address:
+        with persistent(address, client, False, True) as peer:
+            other, _ = connect(address, 5, b"subscription-publisher")
+            with other:
+                peer.sendall(request + PING)
+                expect_silence(peer)
+                publish0(other, new, b"staged")
+                publish0(other, shared, b"staged")
+                expect_silence(peer)
+                publish0(other, old, b"existing")
+                assert receive(peer) == (0x30, topic(old) + b"\0existing")
+    assert image.read_bytes() == before
+
+    with broker(program, "restore-online", image, "450", crash=True) as address:
+        with persistent(address, client, False, True) as peer:
+            peer.sendall(request + PING)
+            expect_silence(peer)
+            assert receive(peer) == (0x90, identifier + b"\0\x02\x02\x01\x01\x02\x01")
+            assert receive(peer) == PONG
+
+        with persistent(address, legacy, False, True, version=4) as peer:
+            peer.sendall(sub((legacy_topic, 2), version=4))
+            assert receive(peer) == (0x90, identifier + b"\x02")
+
+    saved = image.read_bytes()
+    normal = [saved[at + 1] for at, body, end in session_records(saved)
+              if saved[at] == 2 and saved[body:end] == new]
+    assert normal == [0x25], "one final subscription per filter"
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, client, False, True) as peer:
+            other, _ = connect(address, 5, b"subscription-publisher")
+            with other:
+                peer.sendall(frame(0x30, topic(new) + b"\0local") + PING)
+                assert receive(peer) == PONG
+                publish0(other, b"edit/wild/path", b"wildcard")
+                assert receive(peer) == (0x30, topic(b"edit/wild/path") + b"\0wildcard")
+                moved = image.with_suffix(".unavailable")
+                image.rename(moved)
+                try:
+                    peer.sendall(sub((b"edit/rejected", 0x21)))
+                    assert receive(peer) == (0x90, identifier + b"\0\x83")
+                    peer.sendall(unsub(new, b"edit/missing") + PING)
+                    assert receive(peer) == (0xb0, identifier + b"\0\x83\x11")
+                    assert receive(peer) == PONG
+                    publish0(other, b"edit/rejected", b"rolled-back")
+                    expect_silence(peer)
+                    publish0(other, new, b"removed-only-in-request")
+                    assert receive(peer) == (0x30, topic(new) + b"\0removed-only-in-request")
+                finally:
+                    moved.rename(image)
+    assert image.read_bytes() == saved
+
+    with prevent_replacement(image):
+        with broker(program, "restore-online", image, exit_code=1) as address:
+            with persistent(address, client, False, True) as peer:
+                peer.sendall(unsub(new))
+                expect_disconnect(peer)
+    assert image.read_bytes() == saved
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, legacy, False, True, version=4) as peer:
+            moved = image.with_suffix(".unavailable")
+            image.rename(moved)
+            try:
+                peer.sendall(sub((b"edit/legacy-rejected", 1), version=4))
+                assert receive(peer) == (0x90, identifier + b"\x80")
+                peer.sendall(unsub(legacy_topic, version=4))
+                expect_disconnect(peer)
+            finally:
+                moved.rename(image)
+        with persistent(address, client, False, True) as peer:
+            peer.sendall(unsub(new, new, group1) + PING)
+            assert receive(peer) == (0xb0, identifier + b"\0\x00\x11\x00")
+            assert receive(peer) == PONG
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        other, _ = connect(address, 5, b"subscription-publisher")
+        with other, persistent(address, client, False, True) as peer, \
+                persistent(address, legacy, False, True, version=4) as peer311:
+            publish0(other, new, b"removed")
+            expect_silence(peer)
+            publish0(other, shared, b"one-group-left")
+            assert receive(peer) == (0x30, topic(shared) + b"\0one-group-left")
+            expect_silence(peer)
+            publish0(other, legacy_topic, b"legacy-preserved")
+            assert receive(peer311) == (0x30, topic(legacy_topic) + b"legacy-preserved")
+            peer311.sendall(unsub(legacy_topic, version=4))
+            assert receive(peer311) == (0xb0, identifier)
+    with broker(program, "restore-online", image, crash=True) as address:
+        other, _ = connect(address, 5, b"subscription-publisher")
+        with other, persistent(address, legacy, False, True, version=4) as peer:
+            publish0(other, legacy_topic, b"legacy-removed")
+            expect_silence(peer)
+    takeover = b"edit/takeover"
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, client, False, True) as replaced:
+            other, _ = connect(address, 5, b"subscription-publisher")
+            with other:
+                replaced.sendall(sub((takeover, 0x21)) + PING)
+                expect_silence(replaced)
+                with persistent(address, client, False, True) as successor:
+                    assert receive(replaced) == (0xe0, b"\x8e")
+                    publish0(other, takeover, b"successor")
+                    assert receive(successor) == (0x30, topic(takeover) + b"\0successor")
+    return {"subscription_commit_before_ack": True, "subscription_matching_after_restart": True,
+            "subscription_rollback_and_unknown": True, "subscription_mqtt311": True,
+            "subscription_pending_takeover": True}
+
+
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
     kind, body = receive(peer)
@@ -1055,6 +1193,7 @@ def main():
                           **verify_online_transactions(args.program, folder),
                           **verify_outbound_transactions(args.program, folder),
                           **verify_qos1_transactions(args.program, folder),
+                          **verify_subscription_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 

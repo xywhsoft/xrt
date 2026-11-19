@@ -351,10 +351,47 @@ static bool checkpointAcceptsPublication(xmqttserversessionoperation Operation)
 		Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2;
 }
 
+static bool checkpointEditsSubscriptions(xmqttserversessionoperation Operation)
+{
+	return Operation == XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS ||
+		Operation == XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS;
+}
+
+static bool checkpointCollectSubscription(const xmqttserversessionrecord* Record, ptr User)
+{
+	return xrtBufferAppend(User, (xbytesview){(cbytes)Record, sizeof(*Record)});
+}
+
+static bool checkpointSameBytes(xbytesview A, xbytesview B)
+{
+	return A.Size == B.Size && (!A.Size || !memcmp(A.Data, B.Data, A.Size));
+}
+
+static bool checkpointHasSubscription(const xbuffer* Targets, const xmqttserversessionrecord* Record)
+{
+	const xmqttserversessionrecord* Items = (const void*)Targets->Data;
+	for (size_t At = 0; At < Targets->Size / sizeof(*Items); ++At)
+		if (checkpointSameBytes(Record->Data, Items[At].Data) &&
+			checkpointSameBytes(Record->Group, Items[At].Group)) return true;
+	return false;
+}
+
 static bool checkpointAppendGroup(checkpointoutput* Output, const xmqttserversessionrecord* Group,
 	const xmqttservertransaction* Change, const xbuffer* Targets, bool* Found)
 {
-	if (!Group->Data.Size || !checkpointAcceptsPublication(Change->Operation)) return true;
+	if (!Group->Data.Size) return true;
+	if (checkpointEditsSubscriptions(Change->Operation)) {
+		if (!checkpointIdEqual(Change->ClientId, Group->Data)) return true;
+		if (!checkpointKeyEqual(Change->Key, Group->Key)) return false;
+		if (Change->Operation == XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS) {
+			const xmqttserversessionrecord* Items = (const void*)Targets->Data;
+			for (size_t At = 0; At < Targets->Size / sizeof(*Items); ++At)
+				if (!checkpointSession(Items + At, Output)) return false;
+		}
+		*Found = true;
+		return true;
+	}
+	if (!checkpointAcceptsPublication(Change->Operation)) return true;
 	if (checkpointIdEqual(Change->ClientId, Group->Data) && checkpointHasKey(Change->Key)) {
 		if (!checkpointKeyEqual(Change->Key, Group->Key)) return false;
 		if (Change->Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
@@ -399,6 +436,8 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 			if (Matching && checkpointKeyEqual(Change->Key, Group.Key)) MatchedGroup = true;
 		}
 		if (Matching && Change->Operation == XMQTT_SERVER_SESSION_DISCARD) continue;
+		if (Matching && Record.Kind == XMQTT_SERVER_RECORD_SUBSCRIPTION &&
+			checkpointEditsSubscriptions(Change->Operation) && checkpointHasSubscription(Targets, &Record)) continue;
 		if (Matching && checkpointKeyEqual(Change->Key, Group.Key) &&
 			Record.Kind == XMQTT_SERVER_RECORD_INCOMING_QOS2 && Record.Identifier == Change->Identifier) {
 			if (Change->Operation == XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2) continue;
@@ -443,6 +482,8 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 	switch (Change->Operation) {
 	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2:
 	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1:
+	case XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS:
+	case XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS:
 	case XMQTT_SERVER_SESSION_SEND_OUTGOING:
 	case XMQTT_SERVER_SESSION_RELEASE_OUTGOING:
 		return Found;
@@ -521,9 +562,12 @@ static xmqttserversessionresult checkpointTransact(const checkpointchange* Reque
 		return XMQTT_SERVER_SESSION_REJECTED;
 	checkpointoutput Output = {.Offset = (uint64)Now - SavedAt};
 	xbuffer Targets = {0};
-	bool Written = (!checkpointAcceptsPublication(Request->Change.Operation) ||
-		xmqttServerVisitTransactionRecipients(Request->Ticket, checkpointCollectRecipient, &Targets)) &&
-		xrtBufferAppend(&Output.Image, (xbytesview){Image, CheckpointHeader}) &&
+	bool Collected = true;
+	if (checkpointAcceptsPublication(Request->Change.Operation))
+		Collected = xmqttServerVisitTransactionRecipients(Request->Ticket, checkpointCollectRecipient, &Targets);
+	else if (checkpointEditsSubscriptions(Request->Change.Operation))
+		Collected = xmqttServerVisitTransactionSubscriptions(Request->Ticket, checkpointCollectSubscription, &Targets);
+	bool Written = Collected && xrtBufferAppend(&Output.Image, (xbytesview){Image, CheckpointHeader}) &&
 		checkpointWriteRetained(&Cursor, Image[7] >= '4', Count, &Request->Change, Captured, &Output) &&
 		Output.Count <= RetainedTopics && Cursor.Size >= 4;
 	size_t Section = Output.Image.Size;
@@ -619,7 +663,7 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 		(xmqttServerSetSessionTransactions(Server, checkpointSubmitTransaction, Store) &&
 		 xmqttServerSetRetainedCommit(Server, 4u * 1024u * 1024u, checkpointSubmitRetained, Store) &&
 		 xmqttServerEnableRetainedTransactions(Server) && xmqttServerEnableOutboundTransactions(Server) &&
-		 xmqttServerEnableQos1Transactions(Server)) :
+		 xmqttServerEnableQos1Transactions(Server) && xmqttServerEnableSubscriptionTransactions(Server)) :
 		(!Store->Writer || xmqttServerSetSessionCommit(Server, checkpointSubmit, Store));
 	return Ready && checkpointLoad(Server, Store->Path, Store->Online);
 }

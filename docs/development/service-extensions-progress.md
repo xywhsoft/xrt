@@ -17552,3 +17552,34 @@ a QoS 2 online shared subscriber, and a separate best-effort delivery.
 The reliable reservation OOM test uses the same QoS downgrade. The complete
 WSL checkpoint probe passed ASan/UBSan with leak checking. Raw results are
 under out/service-extensions/scope-reduction-20261119/xmqtt-qos1-grant/.
+
+## 2026-11-20 MQTT online subscription transactions
+
+A persistent session can opt in to committing one set of acknowledged
+subscription edits per request. New links reserve topic, group and global
+capacity outside the routing lists. Existing link options and membership
+stay active during the write. Confirmation publishes additions and
+removals before SUBACK or UNSUBACK. Definite failure rolls back new
+reservations and preserves prior routing. MQTT 5 emits per-filter
+failure reasons, and MQTT 3.1.1 closes on a failed unsubscribe.
+
+The APP checkpoint writer applies the final edit for each filter and
+share pair against the keyed session. It preserves distinct groups, all
+unrelated session state and the existing checkpoint encoding. The TCP
+fixture covered a process stop before and after the commit, duplicate
+filters, wildcard and shared replay after restart, No Local, definite
+and unknown storage outcomes, MQTT 3.1.1, and takeover with a pending
+write. Its legacy fixture uses Clean Session false. The shared-group
+OOM test verifies reserved capacity is reclaimed after failure.
+
+Windows x64 and Ubuntu/WSL passed the broker and storage suite,
+modular and single-header checkpoint probes, and static and shared
+broker consumers. WSL passed the complete checkpoint probe with
+ASan/UBSan, leak detection and TSan. Wildcard and shared routing passed
+three default in-memory benchmark smoke cases on each platform.
+
+Raw results are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-subscription-transactions/`.
+The ordinary maturity check passes. Strict release still lists 43
+developing modules. Online session expiry and armed Will persistence,
+native Linux and 72-hour production acceptance remain open.

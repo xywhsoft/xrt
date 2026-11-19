@@ -143,7 +143,9 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_SEND_OUTGOING,
 	XMQTT_SERVER_SESSION_RELEASE_OUTGOING,
 	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
-	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1,
+	XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS,
+	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -231,6 +233,12 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * only after its phase is committed. A rejection closes that transport
  * and leaves the previous phase in memory for resume.
  *
+ * UPSERT_SUBSCRIPTIONS and REMOVE_SUBSCRIPTIONS edit one keyed session
+ * before the broker sends SUBACK or UNSUBACK. In one transaction verify
+ * ClientId and Key, then upsert or remove the filters given by
+ * xmqttServerVisitTransactionSubscriptions. Match both filter and shared
+ * group. A missing removal is already done. Preserve unrelated records.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -257,6 +265,21 @@ XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server);
  * MQTT 5 returns a negative PUBACK and MQTT 3.1.1 closes without PUBACK.
  * A broker without this option keeps its existing QoS 1 path. */
 XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
+
+/* Opt in after configuring SetSessionTransactions and before restoring or
+ * attaching. Each packet with successful edits to a persistent session
+ * submits one operation. Existing routing stays active pending completion.
+ * New filters start matching after COMMITTED. On REJECTED the previous
+ * state is preserved. MQTT 3.1.1 closes if removal cannot be acknowledged. */
+XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server);
+
+/* Visit final per-filter edits for one subscription transaction before its
+ * completion. Each record has Kind SUBSCRIPTION. Data is the filter, Group
+ * is the share name or empty, and Code is the options for an upsert.
+ * Repeated filters expose the final successful edit only. Views are
+ * borrowed for the visit. False from Visit ends the visit. */
+XMQTT_API bool xmqttServerVisitTransactionSubscriptions(const xmqttserversessionticket* Ticket,
+	xmqttserversessionvisitor Visit, ptr User);
 
 /* The ticket owner may visit durable recipients before completing an
  * acceptance transaction. The callback borrows each record and all views
