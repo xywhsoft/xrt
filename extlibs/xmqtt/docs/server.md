@@ -367,6 +367,34 @@ failed edits in SUBACK or UNSUBACK. MQTT 3.1.1 returns SUBACK failures and
 closes when a failed removal cannot be acknowledged. An unknown outcome
 seals the broker and requires restore from the authoritative backend.
 
+### Online session expiry
+
+With a session transaction backend installed, enable
+`xmqttServerEnableSessionExpiryTransactions` before restore or transport
+attachment. Fresh and resumed persistent connections commit their current
+Session Expiry Interval before successful CONNACK. Connection retirement
+commits the actual network-close time and the resulting offline lifetime.
+MQTT 5 DISCONNECT can override that lifetime. A zero interval removes the
+stored session. MQTT 3.1.1 persistent sessions use an unlimited interval.
+
+The broker reserves the retirement ticket at connection setup and waits for
+earlier peer operations before submitting it. A successor waits for the old
+owner to finish. A reconnect admitted before the offline deadline retains its
+reservation while the writer drains. A connection arriving after expiry starts
+a fresh session. A failed retirement commit seals admission and requires a
+restart from the authoritative store. The backend must remain live through
+broker drain. It should charge writer delay against the offline lifetime.
+
+Run `examples_server_checkpoint restore-online-expiry checkpoint.bin` to
+exercise the additional operations. The version 6 image marks connected
+sessions. If a process stops before recording a close, the example uses the
+first successful recovery as its observation of connection loss. It writes
+that deadline before opening the listener, so later restarts count the
+elapsed time. Observed closes retain their actual deadlines. The example
+continues to read versions 1 through 5 in their supported modes. Will data
+for live connections and online delayed Wills still need their own durable
+records.
+
 Run `examples_server_checkpoint capture checkpoint.bin`, then
 `examples_server_checkpoint restore-online checkpoint.bin`. Online mode
 reads v3 through v5 files. The v5 file adds a stable key to each reliable
@@ -374,9 +402,10 @@ recipient committed online. The example uses one bounded APP writer for
 both hooks and atomically replaces the complete file. Record times preserve
 retained expiry independently of later writes. The controlled `restore`
 mode reads v1 through v5 files. Deliveries with a zero key, including those
-loaded from older files, and live session expiry changes are captured by
-controlled checkpoints. Online mode stores subscription edits in the existing
-session record layout and verifies the session key on each update. The example uses the existing expiry
+loaded from older files, are captured by controlled checkpoints. Online mode
+stores subscription edits in the existing session record layout and verifies
+the session key on each update. The online expiry mode additionally stores
+connection lifecycle changes. The example uses the existing expiry
 for restored session groups and sets a new group's recovery lifetime at
 creation.
 

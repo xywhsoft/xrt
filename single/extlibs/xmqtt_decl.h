@@ -6997,7 +6997,10 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
 	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1,
 	XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS,
-	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS
+	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS,
+	XMQTT_SERVER_SESSION_START,
+	XMQTT_SERVER_SESSION_RESUME,
+	XMQTT_SERVER_SESSION_CLOSE
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -7044,6 +7047,8 @@ typedef struct xmqttservertransaction {
 	xmqttserversessionkey DeliveryKey;
 	uint32 OutgoingExpiry; /* Message Expiry Interval written on first PUBLISH. */
 	uint8 OutgoingPhase; /* Expected ACK after SEND or RELEASE; before FINISH. */
+	uint64 OfflineLifetimeMs; /* CLOSE: lifetime at ClosedAt, UINT64_MAX for no expiry. */
+	double ClosedAt; /* CLOSE: XRT monotonic time of network closure. */
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
@@ -7091,6 +7096,15 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * xmqttServerVisitTransactionSubscriptions. Match both filter and shared
  * group. A missing removal is already done. Preserve unrelated records.
  *
+ * START replaces an old ClientId group with a connected persistent session.
+ * RESUME verifies ClientId and Key and marks the existing session connected.
+ * Both persist the negotiated ExpiryInterval before successful CONNACK.
+ * CLOSE verifies the same key and marks the session offline, with its lifetime
+ * starting at ClosedAt. Zero lifetime removes the group. Account for writer
+ * delay. A failed CLOSE seals the broker and requires authoritative restore.
+ * If a crash leaves a connected record, the APP supplies the time of network
+ * loss or the first observation of the outage when calculating restore expiry.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -7124,6 +7138,13 @@ XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
  * New filters start matching after COMMITTED. On REJECTED the previous
  * state is preserved. MQTT 3.1.1 closes if removal cannot be acknowledged. */
 XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server);
+
+/* Opt in after SetSessionTransactions, before restoring or attaching.
+ * The broker reserves the CLOSE ticket when it prepares START or RESUME.
+ * WaitFor includes CLOSE retirement. Keep the APP writer live until drained.
+ * The APP handles START, RESUME and CLOSE for persistent sessions, including
+ * connections with an unchanged expiry interval. Will storage is separate. */
+XMQTT_API bool xmqttServerEnableSessionExpiryTransactions(xmqttserver* Server);
 
 /* Visit final per-filter edits for one subscription transaction before its
  * completion. Each record has Kind SUBSCRIPTION. Data is the filter, Group

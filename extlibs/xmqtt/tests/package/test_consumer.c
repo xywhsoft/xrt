@@ -36,6 +36,7 @@ int main(void)
         xmqttServerEnableOutboundTransactions(NULL) ||
         xmqttServerEnableQos1Transactions(NULL) ||
         xmqttServerEnableSubscriptionTransactions(NULL) ||
+        xmqttServerEnableSessionExpiryTransactions(NULL) ||
         xmqttServerVisitTransactionSubscriptions(NULL, NULL, NULL) ||
         xmqttServerVisitTransactionRecipients(NULL, NULL, NULL)) return 73;
     xrtClearError();

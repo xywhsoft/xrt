@@ -10,7 +10,7 @@
 #include <string.h>
 
 /* Application-owned binary fixture for a single loopback broker. */
-enum { CheckpointHeader = 20, CheckpointRecord = 15, SessionRecord = 22, CheckpointChecksum = 4, RetainedTopics = 4096 };
+enum { CheckpointHeader = 20, CheckpointRecord = 15, SessionRecord = 22, CheckpointChecksum = 4, RetainedTopics = 4096, SessionConnected = 1 };
 static const unsigned char CheckpointMagic[8] = {'X','M','Q','R','E','T','0','5'};
 static const size_t RetainedBytes = 16u * 1024u * 1024u;
 static const size_t CheckpointLimit = 192u * 1024u * 1024u; /* Aggregate default protocol quotas. */
@@ -192,12 +192,22 @@ static bool checkpointReadSession(xbytesview* Input, uint8 Format, xmqttserverse
 }
 
 static bool checkpointParseSessions(xbytesview Input, uint8 Format, xmqttserversessionrecord* Records,
-	size_t Count, uint64 Elapsed)
+	size_t Count, uint64 Elapsed, bool* Rebased)
 {
 	for (size_t Index = 0; Index < Count; ++Index) {
 		xmqttserversessionrecord* Record = Records + Index;
 		uint64 Offset;
+		cbytes Header = Input.Data;
 		if (!checkpointReadSession(&Input, Format, Record, &Offset) || Offset > Elapsed) return false;
+		if (Format >= '6' && Record->Kind == XMQTT_SERVER_RECORD_SESSION && Record->Value == SessionConnected) {
+			/* A live record has no observed network-close time. Start the
+			 * outage clock once at recovery, before accepting connections. */
+			Record->Value = 0;
+			Offset = Elapsed;
+			checkpointWriteNumber((bytes)Header + 4, 4, 0);
+			checkpointWriteNumber((bytes)Header + SessionRecord + 16, 8, Offset);
+			*Rebased = true;
+		}
 		if (Format >= '3' && Record->Milliseconds != UINT64_MAX &&
 			(Record->Kind == XMQTT_SERVER_RECORD_SESSION || Record->Kind == XMQTT_SERVER_RECORD_QUEUED ||
 			 Record->Kind == XMQTT_SERVER_RECORD_WILL)) {
@@ -209,7 +219,8 @@ static bool checkpointParseSessions(xbytesview Input, uint8 Format, xmqttservers
 	return Input.Size == 0;
 }
 
-static bool checkpointRestoreSessions(xmqttserver* Server, xbytesview Input, uint8 Format, uint64 Elapsed)
+static bool checkpointRestoreSessions(xmqttserver* Server, xbytesview Input, uint8 Format, uint64 Elapsed,
+	bool* Rebased)
 {
 	if (Input.Size < 4) return false;
 	size_t Count = (size_t)checkpointReadNumber(Input.Data, 4);
@@ -218,7 +229,7 @@ static bool checkpointRestoreSessions(xmqttserver* Server, xbytesview Input, uin
 	/* Bound the temporary descriptor table by the sample broker's default quotas. */
 	if (Count > Input.Size / SessionRecord || Count > 2u * 1024u + 65536u + 65536u + 16384u) return false;
 	xmqttserversessionrecord* Records = Count ? xrtCalloc(Count, sizeof(*Records)) : NULL;
-	bool Restored = (!Count || Records) && checkpointParseSessions(Input, Format, Records, Count, Elapsed) &&
+	bool Restored = (!Count || Records) && checkpointParseSessions(Input, Format, Records, Count, Elapsed, Rebased) &&
 		xmqttServerRestoreSessions(Server, Records, Count, Format >= '3' ? 0 : Elapsed);
 	xrtFree(Records);
 	return Restored;
@@ -230,7 +241,7 @@ static bytes checkpointOpen(cstr Path, xbytesview* Cursor, size_t* Count)
 	bytes Image = xrtFileReadAllLimit(Path, CheckpointLimit, &Bytes);
 	if (!Image) return NULL;
 	if (Bytes >= CheckpointHeader + CheckpointChecksum && !memcmp(Image, CheckpointMagic, 7) &&
-		(Image[7] >= '1' && Image[7] <= '5')) {
+		(Image[7] >= '1' && Image[7] <= '6')) {
 		size_t Content = Bytes - CheckpointChecksum;
 		*Count = (size_t)checkpointReadNumber(Image + 16, 4);
 		if (*Count <= RetainedTopics && xrtCrc32(Image, Content) == checkpointReadNumber(Image + Content, CheckpointChecksum)) {
@@ -252,6 +263,8 @@ static bool checkpointLoad(xmqttserver* Server, cstr Path, bool Online)
 		xrtFree(Image);
 		return false;
 	}
+	size_t Content = CheckpointHeader + Cursor.Size;
+	bool Rebased = false;
 	uint64 SavedAt = checkpointReadNumber(Image + 8, 8);
 	xmqttserverretainedrecord* Records = Count ? xrtCalloc(Count, sizeof(*Records)) : NULL;
 	int64 Now;
@@ -263,7 +276,11 @@ static bool checkpointLoad(xmqttserver* Server, cstr Path, bool Online)
 		xmqttServerRestoreRetained(Server, Records, Count, Timed ? 0 : Elapsed);
 	if (Restored)
 		Restored = Image[7] == '1' ? Cursor.Size == 0 :
-			checkpointRestoreSessions(Server, Cursor, Image[7], Elapsed);
+			checkpointRestoreSessions(Server, Cursor, Image[7], Elapsed, &Rebased);
+	if (Restored && Rebased) {
+		checkpointWriteNumber(Image + Content, CheckpointChecksum, xrtCrc32(Image, Content));
+		Restored = xrtFileWriteAtomic(Path, (xbytesview){Image, Content + CheckpointChecksum});
+	}
 	xrtFree(Records);
 	xrtFree(Image);
 	return Restored;
@@ -273,7 +290,7 @@ typedef struct checkpointstore {
 	cstr Path;
 	xtaskpool* Writer;
 	int64 Delay;
-	bool Online;
+	bool Online, Expiry;
 } checkpointstore;
 
 typedef struct checkpointchange {
@@ -413,14 +430,23 @@ static bool checkpointAppendGroup(checkpointoutput* Output, const xmqttserverses
 	return true;
 }
 
+static uint64 checkpointExpiryMilliseconds(uint32 Interval)
+{
+	return Interval == UINT32_MAX ? UINT64_MAX : UINT64_C(1000) * Interval;
+}
+
 static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesview Cursor,
-	size_t Count, uint8 Format, const xbuffer* Targets, checkpointoutput* Output)
+	size_t Count, uint8 Format, const xbuffer* Targets, uint64 OfflineMs, checkpointoutput* Output)
 {
 	const xmqttservertransaction* Change = &Request->Change;
 	uint64 Elapsed = Output->Offset;
 	xmqttserversessionrecord Group = {0}, FirstSend = {0};
 	size_t GroupPosition = 0;
 	bool Matching = false, MatchedGroup = false, Found = !checkpointHasKey(Change->Key);
+	bool Closing = Change->Operation == XMQTT_SERVER_SESSION_CLOSE;
+	bool Resuming = Change->Operation == XMQTT_SERVER_SESSION_RESUME;
+	bool Replacing = Change->Operation == XMQTT_SERVER_SESSION_DISCARD ||
+		Change->Operation == XMQTT_SERVER_SESSION_START;
 	for (size_t At = 0; At < Count; ++At) {
 		xmqttserversessionrecord Record;
 		uint64 Offset;
@@ -434,8 +460,17 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 			GroupPosition = Output->Image.Size;
 			Matching = checkpointIdEqual(Change->ClientId, Group.Data);
 			if (Matching && checkpointKeyEqual(Change->Key, Group.Key)) MatchedGroup = true;
+			if (Matching && (Closing || Resuming)) {
+				if (!checkpointKeyEqual(Change->Key, Group.Key)) return false;
+				Record.Value = Resuming ? SessionConnected : 0;
+				Record.Milliseconds = Resuming ? checkpointExpiryMilliseconds(Change->ExpiryInterval) : OfflineMs;
+				Offset = Elapsed;
+			}
 		}
-		if (Matching && Change->Operation == XMQTT_SERVER_SESSION_DISCARD) continue;
+		/* A resume reserved before expiry may be queued behind this write.
+		 * Preserve its key if time elapsed in the writer. A zero lifetime
+		 * at the close event ends the session and removes all state. */
+		if (Matching && (Replacing || (Closing && !Change->OfflineLifetimeMs))) continue;
 		if (Matching && Record.Kind == XMQTT_SERVER_RECORD_SUBSCRIPTION &&
 			checkpointEditsSubscriptions(Change->Operation) && checkpointHasSubscription(Targets, &Record)) continue;
 		if (Matching && checkpointKeyEqual(Change->Key, Group.Key) &&
@@ -488,13 +523,16 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 	case XMQTT_SERVER_SESSION_RELEASE_OUTGOING:
 		return Found;
 	case XMQTT_SERVER_SESSION_FINISH_OUTGOING:
+	case XMQTT_SERVER_SESSION_RESUME:
+	case XMQTT_SERVER_SESSION_CLOSE:
 		return MatchedGroup;
+	case XMQTT_SERVER_SESSION_START:
 	case XMQTT_SERVER_SESSION_DISCARD:
 		if (checkpointHasKey(Change->Key)) {
 			const xmqttserversessionrecord Record = {.Kind = XMQTT_SERVER_RECORD_SESSION,
 				.Data = {(cbytes)Change->ClientId.Data, Change->ClientId.Size},
-				.Milliseconds = Change->ExpiryInterval == UINT32_MAX ? UINT64_MAX :
-					UINT64_C(1000) * Change->ExpiryInterval,
+				.Milliseconds = checkpointExpiryMilliseconds(Change->ExpiryInterval),
+				.Value = Change->Operation == XMQTT_SERVER_SESSION_START ? SessionConnected : 0,
 				.Code = (uint8)Change->Version, .Key = Change->Key};
 			return checkpointSession(&Record, Output);
 		}
@@ -561,6 +599,15 @@ static xmqttserversessionresult checkpointTransact(const checkpointchange* Reque
 		!xrtTimeToUnixMs(xrtNow(), &Now) || Now < 0 || (uint64)Now < SavedAt)
 		return XMQTT_SERVER_SESSION_REJECTED;
 	checkpointoutput Output = {.Offset = (uint64)Now - SavedAt};
+	uint64 OfflineMs = Request->Change.OfflineLifetimeMs;
+	if (Request->Change.Operation == XMQTT_SERVER_SESSION_CLOSE) {
+		double ClosedAt = Request->Change.ClosedAt;
+		if (!isfinite(ClosedAt) || ClosedAt > Captured) return XMQTT_SERVER_SESSION_REJECTED;
+		if (OfflineMs != UINT64_MAX) {
+			double Age = (Captured - ClosedAt) * 1000.0;
+			OfflineMs = Age >= (double)OfflineMs ? 0 : OfflineMs - (uint64)Age;
+		}
+	}
 	xbuffer Targets = {0};
 	bool Collected = true;
 	if (checkpointAcceptsPublication(Request->Change.Operation))
@@ -572,14 +619,14 @@ static xmqttserversessionresult checkpointTransact(const checkpointchange* Reque
 		Output.Count <= RetainedTopics && Cursor.Size >= 4;
 	size_t Section = Output.Image.Size;
 	if (Written) {
-		Output.Image.Data[7] = '5';
+		Output.Image.Data[7] = Request->Store->Expiry || Image[7] == '6' ? '6' : '5';
 		checkpointWriteNumber(Output.Image.Data + 16, 4, Output.Count);
 		Output.Count = 0;
 		Count = (size_t)checkpointReadNumber(Cursor.Data, 4);
 		Cursor.Data += 4;
 		Cursor.Size -= 4;
 		Written = Count <= Cursor.Size / SessionRecord && xrtBufferAdd(&Output.Image, 4) &&
-			checkpointWriteTransaction(Request, Cursor, Count, Image[7], &Targets, &Output) &&
+			checkpointWriteTransaction(Request, Cursor, Count, Image[7], &Targets, OfflineMs, &Output) &&
 			Output.Count <= UINT32_MAX && Output.Image.Size <= CheckpointLimit - CheckpointChecksum;
 	}
 	xrtBufferUnit(&Targets);
@@ -665,17 +712,20 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 		 xmqttServerEnableRetainedTransactions(Server) && xmqttServerEnableOutboundTransactions(Server) &&
 		 xmqttServerEnableQos1Transactions(Server) && xmqttServerEnableSubscriptionTransactions(Server)) :
 		(!Store->Writer || xmqttServerSetSessionCommit(Server, checkpointSubmit, Store));
-	return Ready && checkpointLoad(Server, Store->Path, Store->Online);
+	return Ready && (!Store->Expiry || xmqttServerEnableSessionExpiryTransactions(Server)) &&
+		checkpointLoad(Server, Store->Path, Store->Online);
 }
 
 int main(int Argc, char** Argv)
 {
-	bool Online = Argc >= 3 && !strcmp(Argv[1], "restore-online");
+	bool Expiry = Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry");
+	bool Online = Expiry || (Argc >= 3 && !strcmp(Argv[1], "restore-online"));
 	bool Fenced = Online || (Argc >= 3 && !strcmp(Argv[1], "restore-fenced"));
 	if ((Fenced && Argc > 4) ||
 		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
 		puts("usage: examples_server_checkpoint capture|restore checkpoint.bin");
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
+		puts("       examples_server_checkpoint restore-online-expiry checkpoint.bin [delay-ms]");
 		return Argc == 1 ? 0 : 1;
 	}
 	xmqttserverconfig Config;
@@ -686,7 +736,7 @@ int main(int Argc, char** Argv)
 	Config.Allow311 = true;
 #endif
 	checkpointstore Store = {.Path = Argv[2], .Delay = Argc == 4 ? strtol(Argv[3], NULL, 10) : 0,
-		.Online = Online};
+		.Online = Online, .Expiry = Expiry};
 	if (Store.Delay < 0 || Store.Delay > 2000) return 1;
 	if (Fenced) {
 		const xtaskpoolconfig PoolConfig = {.Threads = 1, .QueueLimit = 16};

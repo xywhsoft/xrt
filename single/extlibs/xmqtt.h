@@ -4171,7 +4171,10 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
 	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1,
 	XMQTT_SERVER_SESSION_UPSERT_SUBSCRIPTIONS,
-	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS
+	XMQTT_SERVER_SESSION_REMOVE_SUBSCRIPTIONS,
+	XMQTT_SERVER_SESSION_START,
+	XMQTT_SERVER_SESSION_RESUME,
+	XMQTT_SERVER_SESSION_CLOSE
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -4218,6 +4221,8 @@ typedef struct xmqttservertransaction {
 	xmqttserversessionkey DeliveryKey;
 	uint32 OutgoingExpiry; /* Message Expiry Interval written on first PUBLISH. */
 	uint8 OutgoingPhase; /* Expected ACK after SEND or RELEASE; before FINISH. */
+	uint64 OfflineLifetimeMs; /* CLOSE: lifetime at ClosedAt, UINT64_MAX for no expiry. */
+	double ClosedAt; /* CLOSE: XRT monotonic time of network closure. */
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
@@ -4265,6 +4270,15 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * xmqttServerVisitTransactionSubscriptions. Match both filter and shared
  * group. A missing removal is already done. Preserve unrelated records.
  *
+ * START replaces an old ClientId group with a connected persistent session.
+ * RESUME verifies ClientId and Key and marks the existing session connected.
+ * Both persist the negotiated ExpiryInterval before successful CONNACK.
+ * CLOSE verifies the same key and marks the session offline, with its lifetime
+ * starting at ClosedAt. Zero lifetime removes the group. Account for writer
+ * delay. A failed CLOSE seals the broker and requires authoritative restore.
+ * If a crash leaves a connected record, the APP supplies the time of network
+ * loss or the first observation of the outage when calculating restore expiry.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -4298,6 +4312,13 @@ XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
  * New filters start matching after COMMITTED. On REJECTED the previous
  * state is preserved. MQTT 3.1.1 closes if removal cannot be acknowledged. */
 XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server);
+
+/* Opt in after SetSessionTransactions, before restoring or attaching.
+ * The broker reserves the CLOSE ticket when it prepares START or RESUME.
+ * WaitFor includes CLOSE retirement. Keep the APP writer live until drained.
+ * The APP handles START, RESUME and CLOSE for persistent sessions, including
+ * connections with an unchanged expiry interval. Will storage is separate. */
+XMQTT_API bool xmqttServerEnableSessionExpiryTransactions(xmqttserver* Server);
 
 /* Visit final per-filter edits for one subscription transaction before its
  * completion. Each record has Kind SUBSCRIPTION. Data is the filter, Group
@@ -16220,6 +16241,7 @@ struct xmqttserver {
 	uint64 OutboundEpoch;
 	bool Qos1Transactions;
 	bool SubscriptionTransactions;
+	bool SessionExpiryTransactions;
 	bool Checkpoint; /* Written once with the admission gate held. */
 	bool SessionStoreFailed; /* Protected by Gate. */
 #endif
@@ -16315,6 +16337,8 @@ struct xmqttserverpeer {
 	bool Online, Closing;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 	xmqttserversessionticket* SessionCommit; /* Connection worker only. */
+	xmqttserversessionticket* ExpiryClose; /* Reserved before committing CONNECT. */
+	bool ExpiryOpen;
 	xmqttserverdelivery* FirstPublish;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
@@ -16738,6 +16762,10 @@ static void xmqttServerAuthFreeConnack(xmqttserverauthstate* Auth)
 }
 #endif
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+static bool xmqttServerSubmitExpiryClose(xmqttserverpeer* Peer);
+#endif
+
 static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 {
 	(void)Worker;
@@ -16759,6 +16787,11 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 			return;
 		}
 	}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	/* At zero references, earlier protocol and store work has retired.
+	 * CLOSE takes a new owner pin before the peer and successor can retire. */
+	if (Peer->ExpiryClose && xmqttServerSubmitExpiryClose(Peer)) return;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
 	if (Peer->Auth) {
@@ -17344,13 +17377,17 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	}
 	if (Old && !CleanStart && Old->Persistent) {
 		xmqttserverpeer* Previous = Old->Peer;
+		xrtMutexLock(&Old->Gate);
 		bool Live = Previous && xrtAtomic32Load(&Previous->SessionExpiry, XMEMORY_RELAXED);
 		bool Saved = !Previous && Old->Expires > Now;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (Server->SessionExpiryTransactions && Old->Expires > 0 && Old->Expires <= Now) Live = false;
+#endif
 		if ((Live || Saved) && Old->Version != Peer->Version) {
+			xrtMutexUnlock(&Old->Gate);
 			xrtMutexUnlock(&Server->Gate);
 			return 0x83;
 		}
-		xrtMutexLock(&Old->Gate);
 		if (Live && xrtAtomic32Load(&Old->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_SEALED) {
 			/* Stop reads and routing on the old transport. While its worker
 			 * retires, later ordinary messages join the offline FIFO. */
@@ -17546,13 +17583,19 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 	if (Retained && Result == XMQTT_SERVER_SESSION_UNKNOWN)
 		xrtAtomic32Store(&Server->RetainedFailed, 1, XMEMORY_RELEASE);
 #endif
+	bool ExpiryClose = Change.Operation == XMQTT_SERVER_SESSION_CLOSE;
+	bool Failed = Result == XMQTT_SERVER_SESSION_UNKNOWN ||
+		(ExpiryClose && Result != XMQTT_SERVER_SESSION_COMMITTED);
+	if (Result == XMQTT_SERVER_SESSION_COMMITTED &&
+		(Change.Operation == XMQTT_SERVER_SESSION_START || Change.Operation == XMQTT_SERVER_SESSION_RESUME))
+		Peer->ExpiryOpen = true;
 	xrtMutexLock(&Server->Gate);
-	if (Result == XMQTT_SERVER_SESSION_UNKNOWN) Server->SessionStoreFailed = true;
+	if (Failed) Server->SessionStoreFailed = true;
 	bool Active = !Server->Info.Closing && !Server->SessionStoreFailed;
 	xrtMutexUnlock(&Server->Gate);
 
 	bool Resume = false;
-	if (Result == XMQTT_SERVER_SESSION_UNKNOWN) xmqttServerClose(Server);
+	if (Failed) xmqttServerClose(Server);
 	double Now = xrtTimer();
 	Active = Active && xmqttServerCanRead(Peer);
 	unsigned Qos = xmqttServerTransactionQos(Change.Operation);
@@ -17590,7 +17633,7 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 				Resume = true;
 			} else xmqttServerReleaseAck(Ack, NULL, 0);
 		} else if (Active) xmqttServerAbortPeer(Peer);
-	} else if (Active) {
+	} else if (Active && !ExpiryClose) {
 		if (Result == XMQTT_SERVER_SESSION_REJECTED)
 			xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
 		else {
@@ -17665,12 +17708,37 @@ static void xmqttServerDispatchSessionTicket(xmqttserversessionticket* Ticket)
 			Ticket->Change.Identifier, Server->SessionStoreUser);
 	else Submitted = Server->ResetSubmit(Ticket, Ticket->Change.ClientId, Server->SessionStoreUser);
 	if (Submitted) {
-		xmqttServerPauseInput(Peer);
+		if (!Peer->Closing) xmqttServerPauseInput(Peer);
 		return;
 	}
 	/* The native read callback may still own the current packet. */
 	Ticket->Result = XMQTT_SERVER_SESSION_REJECTED;
 	xmqttServerFinishSessionCommit(Ticket->Worker, Ticket, false);
+}
+
+/* Called on the peer's worker before destroying its native stream. */
+static bool xmqttServerSubmitExpiryClose(xmqttserverpeer* Peer)
+{
+	xmqttserversessionticket* Ticket = Peer->ExpiryClose;
+	Peer->ExpiryClose = NULL;
+	if (!Peer->ExpiryOpen) {
+		xrtFree(Ticket);
+		return false;
+	}
+	uint64 Lifetime = 0;
+	if (Peer->Online) {
+		uint32 Expiry = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED);
+		Lifetime = Expiry == UINT32_MAX ? UINT64_MAX : UINT64_C(1000) * Expiry;
+	} else if (Peer->Resumed && Peer->ResumeExpiry > Peer->ClosedAt) {
+		/* A committed CONNECT that failed to send CONNACK leaves the previous
+		 * offline deadline in effect for a resumed session. */
+		Lifetime = isinf(Peer->ResumeExpiry) ? UINT64_MAX :
+			(uint64)((Peer->ResumeExpiry - Peer->ClosedAt) * 1000.0);
+	}
+	Ticket->Change.OfflineLifetimeMs = Lifetime;
+	Ticket->Change.ClosedAt = Peer->ClosedAt;
+	xmqttServerDispatchSessionTicket(Ticket);
+	return true;
 }
 
 static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack* Ack,
@@ -17711,6 +17779,19 @@ static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack
 static void xmqttServerAcceptConnect(xmqttserverpeer* Peer, double Now)
 {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->Session->Persistent && Peer->Server->SessionExpiryTransactions) {
+		if (Peer->Closing) return;
+		xmqttserversessionticket* Open = xmqttServerNewSessionTicket(Peer,
+			Peer->Resumed ? XMQTT_SERVER_SESSION_RESUME : XMQTT_SERVER_SESSION_START, 0);
+		Peer->ExpiryClose = Open ? xmqttServerNewSessionTicket(Peer, XMQTT_SERVER_SESSION_CLOSE, 0) : NULL;
+		if (!Peer->ExpiryClose) {
+			xrtFree(Open);
+			xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
+			return;
+		}
+		xmqttServerDispatchSessionTicket(Open);
+		return;
+	}
 	if (Peer->Session->ResetPending) {
 		if (!Peer->Closing) xmqttServerSubmitSessionCommit(Peer, NULL, XMQTT_SERVER_SESSION_DISCARD, NULL, NULL, 0, Now);
 		return;
@@ -21181,6 +21262,14 @@ static void xmqttServerPeerClosed(xmqttserverpeer* Peer)
 	Peer->ClosedAt = xrtTimer();
 	bool Replaced = xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE) != 0;
 	uint32 Expiry = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->ExpiryOpen) {
+		xrtMutexLock(&Session->Gate);
+		Session->Expires = !Peer->Online && Peer->Resumed ? Peer->ResumeExpiry :
+			(Expiry == UINT32_MAX ? INFINITY : Peer->ClosedAt + Expiry);
+		xrtMutexUnlock(&Session->Gate);
+	}
+#endif
 	if (Session->Persistent && (((Peer->Online || Replaced) && Expiry) || (!Peer->Online && Peer->Resumed))) {
 		uint32 State = XMQTT_SERVER_ONLINE;
 		(void)xrtAtomic32CompareExchange(&Session->State, &State, XMQTT_SERVER_OFFLINE, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE);
@@ -21670,6 +21759,18 @@ XMQTT_API bool xmqttServerEnableSubscriptionTransactions(xmqttserver* Server)
 	if (Ready) Server->SubscriptionTransactions = true;
 	xrtMutexUnlock(&Server->Gate);
 	return Ready || xmqttServerError(XERR_STATE, "enable MQTT subscription transactions before attachment or restore");
+}
+
+XMQTT_API bool xmqttServerEnableSessionExpiryTransactions(xmqttserver* Server)
+{
+	if (!Server) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT session expiry transaction setup");
+	xrtMutexLock(&Server->Gate);
+	bool Ready = Server->TransactionSubmit && !Server->SessionExpiryTransactions &&
+		!Server->Info.Closing && !Server->Info.Accepted && !Server->ExpiryTimer &&
+		!Server->Info.PersistentSessions;
+	if (Ready) Server->SessionExpiryTransactions = true;
+	xrtMutexUnlock(&Server->Gate);
+	return Ready || xmqttServerError(XERR_STATE, "enable MQTT session expiry transactions before attachment or restore");
 }
 
 XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,

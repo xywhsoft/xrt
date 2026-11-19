@@ -17583,3 +17583,35 @@ Raw results are under
 The ordinary maturity check passes. Strict release still lists 43
 developing modules. Online session expiry and armed Will persistence,
 native Linux and 72-hour production acceptance remain open.
+
+## 2026-11-20 MQTT online session expiry
+
+The optional session lifecycle operations persist the negotiated interval
+before a fresh or resumed persistent CONNECT succeeds. They reserve the
+close ticket up front and record the network-close time after earlier
+protocol work drains. MQTT 5 DISCONNECT overrides apply to that close,
+and a zero lifetime removes the record. A reconnect admitted before
+expiry keeps its reservation across store delay. A later CONNECT gets a
+fresh session. A failed close commit seals the broker.
+
+The APP example adds an online expiry mode and a version 6 checkpoint
+marker for connected sessions. Observed closures retain their offline
+deadlines. After a process kill with no observed close, the example
+rebases the interval at the first recovery and writes the result before
+opening the listener. It accounts for writer delay and reads the older
+supported formats.
+
+Windows x64 and Ubuntu/WSL passed modular and single-header broker
+storage and checkpoint TCP coverage, static and shared package consumers,
+and four session-resume and takeover benchmark smoke cases per platform.
+The independent process probe checked long live sessions, recovery through
+two starts, shortening and deleting on disconnect, resume interval changes,
+takeover, reconnects around expiry during a delayed write, MQTT 3.1.1,
+in-process Will timing and close-store rejection. WSL ASan/UBSan,
+leak detection and TSan also passed the complete TCP checkpoint probe.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-session-expiry/`.
+Strict release still reports 43 developing modules. Durable armed and
+delayed Wills, controlled performance comparisons, native Linux and
+72-hour production acceptance remain open.

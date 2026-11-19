@@ -161,8 +161,8 @@ def verify(program, directory):
             "finite_expiry_and_no_local": True, "corruption_and_clock_rejection": True}
 
 
-def persistent_connect(client_id, clean, *, version=5, will=b"", max_packet=None):
-    fields = b"\x11\0\0\0\x3c"
+def persistent_connect(client_id, clean, *, version=5, will=b"", max_packet=None, expiry=60):
+    fields = b"\x11" + expiry.to_bytes(4, "big")
     if max_packet is not None:
         fields += b"\x27" + max_packet.to_bytes(4, "big")
     fields = bytes((len(fields),)) + fields if version == 5 else b""
@@ -175,9 +175,9 @@ def expect_connack(peer, present=False, reason=0):
     assert kind == 0x20 and body[:2] == bytes((present, reason)), (kind, body)
 
 
-def persistent(address, client_id, clean, present=False, *, version=5, will=b"", max_packet=None):
+def persistent(address, client_id, clean, present=False, *, version=5, will=b"", max_packet=None, expiry=60):
     peer = socket.create_connection(address, timeout=8)
-    peer.sendall(persistent_connect(client_id, clean, version=version, will=will, max_packet=max_packet))
+    peer.sendall(persistent_connect(client_id, clean, version=version, will=will, max_packet=max_packet, expiry=expiry))
     expect_connack(peer, present)
     return peer
 
@@ -513,7 +513,7 @@ def verify_pubrel_commit(program, directory):
 
 
 def session_records(data):
-    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05")
+    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05", b"XMQRET06")
     at = 20
     retained_header = 15 if data[7:8] == b"3" else 23
     for _ in range(int.from_bytes(data[16:20], "big")):
@@ -525,7 +525,7 @@ def session_records(data):
     for _ in range(count):
         kind = data[at]
         body = at + {1: 46, 4: 30}.get(kind, 22)
-        if data[7:8] == b"5" and kind in (4, 5):
+        if data[7:8] >= b"5" and kind in (4, 5):
             body += 16
         size = int.from_bytes(data[at + 16:at + 20], "big")
         group = int.from_bytes(data[at + 20:at + 22], "big")
@@ -1022,6 +1022,139 @@ def verify_subscription_transactions(program, directory):
             "subscription_pending_takeover": True}
 
 
+def verify_session_expiry_transactions(program, directory):
+    image = directory / "online-expiry.bin"
+    mode = "restore-online-expiry"
+    first, second, legacy = b"expiry-first", b"expiry-second", b"expiry-legacy"
+
+    def state(client):
+        data = image.read_bytes()
+        assert data[:8] == b"XMQRET06"
+        for at, body, end in session_records(data):
+            if data[at] == 1 and data[body:end] == client:
+                return (int.from_bytes(data[at + 4:at + 8], "big"),
+                        int.from_bytes(data[at + 8:at + 16], "big"),
+                        int.from_bytes(data[at + 38:body], "big"))
+        return None
+
+    def close_with_interval(peer, expiry, reason=0):
+        peer.sendall(frame(0xe0, bytes((reason, 5, 0x11)) + expiry.to_bytes(4, "big")))
+        expect_disconnect(peer)
+
+    def wait_file_change(previous):
+        deadline = time.monotonic() + 5
+        while image.stat().st_mtime_ns == previous:
+            assert time.monotonic() < deadline, "session close reached no checkpoint"
+            time.sleep(0.02)
+
+    with broker(program, "capture", image):
+        pass
+
+    # Keep the socket alive until the process is killed, so no CLOSE can run.
+    live = None
+    try:
+        with broker(program, mode, image, crash=True) as address:
+            live = persistent(address, first, True, expiry=2)
+            subscribe(live, b"expiry/recovered", 1, 1)
+            assert state(first)[:2] == (1, 2000)
+            time.sleep(2.3)
+            barrier(live)
+            assert state(first)[:2] == (1, 2000)
+    finally:
+        if live is not None:
+            live.close()
+
+    connected = state(first)
+    with broker(program, mode, image, crash=True):
+        offline = state(first)
+        assert offline[:2] == (0, 2000) and offline[2] > connected[2]
+    time.sleep(2.3)
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, first, False, False, expiry=3) as peer:
+            barrier(peer)
+            assert state(first)[:2] == (1, 3000)
+
+    # A new live session gets its expiry from the close event, including an
+    # MQTT 5 DISCONNECT override. Deliberately delay the backend write.
+    with broker(program, mode, image, "600", crash=True) as address:
+        with persistent(address, second, True) as peer:
+            assert state(second)[:2] == (1, 60000)
+            before = image.stat().st_mtime_ns
+            close_with_interval(peer, 8)
+            wait_file_change(before)
+            closed = state(second)
+            assert closed[0] == 0 and 6000 < closed[1] < 7700, closed
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, second, False, True, expiry=30) as peer:
+            assert state(second)[:2] == (1, 30000)
+            before = image.stat().st_mtime_ns
+            close_with_interval(peer, 0)
+            wait_file_change(before)
+            assert state(second) is None
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, second, False, False) as peer:
+            barrier(peer)
+
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, legacy, False, version=4) as peer:
+            assert state(legacy)[:2] == (1, (1 << 64) - 1)
+            before = image.stat().st_mtime_ns
+            peer.sendall(b"\xe0\0")
+            expect_disconnect(peer)
+            wait_file_change(before)
+            assert state(legacy)[:2] == (0, (1 << 64) - 1)
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, legacy, False, True, version=4) as peer:
+            barrier(peer)
+
+    with broker(program, mode, image, "275", crash=True) as address:
+        with persistent(address, b"expiry-takeover", True, expiry=7) as original:
+            with persistent(address, b"expiry-takeover", False, True, expiry=27) as successor:
+                assert receive(original) == (0xe0, b"\x8e")
+                assert state(b"expiry-takeover")[:2] == (1, 27000)
+                barrier(successor)
+
+    # The writer crosses the old session deadline while persisting CLOSE.
+    # The arrival time of CONNECT decides whether its successor may resume.
+    for early in (True, False):
+        client_id = b"expiry-early" if early else b"expiry-late"
+        with broker(program, mode, image, "1450", crash=True) as address:
+            with persistent(address, client_id, True) as peer:
+                close_with_interval(peer, 1)
+                if not early:
+                    time.sleep(1.15)
+                with persistent(address, client_id, False, early, expiry=40) as replacement:
+                    assert state(client_id)[:2] == (1, 40000)
+                    barrier(replacement)
+
+    # A shorter Session Expiry still drives the in-process delayed Will.
+    name = b"expiry/will"
+    fields = b"\x05\x18\0\0\0\x0a" + topic(name) + topic(b"at-expiry")
+    with broker(program, mode, image, crash=True) as address:
+        observer, _ = connect(address, 5, b"expiry-observer")
+        with observer, persistent(address, b"expiry-will", True, will=fields) as peer:
+            subscribe(observer, name, 1, 0)
+            close_with_interval(peer, 1, 4)
+            assert receive(observer) == (0x30, topic(name) + b"\0at-expiry")
+
+    # Seal admission if the observed CLOSE cannot be stored.
+    with broker(program, mode, image, exit_code=1) as address:
+        observer, _ = connect(address, 5, b"expiry-observer")
+        with observer, persistent(address, b"expiry-refusal", True) as peer:
+            saved = image.with_suffix(".unavailable")
+            image.rename(saved)
+            try:
+                close_with_interval(peer, 0)
+                expect_disconnect(observer)
+            finally:
+                saved.rename(image)
+    return {"online_expiry_does_not_age_connected_session": True,
+            "online_expiry_recovery_clock_written_once": True,
+            "online_expiry_close_override_and_resume": True,
+            "online_expiry_mqtt311_and_will_timing": True, "online_expiry_close_failure": True,
+            "online_expiry_takeover_order": True, "online_expiry_reconnect_at_deadline": True}
+
+
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
     kind, body = receive(peer)
@@ -1194,6 +1327,7 @@ def main():
                           **verify_outbound_transactions(args.program, folder),
                           **verify_qos1_transactions(args.program, folder),
                           **verify_subscription_transactions(args.program, folder),
+                          **verify_session_expiry_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 
