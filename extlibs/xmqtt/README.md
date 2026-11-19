@@ -4,7 +4,7 @@ Independent pure-C MQTT extension using public XRT APIs. MQTT 5.0 is the
 primary version with selectable 3.1.1 compatibility. The client is developing.
 The independently selectable [server](docs/server.md) implements TCP handshake,
 Client ID takeover, keep alive and QoS 0 routing with exact, wildcard and shared
-subscriptions and bounded in-memory retention. Persistent sessions are in development. See the
+subscriptions, bounded in-memory retention, and inbound QoS 1. Persistent sessions are in development. See the
 [capability and load acceptance plan](../../docs/development/service-extensions-plan.md#mqtt-server-delivery).
 The developing [committed state recovery](docs/store_state.md) validates the
 whole typed journal prefix before publishing independent QoS/Inbox views.

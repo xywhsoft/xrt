@@ -16451,3 +16451,50 @@ workloads. Idle expired records can remain resident until reclamation. QoS
 1/2 retention, durable state, native Linux and sustained mixed load remain
 open. Logs and reports are in
 out/service-extensions/scope-reduction-20261119/xmqtt-avl-retain-*.
+
+## 2026-11-19 MQTT server inbound QoS 1
+
+The server accepts MQTT 5 and 3.1.1 QoS 1 PUBLISH. An owner-worker index
+reserves each packet identifier before any routing or retained-state changes.
+Native TCP release returns the per-peer and broker-wide acknowledgement
+credits. The first outstanding acknowledgement uses storage in the peer.
+MQTT 5 advertises Receive Maximum and Maximum QoS 1, responds to preflight
+refusals on PUBACK and disconnects on Receive Maximum exhaustion. MQTT 3.1.1
+uses the four-byte PUBACK and closes on refusal. Failed QoS 1 retained
+replacements preserve the previous value. Live and retained deliveries use
+QoS 0 under the current subscriber grant.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5 and dual-version modular and
+single-header tests, listener examples, server static and shared consumers,
+dependency trims and checks for unwanted symbols in codec-only and server
+single objects. An independent Python peer verifies both protocol directions
+for the downgrade to QoS 0, QoS 1 publisher acknowledgements, identifier reuse
+and no matching subscribers. The C suite verifies 64 successive publications
+with Receive Maximum 1, the 0x93 disconnect via a live socket, allocation and
+quota rollback, legal identifier reuse with DUP, retained replay and complete
+worker retirement. Dual WSL ASan/UBSan with leak checks and focused Clang
+TSan passed. Manifest, generated headers and API documentation checks passed.
+
+Three unpinned runs per configuration verified 10,000 128-byte publications
+with one publisher and two broker workers. Inbound QoS 1 timing starts at the
+publisher and includes verification of PUBACK followed by each subscriber
+receive. The QoS 0 comparison has no publisher acknowledgement. Rates count
+subscriber deliveries and the allocation column counts XRT-requested blocks.
+
+| Host | Inbound QoS | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | Blocks/delivery |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 0 | 1 | 33,886 | 49.7 | 107.3 | 2.0001 |
+| Windows x64 | 0 | 64 | 211,245 | 478.0 | 553.2 | 1.0201 |
+| Windows x64 | 1 | 1 | 38,216 | 48.4 | 114.5 | 3.0001 |
+| Windows x64 | 1 | 64 | 223,313 | 434.2 | 541.7 | 1.0358 |
+| Ubuntu/WSL x64 | 0 | 1 | 12,082 | 130.9 | 211.5 | 3.0000 |
+| Ubuntu/WSL x64 | 0 | 64 | 145,111 | 571.9 | 692.2 | 1.0330 |
+| Ubuntu/WSL x64 | 1 | 1 | 15,238 | 112.0 | 191.5 | 3.9989 |
+| Ubuntu/WSL x64 | 1 | 64 | 132,882 | 604.6 | 676.0 | 1.0478 |
+
+All measured workloads completed. Both variation checks returned exit 1,
+with 16 violations on Windows and five on WSL across both ingress paths.
+The results are loopback observations. Outbound QoS 1, QoS 2, durable
+sessions, controlled performance comparisons, native Linux and sustained
+mixed load remain open. Logs and reports are in
+out/service-extensions/scope-reduction-20261119/xmqtt-qos1-inbound-*.

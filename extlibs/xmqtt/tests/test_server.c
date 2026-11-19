@@ -53,11 +53,12 @@ static xmqttserverpermission serverAuthorizeTopic(xmqttversion Version, xstrview
 	xmqttserverinfo Info;
 	testRequire(ClientId.Size == 4 && ClientId.Data && xmqttServerInfo(Fixture->Server, &Info),
 		"topic policy receives stable ClientId outside broker gates");
+	if (Topic.Size == 4 && !memcmp(Topic.Data, "busy", 4)) return XMQTT_SERVER_BUSY;
 	return Topic.Size == 3 && !memcmp(Topic.Data, "bad", 3) ? XMQTT_SERVER_DENY : XMQTT_SERVER_ALLOW;
 }
 
 static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing,
-	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes)
+	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes, uint16 ReceiveMaximum)
 {
 	memset(Fixture, 0, sizeof(*Fixture));
 	xrtAtomic32Init(&Fixture->ListenerClosed, 0);
@@ -75,6 +76,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 	Config.MaxWildcardNodes = WildcardNodes;
 	Config.MaxRetainedTopics = RetainedTopics;
 	Config.MaxRetainedBytes = RetainedBytes;
+	Config.ReceiveMaximum = ReceiveMaximum;
 	Config.Authorize = serverAuthorize;
 	Config.User = Fixture;
 	if (Routing) {
@@ -118,7 +120,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget,
 	bool Routing, size_t WildcardNodes)
 {
-	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u);
+	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64);
 }
 
 static void serverStart(serverfixture* Fixture, bool Allow311, size_t Budget)
@@ -220,7 +222,7 @@ static size_t serverConnectWire(unsigned char* Wire, xmqttversion Version, bool 
 	return Pos + 4;
 }
 
-static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uint8 Reason, bool Wildcard, bool Retained)
+static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uint8 Reason, bool Wildcard, bool Retained, uint16 ReceiveMaximum)
 {
 	unsigned char Reply[32];
 	serverRecv(Socket, Reply, 2);
@@ -230,7 +232,8 @@ static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uin
 	serverRecv(Socket, Reply + 2, Bytes);
 	testRequire(Reply[2] == 0 && Reply[3] == Reason, "CONNACK session flag and reason");
 	if (Version == XMQTT_VERSION_5 && !Reason) {
-		const unsigned char Limits[] = {15, 36, 0, 37, Retained, 40, Wildcard, 41, 0, 42, 1, 39, 0, 0, 1, 0};
+		const unsigned char Limits[] = {18, 36, 1, 33, (uint8)(ReceiveMaximum >> 8), (uint8)ReceiveMaximum,
+			37, Retained, 40, Wildcard, 41, 0, 42, 1, 39, 0, 0, 1, 0};
 		testRequire(Bytes == 2 + sizeof(Limits) && !memcmp(Reply + 4, Limits, sizeof(Limits)),
 			"CONNACK advertises negotiated limits");
 	}
@@ -238,7 +241,7 @@ static void serverConnackConfigured(xnetsocket Socket, xmqttversion Version, uin
 
 static void serverConnack(xnetsocket Socket, xmqttversion Version, uint8 Reason)
 {
-	serverConnackConfigured(Socket, Version, Reason, true, true);
+	serverConnackConfigured(Socket, Version, Reason, true, true, 64);
 }
 
 static void serverConnections(serverfixture* Fixture, size_t Count)
@@ -758,7 +761,7 @@ static void serverRetainedRoutes(xmqttversion Origin, xmqttversion Target)
 static void serverRetainedLimits(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -790,6 +793,93 @@ static void serverRetainedLimits(void)
 	serverPingPeer(Consumer);
 	serverStop(&Fixture);
 	serverEof(Producer);
+	serverEof(Consumer);
+}
+
+static void serverPublishQos1(xnetsocket Socket, xmqttversion Version, const char* Topic,
+	const char* Payload, uint16 Identifier, uint8 Flags)
+{
+	unsigned char Wire[128];
+	size_t Size = serverPublishWire(Wire, Version, Topic, (cbytes)Payload, strlen(Payload), NULL, 0);
+	size_t At = 4 + strlen(Topic);
+	testRequire(Size + 2 <= sizeof(Wire) && Wire[1] < 126, "short QoS 1 fixture");
+	memmove(Wire + At + 2, Wire + At, Size - At);
+	Wire[0] = 0x32 | Flags;
+	Wire[1] += 2;
+	Wire[At] = (uint8)(Identifier >> 8);
+	Wire[At + 1] = (uint8)Identifier;
+	serverSend(Socket, Wire, Size + 2);
+}
+
+static void serverExpectPuback(xnetsocket Socket, xmqttversion Version, uint16 Identifier, uint8 Reason)
+{
+	size_t Bytes = Version == XMQTT_VERSION_5 && Reason ? 5 : 4;
+	const unsigned char Expected[] = {0x40, (uint8)(Bytes - 2), (uint8)(Identifier >> 8),
+		(uint8)Identifier, Reason};
+	unsigned char Wire[5];
+	serverRecv(Socket, Wire, Bytes);
+	testRequire(!memcmp(Wire, Expected, Bytes), "PUBACK identifier and reason");
+}
+
+static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, Origin == XMQTT_VERSION_311 || Target == XMQTT_VERSION_311,
+		0, true, 65536, 1, 34, 1);
+	unsigned char Wire[128];
+	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverSend(Producer, Wire, serverConnectWire(Wire, Origin, true, 0, "qos1"));
+	serverConnackConfigured(Producer, Origin, 0, true, true, 1);
+	serverSend(Consumer, Wire, serverConnectWire(Wire, Target, true, 0, "sink"));
+	serverConnackConfigured(Consumer, Target, 0, true, true, 1);
+
+	const char* Root[] = {"work/#"};
+	const uint8 Granted[] = {0}, Requested[] = {1};
+	serverSubscribeWire(Consumer, Target, true, 1, Root, Requested, Granted, 1);
+	for (unsigned Index = 0; Index < 64; ++Index) {
+		uint8 Flags = Index ? XMQTT_PUBLISH_DUP : 0;
+		serverPublishQos1(Producer, Origin, "work/x", "payload", 257, Flags);
+		serverExpectPuback(Producer, Origin, 257, 0);
+		/* Reusing an acknowledged ID, even with DUP, is a new QoS 1 message. */
+		serverExpectPublish(Consumer, Target, "work/x", (cbytes)"payload", 7, NULL, 0);
+	}
+	serverPublishQos1(Producer, Origin, "idle", "none", 2, 0);
+	serverExpectPuback(Producer, Origin, 2, 0x10);
+	serverPingPeer(Consumer);
+
+	const char* State = "work/state";
+	serverPublishQos1(Producer, Origin, State, "old", 3, XMQTT_PUBLISH_RETAIN);
+	serverExpectPuback(Producer, Origin, 3, 0);
+	serverExpectPublish(Consumer, Target, State, (cbytes)"old", 3, NULL, 0);
+	if (Origin == XMQTT_VERSION_5) {
+		serverPublishQos1(Producer, Origin, State, "too large for this broker's retained byte budget", 4,
+			XMQTT_PUBLISH_RETAIN);
+		serverExpectPuback(Producer, Origin, 4, 0x97);
+		serverPingPeer(Consumer);
+	}
+	const char* Exact[] = {State};
+	serverSubscribeWire(Consumer, Target, true, 2, Exact, Requested, Granted, 1);
+	serverExpectRetained(Consumer, Target, State, "old", NULL, 0);
+	serverPublishQos1(Producer, Origin, State, "", 5, XMQTT_PUBLISH_RETAIN);
+	serverExpectPuback(Producer, Origin, 5, 0);
+	serverExpectPublish(Consumer, Target, State, (cbytes)"", 0, NULL, 0);
+	serverSubscribeWire(Consumer, Target, true, 3, Exact, Requested, Granted, 1);
+	serverPingPeer(Consumer);
+
+	if (Origin == XMQTT_VERSION_5) {
+		serverPublishQos1(Producer, Origin, "busy", "refused", 6, 0);
+		serverExpectPuback(Producer, Origin, 6, 0x97);
+	}
+	serverPublishQos1(Producer, Origin, "bad", "refused", 6, 0);
+	if (Origin == XMQTT_VERSION_5) {
+		serverExpectPuback(Producer, Origin, 6, 0x87);
+		serverPingPeer(Producer);
+	} else {
+		serverEof(Producer);
+		Producer = NULL;
+	}
+	serverStop(&Fixture);
+	if (Producer) serverEof(Producer);
 	serverEof(Consumer);
 }
 
@@ -900,21 +990,21 @@ static void serverWildcardQuota(void)
 static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0);
+	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64);
 	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
 		{{0x82,16,0,1,0,0,10,'$','s','h','a','r','e','/','g','/','a',4}, 18, 0},
 		{{0x82,9,0,1,2,11,1,0,1,'a',0}, 11, 0xa1},
 		{{0x31,4,0,1,'a',0}, 6, 0x9a},
-		{{0x32,6,0,1,'a',0,1,0}, 8, 0x9b},
+		{{0x34,6,0,1,'a',0,1,0}, 8, 0x9b},
 		{{0x30,7,0,1,'a',3,35,0,1}, 9, 0x94}
 	};
 	for (size_t Index = 0; Index < sizeof(Cases)/sizeof(Cases[0]); ++Index) {
 		unsigned char Wire[32];
 		xnetsocket Socket = serverDial(&Fixture);
 		serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "caps"));
-		serverConnackConfigured(Socket, XMQTT_VERSION_5, 0, false, false);
+		serverConnackConfigured(Socket, XMQTT_VERSION_5, 0, false, false, 64);
 		serverSend(Socket, Cases[Index].Wire, Cases[Index].Size);
 		if (Cases[Index].Reason) {
 			serverRecv(Socket, Wire, 3);
@@ -928,6 +1018,104 @@ static void serverAdvertisedCapabilities(void)
 }
 
 #if defined(XMQTT_IMPLEMENTATION_ONCE)
+typedef struct serverackfixture {
+	xmqttserverpeer* Peer;
+	xmqttserverack* Held;
+	xatomic32 Done;
+} serverackfixture;
+
+static void serverAckFixture(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	serverackfixture* Guard = Data;
+	if (Guard->Held) {
+		xmqttServerReleaseAck(Guard->Held, NULL, 0);
+	} else {
+		uint8 Reason;
+		Guard->Held = xmqttServerReserveAck(Guard->Peer, 7, &Reason);
+		testRequire(Guard->Held != NULL, "hold one native acknowledgement slot");
+	}
+	xrtAtomic32Store(&Guard->Done, 1, XMEMORY_RELEASE);
+}
+
+static void serverPostAckFixture(serverfixture* Fixture, uint32 Worker, serverackfixture* Guard)
+{
+	xrtAtomic32Store(&Guard->Done, 0, XMEMORY_RELEASE);
+	testRequire(xrtNetEnginePost(Fixture->Engine, Worker, serverAckFixture, Guard), "post ACK fixture");
+	double Deadline = xrtTimer() + 5;
+	while (!xrtAtomic32Load(&Guard->Done, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Deadline, "ACK fixture worker finishes");
+		xrtSleep(1);
+	}
+}
+
+static void serverQos1Exceeded(void)
+{
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1);
+	xnetsocket Socket = serverDial(&Fixture);
+	unsigned char Wire[32];
+	serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "full"));
+	serverConnackConfigured(Socket, XMQTT_VERSION_5, 0, true, true, 1);
+
+	serverackfixture Guard = {0};
+	xrtAtomic32Init(&Guard.Done, 0);
+	xrtMutexLock(&Fixture.Server->Gate);
+	Guard.Peer = Fixture.Server->Peers;
+	uint32 Worker = Guard.Peer->Worker;
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	serverPostAckFixture(&Fixture, Worker, &Guard);
+	serverPublishQos1(Socket, XMQTT_VERSION_5, "overflow", "x", 8, 0);
+	serverRecv(Socket, Wire, 3);
+	testRequire(Wire[0] == 0xe0 && Wire[1] == 1 && Wire[2] == 0x93,
+		"live MQTT 5 peer receives Receive Maximum exceeded");
+	serverEof(Socket);
+	serverPostAckFixture(&Fixture, Worker, &Guard);
+	serverConnections(&Fixture, 0);
+	serverStop(&Fixture);
+}
+
+static void serverAckQuota(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	Fixture.Server->Config.ReceiveMaximum = 2;
+	Fixture.Server->Config.MaxIncomingQos1 = 2;
+	xmqttserverpeer First = {.Server = Fixture.Server}, Second = {.Server = Fixture.Server};
+	xrtAVLInit(&First.Incoming);
+	xrtAVLInit(&Second.Incoming);
+	xrtAtomic32Init(&First.References, 1);
+	xrtAtomic32Init(&Second.References, 1);
+	uint8 Reason;
+	xmqttserverack* Inline = xmqttServerReserveAck(&First, 11, &Reason);
+	testRequire(Inline == &First.InlineAck && !xmqttServerReserveAck(&First, 11, &Reason) &&
+		Reason == 0x82, "active identifier remains reserved until ACK release");
+	xallocationbudget* Budget;
+	xallocationscope Scope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &Budget) && xrtAllocationBudgetEnter(Budget, &Scope),
+		"ACK allocation failpoint");
+	testRequire(!xmqttServerReserveAck(&First, 12, &Reason) && Reason == 0x97,
+		"failed second ACK allocation releases its global reservation");
+	testRequire(xrtAllocationBudgetLeave(&Scope), "leave ACK failpoint");
+	xrtClearError();
+	xrtAllocationBudgetFree(Budget);
+	xmqttserverack* Dynamic = xmqttServerReserveAck(&First, 12, &Reason);
+	testRequire(Dynamic && Dynamic != Inline && !xmqttServerReserveAck(&First, 13, &Reason) && Reason == 0x93,
+		"Receive Maximum rejects additional in-flight identifiers");
+	testRequire(!xmqttServerReserveAck(&Second, 11, &Reason) && Reason == 0x97,
+		"aggregate acknowledgement quota spans peers");
+	xmqttServerReleaseAck(Inline, NULL, 0);
+	xmqttserverack* Reused = xmqttServerReserveAck(&Second, 11, &Reason);
+	testRequire(Reused == &Second.InlineAck, "release returns global acknowledgement quota");
+	xmqttServerReleaseAck(Dynamic, NULL, 0);
+	xmqttServerReleaseAck(Reused, NULL, 0);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && !Info.IncomingQos1 &&
+		xrtAtomic32Load(&First.References, XMEMORY_RELAXED) == 1 &&
+		xrtAtomic32Load(&Second.References, XMEMORY_RELAXED) == 1, "all ACK credits and real peer refs retired");
+	serverStop(&Fixture);
+}
+
 static void serverRetainedOomAndExpiry(void)
 {
 	serverfixture Fixture;
@@ -1100,6 +1288,7 @@ int main(void)
 	serverSharedRoutes();
 	serverRetainedRoutes(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverRetainedLimits();
+	serverInboundQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverConcurrentRoutes(SERVER_EXACT);
 	serverConcurrentRoutes(SERVER_WILDCARD);
 	serverConcurrentRoutes(SERVER_SHARED);
@@ -1109,16 +1298,20 @@ int main(void)
 	serverWildcardRoutes(XMQTT_VERSION_311);
 	serverRetainedRoutes(XMQTT_VERSION_5, XMQTT_VERSION_311);
 	serverRetainedRoutes(XMQTT_VERSION_311, XMQTT_VERSION_5);
+	serverInboundQos1(XMQTT_VERSION_311, XMQTT_VERSION_5);
+	serverInboundQos1(XMQTT_VERSION_5, XMQTT_VERSION_311);
 #endif
 #if defined(XMQTT_IMPLEMENTATION_ONCE)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
+	serverAckQuota();
+	serverQos1Exceeded();
 #endif
 	serverfixture Fixture;
 	serverStart(&Fixture, false, 1);
 	xnetsocket Socket = serverDial(&Fixture);
 	serverEof(Socket);
 	serverStop(&Fixture);
-	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained QoS0 routing, quotas, authorization, takeover, deadlines, OOM and retirement");
+	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained QoS0 routing, inbound QoS1, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;
 }

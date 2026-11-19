@@ -58,8 +58,21 @@ quota pressure. Idle expired entries can remain resident until reclamation.
 Unmodified same-version replay shares the immutable stored bytes with the
 native send queues. Elapsed expiry and protocol conversion require encoding.
 
-QoS 1/2, persistent sessions, Wills, enhanced authentication, TLS and WebSocket
-are in development.
+MQTT 5 and 3.1.1 publishers can send QoS 1. The server reserves an acknowledgement
+slot before touching retained state or routing. MQTT 5 CONNACK advertises QoS 1 and
+the configured `ReceiveMaximum`. `MaxIncomingQos1` bounds outstanding acknowledgements
+across the broker. A native TCP release returns the slot and peer reference.
+MQTT 5 reports preflight resource failures and policy denials on PUBACK, and
+returns 0x93 when the receive window is exceeded. MQTT 3.1.1 closes on a refused
+QoS 1 publication. Reuse of an ID after acknowledgement is a new publication.
+An unacknowledged ID remains reserved.
+
+A failed QoS 1 retained replacement preserves the previous record and reports
+quota exhaustion. QoS 1 publications and retained replays both use the current
+subscriber grant of QoS 0. PUBACK acknowledges the broker-side outcome. The
+subscriber deliveries follow their own grant and are independently subject to
+their native queue and packet limits. Outbound QoS 1, QoS 2, persistent sessions,
+Wills, enhanced authentication, TLS and WebSocket are in development.
 
 Each peer stays on its original XRT worker. The handshake and connection
 retirement update the bounded identity index under a short gate. The steady
@@ -91,7 +104,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -106,5 +119,7 @@ group of one or 64 subscribers. The retained benchmark measures SUBSCRIBE
 through the verified SUBACK and retained PUBLISH on one or 64 subscribers.
 It reuses the same stored frame for all measured requests and includes
 native queue and peer-side receive costs.
+The inbound QoS 1 profile verifies every publisher PUBACK and every QoS 0
+subscriber delivery, collecting subscriber latency after verifying PUBACK.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).

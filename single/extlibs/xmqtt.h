@@ -3797,6 +3797,8 @@ typedef struct xmqttserverconfig {
 	size_t MaxSubscriptions, MaxSubscriptionsPerConnection, MaxSubscribersPerTopic, MaxTopicBytes;
 	size_t MaxWildcardNodes; /* Zero disables wildcard subscriptions. */
 	size_t MaxRetainedTopics, MaxRetainedBytes; /* Either zero disables retention. */
+	size_t MaxIncomingQos1; /* Broker-wide acknowledgements awaiting native retirement. */
+	uint16 ReceiveMaximum; /* Per connection, advertised in MQTT 5 CONNACK. */
 	int64 ConnectTimeout;
 	xmqttcodecconfig Codec;
 	bool Allow311;
@@ -3807,6 +3809,7 @@ typedef struct xmqttserverconfig {
 
 typedef struct xmqttserverinfo {
 	size_t Connections, Established, Subscriptions, WildcardNodes;
+	size_t IncomingQos1;
 	size_t RetainedTopics, RetainedBytes; /* Resident records and bytes for wire data and publisher IDs. */
 	uint64 Accepted, Refused, TimedOut;
 	/* Forwarded counts native queue acceptance. DroppedDeliveries counts
@@ -3820,7 +3823,9 @@ typedef struct xmqttserverinfo {
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
  * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
  * Wildcard filters have at most 128 levels. Retention defaults to 4096
- * topics and 16 MiB for wire data and publisher IDs. Authorizers default to
+ * topics and 16 MiB for wire data and publisher IDs. Inbound QoS 1 defaults
+ * to 64 outstanding acknowledgements per connection and 65536 per server.
+ * Authorizers default to
  * anonymous access. Install application policy before listening externally.
  * Compile xmqtt_codec311 as well to enable Allow311. */
 XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config);
@@ -15507,6 +15512,13 @@ struct xmqttserverlink {
 	uint8 Options;
 };
 
+typedef struct xmqttserverack {
+	xavlnode Node;
+	xmqttserverpeer* Peer;
+	uint16 Identifier;
+	unsigned char Wire[5];
+} xmqttserverack;
+
 struct xmqttserver {
 	xnetengine* Engine;
 	xmqttserverconfig Config;
@@ -15516,7 +15528,7 @@ struct xmqttserver {
 	xmap Identities;
 	xmqttservershard Shards[XMQTT_SERVER_TOPIC_SHARDS + 1u];
 	size_t ShardCount;
-	xatomic32 Subscriptions, WildcardNodes, WildcardFilters, RetainedTopics, RetainedExpiring;
+	xatomic32 Subscriptions, WildcardNodes, WildcardFilters, RetainedTopics, RetainedExpiring, IncomingQos1;
 	xatomic64 Forwarded, DroppedDeliveries, RejectedPublications, RetainedBytes, DroppedRetained;
 	xmqttserverpeer* Peers;
 	xmqttserverinfo Info;
@@ -15532,6 +15544,8 @@ struct xmqttserverpeer {
 	xstrview ClientName; /* Owned by the peer for topic authorization and retention. */
 	uint64 Identity;
 	xmqttserverlink* Links;
+	xavl Incoming;
+	xmqttserverack InlineAck;
 	size_t LinkCount, PacketLimit;
 	uint32 Worker;
 	xmqttversion Version;
@@ -15735,6 +15749,7 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 		Peer->Links = Link->PeerNext;
 		xmqttServerUnlinkTopic(Link);
 	}
+	if (Peer->Incoming.Count) abort();
 	xrtFree((ptr)Peer->ClientName.Data);
 	xrtMutexLock(&Server->Gate);
 	if (Peer->ClientId.Size) {
@@ -15861,7 +15876,8 @@ static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 
 	xmqttPacketInit(XMQTT_PACKET_CONNACK, &Reply);
 	if (Peer->Version == XMQTT_VERSION_5) {
 		xmqttproperty Limits[] = {
-			{XMQTT_PROPERTY_MAXIMUM_QOS, XMQTT_PROPERTY_BYTE, {.Number = 0}},
+			{XMQTT_PROPERTY_MAXIMUM_QOS, XMQTT_PROPERTY_BYTE, {.Number = 1}},
+			{XMQTT_PROPERTY_RECEIVE_MAXIMUM, XMQTT_PROPERTY_UINT16, {.Number = Peer->Server->Config.ReceiveMaximum}},
 			{XMQTT_PROPERTY_RETAIN_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = Peer->Server->Config.MaxRetainedTopics != 0}},
 			{XMQTT_PROPERTY_WILDCARD_AVAILABLE, XMQTT_PROPERTY_BYTE,
 				{.Number = Peer->Server->Config.MaxWildcardNodes != 0}},
@@ -16164,11 +16180,14 @@ static void xmqttServerProtocolClose(xmqttserverpeer* Peer, uint8 Reason, double
 		xmqttServerAbortPeer(Peer);
 }
 
-static bool xmqttServerTopicAllowed(xmqttserverpeer* Peer, xstrview Topic, bool Publishing)
+static uint8 xmqttServerTopicReason(xmqttserverpeer* Peer, xstrview Topic, bool Publishing)
 {
 	const xmqttserverconfig* Config = &Peer->Server->Config;
-	return !Config->AuthorizeTopic ||
-		Config->AuthorizeTopic(Peer->Version, Peer->ClientName, Topic, Publishing, Config->User) == XMQTT_SERVER_ALLOW;
+	if (!Config->AuthorizeTopic) return 0;
+	xmqttserverpermission Permission =
+		Config->AuthorizeTopic(Peer->Version, Peer->ClientName, Topic, Publishing, Config->User);
+	if (Permission == XMQTT_SERVER_ALLOW) return 0;
+	return Permission == XMQTT_SERVER_BUSY ? 0x97 : 0x87;
 }
 
 static void xmqttServerReplayRetained(xmqttserverpeer* Peer, xbytesview Filter, bool NoLocal);
@@ -16208,9 +16227,7 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 		} else if (Filter->Filter.Size > Peer->Server->Config.MaxTopicBytes ||
 			(!V5 && !Peer->Server->Config.MaxWildcardNodes && xmqttServerHasWildcard(Key))) {
 			Reason = 0x8f;
-		} else if (!xmqttServerTopicAllowed(Peer, Filter->Filter, false)) {
-			Reason = 0x87;
-		} else {
+		} else if (!(Reason = xmqttServerTopicReason(Peer, Filter->Filter, false))) {
 			/* Keep the topic-owned filter through native sends. This peer
 			 * owns its link until the deferred connection retirement. */
 			xbytesview FilterToReplay = {0};
@@ -16277,6 +16294,7 @@ static xmqttserverpublication* xmqttServerEncodePublish(const xmqttpacket* Packe
 	if (Origin == Target && !Rewrite) return xmqttServerCopyPublication(Packet->Wire, Flags, (xstrview){0});
 	xmqttpacket Out = *Packet;
 	Out.Flags = Flags;
+	Out.Identifier = 0;
 	if (Target == XMQTT_VERSION_311) Out.Properties = (xmqttpropertylist){0};
 	xmqttcodecconfig Encoding = *Codec;
 	Encoding.MaxPacketBytes = XMQTT_PACKET_MAX_BYTES;
@@ -16332,14 +16350,18 @@ static int xmqttServerCompareExpiry(const void* Key, const xavlnode* Node, ptr U
 	return (A > B) - (A < B);
 }
 
+static void xmqttServerUnlinkExpiry(xmqttserver* Server, xmqttservershard* Shard, xmqttserverretained* Retained)
+{
+	if (!Retained->Expires) return;
+	if (xrtAVLRemove(&Shard->RetainedExpiry, Retained, xmqttServerCompareExpiry, NULL) !=
+		&Retained->ExpiryNode) abort();
+	xrtAtomic32FetchSub(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
+}
+
 static void xmqttServerRemoveRetained(xmqttserver* Server, xmqttservershard* Shard,
 	xmqttserverretained* Retained)
 {
-	if (Retained->Expires) {
-		if (xrtAVLRemove(&Shard->RetainedExpiry, Retained, xmqttServerCompareExpiry, NULL) !=
-			&Retained->ExpiryNode) abort();
-		xrtAtomic32FetchSub(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
-	}
+	xmqttServerUnlinkExpiry(Server, Shard, Retained);
 	if (xrtAVLRemove(&Shard->Retained, &Retained->Key, xmqttServerCompareKey, NULL) !=
 		&Retained->Key.Node) abort();
 	xmqttserverpublication* Publication = Retained->Publication;
@@ -16360,19 +16382,19 @@ static void xmqttServerExpireRetained(xmqttserver* Server, xmqttservershard* Sha
 	}
 }
 
-static bool xmqttServerReserveRetained(xmqttserver* Server, size_t Bytes)
+static bool xmqttServerReserveRetained(xmqttserver* Server, size_t Bytes, bool New)
 {
-	if (!xmqttServerReserve(&Server->RetainedTopics, Server->Config.MaxRetainedTopics)) return false;
+	if (New && !xmqttServerReserve(&Server->RetainedTopics, Server->Config.MaxRetainedTopics)) return false;
 	uint64 Used = xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED);
 	while (Bytes <= Server->Config.MaxRetainedBytes - Used) {
 		if (xrtAtomic64CompareExchange(&Server->RetainedBytes, &Used, Used + Bytes,
 			XMEMORY_RELAXED, XMEMORY_RELAXED)) return true;
 	}
-	xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
+	if (New) xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
 	return false;
 }
 
-static void xmqttServerStoreRetained(xmqttserverpeer* Peer, const xmqttpacket* Packet,
+static bool xmqttServerStoreRetained(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 	const xmqttproperty* Expiry, double Now)
 {
 	xmqttserver* Server = Peer->Server;
@@ -16406,35 +16428,60 @@ static void xmqttServerStoreRetained(xmqttserverpeer* Peer, const xmqttpacket* P
 		xmqttServerExpireRetained(Server, Shard, Now);
 		Previous = xmqttServerFindKey(&Shard->Retained, Hash, Key);
 	}
-	if (Previous) xmqttServerRemoveRetained(Server, Shard, Previous);
-	if (Store) {
-		xmqttserverpublication* Copy = NULL;
-		xmqttserverretained* Entry = NULL;
-		if (Room && xmqttServerReserveRetained(Server, Bytes)) {
-			Copy = xmqttServerCopyPublication(Packet->Wire, XMQTT_PUBLISH_RETAIN, Peer->ClientName);
-			if (Copy) Entry = xrtMalloc(sizeof(*Entry) + Key.Size);
-			if (!Entry) {
-				if (Copy) xmqttServerFreePublication(Copy, NULL, 0);
-				xrtAtomic64FetchSub(&Server->RetainedBytes, Bytes, XMEMORY_RELAXED);
-				xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
-			}
-		}
-		if (Entry) {
-			*Entry = (xmqttserverretained){.Publication = Copy, .Version = Peer->Version,
-				.PublisherIdBytes = Peer->ClientName.Size, .Received = Now,
-				.Expires = Expiry ? Now + Expiry->Value.Number : 0};
-			xmqttServerInsertKey(&Shard->Retained, &Entry->Key, Hash, Key, (unsigned char*)(Entry + 1));
-			if (Entry->Expires) {
-				xrtAVLNodeInit(&Entry->ExpiryNode);
-				if (xrtAVLInsert(&Shard->RetainedExpiry, &Entry->ExpiryNode, Entry,
-					xmqttServerCompareExpiry, NULL, NULL) != &Entry->ExpiryNode) abort();
-				xrtAtomic32FetchAdd(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
-			}
-		} else {
-			xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
+	if (!Store) {
+		if (Previous) xmqttServerRemoveRetained(Server, Shard, Previous);
+		xrtRWLockWriteUnlock(&Shard->RetainedGate);
+		return true;
+	}
+
+	/* A replacement reuses its index node and only reserves positive growth.
+	 * Keep the previous retained QoS 1 obligation if admission fails. */
+	PreviousBytes = Previous ? Previous->Publication->Size + Previous->PublisherIdBytes : 0;
+	Growth = Bytes > PreviousBytes ? Bytes - PreviousBytes : 0;
+	bool New = !Previous;
+	xmqttserverretained* Entry = NULL;
+	xmqttserverpublication* Copy = NULL;
+	if (Room && xmqttServerReserveRetained(Server, Growth, New)) {
+		uint8 Flags = Packet->Flags & (XMQTT_PUBLISH_QOS_MASK | XMQTT_PUBLISH_RETAIN);
+		Copy = xmqttServerCopyPublication(Packet->Wire, Flags, Peer->ClientName);
+		if (Copy) Entry = Previous ? Previous : xrtMalloc(sizeof(*Entry) + Key.Size);
+		if (!Entry) {
+			if (Copy) xmqttServerFreePublication(Copy, NULL, 0);
+			if (Growth) xrtAtomic64FetchSub(&Server->RetainedBytes, Growth, XMEMORY_RELAXED);
+			if (New) xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
 		}
 	}
+	if (!Entry) {
+		/* The specification permits discarding an unstoreable QoS 0
+		 * replacement and its previous value. QoS 1 is refused upstream. */
+		if (Previous && !(Packet->Flags & XMQTT_PUBLISH_QOS_MASK))
+			xmqttServerRemoveRetained(Server, Shard, Previous);
+		xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
+		xrtRWLockWriteUnlock(&Shard->RetainedGate);
+		return false;
+	}
+	if (Previous) {
+		xmqttServerUnlinkExpiry(Server, Shard, Previous);
+		xmqttServerFreePublication(Previous->Publication, NULL, 0);
+		if (PreviousBytes > Bytes)
+			xrtAtomic64FetchSub(&Server->RetainedBytes, PreviousBytes - Bytes, XMEMORY_RELAXED);
+	} else {
+		*Entry = (xmqttserverretained){0};
+		xmqttServerInsertKey(&Shard->Retained, &Entry->Key, Hash, Key, (unsigned char*)(Entry + 1));
+	}
+	Entry->Publication = Copy;
+	Entry->Version = Peer->Version;
+	Entry->PublisherIdBytes = Peer->ClientName.Size;
+	Entry->Received = Now;
+	Entry->Expires = Expiry ? Now + Expiry->Value.Number : 0;
+	if (Entry->Expires) {
+		xrtAVLNodeInit(&Entry->ExpiryNode);
+		if (xrtAVLInsert(&Shard->RetainedExpiry, &Entry->ExpiryNode, Entry,
+			xmqttServerCompareExpiry, NULL, NULL) != &Entry->ExpiryNode) abort();
+		xrtAtomic32FetchAdd(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
+	}
 	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+	return true;
 }
 
 static bool xmqttServerRetainedMatch(xbytesview Filter, xbytesview Name)
@@ -16475,7 +16522,7 @@ static xmqttserverpublication* xmqttServerRecodeRetained(xmqttserverpeer* Peer,
 		}
 	}
 	return xmqttServerEncodePublish(&Packet, Retained->Version, Peer->Version,
-		XMQTT_PUBLISH_RETAIN, Elapsed != 0, Codec);
+		XMQTT_PUBLISH_RETAIN, Elapsed != 0 || (Packet.Flags & XMQTT_PUBLISH_QOS_MASK), Codec);
 }
 
 static void xmqttServerReplayEntry(xmqttserverpeer* Peer, const xmqttserverretained* Retained, bool NoLocal)
@@ -16489,7 +16536,8 @@ static void xmqttServerReplayEntry(xmqttserverpeer* Peer, const xmqttserverretai
 		if (!isfinite(Now) || Now >= Retained->Expires) return;
 		if (Now > Retained->Received) Elapsed = (uint32)(Now - Retained->Received);
 	}
-	bool Recode = Peer->Version != Retained->Version || Elapsed;
+	bool Recode = Peer->Version != Retained->Version || Elapsed ||
+		(Retained->Publication->Wire[0] & XMQTT_PUBLISH_QOS_MASK);
 	xmqttserverpublication* Frame = Recode ?
 		xmqttServerRecodeRetained(Peer, Retained, Elapsed) : Retained->Publication;
 	if (xmqttServerDeliver(Peer, Frame))
@@ -16674,7 +16722,7 @@ static xmqttserverlink* xmqttServerRouteNext(xmqttserverrouteiter* Iter)
 	return NULL;
 }
 
-static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, xmqttproperty* Expiry, double Now)
+static uint8 xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, xmqttproperty* Expiry, double Now)
 {
 	xmqttserver* Server = Peer->Server;
 	xstrview Name = Packet->Body.Publish.Topic;
@@ -16709,6 +16757,7 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	Targets.Retain = (Packet->Flags & XMQTT_PUBLISH_RETAIN) != 0;
 	const xmqttservertopic* Topic = xmqttServerFindKey(&Exact->Topics, Hash, Key);
 	bool Rejected = false;
+	uint8 Reason = 0x10; /* No independent delivery selected. */
 	xmqttserverpublication* Frames[3] = {0};
 	uint64 Forwarded = 0, Dropped = 0;
 	if (Wildcard || Root) {
@@ -16716,17 +16765,20 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 		if ((Wildcard && !xmqttServerCollectWildcard(&Targets, Wildcard, Key, Peer->Identity)) ||
 			(Root && !xmqttServerCollectWildcard(&Targets, Root, Key, Peer->Identity)) ||
 			(Targets.Count && !xmqttServerCollectFilter(&Targets, Topic, Peer->Identity))) {
+			Reason = 0x97;
 			Rejected = true;
 			goto Done;
 		}
 	}
 	if (!xmqttServerCollectShares(&Targets, Topic)) {
+		Reason = 0x97;
 		Rejected = true;
 		goto Done;
 	}
 	if (!Topic && !Targets.Count && !Targets.ShareCount) goto Done;
 
-	bool Rewrite = false;
+	bool Qos1 = (Packet->Flags & XMQTT_PUBLISH_QOS_MASK) != 0;
+	bool Rewrite = Qos1;
 	if (Expiry) {
 		double Elapsed = xrtTimer() - Now;
 		if (Elapsed >= Expiry->Value.Number) {
@@ -16753,9 +16805,16 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	/* Prepare every wire form before native sends can invalidate the
 	 * publisher's borrowed input on a synchronous transport failure. */
 	for (unsigned Mode = 0; Mode < 3; ++Mode) {
-		if (Needed[Mode]) Frames[Mode] = xmqttServerEncodePublish(Packet, Peer->Version,
+		if (!Needed[Mode]) continue;
+		Frames[Mode] = xmqttServerEncodePublish(Packet, Peer->Version,
 			Mode ? XMQTT_VERSION_5 : XMQTT_VERSION_311, Mode == 2 ? XMQTT_PUBLISH_RETAIN : 0,
 			Rewrite, &Server->Config.Codec);
+		if (Qos1 && !Frames[Mode]) {
+			Reason = 0x97;
+			Rejected = true;
+			goto Done;
+		}
+		Reason = 0;
 	}
 	Iter = Start;
 	for (xmqttserverlink* Link; (Link = xmqttServerRouteNext(&Iter)) != NULL;) {
@@ -16779,12 +16838,79 @@ Done:
 	if (Forwarded) xrtAtomic64FetchAdd(&Server->Forwarded, Forwarded, XMEMORY_RELAXED);
 	if (Dropped) xrtAtomic64FetchAdd(&Server->DroppedDeliveries, Dropped, XMEMORY_RELAXED);
 	if (Rejected) xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+	return Reason;
+}
+
+static int xmqttServerCompareAck(const void* Key, const xavlnode* Node, ptr User)
+{
+	(void)User;
+	uint16 Identifier = *(const uint16*)Key, Current = ((const xmqttserverack*)Node)->Identifier;
+	return (Identifier > Current) - (Identifier < Current);
+}
+
+/* Receive credit remains charged until TCP retires the PUBACK buffer. An
+ * accepted send borrows the immutable ACK and holds a real peer reference. */
+static void xmqttServerReleaseAck(ptr Data, cbytes Wire, size_t Size)
+{
+	(void)Wire;
+	(void)Size;
+	xmqttserverack* Ack = Data;
+	xmqttserverpeer* Peer = Ack->Peer;
+	if (xrtAVLRemove(&Peer->Incoming, &Ack->Identifier, xmqttServerCompareAck, NULL) != &Ack->Node) abort();
+	if (Ack == &Peer->InlineAck) Ack->Identifier = 0;
+	else xrtFree(Ack);
+	xrtAtomic32FetchSub(&Peer->Server->IncomingQos1, 1, XMEMORY_RELAXED);
+	xmqttServerPeerDrop(Peer);
+}
+
+static xmqttserverack* xmqttServerReserveAck(xmqttserverpeer* Peer, uint16 Identifier, uint8* Reason)
+{
+	xmqttserver* Server = Peer->Server;
+	if (xrtAVLFind(&Peer->Incoming, &Identifier, xmqttServerCompareAck, NULL)) {
+		*Reason = 0x82;
+		return NULL;
+	}
+	if (Peer->Incoming.Count >= Server->Config.ReceiveMaximum) {
+		*Reason = 0x93;
+		return NULL;
+	}
+	*Reason = 0x97;
+	if (!xmqttServerReserve(&Server->IncomingQos1, Server->Config.MaxIncomingQos1)) return NULL;
+	xmqttserverack* Ack = Peer->InlineAck.Identifier ? xrtMalloc(sizeof(*Ack)) : &Peer->InlineAck;
+	if (!Ack) {
+		xrtAtomic32FetchSub(&Server->IncomingQos1, 1, XMEMORY_RELAXED);
+		return NULL;
+	}
+	Ack->Peer = Peer;
+	Ack->Identifier = Identifier;
+	xrtAVLNodeInit(&Ack->Node);
+	if (xrtAVLInsert(&Peer->Incoming, &Ack->Node, &Ack->Identifier, xmqttServerCompareAck, NULL, NULL) !=
+		&Ack->Node) abort();
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	return Ack;
+}
+
+static void xmqttServerSendAck(xmqttserverpeer* Peer, xmqttserverack* Ack, uint8 Reason)
+{
+	bool V5 = Peer->Version == XMQTT_VERSION_5;
+	size_t Bytes = V5 && Reason ? 5 : 4;
+	Ack->Wire[0] = 0x40;
+	Ack->Wire[1] = (uint8)(Bytes - 2);
+	Ack->Wire[2] = (uint8)(Ack->Identifier >> 8);
+	Ack->Wire[3] = (uint8)Ack->Identifier;
+	Ack->Wire[4] = Reason;
+	if ((V5 || Reason < 0x80) && Bytes <= Peer->PacketLimit &&
+		xrtNetStreamSendRef(Peer->Stream, Ack->Wire, Bytes, xmqttServerReleaseAck, Ack) == XNET_RESULT_OK)
+		return;
+	xmqttServerReleaseAck(Ack, NULL, 0);
+	xmqttServerAbortPeer(Peer);
 }
 
 static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet, xmqttproperty* Properties, double Now)
 {
 	xmqttserver* Server = Peer->Server;
-	if (Packet->Flags & XMQTT_PUBLISH_QOS_MASK) {
+	unsigned Qos = (Packet->Flags & XMQTT_PUBLISH_QOS_MASK) >> 1;
+	if (Qos > 1) {
 		xmqttServerProtocolClose(Peer, 0x9b, Now);
 		return;
 	}
@@ -16802,17 +16928,39 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		}
 		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = Properties + Index;
 	}
+	uint8 Reason = 0;
+	xmqttserverack* Ack = NULL;
+	if (Qos) {
+		Ack = xmqttServerReserveAck(Peer, Packet->Identifier, &Reason);
+		if (!Ack) {
+			xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+			xmqttServerProtocolClose(Peer, Reason, Now);
+			return;
+		}
+		Reason = 0;
+	}
+
 	xstrview Name = Packet->Body.Publish.Topic;
-	if (Name.Size > Server->Config.MaxTopicBytes || !xmqttServerTopicAllowed(Peer, Name, true)) {
+	if (Name.Size > Server->Config.MaxTopicBytes) Reason = 0x90;
+	else Reason = xmqttServerTopicReason(Peer, Name, true);
+	if (Reason) {
 		xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
-		return;
+	} else {
+		bool Stored = Retain && Server->Config.MaxRetainedTopics &&
+			xmqttServerStoreRetained(Peer, Packet, Expiry, Now);
+		if (Ack && Retain && !Stored) {
+			xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+			Reason = 0x97;
+		} else if (Expiry && !Expiry->Value.Number) {
+			xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+		} else {
+			Reason = xmqttServerRoute(Peer, Packet, Expiry, Now);
+			/* A committed retained message is accepted even if the
+			 * independent QoS 0 deliveries could not be allocated. */
+			if (Stored && Reason >= 0x80) Reason = 0;
+		}
 	}
-	if (Retain && Server->Config.MaxRetainedTopics) xmqttServerStoreRetained(Peer, Packet, Expiry, Now);
-	if (Expiry && !Expiry->Value.Number) {
-		xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
-		return;
-	}
-	xmqttServerRoute(Peer, Packet, Expiry, Now);
+	if (Ack) xmqttServerSendAck(Peer, Ack, Reason);
 }
 
 static void xmqttServerOnline(xmqttserverpeer* Peer, const xmqttpacket* Packet, xmqttproperty* Properties, double Now)
@@ -16951,7 +17099,8 @@ XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config)
 		.Size = sizeof(*Config), .MaxConnections = 1024, .MaxClientIdBytes = 256, .ConnectTimeout = 5000,
 		.MaxSubscriptions = 65536, .MaxSubscriptionsPerConnection = 64,
 		.MaxSubscribersPerTopic = 1024, .MaxTopicBytes = 1024, .MaxWildcardNodes = 65536,
-		.MaxRetainedTopics = 4096, .MaxRetainedBytes = 16u * 1024u * 1024u
+		.MaxRetainedTopics = 4096, .MaxRetainedBytes = 16u * 1024u * 1024u,
+		.ReceiveMaximum = 64, .MaxIncomingQos1 = 65536
 	};
 	xmqttCodecConfigInit(&Config->Codec);
 	Config->Codec.MaxPacketBytes = 16384;
@@ -16970,6 +17119,7 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 		!Config->MaxSubscriptionsPerConnection || !Config->MaxSubscribersPerTopic ||
 		Config->MaxSubscribersPerTopic >= UINT32_MAX || !Config->MaxTopicBytes || Config->MaxTopicBytes > UINT16_MAX ||
 		Config->MaxWildcardNodes > UINT32_MAX || Config->MaxRetainedTopics > UINT32_MAX ||
+		!Config->ReceiveMaximum || !Config->MaxIncomingQos1 || Config->MaxIncomingQos1 > UINT32_MAX ||
 		Config->ConnectTimeout < 1 || Config->ConnectTimeout > INT32_MAX ||
 		Config->Codec.Size != sizeof(Config->Codec) || Config->Codec.MaxPacketBytes < 2 ||
 		Config->Codec.MaxPacketBytes > XMQTT_PACKET_MAX_BYTES ||
@@ -16989,6 +17139,7 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 	Server->Engine = Engine;
 	Server->Config = *Config;
 	if (!Config->MaxRetainedBytes) Server->Config.MaxRetainedTopics = 0;
+	xrtAtomic32Init(&Server->IncomingQos1, 0);
 	xrtAtomic32Init(&Server->RetainedTopics, 0);
 	xrtAtomic32Init(&Server->RetainedExpiring, 0);
 	xrtAtomic64Init(&Server->RetainedBytes, 0);
@@ -17037,6 +17188,7 @@ XMQTT_API bool xmqttServerAttach(xmqttserver* Server, xnetstream* Stream)
 		return false;
 	}
 	xrtAtomic32Init(&Peer->References, 1);
+	xrtAVLInit(&Peer->Incoming);
 	Peer->Server = Server;
 	Peer->Stream = Stream;
 	Peer->Worker = xrtNetWorkerIndex(Worker);
@@ -17066,6 +17218,7 @@ XMQTT_API bool xmqttServerInfo(xmqttserver* Server, xmqttserverinfo* Info)
 	xrtMutexUnlock(&Server->Gate);
 	Info->Subscriptions = xrtAtomic32Load(&Server->Subscriptions, XMEMORY_RELAXED);
 	Info->WildcardNodes = xrtAtomic32Load(&Server->WildcardNodes, XMEMORY_RELAXED);
+	Info->IncomingQos1 = xrtAtomic32Load(&Server->IncomingQos1, XMEMORY_RELAXED);
 	Info->RetainedTopics = xrtAtomic32Load(&Server->RetainedTopics, XMEMORY_RELAXED);
 	Info->RetainedBytes = (size_t)xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED);
 	Info->DroppedRetained = xrtAtomic64Load(&Server->DroppedRetained, XMEMORY_RELAXED);

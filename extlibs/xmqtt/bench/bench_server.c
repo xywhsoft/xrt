@@ -60,7 +60,7 @@ static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared)
 		benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Overlap ? ExtraAck : SubscribeAck, Bytes);
 }
 
-static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, size_t Deliveries, bool Shared, double* Samples)
+static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, size_t Deliveries, bool Shared, bool Qos1, double* Samples)
 {
 	/* MQTT 5 packet with 128 bytes of binary payload and no properties. */
 	unsigned char Frame[138] = {0x30,0x87,1,0,4,'l','o','a','d',0};
@@ -68,8 +68,28 @@ static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Ro
 	Frame[sizeof(Frame)-3] = (uint8)(Round >> 16);
 	Frame[sizeof(Frame)-2] = (uint8)(Round >> 8);
 	Frame[sizeof(Frame)-1] = (uint8)Round;
+	unsigned char Publish[sizeof(Frame) + 2];
+	const unsigned char* Input = Frame;
+	size_t Bytes = sizeof(Frame);
+	uint16 Identifier = (uint16)(Round + 1);
+	if (Qos1) {
+		const size_t Prefix = 9;
+		memcpy(Publish, Frame, Prefix);
+		Publish[0] = 0x32;
+		Publish[1] += 2;
+		Publish[Prefix] = (uint8)(Identifier >> 8);
+		Publish[Prefix + 1] = (uint8)Identifier;
+		memcpy(Publish + Prefix + 2, Frame + Prefix, sizeof(Frame) - Prefix);
+		Input = Publish;
+		Bytes = sizeof(Publish);
+	}
 	double SentAt = xrtTimer();
-	if (!benchSend(Sockets[Peers], Frame, sizeof(Frame))) return false;
+	if (!benchSend(Sockets[Peers], Input, Bytes)) return false;
+	if (Qos1) {
+		const unsigned char Ack[] = {0x40, 2, (uint8)(Identifier >> 8), (uint8)Identifier};
+		unsigned char Reply[sizeof(Ack)];
+		if (!benchReceive(Sockets[Peers], Reply, sizeof(Reply)) || memcmp(Reply, Ack, sizeof(Ack))) return false;
+	}
 	size_t First = Round % Peers;
 	/* Group membership adds to the head. The first joiner starts the
 	 * cursor and later joiners are traversed in reverse join order. */
@@ -125,7 +145,8 @@ int main(int Argc, char** Argv)
 	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
 	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
 	bool Replay = Argc > 4 && !strcmp(Argv[4], "retained");
-	bool Routing = Replay || Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
+	bool Qos1 = Argc > 4 && !strcmp(Argv[4], "inbound1");
+	bool Routing = Qos1 || Replay || Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
 	const size_t Connections = Peers + Routing, Deliveries = Shared ? 1 : Peers;
 	const size_t Count = Deliveries * Rounds;
 	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
@@ -178,7 +199,7 @@ int main(int Argc, char** Argv)
 			continue;
 		}
 		if (Routing) {
-			if (!benchPublishRound(Sockets, Peers, Round, Deliveries, Shared, PingSamples + Round * Deliveries)) goto Done;
+			if (!benchPublishRound(Sockets, Peers, Round, Deliveries, Shared, Qos1, PingSamples + Round * Deliveries)) goto Done;
 			continue;
 		}
 		/* Rotate the first connection to spread sequential peer-side work. */
