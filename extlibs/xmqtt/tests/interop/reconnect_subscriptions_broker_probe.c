@@ -1,5 +1,6 @@
 /* Independent broker consumer. Uses public headers and API only. */
 #include <xmqtt.h>
+#include "../../examples/reconnect_options.h"
 #include <xrt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +46,7 @@ int main(int Argc,char** Argv)
     xmqttsubscription Topics[]={{XRT_STR_LITERAL("intent/a/+"),Version==XMQTT_VERSION_5?0x21:1},{XRT_STR_LITERAL("intent/b/+"),2}};
     xmqttproperty Props[2]={{XMQTT_PROPERTY_SUBSCRIPTION_ID,XMQTT_PROPERTY_VARIABLE,{.Number=77}},{XMQTT_PROPERTY_USER,XMQTT_PROPERTY_STRING_PAIR,{.Pair={XRT_STR_LITERAL("source"),XRT_STR_LITERAL("snapshot")}}}};
     xmqttpacket Initial;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);Initial.Body.Topics=(xmqttsubscriptionlist){Topics,2};if(Version==XMQTT_VERSION_5)Initial.Properties=(xmqttpropertylist){Props,2};
-    xmqttreconnect* R=NULL;check(xmqttReconnectCreateSubscribed(Engine,Pool,1,&K,&S,&Connect,&Initial,1,&R),"controller with copied intents");uint64 First=Cut?2:1;xmqttsubscriptionsinfo Info=online(R,First);check(Info.Requests==(Cut?3u:2u) && Info.Desired==2,"initial ACK-loss reconciliation count");
+    xmqttreconnect* R=NULL;check(mqttAppReconnectSubscribed(Engine,Pool,1,&K,&S,&Connect,&Initial,1,&R),"controller with copied intents");uint64 First=Cut?2:1;xmqttsubscriptionsinfo Info=online(R,First);check(Info.Requests==(Cut?3u:2u) && Info.Desired==2,"initial ACK-loss reconciliation count");
     xfuture* Futures[5]={0};xmqttmessage* Messages[4]={0};publish(R,XRT_STR_LITERAL("intent/a/one"),Futures);Messages[0]=receive(R,XRT_STR_LITERAL("intent/a/one"),Version,77);
     xmqttclientlease L={0};closeGeneration(R,&L);check(xmqttReconnectRelease(&L),"release known old session");Info=online(R,First+1);uint64 Expected=(Cut?3u:2u)+(Persist?0:2);check(Info.Requests==Expected,"known resumed subscriptions are not repeated; lost sessions are rebuilt");
     publish(R,XRT_STR_LITERAL("intent/a/two"),Futures+1);Messages[1]=receive(R,XRT_STR_LITERAL("intent/a/two"),Version,77);

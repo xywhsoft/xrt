@@ -8,6 +8,8 @@
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XRT_EXTERN_C_BEGIN
 typedef struct xmqttreconnect xmqttreconnect;
+typedef struct xmqttreconnectsubscriptionplan xmqttreconnectsubscriptionplan;
+typedef struct xmqttreconnectstoreplan xmqttreconnectstoreplan;
 typedef enum xmqttreconnectstate {
     XMQTT_RECONNECT_CONNECTING=0,XMQTT_RECONNECT_ONLINE,XMQTT_RECONNECT_RETIRING,
     XMQTT_RECONNECT_WAITING,XMQTT_RECONNECT_STOPPED,XMQTT_RECONNECT_FAILED
@@ -31,6 +33,10 @@ typedef struct xmqttreconnectconfig {
     int64 InitialDelay,MaxDelay,StableReset,RecoveryTimeout,RetirementPoll;
     uint32 JitterPermille,MaxAttempts,RetryStatuses;uint64 RandomSeed;bool CleanStartFirstOnly;
     xmqttreconnectfactory Factory;ptr FactoryData;xmqttreconnectnotify Notify;ptr User;
+    /* Independent borrowed plans, read only during Create. Store supplies its
+     * own factory and transfers its Session on successful construction. */
+    const xmqttreconnectsubscriptionplan* Subscriptions;
+    const xmqttreconnectstoreplan* Store;
 } xmqttreconnectconfig;
 typedef struct xmqttreconnectinfo {
     size_t Size;xmqttreconnectstate State;xmqttclientstatus LastStatus;uint8 ServerReason;
@@ -62,7 +68,7 @@ XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* Config);
  * Disable CleanStartFirstOnly for always-clean/stateless retries. Assigned
  * identity is read before each try.
  * Futures belong to their original Client; only Session obligations recover.
- * No offline request queue, subscription registry or durable storage is implied. */
+ * Optional Subscriptions and Store plans can be supplied together. */
 XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
     const xmqttreconnectconfig* Config,const xmqttpacket* Connect,xmqttreconnect** Controller);
 /* Acquire only while ONLINE; normal offline/lease-cap false preserves output

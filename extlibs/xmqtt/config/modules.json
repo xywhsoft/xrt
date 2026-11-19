@@ -2517,6 +2517,7 @@
       "state": "implemented",
       "feature": null,
       "depends": [
+        "xmqtt_reconnect_subscriptions",
         "xmqtt_reconnect_store",
         "xmqtt_client_dial",
         "xmqtt_store_session",

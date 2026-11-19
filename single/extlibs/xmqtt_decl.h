@@ -4643,8 +4643,8 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_SESSION_H
 #define XMQTT_SESSION_H
-#if defined(XMQTT_FEATURE_XMQTT_SESSION) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
-#error "MQTT session requires negotiation and both codecs"
+#if defined(XMQTT_FEATURE_XMQTT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_ATOMIC) || !defined(XRT_FEATURE_MUTEX))
+#error "MQTT session requires negotiation, atomics and mutexes"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SESSION)
 typedef struct xmqttsession xmqttsession;
@@ -5036,6 +5036,8 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XRT_EXTERN_C_BEGIN
 typedef struct xmqttreconnect xmqttreconnect;
+typedef struct xmqttreconnectsubscriptionplan xmqttreconnectsubscriptionplan;
+typedef struct xmqttreconnectstoreplan xmqttreconnectstoreplan;
 typedef enum xmqttreconnectstate {
     XMQTT_RECONNECT_CONNECTING=0,XMQTT_RECONNECT_ONLINE,XMQTT_RECONNECT_RETIRING,
     XMQTT_RECONNECT_WAITING,XMQTT_RECONNECT_STOPPED,XMQTT_RECONNECT_FAILED
@@ -5059,6 +5061,10 @@ typedef struct xmqttreconnectconfig {
     int64 InitialDelay,MaxDelay,StableReset,RecoveryTimeout,RetirementPoll;
     uint32 JitterPermille,MaxAttempts,RetryStatuses;uint64 RandomSeed;bool CleanStartFirstOnly;
     xmqttreconnectfactory Factory;ptr FactoryData;xmqttreconnectnotify Notify;ptr User;
+    /* Independent borrowed plans, read only during Create. Store supplies its
+     * own factory and transfers its Session on successful construction. */
+    const xmqttreconnectsubscriptionplan* Subscriptions;
+    const xmqttreconnectstoreplan* Store;
 } xmqttreconnectconfig;
 typedef struct xmqttreconnectinfo {
     size_t Size;xmqttreconnectstate State;xmqttclientstatus LastStatus;uint8 ServerReason;
@@ -5090,7 +5096,7 @@ XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* Config);
  * Disable CleanStartFirstOnly for always-clean/stateless retries. Assigned
  * identity is read before each try.
  * Futures belong to their original Client; only Session obligations recover.
- * No offline request queue, subscription registry or durable storage is implied. */
+ * Optional Subscriptions and Store plans can be supplied together. */
 XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
     const xmqttreconnectconfig* Config,const xmqttpacket* Connect,xmqttreconnect** Controller);
 /* Acquire only while ONLINE; normal offline/lease-cap false preserves output
@@ -5162,14 +5168,16 @@ typedef struct xmqttsubscriptionintentinfo {
 XMQTT_API bool xmqttSubscriptionsConfigInit(xmqttsubscriptionsconfig* Config);
 /* Copy all initial SUBSCRIBE packets before starting. Later occurrences of a
  * filter replace earlier intent, including options and all group properties.
- * Initial=NULL/Count=0 is allowed. The old Create ABI/behavior is unchanged.
+ * Initial=NULL/Count=0 is allowed. The configuration is borrowed during Create.
  * ONLINE is delayed until current intent has settled on the accepted session;
  * the original reconnect outage deadline includes this restoration. With
  * FailOnRejected=false ONLINE can include explicitly reported rejected filters.
  * No disk state, offline publication queue or private thread is introduced. */
-XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* Engine,xtaskpool* CleanupPool,
-    uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttsubscriptionsconfig* Subscriptions,
-    const xmqttpacket* Connect,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Controller);
+struct xmqttreconnectsubscriptionplan {
+    const xmqttsubscriptionsconfig* Config;
+    const xmqttpacket* Initial;
+    size_t Count;
+};
 /* Publish an atomic, bounded desired-state snapshot, online or offline. These
  * are intent admissions, not broker operation Futures. Packet Identifier must
  * be zero; Type must match, with codec-valid flags/options/properties. Reject
@@ -5818,8 +5826,8 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_JOURNAL_WORKER_H
 #define XMQTT_JOURNAL_WORKER_H
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER) && (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_TASK_POOL) || !defined(XRT_FEATURE_COND))
-#error "MQTT journal worker requires journal, host task pool and condition variables"
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER) && (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_TASK_POOL) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_ATOMIC))
+#error "MQTT journal worker requires journal, host task pool, condition variables and atomics"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 typedef struct xmqttjournalworker xmqttjournalworker;
@@ -6233,9 +6241,11 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * leases and storage effects. An unusable Writer prevents the next attempt
  * with SESSION. Recover the authoritative journal before constructing another
  * controller. Original Futures never transfer to the new connection. */
-XMQTT_API bool xmqttReconnectCreateStore(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
-    const xmqttreconnectconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
-    xmqttreconnectstorefactory Factory,const xmqttpacket* Connect,xmqttreconnect** Controller);
+struct xmqttreconnectstoreplan {
+    xmqttsession* Session;
+    const xmqttclientstoreconfig* Config;
+    xmqttreconnectstorefactory Factory;
+};
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -6484,11 +6494,20 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_NEGOTIATION"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 #error "MQTT root requires semantic store writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #error "MQTT root requires journal worker"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #error "MQTT root requires store Session import"
@@ -6508,6 +6527,15 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_AUTH"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS"
+#endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
 #error "MQTT root requires WS/WSS client"
 #endif
@@ -6519,6 +6547,12 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
 #error "MQTT root requires WS/WSS URI setup"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_RECONNECT_STORE"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT)

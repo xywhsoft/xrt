@@ -1,9 +1,37 @@
 #include "support/store_write_peer.h"
+#include "../examples/reconnect_options.h"
 #include <xmqtt/reconnect_store.h>
 #include <xmqtt/store_session.h>
+struct rcConnection;
+static bool drControl(struct rcConnection* Connection,const xmqttpacket* Packet);
+#define RC_CONTROL drControl
 #define main xmqttReconnectFixtureTests
 #include "test_reconnect.c"
 #undef main
+#undef RC_CONTROL
+
+typedef struct dr_combined {
+    rcPeer Peer;
+    xatomic32 Subscribes;
+} dr_combined;
+
+static bool drControl(rcConnection* Connection,const xmqttpacket* Packet)
+{
+    if(Packet->Type!=XMQTT_PACKET_SUBSCRIBE)return false;
+    dr_combined* Peer=(dr_combined*)Connection->Peer;
+    testRequire(Packet->Body.Topics.Count==1 &&
+        Packet->Body.Topics.Data[0].Filter.Size==8 &&
+        !memcmp(Packet->Body.Topics.Data[0].Filter.Data,"restored",8),
+        "combined reconnect sends the requested filter");
+    const unsigned char Reason=0;
+    xmqttpacket Reply;
+    xmqttPacketInit(XMQTT_PACKET_SUBACK,&Reply);
+    Reply.Identifier=Packet->Identifier;
+    Reply.Body.Reasons=(xbytesview){&Reason,1};
+    xrtAtomic32FetchAdd(&Peer->Subscribes,1,XMEMORY_RELEASE);
+    rcSend(Connection,&Reply);
+    return true;
+}
 
 typedef enum drmode {DR_REPLAY,DR_LATE_OPEN,DR_UNCERTAIN_OPEN,DR_COLD} drmode;
 
@@ -169,10 +197,10 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     testRequire(xmqttSessionCreate(&SK,&Session),"passive application Session");
     xmqttclientstoreconfig Store={sizeof(Store),Writer,drWall,NULL};
     xmqttreconnect* R=(xmqttreconnect*)(uintptr_t)1;
-    testRequire(!xmqttReconnectCreateStore(Peer.Engine,Pool,1,&K,Session,&Store,drFactory,&Connect,&R)&&
+    testRequire(!mqttAppReconnectStored(Peer.Engine,Pool,1,&K,Session,&Store,drFactory,&Connect,&R)&&
         R==(xmqttreconnect*)(uintptr_t)1,"same-pool constructor failure preserves Session and output");
     xrtClearError();
-    testRequire(xmqttReconnectCreateStore(Peer.Engine,Peer.Pool,1,&K,Session,&Store,drFactory,&Connect,&R),
+    testRequire(mqttAppReconnectStored(Peer.Engine,Peer.Pool,1,&K,Session,&Store,drFactory,&Connect,&R),
         "create real durable reconnect controller");
 
     if(Mode==DR_REPLAY)drReplay(&Peer,R,Writer,&Drive);
@@ -189,7 +217,7 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
         testRequire(xmqttStoreSessionRestore(State,&SK,&Restore,&Session)==XMQTT_SESSION_DONE&&
             xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"restore new passive Session and Writer");
         Store.Writer=Writer;
-        testRequire(xmqttReconnectCreateStore(Peer.Engine,Peer.Pool,1,&K,Session,&Store,drFactory,&Connect,&R),
+        testRequire(mqttAppReconnectStored(Peer.Engine,Peer.Pool,1,&K,Session,&Store,drFactory,&Connect,&R),
             "start new controller from recovered obligations");
         testRequire(rcOnline(R,1).Generation==1,"recovered state starts a new controller generation");
         rcWait(&Peer.Replays,1);
@@ -252,16 +280,86 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     jpFileClose(File);
 }
 
+static void drCombined(xmqttversion Version,bool Retained)
+{
+    dr_combined Peer;
+    rcStart(&Peer.Peer,Version,Retained?RC_PERSIST:0);
+    xrtAtomic32Init(&Peer.Subscribes,0);
+    jwdrive Drive={0};
+    jpfile File=jwFile(&Drive);
+    xmqttjournalconfig JC=stJournalConfig(Version);
+    xmqttjournal* Journal=jpCreate(File,&JC);
+    xmqttstorestateconfig SC=stConfig(Version);
+    SC.ClientId=XRT_STR_LITERAL("managed");
+    SC.WallMilliseconds=0;
+    xmqttstorestate* State=NULL;
+    stStatus(xmqttStoreStateRecover(Journal,&SC,&State),XMQTT_STORE_DONE,"combined durable projection");
+    xtaskpool* Pool=jwPool(2);
+    xmqttstorewrite* Writer=NULL;
+    xmqttstorewriteconfig WC;
+    xmqttStoreWriteConfigInit(&WC);
+    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"combined Writer");
+
+    xmqttsessionconfig SK;
+    xmqttSessionConfigInit(&SK);
+    SK.Version=Version;
+    SK.ClientId=SC.ClientId;
+    xmqttsession* Session=NULL;
+    testRequire(xmqttSessionCreate(&SK,&Session),"combined Session");
+    xmqttclientstoreconfig Store={sizeof(Store),Writer,drWall,NULL};
+    xmqttreconnectstoreplan StorePlan={Session,&Store,drFactory};
+    dr_factory Factory={.Peer=&Peer.Peer};
+
+    xmqttreconnectconfig Config;
+    xmqttpacket Connect;
+    xmqttproperty Expiry;
+    rcConfig(&Peer.Peer,&Config,&Connect,&Expiry);
+    Config.Factory=NULL;
+    Config.FactoryData=&Factory;
+    Config.InitialDelay=Config.MaxDelay=5;
+    Config.Store=&StorePlan;
+    xmqttsubscriptionsconfig Subscriptions;
+    xmqttSubscriptionsConfigInit(&Subscriptions);
+    xmqttsubscription Topic={XRT_STR_LITERAL("restored"),0};
+    xmqttpacket Initial;
+    xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);
+    Initial.Body.Topics=(xmqttsubscriptionlist){&Topic,1};
+    xmqttreconnectsubscriptionplan Intent={&Subscriptions,&Initial,1};
+    Config.Subscriptions=&Intent;
+
+    xmqttreconnect* Controller=NULL;
+    testRequire(xmqttReconnectCreate(Peer.Peer.Engine,Peer.Peer.Pool,1,&Config,
+        &Connect,&Controller),"one constructor combines durable session and subscriptions");
+    testRequire(rcOnline(Controller,1).Generation==1,"first subscription gate");
+    xmqttsubscriptionsinfo Info={.Size=sizeof(Info)};
+    testRequire(xmqttReconnectSubscriptionsInfo(Controller,&Info) && Info.Synchronized &&
+        Info.Generation==1 && xrtAtomic32Load(&Peer.Subscribes,XMEMORY_ACQUIRE)==1 &&
+        drWaitState(Writer,1).LiveAtCut,"first OPEN and SUBACK precede online");
+
+    testRequire(xrtNetStreamAbort(Peer.Peer.Connections[0].Stream),"force transport reconnect");
+    testRequire(rcOnline(Controller,2).Generation==2,"restored generation comes online");
+    testRequire(xmqttReconnectSubscriptionsInfo(Controller,&Info) && Info.Synchronized &&
+        Info.Generation==2 && xrtAtomic32Load(&Peer.Subscribes,XMEMORY_ACQUIRE)==(Retained?1u:2u) &&
+        swInfo(Writer).State.LiveAtCut,"retained session preserves subscriptions and reset restores them");
+    rcClose(Controller);
+    rcStop(&Peer.Peer);
+    testRequire(xmqttStoreWriteDestroy(Writer),"retire combined Writer");
+    jwPoolDone(Pool);
+    jpFileClose(File);
+}
+
 int main(void)
 {
     for(unsigned I=0;I<2;++I){
         xmqttversion Version=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
+        drCombined(Version,true);
+        drCombined(Version,false);
         for(drmode Mode=DR_REPLAY;Mode<=DR_COLD;++Mode)drCase(Version,Mode,false);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
         drCase(Version,DR_REPLAY,true);
         drCase(Version,DR_COLD,true);
 #endif
     }
-    puts("[PASS] durable automatic TCP reconnect, cold recovery, lease/ACK ordering, late OPEN reconciliation and uncertain storage fail-stop");
+    puts("[PASS] combined subscription recovery and durable automatic TCP reconnect, cold recovery, lease/ACK ordering, late OPEN reconciliation and uncertain storage fail-stop");
     return 0;
 }

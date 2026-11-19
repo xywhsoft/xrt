@@ -35,13 +35,49 @@ bounded resources and the lifetime of their own state.
 | --- | --- | --- |
 | xcron | Unix five-field and seconds-first six-field expressions, UTC/civil recurrence, optional host-driven UTC callback scheduler | Poll and blocking wait loops, executor submission, task configuration and restart, local time and catch-up policies |
 | xrpc | Host-driven JSON-RPC 2.0 messages, dispatch, request tokens, response correlation, notification/batch behavior and local timeouts | Transport/framing, authentication, subprocesses, host execution and optional private wire policies |
-| xmqtt | MQTT 5.0, optional 3.1.1, native client transports, QoS/session recovery, bounded reconnect, externally supplied subscriptions and optional protocol state persistence | Storage, business Inbox/queues, application acknowledgement, log rotation and compaction |
-| xredis | RESP2/3, generic calls and pipelines, TLS, native pools and leases, transactions, Pub/Sub, tracking notifications, base Sentinel and explicit-route Cluster | Cache policy, replica selection, dynamic Sentinel discovery and automatic command catalogues |
+| xmqtt client | MQTT 5.0 and optional 3.1.1, TCP/TLS and thin WebSocket transport, QoS/session recovery, bounded reconnect, externally supplied subscriptions and optional protocol state persistence | Storage, business Inbox/queues, application acknowledgement, log rotation and compaction |
+| xmqtt server | Selectable single-node broker for MQTT 5.0 and optional 3.1.1, native accepted connections, QoS 0/1/2, subscription matching and fan-out, retained messages, Wills, session takeover and expiration, bounded offline delivery and optional protocol state persistence | Credentials and authorization policy, persistence backend, configuration, deployment, cluster/bridging and business integrations |
+| xredis client | RESP2/3, generic calls and pipelines, TLS, native pools and leases, transactions, Pub/Sub, tracking notifications, base Sentinel and explicit-route Cluster | Cache policy, replica selection, dynamic Sentinel discovery and automatic command catalogues |
 
 Migrate existing APP use cases to runnable examples using public XRT and
 extension APIs. Examples may combine reloading configuration, timers and
 executors. Remove the old library entry points after validating their intended
 uses against the reduced contract.
+
+The updated scope adds the MQTT server as an independently selectable runtime.
+A Redis connection, including Sentinel and Cluster control traffic, always uses
+the Redis client role.
+
+### MQTT server delivery
+
+The server owns MQTT connection and session semantics. The application provides
+listeners and TLS credentials through XRT, admission and topic authorization
+callbacks, and an optional protocol-state backend. The library supplies in-memory
+state with bounded connection, packet, subscription, retained, offline and
+in-flight resources. Expose exhaustion distinctly and preserve QoS obligations
+until completion or a documented session termination. In particular, negotiate
+MQTT 5 Receive Maximum and Maximum Packet Size, and expose a bounded admission
+budget for each authenticated principal or session. Application callbacks never
+block network workers. Application policy, account databases and file or database
+engines stay in examples.
+
+Start with CONNECT version selection and a socket-backed handshake/retirement
+path. Then add one-session QoS flows and exact subscription delivery, followed
+by wildcard and shared subscriptions, MQTT 5 subscription options and retained
+messages. Add persistent subscriptions, replay, duplicate Client ID takeover,
+Wills and expiry with independently tested timers and storage callbacks. Reuse
+the wire codecs and role-neutral QoS transitions where their contracts match.
+TCP/TLS and WebSocket front doors share one MQTT session implementation. Complete
+independent protocol interoperability, hostile-input and overload tests before
+load acceptance. The normative baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).
+
+A connection stays on one XRT worker. Measure connection-local batching and
+immutable retained publish data before adding cross-worker scheduling. Route
+by indexed filter matching and avoid scanning all connections or serializing
+every publish through a global lock. Preserve per-session ordering and impose
+explicit cross-worker queue and fan-out budgets. Report the cost of copies,
+allocations and dispatches per delivered message separately from ingress rate.
 
 ## Execution contracts
 
@@ -73,9 +109,9 @@ structure layout. Tests/diagnostics are outside production dependency roots.
 Planned module families (not declarations of implemented modules):
 
 - xredis: command, reader, client, pool, pubsub, sentinel, cluster, tracking.
-- xrpc: codec, client, server, dispatch, http, websocket, stdio.
-- xmqtt: codec311, codec5, client, session, store, websocket.
-- xcron: expression, calendar, timezone, scheduler, store, engine adapter.
+- xrpc: codec, dispatch, request correlation, host-driven endpoint.
+- xmqtt: codec311, codec5, client, broker, protocol session and recovery, selectable transports.
+- xcron: expression, calendar and optional scheduler.
 
 ## Ordered work packages
 
@@ -84,7 +120,8 @@ Planned module families (not declarations of implemented modules):
 2. Complete host-driven asynchronous replies in xrpc, then remove the embedded
    transport and execution runtimes. Validate the protocol endpoint without them.
 3. Consolidate xmqtt connection configuration and QoS paths. Separate APP storage
-   and compose protocol recovery with host-supplied subscription intent.
+   and compose protocol recovery with host-supplied subscription intent. Develop
+   the independent broker in handshake, routing/QoS, recovery and load stages.
 4. Simplify xredis paired commands and Sentinel discovery. Exercise explicit
    Cluster routing and retire automatic command catalogue management from the library.
 
@@ -99,7 +136,7 @@ Planned module families (not declarations of implemented modules):
   result. Security material is runtime-only and is not recorded in evidence.
 - Linux ASan/UBSan and applicable TSan, Windows handle/resource checks, independent
   protocol peers and crash-recovery tests remain required even after smoke passes.
-- Final Redis and MQTT client candidates require native Windows and Linux mixed-load runs of at least
+- Final Redis client and MQTT client and broker candidates require native Windows and Linux mixed-load runs of at least
   72 continuous hours, plus separately recorded failure-injection runs. Process
   kill is not represented as proof of power-loss durability.
 - Product destruction returns resources to a documented baseline: live operations
@@ -115,8 +152,14 @@ latency; fixed-arrival-rate tests cannot silently omit delayed requests.
 Profiles vary workers 1/2/4/8 and connections 1/100/1,000/10,000, payload size,
 pipeline/batch depth, slow consumers and reconnect. Match TLS, QoS, durability,
 validation, thread/CPU budgets and server configuration across comparators.
-Redis compares against Hiredis; MQTT against Paho C/libmosquitto. RPC and Cron
-also retain explicit minimal-XRT/algorithm baselines. References are version-pinned.
+Redis compares against Hiredis. MQTT client compares against Paho C or
+libmosquitto. Compare broker workloads to a pinned standalone broker such as
+Mosquitto with the same capabilities and queue limits. Include idle connection
+memory, connection churn, one-to-one routing and fan-out, exact versus wildcard
+and shared filters, retained and offline buildup, slow consumers, reconnection
+storms, and saturation/recovery. Report ingress and actual deliveries per
+second, end-to-end latency and overload outcomes for each case. RPC and Cron
+retain explicit minimal-XRT/algorithm baselines. References are version-pinned.
 
 Steady-state codecs target zero heap allocations with caller-owned storage;
 Future/result/retained-message, cold-path and topology costs remain counted.

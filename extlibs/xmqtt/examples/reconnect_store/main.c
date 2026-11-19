@@ -580,7 +580,9 @@ int main(int Argc,char** Argv)
     /* MQTT 3.1.1 needs a persistent first connection to exercise replay.
      * Use a fresh local broker session for this example's fixed client ID. */
     if(!V5)Connect.Body.Connect.CleanStart=false;
-    if(!endpointInit(&Remote)||!xmqttReconnectCreateStore(Engine,Cleanup,0,&RC,Session,&Store,connectAttempt,&Connect,&Controller))goto Done;
+    const xmqttreconnectstoreplan Plan={.Session=Session,.Config=&Store,.Factory=connectAttempt};
+    RC.Store=&Plan;
+    if(!endpointInit(&Remote)||!xmqttReconnectCreate(Engine,Cleanup,0,&RC,&Connect,&Controller))goto Done;
     Session=NULL;
     if(!online(Controller,1,&Lease)||Lease.Generation!=1)goto Done;
 

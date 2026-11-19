@@ -117,8 +117,12 @@ int main(void)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     xmqttsubscriptionsconfig Subscriptions;xmqttreconnect* SubscriptionOwner=(xmqttreconnect*)(uintptr_t)1;
-    if(!xmqttSubscriptionsConfigInit(&Subscriptions) || Subscriptions.MaxFilters!=1024 || Subscriptions.MaxBatch!=32 || Subscriptions.RetryDelay!=5 ||
-       xmqttReconnectCreateSubscribed(NULL,NULL,0,NULL,&Subscriptions,NULL,NULL,0,&SubscriptionOwner) || SubscriptionOwner!=(xmqttreconnect*)(uintptr_t)1 ||
+    xmqttreconnectconfig Reconnect;
+    if(!xmqttReconnectConfigInit(&Reconnect) || Reconnect.Subscriptions || Reconnect.Store ||
+       !xmqttSubscriptionsConfigInit(&Subscriptions) || Subscriptions.MaxFilters!=1024 || Subscriptions.MaxBatch!=32 || Subscriptions.RetryDelay!=5) return 32;
+    const xmqttreconnectsubscriptionplan SubscriptionPlan={.Config=&Subscriptions};
+    Reconnect.Subscriptions=&SubscriptionPlan;
+    if(xmqttReconnectCreate(NULL,NULL,0,&Reconnect,NULL,&SubscriptionOwner) || SubscriptionOwner!=(xmqttreconnect*)(uintptr_t)1 ||
        xmqttReconnectSubscribeIntent(NULL,NULL,NULL)!=XMQTT_ADMISSION_ERROR || xmqttReconnectUnsubscribeIntent(NULL,NULL,NULL)!=XMQTT_ADMISSION_ERROR ||
        xmqttReconnectSubscriptionsInfo(NULL,NULL) || xmqttReconnectSubscriptionInfo(NULL,(xstrview){0},NULL))return 32;
     xrtClearError();

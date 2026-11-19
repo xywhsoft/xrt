@@ -43,14 +43,16 @@ typedef struct xmqttsubscriptionintentinfo {
 XMQTT_API bool xmqttSubscriptionsConfigInit(xmqttsubscriptionsconfig* Config);
 /* Copy all initial SUBSCRIBE packets before starting. Later occurrences of a
  * filter replace earlier intent, including options and all group properties.
- * Initial=NULL/Count=0 is allowed. The old Create ABI/behavior is unchanged.
+ * Initial=NULL/Count=0 is allowed. The configuration is borrowed during Create.
  * ONLINE is delayed until current intent has settled on the accepted session;
  * the original reconnect outage deadline includes this restoration. With
  * FailOnRejected=false ONLINE can include explicitly reported rejected filters.
  * No disk state, offline publication queue or private thread is introduced. */
-XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* Engine,xtaskpool* CleanupPool,
-    uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttsubscriptionsconfig* Subscriptions,
-    const xmqttpacket* Connect,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Controller);
+struct xmqttreconnectsubscriptionplan {
+    const xmqttsubscriptionsconfig* Config;
+    const xmqttpacket* Initial;
+    size_t Count;
+};
 /* Publish an atomic, bounded desired-state snapshot, online or offline. These
  * are intent admissions, not broker operation Futures. Packet Identifier must
  * be zero; Type must match, with codec-valid flags/options/properties. Reject

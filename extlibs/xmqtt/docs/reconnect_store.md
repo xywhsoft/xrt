@@ -1,8 +1,11 @@
 # Durable MQTT reconnect
 
 Select `XMQTT_MODULE_XMQTT_RECONNECT_STORE` to run the normal reconnect controller
-over an Inbox Writer. `xmqttReconnectCreateStore` takes ownership of the supplied
-disconnected Session on success. Create a fresh Session for an empty store, or
+over an Inbox Writer. Set `xmqttreconnectconfig.Store` to a typed
+`xmqttreconnectstoreplan` before calling `xmqttReconnectCreate`. On success the
+controller takes ownership of the supplied disconnected Session. The optional
+`Subscriptions` plan can be supplied in the same call. The controller waits
+for both the committed OPEN and subscription restoration before issuing leases. Create a fresh Session for an empty store, or
 restore the exact Session from the journal before transferring the recovered
 state to `xmqttStoreInboxCreate`. Bind the Writer and CONNECT identity to the
 same logical broker, principal and client slot across all attempts.

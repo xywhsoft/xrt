@@ -642,23 +642,64 @@ XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* K)
     K->InitialDelay=250;K->MaxDelay=30000;K->StableReset=30000;K->RecoveryTimeout=60000;K->RetirementPoll=1;K->JitterPermille=200;K->MaxAttempts=8;K->CleanStartFirstOnly=true;
     K->RetryStatuses=(UINT32_C(1)<<XMQTT_STATUS_TRANSPORT)|(UINT32_C(1)<<XMQTT_STATUS_TIMEOUT)|(UINT32_C(1)<<XMQTT_STATUS_SERVER_DISCONNECT);return true;
 }
-static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttpacket* Connect,
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-    xmqttsession* Session,const xmqttclientstoreconfig* Store,xmqttreconnectstorefactory StoreFactory,
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
-    const xmqttsubscriptionsconfig* Subscriptions,const xmqttpacket* Initial,size_t InitialCount,
-#endif
-    xmqttreconnect** Out)
+XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* Pool,uint64 Affinity,
+    const xmqttreconnectconfig* Config,const xmqttpacket* Connect,xmqttreconnect** Out)
 {
     double Started=xrtTimer();
-    if(!Engine || !Pool || !Config || !Connect || !Out || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Connect,sizeof(*Connect)) || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect factory arguments");
+    if(!Engine || !Pool || !Config || !Connect || !Out || !xrtMemRangeValid(Config,sizeof(*Config)) ||
+       !xrtMemRangeValid(Connect,sizeof(*Connect)) || !xrtMemRangeValid(Out,sizeof(*Out)) ||
+       xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)) ||
+       xrtMemRangesOverlap(Connect,sizeof(*Connect),Out,sizeof(*Out)))
+        return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect factory arguments");
     xmqttreconnectconfig K=*Config;
+    if (K.Size!=sizeof(K)) return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect config size");
     bool HasFactory=K.Factory!=NULL;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-    if(StoreFactory)HasFactory=true;
+    xmqttsession* Session=NULL;
+    const xmqttclientstoreconfig* Store=NULL;
+    xmqttreconnectstorefactory StoreFactory=NULL;
+    if(K.Store){
+        const xmqttreconnectstoreplan* Plan=K.Store;
+        if(!xrtMemRangeValid(Plan,sizeof(*Plan)) ||
+           xrtMemRangesOverlap(Plan,sizeof(*Plan),Out,sizeof(*Out)))
+            return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect storage plan");
+        Session=Plan->Session;
+        Store=Plan->Config;
+        StoreFactory=Plan->Factory;
+        if(!Session || !StoreFactory || !xrtMemRangeValid(Store,sizeof(*Store)) ||
+           xrtMemRangesOverlap(Store,sizeof(*Store),Out,sizeof(*Out)) ||
+           Store->Size!=sizeof(*Store) || !Store->Writer || !Store->Wall)
+            return xmqttReconnectError(XERR_ARGUMENT,"invalid durable reconnect plan");
+        HasFactory=true;
+    }
+#else
+    if(K.Store)return xmqttReconnectError(XERR_UNSUPPORTED,"durable MQTT reconnect is not selected");
 #endif
-    if(K.Size!=sizeof(K) || K.Client.Size!=sizeof(K.Client) || (K.Client.Version!=XMQTT_VERSION_5 && K.Client.Version!=XMQTT_VERSION_311) || !HasFactory || !K.MaxLeases || K.InitialDelay<1 || K.MaxDelay<K.InitialDelay || K.MaxDelay>INT32_MAX || K.StableReset<0 || (K.RecoveryTimeout<=0 && K.RecoveryTimeout!=XRT_WAIT_FOREVER) || K.RetirementPoll<1 || K.RetirementPoll>60000 || K.JitterPermille>1000 || K.RetryStatuses>>((unsigned)XMQTT_STATUS_AUTHENTICATION+1) || Connect->Type!=XMQTT_PACKET_CONNECT)
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    const xmqttsubscriptionsconfig* Subscriptions=NULL;
+    const xmqttpacket* Initial=NULL;
+    size_t InitialCount=0;
+    if(K.Subscriptions){
+        const xmqttreconnectsubscriptionplan* Plan=K.Subscriptions;
+        if(!xrtMemRangeValid(Plan,sizeof(*Plan)) ||
+           xrtMemRangesOverlap(Plan,sizeof(*Plan),Out,sizeof(*Out)))
+            return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect subscription plan");
+        Subscriptions=Plan->Config;
+        Initial=Plan->Initial;
+        InitialCount=Plan->Count;
+        if(!xrtMemRangeValid(Subscriptions,sizeof(*Subscriptions)) ||
+           xrtMemRangesOverlap(Subscriptions,sizeof(*Subscriptions),Out,sizeof(*Out)) ||
+           InitialCount>65535 || (InitialCount && !Initial) ||
+           !xrtMemRangeValid(Initial,InitialCount*sizeof(*Initial)) ||
+           xrtMemRangesOverlap(Initial,InitialCount*sizeof(*Initial),Out,sizeof(*Out)))
+            return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect subscription inputs");
+    }
+#else
+    if(K.Subscriptions)return xmqttReconnectError(XERR_UNSUPPORTED,"MQTT subscription recovery is not selected");
+#endif
+    K.Subscriptions=NULL;
+    K.Store=NULL;
+    if(K.Client.Size!=sizeof(K.Client) || (K.Client.Version!=XMQTT_VERSION_5 && K.Client.Version!=XMQTT_VERSION_311) || !HasFactory || !K.MaxLeases || K.InitialDelay<1 || K.MaxDelay<K.InitialDelay || K.MaxDelay>INT32_MAX || K.StableReset<0 || (K.RecoveryTimeout<=0 && K.RecoveryTimeout!=XRT_WAIT_FOREVER) || K.RetirementPoll<1 || K.RetirementPoll>60000 || K.JitterPermille>1000 || K.RetryStatuses>>((unsigned)XMQTT_STATUS_AUTHENTICATION+1) || Connect->Type!=XMQTT_PACKET_CONNECT)
         return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect policy");
     size_t Bytes=0;bool Valid=K.Client.Version==XMQTT_VERSION_5?xmqttPacketSize5(Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,&Bytes):K.Client.Version==XMQTT_VERSION_311 && xmqttPacketSize311(Connect,XMQTT_CLIENT_TO_SERVER,&K.Client.Codec,&Bytes);
     if(!Valid)return false;
@@ -699,13 +740,12 @@ static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 A
     }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     if(Subscriptions){
-        if(InitialCount && (!Initial || InitialCount>65535 || !xrtMemRangeValid(Initial,InitialCount*sizeof(*Initial)))){xmqttReconnectError(XERR_ARGUMENT,"invalid initial subscription vector");goto Failed;}
         if(!xmqttSubscriptionsCreate(R,Subscriptions))goto Failed;
         for(size_t J=0;J<InitialCount;++J){uint64 Revision;
             xmqttclientadmission A=xmqttSubscriptionsSubmit(R,Initial+J,&Revision,XMQTT_PACKET_SUBSCRIBE,false);
             if(A!=XMQTT_ADMISSION_ACCEPTED){if(A==XMQTT_ADMISSION_OVERLOADED)xmqttReconnectError(XERR_RANGE,"initial subscription storage limit");goto Failed;}
         }
-    }else if(InitialCount){xmqttReconnectError(XERR_ARGUMENT,"initial subscriptions require a registry");goto Failed;}
+    }
 #endif
     xrtMutexLock(&R->Gate);bool Posted=xmqttReconnectWakeLocked(R);xrtMutexUnlock(&R->Gate);if(!Posted)goto Failed;
     *Out=R;return true;
@@ -724,44 +764,6 @@ Failed:
     if(Gate)xrtMutexUnit(&R->Gate);
     xrtSecureZero(R,Allocation);xrtFree(R);xrtNetEngineUnpin(Engine);return false;
 }
-XMQTT_API bool xmqttReconnectCreate(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttpacket* C,xmqttreconnect** Out)
-{
-    return xmqttReconnectCreateImpl(E,P,A,K,C,
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-        NULL,NULL,NULL,
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
-        NULL,NULL,0,
-#endif
-        Out);
-}
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
-XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttsubscriptionsconfig* S,const xmqttpacket* C,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Out)
-{
-    if(!S)return xmqttReconnectError(XERR_ARGUMENT,"subscription config is NULL");
-    return xmqttReconnectCreateImpl(E,P,A,K,C,
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-        NULL,NULL,NULL,
-#endif
-        S,Initial,Count,Out);
-}
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-XMQTT_API bool xmqttReconnectCreateStore(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,
-    xmqttsession* Session,const xmqttclientstoreconfig* Store,xmqttreconnectstorefactory Factory,
-    const xmqttpacket* Connect,xmqttreconnect** Out)
-{
-    if(!Session||!Store||!Factory||!Out||!xrtMemRangeValid(Store,sizeof(*Store))||
-       xrtMemRangesOverlap(Store,sizeof(*Store),Out,sizeof(*Out))||
-       Store->Size!=sizeof(*Store)||!Store->Writer||!Store->Wall)
-        return xmqttReconnectError(XERR_ARGUMENT,"invalid durable reconnect plan");
-    return xmqttReconnectCreateImpl(E,P,A,K,Connect,Session,Store,Factory,
-#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
-        NULL,NULL,0,
-#endif
-        Out);
-}
-#endif
 XMQTT_API bool xmqttReconnectAcquire(xmqttreconnect* R,xmqttclientlease* L)
 {
     if(!R || !L || !xrtMemRangeValid(L,sizeof(*L)) || L->Owner)return xmqttReconnectError(XERR_ARGUMENT,"invalid or active Client lease");

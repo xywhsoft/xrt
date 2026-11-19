@@ -2,8 +2,8 @@
 #define XMQTT_JOURNAL_WORKER_H
 #include <xmqtt/journal.h>
 #include <xrt/task.h>
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER) && (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_TASK_POOL) || !defined(XRT_FEATURE_COND))
-#error "MQTT journal worker requires journal, host task pool and condition variables"
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER) && (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_TASK_POOL) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_ATOMIC))
+#error "MQTT journal worker requires journal, host task pool, condition variables and atomics"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 typedef struct xmqttjournalworker xmqttjournalworker;

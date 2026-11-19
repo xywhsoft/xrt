@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `214` 个函数、`305` 个常量或宏、
-`122` 个公共类型。
+当前登记 `212` 个函数、`305` 个常量或宏、
+`124` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -750,7 +750,7 @@
 - `XMQTT_RECONNECT_STOPPED`
 - `XMQTT_RECONNECT_WAITING`
 
-### 类型 (7)
+### 类型 (9)
 
 - `xmqttclientlease`
 - `xmqttreconnect`
@@ -759,14 +759,12 @@
 - `xmqttreconnectinfo`
 - `xmqttreconnectnotify`
 - `xmqttreconnectstate`
+- `xmqttreconnectstoreplan`
+- `xmqttreconnectsubscriptionplan`
 
 ## `extlibs/xmqtt/include/xmqtt/reconnect_store.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/reconnect_store.h)
-
-### 函数 (1)
-
-- `xmqttReconnectCreateStore`
 
 ### 常量与宏 (1)
 
@@ -780,9 +778,8 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/reconnect_subscriptions.h)
 
-### 函数 (6)
+### 函数 (5)
 
-- `xmqttReconnectCreateSubscribed`
 - `xmqttReconnectSubscribeIntent`
 - `xmqttReconnectSubscriptionInfo`
 - `xmqttReconnectSubscriptionsInfo`

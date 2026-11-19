@@ -2,12 +2,13 @@
 
 `xmqtt_reconnect_subscriptions` adds an optional volatile subscription registry to
 the reconnect controller. It uses the existing Engine worker, Client control
-operations and cleanup pool. It creates no thread or shared runtime. The ordinary
-`xmqttReconnectCreate` interface and behavior remain available unchanged.
+operations and cleanup pool. It creates no thread or shared runtime. Supply the plan through
+`xmqttreconnectconfig.Subscriptions` and call `xmqttReconnectCreate`.
 
-Initialize `xmqttsubscriptionsconfig`, then call `xmqttReconnectCreateSubscribed`
-with zero or more initial SUBSCRIBE descriptors. Initial descriptors are copied
-before connection work starts. ONLINE is withheld until current subscription
+The plan points to an initialized `xmqttsubscriptionsconfig` and zero or more
+initial SUBSCRIBE descriptors. The constructor copies initial descriptors before
+connection work starts. The same subscription plan works with the optional
+`xmqttreconnectconfig.Store` configuration. ONLINE is withheld until current subscription
 intent has settled. MQTT 5 options, Subscription Identifier and all User Properties
 are preserved, including when a group must be split into smaller wire requests.
 

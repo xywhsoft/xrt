@@ -1,6 +1,7 @@
 #define MQTT_EXAMPLE_SUBSCRIPTIONS
 #define MQTT_EXAMPLE_SUBSCRIPTION_TOPICS 1024
 #include "../examples/common/client_peer.h"
+#include "../examples/reconnect_options.h"
 #include <xmqtt/reconnect_subscriptions.h>
 #include <inttypes.h>
 typedef struct intentBench {xmutex Gate;xcond Changed;uint64 Settled;} intentBench;
@@ -34,7 +35,7 @@ int main(int Argc,char** Argv)
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.ClientId=XRT_STR_LITERAL("intent-benchmark");Connect.Body.Connect.CleanStart=true;
     xmqttpacket Initial;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);Initial.Body.Topics=(xmqttsubscriptionlist){Topics,Filters};
     xmqttproperty Id={XMQTT_PROPERTY_SUBSCRIPTION_ID,XMQTT_PROPERTY_VARIABLE,{.Number=42}};if(Version==5)Initial.Properties=(xmqttpropertylist){&Id,1};
-    double Start=xrtTimer();xmqttreconnect* R=NULL;mqttExampleCheck(xmqttReconnectCreateSubscribed(P.Engine,Pool,1,&K,&S,&Connect,&Initial,1,&R),"benchmark initial intents");intentWait(&B,1);double Cold=(xrtTimer()-Start)*1000;
+    double Start=xrtTimer();xmqttreconnect* R=NULL;mqttExampleCheck(mqttAppReconnectSubscribed(P.Engine,Pool,1,&K,&S,&Connect,&Initial,1,&R),"benchmark initial intents");intentWait(&B,1);double Cold=(xrtTimer()-Start)*1000;
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xmemstats Before,After;xrtMemStatsEnable(Instrument);xrtMemStatsGet(&Before);
 #else

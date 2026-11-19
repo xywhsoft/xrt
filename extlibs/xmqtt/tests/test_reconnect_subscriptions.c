@@ -1,4 +1,5 @@
 #include "test.h"
+#include "../examples/reconnect_options.h"
 #include <xmqtt/reconnect_subscriptions.h>
 struct rcConnection;
 static bool subControl(struct rcConnection* C,const xmqttpacket* Packet);
@@ -83,7 +84,7 @@ static void subLocalPacketLimit(void)
         xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=4;S.MaxBatch=3;
         xmqttsubscription Topics[]={{XRT_STR_LITERAL("aaaaaaaaaaaaaaaaaaaa"),1},{XRT_STR_LITERAL("bbbbbbbbbbbbbbbbbbbb"),1},{XRT_STR_LITERAL("cccccccccccccccccccc"),1}};
         if(Mode==2){Topics[0].Filter=XRT_STR_LITERAL("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");S.FailOnRejected=false;}
-        xmqttpacket Packet=subPacket(Topics,Mode==2?1:3,false);xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R),"local capacity controller");
+        xmqttpacket Packet=subPacket(Topics,Mode==2?1:3,false);xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R),"local capacity controller");
         (void)rcOnline(R,1);xmqttsubscriptionsinfo I=subSynchronized(R,1);
         if(Mode==2){xmqttsubscriptionintentinfo E;testRequire(!I.Requests && I.Rejected==1 && xmqttReconnectSubscriptionInfo(R,Topics[0].Filter,&E) && E.Status==XMQTT_STATUS_RESTRICTED,"unfit single filter fails locally without quota retry");}
         else {rcWait(&P.Controls,3);testRequire(I.Requests==3 && !I.AdmissionRetries && I.Desired==3,"actual factory byte capacity splits before Client admission");for(unsigned N=0;N<3;++N)testRequire(P.Records[N].Count==1 && P.Records[N].WireBytes<=40,"every control fits local byte capacity");}
@@ -94,7 +95,7 @@ static xmqttreconnect* subCreate(subPeer* P,const xmqttpacket* Initial,size_t Co
 {
     xmqttreconnectconfig K;xmqttpacket Connect;xmqttproperty Expiry;rcConfig(&P->Base,&K,&Connect,&Expiry);
     xmqttsubscriptionsconfig S;testRequire(xmqttSubscriptionsConfigInit(&S),"subscription config");S.MaxFilters=16;S.MaxBatch=Batch;S.MaxBytes=65536;S.FailOnRejected=Strict;S.Notify=subResult;S.User=P;
-    xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P->Base.Engine,P->Base.Pool,1,&K,&S,&Connect,Initial,Count,&R),"subscribed controller");return R;
+    xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P->Base.Engine,P->Base.Pool,1,&K,&S,&Connect,Initial,Count,&R),"subscribed controller");return R;
 }
 static xmqttsubscriptionsinfo subSynchronized(xmqttreconnect* R,uint64 Revision)
 {
@@ -154,7 +155,7 @@ static void subLargeSnapshot(void)
     xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxBatch=8;
     xmqttsubscription Topics[1024];char Names[1024][32];
     for(size_t I=0;I<1024;++I){int N=snprintf(Names[I],sizeof(Names[I]),"large/%04zu",1023-I);testRequire(N>0 && (size_t)N<sizeof(Names[I]),"large snapshot fixture filter");Topics[I]=(xmqttsubscription){{Names[I],(size_t)N},(uint8)(I%3)};}
-    xmqttpacket Initial=subPacket(Topics,1024,false);xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Initial,1,&R),"large copied subscription group");memset(Topics,0x55,sizeof(Topics));memset(Names,'x',sizeof(Names));
+    xmqttpacket Initial=subPacket(Topics,1024,false);xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Initial,1,&R),"large copied subscription group");memset(Topics,0x55,sizeof(Topics));memset(Names,'x',sizeof(Names));
     (void)rcOnline(R,1);xmqttsubscriptionsinfo Info=subSynchronized(R,1);rcWait(&P.Controls,128);testRequire(Info.Desired==1024 && Info.Requests==128 && !Info.Pending,"large bounded snapshot completely restored");
     for(size_t I=0;I<1024;++I){char Expected[32];snprintf(Expected,sizeof(Expected),"large/%04zu",1023-I);testRequire(P.Records[I/8].Count==8 && !strcmp(P.Records[I/8].Filters[I%8],Expected) && P.Records[I/8].Options[I%8]==I%3,"snapshot detection preserves caller filter/ACK order across all batches");}
     xmqttsubscriptionintentinfo Entry;testRequire(xmqttReconnectSubscriptionInfo(R,XRT_STR_LITERAL("large/0000"),&Entry) && Entry.Confirmed,"large exact-filter lookup");rcClose(R);subStop(&P);
@@ -163,7 +164,7 @@ static void subLimits(void)
 {
     subPeer P;subStart(&P,XMQTT_VERSION_5,0);xmqttreconnectconfig K;xmqttpacket Connect;xmqttproperty Expiry;rcConfig(&P.Base,&K,&Connect,&Expiry);
     xmqttsubscriptionsconfig Config;xmqttSubscriptionsConfigInit(&Config);Config.MaxFilters=2;Config.MaxBatch=2;Config.MaxBytes=8192;
-    xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&Config,&Connect,NULL,0,&R),"small bounded registry");(void)rcOnline(R,1);
+    xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&Config,&Connect,NULL,0,&R),"small bounded registry");(void)rcOnline(R,1);
     xmqttsubscription Topics[]={{XRT_STR_LITERAL("one"),0},{XRT_STR_LITERAL("two"),1}};xmqttpacket Packet=subPacket(Topics,2,false);uint64 Revision=0;
     testRequire(xmqttReconnectSubscribeIntent(R,&Packet,&Revision)==XMQTT_ADMISSION_ACCEPTED,"fill filter slots");(void)subSynchronized(R,Revision);
     xmqttsubscription Extra={XRT_STR_LITERAL("three"),1};Packet=subPacket(&Extra,1,false);Revision=UINT64_MAX;xrtSetErrorKind(XERR_MEMORY);const xerror* Error=xrtGetError();
@@ -206,7 +207,7 @@ static void subSizingBoundaries(void)
         /* MQTT5 also exercises the peer cap independently of local capacity. */
         if(!Version){xrtAtomic32Store(&P->PacketLimit,(uint32)(Bytes-Below),XMEMORY_RELEASE);K.Client.MaxOutgoingBytes=65536;}
         xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=2;S.MaxBatch=2;S.FailOnRejected=false;
-        xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P->Base.Engine,P->Base.Pool,1,&K,&S,&Connect,NULL,0,&R),"boundary controller");(void)rcOnline(R,1);
+        xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P->Base.Engine,P->Base.Pool,1,&K,&S,&Connect,NULL,0,&R),"boundary controller");(void)rcOnline(R,1);
         Packet.Identifier=0;Packet.Body.Topics.Count=2;uint64 Revision=0;
         testRequire((Remove?xmqttReconnectUnsubscribeIntent(R,&Packet,&Revision):xmqttReconnectSubscribeIntent(R,&Packet,&Revision))==XMQTT_ADMISSION_ACCEPTED,"boundary intent admission");
         xmqttsubscriptionsinfo Info=subSynchronized(R,Revision);rcWait(&P->Controls,Below?1:2);
@@ -237,7 +238,7 @@ static void subDeadlines(void)
         xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=4;S.MaxBatch=2;S.OperationTimeout=Mode==1?40:1000;
         xmqttsubscription Topic={XRT_STR_LITERAL("deadline"),1};xmqttpacket Packet=subPacket(&Topic,1,false);xmqttreconnect* R=NULL;
         if(!Mode)K.RecoveryTimeout=40;
-        double Start=xrtTimer();testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,Mode?NULL:&Packet,Mode?0:1,&R),"deadline controller");
+        double Start=xrtTimer();testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,Mode?NULL:&Packet,Mode?0:1,&R),"deadline controller");
         xfuture* Block=NULL;xmqttclientlease L={0};
         if(Mode){(void)rcOnline(R,1);if(Mode==1){
                 testRequire(xmqttReconnectAcquire(R,&L) && xmqttClientSubscribeAsync(L.Client,&Packet,5000,&Block)==XMQTT_ADMISSION_ACCEPTED,"fill ordinary Client control admission");rcWait(&P.Controls,1);testRequire(xmqttReconnectRelease(&L),"release ordinary blocker lease");
@@ -257,10 +258,10 @@ static void subOOM(void)
         subPeer P;subStart(&P,XMQTT_VERSION_5,0);xmqttreconnectconfig K;xmqttpacket Connect;xmqttproperty Expiry;rcConfig(&P.Base,&K,&Connect,&Expiry);
         xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=4;S.MaxBatch=2;S.MaxBytes=16384;
         xmqttsubscription Topic={XRT_STR_LITERAL("oom/snapshot"),1};xmqttpacket Packet=subPacket(&Topic,1,false);xmqttreconnect* R=NULL;
-        if(!Constructor){testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,NULL,0,&R),"OOM online controller");(void)rcOnline(R,1);}
+        if(!Constructor){testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,NULL,0,&R),"OOM online controller");(void)rcOnline(R,1);}
         xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limits[J],&B) && xrtAllocationBudgetEnter(B,&Scope),"snapshot allocation budget");
         bool OK;uint64 V=UINT64_MAX;
-        if(Constructor){R=(xmqttreconnect*)(uintptr_t)1;OK=xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R);}
+        if(Constructor){R=(xmqttreconnect*)(uintptr_t)1;OK=mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R);}
         else OK=xmqttReconnectSubscribeIntent(R,&Packet,&V)==XMQTT_ADMISSION_ACCEPTED;
         testRequire(xrtAllocationBudgetLeave(&Scope),"snapshot scope leave");xrtClearError();
         if(Constructor && !OK){testRequire(R==(xmqttreconnect*)(uintptr_t)1,"constructor output atomic on OOM");R=NULL;}
@@ -286,7 +287,7 @@ static void subWorkerOOM(void)
     for(size_t J=0;J<sizeof(Limits)/sizeof(*Limits);++J){subPeer P;subStart(&P,XMQTT_VERSION_5,0);xrtAtomic32Store(&P.Hold,1,XMEMORY_RELEASE);
         testRequire(xrtAllocationBudgetCreate(Limits[J],&P.WorkerBudget),"worker control budget");xmqttreconnectconfig K;xmqttpacket Connect;xmqttproperty Expiry;rcConfig(&P.Base,&K,&Connect,&Expiry);K.Notify=subBudgetLifecycle;K.User=&P;K.MaxAttempts=1;
         xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=4;S.MaxBatch=2;S.Notify=subBudgetResult;S.User=&P;
-        xmqttsubscription Topic={XRT_STR_LITERAL("worker-oom"),0};xmqttpacket Packet=subPacket(&Topic,1,false);xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R),"worker quota controller");rcWait(&P.Controls,1);
+        xmqttsubscription Topic={XRT_STR_LITERAL("worker-oom"),0};xmqttpacket Packet=subPacket(&Topic,1,false);xmqttreconnect* R=NULL;testRequire(mqttAppReconnectSubscribed(P.Base.Engine,P.Base.Pool,1,&K,&S,&Connect,&Packet,1,&R),"worker quota controller");rcWait(&P.Controls,1);
         Topic.Options=1;uint64 Revision=0;testRequire(xmqttReconnectSubscribeIntent(R,&Packet,&Revision)==XMQTT_ADMISSION_ACCEPTED,"replacement snapshot precedes worker quota");xrtAtomic32Store(&P.Hold,0,XMEMORY_RELEASE);subAck(&P,0);
         double End=xrtTimer()+5;xmqttreconnectinfo I;do {testRequire(xmqttReconnectInfo(R,&I) && xrtTimer()<End,"worker quota terminal/online deadline");if(I.State!=XMQTT_RECONNECT_ONLINE && I.State<XMQTT_RECONNECT_STOPPED)xrtSleep(1);}while(I.State!=XMQTT_RECONNECT_ONLINE && I.State<XMQTT_RECONNECT_STOPPED);
         if(Limits[J]==1){xmqttsubscriptionsinfo Info;testRequire(xmqttReconnectSubscriptionsInfo(R,&Info) && I.State==XMQTT_RECONNECT_FAILED && I.LastStatus==XMQTT_STATUS_MEMORY && Info.Requests==1 && Info.Status==XMQTT_STATUS_MEMORY,"first replacement watch allocation fails with no second Client admission");}

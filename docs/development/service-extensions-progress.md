@@ -16135,3 +16135,20 @@ Local evidence is in out/service-extensions/scope-reduction-20261119/. A single
 unrestricted run of 100,000 in-memory round trips measured about 140,260 calls/s
 on Windows and 97,644 calls/s on Ubuntu/WSL. Native Linux and sustained-load
 qualification remain open.
+
+## 2026-11-19 MQTT client reconnect configuration
+
+One reconnect constructor now takes independent subscription and store options.
+The combined fixture exercises MQTT 5.0 and 3.1.1 with both a retained broker
+session and a reset session. It checks that OPEN and SUBACK settle before leases
+are issued, that a retained session does not receive duplicate subscriptions,
+and that a missing session restores the application-provided subscription.
+The storage option still selects the older writer during the transition to
+protocol-only persistence.
+
+Windows x64 and Ubuntu/WSL x64 passed the modular and single-header reconnect,
+durable reconnect and subscription restore suites, the subscription example
+and whole-product dependency trims. The Windows static and Ubuntu/WSL shared
+consumers linked and ran with both options selected. The trim pass includes the
+previously saved MQTT dependency guard edits. Evidence is under
+out/service-extensions/scope-reduction-20261119/.

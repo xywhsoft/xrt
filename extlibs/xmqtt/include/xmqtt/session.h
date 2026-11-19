@@ -1,8 +1,8 @@
 #ifndef XMQTT_SESSION_H
 #define XMQTT_SESSION_H
 #include <xmqtt/negotiation.h>
-#if defined(XMQTT_FEATURE_XMQTT_SESSION) && !defined(XMQTT_FEATURE_XMQTT_NEGOTIATION)
-#error "MQTT session requires negotiation and both codecs"
+#if defined(XMQTT_FEATURE_XMQTT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_ATOMIC) || !defined(XRT_FEATURE_MUTEX))
+#error "MQTT session requires negotiation, atomics and mutexes"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SESSION)
 typedef struct xmqttsession xmqttsession;

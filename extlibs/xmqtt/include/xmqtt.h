@@ -31,7 +31,13 @@
 #include <xmqtt/store_write.h>
 #include <xmqtt/store_inbox.h>
 #include <xmqtt/client_store.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS"
+#endif
 #include <xmqtt/client_store_ws.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS"
+#endif
 #include <xmqtt/client_store_tls.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 #error "MQTT root requires semantic store writer"
@@ -42,6 +48,9 @@
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
 #include <xmqtt/store_compact.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE"
+#endif
 #include <xmqtt/store_compact_online.h>
 #include <xmqtt/store_session.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
@@ -63,13 +72,22 @@
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT"
 #endif
 #include <xmqtt/client.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_AUTH"
+#endif
 #include <xmqtt/client_auth.h>
 #include <xmqtt/client_dial.h>
 #include <xmqtt/client_tls.h>
 #include <xmqtt/client_tls_resume.h>
 #include <xmqtt/client_inbox.h>
 #include <xmqtt/client_session.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL"
+#endif
 #include <xmqtt/client_session_dial.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS"
+#endif
 #include <xmqtt/client_session_tls.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
 #error "MQTT root requires WS/WSS client"
@@ -87,6 +105,12 @@
 #endif
 #include <xmqtt/client_ws_uri.h>
 #include <xmqtt/reconnect.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_RECONNECT_STORE"
+#endif
 #include <xmqtt/reconnect_store.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS"
+#endif
 #include <xmqtt/reconnect_subscriptions.h>
 #endif

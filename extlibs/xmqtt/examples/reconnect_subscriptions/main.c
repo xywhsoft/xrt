@@ -11,7 +11,9 @@ int main(void)
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("managed-example");Q.Body.Connect.CleanStart=true;xmqttreconnect* R=NULL;
     xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);
     xmqttsubscription Topic={XRT_STR_LITERAL("example/+"),1};xmqttpacket Initial;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Initial);Initial.Body.Topics=(xmqttsubscriptionlist){&Topic,1};
-    mqttExampleCheck(xmqttReconnectCreateSubscribed(P.Engine,Pool,1,&K,&S,&Q,&Initial,1,&R),"automatic subscription controller");xmqttclientlease L={0};double End=xrtTimer()+5;
+    const xmqttreconnectsubscriptionplan Plan={.Config=&S,.Initial=&Initial,.Count=1};
+    K.Subscriptions=&Plan;
+    mqttExampleCheck(xmqttReconnectCreate(P.Engine,Pool,1,&K,&Q,&R),"automatic subscription controller");xmqttclientlease L={0};double End=xrtTimer()+5;
     while(!xmqttReconnectAcquire(R,&L)){mqttExampleCheck(xrtTimer()<End,"online lease");xrtSleep(1);}
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Body.Publish.Topic=XRT_STR_LITERAL("example/topic");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("managed");xfuture* F=NULL;
     mqttExampleCheck(xmqttClientPublish(L.Client,&Q,5000,&F)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)xrtFutureValue(F))->Status==XMQTT_STATUS_OK,"leased normal publication");

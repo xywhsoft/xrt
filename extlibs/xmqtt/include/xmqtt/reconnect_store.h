@@ -26,9 +26,11 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * leases and storage effects. An unusable Writer prevents the next attempt
  * with SESSION. Recover the authoritative journal before constructing another
  * controller. Original Futures never transfer to the new connection. */
-XMQTT_API bool xmqttReconnectCreateStore(xnetengine* Engine,xtaskpool* CleanupPool,uint64 Affinity,
-    const xmqttreconnectconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
-    xmqttreconnectstorefactory Factory,const xmqttpacket* Connect,xmqttreconnect** Controller);
+struct xmqttreconnectstoreplan {
+    xmqttsession* Session;
+    const xmqttclientstoreconfig* Config;
+    xmqttreconnectstorefactory Factory;
+};
 XRT_EXTERN_C_END
 #endif
 #endif
