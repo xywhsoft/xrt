@@ -9,7 +9,7 @@ typedef struct xmqttstoreplan xmqttstoreplan;
 XMQTT_INTERNAL bool xmqttInternalStoreWriteClaim(xmqttstorestate* State,xmqttjournal* Journal,const void* Owner,void* Output,size_t Bytes,xmqttstoredeltaconfig* Delta,size_t* MinimumPlanBytes);
 XMQTT_INTERNAL void xmqttInternalStoreWriteRelease(xmqttstorestate* State,const void* Owner,bool Destroy);
 XMQTT_INTERNAL bool xmqttInternalStoreWriteOutput(xmqttstorestate* State,const void* Owner,void* Output,size_t Bytes);
-XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* State,const void* Owner,const xmqttstoredeltadocument* Delta,size_t MaxWork,size_t MaxPlanBytes,xmqttstoreplan** Plan XMQTT_SW_PRESSURE_PARAM);
+XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* State,const void* Owner,const xmqttstoredeltadocument* Delta,size_t MaxWork,size_t MaxPlanBytes,xmqttstoreplan** Plan);
 XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* State,const void* Owner,xmqttstoreplan* Plan,bool Committed,uint64 Sequence);
 XMQTT_INTERNAL size_t xmqttInternalStoreWriteDispose(xmqttstorestate* State,const void* Owner,xmqttstoreplan* Plan);
 XMQTT_INTERNAL void xmqttInternalStoreWriteRefund(xmqttstorestate* State,const void* Owner,size_t Bytes);
@@ -35,7 +35,7 @@ typedef void (*xmqttstoresettle)(ptr Context,uint64 InboxKey,const xmqttcommitre
 #define XMQTT_SW_SETTLE_PARAM
 #define XMQTT_SW_SETTLE_ARG(S)
 #endif
-typedef xmqttcommitstatus (*xmqttstoreprepare)(ptr Context,xbytesview Data XMQTT_SW_INBOX_PARAM XMQTT_SW_PRESSURE_PARAM);
+typedef xmqttcommitstatus (*xmqttstoreprepare)(ptr Context,xbytesview Data XMQTT_SW_INBOX_PARAM);
 typedef void (*xmqttstorefinish)(ptr Context,const xmqttcommitresult* Result);
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* Worker,xbytesview Data,double Deadline,xfuture** Future XMQTT_SW_INBOX_PARAM);
 XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* Worker,xmqttstoreprepare Prepare,xmqttstorefinish Finish,ptr Context XMQTT_SW_SETTLE_PARAM);

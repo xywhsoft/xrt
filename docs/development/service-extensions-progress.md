@@ -17715,3 +17715,37 @@ hashes and build logs are under
 The ordinary maturity check passes. Strict release still reports xrpc and
 xrpc_duplex as developing. Native Linux and the controlled release
 performance workload remain open.
+
+## 2026-11-20 MQTT APP-owned log rotation scheduling
+
+The Writer no longer embeds the idle trigger, growth and cooldown policy,
+or a foreground replay after quota exhaustion. File and typed replay limits
+complete the original write with LIMIT and a definite uncommitted effect.
+Explicit bounded compaction still uses the existing FIFO and checkpoint
+format. The APP examples decide when to compact from committed bytes or
+available transaction headroom. For an APP-owned operation they can
+submit a new request after a definite refusal. The capacity benchmark now
+drains admitted work before APP maintenance and includes that pause in
+scheduled-arrival latency.
+
+The storage tests exercise MQTT 5 and 3.1.1 at file, transaction, operation
+and replay-byte limits, including a combined limit. They check the
+unchanged cut after refusal, explicit rotation, renewal of the Inbox lease,
+and one durable ACK under the same recovery bounds. Existing cancellation,
+inactive write failure and uncertain selector tests remain active.
+
+Windows x64 and Ubuntu/WSL passed the modular and single-header storage
+and reconnect suites, isolated Writer dependency trimming, static/shared
+consumers, and four capacity smoke workloads per platform. The standalone
+sample kept generation 2 across repeated `auto` and `read` calls. It recovered
+one pending delivery. WSL ASan/UBSan with leak detection and TSan passed the
+online store suite. Windows and WSL clients completed 48 TCP restart
+cases against Mosquitto 2.0.22 in WSL, covering both protocol versions, both
+withheld QoS 2 acknowledgement phases, and six APP maintenance scenarios.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-compaction/`.
+Ordinary maturity passes. Strict release still reports 43 developing
+modules. Moving the remaining storage backend and application Inbox
+duties, native Linux acceptance, controlled comparisons and 72-hour
+mixed loads remain open.

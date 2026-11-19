@@ -1,9 +1,6 @@
 #include <xmqtt/store_compact_online.h>
 #include <stdio.h>
 #include <string.h>
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-#include <xrt/time.h>
-#endif
 
 static bool seed(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
 {
@@ -47,36 +44,6 @@ static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-static bool automatic(xmqttstorewrite* W,const xmqttstoredeltaconfig* Delta)
-{
-    xmqttstoreautocompactconfig C;
-    xmqttStoreAutoCompactConfigInit(&C);
-    C.TriggerBytes=1;
-    C.Compact.MinReclaimBytes=1;
-    if(!xmqttStoreWriteSetAutoCompact(W,&C))return false;
-
-    /* An ordinary foreground transaction lets the existing pump reach an
-     * idle boundary. Production workloads do not need a dummy transaction. */
-    unsigned char Buffer[64];
-    size_t Bytes=0;
-    xfuture* F=NULL;
-    if(xmqttStoreDeltaWrite(Delta,NULL,0,NULL,0,Buffer,sizeof(Buffer),&Bytes)!=XMQTT_STORE_DELTA_DONE||
-       xmqttStoreWriteAppendAsync(W,(xbytesview){Buffer,Bytes},10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
-    if(xrtFutureWaitFor(F,10000)!=XWAIT_OK){xrtFutureDestroy(F);return false;}
-    const xmqttcommitresult* Result=xrtFutureValue(F);
-    bool OK=Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED;
-    xrtFutureDestroy(F);
-    if(!OK)return false;
-    double Deadline=xrtTimer()+10;
-    do{
-        xmqttstoreautocompactinfo Info;
-        if(!xmqttStoreWriteAutoCompactInfo(W,&Info))return false;
-        if(Info.Attempts&&!Info.Running)return Info.Rotations==1&&Info.Generation==2;
-        xrtSleep(1);
-    }while(xrtTimer()<Deadline);
-    return false;
-}
-
 static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bool Auto)
 {
     xmqttjournal* J=NULL;
@@ -93,14 +60,21 @@ static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bo
     if(!Pool||!xmqttStoreWriteConfigInit(&WC)||!xmqttStoreWriteCreate(Pool,J,State,&WC,&W))goto Done;
     J=NULL;
     State=NULL;
-    if(Auto){Good=automatic(W,&Config->Delta);goto Done;}
+    if(Auto){
+        const uint64 TriggerBytes=12500; /* Small threshold for the seeded example. */
+        xmqttstorewriteinfo Info;
+        if(!xmqttStoreWriteInfo(W,&Info))goto Done;
+        if(Info.Worker.Journal.CommittedEnd<TriggerBytes){Good=true;goto Done;}
+    }
     xmqttstorecompactconfig C;
     xmqttStoreCompactConfigInit(&C);
     C.MinReclaimBytes=1;
     if(xmqttStoreWriteCompactAsync(W,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
        xrtFutureWaitFor(F,10000)!=XWAIT_OK)goto Done;
     const xmqttstorecompactresult* R=xrtFutureValue(F);
-    Good=R&&R->Status==XMQTT_COMMIT_OK&&R->Effect==XMQTT_JOURNAL_COMMITTED;
+    Good=R&&R->Status==XMQTT_COMMIT_OK&&
+        (R->Effect==XMQTT_JOURNAL_COMMITTED||
+         (Auto&&R->StorageStatus==XMQTT_JOURNAL_EMPTY&&R->Effect==XMQTT_JOURNAL_NOT_COMMITTED));
 Done:
     xrtFutureDestroy(F);
     if(!xmqttStoreWriteDestroy(W)){(void)xmqttStoreWriteDestroy(W);Good=false;}

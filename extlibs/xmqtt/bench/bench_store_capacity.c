@@ -116,6 +116,27 @@ static void retire(run* R)
     }
 }
 
+static void drain(run* R)
+{
+    double Deadline=xrtTimer()+15;
+    while(R->Active){
+        retire(R);
+        require(xrtTimer()<Deadline,"drain accepted observations");
+        if(R->Active)xrtThreadYield();
+    }
+}
+
+static void rotate(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Config)
+{
+    xfuture* Future=NULL;
+    require(xmqttStoreWriteCompactAsync(Writer,Config,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
+        xrtFutureWaitFor(Future,10000)==XWAIT_OK,"submit APP maintenance at the transaction cap");
+    const xmqttstorecompactresult* Result=xrtFutureValue(Future);
+    require(Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED&&
+        Result->Sequence==1,"compact to one durable session checkpoint");
+    xrtFutureDestroy(Future);
+}
+
 static void offer(run* R,uint64 Key,double Due)
 {
     double Start=xrtTimer();
@@ -252,15 +273,12 @@ int main(int Argc,char** Argv)
     xmqttstorewrite* Writer=NULL;
     require(Pool&&xmqttStoreWriteCreate(Pool,Journal,State,&Config,&Writer),"create bounded Store Writer");
     establish(Writer,&SC.Delta);
-    if(Cap){
-        xmqttstoreautocompactconfig Policy;
-        require(xmqttStoreAutoCompactConfigInit(&Policy),"initialize pressure policy");
-        Policy.TriggerBytes=UINT64_MAX;
-        Policy.Compact.MinReclaimBytes=1;
-        Policy.Compact.MaxEntries=1;
-        Policy.Compact.MaxScratchBytes=256;
-        require(xmqttStoreWriteSetAutoCompact(Writer,&Policy),"enable replay quota fallback");
-    }
+    xmqttstorecompactconfig Compact;
+    require(xmqttStoreCompactConfigInit(&Compact),"initialize APP maintenance");
+    Compact.MinReclaimBytes=1;
+    Compact.MaxEntries=1;
+    Compact.MaxScratchBytes=256;
+    uint64 Rotations=0;
 
     unsigned char Payload[256]={0},Wire[512];
     xmqttpacket Packet;
@@ -291,14 +309,19 @@ int main(int Argc,char** Argv)
             if(Remaining>.020)xrtSleep(1);
             else xrtThreadYield();
         }
+        if(Cap&&R.Committed+1+R.Active-Rotations*(Cap-1)>=Cap){
+            /* Pending writes count against available room. Their completion
+             * can expose capacity without a checkpoint. The arrival clock
+             * keeps running while the APP drains or rotates. */
+            drain(&R);
+            if(R.Committed+1-Rotations*(Cap-1)>=Cap){
+                rotate(Writer,&Compact);
+                ++Rotations;
+            }
+        }
         offer(&R,Key,Due);
     }
-    double DrainDeadline=xrtTimer()+15;
-    while(R.Active){
-        retire(&R);
-        require(xrtTimer()<DrainDeadline,"drain accepted observations");
-        if(R.Active)xrtThreadYield();
-    }
+    drain(&R);
     require(xmqttStoreWriteClose(Writer)&&xmqttStoreWriteWaitFor(Writer,10000)==XWAIT_OK,"retire all native tasks");
     double Elapsed=xrtTimer()-Start;
     Cpu=processCpu()-Cpu;
@@ -307,19 +330,17 @@ int main(int Argc,char** Argv)
         xrtMemStatsEnable(false);
     }
     xmqttstorewriteinfo Info;
-    xmqttstoreautocompactinfo Auto;
-    require(xmqttStoreWriteInfo(Writer,&Info)&&xmqttStoreWriteAutoCompactInfo(Writer,&Auto)&&
-        xrtTaskPoolGet(Pool,&PoolAfter),"read final attendance and maintenance counters");
+    require(xmqttStoreWriteInfo(Writer,&Info)&&xrtTaskPoolGet(Pool,&PoolAfter),
+        "read final attendance and maintenance counters");
     require(!Info.Worker.Failed&&!Info.Worker.Requests&&!Info.Worker.Tasks&&!Info.Worker.Objects&&
-        Info.Worker.Accepted==R.Accepted+1&&Info.Worker.Completed==Info.Worker.Accepted&&
+        Info.Worker.Accepted==R.Accepted+1+Rotations&&Info.Worker.Completed==Info.Worker.Accepted&&
         R.Offered==Count&&R.Accepted+R.WindowDrops+R.WorkerOverloads+R.Expired==Count&&
         R.Committed+R.Timeouts-R.LateCommits==R.Accepted&&R.Committed!=0&&
         Info.State.LastKey==R.LastKey&&!Info.State.Inbox,"reconcile every scheduled operation");
     uint64 ExpectedTransactions=R.Committed+1;
     if(Cap){
-        require(Auto.Enabled&&Auto.Attempts==Auto.Rotations&&Auto.Rotations<=ExpectedTransactions/(Cap-1),
-            "check automatic checkpoint outcomes");
-        ExpectedTransactions-=Auto.Rotations*(Cap-1);
+        require(Rotations<=ExpectedTransactions/(Cap-1),"check APP checkpoint outcomes");
+        ExpectedTransactions-=Rotations*(Cap-1);
     }
     require(Info.State.Transactions==ExpectedTransactions&&Info.Worker.Journal.Sequence==ExpectedTransactions,
         "check selected journal sequence after foreground commits");
@@ -330,7 +351,7 @@ int main(int Argc,char** Argv)
     double Reopen=xrtTimer();
     require(xmqttJournalSlotOpen(Root,&JC,&Slot)==XMQTT_JOURNAL_DONE,"cold reopen selector");
     xmqttjournalslotinfo Selected;
-    require(xmqttJournalSlotInfo(Slot,&Selected)&&Selected.Generation==Auto.Rotations+1,"recover selected generation");
+    require(xmqttJournalSlotInfo(Slot,&Selected)&&Selected.Generation==Rotations+1,"recover selected generation");
     SC.Generation=Selected.Generation;
     require(xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,&SC,&State)==XMQTT_STORE_DONE,"cold replay at unchanged bounds");
@@ -358,7 +379,7 @@ int main(int Argc,char** Argv)
            "terminal_phase_seconds: %.9f\nnative_tasks: %" PRIu64 "\nmodel_peak_bytes: %zu\n"
            "observer_bytes: %zu\nwire_bytes: %zu\ndeadline_ms: %d\nbench_path: %s\n",
            Count,Rate,Window,SC.MaxTransactions,R.Accepted,R.Committed,R.WindowDrops,R.WorkerOverloads,R.Expired,
-           R.Timeouts,R.LateCommits,R.AlreadyReady,R.PeakActive,Auto.Attempts,Auto.Rotations,
+           R.Timeouts,R.LateCommits,R.AlreadyReady,R.PeakActive,Rotations,Rotations,
            Info.Worker.Journal.CommittedEnd,ExpectedTransactions,Selected.Generation,Cpu,Elapsed,
            R.LastTerminal-Start,(uint64)(PoolAfter.Submitted-PoolBefore.Submitted),Info.State.PeakMemoryBytes,
            (size_t)Window*sizeof(*Samples)+(size_t)Count*3*sizeof(*All),WireBytes,REQUEST_DEADLINE_MS,Path);

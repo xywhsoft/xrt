@@ -155,7 +155,8 @@ and acknowledgement of a 256-byte QoS 0 payload. The settled model keeps no
 live Inbox entries, so a pressure checkpoint retains identity, session metadata
 and the key fence. The registered profiles send 1,024 arrivals at 300/s with
 16 pending observation slots. Each MQTT version runs with maintenance disabled
-and with a 64-transaction quota driving foreground automatic compaction.
+and with the APP scheduling compaction at a 64-transaction quota. The APP
+drains already accepted requests before checking whether it needs to compact.
 
 ```text
 python tools/measure_performance.py --compiler gcc --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_store_capacity --smoke --report out/store-capacity-smoke.json

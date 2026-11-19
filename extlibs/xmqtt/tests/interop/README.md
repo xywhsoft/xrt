@@ -344,10 +344,11 @@ recovery of the synchronized files in this topology. Physical power-loss
 survival requires a separate storage qualification.
 
 
-#### Automatic checkpoints
+#### APP-scheduled checkpoints
 
-Add `--policy automatic` for the idle policy or `--policy pressure` for the
-physical file-limit path. The first client subscribes to a separate trigger
+Add `--policy automatic` to let the APP checkpoint after the trigger
+commits. Select `--policy pressure` to make room before the trigger reaches
+the configured file limit. The first client subscribes to a separate trigger
 topic. While PUBREC or PUBCOMP is withheld, an independent publisher delivers
 one QoS 1 message. No application ACK is submitted before the native process
 exits. In idle mode the committed Inbox entry is included in the checkpoint.

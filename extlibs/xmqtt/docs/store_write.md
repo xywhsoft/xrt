@@ -78,8 +78,9 @@ admission budget. Work exhaustion during partial virtual reset discards the
 whole candidate. Hash matching, output alias validation and native decoder/IO
 costs remain bounded by their own entry/byte caps; no realtime guarantee is made.
 Normal operations do not scan/copy the whole State to construct a transaction.
-A native-slot Writer with the optional [automatic compaction policy](store_compact_online.md)
-can reclaim historical replay capacity before retrying a valid foreground batch.
+For a native-slot Writer, the APP can [schedule explicit compaction](store_compact_online.md)
+to reclaim historical replay capacity. A batch refused by a quota has a
+definite uncommitted result.
 Cold recovery uses the same caps for the selected checkpoint and subsequent deltas.
 
 Empty-prefix recovery owns an expected ClientId. Matching BIND borrows it during

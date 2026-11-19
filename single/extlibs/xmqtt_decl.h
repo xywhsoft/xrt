@@ -6624,48 +6624,6 @@ XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config);
  * The config is copied, and Future changes only on ACCEPTED. */
 XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* Writer,
     const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future);
-typedef struct xmqttstoreautocompactconfig {
-    size_t Size;
-    xmqttstorecompactconfig Compact;
-    uint64 TriggerBytes,RetryGrowthBytes;
-    uint32 RetryDelayMs;
-} xmqttstoreautocompactconfig;
-typedef struct xmqttstoreautocompactinfo {
-    size_t Size;
-    bool Enabled,Running;
-    uint64 Attempts,Rotations,NextEligibleBytes;
-    double RetryAfter;
-    xmqttcommitstatus Status;
-    xmqttjournalstatus StorageStatus;
-    xmqttjournaleffect Effect;
-    uint64 Generation,PreviousBytes,Bytes;
-} xmqttstoreautocompactinfo;
-/* Defaults: 64 MiB selected-file trigger, 4 MiB committed growth after a
- * nonpublishing attempt, 1000 ms to reconsider an inactive I/O failure,
- * and the manual checkpoint's default bounds. */
-XMQTT_API bool xmqttStoreAutoCompactConfigInit(xmqttstoreautocompactconfig* Config);
-/* Install or replace the copied policy at an idle Writer boundary. Pass NULL
- * to disable. The Writer must own the selected native JournalSlot child and
- * remain live through this call. Busy, closed or unsupported Writers refuse.
- * Foreground work wins before the pump starts an idle checkpoint. A valid
- * append refused by the physical file cap or an exhausted cumulative
- * replay quota may checkpoint and retry once within the original deadline.
- * The checkpoint and the pending append must fit together within all file
- * and replay limits. The typed model is restaged on the selected cut.
- * A batch that will not fit leaves smaller batches eligible at the same
- * cut. Other unsuccessful attempts impose RetryGrowthBytes of new committed
- * data. A later request can retry a definite inactive I/O, BUSY or local
- * allocation failure after RetryDelayMs. Zero disables that clock-based
- * path. Policy replacement resets its history. Other appends queue normally
- * without an extra task, timer or Future. Close waits for entered I/O. */
-XMQTT_API bool xmqttStoreWriteSetAutoCompact(xmqttstorewrite* Writer,const xmqttstoreautocompactconfig* Config);
-/* A gate-protected snapshot of the last finished automatic attempt plus
- * the running flag. Disabled returns Enabled=false and zero counters.
- * Generation is the last definite selection, or the original cut on MAY.
- * Zero NextEligibleBytes means there is no committed-growth restriction.
- * RetryAfter is an xrtTimer() deadline. Zero disables the clock-based path.
- * Policy memory is included in the Store Writer's fixed scratch budget. */
-XMQTT_API bool xmqttStoreWriteAutoCompactInfo(xmqttstorewrite* Writer,xmqttstoreautocompactinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif

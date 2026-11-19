@@ -3,7 +3,7 @@
 Status: developing. Select `XMQTT_MODULE_XMQTT_STORE_STATE`. This is the actual
 cross-record applier for the typed journal: recover an immutable offline view of
 outgoing QoS obligations, incoming QoS2 identities and pending Inbox payloads.
-The native slot supports offline checkpoints. Automatic compaction and bounded
+The native slot supports offline checkpoints. Explicit online compaction and bounded
 group commit remain open. [Offline compaction](store_compact.md).
 
 `xmqttStoreStateRecover` requires an unconsumed Journal with the exact MQTT level,

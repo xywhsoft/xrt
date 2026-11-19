@@ -223,51 +223,6 @@ static bool compactHistory(xmqttclient* Client)
     return true;
 }
 
-static bool compactAutomatic(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
-    xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecompactresult* Selection)
-{
-    xmqttstoreautocompactconfig Policy;
-    if(!xmqttStoreAutoCompactConfigInit(&Policy))return false;
-    Policy.Compact=*Compact;
-    Policy.TriggerBytes=Pressure?UINT64_MAX:1u;
-    double Deadline=xrtTimer()+5;
-    for(;;){
-        xmqttstorewriteinfo Info;
-        if(!xmqttStoreWriteInfo(Writer,&Info)||Info.Worker.Closed||xrtTimer()>=Deadline)return false;
-        if(!Info.Worker.Busy&&!Info.Worker.Requests&&!Info.Worker.Tasks)break;
-        xrtSleep(1);
-    }
-    if(!xmqttStoreWriteSetAutoCompact(Writer,&Policy))return false;
-    puts("AUTO_ARMED");
-    if(fflush(stdout)!=0)return false;
-
-    /* The broker's QoS 1 delivery commits the work that starts the policy. */
-    Deadline=xrtTimer()+5;
-    do{
-        xmqttstoreautocompactinfo Info;
-        if(!xmqttStoreWriteAutoCompactInfo(Writer,&Info)||xrtFutureState(Publish)!=XFUTURE_PENDING)return false;
-        if(Info.Attempts&&!Info.Running){
-            xmqttstorewriteinfo State;
-            if(Info.Attempts!=1||Info.Rotations!=1||Info.Status!=XMQTT_COMMIT_OK||
-               Info.StorageStatus!=XMQTT_JOURNAL_DONE||Info.Effect!=XMQTT_JOURNAL_COMMITTED||
-               !xmqttStoreWriteInfo(Writer,&State)||State.Worker.Closed||State.State.Outgoing!=1)return false;
-            /* A pressure-triggered rotation publishes its prefix before the pump
-             * restages the QoS 1 acceptance as the first new delta. */
-            if(State.State.Inbox==1&&State.State.LastKey==InboxKey&&
-               State.Worker.Journal.Sequence==(Pressure?3u:2u)){
-                *Selection=(xmqttstorecompactresult){.Status=Info.Status,.StorageStatus=Info.StorageStatus,
-                    .Effect=Info.Effect,.Generation=Info.Generation,.PreviousGeneration=1,
-                    .Sequence=2,.PreviousBytes=Info.PreviousBytes,.Bytes=Info.Bytes};
-                puts("AUTO_ROTATED 1 1");
-                return true;
-            }
-            if(!Pressure||State.State.Inbox>1||State.State.LastKey>InboxKey)return false;
-        }
-        xrtSleep(1);
-    }while(xrtTimer()<Deadline);
-    return false;
-}
-
 static bool compactManual(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
     xmqttstorecompactresult* Selection)
 {
@@ -281,6 +236,31 @@ static bool compactManual(xmqttstorewrite* Writer,const xmqttstorecompactconfig*
     bool Done=Result!=NULL;
     xrtFutureDestroy(Future);
     return Done;
+}
+
+static bool compactAutomatic(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
+    xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecompactresult* Selection)
+{
+    /* In the capacity scenario the APP opens room before releasing its
+     * next input. Its store configuration supplies the fixture's limit. */
+    if(Pressure&&(!compactManual(Writer,Compact,Selection)||
+       Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
+
+    puts("AUTO_ARMED");
+    if(fflush(stdout)!=0)return false;
+    double Deadline=xrtTimer()+5;
+    for(;;){
+        xmqttstorewriteinfo Info;
+        if(!xmqttStoreWriteInfo(Writer,&Info)||Info.Worker.Closed||
+           xrtFutureState(Publish)!=XFUTURE_PENDING||xrtTimer()>=Deadline)return false;
+        if(Info.State.Inbox==1&&Info.State.LastKey==InboxKey&&
+           (!Pressure||Info.Worker.Journal.Sequence==3))break;
+        xrtSleep(1);
+    }
+    if(!Pressure&&(!compactManual(Writer,Compact,Selection)||
+       Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
+    puts("AUTO_ROTATED 1 1");
+    return true;
 }
 
 static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version,uint64 InboxKey)

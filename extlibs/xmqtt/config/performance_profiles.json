@@ -5306,7 +5306,7 @@
     {
       "name": "xmqtt_store_capacity",
       "system": "session",
-      "description": "Fixed scheduled arrivals into a native typed store, with disabled maintenance or foreground transaction-cap rotation",
+      "description": "Fixed scheduled arrivals into a native typed store, with disabled maintenance or APP-scheduled rotation at the transaction cap",
       "benchmarks": [
         {
           "name": "native_mqtt5_off",
