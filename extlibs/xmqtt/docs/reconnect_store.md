@@ -53,6 +53,15 @@ a QoS 1 publication and a graceful END. Append `expect-replay` when a test proxy
 drops the first PUBACK and disconnects that connection. The example then waits
 for generation two and checks that the journaled obligation was retired.
 
+## TCP hostname and prepared-address factories
+
+With `XMQTT_MODULE_XMQTT_CLIENT_DIAL` enabled, a factory can pass the original
+Session and Writer to `xmqttClientDialStore` or `xmqttClientDialAddressesStore`.
+Keep its Resolver or retained address list available for each attempt.
+An accepted replacement still waits for committed OPEN before becoming
+available through an online lease. The TCP constructors also support the
+MQTT 5 enhanced authentication proof gate. [Durable TCP contract](client_store.md#hostnames-and-prepared-addresses).
+
 ## TLS and WebSocket recovery
 
 The factory can issue a new `xmqttClientTlsDialStore`,

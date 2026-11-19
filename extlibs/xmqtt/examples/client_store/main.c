@@ -34,7 +34,11 @@ static const void* result(xfuture* Future)
 int main(int Argc,char** Argv)
 {
     if(Argc==1){
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+        puts("Usage: examples_client_store_main HOST_OR_NUMERIC_ADDRESS PORT 5|311");
+#else
         puts("Usage: examples_client_store_main NUMERIC_ADDRESS PORT 5|311");
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
         puts("       examples_client_store_main HOST PORT 5|311 SERVER_CA.pem");
 #endif
@@ -47,7 +51,7 @@ int main(int Argc,char** Argv)
         return 0;
     }
 
-    bool UseWS=false,UseTLS=false;
+    bool UseWS=false,UseTLS=false,UseHost=false;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
     UseWS=!strncmp(Argv[1],"ws://",5)||!strncmp(Argv[1],"wss://",6);
     UseTLS=!strncmp(Argv[1],"wss://",6);
@@ -69,7 +73,12 @@ int main(int Argc,char** Argv)
         unsigned long Number=strtoul(Argv[2],&End,10);
         if(End==Argv[2]||*End||!Number||Number>65535)return 2;
         Port=(uint16)Number;
-        if(!UseTLS&&!xrtNetAddrParse(&Remote,Argv[1],Port))return 2;
+        if(!UseTLS)UseHost=!xrtNetAddrParse(&Remote,Argv[1],Port);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+        if(UseHost)xrtClearError();
+#else
+        if(UseHost)return 2;
+#endif
     }
 
     xmqttversion Version=V5?XMQTT_VERSION_5:XMQTT_VERSION_311;
@@ -103,7 +112,7 @@ int main(int Argc,char** Argv)
     xx509store* Trust=NULL;
     xtlsverifier* Verifier=NULL;
 #endif
-#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     xnetresolver* Resolver=NULL;
 #endif
     xfuture* Future=NULL;
@@ -140,8 +149,8 @@ int main(int Argc,char** Argv)
     Connect.Body.Connect.ClientId=Id;
     Connect.Body.Connect.CleanStart=true;
     bool Connected=false;
-#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
-    if(UseWS||UseTLS){
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(UseWS||UseTLS||UseHost){
         Resolver=xrtNetResolverCreate(NULL);
         if(!Resolver)goto Cleanup;
     }
@@ -180,6 +189,10 @@ int main(int Argc,char** Argv)
     if(!UseTLS){
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
         if(UseWS)Connected=xmqttClientWsConnectUriStore(Engine,Resolver,Endpoint,0,&CK,NULL,Session,&DK,&Connect,&Client);
+        else
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+        if(UseHost)Connected=xmqttClientDialStore(Engine,Resolver,Endpoint,Port,0,&CK,NULL,Session,&DK,&Connect,&Client);
         else
 #endif
         Connected=xmqttClientConnectStore(Engine,&Remote,0,&CK,Session,&DK,&Connect,&Client);
@@ -224,7 +237,7 @@ int main(int Argc,char** Argv)
 Cleanup:
     xrtFutureDestroy(Future);
     if(Client&&!xmqttClientDestroy(Client))return 1;
-#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
+#if defined(XMQTT_EXAMPLE_STORE_TLS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS) || defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     if(Resolver&&!xrtNetResolverDestroy(Resolver))return 1;
 #endif
 #if defined(XMQTT_EXAMPLE_STORE_TLS)

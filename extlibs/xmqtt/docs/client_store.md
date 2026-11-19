@@ -1,4 +1,4 @@
-# Client storage integration under development
+# Durable TCP Client under development
 
 The developing `xmqtt_client_store` module exports
 `xmqttClientConnectStore` for numeric TCP in MQTT 5.0 and 3.1.1.
@@ -87,9 +87,26 @@ MaxPrivateBytes. The staged CONNACK transfers into Ready using the existing
 object quota. Encoded transaction bytes are copied under the Writer/worker's
 bounded admission contract.
 
+## Hostnames and prepared addresses
+
+Select both `XMQTT_MODULE_XMQTT_CLIENT_STORE` and `XMQTT_MODULE_XMQTT_CLIENT_DIAL`
+for `xmqttClientDialStore` and `xmqttClientDialAddressesStore`. They share the
+same durable protocol and use the existing [Client dial policy](client_dial.md).
+Keep the Resolver alive through Client retirement. A DNS lookup shared by
+the Resolver can outlive the Client. A prepared address list is immutable
+and can be released after successful admission. Its endpoints must belong
+to the same trusted broker identity. The application can reuse either
+factory on each [durable reconnect](reconnect_store.md) attempt.
+
+The original `SetupTimeout` includes DNS, TCP, the MQTT handshake and durable
+OPEN. Failures before OPEN leave the committed journal unchanged. Select
+`XMQTT_MODULE_XMQTT_CLIENT_AUTH` for the `xmqttClientDialStoreAuth` and `xmqttClientDialAddressesStoreAuth`
+variants. With enhanced authentication, BIND/OPEN also waits for accepted
+final broker proof. Callers keep DNS policy and authentication credentials
+outside the journal.
+
 The [verified TLS adapter](client_store_tls.md) supports hostname dialing.
 The [enhanced authentication adapter](client_store_auth.md) supports MQTT 5
-over numeric TCP or verified TLS. The [durable WebSocket adapter](client_store_ws.md) supports both WS and WSS
-URI endpoints. Cleartext hostname dialing for raw TCP and automatic reconnect
-adapters for the durable Client are pending. Cross-host fencing, compaction
-and throughput/tail-latency qualification are also pending.
+over direct TCP or verified TLS. The [durable WebSocket adapter](client_store_ws.md)
+supports both WS and WSS URI endpoints. Cross-host fencing and production throughput and tail-latency
+qualification are pending.

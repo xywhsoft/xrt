@@ -4208,6 +4208,57 @@ XMQTT_API bool xmqttClientConnectStoreAuth(xnetengine* E,const xnetaddr* R,uint6
     return xmqttClientConnectImpl(E,R,A,K,Q,Out,&AK,At,NULL,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
 }
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+static bool xmqttClientStoreDialFactory(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* Addresses,
+    xstrview Host,uint16 Port,uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,
+    const void* Auth,xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,
+    xmqttclient** Out,double Entered)
+{
+    xmqttclientstoreplan Plan;
+    if(!xmqttStorePlanCreate(Session,Store,Out,&Plan))return false;
+    return xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,Dial,Auth,Connect,Out,
+        Entered,NULL,NULL,Session,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
+}
+XMQTT_API bool xmqttClientDialStore(xnetengine* E,xnetresolver* R,xstrview Host,uint16 Port,
+    uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Out)
+{
+    return xmqttClientStoreDialFactory(E,R,NULL,Host,Port,Affinity,Config,Dial,NULL,Session,Store,
+        Connect,Out,xrtTimer());
+}
+XMQTT_API bool xmqttClientDialAddressesStore(xnetengine* E,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
+    const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Out)
+{
+    double Entered=xrtTimer();
+    if(!Addresses)return xmqttClientError(XERR_ARGUMENT,"durable Dial addresses are NULL");
+    return xmqttClientStoreDialFactory(E,NULL,Addresses,(xstrview){0},0,Affinity,Config,Dial,NULL,
+        Session,Store,Connect,Out,Entered);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+XMQTT_API bool xmqttClientDialStoreAuth(xnetengine* E,xnetresolver* R,xstrview Host,uint16 Port,
+    uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Out)
+{
+    double Entered=xrtTimer();
+    xmqttauthconfig AuthCopy;
+    if(!xmqttAuthConfigCopy(Auth,&AuthCopy))return false;
+    return xmqttClientStoreDialFactory(E,R,NULL,Host,Port,Affinity,Config,Dial,&AuthCopy,Session,Store,
+        Connect,Out,Entered);
+}
+XMQTT_API bool xmqttClientDialAddressesStoreAuth(xnetengine* E,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
+    xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,xmqttclient** Out)
+{
+    double Entered=xrtTimer();
+    xmqttauthconfig AuthCopy;
+    if(!Addresses)return xmqttClientError(XERR_ARGUMENT,"durable Dial addresses are NULL");
+    if(!xmqttAuthConfigCopy(Auth,&AuthCopy))return false;
+    return xmqttClientStoreDialFactory(E,NULL,Addresses,(xstrview){0},0,Affinity,Config,Dial,&AuthCopy,
+        Session,Store,Connect,Out,Entered);
+}
+#endif
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
 static bool xmqttClientStoreTlsFactory(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* L,
     const xnetaddr* Address,xstrview H,uint16 Port,uint64 A,const xmqttclientconfig* C,

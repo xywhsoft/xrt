@@ -8,8 +8,12 @@
 #endif
 
 typedef enum saMode {SA_EARLY,SA_REJECT,SA_CANCEL,SA_CANCEL_OPEN,SA_TIMEOUT,SA_HEARTBEAT} saMode;
+typedef enum sa_dial {SA_NUMERIC,SA_HOSTNAME,SA_PREPARED} sa_dial;
 typedef struct saPeer {
     mqttAuthPeer TCP;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xnetresolver* Resolver;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
     mqttTlsPeer TLS;
     bool Challenged,Open,Early;
@@ -46,7 +50,7 @@ static void saTlsFrame(xtlsstream* S,mqttTlsPeer* Net,unsigned char Flags,const 
 }
 #endif
 
-static xmqttclient* saConnect(saPeer* P,unsigned Transport,saMode Mode,xmqttsession* Session,
+static xmqttclient* saConnect(saPeer* P,unsigned Transport,saMode Mode,sa_dial DialMode,xmqttsession* Session,
     const xmqttclientstoreconfig* Store,const xmqttpacket* Q)
 {
     xmqttauthconfig Auth;
@@ -86,6 +90,23 @@ static xmqttclient* saConnect(saPeer* P,unsigned Transport,saMode Mode,xmqttsess
     (void)Transport;
 #endif
     mqttAuthStart(&P->TCP,Mode==SA_EARLY?MQTT_AUTH_EARLY:0);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(DialMode==SA_HOSTNAME){
+        P->Resolver=xrtNetResolverCreate(NULL);
+        xmqttclientdialconfig Dial;
+        xmqttClientDialConfigInit(&Dial);
+        Dial.Family=XNET_FAMILY_IPV4;
+        testRequire(P->Resolver&&xmqttClientDialStoreAuth(P->TCP.Engine,P->Resolver,XRT_STR_LITERAL("localhost"),
+            P->TCP.Address.Port,1,&K,&Dial,&Auth,Session,Store,Q,&Client),"durable hostname Auth factory");
+    }else if(DialMode==SA_PREPARED){
+        xnetaddrlist* List=xrtNetAddrListCreate(&P->TCP.Address,1);
+        testRequire(List&&xmqttClientDialAddressesStoreAuth(P->TCP.Engine,List,1,&K,NULL,&Auth,Session,Store,Q,&Client),
+            "durable prepared-address Auth factory");
+        xrtNetAddrListDestroy(List);
+    }else
+#else
+    (void)DialMode;
+#endif
     testRequire(xmqttClientConnectStoreAuth(P->TCP.Engine,&P->TCP.Address,1,&K,&Auth,Session,Store,Q,&Client),
                 "durable TCP Auth factory");
     return Client;
@@ -204,7 +225,7 @@ static void saReplay(xmqttjournal* Journal,uint64 Count,bool Fresh)
     jpStatus(xmqttJournalNext(Journal,&R),XMQTT_JOURNAL_EMPTY,"no concealed authentication record");
 }
 
-static void saCase(saMode Mode,unsigned Transport)
+static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
 {
     const bool Success=Mode==SA_EARLY||Mode==SA_HEARTBEAT;
     const bool Previous=Mode==SA_REJECT;
@@ -263,7 +284,7 @@ static void saCase(saMode Mode,unsigned Transport)
     P[2]=(xmqttproperty){.Id=XMQTT_PROPERTY_SESSION_EXPIRY,.Type=XMQTT_PROPERTY_UINT32,.Value.Number=60};
     Connect.Properties.Count=3;
     saPeer Peer={0};
-    xmqttclient* C=saConnect(&Peer,Transport,Mode,Session,&Store,&Connect);
+    xmqttclient* C=saConnect(&Peer,Transport,Mode,DialMode,Session,&Store,&Connect);
     xfuture* Ready=xmqttClientReady(C);
     xmqttauthticket* T=saFinal(C,Transport,XMQTT_AUTH_VERIFY_CONNECT);
     if(Mode==SA_HEARTBEAT)mqttAuthWait(&Peer.TCP.Pings,2);
@@ -307,6 +328,9 @@ static void saCase(saMode Mode,unsigned Transport)
     else
 #endif
     mqttAuthStop(&Peer.TCP);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(Peer.Resolver)testRequire(xrtNetResolverDestroy(Peer.Resolver),"retire Auth hostname resolver");
+#endif
     uint64 After=Accept?(Mode==SA_EARLY?4u:2u):Before;
     testRequire(swInfo(Writer).State.Transactions==After&&(Accept||!Drive.Base.Calls),"failed proof never appends");
     testRequire(xmqttSessionDestroy(Session)&&xmqttStoreWriteDestroy(Writer),"auth fixture owners released");
@@ -333,15 +357,19 @@ static void saCase(saMode Mode,unsigned Transport)
 
 int main(void)
 {
-    saCase(SA_EARLY,0);
-    saCase(SA_REJECT,0);
-    saCase(SA_CANCEL,0);
-    saCase(SA_CANCEL_OPEN,0);
-    saCase(SA_HEARTBEAT,0);
+    saCase(SA_EARLY,0,SA_NUMERIC);
+    saCase(SA_REJECT,0,SA_NUMERIC);
+    saCase(SA_CANCEL,0,SA_NUMERIC);
+    saCase(SA_CANCEL_OPEN,0,SA_NUMERIC);
+    saCase(SA_HEARTBEAT,0,SA_NUMERIC);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    saCase(SA_EARLY,0,SA_HOSTNAME);
+    saCase(SA_REJECT,0,SA_PREPARED);
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
-    saCase(SA_EARLY,1);
-    saCase(SA_TIMEOUT,2);
-    saCase(SA_EARLY,3);
+    saCase(SA_EARLY,1,SA_NUMERIC);
+    saCase(SA_TIMEOUT,2,SA_NUMERIC);
+    saCase(SA_EARLY,3,SA_NUMERIC);
 #endif
     puts("[PASS] durable enhanced auth gates OPEN, coalesced PUBLISH, reauthentication, heartbeat, refusal/cancellation and recovered state");
     return 0;

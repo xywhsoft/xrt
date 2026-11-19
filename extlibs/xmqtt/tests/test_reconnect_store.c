@@ -7,11 +7,23 @@
 
 typedef enum drmode {DR_REPLAY,DR_LATE_OPEN,DR_UNCERTAIN_OPEN,DR_COLD} drmode;
 
+typedef struct dr_factory {
+    rcPeer* Peer;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xnetresolver* Resolver;
+#endif
+} dr_factory;
+
 static xmqttclientstatus drFactory(xnetengine* Engine,uint64 Affinity,const xmqttclientconfig* Config,
     xmqttsession* Session,const xmqttclientstoreconfig* Store,const xmqttpacket* Connect,ptr User,xmqttclient** Client)
 {
-    rcPeer* Peer=User;
+    dr_factory* Factory=User;
+    rcPeer* Peer=Factory->Peer;
     xrtAtomic32FetchAdd(&Peer->FactoryCalls,1,XMEMORY_RELEASE);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(Factory->Resolver)return xmqttClientDialStore(Engine,Factory->Resolver,XRT_STR_LITERAL("localhost"),
+        Peer->Address.Port,Affinity,Config,NULL,Session,Store,Connect,Client)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;
+#endif
     return xmqttClientConnectStore(Engine,&Peer->Address,Affinity,Config,Session,Store,Connect,Client)
         ?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;
 }
@@ -108,7 +120,7 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
     testRequire(State.Transactions==8&&!State.LiveAtCut,"second physical END is durable");
 }
 
-static void drCase(xmqttversion Version,drmode Mode)
+static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
 {
     rcPeer Peer;
     rcStart(&Peer,Version,RC_PERSIST|((Mode==DR_REPLAY||Mode==DR_COLD)?RC_CUT_PUBLISH:0));
@@ -136,6 +148,16 @@ static void drCase(xmqttversion Version,drmode Mode)
     xmqttproperty Expiry;
     rcConfig(&Peer,&K,&Connect,&Expiry);
     K.Factory=NULL;
+    dr_factory Factory={.Peer=&Peer};
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(Hostname){
+        Factory.Resolver=xrtNetResolverCreate(NULL);
+        testRequire(Factory.Resolver!=NULL,"create durable reconnect hostname Resolver");
+    }
+#else
+    (void)Hostname;
+#endif
+    K.FactoryData=&Factory;
     K.InitialDelay=K.MaxDelay=5;
     if(Mode==DR_LATE_OPEN)K.Client.SetupTimeout=500;
     K.RetryStatuses|=UINT32_C(1)<<XMQTT_STATUS_INITIALIZATION;
@@ -211,6 +233,9 @@ static void drCase(xmqttversion Version,drmode Mode)
         drWriterReserved(Writer);
         testRequire(xmqttReconnectDestroy(R),"destroy terminal controller releases Writer");
     }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(Factory.Resolver)testRequire(xrtNetResolverDestroy(Factory.Resolver),"retire Resolver after all reconnect generations");
+#endif
     rcStop(&Peer);
     testRequire(xmqttStoreWriteDestroy(Writer),"caller destroys Writer after controller");
     jwPoolDone(Pool);
@@ -231,7 +256,11 @@ int main(void)
 {
     for(unsigned I=0;I<2;++I){
         xmqttversion Version=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
-        for(drmode Mode=DR_REPLAY;Mode<=DR_COLD;++Mode)drCase(Version,Mode);
+        for(drmode Mode=DR_REPLAY;Mode<=DR_COLD;++Mode)drCase(Version,Mode,false);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+        drCase(Version,DR_REPLAY,true);
+        drCase(Version,DR_COLD,true);
+#endif
     }
     puts("[PASS] durable automatic TCP reconnect, cold recovery, lease/ACK ordering, late OPEN reconciliation and uncertain storage fail-stop");
     return 0;

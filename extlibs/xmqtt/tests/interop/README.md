@@ -371,3 +371,20 @@ exhausts the chosen quota. It verifies the IN_ACCEPT after the checkpoint,
 native process termination, QoS 2 replay and the later application ACK.
 The replacement opens and finishes under the same quota. The report records
 decoded budgets for the old cut, the recovered cut and the final END.
+
+## Durable TCP hostname and numeric endpoint
+
+Build the [durable TCP example](../../examples/client_store/README.md) with
+`xmqtt_client_store_tests`. Pass the actual example binary to the
+broker runner. It verifies QoS 1 payloads with an independent MQTT subscriber
+and checks the Client's PUBLISH, PUBACK and END journal checkpoints for both
+MQTT versions. Each pair alternates host and numeric endpoint order.
+
+```sh
+python extlibs/xmqtt/tests/interop/run_store_dial_broker.py --broker /path/to/mosquitto --client modular /path/to/examples_client_store_main --report out/store-dial-broker.json
+```
+
+Repeat `--client NAME EXE` to exercise multiple builds in one run. Pass
+`--windows-python PATH` when invoking Windows binaries from a WSL broker
+host to wait for loopback forwarding. The report records each process's
+elapsed time including journal creation, connection, transfer and cleanup.

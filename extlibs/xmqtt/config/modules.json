@@ -2279,6 +2279,7 @@
       "feature": null,
       "depends": [
         "xmqtt_client_store",
+        "xmqtt_client_dial",
         "xmqtt_store_session",
         "vfs",
         "memory_stats",
@@ -2517,6 +2518,7 @@
       "feature": null,
       "depends": [
         "xmqtt_reconnect_store",
+        "xmqtt_client_dial",
         "xmqtt_store_session",
         "memory_stats",
         "vfs",

@@ -30,6 +30,20 @@ int main(void)
        xmqttStoreStateInfo(NULL,&StateInfo)||xmqttStoreStateView(NULL,XMQTT_STORE_INBOX,0,&StateView)!=XMQTT_STORE_ERROR)return 52;
     xmqttStoreStateDestroy(NULL);xrtClearError();
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) && defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    {
+        xmqttclient* Client=(xmqttclient*)(uintptr_t)1;
+        if(xmqttClientDialStore(NULL,NULL,XRT_STR_LITERAL("localhost"),1883,0,NULL,NULL,NULL,NULL,NULL,&Client)||
+           xmqttClientDialAddressesStore(NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,&Client)||
+           Client!=(xmqttclient*)(uintptr_t)1)return 66;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+        if(xmqttClientDialStoreAuth(NULL,NULL,XRT_STR_LITERAL("localhost"),1883,0,NULL,NULL,NULL,NULL,NULL,NULL,&Client)||
+           xmqttClientDialAddressesStoreAuth(NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,&Client)||
+           Client!=(xmqttclient*)(uintptr_t)1)return 67;
+#endif
+        xrtClearError();
+    }
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
     xmqttclientwsconfig WS;xmqttclient* WSC=(xmqttclient*)(uintptr_t)1;
     if(!xmqttClientWsConfigInit(&WS)||WS.Size!=sizeof(WS)||WS.Stream.Role!=XWS_ROLE_CLIENT||WS.MaxStagedBytes!=1048576||xmqttClientWsAttachTcp(NULL,NULL,NULL,&WS,NULL,&WSC)||WSC!=(xmqttclient*)(uintptr_t)1)return 31;

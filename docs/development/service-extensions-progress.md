@@ -15964,3 +15964,47 @@ remain open. Generated outputs and maturity metadata pass, and the
 strict xcron release gate still reports 18 developing modules.
 
 [Stage evidence](../../extlibs/xcron/tests/results/gap-delivery-20261119.json).
+
+## 2026-11-19 Durable TCP hostname and address-list dialing
+
+Four public xmqtt constructors combine the existing bounded TCP dialer
+with the existing durable Client. A network attempt starts with one
+setup deadline through DNS, candidate connection, MQTT negotiation,
+optional enhanced proof and committed OPEN. Prepared endpoints use the
+same client configuration and can be released after admission. The
+hostname factory also runs on every generation of the ordinary durable
+reconnect controller.
+
+Windows and WSL each passed three modular and four single-header
+programs, plus static and shared package verification. The failure
+fixtures check actual DNS work, Client and Resolver retirement, zero
+file mutations and no accepted TCP stream. Loopback tests cover real
+candidate fallback, physical file reopen, accepted and rejected MQTT 5
+proof and restored outgoing obligations. WSL ASan/UBSan with leak
+checking and Clang TSan passed the Client and reconnect programs.
+
+Mosquitto 2.0.22 delivered all 192 QoS 1 messages to the independent
+subscriber. Each example verified the PUBLISH, PUBACK and END journal
+sequence, with 24 alternating numeric/hostname pairs on each host and
+wire level. Times in milliseconds cover full process lifetime, including
+journal creation and cleanup. Samples include the WSL host relay for
+Windows clients.
+
+| Host | MQTT | Median numeric / hostname | P95 numeric / hostname |
+| --- | --- | ---: | ---: |
+| Windows | 5.0 | 50.09 / 2124.83 | 60.21 / 2149.43 |
+| Windows | 3.1.1 | 49.42 / 2120.74 | 64.23 / 2257.78 |
+| WSL | 5.0 | 19.04 / 19.29 | 20.34 / 21.59 |
+| WSL | 3.1.1 | 19.24 / 19.56 | 22.53 / 22.00 |
+
+Native Windows controls reproduced the wait before accept on an IPv4-only
+listener. A dual-stack listener accepted the hostname connection in about
+11 ms. Direct XRT hostname and prepared-address dials showed about 2.04 s
+with positive fallback delays and less than 1 ms when racing immediately.
+This confines the delay to existing candidate fallback, before MQTT and
+journal writes. The timer re-arms while the first candidate is pending.
+The native Linux throughput, tail and stability gates remain open.
+Generated headers and the API reference match. The strict release gate
+reports 36 developing xmqtt modules.
+
+[Stage evidence](../../extlibs/xmqtt/tests/results/store-dial-20261119.json).

@@ -1,4 +1,4 @@
-# Durable numeric TCP Client example
+# Durable TCP Client example
 
 Build from the repository root.
 
@@ -8,7 +8,7 @@ python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt
 
 Start an MQTT broker on a trusted loopback listener. Run the resulting
 `examples_client_store_main` executable (with `.exe` on Windows) from the
-build output with `127.0.0.1 1883 5`. Use `311` for MQTT 3.1.1.
+build output with `localhost 1883 5` or `127.0.0.1 1883 5`. Use `311` for MQTT 3.1.1.
 The example creates a temporary journal under a fixed demonstration Client ID,
 publishes a QoS 1 message to `xrt/example/durable`, waits for committed PUBACK
 retirement, and checks the graceful END checkpoint before retiring its owners

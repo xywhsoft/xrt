@@ -1,0 +1,333 @@
+{
+  "schema": 1,
+  "branch": "master",
+  "workspace": "D:/GIT/xrt",
+  "base_revision": "e1d67cfd044c201d248bdccf4eeae724313e72a2",
+  "source_lf_sha256": {
+    "extlibs/xmqtt/config/modules.json": "0be9a1f5ddadfa7dcab8d867d6d652b265ffbe008b66d6b5a004802ce59b12e2",
+    "extlibs/xmqtt/docs/api/reference.md": "248be98a673bdf07a67e43c15724130b95583edaf96456895fe2da90a92271f0",
+    "extlibs/xmqtt/docs/client_store.md": "852058f69af795e26f2e6dc78a7ce349643268a0a467d2235d2f76d0ac74cc74",
+    "extlibs/xmqtt/docs/reconnect_store.md": "3cce22a5ddd4fdc9c16fe47d31ecf71cdb25350ec8c5d3688712e1d3752ed3f0",
+    "extlibs/xmqtt/examples/client_store/README.md": "8f52d3727c7d0bd0caa336f5275cb712bd2f1ee9262d537d45aa39f6fa825d32",
+    "extlibs/xmqtt/examples/client_store/main.c": "992c9da4d6669d653055512f1de817f485e4fbc01b6da1155b87622cc587a1e6",
+    "extlibs/xmqtt/include/xmqtt/client_store.h": "8854fb829879485cd981d28bc7b0a47fd1f3a4c99313a6595339e598b73b36d8",
+    "extlibs/xmqtt/src/client/client.c": "cbb36b019b5437280e114f2e931e8973678818e7d874ed5f2791865b18069ef4",
+    "extlibs/xmqtt/tests/interop/README.md": "ccacf74e5d5b06c3ec2fc59b494c86e1d0beddbdbd2e95a53333d105eb734046",
+    "extlibs/xmqtt/tests/interop/run_store_dial_broker.py": "044a83d49801a9e74ca6fe4caffb6d93b524638bd85a0f4f16b580e7fe1dbaf4",
+    "extlibs/xmqtt/tests/package/test_consumer.c": "4b6a2293a7c361f89db715d66d5afb359b3de0cd9b63a5ae80639c1cffd1c6cf",
+    "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store.c": "6f0b505d41fd8f2586da64bf9822c16252a2b41056255f50cf17a6cf36d3e24f",
+    "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_auth.c": "8f3c0b20de8dd620bca9e85fc2ffdbe646a1e126c4aaedc3c1259f7ac32cba39",
+    "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_store.c": "b5093e8b83309461ac014bddc653bb1a81eb0853458493030e9cfa904c78b1dc",
+    "extlibs/xmqtt/tests/test_client_store.c": "0ae56d1777128fef51d1e6ce1d2de5f567455c971cdb541af1d70e4847a853f8",
+    "extlibs/xmqtt/tests/test_client_store_auth.c": "7293c2255ab685e87c8b99b22de8ead50dabce6dabb4921b569fd759e10fc38a",
+    "extlibs/xmqtt/tests/test_reconnect_store.c": "41f239656f4c180c10bf2f393627b0fba08d4431fbbf15eee73e8633615c4fc2",
+    "single/extlibs/xmqtt.h": "451c40403ad9df0d1c402fb2dd0ccaef689028d347fa222699e4d283c6695575",
+    "single/extlibs/xmqtt_decl.h": "7839df3a9634169663bc24400f06a5018e3985ca124b2e141e1c28ab9eddd1e6"
+  },
+  "functional_scope": [
+    "Plain TCP durable factories for counted hostnames and immutable prepared addresses, with MQTT 5 enhanced-auth variants.",
+    "Copied hostname and address-list release after admission, actual native candidate fallback, and file-backed OPEN and END on both MQTT levels.",
+    "DNS refusal, timeout, cancellation and close preserve the empty store, retire the live Client and release Session and Writer claims.",
+    "Real constructor quota rejection, resolver work detached from Client retirement, and separate resolver join.",
+    "Enhanced auth holds OPEN until proof acceptance and preserves a prior outgoing obligation after rejection.",
+    "Hostname reconnect covers warmed replacement and fresh Session restoration, with durable QoS 1 replay."
+  ],
+  "hosts": {
+    "windows": {
+      "platform": "Windows x64",
+      "compiler": "GCC 16.2.0",
+      "modular_programs": 3,
+      "single_header_programs": 4,
+      "suite": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/final-windows.log",
+        "sha256": "481572d7376600a58f98df7efd85746ccf12de54a2c25ce445b3096b6b68db8a"
+      },
+      "example": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/example-windows.log",
+        "sha256": "f1545ede7a5a62e89e85e71bf0a8c4c09a712251deb7d10c47bbe0d950888d16"
+      },
+      "packages": {
+        "static": {
+          "path": "out/service-extensions/xmqtt-store-dial-20261119/package-windows-static.log",
+          "sha256": "676658b777696c0b22b21ace90b58af11b62d82cbae6249831a43ebcaba2f6dd"
+        },
+        "shared": {
+          "path": "out/service-extensions/xmqtt-store-dial-20261119/package-windows-shared.log",
+          "sha256": "7cc2fd0bc8bde0ca871680f0aa9599f0a5bcd07220ee5cca5905819dec06c23a"
+        }
+      }
+    },
+    "wsl": {
+      "platform": "Ubuntu WSL x64",
+      "compiler": "GCC 15.2.0",
+      "modular_programs": 3,
+      "single_header_programs": 4,
+      "suite": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/final-wsl.log",
+        "sha256": "3d957b5056a1854c095d9b4fecd071a92fc94411bc810292df05139a8975e9dc"
+      },
+      "example": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/example-wsl.log",
+        "sha256": "32dde1151b00acf8ae5191f1425ad720e9291e7c899c2c91cb0d3a8a39181760"
+      },
+      "packages": {
+        "static": {
+          "path": "out/service-extensions/xmqtt-store-dial-20261119/package-wsl-static.log",
+          "sha256": "781177bc25aef6734ea623f68c2c808d3d3caf042d693fa4ef6a118637af81ce"
+        },
+        "shared": {
+          "path": "out/service-extensions/xmqtt-store-dial-20261119/package-wsl-shared.log",
+          "sha256": "466fa8a09313c3f9edac029f409d2d911607dca5140e77054b41810e3261ac56"
+        }
+      }
+    }
+  },
+  "sanitizers": {
+    "wsl_asan_ubsan": {
+      "leak_detection": true,
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/asan.log",
+        "sha256": "61e971307705d515d2756ce9ad3107572e8455d876610bd9417ef25ed88ce60f"
+      }
+    },
+    "wsl_clang_tsan": {
+      "compiler": "Clang 21.1.8",
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/tsan-clang.log",
+        "sha256": "095f4df0aca96d792bb10bf4b6349d5814010608fe7e00043fc8b431c66c80b1"
+      }
+    }
+  },
+  "interop": {
+    "broker": "mosquitto version 2.0.22",
+    "broker_sha256": "f06d3b4236333de2c0726e40062a2c2b2aace89dbf5008706b5d00730f836d8a",
+    "subscriber_deliveries": 192,
+    "retained_smoke_deliveries": 48,
+    "smoke_report": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/broker.json",
+      "sha256": "c149a0f42cebdc9d58bb36c88471f6e975f86b56535e7466392ba03e805568db"
+    },
+    "run_report": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/broker-full.json",
+      "sha256": "7d3100ff3cd686b9db17a348231d577961d47c493e9563e1c8ffe57f8adff1a9"
+    },
+    "broker_transcript": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/broker-full-artifacts/broker.log",
+      "sha256": "fef9c6bacae1a56b1fd455d6b5295e40d5625cc8e3bdf349007dc02a11d8f820"
+    },
+    "alternating_pairs_per_host_and_wire_level": 24,
+    "timing_scope": "Full example process wall time including journal creation, protocol and cleanup",
+    "timing_summary": {
+      "wsl-modular": {
+        "binary_sha256": "4b90e4f25a568e76ef972c8b462b9665eb2f9736fa96dcb2e95d23717bf630bc",
+        "protocols": {
+          "5": {
+            "numeric": {
+              "median_ms": 19.040551999999998,
+              "p95_ms": 20.3383,
+              "max_ms": 22.299105
+            },
+            "hostname": {
+              "median_ms": 19.2930025,
+              "p95_ms": 21.586205,
+              "max_ms": 28.1981
+            }
+          },
+          "311": {
+            "numeric": {
+              "median_ms": 19.2376005,
+              "p95_ms": 22.5328,
+              "max_ms": 23.0307
+            },
+            "hostname": {
+              "median_ms": 19.5576,
+              "p95_ms": 22.005,
+              "max_ms": 23.0334
+            }
+          }
+        }
+      },
+      "windows-modular": {
+        "binary_sha256": "df7f50f2fc415b42777ef15e2ba71e84c41ddce878b2593820a4eade703c458b",
+        "protocols": {
+          "5": {
+            "numeric": {
+              "median_ms": 50.0934995,
+              "p95_ms": 60.212001,
+              "max_ms": 95.528599
+            },
+            "hostname": {
+              "median_ms": 2124.825046,
+              "p95_ms": 2149.431338,
+              "max_ms": 2153.622682
+            }
+          },
+          "311": {
+            "numeric": {
+              "median_ms": 49.422799499999996,
+              "p95_ms": 64.230801,
+              "max_ms": 78.275699
+            },
+            "hostname": {
+              "median_ms": 2120.735571,
+              "p95_ms": 2257.783174,
+              "max_ms": 2297.871231
+            }
+          }
+        }
+      }
+    }
+  },
+  "gates": {
+    "single_headers": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/gate-amalgamate.log",
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "api_reference": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/gate-generate_api_reference.log",
+      "sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+    },
+    "maturity": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/gate-check_release_maturity.log",
+      "sha256": "89912c2689ed6a24a4ff2be2e9558587fde76d10c7638316d1d3a481458ec561"
+    },
+    "strict_release": {
+      "developing_modules": 36,
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/gate-strict.log",
+        "sha256": "534f7de835bc4f43ae30d81bd420f4d73316245f82aa96eeb8d66e0866da4d93"
+      }
+    }
+  },
+  "retained_reruns": [
+    {
+      "reason": "Initial Linux test used a fixture join requiring an accepted socket. The dial-failure test now joins the untouched listener and asserts no socket was accepted.",
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/tests-wsl.log",
+        "sha256": "4b6ef920961e68e2ea4e9bfaa7ddc154e57f3b5c08a0fa3eae03a293680959c1"
+      }
+    },
+    {
+      "reason": "GCC TSAN compilation stopped on a maybe-uninitialized warning in existing store-state code. Clang TSAN completed both planned programs.",
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/tsan.log",
+        "sha256": "ca20cb4c74af15a0afc33f6ca05e5268d44e27a6061c8653123c0e559146395f"
+      }
+    },
+    {
+      "reason": "Initial Python subscriber compared header bytes against a helper returning the whole frame. The runner now compares the whole frame and payload.",
+      "log": {
+        "path": "out/service-extensions/xmqtt-store-dial-20261119/broker-first.log",
+        "sha256": "d98ad264e7ecf28e6004b183f622b016f8686702e320cae18d8f9771d6caf309"
+      }
+    }
+  ],
+  "limits": [
+    "The performance samples measure complete process lifetime and include temporary-file, broker, OS and WSL relay costs.",
+    "This stage does not qualify hot-path throughput, native Linux tail latency or 72-hour stability.",
+    "Durable subscription intent and cross-host fencing remain pending."
+  ],
+  "windows_candidate_control": {
+    "example_native_windows_samples": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/native-windows-control.json",
+      "sha256": "a04347b7ab6ea52ca4afd2999f6cde1e581dcfee26a05bc28d2e8a1dace85538"
+    },
+    "example_native_windows_harness": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/native-windows-control.py",
+      "sha256": "01f531362252d762c333bb64db8d83b125382dbfccf028d061363695b072fbda"
+    },
+    "example_native_windows_summary": {
+      "ipv4_only": {
+        "127.0.0.1": {
+          "elapsed_median_ms": 17.75945,
+          "accept_median_ms": 8.324000000000002,
+          "accept_to_disconnect_median_ms": 5.97575,
+          "peer_families": [
+            "AF_INET"
+          ]
+        },
+        "localhost": {
+          "elapsed_median_ms": 2059.16865,
+          "accept_median_ms": 2047.5566,
+          "accept_to_disconnect_median_ms": 6.4352,
+          "peer_families": [
+            "AF_INET"
+          ]
+        }
+      },
+      "dual": {
+        "127.0.0.1": {
+          "elapsed_median_ms": 17.19415,
+          "accept_median_ms": 7.8891,
+          "accept_to_disconnect_median_ms": 6.227,
+          "peer_families": [
+            "AF_INET"
+          ]
+        },
+        "localhost": {
+          "elapsed_median_ms": 20.2875,
+          "accept_median_ms": 10.662400000000002,
+          "accept_to_disconnect_median_ms": 6.189500000000001,
+          "peer_families": [
+            "AF_INET6"
+          ]
+        }
+      }
+    },
+    "xrt_without_mqtt_samples": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/core-dial-control.json",
+      "sha256": "b3fabf8f2a433d420981a2fd38ece1f384cfe041673c54fb4acf2b55f46f4a01"
+    },
+    "xrt_without_mqtt_probe": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/core-dial-control.c",
+      "sha256": "6b50723822654b286786d57b567a91170efbe2a422497e945416522c1eda6b9d"
+    },
+    "xrt_without_mqtt_harness": {
+      "path": "out/service-extensions/xmqtt-store-dial-20261119/core-dial-control.py",
+      "sha256": "a0ce7dbeb5500bea5291a1a79de0256da08ee268dbefd62cdaf9ecc210332bfa"
+    },
+    "direct_resolve_range_ms": [
+      3.367,
+      4.553
+    ],
+    "xrt_dial_medians": [
+      {
+        "mode": "host",
+        "fallback_ms": 250,
+        "family": 0,
+        "dial_median_ms": 2046.793
+      },
+      {
+        "mode": "prepared",
+        "fallback_ms": 250,
+        "family": 0,
+        "dial_median_ms": 2038.363
+      },
+      {
+        "mode": "host",
+        "fallback_ms": 0,
+        "family": 0,
+        "dial_median_ms": 0.795
+      },
+      {
+        "mode": "prepared",
+        "fallback_ms": 0,
+        "family": 0,
+        "dial_median_ms": 0.569
+      },
+      {
+        "mode": "host",
+        "fallback_ms": 1,
+        "family": 0,
+        "dial_median_ms": 2034.253
+      },
+      {
+        "mode": "host",
+        "fallback_ms": 250,
+        "family": 4,
+        "dial_median_ms": 0.597
+      }
+    ],
+    "finding": "The same delay occurs before accept with a Windows-native IPv4-only peer, and in XRT with no MQTT and with immutable prepared addresses. The positive fallback timer invokes Drive, which waits while a candidate is active and schedules another timer instead of launching the eligible address."
+  }
+}

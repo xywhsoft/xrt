@@ -890,7 +890,45 @@ static void cgControls(xmqttclient* C,xmqttstorewrite* W)
         xrtFutureDestroy(F);
     }
 }
-static void cgEndCase(xmqttversion Version,cg_end_mode Mode)
+typedef enum cg_transport {CG_NUMERIC,CG_HOSTNAME,CG_PREPARED} cg_transport;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+typedef struct cg_dns {
+    xnetaddr Address;
+    bool Missing;
+    xatomic32 Entered,Release,Exited;
+} cg_dns;
+
+static xnetaddrlist* cgLookup(cstr Host,xnetfamily Family,ptr User)
+{
+    cg_dns* DNS=User;
+    xrtAtomic32Store(&DNS->Entered,1,XMEMORY_RELEASE);
+    jwAwait(&DNS->Release);
+    testRequire(!strcmp(Host,"mqtt.store.fixture")&&Family==XNET_FAMILY_IPV4,"preserve copied hostname and selected family");
+    xrtAtomic32Store(&DNS->Exited,1,XMEMORY_RELEASE);
+    if(DNS->Missing){
+        xrtSetErrorInfo(XERR_NOT_FOUND,"fixture.mqtt.store.dns",71,"unknown durable broker");
+        return NULL;
+    }
+    return xrtNetAddrListCreate(&DNS->Address,1);
+}
+
+static xnetresolver* cgResolver(cg_dns* DNS)
+{
+    xrtAtomic32Init(&DNS->Entered,0);
+    xrtAtomic32Init(&DNS->Release,0);
+    xrtAtomic32Init(&DNS->Exited,0);
+    xnetresolverconfig Config;
+    xrtNetResolverConfigInit(&Config);
+    Config.Workers=1;
+    Config.Lookup=cgLookup;
+    Config.LookupData=DNS;
+    xnetresolver* Resolver=xrtNetResolverCreate(&Config);
+    testRequire(Resolver!=NULL,"create independent durable DNS resolver");
+    return Resolver;
+}
+#endif
+
+static void cgEndCase(xmqttversion Version,cg_end_mode Mode,cg_transport Transport)
 {
     cgdrive Drive={0};
     str NativePath=NULL;
@@ -937,6 +975,37 @@ static void cgEndCase(xmqttversion Version,cg_end_mode Mode)
     xrtAtomic64Init(&Clock.Value,200000);
     xmqttclientstoreconfig Store={sizeof(Store),Writer,cgWall,&Clock};
     xmqttclient* C=NULL;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xnetresolver* Resolver=NULL;
+    xnetsocket Refused=NULL;
+    cg_dns DNS={.Address=Peer.Net.Address};
+    DNS.Address.Port=0;
+    xmqttclientdialconfig Dial;
+    xmqttClientDialConfigInit(&Dial);
+    Dial.Family=XNET_FAMILY_IPV4;
+    if(Transport==CG_HOSTNAME){
+        Resolver=cgResolver(&DNS);
+        char Host[]="mqtt.store.fixture";
+        testRequire(xmqttClientDialStore(Peer.Net.Engine,Resolver,(xstrview){Host,sizeof(Host)-1},
+            Peer.Net.Address.Port,1,&CC,&Dial,Session,&Store,&Connect,&C),"public Store hostname factory");
+        memset(Host,'x',sizeof(Host)-1);
+        xrtAtomic32Store(&DNS.Release,1,XMEMORY_RELEASE);
+    }else if(Transport==CG_PREPARED){
+        xnetaddr Addresses[2]={Peer.Net.Address,Peer.Net.Address};
+        Addresses[0].Port=0;
+        Refused=xrtNetSocketOpen(XNET_FAMILY_IPV4,XNET_SOCKET_STREAM,XNET_SOCKET_NONBLOCK);
+        testRequire(Refused&&xrtNetSocketBind(Refused,&Addresses[0])&&xrtNetSocketLocal(Refused,&Addresses[0]),
+            "bound non-listening first endpoint");
+        xnetaddrlist* List=xrtNetAddrListCreate(Addresses,2);
+        Dial.FallbackDelay=1;
+        Dial.MaxAttempts=2;
+        testRequire(List&&xmqttClientDialAddressesStore(Peer.Net.Engine,List,1,&CC,&Dial,Session,&Store,&Connect,&C),
+            "public Store prepared-address fallback");
+        xrtNetAddrListDestroy(List);
+    }else
+#else
+    (void)Transport;
+#endif
     testRequire(xmqttClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&CC,Session,&Store,&Connect,&C),"public Store factory connects without volatile Inbox");
     xrtAtomicPtrStore(&Drive.Client,C,XMEMORY_RELEASE);
     xfuture* Ready=xmqttClientReady(C);
@@ -1045,6 +1114,10 @@ static void cgEndCase(xmqttversion Version,cg_end_mode Mode)
     testRequire(Recovered.Transactions==Result.End.Sequence&&!Recovered.LiveAtCut&&Recovered.HasSession==Retained&&
                 Recovered.Outgoing==(PendingTx?1u:0u)&&Recovered.RemainingMilliseconds==
                 (Effective==UINT32_MAX?UINT64_MAX:Effective?(uint64)Effective*1000u-1000u:0),"correct recovered expiry and obligation");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(Resolver)testRequire(xrtNetResolverDestroy(Resolver),"retire hostname resolver after Client");
+    if(Refused)testRequire(xrtNetSocketClose(Refused),"retire owned refused endpoint");
+#endif
     xmqttStoreStateDestroy(State);
     testRequire(xmqttJournalDestroy(J),"retire sole native reader");
     jpFileClose(File);
@@ -1055,12 +1128,106 @@ static void cgEndCase(xmqttversion Version,cg_end_mode Mode)
 }
 
 
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+static void cgDialFailure(xmqttclientstatus Expected)
+{
+    jwdrive Drive={0};
+    jpfile File=jwFile(&Drive);
+    xmqttjournalconfig JC=stJournalConfig(XMQTT_VERSION_5);
+    xmqttstorestateconfig SC=stConfig(XMQTT_VERSION_5);
+    xmqttjournal* Journal=jpCreate(File,&JC);
+    xmqttstorestate* State=NULL;
+    stStatus(xmqttStoreStateRecover(Journal,&SC,&State),XMQTT_STORE_DONE,"empty dial journal");
+    xtaskpool* Pool=jwPool(1);
+    xmqttstorewriteconfig WC;
+    xmqttStoreWriteConfigInit(&WC);
+    xmqttstorewrite* Writer=NULL;
+    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"dial failure Writer");
+    Drive.Base.Calls=0;
+
+    xmqttsessionconfig SK;
+    xmqttSessionConfigInit(&SK);
+    SK.ClientId=SC.ClientId;
+    xmqttsession* Session=NULL;
+    testRequire(xmqttSessionCreate(&SK,&Session),"dial failure Session");
+    mqttExamplePeer Peer;
+    mqttExampleStart(&Peer,XMQTT_VERSION_5);
+    cg_dns DNS={.Address=Peer.Address,.Missing=Expected==XMQTT_STATUS_TRANSPORT};
+    xnetresolver* Resolver=cgResolver(&DNS);
+    if(DNS.Missing)xrtAtomic32Store(&DNS.Release,1,XMEMORY_RELEASE);
+    xmqttpacket Connect;
+    xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
+    Connect.Body.Connect.ClientId=SK.ClientId;
+    cgclock Clock={0};
+    xrtAtomic64Init(&Clock.Value,200000);
+    xmqttclientstoreconfig Store={sizeof(Store),Writer,cgWall,&Clock};
+    xmqttclientdialconfig Dial;
+    xmqttClientDialConfigInit(&Dial);
+    Dial.Family=XNET_FAMILY_IPV4;
+    xmqttclientconfig Config;
+    xmqttClientConfigInit(&Config);
+    Config.SetupTimeout=Expected==XMQTT_STATUS_TIMEOUT?500:10000;
+    const xstrview Host=XRT_STR_LITERAL("mqtt.store.fixture");
+    xmqttclient* C=(xmqttclient*)(uintptr_t)1;
+    if(DNS.Missing){
+        xallocationbudget* Budget=NULL;
+        xallocationscope Scope={0};
+        testRequire(xrtAllocationBudgetCreate(1,&Budget)&&xrtAllocationBudgetEnter(Budget,&Scope),"native dial allocation budget");
+        testRequire(!xmqttClientDialStore(Peer.Engine,Resolver,Host,Peer.Address.Port,1,&Config,&Dial,
+            Session,&Store,&Connect,&C)&&C==(xmqttclient*)(uintptr_t)1,"OOM returns without publishing or claiming");
+        testRequire(xrtAllocationBudgetLeave(&Scope),"leave native dial budget");
+        xallocationbudgetinfo Info={.Size=sizeof(Info)};
+        testRequire(xrtAllocationBudgetInfo(Budget,&Info)&&Info.Rejections&&!Info.LiveBytes,"dial allocation rejection refunds all storage");
+        xrtAllocationBudgetFree(Budget);
+        xrtClearError();
+    }
+    testRequire(xmqttClientDialStore(Peer.Engine,Resolver,Host,Peer.Address.Port,1,&Config,&Dial,
+        Session,&Store,&Connect,&C),"accept asynchronous dial");
+    xfuture* Ready=xmqttClientReady(C);
+    jwAwait(&DNS.Entered);
+    if(Expected==XMQTT_STATUS_CANCELLED)testRequire(xrtFutureCancel(Ready),"cancel Ready during actual DNS");
+    if(Expected==XMQTT_STATUS_CLOSED)testRequire(xmqttClientClose(C),"close during actual DNS");
+    testRequire(cgReady(Ready)->Status==Expected,"typed dial failure before handshake");
+    testRequire(xmqttClientWaitFor(C,10000)==XWAIT_OK&&xmqttClientDestroy(C),"retire Client independently of shared DNS");
+    if(!DNS.Missing)testRequire(!xrtAtomic32Load(&DNS.Exited,XMEMORY_ACQUIRE)&&
+        xrtNetResolverTryDestroy(Resolver)==XNET_RETIRE_BUSY,"detached DNS is still owned by Resolver");
+    testRequire(!Drive.Base.Calls&&!swInfo(Writer).State.Transactions&&
+        xmqttSessionDestroy(Session)&&xmqttStoreWriteDestroy(Writer),"dial failure leaves journal untouched and releases both claims");
+    jwPoolDone(Pool);
+    xrtAtomic32Store(&DNS.Release,1,XMEMORY_RELEASE);
+    testRequire(xrtNetResolverDestroy(Resolver),"join real DNS worker");
+    testRequire(xrtNetListenerClose(Peer.Listener),"close untouched listener");
+    mqttExampleWait(&Peer.ListenerClosed);
+    testRequire(!xrtAtomicPtrLoad(&Peer.Stream,XMEMORY_ACQUIRE),"no TCP acceptance after failed dial");
+    xrtNetListenerDestroy(Peer.Listener);
+    testRequire(xrtNetEngineStop(Peer.Engine)&&xrtNetEngineDestroy(Peer.Engine),"retire unused broker Engine");
+    xrtFutureDestroy(Ready);
+    Journal=jpReopen(File,&JC);
+    xmqttjournalrecord Record;
+    testRequire(xmqttJournalNext(Journal,&Record)==XMQTT_JOURNAL_EMPTY&&xmqttJournalDestroy(Journal),"cold reopen verifies no OPEN or END");
+    jpFileClose(File);
+    xrtClearError();
+}
+#endif
+
 int main(void)
 {
     for(unsigned I=0;I<2;++I)
         for(cg_end_mode Mode=CG_END_NORMAL;Mode<=CG_END_PENDING_TX;++Mode)
-            cgEndCase(I?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
-    cgEndCase(XMQTT_VERSION_5,CG_END_ZERO_OVERRIDE);
+            cgEndCase(I?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode,CG_NUMERIC);
+    cgEndCase(XMQTT_VERSION_5,CG_END_ZERO_OVERRIDE,CG_NUMERIC);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    for(unsigned I=0;I<2;++I){
+        xmqttversion Version=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
+        cgEndCase(Version,CG_END_NORMAL,CG_HOSTNAME);
+        cgEndCase(Version,CG_END_NORMAL,CG_PREPARED);
+    }
+    cgDialFailure(XMQTT_STATUS_TRANSPORT);
+    cgDialFailure(XMQTT_STATUS_TIMEOUT);
+    cgDialFailure(XMQTT_STATUS_CANCELLED);
+    cgDialFailure(XMQTT_STATUS_CLOSED);
+    puts("[PASS] durable TCP hostname and prepared fallback on both levels, copied host/list, native OOM and DNS failure/cancel/close/deadline");
+#endif
     puts("[PASS] public durable TCP factory, broker controls and physical graceful END effects across timeout, cancel, uncertain sync and pending PUBLISH");
     for(unsigned I=0;I<2;++I){
         xmqttversion V=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
