@@ -6,7 +6,7 @@
 #include <inttypes.h>
 typedef struct intentBench {xmutex Gate;xcond Changed;uint64 Settled;} intentBench;
 static xmqttclientstatus intentFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{return xmqttClientConnectSession(E,Data,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+{return xmqttClientConnectSession(E,Data,A,K,S,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 static void intentNotify(xmqttreconnect* R,ptr Data)
 {
     xmqttsubscriptionsinfo I;intentBench* B=Data;mqttExampleCheck(xmqttReconnectSubscriptionsInfo(R,&I),"benchmark synchronization snapshot");

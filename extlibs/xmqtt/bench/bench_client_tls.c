@@ -15,9 +15,9 @@ int main(int Argc,char** Argv)
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-qos1");xmqttclient* C=NULL;
     xmqttclienttlsconfig TLS;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* Verifier=mqttTlsConfigure(&P,&TLS,Name,&Protocol,Alpn);
 #if defined(XMQTT_BENCH_SESSION_TLS)
-    xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=K.Version;SK.ClientId=Connect.Body.Connect.ClientId;xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=K.Version;
-    mqttExampleCheck(xmqttSessionCreate(&SK,&Session) && xmqttClientInboxCreate(&IK,&Inbox),"benchmark passive TLS Session/Inbox");Connect.Body.Connect.CleanStart=false;
-    mqttExampleCheck(xmqttClientTlsConnectSession(P.Engine,&P.Address,1,&K,&TLS,Session,Inbox,&Connect,&C),"benchmark TLS Session factory");
+    xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=K.Version;SK.ClientId=Connect.Body.Connect.ClientId;xmqttsession* Session=NULL;
+    mqttExampleCheck(xmqttSessionCreate(&SK,&Session),"benchmark protocol TLS Session");Connect.Body.Connect.CleanStart=false;
+    mqttExampleCheck(xmqttClientTlsConnectSession(P.Engine,&P.Address,1,&K,&TLS,Session,&Connect,&C),"benchmark TLS Session factory");
 #else
     mqttExampleCheck(xmqttClientTlsConnect(P.Engine,&P.Address,1,&K,&TLS,&Connect,&C),"benchmark TLS factory");
 #endif
@@ -48,7 +48,7 @@ int main(int Argc,char** Argv)
 #endif
     mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C),"benchmark physical Client close");mqttTlsStop(&P);xrtFutureDestroy(Ready);
 #if defined(XMQTT_BENCH_SESSION_TLS)
-    mqttExampleCheck(xmqttSessionDestroy(Session) && xmqttClientInboxDestroy(Inbox),"benchmark passive owner retirement");
+    mqttExampleCheck(xmqttSessionDestroy(Session),"benchmark passive owner retirement");
 #endif
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttBenchCompare);
     printf("publishes_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);

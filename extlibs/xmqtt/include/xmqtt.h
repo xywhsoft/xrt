@@ -83,7 +83,6 @@
 #include <xmqtt/client_dial.h>
 #include <xmqtt/client_tls.h>
 #include <xmqtt/client_tls_resume.h>
-#include <xmqtt/client_inbox.h>
 #include <xmqtt/client_session.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL"

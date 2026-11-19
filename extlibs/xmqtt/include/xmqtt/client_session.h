@@ -1,29 +1,27 @@
 #ifndef XMQTT_CLIENT_SESSION_H
 #define XMQTT_CLIENT_SESSION_H
-#include <xmqtt/client_inbox.h>
+#include <xmqtt/client.h>
 #include <xmqtt/session.h>
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 #include <xmqtt/client_auth.h>
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
-#error "MQTT Client Session requires Client Inbox and Session"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
+#error "MQTT Client Session requires Client and Session"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XRT_EXTERN_C_BEGIN
 /* Explicit numeric TCP connection using a caller-owned protocol Session.
- * The optional Inbox and the Session are exclusive through Client Destroy.
- * Version/ClientId must match Session. A supplied Inbox must match the four
- * Client object/message caps. With NULL Inbox, receive messages are queued
- * on the connection. Take owned messages before Destroy to keep them across
- * connections. Protocol recovery works with either receive queue.
+ * The Session is exclusive through Client Destroy. Version and ClientId must
+ * match Session. Each connection owns its receive queue and object limits.
+ * Take messages before Destroy and retain their references across connections.
  * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
  * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
  * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
  * Non-packet codec limits must fit Session, with the same UTF-8 policy. The
  * connection packet cap may grow to render an alias-expanded canonical replay;
  * Session borrows that codec only while claimed, never after Client destruction.
- * Bind Session/Inbox to one logical broker/security principal. Neither captures
- * credentials or owns an Engine. Constructor failure changes no Client output.
+ * Bind Session to one logical broker/security principal. It captures no
+ * credentials and owns no Engine. Constructor failure changes no Client output.
  * Old obligations reserve request slots/outgoing wire bytes during setup. A
  * successful accepted CONNACK restores only actual retained state; missing state
  * follows Session's version-specific reset/fail-closed policy. Replay borrows
@@ -36,7 +34,7 @@ XRT_EXTERN_C_BEGIN
  * A prior-generation ACK arriving during a partial PUBLISH replay commits its
  * protocol progress and retires that transport with SESSION status. This avoids
  * continuing an abandoned frame or introducing an unnecessary second delivery.
- * Accepted incoming QoS 2 deliveries enter the selected receive queue once
+ * Accepted incoming QoS 2 deliveries enter the connection's receive queue once
  * before PUBREC. The Session keeps their duplicate identities across reconnect.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
@@ -56,7 +54,7 @@ XRT_EXTERN_C_BEGIN
  * authentication is selected independently. The optional reconnect controller
  * adds automatic generation management; durable recovery remains separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 enhanced authentication on numeric TCP. Auth tickets, challenge rounds,
@@ -67,7 +65,7 @@ XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remo
  * Auth/CONNECT are copied; credentials are not stored in the passive Session.
  * Reauthentication uses the existing connection and does not reopen Session. */
 XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END

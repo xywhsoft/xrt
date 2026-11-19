@@ -2,14 +2,14 @@
 
 Select `xmqtt_client_session_tls` / `XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS`.
 The numeric, hostname and prepared-address factories combine existing
-[Session/Inbox](client_session.md) ownership with [TLS](client_tls.md).
+[Session](client_session.md) ownership with [TLS](client_tls.md).
 `xmqttClientTlsConnectSession`, `xmqttClientTlsDialSession` and
-`xmqttClientTlsDialAddressesSession` take a Session and an optional Inbox. When
+`xmqttClientTlsDialAddressesSession` take a Session. When
 `xmqtt_client_auth` is also selected, their `SessionAuth` variants support MQTT5
 challenge, final proof and subsequent reauthentication. TLS client-certificate
 authentication remains independent and follows the existing TLS config.
 
-The caller binds one Session/Inbox and ClientId/version to one logical broker
+The caller binds one Session and ClientId/version to one logical broker
 and security principal. Credentials, verifier handles and TLS sessions are not
 persisted into MQTT protocol state. Metadata is snapshotted by the native TLS
 session before DNS. Hostname inference, explicit numeric/prepared identities,
@@ -26,7 +26,7 @@ Coalesced post-CONNACK frames are backpressured before receive preflight or
 application delivery. Proof rejection cannot reset, open or replay old state.
 
 Reconnect is explicit after physical Client Destroy. A new Engine is permitted.
-The Session and any supplied Inbox stay exclusively claimed through Destroy. Constructor
+The Session stays exclusively claimed through Destroy. Constructor
 failure changes no output and refunds every claim. Original Futures never migrate
 to a later connection. The application must handle original uncertain outcomes.
 
@@ -39,7 +39,7 @@ buffers keep their separate bounded Core policy. These costs are not zero-copy
 or zero-overhead. QoS0 still does not prove peer receipt or durable storage.
 
 The [example](../examples/client_session_tls/README.md) performs two explicit
-MQTT5 connections to a trusted external TLS broker using one Session/Inbox.
+MQTT5 connections to a trusted external TLS broker using one Session.
 Native TLS resumption is separate from MQTT SessionPresent. No automatic
 reconnect, durable storage, assigned-id adoption, WebSocket or production/
 performance acceptance is implied.

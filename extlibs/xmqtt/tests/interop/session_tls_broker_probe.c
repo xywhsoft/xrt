@@ -20,7 +20,7 @@ static xnetaddrlist* sessionLookup(cstr Host,xnetfamily Family,ptr Data)
     (void)Data;sessionRequire(!strcmp(Host,"session.tls.fixture"),"copied named endpoint");if(Family==XNET_FAMILY_IPV6)return NULL;
     xnetaddr A=sessionAddress;A.Port=0;xrtAtomic32FetchAdd(&sessionLookups,1,XMEMORY_RELEASE);return xrtNetAddrListCreate(&A,1);
 }
-static bool sessionConnect(xnetengine* E,const xnetaddr* Address,uint64 Affinity,const xmqttclientconfig* Given,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** C)
+static bool sessionConnect(xnetengine* E,const xnetaddr* Address,uint64 Affinity,const xmqttclientconfig* Given,xmqttsession* S,const xmqttpacket* Q,xmqttclient** C)
 {
     xmqttclientconfig K=*Given;if(sessionPrefix && !sessionRound){K.WriteBytes=K.WriteChunkBytes=1;K.Stream.WriteLimit=65536;K.Stream.WriteHighWater=32768;K.Stream.WriteLowWater=16384;}
     xmqttclienttlsconfig T;xmqttClientTlsConfigInit(&T);T.Session.Context=sessionContext;T.Session.Verifier=sessionVerifier;T.Session.ServerName=T.Session.VerifyName=XRT_STR_LITERAL("localhost");
@@ -28,10 +28,10 @@ static bool sessionConnect(xnetengine* E,const xnetaddr* Address,uint64 Affinity
     xtlsclientauthconfigv1 Auth;if(sessionIdentity){xrtTlsClientAuthConfigInitV1(&Auth);Auth.Identity=sessionIdentity;T.ClientAuth=&Auth;}
     if(sessionPrefix && !sessionRound){T.Stream.AsyncBytesLimit=65536;T.Stream.AsyncCountLimit=64;T.Stream.AsyncBatch=8;}
     bool OK;
-    if(!sessionFactoryIndex)OK=xmqttClientTlsConnectSession(E,Address,Affinity,&K,&T,S,I,Q,C);
+    if(!sessionFactoryIndex)OK=xmqttClientTlsConnectSession(E,Address,Affinity,&K,&T,S,Q,C);
     else if(sessionFactoryIndex==1){sessionAddress=*Address;xrtAtomic32Init(&sessionLookups,0);xnetresolverconfig R;xrtNetResolverConfigInit(&R);R.Lookup=sessionLookup;sessionResolver=xrtNetResolverCreate(&R);if(!sessionResolver)return false;
-        char Host[19];memcpy(Host,"session.tls.fixture",19);OK=xmqttClientTlsDialSession(E,sessionResolver,(xstrview){Host,19},Address->Port,Affinity,&K,&T,S,I,Q,C);memset(Host,'z',sizeof(Host));}
-    else {xnetaddrlist* L=xrtNetAddrListCreate(Address,1);if(!L)return false;OK=xmqttClientTlsDialAddressesSession(E,L,Affinity,&K,&T,S,I,Q,C);xrtNetAddrListDestroy(L);}
+        char Host[19];memcpy(Host,"session.tls.fixture",19);OK=xmqttClientTlsDialSession(E,sessionResolver,(xstrview){Host,19},Address->Port,Affinity,&K,&T,S,Q,C);memset(Host,'z',sizeof(Host));}
+    else {xnetaddrlist* L=xrtNetAddrListCreate(Address,1);if(!L)return false;OK=xmqttClientTlsDialAddressesSession(E,L,Affinity,&K,&T,S,Q,C);xrtNetAddrListDestroy(L);}
     if(OK){xrtTlsResumeRelease(sessionTicket);sessionTicket=NULL;}else if(sessionResolver){xrtNetResolverDestroy(sessionResolver);sessionResolver=NULL;}
     memset(&T,0,sizeof(T));memset(&Auth,0,sizeof(Auth));memset(Alpn,0,sizeof(Alpn));return OK;
 }

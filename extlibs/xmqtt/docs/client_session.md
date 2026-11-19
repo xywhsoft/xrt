@@ -1,8 +1,8 @@
 # Explicit Client Session recovery (developing)
 
 Select `XMQTT_MODULE_XMQTT_CLIENT_SESSION` and call `xmqttClientConnectSession`
-with a caller-owned Session and an optional Inbox. Passing NULL for Inbox uses
-the connection's bounded receive queue. To preserve accepted application
+with a caller-owned Session. Each connection owns its bounded receive queue.
+To preserve accepted application
 messages across connections, the APP takes them before destroying the old
 Client and keeps their owned references. The Session factory attaches protocol
 state to the Client sender and receiver on the supplied Engine. [Runnable example](../examples/client_session/README.md).
@@ -11,6 +11,8 @@ The optional [client_session_dial](client_session_dial.md) leaf adds hostname an
 prepared TCP. Selecting Client Auth also enables numeric Session Auth without
 Dial/TLS dependencies. The optional [client_session_tls](client_session_tls.md) leaf composes this
 contract with numeric/hostname/prepared TLS and MQTT5 enhanced authentication.
+Removing the Inbox parameter changes the Session factory signatures and ABI.
+Update the calls and recompile applications built against the previous headers.
 
 ## Identity, ownership and reconnect
 
@@ -27,10 +29,9 @@ failed Ready, so the retry does not request a different server identity. Read th
 one logical broker/security principal. Non-packet Client codec bounds must fit
 the Session bounds, with the same UTF-8 policy. The connection packet cap may
 increase to render an alias-expanded retained packet; Session's physical memory
-budget still applies. A supplied Inbox has the same version and four
-receive/object caps as Client. Session and any supplied Inbox are claimed
-exclusively until actual Client Destroy, including
-after graceful native close. Stable-owner Info/Take and retained packet access
+budget still applies. The connection config sets its own receive and object
+limits. The Session is claimed exclusively until Client Destroy, including
+after graceful native close. Client Info/Take and retained packet access
 remain available; public Session mutations and owner destruction are refused.
 Constructor failure leaves the output unchanged and releases any claims.
 
@@ -44,15 +45,14 @@ The sender activates it only when selecting its first output. Reservation and
 encoding rollback are separate, and payload encoding holds neither gate.
 
 Reconnect is explicit: close and destroy the old Client, then invoke the factory
-again with the same passive owners. The old Engine may be destroyed first.
+again with the same Session. The old Engine may be destroyed first.
 Existing obligations reserve request slots and logical outgoing bytes during
 setup. Successful accepted CONNACK opens Session before readiness is published.
 MQTT5 missing server state discards old protocol state; MQTT3.1.1 mismatch fails
 closed until an explicit offline reset. Expired local state cannot adopt a
 server-present session. A failed handshake does not extend its expiry. Actual
 network termination starts expiry; a fully accepted DISCONNECT expiry override
-is honored. Taken messages and messages in an explicitly attached Inbox
-survive protocol reset and expiry.
+is honored. Messages the APP has taken survive protocol reset and expiry.
 
 Only unacknowledged sent QoS1/2 publications and incoming QoS2 identities are
 protocol recovery state. Unsent requests, subscriptions, pings, application

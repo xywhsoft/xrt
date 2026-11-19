@@ -4,8 +4,8 @@ static const void* sdResult(xfuture* F)
 {testRequire(F && xrtFutureWaitFor(F,12000)==XWAIT_OK && xrtFutureState(F)==XFUTURE_RESOLVED,"Session Dial typed result");return xrtFutureValue(F);}
 static xmqttsessioninfo sdInfo(xmqttsession* S)
 {xmqttsessioninfo I;testRequire(xmqttSessionInfo(S,&I),"Session Dial gauges");return I;}
-static void sdPair(xmqttversion V,xmqttsession** S,xmqttclientinbox** I)
-{xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("session-dial");xmqttclientinboxconfig B;xmqttClientInboxConfigInit(&B);B.Version=V;testRequire(xmqttSessionCreate(&K,S) && xmqttClientInboxCreate(&B,I),"Session Dial passive owners");}
+static void sdPair(xmqttversion V,xmqttsession** S)
+{xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("session-dial");testRequire(xmqttSessionCreate(&K,S),"Dial Session");}
 static void sdClose(xmqttclient* C)
 {testRequire(xmqttClientClose(C) && xmqttClientWaitFor(C,12000)==XWAIT_OK && xmqttClientDestroy(C),"Session Dial physical close");}
 static void sdDone(xmqttsession* S,xmqttclient* C)
@@ -18,28 +18,28 @@ static xmqttpacket sdConnectPacket(xmqttversion V,bool Auth,xmqttproperty Props[
     return Q;
 }
 static bool sdFactory(mqttSessionDialPeer* P,unsigned Factory,const xmqttclientconfig* K,const void* Auth,
-    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** C)
+    xmqttsession* S,const xmqttpacket* Q,xmqttclient** C)
 {
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
     xmqttclientdialconfig D;xmqttClientDialConfigInit(&D);D.FallbackDelay=1;D.Timeout=0;
     if(Factory==1){char Host[12];memcpy(Host,"mqtt.fixture",12);bool OK;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
-        if(P->Auth)OK=xmqttClientDialSessionAuth(P->Peer.Engine,P->Resolver,(xstrview){Host,12},P->Peer.Address.Port,1,K,&D,Auth,S,I,Q,C);else
+        if(P->Auth)OK=xmqttClientDialSessionAuth(P->Peer.Engine,P->Resolver,(xstrview){Host,12},P->Peer.Address.Port,1,K,&D,Auth,S,Q,C);else
 #endif
-        OK=xmqttClientDialSession(P->Peer.Engine,P->Resolver,(xstrview){Host,12},P->Peer.Address.Port,1,K,&D,S,I,Q,C);
+        OK=xmqttClientDialSession(P->Peer.Engine,P->Resolver,(xstrview){Host,12},P->Peer.Address.Port,1,K,&D,S,Q,C);
         memset(Host,'z',sizeof(Host));memset(&D,0,sizeof(D));return OK;}
     if(Factory==2){xnetaddr A[]={P->RefusedAddress,P->Peer.Address};xnetaddrlist* L=xrtNetAddrListCreate(A,2);testRequire(L!=NULL,"Session prepared endpoints");bool OK;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
-        if(P->Auth)OK=xmqttClientDialAddressesSessionAuth(P->Peer.Engine,L,1,K,&D,Auth,S,I,Q,C);else
+        if(P->Auth)OK=xmqttClientDialAddressesSessionAuth(P->Peer.Engine,L,1,K,&D,Auth,S,Q,C);else
 #endif
-        OK=xmqttClientDialAddressesSession(P->Peer.Engine,L,1,K,&D,S,I,Q,C);
+        OK=xmqttClientDialAddressesSession(P->Peer.Engine,L,1,K,&D,S,Q,C);
         xrtNetAddrListDestroy(L);memset(&D,0,sizeof(D));return OK;}
 #endif
     (void)Factory;(void)Auth;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
-    if(P->Auth)return xmqttClientConnectSessionAuth(P->Peer.Engine,&P->Peer.Address,1,K,Auth,S,I,Q,C);
+    if(P->Auth)return xmqttClientConnectSessionAuth(P->Peer.Engine,&P->Peer.Address,1,K,Auth,S,Q,C);
 #endif
-    return xmqttClientConnectSession(P->Peer.Engine,&P->Peer.Address,1,K,S,I,Q,C);
+    return xmqttClientConnectSession(P->Peer.Engine,&P->Peer.Address,1,K,S,Q,C);
 }
 static void sdDecide(xmqttclient* C,xfuture* F,xmqttsession* S,bool Auth,bool Accept,bool Reauth)
 {
@@ -53,28 +53,30 @@ static void sdDecide(xmqttclient* C,xfuture* F,xmqttsession* S,bool Auth,bool Ac
     (void)C;(void)F;(void)S;(void)Auth;(void)Accept;(void)Reauth;
 #endif
 }
-static xmqttclient* sdConnect(mqttSessionDialPeer* P,unsigned Factory,bool Tiny,const xmqttclientconfig* Given,xmqttsession* S,xmqttclientinbox* I,xfuture** F)
+static xmqttclient* sdConnect(mqttSessionDialPeer* P,unsigned Factory,bool Tiny,const xmqttclientconfig* Given,xmqttsession* S,xfuture** F)
 {
     xmqttclientconfig K;if(Given)K=*Given;else xmqttClientConfigInit(&K);K.Version=P->Peer.Version;if(Tiny){K.ReadBytes=K.WriteBytes=K.WriteChunkBytes=1;K.WorkPackets=1;}
     xmqttproperty Props[2];xmqttpacket Q=sdConnectPacket(K.Version,P->Auth,Props);xmqttclient* C=NULL;
-    testRequire(sdFactory(P,Factory,&K,NULL,S,I,&Q,&C),"Session Dial/Auth factory");memset(Props,0,sizeof(Props));memset(&K,0,sizeof(K));memset(&Q,0,sizeof(Q));*F=xmqttClientReady(C);return C;
+    testRequire(sdFactory(P,Factory,&K,NULL,S,&Q,&C),"Session Dial/Auth factory");memset(Props,0,sizeof(Props));memset(&K,0,sizeof(K));memset(&Q,0,sizeof(Q));*F=xmqttClientReady(C);return C;
 }
 static void sdReady(xmqttclient* C,xfuture* F,xmqttsession* S,bool Auth,bool Present)
 {sdDecide(C,F,S,Auth,true,false);const xmqttreadyresult* R=sdResult(F);if(R->Status!=XMQTT_STATUS_OK)fprintf(stderr,"Session Dial readiness status=%d cause=%s\n",R->Status,R->Cause?xrtErrorMessage(R->Cause):"none");testRequire(R->Status==XMQTT_STATUS_OK && R->Negotiated.SessionPresent==Present && sdInfo(S).Connected,"Session Dial accepted readiness");}
 static void sdRoundtrip(xmqttversion V,unsigned Factory,unsigned Phase,bool Tiny,bool Auth)
 {
-    xmqttsession* S;xmqttclientinbox* I;sdPair(V,&S,&I);mqttSessionDialPeer P;mqttSessionDialStart(&P,V,Phase==0?MQTT_RESUME_HOLD_ACK:Phase==1?MQTT_RESUME_HOLD_REC:MQTT_RESUME_HOLD_COMP,false,Auth,true,0);
-    xfuture *Ready,*Next,*F=NULL;xmqttclient* C=sdConnect(&P,Factory,Tiny,NULL,S,I,&Ready);sdReady(C,Ready,S,Auth,false);
+    xmqttsession* S;sdPair(V,&S);mqttSessionDialPeer P;mqttSessionDialStart(&P,V,Phase==0?MQTT_RESUME_HOLD_ACK:Phase==1?MQTT_RESUME_HOLD_REC:MQTT_RESUME_HOLD_COMP,false,Auth,true,0);
+    xfuture *Ready,*Next,*F=NULL;xmqttclient* C=sdConnect(&P,Factory,Tiny,NULL,S,&Ready);sdReady(C,Ready,S,Auth,false);
     unsigned char Payload[257];for(size_t J=0;J<sizeof(Payload);++J)Payload[J]=(unsigned char)(J*37u+5u);xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=Phase?4:2;Q.Identifier=23;Q.Body.Publish.Topic=XRT_STR_LITERAL("dial/recover");Q.Body.Publish.Payload=(xbytesview){Payload,sizeof(Payload)};
     testRequire(xmqttClientPublishAsync(C,&Q,10000,&F)==XMQTT_ADMISSION_ACCEPTED,"Session Dial outgoing snapshot");memset(Payload,0,sizeof(Payload));mqttResumeWait(&P.Peer.Publishes,1);if(Phase==2)mqttResumeWait(&P.Peer.Releases,1);mqttResumeWait(&P.Peer.Pubrecs,1);
+    testRequire(xmqttClientClose(C)&&xmqttClientWaitFor(C,10000)==XWAIT_OK,"retire original Dial connection");
+    xmqttmessage* Message=NULL;testRequire(xmqttClientTakeMessage(C,&Message),"APP retains original Dial delivery");
     sdClose(C);mqttSessionDialStop(&P);const xmqttwriteresult* Old=sdResult(F);testRequire(Old->Status==XMQTT_STATUS_CLOSED && Old->AcceptedBytes && Old->PubrecReceived==(Phase==2) && sdInfo(S).ActiveOutgoing==1 && sdInfo(S).Incoming==1,"Session obligations outlive original Engine/Future");
-    mqttSessionDialStart(&P,V,0,true,Auth,true,0);C=sdConnect(&P,Factory,Tiny,NULL,S,I,&Next);sdReady(C,Next,S,Auth,true);sdDone(S,C);
+    mqttSessionDialStart(&P,V,0,true,Auth,true,0);C=sdConnect(&P,Factory,Tiny,NULL,S,&Next);sdReady(C,Next,S,Auth,true);sdDone(S,C);
     if(Phase==2){mqttResumeWait(&P.Peer.Releases,1);testRequire(!xrtAtomic32Load(&P.Peer.Publishes,XMEMORY_ACQUIRE),"resumed Dial sends PUBREL only");}
     else {mqttResumeWait(&P.Peer.Publishes,1);testRequire(P.Peer.Log[0].Id==23 && (P.Peer.Log[0].Flags&8) && P.Peer.Log[0].Topic==12 && P.Peer.Log[0].Payload==257 && P.Peer.Log[0].First==5 && !P.Peer.Log[0].Alias,"Dial canonical id/DUP/full topic and copied payload");}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(Auth && !Tiny){uint64 Generation=sdInfo(S).Generation;xmqttproperty M={0};M.Id=XMQTT_PROPERTY_AUTH_METHOD;M.Type=XMQTT_PROPERTY_STRING;M.Value.Text=XRT_STR_LITERAL("m");xmqttPacketInit(XMQTT_PACKET_AUTH,&Q);Q.Reason=0x19;Q.Properties=(xmqttpropertylist){&M,1};xfuture* A=NULL;testRequire(xmqttClientReauthenticateAsync(C,&Q,10000,&A)==XMQTT_ADMISSION_ACCEPTED,"attached Session reauthentication");sdDecide(C,A,S,true,true,true);testRequire(((const xmqttauthresult*)sdResult(A))->Status==XMQTT_STATUS_OK && sdInfo(S).Generation==Generation,"reauthentication never reopens Session");xrtFutureDestroy(A);}
 #endif
-    xmqttmessage *Message=NULL,*Other=NULL;testRequire(xmqttClientInboxTake(I,&Message) && !xmqttClientInboxTake(I,&Other),"Dial resumed QoS2 delivered once");sdClose(C);mqttSessionDialStop(&P);testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"Dial passive owners retire");
+    xmqttmessage* Other=NULL;testRequire(!xmqttClientTakeMessage(C,&Other),"Dial resumed QoS2 delivered once");sdClose(C);mqttSessionDialStop(&P);testRequire(xmqttSessionDestroy(S),"Dial passive owners retire");
     testRequire(xmqttMessagePacket(Message)->Body.Publish.Payload.Size==3 && !memcmp(xmqttMessagePacket(Message)->Body.Publish.Payload.Data,"x\0z",3) && Old->Status==XMQTT_STATUS_CLOSED,"Dial result/message survive every owner");xmqttMessageRelease(Message);xrtFutureDestroy(F);xrtFutureDestroy(Ready);xrtFutureDestroy(Next);
 }
 

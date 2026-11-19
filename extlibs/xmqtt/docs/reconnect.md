@@ -10,7 +10,7 @@ gains one pointer; unselected Client builds do not acquire it.
 Create a controller with a Session-factory adapter. Its Factory runs on the
 supplied worker with the controller-owned Session, a copied Client config and
 a borrowed decoded CONNECT. Use that Engine, affinity and Session for each Client.
-The factory chooses the receive queue.
+Each ordinary Client owns its receive queue.
 FactoryData and code remain alive through Destroy. The adapter may select numeric
 TCP, Dial, TLS or Auth; their independent policies and borrowed resources retain
 their existing contracts. Factory returns an explicit Client status; older
@@ -33,9 +33,8 @@ the owned references. An APP that pulls messages may hold a Client lease across
 transport closure, wait for the Client to retire, drain its queue and return the
 lease. Destroy releases messages still queued on the connection. Use a bounded
 APP queue sized for the workload. The [automatic reconnect example](../examples/reconnect/main.c)
-uses one APP slot for its single echo. An adapter can also supply an APP-owned
-shared Inbox through a TCP Session factory when it needs a common quota for several
-connections. Keep the Inbox alive through controller Destroy.
+uses one APP slot for its single echo. The APP decides how many bytes or messages
+it can retain across connections.
 
 Defaults retry transport, timeout and server-disconnect failures only. Exponential
 backoff saturates at MaxDelay and bounded relative jitter uses a local noncrypto

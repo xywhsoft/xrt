@@ -249,7 +249,7 @@ QoS1/2 snapshots, original identifiers, cross-connection PUBLISH/PUBREL state,
 incoming QoS2 prepare/commit/deduplication and elapsed-time expiry. It uses no
 Engine, Future, background retry timer, credential store or new shared runtime.
 The optional [Client Session factory](client_session.md) now attaches it to
-numeric TCP with a shared Inbox and connection-scoped Futures. The optional
+numeric TCP with a connection-local receive queue and scoped Futures. The optional
 [TLS Session leaf](client_session_tls.md) now composes TLS/Dial/Auth. Automatic
 reconnect, plain Dial/Auth composition and durable recovery remain required.
 
@@ -323,7 +323,7 @@ qualification remain open; no zero-overhead or broker/native acceptance is claim
 The [broker recovery stage](../tests/results/broker-session-20261110.json) uses
 the pinned unchanged Mosquitto 2.1.2 fixture through an independent frame proxy.
 It cuts outgoing-flow PUBACK/PUBREC/PUBCOMP and incoming-flow PUBREC/PUBCOMP,
-across MQTT5/311 and normal/fragmented IO. Each case reuses Session/Inbox across
+across MQTT5/311 and normal/fragmented IO. Each case reuses the protocol Session across
 two fresh Clients/Engines, verifies SessionPresent, preserved ids and DUP/PUBREL
 progress, alias-free full-topic replay, original Future outcomes and retained
 messages/results after physical destruction. QoS2 delivers once locally; QoS1
@@ -341,7 +341,7 @@ native Linux deployment, performance and >=72h production gates remain open.
 ## Explicit TLS Session composition
 
 The [TLS Session stage](../tests/results/session-tls-20261110.json) adds numeric,
-hostname and prepared-address TLS Session/Inbox factories and their MQTT5
+hostname and prepared-address TLS Session factories and their MQTT5
 enhanced-auth variants. Session opening/reset/replay waits for local final proof.
 Denied proof and failed TLS/DNS preserve old offline state and expiry. Ordinary
 Auth retains its bounded receive quarantine; QoS2 preflight now reserves storage

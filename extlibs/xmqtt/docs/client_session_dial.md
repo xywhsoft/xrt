@@ -2,7 +2,7 @@
 
 Select `xmqtt_client_session_dial` for `xmqttClientDialSession` and
 `xmqttClientDialAddressesSession`. They combine the existing
-[Session/Inbox](client_session.md) ownership and [Dial](client_dial.md) policies.
+[Session](client_session.md) ownership and [Dial](client_dial.md) policies.
 Also select `xmqtt_client_auth` for their `SessionAuth` variants. Numeric
 `xmqttClientConnectSessionAuth` needs only `xmqtt_client_session` and
 `xmqtt_client_auth`; it does not acquire Dial, Resolver or TLS dependencies.
@@ -15,15 +15,15 @@ detached shared lookups, family filtering, fallback and MaxAttempts follow Dial.
 Client-owned host scratch uses MaxPrivateBytes; native Resolver/Dial buffers
 retain their separately bounded Core configurations.
 
-The Session and any supplied Inbox are exclusive through actual Client Destroy. Failed constructors
+The Session is exclusive through Client Destroy. Failed constructors
 refund claims and leave output untouched. DNS/refusal, setup timeout/cancellation
 and denied final proof preserve old offline obligations and expiry. Session
 opening/reset and replay begin only after accepted MQTT/local proof gates.
 After acceptance, a local replay failure may follow an authenticated reset/resume
 even if Ready fails. Session expiry then follows actual connection termination.
 Original Futures remain connection-scoped; reconnect is explicit after old
-Client destruction and can use a new Engine. Bind every endpoint and both passive
-owners to one logical broker and security principal.
+Client destruction and can use a new Engine. Bind every endpoint and the
+Session to one logical broker and security principal.
 
 MQTT5 enhanced authentication follows [OASIS MQTT5 section4.12](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
 Algorithms/credential generation belong to the application. Challenge responses

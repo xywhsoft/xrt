@@ -46,18 +46,15 @@ static void cgCase(xmqttversion V,unsigned Mode)
     cgdrive D={0};str NativePath=NULL;if(Disk){D.IO.Base.Native=xrtFileTemp(NULL,"xmqtt-client-store-",NULL,&NativePath);testRequire(D.IO.Base.Native!=NULL,"actual native journal file");}
     jpfile File=cgFile(&D);xmqttjournalconfig JC=stJournalConfig(V);xmqttjournal* J=jpCreate(File,&JC);
     xmqttstorestateconfig SC=stConfig(V);SC.WallMilliseconds=Mode==4?300000:0;xmqttstorestate* S=NULL;stStatus(xmqttStoreStateRecover(J,&SC,&S),XMQTT_STORE_DONE,"empty prefix");
-    xtaskpool* Pool=jwPool(1);D.IO.Pool=Pool;xmqttstorewriteconfig WC;xmqttStoreWriteConfigInit(&WC);xmqttstorewrite* W=NULL;testRequire(xmqttStoreWriteCreate(Pool,J,S,&WC,&W),"exclusive storage writer");
+    xtaskpool* Pool=jwPool(1);D.IO.Pool=Pool;xmqttstorewriteconfig WC;xmqttStoreWriteConfigInit(&WC);xmqttstorewrite* W=NULL;testRequire(xmqttStoreInboxCreate(Pool,J,S,&WC,&W),"exclusive storage writer");
     D.IO.Base.Calls=0;if(Mode<3)D.IO.Hold=7;else if(Mode==3)D.IO.Base.Fail=1;
     xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=V;SK.ClientId=XRT_STR_LITERAL("delta-client");xmqttsession* Session=NULL;testRequire(xmqttSessionCreate(&SK,&Session),"passive native Session");
-    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=V;xmqttclientinbox* Inbox=NULL;testRequire(xmqttClientInboxCreate(&IK,&Inbox),"independent Inbox");
     mqttExamplePeer Peer;mqttExampleStart(&Peer,V);xmqttclientconfig Cfg;xmqttClientConfigInit(&Cfg);Cfg.Version=V;Cfg.MaxObjects=2;Cfg.Notify=cgDiagnostic;if(Mode==2)Cfg.SetupTimeout=500;
-    /* Same object caps are required by the ordinary Client Inbox factory. */
-    IK.MaxObjects=2;testRequire(xmqttClientInboxDestroy(Inbox)&&xmqttClientInboxCreate(&IK,&Inbox),"minimal ready+CONNACK object budget");
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=SK.ClientId;Q.Body.Connect.CleanStart=false;xmqttproperty Expiry={0};Expiry.Id=XMQTT_PROPERTY_SESSION_EXPIRY;Expiry.Type=XMQTT_PROPERTY_UINT32;Expiry.Value.Number=60;if(V==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){&Expiry,1};
     cgclock Clock={0};xrtAtomic64Init(&Clock.Value,200000);if(Mode==7){testRequire(xrtAllocationBudgetCreate(1,&Clock.Budget),"real tiny native allocation budget");Clock.Arm=true;}
     if(Mode==6)testRequire(xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,10000)==XWAIT_OK,"stopped host pool before connection");
-    Cfg.User=&Clock;xmqttclientstoreplan Plan={W,cgWall,&Clock};xmqttclient* C=NULL;
-    testRequire(xmqttInternalClientConnectStore(Peer.Engine,&Peer.Address,1,&Cfg,Session,Inbox,&Q,&Plan,&C),"actual private numeric Client factory");xrtAtomicPtrStore(&D.Client,C,XMEMORY_RELEASE);xfuture* Ready=xmqttClientReady(C);
+    Cfg.User=&Clock;xmqttclientstoreconfig Plan={sizeof(Plan),W,cgWall,&Clock};xmqttclient* C=NULL;
+    testRequire(xmqttClientConnectStore(Peer.Engine,&Peer.Address,1,&Cfg,Session,&Plan,&Q,&C),"actual private numeric Client factory");xrtAtomicPtrStore(&D.Client,C,XMEMORY_RELEASE);xfuture* Ready=xmqttClientReady(C);
     cgwatch Observer={0};Observer.Writer=W;
     if(Observe){testRequire(xrtFutureWatchInit(&Observer.Watch,cgObserve,cgObserved,&Observer)&&xrtFutureWatchAdd(Ready,&Observer.Watch)==XFUTURE_WATCH_PENDING,"ready observer registered before held final sync");}
     if(Mode<3){
@@ -93,7 +90,7 @@ static void cgCase(xmqttversion V,unsigned Mode)
     unsigned Calls=D.IO.Base.Calls;testRequire(xmqttStoreWriteDestroy(W),"caller retains Writer lifetime after Client");jwPoolDone(Pool);
     D.IO.Base.Fail=0;J=jpReopen(File,&JC);SC.WallMilliseconds=300000;S=NULL;stStatus(xmqttStoreStateRecover(J,&SC,&S),XMQTT_STORE_DONE,"fresh typed full-prefix replay");testRequire(stInfo(S).Transactions==(Mode<3?2:0),"physical history agrees with online committed state");
     if(Mode>=4)testRequire(Calls==0,"preflight/host/OOM refusal performs no file IO");
-    xmqttStoreStateDestroy(S);testRequire(xmqttJournalDestroy(J)&&xmqttClientInboxDestroy(Inbox)&&xmqttSessionDestroy(Session),"release independent native owners");jpFileClose(File);xrtFutureDestroy(Ready);
+    xmqttStoreStateDestroy(S);testRequire(xmqttJournalDestroy(J)&&xmqttSessionDestroy(Session),"release independent native owners");jpFileClose(File);xrtFutureDestroy(Ready);
     if(Disk){testRequire(xrtClose(D.IO.Base.Native)&&xrtFileDelete(NativePath),"close/delete own native fixture");xrtFree(NativePath);}
     if(Clock.Budget){xallocationbudgetinfo B={.Size=sizeof(B)};testRequire(xrtAllocationBudgetInfo(Clock.Budget,&B)&&B.Rejections&&B.LiveBytes==0,"actual allocation rejection and full requested-byte refund");xrtAllocationBudgetFree(Clock.Budget);}
 }
@@ -265,12 +262,7 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* W=NULL;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    if(Mode==CG_LIVE_LEASE)
-        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"receive store with live Inbox leases");
-    else
-#endif
-        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
+        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"receive store writer");
     D.IO.Base.Calls=0;
     if(Mode==CG_FLOW||Mode==CG_ACCEPT_CLOSE)D.IO.Hold=14;
     if(Mode==CG_RELEASE_CLOSE)D.IO.Hold=21;
@@ -285,18 +277,9 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     SK.ClientId=SC.ClientId;
     xmqttsession* Session=NULL;
     testRequire(xmqttSessionCreate(&SK,&Session),"receive mirror Session");
-    xmqttclientinboxconfig IK;
-    xmqttClientInboxConfigInit(&IK);
-    IK.Version=V;
-    xmqttclientinbox* Inbox=NULL;
-    testRequire(xmqttClientInboxCreate(&IK,&Inbox),"independent volatile Inbox");
     xmqttclientconfig Cfg;
     xmqttClientConfigInit(&Cfg);
     Cfg.Version=V;
-    Cfg.MaxObjects=IK.MaxObjects;
-    Cfg.MaxObjectBytes=IK.MaxObjectBytes;
-    Cfg.MaxMessages=IK.MaxMessages;
-    Cfg.MaxMessageBytes=IK.MaxMessageBytes;
     Cfg.WriteChunkBytes=1; /* Reuses the normal partial ACK send path. */
     xmqttpacket Connect;
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
@@ -309,11 +292,11 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     }
     cgclock Clock={0};
     xrtAtomic64Init(&Clock.Value,200000);
-    xmqttclientstoreplan Plan={W,cgWall,&Clock};
+    xmqttclientstoreconfig Plan={sizeof(Plan),W,cgWall,&Clock};
     cg_receive_peer Peer;
     cgReceiveStart(&Peer,V,W,false);
     xmqttclient* C=NULL;
-    testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"live receive Client");
+    testRequire(xmqttClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,&Plan,&Connect,&C),"live receive Client");
     xrtAtomicPtrStore(&D.Client,C,XMEMORY_RELEASE);
     xfuture* Ready=xmqttClientReady(C);
     testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"receive Client ready after OPEN");
@@ -404,11 +387,11 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     if(Mode==CG_WRITE_FAIL||Mode==CG_INBOX_LIMIT)
         testRequire(Closing.CloseStatus==(Mode==CG_WRITE_FAIL?XMQTT_STATUS_INITIALIZATION:XMQTT_STATUS_LIMIT),"typed failed acceptance");
     xrtAtomicPtrStore(&D.Client,NULL,XMEMORY_RELEASE);
+    xmqttmessage* Unchanged=(xmqttmessage*)(uintptr_t)1;
+    testRequire(!xmqttClientTakeMessage(C,&Unchanged)&&Unchanged==(xmqttmessage*)(uintptr_t)1,"durable delivery stays out of connection-local queue");
     testRequire(xmqttClientDestroy(C),"destroy receive Client");
     mqttExampleStop(&Peer.Net);
     testRequire(xrtAtomic32Load(&Peer.Net.Acks,XMEMORY_ACQUIRE)==FinalAcks,"no uncommitted or post-close ACK");
-    xmqttmessage* Unchanged=(xmqttmessage*)(uintptr_t)1;
-    testRequire(!xmqttClientInboxTake(Inbox,&Unchanged)&&Unchanged==(xmqttmessage*)(uintptr_t)1,"durable delivery stays out of volatile Inbox");
     xmqttsessioninfo SI;
     testRequire(xmqttSessionInfo(Session,&SI)&&!SI.Prepared&&SI.Incoming==FinalIncoming,"mirror has no provisional identity after retirement");
     testRequire(xmqttSessionDestroy(Session),"destroy original Session");
@@ -444,12 +427,12 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         Session=NULL;
         testRequire(xmqttStoreSessionRestore(Store,&SK,&Import,&Session)==XMQTT_SESSION_DONE,"import true committed receive identity");
         W=NULL;
-        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"reopened Writer");
+        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"reopened Writer");
         Plan.Writer=W;
         xrtAtomic64Store(&Clock.Value,201000,XMEMORY_RELEASE);
         cgReceiveStart(&Peer,V,W,true);
         C=NULL;
-        testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"resume actual stored session");
+        testRequire(xmqttClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,&Plan,&Connect,&C),"resume actual stored session");
         Ready=xmqttClientReady(C);
         testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"actual resumed CONNACK");
         if(Mode==CG_ACCEPT_CLOSE){
@@ -472,7 +455,6 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         xmqttStoreStateDestroy(Store);
         testRequire(xmqttJournalDestroy(J),"release fresh read-only Journal");
     }
-    testRequire(xmqttClientInboxDestroy(Inbox),"release unused volatile Inbox");
     jwPoolDone(Pool);
     jpFileClose(File);
     if(NativePath){
@@ -592,26 +574,17 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* W=NULL;
-    testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"outgoing writer consumes journal");
+    testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"outgoing writer consumes journal");
     D.IO.Base.Calls=0;
     if(PutHeld)D.IO.Hold=14;
     if(AckHeld)D.IO.Hold=21;
     if(Mode==CG_SEND_PUT_REFUSAL)D.IO.Base.Fail=8;
     if(Mode==CG_SEND_ACK_UNCERTAIN){D.IO.Base.Fail=21;D.IO.Base.FlushOnFailure=true;}
 
-    xmqttclientinboxconfig IK;
-    xmqttClientInboxConfigInit(&IK);
-    IK.Version=V;
-    if(Mode==CG_SEND_ACK_LIMIT)IK.MaxObjects=3; /* Ready+CONNACK+write result. */
-    xmqttclientinbox* Inbox=NULL;
-    testRequire(xmqttClientInboxCreate(&IK,&Inbox),"bounded Client Inbox");
     xmqttclientconfig Cfg;
     xmqttClientConfigInit(&Cfg);
     Cfg.Version=V;
-    Cfg.MaxObjects=IK.MaxObjects;
-    Cfg.MaxObjectBytes=IK.MaxObjectBytes;
-    Cfg.MaxMessages=IK.MaxMessages;
-    Cfg.MaxMessageBytes=IK.MaxMessageBytes;
+    if(Mode==CG_SEND_ACK_LIMIT)Cfg.MaxObjects=3; /* Ready, CONNACK and write result. */
     Cfg.WriteChunkBytes=1;
     xmqttpacket Connect;
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
@@ -620,11 +593,11 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
     if(V==XMQTT_VERSION_5)Connect.Properties=(xmqttpropertylist){&Expiry,1};
     cgclock Clock={0};
     xrtAtomic64Init(&Clock.Value,200010);
-    xmqttclientstoreplan Plan={W,cgWall,&Clock};
+    xmqttclientstoreconfig Plan={sizeof(Plan),W,cgWall,&Clock};
     cg_receive_peer Peer;
     cgPeerStart(&Peer,V,W,CG_CAPTURE_PUBLISH|(Seeded?CG_RESUME:0)|(Alias?CG_ALIAS:0));
     xmqttclient* C=NULL;
-    testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"actual persistent publishing Client");
+    testRequire(xmqttClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,&Plan,&Connect,&C),"actual persistent publishing Client");
     xrtAtomicPtrStore(&D.Client,C,XMEMORY_RELEASE);
     xfuture* Ready=xmqttClientReady(C);
     testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"persistent sending after OPEN");
@@ -798,13 +771,13 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
                     Record.Sent==Qos2&&Record.Wire.Data[0]==(0x30u|(Qos<<1)),"canonical persistent attempt and PUBREL state");
         Session=cgImportSend(Store,&SK,&SC);
         W=NULL;
-        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"reopened outgoing writer");
+        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"reopened outgoing writer");
         Plan.Writer=W;
         xrtAtomic64Store(&Clock.Value,201001,XMEMORY_RELEASE);
         bool Early=Mode==CG_SEND_EARLY_ACK;
         cgPeerStart(&Peer,V,W,CG_RESUME|CG_CAPTURE_PUBLISH|(Early?CG_EARLY_PUBACK:0));
         C=NULL;
-        testRequire(xmqttInternalClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,Inbox,&Connect,&Plan,&C),"actual resumed publishing Client");
+        testRequire(xmqttClientConnectStore(Peer.Net.Engine,&Peer.Net.Address,1,&Cfg,Session,&Plan,&Connect,&C),"actual resumed publishing Client");
         Ready=xmqttClientReady(C);
         testRequire(cgReady(Ready)->Status==XMQTT_STATUS_OK,"resume surviving broker epoch");
         if(!Early){
@@ -824,7 +797,7 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
         testRequire(!stInfo(Store).Outgoing&&stInfo(Store).Transactions==FinalTx+3,"replayed completion and end persist");
     }
     xmqttStoreStateDestroy(Store);
-    testRequire(xmqttJournalDestroy(J)&&xmqttClientInboxDestroy(Inbox),"release recovered state, file and independent Inbox");
+    testRequire(xmqttJournalDestroy(J),"release recovered state, file and independent Inbox");
     jwPoolDone(Pool);
     jpFileClose(File);
     if(NativePath){

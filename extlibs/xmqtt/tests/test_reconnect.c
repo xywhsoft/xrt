@@ -91,7 +91,7 @@ static xmqttclientstatus rcFactory(xnetengine* E,uint64 A,const xmqttclientconfi
     rcPeer* P=Data;unsigned N=xrtAtomic32Load(&P->FactoryCalls,XMEMORY_RELAXED);testRequire(N<32,"bounded fixture attempts");P->FactoryAt[N]=xrtTimer();P->Clean[N]=Q->Body.Connect.CleanStart;P->IdBytes[N]=Q->Body.Connect.ClientId.Size;bool OK;
     if(P->Mode&RC_FAIL){xrtSetErrorKind(XERR_STATE);OK=false;}
     else {xallocationscope Scope={0};if(P->Mode&RC_WORKER_BUDGET)testRequire(xrtAllocationBudgetEnter(P->Budget,&Scope),"factory allocation scope");
-        OK=P->Mode&RC_WRONG_FACTORY?xmqttClientConnect(E,&P->Address,A,K,Q,C):xmqttClientConnectSession(E,&P->Address,A,K,S,NULL,Q,C);
+        OK=P->Mode&RC_WRONG_FACTORY?xmqttClientConnect(E,&P->Address,A,K,Q,C):xmqttClientConnectSession(E,&P->Address,A,K,S,Q,C);
         if(P->Mode&RC_WORKER_BUDGET)testRequire(xrtAllocationBudgetLeave(&Scope),"factory scope leave");}
     xrtAtomic32Store(&P->FactoryCalls,N+1,XMEMORY_RELEASE);return OK?XMQTT_STATUS_OK:(P->Mode&RC_FAIL)?XMQTT_STATUS_INITIALIZATION:xrtErrorKind(xrtGetError())==XERR_MEMORY?XMQTT_STATUS_MEMORY:XMQTT_STATUS_INITIALIZATION;
 }

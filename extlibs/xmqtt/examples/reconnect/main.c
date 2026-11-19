@@ -3,7 +3,7 @@
 #include "receive_slot.h"
 static xmqttclientstatus connectAttempt(xnetengine* E,uint64 Affinity,const xmqttclientconfig* C,
     xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** Client)
-{mqttExamplePeer* P=Data;return xmqttClientConnectSession(E,&P->Address,Affinity,C,S,NULL,Q,Client)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+{mqttExamplePeer* P=Data;return xmqttClientConnectSession(E,&P->Address,Affinity,C,S,Q,Client)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 int main(void)
 {
     mqttExamplePeer P;mqttExampleStart(&P,XMQTT_VERSION_5);xtaskpoolconfig T={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&T);mqttExampleCheck(Pool!=NULL,"borrowed cleanup Pool");

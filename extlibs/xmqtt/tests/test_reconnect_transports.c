@@ -3,7 +3,7 @@
 #include <xmqtt/reconnect.h>
 /* Literal m/B/C/D tokens exercise protocol/proof ownership, not an auth algorithm. */
 typedef struct rtState {
-    mqttTlsPeer Peer;xtaskpool* Pool;xmqttclientinbox* Inbox;unsigned Factory;
+    mqttTlsPeer Peer;xtaskpool* Pool;unsigned Factory;
     xatomicptr Ticket,Client;xatomic32 Generation,Sent;
 } rtState;
 static void rtFrame(xtlsstream* Stream,mqttTlsPeer* Peer,unsigned char Flags,const unsigned char* Body,size_t Size)
@@ -27,15 +27,15 @@ static void rtNotice(xmqttclient* C,ptr Data)
 static xmqttclientstatus rtFactory(xnetengine* E,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* Session,const xmqttpacket* Q,ptr Data,xmqttclient** C)
 {
     rtState* S=Data;xmqttclienttlsconfig TLS;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* V=mqttTlsConfigure(&S->Peer,&TLS,Name,&Protocol,Alpn);bool OK;
-    if(!S->Factory)OK=xmqttClientTlsConnectSessionAuth(E,&S->Peer.Address,Affinity,K,&TLS,NULL,Session,S->Inbox,Q,C);
-    else if(S->Factory==1)OK=xmqttClientTlsDialSessionAuth(E,S->Peer.Resolver,XRT_STR_LITERAL("example.com"),S->Peer.Address.Port,Affinity,K,&TLS,NULL,Session,S->Inbox,Q,C);
-    else {xnetaddrlist* L=xrtNetAddrListCreate(&S->Peer.Address,1);testRequire(L!=NULL,"bounded prepared addresses");OK=xmqttClientTlsDialAddressesSessionAuth(E,L,Affinity,K,&TLS,NULL,Session,S->Inbox,Q,C);xrtNetAddrListDestroy(L);}
+    if(!S->Factory)OK=xmqttClientTlsConnectSessionAuth(E,&S->Peer.Address,Affinity,K,&TLS,NULL,Session,Q,C);
+    else if(S->Factory==1)OK=xmqttClientTlsDialSessionAuth(E,S->Peer.Resolver,XRT_STR_LITERAL("example.com"),S->Peer.Address.Port,Affinity,K,&TLS,NULL,Session,Q,C);
+    else {xnetaddrlist* L=xrtNetAddrListCreate(&S->Peer.Address,1);testRequire(L!=NULL,"bounded prepared addresses");OK=xmqttClientTlsDialAddressesSessionAuth(E,L,Affinity,K,&TLS,NULL,Session,Q,C);xrtNetAddrListDestroy(L);}
     xrtTlsVerifierRelease(V);memset(Name,'x',sizeof(Name));memset(Alpn,'y',sizeof(Alpn));return OK?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;
 }
 static void rtStart(rtState* S,unsigned Factory,unsigned Flags)
 {
     memset(S,0,sizeof(*S));S->Factory=Factory;xrtAtomicPtrInit(&S->Ticket,NULL);xrtAtomicPtrInit(&S->Client,NULL);xrtAtomic32Init(&S->Generation,0);xrtAtomic32Init(&S->Sent,0);
-    mqttTlsStartWith(&S->Peer,XMQTT_VERSION_5,MQTT_TLS_AUTH|Flags,rtFrame,S);testRequire(xmqttClientInboxCreate(NULL,&S->Inbox),"APP inbox");xtaskpoolconfig P={1,8,0};S->Pool=xrtTaskPoolCreate(&P);testRequire(S->Pool!=NULL,"borrowed cleanup Pool");
+    mqttTlsStartWith(&S->Peer,XMQTT_VERSION_5,MQTT_TLS_AUTH|Flags,rtFrame,S);xtaskpoolconfig P={1,8,0};S->Pool=xrtTaskPoolCreate(&P);testRequire(S->Pool!=NULL,"borrowed cleanup Pool");
 }
 static xmqttreconnect* rtCreate(rtState* S,int64 Recovery)
 {
@@ -61,7 +61,8 @@ static void rtRespond(xmqttauthticket* T)
 static void rtQuarantine(rtState* S,xmqttreconnect* R,unsigned Generation)
 {
     mqttTlsWait(&S->Sent,Generation,"proof and coalesced data sent");xmqttclientlease L={0};xmqttmessage* M=(xmqttmessage*)(uintptr_t)1;xmqttreconnectinfo I;
-    for(unsigned J=0;J<100;++J){testRequire(xmqttReconnectInfo(R,&I) && I.State==XMQTT_RECONNECT_CONNECTING && I.Connections==Generation-1 && !xmqttReconnectAcquire(R,&L) && !L.Owner,"controller never leases unverified connection");testRequire(!xmqttClientInboxTake(S->Inbox,&M) && M==(xmqttmessage*)(uintptr_t)1,"private Inbox never exposes unverified data");}
+    xmqttclient* C=xrtAtomicPtrLoad(&S->Client,XMEMORY_ACQUIRE);
+    for(unsigned J=0;J<100;++J){testRequire(xmqttReconnectInfo(R,&I) && I.State==XMQTT_RECONNECT_CONNECTING && I.Connections==Generation-1 && !xmqttReconnectAcquire(R,&L) && !L.Owner,"controller never leases unverified connection");testRequire(!xmqttClientTakeMessage(C,&M) && M==(xmqttmessage*)(uintptr_t)1,"Client never exposes unverified data");}
 }
 static xfuture* rtAccept(rtState* S,xmqttreconnect* R,unsigned Generation,xmqttclientlease* L)
 {
@@ -71,12 +72,12 @@ static xfuture* rtAccept(rtState* S,xmqttreconnect* R,unsigned Generation,xmqttc
 }
 static void rtStop(rtState* S,xmqttreconnect* R)
 {
-    testRequire(!xrtAtomicPtrLoad(&S->Ticket,XMEMORY_ACQUIRE),"all application tickets returned");testRequire(xmqttReconnectClose(R) && xmqttReconnectWaitFor(R,15000)==XWAIT_OK && xmqttReconnectDestroy(R),"all controller/Client/native retirement");testRequire(xmqttClientInboxDestroy(S->Inbox),"APP retires the detached inbox");testRequire(xrtTaskPoolClose(S->Pool) && xrtTaskPoolWaitFor(S->Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(S->Pool),"borrowed cleanup Pool joined");mqttTlsStop(&S->Peer);
+    testRequire(!xrtAtomicPtrLoad(&S->Ticket,XMEMORY_ACQUIRE),"all application tickets returned");testRequire(xmqttReconnectClose(R) && xmqttReconnectWaitFor(R,15000)==XWAIT_OK && xmqttReconnectDestroy(R),"all controller/Client/native retirement");testRequire(xrtTaskPoolClose(S->Pool) && xrtTaskPoolWaitFor(S->Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(S->Pool),"borrowed cleanup Pool joined");mqttTlsStop(&S->Peer);
 }
 static void rtSuccess(unsigned Factory)
 {
     rtState S;rtStart(&S,Factory,0);xmqttreconnect* R=rtCreate(&S,60000);xmqttclientlease L={0};xfuture* First=rtAccept(&S,R,1,&L);xmqttmessage* Held=NULL;double End=xrtTimer()+15;
-    while(!xmqttClientInboxTake(S.Inbox,&Held)){testRequire(xrtTimer()<End,"verified incoming message");xrtSleep(1);}
+    while(!xmqttClientTakeMessage(L.Client,&Held)){testRequire(xrtTimer()<End,"verified incoming message");xrtSleep(1);}
     xtlsstream* Peer=xrtAtomicPtrLoad(&S.Peer.Server,XMEMORY_ACQUIRE);xnetstream* Native=xrtNetStreamRef(xrtTlsStreamTransport(Peer));testRequire(Native!=NULL,"retain fixture native owner for physical join");testRequire(xrtTlsStreamAbort(Peer) && xmqttClientWaitFor(L.Client,15000)==XWAIT_OK,"interrupt verified generation while leased");mqttTlsWait(&S.Peer.Closed,1,"old TLS peer closed");xrtTlsStreamDestroy(Peer);testRequire(xrtNetStreamWaitRetired(Native,15000)==XWAIT_OK,"all old TLS server/native notification tails retired");xrtNetStreamDestroy(Native);testRequire(!S.Peer.Used,"old fixture has no partial frame");
     xrtAtomicPtrStore(&S.Peer.Server,NULL,XMEMORY_RELEASE);xrtAtomic32Store(&S.Peer.Closed,0,XMEMORY_RELEASE);xrtAtomic32Store(&S.Generation,1,XMEMORY_RELEASE);testRequire(xmqttReconnectRelease(&L),"release permits physical replacement");xfuture* Second=rtAccept(&S,R,2,&L);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_AUTH,&Q);Q.Reason=0x19;xmqttproperty Method={XMQTT_PROPERTY_AUTH_METHOD,XMQTT_PROPERTY_STRING,{0}};Method.Value.Text=XRT_STR_LITERAL("m");Q.Properties=(xmqttpropertylist){&Method,1};xfuture* Auth=NULL;
@@ -91,7 +92,7 @@ static void rtDenied(unsigned Factory,bool Challenge)
     xmqttclient* C=xrtAtomicPtrLoad(&S.Client,XMEMORY_ACQUIRE);xfuture* F=xmqttClientReady(C);
     if(Challenge)testRequire(xmqttReconnectClose(R),"stop while challenge held");else testRequire(xmqttAuthComplete(T,false)==XMQTT_ADMISSION_ACCEPTED,"reject final proof");
     testRequire(xrtFutureWaitFor(F,15000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(F))->Status==(Challenge?XMQTT_STATUS_CLOSED:XMQTT_STATUS_AUTHENTICATION),"initial proof failure retained");
-    testRequire(xmqttReconnectWaitFor(R,10)==XWAIT_TIMEOUT,"logical closure cannot consume held auth ticket");xmqttclientlease L={0};xmqttmessage* M=(xmqttmessage*)(uintptr_t)1;testRequire(!xmqttReconnectAcquire(R,&L) && !xmqttClientInboxTake(S.Inbox,&M) && M==(xmqttmessage*)(uintptr_t)1,"failed proof never publishes lease/message");
+    testRequire(xmqttReconnectWaitFor(R,10)==XWAIT_TIMEOUT,"logical closure cannot consume held auth ticket");xmqttclientlease L={0};xmqttmessage* M=(xmqttmessage*)(uintptr_t)1;testRequire(!xmqttReconnectAcquire(R,&L) && !xmqttClientTakeMessage(C,&M) && M==(xmqttmessage*)(uintptr_t)1,"failed proof never publishes lease/message");
     if(Challenge)testRequire(rtResponse(T)!=XMQTT_ADMISSION_ACCEPTED,"stale valid challenge response cannot revive stopped generation");
     xmqttAuthRelease(T);
     testRequire(xmqttReconnectWaitFor(R,15000)==XWAIT_OK,"real ticket release permits retirement");xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I) && !I.Connections && I.Attempts==1 && I.LastStatus==(Challenge?XMQTT_STATUS_CLOSED:XMQTT_STATUS_AUTHENTICATION) && I.State==(Challenge?XMQTT_RECONNECT_STOPPED:XMQTT_RECONNECT_FAILED),"no retry of default authentication failure");rtStop(&S,R);xrtFutureDestroy(F);
@@ -105,7 +106,7 @@ static void rtPendingSetup(unsigned Factory,unsigned Flags)
 static void rtRejectedTls(unsigned Factory)
 {
     rtState S;rtStart(&S,Factory,MQTT_TLS_REJECT);xmqttreconnect* R=rtCreate(&S,5000);testRequire(xmqttReconnectWaitFor(R,15000)==XWAIT_OK,"rejected transport retires");xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I) && I.State==XMQTT_RECONNECT_FAILED && I.LastStatus==XMQTT_STATUS_TRANSPORT && I.Attempts==1 && !I.Connections,"failed TLS verification cannot publish ONLINE");
-    xmqttclientlease L={0};xmqttmessage* M=(xmqttmessage*)(uintptr_t)1;testRequire(!xmqttReconnectAcquire(R,&L) && !xmqttClientInboxTake(S.Inbox,&M) && M==(xmqttmessage*)(uintptr_t)1 && !xrtAtomicPtrLoad(&S.Ticket,XMEMORY_ACQUIRE),"no MQTT state escapes rejected transport");testRequire(xrtAtomic32Load(&S.Peer.VerifierDrops,XMEMORY_ACQUIRE)==1,"rejected verifier retired exactly once");rtStop(&S,R);
+    xmqttclientlease L={0};testRequire(!xmqttReconnectAcquire(R,&L) && !xrtAtomicPtrLoad(&S.Ticket,XMEMORY_ACQUIRE),"no MQTT state escapes rejected transport");testRequire(xrtAtomic32Load(&S.Peer.VerifierDrops,XMEMORY_ACQUIRE)==1,"rejected verifier retired exactly once");rtStop(&S,R);
 }
 int main(void)
 {

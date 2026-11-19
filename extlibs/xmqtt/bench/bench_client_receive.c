@@ -25,13 +25,9 @@ int main(int Argc,char** Argv)
 #endif
 #if defined(XMQTT_BENCH_SESSION)
     xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=K.Version;SK.ClientId=Connect.Body.Connect.ClientId;
-    xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;
+    xmqttsession* Session=NULL;
     mqttExampleCheck(xmqttSessionCreate(&SK,&Session),"Session echo owner");
-#if defined(XMQTT_BENCH_INBOX)
-    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=K.Version;
-    mqttExampleCheck(xmqttClientInboxCreate(&IK,&Inbox),"shared Inbox echo owner");
-#endif
-    mqttExampleCheck(xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,Inbox,&Connect,&C),"Session echo factory");
+    mqttExampleCheck(xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,&Connect,&C),"Session echo factory");
 #else
     mqttExampleCheck(xmqttClientConnect(P.Engine,&P.Address,1,&K,&Connect,&C),"echo factory");
 #endif
@@ -71,7 +67,7 @@ int main(int Argc,char** Argv)
 #endif
     mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C),"echo physical close");mqttExampleStop(&P);xrtFutureDestroy(Ready);
 #if defined(XMQTT_BENCH_SESSION)
-    mqttExampleCheck(xmqttClientInboxDestroy(Inbox)&&xmqttSessionDestroy(Session),"passive owners retired");
+    mqttExampleCheck(xmqttSessionDestroy(Session),"passive owners retired");
 #endif
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttEchoCompare);
     printf("exchanges_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);

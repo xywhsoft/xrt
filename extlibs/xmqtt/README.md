@@ -59,7 +59,7 @@ automatic reconnect composition uses the controller adapter above. See the [loca
 The independent [in-memory session state](docs/session.md) leaf now implements
 bounded QoS state, cross-connection replay decisions, incoming identity retention
 and expiry. The optional [Client Session factory](docs/client_session.md) now attaches it
-to numeric TCP with explicit reconnect and a shared Inbox. Optional
+to numeric TCP with explicit reconnect. Optional
 [TLS Client Session](docs/client_session_tls.md) composes numeric, hostname and
 prepared-address TLS, including MQTT5 challenge/final-proof authentication.
 [TCP Dial/Auth Session](docs/client_session_dial.md) adds hostname/prepared TCP
@@ -90,10 +90,9 @@ The developing WS/WSS stages above have separate evidence. Optional [hostname/pr
 uses bounded Core DNS and candidate racing with the original setup deadline.
 The [APP Inbox example](examples/inbox/README.md) keeps taken messages across
 Client and Engine destruction. Explicit [Client Session](docs/client_session.md)
-factories restore protocol state over the supported transports. Pass NULL for
-Inbox to use the connection's receive queue. The optional
-[shared Inbox](docs/client_inbox.md) remains available to Session and WebSocket
-callers that share a queue and object budget between connections.
+factories restore protocol state over the supported transports. Each connection
+owns its receive queue and object budget. APPs that retain messages from several
+connections set their own aggregate retention limit.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt
 manifest and `--suite xmqtt_client --no-single`. It asserts handshake, QoS-0

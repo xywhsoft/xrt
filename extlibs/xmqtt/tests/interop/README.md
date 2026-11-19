@@ -3,8 +3,8 @@
 ## Explicit Session recovery with a real broker
 
 `session_broker_probe.c` reuses one passive Session across two fresh Clients
-and Engines. The default probe uses a shared Inbox. Build with `--app-inbox`
-to drain and retain accepted messages in the APP before each Client Destroy. `run_session_broker.py` starts a private pinned Mosquitto 2.1.2 for
+and Engines. The probe drains each retired Client and retains messages in the
+APP before Client Destroy. `run_session_broker.py` starts a private pinned Mosquitto 2.1.2 for
 each case and interposes an independent bounded TCP frame proxy. It drops exactly
 one outgoing-flow PUBACK/PUBREC/PUBCOMP or incoming-flow PUBREC/PUBCOMP, then
 uses stdin barriers driven by observed wire progress to interrupt/reconnect.

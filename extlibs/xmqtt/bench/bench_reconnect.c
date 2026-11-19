@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include <xmqtt/reconnect.h>
 static xmqttclientstatus benchManagedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{return xmqttClientConnectSession(E,Data,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+{return xmqttClientConnectSession(E,Data,A,K,S,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 typedef struct mqttBenchSlot {xfuture* Future;double Start;} mqttBenchSlot;
 static int mqttBenchCompare(const void* Left,const void* Right)
 {double A=*(const double*)Left,B=*(const double*)Right;return A<B?-1:A>B?1:0;}
@@ -21,7 +21,7 @@ int main(int Argc,char** Argv)
         mqttExampleCheck(xmqttReconnectCreate(P.Engine,Pool,1,&RC,&Connect,&Controller),"benchmark controller");double End=xrtTimer()+5;
         while(!xmqttReconnectAcquire(Controller,&Lease)){mqttExampleCheck(xrtTimer()<End,"benchmark online lease");xrtSleep(1);}C=Lease.Client;
     }else{xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=K.Version;SC.ClientId=Connect.Body.Connect.ClientId;
-        mqttExampleCheck(xmqttSessionCreate(&SC,&Session) && xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,NULL,&Connect,&C),"manual Session baseline");}
+        mqttExampleCheck(xmqttSessionCreate(&SC,&Session) && xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,&Connect,&C),"manual Session baseline");}
     xfuture* Ready=xmqttClientReady(C);mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"benchmark CONNACK");
     if(Managed==2){mqttExampleCheck(xmqttReconnectRelease(&Lease),"initial lease release");C=NULL;}
     double* Latencies=malloc((size_t)Count*sizeof(*Latencies));mqttExampleCheck(Latencies!=NULL,"latency storage");mqttBenchSlot Slots[64]={{0}};

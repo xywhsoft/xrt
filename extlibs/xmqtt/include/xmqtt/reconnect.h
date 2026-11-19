@@ -17,7 +17,7 @@ typedef enum xmqttreconnectstate {
 /* Called only on the supplied Engine/Affinity worker, outside controller locks.
  * Use a Session factory with the supplied Engine, affinity and Session.
  * Preserve version, identity and compatible codec. Config is a copied template.
- * The factory can narrow operational budgets and select the receive queue.
+ * The factory can narrow operational budgets.
  * Return OK with one unique Client; another typed status transfers none.
  * Failure classification never depends on an older ambient error. Borrowed
  * inputs last only through this call. Do not wait or retain Session.

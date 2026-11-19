@@ -9,28 +9,29 @@ static void stSeed(xmqttsession* S,xmqttversion V)
 }
 static void stFailures(xmqttversion V)
 {
-    for(unsigned Mode=0;Mode<4;++Mode){xmqttsession* S;xmqttclientinbox* I;stPair(V,&S,&I);stSeed(S,V);xmqttsessioninfo Before=stInfo(S);stPeer P;
+    for(unsigned Mode=0;Mode<4;++Mode){xmqttsession* S;stPair(V,&S);stSeed(S,V);xmqttsessioninfo Before=stInfo(S);stPeer P;
         unsigned Flags=Mode==0?MQTT_TLS_REJECT:Mode==3?MQTT_TLS_BLOCK_DNS:MQTT_TLS_SILENT;stStart(&P,V,Flags,true,0,false);
-        xmqttclientconfig K;xmqttClientConfigInit(&K);K.SetupTimeout=Mode==1?40:10000;xfuture* F=NULL;xmqttclient* C=stConnect(&P,S,I,Mode==3?1:0,false,&K,&F);
+        xmqttclientconfig K;xmqttClientConfigInit(&K);K.SetupTimeout=Mode==1?40:10000;xfuture* F=NULL;xmqttclient* C=stConnect(&P,S,Mode==3?1:0,false,&K,&F);
         if(Mode==2)testRequire(xrtFutureCancel(F),"TLS Session setup cancellation");
         if(Mode==3){mqttTlsWait(&P.TLS.DnsEntered,1,"Session DNS blocked");testRequire(xmqttClientClose(C),"Session close while DNS pending");}
         const xmqttreadyresult* R=stResult(F);testRequire(R->Status==(Mode==0?XMQTT_STATUS_TRANSPORT:Mode==1?XMQTT_STATUS_TIMEOUT:Mode==2?XMQTT_STATUS_CANCELLED:XMQTT_STATUS_CLOSED),"typed Session TLS verification/deadline/cancel/DNS failure");
-        testRequire(xmqttSessionReset(S)==XMQTT_SESSION_STATE_ERROR && !xmqttClientInboxDestroy(I),"both exclusive claims retained until actual Destroy");xrtClearError();stClose(C);mqttTlsStop(&P.TLS);
+        testRequire(xmqttSessionReset(S)==XMQTT_SESSION_STATE_ERROR,"Session claim retained until actual Destroy");xrtClearError();stClose(C);mqttTlsStop(&P.TLS);
         xmqttsessioninfo After=stInfo(S);testRequire(!After.Connected && After.HasState && After.ActiveOutgoing==1 && After.Objects==1 && Before.ExpiresAt==After.ExpiresAt && Before.Generation==After.Generation,"failed secure setup preserves old state and expiry");
-        stStart(&P,V,0,true,0,false);xfuture* Ready=NULL;C=stConnect(&P,S,I,0,false,NULL,&Ready);stReady(C,Ready,S,true,false);stDone(S,C);mqttTlsWait(&P.Publishes,1,"old obligation resumes after failed TLS");stClose(C);mqttTlsStop(&P.TLS);
-        testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"claims recover after failed secure setup");testRequire(R->Status!=XMQTT_STATUS_OK,"old failed TLS outcome never changes after recovery");xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+        stStart(&P,V,0,true,0,false);xfuture* Ready=NULL;C=stConnect(&P,S,0,false,NULL,&Ready);stReady(C,Ready,S,true,false);stDone(S,C);mqttTlsWait(&P.Publishes,1,"old obligation resumes after failed TLS");stClose(C);mqttTlsStop(&P.TLS);
+        testRequire(xmqttSessionDestroy(S),"claims recover after failed secure setup");testRequire(R->Status!=XMQTT_STATUS_OK,"old failed TLS outcome never changes after recovery");xrtFutureDestroy(F);xrtFutureDestroy(Ready);
     }
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 static void stAuthFailure(void)
 {
-    for(unsigned Factory=0;Factory<3;++Factory)for(unsigned Present=0;Present<2;++Present){xmqttsession* S;xmqttclientinbox* I;stPair(XMQTT_VERSION_5,&S,&I);stSeed(S,XMQTT_VERSION_5);xmqttsessioninfo Before=stInfo(S);stPeer P;stStart(&P,XMQTT_VERSION_5,MQTT_TLS_AUTH,Present!=0,0,true);xfuture* F=NULL;
-        xmqttclient* C=stConnect(&P,S,I,Factory,false,NULL,&F);stDecide(C,F,S,true,false);testRequire(((const xmqttreadyresult*)stResult(F))->Status==XMQTT_STATUS_AUTHENTICATION,"final proof rejection precedes Session reset/open/replay");stClose(C);mqttTlsStop(&P.TLS);
-        xmqttsessioninfo After=stInfo(S);xmqttclientinboxinfo Inbox;testRequire(xmqttClientInboxInfo(I,&Inbox) && !Inbox.Messages && !After.Connected && After.HasState && After.ActiveOutgoing==1 && After.Objects==1 && After.Incoming==0 && Before.ExpiresAt==After.ExpiresAt && Before.Generation==After.Generation && !xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE),"denied proof preserves offline state/expiry and publishes no replay or incoming message");
-        testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"denied proof releases passive claims at Destroy");xrtFutureDestroy(F);
+    for(unsigned Factory=0;Factory<3;++Factory)for(unsigned Present=0;Present<2;++Present){xmqttsession* S;stPair(XMQTT_VERSION_5,&S);stSeed(S,XMQTT_VERSION_5);xmqttsessioninfo Before=stInfo(S);stPeer P;stStart(&P,XMQTT_VERSION_5,MQTT_TLS_AUTH,Present!=0,0,true);xfuture* F=NULL;
+        xmqttclient* C=stConnect(&P,S,Factory,false,NULL,&F);stDecide(C,F,S,true,false);testRequire(((const xmqttreadyresult*)stResult(F))->Status==XMQTT_STATUS_AUTHENTICATION,"final proof rejection precedes Session reset/open/replay");xmqttmessage* Message=NULL;
+        testRequire(!xmqttClientTakeMessage(C,&Message),"proof rejection keeps the receive queue empty");stClose(C);mqttTlsStop(&P.TLS);
+        xmqttsessioninfo After=stInfo(S);testRequire(!After.Connected && After.HasState && After.ActiveOutgoing==1 && After.Objects==1 && After.Incoming==0 && Before.ExpiresAt==After.ExpiresAt && Before.Generation==After.Generation && !xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE),"denied proof preserves offline state/expiry and publishes no replay or incoming message");
+        testRequire(xmqttSessionDestroy(S),"denied proof releases passive claims at Destroy");xrtFutureDestroy(F);
     }
-    xmqttsession* S;xmqttclientinbox* I;stPair(XMQTT_VERSION_5,&S,&I);stPeer P;stStart(&P,XMQTT_VERSION_5,MQTT_TLS_AUTH,true,0,false);xfuture* F=NULL;xmqttclient* C=stConnect(&P,S,I,0,false,NULL,&F);stDecide(C,F,S,true,true);
-    testRequire(((const xmqttreadyresult*)stResult(F))->Status==XMQTT_STATUS_SESSION,"accepted proof cannot adopt broker-present state without local state");stClose(C);mqttTlsStop(&P.TLS);testRequire(!stInfo(S).HasState && xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"no fabricated retained Session after authenticated mismatch");xrtFutureDestroy(F);
+    xmqttsession* S;stPair(XMQTT_VERSION_5,&S);stPeer P;stStart(&P,XMQTT_VERSION_5,MQTT_TLS_AUTH,true,0,false);xfuture* F=NULL;xmqttclient* C=stConnect(&P,S,0,false,NULL,&F);stDecide(C,F,S,true,true);
+    testRequire(((const xmqttreadyresult*)stResult(F))->Status==XMQTT_STATUS_SESSION,"accepted proof cannot adopt broker-present state without local state");stClose(C);mqttTlsStop(&P.TLS);testRequire(!stInfo(S).HasState && xmqttSessionDestroy(S),"no fabricated retained Session after authenticated mismatch");xrtFutureDestroy(F);
 }
 static void stOrdinaryAuth(void)
 {
@@ -45,25 +46,25 @@ static void stOrdinaryAuth(void)
 #endif
 static void stCtor(void)
 {
-    stPeer P;stStart(&P,XMQTT_VERSION_5,0,false,0,false);xmqttsession* S;xmqttclientinbox* I;stPair(XMQTT_VERSION_5,&S,&I);
+    stPeer P;stStart(&P,XMQTT_VERSION_5,0,false,0,false);xmqttsession* S;stPair(XMQTT_VERSION_5,&S);
     xmqttclienttlsconfig T;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* V=mqttTlsConfigure(&P.TLS,&T,Name,&Protocol,Alpn);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("tls-session");xmqttclient* C=(xmqttclient*)(uintptr_t)1;
-    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,NULL,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"NULL Session preserves constructor output");
-    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,NULL,1,NULL,&T,S,NULL,&Q,&C) && !xmqttClientTlsDialAddressesSession(P.TLS.Engine,NULL,1,NULL,&T,S,NULL,&Q,&C),"invalid TLS Session endpoints");
-    xmqttclientconfig K;xmqttClientConfigInit(&K);K.MaxPrivateBytes=1;testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,&K,&T,S,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"combined TLS/driver private bound before claim publication");
-    Q.Body.Connect.ClientId=XRT_STR_LITERAL("wrong-id");testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,I,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"identity mismatch rolls back prepared TLS");
+    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,NULL,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"NULL Session preserves constructor output");
+    testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,NULL,1,NULL,&T,S,&Q,&C) && !xmqttClientTlsDialAddressesSession(P.TLS.Engine,NULL,1,NULL,&T,S,&Q,&C),"invalid TLS Session endpoints");
+    xmqttclientconfig K;xmqttClientConfigInit(&K);K.MaxPrivateBytes=1;testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,&K,&T,S,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"combined TLS/driver private bound before claim publication");
+    Q.Body.Connect.ClientId=XRT_STR_LITERAL("wrong-id");testRequire(!xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,&Q,&C) && C==(xmqttclient*)(uintptr_t)1,"identity mismatch rolls back prepared TLS");
     xrtTlsVerifierRelease(V);testRequire(xrtAtomic32Load(&P.TLS.VerifierDrops,XMEMORY_ACQUIRE)==1,"failed constructor retains no native verifier");
-    testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"invalid factory releases both passive claims");mqttTlsStop(&P.TLS);xrtClearError();
+    testRequire(xmqttSessionDestroy(S),"invalid factory leaves Session reusable");mqttTlsStop(&P.TLS);xrtClearError();
 }
 static void stAllocation(void)
 {
     static const size_t Limits[]={1,128,4096,16384,65536,131072,1048576};unsigned Failed=0,Passed=0;
-    for(unsigned J=0;J<sizeof(Limits)/sizeof(*Limits);++J){stPeer P;stStart(&P,XMQTT_VERSION_5,0,false,0,false);xmqttsession* S;xmqttclientinbox* I;stPair(XMQTT_VERSION_5,&S,&I);
+    for(unsigned J=0;J<sizeof(Limits)/sizeof(*Limits);++J){stPeer P;stStart(&P,XMQTT_VERSION_5,0,false,0,false);xmqttsession* S;stPair(XMQTT_VERSION_5,&S);
         xmqttclienttlsconfig T;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* V=mqttTlsConfigure(&P.TLS,&T,Name,&Protocol,Alpn);xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("tls-session");
         xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limits[J],&B) && xrtAllocationBudgetEnter(B,&Scope),"TLS Session allocator prefix");xmqttclient* C=(xmqttclient*)(uintptr_t)1;
-        bool OK=xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,I,&Q,&C);testRequire(xrtAllocationBudgetLeave(&Scope),"leave TLS Session caller scope");xrtTlsVerifierRelease(V);
+        bool OK=xmqttClientTlsConnectSession(P.TLS.Engine,&P.TLS.Address,1,NULL,&T,S,&Q,&C);testRequire(xrtAllocationBudgetLeave(&Scope),"leave TLS Session caller scope");xrtTlsVerifierRelease(V);
         if(OK){++Passed;xfuture* F=xmqttClientReady(C);(void)stResult(F);stClose(C);xrtFutureDestroy(F);}else {++Failed;testRequire(C==(xmqttclient*)(uintptr_t)1,"TLS Session OOM leaves output unchanged");}
-        testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(I),"TLS Session constructor/physical claims retire");mqttTlsStop(&P.TLS);xrtClearError();xallocationbudgetinfo Info={.Size=sizeof(Info)};testRequire(xrtAllocationBudgetInfo(B,&Info) && !Info.LiveBytes && !Info.LiveCount,"combined factory allocator duties physically refunded");xrtAllocationBudgetFree(B);
+        testRequire(xmqttSessionDestroy(S),"TLS Session constructor/physical claims retire");mqttTlsStop(&P.TLS);xrtClearError();xallocationbudgetinfo Info={.Size=sizeof(Info)};testRequire(xrtAllocationBudgetInfo(B,&Info) && !Info.LiveBytes && !Info.LiveCount,"combined factory allocator duties physically refunded");xrtAllocationBudgetFree(B);
     }testRequire(Failed && Passed,"TLS Session allocation prefixes cover failure and success");
 }
 #endif

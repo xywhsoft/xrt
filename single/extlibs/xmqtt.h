@@ -215,9 +215,6 @@
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #endif
@@ -679,21 +676,11 @@
 #ifndef XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #define XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
-#endif
-#endif
-
-/* xmqtt_client_inbox 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
-#ifndef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#define XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT
-#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #endif
 
@@ -2174,49 +2161,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/client_inbox.h */
-/* ========================================================================== */
-
-#ifndef XMQTT_CLIENT_INBOX_H
-#define XMQTT_CLIENT_INBOX_H
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) && !defined(XMQTT_FEATURE_XMQTT_CLIENT)
-#error "MQTT Client Inbox requires Client"
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-typedef struct xmqttclientinbox xmqttclientinbox;
-typedef struct xmqttclientinboxconfig {
-    size_t Size;xmqttversion Version;
-    size_t MaxObjects,MaxObjectBytes,MaxMessages,MaxMessageBytes;
-} xmqttclientinboxconfig;
-typedef struct xmqttclientinboxinfo {
-    size_t Size;bool Attached;
-    size_t Messages,MessageBytes,Objects,ObjectBytes;
-} xmqttclientinboxinfo;
-XRT_EXTERN_C_BEGIN
-/* Passive, Engine-independent receive queue and shared result/message quota.
- * Defaults match Client: MQTT5, 512 objects/16 MiB, 64 queued/8 MiB.
- * Config is copied; fixed object/mutex/quota metadata is outside these budgets. */
-XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* Config);
-XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Inbox);
-/* Thread-safe with stable owner. Transfer one reference, false/unchanged when
- * empty. ClientTakeMessage consumes this same queue, including earlier messages.
- * No callback runs under Inbox locks. Take works while offline; neither Take
- * returns MQTT protocol credit. Message bytes are the existing owned allocation. */
-XMQTT_API bool xmqttClientInboxTake(xmqttclientinbox* Inbox,xmqttmessage** Message);
-/* Queue and object gauges are separately sampled; objects include retained
- * taken messages/results, while Messages counts only queued PUBLISH messages.
- * ClientInfo reports these shared gauges and per-connection Received/counters. */
-XMQTT_API bool xmqttClientInboxInfo(xmqttclientinbox* Inbox,xmqttclientinboxinfo* Info);
-/* Reject while attached, preserving Inbox. Stop all concurrent Inbox API entries
- * before Destroy. Releases untaken messages; taken messages/results may outlive
- * Inbox and every Client/Engine. NULL is accepted. */
-XMQTT_API bool xmqttClientInboxDestroy(xmqttclientinbox* Inbox);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt/client_session.h */
 /* ========================================================================== */
 
@@ -2224,25 +2168,23 @@ XRT_EXTERN_C_END
 #define XMQTT_CLIENT_SESSION_H
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
-#error "MQTT Client Session requires Client Inbox and Session"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
+#error "MQTT Client Session requires Client and Session"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XRT_EXTERN_C_BEGIN
 /* Explicit numeric TCP connection using a caller-owned protocol Session.
- * The optional Inbox and the Session are exclusive through Client Destroy.
- * Version/ClientId must match Session. A supplied Inbox must match the four
- * Client object/message caps. With NULL Inbox, receive messages are queued
- * on the connection. Take owned messages before Destroy to keep them across
- * connections. Protocol recovery works with either receive queue.
+ * The Session is exclusive through Client Destroy. Version and ClientId must
+ * match Session. Each connection owns its receive queue and object limits.
+ * Take messages before Destroy and retain their references across connections.
  * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
  * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
  * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
  * Non-packet codec limits must fit Session, with the same UTF-8 policy. The
  * connection packet cap may grow to render an alias-expanded canonical replay;
  * Session borrows that codec only while claimed, never after Client destruction.
- * Bind Session/Inbox to one logical broker/security principal. Neither captures
- * credentials or owns an Engine. Constructor failure changes no Client output.
+ * Bind Session to one logical broker/security principal. It captures no
+ * credentials and owns no Engine. Constructor failure changes no Client output.
  * Old obligations reserve request slots/outgoing wire bytes during setup. A
  * successful accepted CONNACK restores only actual retained state; missing state
  * follows Session's version-specific reset/fail-closed policy. Replay borrows
@@ -2255,7 +2197,7 @@ XRT_EXTERN_C_BEGIN
  * A prior-generation ACK arriving during a partial PUBLISH replay commits its
  * protocol progress and retires that transport with SESSION status. This avoids
  * continuing an abandoned frame or introducing an unnecessary second delivery.
- * Accepted incoming QoS 2 deliveries enter the selected receive queue once
+ * Accepted incoming QoS 2 deliveries enter the connection's receive queue once
  * before PUBREC. The Session keeps their duplicate identities across reconnect.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
@@ -2275,7 +2217,7 @@ XRT_EXTERN_C_BEGIN
  * authentication is selected independently. The optional reconnect controller
  * adds automatic generation management; durable recovery remains separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 enhanced authentication on numeric TCP. Auth tickets, challenge rounds,
@@ -2286,7 +2228,7 @@ XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remo
  * Auth/CONNECT are copied; credentials are not stored in the passive Session.
  * Reauthentication uses the existing connection and does not reopen Session. */
 XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
@@ -2305,7 +2247,7 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
 XRT_EXTERN_C_BEGIN
-/* Explicit persistent protocol Session/Inbox with mandatory authenticated TLS.
+/* Explicit persistent protocol Session with mandatory authenticated TLS.
  * Identity/codec/quota/exclusive claims follow Client Session; metadata snapshots,
  * verifier/identity retention, one entry setup deadline and actual ciphertext
  * retirement follow Client TLS. Caller binds passive state to one logical
@@ -2319,26 +2261,26 @@ XRT_EXTERN_C_BEGIN
  * request fence tail, ciphertext buffers and native retirement still have costs.
  * No cleartext fallback, automatic reconnect or durable store is implied. */
 XMQTT_API bool xmqttClientTlsConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialSession(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialAddressesSession(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 challenge/final-proof/reauthentication is independent of TLS mutual
  * authentication. Session opening and replay wait for initial proof acceptance. */
 XMQTT_API bool xmqttClientTlsConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialSessionAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialAddressesSessionAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
 #endif
@@ -2356,7 +2298,7 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
 XRT_EXTERN_C_BEGIN
-/* Explicit TCP Session/Inbox with hostname or prepared endpoints. All passive
+/* Explicit TCP Session with hostname or prepared endpoints. All passive
  * ownership, identity, replay and physical-retirement rules follow Client Session.
  * Dial copies host/config/CONNECT and retains prepared endpoints before return.
  * Resolver stays alive through physical Client retirement; detached shared DNS
@@ -2368,20 +2310,20 @@ XRT_EXTERN_C_BEGIN
  * Output changes only on success. Neither passive owner stores credentials.
  * TCP has no transport encryption; select client_session_tls for TLS. */
 XMQTT_API bool xmqttClientDialSession(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientDialAddressesSession(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 challenge/final-proof/reauthentication follow Client Auth. Application
  * final proof gates Session opening and replay; all deadlines share factory entry. */
 XMQTT_API bool xmqttClientDialSessionAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientDialAddressesSessionAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
 #endif
@@ -2409,7 +2351,7 @@ typedef enum xmqttreconnectstate {
 /* Called only on the supplied Engine/Affinity worker, outside controller locks.
  * Use a Session factory with the supplied Engine, affinity and Session.
  * Preserve version, identity and compatible codec. Config is a copied template.
- * The factory can narrow operational budgets and select the receive queue.
+ * The factory can narrow operational budgets.
  * Return OK with one unique Client; another typed status transfers none.
  * Failure classification never depends on an older ambient error. Borrowed
  * inputs last only through this call. Do not wait or retain Session.
@@ -4905,14 +4847,9 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* Worker,xm
 #ifndef XMQTT_INTERNAL_CLIENT_STORE_H
 #define XMQTT_INTERNAL_CLIENT_STORE_H
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-/* Test/protocol integration entry permitting a legacy Writer with a caller
- * Inbox. The public factory requires explicit durable Inbox mode. */
 typedef xmqttclientstoreclock xmqttstorewall;
 typedef struct xmqttclientstoreplan {xmqttstorewrite* Writer;xmqttstorewall Wall;ptr User;} xmqttclientstoreplan;
-XMQTT_INTERNAL bool xmqttInternalClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
-    const xmqttpacket* Connect,const xmqttclientstoreplan* Store,xmqttclient** Client);
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,bool RequireInbox,
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
     xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool);
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable);
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
@@ -6946,12 +6883,6 @@ typedef struct xmqtttlsstate {
 } xmqtttlsstate;
 #endif
 struct xmqttmessage {xatomic32 Refs;xmqttbox Box;xmqttpacket Packet;xmqttmessage* Next;xmqttproperty Props[];};
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-struct xmqttclientinbox {
-    xmutex Gate;xmqttclientinboxconfig Config;xmqttquota* Quota;
-    xmqttclient* Client;xmqttmessage *Head,*Tail;size_t Count,Bytes;
-};
-#endif
 struct xmqttrequest {
     xatomic32 Refs,NativeRefs;
     xmqttclient* Client;xmqttrequest *Next,*Previous,*HashNext;
@@ -7052,9 +6983,6 @@ struct xmqttclient {
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
     const xmqttclientlifecycle* Lifecycle;
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    xmqttclientinbox* Inbox;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     xmqttsessiondriver* Session;
@@ -7304,7 +7232,7 @@ static bool xmqttStoreClientAttach(xmqttclient* C,const xmqttclientstoreplan* P)
     if(Bytes>C->Config.MaxPrivateBytes-C->Info.PrivateBytes)return xmqttClientError(XERR_RANGE,"store continuation exceeds private budget");
     xmqttclientstorestate* D=xrtCalloc(1,Bytes);if(!D)return false;
     C->Store=D;D->Plan=*P;xrtAtomic32Init(&D->Watching,0);C->Info.PrivateBytes+=Bytes;
-    if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,C->Session->State,!C->Inbox,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
+    if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,C->Session->State,&D->Delta,&D->Initial,&D->EverOpened,&D->Pool))return false;
     D->Claimed=true;xmqttsessioninfo I;xstrview Id;
     if(!xmqttSessionInfo(C->Session->State,&I)||!xmqttSessionClientId(C->Session->State,&Id))return false;
     if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing!=I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
@@ -7550,58 +7478,6 @@ XMQTT_API void xmqttMessageRelease(const xmqttmessage* Message)
     if(M->Packet.Type==XMQTT_PACKET_AUTH || M->Packet.Type==XMQTT_PACKET_CONNACK)xrtSecureZero((ptr)M->Packet.Wire.Data,M->Packet.Wire.Size);
 #endif
     xmqttBoxFree(M,M->Box);}}
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* K)
-{
-    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox config output");
-    *K=(xmqttclientinboxconfig){sizeof(*K),XMQTT_VERSION_5,512,16u*1024u*1024u,64,8u*1024u*1024u};return true;
-}
-XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Out)
-{
-    xmqttclientinboxconfig K;
-    if(Config){if(!xrtMemRangeValid(Config,sizeof(*Config)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox config");K=*Config;}else xmqttClientInboxConfigInit(&K);
-    if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || K.Size!=sizeof(K) ||
-       (K.Version!=XMQTT_VERSION_5 && K.Version!=XMQTT_VERSION_311) || K.MaxObjects<2 || K.MaxObjects>UINT32_MAX/8u ||
-       !K.MaxObjectBytes || !K.MaxMessages || !K.MaxMessageBytes)return xmqttClientError(XERR_ARGUMENT,"invalid Inbox limits");
-    xmqttclientinbox* I=xrtCalloc(1,sizeof(*I));if(!I)return false;
-    if(!xrtMutexInit(&I->Gate)){xrtFree(I);return false;}
-    I->Config=K;I->Quota=xmqttQuotaCreate(K.MaxObjects,K.MaxObjectBytes);
-    if(!I->Quota){xrtMutexUnit(&I->Gate);xrtFree(I);return false;}*Out=I;return true;
-}
-static bool xmqttInboxPut(xmqttclient* C,xmqttclientinbox* I,xmqttmessage* M)
-{
-    xrtMutexLock(&I->Gate);bool Full=I->Count==I->Config.MaxMessages || M->Box.Bytes>I->Config.MaxMessageBytes-I->Bytes;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    if(!Full && C->Session && ((M->Packet.Flags>>1)&3u)==2 && xmqttInternalSessionReceive(C->Session->State,C,M->Packet.Identifier,1,NULL)!=XMQTT_SESSION_DONE)abort();
-#else
-    (void)C;
-#endif
-    if(!Full){if(I->Tail)I->Tail->Next=M;else I->Head=M;I->Tail=M;++I->Count;I->Bytes+=M->Box.Bytes;}
-    xrtMutexUnlock(&I->Gate);return !Full;
-}
-XMQTT_API bool xmqttClientInboxTake(xmqttclientinbox* I,xmqttmessage** Out)
-{
-    if(!I || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox message output");
-    xrtMutexLock(&I->Gate);xmqttmessage* M=I->Head;
-    if(M){I->Head=M->Next;if(!I->Head)I->Tail=NULL;--I->Count;I->Bytes-=M->Box.Bytes;M->Next=NULL;}
-    xrtMutexUnlock(&I->Gate);if(!M)return false;*Out=M;return true;
-}
-XMQTT_API bool xmqttClientInboxInfo(xmqttclientinbox* I,xmqttclientinboxinfo* Out)
-{
-    if(!I || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox info output");
-    xrtMutexLock(&I->Gate);xmqttclientinboxinfo V={sizeof(V),I->Client!=NULL,I->Count,I->Bytes,0,0};xrtMutexUnlock(&I->Gate);
-    xrtMutexLock(&I->Quota->Gate);V.Objects=I->Quota->Count;V.ObjectBytes=I->Quota->Bytes;xrtMutexUnlock(&I->Quota->Gate);*Out=V;return true;
-}
-XMQTT_API bool xmqttClientInboxDestroy(xmqttclientinbox* I)
-{
-    if(!I)return true;
-    xrtMutexLock(&I->Gate);
-    if(I->Client){xrtMutexUnlock(&I->Gate);return xmqttClientError(XERR_STATE,"Inbox still attached to Client");}
-    xmqttmessage* M=I->Head;xrtMutexUnlock(&I->Gate);
-    while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
-    xmqttQuotaDrop(I->Quota);xrtMutexUnit(&I->Gate);xrtFree(I);return true;
-}
-#endif
 static void xmqttReadyFree(ptr Value,ptr Context)
 {(void)Context;xmqttreadybox* B=Value;xmqttMessageRelease(B->Value.Connack);xrtErrorFree((xerror*)B->Value.Cause);xmqttBoxFree(B,B->Box);}
 static xmqttwritebox* xmqttWriteBoxCreate(xmqttclient* C,bool Durable,xmqttclientstatus* Failure)
@@ -8665,7 +8541,7 @@ static void xmqttClientSessionDisconnect(xmqttclient* C,xmqttrequest* R)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 /* The Engine owns pending receive state. The journal owns the delivery bytes
- * after commit, so no second message is published into the volatile Inbox. */
+ * after commit, so no second message is published into the connection-local receive queue. */
 static void xmqttStoreClientReceiveResult(xmqttclient* C,bool Committed,bool Send)
 {
     xmqttclientstorestate* D=C->Store;
@@ -9195,20 +9071,14 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
         if(S!=XMQTT_SESSION_DONE){xmqttMessageRelease(M);xmqttClientFail(C,S==XMQTT_SESSION_LIMIT?XMQTT_STATUS_LIMIT:XMQTT_STATUS_SESSION,S==XMQTT_SESSION_LIMIT?NULL:xrtGetError());return false;}Prepared=true;}
 #endif
     xrtMutexLock(&C->Gate);
-    bool Full;
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(C->Inbox){Full=!xmqttInboxPut(C,C->Inbox,M);if(!Full)++C->Info.Received;}else
-#endif
-    {
-        Full=C->Info.Messages==C->Config.MaxMessages || M->Box.Bytes>C->Config.MaxMessageBytes-C->Info.MessageBytes;
-        if(!Full){
+    bool Full=C->Info.Messages==C->Config.MaxMessages || M->Box.Bytes>C->Config.MaxMessageBytes-C->Info.MessageBytes;
+    if(!Full){
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-            if(Prepared && xmqttInternalSessionReceive(C->Session->State,C,P->Identifier,1,NULL)!=XMQTT_SESSION_DONE)abort();
+        if(Prepared && xmqttInternalSessionReceive(C->Session->State,C,P->Identifier,1,NULL)!=XMQTT_SESSION_DONE)abort();
 #endif
-            if(C->MessageTail)C->MessageTail->Next=M;else C->MessageHead=M;
-            C->MessageTail=M;
-            ++C->Info.Messages;C->Info.MessageBytes+=M->Box.Bytes;++C->Info.Received;
-        }
+        if(C->MessageTail)C->MessageTail->Next=M;else C->MessageHead=M;
+        C->MessageTail=M;
+        ++C->Info.Messages;C->Info.MessageBytes+=M->Box.Bytes;++C->Info.Received;
     }
     xrtMutexUnlock(&C->Gate);
     if(Full){
@@ -10219,12 +10089,9 @@ static void xmqttClientFree(xmqttclient* C)
     if(C->Auth){xrtSecureZero(C->Input,C->InputCapacity);xrtSecureZero(C->Auth->MethodBytes,C->Auth->Method.Size);xrtFree(C->Auth);}
 #endif
     xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(C->Inbox){xmqttclientinbox* I=C->Inbox;xrtMutexLock(&I->Gate);if(I->Client!=C)abort();I->Client=NULL;xrtMutexUnlock(&I->Gate);}
-#endif
     (void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
-static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan,void* InboxPlan,void* SessionPlan,const void* WsPlan XMQTT_CLIENT_STORE_PARAM)
+static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan,void* SessionPlan,const void* WsPlan XMQTT_CLIENT_STORE_PARAM)
 {
     bool Planned=false;size_t HostBytes=0,TlsBytes=0,SessionBytes=0,WsBytes=0;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
@@ -10264,13 +10131,6 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
        !K.MaxMessages || !K.MaxMessageBytes || !K.MaxSetupBytes || K.InitialInputBytes<5 || K.InitialInputBytes>K.Codec.MaxPacketBytes ||
        !K.ReadBytes || !K.WriteBytes || !K.WriteChunkBytes || !K.WorkPackets || K.SetupTimeout<0 || K.PingTimeout<=0 || K.CloseTimeout<=0)
         return xmqttClientError(XERR_ARGUMENT,"invalid MQTT client configuration");
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    xmqttclientinbox* Inbox=InboxPlan;
-    if(Inbox && (K.Version!=Inbox->Config.Version || K.MaxObjects!=Inbox->Config.MaxObjects || K.MaxObjectBytes!=Inbox->Config.MaxObjectBytes ||
-       K.MaxMessages!=Inbox->Config.MaxMessages || K.MaxMessageBytes!=Inbox->Config.MaxMessageBytes))return xmqttClientError(XERR_ARGUMENT,"Client and Inbox limits differ");
-#else
-    (void)InboxPlan;
-#endif
     if(!xrtNetStreamConfigValid(&K.Stream))return false;
     size_t WireBytes=0;bool Valid=K.Version==XMQTT_VERSION_5?xmqttPacketSize5(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes):xmqttPacketSize311(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes);
     if(!Valid)return false;
@@ -10334,13 +10194,7 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
         C->Auth->Method=(xstrview){C->Auth->MethodBytes,Method.Size};if(Method.Size)memcpy(C->Auth->MethodBytes,Method.Data,Method.Size);
         C->Auth->Active=C->Auth->AwaitServer=true;C->Auth->Deadline=C->SetupDeadline;C->Auth->StepDeadline=INFINITY;}
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(Inbox){xrtMutexLock(&Inbox->Gate);
-        if(Inbox->Client){xrtMutexUnlock(&Inbox->Gate);xmqttClientError(XERR_STATE,"Inbox already attached");goto Fail;}
-        Inbox->Client=C;C->Inbox=Inbox;C->Quota=Inbox->Quota;(void)xrtAtomic32FetchAdd(&C->Quota->Refs,1,XMEMORY_RELAXED);xrtMutexUnlock(&Inbox->Gate);
-    }else
-#endif
-    {C->Quota=xmqttQuotaCreate(K.MaxObjects,K.MaxObjectBytes);if(!C->Quota)goto Fail;}
+    C->Quota=xmqttQuotaCreate(K.MaxObjects,K.MaxObjectBytes);if(!C->Quota)goto Fail;
     C->Input=xrtMalloc(K.InitialInputBytes);if(!C->Input)goto Fail;C->InputCapacity=K.InitialInputBytes;
     xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
     C->ReadyBox=xmqttBoxAllocate(C->Quota,sizeof(xmqttreadybox)+Connect->Body.Connect.ClientId.Size,&Failure);if(!C->ReadyBox){if(Failure==XMQTT_STATUS_LIMIT)xmqttClientError(XERR_RANGE,"ready result budget");goto Fail;}
@@ -10395,10 +10249,10 @@ Fail:
     xrtPromiseDestroy(C->ReadyPromise);C->ReadyPromise=NULL;if(C->ReadyBox)xmqttReadyFree(C->ReadyBox,NULL);xmqttStartupRetire(C);xmqttClientFree(C);return false;
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
+{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-XMQTT_API bool xmqttClientConnectSession(xnetengine* E,const xnetaddr* A,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** Out)
-{double Now=xrtTimer();if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");return xmqttClientConnectImpl(E,A,Affinity,K,Q,Out,NULL,Now,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
+XMQTT_API bool xmqttClientConnectSession(xnetengine* E,const xnetaddr* A,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,xmqttclient** Out)
+{double Now=xrtTimer();if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");return xmqttClientConnectImpl(E,A,Affinity,K,Q,Out,NULL,Now,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
@@ -10410,15 +10264,15 @@ static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Out)
 {
     double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttauthconfig* Auth,
-    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+    xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");
     if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(E,R,A,C,Q,O,&K,At,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientConnectImpl(E,R,A,C,Q,O,&K,At,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 #endif
@@ -10467,7 +10321,7 @@ static bool xmqttTlsPlanCreate(const xmqttclienttlsconfig* K,xstrview Host,xmqtt
 }
 #endif
 static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const void* Auth,const xmqttpacket* Connect,xmqttclient** Out,double Entered,const void* TLS,void* Inbox,void* Session,const void* WsPlan XMQTT_CLIENT_STORE_PARAM)
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const void* Auth,const xmqttpacket* Connect,xmqttclient** Out,double Entered,const void* TLS,void* Session,const void* WsPlan XMQTT_CLIENT_STORE_PARAM)
 {
     if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) || xrtMemRangesOverlap(Dial,sizeof(*Dial),Out,sizeof(*Out)))))
         return xmqttClientError(XERR_ARGUMENT,"invalid Dial config/output");
@@ -10489,143 +10343,143 @@ static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnet
     P.Config.Family=K.Family;P.Config.Timeout=K.Timeout;P.Config.FallbackDelay=K.FallbackDelay;P.Config.MaxAttempts=K.MaxAttempts;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
     xmqtttlsplan T={0};if(TLS && !xmqttTlsPlanCreate(TLS,Host,Out,&T))return false;
-    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL,Inbox,Session,WsPlan XMQTT_CLIENT_STORE_ARG(StorePlan));
+    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL,Session,WsPlan XMQTT_CLIENT_STORE_ARG(StorePlan));
     if(!OK)xrtTlsSessionDestroy(T.Session);
     return OK;
 #else
-    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS,Inbox,Session,WsPlan XMQTT_CLIENT_STORE_ARG(StorePlan));
+    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS,Session,WsPlan XMQTT_CLIENT_STORE_ARG(StorePlan));
 #endif
 }
 XMQTT_API bool xmqttClientDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,xrtTimer(),NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
+{return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,xrtTimer(),NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 XMQTT_API bool xmqttClientDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,Entered,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,Entered,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 XMQTT_API bool xmqttClientDialAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,Entered,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,Entered,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered,NULL,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered,NULL,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
 XMQTT_API bool xmqttClientDialSession(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
-    const xmqttclientdialconfig* D,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+    const xmqttclientdialconfig* D,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");
-    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,At,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,At,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientDialAddressesSession(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
-    const xmqttclientdialconfig* D,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+    const xmqttclientdialconfig* D,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!S || !L)return xmqttClientError(XERR_ARGUMENT,"Session and endpoints are required");
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,At,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,At,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 XMQTT_API bool xmqttClientDialSessionAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
-    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");
     if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,At,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,At,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientDialAddressesSessionAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
-    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!S || !L)return xmqttClientError(XERR_ARGUMENT,"Session and endpoints are required");
     if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,At,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,At,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 #endif
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
 static bool xmqttClientTlsFactory(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* L,const xnetaddr* Address,xstrview H,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* K,const xmqttclienttlsconfig* TLS,const void* Auth,const xmqttpacket* Q,xmqttclient** Out,double Entered,void* Inbox,void* Session XMQTT_CLIENT_STORE_PARAM)
+    const xmqttclientconfig* K,const xmqttclienttlsconfig* TLS,const void* Auth,const xmqttpacket* Q,xmqttclient** Out,double Entered,void* Session XMQTT_CLIENT_STORE_PARAM)
 {
     if(!TLS || !xrtMemRangeValid(TLS,sizeof(*TLS)) || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) ||
        xrtMemRangesOverlap(TLS,sizeof(*TLS),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid TLS config/output");
     xnetaddrlist* Temporary=NULL;
     if(Address){if(!xrtMemRangeValid(Address,sizeof(*Address)) || xrtMemRangesOverlap(Address,sizeof(*Address),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid TLS numeric endpoint/output");
         Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary)return false;L=Temporary;}
-    bool OK=xmqttClientDialCreate(E,Resolver,L,H,Port,Affinity,K,&TLS->Dial,Auth,Q,Out,Entered,TLS,Inbox,Session,NULL XMQTT_CLIENT_STORE_ARG(StorePlan));
+    bool OK=xmqttClientDialCreate(E,Resolver,L,H,Port,Affinity,K,&TLS->Dial,Auth,Q,Out,Entered,TLS,Session,NULL XMQTT_CLIENT_STORE_ARG(StorePlan));
     xrtNetAddrListDestroy(Temporary);return OK;
 }
 XMQTT_API bool xmqttClientTlsConnect(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");
-    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,NULL,Q,O,At,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,NULL,Q,O,At,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientTlsDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,NULL,Q,O,xrtTimer(),NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));}
+{return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,NULL,Q,O,xrtTimer(),NULL XMQTT_CLIENT_STORE_ARG(NULL));}
 XMQTT_API bool xmqttClientTlsDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");
-    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,NULL,Q,O,At,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,NULL,Q,O,At,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 XMQTT_API bool xmqttClientTlsConnectAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,&K,Q,O,At,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,&K,Q,O,At,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientTlsDialAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,&K,Q,O,At,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,&K,Q,O,At,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 XMQTT_API bool xmqttClientTlsDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,&K,Q,O,At,NULL,NULL XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,&K,Q,O,At,NULL XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
 static bool xmqttClientSessionTlsFactory(xnetengine* E,xnetresolver* R,xnetaddrlist* L,const xnetaddr* Address,xstrview H,uint16 Port,uint64 A,
-    const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const void* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O,double At)
+    const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const void* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O,double At)
 {
     if(!S)return xmqttClientError(XERR_ARGUMENT,"Session is required");
-    return xmqttClientTlsFactory(E,R,L,Address,H,Port,A,C,T,Auth,Q,O,At,I,S XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientTlsFactory(E,R,L,Address,H,Port,A,C,T,Auth,Q,O,At,S XMQTT_CLIENT_STORE_ARG(NULL));
 }
-XMQTT_API bool xmqttClientTlsConnectSession(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+XMQTT_API bool xmqttClientTlsConnectSession(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");
-    return xmqttClientSessionTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,NULL,S,I,Q,O,At);
+    return xmqttClientSessionTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,NULL,S,Q,O,At);
 }
-XMQTT_API bool xmqttClientTlsDialSession(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttClientSessionTlsFactory(E,R,NULL,NULL,H,P,A,C,T,NULL,S,I,Q,O,xrtTimer());}
-XMQTT_API bool xmqttClientTlsDialAddressesSession(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+XMQTT_API bool xmqttClientTlsDialSession(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
+{return xmqttClientSessionTlsFactory(E,R,NULL,NULL,H,P,A,C,T,NULL,S,Q,O,xrtTimer());}
+XMQTT_API bool xmqttClientTlsDialAddressesSession(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");
-    return xmqttClientSessionTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,NULL,S,I,Q,O,At);
+    return xmqttClientSessionTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,NULL,S,Q,O,At);
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
-XMQTT_API bool xmqttClientTlsConnectSessionAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+XMQTT_API bool xmqttClientTlsConnectSessionAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientSessionTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,&K,S,I,Q,O,At);
+    return xmqttClientSessionTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,&K,S,Q,O,At);
 }
-XMQTT_API bool xmqttClientTlsDialSessionAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+XMQTT_API bool xmqttClientTlsDialSessionAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientSessionTlsFactory(E,R,NULL,NULL,H,P,A,C,T,&K,S,I,Q,O,At);
+    return xmqttClientSessionTlsFactory(E,R,NULL,NULL,H,P,A,C,T,&K,S,Q,O,At);
 }
-XMQTT_API bool xmqttClientTlsDialAddressesSessionAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+XMQTT_API bool xmqttClientTlsDialAddressesSessionAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,xmqttsession* S,const xmqttpacket* Q,xmqttclient** O)
 {
     double At=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientSessionTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,&K,S,I,Q,O,At);
+    return xmqttClientSessionTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,&K,S,Q,O,At);
 }
 #endif
 #endif
@@ -10825,9 +10679,6 @@ XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* C,const xmqttp
 XMQTT_API bool xmqttClientTakeMessage(xmqttclient* C,xmqttmessage** Out)
 {
     if(!C || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid message output");
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(C->Inbox)return xmqttClientInboxTake(C->Inbox,Out);
-#endif
     xrtMutexLock(&C->Gate);xmqttmessage* M=C->MessageHead;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(C->Auth && !C->Auth->Verified)M=NULL;
@@ -10839,9 +10690,6 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* C,xmqttclientinfo* Out)
 {
     if(!C || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid client info output");
     xrtMutexLock(&C->Gate);xmqttclientinfo I=C->Info;xrtMutexUnlock(&C->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-    if(C->Inbox){xrtMutexLock(&C->Inbox->Gate);I.Messages=C->Inbox->Count;I.MessageBytes=C->Inbox->Bytes;xrtMutexUnlock(&C->Inbox->Gate);}
-#endif
     xrtMutexLock(&C->Quota->Gate);I.Objects=C->Quota->Count;I.ObjectBytes=C->Quota->Bytes;xrtMutexUnlock(&C->Quota->Gate);*Out=I;return true;
 }
 XMQTT_API bool xmqttClientClose(xmqttclient* C)
@@ -10919,7 +10767,7 @@ XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Work
        C->Session->State!=Session || C->Lifecycle || !Observer || !Observer->Changed)
         return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-    if(Writer&&(C->Inbox||!C->Store||C->Store->Plan.Writer!=Writer))
+    if(Writer&&(!C->Store||C->Store->Plan.Writer!=Writer))
         return xmqttClientError(XERR_STATE,"reconnect factory returned a different writer");
 #else
     (void)Writer;
@@ -10965,7 +10813,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsAttach(ptr Native,bool TLS,xnetbuf* Ini
     if(K.Auth)return xmqttClientError(XERR_UNSUPPORTED,"Auth feature is not selected");
 #endif
     xmqttwsplan P={.Native=Native,.TLS=TLS,.Initial=Initial,.Config=K};xnetengine* Engine=xrtNetWorkerEngine(Worker);
-    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,NULL,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
+    return xmqttClientConnectImpl(Engine,NULL,xrtNetWorkerIndex(Worker),Config,Connect,Out,Auth,Entered,NULL,NULL,K.Session,&P XMQTT_CLIENT_STORE_ARG(NULL));
 }
 #endif
 
@@ -11012,7 +10860,7 @@ XMQTT_INTERNAL bool xmqttInternalClientWsConnect(xnetengine* E,xnetresolver* Res
     xmqttwshttp* H=xmqttInternalWsHttpCreate(&K,Out);if(!H)return false;H->Info.Secure=TLS!=NULL;
     W.Stream.Protocol=XRT_STR_LITERAL("mqtt");xmqttwsplan P={.Config=W,.Http=H};xnetaddrlist* Temporary=NULL;
     if(Address){Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary){xmqttInternalWsHttpDrop(H);return false;}Addresses=Temporary;}
-    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,NULL,W.Session,&P
+    bool OK=xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,&K.Dial,Auth,Q,Out,Entered,TLS,W.Session,&P
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
         XMQTT_CLIENT_STORE_ARG(Store?&Durable:NULL)
 #else
@@ -11042,7 +10890,7 @@ XMQTT_API bool xmqttClientConnectStore(xnetengine* E,const xnetaddr* R,uint64 A,
     double At=xrtTimer();
     xmqttclientstoreplan Plan;
     if(!xmqttStorePlanCreate(S,Store,Out,&Plan))return false;
-    return xmqttClientConnectImpl(E,R,A,K,Q,Out,NULL,At,NULL,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
+    return xmqttClientConnectImpl(E,R,A,K,Q,Out,NULL,At,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 XMQTT_API bool xmqttClientConnectStoreAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* K,
@@ -11051,7 +10899,7 @@ XMQTT_API bool xmqttClientConnectStoreAuth(xnetengine* E,const xnetaddr* R,uint6
     double At=xrtTimer();
     xmqttauthconfig AK;xmqttclientstoreplan Plan;
     if(!xmqttAuthConfigCopy(Auth,&AK)||!xmqttStorePlanCreate(S,Store,Out,&Plan))return false;
-    return xmqttClientConnectImpl(E,R,A,K,Q,Out,&AK,At,NULL,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
+    return xmqttClientConnectImpl(E,R,A,K,Q,Out,&AK,At,NULL,NULL,S,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
 }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
@@ -11063,7 +10911,7 @@ static bool xmqttClientStoreDialFactory(xnetengine* E,xnetresolver* Resolver,xne
     xmqttclientstoreplan Plan;
     if(!xmqttStorePlanCreate(Session,Store,Out,&Plan))return false;
     return xmqttClientDialCreate(E,Resolver,Addresses,Host,Port,Affinity,Config,Dial,Auth,Connect,Out,
-        Entered,NULL,NULL,Session,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
+        Entered,NULL,Session,NULL XMQTT_CLIENT_STORE_ARG(&Plan));
 }
 XMQTT_API bool xmqttClientDialStore(xnetengine* E,xnetresolver* R,xstrview Host,uint16 Port,
     uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
@@ -11113,7 +10961,7 @@ static bool xmqttClientStoreTlsFactory(xnetengine* E,xnetresolver* Resolver,xnet
 {
     xmqttclientstoreplan Plan;
     if(!xmqttStorePlanCreate(S,Store,Out,&Plan))return false;
-    return xmqttClientTlsFactory(E,Resolver,L,Address,H,Port,A,C,T,Auth,Q,Out,At,NULL,S XMQTT_CLIENT_STORE_ARG(&Plan));
+    return xmqttClientTlsFactory(E,Resolver,L,Address,H,Port,A,C,T,Auth,Q,Out,At,S XMQTT_CLIENT_STORE_ARG(&Plan));
 }
 XMQTT_API bool xmqttClientTlsConnectStore(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,
     const xmqttclienttlsconfig* T,xmqttsession* S,const xmqttclientstoreconfig* Store,const xmqttpacket* Q,xmqttclient** Out)
@@ -11161,12 +11009,6 @@ XMQTT_API bool xmqttClientTlsDialAddressesStoreAuth(xnetengine* E,xnetaddrlist* 
 }
 #endif
 #endif
-XMQTT_INTERNAL bool xmqttInternalClientConnectStore(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* K,
-    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,const xmqttclientstoreplan* P,xmqttclient** Out)
-{
-    double At=xrtTimer();if(!S||!I||!P||!xrtMemRangeValid(P,sizeof(*P))||!P->Writer||!P->Wall)return xmqttClientError(XERR_ARGUMENT,"invalid private store plan");
-    return xmqttClientConnectImpl(E,R,A,K,Q,Out,NULL,At,NULL,NULL,I,S,NULL XMQTT_CLIENT_STORE_ARG(P));
-}
 #endif
 #endif
 
@@ -15655,15 +15497,15 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteReconnectUsable(xmqttstorewrite* W,co
     return OK&&xmqttJournalWorkerInfo(W->Worker,&Info)&&!Info.Failed&&!Info.Closed;
 }
 #endif
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,bool RequireInbox,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
-    bool OK=!W->Driver&&!W->Admissions&&(!RequireInbox||(W->InboxEnabled&&!W->InboxClosed));
+    bool OK=!W->Driver&&!W->Admissions&&W->InboxEnabled&&!W->InboxClosed;
     bool Reserved=false;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     Reserved=W->ReconnectOwner!=NULL;
-    if(Reserved&&(W->ReconnectSession!=Session||!RequireInbox))OK=false;
+    if(Reserved&&W->ReconnectSession!=Session)OK=false;
 #else
     (void)Session;
 #endif

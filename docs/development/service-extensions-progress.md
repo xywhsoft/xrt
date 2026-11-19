@@ -17856,3 +17856,43 @@ Strict release still lists 43 developing MQTT modules. Shared receive
 storage on TCP/TLS and durable business acknowledgements and physical
 backends remain to be migrated. Native Linux qualification, controlled
 performance comparisons and 72-hour mixed-load acceptance remain open.
+
+## 2026-11-20 MQTT connection-local receive path on all transports
+
+Removed the volatile shared Inbox module and its TCP, Dial, TLS and
+enhanced-auth Session factory parameters. Each ordinary Client owns its
+receive queue and object budget. The wire path commits the incoming QoS 2
+identity before exposing a message or queuing PUBREC, and rolls back the
+reservation when its connection-local queue refuses the message. An APP
+can drain the retired connection before destroying the Client and retain
+the message references across reconnect or Session reset. The explicit
+Session example exercises that handoff with a binary payload and completes
+an independent outgoing QoS 2 flow after reconnect.
+
+The durable Client fault suites now invoke the public Store constructor
+with the proper durable Writer. The legacy private path that combined a
+shared volatile Inbox with a non-Inbox Writer was removed. The durable
+protocol path still commits before writing the corresponding wire ACK.
+
+Windows x64 and Ubuntu/WSL passed nine modular and single-header suites
+covering receive quotas, Session and image recovery, Dial/TLS/auth,
+durable Client and reconnect with WS coverage. The additional durable
+TLS and authentication modular suites passed on both. Static and shared
+package consumers passed, and the shared binaries omit the removed
+Inbox symbols.
+
+Native Windows and WSL clients each passed 20 independent Mosquitto 2.1.2
+cases across MQTT 5 and 3.1.1, five acknowledgement cuts and both work
+configurations. The direct APP example ran on both environments. Each
+passed four Session echo smoke workloads. WSL ASan/UBSan with leak
+detection passed the receive queue and Session suites, and TSan passed
+the receive queue suite. The initial matrix exposed an APP test that
+drained after Destroy; it now drains the physically retired Client before
+releasing it.
+
+Evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-local-receive/`.
+Strict release still reports 42 developing MQTT modules. Moving durable
+application acknowledgements and storage backends to APP examples, native
+Linux qualification, controlled performance comparisons and 72-hour
+mixed-load validation remain open.

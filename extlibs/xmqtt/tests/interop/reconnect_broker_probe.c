@@ -12,7 +12,7 @@ static const void* managedOutcome(xfuture* F)
 static void managedBarrier(const char* Prompt,const char* Command)
 {char Line[32];puts(Prompt);fflush(stdout);managedCheck(fgets(Line,sizeof(Line),stdin) && !strcmp(Line,Command),"independent proxy barrier");}
 static xmqttclientstatus managedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{return xmqttClientConnectSession(E,Data,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+{return xmqttClientConnectSession(E,Data,A,K,S,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 static void managedSubscribe(xmqttclient* C,xstrview Topic)
 {
     xmqttsubscription S={Topic,2};xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Q);Q.Body.Topics=(xmqttsubscriptionlist){&S,1};xfuture* F=NULL;

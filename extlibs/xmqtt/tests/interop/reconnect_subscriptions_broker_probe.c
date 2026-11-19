@@ -9,7 +9,7 @@ static xnetaddr Address;
 static void check(bool OK,const char* What)
 {if(!OK){fprintf(stderr,"[FAIL] managed subscription broker: %s error=%s\n",What,xrtGetError()?xrtErrorMessage(xrtGetError()):"none");exit(1);}}
 static xmqttclientstatus factory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{(void)Data;return xmqttClientConnectSession(E,&Address,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+{(void)Data;return xmqttClientConnectSession(E,&Address,A,K,S,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 static xmqttsubscriptionsinfo online(xmqttreconnect* R,uint64 Connections)
 {
     double End=xrtTimer()+15;xmqttreconnectinfo I;xmqttsubscriptionsinfo S;

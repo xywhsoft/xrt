@@ -6,7 +6,7 @@ for a refused endpoint followed by the live endpoint. The prepared list is
 released immediately; hostname scratch is overwritten after factory return.
 
 The in-process literal peer withholds PUBCOMP. Two Clients on two separately
-created Engines share one passive Session/Inbox and finish with PUBREL only.
+created Engines share one protocol Session and finish with PUBREL only.
 The original Future remains CLOSED. Physical Clients retire before Resolver/
 Engine and passive owners. No Internet broker or credentials are needed.
 

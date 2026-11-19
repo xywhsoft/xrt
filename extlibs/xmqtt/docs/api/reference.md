@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `240` 个函数、`355` 个常量或宏、
-`154` 个公共类型。
+当前登记 `235` 个函数、`354` 个常量或宏、
+`151` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -137,28 +137,6 @@
 ### 类型 (1)
 
 - `xmqttclientdialconfig`
-
-## `extlibs/xmqtt/include/xmqtt/client_inbox.h`
-
-[查看带契约注释的公共头](../../include/xmqtt/client_inbox.h)
-
-### 函数 (5)
-
-- `xmqttClientInboxConfigInit`
-- `xmqttClientInboxCreate`
-- `xmqttClientInboxDestroy`
-- `xmqttClientInboxInfo`
-- `xmqttClientInboxTake`
-
-### 常量与宏 (1)
-
-- `XMQTT_FEATURE_XMQTT_CLIENT_INBOX`
-
-### 类型 (3)
-
-- `xmqttclientinbox`
-- `xmqttclientinboxconfig`
-- `xmqttclientinboxinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/client_session.h`
 

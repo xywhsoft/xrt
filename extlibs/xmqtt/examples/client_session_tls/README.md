@@ -9,7 +9,7 @@ xmqtt-session-tls localhost 8883 SERVER_CA.pem unique-client-id
 
 Use a fresh nonempty unique id: a broker-present session without matching local
 state fails closed. The example verifies the server/hostname, preserves one
-in-memory Session/Inbox across two explicitly created Clients and Engines, sends
+in-memory protocol Session across two explicitly created Clients and Engines, sends
 binary QoS1 then QoS2, observes SessionPresent on the second connection, and
 finishes an authenticated graceful close. It does not inject interruption into
 an unacknowledged flow or persist state across process restarts. Session expiry

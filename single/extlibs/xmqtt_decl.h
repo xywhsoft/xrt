@@ -42,9 +42,6 @@
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_DIAL 1
 #endif
-#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_INBOX 1
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION 1
 #endif
@@ -194,9 +191,6 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_DIAL 1
-#endif
-#if !defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_INBOX 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION 1
@@ -3041,9 +3035,6 @@
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #endif
@@ -3505,21 +3496,11 @@
 #ifndef XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #define XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
-#endif
-#endif
-
-/* xmqtt_client_inbox 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
-#ifndef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#define XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT
-#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #endif
 
@@ -5000,49 +4981,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/client_inbox.h */
-/* ========================================================================== */
-
-#ifndef XMQTT_CLIENT_INBOX_H
-#define XMQTT_CLIENT_INBOX_H
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) && !defined(XMQTT_FEATURE_XMQTT_CLIENT)
-#error "MQTT Client Inbox requires Client"
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-typedef struct xmqttclientinbox xmqttclientinbox;
-typedef struct xmqttclientinboxconfig {
-    size_t Size;xmqttversion Version;
-    size_t MaxObjects,MaxObjectBytes,MaxMessages,MaxMessageBytes;
-} xmqttclientinboxconfig;
-typedef struct xmqttclientinboxinfo {
-    size_t Size;bool Attached;
-    size_t Messages,MessageBytes,Objects,ObjectBytes;
-} xmqttclientinboxinfo;
-XRT_EXTERN_C_BEGIN
-/* Passive, Engine-independent receive queue and shared result/message quota.
- * Defaults match Client: MQTT5, 512 objects/16 MiB, 64 queued/8 MiB.
- * Config is copied; fixed object/mutex/quota metadata is outside these budgets. */
-XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* Config);
-XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Inbox);
-/* Thread-safe with stable owner. Transfer one reference, false/unchanged when
- * empty. ClientTakeMessage consumes this same queue, including earlier messages.
- * No callback runs under Inbox locks. Take works while offline; neither Take
- * returns MQTT protocol credit. Message bytes are the existing owned allocation. */
-XMQTT_API bool xmqttClientInboxTake(xmqttclientinbox* Inbox,xmqttmessage** Message);
-/* Queue and object gauges are separately sampled; objects include retained
- * taken messages/results, while Messages counts only queued PUBLISH messages.
- * ClientInfo reports these shared gauges and per-connection Received/counters. */
-XMQTT_API bool xmqttClientInboxInfo(xmqttclientinbox* Inbox,xmqttclientinboxinfo* Info);
-/* Reject while attached, preserving Inbox. Stop all concurrent Inbox API entries
- * before Destroy. Releases untaken messages; taken messages/results may outlive
- * Inbox and every Client/Engine. NULL is accepted. */
-XMQTT_API bool xmqttClientInboxDestroy(xmqttclientinbox* Inbox);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt/client_session.h */
 /* ========================================================================== */
 
@@ -5050,25 +4988,23 @@ XRT_EXTERN_C_END
 #define XMQTT_CLIENT_SESSION_H
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
-#error "MQTT Client Session requires Client Inbox and Session"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
+#error "MQTT Client Session requires Client and Session"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 XRT_EXTERN_C_BEGIN
 /* Explicit numeric TCP connection using a caller-owned protocol Session.
- * The optional Inbox and the Session are exclusive through Client Destroy.
- * Version/ClientId must match Session. A supplied Inbox must match the four
- * Client object/message caps. With NULL Inbox, receive messages are queued
- * on the connection. Take owned messages before Destroy to keep them across
- * connections. Protocol recovery works with either receive queue.
+ * The Session is exclusive through Client Destroy. Version and ClientId must
+ * match Session. Each connection owns its receive queue and object limits.
+ * Take messages before Destroy and retain their references across connections.
  * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
  * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
  * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
  * Non-packet codec limits must fit Session, with the same UTF-8 policy. The
  * connection packet cap may grow to render an alias-expanded canonical replay;
  * Session borrows that codec only while claimed, never after Client destruction.
- * Bind Session/Inbox to one logical broker/security principal. Neither captures
- * credentials or owns an Engine. Constructor failure changes no Client output.
+ * Bind Session to one logical broker/security principal. It captures no
+ * credentials and owns no Engine. Constructor failure changes no Client output.
  * Old obligations reserve request slots/outgoing wire bytes during setup. A
  * successful accepted CONNACK restores only actual retained state; missing state
  * follows Session's version-specific reset/fail-closed policy. Replay borrows
@@ -5081,7 +5017,7 @@ XRT_EXTERN_C_BEGIN
  * A prior-generation ACK arriving during a partial PUBLISH replay commits its
  * protocol progress and retires that transport with SESSION status. This avoids
  * continuing an abandoned frame or introducing an unnecessary second delivery.
- * Accepted incoming QoS 2 deliveries enter the selected receive queue once
+ * Accepted incoming QoS 2 deliveries enter the connection's receive queue once
  * before PUBREC. The Session keeps their duplicate identities across reconnect.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
@@ -5101,7 +5037,7 @@ XRT_EXTERN_C_BEGIN
  * authentication is selected independently. The optional reconnect controller
  * adds automatic generation management; durable recovery remains separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 enhanced authentication on numeric TCP. Auth tickets, challenge rounds,
@@ -5112,7 +5048,7 @@ XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remo
  * Auth/CONNECT are copied; credentials are not stored in the passive Session.
  * Reauthentication uses the existing connection and does not reopen Session. */
 XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
@@ -5131,7 +5067,7 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
 XRT_EXTERN_C_BEGIN
-/* Explicit persistent protocol Session/Inbox with mandatory authenticated TLS.
+/* Explicit persistent protocol Session with mandatory authenticated TLS.
  * Identity/codec/quota/exclusive claims follow Client Session; metadata snapshots,
  * verifier/identity retention, one entry setup deadline and actual ciphertext
  * retirement follow Client TLS. Caller binds passive state to one logical
@@ -5145,26 +5081,26 @@ XRT_EXTERN_C_BEGIN
  * request fence tail, ciphertext buffers and native retirement still have costs.
  * No cleartext fallback, automatic reconnect or durable store is implied. */
 XMQTT_API bool xmqttClientTlsConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialSession(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialAddressesSession(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 challenge/final-proof/reauthentication is independent of TLS mutual
  * authentication. Session opening and replay wait for initial proof acceptance. */
 XMQTT_API bool xmqttClientTlsConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialSessionAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientTlsDialAddressesSessionAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
 #endif
@@ -5182,7 +5118,7 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
 XRT_EXTERN_C_BEGIN
-/* Explicit TCP Session/Inbox with hostname or prepared endpoints. All passive
+/* Explicit TCP Session with hostname or prepared endpoints. All passive
  * ownership, identity, replay and physical-retirement rules follow Client Session.
  * Dial copies host/config/CONNECT and retains prepared endpoints before return.
  * Resolver stays alive through physical Client retirement; detached shared DNS
@@ -5194,20 +5130,20 @@ XRT_EXTERN_C_BEGIN
  * Output changes only on success. Neither passive owner stores credentials.
  * TCP has no transport encryption; select client_session_tls for TLS. */
 XMQTT_API bool xmqttClientDialSession(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientDialAddressesSession(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,
     const xmqttpacket* Connect,xmqttclient** Client);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 /* MQTT5 challenge/final-proof/reauthentication follow Client Auth. Application
  * final proof gates Session opening and replay; all deadlines share factory entry. */
 XMQTT_API bool xmqttClientDialSessionAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 XMQTT_API bool xmqttClientDialAddressesSessionAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+    xmqttsession* Session,const xmqttpacket* Connect,xmqttclient** Client);
 #endif
 XRT_EXTERN_C_END
 #endif
@@ -5235,7 +5171,7 @@ typedef enum xmqttreconnectstate {
 /* Called only on the supplied Engine/Affinity worker, outside controller locks.
  * Use a Session factory with the supplied Engine, affinity and Session.
  * Preserve version, identity and compatible codec. Config is a copied template.
- * The factory can narrow operational budgets and select the receive queue.
+ * The factory can narrow operational budgets.
  * Return OK with one unique Client; another typed status transfers none.
  * Failure classification never depends on an older ambient error. Borrowed
  * inputs last only through this call. Do not wait or retain Session.
@@ -7370,10 +7306,6 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_CLIENT_DIAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_DIAL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
-#undef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 #undef XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION
@@ -7573,10 +7505,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_DIAL)
 #undef XMQTT_MODULE_XMQTT_CLIENT_DIAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_DIAL
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_INBOX)
-#undef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_INBOX
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION)
 #undef XMQTT_MODULE_XMQTT_CLIENT_SESSION
@@ -9697,9 +9625,6 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #endif
@@ -10161,21 +10086,11 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #define XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
-#endif
-#endif
-
-/* xmqtt_client_inbox 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
-#ifndef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#define XMQTT_FEATURE_XMQTT_CLIENT_INBOX
-#endif
-#ifndef XMQTT_MODULE_XMQTT_CLIENT
-#define XMQTT_MODULE_XMQTT_CLIENT
 #endif
 #endif
 

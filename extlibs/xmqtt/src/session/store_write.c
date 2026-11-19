@@ -270,15 +270,15 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteReconnectUsable(xmqttstorewrite* W,co
     return OK&&xmqttJournalWorkerInfo(W->Worker,&Info)&&!Info.Failed&&!Info.Closed;
 }
 #endif
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,bool RequireInbox,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
-    bool OK=!W->Driver&&!W->Admissions&&(!RequireInbox||(W->InboxEnabled&&!W->InboxClosed));
+    bool OK=!W->Driver&&!W->Admissions&&W->InboxEnabled&&!W->InboxClosed;
     bool Reserved=false;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     Reserved=W->ReconnectOwner!=NULL;
-    if(Reserved&&(W->ReconnectSession!=Session||!RequireInbox))OK=false;
+    if(Reserved&&W->ReconnectSession!=Session)OK=false;
 #else
     (void)Session;
 #endif

@@ -150,7 +150,6 @@
         "xmqtt_client_tls",
         "xmqtt_client_tls_resume",
         "xmqtt_session",
-        "xmqtt_client_inbox",
         "xmqtt_client_session",
         "xmqtt_client_session_tls",
         "xmqtt_client_session_dial",
@@ -1085,7 +1084,7 @@
         "xmqtt_client_tls_tests",
         "xmqtt_client_tls_resume_tests",
         "xmqtt_session_tests",
-        "xmqtt_client_inbox_tests",
+        "xmqtt_client_receive_tests",
         "xmqtt_client_session_tests",
         "xmqtt_client_session_tls_tests",
         "xmqtt_client_session_dial_tests",
@@ -1128,7 +1127,7 @@
         "extlibs/xmqtt/tests/test_client_tls_resume.c",
         "extlibs/xmqtt/tests/test_client_tls_resume_select.c",
         "extlibs/xmqtt/tests/test_session.c",
-        "extlibs/xmqtt/tests/test_client_inbox.c",
+        "extlibs/xmqtt/tests/test_client_receive_queue.c",
         "extlibs/xmqtt/tests/test_client_session.c",
         "extlibs/xmqtt/tests/test_client_session_tls.c",
         "extlibs/xmqtt/tests/test_client_store_tls.c",
@@ -1173,7 +1172,7 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_receive_queue.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c",
@@ -1253,7 +1252,7 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume.c": "xmqtt_client_tls_resume_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c": "xmqtt_client_tls_resume_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c": "xmqtt_session_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c": "xmqtt_client_inbox_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_receive_queue.c": "xmqtt_client_receive_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c": "xmqtt_client_session_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c": "xmqtt_client_session_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_store_tls.c": "xmqtt_client_store_tls_tests",
@@ -1301,33 +1300,11 @@
       }
     },
     {
-      "name": "xmqtt_client_inbox",
-      "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_INBOX",
-      "depends": [
-        "xmqtt_client"
-      ],
-      "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/client_inbox.h"
-      ],
-      "internal_headers": [],
-      "sources": [],
-      "tests": [],
-      "single_tests": [],
-      "examples": [],
-      "benchmarks": [
-        "extlibs/xmqtt/bench/bench_client_inbox.c"
-      ],
-      "docs": [
-        "extlibs/xmqtt/docs/client_inbox.md"
-      ]
-    },
-    {
-      "name": "xmqtt_client_inbox_tests",
+      "name": "xmqtt_client_receive_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xmqtt_client_session",
+        "xmqtt_client",
         "memory_stats",
         "thread"
       ],
@@ -1335,10 +1312,10 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xmqtt/tests/test_client_inbox.c"
+        "extlibs/xmqtt/tests/test_client_receive_queue.c"
       ],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_receive_queue.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1349,7 +1326,7 @@
       "state": "developing",
       "feature": "XMQTT_FEATURE_XMQTT_CLIENT_SESSION",
       "depends": [
-        "xmqtt_client_inbox",
+        "xmqtt_client",
         "xmqtt_session"
       ],
       "public_headers": [

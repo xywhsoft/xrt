@@ -107,12 +107,6 @@
       ]
     },
     {
-      "name": "xmqtt_client_inbox",
-      "system": "client",
-      "suite": "xmqtt_client_inbox",
-      "description": "Passive cross-Client message queue and shared physical object quota; numeric TCP factory, no MQTT protocol session recovery"
-    },
-    {
       "name": "xmqtt_client_session",
       "system": "client",
       "suite": "xmqtt_client_session",
