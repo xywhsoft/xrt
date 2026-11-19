@@ -16353,3 +16353,26 @@ sample and the wall timestamp has millisecond granularity. The variation gate
 reported five violations on Windows and four on WSL. Controlled multi-job
 measurements and native Linux remain part of release qualification. Raw
 reports and actual compiler data are in out/service-extensions/scope-reduction-20261119/.
+
+## 2026-11-19 xrpc concurrent admission and reply latency
+
+The in-memory workload shares one client endpoint across 1, 4 or 8 caller
+threads. One owner transfers complete requests and replies and runs the APP
+handler. Each caller keeps one call in flight and verifies its exact echo
+result. Recorded latency includes admission, wake, owner queue and reply
+checking.
+
+| Host | Callers | Calls/s | P99 (us) | P99.9 (us) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 44,910 | 42.0 | 185.0 |
+| Windows x64 | 4 | 101,615 | 68.0 | 175.3 |
+| Windows x64 | 8 | 98,441 | 134.7 | 267.6 |
+| Ubuntu/WSL x64 | 1 | 24,059 | 84.3 | 171.9 |
+| Ubuntu/WSL x64 | 4 | 65,458 | 115.9 | 190.2 |
+| Ubuntu/WSL x64 | 8 | 58,285 | 237.4 | 337.8 |
+
+Three unpinned samples ran per configuration, each with 20,000 calls per
+producer. Every measured call completed correctly. The variation gate
+reported 14 violations on Windows and 11 on WSL. The native Linux, controlled
+baseline and transport workload gates remain open. Raw reports are in
+out/service-extensions/scope-reduction-20261119/xrpc-concurrent-*.json.

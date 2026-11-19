@@ -1033,6 +1033,118 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_duplex_concurrent",
+      "system": "duplex",
+      "description": "One owner drives matched in-memory requests and replies with a shared client. Each producer has one outstanding call.",
+      "benchmarks": [
+        {
+          "name": "xrpc_duplex_producers_1",
+          "source": "extlibs/xrpc/bench/bench_duplex_concurrent.c",
+          "suite": "xrpc_duplex,xrpc_dispatch,thread,event",
+          "args": [
+            "1",
+            "20000"
+          ],
+          "smoke_args": [
+            "1",
+            "100"
+          ],
+          "metrics": {
+            "calls_per_second": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_producers_4",
+          "source": "extlibs/xrpc/bench/bench_duplex_concurrent.c",
+          "suite": "xrpc_duplex,xrpc_dispatch,thread,event",
+          "args": [
+            "4",
+            "20000"
+          ],
+          "smoke_args": [
+            "4",
+            "100"
+          ],
+          "metrics": {
+            "calls_per_second": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_producers_8",
+          "source": "extlibs/xrpc/bench/bench_duplex_concurrent.c",
+          "suite": "xrpc_duplex,xrpc_dispatch,thread,event",
+          "args": [
+            "8",
+            "20000"
+          ],
+          "smoke_args": [
+            "8",
+            "100"
+          ],
+          "metrics": {
+            "calls_per_second": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

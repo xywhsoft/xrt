@@ -695,7 +695,8 @@
       ],
       "benchmarks": [
         "extlibs/xrpc/bench/bench_duplex.c",
-        "extlibs/xrpc/bench/bench_duplex_deadlines.c"
+        "extlibs/xrpc/bench/bench_duplex_deadlines.c",
+        "extlibs/xrpc/bench/bench_duplex_concurrent.c"
       ],
       "docs": [
         "extlibs/xrpc/docs/duplex.md",

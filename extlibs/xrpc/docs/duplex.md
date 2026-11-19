@@ -50,3 +50,16 @@ A valid remote response batch can arrive in any order. The pending table
 matches the complete document before committing reply associations. The
 endpoint preserves typed capacity and lifetime limits for pending IDs,
 in-flight APP work, retained outputs and retained results.
+
+## Concurrent admission benchmark
+
+Share one client endpoint between 1, 4 or 8 submitting threads. Each thread
+waits for its current reply before submitting the next call. One owner drives
+the endpoint, transfers complete documents in memory, and runs the APP echo
+handler. Samples start before admission and end after checking the reply,
+including owner wake and queue time. The workload verifies every result and
+reports throughput and P50, P95, P99 and P99.9 latency.
+
+```sh
+python tools/measure_performance.py --config extlibs/xrpc/config/performance_profiles.json --profiles xrpc_duplex_concurrent
+```
