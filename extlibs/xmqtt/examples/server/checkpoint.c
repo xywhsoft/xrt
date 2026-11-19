@@ -345,15 +345,23 @@ static bool checkpointCollectRecipient(const xmqttservertransactionrecipient* Re
 	return xrtBufferAppend(User, (xbytesview){(cbytes)Recipient, sizeof(*Recipient)});
 }
 
+static bool checkpointAcceptsPublication(xmqttserversessionoperation Operation)
+{
+	return Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1 ||
+		Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2;
+}
+
 static bool checkpointAppendGroup(checkpointoutput* Output, const xmqttserversessionrecord* Group,
 	const xmqttservertransaction* Change, const xbuffer* Targets, bool* Found)
 {
-	if (!Group->Data.Size || Change->Operation != XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) return true;
+	if (!Group->Data.Size || !checkpointAcceptsPublication(Change->Operation)) return true;
 	if (checkpointIdEqual(Change->ClientId, Group->Data) && checkpointHasKey(Change->Key)) {
 		if (!checkpointKeyEqual(Change->Key, Group->Key)) return false;
-		const xmqttserversessionrecord Record = {.Kind = XMQTT_SERVER_RECORD_INCOMING_QOS2,
-			.Identifier = Change->Identifier, .Code = Change->Reason};
-		if (!checkpointSession(&Record, Output)) return false;
+		if (Change->Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
+			const xmqttserversessionrecord Record = {.Kind = XMQTT_SERVER_RECORD_INCOMING_QOS2,
+				.Identifier = Change->Identifier, .Code = Change->Reason};
+			if (!checkpointSession(&Record, Output)) return false;
+		}
 		*Found = true;
 	}
 	const xmqttservertransactionrecipient* Items = (const void*)Targets->Data;
@@ -434,6 +442,7 @@ static bool checkpointWriteTransaction(const checkpointchange* Request, xbytesvi
 		!checkpointAppendGroup(Output, &Group, Change, Targets, &Found)) return false;
 	switch (Change->Operation) {
 	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2:
+	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1:
 	case XMQTT_SERVER_SESSION_SEND_OUTGOING:
 	case XMQTT_SERVER_SESSION_RELEASE_OUTGOING:
 		return Found;
@@ -512,7 +521,7 @@ static xmqttserversessionresult checkpointTransact(const checkpointchange* Reque
 		return XMQTT_SERVER_SESSION_REJECTED;
 	checkpointoutput Output = {.Offset = (uint64)Now - SavedAt};
 	xbuffer Targets = {0};
-	bool Written = (Request->Change.Operation != XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2 ||
+	bool Written = (!checkpointAcceptsPublication(Request->Change.Operation) ||
 		xmqttServerVisitTransactionRecipients(Request->Ticket, checkpointCollectRecipient, &Targets)) &&
 		xrtBufferAppend(&Output.Image, (xbytesview){Image, CheckpointHeader}) &&
 		checkpointWriteRetained(&Cursor, Image[7] >= '4', Count, &Request->Change, Captured, &Output) &&
@@ -609,7 +618,8 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 	bool Ready = Store->Online ?
 		(xmqttServerSetSessionTransactions(Server, checkpointSubmitTransaction, Store) &&
 		 xmqttServerSetRetainedCommit(Server, 4u * 1024u * 1024u, checkpointSubmitRetained, Store) &&
-		 xmqttServerEnableRetainedTransactions(Server) && xmqttServerEnableOutboundTransactions(Server)) :
+		 xmqttServerEnableRetainedTransactions(Server) && xmqttServerEnableOutboundTransactions(Server) &&
+		 xmqttServerEnableQos1Transactions(Server)) :
 		(!Store->Writer || xmqttServerSetSessionCommit(Server, checkpointSubmit, Store));
 	return Ready && checkpointLoad(Server, Store->Path, Store->Online);
 }

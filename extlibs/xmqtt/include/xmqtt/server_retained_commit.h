@@ -36,9 +36,10 @@ XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingB
 	xmqttserverretainedsubmit Submit, ptr User);
 
 /* After configuring both commit hooks against the same authoritative store,
- * opt in to the combined retained QoS 2 session transaction. Configure before
- * restoring sessions or attaching transports. Both paths reserve from the
- * same retention budgets. */
+ * opt in to combined retained publication transactions. Applies to QoS 2
+ * and to QoS 1 when xmqttServerEnableQos1Transactions is also enabled.
+ * Configure before restoring sessions or attaching transports. Both paths
+ * reserve from the same retention budgets. */
 XMQTT_API bool xmqttServerEnableRetainedTransactions(xmqttserver* Server);
 
 /* Thread safe for the unique completion owner. COMMITTED confirms durability.

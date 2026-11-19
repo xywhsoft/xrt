@@ -173,11 +173,12 @@ chosen session through transport handoff. If that session ends, its
 reservation is discarded. A packet exceeding the recipient's negotiated
 Maximum Packet Size is also discarded.
 
-The per-recipient admission path used by QoS 1, retained publication routing,
-retained replay and Wills applies the destination's overload policy. It
-increments `OutgoingPublishOverloads` and retires the affected session,
-attempting MQTT 5 DISCONNECT 0x97 for a live connection. Broker ACKs describe
-the broker's inbound outcome.
+The per-recipient admission path applies the destination's overload policy.
+It serves volatile QoS 1, retained publication routing outside the combined
+transactions, retained replay and Wills. It increments
+`OutgoingPublishOverloads` and retires the affected session, attempting MQTT 5
+DISCONNECT 0x97 for a live connection. Broker ACKs describe the broker's
+inbound outcome.
 
 MQTT 5 Session Expiry and MQTT 3.1.1 Clean Session control how long the broker
 keeps a session in memory. `MaxPersistentSessions` bounds the number of retained
@@ -314,7 +315,8 @@ Configure `xmqttServerSetRetainedCommit` against the same authoritative store
 and call `xmqttServerEnableRetainedTransactions` before restoring sessions.
 The session transaction then includes the retained
 replacement or deletion, the inbound identifier, and the queued recipient
-records. The retained hook continues to handle QoS 0, QoS 1 and fired Wills.
+records. The retained hook continues to handle QoS 0 and fired Wills. It also
+handles QoS 1 when online QoS 1 composition is disabled.
 Both paths use the same shard reservation and retention budgets. A definite
 failure rolls back the reservation and preserves the previous unexpired
 value. A subscriber can still replay that value while the transaction waits.
@@ -330,6 +332,23 @@ PUBLISH with DUP set and repeats unacknowledged PUBREL, with the saved
 identifiers. Persist transitions in first-send order. A definite backend
 rejection closes the affected connection so it can resume the previous
 phase. The same store handles session admission and the outbound operations.
+
+### Durable QoS 1 acceptance
+
+After enabling outbound transactions, call `xmqttServerEnableQos1Transactions`
+before attaching connections or restoring sessions. For an incoming QoS 1
+PUBLISH with a reliable durable recipient, the APP commits all durable
+recipient records before the broker sends a success PUBACK or releases live
+deliveries. With retained composition enabled, the same transaction commits
+the retained replacement or deletion. The volatile QoS 1 path needs no
+backend commit when there is no durable recipient or retained mutation.
+
+A rejected commit returns a negative PUBACK in MQTT 5 and closes the
+connection before PUBACK in MQTT 3.1.1. An unknown result closes the broker
+and requires authoritative restore. QoS 1 stores no inbound identifier.
+Retransmission can create a second delivery, as allowed for at-least-once
+delivery. On the recipient side, the committed delivery key tracks first
+PUBLISH, retransmission and retirement through the existing outbound hook.
 
 Run `examples_server_checkpoint capture checkpoint.bin`, then
 `examples_server_checkpoint restore-online checkpoint.bin`. Online mode

@@ -33,6 +33,8 @@ int main(void)
         xmqttServerSetSessionCommit(NULL, NULL, NULL) ||
         xmqttServerCompleteSessionCommit(NULL, XMQTT_SERVER_SESSION_UNKNOWN) ||
         xmqttServerSetSessionTransactions(NULL, NULL, NULL) ||
+        xmqttServerEnableOutboundTransactions(NULL) ||
+        xmqttServerEnableQos1Transactions(NULL) ||
         xmqttServerVisitTransactionRecipients(NULL, NULL, NULL)) return 73;
     xrtClearError();
 #endif

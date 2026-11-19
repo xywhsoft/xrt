@@ -4168,7 +4168,8 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2,
 	XMQTT_SERVER_SESSION_SEND_OUTGOING,
 	XMQTT_SERVER_SESSION_RELEASE_OUTGOING,
-	XMQTT_SERVER_SESSION_FINISH_OUTGOING
+	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -4236,9 +4237,12 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * by xmqttServerVisitTransactionRecipients. Compare the current key for each
  * group. Skip replaced or expired recipient groups. A mismatched source key
  * makes the publication transaction fail. Volatile peers are handled by the broker.
+ * ACCEPT_INCOMING_QOS1 commits recipients and the optional retained mutation
+ * before PUBACK. Use the source key for fencing. Store no inbound identifier
+ * for QoS 1. A retransmitted QoS 1 PUBLISH may produce duplicate deliveries.
  * If Retained is supplied, update RetainedTopic or remove it when RemoveRetained
  * is set. Its lifetime is measured at RetainedReceived. Remove an expired value.
- * Enable retained QoS 2 composition with xmqttServerEnableRetainedTransactions
+ * Enable retained transaction composition with xmqttServerEnableRetainedTransactions
  * after configuring both runtime commit hooks against the same store.
  *
  * With outbound transactions enabled, persist each nonzero DeliveryKey
@@ -4272,6 +4276,13 @@ XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,
  * SetSessionTransactions. Only deliveries carrying a DeliveryKey use online
  * outbound commits. The key must survive checkpoint export and restore. */
 XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server);
+
+/* Opt in after enabling outbound transactions, before restore or attach.
+ * The backend handles ACCEPT_INCOMING_QOS1. Retained QoS 1 uses that
+ * transaction when retained composition is enabled. On definite refusal,
+ * MQTT 5 returns a negative PUBACK and MQTT 3.1.1 closes without PUBACK.
+ * A broker without this option keeps its existing QoS 1 path. */
+XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
 
 /* The ticket owner may visit durable recipients before completing an
  * acceptance transaction. The callback borrows each record and all views
@@ -4328,9 +4339,10 @@ XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingB
 	xmqttserverretainedsubmit Submit, ptr User);
 
 /* After configuring both commit hooks against the same authoritative store,
- * opt in to the combined retained QoS 2 session transaction. Configure before
- * restoring sessions or attaching transports. Both paths reserve from the
- * same retention budgets. */
+ * opt in to combined retained publication transactions. Applies to QoS 2
+ * and to QoS 1 when xmqttServerEnableQos1Transactions is also enabled.
+ * Configure before restoring sessions or attaching transports. Both paths
+ * reserve from the same retention budgets. */
 XMQTT_API bool xmqttServerEnableRetainedTransactions(xmqttserver* Server);
 
 /* Thread safe for the unique completion owner. COMMITTED confirms durability.
@@ -16173,6 +16185,7 @@ struct xmqttserver {
 	xmqttservertransactionsubmit TransactionSubmit;
 	ptr SessionStoreUser;
 	uint64 OutboundEpoch;
+	bool Qos1Transactions;
 	bool Checkpoint; /* Written once with the admission gate held. */
 	bool SessionStoreFailed; /* Protected by Gate. */
 #endif
@@ -17450,6 +17463,20 @@ static void xmqttServerFinishTransactionRetained(xmqttserverretainedticket* Tick
 	xnetworker* Worker, xmqttserversessionresult Result);
 #endif
 
+static unsigned xmqttServerTransactionQos(xmqttserversessionoperation Operation)
+{
+	switch (Operation) {
+	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1: return 1;
+	case XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2: return 2;
+	default: return 0;
+	}
+}
+
+static xmqttserversessionoperation xmqttServerAcceptanceOperation(unsigned Qos)
+{
+	return Qos == 1 ? XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1 : XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2;
+}
+
 static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessionticket* Ticket, bool Deferred)
 {
 	(void)Worker;
@@ -17479,6 +17506,7 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 	if (Result == XMQTT_SERVER_SESSION_UNKNOWN) xmqttServerClose(Server);
 	double Now = xrtTimer();
 	Active = Active && xmqttServerCanRead(Peer);
+	unsigned Qos = xmqttServerTransactionQos(Change.Operation);
 	if (Active && (!isfinite(Now) || (Peer->Timer && Now >= Peer->Deadline))) {
 		xmqttServerTimedOut(Peer);
 		Active = false;
@@ -17486,20 +17514,21 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 	if (Outgoing) {
 		xmqttServerFinishOutgoingCommit(Peer, Outgoing, &Change, Result, Active, Discard);
 		Resume = Active && Result == XMQTT_SERVER_SESSION_COMMITTED;
-	} else if (Change.Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
+	} else if (Qos) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 		if (Retained) xmqttServerFinishTransactionRetained(Retained, Worker, Result);
 #endif
 		bool Accepted = Result == XMQTT_SERVER_SESSION_COMMITTED;
 		xmqttServerResolvePrepared(Batch, Accepted);
 		if (Accepted) {
-			Ack->Durable = Peer->Session->Persistent;
+			Ack->Durable = Qos == 2 && Peer->Session->Persistent;
 			if (Active && xmqttServerCanRead(Peer))
-				xmqttServerAcknowledgePublish(Peer, Ack, 2, Change.Reason);
-			else xmqttServerOwnIncomingQos2(Peer, Ack, Change.Reason);
+				xmqttServerAcknowledgePublish(Peer, Ack, Qos, Change.Reason);
+			else if (Qos == 2) xmqttServerOwnIncomingQos2(Peer, Ack, Change.Reason);
+			else xmqttServerReleaseAck(Ack, NULL, 0);
 		} else {
 			xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
-			if (Active) xmqttServerAcknowledgePublish(Peer, Ack, 2, 0x83);
+			if (Active) xmqttServerAcknowledgePublish(Peer, Ack, Qos, 0x83);
 			else xmqttServerReleaseAck(Ack, NULL, 0);
 		}
 		Resume = Active;
@@ -17600,14 +17629,15 @@ static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack
 #endif
 	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation);
 	if (!Ticket) {
-		if (Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
+		unsigned Qos = xmqttServerTransactionQos(Operation);
+		if (Qos) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 			if (Retained) xmqttServerFinishTransactionRetained(Retained,
 				xrtNetStreamWorker(Peer->Stream), XMQTT_SERVER_SESSION_REJECTED);
 #endif
 			xmqttServerResolvePrepared(Batch, false);
 			xrtAtomic64FetchAdd(&Peer->Server->RejectedPublications, 1, XMEMORY_RELAXED);
-			xmqttServerAcknowledgePublish(Peer, Ack, 2, 0x97);
+			xmqttServerAcknowledgePublish(Peer, Ack, Qos, 0x97);
 		} else if (Ack) xmqttServerAbortPeer(Peer);
 		else xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
 		return;
@@ -20185,7 +20215,7 @@ static bool xmqttServerSubmitRetainedWill(xmqttserver* Server, const xmqttserver
 }
 
 static void xmqttServerSubmitRetainedTransaction(xmqttserverpeer* Peer, xmqttserverack* Ack,
-	const xmqttpacket* Packet, xmqttproperty* Expiry, double Now)
+	const xmqttpacket* Packet, xmqttproperty* Expiry, double Now, unsigned Qos)
 {
 	xmqttserver* Server = Peer->Server;
 	xmqttserverretainedticket* Ticket = xmqttServerNewRetainedTicket(Server, Peer->Version,
@@ -20197,19 +20227,19 @@ static void xmqttServerSubmitRetainedTransaction(xmqttserverpeer* Peer, xmqttser
 			uint8 Reason = Expiry && !Expiry->Value.Number ? 0 :
 				xmqttServerRoute(Server, Peer->Version, Peer->Session->Identity, Packet, Expiry, Now, true, &Batch);
 			if (Reason < 0x80) {
-				xmqttServerSubmitSessionCommit(Peer, Ack, XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2,
+				xmqttServerSubmitSessionCommit(Peer, Ack, xmqttServerAcceptanceOperation(Qos),
 					Batch, Ticket, Reason, Now);
 				return;
 			}
 			xmqttServerFinishTransactionRetained(Ticket, xrtNetStreamWorker(Peer->Stream), XMQTT_SERVER_SESSION_REJECTED);
-			xmqttServerAcknowledgePublish(Peer, Ack, 2, Reason);
+			xmqttServerAcknowledgePublish(Peer, Ack, Qos, Reason);
 			return;
 		}
 		xmqttServerFreeRetainedTicket(Ticket);
 	}
 	xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
 	xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
-	xmqttServerAcknowledgePublish(Peer, Ack, 2, 0x97);
+	xmqttServerAcknowledgePublish(Peer, Ack, Qos, 0x97);
 }
 
 static bool xmqttServerSubmitRetained(xmqttserverpeer* Peer, xmqttserverack* Ack,
@@ -20289,6 +20319,9 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		Reason = 0;
 	}
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	bool CommitQos = Qos == 2 || (Qos == 1 && Server->Qos1Transactions);
+#endif
 	xstrview Name = Packet->Body.Publish.Topic;
 	if (Name.Size > Server->Config.MaxTopicBytes) Reason = 0x90;
 	else Reason = xmqttServerTopicReason(Peer, Name, true);
@@ -20296,8 +20329,8 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	} else if (Retain && Server->RetainedSubmit) {
-		if (Qos == 2 && Server->RetainedTransactions) {
-			xmqttServerSubmitRetainedTransaction(Peer, Ack, Packet, Expiry, Now);
+		if (CommitQos && Server->RetainedTransactions) {
+			xmqttServerSubmitRetainedTransaction(Peer, Ack, Packet, Expiry, Now, Qos);
 			return;
 		}
 		if (xmqttServerSubmitRetained(Peer, Ack, Packet, Expiry, Now)) return;
@@ -20306,12 +20339,12 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		Reason = 0x97;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
-	} else if (Qos == 2 && !Retain && Server->TransactionSubmit) {
+	} else if (CommitQos && !Retain && Server->TransactionSubmit) {
 		xmqttserverdelivery* Batch = NULL;
 		Reason = xmqttServerDistribute(Server, Peer->Version, Peer->Session->Identity,
 			Peer->Session->ClientName, Packet, Expiry, Now, true, &Batch);
-		if (Reason < 0x80 && (Peer->Session->Persistent || xmqttServerHasDurableRecipient(Batch))) {
-			xmqttServerSubmitSessionCommit(Peer, Ack, XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2, Batch, NULL, Reason, Now);
+		if (Reason < 0x80 && ((Qos == 2 && Peer->Session->Persistent) || xmqttServerHasDurableRecipient(Batch))) {
+			xmqttServerSubmitSessionCommit(Peer, Ack, xmqttServerAcceptanceOperation(Qos), Batch, NULL, Reason, Now);
 			return;
 		}
 		xmqttServerResolvePrepared(Batch, Reason < 0x80);
@@ -20561,7 +20594,7 @@ static uint32 xmqttServerStoredU32(cbytes Bytes)
 XMQTT_API bool xmqttServerVisitTransactionRecipients(const xmqttserversessionticket* Ticket,
 	xmqttservertransactionvisitor Visit, ptr User)
 {
-	if (!Ticket || !Visit || Ticket->Change.Operation != XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2)
+	if (!Ticket || !Visit || !xmqttServerTransactionQos(Ticket->Change.Operation))
 		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT transaction recipient visit");
 	double Now = xrtTimer();
 	if (!isfinite(Now)) return xmqttServerError(XERR_STATE, "invalid MQTT transaction clock");
@@ -21443,6 +21476,18 @@ XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server)
 	if (Ready) Server->OutboundEpoch = Epoch;
 	xrtMutexUnlock(&Server->Gate);
 	return Ready || xmqttServerError(XERR_STATE, "enable MQTT outbound transactions before attachment and restore");
+}
+
+XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server)
+{
+	if (!Server) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT QoS 1 transaction setup");
+	xrtMutexLock(&Server->Gate);
+	bool Ready = Server->OutboundEpoch && !Server->Qos1Transactions &&
+		!Server->Info.Closing && !Server->Info.Accepted && !Server->ExpiryTimer &&
+		!Server->Info.PersistentSessions;
+	if (Ready) Server->Qos1Transactions = true;
+	xrtMutexUnlock(&Server->Gate);
+	return Ready || xmqttServerError(XERR_STATE, "enable MQTT QoS 1 transactions after outbound setup and before attachment or restore");
 }
 
 XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,

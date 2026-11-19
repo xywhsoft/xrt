@@ -6994,7 +6994,8 @@ typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2,
 	XMQTT_SERVER_SESSION_SEND_OUTGOING,
 	XMQTT_SERVER_SESSION_RELEASE_OUTGOING,
-	XMQTT_SERVER_SESSION_FINISH_OUTGOING
+	XMQTT_SERVER_SESSION_FINISH_OUTGOING,
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -7062,9 +7063,12 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * by xmqttServerVisitTransactionRecipients. Compare the current key for each
  * group. Skip replaced or expired recipient groups. A mismatched source key
  * makes the publication transaction fail. Volatile peers are handled by the broker.
+ * ACCEPT_INCOMING_QOS1 commits recipients and the optional retained mutation
+ * before PUBACK. Use the source key for fencing. Store no inbound identifier
+ * for QoS 1. A retransmitted QoS 1 PUBLISH may produce duplicate deliveries.
  * If Retained is supplied, update RetainedTopic or remove it when RemoveRetained
  * is set. Its lifetime is measured at RetainedReceived. Remove an expired value.
- * Enable retained QoS 2 composition with xmqttServerEnableRetainedTransactions
+ * Enable retained transaction composition with xmqttServerEnableRetainedTransactions
  * after configuring both runtime commit hooks against the same store.
  *
  * With outbound transactions enabled, persist each nonzero DeliveryKey
@@ -7098,6 +7102,13 @@ XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,
  * SetSessionTransactions. Only deliveries carrying a DeliveryKey use online
  * outbound commits. The key must survive checkpoint export and restore. */
 XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server);
+
+/* Opt in after enabling outbound transactions, before restore or attach.
+ * The backend handles ACCEPT_INCOMING_QOS1. Retained QoS 1 uses that
+ * transaction when retained composition is enabled. On definite refusal,
+ * MQTT 5 returns a negative PUBACK and MQTT 3.1.1 closes without PUBACK.
+ * A broker without this option keeps its existing QoS 1 path. */
+XMQTT_API bool xmqttServerEnableQos1Transactions(xmqttserver* Server);
 
 /* The ticket owner may visit durable recipients before completing an
  * acceptance transaction. The callback borrows each record and all views
@@ -7154,9 +7165,10 @@ XMQTT_API bool xmqttServerSetRetainedCommit(xmqttserver* Server, size_t PendingB
 	xmqttserverretainedsubmit Submit, ptr User);
 
 /* After configuring both commit hooks against the same authoritative store,
- * opt in to the combined retained QoS 2 session transaction. Configure before
- * restoring sessions or attaching transports. Both paths reserve from the
- * same retention budgets. */
+ * opt in to combined retained publication transactions. Applies to QoS 2
+ * and to QoS 1 when xmqttServerEnableQos1Transactions is also enabled.
+ * Configure before restoring sessions or attaching transports. Both paths
+ * reserve from the same retention budgets. */
 XMQTT_API bool xmqttServerEnableRetainedTransactions(xmqttserver* Server);
 
 /* Thread safe for the unique completion owner. COMMITTED confirms durability.

@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `240` 个函数、`347` 个常量或宏、
+当前登记 `241` 个函数、`348` 个常量或宏、
 `156` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -888,12 +888,13 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/server_store.h)
 
-### 函数 (12)
+### 函数 (13)
 
 - `xmqttServerCloseForCheckpoint`
 - `xmqttServerCompleteSessionCommit`
 - `xmqttServerCompleteSessionReset`
 - `xmqttServerEnableOutboundTransactions`
+- `xmqttServerEnableQos1Transactions`
 - `xmqttServerRestoreRetained`
 - `xmqttServerRestoreSessions`
 - `xmqttServerSetSessionCommit`
@@ -903,7 +904,7 @@
 - `xmqttServerVisitSessions`
 - `xmqttServerVisitTransactionRecipients`
 
-### 常量与宏 (18)
+### 常量与宏 (19)
 
 - `XMQTT_SERVER_RECORD_INCOMING_QOS2`
 - `XMQTT_SERVER_RECORD_QUEUED`
@@ -911,6 +912,7 @@
 - `XMQTT_SERVER_RECORD_SESSION`
 - `XMQTT_SERVER_RECORD_SUBSCRIPTION`
 - `XMQTT_SERVER_RECORD_WILL`
+- `XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS1`
 - `XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2`
 - `XMQTT_SERVER_SESSION_COMMITTED`
 - `XMQTT_SERVER_SESSION_DISCARD`

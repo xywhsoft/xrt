@@ -17501,3 +17501,40 @@ comparison and 72-hour mixed-load acceptance remain open.
 
 Raw evidence is under
 `out/service-extensions/scope-reduction-20261119/xredis-app-command-catalogue/`.
+
+## 2026-11-20 MQTT online QoS 1 recipient persistence
+
+The optional QoS 1 transaction reuses bounded recipient reservation and
+the keyed outbound lifecycle. The APP commits reliable durable recipient
+queues before the broker releases delivery and sends a success PUBACK.
+When combined retained transactions are enabled, the retained replacement
+or deletion shares the same commit. No inbound identifier is stored for
+QoS 1, so a retry can deliver a duplicate. A definite refusal sends a
+negative MQTT 5 PUBACK or closes MQTT 3.1.1 before acknowledging. Unknown
+effects seal admission. The default memory-only path keeps its original
+admission behavior.
+
+The checkpoint example opts in after outbound transactions. It writes
+recipient queues in the existing v5 format and fences a durable source by
+its session key. The independent TCP fixture verified the absence of early
+acknowledgement and live delivery, old retained state on failure, loss of
+the process before and after commit, offline replay, at-least-once
+retransmission, retirement after recipient PUBACK, a full writer, and a
+pending acceptance during controlled shutdown. It covers MQTT 5 and 3.1.1
+publishers. The fixture parser now accounts for the retained section
+before inspecting session rows.
+
+Windows x64 and Ubuntu/WSL x64 passed the broker/storage suite and the
+modular and single-header checkpoint probes. WSL also passed the complete
+checkpoint probe under ASan/UBSan with leak detection. The separate retained
+commit regression passed TCP, TLS, WS and WSS on both platforms. Static and
+shared package consumers passed for the base client and the optional
+broker storage build. Generated headers and the API index match the source.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-qos1-durability/`.
+The ordinary maturity check passes and strict release reports 43 developing
+modules. Live subscription and expiry updates still rely on controlled
+checkpoints. Native Linux performance and the 72-hour acceptance workloads
+remain open. Process termination tests exercise recovery from a killed
+broker, and power-loss durability depends on the production backend.

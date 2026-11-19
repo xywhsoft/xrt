@@ -513,9 +513,16 @@ def verify_pubrel_commit(program, directory):
 
 
 def session_records(data):
-    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05") and data[16:20] == b"\0" * 4
-    at = 24
-    for _ in range(int.from_bytes(data[20:24], "big")):
+    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05")
+    at = 20
+    retained_header = 15 if data[7:8] == b"3" else 23
+    for _ in range(int.from_bytes(data[16:20], "big")):
+        publisher = int.from_bytes(data[at + 1:at + 3], "big")
+        publish = int.from_bytes(data[at + 3:at + 7], "big")
+        at += retained_header + publisher + publish
+    count = int.from_bytes(data[at:at + 4], "big")
+    at += 4
+    for _ in range(count):
         kind = data[at]
         body = at + {1: 46, 4: 30}.get(kind, 22)
         if data[7:8] == b"5" and kind in (4, 5):
@@ -766,6 +773,114 @@ def verify_outbound_transactions(program, directory):
             "terminal_pubcomp_and_negative_pubrec_retired": True, "outgoing_rejection_and_unknown": True,
             "outgoing_pubrel_commit_survives_takeover": True, "oversized_queued_publish_retired": True}
 
+def verify_qos1_transactions(program, directory):
+    image = directory / "online-qos1.bin"
+    source, subscriber = b"qos1-source", b"qos1-offline"
+    name, identifier = b"durable/qos1", b"\0\x25"
+    original = frame(0x33, topic(name) + identifier + b"\0new")
+    plain = frame(0x32, topic(name) + identifier + b"\0plain")
+    legacy = frame(0x32, topic(name) + identifier + b"legacy")
+    success = (0x40, identifier)
+
+    with broker(program, "capture", image) as address:
+        owner, _ = connect(address, 5, b"qos1-old-owner")
+        with owner:
+            publish(owner, name, b"old")
+        with persistent(address, source, True) as publisher:
+            barrier(publisher)
+        with persistent(address, subscriber, True) as recipient:
+            subscribe(recipient, name, 1, 0x21)
+    before = image.read_bytes()
+
+    with broker(program, "restore-online", image, "1200", crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"qos1-observer")
+            with observer:
+                subscribe(observer, name, 1, 0x20)
+                publisher.sendall(original + PING)
+                expect_silence(publisher)
+                expect_silence(observer)
+    assert image.read_bytes() == before
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        peer311, _ = connect(address, 4, b"qos1-legacy")
+        with persistent(address, source, False, True) as publisher, peer311:
+            saved = image.with_suffix(".unavailable")
+            image.rename(saved)
+            try:
+                publisher.sendall(original)
+                assert receive(publisher) == (0x40, identifier + b"\x83")
+                publisher.sendall(frame(0x32, topic(b"durable/no-match") + identifier + b"\0skip"))
+                assert receive(publisher) == (0x40, identifier + b"\x10")
+                peer311.sendall(legacy)
+                expect_disconnect(peer311)
+            finally:
+                saved.rename(image)
+            observer, _ = connect(address, 5, b"qos1-observer")
+            with observer:
+                check_retained_value(observer, name, 1, b"old")
+    assert image.read_bytes() == before
+
+    with prevent_replacement(image):
+        with broker(program, "restore-online", image, exit_code=1) as address:
+            with persistent(address, source, False, True) as publisher:
+                publisher.sendall(plain)
+                expect_disconnect(publisher)
+    assert image.read_bytes() == before
+
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            observer, _ = connect(address, 5, b"qos1-observer")
+            with observer:
+                subscribe(observer, name, 1, 0x20)
+                publisher.sendall(original + PING)
+                expect_silence(publisher)
+                expect_silence(observer)
+                assert receive(publisher) == success and receive(publisher) == PONG
+                assert receive(observer) == (0x30, topic(name) + b"\0new")
+    committed = image.read_bytes()
+    assert [committed[at] for at, _, _ in session_records(committed)].count(4) == 1
+    assert not any(committed[at] == 3 for at, _, _ in session_records(committed))
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, source, False, True) as publisher:
+            # QoS 1 retransmission may produce a duplicate even after a durable PUBACK.
+            publisher.sendall(bytes((0x3b,)) + original[1:])
+            assert receive(publisher) == success
+            publisher.sendall(plain)
+            assert receive(publisher) == success
+        peer311, _ = connect(address, 4, b"qos1-legacy")
+        with peer311:
+            peer311.sendall(legacy)
+            assert receive(peer311) == success
+        observer, _ = connect(address, 5, b"qos1-observer")
+        with observer:
+            check_retained_value(observer, name, 1, b"new")
+        with persistent(address, subscriber, False, True) as recipient:
+            for message in (b"new", b"new", b"plain", b"legacy"):
+                received_id = received_publish(recipient, 0x32, name, message)
+                recipient.sendall(frame(0x40, received_id))
+            barrier(recipient)
+
+    saved = image.read_bytes()
+    assert not any(saved[at] in (3, 4, 5) for at, _, _ in session_records(saved))
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True) as recipient:
+            barrier(recipient)
+    with broker(program, "restore-online", image, "2000") as address:
+        with persistent(address, source, False, True) as publisher:
+            publisher.sendall(plain)
+            expect_silence(publisher)
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True) as recipient:
+            received_id = received_publish(recipient, 0x32, name, b"plain")
+            recipient.sendall(frame(0x40, received_id))
+            barrier(recipient)
+    return {"online_qos1_commit_before_puback": True, "online_qos1_restart_and_retransmission": True,
+            "online_qos1_refusal_and_unknown": True, "online_qos1_mqtt311": True,
+            "online_qos1_pending_shutdown": True}
+
+
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
     kind, body = receive(peer)
@@ -917,10 +1032,10 @@ def verify_full_writer(program, directory):
             readable, _, _ = select(connected[:-1], [], [], 1.0)
             assert readable, "the writer queue did not reach its bound"
             assert receive(readable[0]) == (0x50, identifier + b"\x83")
-            candidate = frame(0x35, topic(b"writer/rejected") + identifier + b"\0retained")
-            for _ in range(2):
+            for publish_header, ack_header in ((0x35, 0x50), (0x33, 0x40), (0x33, 0x40)):
+                candidate = frame(publish_header, topic(b"writer/rejected") + identifier + b"\0retained")
                 connected[-1].sendall(candidate + PING)
-                assert receive(connected[-1]) == (0x50, identifier + b"\x83")
+                assert receive(connected[-1]) == (ack_header, identifier + b"\x83")
                 assert receive(connected[-1]) == PONG
     assert image.read_bytes() == original
     return {"full_writer_preserves_input_order_and_releases_retained_lease": True}
@@ -936,6 +1051,7 @@ def main():
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
                           **verify_online_transactions(args.program, folder),
                           **verify_outbound_transactions(args.program, folder),
+                          **verify_qos1_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 
