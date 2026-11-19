@@ -17189,3 +17189,35 @@ The test file backend was checked against process termination. Live QoS 2
 deduplication and recipient queues still need an online commit path. The
 strict release check reports 43 developing modules. Native Linux performance
 comparisons and the Windows/Linux 72-hour mixed-load gates remain open.
+
+
+## 2026-11-20 MQTT durable retirement of restored inbound QoS 2 IDs
+
+The broker can now commit removal of an incoming QoS 2 identifier restored
+from a checkpoint before sending PUBCOMP. This closes the stale-identifier
+window when another process starts from the same checkpoint after the sender
+has completed its exchange. The session commit callback also accepts the
+existing fresh-session discard operation. The compatibility reset API is
+still available. IDs accepted only in memory finish without a storage call.
+
+The checkpoint APP example atomically removes one record or the whole Client
+ID group on its storage worker. Definitive removal failure closes the
+affected connection and preserves the pending exchange for resume. Unknown
+outcomes close broker admission and invalidate export. A committed removal
+also retires the ID when the original connection is gone.
+
+Independent MQTT 5.0 and 3.1.1 peers verified identifier reuse across
+restarts and ordered PUBCOMP with a coalesced PING. Probes covered process
+termination before commit, known storage rejection and retry, takeover while
+a commit was pending with no PUBCOMP on the old connection, an unknown
+outcome, and preservation of unrelated IDs. Windows x64 and Ubuntu/WSL x64
+passed modular, single-header, static and shared package verification, the
+default TCP broker and retained TCP/TLS/WS/WSS regression. WSL ASan/UBSan
+with leak checking and TSan passed the store suite and restart probes. Raw
+evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-pubrel-*`.
+
+Online acceptance of new inbound QoS 2 PUBLISH packets still needs an atomic
+commit with the corresponding recipient delivery obligations. Native Linux,
+performance comparisons and 72-hour workloads remain open. Strict release
+still reports 43 developing modules.

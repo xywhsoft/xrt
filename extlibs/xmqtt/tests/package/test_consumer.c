@@ -29,7 +29,9 @@ int main(void)
         xmqttServerCloseForCheckpoint(NULL) || xmqttServerVisitSessions(NULL, NULL, NULL) ||
         xmqttServerRestoreSessions(NULL, NULL, 0, 0) ||
         xmqttServerSetSessionReset(NULL, NULL, NULL) ||
-        xmqttServerCompleteSessionReset(NULL, XMQTT_SERVER_SESSION_RESET_UNKNOWN)) return 73;
+        xmqttServerCompleteSessionReset(NULL, XMQTT_SERVER_SESSION_RESET_UNKNOWN) ||
+        xmqttServerSetSessionCommit(NULL, NULL, NULL) ||
+        xmqttServerCompleteSessionCommit(NULL, XMQTT_SERVER_SESSION_UNKNOWN)) return 73;
     xrtClearError();
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)

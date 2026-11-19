@@ -202,78 +202,83 @@ typedef struct checkpointstore {
 	int64 Delay;
 } checkpointstore;
 
-typedef struct checkpointreset {
+typedef struct checkpointchange {
 	checkpointstore* Store;
-	xmqttserversessionresetticket* Ticket;
+	xmqttserversessionticket* Ticket;
 	xstrview ClientId;
-} checkpointreset;
+	xmqttserversessionoperation Operation;
+	uint16 Identifier;
+} checkpointchange;
 
-static xmqttserversessionresetresult checkpointDiscard(const checkpointreset* Reset, bytes Image,
+static xmqttserversessionresult checkpointApply(const checkpointchange* Change, bytes Image,
 	xbytesview Cursor, size_t Count)
 {
 	if (!checkpointParseRetained(&Cursor, NULL, Count))
-		return XMQTT_SERVER_SESSION_RESET_REJECTED;
+		return XMQTT_SERVER_SESSION_REJECTED;
 	if (Image[7] == '1')
-		return Cursor.Size ? XMQTT_SERVER_SESSION_RESET_REJECTED : XMQTT_SERVER_SESSION_RESET_COMMITTED;
-	if (Cursor.Size < 4) return XMQTT_SERVER_SESSION_RESET_REJECTED;
+		return Cursor.Size ? XMQTT_SERVER_SESSION_REJECTED : XMQTT_SERVER_SESSION_COMMITTED;
+	if (Cursor.Size < 4) return XMQTT_SERVER_SESSION_REJECTED;
 	bytes CountField = Image + (Cursor.Data - Image);
 	Count = (size_t)checkpointReadNumber(CountField, 4);
 	Cursor.Data += 4;
 	Cursor.Size -= 4;
-	if (Count > Cursor.Size / SessionRecord) return XMQTT_SERVER_SESSION_RESET_REJECTED;
+	if (Count > Cursor.Size / SessionRecord) return XMQTT_SERVER_SESSION_REJECTED;
 	bytes Output = CountField + 4;
 	size_t Kept = 0;
-	bool Discard = false;
+	bool Selected = false;
 	for (size_t Index = 0; Index < Count; ++Index) {
 		cbytes Start = Cursor.Data;
 		xmqttserversessionrecord Record;
 		if (!checkpointReadSession(&Cursor, &Record) ||
 			(!Index && Record.Kind != XMQTT_SERVER_RECORD_SESSION))
-			return XMQTT_SERVER_SESSION_RESET_REJECTED;
+			return XMQTT_SERVER_SESSION_REJECTED;
 		if (Record.Kind == XMQTT_SERVER_RECORD_SESSION)
-			Discard = Record.Data.Size == Reset->ClientId.Size &&
-				!memcmp(Record.Data.Data, Reset->ClientId.Data, Record.Data.Size);
-		if (Discard) continue;
+			Selected = Record.Data.Size == Change->ClientId.Size &&
+				!memcmp(Record.Data.Data, Change->ClientId.Data, Record.Data.Size);
+		if (Selected && (Change->Operation == XMQTT_SERVER_SESSION_DISCARD ||
+			(Record.Kind == XMQTT_SERVER_RECORD_INCOMING_QOS2 && Record.Identifier == Change->Identifier)))
+			continue;
 		size_t Size = (size_t)(Cursor.Data - Start);
 		memmove(Output, Start, Size);
 		Output += Size;
 		++Kept;
 	}
-	if (Cursor.Size) return XMQTT_SERVER_SESSION_RESET_REJECTED;
-	if (Kept == Count) return XMQTT_SERVER_SESSION_RESET_COMMITTED;
+	if (Cursor.Size) return XMQTT_SERVER_SESSION_REJECTED;
+	if (Kept == Count) return XMQTT_SERVER_SESSION_COMMITTED;
 	checkpointWriteNumber(CountField, 4, Kept);
 	size_t Size = (size_t)(Output - Image);
 	checkpointWriteNumber(Output, CheckpointChecksum, xrtCrc32(Image, Size));
-	return xrtFileWriteAtomic(Reset->Store->Path, (xbytesview){Image, Size + CheckpointChecksum}) ?
-		XMQTT_SERVER_SESSION_RESET_COMMITTED : XMQTT_SERVER_SESSION_RESET_UNKNOWN;
+	return xrtFileWriteAtomic(Change->Store->Path, (xbytesview){Image, Size + CheckpointChecksum}) ?
+		XMQTT_SERVER_SESSION_COMMITTED : XMQTT_SERVER_SESSION_UNKNOWN;
 }
 
-static xtaskoutcome checkpointResetTask(xcancel* Cancel, ptr Data, xtaskvalue* Value)
+static xtaskoutcome checkpointCommitTask(xcancel* Cancel, ptr Data, xtaskvalue* Value)
 {
 	(void)Cancel;
 	(void)Value;
-	checkpointreset* Reset = Data;
-	if (Reset->Store->Delay) xrtSleep(Reset->Store->Delay);
+	checkpointchange* Change = Data;
+	if (Change->Store->Delay) xrtSleep(Change->Store->Delay);
 	xbytesview Cursor;
 	size_t Count;
-	bytes Image = checkpointOpen(Reset->Store->Path, &Cursor, &Count);
-	xmqttserversessionresetresult Result = Image ? checkpointDiscard(Reset, Image, Cursor, Count) :
-		XMQTT_SERVER_SESSION_RESET_REJECTED;
+	bytes Image = checkpointOpen(Change->Store->Path, &Cursor, &Count);
+	xmqttserversessionresult Result = Image ? checkpointApply(Change, Image, Cursor, Count) :
+		XMQTT_SERVER_SESSION_REJECTED;
 	xrtFree(Image);
-	if (!xmqttServerCompleteSessionReset(Reset->Ticket, Result)) abort();
-	xrtFree(Reset);
+	if (!xmqttServerCompleteSessionCommit(Change->Ticket, Result)) abort();
+	xrtFree(Change);
 	return XTASK_SUCCESS;
 }
 
-static bool checkpointSubmitReset(xmqttserversessionresetticket* Ticket, xstrview ClientId, ptr User)
+static bool checkpointSubmit(xmqttserversessionticket* Ticket, xmqttserversessionoperation Operation,
+	xstrview ClientId, uint16 Identifier, ptr User)
 {
 	checkpointstore* Store = User;
-	checkpointreset* Reset = xrtMalloc(sizeof(*Reset));
-	if (!Reset) return false;
-	*Reset = (checkpointreset){Store, Ticket, ClientId};
-	xfuture* Write = xrtTaskSubmit(Store->Writer, checkpointResetTask, Reset, NULL);
+	checkpointchange* Change = xrtMalloc(sizeof(*Change));
+	if (!Change) return false;
+	*Change = (checkpointchange){Store, Ticket, ClientId, Operation, Identifier};
+	xfuture* Write = xrtTaskSubmit(Store->Writer, checkpointCommitTask, Change, NULL);
 	if (!Write) {
-		xrtFree(Reset);
+		xrtFree(Change);
 		return false;
 	}
 	xrtFutureDestroy(Write);
@@ -283,7 +288,7 @@ static bool checkpointSubmitReset(xmqttserversessionresetticket* Ticket, xstrvie
 static bool checkpointPrepare(xmqttserver* Server, ptr User)
 {
 	checkpointstore* Store = User;
-	return (!Store->Writer || xmqttServerSetSessionReset(Server, checkpointSubmitReset, Store)) &&
+	return (!Store->Writer || xmqttServerSetSessionCommit(Server, checkpointSubmit, Store)) &&
 		checkpointLoad(Server, (ptr)Store->Path);
 }
 

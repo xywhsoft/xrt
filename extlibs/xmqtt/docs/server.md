@@ -242,7 +242,7 @@ Checkpoints capture completed, controlled shutdowns. Durability across
 unexpected process loss requires an active backend that commits protocol
 state before emitting the associated acknowledgment.
 
-### Durably discarding stale session checkpoints
+### Online session checkpoint commits
 
 With server storage enabled, register an application reset callback using
 `xmqttServerSetSessionReset` before restoring sessions or attaching transports.
@@ -253,19 +253,27 @@ the successful CONNACK and pauses further input until the callback confirms
 the discard. Another CONNECT for the same ID is refused while the reset is
 pending. The connection limit also bounds resets in flight.
 
-Execute storage work outside the broker worker and complete each accepted
-ticket even if the connection has timed out or closed. A definite rejection
-returns a temporary connection failure. An unknown outcome closes broker
-admission and invalidates session checkpoint export. Recover by loading the
-authoritative store into a new broker. This operation covers discarded
-checkpoints. Live QoS state still follows the controlled checkpoint contract.
+Use `xmqttServerSetSessionCommit` to handle session discards and removal of
+restored inbound QoS 2 identifiers. For a restored identifier, PUBREL triggers
+the callback and the broker defers PUBCOMP until the removal is durable. If the client loses the
+reply and resumes, an already removed identifier gets PUBCOMP 0x92 in MQTT
+5.0. A definitive failure closes that transport and leaves the identifier
+available for a later PUBREL. A subsequent PUBLISH can reuse the identifier
+after the exchange is complete.
 
-Run `examples_server_checkpoint restore-fenced checkpoint.bin` to see a minimal
-application implementation. One application worker removes that ID's record
-group and atomically replaces the image while keeping other records and the
-original capture time. The example's whole-file rewrite demonstrates ordering
-and process restart on a small broker. Production storage must provide its
-own power-loss guarantees.
+Execute storage work outside the broker worker and complete each accepted
+ticket even if the connection has timed out or closed. An unknown outcome
+closes broker admission and invalidates session checkpoint export. Recover
+by loading the authoritative store into a new broker. Incoming PUBLISH
+acceptance and outbound recipient state still follow the controlled
+checkpoint contract.
+
+Run `examples_server_checkpoint restore-fenced checkpoint.bin` to see an
+application implementation. One application worker atomically removes the
+Client ID group or a selected QoS 2 identifier while preserving other
+records and the original capture time. The example's whole-file rewrite
+demonstrates ordering and process restart on a small broker. Production
+storage must provide its own power-loss guarantees.
 
 ## MQTT 5 enhanced authentication
 

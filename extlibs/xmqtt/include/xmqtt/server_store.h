@@ -92,7 +92,10 @@ typedef struct xmqttserversessionresetticket xmqttserversessionresetticket;
 typedef enum xmqttserversessionresetresult {
 	XMQTT_SERVER_SESSION_RESET_COMMITTED = 0,
 	XMQTT_SERVER_SESSION_RESET_REJECTED,
-	XMQTT_SERVER_SESSION_RESET_UNKNOWN
+	XMQTT_SERVER_SESSION_RESET_UNKNOWN,
+	XMQTT_SERVER_SESSION_COMMITTED = XMQTT_SERVER_SESSION_RESET_COMMITTED,
+	XMQTT_SERVER_SESSION_REJECTED = XMQTT_SERVER_SESSION_RESET_REJECTED,
+	XMQTT_SERVER_SESSION_UNKNOWN = XMQTT_SERVER_SESSION_RESET_UNKNOWN
 } xmqttserversessionresetresult;
 
 /* For a fresh session, durably discard all old session records for ClientId.
@@ -120,6 +123,42 @@ XMQTT_API bool xmqttServerSetSessionReset(xmqttserver* Server,
  * Join APP completion callers before destroying the broker and engine. */
 XMQTT_API bool xmqttServerCompleteSessionReset(xmqttserversessionresetticket* Ticket,
 	xmqttserversessionresetresult Result);
+
+typedef xmqttserversessionresetticket xmqttserversessionticket;
+typedef xmqttserversessionresetresult xmqttserversessionresult;
+typedef enum xmqttserversessionoperation {
+	XMQTT_SERVER_SESSION_DISCARD = 1,
+	XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2
+} xmqttserversessionoperation;
+
+/* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
+ * Identifier is zero. FINISH_INCOMING_QOS2 removes a restored inbound QoS 2
+ * record with this Identifier before PUBCOMP.
+ * The operations are idempotent. A missing group or record is already removed.
+ * Incoming acceptance and recipient delivery are not persisted by this hook.
+ *
+ * Submit runs on the connection worker outside broker locks. Return promptly.
+ * Operations for one ClientId are serialized. Different workers may submit
+ * concurrently. False guarantees no durable effect. True transfers exactly
+ * one completion duty and ClientId stays borrowed through successful completion. */
+typedef bool (*xmqttserversessionsubmit)(xmqttserversessionticket* Ticket,
+	xmqttserversessionoperation Operation, xstrview ClientId, uint16 Identifier, ptr User);
+
+/* Install once on a fresh broker before restoring or attaching connections.
+ * Select this hook or the reset-only hook. A definitive PUBREL failure
+ * closes that transport and keeps the identifier for resume. An unknown
+ * outcome closes broker admission and invalidates session checkpoint export.
+ * The connection limit bounds pending work. Keep callbacks and User alive
+ * through broker retirement. */
+XMQTT_API bool xmqttServerSetSessionCommit(xmqttserver* Server,
+	xmqttserversessionsubmit Submit, ptr User);
+
+/* The unique completion owner may call from any thread. True consumes the
+ * ticket and invalidates ClientId; false leaves the duty with the caller.
+ * Complete even after Close or timeout. WaitFor includes broker-side retirement.
+ * Join APP completion callers before destroying the broker and engine. */
+XMQTT_API bool xmqttServerCompleteSessionCommit(xmqttserversessionticket* Ticket,
+	xmqttserversessionresult Result);
 
 XRT_EXTERN_C_END
 #endif

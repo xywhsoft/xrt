@@ -244,7 +244,7 @@ def verify_sessions(program, directory):
 def expect_silence(peer):
     peer.settimeout(0.15)
     try:
-        raise AssertionError(f"peer returned {peer.recv(1)!r} before the reset completed")
+        raise AssertionError(f"peer returned {peer.recv(1)!r} before the store commit completed")
     except socket.timeout:
         pass
     finally:
@@ -299,8 +299,7 @@ def verify_reset(program, directory):
             replacement.sendall(persistent_connect(replaced, True) + PING)
             expect_silence(replacement)
             with persistent(address, kept, False, True) as neighbor:
-                neighbor.sendall(pubrel)
-                assert receive(neighbor) == (0x70, identifier)
+                barrier(neighbor)
             expect_connack(replacement)
             assert receive(replacement) == PONG
             assert image.read_bytes() != original, "CONNACK preceded checkpoint replacement"
@@ -355,6 +354,121 @@ def verify_reset(program, directory):
             "reset_unknown_seals_broker": True, "reset_retires_during_shutdown": True}
 
 
+def qos2_exchange(peer, identifier, payload):
+    peer.sendall(frame(0x34, topic(b"pubrel/input") + identifier + b"\0" + payload))
+    kind, body = receive(peer)
+    assert kind == 0x50 and body in (identifier, identifier + b"\x10"), (kind, body)
+
+
+def expect_disconnect(peer):
+    try:
+        assert not peer.recv(1), "the broker sent a reply before closing"
+    except ConnectionResetError:
+        pass
+
+
+def verify_pubrel_commit(program, directory):
+    image = directory / "pubrel-commit.bin"
+    sender, legacy = b"durable-publisher", b"durable-legacy-publisher"
+    identifier, other = b"\0\x19", b"\0\x1a"
+    pubrel = frame(0x62, identifier)
+    with broker(program, "capture", image) as address:
+        with persistent(address, sender, True) as peer:
+            qos2_exchange(peer, identifier, b"old")
+            qos2_exchange(peer, other, b"other")
+            peer.sendall(b"\xe0\0")
+            assert not peer.recv(1)
+        with persistent(address, legacy, False, version=4) as peer:
+            peer.sendall(frame(0x34, topic(b"pubrel/input") + identifier + b"legacy-old"))
+            assert receive(peer) == (0x50, identifier)
+            peer.sendall(b"\xe0\0")
+            assert not peer.recv(1)
+    original = image.read_bytes()
+
+    with broker(program, "restore-fenced", image, "1500", crash=True) as address:
+        with persistent(address, sender, False, True) as peer:
+            peer.sendall(pubrel + PING)
+            expect_silence(peer)
+    assert image.read_bytes() == original, "interrupted PUBREL removed a durable identifier"
+
+    missing = image.with_suffix(".saved")
+    with broker(program, "restore-fenced", image, crash=True) as address:
+        with persistent(address, sender, False, True) as peer:
+            image.rename(missing)
+            peer.sendall(pubrel)
+            expect_disconnect(peer)
+            missing.rename(image)
+        assert image.read_bytes() == original
+        with persistent(address, sender, False, True) as peer:
+            peer.sendall(pubrel + PING)
+            assert receive(peer) == (0x70, identifier)
+            assert receive(peer) == PONG
+            assert image.read_bytes() != original, "PUBCOMP preceded durable identifier removal"
+        with persistent(address, legacy, False, True, version=4) as peer:
+            before = image.read_bytes()
+            peer.sendall(pubrel + PING)
+            assert receive(peer) == (0x70, identifier)
+            assert receive(peer) == PONG
+            assert image.read_bytes() != before
+
+    with broker(program, "restore-fenced", image, crash=True) as address:
+        with persistent(address, sender, False, True) as peer:
+            peer.sendall(pubrel)
+            assert receive(peer) == (0x70, identifier + b"\x92")
+            peer.sendall(frame(0x62, other))
+            assert receive(peer) == (0x70, other), "unrelated identifier was removed"
+            observer, _ = connect(address, 5, b"pubrel-observer")
+            with observer:
+                subscribe(observer, b"pubrel/input", 1, 0)
+                qos2_exchange(peer, identifier, b"new")
+                assert receive(observer) == (0x30, topic(b"pubrel/input") + b"\0new")
+                # This identifier was accepted only in memory. PUBREL does
+                # not need an application lookup for an unpersisted record.
+                image.rename(missing)
+                peer.sendall(pubrel)
+                assert receive(peer) == (0x70, identifier)
+                missing.rename(image)
+                with persistent(address, legacy, False, True, version=4) as old_client:
+                    old_client.sendall(frame(0x34, topic(b"pubrel/input") + identifier + b"legacy-new"))
+                    assert receive(old_client) == (0x50, identifier)
+                    assert receive(observer) == (0x30, topic(b"pubrel/input") + b"\0legacy-new")
+                    old_client.sendall(pubrel)
+                    assert receive(old_client) == (0x70, identifier)
+                barrier(observer)
+
+    # The old exchange finishes while its transport is being replaced. No
+    # PUBCOMP reaches that transport, but the new binding sees the removal.
+    image.write_bytes(original)
+    with broker(program, "restore-fenced", image, "750", crash=True) as address:
+        with persistent(address, sender, False, True) as previous:
+            previous.sendall(pubrel)
+            expect_silence(previous)
+            with persistent(address, sender, False, True) as successor:
+                assert receive(previous) == (0xe0, b"\x8e")
+                successor.sendall(pubrel)
+                assert receive(successor) == (0x70, identifier + b"\x92")
+    with broker(program, "restore-fenced", image, crash=True) as address:
+        with persistent(address, sender, False, True) as peer:
+            peer.sendall(pubrel)
+            assert receive(peer) == (0x70, identifier + b"\x92")
+
+    image.write_bytes(original)
+    with prevent_replacement(image):
+        with broker(program, "restore-fenced", image, exit_code=1) as address:
+            with persistent(address, sender, False, True) as peer:
+                peer.sendall(pubrel)
+                expect_disconnect(peer)
+            with socket.create_connection(address, timeout=8) as rejected:
+                try:
+                    rejected.sendall(persistent_connect(sender, False))
+                    expect_disconnect(rejected)
+                except ConnectionResetError:
+                    pass
+    assert image.read_bytes() == original
+    return {"pubcomp_after_durable_remove": ["5.0", "3.1.1"], "pubrel_recovery_and_identifier_reuse": True,
+            "pubrel_takeover_and_lost_pubcomp": True, "pubrel_unknown_seals_broker": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
@@ -362,7 +476,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
-                          **verify_reset(args.program, folder)}))
+                          **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder)}))
 
 
 if __name__ == "__main__":
