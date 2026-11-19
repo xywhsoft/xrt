@@ -1378,14 +1378,16 @@ static void serverAckQuota(void)
 	serverStart(&Fixture, false, 0);
 	Fixture.Server->Config.ReceiveMaximum = 2;
 	Fixture.Server->Config.MaxIncomingQos1 = 2;
-	xmqttserverpeer First = {.Server = Fixture.Server}, Second = {.Server = Fixture.Server};
-	xrtAVLInit(&First.Incoming);
-	xrtAVLInit(&Second.Incoming);
+	xmqttserversession FirstSession = {0}, SecondSession = {0};
+	xmqttserverpeer First = {.Server = Fixture.Server, .Session = &FirstSession};
+	xmqttserverpeer Second = {.Server = Fixture.Server, .Session = &SecondSession};
+	xmqttServerSessionInit(&FirstSession, &First, XRT_STR_LITERAL("one"));
+	xmqttServerSessionInit(&SecondSession, &Second, XRT_STR_LITERAL("two"));
 	xrtAtomic32Init(&First.References, 1);
 	xrtAtomic32Init(&Second.References, 1);
 	uint8 Reason;
 	xmqttserverack* Inline = xmqttServerReserveAck(&First, 11, &Reason);
-	testRequire(Inline == &First.InlineAck && !xmqttServerReserveAck(&First, 11, &Reason) &&
+	testRequire(Inline == &FirstSession.InlineAck && !xmqttServerReserveAck(&First, 11, &Reason) &&
 		Reason == 0x82, "active identifier remains reserved until ACK release");
 	xallocationbudget* Budget;
 	xallocationscope Scope = {0};
@@ -1403,7 +1405,7 @@ static void serverAckQuota(void)
 		"aggregate acknowledgement quota spans peers");
 	xmqttServerReleaseAck(Inline, NULL, 0);
 	xmqttserverack* Reused = xmqttServerReserveAck(&Second, 11, &Reason);
-	testRequire(Reused == &Second.InlineAck, "release returns global acknowledgement quota");
+	testRequire(Reused == &SecondSession.InlineAck, "release returns global acknowledgement quota");
 	xmqttServerReleaseAck(Dynamic, NULL, 0);
 	xmqttServerReleaseAck(Reused, NULL, 0);
 	xmqttserverinfo Info;
@@ -1423,7 +1425,7 @@ static void serverHoldWriteCredit(xnetworker* Worker, ptr Data)
 	(void)Worker;
 	serverbackpressure* State = Data;
 	xmqttserverpeer* Peer = State->Peer;
-	testRequire(Peer->Waiting && Peer->Outgoing.Count == 1, "outbound publish waits behind a full receive window");
+	testRequire(Peer->Session->Waiting && Peer->Session->Outgoing.Count == 1, "outbound publish waits behind a full receive window");
 	xrtAtomic32Store(&State->Ready, 1, XMEMORY_RELEASE);
 	double Until = xrtTimer() + 5.0;
 	while (!xrtAtomic32Load(&State->Full, XMEMORY_ACQUIRE)) {
@@ -1432,7 +1434,7 @@ static void serverHoldWriteCredit(xnetworker* Worker, ptr Data)
 	}
 	xmqttpacket Ack = {.Type = XMQTT_PACKET_PUBACK, .Identifier = 1};
 	xmqttServerOnline(Peer, &Ack, NULL, xrtTimer());
-	testRequire(!Peer->Closing && !Peer->Outgoing.Count && Peer->Waiting,
+	testRequire(!Peer->Closing && !Peer->Session->Outgoing.Count && Peer->Session->Waiting,
 		"native AGAIN keeps the pending delivery without charging an extra packet ID");
 }
 
@@ -1459,7 +1461,8 @@ static void serverOutgoingBackpressure(void)
 	xrtAtomic32Init(&State.Full, 0);
 	xrtMutexLock(&Fixture.Server->Gate);
 	State.Peer = Fixture.Server->Peers;
-	for (; State.Peer && memcmp(State.Peer->ClientName.Data, "sink", 4); State.Peer = State.Peer->Next) { }
+	for (; State.Peer && (!State.Peer->Session || memcmp(State.Peer->Session->ClientName.Data, "sink", 4));
+		State.Peer = State.Peer->Next) { }
 	testRequire(State.Peer != NULL, "backpressured subscriber still exists");
 	xnetworker* Worker = xrtNetStreamWorker(State.Peer->Stream);
 	xrtMutexUnlock(&Fixture.Server->Gate);
@@ -1481,6 +1484,81 @@ static void serverOutgoingBackpressure(void)
 	serverWaitOutgoing(Fixture.Server, 0, 0);
 	xrtNetSocketClose(Consumer);
 	xrtNetSocketClose(Producer);
+	serverStop(&Fixture);
+}
+
+typedef struct servertakeovergate {
+	xatomic32 Ready, Release;
+} servertakeovergate;
+
+static void serverHoldOldWorker(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	servertakeovergate* Gate = Data;
+	xrtAtomic32Store(&Gate->Ready, 1, XMEMORY_RELEASE);
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&Gate->Release, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "takeover test releases the old worker");
+		xrtSleep(1);
+	}
+}
+
+static void serverTakeoverRoutes(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	xnetsocket Old = serverDial(&Fixture);
+	serverQos1Connect(Old, XMQTT_VERSION_5, "same");
+	const char* Filters[] = {"gone/#", "$share/team/gone/x"};
+	const uint8 Grants[] = {1,1};
+	serverSubscribeWire(Old, XMQTT_VERSION_5, true, 1, Filters, Grants, Grants, 2);
+
+	xmqttserverpeer Attempt = {.Server = Fixture.Server};
+	xallocationbudget* Budget;
+	xallocationscope Scope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &Budget) && xrtAllocationBudgetEnter(Budget, &Scope),
+		"session allocation failpoint");
+	bool Replaced = xmqttServerClaimId(&Attempt, XRT_STR_LITERAL("same"));
+	testRequire(xrtAllocationBudgetLeave(&Scope) && !Replaced && !Attempt.Session,
+		"failed session allocation leaves existing owner installed");
+	xrtClearError();
+	xrtAllocationBudgetFree(Budget);
+	serverPingPeer(Old);
+
+	xrtMutexLock(&Fixture.Server->Gate);
+	xmqttserverpeer* OldPeer = Fixture.Server->Peers;
+	xnetworker* Worker = xrtNetStreamWorker(OldPeer->Stream);
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	/* Accept the second TCP stream before blocking the listener's worker. */
+	xnetsocket New = serverDial(&Fixture);
+	serverConnections(&Fixture, 2);
+	xrtMutexLock(&Fixture.Server->Gate);
+	testRequire(Fixture.Server->Peers->Worker != OldPeer->Worker, "takeover uses a second worker");
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	servertakeovergate Gate;
+	xrtAtomic32Init(&Gate.Ready, 0);
+	xrtAtomic32Init(&Gate.Release, 0);
+	xnetpost Post;
+	testRequire(xrtNetPostInit(&Post) && xrtNetPost(Worker, &Post, serverHoldOldWorker, &Gate),
+		"hold the old stream before its subscriptions retire");
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&Gate.Ready, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "old stream worker is held");
+		xrtSleep(1);
+	}
+
+	serverQos1Connect(New, XMQTT_VERSION_5, "same");
+	serverPublishQos1(New, XMQTT_VERSION_5, "gone/x", "discard", 1, 0);
+	serverExpectPuback(New, XMQTT_VERSION_5, 1, 0x10);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.Connections == 2 && Info.Established == 1 &&
+		Info.Subscriptions == 2 && !Info.Forwarded && !Info.OutgoingPublishes,
+		"superseded wildcard and shared links stay indexed but cannot accept deliveries");
+	xrtAtomic32Store(&Gate.Release, 1, XMEMORY_RELEASE);
+	serverEof(Old);
+	serverConnections(&Fixture, 1);
+	serverPingPeer(New);
+	xrtNetSocketClose(New);
 	serverStop(&Fixture);
 }
 
@@ -1521,8 +1599,9 @@ static void serverRetainedOomAndExpiry(void)
 {
 	serverfixture Fixture;
 	serverStart(&Fixture, false, 0);
-	xmqttserverpeer Peer = {.Server = Fixture.Server, .Version = XMQTT_VERSION_5,
-		.ClientName = XRT_STR_LITERAL("prod")};
+	xmqttserversession Session = {0};
+	xmqttserverpeer Peer = {.Server = Fixture.Server, .Version = XMQTT_VERSION_5, .Session = &Session};
+	xmqttServerSessionInit(&Session, &Peer, XRT_STR_LITERAL("prod"));
 	const char* Topic = "stored";
 	const unsigned char Value[] = {'p'}, Expiry[] = {2, 0, 0, 0, 3}, Reduced[] = {2, 0, 0, 0, 2};
 	unsigned char Wire[32];
@@ -1533,7 +1612,7 @@ static void serverRetainedOomAndExpiry(void)
 	xmqttpacket Packet;
 	testRequire(xmqttPacketRead5((xbytesview){Wire, Size}, XMQTT_CLIENT_TO_SERVER, &Fixture.Server->Config.Codec,
 		&Scratch, &Packet, NULL) == XMQTT_CODEC_DONE, "decode expiring retained fixture");
-	const size_t Limits[] = {1, sizeof(xmqttserverpublication) + Size + Peer.ClientName.Size};
+	const size_t Limits[] = {1, sizeof(xmqttserverpublication) + Size + Session.ClientName.Size};
 	xmqttserverinfo Info;
 	for (size_t Index = 0; Index < sizeof(Limits) / sizeof(*Limits); ++Index) {
 		xallocationbudget* Budget;
@@ -1570,7 +1649,9 @@ static void serverRoutingOom(void)
 {
 	serverfixture Fixture;
 	serverStart(&Fixture, false, 0);
-	xmqttserverpeer Peer = {.Server = Fixture.Server};
+	xmqttserversession Session = {0};
+	xmqttserverpeer Peer = {.Server = Fixture.Server, .Session = &Session};
+	xmqttServerSessionInit(&Session, &Peer, XRT_STR_LITERAL("test"));
 	const size_t Limits[] = {1, sizeof(xmqttserverlink)};
 	for (size_t Index = 0; Index < sizeof(Limits)/sizeof(Limits[0]); ++Index) {
 		xallocationbudget* Budget;
@@ -1578,8 +1659,8 @@ static void serverRoutingOom(void)
 		testRequire(xrtAllocationBudgetCreate(Limits[Index], &Budget) &&
 			xrtAllocationBudgetEnter(Budget, &Scope), "index failpoint scope");
 		uint8 Reason = xmqttServerSubscribe(&Peer, XRT_BYTES_LITERAL("index-failure"), (xbytesview){0}, 0, NULL);
-		testRequire(xrtAllocationBudgetLeave(&Scope) && Reason == 0x83 && !Peer.Links &&
-			!Peer.LinkCount, "subscription node or topic insertion OOM rolls back");
+		testRequire(xrtAllocationBudgetLeave(&Scope) && Reason == 0x83 && !Session.Links &&
+			!Session.LinkCount, "subscription node or topic insertion OOM rolls back");
 		xallocationbudgetinfo Allocation = {.Size = sizeof(Allocation)};
 		testRequire(xrtAllocationBudgetInfo(Budget, &Allocation) && Allocation.Rejections &&
 			!Allocation.LiveBytes, "no live charges after index failure");
@@ -1617,9 +1698,9 @@ static void serverRoutingOom(void)
 	xmqttservertargets Targets = {0};
 	Targets.Slots = Targets.Local;
 	Targets.Capacity = sizeof(Targets.Local) / sizeof(Targets.Local[0]);
-	xmqttserverpeer TargetPeers[49] = {0};
+	xmqttserversession TargetSessions[49] = {0};
 	xmqttserverlink TargetsFixture[49] = {0};
-	for (size_t Index = 0; Index < 49; ++Index) TargetsFixture[Index].Peer = TargetPeers + Index;
+	for (size_t Index = 0; Index < 49; ++Index) TargetsFixture[Index].Session = TargetSessions + Index;
 	for (size_t Index = 0; Index < 48; ++Index)
 		testRequire(xmqttServerAddTarget(&Targets, TargetsFixture + Index), "local recipient set");
 	xallocationbudget* SetBudget;
@@ -1645,7 +1726,7 @@ static void serverRoutingOom(void)
 		xrtAllocationBudgetEnter(GroupBudget, &GroupScope), "shared group failpoint scope");
 	uint8 SharedResult = xmqttServerSubscribe(&Peer, SharedKey, Team, 0, NULL);
 	testRequire(xrtAllocationBudgetLeave(&GroupScope) && SharedResult == 0x83 &&
-		Peer.LinkCount == 1 && !Peer.Links->Topic->Shares, "shared group OOM preserves existing route");
+		Session.LinkCount == 1 && !Session.Links->Topic->Shares, "shared group OOM preserves existing route");
 	xallocationbudgetinfo GroupAllocation = {.Size = sizeof(GroupAllocation)};
 	testRequire(xrtAllocationBudgetInfo(GroupBudget, &GroupAllocation) &&
 		GroupAllocation.Rejections && !GroupAllocation.LiveBytes, "shared group OOM rolls back its link and quota");
@@ -1717,6 +1798,7 @@ int main(void)
 	serverRoutingOom();
 	serverRetainedOomAndExpiry();
 	serverOutgoingOom();
+	serverTakeoverRoutes();
 	serverOutgoingBackpressure();
 	serverAckQuota();
 	serverQos1Exceeded();

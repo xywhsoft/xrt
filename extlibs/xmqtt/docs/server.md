@@ -94,10 +94,13 @@ shared QoS 1 and 2 limits.
 Persistent sessions, reconnect replay, Wills, enhanced authentication, TLS and
 WebSocket are in development.
 
-Each peer stays on its original XRT worker. The handshake and connection
-retirement update the bounded identity index under a short gate. The steady
-PING path uses the worker-local state, a validated fixed header and XRT's
-bounded send queue. A contiguous native receive span can be parsed directly;
+Each peer stays on its original XRT worker. An authorized CONNECT registers
+one session for its Client ID. That session owns its subscriptions and QoS
+records. The peer owns the stream, negotiated transport limits and native
+connection timers. Identity replacement seals the old session before closing
+its stream. Exact, wildcard and shared routing skip sealed sessions while
+their indexed links retire. The steady PING path uses the worker-local state,
+a validated fixed header and XRT's bounded send queue. A contiguous native receive span can be parsed directly;
 XRT coalesces a fragmented complete control packet when needed. One queued
 timer per connection observes updated deadlines. Close seals admission and
 requests stream aborts. Subscriptions are released before the connection

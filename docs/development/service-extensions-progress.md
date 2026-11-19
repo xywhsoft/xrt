@@ -16594,3 +16594,59 @@ with 10 violations on Windows and 13 on WSL. Native Linux performance,
 controlled comparisons, 72-hour mixed-load runs and reconnect recovery remain
 open. Reports are in
 out/service-extensions/scope-reduction-20261119/xmqtt-qos2-*.
+
+## 2026-11-19 MQTT server session ownership and takeover
+
+An authorized CONNECT constructs one session with its Client ID in the same
+allocation. The registry and topic links point to that session. It owns the
+subscription list, QoS 1/2 indexes, outbound FIFO and identifier allocator.
+The peer owns its stream, endpoint limits and connection timers. Native send
+references still pin the bound peer through this stage. Topic shards keep
+linked sessions alive through routing and retirement.
+
+A Client ID takeover makes the prior session unavailable under the identity
+registry gate. Native close runs after that gate is released, with a peer
+reference held through the abort request. Ordinary and shared routing skip
+obsolete links while the prior worker retires. The session allocation failure
+path leaves the established session reachable. The race check exposed an early
+publication of the transport packet limit through the registry. The limit is
+now initialized before the session is registered.
+
+The new socket fixture accepts two streams on separate workers, holds the old
+worker with its ordinary and shared links still indexed and checks that the new
+connection can take over. A QoS 1 publication targeting those links receives
+No Matching Subscribers. The first version of the fixture blocked listener
+accept as well. The final fixture accepts both TCP streams before holding the
+old worker. The single-header suite also injects a session allocation failure
+and verifies that the previous owner still responds.
+
+Windows x64 and Ubuntu/WSL x64 passed both protocol selections with modular
+and single-header tests, independent Python peers, listener examples, static
+and shared package consumers and dependency trims. WSL ASan/UBSan with leak
+checking and the full single-header TSan suite passed after the registry
+publication fix. Manifest, generated headers and public API checks passed.
+Codec-only text size stayed fixed. The server single object added 480 text
+bytes on Windows and 869 on WSL with the same feature closures.
+
+Each unpinned loopback configuration ran three replicates with 128-byte
+payloads, one publisher and two broker workers. A replicate sends 10,000
+publications to one subscriber or 512 to 64. The exact QoS 0 path verifies
+all payloads. The bidirectional QoS 2 path also completes both handshakes.
+
+| Host | QoS | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 0 | 1 | 33,781 | 50.4 | 64.9 | 2.0001 |
+| Windows x64 | 0 | 64 | 236,779 | 379.8 | 514.8 | 1.0200 |
+| Windows x64 | 2 | 1 | 12,799 | 124.2 | 161.4 | 5.0001 |
+| Windows x64 | 2 | 64 | 86,918 | 1048.1 | 1378.3 | 3.0381 |
+| Ubuntu/WSL x64 | 0 | 1 | 12,604 | 110.1 | 270.6 | 3.0000 |
+| Ubuntu/WSL x64 | 0 | 64 | 170,252 | 533.2 | 614.6 | 1.0322 |
+| Ubuntu/WSL x64 | 2 | 1 | 6,010 | 233.2 | 389.3 | 8.9968 |
+| Ubuntu/WSL x64 | 2 | 64 | 46,405 | 1437.0 | 1860.3 | 5.0625 |
+
+Every measured delivery completed. The variation check returned exit 1 on
+both hosts, with 26 violations on Windows and nine on WSL. These runs record
+loopback behavior for this source snapshot. Reconnect session restoration,
+offline delivery, controlled performance comparisons, native Linux and 72-hour
+mixed-load validation remain open. The evidence is in
+out/service-extensions/scope-reduction-20261119/xmqtt-session-boundary-*.
