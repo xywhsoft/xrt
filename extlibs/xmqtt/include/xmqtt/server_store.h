@@ -63,6 +63,8 @@ typedef enum xmqttserverrecordkind {
  * QUEUED: Data is a PUBLISH template with Packet Identifier 1, Milliseconds
  * is its lifetime. SENT: same template with original Identifier, Code is the
  * expected ACK packet type and Value is the last wire Message Expiry Interval.
+ * DeliveryKey identifies a QUEUED or SENT record created by an online commit.
+ * An all-zero DeliveryKey uses only explicit checkpoint persistence.
  * WILL: Data is a delayed Will PUBLISH, Milliseconds is time until publication.
  * UINT64_MAX represents an unlimited SESSION or QUEUED lifetime. */
 typedef struct xmqttserversessionrecord {
@@ -72,7 +74,7 @@ typedef struct xmqttserversessionrecord {
 	uint32 Value;
 	uint16 Identifier;
 	uint8 Code;
-	xmqttserversessionkey Key;
+	xmqttserversessionkey Key, DeliveryKey;
 } xmqttserversessionrecord;
 
 typedef bool (*xmqttserversessionvisitor)(const xmqttserversessionrecord* Record, ptr User);
@@ -137,7 +139,10 @@ typedef xmqttserversessionresetresult xmqttserversessionresult;
 typedef enum xmqttserversessionoperation {
 	XMQTT_SERVER_SESSION_DISCARD = 1,
 	XMQTT_SERVER_SESSION_FINISH_INCOMING_QOS2,
-	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2
+	XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2,
+	XMQTT_SERVER_SESSION_SEND_OUTGOING,
+	XMQTT_SERVER_SESSION_RELEASE_OUTGOING,
+	XMQTT_SERVER_SESSION_FINISH_OUTGOING
 } xmqttserversessionoperation;
 
 /* DISCARD removes the entire ClientId group before fresh CONNECT succeeds.
@@ -181,11 +186,14 @@ typedef struct xmqttservertransaction {
 	xstrview RetainedTopic;
 	double RetainedReceived; /* XRT monotonic time at admission. */
 	bool RemoveRetained;
+	xmqttserversessionkey DeliveryKey;
+	uint32 OutgoingExpiry; /* Message Expiry Interval written on first PUBLISH. */
+	uint8 OutgoingPhase; /* Expected ACK after SEND or RELEASE; before FINISH. */
 } xmqttservertransaction;
 
 typedef struct xmqttservertransactionrecipient {
 	xstrview ClientId;
-	xmqttserversessionkey Key;
+	xmqttserversessionkey Key, DeliveryKey;
 	xbytesview Publish; /* Recipient-version template with Packet Identifier 1. */
 	uint64 RemainingMilliseconds; /* UINT64_MAX for no message expiry. */
 } xmqttservertransactionrecipient;
@@ -207,6 +215,18 @@ typedef bool (*xmqttservertransactionvisitor)(const xmqttservertransactionrecipi
  * Enable retained QoS 2 composition with xmqttServerEnableRetainedTransactions
  * after configuring both runtime commit hooks against the same store.
  *
+ * With outbound transactions enabled, persist each nonzero DeliveryKey
+ * on its queued record. SEND_OUTGOING moves that record to SENT and updates
+ * the SESSION's last Packet Identifier in the same commit. Preserve order
+ * of first sends on replay. RELEASE_OUTGOING changes the matching SENT
+ * record from PUBREC to PUBCOMP. FINISH_OUTGOING removes the record after
+ * a terminal ACK or a broker discard. Identifier and OutgoingPhase are
+ * both zero for a queued discard. Match the ClientId, Key, DeliveryKey
+ * and the previous phase where applicable. A missing record can only be
+ * treated as done for FINISH_OUTGOING. The broker sends PUBLISH or PUBREL
+ * only after its phase is committed. A rejection closes that transport
+ * and leaves the previous phase in memory for resume.
+ *
  * The callback runs on a worker outside broker locks. Return promptly.
  * True transfers the completion duty and borrows Change until completion.
  * False certifies no durable effect. Use xmqttServerCompleteSessionCommit to
@@ -218,14 +238,21 @@ typedef bool (*xmqttservertransactionsubmit)(xmqttserversessionticket* Ticket,
  * session storage callbacks. Restore must supply a nonzero key for every
  * SESSION record. The APP supplies the backend and its time/expiry policy.
  * A positive PUBREC follows confirmation of the acceptance transaction.
- * Outbound send and acknowledgement phases still use session checkpoints. */
+ * Enable outbound commits separately when supported by the backend. */
 XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,
 	xmqttservertransactionsubmit Submit, ptr User);
+
+/* Opt in before restore or transport attachment, after configuring
+ * SetSessionTransactions. Only deliveries carrying a DeliveryKey use online
+ * outbound commits. The key must survive checkpoint export and restore. */
+XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server);
 
 /* The ticket owner may visit durable recipients before completing an
  * acceptance transaction. The callback borrows each record and all views
  * for its duration. Remaining time is sampled once per visit; expired
- * deliveries are omitted. False from the visitor ends the visit. */
+ * legacy deliveries are omitted. Keep keyed records with zero remaining
+ * time until the broker retires them or their session expires.
+ * False from the visitor ends the visit. */
 XMQTT_API bool xmqttServerVisitTransactionRecipients(const xmqttserversessionticket* Ticket,
 	xmqttservertransactionvisitor Visit, ptr User);
 

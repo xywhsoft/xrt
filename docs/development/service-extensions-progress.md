@@ -17339,3 +17339,37 @@ The outgoing send and acknowledgement phases and live session and
 subscription updates still need online persistence. Native Linux performance
 and the Windows/Linux 72-hour workloads remain open. Strict release still
 reports 43 developing modules.
+
+## 2026-11-20 MQTT online outbound acknowledgement phases
+
+The optional outbound transactions use a stable delivery key to distinguish
+reliable recipients, including two queued messages with identical bytes.
+The broker commits the original Packet Identifier and first ACK phase
+before PUBLISH, then commits the PUBCOMP phase before PUBREL. The
+terminal ACK or a broker discard retires the record. Definitive refusal
+leaves the previous phase available for resume and closes the affected
+connection. Unknown outcomes close admission.
+
+The APP-owned v5 checkpoint keeps delivery keys and preserves actual
+first-send order when multiple publishers write concurrently. It uses the
+existing bounded writer and atomic image replacement. It reads v3 through v5
+in online mode and v1 through v5 in controlled mode. The independent TCP
+probes covered termination with an uncommitted first send, original
+identifiers and DUP on resumed PUBLISH, PUBREL on restart and takeover,
+terminal PUBCOMP and negative PUBREC, PUBACK for MQTT 5.0 and 3.1.1,
+a reduced Maximum Packet Size at reconnect, v4 upgrade, backend rejection
+and an unknown backend outcome.
+
+Windows x64 and Ubuntu/WSL x64 passed the broker and store suites,
+modular and single-header checkpoint probes, and static and shared
+package consumers. Independent TCP handshake and retained-commit transport
+probes passed, including TLS, WS and WSS for retained commits. WSL ASan/UBSan
+with leak checking and TSan passed broker and store suites plus the final
+modular checkpoint probe. Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-outbound/`.
+
+Online outbound progress applies to records created by the online acceptance
+hook. Controlled checkpoints still cover zero-key deliveries and updates
+to subscriptions and session expiry. Native Linux performance and the
+72-hour acceptance workloads are open. Strict release reports 43
+developing modules.

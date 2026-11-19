@@ -128,7 +128,7 @@ def verify(program, directory):
             publish(source, CLEARED, b"")
             publish(source, SHORT, b"expires while down", 3)
     stored = image.read_bytes()
-    assert stored[:8] == b"XMQRET04" and int.from_bytes(stored[16:20], "big") == 4
+    assert stored[:8] == b"XMQRET05" and int.from_bytes(stored[16:20], "big") == 4
     time.sleep(3.1)
     with broker(program, "restore", image) as address:
         first_expiry = verify_restored(address)
@@ -161,8 +161,11 @@ def verify(program, directory):
             "finite_expiry_and_no_local": True, "corruption_and_clock_rejection": True}
 
 
-def persistent_connect(client_id, clean, *, version=5, will=b""):
-    fields = b"\5\x11\0\0\0\x3c" if version == 5 else b""
+def persistent_connect(client_id, clean, *, version=5, will=b"", max_packet=None):
+    fields = b"\x11\0\0\0\x3c"
+    if max_packet is not None:
+        fields += b"\x27" + max_packet.to_bytes(4, "big")
+    fields = bytes((len(fields),)) + fields if version == 5 else b""
     flags = (2 if clean else 0) | (0x24 if will else 0)
     return frame(0x10, b"\0\4MQTT" + bytes((version, flags, 0, 0)) + fields + topic(client_id) + will)
 
@@ -172,9 +175,9 @@ def expect_connack(peer, present=False, reason=0):
     assert kind == 0x20 and body[:2] == bytes((present, reason)), (kind, body)
 
 
-def persistent(address, client_id, clean, present=False, *, version=5, will=b""):
+def persistent(address, client_id, clean, present=False, *, version=5, will=b"", max_packet=None):
     peer = socket.create_connection(address, timeout=8)
-    peer.sendall(persistent_connect(client_id, clean, version=version, will=will))
+    peer.sendall(persistent_connect(client_id, clean, version=version, will=will, max_packet=max_packet))
     expect_connack(peer, present)
     return peer
 
@@ -239,6 +242,21 @@ def verify_sessions(program, directory):
     with broker(program, "restore", historical_path, crash=True) as address:
         with persistent(address, b"producer", False, True) as peer:
             barrier(peer)
+
+    v4 = bytearray(b"XMQRET04" + saved[8:24])
+    for at, body, end in session_records(saved):
+        key_bytes = 16 if saved[at] in (4, 5) else 0
+        v4 += saved[at:body - key_bytes] + saved[body:end]
+    v4_path = directory / "v4-unkeyed-deliveries.bin"
+    v4_path.write_bytes(v4 + zlib.crc32(v4).to_bytes(4, "big"))
+    with broker(program, "restore-online", v4_path, crash=True) as address:
+        with persistent(address, b"v4-upgrade", True) as peer:
+            barrier(peer)
+        assert v4_path.read_bytes()[:8] == b"XMQRET05"
+        with persistent(address, b"worker", False, True) as worker:
+            assert received_publish(worker, 0x3a, target, b"first") == first
+            assert receive(worker) == (0x62, second)
+            received_publish(worker, 0x32, target, b"queued")
 
     with broker(program, "restore", image) as address:
         with persistent(address, b"legacy-worker", False, True, version=4) as legacy:
@@ -495,10 +513,13 @@ def verify_pubrel_commit(program, directory):
 
 
 def session_records(data):
-    assert data[:8] in (b"XMQRET03", b"XMQRET04") and data[16:20] == b"\0" * 4
+    assert data[:8] in (b"XMQRET03", b"XMQRET04", b"XMQRET05") and data[16:20] == b"\0" * 4
     at = 24
     for _ in range(int.from_bytes(data[20:24], "big")):
-        body = at + {1: 46, 4: 30}.get(data[at], 22)
+        kind = data[at]
+        body = at + {1: 46, 4: 30}.get(kind, 22)
+        if data[7:8] == b"5" and kind in (4, 5):
+            body += 16
         size = int.from_bytes(data[at + 16:at + 20], "big")
         group = int.from_bytes(data[at + 20:at + 22], "big")
         yield at, body, body + size + group
@@ -580,6 +601,12 @@ def verify_online_transactions(program, directory):
             publisher.sendall(frame(0x62, identifier))
             assert receive(publisher) == (0x70, identifier)
 
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, bob, False, True) as target:
+            barrier(target)
+        with persistent(address, carol, False, True, version=4) as target:
+            barrier(target)
+
     image.write_bytes(original)
     saved = image.with_suffix(".unavailable")
     with broker(program, "restore-online", image, crash=True) as address:
@@ -617,9 +644,127 @@ def verify_online_transactions(program, directory):
             kind, body = receive(remaining)
             assert kind == 0x32 and body[:len(topic(name))] == topic(name) and body.endswith(b"commit")
     return {"atomic_pubrec_and_recipient_recovery": ["5.0", "3.1.1"], "durable_fanout_deferred": True,
+            "outgoing_puback_retired": ["5.0", "3.1.1"],
             "transaction_rejection_is_invisible": True, "transaction_unknown_seals": True,
             "fresh_session_fences_prior_recipient": True, "volatile_source_durable_fanout": True}
 
+
+
+def verify_outbound_transactions(program, directory):
+    image = directory / "outbound-transactions.bin"
+    name, subscriber = b"atomic/outbound", b"durable-outbound"
+
+    with broker(program, "capture", image) as address:
+        with persistent(address, subscriber, True) as peer:
+            subscribe(peer, name, 1, 2)
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        publisher, _ = connect(address, 5, b"outbound-source")
+        with publisher:
+            for identifier in (b"\0\x01", b"\0\x02"):
+                publisher.sendall(frame(0x34, topic(name) + identifier + b"\0same"))
+                assert receive(publisher) == (0x50, identifier)
+                publisher.sendall(frame(0x62, identifier))
+                assert receive(publisher) == (0x70, identifier)
+
+    def delivery_rows():
+        data = image.read_bytes()
+        return {data[body - 16:body]: (data[at], data[at + 1], data[at + 2:at + 4])
+                for at, body, _ in session_records(data) if data[at] in (4, 5)}
+
+    queued = image.read_bytes()
+    rows = delivery_rows()
+    assert len(rows) == 2 and b"\0" * 16 not in rows
+    assert all(row == (4, 0, b"\0\0") for row in rows.values())
+
+    with broker(program, "restore-online", image, "1200", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            expect_silence(peer)
+    assert image.read_bytes() == queued
+
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            expect_silence(peer)
+            first = received_publish(peer, 0x34, name, b"same")
+            assert first != b"\0\0"
+            assert (5, 5, first) in delivery_rows().values()
+            expect_silence(peer)
+
+    with broker(program, "restore-online", image, "600", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            assert received_publish(peer, 0x3c, name, b"same") == first
+            second = received_publish(peer, 0x34, name, b"same")
+            assert second not in (first, b"\0\0")
+            peer.sendall(frame(0x50, first) + PING)
+            expect_silence(peer)
+            assert receive(peer) == (0x62, first)
+            assert receive(peer) == PONG
+            assert (5, 7, first) in delivery_rows().values()
+
+    before_ack = image.read_bytes()
+    saved = image.with_suffix(".unavailable")
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            assert receive(peer) == (0x62, first)
+            assert received_publish(peer, 0x3c, name, b"same") == second
+            image.rename(saved)
+            peer.sendall(frame(0x70, first) + PING)
+            expect_disconnect(peer)
+            saved.rename(image)
+    assert image.read_bytes() == before_ack
+
+    with prevent_replacement(image):
+        with broker(program, "restore-online", image, exit_code=1) as address:
+            with persistent(address, subscriber, False, True) as peer:
+                assert receive(peer) == (0x62, first)
+                assert received_publish(peer, 0x3c, name, b"same") == second
+                peer.sendall(frame(0x70, first))
+                expect_disconnect(peer)
+    assert image.read_bytes() == before_ack
+
+    with broker(program, "restore-online", image, "500", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            assert receive(peer) == (0x62, first)
+            assert received_publish(peer, 0x3c, name, b"same") == second
+            peer.sendall(frame(0x70, first) + frame(0x50, second + b"\x83") + PING)
+            expect_silence(peer)
+            assert receive(peer) == PONG
+            assert not delivery_rows()
+
+    with broker(program, "restore-online", image, "500", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            barrier(peer)
+            expect_silence(peer)
+            publisher, _ = connect(address, 5, b"outbound-next")
+            with publisher:
+                publisher.sendall(frame(0x34, topic(name) + b"\0\x01\0next"))
+                assert receive(publisher) == (0x50, b"\0\x01")
+                next_id = received_publish(peer, 0x34, name, b"next")
+                assert int.from_bytes(next_id, "big") == int.from_bytes(second, "big") + 1
+                peer.sendall(frame(0x50, next_id))
+                expect_silence(peer)
+                with persistent(address, subscriber, False, True) as successor:
+                    assert receive(peer) == (0xe0, b"\x8e")
+                    assert receive(successor) == (0x62, next_id)
+                    successor.sendall(frame(0x70, next_id))
+                    barrier(successor)
+                    successor.sendall(b"\xe0\0")
+                    assert not successor.recv(1)
+                publisher.sendall(frame(0x34, topic(name) + b"\0\x02\0" + b"!" * 256))
+                assert receive(publisher) == (0x50, b"\0\x02")
+
+    assert list(delivery_rows().values()) == [(4, 0, b"\0\0")]
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True, max_packet=64) as peer:
+            barrier(peer)
+            assert not delivery_rows()
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            barrier(peer)
+            expect_silence(peer)
+    return {"outgoing_publish_and_pubrel_after_durable_phase": True, "outgoing_restart_replay": True,
+            "terminal_pubcomp_and_negative_pubrec_retired": True, "outgoing_rejection_and_unknown": True,
+            "outgoing_pubrel_commit_survives_takeover": True, "oversized_queued_publish_retired": True}
 
 def check_retained_value(peer, name, identifier, value, expiry=False):
     subscribe(peer, name, identifier, 0)
@@ -790,6 +935,7 @@ def main():
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
                           **verify_online_transactions(args.program, folder),
+                          **verify_outbound_transactions(args.program, folder),
                           **verify_retained_transactions(args.program, folder),
                           **verify_full_writer(args.program, folder)}))
 

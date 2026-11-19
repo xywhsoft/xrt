@@ -320,16 +320,29 @@ failure rolls back the reservation and preserves the previous unexpired
 value. A subscriber can still replay that value while the transaction waits.
 An unknown combined outcome invalidates both checkpoint exports.
 
+Call `xmqttServerEnableOutboundTransactions` after configuring the session
+transaction callback to commit outbound progress for recipients created by
+that callback. Carry the recipient's `DeliveryKey` through every checkpoint.
+The broker records the Packet Identifier before first PUBLISH, records the
+PUBCOMP phase before PUBREL, and retires the record after the final ACK.
+The first send has DUP clear. A resumed session retransmits unacknowledged
+PUBLISH with DUP set and repeats unacknowledged PUBREL, with the saved
+identifiers. Persist transitions in first-send order. A definite backend
+rejection closes the affected connection so it can resume the previous
+phase. The same store handles session admission and the outbound operations.
+
 Run `examples_server_checkpoint capture checkpoint.bin`, then
-`examples_server_checkpoint restore-online checkpoint.bin` with a v3 or v4
-checkpoint. The example uses one bounded APP writer for both hooks and
-atomically replaces the complete file. The v4 file records the time of
-each retained write so expiry survives transaction delay and restart.
-The controlled `restore` mode reads historical v1 through v4 files. The
-example uses the checkpoint's existing expiry for restored session groups
-and sets a new group's recovery lifetime at creation. Live session expiry
-updates and outbound send/acknowledgement phases still use controlled
-checkpoints.
+`examples_server_checkpoint restore-online checkpoint.bin`. Online mode
+reads v3 through v5 files. The v5 file adds a stable key to each reliable
+recipient committed online. The example uses one bounded APP writer for
+both hooks and atomically replaces the complete file. Record times preserve
+retained expiry independently of later writes. The controlled `restore`
+mode reads v1 through v5 files. Deliveries with a zero key, including those
+loaded from older files, and live subscription and session expiry changes
+are captured by controlled checkpoints. The example uses the existing expiry
+for restored session groups and sets a new group's recovery lifetime at
+creation.
+
 
 ## MQTT 5 enhanced authentication
 

@@ -128,12 +128,13 @@ struct xmqttserversessionresetticket {
 	xnetworker* Worker;
 	xnetpost Completion;
 	xmqttserverack* Ack; /* Null for fresh CONNECT. */
-	xmqttserverdelivery* Batch;
+	xmqttserverdelivery *Batch, *Outgoing;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	xmqttserverretainedticket* Retained;
 #endif
 	xmqttservertransaction Change;
 	xmqttserversessionresult Result;
+	bool DiscardOutgoing;
 };
 #endif
 
@@ -171,6 +172,7 @@ struct xmqttserver {
 	xmqttserversessionsubmit SessionSubmit;
 	xmqttservertransactionsubmit TransactionSubmit;
 	ptr SessionStoreUser;
+	uint64 OutboundEpoch;
 	bool Checkpoint; /* Written once with the admission gate held. */
 	bool SessionStoreFailed; /* Protected by Gate. */
 #endif
@@ -266,6 +268,7 @@ struct xmqttserverpeer {
 	bool Online, Closing;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 	xmqttserversessionticket* SessionCommit; /* Connection worker only. */
+	xmqttserverdelivery* FirstPublish;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	xmqttserverretainedticket* Retaining; /* Publishing worker only. */
@@ -1434,6 +1437,9 @@ static void xmqttServerAcceptSession(xmqttserverpeer* Peer, double Now)
 static void xmqttServerReleaseAck(ptr Data, cbytes Wire, size_t Size);
 static void xmqttServerFinishPubrel(xmqttserverpeer* Peer, xmqttserverack* Ack);
 static void xmqttServerResolvePrepared(xmqttserverdelivery* Batch, bool Accepted);
+static void xmqttServerKeyPrepared(xmqttserversessionticket* Ticket);
+static void xmqttServerFinishOutgoingCommit(xmqttserverpeer* Peer, xmqttserverdelivery* Delivery,
+	const xmqttservertransaction* Change, xmqttserversessionresult Result, bool Active, bool Discard);
 static void xmqttServerOwnIncomingQos2(xmqttserverpeer* Peer, xmqttserverack* Ack, uint8 Reason);
 static void xmqttServerAcknowledgePublish(xmqttserverpeer* Peer, xmqttserverack* Ack, unsigned Qos, uint8 Reason);
 
@@ -1451,11 +1457,13 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 	xmqttserver* Server = Peer->Server;
 	xmqttserverack* Ack = Ticket->Ack;
 	xmqttserverdelivery* Batch = Ticket->Batch;
+	xmqttserverdelivery* Outgoing = Ticket->Outgoing;
 	xmqttservertransaction Change = Ticket->Change;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	xmqttserverretainedticket* Retained = Ticket->Retained;
 #endif
 	xmqttserversessionresult Result = Ticket->Result;
+	bool Discard = Ticket->DiscardOutgoing;
 	Peer->SessionCommit = NULL;
 	xrtFree(Ticket);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
@@ -1475,7 +1483,10 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 		xmqttServerTimedOut(Peer);
 		Active = false;
 	}
-	if (Change.Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
+	if (Outgoing) {
+		xmqttServerFinishOutgoingCommit(Peer, Outgoing, &Change, Result, Active, Discard);
+		Resume = Active && Result == XMQTT_SERVER_SESSION_COMMITTED;
+	} else if (Change.Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 		if (Retained) xmqttServerFinishTransactionRetained(Retained, Worker, Result);
 #endif
@@ -1512,7 +1523,10 @@ static void xmqttServerFinishSessionCommit(xnetworker* Worker, xmqttserversessio
 			}
 		}
 	}
-	if (Deferred && Resume) xmqttServerResumeInput(Peer);
+	if (Deferred && Resume) {
+		xmqttServerResumeInput(Peer);
+		xmqttServerPumpOutgoing(Peer);
+	}
 	xmqttServerPeerDrop(Peer);
 }
 
@@ -1537,6 +1551,46 @@ XMQTT_API bool xmqttServerCompleteSessionReset(xmqttserversessionresetticket* Ti
 	return xmqttServerCompleteSessionCommit(Ticket, Result);
 }
 
+static xmqttserversessionticket* xmqttServerNewSessionTicket(xmqttserverpeer* Peer,
+	xmqttserversessionoperation Operation)
+{
+	xmqttserversessionticket* Ticket = xrtCalloc(1, sizeof(*Ticket));
+	if (!Ticket || !xrtNetPostInit(&Ticket->Completion)) {
+		xrtFree(Ticket);
+		return NULL;
+	}
+	Ticket->Peer = Peer;
+	Ticket->Worker = xrtNetStreamWorker(Peer->Stream);
+	Ticket->Change = (xmqttservertransaction){
+		.Operation = Operation, .ClientId = Peer->Session->ClientName,
+		.Key = Peer->Session->Key, .Version = Peer->Version,
+		.ExpiryInterval = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED)
+	};
+	return Ticket;
+}
+
+static void xmqttServerDispatchSessionTicket(xmqttserversessionticket* Ticket)
+{
+	xmqttserverpeer* Peer = Ticket->Peer;
+	Peer->SessionCommit = Ticket;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	xmqttserver* Server = Peer->Server;
+	bool Submitted;
+	if (Server->TransactionSubmit)
+		Submitted = Server->TransactionSubmit(Ticket, &Ticket->Change, Server->SessionStoreUser);
+	else if (Server->SessionSubmit)
+		Submitted = Server->SessionSubmit(Ticket, Ticket->Change.Operation, Ticket->Change.ClientId,
+			Ticket->Change.Identifier, Server->SessionStoreUser);
+	else Submitted = Server->ResetSubmit(Ticket, Ticket->Change.ClientId, Server->SessionStoreUser);
+	if (Submitted) {
+		xmqttServerPauseInput(Peer);
+		return;
+	}
+	/* The native read callback may still own the current packet. */
+	Ticket->Result = XMQTT_SERVER_SESSION_REJECTED;
+	xmqttServerFinishSessionCommit(Ticket->Worker, Ticket, false);
+}
+
 static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack* Ack,
 	xmqttserversessionoperation Operation, xmqttserverdelivery* Batch,
 	struct xmqttserverretainedticket* Retained, uint8 Reason, double Now)
@@ -1544,9 +1598,8 @@ static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack
 #if !defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	(void)Retained;
 #endif
-	xmqttserversessionticket* Ticket = xrtMalloc(sizeof(*Ticket));
-	if (!Ticket || !xrtNetPostInit(&Ticket->Completion)) {
-		xrtFree(Ticket);
+	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation);
+	if (!Ticket) {
 		if (Operation == XMQTT_SERVER_SESSION_ACCEPT_INCOMING_QOS2) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 			if (Retained) xmqttServerFinishTransactionRetained(Retained,
@@ -1559,37 +1612,16 @@ static void xmqttServerSubmitSessionCommit(xmqttserverpeer* Peer, xmqttserverack
 		else xmqttServerRefuse(Peer, 0x88, 3, Peer->PacketLimit, Now);
 		return;
 	}
-	Ticket->Peer = Peer;
-	Ticket->Worker = xrtNetStreamWorker(Peer->Stream);
 	Ticket->Ack = Ack;
 	Ticket->Batch = Batch;
-	Ticket->Change = (xmqttservertransaction){
-		.Operation = Operation, .ClientId = Peer->Session->ClientName,
-		.Key = Peer->Session->Key, .Version = Peer->Version,
-		.ExpiryInterval = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED),
-		.Identifier = Ack ? Ack->Identifier : 0, .Reason = Reason
-	};
+	Ticket->Change.Identifier = Ack ? Ack->Identifier : 0;
+	Ticket->Change.Reason = Reason;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_RETAINED_COMMIT)
 	Ticket->Retained = Retained;
 	if (Retained) xmqttServerDescribeTransactionRetained(&Ticket->Change, Retained);
 #endif
-	Peer->SessionCommit = Ticket;
-	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
-	xmqttserver* Server = Peer->Server;
-	bool Submitted;
-	if (Server->TransactionSubmit)
-		Submitted = Server->TransactionSubmit(Ticket, &Ticket->Change, Server->SessionStoreUser);
-	else if (Server->SessionSubmit)
-		Submitted = Server->SessionSubmit(Ticket, Operation, Ticket->Change.ClientId,
-			Ticket->Change.Identifier, Server->SessionStoreUser);
-	else Submitted = Server->ResetSubmit(Ticket, Ticket->Change.ClientId, Server->SessionStoreUser);
-	if (Submitted) {
-		xmqttServerPauseInput(Peer);
-		return;
-	}
-	/* The native read callback still owns the current packet. */
-	Ticket->Result = XMQTT_SERVER_SESSION_REJECTED;
-	xmqttServerFinishSessionCommit(Ticket->Worker, Ticket, false);
+	if (Batch && Peer->Server->OutboundEpoch) xmqttServerKeyPrepared(Ticket);
+	xmqttServerDispatchSessionTicket(Ticket);
 }
 #endif
 
@@ -2401,6 +2433,9 @@ struct xmqttserverdelivery {
 	uint16 Identifier;
 	uint8 ExpectedAck;
 	unsigned References;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	xmqttserversessionkey Key;
+#endif
 	unsigned char Prefix[];
 };
 
@@ -2457,15 +2492,22 @@ static void xmqttServerForgetDelivery(xmqttserverpeer* Peer, xmqttserverdelivery
 	if (Delivery->SentNext) Delivery->SentNext->SentPrevious = Delivery->SentPrevious;
 	else Session->SentTail = Delivery->SentPrevious;
 	if (Peer->Replay == Delivery) Peer->Replay = Delivery->SentNext;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->FirstPublish == Delivery) Peer->FirstPublish = NULL;
+#endif
 	if (Delivery->SentGeneration == Session->Generation) --Peer->InFlight;
+}
+
+static uint8 xmqttServerFirstAck(const xmqttserverdelivery* Delivery)
+{
+	return (Delivery->Publication->Wire[0] & XMQTT_PUBLISH_QOS_MASK) == 4 ?
+		XMQTT_PACKET_PUBREC : XMQTT_PACKET_PUBACK;
 }
 
 static void xmqttServerRememberDelivery(xmqttserversession* Session, xmqttserverdelivery* Delivery, uint16 Id)
 {
-	xmqttserverpublication* Publication = Delivery->Publication;
 	Session->LastIdentifier = Delivery->Identifier = Id;
-	Delivery->ExpectedAck = (Publication->Wire[0] & XMQTT_PUBLISH_QOS_MASK) == 4 ?
-		XMQTT_PACKET_PUBREC : XMQTT_PACKET_PUBACK;
+	Delivery->ExpectedAck = xmqttServerFirstAck(Delivery);
 	Delivery->SentPrevious = Session->SentTail;
 	Delivery->SentNext = NULL;
 	if (Session->SentTail) Session->SentTail->SentNext = Delivery;
@@ -2509,10 +2551,77 @@ static xnetresult xmqttServerSendDelivery(xmqttserverpeer* Peer, xmqttserverdeli
 	return Result;
 }
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+static uint32 xmqttServerStoredU32(cbytes Bytes);
+
+static bool xmqttServerHasDeliveryKey(const xmqttserverdelivery* Delivery)
+{
+	return Delivery->Key.High || Delivery->Key.Low;
+}
+
+static void xmqttServerKeyPrepared(xmqttserversessionticket* Ticket)
+{
+	for (xmqttserverdelivery* Item = Ticket->Batch; Item; Item = Item->Next)
+		if (Item->Session->Persistent && Item->Publication->IdOffset)
+			Item->Key = (xmqttserversessionkey){Ticket->Peer->Server->OutboundEpoch,
+				xrtNetWorkerOperationId(Ticket->Worker)};
+}
+
+static void xmqttServerSubmitOutgoing(xmqttserverpeer* Peer, xmqttserverdelivery* Delivery,
+	xmqttserversessionoperation Operation, uint16 Identifier, bool Discard)
+{
+	xmqttserversessionticket* Ticket = xmqttServerNewSessionTicket(Peer, Operation);
+	if (!Ticket) {
+		xmqttServerAbortPeer(Peer);
+		return;
+	}
+	Ticket->Outgoing = Delivery;
+	Ticket->Change.DeliveryKey = Delivery->Key;
+	Ticket->Change.Identifier = Identifier;
+	Ticket->DiscardOutgoing = Discard;
+	if (Operation == XMQTT_SERVER_SESSION_SEND_OUTGOING) {
+		Ticket->Change.OutgoingPhase = xmqttServerFirstAck(Delivery);
+		size_t Offset = Delivery->Publication->ExpiryOffset;
+		if (Offset) Ticket->Change.OutgoingExpiry = xmqttServerStoredU32(Delivery->Prefix + Offset);
+	} else if (Operation == XMQTT_SERVER_SESSION_RELEASE_OUTGOING)
+		Ticket->Change.OutgoingPhase = XMQTT_PACKET_PUBCOMP;
+	else Ticket->Change.OutgoingPhase = Identifier ? Delivery->ExpectedAck : 0;
+	xmqttServerDispatchSessionTicket(Ticket);
+}
+
+static void xmqttServerFinishOutgoingCommit(xmqttserverpeer* Peer, xmqttserverdelivery* Delivery,
+	const xmqttservertransaction* Change, xmqttserversessionresult Result, bool Active, bool Discard)
+{
+	if (Result != XMQTT_SERVER_SESSION_COMMITTED) {
+		if (Active) xmqttServerAbortPeer(Peer);
+		return;
+	}
+	xmqttserversession* Session = Peer->Session;
+	if (!Delivery->Identifier && xmqttServerPopWaiting(Session) != Delivery) abort();
+	if (Change->Operation == XMQTT_SERVER_SESSION_SEND_OUTGOING) {
+		xmqttServerRememberDelivery(Session, Delivery, Change->Identifier);
+		if (Active) {
+			Peer->Replay = Peer->FirstPublish = Delivery;
+			xmqttServerPumpOutgoing(Peer);
+		}
+	} else if (Change->Operation == XMQTT_SERVER_SESSION_RELEASE_OUTGOING) {
+		Delivery->ExpectedAck = XMQTT_PACKET_PUBCOMP;
+		if (Active) xmqttServerSendId(Peer, 0x62, Delivery->Identifier, 0);
+	} else {
+		if (Delivery->Identifier) xmqttServerForgetDelivery(Peer, Delivery);
+		if (Discard) xmqttServerDiscardDelivery(Delivery);
+		else xmqttServerDropDelivery(Delivery, NULL, 0);
+	}
+}
+#endif
+
 static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 {
 	xmqttserversession* Session = Peer->Session;
 	if (!Session || !Peer->Online || Peer->Pumping) return;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->SessionCommit) return;
+#endif
 	Peer->Pumping = true;
 	while ((Peer->Replay || Session->Waiting) && !Peer->Closing &&
 		!xrtAtomic32Load(&Peer->OutgoingStopped, XMEMORY_RELAXED) &&
@@ -2520,9 +2629,27 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 		bool Retry = Peer->Replay != NULL;
 		bool Release = Retry && Peer->Replay->ExpectedAck == XMQTT_PACKET_PUBCOMP;
 		if (!Release && Peer->InFlight >= Peer->SendMaximum) break;
-		xmqttserverdelivery* Delivery = Retry ? Peer->Replay : xmqttServerPopWaiting(Session);
+		xmqttserverdelivery* Delivery = Retry ? Peer->Replay : Session->Waiting;
 		xmqttserverpublication* Publication = Delivery->Publication;
-		if (!Release && (Publication->Size > Peer->PacketLimit || (!Retry && !xmqttServerPrepareWaiting(Delivery)))) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		bool Durable = Peer->Server->OutboundEpoch && xmqttServerHasDeliveryKey(Delivery);
+		bool First = Peer->FirstPublish == Delivery;
+		if (Durable && !xmqttServerCanRead(Peer)) break;
+#endif
+		bool TooLarge = Publication->Size > Peer->PacketLimit;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (Durable && !Release && Publication->Size > xrtNetStreamWriteLimit(Peer->Stream)) TooLarge = true;
+#endif
+		if (!Retry) (void)xmqttServerPopWaiting(Session);
+		if (!Release && (TooLarge || (!Retry && !xmqttServerPrepareWaiting(Delivery)))) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+			if (Durable) {
+				if (!Retry) xmqttServerPrependWaiting(Session, Delivery);
+				xmqttServerSubmitOutgoing(Peer, Delivery, XMQTT_SERVER_SESSION_FINISH_OUTGOING,
+					Delivery->Identifier, true);
+				break;
+			}
+#endif
 			if (Retry) xmqttServerForgetDelivery(Peer, Delivery);
 			xmqttServerDiscardDelivery(Delivery);
 			continue;
@@ -2534,14 +2661,25 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 			size_t Bytes = xmqttServerIdWire(Wire, 0x62, Id, 0);
 			Result = xmqttServerSend(Peer, Wire, Bytes);
 		} else {
-			if (Retry) Delivery->Prefix[0] |= XMQTT_PUBLISH_DUP;
-			else {
+			if (Retry) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+				if (!First)
+#endif
+					Delivery->Prefix[0] |= XMQTT_PUBLISH_DUP;
+			} else {
 				Id = Session->LastIdentifier;
 				do { if (!++Id) Id = 1; }
 				while (xrtAVLFind(&Session->Outgoing, &Id, xmqttServerCompareDelivery, NULL));
 				unsigned char* Identifier = Delivery->Prefix + Publication->IdOffset;
 				Identifier[0] = (uint8)(Id >> 8);
 				Identifier[1] = (uint8)Id;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+				if (Durable) {
+					xmqttServerPrependWaiting(Session, Delivery);
+					xmqttServerSubmitOutgoing(Peer, Delivery, XMQTT_SERVER_SESSION_SEND_OUTGOING, Id, false);
+					break;
+				}
+#endif
 			}
 			Result = Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream) ?
 				xmqttServerSendDelivery(Peer, Delivery) : XNET_RESULT_ERROR;
@@ -2558,6 +2696,12 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 			++Peer->InFlight;
 			xrtAtomic64FetchAdd(&Session->Server->Forwarded, 1, XMEMORY_RELAXED);
 		}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (First) {
+			Peer->FirstPublish = NULL;
+			break; /* Let the commit callback resume input before the next write. */
+		}
+#endif
 	}
 	Peer->Pumping = false;
 }
@@ -2650,6 +2794,10 @@ static xmqttserverdelivery* xmqttServerNewDelivery(xmqttserversession* Session, 
 		Delivery->Publication = Publication;
 		Delivery->Next = NULL;
 		Delivery->SentGeneration = 0;
+		Delivery->Identifier = 0;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		Delivery->Key = (xmqttserversessionkey){0};
+#endif
 		Delivery->References = 1;
 		Delivery->PrefixBytes = Bytes;
 		memcpy(Delivery->Prefix, Publication->Wire, Bytes);
@@ -2784,9 +2932,14 @@ static bool xmqttServerQueuePrepared(xmqttserverdelivery* Delivery)
 		xrtMutexUnlock(&Session->Gate);
 	}
 	if (!Peer) return false;
-	if (xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_SEALED &&
-		Delivery->Publication->Size <= Peer->PacketLimit &&
-		Delivery->Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream) &&
+	bool Fits = Delivery->Publication->Size <= Peer->PacketLimit &&
+		Delivery->Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	/* A new transport may have a different limit. Its worker must retire
+	 * a committed delivery in the store before discarding it. */
+	Fits = Fits || xmqttServerHasDeliveryKey(Delivery);
+#endif
+	if (Fits && xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_SEALED &&
 		xmqttServerPostPrepared(Peer, Delivery)) return true;
 	xmqttServerPeerDrop(Peer);
 	return false;
@@ -3683,6 +3836,13 @@ static void xmqttServerDeliveryAck(xmqttserverpeer* Peer, const xmqttpacket* Pac
 	}
 	if (Packet->Type == XMQTT_PACKET_PUBREC && Packet->Reason < 0x80 &&
 		(Delivery->ExpectedAck == XMQTT_PACKET_PUBREC || Delivery->ExpectedAck == XMQTT_PACKET_PUBCOMP)) {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (Delivery->ExpectedAck == XMQTT_PACKET_PUBREC &&
+			Peer->Server->OutboundEpoch && xmqttServerHasDeliveryKey(Delivery)) {
+			xmqttServerSubmitOutgoing(Peer, Delivery, XMQTT_SERVER_SESSION_RELEASE_OUTGOING, Id, false);
+			return;
+		}
+#endif
 		Delivery->ExpectedAck = XMQTT_PACKET_PUBCOMP;
 		xmqttServerSendId(Peer, 0x62, Id, 0);
 		return;
@@ -3691,6 +3851,12 @@ static void xmqttServerDeliveryAck(xmqttserverpeer* Peer, const xmqttpacket* Pac
 		xmqttServerProtocolClose(Peer, 0x82, Now);
 		return;
 	}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->Server->OutboundEpoch && xmqttServerHasDeliveryKey(Delivery)) {
+		xmqttServerSubmitOutgoing(Peer, Delivery, XMQTT_SERVER_SESSION_FINISH_OUTGOING, Id, false);
+		return;
+	}
+#endif
 	xmqttServerForgetDelivery(Peer, Delivery);
 	xmqttServerDropDelivery(Delivery, NULL, 0);
 	xmqttServerPumpOutgoing(Peer);
@@ -3947,7 +4113,12 @@ static void xmqttServerRetainedCompleted(xnetworker* Worker, ptr Data)
 	} else if (Ticket->Ack) xmqttServerReleaseAck(Ticket->Ack, NULL, 0);
 	if (xmqttServerReleaseRetainedShard(Ticket->Shard))
 		xmqttServerDrainRetainedWills(Ticket->Shard, Worker);
-	if (Resume) xmqttServerResumeInput(Peer);
+	if (Resume) {
+		xmqttServerResumeInput(Peer);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+		if (Server->OutboundEpoch) xmqttServerPumpOutgoing(Peer);
+#endif
+	}
 	xmqttServerDropRetainedTicket(Ticket);
 }
 
@@ -4400,9 +4571,9 @@ XMQTT_API bool xmqttServerVisitTransactionRecipients(const xmqttserversessiontic
 		if (!Session->Persistent || !Publication->IdOffset) continue;
 		uint64 Remaining = Publication->Expires ?
 			xmqttServerRemainingMilliseconds(Publication->Expires, Now) : UINT64_MAX;
-		if (!Remaining) continue;
+		if (!Remaining && !xmqttServerHasDeliveryKey(Item)) continue;
 		const xmqttservertransactionrecipient Record = {
-			.ClientId = Session->ClientName, .Key = Session->Key,
+			.ClientId = Session->ClientName, .Key = Session->Key, .DeliveryKey = Item->Key,
 			.Publish = {Publication->Wire, Publication->Size}, .RemainingMilliseconds = Remaining
 		};
 		if (!Visit(&Record, User)) return false;
@@ -4416,7 +4587,7 @@ static bool xmqttServerVisitDelivery(const xmqttserverdelivery* Item, bool Sent,
 	const xmqttserverpublication* Publication = Item->Publication;
 	xmqttserversessionrecord Record = {
 		.Kind = Sent ? XMQTT_SERVER_RECORD_SENT : XMQTT_SERVER_RECORD_QUEUED,
-		.Data = {Publication->Wire, Publication->Size}
+		.Data = {Publication->Wire, Publication->Size}, .DeliveryKey = Item->Key
 	};
 	if (Sent) {
 		Record.Identifier = Item->Identifier;
@@ -4503,7 +4674,7 @@ static xmqttserversession* xmqttServerRestoreSession(xmqttserver* Server,
 {
 	xstrview Id = {(cstr)Record->Data.Data, Record->Data.Size};
 	xmqttversion Version = (xmqttversion)Record->Code;
-	if (Record->Group.Size || Record->Value ||
+	if (Record->Group.Size || Record->Value || Record->DeliveryKey.High || Record->DeliveryKey.Low ||
 		(Server->TransactionSubmit && !Record->Key.High && !Record->Key.Low) ||
 		(Record->Milliseconds != UINT64_MAX && Record->Milliseconds > XMQTT_SERVER_MAX_LIFETIME_MS) ||
 		(Version != XMQTT_VERSION_5 && (Version != XMQTT_VERSION_311 || !Server->Config.Allow311)) ||
@@ -4664,6 +4835,7 @@ static bool xmqttServerRestoreDelivery(xmqttserversession* Session, const xmqtts
 	xmqttserverdelivery* Item = xmqttServerNewDelivery(Session, Publication);
 	xmqttServerFreePublication(Publication, NULL, 0);
 	if (!Item) return xmqttServerError(XERR_AGAIN, "cannot admit MQTT checkpoint outgoing PUBLISH");
+	Item->Key = Record->DeliveryKey;
 	if (Sent) {
 		uint16 Last = Session->LastIdentifier;
 		xmqttServerRememberDelivery(Session, Item, Record->Identifier);
@@ -4721,6 +4893,8 @@ static bool xmqttServerRestoreSessionRecord(xmqttserversession* Session, const x
 {
 	if (!Session || !xrtMemRangeValid(Record->Data.Data, Record->Data.Size) ||
 		Record->Key.High || Record->Key.Low ||
+		((Record->DeliveryKey.High || Record->DeliveryKey.Low) &&
+			Record->Kind != XMQTT_SERVER_RECORD_QUEUED && Record->Kind != XMQTT_SERVER_RECORD_SENT) ||
 		(Record->Kind != XMQTT_SERVER_RECORD_SUBSCRIPTION && Record->Group.Size) ||
 		(Record->Kind != XMQTT_SERVER_RECORD_SENT && Record->Value))
 		return xmqttServerError(XERR_PROTOCOL, "invalid MQTT session checkpoint record fields");
@@ -5254,6 +5428,21 @@ XMQTT_API bool xmqttServerSetSessionCommit(xmqttserver* Server,
 	xmqttserversessionsubmit Submit, ptr User)
 {
 	return xmqttServerConfigureSessionCommit(Server, NULL, Submit, NULL, User);
+}
+
+XMQTT_API bool xmqttServerEnableOutboundTransactions(xmqttserver* Server)
+{
+	if (!Server) return xmqttServerError(XERR_ARGUMENT, "invalid MQTT outbound transaction setup");
+	uint64 Epoch;
+	if (!xrtSecureRandom(&Epoch, sizeof(Epoch)) || !Epoch)
+		return xmqttServerError(XERR_STATE, "cannot allocate MQTT outbound transaction identity");
+	xrtMutexLock(&Server->Gate);
+	bool Ready = Server->TransactionSubmit && !Server->OutboundEpoch &&
+		!Server->Info.Closing && !Server->Info.Accepted && !Server->ExpiryTimer &&
+		!Server->Info.PersistentSessions;
+	if (Ready) Server->OutboundEpoch = Epoch;
+	xrtMutexUnlock(&Server->Gate);
+	return Ready || xmqttServerError(XERR_STATE, "enable MQTT outbound transactions before attachment and restore");
 }
 
 XMQTT_API bool xmqttServerSetSessionTransactions(xmqttserver* Server,
