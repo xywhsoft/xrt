@@ -5,7 +5,8 @@ primary version with selectable 3.1.1 compatibility. The client is developing.
 The independently selectable [server](docs/server.md) implements TCP handshake,
 Client ID takeover, keep alive, QoS 0/1/2 routing with exact, wildcard and
 shared subscriptions, bounded retained messages, and in-memory session resume
-with offline delivery. See the
+with offline delivery. An optional [enhanced authentication module](docs/server.md#mqtt-5-enhanced-authentication)
+supports initial MQTT 5 exchanges and online reauthentication. See the
 [capability and load acceptance plan](../../docs/development/service-extensions-plan.md#mqtt-server-delivery).
 The developing [committed state recovery](docs/store_state.md) validates the
 whole typed journal prefix before publishing independent QoS/Inbox views.

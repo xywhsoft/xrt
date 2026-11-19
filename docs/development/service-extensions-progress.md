@@ -16985,3 +16985,32 @@ Raw evidence is under out/service-extensions/scope-reduction-20261119/xmqtt-ws-*
 Enhanced authentication, durable broker recovery, native Linux, controlled
 performance comparison and 72-hour mixed loads remain open. The strict
 release gate still reports 40 developing modules.
+
+## 2026-11-19 MQTT 5 broker enhanced authentication
+
+The selectable server auth module handles initial CONNECT/AUTH exchanges and
+online reauthentication on the broker's existing connection worker. An APP
+step supplies proof decisions and data. Its release callback retires exchange
+state on completion, denial, timeout, peer close and broker shutdown.
+The broker bounds exchange bytes, challenge rounds and time. It builds the
+successful initial CONNACK before claiming the Client ID, then sets Session
+Present when the session handoff completes. An online exchange has its own
+deadline and existing traffic continues under the prior authority. Ordinary
+broker connections allocate no enhanced authentication state.
+
+Windows x64 and Ubuntu/WSL x64 passed the MQTT TCP regression suite, auth
+allocation and bounds tests, and static and shared auth package consumers.
+On both environments an independent Python peer verified two HMAC challenge
+rounds and the final proof against modular and single-header examples. It
+covered in-flight QoS 1 traffic during reauthentication, failed and successful
+Client ID takeover, method and reason validation, byte and round quotas,
+CONNECT and reauthentication deadlines, and shutdown with an active
+exchange. WSL ASan/UBSan with leak detection and TSan passed the socket
+probe and the authentication whitebox tests. API coverage reports no missing
+entries. Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-auth-*.
+
+The auth socket probe used TCP. Combined auth with TLS and WebSocket, durable
+broker recovery, native Linux, controlled performance comparisons and
+72-hour mixed loads remain open. Strict release reports 41 developing
+modules.

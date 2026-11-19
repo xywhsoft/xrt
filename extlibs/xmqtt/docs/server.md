@@ -142,7 +142,44 @@ MQTT 3.1.1 has no Will Delay. Will publication uses the regular routing,
 retention and QoS paths. Message Expiry starts at publication and Will Delay
 is consumed by the broker. Delayed Wills share the session expiry sweep.
 Pending Wills are volatile and are released on broker shutdown. Durable
-restart recovery and enhanced authentication are in development.
+restart recovery is in development.
+
+## MQTT 5 enhanced authentication
+
+Select `XMQTT_MODULE_XMQTT_SERVER_AUTH`, initialize the optional config with
+`xmqttServerAuthConfigInit` and create the broker with `xmqttServerCreateAuth`.
+The worker runs the ordinary CONNECT admission check, then invokes the
+authentication step for clients that supply Authentication Method. With no
+method, the ordinary admission policy decides whether to allow the connection.
+Configure that policy to require a method if all clients must authenticate.
+The broker claims the Client ID and activates the session only after a
+successful proof. It can hold a CONNECT Will under the existing Will quota
+while authentication is pending.
+
+Each application step can challenge, accept with an optional final proof,
+deny or reject an unsupported method. Its exchange belongs to that connection
+until the release callback runs. Return promptly on the owning worker. The
+application chooses methods and supplies credentials, proof verification and
+authorization policy. The broker limits challenges and aggregate wire bytes
+per exchange. Its original CONNECT deadline includes the first exchange.
+An established MQTT 5 peer can start a fresh exchange with the original
+method. The reauthentication deadline is independent of keep alive. During
+that exchange, publish, subscribe and acknowledgment processing continue
+under the current authority. Budget one additional XRT worker timer for each
+simultaneous online exchange. Failure to reserve a timer or complete the
+exchange closes the connection.
+
+Build the loopback HMAC demonstration and run the independent socket probe.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_auth_example
+python extlibs/xmqtt/tests/interop/run_server_auth.py <path-to-examples_server_auth>
+```
+
+The probe injects an ephemeral test secret, checks both challenge rounds and
+verifies the final server proof. The demonstration uses a private method
+for the example. In deployment, select an interoperable method and suitable
+transport security and credential policy.
 
 ## MQTT over TLS
 
@@ -212,7 +249,8 @@ subscriptions continue to queue QoS 1/2 and shared selection skips the
 detaching connection. The steady PING path uses the worker-local state,
 a validated fixed header and XRT's bounded send queue. A contiguous native receive span can be parsed directly;
 XRT coalesces a fragmented complete control packet when needed. One queued
-timer per connection observes updated deadlines. Close seals admission and
+timer per connection observes updated deadlines, with a separate timer during
+online reauthentication. Close seals admission and
 requests stream aborts. Subscriptions are released before the connection
 quota is returned, after the native event owner and its pending timer retire. Join listener callbacks and
 then join the broker outside its workers before destruction.

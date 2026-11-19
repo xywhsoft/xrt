@@ -116,6 +116,16 @@
 #endif
 #endif
 
+/* xmqtt_server_auth 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_AUTH)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_AUTH
+#define XMQTT_FEATURE_XMQTT_SERVER_AUTH
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#endif
+
 /* xmqtt_server 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER)
 #ifndef XMQTT_FEATURE_XMQTT_SERVER
@@ -3917,6 +3927,75 @@ XMQTT_API bool xmqttServerInfo(xmqttserver* Server, xmqttserverinfo* Info);
 XMQTT_API bool xmqttServerClose(xmqttserver* Server);
 XMQTT_API xwaitresult xmqttServerWaitFor(xmqttserver* Server, int64 Timeout);
 XMQTT_API bool xmqttServerDestroy(xmqttserver* Server);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/server_auth.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_SERVER_AUTH_H
+#define XMQTT_SERVER_AUTH_H
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+#if !defined(XMQTT_FEATURE_XMQTT_SERVER)
+#error "MQTT broker enhanced authentication requires the broker"
+#endif
+XRT_EXTERN_C_BEGIN
+
+typedef enum xmqttserverauthphase {
+	XMQTT_SERVER_AUTH_CONNECT,
+	XMQTT_SERVER_AUTH_REAUTHENTICATE,
+	XMQTT_SERVER_AUTH_CONTINUE
+} xmqttserverauthphase;
+
+typedef enum xmqttserverauthdecision {
+	XMQTT_SERVER_AUTH_DENY = 0,
+	XMQTT_SERVER_AUTH_ACCEPT,
+	XMQTT_SERVER_AUTH_CHALLENGE,
+	XMQTT_SERVER_AUTH_UNSUPPORTED
+} xmqttserverauthdecision;
+
+typedef struct xmqttserverauthrequest {
+	xmqttserverauthphase Phase;
+	xstrview ClientId, Method;
+	xbytesview Data; /* NULL Data.Data means Authentication Data was omitted. */
+	const xmqttconnectpacket* Connect; /* Present only on the first CONNECT step. */
+} xmqttserverauthrequest;
+
+/* Runs on the connection worker outside broker locks. Return promptly. Request
+ * views are borrowed for this call. Exchange begins NULL and is passed back for
+ * each step. A nonnull Exchange is handed to Release once, on completion or
+ * retirement. Reply bytes must remain valid until Release or the next Step,
+ * whichever comes first. Return a null view to omit Authentication Data.
+ * Step, Release and User must remain valid through broker Destroy. */
+typedef xmqttserverauthdecision (*xmqttserverauthstep)(const xmqttserverauthrequest* Request,
+	ptr* Exchange, xbytesview* Reply, ptr User);
+typedef void (*xmqttserverauthrelease)(ptr Exchange, ptr User);
+
+typedef struct xmqttserverauthconfig {
+	size_t Size, MaxRounds, MaxExchangeBytes;
+	int64 ReauthTimeout;
+	xmqttserverauthstep Step;
+	xmqttserverauthrelease Release;
+	ptr User;
+} xmqttserverauthconfig;
+
+/* Defaults: 32 challenges, 1 MiB of aggregate exchange wire bytes and 5 s
+ * for online reauthentication. Initial auth uses the original ConnectTimeout.
+ * Limits are positive. MaxRounds is at most 65536; ReauthTimeout is at most
+ * INT32_MAX ms. Bounds cover CONNECT, AUTH and successful CONNACK as applicable. */
+XMQTT_API bool xmqttServerAuthConfigInit(xmqttserverauthconfig* Config);
+
+/* Copies Auth. Step and Release are required. CONNECT with an Authentication
+ * Method must pass both ordinary CONNECT policy and enhanced auth. Reauth uses
+ * the same method and allows application traffic under the existing authority.
+ * The application owns the authentication algorithm and its credentials. */
+XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Server);
+
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -15602,6 +15681,18 @@ typedef struct xmqttserverlink xmqttserverlink;
 typedef struct xmqttserverwildnode xmqttserverwildnode;
 typedef struct xmqttserverpublication xmqttserverpublication;
 typedef struct xmqttserverdelivery xmqttserverdelivery;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+typedef struct xmqttserverauthstate {
+	xstrview ClientId, Method;
+	ptr Exchange;
+	unsigned char* Connack;
+	size_t ConnackBytes, SessionPresentOffset, Rounds, Bytes;
+	uint64 Timer;
+	double Deadline;
+	bool CleanStart;
+	char Text[];
+} xmqttserverauthstate;
+#endif
 typedef struct xmqttserverwill {
 	struct xmqttserverwill* Next;
 	double Due;
@@ -15679,6 +15770,9 @@ typedef struct xmqttserverack {
 struct xmqttserver {
 	xnetengine* Engine;
 	xmqttserverconfig Config;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	xmqttserverauthconfig Auth;
+#endif
 	xmutex Gate;
 	xcond Drained;
 	xsipkey HashKey;
@@ -15749,6 +15843,9 @@ struct xmqttserverpeer {
 	xatomic32 References;
 	xmqttserver* Server;
 	xnetstream* Stream;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	xmqttserverauthstate* Auth;
+#endif
 #if defined(XMQTT_SERVER_QUEUED_OUTPUT)
 	xmqttserveroutput* Output;
 #endif
@@ -16123,6 +16220,24 @@ static void xmqttServerFreeOutput(xmqttserveroutput* Tls)
 }
 #endif
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+static void xmqttServerAuthRelease(xmqttserverpeer* Peer)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	ptr Exchange = Auth->Exchange;
+	Auth->Exchange = NULL;
+	if (Exchange) Peer->Server->Auth.Release(Exchange, Peer->Server->Auth.User);
+}
+
+static void xmqttServerAuthFreeConnack(xmqttserverauthstate* Auth)
+{
+	if (!Auth->Connack) return;
+	xrtSecureZero(Auth->Connack, Auth->ConnackBytes);
+	xrtFree(Auth->Connack);
+	Auth->Connack = NULL;
+}
+#endif
+
 static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 {
 	(void)Worker;
@@ -16143,6 +16258,13 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 			if (Result == XWAIT_ERROR || !xrtNetPost(Worker, &Peer->Retirement, xmqttServerPeerRetire, Peer)) abort();
 			return;
 		}
+	}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (Peer->Auth) {
+		xmqttServerAuthRelease(Peer);
+		xmqttServerAuthFreeConnack(Peer->Auth);
+		xrtFree(Peer->Auth);
 	}
 #endif
 	xmqttserver* Server = Peer->Server;
@@ -16465,6 +16587,15 @@ static void xmqttServerAbortPeer(xmqttserverpeer* Peer)
 	xmqttServerAbortTransport(Peer);
 }
 
+static void xmqttServerTimedOut(xmqttserverpeer* Peer)
+{
+	xmqttserver* Server = Peer->Server;
+	xrtMutexLock(&Server->Gate);
+	++Server->Info.TimedOut;
+	xrtMutexUnlock(&Server->Gate);
+	xmqttServerAbortPeer(Peer);
+}
+
 static void xmqttServerTimeout(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
 {
 	(void)Worker;
@@ -16473,13 +16604,8 @@ static void xmqttServerTimeout(xnetworker* Worker, uint64 Id, xnetresult Result,
 		Peer->Timer = 0;
 		double Now = xrtTimer();
 		if (Result != XNET_RESULT_OK || Now >= Peer->Deadline || !isfinite(Now)) {
-			if (Result == XNET_RESULT_OK) {
-				xmqttserver* Server = Peer->Server;
-				xrtMutexLock(&Server->Gate);
-				++Server->Info.TimedOut;
-				xrtMutexUnlock(&Server->Gate);
-			}
-			xmqttServerAbortPeer(Peer);
+			if (Result == XNET_RESULT_OK) xmqttServerTimedOut(Peer);
+			else xmqttServerAbortPeer(Peer);
 		} else if (!xmqttServerArm(Peer, Now)) {
 			xmqttServerAbortPeer(Peer);
 		}
@@ -16502,9 +16628,16 @@ static bool xmqttServerDeadline(xmqttserverpeer* Peer, double Now, unsigned Mill
 	return xmqttServerArm(Peer, Now);
 }
 
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+static void xmqttServerAuthCancelTimer(xmqttserverpeer* Peer);
+#endif
+
 static void xmqttServerFinishPeer(xmqttserverpeer* Peer, double Now)
 {
 	Peer->Closing = true;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	xmqttServerAuthCancelTimer(Peer);
+#endif
 	if (!xmqttServerDeadline(Peer, Now, (unsigned)Peer->Server->Config.ConnectTimeout)) {
 		xmqttServerAbortTransport(Peer);
 		return;
@@ -16523,26 +16656,44 @@ static void xmqttServerFinishPeer(xmqttserverpeer* Peer, double Now)
 	xrtNetStreamClose(Peer->Stream);
 }
 
+static void xmqttServerConnack5(xmqttserverpeer* Peer, uint8 Reason, xmqttproperty* Limits, xmqttpacket* Reply)
+{
+	xmqttPacketInit(XMQTT_PACKET_CONNACK, Reply);
+	Reply->Reason = Reason;
+	if (Reason) return;
+	Reply->SessionPresent = Peer->Resumed;
+	const xmqttproperty Properties[] = {
+		{XMQTT_PROPERTY_RECEIVE_MAXIMUM, XMQTT_PROPERTY_UINT16, {.Number = Peer->Server->Config.ReceiveMaximum}},
+		{XMQTT_PROPERTY_RETAIN_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = Peer->Server->Config.MaxRetainedTopics != 0}},
+		{XMQTT_PROPERTY_WILDCARD_AVAILABLE, XMQTT_PROPERTY_BYTE,
+			{.Number = Peer->Server->Config.MaxWildcardNodes != 0}},
+		{XMQTT_PROPERTY_SUBSCRIPTION_ID_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 0}},
+		{XMQTT_PROPERTY_SHARED_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 1}},
+		{XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE, XMQTT_PROPERTY_UINT32,
+			{.Number = (uint32)Peer->Server->Config.Codec.MaxPacketBytes}},
+	};
+	memcpy(Limits, Properties, sizeof(Properties));
+	Reply->Properties = (xmqttpropertylist){Limits, sizeof(Properties) / sizeof(Properties[0])};
+}
+
 static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 Reason311, size_t PacketLimit)
 {
 	unsigned char Wire[48];
 	size_t Bytes;
-	xmqttpacket Reply;
-	xmqttPacketInit(XMQTT_PACKET_CONNACK, &Reply);
-	Reply.SessionPresent = Peer->Resumed && !Reason5 && !Reason311;
 	if (Peer->Version == XMQTT_VERSION_5) {
-		xmqttproperty Limits[] = {
-			{XMQTT_PROPERTY_RECEIVE_MAXIMUM, XMQTT_PROPERTY_UINT16, {.Number = Peer->Server->Config.ReceiveMaximum}},
-			{XMQTT_PROPERTY_RETAIN_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = Peer->Server->Config.MaxRetainedTopics != 0}},
-			{XMQTT_PROPERTY_WILDCARD_AVAILABLE, XMQTT_PROPERTY_BYTE,
-				{.Number = Peer->Server->Config.MaxWildcardNodes != 0}},
-			{XMQTT_PROPERTY_SUBSCRIPTION_ID_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 0}},
-			{XMQTT_PROPERTY_SHARED_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 1}},
-			{XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE, XMQTT_PROPERTY_UINT32,
-				{.Number = (uint32)Peer->Server->Config.Codec.MaxPacketBytes}},
-		};
-		Reply.Reason = Reason5;
-		if (!Reason5) Reply.Properties = (xmqttpropertylist){Limits, sizeof(Limits)/sizeof(Limits[0])};
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+		xmqttserverauthstate* Auth = Peer->Auth;
+		if (!Reason5 && Auth && Auth->Connack) {
+			/* Session Present is known only after the identity is installed. */
+			Auth->Connack[Auth->SessionPresentOffset] = Peer->Resumed;
+			xnetresult Sent = xmqttServerSend(Peer, Auth->Connack, Auth->ConnackBytes);
+			xmqttServerAuthFreeConnack(Auth);
+			return Sent == XNET_RESULT_OK;
+		}
+#endif
+		xmqttpacket Reply;
+		xmqttproperty Limits[6];
+		xmqttServerConnack5(Peer, Reason5, Limits, &Reply);
 		if (!xmqttPacketWrite5(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes))
 			return false;
 	} else {
@@ -16550,7 +16701,7 @@ static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 
 		 * can be written even when the 3.1.1 decoder is deselected. */
 		Wire[0] = 0x20;
 		Wire[1] = 0x02;
-		Wire[2] = Reply.SessionPresent;
+		Wire[2] = Peer->Resumed && !Reason311;
 		Wire[3] = Reason311;
 		Bytes = 4;
 	}
@@ -16900,29 +17051,254 @@ static uint8 xmqttServerPrepareWill(xmqttserverpeer* Peer, const xmqttconnectpac
 	return 0;
 }
 
-static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet, double Now)
+static void xmqttServerInstallConnect(xmqttserverpeer* Peer, xstrview ClientId, bool CleanStart, double Now)
+{
+	uint8 Refusal = xmqttServerClaimId(Peer, ClientId, CleanStart, Now);
+	if (Refusal) xmqttServerRefuse(Peer, Refusal, 3, Peer->PacketLimit, Now);
+	else if (!Peer->AwaitingSession) xmqttServerAcceptConnect(Peer, Now);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+static void xmqttServerAuthCancelTimer(xmqttserverpeer* Peer)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	if (!Auth || !Auth->Timer) return;
+	uint64 Id = Auth->Timer;
+	Auth->Timer = 0;
+	xrtNetEngineTimerCancelCurrent(Peer->Server->Engine, Id);
+}
+
+static void xmqttServerAuthTimeout(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
+{
+	(void)Worker;
+	xmqttserverpeer* Peer = Data;
+	if (Peer->Auth->Timer == Id) {
+		Peer->Auth->Timer = 0;
+		if (!Peer->Closing) {
+			if (Result == XNET_RESULT_OK) xmqttServerTimedOut(Peer);
+			else xmqttServerAbortPeer(Peer);
+		}
+	}
+	xmqttServerPeerDrop(Peer);
+}
+
+static bool xmqttServerAuthStartTimer(xmqttserverpeer* Peer, double Now)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	int64 Timeout = Peer->Server->Auth.ReauthTimeout;
+	Auth->Deadline = Now + (double)Timeout * 0.001;
+	xrtAtomic32FetchAdd(&Peer->References, 1, XMEMORY_RELAXED);
+	Auth->Timer = xrtNetEngineAfter(Peer->Server->Engine, Peer->Worker, Timeout, xmqttServerAuthTimeout, Peer);
+	if (Auth->Timer) return true;
+	xmqttServerPeerDrop(Peer);
+	return false;
+}
+
+static bool xmqttServerAuthCharge(xmqttserverpeer* Peer, size_t Bytes)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	if (Bytes > Peer->Server->Auth.MaxExchangeBytes - Auth->Bytes) return false;
+	Auth->Bytes += Bytes;
+	return true;
+}
+
+static uint8 xmqttServerAuthReply(xmqttserverpeer* Peer, bool Accepted, xbytesview Data)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	bool Connack = Accepted && !Peer->Online;
+	xmqttpacket Reply;
+	xmqttproperty Properties[8];
+	if (Connack) xmqttServerConnack5(Peer, 0, Properties, &Reply);
+	else {
+		xmqttPacketInit(XMQTT_PACKET_AUTH, &Reply);
+		Reply.Reason = Accepted ? 0 : 0x18;
+	}
+	size_t Count = Reply.Properties.Count;
+	Properties[Count++] = (xmqttproperty){XMQTT_PROPERTY_AUTH_METHOD, XMQTT_PROPERTY_STRING, {.Text = Auth->Method}};
+	if (Data.Data)
+		Properties[Count++] = (xmqttproperty){XMQTT_PROPERTY_AUTH_DATA, XMQTT_PROPERTY_BINARY, {.Binary = Data}};
+	Reply.Properties = (xmqttpropertylist){Properties, Count};
+	size_t Bytes;
+	if ((!Data.Data && Data.Size) ||
+		!xmqttPacketSize5(&Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes)) return 0x83;
+	if (Bytes > Peer->PacketLimit) return 0x95;
+	if (!xmqttServerAuthCharge(Peer, Bytes)) return 0x97;
+	unsigned char Local[128];
+	unsigned char* Wire = Connack || Bytes > sizeof(Local) ? xrtMalloc(Bytes) : Local;
+	if (!Wire) return 0x97;
+	bool Ready = xmqttPacketWrite5(Wire, Bytes, &Reply, XMQTT_SERVER_TO_CLIENT, NULL, NULL);
+	if (Ready && Connack) {
+		uint32 Remaining;
+		size_t Width;
+		Ready = xmqttVbiRead((xbytesview){Wire + 1, Bytes - 1}, XMQTT_VERSION_5,
+			&Remaining, &Width) == XMQTT_WIRE_DONE;
+		if (Ready) {
+			Auth->Connack = Wire;
+			Auth->ConnackBytes = Bytes;
+			Auth->SessionPresentOffset = 1 + Width;
+			return 0;
+		}
+	}
+	if (Ready) Ready = xmqttServerSend(Peer, Wire, Bytes) == XNET_RESULT_OK;
+	xrtSecureZero(Wire, Bytes);
+	if (Wire != Local) xrtFree(Wire);
+	return Ready ? 0 : 0x83;
+}
+
+static void xmqttServerAuthReject(xmqttserverpeer* Peer, uint8 Reason, double Now)
+{
+	xmqttServerAuthCancelTimer(Peer);
+	xmqttServerAuthRelease(Peer);
+	if (Peer->Closing) return;
+	if (Peer->Online) xmqttServerProtocolClose(Peer, Reason, Now);
+	else xmqttServerRefuse(Peer, Reason, 5, Peer->PacketLimit, Now);
+}
+
+static void xmqttServerAuthStep(xmqttserverpeer* Peer, xmqttserverauthphase Phase,
+	const xmqttconnectpacket* Connect, xbytesview Data, size_t Bytes, double Now)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	if (!xmqttServerAuthCharge(Peer, Bytes)) {
+		xmqttServerAuthReject(Peer, 0x97, Now);
+		return;
+	}
+	const xmqttserverauthconfig* Config = &Peer->Server->Auth;
+	const xmqttserverauthrequest Request = {Phase, Auth->ClientId, Auth->Method, Data, Connect};
+	xbytesview Reply = {0};
+	xmqttserverauthdecision Decision = Config->Step(&Request, &Auth->Exchange, &Reply, Config->User);
+	if (Peer->Closing) return;
+	Now = xrtTimer();
+	if (!isfinite(Now) || Now >= (Peer->Online ? Auth->Deadline : Peer->Deadline)) {
+		xmqttServerTimedOut(Peer);
+		return;
+	}
+	switch (Decision) {
+	case XMQTT_SERVER_AUTH_CHALLENGE:
+		if (Auth->Rounds == Config->MaxRounds) xmqttServerAuthReject(Peer, 0x97, Now);
+		else {
+			++Auth->Rounds;
+			uint8 Reason = xmqttServerAuthReply(Peer, false, Reply);
+			if (Reason) xmqttServerAuthReject(Peer, Reason, Now);
+		}
+		break;
+	case XMQTT_SERVER_AUTH_ACCEPT: {
+		uint8 Reason = xmqttServerAuthReply(Peer, true, Reply);
+		if (Reason) {
+			xmqttServerAuthReject(Peer, Reason, Now);
+			break;
+		}
+		xmqttServerAuthCancelTimer(Peer);
+		xmqttServerAuthRelease(Peer);
+		if (!Peer->Online && !Peer->Closing) {
+			Now = xrtTimer();
+			if (!isfinite(Now) || Now >= Peer->Deadline) xmqttServerTimedOut(Peer);
+			else xmqttServerInstallConnect(Peer, Auth->ClientId, Auth->CleanStart, Now);
+		}
+		break;
+	}
+	case XMQTT_SERVER_AUTH_UNSUPPORTED:
+		xmqttServerAuthReject(Peer, Peer->Online ? 0x87 : 0x8c, Now);
+		break;
+	default:
+		xmqttServerAuthReject(Peer, 0x87, Now);
+		break;
+	}
+}
+
+static void xmqttServerAuthConnect(xmqttserverpeer* Peer, const xmqttconnectpacket* Connect,
+	xstrview Method, xbytesview Data, size_t Bytes, double Now)
+{
+	xmqttserverauthstate* Auth = xrtCalloc(1, sizeof(*Auth) + Connect->ClientId.Size + Method.Size);
+	if (!Auth) {
+		xmqttServerRefuse(Peer, 0x97, 3, Peer->PacketLimit, Now);
+		return;
+	}
+	Peer->Auth = Auth;
+	Auth->CleanStart = Connect->CleanStart;
+	Auth->ClientId = (xstrview){Auth->Text, Connect->ClientId.Size};
+	Auth->Method = (xstrview){Auth->Text + Connect->ClientId.Size, Method.Size};
+	memcpy(Auth->Text, Connect->ClientId.Data, Connect->ClientId.Size);
+	memcpy(Auth->Text + Connect->ClientId.Size, Method.Data, Method.Size);
+	xmqttServerAuthStep(Peer, XMQTT_SERVER_AUTH_CONNECT, Connect, Data, Bytes, Now);
+}
+
+static void xmqttServerReadAuth(xmqttserverpeer* Peer, const xmqttpacket* Packet, size_t Bytes, double Now)
+{
+	xmqttserverauthstate* Auth = Peer->Auth;
+	if (!Auth) {
+		xmqttServerProtocolClose(Peer, 0x82, Now);
+		return;
+	}
+	bool Starting = Peer->Online && !Auth->Timer;
+	xstrview Method = {0};
+	xbytesview Data = {0};
+	for (size_t Index = 0; Index < Packet->Properties.Count; ++Index) {
+		const xmqttproperty* Property = &Packet->Properties.Data[Index];
+		if (Property->Id == XMQTT_PROPERTY_AUTH_METHOD) Method = Property->Value.Text;
+		else if (Property->Id == XMQTT_PROPERTY_AUTH_DATA) Data = Property->Value.Binary;
+	}
+	if (Packet->Reason != (Starting ? 0x19 : 0x18) || !Method.Data ||
+		Method.Size != Auth->Method.Size || memcmp(Method.Data, Auth->Method.Data, Method.Size)) {
+		xmqttServerAuthReject(Peer, 0x82, Now);
+		return;
+	}
+	if (Starting) {
+		Auth->Rounds = Auth->Bytes = 0;
+		if (!xmqttServerAuthStartTimer(Peer, Now)) {
+			xmqttServerAuthReject(Peer, 0x97, Now);
+			return;
+		}
+	}
+	if (Peer->Online && Now >= Auth->Deadline) {
+		xmqttServerTimedOut(Peer);
+		return;
+	}
+	xmqttserverauthphase Phase = Starting ? XMQTT_SERVER_AUTH_REAUTHENTICATE : XMQTT_SERVER_AUTH_CONTINUE;
+	xmqttServerAuthStep(Peer, Phase, NULL, Data, Bytes, Now);
+}
+#endif
+
+static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet, size_t WireBytes, double Now)
 {
 	xmqttserver* Server = Peer->Server;
 	const xmqttconnectpacket* Connect = &Packet->Body.Connect;
 	uint32 SessionExpiry = 0;
 	uint16 SendMaximum = UINT16_MAX;
 	size_t PacketLimit = XMQTT_PACKET_MAX_BYTES;
-	bool AuthMethod = false;
+	const xmqttproperty* AuthMethod = NULL;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	xbytesview AuthData = {0};
+#else
+	(void)WireBytes;
+#endif
 	for (size_t Index = 0; Index < Packet->Properties.Count; ++Index) {
 		const xmqttproperty* Property = &Packet->Properties.Data[Index];
 		if (Property->Id == XMQTT_PROPERTY_SESSION_EXPIRY) SessionExpiry = Property->Value.Number;
 		else if (Property->Id == XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE) PacketLimit = Property->Value.Number;
 		else if (Property->Id == XMQTT_PROPERTY_RECEIVE_MAXIMUM) SendMaximum = (uint16)Property->Value.Number;
-		else if (Property->Id == XMQTT_PROPERTY_AUTH_METHOD) AuthMethod = true;
+		else if (Property->Id == XMQTT_PROPERTY_AUTH_METHOD) AuthMethod = Property;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+		else if (Property->Id == XMQTT_PROPERTY_AUTH_DATA) AuthData = Property->Value.Binary;
+#endif
 	}
 	if (!Connect->ClientId.Size || Connect->ClientId.Size > Server->Config.MaxClientIdBytes) {
 		xmqttServerRefuse(Peer, 0x85, 2, PacketLimit, Now);
 		return;
 	}
-	if (AuthMethod) {
+	if (AuthMethod
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+		&& !Server->Auth.Step
+#endif
+	) {
 		xmqttServerRefuse(Peer, 0x8c, 5, PacketLimit, Now);
 		return;
 	}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (AuthMethod && WireBytes > Server->Auth.MaxExchangeBytes) {
+		xmqttServerRefuse(Peer, 0x97, 3, PacketLimit, Now);
+		return;
+	}
+#endif
 	if (Peer->Version == XMQTT_VERSION_311 && !Connect->CleanStart) SessionExpiry = UINT32_MAX;
 	if (SessionExpiry && !Server->Config.MaxPersistentSessions) {
 		xmqttServerRefuse(Peer, 0x83, 3, PacketLimit, Now);
@@ -16948,12 +17324,13 @@ static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 	Peer->SendMaximum = SendMaximum;
 	Peer->KeepAliveMs = (unsigned)Connect->KeepAlive * 1500u;
 	xrtAtomic32Store(&Peer->SessionExpiry, SessionExpiry, XMEMORY_RELAXED);
-	uint8 Refusal = xmqttServerClaimId(Peer, Connect->ClientId, Connect->CleanStart, Now);
-	if (Refusal) {
-		xmqttServerRefuse(Peer, Refusal, 3, PacketLimit, Now);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (AuthMethod) {
+		xmqttServerAuthConnect(Peer, Connect, AuthMethod->Value.Text, AuthData, WireBytes, Now);
 		return;
 	}
-	if (!Peer->AwaitingSession) xmqttServerAcceptConnect(Peer, Now);
+#endif
+	xmqttServerInstallConnect(Peer, Connect->ClientId, Connect->CleanStart, Now);
 }
 
 static void xmqttServerRemoveRetained(xmqttserver* Server, xmqttservershard* Shard,
@@ -18447,6 +18824,12 @@ static bool xmqttServerCanRead(xmqttserverpeer* Peer)
 {
 	if (Peer->Closing || Peer->AwaitingSession ||
 		xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return false;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (Peer->Auth && Peer->Auth->Timer && xrtTimer() >= Peer->Auth->Deadline) {
+		xmqttServerTimedOut(Peer);
+		return false;
+	}
+#endif
 	if (Peer->Session &&
 		xrtAtomic32Load(&Peer->Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_SEALED) {
 		xmqttServerAbortPeer(Peer);
@@ -18508,8 +18891,20 @@ static bool xmqttServerReadPacket(xmqttserverpeer* Peer, const xmqttfixedheader*
 		xmqttServerAbortPeer(Peer);
 		return false;
 	}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (Packet.Type == XMQTT_PACKET_AUTH && (Peer->Auth || Peer->Online)) {
+		if (Peer->Online && Peer->KeepAliveMs) Peer->Deadline = Now + (double)Peer->KeepAliveMs * 0.001;
+		xmqttServerReadAuth(Peer, &Packet, Header->PacketBytes, Now);
+		return true;
+	}
+	if (!Peer->Online && Peer->Auth) {
+		if (Packet.Type == XMQTT_PACKET_DISCONNECT) xmqttServerFinishPeer(Peer, Now);
+		else xmqttServerAuthReject(Peer, 0x82, Now);
+		return true;
+	}
+#endif
 	if (!Peer->Online && Packet.Type == XMQTT_PACKET_CONNECT)
-		xmqttServerConnect(Peer, &Packet, Now);
+		xmqttServerConnect(Peer, &Packet, Header->PacketBytes, Now);
 	else if (Peer->Online)
 		xmqttServerOnline(Peer, &Packet, Properties, Now);
 	else
@@ -18607,6 +19002,9 @@ static void xmqttServerPeerClosed(xmqttserverpeer* Peer)
 	Peer->Closing = true;
 	xrtAtomic32Store(&Peer->OutgoingStopped, 1, XMEMORY_RELAXED);
 	xmqttServerCancelTimer(Peer);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	xmqttServerAuthCancelTimer(Peer);
+#endif
 	xmqttserversession* Session = Peer->Session;
 	if (!Session) return;
 	Peer->ClosedAt = xrtTimer();
@@ -18945,6 +19343,35 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 	xrtNetEngineUnpin(Engine);
 	return false;
 }
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+XMQTT_API bool xmqttServerAuthConfigInit(xmqttserverauthconfig* Config)
+{
+	if (!xrtMemRangeValid(Config, sizeof(*Config)))
+		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT enhanced authentication config");
+	*Config = (xmqttserverauthconfig){
+		.Size = sizeof(*Config), .MaxRounds = 32, .MaxExchangeBytes = 1024u * 1024u, .ReauthTimeout = 5000
+	};
+	return true;
+}
+
+XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Out)
+{
+	if (!xrtMemRangeValid(Auth, sizeof(*Auth)) || !xrtMemRangeValid(Out, sizeof(*Out)) ||
+		xrtMemRangesOverlap(Auth, sizeof(*Auth), Out, sizeof(*Out)) ||
+		xrtMemRangesOverlap(Config, sizeof(*Config), Out, sizeof(*Out)) ||
+		Auth->Size != sizeof(*Auth) || !Auth->MaxRounds || Auth->MaxRounds > 65536u ||
+		!Auth->MaxExchangeBytes || Auth->ReauthTimeout < 1 || Auth->ReauthTimeout > INT32_MAX ||
+		!Auth->Step || !Auth->Release)
+		return xmqttServerError(XERR_ARGUMENT, "invalid MQTT enhanced authentication setup");
+	xmqttserver* Server;
+	if (!xmqttServerCreate(Engine, Config, &Server)) return false;
+	Server->Auth = *Auth;
+	*Out = Server;
+	return true;
+}
+#endif
 
 static bool xmqttServerAttachNative(xmqttserver* Server, xnetstream* Stream
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)

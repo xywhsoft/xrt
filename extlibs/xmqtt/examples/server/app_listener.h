@@ -19,6 +19,9 @@ typedef struct serverexample {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	const xtlsserverconfig* Tls;
 #endif
+#if defined(XMQTT_EXAMPLE_SERVER_AUTH)
+	const xmqttserverauthconfig* Auth;
+#endif
 } serverexample;
 
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
@@ -94,8 +97,12 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = Workers;
 	Example->Engine = xrtNetEngineCreate(&EngineConfig);
-	if (!Example->Engine || !xrtNetEngineStart(Example->Engine) ||
-		!xmqttServerCreate(Example->Engine, Config, &Example->Server)) goto Failed;
+	if (!Example->Engine || !xrtNetEngineStart(Example->Engine)) goto Failed;
+#if defined(XMQTT_EXAMPLE_SERVER_AUTH)
+	if (!xmqttServerCreateAuth(Example->Engine, Config, Example->Auth, &Example->Server)) goto Failed;
+#else
+	if (!xmqttServerCreate(Example->Engine, Config, &Example->Server)) goto Failed;
+#endif
 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);

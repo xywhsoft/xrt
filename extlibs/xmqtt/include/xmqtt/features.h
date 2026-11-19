@@ -59,6 +59,16 @@
 #endif
 #endif
 
+/* xmqtt_server_auth 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER_AUTH)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER_AUTH
+#define XMQTT_FEATURE_XMQTT_SERVER_AUTH
+#endif
+#ifndef XMQTT_MODULE_XMQTT_SERVER
+#define XMQTT_MODULE_XMQTT_SERVER
+#endif
+#endif
+
 /* xmqtt_server 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER)
 #ifndef XMQTT_FEATURE_XMQTT_SERVER
