@@ -175,22 +175,6 @@
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
 #define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
 #endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_CACHE
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_CACHE
-#endif
-#endif
-
-/* xredis_cluster_command_cache 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_CACHE)
-#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE
-#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
-#endif
 #endif
 
 /* xredis_cluster_command_sync 及其直接依赖。 */
@@ -3511,7 +3495,7 @@ typedef enum xredisclustercommandadmission {
     XREDIS_CLUSTER_COMMAND_OVERLOADED,XREDIS_CLUSTER_COMMAND_CLOSED,
     XREDIS_CLUSTER_COMMAND_UNKNOWN,XREDIS_CLUSTER_COMMAND_UNSUPPORTED,
     XREDIS_CLUSTER_COMMAND_CROSS_SLOT,XREDIS_CLUSTER_COMMAND_ARGUMENTS,
-    XREDIS_CLUSTER_COMMAND_LIMIT,XREDIS_CLUSTER_COMMAND_KEYLESS,XREDIS_CLUSTER_COMMAND_CATALOG_UNAVAILABLE
+    XREDIS_CLUSTER_COMMAND_LIMIT,XREDIS_CLUSTER_COMMAND_KEYLESS
 } xredisclustercommandadmission;
 #define XREDIS_CLUSTER_COMMAND_NO_SLOT UINT16_MAX
 XRT_EXTERN_C_BEGIN
@@ -3607,57 +3591,6 @@ XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommandSync(
     xredisclusterclient* Client,const xrediscommandcatalog* Catalogue,
     const xbytesview* Arguments,size_t Count,uint16 KeylessSlot,int64 Timeout,
     xredisclusterwait* Result);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/cluster_command_cache.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_CLUSTER_COMMAND_CACHE_H
-#define XREDIS_CLUSTER_COMMAND_CACHE_H
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE) && (!defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND) || !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC))
-#error "Cluster command cache requires metadata routing and synchronous Cluster calls"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-typedef enum xredisclustercatalogstatus {
-    XREDIS_CLUSTER_CATALOG_ERROR=-1,
-    XREDIS_CLUSTER_CATALOG_READY=1,XREDIS_CLUSTER_CATALOG_ABSENT,XREDIS_CLUSTER_CATALOG_STALE,
-    XREDIS_CLUSTER_CATALOG_BUSY,XREDIS_CLUSTER_CATALOG_CLOSED,XREDIS_CLUSTER_CATALOG_OVERLOADED,
-    XREDIS_CLUSTER_CATALOG_WAIT_FAILED,XREDIS_CLUSTER_CATALOG_REQUEST_FAILED,XREDIS_CLUSTER_CATALOG_TIMEOUT,
-    XREDIS_CLUSTER_CATALOG_MALFORMED,XREDIS_CLUSTER_CATALOG_LIMIT,XREDIS_CLUSTER_CATALOG_MEMORY
-} xredisclustercatalogstatus;
-XRT_EXTERN_C_BEGIN
-/* Fetch the full COMMAND catalogue from the authorised primary route for Slot.
- * Use an origin whose command definitions represent this cluster. COMMAND uses
- * the shared client's managed ACL identity and reply limits. One synchronous
- * caller fetches/builds at a time. BUSY performs no I/O. Invoke from a control
- * thread outside both Engines. Timeout and its default match CallSync, with
- * one original deadline through catalogue validation and publication.
- * If admitted, Native receives the same owned Future and actual wait result
- * even on failure. Earlier refusals leave Native unchanged. Destroy that
- * Future separately. Limits are copied; NULL uses the usual catalogue defaults.
- * A failed refresh preserves the prior snapshot and its validity. Invalidating
- * during refresh prevents that reply from being published. Close seals publish.
- * Caller owns Client through return. Outputs must be disjoint from Client,
- * live map, current catalogue and Limits. */
-XREDIS_API xredisclustercatalogstatus xredisClusterClientRefreshCommandCatalog(xredisclusterclient* Client,
-    uint16 Slot,const xrediscommandkeylimits* Limits,int64 Timeout,xredisclusterwait* Native);
-/* READY transfers an immutable reference. Other statuses leave output
- * unchanged. This snapshot can outlive refresh, Close and client destruction. */
-XREDIS_API xredisclustercatalogstatus xredisClusterClientCommandCatalog(xredisclusterclient* Client,
-    xrediscommandcatalog** Catalogue);
-/* Retain the old storage while invalidating its availability. A fresh,
- * successfully committed refresh restores availability. */
-XREDIS_API bool xredisClusterClientInvalidateCommandCatalog(xredisclusterclient* Client);
-/* Route with one retained snapshot for the duration of admission. ABSENT or
- * STALE yields CATALOG_UNAVAILABLE without network work. A call that already
- * acquired a snapshot may proceed across concurrent replacement/invalidation.
- * The original entry deadline includes snapshot acquisition. */
-XREDIS_API xredisclustercommandadmission xredisClusterClientCallCachedCommand(xredisclusterclient* Client,
-    const xbytesview* Arguments,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3813,9 +3746,6 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE"
 #endif
 
 #endif
@@ -4289,9 +4219,6 @@ bool __xredisClusterMapOutput(const xredisclustermap* Map,const void* Output,siz
 #define XREDIS_INTERNAL_COMMAND_KEYS_H
 #if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS) && defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
 bool __xredisCommandCatalogOutput(const xrediscommandcatalog* Catalogue,const void* Output,size_t Bytes);
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-bool __xredisCommandKeyLimitsValid(const xrediscommandkeylimits* Limits);
 #endif
 #endif
 #endif
@@ -13928,10 +13855,6 @@ struct xredisclusterclient {
     uint64 Timer,InvalidatedGeneration;double TimerDue,RefreshDue;int64 Backoff;
     uint32 ReplicaCursor;
     bool Posted,Finished,Invalidation;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-    xrediscommandcatalog* Catalog;
-    bool CatalogStale,CatalogRefreshing,CatalogSuperseded;
-#endif
 };
 static void xredisClusterWork(xnetworker*,ptr);
 static void xredisClusterStop(xredisclusterclient*,xredisclusterclientstatus);
@@ -13945,9 +13868,6 @@ XREDIS_API void xredisClusterClientRelease(xredisclusterclient* C)
 {
     if(!C || xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;
     xrtPromiseDestroy(C->ReadyPromise);xrtPromiseDestroy(C->ClosePromise);xrtFutureDestroy(C->ReadyFuture);xrtFutureDestroy(C->ClosedFuture);
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-    xredisCommandCatalogRelease(C->Catalog);
-#endif
     xrtFree(C->ReadyValue);xrtFree(C->CloseValue);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
 static void xredisClusterWakeLocked(xredisclusterclient* C)
@@ -14315,156 +14235,6 @@ XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommandSync(xred
 }
 #endif
 #endif
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-static xredisclustercatalogstatus xredisClusterCatalogParse(xredisclusterwait Wait,double Deadline,
-    const xrediscommandkeylimits* Limits,xrediscommandcatalog** Catalog)
-{
-    if(Wait.Wait!=XWAIT_OK)return XREDIS_CLUSTER_CATALOG_WAIT_FAILED;
-    const xredisclusterclientresult* Result=xrtFutureValue(Wait.Future);
-    if(!Result)return XREDIS_CLUSTER_CATALOG_REQUEST_FAILED;
-    if(Result->Status==XREDIS_CLUSTER_CLIENT_CLOSED ||
-        (Result->RouteObserved && Result->Route.Status==XREDIS_CLUSTER_ROUTE_CLOSED))
-        return XREDIS_CLUSTER_CATALOG_CLOSED;
-    if(Result->Status==XREDIS_CLUSTER_CLIENT_TIMEOUT ||
-        (Result->RouteObserved && Result->Route.Status==XREDIS_CLUSTER_ROUTE_TIMEOUT) ||
-        xrtTimer()>=Deadline)return XREDIS_CLUSTER_CATALOG_TIMEOUT;
-    if(Result->Status!=XREDIS_CLUSTER_CLIENT_COMPLETE || !Result->RouteObserved ||
-        Result->Route.Status!=XREDIS_CLUSTER_ROUTE_COMPLETE || !Result->Route.RequestObserved ||
-        Result->Route.Query.Status!=XREDIS_REQUEST_OK || !Result->Route.Query.Reply)
-        return XREDIS_CLUSTER_CATALOG_REQUEST_FAILED;
-    switch(xredisCommandCatalogCreate(Result->Route.Query.Reply,Limits,Catalog)){
-    case XREDIS_KEYS_OK:return XREDIS_CLUSTER_CATALOG_READY;
-    case XREDIS_KEYS_MALFORMED:return XREDIS_CLUSTER_CATALOG_MALFORMED;
-    case XREDIS_KEYS_LIMIT:return XREDIS_CLUSTER_CATALOG_LIMIT;
-    case XREDIS_KEYS_MEMORY:return XREDIS_CLUSTER_CATALOG_MEMORY;
-    default:return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-}
-XREDIS_API xredisclustercatalogstatus xredisClusterClientRefreshCommandCatalog(xredisclusterclient* C,
-    uint16 Slot,const xrediscommandkeylimits* Limits,int64 Timeout,xredisclusterwait* Native)
-{
-    double Entered=xrtTimer();
-    const xbytesview Command[]={XRT_BYTES_LITERAL("COMMAND")};
-    if(!xredisClusterClientOutput(C,Native,sizeof(*Native)) || Slot>=XREDIS_CLUSTER_SLOTS ||
-        Timeout< -1 || Timeout>86400000 || (Limits && (!xrtMemRangeValid(Limits,sizeof(*Limits)) ||
-            xrtMemRangesOverlap(Limits,sizeof(*Limits),Native,sizeof(*Native))))){
-        xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster command catalog refresh");
-        return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-    xrediscommandkeylimits Copy;
-    if(Limits)Copy=*Limits;else xredisCommandKeyLimitsInit(&Copy);
-    if(!__xredisCommandKeyLimitsValid(&Copy)){
-        xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster command catalog limits");
-        return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-    if(!xredisClusterSyncOutput(C,Command,1,Native))return XREDIS_CLUSTER_CATALOG_ERROR;
-    double Deadline=xredisClusterDeadline(Entered,Timeout<0?C->Config.Route.Timeout:Timeout);
-    xrtMutexLock(&C->Gate);
-    if(C->Catalog && !__xredisCommandCatalogOutput(C->Catalog,Native,sizeof(*Native))){
-        xrtMutexUnlock(&C->Gate);
-        xredisClusterClientError(XERR_ARGUMENT,"Cluster catalog refresh output aliases catalog");
-        return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-    if(C->Info.Closing || C->CatalogRefreshing){
-        xredisclustercatalogstatus Status=C->Info.Closing?XREDIS_CLUSTER_CATALOG_CLOSED:XREDIS_CLUSTER_CATALOG_BUSY;
-        xrtMutexUnlock(&C->Gate);
-        return Status;
-    }
-    C->CatalogRefreshing=true;
-    C->CatalogSuperseded=false;
-    xrtMutexUnlock(&C->Gate);
-
-    xrediscommandcatalog* Catalog=NULL;
-    xredisclusterwait Wait={0};
-    xredisclustercatalogstatus Status;
-    xredisadmission Admission=xredisClusterClientCallAt(C,Slot,Command,1,Timeout,&Wait.Future,Entered,false);
-    switch(Admission){
-    case XREDIS_ADMISSION_ACCEPTED:
-        Wait.Wait=xrtFutureWait(Wait.Future);
-        *Native=Wait;
-        Status=xredisClusterCatalogParse(Wait,Deadline,&Copy,&Catalog);
-        break;
-    case XREDIS_ADMISSION_OVERLOADED:Status=XREDIS_CLUSTER_CATALOG_OVERLOADED;break;
-    case XREDIS_ADMISSION_CLOSED:Status=XREDIS_CLUSTER_CATALOG_CLOSED;break;
-    default:Status=XREDIS_CLUSTER_CATALOG_ERROR;break;
-    }
-    xrtMutexLock(&C->Gate);
-    if(Status==XREDIS_CLUSTER_CATALOG_READY){
-        if(C->Info.Closing)Status=XREDIS_CLUSTER_CATALOG_CLOSED;
-        else if(C->CatalogSuperseded)Status=XREDIS_CLUSTER_CATALOG_STALE;
-        else if(xrtTimer()>=Deadline)Status=XREDIS_CLUSTER_CATALOG_TIMEOUT;
-        else {
-            xrediscommandcatalog* Previous=C->Catalog;
-            C->Catalog=Catalog;
-            C->CatalogStale=false;
-            Catalog=Previous;
-        }
-    }
-    C->CatalogRefreshing=false;
-    xrtMutexUnlock(&C->Gate);
-    xredisCommandCatalogRelease(Catalog);
-    return Status;
-}
-static xredisclustercatalogstatus xredisClusterCatalogAcquireLocked(xredisclusterclient* C,xrediscommandcatalog** Out)
-{
-    if(C->Info.Closing)return XREDIS_CLUSTER_CATALOG_CLOSED;
-    if(!C->Catalog)return XREDIS_CLUSTER_CATALOG_ABSENT;
-    if(C->CatalogStale)return XREDIS_CLUSTER_CATALOG_STALE;
-    if(!xredisCommandCatalogRetain(C->Catalog))return XREDIS_CLUSTER_CATALOG_ERROR;
-    *Out=C->Catalog;
-    return XREDIS_CLUSTER_CATALOG_READY;
-}
-XREDIS_API xredisclustercatalogstatus xredisClusterClientCommandCatalog(xredisclusterclient* C,xrediscommandcatalog** Out)
-{
-    if(!xredisClusterClientOutput(C,Out,sizeof(*Out))){
-        xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster catalog output");
-        return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-    xrtMutexLock(&C->Gate);
-    if(!__xredisClusterMapOutput(C->Map,Out,sizeof(*Out)) ||
-        (C->Catalog && !__xredisCommandCatalogOutput(C->Catalog,Out,sizeof(*Out)))){
-        xrtMutexUnlock(&C->Gate);
-        xredisClusterClientError(XERR_ARGUMENT,"Cluster catalog output aliases owned storage");
-        return XREDIS_CLUSTER_CATALOG_ERROR;
-    }
-    xredisclustercatalogstatus Status=xredisClusterCatalogAcquireLocked(C,Out);
-    xrtMutexUnlock(&C->Gate);
-    return Status;
-}
-XREDIS_API bool xredisClusterClientInvalidateCommandCatalog(xredisclusterclient* C)
-{
-    if(!C)return xredisClusterClientError(XERR_ARGUMENT,"Cluster client is NULL");
-    xrtMutexLock(&C->Gate);
-    bool Open=!C->Info.Closing;
-    if(Open){C->CatalogStale=true;C->CatalogSuperseded=true;}
-    xrtMutexUnlock(&C->Gate);
-    return Open;
-}
-XREDIS_API xredisclustercommandadmission xredisClusterClientCallCachedCommand(xredisclusterclient* C,
-    const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out)
-{
-    double Entered=xrtTimer();
-    if(!xredisClusterClientOutput(C,Out,sizeof(*Out)) || Timeout< -1 || Timeout>86400000 ||
-        (KeylessSlot>=XREDIS_CLUSTER_SLOTS && KeylessSlot!=XREDIS_CLUSTER_COMMAND_NO_SLOT)){
-        xredisClusterClientError(XERR_ARGUMENT,"invalid cached Cluster command");
-        return XREDIS_CLUSTER_COMMAND_ERROR;
-    }
-    xrediscommandcatalog* Catalog=NULL;
-    xrtMutexLock(&C->Gate);
-    xredisclustercatalogstatus Status=xredisClusterCatalogAcquireLocked(C,&Catalog);
-    xrtMutexUnlock(&C->Gate);
-    switch(Status){
-    case XREDIS_CLUSTER_CATALOG_READY:break;
-    case XREDIS_CLUSTER_CATALOG_ABSENT:
-    case XREDIS_CLUSTER_CATALOG_STALE:return XREDIS_CLUSTER_COMMAND_CATALOG_UNAVAILABLE;
-    case XREDIS_CLUSTER_CATALOG_CLOSED:return XREDIS_CLUSTER_COMMAND_CLOSED;
-    default:return XREDIS_CLUSTER_COMMAND_ERROR;
-    }
-    xredisclustercommandadmission Admission=xredisClusterClientCallCommandAt(C,Catalog,A,Count,KeylessSlot,Timeout,Out,Entered);
-    xredisCommandCatalogRelease(Catalog);
-    return Admission;
-}
-#endif
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* C)
 {if(!C){xredisClusterClientError(XERR_ARGUMENT,"Cluster client is NULL");return NULL;}return xrtFutureRef(C->ReadyFuture);}
 XREDIS_API xfuture* xredisClusterClientClosed(xredisclusterclient* C)
@@ -14621,10 +14391,7 @@ XREDIS_API bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* K)
     if(!xrtMemRangeValid(K,sizeof(*K)))return xredisKeysError("invalid command key limits output");
     *K=(xrediscommandkeylimits){sizeof(*K),8192,32768,256,16,1048576,16u*1024u*1024u,64u*1024u*1024u,65536,64u*1024u*1024u,65536,64u*1024u*1024u,1048576};return true;
 }
-#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-static
-#endif
-bool __xredisCommandKeyLimitsValid(const xrediscommandkeylimits* K)
+static bool xredisCommandKeyLimitsValid(const xrediscommandkeylimits* K)
 {
     return K->Size==sizeof(*K) && K->MaxCommands<=65535 && K->MaxSpecifications<=262144 &&
         K->MaxNameBytes<=4096 && K->MaxDepth<=16 && K->MaxArguments<=1048576 && K->MaxKeys<=1048576 &&
@@ -14635,7 +14402,7 @@ XREDIS_API xrediskeysstatus xredisCommandCatalogCreate(xredisreply* R,const xred
 {
     if(!__xredisClusterReplyOutput(R,Out,sizeof(*Out)) || (Config && (!__xredisClusterReplyOutput(R,Config,sizeof(*Config)) || Config->Size!=sizeof(*Config) || xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))return xredisKeysError("invalid command catalogue arguments"),XREDIS_KEYS_ERROR;
     xrediscommandkeylimits K;if(Config)K=*Config;else xredisCommandKeyLimitsInit(&K);
-    if(!__xredisCommandKeyLimitsValid(&K))return xredisKeysError("invalid command key bounds"),XREDIS_KEYS_ERROR;
+    if(!xredisCommandKeyLimitsValid(&K))return xredisKeysError("invalid command key bounds"),XREDIS_KEYS_ERROR;
     xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(R,&I);if(I.Nodes>K.MaxReplyNodes || I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_KEYS_LIMIT;
     xredisreplyvalue Root=xredisKeysGet(R,I.Root);if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_KEYS_SERVER_ERROR;
     xrediskeysbuild B={0};B.Reply=R;B.Limits=&K;xrediskeysstatus S=xredisKeysCommands(&B,Root,1,(xbytesview){0});if(S!=XREDIS_KEYS_OK)return S;

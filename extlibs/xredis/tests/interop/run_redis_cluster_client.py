@@ -13,9 +13,9 @@ def main():
     if a.expect_sync_routing:result['limits'].append('All four producers alternate explicit-slot and metadata-derived synchronous INCR calls, check actual wait status and retain the same exactly32 unique side effects, redirects and physical lifetimes. No real native-wait-failure injection is inferred.')
     result['cached_command_routing_required']=a.expect_command_cache
     if a.expect_command_cache:
-        result['limits'].append('Uses a full native COMMAND fetch from the managed primary and cached routing for each producer.')
+        result['limits'].append('The APP fetches a full COMMAND snapshot through an explicit slot on the managed primary. All producers share the immutable catalogue.')
     result['metadata_command_routing_required']=a.expect_command_routing
-    if a.expect_command_routing and not a.expect_command_cache:result['limits'].append('Each native case obtains a real authorized COMMAND INFO catalogue, refuses cross-slot/keyless/incomplete inputs before admission, uses an explicit PING slot, and calculates all INCR/direct-GET slots before shared-client submission. Catalogue fetch/cache/fallback policy is application-owned; metadata preflight is not a business side effect.')
+    if a.expect_command_routing and not a.expect_command_cache:result['limits'].append('Each native case obtains a real authorized command catalogue, refuses cross-slot/keyless/incomplete inputs before admission, uses an explicit PING slot, and calculates all INCR/direct-GET slots before shared-client submission. Catalogue fetch/cache/fallback policy is application-owned; metadata preflight is not a business side effect.')
     def save():a.report.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
     children=[];logs=[];temporary=tempfile.TemporaryDirectory(prefix='cluster route ');runtime=Path(temporary.name)
     def identity(port):

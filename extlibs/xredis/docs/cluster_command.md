@@ -49,5 +49,5 @@ The optional [synchronous facade](cluster_sync.md) shares the original entry
 deadline and native operation. It refuses both dependent Engines' workers and
 returns an owned Future plus the actual native wait status on accepted calls.
 
-The optional [command cache](cluster_command_cache.md) fetches and publishes a
+The [APP cache example](../examples/cluster_command_cache/README.md) fetches a
 catalogue through an explicitly selected managed primary route.

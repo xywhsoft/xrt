@@ -183,9 +183,5 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
 #endif
 #include <xredis/cluster_command_sync.h>
-#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE"
-#endif
-#include <xredis/cluster_command_cache.h>
 
 #endif

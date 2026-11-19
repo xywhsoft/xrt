@@ -285,6 +285,8 @@ the [runnable offline example](examples/command_keys/README.md).
 `xredisClusterClientCallCommand`: complete key/slot checks before native
 admission, typed refusals, explicit keyless routing and one entry deadline.
 Catalogue ownership stays with the caller and is not retained by pending work.
+See the [APP-owned catalogue example](examples/cluster_command_cache/README.md)
+for loading and replacing a snapshot through an explicit primary slot.
 See [contracts](docs/cluster_command.md) and the
 [local-peer example](examples/cluster_command/README.md).
 

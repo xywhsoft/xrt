@@ -16314,3 +16314,22 @@ TCP and stdio peers. TCP coverage includes a split send, multiple records
 in one send, notifications, batches, parse errors, oversized records and
 premature EOF. The generated feature and single headers passed freshness
 checks. Both CI jobs now run the independent peer.
+
+## 2026-11-19 xredis APP-owned command catalogue cache
+
+The Cluster client exposes explicit slot calls. The runnable APP now sends
+COMMAND through its chosen primary slot, owns the validated snapshot, and
+preflights a binary-key GET before issuing it on the chosen slot. Failed
+refreshes preserve the previous snapshot. This stage removes the native cache
+entry points, flags and storage. The standalone command parser and metadata
+routing helpers are addressed in the following scope reduction.
+
+Windows x64 and Ubuntu/WSL x64 passed the APP example, modular and single-header
+catalogue and synchronous Cluster tests, dependency trim, independent static
+and shared synchronous Cluster consumers and the four benchmark smoke
+workloads. The sanitizer run on WSL passed both APP catalogue test variants.
+Tests check malformed and denied refresh, limits, allocation rollback,
+replacement, snapshot lifetime and the absence of warm-path COMMAND traffic.
+Each client passed the 36-case Redis 8.0.5 Cluster matrix, including real MOVED,
+ASK, slot reassignment and immutable shared metadata. The reports and
+host-specific package logs are in out/service-extensions/scope-reduction-20261119/.

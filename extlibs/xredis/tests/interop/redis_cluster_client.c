@@ -1,6 +1,8 @@
 #include <xredis/cluster_client.h>
 #include <xredis/cluster_command.h>
-#include <xredis/cluster_command_cache.h>
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#include "../../examples/cluster_command_cache/app_catalog.h"
+#endif
 #include <xredis/cluster_command_sync.h>
 #include <xredis/pool_shared_connect.h>
 #include <xredis/dial.h>
@@ -77,10 +79,7 @@ static int32 rrProduce(ptr Data)
 {
     rrproducer* P=Data;const xbytesview A[]={XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter")};
     for(unsigned N=0;N<8;++N){xfuture* F=NULL;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-        rrRequire(xredisClusterClientCallCachedCommand(P->Client,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&F)
-            ==XREDIS_CLUSTER_COMMAND_ACCEPTED,"cached metadata INCR route");
-#elif defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
         xredisclusterwait W={0};
         if(N&1)rrRequire(xredisClusterClientCallCommandSync(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"synchronous metadata INCR route");
         else rrRequire(xredisClusterClientCallSync(P->Client,P->Slot,A,2,10000,&W)==XREDIS_ADMISSION_ACCEPTED,"synchronous explicit INCR route");
@@ -125,17 +124,9 @@ int main(int Argc,char** Argv)
         xredisclusteraddress Seed={XRT_BYTES_LITERAL("127.0.0.1"),Ports[0],0,false,0};xredisclusterclient* Client=NULL;rrRequire(xredisClusterClientCreate(E,1,Context.Cache,&Seed,1,&CC,&Client)==XREDIS_ADMISSION_ACCEPTED,"managed owned Cluster client");xfuture* Ready=xredisClusterClientReady(Client);const xredisclusterclientready* ReadyResult=rrWait(Ready);rrRequire(ReadyResult->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && ReadyResult->Generation==1,"real asynchronous bootstrap");xrtFutureDestroy(Ready);
         xbytesview Reset[]={XRT_BYTES_LITERAL("SET"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter"),XRT_BYTES_LITERAL("0")};uint16 Slot;rrRequire(xredisClusterKeySlot(Reset[1],&Slot),"counter slot");char SlotText[6];snprintf(SlotText,sizeof(SlotText),"%u",(unsigned)Slot);
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-        xredisclusterwait Metadata={0};
-        xredisclustercatalogstatus Fetch=xredisClusterClientRefreshCommandCatalog(Client,Slot,NULL,10000,&Metadata);
-        if(Fetch!=XREDIS_CLUSTER_CATALOG_READY)fprintf(stderr,"catalog fetch status=%d\n",(int)Fetch);
-        rrRequire(Fetch==XREDIS_CLUSTER_CATALOG_READY&&Metadata.Wait==XWAIT_OK,"actual authorized managed COMMAND");
-        const xredisclusterclientresult* MetaResult=rrWait(Metadata.Future);
-        rrRequire(MetaResult->Route.Query.Status==XREDIS_REQUEST_OK&&MetaResult->Route.Address.Port==Ports[0],
-            "full metadata from the selected primary origin");
-        xrtFutureDestroy(Metadata.Future);
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
         xrediscommandcatalog* Catalogue=NULL;
-        rrRequire(xredisClusterClientCommandCatalog(Client,&Catalogue)==XREDIS_CLUSTER_CATALOG_READY,"retained fetched catalogue");
+        rrRequire(appCatalogRefresh(Client,Slot,10000,NULL,&Catalogue),"APP fetches actual authorized managed COMMAND into an immutable catalogue");
 #else
         xbytesview Meta[]={XRT_BYTES_LITERAL("COMMAND"),XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("MSET"),XRT_BYTES_LITERAL("PING"),XRT_BYTES_LITERAL("SORT")};xfuture* Metadata=rrCall(Context.Nodes[0].Pool,Meta,7);const xredisrequestresult* MR=rrWait(Metadata);xrediscommandcatalog* Catalogue=NULL;rrRequire(MR->Status==XREDIS_REQUEST_OK && xredisCommandCatalogCreate(MR->Reply,NULL,&Catalogue)==XREDIS_KEYS_OK,"actual authorized COMMAND INFO snapshot");xrtFutureDestroy(Metadata);
 #endif
@@ -186,8 +177,8 @@ int main(int Argc,char** Argv)
     for(size_t I=0;I<Retained;++I){const xredisclusterclientresult* R=rrWait(Saved[I]);rrRequire(R->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && R->Route.Query.Status==XREDIS_REQUEST_OK && rrValue(R->Route.Query.Reply).Integer==Expected[I],"retained managed native result");xrtFutureDestroy(Saved[I]);}
     for(size_t I=0;I<Cases;++I){xredisclustermapinfo M={0};M.Size=sizeof(M);rrRequire(xredisClusterMapInfo(Maps[I],&M) && M.Generation==Generations[I],"retained managed map after engine teardown");xredisClusterMapRelease(Maps[I]);}
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE)
-    puts("[PASS] cached command routing: actual managed COMMAND, cached INCR and retained metadata");
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+    puts("[PASS] cached command routing: APP-owned snapshot from explicit-slot COMMAND");
 #endif
     puts("[PASS] metadata command routing: actual server metadata, complete key preflight, explicit keyless policy and unchanged native duties");
 #endif

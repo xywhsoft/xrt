@@ -516,8 +516,7 @@
         "xredis_command_keys",
         "xredis_cluster_command",
         "xredis_cluster_client_sync",
-        "xredis_cluster_command_sync",
-        "xredis_cluster_command_cache"
+        "xredis_cluster_command_sync"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -677,7 +676,8 @@
       "feature": null,
       "depends": [
         "xredis",
-        "xredis_tls_auth_examples"
+        "xredis_tls_auth_examples",
+        "xredis_app_command_cache"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -961,7 +961,7 @@
         "xredis_command_keys_tests",
         "xredis_cluster_command_tests",
         "xredis_cluster_sync_tests",
-        "xredis_cluster_command_cache_tests"
+        "xredis_app_command_cache_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -1124,7 +1124,7 @@
         "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c": "xredis_cluster_command",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_client_sync.c": "xredis_cluster_client_sync",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_command_sync.c": "xredis_cluster_command_sync",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c": "xredis_cluster_command_cache_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c": "xredis_app_command_cache_tests"
       }
     },
     {
@@ -2412,14 +2412,14 @@
       ]
     },
     {
-      "name": "xredis_cluster_command_cache",
-      "state": "developing",
-      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_CACHE",
+      "name": "xredis_app_command_cache",
+      "state": "implemented",
+      "feature": null,
       "depends": [
         "xredis_cluster_client_sync",
         "xredis_cluster_command"
       ],
-      "public_headers": ["extlibs/xredis/include/xredis/cluster_command_cache.h"],
+      "public_headers": [],
       "internal_headers": [],
       "sources": [],
       "tests": [],
@@ -2427,16 +2427,14 @@
       "examples": ["extlibs/xredis/examples/cluster_command_cache/main.c"],
       "benchmarks": ["extlibs/xredis/bench/bench_cluster_command.c"],
       "docs": [
-        "extlibs/xredis/docs/cluster_command_cache.md",
-        "extlibs/xredis/examples/cluster_command_cache/README.md",
-        "extlibs/xredis/docs/api/reference.md"
+        "extlibs/xredis/examples/cluster_command_cache/README.md"
       ]
     },
     {
-      "name": "xredis_cluster_command_cache_tests",
+      "name": "xredis_app_command_cache_tests",
       "state": "implemented",
       "feature": null,
-      "depends": ["xredis_cluster_command_cache", "memory_stats", "thread"],
+      "depends": ["xredis_app_command_cache", "memory_stats", "thread"],
       "public_headers": [],
       "internal_headers": [],
       "sources": [],
@@ -2444,7 +2442,7 @@
       "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_cluster_command_cache.c"],
       "examples": [],
       "benchmarks": [],
-      "docs": ["extlibs/xredis/docs/cluster_command_cache.md"]
+      "docs": ["extlibs/xredis/examples/cluster_command_cache/README.md"]
     }
   ]
 }

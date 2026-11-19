@@ -1,21 +1,26 @@
-#include <xredis/cluster_command_cache.h>
+#include "app_catalog.h"
 #include "../../tests/support/cluster_command_peer.h"
+
 int main(void)
 {
-    rffixture* Fixture=qpStart();
-    xredisclusterclient* Client=cfCreate(Fixture,NULL);
-    xredisclusterwait Metadata;
-    redisPeerRequire(xredisClusterClientRefreshCommandCatalog(Client,1,NULL,5000,&Metadata)==XREDIS_CLUSTER_CATALOG_READY,
+    rffixture* Fixture = qpStart();
+    xredisclusterclient* Client = cfCreate(Fixture, NULL);
+    xrediscommandcatalog* Catalogue = NULL;
+    redisPeerRequire(appCatalogRefresh(Client, 1, 5000, NULL, &Catalogue),
         "authorized primary returned a valid command catalog");
-    xrtFutureDestroy(Metadata.Future);
-    const xbytesview Args[]={XRT_BYTES_LITERAL("GET"),XRT_BYTES_LITERAL("owned\0{22179}")};
-    xfuture* Business=NULL;
-    redisPeerRequire(xredisClusterClientCallCachedCommand(Client,Args,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,5000,&Business)
-        ==XREDIS_CLUSTER_COMMAND_ACCEPTED,"route using cached command catalog");
+
+    const xbytesview Args[] = {XRT_BYTES_LITERAL("GET"), XRT_BYTES_LITERAL("owned\0{22179}")};
+    xrediscommandkeyresult Keys = {.Size = sizeof(Keys)};
+    redisPeerRequire(xredisCommandCatalogEvaluate(Catalogue, Args, 2, NULL, 0, &Keys) == XREDIS_KEYS_OK,
+        "APP resolves the binary key to its slot");
+    xfuture* Business = NULL;
+    redisPeerRequire(xredisClusterClientCall(Client, Keys.Slot, Args, 2, 5000, &Business) ==
+        XREDIS_ADMISSION_ACCEPTED, "send on the explicit slot");
+    xredisCommandCatalogRelease(Catalogue);
     qpValue(Business);
-    cfStop(Fixture,Client);
+    cfStop(Fixture, Client);
     qpValue(Business);
     xrtFutureDestroy(Business);
-    puts("[PASS] fetched and cached COMMAND, then routed a binary-key GET");
+    puts("[PASS] APP cached COMMAND and routed a binary-key GET through an explicit slot");
     return 0;
 }

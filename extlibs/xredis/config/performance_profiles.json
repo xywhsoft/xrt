@@ -6669,14 +6669,14 @@
       ]
     },
     {
-      "name": "xredis_cluster_command_cache",
+      "name": "xredis_app_command_cache",
       "system": "cluster_client",
-      "description": "Explicit retained catalogue versus cached admission after a separate real COMMAND load. Same wire bytes, deadlines and caller-observed timings.",
+      "description": "Integrated catalogue admission versus APP preflight from a snapshot loaded with COMMAND. Same wire bytes and caller-observed timing boundary.",
       "benchmarks": [
         {
-          "name": "xredis_cluster_command_cache_p1_explicit",
+          "name": "xredis_app_command_cache_p1_explicit",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command_cache,memory_stats",
+          "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
             "2",
@@ -6710,9 +6710,9 @@
           ]
         },
         {
-          "name": "xredis_cluster_command_cache_p1_cached",
+          "name": "xredis_app_command_cache_p1_cached",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command_cache,memory_stats",
+          "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
             "3",
@@ -6746,9 +6746,9 @@
           ]
         },
         {
-          "name": "xredis_cluster_command_cache_p32_explicit",
+          "name": "xredis_app_command_cache_p32_explicit",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command_cache,memory_stats",
+          "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
             "2",
@@ -6782,9 +6782,9 @@
           ]
         },
         {
-          "name": "xredis_cluster_command_cache_p32_cached",
+          "name": "xredis_app_command_cache_p32_cached",
           "source": "extlibs/xredis/bench/bench_cluster_command.c",
-          "suite": "xredis_cluster_command_cache,memory_stats",
+          "suite": "xredis_app_command_cache,memory_stats",
           "args": [
             "10000",
             "3",
