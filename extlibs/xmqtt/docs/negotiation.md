@@ -64,7 +64,7 @@ may allocate. This is not end-to-end zero-copy or a performance acceptance claim
 
 ```sh
 python tools/build.py --compiler gcc --arch native --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --no-single --no-examples --cflag=-O2
-python tools/build.py --compiler gcc --arch native --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --no-single --cflag=-O2
+python tools/build.py --compiler gcc --arch native --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_examples --no-single --cflag=-O2
 out/gcc/native/xmqtt/examples_negotiation_main
 ```
 

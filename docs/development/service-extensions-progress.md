@@ -16180,3 +16180,43 @@ the modular and single-header caching and Cluster client/synchronous suites,
 including TLS caching where selected, plus the whole-product dependency trims.
 The trim pass includes the previously saved Cluster catalogue dependency guard.
 Logs are under out/service-extensions/scope-reduction-20261119/.
+
+## 2026-11-19 MQTT TCP server handshake and retirement
+
+The independent xmqtt_server leaf attaches accepted XRT TCP streams. It handles
+bounded CONNECT, CONNACK, application authorization, Client ID takeover and
+keep alive. PING uses worker-local state. The connection slot retires on the
+worker after TCP drops its event owner and releases the native runtime pin.
+The default library root and the MQTT 5-only broker selection have independent
+dependency closures. The optional compatibility codec adds MQTT 3.1.1.
+
+Windows x64 and Ubuntu/WSL x64 passed both modular and single-header selections,
+the loopback example, the separate Python mixed-version peer, the independent
+static and shared consumers, dependency trims and forbidden-symbol size probes.
+Ubuntu/WSL ASan/UBSan with leak checking passed the dual-version suite.
+The existing CI example check still selected the old xcron root after its scope
+change. It now selects xcron_examples, which already passed on both hosts.
+The aggregate asset and layout regression tests passed.
+
+Three unpinned runs on each host measured the following median throughput and
+latency. One APP loop queued one PING on each socket and then collected replies
+in that order. Each sample verified the actual PINGRESP bytes and joined the
+broker with the sockets still connected.
+
+| Host | Connections | PING/s | P99 (us) | P99.9 (us) | Requested XRT blocks per PING |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 1 | 58,425 | 28.9 | 52.1 | 0.000100 |
+| Windows | 64 | 180,889 | 327.5 | 551.5 | 0.002686 |
+| Windows | 1024 | 236,124 | 3727.8 | 4109.5 | 0.001648 |
+| Ubuntu/WSL | 1 | 24,248 | 70.2 | 103.6 | 0.997900 |
+| Ubuntu/WSL | 64 | 155,726 | 638.1 | 1078.3 | 1.000000 |
+| Ubuntu/WSL | 1024 | 63,223 | 18266.6 | 19701.1 | 1.000000 |
+
+The performance quality checker reported 28 Windows and 19 WSL variation
+violations. The allocation counter covers XRT's whole observed process.
+The strict MQTT release gate still reports 37 developing modules.
+Publication, fan-out, persistent sessions, native Linux and sustained-load
+acceptance remain open. Raw logs, build products and reports are in
+out/service-extensions/scope-reduction-20261119/.
+
+[Stage evidence](../../extlibs/xmqtt/tests/results/server-tcp-handshake-20261119.json).

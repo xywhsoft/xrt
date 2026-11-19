@@ -247,7 +247,7 @@ class AggregateAssetTest(unittest.TestCase):
 			self.assertTrue(expected)
 			for platform in ("windows", "linux"):
 				with self.subTest(product=product, platform=platform):
-					suite = product if product == "xcron" else f"{product}_examples"
+					suite = f"{product}_examples"
 					_, tests, singles, examples, *_ = xrt_build._load_modules(suite, [manifest], platform=platform)
 					self.assertEqual(set(examples), expected)
 					if suite.endswith("_examples"):

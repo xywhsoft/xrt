@@ -1,6 +1,9 @@
 {
   "schema": 1,
   "product": "xmqtt",
+  "optional_product_modules": [
+    "xmqtt_server"
+  ],
   "module_prefix": "XMQTT_MODULE_",
   "package_ownership": "separate",
   "api_macro": "XMQTT_API",
@@ -96,6 +99,13 @@
         "source_roots": [
           "client_ws_uri"
         ]
+      },
+      {
+        "name": "server",
+        "state": "retained",
+        "source_roots": [
+          "server"
+        ]
       }
     ]
   },
@@ -160,9 +170,6 @@
         "xmqtt_journal_slot",
         "xmqtt_store_compact",
         "xmqtt_store_compact_online"
-      ],
-      "collect_dependency_assets": [
-        "examples"
       ],
       "public_headers": [
         "extlibs/xmqtt/include/xmqtt.h",
@@ -391,6 +398,65 @@
         "extlibs/xmqtt/docs/coverage.md",
         "extlibs/xmqtt/docs/api/reference.md"
       ]
+    },
+    {
+      "name": "xmqtt_server",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_SERVER",
+      "depends": [
+        "xmqtt_codec5",
+        "net_tcp",
+        "cond",
+        "map",
+        "hash_keyed",
+        "random_secure"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/server.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/server/server.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_server.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/server/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_server.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/server.md",
+        "extlibs/xmqtt/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_server_dual_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_server",
+        "xmqtt_codec311"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_server.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/server/main.c"
+      ],
+      "benchmarks": [],
+      "docs": []
     },
     {
       "name": "xmqtt_negotiation",
@@ -765,7 +831,8 @@
         "xmqtt_journal_file_tests",
         "xmqtt_journal_slot_tests",
         "xmqtt_store_compact_tests",
-        "xmqtt_store_compact_online_tests"
+        "xmqtt_store_compact_online_tests",
+        "xmqtt_server_dual_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -806,7 +873,8 @@
         "extlibs/xmqtt/tests/test_journal_worker_lifetime.c",
         "extlibs/xmqtt/tests/test_journal_worker_file.c",
         "extlibs/xmqtt/tests/test_journal_worker_concurrent.c",
-        "extlibs/xmqtt/tests/test_journal_worker_faults.c"
+        "extlibs/xmqtt/tests/test_journal_worker_faults.c",
+        "extlibs/xmqtt/tests/test_server.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -865,7 +933,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_session/main.c",
@@ -932,7 +1002,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot.c": "xmqtt_journal_slot_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_journal_slot_faults.c": "xmqtt_journal_slot_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c": "xmqtt_store_compact_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c": "xmqtt_store_compact_online_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact_online.c": "xmqtt_store_compact_online_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c": "xmqtt_server",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c": "xmqtt_server_dual_tests"
       }
     },
     {

@@ -2,6 +2,31 @@
 #ifndef XMQTT_FEATURES_H
 #define XMQTT_FEATURES_H
 
+/* xmqtt_server 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SERVER)
+#ifndef XMQTT_FEATURE_XMQTT_SERVER
+#define XMQTT_FEATURE_XMQTT_SERVER
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CODEC5
+#define XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#ifndef XRT_MODULE_MAP
+#define XRT_MODULE_MAP
+#endif
+#ifndef XRT_MODULE_HASH_KEYED
+#define XRT_MODULE_HASH_KEYED
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* xmqtt 及其直接依赖。 */
 #if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT)
 #ifndef XMQTT_FEATURE_XMQTT

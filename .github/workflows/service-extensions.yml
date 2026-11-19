@@ -50,7 +50,7 @@ jobs:
           - product: xredis
             examples: xredis_examples
           - product: xcron
-            examples: xcron
+            examples: xcron_examples
           - product: xrpc
             examples: xrpc_examples
           - product: xmqtt
@@ -90,12 +90,12 @@ jobs:
           --suite ${{ matrix.product }}_tests --no-examples --cflag=-O2
           --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer
           --ldflag=-fsanitize=address,undefined
-      - name: Check isolated MQTT 3.1.1 size closure
+      - name: Check isolated MQTT codec and broker size closures
         if: matrix.product == 'xmqtt'
         run: >-
           python tools/measure_size.py --compiler gcc
-          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
-          --report out/service-extensions/size-xmqtt-codec311-linux.json
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311,xmqtt_server --kind single
+          --report out/service-extensions/size-xmqtt-closures-linux.json
       - name: Check calendar dependency boundary
         if: matrix.product == 'xcron'
         run: >-
@@ -112,6 +112,13 @@ jobs:
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Optional MQTT TCP server packages and independent peer
+        if: matrix.product == 'xmqtt'
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --trim-only
+          python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
@@ -140,7 +147,7 @@ jobs:
           - product: xredis
             examples: xredis_examples
           - product: xcron
-            examples: xcron
+            examples: xcron_examples
           - product: xrpc
             examples: xrpc_examples
           - product: xmqtt
@@ -183,12 +190,12 @@ jobs:
         if: matrix.product == 'xrpc'
         run: |
           python extlibs/xrpc/tests/interop/run_stdio.py out/gcc/native/xrpc_examples/examples_stdio_main.exe out/service-extensions/xrpc-stdio-windows.json
-      - name: Check isolated MQTT 3.1.1 size closure
+      - name: Check isolated MQTT codec and broker size closures
         if: matrix.product == 'xmqtt'
         run: >-
           python tools/measure_size.py --compiler gcc
-          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
-          --report out/service-extensions/size-xmqtt-codec311-windows.json
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311,xmqtt_server --kind single
+          --report out/service-extensions/size-xmqtt-closures-windows.json
       - name: Check calendar dependency boundary
         if: matrix.product == 'xcron'
         run: >-
@@ -205,6 +212,13 @@ jobs:
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Optional MQTT TCP server packages and independent peer
+        if: matrix.product == 'xmqtt'
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --trim-only
+          python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-windows.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |

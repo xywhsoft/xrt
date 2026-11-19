@@ -5697,6 +5697,148 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_server",
+      "system": "server",
+      "description": "TCP connection admission and ordered PING round trips over 1, 64 and 1024 sockets. Each round includes APP send and receive order.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_server_ping_1",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "1",
+            "10000",
+            "1"
+          ],
+          "smoke_args": [
+            "1",
+            "200",
+            "1"
+          ],
+          "metrics": {
+            "connect_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "connect_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pings_per_sec": {
+              "direction": "higher",
+              "unit": "pings/s"
+            },
+            "ping_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_ping": {
+              "direction": "lower",
+              "unit": "blocks/ping"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_server_ping_64",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "64",
+            "512",
+            "2"
+          ],
+          "smoke_args": [
+            "64",
+            "8",
+            "2"
+          ],
+          "metrics": {
+            "connect_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "connect_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pings_per_sec": {
+              "direction": "higher",
+              "unit": "pings/s"
+            },
+            "ping_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_ping": {
+              "direction": "lower",
+              "unit": "blocks/ping"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_server_ping_1024",
+          "source": "extlibs/xmqtt/bench/bench_server.c",
+          "suite": "xmqtt_server,memory_stats",
+          "args": [
+            "1024",
+            "64",
+            "4"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2"
+          ],
+          "metrics": {
+            "connect_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "connect_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "pings_per_sec": {
+              "direction": "higher",
+              "unit": "pings/s"
+            },
+            "ping_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "ping_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "xrt_requested_blocks_per_ping": {
+              "direction": "lower",
+              "unit": "blocks/ping"
+            }
+          }
+        }
+      ]
     }
   ]
 }

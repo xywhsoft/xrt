@@ -227,6 +227,19 @@
         "xrtVfsCreate",
         "xmqttSessionImageRestore"
       ]
+    },
+    {
+      "name": "xmqtt_server",
+      "system": "server",
+      "suite": "xmqtt_server",
+      "description": "MQTT 5-only TCP broker stage, with independent native networking and keyed identity map.",
+      "forbid_symbols": [
+        "xmqttPacketRead311",
+        "xmqttClientConnect",
+        "xmqttReconnectCreate",
+        "xmqttJournalCreate",
+        "xrtTlsStream"
+      ]
     }
   ]
 }

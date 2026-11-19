@@ -6,6 +6,15 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_SERVER)
+    xmqttserverconfig ServerConfig;
+    xmqttserver* Server = (xmqttserver*)(uintptr_t)1;
+    if (!xmqttServerConfigInit(&ServerConfig) || ServerConfig.Allow311 ||
+        ServerConfig.MaxConnections != 1024 || ServerConfig.Codec.MaxPacketBytes != 16384 ||
+        xmqttServerCreate(NULL,&ServerConfig,&Server) || Server != (xmqttserver*)(uintptr_t)1 ||
+        !xmqttServerDestroy(NULL)) return 71;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
     xmqttjournalworkerconfig WC;xmqttjournalworker* Worker=(xmqttjournalworker*)(uintptr_t)1;xfuture* WF=(xfuture*)(uintptr_t)1;
     if(!xmqttJournalWorkerConfigInit(&WC)||WC.Size!=sizeof(WC)||WC.MaxRequests!=128||WC.MaxTasks!=2||WC.WorkTransactions!=32)return 56;

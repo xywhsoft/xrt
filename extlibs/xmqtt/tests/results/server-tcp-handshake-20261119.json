@@ -1,0 +1,326 @@
+{
+  "stage": "independently selectable MQTT TCP handshake, keep alive and physical retirement",
+  "artifact_directory": "out/service-extensions/scope-reduction-20261119",
+  "source_sha256_lf": {
+    "extlibs/xmqtt/src/server/server.c": "f26cfc5fec8b389280820dde1b2ec8175a25a1b6da54d2af6b4b8e9fd6fddb80",
+    "extlibs/xmqtt/include/xmqtt/server.h": "e4783b474930e129d7794e2f9fd3ebf122fd1ac41a43890ee4d485c395eb1155",
+    "extlibs/xmqtt/bench/bench_server.c": "ae49ffa2be725189c70994d40a500fa8ae5315e8668aea8c4e61779b759190ea",
+    "extlibs/xmqtt/examples/server/app_listener.h": "a3b2eadc59ce7b07f106d3a8f96694f49fab56901a98c5d94a717abffb6294e8",
+    "extlibs/xmqtt/config/performance_profiles.json": "c734ac696fe1463e375f77f4d0be541ce9fce12018023c8fc3337a82469140a6"
+  },
+  "verified": {
+    "windows_x64": [
+      "MQTT 5-only and dual-version modular/single suites",
+      "both native package consumers",
+      "server dependency trim and standalone forbidden-symbol probe",
+      "separate Python dual-version peer"
+    ],
+    "ubuntu_wsl_x64": [
+      "MQTT 5-only and dual-version modular/single suites",
+      "both native package consumers",
+      "server dependency trim and standalone forbidden-symbol probe",
+      "separate Python dual-version peer",
+      "ASan/UBSan with leak checking"
+    ]
+  },
+  "performance_status": "Both hosts completed every requested reply in all runs. Both exceeded the configured variation limits.",
+  "scope_limits": [
+    "loopback instrumented PING on one host",
+    "APP collects responses sequentially within each round",
+    "native Linux, publish/fan-out and sustained-load acceptance pending"
+  ],
+  "performance": {
+    "windows_x64": {
+      "generated_at": "2026-11-19T08:46:14.391265+00:00",
+      "platform_release": "10",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "cpu_count": 12,
+      "affinity": "0xfff/0xfff",
+      "compiler_version": "gcc.exe (GCC) 16.2.0",
+      "cflags": [
+        "-O2"
+      ],
+      "policy": "baseline-unpinned",
+      "repeats": 3,
+      "warmups": 1,
+      "source_revision": "a59f37520eb8b8007cb390533851f20847137799",
+      "source_fingerprint": "e95258c087d97cc7c8249e8fea4e9a36c181d3250f684cd24fe81ed8e7d2d9b4",
+      "benchmark_fingerprint": "87dda0686c2089dbf28c47ddf859842818415047ae76a8e77c05d715dd6037d3",
+      "quality_violations": 28,
+      "workloads": [
+        {
+          "connections": 1,
+          "pings_per_connection": 10000,
+          "workers": 1,
+          "samples": {
+            "connect_per_sec": [
+              2940.311,
+              2861.23,
+              3253.09
+            ],
+            "connect_p99_us": [
+              339.9,
+              349.4,
+              307.4
+            ],
+            "pings_per_sec": [
+              58615.479,
+              56313.694,
+              58425.105
+            ],
+            "ping_p50_us": [
+              17.0,
+              17.2,
+              17.1
+            ],
+            "ping_p99_us": [
+              28.9,
+              34.3,
+              26.6
+            ],
+            "ping_p999_us": [
+              52.1,
+              67.2,
+              46.0
+            ],
+            "xrt_requested_blocks_per_ping": [
+              0.0001,
+              0.0001,
+              0.0001
+            ]
+          }
+        },
+        {
+          "connections": 64,
+          "pings_per_connection": 512,
+          "workers": 2,
+          "samples": {
+            "connect_per_sec": [
+              5471.676,
+              5595.041,
+              5170.13
+            ],
+            "connect_p99_us": [
+              340.2,
+              325.2,
+              449.6
+            ],
+            "pings_per_sec": [
+              202602.648,
+              180889.266,
+              177204.018
+            ],
+            "ping_p50_us": [
+              126.2,
+              142.5,
+              147.6
+            ],
+            "ping_p99_us": [
+              327.5,
+              302.3,
+              432.0
+            ],
+            "ping_p999_us": [
+              551.5,
+              411.1,
+              621.5
+            ],
+            "xrt_requested_blocks_per_ping": [
+              0.003967,
+              0.002625,
+              0.002686
+            ]
+          }
+        },
+        {
+          "connections": 1024,
+          "pings_per_connection": 64,
+          "workers": 4,
+          "samples": {
+            "connect_per_sec": [
+              5855.902,
+              5256.021,
+              5446.762
+            ],
+            "connect_p99_us": [
+              224.1,
+              279.3,
+              255.8
+            ],
+            "pings_per_sec": [
+              242490.979,
+              223244.761,
+              236123.902
+            ],
+            "ping_p50_us": [
+              2068.6,
+              2228.2,
+              2081.5
+            ],
+            "ping_p99_us": [
+              3222.7,
+              3737.9,
+              3727.8
+            ],
+            "ping_p999_us": [
+              3754.1,
+              4109.5,
+              4268.9
+            ],
+            "xrt_requested_blocks_per_ping": [
+              0.001556,
+              0.001648,
+              0.002075
+            ]
+          }
+        }
+      ]
+    },
+    "ubuntu_wsl_x64": {
+      "generated_at": "2026-11-19T08:47:08.891325+00:00",
+      "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "cpu_count": 12,
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cflags": [
+        "-O2"
+      ],
+      "policy": "baseline-unpinned",
+      "repeats": 3,
+      "warmups": 1,
+      "source_revision": "a59f37520eb8b8007cb390533851f20847137799",
+      "source_fingerprint": "e95258c087d97cc7c8249e8fea4e9a36c181d3250f684cd24fe81ed8e7d2d9b4",
+      "benchmark_fingerprint": "87dda0686c2089dbf28c47ddf859842818415047ae76a8e77c05d715dd6037d3",
+      "quality_violations": 19,
+      "workloads": [
+        {
+          "connections": 1,
+          "pings_per_connection": 10000,
+          "workers": 1,
+          "samples": {
+            "connect_per_sec": [
+              6978.367,
+              6024.096,
+              5934.718
+            ],
+            "connect_p99_us": [
+              143.1,
+              165.8,
+              168.3
+            ],
+            "pings_per_sec": [
+              24248.029,
+              23081.3,
+              24397.923
+            ],
+            "ping_p50_us": [
+              39.4,
+              39.8,
+              39.2
+            ],
+            "ping_p99_us": [
+              70.1,
+              79.8,
+              70.2
+            ],
+            "ping_p999_us": [
+              91.1,
+              107.5,
+              103.6
+            ],
+            "xrt_requested_blocks_per_ping": [
+              0.9971,
+              0.998,
+              0.9979
+            ]
+          }
+        },
+        {
+          "connections": 64,
+          "pings_per_connection": 512,
+          "workers": 2,
+          "samples": {
+            "connect_per_sec": [
+              1425.602,
+              2037.613,
+              2086.131
+            ],
+            "connect_p99_us": [
+              25370.901,
+              11921.5,
+              12095.4
+            ],
+            "pings_per_sec": [
+              155726.344,
+              152434.115,
+              167714.453
+            ],
+            "ping_p50_us": [
+              178.1,
+              174.8,
+              171.9
+            ],
+            "ping_p99_us": [
+              638.1,
+              962.6,
+              361.8
+            ],
+            "ping_p999_us": [
+              1078.3,
+              1270.9,
+              521.5
+            ],
+            "xrt_requested_blocks_per_ping": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "connections": 1024,
+          "pings_per_connection": 64,
+          "workers": 4,
+          "samples": {
+            "connect_per_sec": [
+              4676.506,
+              4386.422,
+              5428.867
+            ],
+            "connect_p99_us": [
+              223.4,
+              212.4,
+              207.9
+            ],
+            "pings_per_sec": [
+              68007.784,
+              63222.942,
+              62387.891
+            ],
+            "ping_p50_us": [
+              7424.1,
+              7848.3,
+              7991.7
+            ],
+            "ping_p99_us": [
+              16405.4,
+              18266.601,
+              18498.101
+            ],
+            "ping_p999_us": [
+              19163.099,
+              19701.101,
+              20590.401
+            ],
+            "xrt_requested_blocks_per_ping": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
