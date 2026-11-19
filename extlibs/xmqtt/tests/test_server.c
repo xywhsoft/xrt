@@ -208,6 +208,15 @@ static void serverEof(xnetsocket Socket)
 	xrtNetSocketClose(Socket);
 }
 
+static void serverTakenOver(xnetsocket Socket)
+{
+	unsigned char Reply[3];
+	serverRecv(Socket, Reply, sizeof(Reply));
+	testRequire(!memcmp(Reply, (const unsigned char[]){0xe0,1,0x8e}, sizeof(Reply)),
+		"MQTT 5 Session Taken Over arrives before EOF");
+	serverEof(Socket);
+}
+
 static size_t serverConnectWire(unsigned char* Wire, xmqttversion Version, bool Clean, uint8 KeepAlive, const char Id[4])
 {
 	/* Independent CONNECT fixture, with no generated encoder or reader. */
@@ -285,7 +294,7 @@ static void serverControl(void)
 	xnetsocket Current = serverDial(&Fixture);
 	serverSend(Current, Wire, Bytes);
 	serverConnack(Current, XMQTT_VERSION_5, 0);
-	serverEof(Old);
+	serverTakenOver(Old);
 	serverConnections(&Fixture, 1);
 	serverSend(Current, Ping, sizeof(Ping));
 	serverRecv(Current, Pong, 2);
@@ -1125,10 +1134,9 @@ static void serverQos2Window(void)
 	serverStop(&Fixture);
 }
 
-static void serverPersistentConnect(xnetsocket Socket, xmqttversion Version, const char Id[4],
-	bool Clean, uint32 Expiry, uint8 ReceiveMaximum, bool Present, uint8 Reason)
+static size_t serverPersistentWire(unsigned char* Wire, xmqttversion Version, const char Id[4],
+	bool Clean, uint32 Expiry, uint8 ReceiveMaximum)
 {
-	unsigned char Wire[40];
 	size_t Size = serverConnectWire(Wire, Version, Clean, 0, Id);
 	if (Version == XMQTT_VERSION_5) {
 		unsigned char Properties[] = {17, (uint8)(Expiry >> 24), (uint8)(Expiry >> 16), (uint8)(Expiry >> 8),
@@ -1139,7 +1147,14 @@ static void serverPersistentConnect(xnetsocket Socket, xmqttversion Version, con
 		Wire[1] += sizeof(Properties);
 		Size += sizeof(Properties);
 	}
-	serverSend(Socket, Wire, Size);
+	return Size;
+}
+
+static void serverPersistentConnect(xnetsocket Socket, xmqttversion Version, const char Id[4],
+	bool Clean, uint32 Expiry, uint8 ReceiveMaximum, bool Present, uint8 Reason)
+{
+	unsigned char Wire[40];
+	serverSend(Socket, Wire, serverPersistentWire(Wire, Version, Id, Clean, Expiry, ReceiveMaximum));
 	serverConnackState(Socket, Version, Reason, Present, true, true, 64);
 }
 
@@ -1274,9 +1289,10 @@ static void serverExpiredSession(void)
 	xnetsocket Socket = serverDial(&Fixture);
 	serverPersistentConnect(Socket, XMQTT_VERSION_5, "soon", true, 1, 1, false, 0);
 	xnetsocket Duplicate = serverDial(&Fixture);
-	serverPersistentConnect(Duplicate, XMQTT_VERSION_5, "soon", false, 1, 1, false, 0x89);
-	serverEof(Duplicate);
+	serverPersistentConnect(Duplicate, XMQTT_VERSION_5, "soon", false, 1, 1, true, 0);
+	serverTakenOver(Socket);
 	serverConnections(&Fixture, 1);
+	Socket = Duplicate;
 	serverPingPeer(Socket);
 	const char* Filter[] = {"expiry"};
 	const uint8 One[] = {1};
@@ -1757,10 +1773,106 @@ static void serverTakeoverRoutes(void)
 		Info.Subscriptions == 2 && !Info.Forwarded && !Info.OutgoingPublishes,
 		"superseded wildcard and shared links stay indexed but cannot accept deliveries");
 	xrtAtomic32Store(&Gate.Release, 1, XMEMORY_RELEASE);
-	serverEof(Old);
+	serverTakenOver(Old);
 	serverConnections(&Fixture, 1);
 	serverPingPeer(New);
 	xrtNetSocketClose(New);
+	serverStop(&Fixture);
+}
+
+static void serverLiveHandoff(bool Cancel)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xnetsocket Publisher = serverDial(&Fixture), Old = serverDial(&Fixture);
+	serverQos1Connect(Publisher, Version, "prod");
+	serverPersistentConnect(Old, Version, "move", true, 60, 2, false, 0);
+	const char* Filter[] = {"going"};
+	const uint8 Two[] = {2};
+	serverSubscribeWire(Old, Version, true, 1, Filter, Two, Two, 1);
+	serverPublishQos1(Publisher, Version, "going", "sent", 11, 0);
+	serverExpectPuback(Publisher, Version, 11, 0);
+	serverExpectQos1(Old, Version, "going", "sent", 1, 0, NULL, 0);
+	serverPublishQos2(Publisher, Version, "going", "await-comp", 13, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 13, 0);
+	serverReleaseQos2(Publisher, Version, 13);
+	serverPublishQos2(Old, Version, "going", "await-comp", 2, 0, true);
+	serverSendFlowReply(Old, Version, 0x50, 2, 0);
+	serverExpectFlowReply(Old, Version, 0x62, 2, 0);
+
+	xnetsocket New = serverDial(&Fixture);
+	serverConnections(&Fixture, 3);
+	xrtMutexLock(&Fixture.Server->Gate);
+	xmqttserversession** Slot = xrtMapGet(&Fixture.Server->Identities, XRT_BYTES_LITERAL("move"));
+	testRequire(Slot && *Slot && (*Slot)->Peer, "old persistent owner is registered");
+	xmqttserversession* Session = *Slot;
+	xmqttserverpeer* Waiting = Fixture.Server->Peers;
+	xnetworker* Worker = xrtNetStreamWorker(Session->Peer->Stream);
+	testRequire(xrtNetStreamWorker(Waiting->Stream) != Worker, "persistent takeover crosses workers");
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	servertakeovergate Gate;
+	xrtAtomic32Init(&Gate.Ready, 0);
+	xrtAtomic32Init(&Gate.Release, 0);
+	xnetpost Post;
+	testRequire(xrtNetPostInit(&Post) && xrtNetPost(Worker, &Post, serverHoldOldWorker, &Gate),
+		"hold persistent owner before graceful close");
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&Gate.Ready, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "old persistent owner is held");
+		xrtSleep(1);
+	}
+	unsigned char Wire[64];
+	size_t Bytes = serverPersistentWire(Wire, Version, "move", false, 60, 1);
+	const unsigned char Pipeline[] = {0x82,11,0,2,0,0,5,'e','x','t','r','a',0,0xc0,0};
+	if (!Cancel) {
+		memcpy(Wire + Bytes, Pipeline, sizeof(Pipeline));
+		Bytes += sizeof(Pipeline);
+	}
+	serverSend(New, Wire, Bytes);
+	for (;;) {
+		xrtMutexLock(&Fixture.Server->Gate);
+		bool Reserved = Session->Successor == Waiting;
+		xrtMutexUnlock(&Fixture.Server->Gate);
+		if (Reserved) break;
+		testRequire(xrtTimer() < Until, "new connection claims the handoff");
+		xrtSleep(1);
+	}
+	xmqttserverpeer Contender = {.Server = Fixture.Server};
+	testRequire(xmqttServerClaimId(&Contender, XRT_STR_LITERAL("move"), false, xrtTimer()) == 0x89 &&
+		!Contender.Session, "one pending persistent successor owns the registry slot");
+	size_t Read;
+	testRequire(xrtNetSocketRecv(New, Wire, sizeof(Wire), &Read) == XNET_RESULT_AGAIN,
+		"CONNACK and buffered replies wait for physical owner retirement");
+	serverPublishQos1(Publisher, Version, "going", "during", 12, 0);
+	serverExpectPuback(Publisher, Version, 12, 0);
+	serverWaitOutgoing(Fixture.Server, 3, 0);
+	if (Cancel) {
+		testRequire(xrtNetStreamAbort(Waiting->Stream), "cancel the pending successor");
+		serverEof(New);
+	}
+	xrtAtomic32Store(&Gate.Release, 1, XMEMORY_RELEASE);
+	serverTakenOver(Old);
+	if (Cancel) {
+		serverWaitSessions(&Fixture, 1, 1);
+		serverConnections(&Fixture, 1);
+		New = serverDial(&Fixture);
+		serverPersistentConnect(New, Version, "move", false, 60, 1, true, 0);
+	} else serverConnackState(New, Version, 0, true, true, true, 64);
+	serverExpectQos1(New, Version, "going", "sent", 1, XMQTT_PUBLISH_DUP, NULL, 0);
+	serverExpectFlowReply(New, Version, 0x62, 2, 0);
+	if (!Cancel) {
+		const unsigned char Expected[] = {0x90,4,0,2,0,0,0xd0,0};
+		serverRecv(New, Wire, sizeof(Expected));
+		testRequire(!memcmp(Wire, Expected, sizeof(Expected)), "pipelined SUBSCRIBE and PING drain after reconnect");
+	}
+	serverSendFlowReply(New, Version, 0x70, 2, 0);
+	serverAckDelivery(New, Version, 1, 0);
+	serverExpectQos1(New, Version, "going", "during", 3, 0, NULL, 0);
+	serverAckDelivery(New, Version, 3, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xrtNetSocketClose(New);
+	xrtNetSocketClose(Publisher);
 	serverStop(&Fixture);
 }
 
@@ -2005,6 +2117,8 @@ int main(void)
 	serverRetainedOomAndExpiry();
 	serverOutgoingOom();
 	serverTakeoverRoutes();
+	serverLiveHandoff(false);
+	serverLiveHandoff(true);
 	serverOutgoingBackpressure();
 	serverAckQuota();
 	serverQos1Exceeded();

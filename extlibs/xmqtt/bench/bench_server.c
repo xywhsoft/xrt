@@ -204,6 +204,41 @@ static bool benchPersistentRound(serverexample* Example, xnetsocket* Sockets, si
 	return true;
 }
 
+static bool benchLiveTakeoverRound(serverexample* Example, xnetsocket* Sockets, size_t Peers,
+	size_t Round, double* Samples)
+{
+	uint16 Id = (uint16)(Round + 1);
+	unsigned char Wire[140] = {0x32,0x89,1,0,4,'l','o','a','d',(uint8)(Id >> 8),(uint8)Id,0};
+	Wire[sizeof(Wire) - 2] = (uint8)(Round >> 8);
+	Wire[sizeof(Wire) - 1] = (uint8)Round;
+	unsigned char Reply[sizeof(Wire)];
+	if (!benchSend(Sockets[Peers], Wire, sizeof(Wire)) || !benchReceiveFlowReply(Sockets[Peers], 0x40, Id)) return false;
+	for (size_t Index = 0; Index < Peers; ++Index)
+		if (!benchReceive(Sockets[Index], Reply, sizeof(Reply)) || memcmp(Reply, Wire, sizeof(Wire))) return false;
+	Wire[0] |= XMQTT_PUBLISH_DUP;
+	const unsigned char TakenOver[] = {0xe0,1,0x8e};
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		size_t Index = (Round + Offset) % Peers;
+		double Start = xrtTimer();
+		xnetsocket Old = Sockets[Index];
+		xnetsocket New = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+		size_t Read;
+		bool Ready = New && benchConnect(New, &Example->Address, Index, true, true, true) &&
+			benchReceive(Old, Reply, sizeof(TakenOver)) && !memcmp(Reply, TakenOver, sizeof(TakenOver)) &&
+			xrtNetSocketRecv(Old, Reply, 1, &Read) == XNET_RESULT_CLOSED &&
+			benchReceive(New, Reply, sizeof(Reply)) && !memcmp(Reply, Wire, sizeof(Wire)) &&
+			benchSendFlowReply(New, 0x40, Id);
+		if (!Ready) {
+			if (New) xrtNetSocketClose(New);
+			return false;
+		}
+		Samples[Offset] = xrtTimer() - Start;
+		xrtNetSocketClose(Old);
+		Sockets[Index] = New;
+	}
+	return true;
+}
+
 static int benchOrder(const void* Left, const void* Right)
 {
 	double A = *(const double*)Left, B = *(const double*)Right;
@@ -226,7 +261,8 @@ int main(int Argc, char** Argv)
 	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
 	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
 	bool Replay = Argc > 4 && !strcmp(Argv[4], "retained");
-	bool Persistent = Argc > 4 && !strcmp(Argv[4], "resume");
+	bool Takeover = Argc > 4 && !strcmp(Argv[4], "takeover");
+	bool Persistent = Takeover || (Argc > 4 && !strcmp(Argv[4], "resume"));
 	bool Qos2 = Argc > 4 && !strcmp(Argv[4], "outbound2");
 	bool Outgoing = Persistent || Qos2 || (Argc > 4 && !strcmp(Argv[4], "outbound1"));
 	uint8 Qos = Qos2 ? 2 : (Outgoing || (Argc > 4 && !strcmp(Argv[4], "inbound1")));
@@ -244,7 +280,7 @@ int main(int Argc, char** Argv)
 
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
-	Config.MaxConnections = Connections;
+	Config.MaxConnections = Connections + Takeover;
 	if (Persistent) Config.MaxPersistentSessions = Peers;
 	if (Routing) Config.MaxSubscribersPerTopic = Peers;
 	Stage = "start listener";
@@ -280,6 +316,11 @@ int main(int Argc, char** Argv)
 	xrtMemStatsGet(&Before);
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
+		if (Takeover) {
+			Stage = "verify the persistent takeover exchange";
+			if (!benchLiveTakeoverRound(&Example, Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
+			continue;
+		}
 		if (Persistent) {
 			Stage = "reconnect and verify offline delivery";
 			if (!benchPersistentRound(&Example, Sockets, Peers, Round, PingSamples + Round * Peers)) goto Done;
@@ -330,7 +371,7 @@ int main(int Argc, char** Argv)
 		unsigned char Pong[2];
 		xmqttserverinfo Info;
 		if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
-			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count || Info.DroppedDeliveries ||
+			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count * (Takeover ? 2u : 1u) || Info.DroppedDeliveries ||
 			Info.Subscriptions != Peers * (Overlap ? 2u : 1u) || Info.RetainedTopics != (size_t)Replay) goto Done;
 	}
 	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\n",

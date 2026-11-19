@@ -16707,3 +16707,62 @@ returned exit 1 with 18 violations on Windows and 13 on WSL. Live persistent
 handoff, process restart recovery, controlled comparison, native Linux and the
 72-hour gate remain open. Raw evidence is in
 out/service-extensions/scope-reduction-20261119/xmqtt-persistent-*.
+
+## 2026-11-19 MQTT live persistent session takeover
+
+An authorized same-version CONNECT with Clean Start disabled can now take
+over a live persistent Client ID. The broker pauses the successor's reads,
+requests old-transport closure on its owner, and waits for native retirement
+before Session Present and replay. MQTT 5 attempts DISCONNECT 0x8E before
+closure. MQTT 3.1.1 closes the connection. Ordinary QoS 1/2 deliveries keep
+their position in the bounded offline queue while shared routing skips
+the detaching peer. One successor can reserve the saved session. If that
+connection aborts or times out, the broker can return eligible state to its
+expiry list. A clean replacement continues to seal the old state immediately.
+
+A deterministic two-worker test holds the old worker and verifies deferred
+CONNACK, a competing CONNECT, the original QoS 1 DUP identifier, QoS 2
+PUBREL, Receive Maximum 1 and control packets pipelined by the successor.
+The cancellation variant verifies that a later connection can recover
+the state and that close drains the delivery credits. An independent Python
+peer verifies live handoff and identifier reuse over both MQTT versions.
+
+Windows x64 and Ubuntu/WSL x64 passed MQTT 5-only and dual-version modular
+and single-header suites, static and shared consumers and dependency
+trims. On WSL, the dual-version suite passed Clang ASan/UBSan with leak
+checking and the full single-header test passed Clang TSan. Generated
+headers and API coverage checks passed. Codec-only text size stayed fixed.
+The MQTT 5 broker single object added 2,600 text bytes on Windows and
+3,186 on WSL. Strict release still has 37 developing modules.
+
+The takeover profile uses one publisher, two broker workers and 128-byte
+QoS 1 messages. Each old subscriber receives a message and leaves it
+unacknowledged. Successors reconnect serially. Each verifies the old
+DISCONNECT and EOF, Session Present, the DUP PUBLISH payload and packet
+identifier, then sends PUBACK. Each latency sample starts at that
+successor's connection attempt. The rate includes original distribution
+and replay. A replicate uses 1,000 rounds for one subscriber or 64 rounds
+for 64 subscribers. The exact QoS 0 route workload uses 10,000 and 512
+publications respectively. Results are medians of three unpinned runs.
+
+| Host | Path | Subscribers | Deliveries/s | P99 (us) | P99.9 (us) | XRT requested blocks/delivery |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | Live QoS 0 | 1 | 36,319 | 41.8 | 54.3 | 2.0001 |
+| Windows x64 | Live QoS 0 | 64 | 245,876 | 374.2 | 425.8 | 1.0199 |
+| Windows x64 | Takeover QoS 1 | 1 | 3,602 | 279.8 | 318.9 | 12.0040 |
+| Windows x64 | Takeover QoS 1 | 64 | 4,167 | 286.3 | 349.6 | 10.0625 |
+| Ubuntu/WSL x64 | Live QoS 0 | 1 | 12,777 | 108.2 | 252.6 | 3.0000 |
+| Ubuntu/WSL x64 | Live QoS 0 | 64 | 155,986 | 531.6 | 624.7 | 1.0319 |
+| Ubuntu/WSL x64 | Takeover QoS 1 | 1 | 3,651 | 266.5 | 396.9 | 15.7330 |
+| Ubuntu/WSL x64 | Takeover QoS 1 | 64 | 4,777 | 263.8 | 395.9 | 12.6165 |
+
+All workloads completed and retired their delivery credits. The variation
+gate returned exit 1 with five violations on Windows and seven on WSL.
+The hosts ran the same source fingerprint. The evidence is in
+out/service-extensions/scope-reduction-20261119/xmqtt-live-takeover-*.
+
+Wills, durable restart recovery, transport and authentication coverage,
+controlled performance comparisons, native Linux and 72-hour runs remain
+open. Clean replacement still queues the old close asynchronously and can
+acknowledge the new CONNECT before that old transport retires. Review its
+ordering against MQTT 5 section 3.1.4 when adding the Will lifecycle.

@@ -281,13 +281,14 @@ def check_session_resume(endpoint, publisher, level):
         body = key + b"\0\1" + properties + payload
         frame = small_frame(0x32, body)
         assert read(peer, len(frame)) == frame
-        peer.sendall(b"\xe0\0")
-        eof(peer)
-    with open_session(endpoint, level, clean=False, present=True) as peer:
-        retry = small_frame(0x3a, body)
-        assert read(peer, len(retry)) == retry
-        peer.sendall(b"\x40\x02\0\1\xc0\0")
-        assert read(peer, 2) == b"\xd0\0"
+        with open_session(endpoint, level, clean=False, present=True) as successor:
+            if level == 5:
+                assert read(peer, 3) == b"\xe0\x01\x8e"
+            eof(peer)
+            retry = small_frame(0x3a, body)
+            assert read(successor, len(retry)) == retry
+            successor.sendall(b"\x40\x02\0\1\xc0\0")
+            assert read(successor, 2) == b"\xd0\0"
 
 
 def probe(program):
@@ -307,6 +308,7 @@ def probe(program):
                 with legacy:
                     newer, duplicate = connect(endpoint, 5, b"literal")
                     with newer:
+                        assert read(preserved, 3) == b"\xe0\x01\x8e"
                         eof(preserved)
                         legacy.sendall(b"\xc0\0")
                         assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
@@ -329,7 +331,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():

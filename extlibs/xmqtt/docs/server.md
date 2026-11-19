@@ -93,13 +93,19 @@ shared QoS 1 and 2 limits.
 
 MQTT 5 Session Expiry and MQTT 3.1.1 Clean Session control how long the broker
 keeps a session in memory. `MaxPersistentSessions` bounds the number of retained
-sessions. A reconnect using the same Client ID and protocol version resumes
-only after the previous TCP worker has retired. CONNACK sets Session Present
-on resume. Clean Start creates new state. A concurrent resume request receives
-Server Busy while that Client ID still has a TCP owner. Resuming a saved session
-requires the same protocol version. An MQTT 5 DISCONNECT can shorten, extend or end a
-nonzero interval. The expiry timer releases detached state. After native retirement, offline
-admission and reconnect check the session deadline directly.
+sessions. An authorized CONNECT with Clean Start disabled resumes saved state
+for the same Client ID and protocol version. If the previous connection is
+still live, the broker asks its worker to close it. For MQTT 5 the broker
+attempts DISCONNECT 0x8E (Session taken over). MQTT 3.1.1 closes the old
+transport. CONNACK with Session Present and any replay wait for that
+transport's retirement. The broker allows one pending successor per session
+and answers another contender with Server Busy. If the successor closes
+during handoff, the session remains eligible for offline resume until expiry.
+Clean Start creates new state and seals the old session immediately.
+
+An MQTT 5 DISCONNECT can shorten, extend or end a nonzero expiry interval.
+The expiry timer releases detached state. Offline admission and reconnect
+check the session deadline directly.
 
 Offline ordinary subscriptions queue QoS 1/2 within the same count and byte
 budgets. QoS 0 requires a live recipient. Shared rotation selects connected
@@ -113,16 +119,17 @@ and pending PUBREL phase across reconnect.
 
 Offline admission exhaustion ends that session and increments
 `OutgoingPublishOverloads`. Server shutdown releases in-memory state and drains
-its expiry callback. In-process resume coverage includes orderly and abrupt TCP
-closure. Durable restart recovery, live persistent takeover, Wills, enhanced
-authentication, TLS and WebSocket are in development.
+its expiry callback. In-process resume covers orderly and abrupt TCP closure
+and live takeover. Durable restart recovery, Wills, enhanced authentication,
+TLS and WebSocket are in development.
 
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS
 records. The peer owns the stream, negotiated transport limits and native
-connection timers. Identity replacement seals the old session before closing
-its stream. Exact, wildcard and shared routing skip sealed sessions while
-their indexed links retire. The steady PING path uses the worker-local state,
+connection timers. Exact, wildcard and shared routing skip sealed sessions
+while their indexed links retire. During a resume handoff, ordinary
+subscriptions continue to queue QoS 1/2 and shared selection skips the
+detaching connection. The steady PING path uses the worker-local state,
 a validated fixed header and XRT's bounded send queue. A contiguous native receive span can be parsed directly;
 XRT coalesces a fragmented complete control packet when needed. One queued
 timer per connection observes updated deadlines. Close seals admission and
@@ -150,7 +157,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1,xmqtt_server_outbound_qos1,xmqtt_server_outbound_qos2,xmqtt_server_session_resume
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained,xmqtt_server_inbound_qos1,xmqtt_server_outbound_qos1,xmqtt_server_outbound_qos2,xmqtt_server_session_resume,xmqtt_server_live_takeover
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -172,6 +179,11 @@ The outbound QoS 1 profile grants QoS 1 to each subscriber with Receive Maximum
 that all delivery credits retire. The QoS 2 profile validates the complete
 four-packet exchange on the publisher and on each subscriber. The session
 resume profile publishes while the subscribers are offline and verifies Session
-Present, the delivery and PUBACK on each resumed connection.
+Present, the delivery and PUBACK on each resumed connection. The live takeover
+profile leaves a QoS 1 delivery unacknowledged on each old connection. It
+measures the successor's connect through the verified duplicate PUBLISH
+after Session Present, checks DISCONNECT 0x8E and EOF on the old socket, and
+acknowledges the replay. The throughput measurement includes original delivery
+and retransmission.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).
