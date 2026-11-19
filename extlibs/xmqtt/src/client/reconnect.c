@@ -15,7 +15,7 @@
 struct xmqttreconnect {
     xmqttreconnectconfig Config;xmqttreconnectinfo Info;
     xnetengine* Engine;xnetworker* Worker;xtaskpool* Pool;uint64 Affinity;
-    xmqttsession* Session;xmqttclientinbox* Inbox;xmqttclient *Client,*Cleaning;
+    xmqttsession* Session;xmqttclient *Client,*Cleaning;
     xmqttclientlease* Leases;xmqttclientlifecycle Lifecycle;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     xmqttclientstoreconfig Store;xmqttreconnectstorefactory StoreFactory;xtaskpool* StorePool;
@@ -576,14 +576,14 @@ static void xmqttReconnectAttempt(xmqttreconnect* R)
         Status=R->StoreFactory(R->Engine,R->Affinity,&R->Config.Client,R->Session,&R->Store,&Connect,R->Config.FactoryData,&C);
     }else
 #endif
-    Status=R->Config.Factory(R->Engine,R->Affinity,&R->Config.Client,R->Session,R->Inbox,&Connect,R->Config.FactoryData,&C);
+    Status=R->Config.Factory(R->Engine,R->Affinity,&R->Config.Client,R->Session,&Connect,R->Config.FactoryData,&C);
     if(Status==XMQTT_STATUS_OK && C){
         xrtMutexLock(&R->Gate);R->Client=C;xmqttReconnectRef(R);xrtMutexUnlock(&R->Gate);
         size_t* Capacity=NULL;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
         if(R->Subscriptions)Capacity=&R->Subscriptions->MaxOutgoingBytes;
 #endif
-        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,R->Inbox,&R->Lifecycle,Capacity,Writer))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
+        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,&R->Lifecycle,Capacity,Writer))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
     }else{
         if(Status<=XMQTT_STATUS_OK || Status>XMQTT_STATUS_AUTHENTICATION)Status=XMQTT_STATUS_INITIALIZATION;
         /* Reuse the closed-generation policy without a fabricated Client. */
@@ -733,10 +733,12 @@ XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* Pool,uint64 Af
     }else
 #endif
     {
+    if(K.Client.MaxObjects<2||K.Client.MaxObjects>UINT32_MAX/8u||!K.Client.MaxObjectBytes||
+       !K.Client.MaxMessages||!K.Client.MaxMessageBytes){
+        xmqttReconnectError(XERR_ARGUMENT,"invalid Client receive limits");goto Failed;
+    }
     xmqttsessionconfig S;xmqttSessionConfigInit(&S);S.Version=K.Client.Version;S.ClientId=Connect->Body.Connect.ClientId;S.Codec=K.Client.Codec;S.MaxOutgoing=K.MaxSessionOutgoing;S.MaxIncoming=K.MaxSessionIncoming;S.MaxBytes=K.MaxSessionBytes;
     if(!(S.ClientId.Size?xmqttSessionCreate(&S,&R->Session):xmqttSessionCreateUnassigned(&S,K.MaxAssignedIdBytes,&R->Session)))goto Failed;
-    xmqttclientinboxconfig I;xmqttClientInboxConfigInit(&I);I.Version=K.Client.Version;I.MaxObjects=K.Client.MaxObjects;I.MaxObjectBytes=K.Client.MaxObjectBytes;I.MaxMessages=K.Client.MaxMessages;I.MaxMessageBytes=K.Client.MaxMessageBytes;
-    if(!xmqttClientInboxCreate(&I,&R->Inbox))goto Failed;
     }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     if(Subscriptions){
@@ -753,7 +755,6 @@ Failed:
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
     xmqttSubscriptionsDestroy(R);
 #endif
-    xmqttClientInboxDestroy(R->Inbox);
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     if(R->StoreFactory)xmqttInternalStoreWriteReleaseReconnect(R->Store.Writer,R);
     else
@@ -792,8 +793,6 @@ XMQTT_API bool xmqttReconnectInfo(xmqttreconnect* R,xmqttreconnectinfo* Out)
     if(!R || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect info");
     xrtMutexLock(&R->Gate);*Out=R->Info;xrtMutexUnlock(&R->Gate);return true;
 }
-XMQTT_API bool xmqttReconnectTakeMessage(xmqttreconnect* R,xmqttmessage** Message)
-{if(!R)return xmqttReconnectError(XERR_ARGUMENT,"controller is NULL");return R->Inbox&&xmqttClientInboxTake(R->Inbox,Message);}
 XMQTT_API bool xmqttReconnectClose(xmqttreconnect* R)
 {
     if(!R)return xmqttReconnectError(XERR_ARGUMENT,"controller is NULL");
@@ -849,8 +848,6 @@ XMQTT_API bool xmqttReconnectDestroy(xmqttreconnect* R)
     if(!xmqttReconnectClose(R) || xmqttReconnectWaitFor(R,XRT_WAIT_FOREVER)!=XWAIT_OK)return false;
     if(R->Session && !xmqttSessionDestroy(R->Session))return false;
     R->Session=NULL;
-    if(!xmqttClientInboxDestroy(R->Inbox))return false;
-    R->Inbox=NULL;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     if(R->StoreFactory)xmqttInternalStoreWriteReleaseReconnect(R->Store.Writer,R);
 #endif

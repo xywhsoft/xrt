@@ -1,4 +1,5 @@
 #include "test.h"
+#include "../examples/reconnect/receive_slot.h"
 #include <xmqtt/reconnect.h>
 #include <xrt/thread.h>
 #include <xrt/atomic.h>
@@ -85,12 +86,12 @@ static void rcStop(rcPeer* P)
     xrtNetListenerDestroy(P->Listener);testRequire(xrtTaskPoolClose(P->Pool) && xrtTaskPoolWaitFor(P->Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(P->Pool),"cleanup Pool join");
     testRequire(xrtNetEngineStop(P->Engine) && xrtNetEngineDestroy(P->Engine),"reconnect Engine physical join");
 }
-static xmqttclientstatus rcFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** C)
+static xmqttclientstatus rcFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
 {
     rcPeer* P=Data;unsigned N=xrtAtomic32Load(&P->FactoryCalls,XMEMORY_RELAXED);testRequire(N<32,"bounded fixture attempts");P->FactoryAt[N]=xrtTimer();P->Clean[N]=Q->Body.Connect.CleanStart;P->IdBytes[N]=Q->Body.Connect.ClientId.Size;bool OK;
     if(P->Mode&RC_FAIL){xrtSetErrorKind(XERR_STATE);OK=false;}
     else {xallocationscope Scope={0};if(P->Mode&RC_WORKER_BUDGET)testRequire(xrtAllocationBudgetEnter(P->Budget,&Scope),"factory allocation scope");
-        OK=P->Mode&RC_WRONG_FACTORY?xmqttClientConnect(E,&P->Address,A,K,Q,C):xmqttClientConnectSession(E,&P->Address,A,K,S,I,Q,C);
+        OK=P->Mode&RC_WRONG_FACTORY?xmqttClientConnect(E,&P->Address,A,K,Q,C):xmqttClientConnectSession(E,&P->Address,A,K,S,NULL,Q,C);
         if(P->Mode&RC_WORKER_BUDGET)testRequire(xrtAllocationBudgetLeave(&Scope),"factory scope leave");}
     xrtAtomic32Store(&P->FactoryCalls,N+1,XMEMORY_RELEASE);return OK?XMQTT_STATUS_OK:(P->Mode&RC_FAIL)?XMQTT_STATUS_INITIALIZATION:xrtErrorKind(xrtGetError())==XERR_MEMORY?XMQTT_STATUS_MEMORY:XMQTT_STATUS_INITIALIZATION;
 }
@@ -115,6 +116,8 @@ static void rcClose(xmqttreconnect* R)
 static void rcHappy(xmqttversion Version,unsigned Mode)
 {
     rcPeer P;rcStart(&P,Version,Mode);xmqttreconnectconfig K;xmqttpacket Q;xmqttproperty Expiry;rcConfig(&P,&K,&Q,&Expiry);K.MaxLeases=1;xmqttreconnect* R=NULL;
+    xatomicptr Received;xrtAtomicPtrInit(&Received,NULL);
+    K.Client.Notify=mqttExampleReceiveOne;K.Client.User=&Received;
     testRequire(xmqttReconnectCreate(P.Engine,P.Pool,1,&K,&Q,&R),"automatic connection factory");(void)rcOnline(R,1);xmqttclientlease L={0},Other={0};testRequire(xmqttReconnectAcquire(R,&L),"online lease");
     xrtSetErrorKind(XERR_STATE);const xerror* Ambient=xrtGetError();testRequire(!xmqttReconnectAcquire(R,&Other) && !Other.Owner && xrtGetError()==Ambient,"lease-cap output/error atomicity");xrtClearError();
     xmqttpacket Pub;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Pub);Pub.Body.Publish.Topic=XRT_STR_LITERAL("work");Pub.Body.Publish.Payload=XRT_BYTES_LITERAL("one");if(Mode&RC_CUT_PUBLISH)Pub.Flags=2;
@@ -122,8 +125,9 @@ static void rcHappy(xmqttversion Version,unsigned Mode)
     if(!(Mode&RC_CUT_PUBLISH))testRequire(xrtFutureWaitFor(F,5000)==XWAIT_OK && ((const xmqttwriteresult*)xrtFutureValue(F))->Status==XMQTT_STATUS_OK && xrtNetStreamAbort(P.Connections[0].Stream),"first Client work and transport interruption");
     testRequire(xmqttClientWaitFor(L.Client,5000)==XWAIT_OK && xmqttReconnectWaitFor(R,0)==XWAIT_TIMEOUT,"lease prevents controller retirement");
     xmqttreconnectinfo I;testRequire(xmqttReconnectInfo(R,&I) && I.State==XMQTT_RECONNECT_RETIRING,"logical Client closed under lease");xrtSleep(25);testRequire(xrtAtomic32Load(&P.FactoryCalls,XMEMORY_ACQUIRE)==1,"no replacement before lease and physical owner retire");
-    xmqttmessage* M=NULL;double End=xrtTimer()+5;while(!xmqttReconnectTakeMessage(R,&M)){testRequire(xrtTimer()<End,"cross-generation Inbox");xrtSleep(1);}testRequire(xmqttMessagePacket(M)->Body.Publish.Payload.Size==16,"old Inbox message preserved offline");
     testRequire(xmqttReconnectRelease(&L) && !L.Owner,"lease release wakes retirement");I=rcOnline(R,2);testRequire(I.Generation==2 && I.Attempts==2,"automatic new generation");
+    xmqttmessage* M=xrtAtomicPtrLoad(&Received,XMEMORY_ACQUIRE);
+    testRequire(M&&xmqttMessagePacket(M)->Body.Publish.Payload.Size==16,"APP slot retains the old message after replacement");
     if(Mode&RC_CUT_PUBLISH){rcWait(&P.Replays,1);testRequire(xrtFutureWaitFor(F,0)==XWAIT_OK && ((const xmqttwriteresult*)xrtFutureValue(F))->Status!=XMQTT_STATUS_OK,"old Future not rewritten by recovered ACK");}
     testRequire(P.Clean[1]==((Mode&RC_ALWAYS_CLEAN)!=0) && P.Clean[0]==!(Mode&RC_PERSIST),"explicit first-only versus always-clean retry policy");
     if(Mode&RC_ASSIGNED)testRequire(!P.IdBytes[0] && P.IdBytes[1]==10,"bound assigned id reused");

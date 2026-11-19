@@ -1,8 +1,8 @@
 #include "../../examples/reconnect_ws/endpoint.h"
 #include <stdlib.h>
 static mqttWsEndpoint ManagedWsEndpoint;
-static xmqttclientstatus wsBrokerFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{(void)Data;return mqttWsEndpointFactory(E,A,K,S,I,Q,&ManagedWsEndpoint,C);}
+static xmqttclientstatus wsBrokerFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
+{(void)Data;return mqttWsEndpointFactory(E,A,K,S,Q,&ManagedWsEndpoint,C);}
 static bool wsBrokerEndpointClear(void){return mqttWsEndpointClear(&ManagedWsEndpoint);}
 #define XMQTT_RECONNECT_BROKER_FACTORY wsBrokerFactory
 #define XMQTT_RECONNECT_BROKER_BEFORE_ENGINE_DESTROY wsBrokerEndpointClear

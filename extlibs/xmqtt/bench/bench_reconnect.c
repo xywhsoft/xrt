@@ -1,8 +1,8 @@
 #include "../examples/common/client_peer.h"
 #include <inttypes.h>
 #include <xmqtt/reconnect.h>
-static xmqttclientstatus benchManagedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{return xmqttClientConnectSession(E,Data,A,K,S,I,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+static xmqttclientstatus benchManagedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
+{return xmqttClientConnectSession(E,Data,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 typedef struct mqttBenchSlot {xfuture* Future;double Start;} mqttBenchSlot;
 static int mqttBenchCompare(const void* Left,const void* Right)
 {double A=*(const double*)Left,B=*(const double*)Right;return A<B?-1:A>B?1:0;}
@@ -15,13 +15,13 @@ int main(int Argc,char** Argv)
     if(Managed>2 || !Count || Count>1000000 || (Version!=4 && Version!=5) || !Window || Window>64 || Argc>6)return 1;
     mqttExamplePeer P;mqttExampleStart(&P,(xmqttversion)Version);xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-qos1");xmqttclient* C=NULL;
-    xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;xmqttreconnect* Controller=NULL;xmqttclientlease Lease={0};
+    xmqttsession* Session=NULL;xmqttreconnect* Controller=NULL;xmqttclientlease Lease={0};
     xtaskpoolconfig PC={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&PC);mqttExampleCheck(Pool!=NULL,"benchmark borrowed Pool");
     if(Managed){xmqttreconnectconfig RC;xmqttReconnectConfigInit(&RC);RC.Client=K;RC.Factory=benchManagedFactory;RC.FactoryData=&P.Address;
         mqttExampleCheck(xmqttReconnectCreate(P.Engine,Pool,1,&RC,&Connect,&Controller),"benchmark controller");double End=xrtTimer()+5;
         while(!xmqttReconnectAcquire(Controller,&Lease)){mqttExampleCheck(xrtTimer()<End,"benchmark online lease");xrtSleep(1);}C=Lease.Client;
-    }else{xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=K.Version;SC.ClientId=Connect.Body.Connect.ClientId;xmqttclientinboxconfig IC;xmqttClientInboxConfigInit(&IC);IC.Version=K.Version;
-        mqttExampleCheck(xmqttSessionCreate(&SC,&Session) && xmqttClientInboxCreate(&IC,&Inbox) && xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,Inbox,&Connect,&C),"manual Session baseline");}
+    }else{xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=K.Version;SC.ClientId=Connect.Body.Connect.ClientId;
+        mqttExampleCheck(xmqttSessionCreate(&SC,&Session) && xmqttClientConnectSession(P.Engine,&P.Address,1,&K,Session,NULL,&Connect,&C),"manual Session baseline");}
     xfuture* Ready=xmqttClientReady(C);mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"benchmark CONNACK");
     if(Managed==2){mqttExampleCheck(xmqttReconnectRelease(&Lease),"initial lease release");C=NULL;}
     double* Latencies=malloc((size_t)Count*sizeof(*Latencies));mqttExampleCheck(Latencies!=NULL,"latency storage");mqttBenchSlot Slots[64]={{0}};
@@ -51,7 +51,7 @@ int main(int Argc,char** Argv)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
 #endif
     if(Managed){if(Managed==1)mqttExampleCheck(xmqttReconnectRelease(&Lease),"batch lease release");mqttExampleCheck(xmqttReconnectClose(Controller) && xmqttReconnectWaitFor(Controller,5000)==XWAIT_OK && xmqttReconnectDestroy(Controller),"benchmark controller retirement");}
-    else mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C) && xmqttSessionDestroy(Session) && xmqttClientInboxDestroy(Inbox),"benchmark manual retirement");
+    else mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C) && xmqttSessionDestroy(Session),"benchmark manual retirement");
     mqttExampleCheck(xrtTaskPoolClose(Pool) && xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(Pool),"benchmark Pool join");mqttExampleStop(&P);xrtFutureDestroy(Ready);
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttBenchCompare);
     printf("publishes_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);

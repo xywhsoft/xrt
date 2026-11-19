@@ -4063,14 +4063,14 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Worker,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
+    xmqttsession* Session,const xmqttclientlifecycle* Observer,
     size_t* MaxOutgoingBytes,struct xmqttstorewrite* Writer)
 {
     if(!C || C->Worker!=Worker || !xrtNetWorkerIsCurrent(Worker) || !C->Session ||
-       C->Session->State!=Session || C->Inbox!=Inbox || C->Lifecycle || !Observer || !Observer->Changed)
+       C->Session->State!=Session || C->Lifecycle || !Observer || !Observer->Changed)
         return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
-    if(Writer&&(!C->Store||C->Store->Plan.Writer!=Writer))
+    if(Writer&&(C->Inbox||!C->Store||C->Store->Plan.Writer!=Writer))
         return xmqttClientError(XERR_STATE,"reconnect factory returned a different writer");
 #else
     (void)Writer;

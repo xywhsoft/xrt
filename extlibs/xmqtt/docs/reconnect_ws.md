@@ -2,14 +2,14 @@
 
 Use the existing `xmqtt_reconnect` or `xmqtt_reconnect_subscriptions` controller
 with the ordinary [native WS/WSS](client_ws_connect.md) or [URI](client_ws_uri.md)
-connection factories. The same private Session/Inbox, Engine/Affinity and copied
-Client config supplied to Factory must be passed to every new Client. These
-factories already satisfy the lifecycle interface; this integration introduces
-no production source, public API, resident Client field or shared runtime.
+connection factories. Pass the supplied Session, Engine and affinity to each
+connection. Factories use the copied Client config and can supply their own
+receive queue policy.
 
 The [runnable example](../examples/reconnect_ws/README.md) includes a small
 application-owned [endpoint adapter](../examples/reconnect_ws/endpoint.h). Bind
-WebSocket.Session/Inbox to the exact controller owners. URI/HTTP/TLS/CONNECT/auth
+WebSocket.Session to the controller Session. WebSocket.Inbox is an optional
+APP owner. URI/HTTP/TLS/CONNECT/auth
 snapshot per attempt; the persistent endpoint's URI, policy, Resolver, trust and
 callback/code lifetimes still extend through controller Destroy. Do not release
 its verifier after Create if a later Factory will reuse it. Construction refusals

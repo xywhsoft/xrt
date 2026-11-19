@@ -23,10 +23,10 @@ int main(int Argc,char** Argv)
     if(Managed>2 || !Count || Count>1000000 || (Version!=4 && Version!=5) || !Window || Window>64 || Argc>7)return 1;
     wrService P;wrStart(&P,Secure,(xmqttversion)Version,3,XNET_PORT_SELECT);xrtAtomic32Store(&P.NoNotify,1,XMEMORY_RELEASE);xrtAtomic32Store(&P.NoIncoming,1,XMEMORY_RELEASE);xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;K.SetupTimeout=10000;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=Version==5;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("ws-managed");xmqttproperty Expiry={0};Expiry.Id=XMQTT_PROPERTY_SESSION_EXPIRY;Expiry.Type=XMQTT_PROPERTY_UINT32;Expiry.Value.Number=60;if(Version==5)Connect.Properties=(xmqttpropertylist){&Expiry,1};xmqttclient* C=NULL;
-    xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;xmqttreconnect* Controller=NULL;xmqttclientlease Lease={0};
+    xmqttsession* Session=NULL;xmqttreconnect* Controller=NULL;xmqttclientlease Lease={0};
     if(Managed){Controller=wrCreate(&P,60000,false);wrOnline(Controller,1,&Lease);C=Lease.Client;}
-    else{xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=K.Version;SC.ClientId=Connect.Body.Connect.ClientId;SC.MaxOutgoing=128;SC.MaxIncoming=64;SC.MaxBytes=16u*1024u*1024u;xmqttclientinboxconfig IC;xmqttClientInboxConfigInit(&IC);IC.Version=K.Version;IC.MaxObjects=K.MaxObjects;IC.MaxObjectBytes=K.MaxObjectBytes;IC.MaxMessages=K.MaxMessages;IC.MaxMessageBytes=K.MaxMessageBytes;
-        mqttExampleCheck(xmqttSessionCreate(&SC,&Session)&&xmqttClientInboxCreate(&IC,&Inbox),"manual passive Session/Inbox");xmqttclientwsconnectconfig W;xmqttClientWsConnectConfigInit(&W);W.WebSocket.Session=Session;W.WebSocket.Inbox=Inbox;
+    else{xmqttsessionconfig SC;xmqttSessionConfigInit(&SC);SC.Version=K.Version;SC.ClientId=Connect.Body.Connect.ClientId;SC.MaxOutgoing=128;SC.MaxIncoming=64;SC.MaxBytes=16u*1024u*1024u;
+        mqttExampleCheck(xmqttSessionCreate(&SC,&Session),"manual passive Session");xmqttclientwsconnectconfig W;xmqttClientWsConnectConfigInit(&W);W.WebSocket.Session=Session;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_CONNECT_TLS)
         if(Secure){xmqttclienttlsconfig T;xmqttClientTlsConfigInit(&T);T.Session.ResumeLimit=0;T.Session.Context=P.Context;T.Session.Verifier=P.Verifier;mqttExampleCheck(xmqttClientWssConnectUri(P.Engine,NULL,(xstrview){P.URI,strlen(P.URI)},1,&K,&W,&T,&Connect,&C),"manual URI/TLS baseline");}else
 #endif
@@ -60,7 +60,7 @@ int main(int Argc,char** Argv)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
 #endif
     if(Managed){if(Managed==1)mqttExampleCheck(xmqttReconnectRelease(&Lease),"batch lease release");mqttExampleCheck(xmqttReconnectClose(Controller) && xmqttReconnectWaitFor(Controller,5000)==XWAIT_OK && xmqttReconnectDestroy(Controller),"benchmark controller retirement");}
-    else mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C) && xmqttSessionDestroy(Session) && xmqttClientInboxDestroy(Inbox),"benchmark manual retirement");
+    else mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C) && xmqttSessionDestroy(Session),"benchmark manual retirement");
     wrStopService(&P);xrtFutureDestroy(Ready);
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttBenchCompare);
     printf("publishes_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);

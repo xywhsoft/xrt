@@ -15,16 +15,16 @@ typedef enum xmqttreconnectstate {
     XMQTT_RECONNECT_WAITING,XMQTT_RECONNECT_STOPPED,XMQTT_RECONNECT_FAILED
 } xmqttreconnectstate;
 /* Called only on the supplied Engine/Affinity worker, outside controller locks.
- * Use a Session factory with these exact Engine, affinity, Session and Inbox.
- * Config is a copied template; operational budgets may be narrowed per attempt.
- * Preserve version/identity, compatible codec and the four exact Inbox caps.
+ * Use a Session factory with the supplied Engine, affinity and Session.
+ * Preserve version, identity and compatible codec. Config is a copied template.
+ * The factory can narrow operational budgets and select the receive queue.
  * Return OK with one unique Client; another typed status transfers none.
  * Failure classification never depends on an older ambient error. Borrowed
- * inputs last only through this call. Do not wait or retain Session/Inbox.
+ * inputs last only through this call. Do not wait or retain Session.
  * Numeric TCP, Dial, TLS and Auth factories may be selected by the application.
  * FactoryData and callback code remain alive through controller Destroy. */
 typedef xmqttclientstatus (*xmqttreconnectfactory)(xnetengine* Engine,uint64 Affinity,
-    const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttclientconfig* Config,xmqttsession* Session,
     const xmqttpacket* Connect,ptr FactoryData,xmqttclient** Client);
 typedef void (*xmqttreconnectnotify)(xmqttreconnect* Controller,ptr User);
 typedef struct xmqttreconnectconfig {
@@ -57,11 +57,13 @@ typedef struct xmqttclientlease {
  * Only TRANSPORT/TIMEOUT/SERVER_DISCONNECT retry by default. No retry of auth,
  * protocol, local capacity or rejection failures unless explicitly selected. */
 XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* Config);
-/* Owns a private Session/Inbox and copied encoded CONNECT, wiped at Destroy.
+/* Owns a Session and copied encoded CONNECT, wiped at Destroy.
  * Starts asynchronously, pins Engine and borrows the running cleanup Pool until
  * physical Destroy. No private thread or runtime is created. Config callbacks
  * may run before return. Output changes only on success. Client.Notify remains
- * the original direct data-path callback. Controller Notify is lifecycle-only.
+ * the original direct data-path callback and may take received messages.
+ * The APP can also drain a leased Client through its physical retirement.
+ * Controller Notify reports lifecycle events.
  * All durations are milliseconds; MaxAttempts=0/RecoveryTimeout=-1 allow an
  * unbounded attempt count/time with bounded live storage. By default CONNECT's
  * clean flag is used only for attempt1, then false (including 311 Clean Session).
@@ -77,7 +79,6 @@ XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* CleanupPool,ui
 XMQTT_API bool xmqttReconnectAcquire(xmqttreconnect* Controller,xmqttclientlease* Lease);
 XMQTT_API bool xmqttReconnectRelease(xmqttclientlease* Lease);
 XMQTT_API bool xmqttReconnectInfo(xmqttreconnect* Controller,xmqttreconnectinfo* Info);
-XMQTT_API bool xmqttReconnectTakeMessage(xmqttreconnect* Controller,xmqttmessage** Message);
 /* Nonblocking stop; waits additionally include all leases, old Clients, timers,
  * posts and cleanup data finalizers. A closed/full Pool or timer admission
  * failure retains ownership for external Wait/Destroy assistance. Wait uses one

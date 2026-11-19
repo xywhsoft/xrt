@@ -74,7 +74,8 @@ All new leaves remain developing. See the source-bound
 The later [native connection stage](client_ws_connect.md) separately records
 numeric/DNS/prepared HTTP Upgrade and independent peer/broker evidence.
 The later [automatic recovery stage](reconnect_ws.md) composes ordinary factories
-with existing generation leases and Session/Inbox. Durable state, strict clean
-broker interoperability, broader async-OOM/slow-peer/
-malformed/load tests, controlled throughput/tails/CPU and native Linux/Windows
+with generation leases and a shared protocol Session. The application chooses
+the receive queue. Durable state, strict clean broker interoperability, broader
+async-OOM, slow-peer, malformed and load tests, controlled throughput, tail
+latency and CPU measurements, and native Linux/Windows
 soak qualification remain required. No complete WS/WSS product acceptance is claimed.

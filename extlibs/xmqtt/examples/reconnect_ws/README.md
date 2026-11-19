@@ -25,9 +25,9 @@ It then verifies another publication, strict graceful Disconnect and physical jo
 The CLOSED retry bit is explicitly enabled for this demonstration.
 
 The [endpoint adapter](endpoint.h) binds each new ordinary Client to the exact
-Session/Inbox supplied by the controller. Its URI, policy, Resolver and verifier
-remain application-owned through controller Destroy, including future attempts.
-Retaining the verifier only until Create returns would violate that contract.
+Session supplied by the controller. Each Client uses a connection-local receive
+queue. Keep the URI, policy, Resolver and verifier alive through controller
+Destroy so every attempt can use them.
 The controller snapshots CONNECT; each attempt independently snapshots HTTP/URI/
 TLS/config data. No wrapper payload/Future, private runtime or offline queue is added.
 

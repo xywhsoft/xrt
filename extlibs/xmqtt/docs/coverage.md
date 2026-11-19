@@ -495,8 +495,8 @@ is inferred from this lifecycle stage.
 ## Automatic reconnect controller
 
 The [controller stage](../tests/results/reconnect-controller-20261110.json) drives
-actual bounded replacement connections, private Session/Inbox, explicit typed
-factory failure policy, saturating jittered backoff, stable reset, per-outage
+actual bounded replacement connections with a shared protocol Session, typed
+factory failures, saturating jittered backoff, stable reset, per-outage
 deadline, cancellation and physical old-generation cleanup. Caller-storage leases
 prevent premature destruction; cleanup data finalization works even when its
 queued Proc is cancelled. Closed/full cleanup admission retains an owner for
@@ -537,7 +537,7 @@ native Linux and soak acceptance remain open.
 ## Optional automatic subscription intent recovery
 
 `xmqtt_reconnect_subscriptions` maintains a bounded volatile registry alongside
-the private reconnect Session/Inbox. MQTT 5 and 3.1.1 intent snapshots preserve
+the reconnect protocol Session. MQTT 5 and 3.1.1 intent snapshots preserve
 exact filters/options and group properties, reject duplicates atomically, and
 reconcile initial/fresh/resumed sessions, uncertain controls and offline removals.
 Known confirmed resumed subscriptions are carried forward. Original ACKs cannot

@@ -2,8 +2,8 @@
 #include "../common/client_peer.h"
 #include <xmqtt/reconnect_subscriptions.h>
 static xmqttclientstatus connectAttempt(xnetengine* E,uint64 Affinity,const xmqttclientconfig* C,
-    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** Client)
-{mqttExamplePeer* P=Data;return xmqttClientConnectSession(E,&P->Address,Affinity,C,S,I,Q,Client)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+    xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** Client)
+{mqttExamplePeer* P=Data;return xmqttClientConnectSession(E,&P->Address,Affinity,C,S,NULL,Q,Client)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 int main(void)
 {
     mqttExamplePeer P;mqttExampleStart(&P,XMQTT_VERSION_5);xtaskpoolconfig T={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&T);mqttExampleCheck(Pool!=NULL,"borrowed cleanup Pool");
@@ -17,7 +17,7 @@ int main(void)
     while(!xmqttReconnectAcquire(R,&L)){mqttExampleCheck(xrtTimer()<End,"online lease");xrtSleep(1);}
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Body.Publish.Topic=XRT_STR_LITERAL("example/topic");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("managed");xfuture* F=NULL;
     mqttExampleCheck(xmqttClientPublish(L.Client,&Q,5000,&F)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)xrtFutureValue(F))->Status==XMQTT_STATUS_OK,"leased normal publication");
-    xmqttmessage* Held=NULL;End=xrtTimer()+5;while(!xmqttReconnectTakeMessage(R,&Held)){mqttExampleCheck(xrtTimer()<End,"first-generation echo");xrtSleep(1);}
+    xmqttmessage* Held=NULL;End=xrtTimer()+5;while(!xmqttClientTakeMessage(L.Client,&Held)){mqttExampleCheck(xrtTimer()<End,"first-generation echo");xrtSleep(1);}
     /* Simulate a peer outage while the old application lease remains live.
      * Retire the fixture's unique peer owner before resetting its atomic slots. */
     xnetstream* OldPeer=xrtAtomicPtrLoad(&P.Stream,XMEMORY_ACQUIRE);

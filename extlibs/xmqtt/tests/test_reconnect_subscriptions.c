@@ -72,10 +72,10 @@ static void subStop(subPeer* P)
     }
 }
 static xmqttsubscriptionsinfo subSynchronized(xmqttreconnect* R,uint64 Revision);
-static xmqttclientstatus subNarrowFactory(xnetengine* E,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,ptr Data,xmqttclient** C)
+static xmqttclientstatus subNarrowFactory(xnetengine* E,uint64 Affinity,const xmqttclientconfig* K,xmqttsession* Session,const xmqttpacket* Connect,ptr Data,xmqttclient** C)
 {
     subPeer* P=Data;xmqttclientconfig Copy=*K;if(P->NarrowOutgoing)Copy.MaxOutgoingBytes=P->NarrowOutgoing;
-    return xmqttClientConnectSession(E,&P->Base.Address,Affinity,&Copy,Session,Inbox,Connect,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;
+    return xmqttClientConnectSession(E,&P->Base.Address,Affinity,&Copy,Session,NULL,Connect,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;
 }
 static void subLocalPacketLimit(void)
 {

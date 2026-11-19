@@ -34,9 +34,9 @@ static inline bool mqttWsEndpointClear(mqttWsEndpoint* E)
     return true;
 }
 static inline xmqttclientstatus mqttWsEndpointFactory(xnetengine* Engine,uint64 Affinity,const xmqttclientconfig* Config,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,ptr Data,xmqttclient** Client)
+    xmqttsession* Session,const xmqttpacket* Connect,ptr Data,xmqttclient** Client)
 {
-    mqttWsEndpoint* E=Data;xmqttclientwsconnectconfig W=E->Policy;W.WebSocket.Session=Session;W.WebSocket.Inbox=Inbox;bool OK;
+    mqttWsEndpoint* E=Data;xmqttclientwsconnectconfig W=E->Policy;W.WebSocket.Session=Session;bool OK;
     xerror* Saved=xrtTakeError();
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_URI_TLS)
     if(E->Secure)OK=xmqttClientWssConnectUri(Engine,E->Resolver,E->URI,Affinity,Config,&W,&E->TLS,Connect,Client);else

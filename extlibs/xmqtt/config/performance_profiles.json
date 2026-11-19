@@ -4173,7 +4173,7 @@
     {
       "name": "xmqtt_reconnect_ws",
       "system": "client",
-      "description": "Same native URI/HTTP WS/WSS QoS1 workload: manual Session, one batch lease, per-call leases; no fixture Notify/initial message; no production or controlled acceptance",
+      "description": "Same native URI/HTTP WS/WSS QoS1 workload: manual Session, one batch lease, per-call leases, connection-local queues and no fixture Notify/initial message; no production or controlled acceptance",
       "benchmarks": [
         {
           "name": "ws_manual",

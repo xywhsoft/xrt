@@ -122,7 +122,7 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
     xmqttstoreview View;
     size_t Required=0;
     xmqttmessage* Message=NULL;
-    testRequire(!xmqttReconnectTakeMessage(R,&Message)&&
+    testRequire(!xmqttClientTakeMessage(L.Client,&Message)&&
         xmqttStoreInboxTake(W,Wire,sizeof(Wire),&Delivery,&View,&Required)==XMQTT_STORE_DONE,
         "durable-only Inbox remains readable offline");
     xfuture* Ack=NULL;

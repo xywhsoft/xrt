@@ -36,7 +36,7 @@ native ticket-only events to the existing bounded TLS resume cache across
 direct/HTTP/URI channels and ordinary reconnect factories. See the
 [two-channel trusted example](examples/ws_tls_resume/README.md).
 The developing [automatic WS/WSS recovery](docs/reconnect_ws.md) composes the
-existing controller and ordinary connection factories with retained Session/Inbox,
+existing controller and ordinary connection factories with retained Session,
 generation leases, bounded outage clocks and physical retirement. See the
 [two-generation native CLI](examples/reconnect_ws/README.md) and its source-bound
 local/broker/gateway evidence. No new production runtime or public API is added.

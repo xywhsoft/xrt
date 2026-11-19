@@ -11,8 +11,8 @@ static const void* managedOutcome(xfuture* F)
 {managedCheck(F && xrtFutureWaitFor(F,15000)==XWAIT_OK && xrtFutureState(F)==XFUTURE_RESOLVED,"typed result");return xrtFutureValue(F);}
 static void managedBarrier(const char* Prompt,const char* Command)
 {char Line[32];puts(Prompt);fflush(stdout);managedCheck(fgets(Line,sizeof(Line),stdin) && !strcmp(Line,Command),"independent proxy barrier");}
-static xmqttclientstatus managedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{return xmqttClientConnectSession(E,Data,A,K,S,I,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+static xmqttclientstatus managedFactory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
+{return xmqttClientConnectSession(E,Data,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 static void managedSubscribe(xmqttclient* C,xstrview Topic)
 {
     xmqttsubscription S={Topic,2};xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_SUBSCRIBE,&Q);Q.Body.Topics=(xmqttsubscriptionlist){&S,1};xfuture* F=NULL;
@@ -31,6 +31,32 @@ static xfuture* managedOnline(xmqttreconnect* R,uint64 Connections,bool Present,
 #endif
     return Ready;
 }
+typedef struct managedreceive {
+    xstrview Topic;
+    size_t Bytes;
+    unsigned Mode,Count;
+    xmqttmessage* Held;
+} managedreceive;
+
+static void receiveLeased(xmqttclient* Client,managedreceive* Received)
+{
+    xmqttmessage* Message=NULL;
+    while(xmqttClientTakeMessage(Client,&Message)){
+        const xmqttpacket* Packet=xmqttMessagePacket(Message);
+        managedCheck(Packet&&Packet->Type==XMQTT_PACKET_PUBLISH&&
+            Packet->Body.Publish.Topic.Size==Received->Topic.Size&&
+            !memcmp(Packet->Body.Publish.Topic.Data,Received->Topic.Data,Received->Topic.Size)&&
+            Packet->Body.Publish.Payload.Size==Received->Bytes&&
+            ((Packet->Flags>>1)&3u)==(Received->Mode?2u:1u),"logical recovered message");
+        for(size_t I=0;I<Received->Bytes;++I)
+            managedCheck(Packet->Body.Publish.Payload.Data[I]==(uint8)(I*37u+Received->Mode),
+                "binary snapshot survived automatic replacement");
+        ++Received->Count;
+        if(!Received->Held)Received->Held=Message;
+        else xmqttMessageRelease(Message);
+    }
+}
+
 int main(int Argc,char** Argv)
 {
     if(Argc!=5 && Argc!=6)return 2;
@@ -57,20 +83,23 @@ int main(int Argc,char** Argv)
 #if defined(XMQTT_RECONNECT_BROKER_OLD_RESULT)
     XMQTT_RECONNECT_BROKER_OLD_RESULT(Old,&Q);
 #endif
+    managedreceive Received={.Topic=Topic,.Bytes=Bytes,.Mode=Mode};
+    receiveLeased(L.Client,&Received);
     managedCheck(xmqttReconnectRelease(&L),"release enables automatic replacement");free(Payload);xfuture* R2=managedOnline(R,2,true,&L);managedBarrier("WAIT_DRAIN","drain\n");managedSubscribe(L.Client,XRT_STR_LITERAL("xrt/qual/session/barrier"));
-    xmqttmessage *Held=NULL,*M=NULL;unsigned Count=0;double End=xrtTimer()+15;
-    while(!xmqttReconnectTakeMessage(R,&Held)){managedCheck(xrtTimer()<End,"recovered Inbox");xrtSleep(1);}
-    for(;;){const xmqttpacket* A=xmqttMessagePacket(Count?M:Held);managedCheck(A->Body.Publish.Topic.Size==Topic.Size && !memcmp(A->Body.Publish.Topic.Data,Topic.Data,Topic.Size) && A->Body.Publish.Payload.Size==Bytes && ((A->Flags>>1)&3u)==(Mode?2u:1u),"logical recovered message");
-        for(size_t I=0;I<Bytes;++I)managedCheck(A->Body.Publish.Payload.Data[I]==(uint8)(I*37u+Mode),"binary snapshot survived automatic replacement");
-        if(Count)xmqttMessageRelease(M);
-        ++Count;if(!xmqttReconnectTakeMessage(R,&M))break;}
-    managedCheck(!Mode || Count==1,"QoS2 one local delivery");xfuture* Closed=NULL;managedCheck(xmqttClientDisconnectAsync(L.Client,NULL,10000,&Closed)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)managedOutcome(Closed))->Status==XMQTT_STATUS_OK,"normal final DISCONNECT");
+    double End=xrtTimer()+15;
+    do{
+        receiveLeased(L.Client,&Received);
+        if(!Received.Count){managedCheck(xrtTimer()<End,"APP received a publication");xrtSleep(1);}
+    }while(!Received.Count);
+    xfuture* Closed=NULL;managedCheck(xmqttClientDisconnectAsync(L.Client,NULL,10000,&Closed)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)managedOutcome(Closed))->Status==XMQTT_STATUS_OK,"normal final DISCONNECT");
+    receiveLeased(L.Client,&Received);
+    managedCheck(!Mode||Received.Count==1,"QoS2 one local delivery");
     managedCheck(xmqttReconnectRelease(&L) && xmqttReconnectClose(R) && xmqttReconnectWaitFor(R,15000)==XWAIT_OK,"controller stopped");xmqttreconnectinfo Info;managedCheck(xmqttReconnectInfo(R,&Info) && Info.Attempts==2 && Info.Connections==2,"exactly two automatic generations");
     managedCheck(xmqttReconnectDestroy(R) && xrtTaskPoolClose(Pool) && xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK && xrtTaskPoolDestroy(Pool)
     #if defined(XMQTT_RECONNECT_BROKER_BEFORE_ENGINE_DESTROY)
         && XMQTT_RECONNECT_BROKER_BEFORE_ENGINE_DESTROY()
     #endif
         && xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"all physical owners joined");
-    managedCheck(Old==xrtFutureValue(F) && xmqttMessagePacket(Held)->Body.Publish.Payload.Size==Bytes && ((const xmqttreadyresult*)xrtFutureValue(R2))->Negotiated.SessionPresent,"retained outcomes after all owners");
-    xmqttMessageRelease(Held);xrtFutureDestroy(F);xrtFutureDestroy(R1);xrtFutureDestroy(R2);xrtFutureDestroy(Closed);printf("[PASS] automatic broker MQTT%lu mode%u fragmented%u messages%u\n",V,Mode,Fragment?1u:0u,Count);return 0;
+    managedCheck(Old==xrtFutureValue(F) && xmqttMessagePacket(Received.Held)->Body.Publish.Payload.Size==Bytes && ((const xmqttreadyresult*)xrtFutureValue(R2))->Negotiated.SessionPresent,"retained outcomes after all owners");
+    xmqttMessageRelease(Received.Held);xrtFutureDestroy(F);xrtFutureDestroy(R1);xrtFutureDestroy(R2);xrtFutureDestroy(Closed);printf("[PASS] automatic broker MQTT%lu mode%u fragmented%u messages%u\n",V,Mode,Fragment?1u:0u,Received.Count);return 0;
 }

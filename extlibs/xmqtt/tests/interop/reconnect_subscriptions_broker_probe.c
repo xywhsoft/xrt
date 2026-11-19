@@ -8,8 +8,8 @@
 static xnetaddr Address;
 static void check(bool OK,const char* What)
 {if(!OK){fprintf(stderr,"[FAIL] managed subscription broker: %s error=%s\n",What,xrtGetError()?xrtErrorMessage(xrtGetError()):"none");exit(1);}}
-static xmqttclientstatus factory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** C)
-{(void)Data;return xmqttClientConnectSession(E,&Address,A,K,S,I,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
+static xmqttclientstatus factory(xnetengine* E,uint64 A,const xmqttclientconfig* K,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** C)
+{(void)Data;return xmqttClientConnectSession(E,&Address,A,K,S,NULL,Q,C)?XMQTT_STATUS_OK:XMQTT_STATUS_INITIALIZATION;}
 static xmqttsubscriptionsinfo online(xmqttreconnect* R,uint64 Connections)
 {
     double End=xrtTimer()+15;xmqttreconnectinfo I;xmqttsubscriptionsinfo S;
@@ -21,9 +21,17 @@ static void publish(xmqttreconnect* R,xstrview Topic,xfuture** Future)
     xmqttclientlease L={0};check(xmqttReconnectAcquire(R,&L),"publication lease");xmqttpacket P;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&P);P.Flags=2;P.Body.Publish.Topic=Topic;P.Body.Publish.Payload=(xbytesview){Payload,sizeof(Payload)};
     check(xmqttClientPublishAsync(L.Client,&P,10000,Future)==XMQTT_ADMISSION_ACCEPTED && xmqttReconnectRelease(&L) && xrtFutureWaitFor(*Future,15000)==XWAIT_OK && xrtFutureState(*Future)==XFUTURE_RESOLVED && ((const xmqttwriteresult*)xrtFutureValue(*Future))->Status==XMQTT_STATUS_OK,"ordinary immutable QoS1 result");
 }
+static bool take(xmqttreconnect* R,xmqttmessage** Message)
+{
+    xmqttclientlease Lease={0};
+    if(!xmqttReconnectAcquire(R,&Lease))return false;
+    bool Ready=xmqttClientTakeMessage(Lease.Client,Message);
+    check(xmqttReconnectRelease(&Lease),"return receive lease");
+    return Ready;
+}
 static xmqttmessage* receive(xmqttreconnect* R,xstrview Topic,xmqttversion Version,uint32 Id)
 {
-    xmqttmessage* M=NULL;double End=xrtTimer()+10;while(!xmqttReconnectTakeMessage(R,&M)){check(xrtTimer()<End,"broker subscription routing");xrtSleep(1);}
+    xmqttmessage* M=NULL;double End=xrtTimer()+10;while(!take(R,&M)){check(xrtTimer()<End,"broker subscription routing");xrtSleep(1);}
     const xmqttpacket* P=xmqttMessagePacket(M);check(P && P->Body.Publish.Topic.Size==Topic.Size && !memcmp(P->Body.Publish.Topic.Data,Topic.Data,Topic.Size) && P->Body.Publish.Payload.Size==sizeof(Payload) && !memcmp(P->Body.Publish.Payload.Data,Payload,sizeof(Payload)),"routed binary topic/payload");
     if(Version==XMQTT_VERSION_5){bool Found=false;for(size_t I=0;I<P->Properties.Count;++I)if(P->Properties.Data[I].Id==XMQTT_PROPERTY_SUBSCRIPTION_ID && P->Properties.Data[I].Value.Number==Id)Found=true;check(Found,"original/replaced subscription identifier");}return M;
 }
@@ -56,7 +64,7 @@ int main(int Argc,char** Argv)
     check(xmqttReconnectSubscribeIntent(R,&Add,&Revision)==XMQTT_ADMISSION_ACCEPTED && xmqttReconnectRelease(&L),"offline new group and old lease release");Info=online(R,First+2);check(Info.Requests==Expected+2 && Info.Filters==2 && Info.SettledRevision>=Revision,"offline tombstone and replacement reconciled");
     xmqttsubscriptionintentinfo Filter;check(!xmqttReconnectSubscriptionInfo(R,Removed.Filter,&Filter),"removed filter reclaimed");
     publish(R,XRT_STR_LITERAL("intent/a/removed"),Futures+2);publish(R,XRT_STR_LITERAL("intent/c/three"),Futures+3);Messages[2]=receive(R,XRT_STR_LITERAL("intent/c/three"),Version,99);
-    publish(R,XRT_STR_LITERAL("intent/b/four"),Futures+4);Messages[3]=receive(R,XRT_STR_LITERAL("intent/b/four"),Version,77);xrtSleep(50);xmqttmessage* Extra=NULL;check(!xmqttReconnectTakeMessage(R,&Extra),"no extra removed-filter message in bounded observation");
+    publish(R,XRT_STR_LITERAL("intent/b/four"),Futures+4);Messages[3]=receive(R,XRT_STR_LITERAL("intent/b/four"),Version,77);xrtSleep(50);xmqttmessage* Extra=NULL;check(!take(R,&Extra),"no extra removed-filter message in bounded observation");
     check(xmqttReconnectClose(R) && xmqttReconnectWaitFor(R,15000)==XWAIT_OK && xmqttReconnectDestroy(R),"controller/Client/native/watch physical retirement");check(xrtTaskPoolClose(Pool) && xrtTaskPoolWaitFor(Pool,10000)==XWAIT_OK && xrtTaskPoolDestroy(Pool),"cleanup Pool retirement");check(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine),"Engine retirement");
     for(size_t I=0;I<5;++I){check(((const xmqttwriteresult*)xrtFutureValue(Futures[I]))->Status==XMQTT_STATUS_OK,"original Future beyond all owners");xrtFutureDestroy(Futures[I]);}
     for(size_t I=0;I<4;++I){check(xmqttMessagePacket(Messages[I])->Body.Publish.Payload.Size==sizeof(Payload),"message beyond all owners");xmqttMessageRelease(Messages[I]);}

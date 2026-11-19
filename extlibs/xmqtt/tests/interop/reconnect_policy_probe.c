@@ -7,9 +7,9 @@
 typedef struct policyInput {xmqttclientstatus Status;unsigned Calls;} policyInput;
 static void policyCheck(bool OK,const char* Message)
 {if(!OK){fprintf(stderr,"[FAIL] reconnect typed policy: %s\n",Message);exit(1);}}
-static xmqttclientstatus policyFactory(xnetengine* E,uint64 A,const xmqttclientconfig* C,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,ptr Data,xmqttclient** Out)
+static xmqttclientstatus policyFactory(xnetengine* E,uint64 A,const xmqttclientconfig* C,xmqttsession* S,const xmqttpacket* Q,ptr Data,xmqttclient** Out)
 {
-    (void)E;(void)A;(void)C;(void)S;(void)I;(void)Q;(void)Out;policyInput* P=Data;++P->Calls;xrtSetErrorKind(XERR_MEMORY);return P->Status;
+    (void)E;(void)A;(void)C;(void)S;(void)Q;(void)Out;policyInput* P=Data;++P->Calls;xrtSetErrorKind(XERR_MEMORY);return P->Status;
 }
 int main(void)
 {

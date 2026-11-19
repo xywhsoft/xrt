@@ -8,14 +8,15 @@ run only at readiness and logical closure. With this feature selected, Client
 gains one pointer; unselected Client builds do not acquire it.
 
 Create a controller with a Session-factory adapter. Its Factory runs on the
-supplied worker, with private controller-owned Session/Inbox, copied Client config
-and a borrowed decoded CONNECT. Use exactly these Engine/affinity/passive owners.
+supplied worker with the controller-owned Session, a copied Client config and
+a borrowed decoded CONNECT. Use that Engine, affinity and Session for each Client.
+The factory chooses the receive queue.
 FactoryData and code remain alive through Destroy. The adapter may select numeric
 TCP, Dial, TLS or Auth; their independent policies and borrowed resources retain
 their existing contracts. Factory returns an explicit Client status; older
 ambient errors never select its retry policy. The controller owns one generation at a time. Its
 encoded CONNECT, including credentials, is bounded by MaxControlBytes and wiped
-at Destroy. Session/Inbox use their separately configured bounded resources.
+at Destroy. Session and connection state use their configured bounds.
 
 Acquire an initialized zero Client lease while ONLINE, then call ordinary Client
 APIs through Lease.Client. A batch may share a lease. Release it exactly once;
@@ -25,7 +26,16 @@ payload copy. They prevent destruction, not transport interruption. Results stay
 scoped to their original connection. A last ONLINE lease release posts no work;
 closure/stop releases wake the controller. Every old Client must physically retire
 and all leases must return before its unique owner is destroyed and the next
-factory runs. Incoming Inbox messages survive generations and stop.
+factory runs.
+
+The APP can take messages in its nonblocking Client.Notify callback and retain
+the owned references. An APP that pulls messages may hold a Client lease across
+transport closure, wait for the Client to retire, drain its queue and return the
+lease. Destroy releases messages still queued on the connection. Use a bounded
+APP queue sized for the workload. The [automatic reconnect example](../examples/reconnect/main.c)
+uses one APP slot for its single echo. An adapter can also supply an APP-owned
+shared Inbox through a Session factory when it needs a common quota for several
+connections. Keep the Inbox alive through controller Destroy.
 
 Defaults retry transport, timeout and server-disconnect failures only. Exponential
 backoff saturates at MaxDelay and bounded relative jitter uses a local noncrypto
@@ -108,7 +118,7 @@ native Linux and soak acceptance remain open.
 ## Automatic WS/WSS composition evidence
 
 [Automatic WS/WSS recovery](reconnect_ws.md) reuses this controller with ordinary
-numeric/DNS/prepared and URI WS/WSS factories, exact private Session/Inbox owners,
+numeric/DNS/prepared and URI WS/WSS factories using the controller Session,
 bounded subscriptions and one borrowed Engine/cleanup Pool. It adds protocol,
 fault, enhanced-auth, alias/lifetime, single/package and actual broker/gateway
 qualification, plus a [two-generation CLI](../examples/reconnect_ws/README.md).

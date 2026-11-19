@@ -17787,3 +17787,36 @@ Ordinary maturity passes. Strict release still lists 43 developing
 modules. Reconnect-owned shared receive storage, durable application
 acknowledgements and physical backends, native Linux qualification,
 controlled comparisons and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT APP-owned delivery on automatic reconnect
+
+The automatic reconnect controller owns its protocol Session and connection
+lifecycle. It no longer allocates a shared receive Inbox or exports
+`xmqttReconnectTakeMessage`. The factory receives the Session and chooses a
+receive queue. The TCP example retains a message reference in the APP's
+Client.Notify callback and checks it after the original connection and its
+replacement have retired. A polling APP can take messages through a held
+Client lease before returning it. An APP-owned shared Inbox remains
+available through explicit Session factories. The durable reconnect
+factory continues to require the matching Writer.
+
+Native Windows x64 and Ubuntu/WSL passed the modular and single-header
+automatic reconnect, TLS/Dial/Auth, subscription recovery, WS/WSS,
+WSS resume and durable reconnect suites. The APP receive example ran
+on both environments. Each environment passed 14 TCP, WS/WSS and
+subscription smoke workloads. Both static and shared reconnect
+consumers passed. The DLL and SO export the controller
+constructor and omit the removed receive symbol. WSL ASan/UBSan
+with leak detection and TSan passed the reconnect suite.
+
+Against Mosquitto 2.1.2 in WSL, each native Windows and WSL client
+passed 20 automatic reconnect cases and 16 subscription recovery cases
+across MQTT 5 and 3.1.1. The probes drain retired generations before
+returning their leases and check received payloads and delivery counts.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-reconnect/`.
+Ordinary maturity passes. Strict release still lists 43 developing
+modules. Moving the remaining shared receive storage, durable APP
+acknowledgements and physical backends, native Linux qualification,
+controlled comparisons and 72-hour mixed loads remain open.
