@@ -15,6 +15,7 @@ typedef struct serverexample {
 	xatomic32 ListenerClosed;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
 	xatomic32 Upgrades;
+	bool WebSocket;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	const xtlsserverconfig* Tls;
@@ -33,8 +34,8 @@ static bool exampleServerAccept(xnetlistener* Listener, xnetstream* Stream, ptr 
 	(void)Listener;
 	serverexample* Example = Data;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
-	return exampleServerWsAccept(Example, Stream);
-#else
+	if (Example->WebSocket) return exampleServerWsAccept(Example, Stream);
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	if (Example->Tls) {
 		if (xmqttServerAttachTls(Example->Server, Stream, Example->Tls, NULL)) return true;
@@ -44,7 +45,6 @@ static bool exampleServerAccept(xnetlistener* Listener, xnetstream* Stream, ptr 
 	}
 #endif
 	return xmqttServerAttach(Example->Server, Stream);
-#endif
 }
 
 static void exampleServerListenerClosed(xnetlistener* Listener, ptr Data)
@@ -107,8 +107,9 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
-	Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
-#elif defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
+	if (Example->WebSocket) Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS)
 	if (Example->Tls) Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
 #endif
 	xrtNetAddrLoopback(&Listen.Address, XNET_FAMILY_IPV4, 0);

@@ -1,5 +1,8 @@
 #define XMQTT_EXAMPLE_SERVER_AUTH
+#define XMQTT_EXAMPLE_SERVER_WS
 #include "app_listener.h"
+#include "app_tls.h"
+#include "app_ws.h"
 #include <xrt/crypto.h>
 #include <xrt/memory.h>
 #include <xrt/random.h>
@@ -78,12 +81,21 @@ static void exampleAuthRelease(ptr State, ptr User)
 
 int main(int Argc, char** Argv)
 {
+	const char* Mode = Argc > 1 ? Argv[1] : "tcp";
+	bool WebSocket = !strcmp(Mode, "ws") || !strcmp(Mode, "wss");
+	bool Secure = !strcmp(Mode, "tls") || !strcmp(Mode, "wss");
+	int Limits = Secure ? 4 : 2;
 	const char* Secret = getenv("XMQTT_EXAMPLE_AUTH_KEY");
-	if (!Secret || strlen(Secret) < 32 || (Argc != 1 && Argc != 3)) {
+	if ((!WebSocket && !Secure && strcmp(Mode, "tcp")) ||
+		(Argc != 1 && Argc != Limits && Argc != Limits + 2) || !Secret || strlen(Secret) < 32) {
 		puts("Set XMQTT_EXAMPLE_AUTH_KEY to a test secret with at least 32 bytes.");
-		puts("usage: examples_server_auth [max-rounds max-bytes]");
+		puts("usage: examples_server_auth [tcp|ws [max-rounds max-bytes]]");
+		puts("       examples_server_auth tls|wss certificate.der key.der [max-rounds max-bytes]");
 		return Argc == 1 && !Secret ? 0 : 1;
 	}
+	xtlsserverconfig Tls;
+	if (Secure && !exampleServerLoadTls(&Tls, Argv[2], Argv[3])) return 1;
+
 	exampleauth State = {.Secret = Secret, .SecretBytes = strlen(Secret)};
 	xrtAtomic32Init(&State.Active, 0);
 	xmqttserverauthconfig Auth;
@@ -92,14 +104,14 @@ int main(int Argc, char** Argv)
 	Auth.Release = exampleAuthRelease;
 	Auth.User = &State;
 	Auth.ReauthTimeout = 1000;
-	if (Argc == 3) {
-		Auth.MaxRounds = strtoul(Argv[1], NULL, 10);
-		Auth.MaxExchangeBytes = strtoul(Argv[2], NULL, 10);
+	if (Argc == Limits + 2) {
+		Auth.MaxRounds = strtoul(Argv[Limits], NULL, 10);
+		Auth.MaxExchangeBytes = strtoul(Argv[Limits + 1], NULL, 10);
 	}
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
 	Config.ConnectTimeout = 1750;
-	serverexample Example = {.Auth = &Auth};
+	serverexample Example = {.Auth = &Auth, .WebSocket = WebSocket, .Tls = Secure ? &Tls : NULL};
 	char Endpoint[80];
 	bool Ready = exampleServerStart(&Example, &Config, 2) &&
 		xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint));
@@ -109,5 +121,6 @@ int main(int Argc, char** Argv)
 		(void)getchar();
 	}
 	bool Closed = exampleServerStop(&Example);
+	if (Secure && Closed) exampleServerReleaseTls(&Tls);
 	return Ready && Closed && !xrtAtomic32Load(&State.Active, XMEMORY_RELAXED) ? 0 : 1;
 }

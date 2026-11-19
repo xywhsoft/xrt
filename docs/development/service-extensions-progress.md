@@ -17014,3 +17014,27 @@ The auth socket probe used TCP. Combined auth with TLS and WebSocket, durable
 broker recovery, native Linux, controlled performance comparisons and
 72-hour mixed loads remain open. Strict release reports 41 developing
 modules.
+
+## 2026-11-20 MQTT 5 broker auth transport interoperability
+
+The loopback auth example selects TCP, TLS, WS or WSS. It shares the
+application-side HTTP Upgrade with the standalone WS example. The standalone
+auth module and its allocation and limit tests keep the TCP-only dependency
+closure.
+
+The independent peer passed in all four modes on Windows x64 and Ubuntu/WSL
+x64 against modular and single-header examples. It split CONNECT and AUTH
+across transport writes, verified certificate identity for the TLS modes, and
+checked both proof rounds, online reauthentication with live QoS 1 traffic,
+and duplicate delivery with the original packet ID after authenticated
+takeover. It also checked graceful transport closure on protocol refusal,
+aborted deadlines, quotas and server shutdown with a pending exchange.
+The original TLS and WS/WSS probes passed on both hosts. The four-mode auth
+probe passed WSL ASan/UBSan with leak checking and TSan. Generated feature
+and single-header checks and API coverage passed.
+
+Raw evidence is under
+out/service-extensions/scope-reduction-20261119/xmqtt-auth-transport-*.
+Durable broker restart recovery, native Linux, controlled performance
+comparisons and 72-hour mixed loads remain open. Strict release reports
+41 developing modules.

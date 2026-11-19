@@ -174,12 +174,17 @@ Build the loopback HMAC demonstration and run the independent socket probe.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_auth_example
 python extlibs/xmqtt/tests/interop/run_server_auth.py <path-to-examples_server_auth>
+python extlibs/xmqtt/tests/interop/run_server_auth.py <path-to-examples_server_auth> <credentials-directory>
 ```
 
 The probe injects an ephemeral test secret, checks both challenge rounds and
-verifies the final server proof. The demonstration uses a private method
-for the example. In deployment, select an interoperable method and suitable
-transport security and credential policy.
+verifies the final server proof. The first invocation tests TCP. Supply the
+TLS fixture described below to test TCP, TLS, WS and WSS. The probe checks
+that an authenticated successor resumes the session and receives unacknowledged
+QoS 1 deliveries. Run the example directly with the mode `tcp` or `ws`, or
+with `tls certificate.der key.der` or `wss certificate.der key.der`. The
+demonstration uses a private method. In deployment, select an interoperable
+method and suitable transport security and credential policy.
 
 ## MQTT over TLS
 
@@ -198,7 +203,18 @@ state of any TCP peers attached to the same broker.
 The loopback example accepts a leaf certificate and an unencrypted
 RSA PKCS#1 or PKCS#8 key, both DER. It prints its bound endpoint and exits
 when stdin receives a line. Use short-lived test credentials with a localhost
-SAN to run the independent peer.
+SAN to run the independent peer. With OpenSSL 3, these commands generate the
+loopback fixture from the repository root.
+
+```sh
+mkdir -p out/xmqtt-local-tls
+openssl req -x509 -newkey rsa:2048 -sha256 -noenc -days 2 \
+  -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost" \
+  -keyout out/xmqtt-local-tls/key.pem -out out/xmqtt-local-tls/certificate.pem
+openssl x509 -in out/xmqtt-local-tls/certificate.pem -outform DER \
+  -out out/xmqtt-local-tls/certificate.der
+openssl pkey -in out/xmqtt-local-tls/key.pem -outform DER -out out/xmqtt-local-tls/key.der
+```
 
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_tls_example

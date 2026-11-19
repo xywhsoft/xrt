@@ -454,7 +454,9 @@
       "internal_headers": [],
       "sources": [],
       "tests": [],
-      "single_tests": [],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c"
+      ],
       "examples": [],
       "benchmarks": [],
       "docs": [
@@ -467,15 +469,19 @@
       "feature": null,
       "depends": [
         "xmqtt_server_auth",
-        "crypto_hmac_sha256"
+        "xmqtt_server_tls",
+        "xmqtt_server_ws_tls",
+        "crypto_hmac_sha256",
+        "http1_tls",
+        "websocket_upgrade_stream",
+        "tls_identity_rsa"
       ],
       "public_headers": [],
       "internal_headers": [],
       "sources": [],
       "tests": [],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/server/auth.c"
@@ -1175,7 +1181,7 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server.c": "xmqtt_server",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_dual.c": "xmqtt_server_dual_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth.c": "xmqtt_server_auth_example",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c": "xmqtt_server_auth_example",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_server_auth_limits.c": "xmqtt_server_auth",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_tls.c": "xmqtt_server_tls_example",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_server_ws.c": "xmqtt_server_ws_example"
       }

@@ -63,6 +63,9 @@ class WsPeer:
         return self
 
     def __exit__(self, *exc):
+        self.close()
+
+    def close(self):
         if self.sock:
             self.sock.close()
 
@@ -74,7 +77,10 @@ class WsPeer:
 
     def recv(self, size):
         while not self.input and self.close_reply is None:
-            first, second = read(self.sock, 2)
+            prefix = self.sock.recv(1)
+            if not prefix:
+                return b""
+            first, second = prefix[0], read(self.sock, 1)[0]
             assert not second & 128 and not first & 0x70
             length = second & 127
             if length == 126:
@@ -96,7 +102,7 @@ class WsPeer:
         return data
 
     def unwrap(self):
-        assert self.recv(1) == b"", "expected WebSocket close"
+        assert self.recv(1) == b"" and self.close_reply is not None, "expected WebSocket close"
         sock, self.sock = self.sock, None
         if isinstance(sock, ssl.SSLSocket):
             return sock.unwrap()
