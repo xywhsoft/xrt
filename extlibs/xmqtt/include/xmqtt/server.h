@@ -34,6 +34,7 @@ typedef struct xmqttserverconfig {
 	size_t Size, MaxConnections, MaxClientIdBytes;
 	size_t MaxSubscriptions, MaxSubscriptionsPerConnection, MaxSubscribersPerTopic, MaxTopicBytes;
 	size_t MaxWildcardNodes; /* Zero disables wildcard subscriptions. */
+	size_t MaxRetainedTopics, MaxRetainedBytes; /* Either zero disables retention. */
 	int64 ConnectTimeout;
 	xmqttcodecconfig Codec;
 	bool Allow311;
@@ -44,10 +45,11 @@ typedef struct xmqttserverconfig {
 
 typedef struct xmqttserverinfo {
 	size_t Connections, Established, Subscriptions, WildcardNodes;
+	size_t RetainedTopics, RetainedBytes; /* Resident records and bytes for wire data and publisher IDs. */
 	uint64 Accepted, Refused, TimedOut;
 	/* Forwarded counts native queue acceptance. DroppedDeliveries counts
 	 * matching deliveries refused before acceptance. */
-	uint64 Forwarded, DroppedDeliveries, RejectedPublications;
+	uint64 Forwarded, DroppedDeliveries, RejectedPublications, DroppedRetained;
 	bool Closing;
 } xmqttserverinfo;
 
@@ -55,7 +57,8 @@ typedef struct xmqttserverinfo {
  * wire cap, max 64 properties and 128 filters per request. MQTT 5.0 only.
  * Up to 65536 subscriptions total, 64 per connection, 1024 subscribers
  * per filter, 1024 bytes per topic/filter, and 65536 wildcard index nodes.
- * Wildcard filters have at most 128 levels. Authorizers default to
+ * Wildcard filters have at most 128 levels. Retention defaults to 4096
+ * topics and 16 MiB for wire data and publisher IDs. Authorizers default to
  * anonymous access. Install application policy before listening externally.
  * Compile xmqtt_codec311 as well to enable Allow311. */
 XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config);

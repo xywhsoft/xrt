@@ -43,18 +43,21 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		benchReceive(Socket, Reply + 2, Reply[1]) && !Reply[2] && !Reply[3];
 }
 
+static const unsigned char ExactSubscribe[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
+static const unsigned char SubscribeAck[] = {0x90,4,0,1,0,0};
+static const unsigned char RetainedFrame[138] = {0x31,0x87,1,0,4,'l','o','a','d',0};
+
 static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared)
 {
-	const unsigned char Request[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
 	const unsigned char Group[] = {0x82,19,0,1,0,0,13,'$','s','h','a','r','e','/','g','/','l','o','a','d',0};
 	const unsigned char Extra[] = {0x82,16,0,1,0,0,4,'l','o','a','d',0,0,3,'+','/','#',0};
-	const unsigned char Ack[] = {0x90,4,0,1,0,0}, ExtraAck[] = {0x90,5,0,1,0,0,0};
+	const unsigned char ExtraAck[] = {0x90,5,0,1,0,0,0};
 	unsigned char Reply[sizeof(ExtraAck)];
-	size_t Bytes = Overlap ? sizeof(ExtraAck) : sizeof(Ack);
-	const unsigned char* Wire = Shared ? Group : (Overlap ? Extra : Request);
-	size_t WireSize = Shared ? sizeof(Group) : (Overlap ? sizeof(Extra) : sizeof(Request));
+	size_t Bytes = Overlap ? sizeof(ExtraAck) : sizeof(SubscribeAck);
+	const unsigned char* Wire = Shared ? Group : (Overlap ? Extra : ExactSubscribe);
+	size_t WireSize = Shared ? sizeof(Group) : (Overlap ? sizeof(Extra) : sizeof(ExactSubscribe));
 	return benchSend(Socket, Wire, WireSize) &&
-		benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Overlap ? ExtraAck : Ack, Bytes);
+		benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Overlap ? ExtraAck : SubscribeAck, Bytes);
 }
 
 static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, size_t Deliveries, bool Shared, double* Samples)
@@ -80,6 +83,26 @@ static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Ro
 	return true;
 }
 
+static bool benchReplayRound(const xnetsocket* Sockets, size_t Peers, size_t Round,
+	double* SentAt, double* Samples)
+{
+	size_t First = Round % Peers;
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		size_t Index = (First + Offset) % Peers;
+		SentAt[Index] = xrtTimer();
+		if (!benchSend(Sockets[Index], ExactSubscribe, sizeof(ExactSubscribe))) return false;
+	}
+	for (size_t Offset = 0; Offset < Peers; ++Offset) {
+		size_t Index = (First + Offset) % Peers;
+		unsigned char Ack[sizeof(SubscribeAck)], Payload[sizeof(RetainedFrame)];
+		if (!benchReceive(Sockets[Index], Ack, sizeof(Ack)) || memcmp(Ack, SubscribeAck, sizeof(Ack)) ||
+			!benchReceive(Sockets[Index], Payload, sizeof(Payload)) ||
+			memcmp(Payload, RetainedFrame, sizeof(Payload))) return false;
+		Samples[Offset] = xrtTimer() - SentAt[Index];
+	}
+	return true;
+}
+
 static int benchOrder(const void* Left, const void* Right)
 {
 	double A = *(const double*)Left, B = *(const double*)Right;
@@ -101,7 +124,8 @@ int main(int Argc, char** Argv)
 		return 1;
 	bool Overlap = Argc > 4 && !strcmp(Argv[4], "overlap");
 	bool Shared = Argc > 4 && !strcmp(Argv[4], "shared");
-	bool Routing = Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
+	bool Replay = Argc > 4 && !strcmp(Argv[4], "retained");
+	bool Routing = Replay || Shared || Overlap || (Argc > 4 && !strcmp(Argv[4], "route"));
 	const size_t Connections = Peers + Routing, Deliveries = Shared ? 1 : Peers;
 	const size_t Count = Deliveries * Rounds;
 	xnetsocket* Sockets = calloc(Connections, sizeof(*Sockets));
@@ -130,18 +154,29 @@ int main(int Argc, char** Argv)
 	}
 	double ConnectSeconds = xrtTimer() - Start;
 
-	if (Routing) {
+	if (Replay) {
+		Stage = "store retained message";
+		const unsigned char Ping[] = {0xc0,0};
+		unsigned char Pong[2];
+		if (!benchSend(Sockets[Peers], RetainedFrame, sizeof(RetainedFrame)) ||
+			!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
+			Pong[0] != 0xd0 || Pong[1]) goto Done;
+	} else if (Routing) {
 		Stage = "subscribe topic";
 		for (size_t Index = 0; Index < Peers; ++Index) {
 			if (!benchSubscribe(Sockets[Index], Overlap, Shared)) goto Done;
 		}
 	}
-	Stage = Routing ? "publish and verify fan-out" : "send PING and receive PINGRESP";
+	Stage = Replay ? "subscribe and verify replay" : (Routing ? "publish and verify fan-out" : "send PING and receive PINGRESP");
 	xmemstats Before, After;
 	xrtMemStatsEnable(true);
 	xrtMemStatsGet(&Before);
 	Start = xrtTimer();
 	for (size_t Round = 0; Round < Rounds; ++Round) {
+		if (Replay) {
+			if (!benchReplayRound(Sockets, Peers, Round, SentAt, PingSamples + Round * Peers)) goto Done;
+			continue;
+		}
 		if (Routing) {
 			if (!benchPublishRound(Sockets, Peers, Round, Deliveries, Shared, PingSamples + Round * Deliveries)) goto Done;
 			continue;
@@ -173,7 +208,7 @@ int main(int Argc, char** Argv)
 		xmqttserverinfo Info;
 		if (!benchSend(Sockets[Peers], Ping, sizeof(Ping)) || !benchReceive(Sockets[Peers], Pong, sizeof(Pong)) ||
 			Pong[0] != 0xd0 || Pong[1] || !xmqttServerInfo(Example.Server, &Info) || Info.Forwarded != Count || Info.DroppedDeliveries ||
-			Info.Subscriptions != Peers * (Overlap ? 2u : 1u)) goto Done;
+			Info.Subscriptions != Peers * (Overlap ? 2u : 1u) || Info.RetainedTopics != (size_t)Replay) goto Done;
 	}
 	printf("connect_per_sec: %.3f\nconnect_p99_us: %.3f\n",
 		(double)Connections / ConnectSeconds, benchPercentile(ConnectSamples, Connections, 0.99));

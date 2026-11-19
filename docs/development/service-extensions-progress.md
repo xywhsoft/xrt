@@ -16406,3 +16406,48 @@ Every round reached the expected member. Exact-topic comparison workloads
 also completed. The variation gate reported 13 violations on Windows and
 seven on WSL. Reports, compiler details and raw logs are in
 out/service-extensions/scope-reduction-20261119/xmqtt-shared-*.
+
+## 2026-11-19 MQTT QoS 0 retained messages and subscription options
+
+The server retains the latest QoS 0 publication per topic within topic and
+byte quotas. An empty retained publication clears the old entry and can still
+reach live subscribers. The broker reclaims due records on retained writes.
+Exact and wildcard ordinary subscriptions can replay retained messages with
+expiry adjustment. MQTT 5 Retain Handling, Retain As Published and No Local
+govern replay and live forwarding. Shared subscriptions only receive live
+publications. Retained state and publisher identities stay in memory.
+
+The initial 64-peer benchmark timed out after some SUBACKs because custom
+xmap key callbacks change a shared reentry flag during lookup. Concurrent
+readers could miss an existing topic. Both exact routing and retained lookup
+now use the existing intrusive AVL index, ordered by keyed hash and then
+topic bytes, under the shard's read/write lock. Retention has its own shards'
+locks. The fixed build delivered every response in the standalone 64-peer
+reproduction, 512 rounds on each host. A separate versioned 64-peer test
+also checks 2,048 successful replays in the mixed-version peer suite.
+
+Windows x64 and Ubuntu/WSL x64 passed both protocol selections, modular and
+single-header builds, native static and shared consumers, dependency trims
+and the independent Python peer. Tests exercise wire expiry and reclamation,
+quota and allocation rollback, same-Client-ID replay suppression across
+reconnect, mixed subscription overlap and concurrent exact routing. WSL
+ASan/UBSan and focused TSan also passed.
+
+Three unpinned loopback replicates per configuration measured time from
+SUBSCRIBE to validated SUBACK and 128-byte retained replay. The publisher
+stored the immutable wire frame before timing began. Native send admission
+and sequential peer-side receive verification are included.
+
+| Host | Subscribers | Replays/s | P99 (us) | P99.9 (us) | Requested XRT blocks/replay |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 26,838 | 64.9 | 132.3 | 1.0002 |
+| Windows x64 | 64 | 121,114 | 605.3 | 740.1 | 1.0075 |
+| Ubuntu/WSL x64 | 1 | 15,406 | 117.9 | 213.8 | 1.9984 |
+| Ubuntu/WSL x64 | 64 | 97,606 | 578.0 | 812.2 | 2.0020 |
+
+All measured retained and live exact workloads completed. The performance
+variation gate reported 17 violations on Windows and 14 on WSL across these
+workloads. Idle expired records can remain resident until reclamation. QoS
+1/2 retention, durable state, native Linux and sustained mixed load remain
+open. Logs and reports are in
+out/service-extensions/scope-reduction-20261119/xmqtt-avl-retain-*.

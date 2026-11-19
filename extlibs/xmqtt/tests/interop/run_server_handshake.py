@@ -1,5 +1,6 @@
 """Exercise the standalone MQTT TCP server and subscription routes with a separate peer."""
 import argparse
+from contextlib import ExitStack
 import json
 from pathlib import Path
 import queue
@@ -127,6 +128,50 @@ def check_shared(endpoint, legacy, modern):
             assert read(consumer, 2) == b"\xd0\0"
 
 
+def check_retained(legacy, modern):
+    key = topic(b"snapshot")
+    legacy.sendall(small_frame(0x31, key + b"old") + b"\xc0\0")
+    assert read(legacy, 2) == b"\xd0\0"
+    subscribe = small_frame(0x82, b"\0\x08\0" + key + b"\x10")
+    ack = b"\x90\x04\0\x08\0\0"
+    modern.sendall(subscribe)
+    assert read(modern, len(ack)) == ack
+    expected = small_frame(0x31, key + b"\0old")
+    assert read(modern, len(expected)) == expected
+    modern.sendall(subscribe + b"\xc0\0")
+    assert read(modern, len(ack) + 2) == ack + b"\xd0\0", "only replay for a new subscription"
+    modern.sendall(small_frame(0x82, b"\0\x09\0" + key + b"\x28") + b"\xc0\0")
+    assert read(modern, 8) == b"\x90\x04\0\x09\0\0\xd0\0"
+
+    legacy.sendall(small_frame(0x31, key + b"live"))
+    expected = small_frame(0x31, key + b"\0live")
+    assert read(modern, len(expected)) == expected, "preserve RETAIN on live deliveries when requested"
+    legacy.sendall(small_frame(0x31, key))
+    expected = small_frame(0x31, key + b"\0")
+    assert read(modern, len(expected)) == expected, "empty retained payload clears and forwards"
+    modern.sendall(small_frame(0x82, b"\0\x0a\0" + key + b"\0") + b"\xc0\0")
+    assert read(modern, 8) == b"\x90\x04\0\x0a\0\0\xd0\0"
+
+
+def check_retained_parallel(endpoint, publisher):
+    key = topic(b"parallel")
+    publisher.sendall(small_frame(0x31, key + b"stable") + b"\xc0\0")
+    assert read(publisher, 2) == b"\xd0\0"
+    subscribe = small_frame(0x82, b"\0\x01\0" + key + b"\0")
+    expected = b"\x90\x04\0\x01\0\0" + small_frame(0x31, key + b"\0stable")
+    with ExitStack() as connections:
+        peers = []
+        for index in range(64):
+            peer, _ = connect(endpoint, 5, f"replay-{index}".encode("ascii"))
+            peers.append(connections.enter_context(peer))
+        for iteration in range(32):
+            rotated = peers[iteration:] + peers[:iteration]
+            for peer in rotated:
+                peer.sendall(subscribe)
+            for peer in rotated:
+                assert read(peer, len(expected)) == expected, "concurrent exact retained lookup lost a replay"
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -157,6 +202,8 @@ def probe(program):
                         check_routes(legacy, newer)
                         check_wildcards(legacy, newer)
                         check_shared(endpoint, legacy, newer)
+                        check_retained(legacy, newer)
+                        check_retained_parallel(endpoint, legacy)
                         newer.sendall(b"\xe0\0")
                         eof(newer)
             server.stdin.write("\n")
@@ -167,7 +214,7 @@ def probe(program):
                 server.kill()
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 def main():
@@ -178,7 +225,7 @@ def main():
     result = probe(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard and shared routing")
+    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing")
 
 
 if __name__ == "__main__":

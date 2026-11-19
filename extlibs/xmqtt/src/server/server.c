@@ -20,6 +20,20 @@
 typedef struct xmqttserverpeer xmqttserverpeer;
 typedef struct xmqttserverlink xmqttserverlink;
 typedef struct xmqttserverwildnode xmqttserverwildnode;
+typedef struct xmqttserverpublication xmqttserverpublication;
+typedef struct xmqttserverkey {
+	xavlnode Node;
+	uint64 Hash;
+	xbytesview Text;
+} xmqttserverkey;
+typedef struct xmqttserverretained {
+	xmqttserverkey Key;
+	xavlnode ExpiryNode;
+	xmqttserverpublication* Publication;
+	size_t PublisherIdBytes;
+	double Received, Expires;
+	xmqttversion Version;
+} xmqttserverretained;
 typedef struct xmqttservershare {
 	xbytesview Name;
 	struct xmqttservershare *Previous, *Next;
@@ -27,7 +41,7 @@ typedef struct xmqttservershare {
 	xatomicptr Cursor; /* Structural changes take the topic shard's write lock. */
 } xmqttservershare;
 typedef struct xmqttservertopic {
-	xbytesview Key;
+	xmqttserverkey Key;
 	xmqttserverwildnode* Wildcard;
 	xmqttservershare* Shares;
 	xmqttserverlink* Head;
@@ -41,8 +55,8 @@ struct xmqttserverwildnode {
 	xbytesview Level;
 };
 typedef struct xmqttservershard {
-	xrwlock Gate;
-	xmap Topics;
+	xrwlock Gate, RetainedGate;
+	xavl Topics, Retained, RetainedExpiry;
 	xmqttserverwildnode WildcardRoot;
 	xatomic32 WildcardFilters;
 } xmqttservershard;
@@ -52,7 +66,7 @@ struct xmqttserverlink {
 	xmqttservershard* Shard;
 	xmqttservershare* Share;
 	xmqttserverlink *Previous, *Next, *PeerNext;
-	bool NoLocal;
+	uint8 Options;
 };
 
 struct xmqttserver {
@@ -64,8 +78,8 @@ struct xmqttserver {
 	xmap Identities;
 	xmqttservershard Shards[XMQTT_SERVER_TOPIC_SHARDS + 1u];
 	size_t ShardCount;
-	xatomic32 Subscriptions, WildcardNodes, WildcardFilters;
-	xatomic64 Forwarded, DroppedDeliveries, RejectedPublications;
+	xatomic32 Subscriptions, WildcardNodes, WildcardFilters, RetainedTopics, RetainedExpiring;
+	xatomic64 Forwarded, DroppedDeliveries, RejectedPublications, RetainedBytes, DroppedRetained;
 	xmqttserverpeer* Peers;
 	xmqttserverinfo Info;
 };
@@ -77,7 +91,7 @@ struct xmqttserverpeer {
 	xnetpost Retirement;
 	xmqttserverpeer *Previous, *Next;
 	xbytesview ClientId; /* Borrows the map key while registered, under Gate. */
-	xstrview PolicyId;   /* Allocated only with topic authorization. */
+	xstrview ClientName; /* Owned by the peer for topic authorization and retention. */
 	uint64 Identity;
 	xmqttserverlink* Links;
 	size_t LinkCount, PacketLimit;
@@ -130,15 +144,45 @@ static xbytesview xmqttServerLevel(xbytesview* Tail)
 	return Level;
 }
 
+static int xmqttServerCompareBytes(xbytesview Left, xbytesview Right)
+{
+	size_t Common = Left.Size < Right.Size ? Left.Size : Right.Size;
+	int Order = Common ? memcmp(Left.Data, Right.Data, Common) : 0;
+	return Order ? Order : (Left.Size > Right.Size) - (Left.Size < Right.Size);
+}
+
 static int xmqttServerCompareLevel(const void* Data, const xavlnode* Sibling, ptr User)
 {
 	(void)User;
-	const xbytesview* Left = Data;
 	const xmqttserverwildnode* Node = (const xmqttserverwildnode*)Sibling;
-	const xbytesview* Right = &Node->Level;
-	size_t Common = Left->Size < Right->Size ? Left->Size : Right->Size;
-	int Order = Common ? memcmp(Left->Data, Right->Data, Common) : 0;
-	return Order ? Order : (Left->Size > Right->Size) - (Left->Size < Right->Size);
+	return xmqttServerCompareBytes(*(const xbytesview*)Data, Node->Level);
+}
+
+/* Probe the table under shared locks. Both this comparator and AVL lookup
+ * leave the index untouched, including during concurrent comparisons. */
+static int xmqttServerCompareKey(const void* Data, const xavlnode* Sibling, ptr User)
+{
+	(void)User;
+	const xmqttserverkey* Left = Data;
+	const xmqttserverkey* Right = (const xmqttserverkey*)Sibling;
+	if (Left->Hash != Right->Hash) return Left->Hash < Right->Hash ? -1 : 1;
+	return xmqttServerCompareBytes(Left->Text, Right->Text);
+}
+
+static void xmqttServerInsertKey(xavl* Index, xmqttserverkey* Entry, uint64 Hash,
+	xbytesview Key, unsigned char* Text)
+{
+	memcpy(Text, Key.Data, Key.Size);
+	Entry->Hash = Hash;
+	Entry->Text = (xbytesview){Text, Key.Size};
+	xrtAVLNodeInit(&Entry->Node);
+	if (xrtAVLInsert(Index, &Entry->Node, Entry, xmqttServerCompareKey, NULL, NULL) != &Entry->Node) abort();
+}
+
+static ptr xmqttServerFindKey(const xavl* Index, uint64 Hash, xbytesview Key)
+{
+	xmqttserverkey Probe = {.Hash = Hash, .Text = Key};
+	return xrtAVLFind(Index, &Probe, xmqttServerCompareKey, NULL);
 }
 
 static xmqttserverwildnode* xmqttServerFindLevel(const xmqttserverwildnode* Node, xbytesview Level)
@@ -164,7 +208,7 @@ static void xmqttServerPruneWildcard(xmqttserver* Server, xmqttserverwildnode* N
 static uint8 xmqttServerAddWildcard(xmqttserver* Server, xmqttservershard* Shard, xmqttservertopic* Topic)
 {
 	xmqttserverwildnode* Node = &Shard->WildcardRoot;
-	xbytesview Tail = Topic->Key;
+	xbytesview Tail = Topic->Key.Text;
 	unsigned Depth = 0;
 	uint8 Reason = 0x97;
 	while (Tail.Data) {
@@ -211,7 +255,8 @@ static void xmqttServerRemoveTopic(xmqttserver* Server, xmqttservershard* Shard,
 		xrtAtomic32FetchSub(&Shard->WildcardFilters, 1, XMEMORY_RELEASE);
 		xrtAtomic32FetchSub(&Server->WildcardFilters, 1, XMEMORY_RELEASE);
 	}
-	if (!xrtMapRemove(&Shard->Topics, Topic->Key)) abort();
+	if (xrtAVLRemove(&Shard->Topics, &Topic->Key, xmqttServerCompareKey, NULL) != &Topic->Key.Node) abort();
+	xrtFree(Topic);
 }
 
 static void xmqttServerUnlinkTopic(xmqttserverlink* Link)
@@ -252,7 +297,7 @@ static void xmqttServerPeerRetire(xnetworker* Worker, ptr Data)
 		Peer->Links = Link->PeerNext;
 		xmqttServerUnlinkTopic(Link);
 	}
-	xrtFree((ptr)Peer->PolicyId.Data);
+	xrtFree((ptr)Peer->ClientName.Data);
 	xrtMutexLock(&Server->Gate);
 	if (Peer->ClientId.Size) {
 		xrtMapRemove(&Server->Identities, Peer->ClientId);
@@ -379,7 +424,7 @@ static bool xmqttServerWriteConnack(xmqttserverpeer* Peer, uint8 Reason5, uint8 
 	if (Peer->Version == XMQTT_VERSION_5) {
 		xmqttproperty Limits[] = {
 			{XMQTT_PROPERTY_MAXIMUM_QOS, XMQTT_PROPERTY_BYTE, {.Number = 0}},
-			{XMQTT_PROPERTY_RETAIN_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 0}},
+			{XMQTT_PROPERTY_RETAIN_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = Peer->Server->Config.MaxRetainedTopics != 0}},
 			{XMQTT_PROPERTY_WILDCARD_AVAILABLE, XMQTT_PROPERTY_BYTE,
 				{.Number = Peer->Server->Config.MaxWildcardNodes != 0}},
 			{XMQTT_PROPERTY_SUBSCRIPTION_ID_AVAILABLE, XMQTT_PROPERTY_BYTE, {.Number = 0}},
@@ -479,14 +524,14 @@ static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		else xmqttServerRefuse(Peer, 0x87, 5, PacketLimit, Now);
 		return;
 	}
-	if (Server->Config.AuthorizeTopic) {
+	if (Server->Config.AuthorizeTopic || Server->Config.MaxRetainedTopics) {
 		char* Id = xrtMalloc(Connect->ClientId.Size);
 		if (!Id) {
 			xmqttServerRefuse(Peer, 0x88, 3, PacketLimit, Now);
 			return;
 		}
 		memcpy(Id, Connect->ClientId.Data, Connect->ClientId.Size);
-		Peer->PolicyId = (xstrview){Id, Connect->ClientId.Size};
+		Peer->ClientName = (xstrview){Id, Connect->ClientId.Size};
 	}
 	if (!xmqttServerClaimId(Peer, Connect->ClientId)) {
 		xmqttServerRefuse(Peer, 0x88, 3, PacketLimit, Now);
@@ -502,21 +547,24 @@ static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 	Peer->Online = true;
 }
 
+static void xmqttServerRemoveRetained(xmqttserver* Server, xmqttservershard* Shard,
+	xmqttserverretained* Retained);
+
 static bool xmqttServerInitTopics(xmqttserver* Server)
 {
 	for (; Server->ShardCount < sizeof(Server->Shards) / sizeof(Server->Shards[0]); ++Server->ShardCount) {
 		xmqttservershard* Shard = Server->Shards + Server->ShardCount;
 		if (!xrtRWLockInit(&Shard->Gate)) return false;
-		if (!xrtMapInit(&Shard->Topics, sizeof(xmqttservertopic))) {
-			xrtRWLockUnit(&Shard->Gate);
-			return false;
-		}
+		xrtAVLInit(&Shard->Topics);
+		xrtAVLInit(&Shard->WildcardRoot.Children);
 		xrtAtomic32Init(&Shard->WildcardFilters, 0);
-		if (!xrtAVLInit(&Shard->WildcardRoot.Children) ||
-			!xrtMapSetKeyPolicy(&Shard->Topics, xmqttServerIdHash, xmqttServerIdEqual, &Server->HashKey)) {
-			xrtMapUnit(&Shard->Topics);
-			xrtRWLockUnit(&Shard->Gate);
-			return false;
+		if (Server->Config.MaxRetainedTopics && Server->ShardCount < XMQTT_SERVER_TOPIC_SHARDS) {
+			if (!xrtRWLockInit(&Shard->RetainedGate)) {
+				xrtRWLockUnit(&Shard->Gate);
+				return false;
+			}
+			xrtAVLInit(&Shard->Retained);
+			xrtAVLInit(&Shard->RetainedExpiry);
 		}
 	}
 	return true;
@@ -526,15 +574,19 @@ static void xmqttServerUnitTopics(xmqttserver* Server)
 {
 	while (Server->ShardCount) {
 		xmqttservershard* Shard = Server->Shards + --Server->ShardCount;
-		if (Shard->WildcardRoot.Children.Root) abort();
-		xrtMapUnit(&Shard->Topics);
+		if (Shard->WildcardRoot.Children.Root || Shard->Topics.Root) abort();
+		if (Server->Config.MaxRetainedTopics && Server->ShardCount < XMQTT_SERVER_TOPIC_SHARDS) {
+			while (Shard->Retained.Root)
+				xmqttServerRemoveRetained(Server, Shard, (xmqttserverretained*)Shard->Retained.Root);
+			xrtRWLockUnit(&Shard->RetainedGate);
+		}
 		xrtRWLockUnit(&Shard->Gate);
 	}
 }
 
-static xmqttservershard* xmqttServerShard(xmqttserver* Server, xbytesview Key)
+static xmqttservershard* xmqttServerShard(xmqttserver* Server, uint64 Hash)
 {
-	return Server->Shards + (xmqttServerIdHash(Key, &Server->HashKey) & (XMQTT_SERVER_TOPIC_SHARDS - 1));
+	return Server->Shards + (Hash & (XMQTT_SERVER_TOPIC_SHARDS - 1));
 }
 
 static xmqttservershard* xmqttServerWildcardShard(xmqttserver* Server, xbytesview Key)
@@ -542,7 +594,7 @@ static xmqttservershard* xmqttServerWildcardShard(xmqttserver* Server, xbytesvie
 	if (Key.Data[0] == '+' || Key.Data[0] == '#')
 		return Server->Shards + XMQTT_SERVER_ROOT_WILDCARDS;
 	xbytesview First = xmqttServerLevel(&Key);
-	return xmqttServerShard(Server, First);
+	return xmqttServerShard(Server, xmqttServerIdHash(First, &Server->HashKey));
 }
 
 static bool xmqttServerHasWildcard(xbytesview Filter)
@@ -580,28 +632,33 @@ static xmqttserverlink** xmqttServerFindLink(xmqttserverpeer* Peer, xbytesview K
 	for (xmqttserverlink** Place = &Peer->Links; ; Place = &(*Place)->PeerNext) {
 		xmqttserverlink* Link = *Place;
 		if (!Link) return Place;
-		if (xmqttServerIdEqual(Link->Topic->Key, Key, NULL) &&
+		if (xmqttServerIdEqual(Link->Topic->Key.Text, Key, NULL) &&
 			(Link->Share ? Name.Size && xmqttServerIdEqual(Link->Share->Name, Name, NULL) : !Name.Size))
 			return Place;
 	}
 }
 
-static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesview Name, bool NoLocal)
+static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesview Name,
+	uint8 Options, xbytesview* Replay)
 {
 	xmqttserver* Server = Peer->Server;
+	uint8 Handling = Options & XMQTT_SUBSCRIBE_RETAIN_HANDLING_MASK;
+	bool Retained = !Name.Size && Server->Config.MaxRetainedTopics;
 	xmqttserverlink* Existing = *xmqttServerFindLink(Peer, Key, Name);
 	if (Existing) {
 		xrtRWLockWrite(&Existing->Shard->Gate);
-		Existing->NoLocal = NoLocal;
+		Existing->Options = Options;
+		if (Replay && Retained && !Handling) *Replay = Existing->Topic->Key.Text;
 		xrtRWLockWriteUnlock(&Existing->Shard->Gate);
 		return 0;
 	}
 	if (Peer->LinkCount >= Server->Config.MaxSubscriptionsPerConnection) return 0x97;
 
 	bool Wildcard = xmqttServerHasWildcard(Key);
-	xmqttservershard* Shard = Wildcard ? xmqttServerWildcardShard(Server, Key) : xmqttServerShard(Server, Key);
+	uint64 Hash = xmqttServerIdHash(Key, &Server->HashKey);
+	xmqttservershard* Shard = Wildcard ? xmqttServerWildcardShard(Server, Key) : xmqttServerShard(Server, Hash);
 	xrtRWLockWrite(&Shard->Gate);
-	xmqttservertopic* Topic = xrtMapGet(&Shard->Topics, Key);
+	xmqttservertopic* Topic = xmqttServerFindKey(&Shard->Topics, Hash, Key);
 	if ((Topic && Topic->Count >= Server->Config.MaxSubscribersPerTopic) ||
 		!xmqttServerReserve(&Server->Subscriptions, Server->Config.MaxSubscriptions)) {
 		xrtRWLockWriteUnlock(&Shard->Gate);
@@ -611,15 +668,15 @@ static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesv
 	xmqttserverlink* Link = xrtMalloc(sizeof(*Link));
 	uint8 Rejected = 0x83;
 	if (Link && !Topic) {
-		Topic = xrtMapGetOrAdd(&Shard->Topics, Key, NULL);
+		Topic = xrtMalloc(sizeof(*Topic) + Key.Size);
 		if (Topic) {
 			*Topic = (xmqttservertopic){0};
-			if (!xrtMapStoredKey(&Shard->Topics, Key, &Topic->Key)) abort();
+			xmqttServerInsertKey(&Shard->Topics, &Topic->Key, Hash, Key, (unsigned char*)(Topic + 1));
 			if (Wildcard) {
 				uint8 Reason = xmqttServerAddWildcard(Server, Shard, Topic);
 				if (Reason) {
 					Rejected = Reason;
-					if (!xrtMapRemove(&Shard->Topics, Key)) abort();
+					xmqttServerRemoveTopic(Server, Shard, Topic);
 					Topic = NULL;
 				}
 			}
@@ -636,7 +693,7 @@ static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesv
 	xmqttserverlink** Head = Share ? &Share->Head : &Topic->Head;
 	*Link = (xmqttserverlink){
 		.Peer = Peer, .Topic = Topic, .Shard = Shard, .Share = Share, .Next = *Head,
-		.PeerNext = Peer->Links, .NoLocal = NoLocal
+		.PeerNext = Peer->Links, .Options = Options
 	};
 	if (Link->Next) Link->Next->Previous = Link;
 	else if (Share) xrtAtomicPtrStore(&Share->Cursor, Link, XMEMORY_RELAXED);
@@ -644,6 +701,7 @@ static uint8 xmqttServerSubscribe(xmqttserverpeer* Peer, xbytesview Key, xbytesv
 	++Topic->Count;
 	Peer->Links = Link;
 	++Peer->LinkCount;
+	if (Replay && Retained && Handling != 0x20) *Replay = Topic->Key.Text;
 	xrtRWLockWriteUnlock(&Shard->Gate);
 	return 0;
 }
@@ -672,8 +730,10 @@ static bool xmqttServerTopicAllowed(xmqttserverpeer* Peer, xstrview Topic, bool 
 {
 	const xmqttserverconfig* Config = &Peer->Server->Config;
 	return !Config->AuthorizeTopic ||
-		Config->AuthorizeTopic(Peer->Version, Peer->PolicyId, Topic, Publishing, Config->User) == XMQTT_SERVER_ALLOW;
+		Config->AuthorizeTopic(Peer->Version, Peer->ClientName, Topic, Publishing, Config->User) == XMQTT_SERVER_ALLOW;
 }
+
+static void xmqttServerReplayRetained(xmqttserverpeer* Peer, xbytesview Filter, bool NoLocal);
 
 static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* Packet, double Now)
 {
@@ -698,6 +758,8 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 	}
 
 	unsigned char Reasons[XMQTT_SERVER_MAX_FILTERS];
+	struct { xbytesview Filter; bool NoLocal; } Replay[XMQTT_SERVER_MAX_FILTERS];
+	size_t ReplayCount = 0;
 	for (size_t Index = 0; Index < Filters.Count; ++Index) {
 		const xmqttsubscription* Filter = Filters.Data + Index;
 		xbytesview Key = {(cbytes)Filter->Filter.Data, Filter->Filter.Size};
@@ -711,7 +773,14 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 		} else if (!xmqttServerTopicAllowed(Peer, Filter->Filter, false)) {
 			Reason = 0x87;
 		} else {
-			Reason = xmqttServerSubscribe(Peer, Key, Name, (Filter->Options & XMQTT_SUBSCRIBE_NO_LOCAL) != 0);
+			/* Keep the topic-owned filter through native sends. This peer
+			 * owns its link until the deferred connection retirement. */
+			xbytesview FilterToReplay = {0};
+			Reason = xmqttServerSubscribe(Peer, Key, Name, Filter->Options, &FilterToReplay);
+			if (FilterToReplay.Data) {
+				Replay[ReplayCount].Filter = FilterToReplay;
+				Replay[ReplayCount++].NoLocal = (Filter->Options & XMQTT_SUBSCRIBE_NO_LOCAL) != 0;
+			}
 		}
 		Reasons[Index] = V5 || !Reason ? Reason : 0x80;
 	}
@@ -729,15 +798,19 @@ static void xmqttServerFilterRequest(xmqttserverpeer* Peer, const xmqttpacket* P
 	else
 #endif
 		Encoded = xmqttPacketWrite5(Wire, sizeof(Wire), &Reply, XMQTT_SERVER_TO_CLIENT, NULL, &Bytes);
-	if (!Encoded || Bytes > Peer->PacketLimit || xrtNetStreamSend(Peer->Stream, Wire, Bytes) != XNET_RESULT_OK)
+	if (!Encoded || Bytes > Peer->PacketLimit || xrtNetStreamSend(Peer->Stream, Wire, Bytes) != XNET_RESULT_OK) {
 		xmqttServerAbortPeer(Peer);
+		return;
+	}
+	for (size_t Index = 0; Index < ReplayCount && !Peer->Closing; ++Index)
+		xmqttServerReplayRetained(Peer, Replay[Index].Filter, Replay[Index].NoLocal);
 }
 
-typedef struct xmqttserverpublication {
+struct xmqttserverpublication {
 	xatomic32 References;
 	size_t Size;
 	unsigned char Wire[];
-} xmqttserverpublication;
+};
 
 static void xmqttServerFreePublication(ptr Data, cbytes Wire, size_t Size)
 {
@@ -748,23 +821,34 @@ static void xmqttServerFreePublication(ptr Data, cbytes Wire, size_t Size)
 		xrtFree(Publication);
 }
 
-static xmqttserverpublication* xmqttServerEncodePublish(const xmqttpacket* Packet, xmqttversion Origin,
-	xmqttversion Target, bool Rewrite, const xmqttcodecconfig* Codec)
+static xmqttserverpublication* xmqttServerCopyPublication(xbytesview Wire, uint8 Flags, xstrview Publisher)
 {
-	bool Copy = Origin == Target && !Rewrite;
+	xmqttserverpublication* Publication = xrtMalloc(sizeof(*Publication) + Wire.Size + Publisher.Size);
+	if (!Publication) return NULL;
+	xrtAtomic32Init(&Publication->References, 1);
+	Publication->Size = Wire.Size;
+	memcpy(Publication->Wire, Wire.Data, Wire.Size);
+	Publication->Wire[0] = (Publication->Wire[0] & 0xf0u) | Flags;
+	if (Publisher.Size) memcpy(Publication->Wire + Wire.Size, Publisher.Data, Publisher.Size);
+	return Publication;
+}
+
+static xmqttserverpublication* xmqttServerEncodePublish(const xmqttpacket* Packet, xmqttversion Origin,
+	xmqttversion Target, uint8 Flags, bool Rewrite, const xmqttcodecconfig* Codec)
+{
+	if (Origin == Target && !Rewrite) return xmqttServerCopyPublication(Packet->Wire, Flags, (xstrview){0});
 	xmqttpacket Out = *Packet;
-	Out.Flags = 0;
+	Out.Flags = Flags;
 	if (Target == XMQTT_VERSION_311) Out.Properties = (xmqttpropertylist){0};
 	xmqttcodecconfig Encoding = *Codec;
 	Encoding.MaxPacketBytes = XMQTT_PACKET_MAX_BYTES;
 	size_t Size;
-	if (Copy) {
-		Size = Packet->Wire.Size;
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
-	} else if (Target == XMQTT_VERSION_311) {
+	if (Target == XMQTT_VERSION_311) {
 		if (!xmqttPacketSize311(&Out, XMQTT_SERVER_TO_CLIENT, &Encoding, &Size)) return NULL;
+	} else
 #endif
-	} else {
+	{
 		if (!xmqttPacketSize5(&Out, XMQTT_SERVER_TO_CLIENT, &Encoding, &Size)) return NULL;
 	}
 
@@ -772,10 +856,6 @@ static xmqttserverpublication* xmqttServerEncodePublish(const xmqttpacket* Packe
 	if (!Publication) return NULL;
 	xrtAtomic32Init(&Publication->References, 1);
 	Publication->Size = Size;
-	if (Copy) {
-		memcpy(Publication->Wire, Packet->Wire.Data, Size);
-		return Publication;
-	}
 	size_t Written;
 	bool OK;
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
@@ -799,42 +879,267 @@ static bool xmqttServerDeliver(xmqttserverpeer* Peer, xmqttserverpublication* Pu
 	return false;
 }
 
+static xmqttserverretained* xmqttServerExpiryRecord(xavlnode* Node)
+{
+	return (xmqttserverretained*)((unsigned char*)Node - offsetof(xmqttserverretained, ExpiryNode));
+}
+
+static int xmqttServerCompareExpiry(const void* Key, const xavlnode* Node, ptr User)
+{
+	(void)User;
+	const xmqttserverretained* Left = Key;
+	const xmqttserverretained* Right = xmqttServerExpiryRecord((xavlnode*)Node);
+	if (Left->Expires != Right->Expires) return Left->Expires < Right->Expires ? -1 : 1;
+	uintptr_t A = (uintptr_t)Left, B = (uintptr_t)Right;
+	return (A > B) - (A < B);
+}
+
+static void xmqttServerRemoveRetained(xmqttserver* Server, xmqttservershard* Shard,
+	xmqttserverretained* Retained)
+{
+	if (Retained->Expires) {
+		if (xrtAVLRemove(&Shard->RetainedExpiry, Retained, xmqttServerCompareExpiry, NULL) !=
+			&Retained->ExpiryNode) abort();
+		xrtAtomic32FetchSub(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
+	}
+	if (xrtAVLRemove(&Shard->Retained, &Retained->Key, xmqttServerCompareKey, NULL) !=
+		&Retained->Key.Node) abort();
+	xmqttserverpublication* Publication = Retained->Publication;
+	xrtAtomic64FetchSub(&Server->RetainedBytes, Publication->Size + Retained->PublisherIdBytes, XMEMORY_RELAXED);
+	xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
+	xmqttServerFreePublication(Publication, NULL, 0);
+	xrtFree(Retained);
+}
+
+static void xmqttServerExpireRetained(xmqttserver* Server, xmqttservershard* Shard, double Now)
+{
+	for (;;) {
+		xavlnode* First = xrtAVLFirst(&Shard->RetainedExpiry);
+		if (!First) return;
+		xmqttserverretained* Earliest = xmqttServerExpiryRecord(First);
+		if (Earliest->Expires > Now) return;
+		xmqttServerRemoveRetained(Server, Shard, Earliest);
+	}
+}
+
+static bool xmqttServerReserveRetained(xmqttserver* Server, size_t Bytes)
+{
+	if (!xmqttServerReserve(&Server->RetainedTopics, Server->Config.MaxRetainedTopics)) return false;
+	uint64 Used = xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED);
+	while (Bytes <= Server->Config.MaxRetainedBytes - Used) {
+		if (xrtAtomic64CompareExchange(&Server->RetainedBytes, &Used, Used + Bytes,
+			XMEMORY_RELAXED, XMEMORY_RELAXED)) return true;
+	}
+	xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
+	return false;
+}
+
+static void xmqttServerStoreRetained(xmqttserverpeer* Peer, const xmqttpacket* Packet,
+	const xmqttproperty* Expiry, double Now)
+{
+	xmqttserver* Server = Peer->Server;
+	xstrview Name = Packet->Body.Publish.Topic;
+	xbytesview Key = {(cbytes)Name.Data, Name.Size};
+	xmqttservershard* Shard = xmqttServerWildcardShard(Server, Key);
+	uint64 Hash = xmqttServerIdHash(Key, &Server->HashKey);
+	size_t Bytes = Packet->Wire.Size + Peer->ClientName.Size;
+	bool Store = Packet->Body.Publish.Payload.Size && (!Expiry || Expiry->Value.Number);
+	bool Room = Bytes <= Server->Config.MaxRetainedBytes;
+
+	xrtRWLockWrite(&Shard->RetainedGate);
+	xmqttServerExpireRetained(Server, Shard, Now);
+	xmqttserverretained* Previous = xmqttServerFindKey(&Shard->Retained, Hash, Key);
+	size_t PreviousBytes = Previous ? Previous->Publication->Size + Previous->PublisherIdBytes : 0;
+	size_t Growth = Bytes > PreviousBytes ? Bytes - PreviousBytes : 0;
+	/* Try other shards only under pressure from records that might expire.
+	 * Never hold two retention locks, or a routing and retention lock. */
+	if (Store && Room && xrtAtomic32Load(&Server->RetainedExpiring, XMEMORY_RELAXED) &&
+		((!Previous && xrtAtomic32Load(&Server->RetainedTopics, XMEMORY_RELAXED) >= Server->Config.MaxRetainedTopics) ||
+		Growth >
+			Server->Config.MaxRetainedBytes - xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED))) {
+		xrtRWLockWriteUnlock(&Shard->RetainedGate);
+		for (size_t Index = 0; Index < XMQTT_SERVER_TOPIC_SHARDS; ++Index) {
+			xmqttservershard* Other = Server->Shards + Index;
+			if (Other == Shard || !xrtRWLockTryWrite(&Other->RetainedGate)) continue;
+			xmqttServerExpireRetained(Server, Other, Now);
+			xrtRWLockWriteUnlock(&Other->RetainedGate);
+		}
+		xrtRWLockWrite(&Shard->RetainedGate);
+		xmqttServerExpireRetained(Server, Shard, Now);
+		Previous = xmqttServerFindKey(&Shard->Retained, Hash, Key);
+	}
+	if (Previous) xmqttServerRemoveRetained(Server, Shard, Previous);
+	if (Store) {
+		xmqttserverpublication* Copy = NULL;
+		xmqttserverretained* Entry = NULL;
+		if (Room && xmqttServerReserveRetained(Server, Bytes)) {
+			Copy = xmqttServerCopyPublication(Packet->Wire, XMQTT_PUBLISH_RETAIN, Peer->ClientName);
+			if (Copy) Entry = xrtMalloc(sizeof(*Entry) + Key.Size);
+			if (!Entry) {
+				if (Copy) xmqttServerFreePublication(Copy, NULL, 0);
+				xrtAtomic64FetchSub(&Server->RetainedBytes, Bytes, XMEMORY_RELAXED);
+				xrtAtomic32FetchSub(&Server->RetainedTopics, 1, XMEMORY_RELAXED);
+			}
+		}
+		if (Entry) {
+			*Entry = (xmqttserverretained){.Publication = Copy, .Version = Peer->Version,
+				.PublisherIdBytes = Peer->ClientName.Size, .Received = Now,
+				.Expires = Expiry ? Now + Expiry->Value.Number : 0};
+			xmqttServerInsertKey(&Shard->Retained, &Entry->Key, Hash, Key, (unsigned char*)(Entry + 1));
+			if (Entry->Expires) {
+				xrtAVLNodeInit(&Entry->ExpiryNode);
+				if (xrtAVLInsert(&Shard->RetainedExpiry, &Entry->ExpiryNode, Entry,
+					xmqttServerCompareExpiry, NULL, NULL) != &Entry->ExpiryNode) abort();
+				xrtAtomic32FetchAdd(&Server->RetainedExpiring, 1, XMEMORY_RELAXED);
+			}
+		} else {
+			xrtAtomic64FetchAdd(&Server->DroppedRetained, 1, XMEMORY_RELAXED);
+		}
+	}
+	xrtRWLockWriteUnlock(&Shard->RetainedGate);
+}
+
+static bool xmqttServerRetainedMatch(xbytesview Filter, xbytesview Name)
+{
+	if (Name.Data[0] == '$' && Filter.Data[0] != '$') return false;
+	while (Filter.Data) {
+		xbytesview Part = xmqttServerLevel(&Filter);
+		if (Part.Size == 1 && Part.Data[0] == '#') return true;
+		if (!Name.Data) return false;
+		xbytesview Level = xmqttServerLevel(&Name);
+		if (!(Part.Size == 1 && Part.Data[0] == '+') &&
+			!xmqttServerIdEqual(Part, Level, NULL)) return false;
+	}
+	return !Name.Data;
+}
+
+static xmqttserverpublication* xmqttServerRecodeRetained(xmqttserverpeer* Peer,
+	const xmqttserverretained* Retained, uint32 Elapsed)
+{
+	const xmqttcodecconfig* Codec = &Peer->Server->Config.Codec;
+	xmqttproperty Properties[XMQTT_SERVER_MAX_PROPERTIES];
+	const xmqttcodecbuffers Scratch = {Properties, XMQTT_SERVER_MAX_PROPERTIES, NULL, 0};
+	xbytesview Input = {Retained->Publication->Wire, Retained->Publication->Size};
+	xmqttpacket Packet;
+	xmqttcodecstatus Decoded;
+#if defined(XMQTT_FEATURE_XMQTT_CODEC311)
+	if (Retained->Version == XMQTT_VERSION_311)
+		Decoded = xmqttPacketRead311(Input, XMQTT_SERVER_TO_CLIENT, Codec, &Scratch, &Packet, NULL);
+	else
+#endif
+		Decoded = xmqttPacketRead5(Input, XMQTT_SERVER_TO_CLIENT, Codec, &Scratch, &Packet, NULL);
+	if (Decoded != XMQTT_CODEC_DONE) return NULL;
+	for (size_t Index = 0; Index < Packet.Properties.Count; ++Index) {
+		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) {
+			if (Elapsed >= Properties[Index].Value.Number) return NULL;
+			Properties[Index].Value.Number -= Elapsed;
+			break;
+		}
+	}
+	return xmqttServerEncodePublish(&Packet, Retained->Version, Peer->Version,
+		XMQTT_PUBLISH_RETAIN, Elapsed != 0, Codec);
+}
+
+static void xmqttServerReplayEntry(xmqttserverpeer* Peer, const xmqttserverretained* Retained, bool NoLocal)
+{
+	if (NoLocal && Peer->ClientName.Size == Retained->PublisherIdBytes &&
+		!memcmp(Peer->ClientName.Data, Retained->Publication->Wire + Retained->Publication->Size,
+			Retained->PublisherIdBytes)) return;
+	uint32 Elapsed = 0;
+	if (Retained->Expires) {
+		double Now = xrtTimer();
+		if (!isfinite(Now) || Now >= Retained->Expires) return;
+		if (Now > Retained->Received) Elapsed = (uint32)(Now - Retained->Received);
+	}
+	bool Recode = Peer->Version != Retained->Version || Elapsed;
+	xmqttserverpublication* Frame = Recode ?
+		xmqttServerRecodeRetained(Peer, Retained, Elapsed) : Retained->Publication;
+	if (xmqttServerDeliver(Peer, Frame))
+		xrtAtomic64FetchAdd(&Peer->Server->Forwarded, 1, XMEMORY_RELAXED);
+	else
+		xrtAtomic64FetchAdd(&Peer->Server->DroppedDeliveries, 1, XMEMORY_RELAXED);
+	if (Recode && Frame) xmqttServerFreePublication(Frame, NULL, 0);
+}
+
+static void xmqttServerReplayRetained(xmqttserverpeer* Peer, xbytesview Filter, bool NoLocal)
+{
+	xmqttserver* Server = Peer->Server;
+	if (!xrtAtomic32Load(&Server->RetainedTopics, XMEMORY_RELAXED)) return;
+	xmqttservershard* Shard = xmqttServerWildcardShard(Server, Filter);
+	bool Wildcard = xmqttServerHasWildcard(Filter);
+	xmqttservershard* End = Shard + 1;
+	if (Shard == Server->Shards + XMQTT_SERVER_ROOT_WILDCARDS) {
+		End = Shard;
+		Shard = Server->Shards;
+	}
+	for (; Shard != End && !Peer->Closing; ++Shard) {
+		xrtRWLockRead(&Shard->RetainedGate);
+		if (!Wildcard) {
+			uint64 Hash = xmqttServerIdHash(Filter, &Server->HashKey);
+			const xmqttserverretained* Entry = xmqttServerFindKey(&Shard->Retained, Hash, Filter);
+			if (Entry) xmqttServerReplayEntry(Peer, Entry, NoLocal);
+		} else {
+			xavliter Iterator;
+			xrtAVLIterBegin(&Shard->Retained, &Iterator);
+			const xmqttserverretained* Entry;
+			while (!Peer->Closing && (Entry = (const xmqttserverretained*)xrtAVLIterNext(&Iterator)) != NULL)
+				if (xmqttServerRetainedMatch(Filter, Entry->Key.Text)) xmqttServerReplayEntry(Peer, Entry, NoLocal);
+		}
+		xrtRWLockReadUnlock(&Shard->RetainedGate);
+	}
+}
+
+typedef union xmqttserversharedelivery {
+	xmqttservershare* Share;
+	xmqttserverlink* Member;
+} xmqttserversharedelivery;
+
 typedef struct xmqttservertargets {
 	size_t Count, Capacity;
-	xmqttserverpeer** Slots;
-	xmqttserverpeer* Local[64];
+	xmqttserverlink** Slots;
+	xmqttserverlink* Local[64];
 	size_t ShareCount, ShareCapacity;
-	xmqttservershare** Shares;
-	xmqttservershare* LocalShares[16];
+	xmqttserversharedelivery* Shares;
+	xmqttserversharedelivery LocalShares[16];
+	bool Retain;
 } xmqttservertargets;
 
-static xmqttserverpeer** xmqttServerTargetSlot(xmqttserverpeer** Slots, size_t Capacity, xmqttserverpeer* Peer)
+static unsigned xmqttServerWireMode(const xmqttserverlink* Link, bool Retain)
 {
-	uintptr_t Address = (uintptr_t)Peer;
-	size_t At = (size_t)((Address >> 4u) ^ (Address >> 12u)) & (Capacity - 1);
-	while (Slots[At] && Slots[At] != Peer) At = (At + 1) & (Capacity - 1);
+	if (Link->Peer->Version != XMQTT_VERSION_5) return 0;
+	return Retain && (Link->Options & XMQTT_SUBSCRIBE_RETAIN_AS_PUBLISHED) ? 2 : 1;
+}
+
+static xmqttserverlink** xmqttServerTargetSlot(xmqttserverlink** Slots, size_t Capacity,
+	xmqttserverlink* Link, bool Retain)
+{
+	uintptr_t Address = (uintptr_t)Link->Peer;
+	unsigned Mode = xmqttServerWireMode(Link, Retain);
+	size_t At = (size_t)((Address >> 4u) ^ (Address >> 12u) ^ (Mode == 2)) & (Capacity - 1);
+	while (Slots[At] && (Slots[At]->Peer != Link->Peer || xmqttServerWireMode(Slots[At], Retain) != Mode))
+		At = (At + 1) & (Capacity - 1);
 	return Slots + At;
 }
 
-static bool xmqttServerAddTarget(xmqttservertargets* Targets, xmqttserverpeer* Peer)
+static bool xmqttServerAddTarget(xmqttservertargets* Targets, xmqttserverlink* Link)
 {
-	xmqttserverpeer** Slot = xmqttServerTargetSlot(Targets->Slots, Targets->Capacity, Peer);
+	xmqttserverlink** Slot = xmqttServerTargetSlot(Targets->Slots, Targets->Capacity, Link, Targets->Retain);
 	if (*Slot) return true;
 	if (Targets->Count == Targets->Capacity - Targets->Capacity / 4) {
 		if (Targets->Capacity > SIZE_MAX / 2 / sizeof(*Targets->Slots)) return false;
 		size_t Next = Targets->Capacity * 2;
-		xmqttserverpeer** Slots = xrtCalloc(Next, sizeof(*Slots));
+		xmqttserverlink** Slots = xrtCalloc(Next, sizeof(*Slots));
 		if (!Slots) return false;
 		for (size_t At = 0; At < Targets->Capacity; ++At) {
-			xmqttserverpeer* Item = Targets->Slots[At];
-			if (Item) *xmqttServerTargetSlot(Slots, Next, Item) = Item;
+			xmqttserverlink* Item = Targets->Slots[At];
+			if (Item) *xmqttServerTargetSlot(Slots, Next, Item, Targets->Retain) = Item;
 		}
 		if (Targets->Slots != Targets->Local) xrtFree(Targets->Slots);
 		Targets->Slots = Slots;
 		Targets->Capacity = Next;
-		Slot = xmqttServerTargetSlot(Slots, Next, Peer);
+		Slot = xmqttServerTargetSlot(Slots, Next, Link, Targets->Retain);
 	}
-	*Slot = Peer;
+	*Slot = Link;
 	++Targets->Count;
 	return true;
 }
@@ -848,34 +1153,34 @@ static bool xmqttServerCollectShares(xmqttservertargets* Targets, const xmqttser
 		if (Targets->ShareCount == Targets->ShareCapacity) {
 			if (Targets->ShareCapacity > SIZE_MAX / 2 / sizeof(*Targets->Shares)) return false;
 			size_t Capacity = Targets->ShareCapacity * 2;
-			xmqttservershare** Shares = xrtMalloc(Capacity * sizeof(*Shares));
+			xmqttserversharedelivery* Shares = xrtMalloc(Capacity * sizeof(*Shares));
 			if (!Shares) return false;
 			memcpy(Shares, Targets->Shares, Targets->ShareCount * sizeof(*Shares));
 			if (Targets->Shares != Targets->LocalShares) xrtFree(Targets->Shares);
 			Targets->Shares = Shares;
 			Targets->ShareCapacity = Capacity;
 		}
-		Targets->Shares[Targets->ShareCount++] = Share;
+		Targets->Shares[Targets->ShareCount++].Share = Share;
 	}
 	return true;
 }
 
-static xmqttserverpeer* xmqttServerShareMember(xmqttservershare* Share)
+static xmqttserverlink* xmqttServerShareMember(xmqttservershare* Share)
 {
 	ptr Expected = xrtAtomicPtrLoad(&Share->Cursor, XMEMORY_RELAXED);
 	for (;;) {
 		xmqttserverlink* Current = Expected;
 		xmqttserverlink* Next = Current->Next ? Current->Next : Share->Head;
 		if (xrtAtomicPtrCompareExchange(&Share->Cursor, &Expected, Next, XMEMORY_RELAXED, XMEMORY_RELAXED))
-			return Current->Peer;
+			return Current;
 	}
 }
 
 static bool xmqttServerCollectFilter(xmqttservertargets* Targets, const xmqttservertopic* Filter, uint64 Origin)
 {
 	for (xmqttserverlink* Link = Filter ? Filter->Head : NULL; Link; Link = Link->Next) {
-		if (Link->NoLocal && Link->Peer->Identity == Origin) continue;
-		if (!xmqttServerAddTarget(Targets, Link->Peer)) return false;
+		if ((Link->Options & XMQTT_SUBSCRIBE_NO_LOCAL) && Link->Peer->Identity == Origin) continue;
+		if (!xmqttServerAddTarget(Targets, Link)) return false;
 	}
 	return true;
 }
@@ -914,18 +1219,18 @@ typedef struct xmqttserverrouteiter {
 	size_t Index;
 } xmqttserverrouteiter;
 
-static xmqttserverpeer* xmqttServerRouteNext(xmqttserverrouteiter* Iter)
+static xmqttserverlink* xmqttServerRouteNext(xmqttserverrouteiter* Iter)
 {
 	if (Iter->Targets) {
 		while (Iter->Index < Iter->Targets->Capacity) {
-			xmqttserverpeer* Peer = Iter->Targets->Slots[Iter->Index++];
-			if (Peer) return Peer;
+			xmqttserverlink* Link = Iter->Targets->Slots[Iter->Index++];
+			if (Link) return Link;
 		}
 	} else {
 		while (Iter->Link) {
 			xmqttserverlink* Link = Iter->Link;
 			Iter->Link = Link->Next;
-			if (!Link->NoLocal || Link->Peer->Identity != Iter->Origin) return Link->Peer;
+			if (!(Link->Options & XMQTT_SUBSCRIBE_NO_LOCAL) || Link->Peer->Identity != Iter->Origin) return Link;
 		}
 	}
 	return NULL;
@@ -936,7 +1241,8 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	xmqttserver* Server = Peer->Server;
 	xstrview Name = Packet->Body.Publish.Topic;
 	xbytesview Key = {(cbytes)Name.Data, Name.Size};
-	xmqttservershard* Exact = xmqttServerShard(Server, Key);
+	uint64 Hash = xmqttServerIdHash(Key, &Server->HashKey);
+	xmqttservershard* Exact = xmqttServerShard(Server, Hash);
 	xmqttservershard *Wildcard = NULL, *Root = NULL;
 	if (xrtAtomic32Load(&Server->WildcardFilters, XMEMORY_ACQUIRE)) {
 		xmqttservershard* Candidate = xmqttServerWildcardShard(Server, Key);
@@ -962,9 +1268,10 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	Targets.Shares = Targets.LocalShares;
 	Targets.ShareCapacity = sizeof(Targets.LocalShares) / sizeof(Targets.LocalShares[0]);
 	Targets.ShareCount = 0;
-	const xmqttservertopic* Topic = xrtMapConstGet(&Exact->Topics, Key);
+	Targets.Retain = (Packet->Flags & XMQTT_PUBLISH_RETAIN) != 0;
+	const xmqttservertopic* Topic = xmqttServerFindKey(&Exact->Topics, Hash, Key);
 	bool Rejected = false;
-	xmqttserverpublication* Frames[2] = {NULL, NULL};
+	xmqttserverpublication* Frames[3] = {0};
 	uint64 Forwarded = 0, Dropped = 0;
 	if (Wildcard || Root) {
 		memset(Targets.Local, 0, sizeof(Targets.Local));
@@ -981,7 +1288,7 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	}
 	if (!Topic && !Targets.Count && !Targets.ShareCount) goto Done;
 
-	bool Rewrite = Packet->Flags != 0;
+	bool Rewrite = false;
 	if (Expiry) {
 		double Elapsed = xrtTimer() - Now;
 		if (Elapsed >= Expiry->Value.Number) {
@@ -996,21 +1303,30 @@ static void xmqttServerRoute(xmqttserverpeer* Peer, const xmqttpacket* Packet, x
 	xmqttserverrouteiter Start = {
 		.Targets = Targets.Count ? &Targets : NULL, .Link = Topic ? Topic->Head : NULL, .Origin = Peer->Identity
 	};
-	bool Needed[2] = {false, Targets.ShareCount != 0};
+	bool Needed[3] = {false};
 	xmqttserverrouteiter Iter = Start;
-	for (xmqttserverpeer* Target; (Target = xmqttServerRouteNext(&Iter)) != NULL;)
-		Needed[Target->Version == XMQTT_VERSION_5] = true;
-	/* Prepare both wire forms before native sends can invalidate the
+	for (xmqttserverlink* Link; (Link = xmqttServerRouteNext(&Iter)) != NULL;)
+		Needed[xmqttServerWireMode(Link, Targets.Retain)] = true;
+	for (size_t Index = 0; Index < Targets.ShareCount; ++Index) {
+		xmqttserverlink* Member = xmqttServerShareMember(Targets.Shares[Index].Share);
+		Targets.Shares[Index].Member = Member;
+		Needed[xmqttServerWireMode(Member, Targets.Retain)] = true;
+	}
+	/* Prepare every wire form before native sends can invalidate the
 	 * publisher's borrowed input on a synchronous transport failure. */
-	if (Needed[0]) Frames[0] = xmqttServerEncodePublish(Packet, Peer->Version, XMQTT_VERSION_311, Rewrite, &Server->Config.Codec);
-	if (Needed[1]) Frames[1] = xmqttServerEncodePublish(Packet, Peer->Version, XMQTT_VERSION_5, Rewrite, &Server->Config.Codec);
+	for (unsigned Mode = 0; Mode < 3; ++Mode) {
+		if (Needed[Mode]) Frames[Mode] = xmqttServerEncodePublish(Packet, Peer->Version,
+			Mode ? XMQTT_VERSION_5 : XMQTT_VERSION_311, Mode == 2 ? XMQTT_PUBLISH_RETAIN : 0,
+			Rewrite, &Server->Config.Codec);
+	}
 	Iter = Start;
-	for (xmqttserverpeer* Target; (Target = xmqttServerRouteNext(&Iter)) != NULL;) {
-		if (xmqttServerDeliver(Target, Frames[Target->Version == XMQTT_VERSION_5])) ++Forwarded;
+	for (xmqttserverlink* Link; (Link = xmqttServerRouteNext(&Iter)) != NULL;) {
+		if (xmqttServerDeliver(Link->Peer, Frames[xmqttServerWireMode(Link, Targets.Retain)])) ++Forwarded;
 		else ++Dropped;
 	}
 	for (size_t Index = 0; Index < Targets.ShareCount; ++Index) {
-		if (xmqttServerDeliver(xmqttServerShareMember(Targets.Shares[Index]), Frames[1])) ++Forwarded;
+		xmqttserverlink* Member = Targets.Shares[Index].Member;
+		if (xmqttServerDeliver(Member->Peer, Frames[xmqttServerWireMode(Member, Targets.Retain)])) ++Forwarded;
 		else ++Dropped;
 	}
 
@@ -1020,8 +1336,8 @@ Done:
 	xrtRWLockReadUnlock(&First->Gate);
 	if (Targets.Slots != Targets.Local) xrtFree(Targets.Slots);
 	if (Targets.Shares != Targets.LocalShares) xrtFree(Targets.Shares);
-	if (Frames[0]) xmqttServerFreePublication(Frames[0], NULL, 0);
-	if (Frames[1]) xmqttServerFreePublication(Frames[1], NULL, 0);
+	for (unsigned Mode = 0; Mode < 3; ++Mode)
+		if (Frames[Mode]) xmqttServerFreePublication(Frames[Mode], NULL, 0);
 	if (Forwarded) xrtAtomic64FetchAdd(&Server->Forwarded, Forwarded, XMEMORY_RELAXED);
 	if (Dropped) xrtAtomic64FetchAdd(&Server->DroppedDeliveries, Dropped, XMEMORY_RELAXED);
 	if (Rejected) xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
@@ -1034,7 +1350,8 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		xmqttServerProtocolClose(Peer, 0x9b, Now);
 		return;
 	}
-	if (Peer->Version == XMQTT_VERSION_5 && (Packet->Flags & XMQTT_PUBLISH_RETAIN)) {
+	bool Retain = (Packet->Flags & XMQTT_PUBLISH_RETAIN) != 0;
+	if (Retain && !Server->Config.MaxRetainedTopics && Peer->Version == XMQTT_VERSION_5) {
 		xmqttServerProtocolClose(Peer, 0x9a, Now);
 		return;
 	}
@@ -1048,8 +1365,12 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = Properties + Index;
 	}
 	xstrview Name = Packet->Body.Publish.Topic;
-	if (Name.Size > Server->Config.MaxTopicBytes || (Expiry && !Expiry->Value.Number) ||
-		!xmqttServerTopicAllowed(Peer, Name, true)) {
+	if (Name.Size > Server->Config.MaxTopicBytes || !xmqttServerTopicAllowed(Peer, Name, true)) {
+		xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
+		return;
+	}
+	if (Retain && Server->Config.MaxRetainedTopics) xmqttServerStoreRetained(Peer, Packet, Expiry, Now);
+	if (Expiry && !Expiry->Value.Number) {
 		xrtAtomic64FetchAdd(&Server->RejectedPublications, 1, XMEMORY_RELAXED);
 		return;
 	}
@@ -1191,7 +1512,8 @@ XMQTT_API bool xmqttServerConfigInit(xmqttserverconfig* Config)
 	*Config = (xmqttserverconfig){
 		.Size = sizeof(*Config), .MaxConnections = 1024, .MaxClientIdBytes = 256, .ConnectTimeout = 5000,
 		.MaxSubscriptions = 65536, .MaxSubscriptionsPerConnection = 64,
-		.MaxSubscribersPerTopic = 1024, .MaxTopicBytes = 1024, .MaxWildcardNodes = 65536
+		.MaxSubscribersPerTopic = 1024, .MaxTopicBytes = 1024, .MaxWildcardNodes = 65536,
+		.MaxRetainedTopics = 4096, .MaxRetainedBytes = 16u * 1024u * 1024u
 	};
 	xmqttCodecConfigInit(&Config->Codec);
 	Config->Codec.MaxPacketBytes = 16384;
@@ -1209,7 +1531,7 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 		!Config->MaxSubscriptions || Config->MaxSubscriptions > UINT32_MAX ||
 		!Config->MaxSubscriptionsPerConnection || !Config->MaxSubscribersPerTopic ||
 		Config->MaxSubscribersPerTopic >= UINT32_MAX || !Config->MaxTopicBytes || Config->MaxTopicBytes > UINT16_MAX ||
-		Config->MaxWildcardNodes > UINT32_MAX ||
+		Config->MaxWildcardNodes > UINT32_MAX || Config->MaxRetainedTopics > UINT32_MAX ||
 		Config->ConnectTimeout < 1 || Config->ConnectTimeout > INT32_MAX ||
 		Config->Codec.Size != sizeof(Config->Codec) || Config->Codec.MaxPacketBytes < 2 ||
 		Config->Codec.MaxPacketBytes > XMQTT_PACKET_MAX_BYTES ||
@@ -1228,6 +1550,11 @@ XMQTT_API bool xmqttServerCreate(xnetengine* Engine, const xmqttserverconfig* Co
 	}
 	Server->Engine = Engine;
 	Server->Config = *Config;
+	if (!Config->MaxRetainedBytes) Server->Config.MaxRetainedTopics = 0;
+	xrtAtomic32Init(&Server->RetainedTopics, 0);
+	xrtAtomic32Init(&Server->RetainedExpiring, 0);
+	xrtAtomic64Init(&Server->RetainedBytes, 0);
+	xrtAtomic64Init(&Server->DroppedRetained, 0);
 	xrtAtomic32Init(&Server->Subscriptions, 0);
 	xrtAtomic32Init(&Server->WildcardNodes, 0);
 	xrtAtomic32Init(&Server->WildcardFilters, 0);
@@ -1301,6 +1628,9 @@ XMQTT_API bool xmqttServerInfo(xmqttserver* Server, xmqttserverinfo* Info)
 	xrtMutexUnlock(&Server->Gate);
 	Info->Subscriptions = xrtAtomic32Load(&Server->Subscriptions, XMEMORY_RELAXED);
 	Info->WildcardNodes = xrtAtomic32Load(&Server->WildcardNodes, XMEMORY_RELAXED);
+	Info->RetainedTopics = xrtAtomic32Load(&Server->RetainedTopics, XMEMORY_RELAXED);
+	Info->RetainedBytes = (size_t)xrtAtomic64Load(&Server->RetainedBytes, XMEMORY_RELAXED);
+	Info->DroppedRetained = xrtAtomic64Load(&Server->DroppedRetained, XMEMORY_RELAXED);
 	Info->Forwarded = xrtAtomic64Load(&Server->Forwarded, XMEMORY_RELAXED);
 	Info->DroppedDeliveries = xrtAtomic64Load(&Server->DroppedDeliveries, XMEMORY_RELAXED);
 	Info->RejectedPublications = xrtAtomic64Load(&Server->RejectedPublications, XMEMORY_RELAXED);

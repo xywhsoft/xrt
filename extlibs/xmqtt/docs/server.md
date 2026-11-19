@@ -33,8 +33,33 @@ last subscription. A selected member whose native queue refuses a QoS 0
 delivery drops that delivery. MQTT 3.1.1 treats the shared prefix as literal
 filter text.
 
-Retained messages, QoS 1/2, persistent sessions, Wills, enhanced authentication,
-TLS and WebSocket are in development.
+The in-memory QoS 0 store keeps the latest retained publication for each topic.
+An empty retained publication clears the record and is still sent to matching
+live subscribers. Either retention limit set to zero disables retention.
+When a replacement exceeds the budget or allocation fails, the old record is
+removed and the replacement is counted in `DroppedRetained`. The live routing
+decision remains independent of retained admission. The byte cap covers wire
+data and publisher IDs, and topic and packet caps bound indexing overhead.
+
+Ordinary subscriptions replay retained messages with RETAIN set according to
+MQTT 5 Retain Handling or MQTT 3.1.1 subscription rules. No Local also compares
+the retained publisher's original Client ID when replaying. On live delivery,
+MQTT 5 Retain As Published can preserve the inbound flag. Matching ordinary
+filters with different live wire flags can produce two copies on one connection.
+Shared subscriptions receive live deliveries and skip retained replay.
+
+Retained topics are sharded by first level with a separate lock from routing.
+Exact replay uses one lookup in the shard's AVL index, ordered by keyed
+hash and full topic bytes. Routing uses the same kind of index. Lookups
+leave tree state untouched. Wildcard replay scans the relevant shards,
+or all retained shards for a leading wildcard. Replay skips expired entries.
+Retained writes reclaim due records in their shard and try other shards under
+quota pressure. Idle expired entries can remain resident until reclamation.
+Unmodified same-version replay shares the immutable stored bytes with the
+native send queues. Elapsed expiry and protocol conversion require encoding.
+
+QoS 1/2, persistent sessions, Wills, enhanced authentication, TLS and WebSocket
+are in development.
 
 Each peer stays on its original XRT worker. The handshake and connection
 retirement update the bounded identity index under a short gate. The steady
@@ -66,7 +91,7 @@ MQTT 5-only and dual-version module configurations have standalone tests.
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests
-python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server,xmqtt_server_routes,xmqtt_server_wildcards,xmqtt_server_shared,xmqtt_server_retained
 ```
 
 The PING benchmark verifies each literal response and reports connection rate,
@@ -77,6 +102,9 @@ peer-side collection and memory instrumentation. The route benchmark verifies
 one or 64 subscribers on two XRT workers. The overlap benchmark verifies one
 delivery per subscriber with both an exact and a wildcard filter registered.
 The shared benchmark checks one round-robin delivery per publication in a
-group of one or 64 subscribers.
+group of one or 64 subscribers. The retained benchmark measures SUBSCRIBE
+through the verified SUBACK and retained PUBLISH on one or 64 subscribers.
+It reuses the same stored frame for all measured requests and includes
+native queue and peer-side receive costs.
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).
