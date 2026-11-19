@@ -69,7 +69,7 @@
     {
       "name": "xcron_scheduler",
       "system": "scheduler",
-      "description": "Empty poll cost and native waiter CPU/lateness",
+      "description": "Single UTC callback per second. Scheduler compared with direct XRT EventWaiter and fixed one-second recurrence.",
       "benchmarks": [
         {
           "name": "xcron_scheduler",
@@ -91,6 +91,49 @@
               "unit": "percent"
             },
             "wake_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "wake_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "wake_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        },
+        {
+          "name": "xcron_xrt_waiter",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "16",
+            "waiter"
+          ],
+          "smoke_args": [
+            "4",
+            "waiter"
+          ],
+          "metrics": {
+            "idle_polls_per_sec": {
+              "direction": "higher",
+              "unit": "polls/s"
+            },
+            "wait_cpu_percent": {
+              "direction": "lower",
+              "unit": "percent"
+            },
+            "wake_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "wake_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "wake_lateness_p95_ms": {
               "direction": "lower",
               "unit": "ms"
             }

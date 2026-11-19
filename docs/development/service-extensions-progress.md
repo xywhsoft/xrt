@@ -16333,3 +16333,23 @@ replacement, snapshot lifetime and the absence of warm-path COMMAND traffic.
 Each client passed the 36-case Redis 8.0.5 Cluster matrix, including real MOVED,
 ASK, slot reassignment and immutable shared metadata. The reports and
 host-specific package logs are in out/service-extensions/scope-reduction-20261119/.
+
+## 2026-11-19 xcron scheduler and direct XRT waiter comparison
+
+The Linux and Windows performance profiles run the optional xcron scheduler
+and a direct XRT EventWaiter for the same one-second UTC schedule. Both paths
+discard one warm-up activation. Each timed run includes 100,000 empty polls
+or wall-clock reads, followed by 16 scheduled callbacks.
+
+| Host | Path | Empty polls or reads/s | Process CPU during wait | P99 wake lateness |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | xcron scheduler | 26.55 M | below sample resolution | 1 ms |
+| Windows x64 | XRT waiter | 30.21 M | below sample resolution | 2 ms |
+| Ubuntu/WSL x64 | xcron scheduler | 37.40 M | 0.003871% | 1 ms |
+| Ubuntu/WSL x64 | XRT waiter | 36.77 M | 0.003224% | 1 ms |
+
+These are medians of three unpinned runs. P99 is the maximum of a sixteen-wake
+sample and the wall timestamp has millisecond granularity. The variation gate
+reported five violations on Windows and four on WSL. Controlled multi-job
+measurements and native Linux remain part of release qualification. Raw
+reports and actual compiler data are in out/service-extensions/scope-reduction-20261119/.

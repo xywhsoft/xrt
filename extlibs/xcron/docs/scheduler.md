@@ -36,3 +36,13 @@ dispatched APP callback controls execution cost.
 See [the two drive paths](../examples/scheduler/main.c),
 [APP-owned worker dispatch](../examples/executor/main.c), and
 [configuration reload](../examples/service_checkpoint/main.c).
+
+The scheduler benchmark uses one every-second UTC job and an equivalent
+one-second deadline loop built directly with XRT EventWaiter. The direct
+loop computes its next second arithmetically. Both workloads discard their
+first wake and measure process CPU and callback lateness from the scheduled
+deadline. The idle poll reference reads the wall clock once per iteration.
+
+```sh
+python tools/measure_performance.py --config extlibs/xcron/config/performance_profiles.json --profiles xcron_scheduler
+```
