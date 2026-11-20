@@ -101,3 +101,17 @@ interval from the actual send attempt to the reply. The report also
 records the largest in-flight window, the number of batches that found it
 full and observer CPU time. Compare tail medians only when the repeated
 samples meet the variation gate.
+
+The default framing sends a separate JSON-RPC record for each call.
+With `--batch-documents` the same calls travel in one JSON-RPC request
+array per scheduled group. Each response array is checked byte for byte
+in the order produced by this APP. Its arrival time counts for each call
+in the array, including calls in a partial final group. The
+`app_documents` count includes warmups and reconciles the APP's executor
+ledger. A document corresponds to one submitted job.
+
+For a six-second scheduled load of 64,000 calls/s across eight peers, run
+the same command twice with `--calls 48000 --rates 8000` and distinct
+reports. Enable `--batch-documents` for the second run. Compare both
+framing modes at the same offer rate, request window, executor size and
+CPU placement.
