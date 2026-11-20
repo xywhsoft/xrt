@@ -19811,3 +19811,48 @@ an incorrect APP execution ledger. Generated assets, API docs and
 ordinary maturity passed. Strict release lists `xrpc` and `xrpc_duplex`
 as developing. The phase probe, sources, builds and raw results are under
 `out/service-extensions/scope-reduction-20261119/xrpc-tcp-phase-trace/`.
+
+## 2026-11-20 xredis restart and TLS certificate rotation
+
+The restart probe now supports verified TLS 1.3 with AES-128-GCM and
+the localhost DNS identity. Each run uses three owned Redis 8.0.5
+processes on one loopback port. The initial and final certificates
+have different leaf identities signed by the same CA. The intermediate
+certificate uses a separate CA. The independent observer verifies the
+peer leaf, TLS profile, process identity and run ID on each listener.
+
+The original process is killed after Redis observes the blocked BLPOP.
+The client preserves its `DISCONNECTED` and `MAY_HAVE_EXECUTED` outcome.
+During the intermediate phase the C client receives a typed certificate
+verification failure and observes additional failed pool and subscription
+reconnects. Their published generations stay at the pre-outage counts.
+The untrusted Redis ledger contains only observer INFO commands.
+
+The original pool and subscription session recover against the renewed
+certificate. The probe verifies both recovered pool members, the binary
+subscription intent, a fresh Tracking connection and ordered invalidation,
+one binary publication and 16 pipelined replies. Redis observes the
+expected command ledger and only the observer connection after client
+teardown. The blocked Future retains its original outcome throughout.
+
+| Client environment | Verified TLS cycles | Recovery min / median / max in ms |
+| --- | ---: | ---: |
+| Native Windows x64 through the WSL relay | 7 / 7 | 277.870 / 307.969 / 353.801 |
+| Ubuntu/WSL x64 | 7 / 7 | 208.929 / 254.079 / 274.701 |
+| Ubuntu/WSL x64 with ASan/UBSan and leak detection | 7 / 7 | 255.998 / 261.536 / 295.329 |
+
+The interval starts after physical retirement of the old dedicated
+connections and includes both replacement processes and recovery traffic.
+Ubuntu/WSL hosted Redis for every cycle. A separate TSan cycle passed.
+Its diagnostic build retained the compiler warnings about atomic fences
+and the PSK count outputs. The count helpers set their outputs on every
+successful return. Both plaintext restart regressions passed, and the
+six TLS 1.2/1.3 initialization cases passed on WSL after reuse of the
+certificate helper.
+
+Generated assets, API docs and ordinary maturity passed. Strict xredis
+release lists 29 developing modules. Native Linux and 72-hour acceptance
+remain open. Source and binary digests, diagnostic builds and per-run
+Redis ledgers are under
+`out/service-extensions/scope-reduction-20261119/xredis-tls-restart/`.
+Reproduce from [the restart guide](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).

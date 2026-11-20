@@ -334,4 +334,20 @@ each process log.
 Recovery time runs from the client's observation of the old physical closes
 to verification of resumed traffic. It includes the forced outage barrier,
 fixture restart and workload verification. It is diagnostic for this local
-setup. This case uses standalone RESP3 over plaintext TCP.
+setup. The default profile uses standalone RESP3 over plaintext TCP.
+
+For verified TLS, add `-DXREDIS_MODULE_XREDIS_TLS` to the build and pass
+`--tls` to the harness. Use TLS-enabled Redis and OpenSSL on the fixture
+host. The harness generates temporary keys and three distinct localhost
+certificates. The original and final Redis instances use certificates from
+the same CA. The intermediate instance uses a separate CA. All three
+listen on the same loopback port with TLS 1.3 and AES-128-GCM.
+
+The C probe requires a typed certificate verification failure, failed pool
+and subscription reconnects, and continued unavailability during the
+untrusted interval. The independent Redis ledger requires zero application
+commands on that listener. After another restart, the C client verifies
+the new trusted certificate and exercises the same pool, Tracking, Pub/Sub
+and pipeline workload. TLS recovery time includes the untrusted interval
+and the final restart. Public certificate fingerprints are recorded and
+the temporary identity directory is removed at exit.

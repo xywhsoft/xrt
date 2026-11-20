@@ -11,6 +11,18 @@ import tempfile
 from run_redis_init import digest, run
 
 
+def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str) -> str:
+    def command(*arguments: str) -> None:
+        subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
+    command("req", "-newkey", "rsa:2048", "-nodes", "-sha256", "-subj", "/CN=localhost",
+            "-keyout", f"{name}.key", "-out", f"{name}.csr")
+    (root / "server.ext").write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
+                                     "extendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost,IP:127.0.0.1\n", encoding="utf-8")
+    command("x509", "-req", "-in", f"{name}.csr", "-CA", f"{issuer}.pem", "-CAkey", f"{issuer}.key", "-CAcreateserial",
+            "-days", "2", "-sha256", "-extfile", "server.ext", "-out", f"{name}.pem")
+    return digest(root / f"{name}.pem")
+
+
 def certificates(openssl: Path, root: Path) -> dict[str, str]:
     def command(*arguments: str) -> None:
         subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
@@ -18,13 +30,8 @@ def certificates(openssl: Path, root: Path) -> dict[str, str]:
         command("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "2",
                 "-subj", f"/CN=xredis-fixture-{name}", "-keyout", f"{name}.key", "-out", f"{name}.pem",
                 "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
-    command("req", "-newkey", "rsa:2048", "-nodes", "-sha256", "-subj", "/CN=localhost",
-            "-keyout", "server.key", "-out", "server.csr")
-    (root / "server.ext").write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
-                                     "extendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost,IP:127.0.0.1\n", encoding="utf-8")
-    command("x509", "-req", "-in", "server.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial",
-            "-days", "2", "-sha256", "-extfile", "server.ext", "-out", "server.pem")
-    return {name: digest(root / name) for name in ("ca.pem", "wrong.pem", "server.pem")}
+    server = issue_server_certificate(openssl, root, "server", "ca")
+    return {"ca.pem": digest(root / "ca.pem"), "wrong.pem": digest(root / "wrong.pem"), "server.pem": server}
 
 
 def main() -> None:

@@ -9,6 +9,15 @@ enum { MEMBERS = 2, BATCH = 16, IO_MS = 3000, PHASE_MS = 15000 };
 static const xbytesview Channel = XRT_BYTES_LITERAL("xrt:restart:\0channel");
 static const xbytesview Key = XRT_BYTES_LITERAL("xrt:restart:\0tracking");
 
+typedef struct restartendpoint {
+	xnetaddr Address;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	xredisclienttlsconfig Tls;
+	xtlscontext* Context;
+	xtlsverifier* Verifier;
+#endif
+} restartendpoint;
+
 static void require(bool Ok, const char* Message)
 {
 	if (!Ok) {
@@ -16,6 +25,46 @@ static void require(bool Ok, const char* Message)
 		exit(EXIT_FAILURE);
 	}
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void configureTls(restartendpoint* Endpoint, const char* CaFile)
+{
+	unsigned char Pem[65536];
+	FILE* File = fopen(CaFile, "rb");
+	require(File != NULL, "open TLS trust file");
+	size_t Size = fread(Pem, 1, sizeof(Pem), File);
+	bool Complete = Size && Size < sizeof(Pem) && !ferror(File);
+	require(fclose(File) == 0 && Complete, "read TLS trust file");
+	xx509store* Store = xrtX509StoreCreate();
+	require(Store && xrtX509StoreAddData(Store, (xbytesview){Pem, Size}, NULL), "load TLS trust anchor");
+	xtlsverifierconfig Verify;
+	xrtTlsVerifierConfigInit(&Verify);
+	Verify.Store = Store;
+	xtlsverifylimits Limits;
+	xrtTlsVerifyLimitsInit(&Limits);
+	Endpoint->Verifier = xrtTlsVerifierCreateLimited(&Verify, &Limits);
+	xrtX509StoreFree(Store);
+	const xtlsversion Versions[] = {XTLS_VERSION_13};
+	const xtlscipher Ciphers[] = {XTLS_AES_128_GCM_SHA256};
+	const uint16 Groups[] = {XTLS_GROUP_X25519};
+	const xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
+	xtlspolicy Policy;
+	xrtTlsPolicyInit(&Policy);
+	Policy.Versions = Versions; Policy.VersionCount = 1;
+	Policy.Ciphers = Ciphers; Policy.CipherCount = 1;
+	Policy.Groups = Groups; Policy.GroupCount = 1;
+	Policy.Signatures = Signatures; Policy.SignatureCount = 1;
+	xtlscontextconfig Settings;
+	xrtTlsContextConfigInit(&Settings);
+	Settings.Policy = &Policy;
+	Endpoint->Context = xrtTlsContextCreate(&Settings);
+	require(Endpoint->Verifier && Endpoint->Context && xredisClientTlsConfigInit(&Endpoint->Tls), "restart TLS configuration");
+	Endpoint->Tls.Session.Context = Endpoint->Context;
+	Endpoint->Tls.Session.Verifier = Endpoint->Verifier;
+	Endpoint->Tls.Session.ServerName = Endpoint->Tls.Session.VerifyName = XRT_STR_LITERAL("localhost");
+	Endpoint->Tls.Session.ResumeLimit = 0;
+}
+#endif
 
 static const void* result(xfuture* Future, int64 Timeout)
 {
@@ -54,10 +103,15 @@ static xfuture* call(xredispool* Pool, const xbytesview* Args, size_t Count, int
 static bool connectMember(xnetengine* Engine, size_t Slot, uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Out)
 {
 	(void)Attempt;
+	const restartendpoint* Endpoint = Data;
 	xredisclientinitconfig Init;
 	if (!xredisClientInitConfigInit(&Init)) return false;
 	Init.Timeout = Timeout;
-	return xredisClientConnectInit(Engine, Data, Slot, NULL, &Init, Out);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Endpoint->Verifier)
+		return xredisClientTlsConnect(Engine, &Endpoint->Address, Slot, NULL, &Init, &Endpoint->Tls, Out);
+#endif
+	return xredisClientConnectInit(Engine, &Endpoint->Address, Slot, NULL, &Init, Out);
 }
 
 static bool connectSubscriber(xnetengine* Engine, uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Out)
@@ -65,10 +119,10 @@ static bool connectSubscriber(xnetengine* Engine, uint64 Attempt, int64 Timeout,
 	return connectMember(Engine, 1, Attempt, Timeout, Data, Out);
 }
 
-static xredisclient* startTracking(xnetengine* Engine, xnetaddr* Address)
+static xredisclient* startTracking(xnetengine* Engine, restartendpoint* Endpoint)
 {
 	xredisclient* Client = NULL;
-	require(connectMember(Engine, 0, 0, IO_MS, Address, &Client), "start tracking connection");
+	require(connectMember(Engine, 0, 0, IO_MS, Endpoint, &Client), "start tracking connection");
 	xfuture* Ready = xredisClientReady(Client);
 	const xredisreadyresult* Negotiated = result(Ready, IO_MS);
 	require(Negotiated->Status == XREDIS_READY_OK && Negotiated->Protocol == XREDIS_RESP3, "tracking HELLO 3");
@@ -169,7 +223,8 @@ static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subs
 	xredisReplyRelease(Message);
 }
 
-static void verifyOutage(xredispool* Pool, xredissubscriptionsession* Session, xfuture* Lost)
+static void verifyOutage(xredispool* Pool, xredissubscriptionsession* Session, xfuture* Lost,
+	const char* Phase, uint64 PoolFailures, uint64 SubscriptionFailures)
 {
 	xredispoolinfo Slots = {.Size = sizeof(Slots)};
 	xredispoolconnectinfo Connect = {.Size = sizeof(Connect)};
@@ -181,7 +236,7 @@ static void verifyOutage(xredispool* Pool, xredissubscriptionsession* Session, x
 		/* Live falls before physical retirement. Failure counts include the
 		 * old connections, so wait for a failed new attempt as well. */
 		if (!Slots.Live && Slots.Retired >= MEMBERS && !Slots.Requests && !Slots.CommandBytes &&
-			Connect.Failures > MEMBERS && Subscription.Failures > 1) break;
+			Connect.Failures > PoolFailures && Subscription.Failures > SubscriptionFailures) break;
 		require(xrtTimer() < Due, "physical retirements and failed reconnects deadline");
 		xrtSleep(2);
 	}
@@ -193,10 +248,31 @@ static void verifyOutage(xredispool* Pool, xredissubscriptionsession* Session, x
 	xredissubscriptionsessioncurrent Current = {.Generation = 99, .Revision = 99};
 	require(xredisSubscriptionSessionCurrent(Session, &Current) == XREDIS_ADMISSION_OVERLOADED &&
 		!Current.Client && Current.Generation == 99 && Current.Revision == 99, "retired subscriber unavailable");
-	printf("{\"phase\":\"outage_ready\",\"pool_failures\":%" PRIu64 ",\"subscription_failures\":%" PRIu64 "}\n",
-		Connect.Failures, Subscription.Failures);
+	printf("{\"phase\":\"%s\",\"pool_failures\":%" PRIu64 ",\"subscription_failures\":%" PRIu64 "}\n",
+		Phase, Connect.Failures, Subscription.Failures);
 	fflush(stdout);
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void verifyUntrusted(xnetengine* Engine, restartendpoint* Endpoint, xredispool* Pool,
+	xredissubscriptionsession* Session, xfuture* Lost)
+{
+	require(getchar() == '\n', "untrusted replacement barrier");
+	xredispoolconnectinfo PoolBefore = {.Size = sizeof(PoolBefore)};
+	xredissubscriptionsessioninfo SessionBefore = {.Size = sizeof(SessionBefore)};
+	require(xredisPoolConnectInfo(Pool, &PoolBefore) && xredisSubscriptionSessionInfo(Session, &SessionBefore),
+		"untrusted reconnect baseline");
+	xredisclient* Client = NULL;
+	require(connectMember(Engine, 0, 0, IO_MS, Endpoint, &Client), "probe untrusted TLS listener");
+	xfuture* Ready = xredisClientReady(Client);
+	const xredisreadyresult* State = result(Ready, IO_MS);
+	require(State->Status == XREDIS_READY_DISCONNECTED && !State->Hello && State->Cause &&
+		xrtErrorFind(State->Cause, "xrt.tls", XTLS_ERROR_VERIFY), "untrusted listener certificate rejection");
+	xrtFutureDestroy(Ready);
+	closedClient(Client, true);
+	verifyOutage(Pool, Session, Lost, "untrusted_rejected", PoolBefore.Failures, SessionBefore.Failures);
+}
+#endif
 
 static void verifyBatch(xredispool* Pool)
 {
@@ -219,12 +295,19 @@ static void verifyBatch(xredispool* Pool)
 
 int main(int Argc, char** Argv)
 {
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Argc != 2 && Argc != 3) return 2;
+#else
 	if (Argc != 2) return 2;
+#endif
 	char* End;
 	unsigned long Port = strtoul(Argv[1], &End, 10);
 	if (*End || Port == 0 || Port > UINT16_MAX) return 2;
-	xnetaddr Address;
-	require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "loopback address");
+	restartendpoint Endpoint = {0};
+	require(xrtNetAddrLoopback(&Endpoint.Address, XNET_FAMILY_IPV4, (uint16)Port), "loopback address");
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Argc == 3) configureTls(&Endpoint, Argv[2]);
+#endif
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = 2;
@@ -234,7 +317,7 @@ int main(int Argc, char** Argv)
 	xredispoolconnectconfig PoolConfig;
 	require(xredisPoolConnectConfigInit(&PoolConfig), "automatic pool defaults");
 	PoolConfig.Connect = connectMember;
-	PoolConfig.Data = &Address;
+	PoolConfig.Data = &Endpoint;
 	PoolConfig.AttemptTimeout = 500;
 	PoolConfig.RetryMin = 30;
 	PoolConfig.RetryMax = 100;
@@ -249,7 +332,7 @@ int main(int Argc, char** Argv)
 	xredissubscriptionsessionconfig SessionConfig;
 	require(xredisSubscriptionSessionConfigInit(&SessionConfig), "subscription defaults");
 	SessionConfig.Connect = connectSubscriber;
-	SessionConfig.Data = &Address;
+	SessionConfig.Data = &Endpoint;
 	SessionConfig.AttemptTimeout = 500;
 	SessionConfig.RetryMin = 30;
 	SessionConfig.RetryMax = 100;
@@ -257,7 +340,7 @@ int main(int Argc, char** Argv)
 	require(xredisSubscriptionSessionCreate(Engine, 1, Store, &SessionConfig, &Session) == XREDIS_ADMISSION_ACCEPTED, "start subscription session");
 
 	xredisclient* Subscriber = waitOnline(Pool, Session, 1, Revision);
-	xredisclient* Tracking = startTracking(Engine, &Address);
+	xredisclient* Tracking = startTracking(Engine, &Endpoint);
 	traffic(Pool, Tracking, Subscriber, (xbytesview)XRT_BYTES_LITERAL("before\0restart"));
 	xbytesview Block[] = {XRT_BYTES_LITERAL("BLPOP"), XRT_BYTES_LITERAL("xrt:restart:\0blocked"), XRT_BYTES_LITERAL("0")};
 	xfuture* Pending = call(Pool, Block, 3, PHASE_MS);
@@ -268,10 +351,13 @@ int main(int Argc, char** Argv)
 	closedClient(Tracking, true);
 	closedClient(Subscriber, true);
 	double Outage = xrtTimer();
-	verifyOutage(Pool, Session, Pending);
+	verifyOutage(Pool, Session, Pending, "outage_ready", MEMBERS, 1);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Argc == 3) verifyUntrusted(Engine, &Endpoint, Pool, Session, Pending);
+#endif
 
 	Subscriber = waitOnline(Pool, Session, 2, Revision);
-	Tracking = startTracking(Engine, &Address);
+	Tracking = startTracking(Engine, &Endpoint);
 	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Key};
 	xfuture* Future = call(Pool, Get, 2, IO_MS);
 	require(root(result(Future, IO_MS)).Type == XREDIS_REPLY_NULL, "fresh server has no prior key");
@@ -306,6 +392,10 @@ int main(int Argc, char** Argv)
 	require(xredisPoolConnectInfo(Pool, &Connect) && Connect.Connected == 2 * MEMBERS, "final pool generations");
 	xredisPoolRelease(Pool);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire engine workers");
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	xrtTlsContextRelease(Endpoint.Context);
+	xrtTlsVerifierRelease(Endpoint.Verifier);
+#endif
 	printf("{\"phase\":\"complete\",\"pool_generations\":%" PRIu64 ",\"subscription_generation\":%" PRIu64
 		",\"recovery_ms\":%.3f}\n", Connect.Connected, SubscriptionGenerations, (Recovered - Outage) * 1000.0);
 	return 0;
