@@ -21047,3 +21047,21 @@ The build inputs, CPU topology, raw reports, memory correction and
 independent audit are under
 `out/service-extensions/scope-reduction-20261119/xrpc-worker-scaling/`.
 [Fixed-arrival workload](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+
+## 2026-11-21 xrpc WSL APP memory measurement after exec
+
+The full WSL rerun with the corrected probe completed all 120
+executor-scaling samples and verified 20,480,000 replies. It used the
+same application, fixed-arrival inputs, modes, CPU placement and native
+observer. The APP reads `VmHWM` after its workers and sockets retire.
+
+The observed APP peaks were 2.94 / 3.76 / 7.86 MiB at minimum,
+median and maximum. The same processes had `ru_maxrss` values from
+33.54 to 108.81 MiB. The audit verified the corrected binary and
+input hashes and reconciled every sample against the original workload
+order. These measurements cover Ubuntu/WSL and the fixed 8- and
+32-connection APP example. Native Linux and repeatable release tails
+remain open.
+
+The corrected report, probe and audit are under
+`out/service-extensions/scope-reduction-20261119/xrpc-worker-scaling/`.
