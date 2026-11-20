@@ -115,6 +115,59 @@ revision/dirty fields were unavailable; runtime and workload hashes are retained
 The worktree progress ledger records exact validation and the Windows CPU
 quantization seen in those runs.
 
+## MQTT 5 publisher reference
+
+The bench_client_reference.c driver runs the same fixed-arrival schedule for
+xmqtt and Paho C. Both publish 32-byte MQTT 5 messages over one plaintext TCP
+connection to Mosquitto 2.1.2. Both use Clean Start, no persistence, the same
+outstanding window and the default TCP Nagle setting on the publisher socket.
+Each process warms up with 128 publications. Latency begins at the scheduled
+arrival, including time waiting for a window slot, and ends when the driver
+observes the terminal QoS 1 or QoS 2 result. Every planned operation must
+complete by its deadline. CPU totals include the generator and client workers.
+
+The independent QoS 0 subscriber verifies the topic, exact sequence set
+and every payload byte, including warmup. Subscription, broker startup,
+warmup, observer drain and disconnect are outside the publisher timing window.
+
+Use the codeload archive of Paho C v1.3.15 with SHA-256
+60ce2cfdc146fcb81c621cb8b45874d2eb1d4693105d048f60e31b8f3468be90.
+Windows extraction may omit the unused TLS test symlinks under
+test/ssl/capath. [Paho C release](https://github.com/eclipse-paho/paho.mqtt.c/releases/tag/v1.3.15)
+
+Set PAHO_SRC and PAHO_BUILD to the extracted source and its build directory.
+Use the same compiler and optimization level in both publisher binaries.
+
+    cmake -S "$PAHO_SRC" -B "$PAHO_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" -DPAHO_BUILD_SHARED=OFF \
+      -DPAHO_BUILD_STATIC=ON -DPAHO_ENABLE_TESTING=OFF -DPAHO_ENABLE_CPACK=OFF \
+      -DPAHO_HIGH_PERFORMANCE=ON -DPAHO_WITH_SSL=OFF
+    cmake --build "$PAHO_BUILD" --target paho-mqtt3a-static
+    flags=(-std=gnu11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror
+      -DXMQTT_MODULE_XMQTT_CLIENT -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION
+      -Iinclude -Iextlibs/xmqtt/include -include xmqtt/features.h
+      -include ./single/xrt.h -include ./single/extlibs/xmqtt.h)
+    source=extlibs/xmqtt/bench/bench_client_reference.c
+    gcc "${flags[@]}" "$source" -o out/xmqtt-publish -pthread -lm
+    gcc "${flags[@]}" -DXMQTT_BENCH_PAHO -DPAHO_MQTT_STATIC=1 -I"$PAHO_SRC/src" \
+      "$source" "$PAHO_BUILD/src/libpaho-mqtt3a.a" -o out/paho-publish -pthread -lrt -ldl -lm
+
+On Windows with MinGW, set WIN32_LEAN_AND_MEAN in place of _GNU_SOURCE.
+Link the xmqtt binary with ws2_32. Link the Paho binary with
+libpaho-mqtt3a-static.a, ws2_32, crypt32, rpcrt4 and bcrypt. Select
+CPUs on separate physical cores where possible. Each pair alternates
+process order and keeps the raw samples, hashes and variation results.
+
+    python3 extlibs/xmqtt/bench/compare_client_reference.py \
+      --broker /path/to/mosquitto-2.1.2 --xmqtt out/xmqtt-publish --paho out/paho-publish \
+      --broker-cpu 0 --client-cpus 4,8 --qos 2 --window 16 --rate 3000 --count 4500 \
+      --repeats 5 --report out/mqtt-client-reference.json
+
+The comparison measures publisher-side latency at the scheduled offered
+rate. It reports count, P50/P95/P99/P99.9, submission lag and process CPU.
+Saturation, receiver overhead, TLS, durable sessions and the native
+72-hour mixed workloads have separate qualification.
+
 
 ## Longer instrumented measurement
 

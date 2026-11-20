@@ -18258,3 +18258,51 @@ Strict release still reports 29 developing modules. Native Linux and
 [`client-performance.md`](../../extlibs/xredis/docs/client-performance.md).
 The evidence is under
 `out/service-extensions/scope-reduction-20261119/xredis-mixed-soak/`.
+
+The first native Windows client 72-hour attempt lost its WSL Redis peer
+after the last verified window at 220.4 seconds and 12,471 rounds. The
+client reported DISCONNECTED with MAY_HAVE_EXECUTED and the supervisor
+finalized the report as failed. The next attempt holds a foreground WSL
+Redis process as a child of the Windows supervisor.
+
+## 2026-11-20 MQTT 5 publisher comparison against Paho C
+
+The same fixed-arrival driver runs the xmqtt client and pinned Paho C
+1.3.15 against Mosquitto 2.1.2, with a separately implemented subscriber
+checking the exact set of binary payloads. The driver times scheduled
+arrival through terminal QoS 1 or QoS 2 observation, including host
+queueing, and measures client process CPU. Both publisher paths use
+one connection, 32-byte payloads, the default TCP Nagle setting,
+and the same two-logical-CPU budget. The broker uses a third CPU.
+
+Native Windows x64 and Ubuntu/WSL x64 each ran the QoS 1/2 matrix with
+windows 1 and 16. A sample measured 1,500 or 4,500 offers after 128
+internal warmups. Of 96 initial runs, 95 verified both terminal ACKs
+and the independent payload ledger. One Paho Windows QoS 2 window-16
+run failed its publication deadline and the subscriber timed out.
+The same profile then passed all 12 attempts on rerun. A 1,500/s
+Windows QoS 2 window-16 control passed all 12 attempts as well.
+
+| Client environment | QoS | Window | Offers/s | P99 median us, xmqtt / Paho |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1 | 1 | 1,000 | 1,434.6 / 3,909.6 |
+| Windows | 1 | 16 | 3,000 | 9,331.3 / 12,932.2 |
+| Windows | 2 | 1 | 1,000 | 9,543.3 / 9,761.8 |
+| Windows rerun | 2 | 16 | 3,000 | 136.8 / 3,161.2 |
+| Windows control | 2 | 16 | 1,500 | 216.2 / 196.4 |
+| Ubuntu/WSL | 2 | 16 | 3,000 | 279.9 / 264.3 |
+
+Only two of the 18 verified P99 series passed the 3% relative MAD and 6%
+central-range checks. The 3,000/s Windows QoS 2 rerun and 1,500/s control
+therefore give observations at their own loads. Stable latency ranking
+and capacity acceptance remain open.
+
+Both platforms passed the independent subscriber's duplicate, corrupt,
+unexpected, wrong-topic and incomplete-frame controls. The driver and
+reference builds succeeded with GCC warnings as errors for the driver.
+Ordinary maturity passes and strict release still reports 39 developing
+modules. Receiver, TLS, native Linux and 72-hour mixed-load acceptance
+remain open. Build instructions are in
+[`bench/README.md`](../../extlibs/xmqtt/bench/README.md). Raw reports and
+compiler/fixture evidence are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-client-reference/`.
