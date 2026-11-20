@@ -17,7 +17,9 @@ import time
 
 MOSQUITTO = "mosquitto version 2.1.2"
 METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "deliveries_per_sec",
-           "delivery_p50_us", "delivery_p95_us", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us")
+           "delivery_p50_us", "delivery_p95_us", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us",
+           "pacer_lag_p99_us")
+PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
 
 
 if os.name == "nt":
@@ -121,7 +123,7 @@ def run_observer(args, port, workload):
     command = [str(args.observer), "--remote", str(port), str(peers), str(args.rounds),
                str(rate), str(args.warmup), kind]
     if args.qos:
-        command.extend((str(args.qos), str(args.window)))
+        command.extend((str(args.qos), str(args.window), str(args.subscriber_window)))
     process = start(command, args.load_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         output, errors = process.communicate(timeout=20 + (args.rounds + args.warmup) / rate)
@@ -131,13 +133,17 @@ def run_observer(args, port, workload):
     if process.returncode:
         raise RuntimeError(f"observer exit {process.returncode}: {errors.strip()}")
     result = {key: float(value) for key, value in (line.split(": ", 1) for line in output.splitlines())}
-    metrics = METRICS + (("publish_confirmed", "publisher_p99_us") if args.qos else ())
+    metrics = METRICS + (("publish_confirmed", "publisher_credit_stalls") + PUBLISHER_METRICS if args.qos else ())
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     if result["offered"] != args.rounds or result["deliveries"] != peers * args.rounds:
         raise ValueError("publication and delivery counts do not match the workload")
-    if args.qos and result["publish_confirmed"] != args.rounds:
-        raise ValueError("missing terminal publisher confirmations")
+    if args.qos:
+        if result["publish_confirmed"] != args.rounds:
+            raise ValueError("missing terminal publisher confirmations")
+        stalls = result["publisher_credit_stalls"]
+        if not stalls.is_integer() or stalls > args.rounds:
+            raise ValueError("invalid publisher credit-stall count")
     return result
 
 
@@ -150,7 +156,7 @@ def run_sample(args, implementation, workload, directory):
         config = directory / "mosquitto.conf"
         # The xmqtt APP admits 256 outstanding deliveries per connection.
         # Mosquitto's queue limit applies beyond the active inflight window.
-        limits = f"max_inflight_messages 64\nmax_queued_messages {256 - args.window}\n" if args.qos else ""
+        limits = f"max_inflight_messages 64\nmax_queued_messages {256 - args.subscriber_window}\n" if args.qos else ""
         config.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n"
                           "max_connections 1024\nmax_packet_size 16384\nset_tcp_nodelay true\n"
                           "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n" + limits, encoding="ascii")
@@ -227,9 +233,16 @@ def main():
     parser.add_argument("--rounds", type=int, default=6000)
     parser.add_argument("--warmup", type=int, default=512)
     parser.add_argument("--qos", type=int, choices=(0, 1, 2), default=0)
-    parser.add_argument("--window", type=int, choices=range(1, 65), metavar="1..64", default=16)
+    parser.add_argument("--window", type=int, choices=range(1, 65), metavar="1..64", default=16,
+                        help="publisher outstanding window for QoS 1/2")
+    parser.add_argument("--subscriber-window", type=int, choices=range(1, 65), metavar="1..64",
+                        help="Receive Maximum advertised by each subscriber, defaults to --window")
     parser.add_argument("--repeats", type=int, default=7)
     args = parser.parse_args()
+    if args.subscriber_window is not None and not args.qos:
+        parser.error("--subscriber-window requires QoS 1 or 2")
+    if args.qos and args.subscriber_window is None:
+        args.subscriber_window = args.window
     if not ({args.broker_cpu} | args.load_cpus) <= affinity(os.getpid()) or args.broker_cpu in args.load_cpus:
         parser.error("broker and observer need disjoint available logical CPUs")
     if not 1 <= args.rounds <= 100000 or not 0 <= args.warmup <= 100000 or not 3 <= args.repeats <= 31:
@@ -242,7 +255,8 @@ def main():
     report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu, "load_cpus": sorted(args.load_cpus),
               "rounds": args.rounds, "warmup": args.warmup, "repeats": args.repeats,
               "mosquitto_version": version, "mqtt": 5, "qos": args.qos,
-              "window": args.window if args.qos else None, "payload_bytes": 128, "security": "plaintext",
+              "window": args.window if args.qos else None, "subscriber_window": args.subscriber_window,
+              "payload_bytes": 128, "security": "plaintext",
               "persistence": False, "complete": False,
               "programs": {label: fingerprint(getattr(args, label)) for label in ("xmqtt", "mosquitto", "observer")},
               "runner": fingerprint(Path(__file__)),
@@ -250,7 +264,9 @@ def main():
               "workloads": []}
     args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    summaries = ("ingress_per_sec", "delivery_p99_us") + (("publisher_p99_us",) if args.qos else ())
+    summaries = ("ingress_per_sec", "delivery_p99_us", "offer_lag_p99_us", "pacer_lag_p99_us")
+    if args.qos:
+        summaries += PUBLISHER_METRICS
     try:
         for workload in args.workload:
             group = {"filter": workload[0], "subscribers": workload[1], "scheduled_rate": workload[2], "samples": []}

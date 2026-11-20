@@ -18486,3 +18486,63 @@ a fresh screened port every time. The failed attempts, per-case results
 and qualification summary are under
 out/service-extensions/scope-reduction-20261119/xredis-restart-recovery/.
 See [the xredis reproduction guide](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).
+
+## 2026-11-20 MQTT QoS 2 independent publisher and subscriber windows
+
+The fixed-arrival observer now controls publisher credits and subscriber
+Receive Maximum separately. Each accepted repeat reports the scheduled
+arrival-to-pacer lag, current publisher slot wait, number of arrivals
+that found a busy slot, and PUBLISH send-to-terminal-ack latency. The
+original end-to-end percentiles still include all queueing. The observer
+retains the reason code when it sees a negative acknowledgement or a
+DISCONNECT. In particular, PUBREC 0x97 terminates the repeat as a quota
+rejection. Only successful terminal acknowledgements count as confirmations.
+
+The Windows x64 and Ubuntu/WSL matrices each used one xmqtt broker worker
+or Mosquitto 2.1.2, one broker logical CPU, three disjoint observer
+logical CPUs, one publisher, eight wildcard subscribers, plaintext TCP,
+and in-memory state. Each window pair ran seven repetitions per broker,
+with 300 warmups and 3,000 measured publications at 3,000/s. The
+110 complete repetitions verified 330,000 terminal publisher responses
+and 2,640,000 payload-checked deliveries. Table values are medians of
+completed repeats. The WSL 16/1 xmqtt row covers five of seven attempts.
+
+| Environment | Publisher / subscriber window | xmqtt publisher credit stalls out of 3,000 | xmqtt P99 from send in ms | xmqtt / Mosquitto delivery P99 in ms |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 / 1 | 1,826 | 0.506 | 12.601 / 11.371 |
+| Windows x64 | 1 / 16 | 1,402 | 0.501 | 10.271 / 11.713 |
+| Windows x64 | 16 / 1 | 5 | 3.246 | 15.250 / 9.523 |
+| Windows x64 | 16 / 16 | 29 | 8.952 | 9.547 / 10.022 |
+| Ubuntu/WSL x64 | 1 / 1 | 3,000 | 0.494 | 9.848 / 3.816 |
+| Ubuntu/WSL x64 | 1 / 16 | 2,907 | 0.590 | 85.735 / 3.636 |
+| Ubuntu/WSL x64 | 16 / 1 | 0 | 0.589 | 52.415 / 2.367 |
+| Ubuntu/WSL x64 | 16 / 16 | 0 | 0.903 | 1.265 / 2.991 |
+
+In WSL, the 1/16 publisher reached scheduled arrivals with 85.034 ms
+P99 lag while the send-to-confirmation P99 was 0.590 ms. Most arrivals
+waited for a publisher slot and the backlog accumulated across rounds.
+With 16/1, completed repeats saw no publisher credit stalls and a
+52.415 ms subscriber delivery P99. Two repeats ended with PUBREC 0x97.
+The 16/16 profile sustained 2,999.27 publications/s and 23,994.17
+deliveries/s on WSL. This isolates a narrow subscriber window as a second
+pressure point for the one-worker broker, independent of publisher
+credit. Windows completed all window combinations and still showed
+variable tails.
+
+Of the 14 throughput series from fully completed pairs, 13 met the
+existing noise gate. None of their 28 publisher or delivery P99 series
+met it. The release performance baseline, native Linux qualification,
+and durable or TLS comparisons remain open.
+
+Both platforms passed the embedded QoS 2 smoke, the external QoS 0 and
+QoS 1 smokes and four scripted rejection cases. WSL ASan/UBSan with
+leak detection passed the scripted cases and six shorter 1/16 repeats.
+The initial build command omitted the observer's memory statistics
+closure. The first WSL 16/1 series lacked per-packet failure diagnostics.
+Both sets of logs are retained with the final reports. Ordinary maturity
+passed and strict release still rejects 39 developing xmqtt modules.
+
+Reproduction is in [the benchmark guide](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).
+The individual repeats, build and test logs, executable digests and audit
+summary are in
+out/service-extensions/scope-reduction-20261119/xmqtt-qos2-credit/.

@@ -78,6 +78,10 @@ def case(binary, name, qos):
                         assert tag == b"\x34"
                         publisher.sendall(b"\x70\x02\x00\x01")
                         check_no_more_publications(publisher)
+                    elif name == "negative-pubrec":
+                        assert tag == bytes([0x34])
+                        publisher.sendall(bytes.fromhex("50 03 00 01 97"))
+                        check_no_more_publications(publisher)
                     elif name == "wrong-pubcomp":
                         assert tag == b"\x34"
                         publisher.sendall(b"\x50\x02\x00\x01")
@@ -99,6 +103,8 @@ def case(binary, name, qos):
                         drain(p, [subscriber, publisher])
                     out, err = p.communicate(timeout=8)
                     assert p.returncode == 1 and not out and "Remote benchmark failed" in err, (p.returncode, out, err)
+                    if name == "negative-pubrec":
+                        assert "publisher acknowledgement type=5 reason=0x97" in err, err
                     print(name, "rejected", err.strip())
         finally:
             if p.poll() is None:
@@ -111,7 +117,8 @@ def main():
     parser.add_argument("observer", type=Path)
     args = parser.parse_args()
     binary = str(args.observer.resolve(strict=True))
-    for name, qos in (("early-pubcomp", 2), ("wrong-pubcomp", 2), ("duplicate-delivery", 1)):
+    for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("wrong-pubcomp", 2),
+                      ("duplicate-delivery", 1)):
         case(binary, name, qos)
 
 

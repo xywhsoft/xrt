@@ -263,17 +263,25 @@ subscriber and checks for extra deliveries after draining. The report
 keeps missed or failed repeats. Latency starts at the scheduled send time,
 and the separate offer-lag metric records producer scheduling delay.
 
-Select `--qos 1` or `--qos 2` and `--window 1..64` for reliable tests.
-The publisher enforces the same window against the broker's advertised
-Receive Maximum. It advances only on PUBACK or PUBCOMP. Each subscriber
-advertises the requested window, uses its broker-assigned identifiers and
-completes the full exchange. The runner requires every publisher confirmation
-and every subscriber delivery. Subscriber latency ends when the observer has
-sent PUBACK or PUBCOMP. Publisher latency ends when it receives the terminal
-acknowledgement. Every latency starts at the scheduled arrival, including
-any time spent waiting for credit. The connection drain checks for excess
-packets on both sides. The reliable profile configures 256 total pending
-deliveries per subscriber, counting the active window and the queue.
+Select `--qos 1` or `--qos 2` with `--window 1..64` for reliable tests.
+The observer requires the broker's advertised Receive Maximum to cover the
+publisher window and releases a slot on PUBACK or PUBCOMP. Each subscriber advertises
+its own Receive Maximum, set by `--subscriber-window` or inherited from
+`--window` by default. Subscribers use the broker-assigned packet identifiers.
+The runner requires every publisher confirmation, every subscriber delivery
+and a final PING drain on both sides. Each subscriber has 256 total pending
+slots, counting the active window and the queue. The flow-control rules
+are in [MQTT 5.0, section 4.9](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+End-to-end latency starts at the scheduled arrival. Subscriber latency ends
+after the observer sends PUBACK or PUBCOMP. Publisher latency ends when it
+reads the matching terminal acknowledgement. The JSON keeps time from the
+scheduled arrival to the pacer reaching it, time from that observation to
+acquiring the publisher slot, and time from the PUBLISH send attempt to
+its terminal acknowledgement. The pacer can inherit delay from preceding
+arrivals. The current-slot wait includes lock and wake-up time. The
+`publisher_credit_stalls` count identifies arrivals that actually saw an
+occupied slot. Each P99 comes from that interval's own samples.
 
 Build the broker with the `xmqtt_server` suite and build the observer
 with the registered `xmqtt_server_routes` smoke profile. Use the resulting
@@ -283,6 +291,16 @@ with the registered `xmqtt_server_routes` smoke profile. Use the resulting
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --arch x64 --cflag=-O2
 python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server_routes --smoke --report out/server-routing-smoke.json
 python extlibs/xmqtt/bench/compare_broker.py --xmqtt /path/to/examples_server_main --mosquitto /path/to/mosquitto --observer /path/to/bench_server --broker-cpu 2 --load-cpus 4,6,8 --workload exact:1:3000 --workload wildcard:8:10000 --report out/broker-compare.json
+```
+
+For the eight-subscriber QoS 2 diagnostic, keep the offered rate at
+3,000/s and rerun with each pair of publisher and subscriber windows
+(1/1, 1/16, 16/1, 16/16). Select separate reports for each run. For example,
+append these arguments to the command above after removing the example
+workload and report arguments.
+
+```text
+--qos 2 --window 1 --subscriber-window 16 --workload wildcard:8:3000 --rounds 3000 --warmup 300 --repeats 7 --report out/broker-qos2-p1-s16.json
 ```
 
 Use [Mosquitto 2.1.2](https://github.com/eclipse-mosquitto/mosquitto/releases/tag/v2.1.2)
@@ -296,8 +314,8 @@ P50/P95/P99/P99.9, offer lag, broker CPU through connection and warmup,
 and peak resident memory. Each throughput and P99 series has a sample
 noise verdict using 3% relative MAD and 6% trimmed central range.
 
-The scripted observer regression checks early PUBCOMP, a wrong PUBCOMP
-identifier and duplicate subscriber delivery. It also exercises bounded
+The scripted observer regression checks negative PUBREC with its reason code,
+early PUBCOMP, a wrong PUBCOMP identifier and duplicate subscriber delivery. It also exercises bounded
 socket retirement after failure.
 
 ```text
