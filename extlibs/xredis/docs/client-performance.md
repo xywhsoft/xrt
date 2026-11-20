@@ -127,7 +127,66 @@ The deterministic tests cover rational arrival times, non-shifting schedules,
 overflow, nearest-rank tails, exactly-once ledger accounting and deadline
 equality. Real TCP cases cover binary success, generator-induced expiry without
 sending business commands, bounded held-reply overload/timeouts, callback reuse
-and enabled allocation counters. Remaining acceptance includes native platform
-long runs, stable pinned repeat measurements, larger worker/connection/payload
-matrices, matched Hiredis workloads, server CPU/resource budgets, exact copy/
-synchronization/syscall accounting and the original four-product release gates.
+and enabled allocation counters.
+
+## Hiredis reference comparison
+
+Build the same observer with and without REDIS_OPENLOOP_HIREDIS for the
+single-connection RESP3 TCP ECHO comparison. Both paths negotiate HELLO 3
+and warm up with PING. They use the same scheduled arrivals, binary payload,
+credit limit, timeout and reply validation. Hiredis drives its nonblocking
+socket and reply parser on the generator thread. xredis uses one XRT I/O
+worker and the generator. Latency ends when the Future notification or
+Hiredis reply parser exposes the reply to the observer. CPU measurements
+include both the generator and any client worker.
+
+The comparator rejects local/mock peers, fault mode 2 and allocator
+instrumentation. It fails a run if an outstanding Hiredis command does not
+drain by its scheduled deadline. A command already on that FIFO connection
+cannot be discarded independently. The paired runner checks every offer,
+reply and deadline, alternates client order, and keeps the warmups, raw output,
+and executable and source hashes. The report distinguishes verified reply
+counts from variation checks. Variation requires five or more measured
+samples, at most 3% relative MAD and at most 6% relative central range.
+
+Build Hiredis 1.3.0 from its codeload tag archive. The archive SHA-256 used
+in this comparison is 25cee4500f359cf5cad3b51ed62059aadfc0939b05150c1f19c7e2829123631c.
+[Hiredis release](https://github.com/redis/hiredis/releases/tag/v1.3.0)
+From the repository root, point HIREDIS_SRC at the extracted source, and
+HIREDIS_BUILD at an output directory.
+
+    cmake -S "$HIREDIS_SRC" -B "$HIREDIS_BUILD" -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+      -DBUILD_SHARED_LIBS=OFF -DDISABLE_TESTS=ON -DENABLE_SSL=OFF
+    cmake --build "$HIREDIS_BUILD" --target hiredis
+
+These GNU/Linux commands build both observers from the checked-in single
+headers. On Windows with MinGW GCC use WIN32_LEAN_AND_MEAN in place of
+_GNU_SOURCE and link with -lws2_32 in place of -pthread -lm. Add -lcrypt32
+after the Hiredis archive on Windows. With CMake 4, use
+-DCMAKE_POLICY_VERSION_MINIMUM=3.5 for the Hiredis configuration.
+
+    flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE
+      -DXREDIS_MODULE_XREDIS_CLIENT -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION
+      -Iinclude -Iextlibs/xredis/include -include xredis/features.h
+      -include ./single/xrt.h -include ./single/extlibs/xredis.h)
+    observer=extlibs/xredis/bench/bench_client_openloop.c
+    gcc "${flags[@]}" "$observer" -o out/xredis-echo -pthread -lm
+    gcc "${flags[@]}" -DREDIS_OPENLOOP_HIREDIS -I"$HIREDIS_SRC" "$observer" \
+      "$HIREDIS_BUILD/libhiredis.a" -o out/hiredis-echo -pthread -lm
+    taskset -c 0 redis-server --bind 127.0.0.1 --port 16379 \
+      --save "" --appendonly no --io-threads 1
+
+Use a dedicated unused port and select available CPUs on separate physical
+cores for the clients and fixture. In a second terminal, run the pair and
+retain Redis INFO commandstats and INFO cpu before and after the run.
+
+    taskset -c 4,8 python3 extlibs/xredis/bench/compare_hiredis.py \
+      --xredis out/xredis-echo --hiredis out/hiredis-echo --port 16379 \
+      --count 20000 --rate 5000 --window 16 --payload 32 --repeats 7 \
+      --report out/xredis-echo-comparison.json
+
+The offered rate is fixed. Successful throughput measures how much of that
+rate the pair delivered at this CPU and connection budget. Native Linux,
+multi-connection, mixed-command and TLS comparisons, stable tail baselines,
+exact copy/synchronization/syscall costs and 72-hour acceptance remain open.

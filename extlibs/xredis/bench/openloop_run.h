@@ -3,12 +3,20 @@
 #if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
 #endif
+#if defined(_WIN32) && defined(REDIS_OPENLOOP_HIREDIS)
+#include <winsock2.h>
+#endif
 #include "openloop_schedule.h"
+#if !defined(REDIS_OPENLOOP_HIREDIS)
 #include "../tests/support/client_peer.h"
+#endif
 #if defined(REDIS_OPENLOOP_TLS)
 #include "../tests/support/tls_peer.h"
 #endif
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #if defined(_WIN32)
 #include <windows.h>
 #include <psapi.h>
@@ -18,14 +26,6 @@
 #include <time.h>
 #endif
 
-typedef struct redisopenslot {
-	xfuture* Future;
-	xfuturewatch Watch;
-	xatomic32 Done;
-	uint64 Observed;
-	size_t Id;
-	bool Active;
-} redisopenslot;
 typedef struct redisopenresult {
 	redisopencounts Counts;
 	double Elapsed, Retire, Cpu;
@@ -37,11 +37,14 @@ typedef struct redisopenresult {
 	bool StatsCompiled;
 	char Backend[32];
 } redisopenresult;
-typedef struct redisopenpeer {
-	redispeer Peer;
-	redispeerhook Hook;
-	bool Hold;
-} redisopenpeer;
+
+static void redisOpenRequire(bool Condition, cstr Message)
+{
+	if (!Condition) {
+		fprintf(stderr, "open-loop: %s\n", Message);
+		exit(EXIT_FAILURE);
+	}
+}
 
 static uint64 redisOpenNow(void)
 { return (uint64)(xrtTimer() * (double)REDIS_OPEN_NS); }
@@ -50,12 +53,12 @@ static double redisOpenCpu(void)
 {
 #if defined(_WIN32)
 	FILETIME Created, Exited, Kernel, User; ULARGE_INTEGER K, U;
-	redisPeerRequire(GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User) != 0, "process CPU snapshot");
+	redisOpenRequire(GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User) != 0, "process CPU snapshot");
 	K.LowPart = Kernel.dwLowDateTime; K.HighPart = Kernel.dwHighDateTime;
 	U.LowPart = User.dwLowDateTime; U.HighPart = User.dwHighDateTime;
 	return (double)(K.QuadPart + U.QuadPart) / 10000000.0;
 #else
-	struct timespec Time; redisPeerRequire(clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &Time) == 0, "process CPU snapshot");
+	struct timespec Time; redisOpenRequire(clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &Time) == 0, "process CPU snapshot");
 	return (double)Time.tv_sec + (double)Time.tv_nsec / (double)REDIS_OPEN_NS;
 #endif
 }
@@ -63,9 +66,9 @@ static double redisOpenCpu(void)
 static uint64 redisOpenHandles(void)
 {
 #if defined(_WIN32)
-	DWORD Count; redisPeerRequire(GetProcessHandleCount(GetCurrentProcess(), &Count) != 0, "process handle snapshot"); return Count;
+	DWORD Count; redisOpenRequire(GetProcessHandleCount(GetCurrentProcess(), &Count) != 0, "process handle snapshot"); return Count;
 #else
-	DIR* Directory = opendir("/proc/self/fd"); redisPeerRequire(Directory != NULL, "process fd snapshot");
+	DIR* Directory = opendir("/proc/self/fd"); redisOpenRequire(Directory != NULL, "process fd snapshot");
 	uint64 Count = 0; struct dirent* Entry;
 	while ((Entry = readdir(Directory)) != NULL) if (Entry->d_name[0] != '.') ++Count;
 	closedir(Directory); return Count; /* Includes this scan's own descriptor on both snapshots. */
@@ -76,11 +79,57 @@ static uint64 redisOpenRss(void)
 {
 #if defined(_WIN32)
 	PROCESS_MEMORY_COUNTERS Memory; memset(&Memory, 0, sizeof(Memory)); Memory.cb = sizeof(Memory);
-	redisPeerRequire(K32GetProcessMemoryInfo(GetCurrentProcess(), &Memory, sizeof(Memory)) != 0, "process memory snapshot"); return Memory.PeakWorkingSetSize;
+	redisOpenRequire(K32GetProcessMemoryInfo(GetCurrentProcess(), &Memory, sizeof(Memory)) != 0, "process memory snapshot"); return Memory.PeakWorkingSetSize;
 #else
-	struct rusage Usage; redisPeerRequire(getrusage(RUSAGE_SELF, &Usage) == 0, "process memory snapshot"); return (uint64)Usage.ru_maxrss * 1024u;
+	struct rusage Usage; redisOpenRequire(getrusage(RUSAGE_SELF, &Usage) == 0, "process memory snapshot"); return (uint64)Usage.ru_maxrss * 1024u;
 #endif
 }
+
+static int redisOpenCompare(const void* Left, const void* Right)
+{ uint64 A = *(const uint64*)Left, B = *(const uint64*)Right; return (A > B) - (A < B); }
+
+static void redisOpenPercentiles(uint64* Samples, size_t Count, double* Output)
+{
+	static const unsigned Percentiles[] = {500, 950, 990, 999};
+	if (Count != 0) qsort(Samples, Count, sizeof(*Samples), redisOpenCompare);
+	for (size_t Index = 0; Index < 4; ++Index) Output[Index] = Count == 0 ? 0.0 : (double)Samples[redisOpenQuantile(Count, Percentiles[Index])] / 1000.0;
+}
+
+static void redisOpenSummarize(const redisopenconfig* Config, redisopenresult* Output,
+	const redisopenrecord* Records, uint64* Samples)
+{
+	redisOpenRequire(Output->Counts.Total == Config->Count, "open-loop no omitted offers");
+	for (size_t Index = 0; Index < Config->Count; ++Index) {
+		redisOpenRequire(Records[Index].Finished != 0, "missing scheduled offer");
+		Samples[Index] = Records[Index].Finished - Records[Index].Due;
+	}
+	redisOpenPercentiles(Samples, Config->Count, Output->All);
+	for (size_t Index = 0; Index < Config->Count; ++Index) Samples[Index] = Records[Index].Submitted - Records[Index].Due;
+	redisOpenPercentiles(Samples, Config->Count, Output->Lag);
+	size_t Successes = 0;
+	for (size_t Index = 0; Index < Config->Count; ++Index) if (Records[Index].Outcome == REDIS_OPEN_ACCEPTED && Records[Index].Valid && Records[Index].Status == XREDIS_REQUEST_OK)
+		Samples[Successes++] = Records[Index].Finished - Records[Index].Due;
+	redisOpenRequire(Successes == Output->Counts.Successful, "open-loop success ledger");
+	redisOpenPercentiles(Samples, Successes, Output->Success);
+	Output->RssPeak = redisOpenRss();
+}
+
+#if defined(REDIS_OPENLOOP_HIREDIS)
+#include "openloop_hiredis.h"
+#else
+typedef struct redisopenslot {
+	xfuture* Future;
+	xfuturewatch Watch;
+	xatomic32 Done;
+	uint64 Observed;
+	size_t Id;
+	bool Active;
+} redisopenslot;
+typedef struct redisopenpeer {
+	redispeer Peer;
+	redispeerhook Hook;
+	bool Hold;
+} redisopenpeer;
 
 static void redisOpenNotify(ptr Data)
 { ((redisopenslot*)Data)->Observed = redisOpenNow(); }
@@ -103,16 +152,6 @@ static bool redisOpenPeerCommand(redispeer* Peer, xredisreply* Reply, ptr Data)
 	}
 	if (Context->Hold && redisPeerName(Command, "ECHO")) Peer->Blocked = true;
 	return false;
-}
-
-static int redisOpenCompare(const void* Left, const void* Right)
-{ uint64 A = *(const uint64*)Left, B = *(const uint64*)Right; return (A > B) - (A < B); }
-
-static void redisOpenPercentiles(uint64* Samples, size_t Count, double* Output)
-{
-	static const unsigned Percentiles[] = {500, 950, 990, 999};
-	if (Count != 0) qsort(Samples, Count, sizeof(*Samples), redisOpenCompare);
-	for (size_t Index = 0; Index < 4; ++Index) Output[Index] = Count == 0 ? 0.0 : (double)Samples[redisOpenQuantile(Count, Percentiles[Index])] / 1000.0;
 }
 
 static void redisOpenObserve(redisopenslot* Slot, const redisopenconfig* Config,
@@ -262,15 +301,9 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	redisPeerRequire(Output->Counts.Total == Config->Count && Output->Counts.Accepted + Output->Counts.Outcomes[REDIS_OPEN_CAPACITY] +
 		Output->Counts.Outcomes[REDIS_OPEN_OVERLOADED] + Output->Counts.Outcomes[REDIS_OPEN_CLOSED] + Output->Counts.Outcomes[REDIS_OPEN_ERROR] +
 		Output->Counts.Outcomes[REDIS_OPEN_EXPIRED] == Config->Count, "open-loop no omitted offers");
-	for (size_t Index = 0; Index < Config->Count; ++Index) { redisPeerRequire(Records[Index].Finished != 0, "missing scheduled offer"); Samples[Index] = Records[Index].Finished - Records[Index].Due; }
-	redisOpenPercentiles(Samples, Config->Count, Output->All);
-	for (size_t Index = 0; Index < Config->Count; ++Index) Samples[Index] = Records[Index].Submitted - Records[Index].Due;
-	redisOpenPercentiles(Samples, Config->Count, Output->Lag);
-	size_t Successes = 0;
-	for (size_t Index = 0; Index < Config->Count; ++Index) if (Records[Index].Outcome == REDIS_OPEN_ACCEPTED && Records[Index].Valid && Records[Index].Status == XREDIS_REQUEST_OK)
-		Samples[Successes++] = Records[Index].Finished - Records[Index].Due;
-	redisOpenPercentiles(Samples, Successes, Output->Success);
-	Output->RssPeak = redisOpenRss(); free(Samples); free(Payload); free(Free); free(Slots); free(Records);
+	redisOpenSummarize(Config, Output, Records, Samples);
+	free(Samples); free(Payload); free(Free); free(Slots); free(Records);
 	Output->HandlesAfter = redisOpenHandles(); return Output->Counts.Corrupt == 0 && (Config->Mode != 0 || Output->Counts.Successful != 0);
 }
+#endif
 #endif

@@ -18,6 +18,14 @@ int main(int argc, char** argv)
 		Args[5] > 2 || Args[6] > 5000 || Args[7] > UINT16_MAX || Args[8] > 1) return 2;
 	Config = (redisopenconfig){(size_t)Args[0], (size_t)Args[2], (size_t)Args[3], Args[1], (int64)Args[4], (unsigned)Args[5], (uint32)Args[6], (uint32)Args[7], Args[8] != 0};
 	redisopenresult Result; if (!redisOpenConfigValid(&Config)) return 2;
+#if defined(REDIS_OPENLOOP_HIREDIS)
+	if (Config.Port == 0 || Config.Mode == 2 || Config.Stats) return 2;
+	const unsigned Workers = 0;
+	puts("client=hiredis-1.3.0");
+#else
+	const unsigned Workers = Config.Port == 0 ? 2u : 1u;
+	puts("client=xredis");
+#endif
 #if !defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config.Stats) return 2;
 #endif
@@ -29,7 +37,7 @@ int main(int argc, char** argv)
 #else
 	puts("transport=tcp");
 #endif
-	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Config.Port == 0 ? 2u : 1u, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
+	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Workers, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
 	printf("target_rate_per_sec=%" PRIu64 "\nintended_timeout_ms=%" PRId64 "\n", Config.Rate, Config.Timeout);
 	printf("offered: %zu\naccepted: %zu\nsuccessful: %zu\nunsuccessful: %zu\n", C->Total, C->Accepted, C->Successful, C->Total - C->Successful);
 	printf("harness_capacity: %zu\nclient_overloaded: %zu\nclient_closed: %zu\nadmission_error: %zu\nexpired_before_admission: %zu\n",

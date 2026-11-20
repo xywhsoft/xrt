@@ -18175,3 +18175,52 @@ Raw evidence is under
 Ordinary maturity passes. Strict release still reports 39 developing
 MQTT modules. Native Linux, stable tail-latency baselines, TLS and
 durable comparisons, and 72-hour mixed loads remain open.
+
+## 2026-11-20 Redis fixed-arrival Hiredis reference
+
+The existing ECHO benchmark now builds a Hiredis 1.3.0 reference beside
+the xredis observer. They share a fixed RESP3 arrival schedule, binary
+reply checks, a bounded outstanding window, and timing from scheduled
+arrival to reply observation. The xredis observer drives one XRT worker
+plus the generator. Hiredis drives its socket and parser from the generator.
+The paired runner alternates order and retains every sample, including
+samples with rejected offers.
+
+Native Windows x64 and Ubuntu/WSL x64 clients each used a two-logical-CPU
+budget and a dedicated, single-CPU Redis 8.0.5 process in WSL. Windows
+connected through WSL loopback forwarding. Persistence was disabled.
+Each case ran seven three-second samples per client plus one warmup.
+Across 140 measured samples, 2,133,826 of 2,142,000 offers were admitted.
+The Redis command counter matched the admitted-offer ledger in all ten
+cases. Every admitted binary reply validated before its deadline.
+
+| Offers/s | Payload (bytes) | Window | Windows rejected (xredis / Hiredis) | WSL rejected (xredis / Hiredis) |
+| ---: | ---: | ---: | ---: | ---: |
+| 500 | 32 | 1 | 38 / 10 | 7 / 6 |
+| 2,000 | 32 | 128 | 0 / 0 | 0 / 0 |
+| 3,000 | 1,024 | 16 | 146 / 14 | 0 / 0 |
+| 5,000 | 32 | 16 | 410 / 307 | 0 / 0 |
+| 15,000 | 32 | 64 | 5,354 / 1,715 | 0 / 167 |
+
+All rejections in the table occurred when the observer's outstanding
+window was full. Neither client reported server errors or timeouts.
+The WSL pairs at 3,000 and 5,000 offers/s fully delivered the offered load.
+Their P99 medians were 150.5 / 81.3 us and 141.2 / 71.3 us respectively.
+Only the 5,000/s xredis P99 series passed the existing 3% MAD and 6%
+central-range limits among those four P99 series. The 2,000/s control
+completed every offer on both platforms. Its P99 medians were
+272.9 / 227.2 us on Windows and 180.8 / 84.0 us on WSL. All four
+control P99 series failed at least one variation limit.
+
+Both platforms passed the modular and single-header open-loop regressions.
+The Hiredis fixture verified that a corrupt reply, wrong HELLO protocol,
+and a held reply in excess of its deadline each fail the run. Ordinary
+maturity checks pass. Strict release still reports 29 developing xredis
+modules. Native Linux, mixed-command and TLS comparison, stable tail
+baselines, and 72-hour mixed loads remain open.
+
+The commands for rebuilding and repeating the comparison are in
+[`client-performance.md`](../../extlibs/xredis/docs/client-performance.md).
+The raw samples, fixture CPU and Redis command counts, sources, and binary
+hashes are under
+`out/service-extensions/scope-reduction-20261119/xredis-hiredis-baseline/`.
