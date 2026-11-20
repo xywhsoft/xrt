@@ -93,6 +93,16 @@ Windows. The second sweep uses the same workload at 8,000 and 16,000
 offers per connection with one executor worker. To offer more traffic with
 two workers, use --rates 24000,32000.
 
+Use `--observer-shards 3` to split the observer across the first three
+CPUs in the sorted observer mask. The default is one process. Each
+shard drives a disjoint subset of connections and uses the same initial
+timestamp, full connection phase offsets and per-connection credit
+limit. The coordinator merges timestamps after all shards complete.
+The report records CPU time for each shard and its sum. The coordinator's
+CPU is outside that measurement. For a comparison, keep the APP, CPU
+masks, framing, rates and windows fixed and save each run to its own
+report. Choose at most one shard per observer CPU and connection.
+
 The default aligns every connection's groups on the same schedule.
 Append `--stagger-arrivals` to space their offers evenly within one group
 period. The per-connection rate, number of calls and credit window stay

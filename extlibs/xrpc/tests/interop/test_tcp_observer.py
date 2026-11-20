@@ -1,9 +1,11 @@
 """Exercise fixed-arrival TCP reply verification across arbitrary reads."""
 from collections import deque
+import multiprocessing
+import time
 import unittest
 from unittest.mock import Mock, patch
 
-from run_tcp_worker import SaturationPeer
+from run_tcp_worker import SaturationPeer, receive_shard, retire_shard
 
 
 class Replies:
@@ -85,6 +87,30 @@ class ReplyStreamTest(unittest.TestCase):
         peer = self.peer(self.wire + b"unexpected\n")
         with self.assertRaisesRegex(RuntimeError, "unexpected reply after the final offer"):
             peer.read()
+
+
+class ShardShutdownTest(unittest.TestCase):
+    def test_receive_reports_a_shard_failure(self):
+        reader, writer = multiprocessing.Pipe()
+        with reader, writer:
+            writer.send(("failure", "reply identity mismatch"))
+            with self.assertRaisesRegex(RuntimeError, "reply identity mismatch"):
+                receive_shard(reader, "done")
+
+    def test_receive_rejects_a_closed_shard(self):
+        reader, writer = multiprocessing.Pipe()
+        with reader:
+            writer.close()
+            with self.assertRaisesRegex(RuntimeError, "exited before ready"):
+                receive_shard(reader, "ready")
+
+    def test_retire_reaps_a_live_shard(self):
+        context = multiprocessing.get_context("spawn")
+        worker = context.Process(target=time.sleep, args=(60,))
+        worker.start()
+        pid = worker.pid
+        retire_shard(worker)
+        self.assertFalse(any(child.pid == pid for child in multiprocessing.active_children()))
 
 
 if __name__ == "__main__":

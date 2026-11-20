@@ -20381,3 +20381,52 @@ Linux and strict release acceptance remain open.
 The diagnostic overlays, observer and binary ledgers, reports and audit
 are under
 `out/service-extensions/scope-reduction-20261119/xrpc-staggered-phase-trace/`.
+
+## 2026-11-21 xrpc single and sharded saturation observers
+
+The saturation driver can split its connections across observer processes
+while keeping the same APP binary, global offer clock, arrival phases and
+per-peer credit. Each shard uses one CPU in the existing observer mask.
+It exports observations once every shard has finished measuring. The
+coordinator restores the original connection order before computing
+throughput, quantiles and the same-reply phase sums.
+
+The comparison scheduled 128,000 calls/s for two seconds across eight
+connections with two APP workers and a 16-group window. It held the APP
+mask at CPUs 0 and 2 and the observer budget at 6, 8 and 10. The three
+shards assigned 3, 3 and 2 connections to their CPUs. All 80 samples
+verified 20,480,000 replies. Each row gives the medians of five runs
+per observer configuration.
+
+| Host | APP | Framing | Verified calls/s, one / three shards | P99 in ms, one / three shards |
+| --- | --- | --- | ---: | ---: |
+| Windows x64 | Duplex | Records | 127,988 / 127,985 | 1.624 / 1.186 |
+| Windows x64 | Duplex | Batch | 127,998 / 127,996 | 0.352 / 0.456 |
+| Windows x64 | Dispatch | Records | 127,992 / 127,996 | 2.979 / 2.245 |
+| Windows x64 | Dispatch | Batch | 128,000 / 128,000 | 0.314 / 0.437 |
+| Ubuntu/WSL x64 | Duplex | Records | 126,456 / 94,252 | 35.867 / 719.489 |
+| Ubuntu/WSL x64 | Duplex | Batch | 127,993 / 127,990 | 0.432 / 0.429 |
+| Ubuntu/WSL x64 | Dispatch | Records | 127,958 / 114,710 | 4.372 / 255.065 |
+| Ubuntu/WSL x64 | Dispatch | Batch | 127,996 / 127,997 | 0.358 / 0.344 |
+
+Fifteen of 16 throughput series passed the variation gate. Only
+three-shard WSL dispatch batch P99 passed. On WSL duplex records, the
+median number of groups that observed a full window rose from 15,993 to
+31,066. In the three-shard slowest 1%, 98.8% of latency accumulated
+outside observed credit wait before offer. That interval includes delay
+behind earlier groups. In batch traffic the summed observer CPU time
+rose from about two to six seconds per sample on both hosts. The
+one-process observer remains the default. Stable record tails and native
+Linux release qualification remain open.
+
+The observer tests, TCP interop, invalid shard-count checks, and
+five-connection runs with 1,001 calls per connection passed on both
+hosts. Those runs covered both framings and uneven shard allocation.
+A Windows closed-pipe test exposed a BrokenPipeError during polling.
+The final harness reports the failed shard and reaps its process. The
+80-run evidence retains the measured source snapshot from before that
+error-reporting correction. The final source passed the short matrix.
+
+Raw reports, exact source, binary hashes and audit output are under
+`out/service-extensions/scope-reduction-20261119/xrpc-observer-shards/`.
+[Sharded observer usage](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).

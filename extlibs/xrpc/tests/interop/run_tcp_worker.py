@@ -7,6 +7,7 @@ import hashlib
 from heapq import nlargest
 from itertools import accumulate
 import json
+import multiprocessing
 from operator import itemgetter
 import os
 import platform
@@ -17,6 +18,7 @@ import statistics
 import subprocess
 import threading
 import time
+from types import SimpleNamespace
 
 
 def record(value):
@@ -282,6 +284,10 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
             **percentiles(latency, ""), **percentiles(lag, "offer_lag_")}
 
 
+SATURATION_DEPTH = 8
+SATURATION_WARMUP = 64
+
+
 class SaturationPeer:
     def __init__(self, sock, batches, window, phase_ns=0):
         self.sock = sock
@@ -375,17 +381,142 @@ class SaturationPeer:
         return True
 
 
+def saturation_streams(indexed_peers, calls, connections, rate, window, batch_documents, stagger_arrivals):
+    streams = {}
+    for index, peer in indexed_peers:
+        first = index * (calls + SATURATION_WARMUP) + SATURATION_WARMUP + 1
+        groups = list(saturation_batches(calls, SATURATION_DEPTH, first, batch_documents))
+        phase = index * SATURATION_DEPTH * 1_000_000_000 // (rate * connections) if stagger_arrivals else 0
+        streams[peer] = SaturationPeer(peer, groups, window, phase)
+    return streams
+
+
+def saturation_drive(streams, start, rate, end, deadline_ns):
+    period = SATURATION_DEPTH * 1_000_000_000
+    while streams:
+        now = time.perf_counter_ns()
+        if now >= end:
+            raise RuntimeError("reply missed its fixed-arrival deadline")
+        next_due = now + 50_000_000
+        writable = []
+        for peer, stream in streams.items():
+            if (due := stream.offer(start, period, rate, now, deadline_ns)) is not None:
+                next_due = min(next_due, due)
+            if stream.outgoing is not None:
+                writable.append(peer)
+        # Keep sub-millisecond pacing independent of platform timeout rounding.
+        wait = max(0, next_due - time.perf_counter_ns() - 2_000_000) / 1e9
+        readers, writers, _ = select.select(streams, writable, [], wait)
+        for peer in writers:
+            streams[peer].flush()
+        for peer in readers:
+            if not streams[peer].read():
+                del streams[peer]
+
+
+def saturation_shard(channel, indexed_peers, settings, cpu):
+    with channel, ExitStack() as sockets:
+        for _, peer in indexed_peers:
+            sockets.enter_context(peer)
+        try:
+            process_affinity({cpu})
+            streams = saturation_streams(indexed_peers, **settings)
+            peers = list(streams.values())
+            channel.send(("ready", None))
+            start, end, deadline_ns = channel.recv()
+            used = time.process_time_ns()
+            saturation_drive(streams, start, settings['rate'], end, deadline_ns)
+            channel.send(("done", (time.process_time_ns() - used) / 1e9))
+            # Wait for all other shards to finish their measured interval
+            # before spending CPU to serialize the per-reply observations.
+            channel.recv()
+            channel.send(("results", [SimpleNamespace(
+                times=peer.times, sent_at=peer.sent_at, credit_wait=peer.credit_wait,
+                peak=peer.peak, stalls=peer.stalls, phase_ns=peer.phase_ns,
+            ) for peer in peers]))
+        except (AssertionError, EOFError, OSError, RuntimeError, ValueError) as error:
+            with suppress(OSError):
+                channel.send(("failure", repr(error)))
+
+
+def receive_shard(channel, kind):
+    try:
+        if not channel.poll(25):
+            raise RuntimeError(f"observer shard did not report {kind}")
+        received, value = channel.recv()
+    except (EOFError, BrokenPipeError) as error:
+        raise RuntimeError(f"observer shard exited before {kind}") from error
+    if received != kind:
+        raise RuntimeError(f"observer shard expected {kind}, received {received}: {value}")
+    return value
+
+
+def retire_shard(process):
+    if process.is_alive():
+        process.terminate()
+    process.join(5)
+    if process.is_alive():
+        process.kill()
+        process.join(5)
+    process.close()
+
+
+def saturation_sharded(peers, settings, cpus, bounds):
+    indexed = list(enumerate(peers))
+    context = multiprocessing.get_context("spawn")
+    with ExitStack() as stack:
+        children = []
+        for shard, cpu in enumerate(cpus):
+            coordinator, worker = context.Pipe()
+            stack.enter_context(coordinator)
+            with worker:
+                process = context.Process(target=saturation_shard,
+                                          args=(worker, indexed[shard::len(cpus)], settings, cpu))
+                process.start()
+            stack.callback(retire_shard, process)
+            children.append((process, coordinator))
+        for _, channel in children:
+            receive_shard(channel, "ready")
+        start = time.perf_counter_ns() + 20_000_000
+        schedule = (start, *bounds(start))
+        for _, channel in children:
+            channel.send(schedule)
+        cpu_seconds = [receive_shard(channel, "done") for _, channel in children]
+        for _, channel in children:
+            channel.send(None)
+        results = [None] * len(peers)
+        for shard, (process, channel) in enumerate(children):
+            observations = receive_shard(channel, "results")
+            if len(observations) != len(results[shard::len(cpus)]):
+                raise RuntimeError("observer shard returned the wrong number of peers")
+            results[shard::len(cpus)] = observations
+            process.join(5)
+            if process.exitcode != 0:
+                raise RuntimeError("observer shard did not exit cleanly")
+        return results, start, cpu_seconds
+
+
 def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus,
-                      batch_documents=False, stagger_arrivals=False):
-    depth, warmup, deadline_ns = 8, 64, 5_000_000_000
+                      batch_documents=False, stagger_arrivals=False, observer_shards=1):
+    depth, warmup, deadline_ns = SATURATION_DEPTH, SATURATION_WARMUP, 5_000_000_000
     period = depth * 1_000_000_000
     batch_count = (calls + depth - 1) // depth
-    start = elapsed = cpu = None
+    if observer_shards < 1 or (observer_shards > 1 and observer_shards > min(connections, len(observer_cpus or ()))):
+        raise ValueError("observer shards need distinct CPUs and at least one connection each")
+    shard_cpus = sorted(observer_cpus)[:observer_shards] if observer_shards > 1 else []
+    start = elapsed = None
+    cpu_seconds = []
     results = []
+    settings = dict(calls=calls, connections=connections, rate=rate, window=window,
+                    batch_documents=batch_documents, stagger_arrivals=stagger_arrivals)
+
+    def bounds(start):
+        last_phase = (connections - 1) * period // (rate * connections) if stagger_arrivals else 0
+        last_due = start + (batch_count - 1) * period // rate + last_phase
+        return max(last_due, start + calls * 1_000_000_000 // rate) + deadline_ns, deadline_ns
 
     def drive(peers):
-        nonlocal start, elapsed, cpu
-        streams = {}
+        nonlocal start, elapsed, cpu_seconds, results
         for index, peer in enumerate(peers):
             first = index * (calls + warmup) + 1
             # Preserve bytes beyond the warmup replies for the measured reader.
@@ -393,35 +524,16 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
                 for wire, replies, _ in saturation_batches(warmup, depth, first, batch_documents):
                     list(checked_batch(peer, stream, wire, replies))
             peer.setblocking(False)
-            groups = list(saturation_batches(calls, depth, first + warmup, batch_documents))
-            phase = index * period // (rate * len(peers)) if stagger_arrivals else 0
-            streams[peer] = SaturationPeer(peer, groups, window, phase)
-        results.extend(streams.values())
-        cpu = time.process_time_ns()
-        start = time.perf_counter_ns() + 20_000_000
-        last_due = start + (batch_count - 1) * period // rate + results[-1].phase_ns
-        end = max(last_due, start + calls * 1_000_000_000 // rate) + deadline_ns
-        while streams:
-            now = time.perf_counter_ns()
-            if now >= end:
-                raise RuntimeError("reply missed its fixed-arrival deadline")
-            next_due = now + 50_000_000
-            writable = []
-            for peer, stream in streams.items():
-                if (due := stream.offer(start, period, rate, now, deadline_ns)) is not None:
-                    next_due = min(next_due, due)
-                if stream.outgoing is not None:
-                    writable.append(peer)
-            # Keep sub-millisecond pacing independent of platform timeout rounding.
-            wait = max(0, next_due - time.perf_counter_ns() - 2_000_000) / 1e9
-            readers, writers, _ = select.select(streams, writable, [], wait)
-            for peer in writers:
-                streams[peer].flush()
-            for peer in readers:
-                if not streams[peer].read():
-                    del streams[peer]
+        if shard_cpus:
+            results, start, cpu_seconds = saturation_sharded(peers, settings, shard_cpus, bounds)
+        else:
+            streams = saturation_streams(enumerate(peers), **settings)
+            results = list(streams.values())
+            used = time.process_time_ns()
+            start = time.perf_counter_ns() + 20_000_000
+            saturation_drive(streams, start, rate, *bounds(start))
+            cpu_seconds = [(time.process_time_ns() - used) / 1e9]
         elapsed = max(stream.times[-1] for stream in results) - start
-        cpu = (time.process_time_ns() - cpu) / 1e9
 
     status, report = multi_exchange(executable, mode, connections, workers, drive, app_cpus, observer_cpus)
     documents_per_peer = batch_count + warmup // depth if batch_documents else calls + warmup
@@ -432,7 +544,9 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
         raise RuntimeError("saturation measurement interval")
     total = calls * connections
     stats = {"calls": total, "app_documents": documents, "calls_per_second": total * 1e9 / elapsed,
-             "observer_cpu_seconds": cpu, "peak_batches_in_flight": max(peer.peak for peer in results),
+             "observer_cpu_seconds": sum(cpu_seconds), "observer_shards": observer_shards,
+             "observer_shard_cpus": shard_cpus, "observer_shard_cpu_seconds": cpu_seconds,
+             "peak_batches_in_flight": max(peer.peak for peer in results),
              "credit_stall_batches": sum(peer.stalls for peer in results),
              "phase_offsets_ns": [peer.phase_ns for peer in results]}
     dues = [start + index * period // rate for index in range(batch_count)]
@@ -546,6 +660,7 @@ def measure_saturation(executable, report, args):
             "connections": args.connections, "workers": args.workers, "window_batches": args.window_batches,
             "request_framing": "json-rpc-batch" if args.batch_documents else "single-records",
             "observer_pacing": "multiplexed-nonblocking",
+            "observer_shards": args.observer_shards,
             "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
             "profiles": [], "complete": False}
@@ -563,7 +678,8 @@ def measure_saturation(executable, report, args):
                     try:
                         run[name] = saturation_sample(executable, MODES[name], args.calls, args.connections,
                                                       args.workers, rate, args.window_batches, args.app_cpus,
-                                                      args.cpus, args.batch_documents, args.stagger_arrivals)
+                                                      args.cpus, args.batch_documents, args.stagger_arrivals,
+                                                      args.observer_shards)
                     except (OSError, AssertionError, RuntimeError, subprocess.SubprocessError, ValueError) as error:
                         run[name] = {"failure": str(error)}
             entry["summary"] = {}
@@ -600,6 +716,8 @@ def main():
     parser.add_argument("--connections", type=int, default=8)
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--window-batches", type=int, default=16)
+    parser.add_argument("--observer-shards", type=int, default=1,
+                        help="split the saturation observer across this many processes and CPUs")
     parser.add_argument("--batch-documents", action="store_true",
                         help="send each scheduled group as one JSON-RPC batch in saturation mode")
     parser.add_argument("--stagger-arrivals", action="store_true",
@@ -609,11 +727,13 @@ def main():
         parser.error("choose 1000..100000 calls and 1..30 repeats")
     if args.concurrent and not (1 <= args.rate <= 100000 and args.calls <= args.rate * 15):
         parser.error("concurrent offers must fit a 15 second horizon")
-    if (args.batch_documents or args.stagger_arrivals) and not args.saturation:
-        parser.error("--batch-documents and --stagger-arrivals require --saturation")
+    if (args.batch_documents or args.stagger_arrivals or args.observer_shards != 1) and not args.saturation:
+        parser.error("batch documents, staggered arrivals and observer shards require --saturation")
     if args.saturation:
         if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:
             parser.error("saturation requires disjoint --cpus and --app-cpus")
+        if not 1 <= args.observer_shards <= min(args.connections, len(args.cpus)):
+            parser.error("observer shards need distinct CPUs and at least one connection each")
         if not all(1 <= rate <= 100000 and args.calls <= rate * 15 for rate in args.rates):
             parser.error("saturation offers must fit a 15 second horizon at each rate")
         if not (1 <= args.connections <= 32 and 1 <= args.workers <= 8 and 1 <= args.window_batches <= 64):
