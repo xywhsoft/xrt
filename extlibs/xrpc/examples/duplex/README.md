@@ -89,9 +89,12 @@ includes the warmup and measured requests. The report retains failed samples.
 Select disjoint CPU sets available to the caller and verify their physical
 core placement on the test host. The observer checks the APP process's
 inherited affinity each time it starts. Append .exe to the executable on
-Windows. The second sweep uses the same workload at 8,000 and 16,000
-offers per connection with one executor worker. To offer more traffic with
-two workers, use --rates 24000,32000.
+Windows. For executor scaling, run the same case with `--workers` set to
+1, 2, 4 and 8 in separate reports. Keep the APP and observer masks fixed.
+The APP mask covers both connection owners and executor workers.
+For load scaling, change `--rates` and keep the other parameters fixed.
+Use `--calls` equal to the per-connection rate times the desired duration
+in seconds.
 
 Use `--observer-shards 3` to split the observer across the first three
 CPUs in the sorted observer mask. The default is one process. Each

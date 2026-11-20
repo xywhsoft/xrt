@@ -21005,3 +21005,45 @@ results. The existing heap adjustment remains in use.
 Commands, source and binary digests and the raw reports are under
 `out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
 [Matched cohort instructions](../../extlibs/xcron/docs/scheduler.md).
+
+## 2026-11-21 xrpc executor scaling with a fixed CPU budget
+
+The TCP APP compared one, two, four and eight executor workers with
+the connection owners and executor on the same fixed eight-logical-CPU
+mask. The native verifier used one separate logical CPU. Each host
+completed 120 two-second fixed-arrival samples with 16 groups of
+credit per connection. The audit verified 40,960,000 replies across
+both hosts. The APP wrapper measured process CPU through complete
+retirement, including setup and warmup.
+
+| Host | TCP peers | Offered calls/s | Duplex P99 in ms at 1 / 2 / 4 / 8 workers |
+| --- | ---: | ---: | --- |
+| Windows x64 | 8 | 64,000 | 0.829 / 0.656 / 0.939 / 0.731 |
+| Windows x64 | 8 | 128,000 | 1.609 / 1.004 / 0.775 / 0.789 |
+| Windows x64 | 32 | 64,000 | 0.894 / 0.719 / 0.761 / 0.711 |
+| Ubuntu/WSL x64 | 8 | 64,000 | 1.930 / 1.365 / 1.456 / 1.667 |
+| Ubuntu/WSL x64 | 8 | 128,000 | 673.517 / 2.266 / 381.015 / 960.696 |
+| Ubuntu/WSL x64 | 32 | 64,000 | 2.589 / 1.282 / 1.531 / 1.566 |
+
+Every throughput series met the repeat-variation limits. The Windows
+medians stayed within 0.02% of the offered rates. At the WSL 128,000
+rate the duplex medians ranged from 85,836 to 127,902 verified replies/s.
+With one and eight workers in both WSL APP modes, 98.4% to 98.7% of
+the slowest one percent elapsed before the first observed send and
+outside observed credit waits. The APP`s WSL duplex CPU at that rate
+rose from 8.189 to 12.685 seconds between two and eight workers.
+Across both hosts nine of 48 P99 series and eight of 48 P99.9 series
+met the repeat-variation limits. These profiles leave stable release
+tails and native Linux validation open.
+
+The original WSL `ru_maxrss` measurements overstated APP footprint.
+A controlled fork and exec probe added 128 MiB of touched parent
+memory and raised `ru_maxrss` from 9,316 to 140,412 KiB. The child
+`VmHWM` was 1,624 KiB in both runs. The corrected APP probe reads
+`VmHWM` after retirement. It passed eight WSL smoke samples with
+3.0 to 7.8 MiB APP peaks, and the full corrected WSL matrix is underway.
+
+The build inputs, CPU topology, raw reports, memory correction and
+independent audit are under
+`out/service-extensions/scope-reduction-20261119/xrpc-worker-scaling/`.
+[Fixed-arrival workload](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
