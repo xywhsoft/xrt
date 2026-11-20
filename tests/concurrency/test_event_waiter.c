@@ -1,4 +1,5 @@
 #include "../test.h"
+#include <xrt/detail/wait.h>
 #include <xrt/event_waiter.h>
 #include <limits.h>
 #if defined(_WIN32) || defined(_WIN64)
@@ -28,7 +29,11 @@ static void waiterBasics(void)
 #endif
         xrtSetErrorInfo(XERR_IO,"waiter.sentinel",4,"ambient");const xerror* Ambient=xrtGetError();double Start=xrtTimer();
         testRequire(xrtEventWaiterWaitFor(&W,2)==XWAIT_TIMEOUT && xrtTimer()-Start>=0.002 && xrtGetError()==Ambient,"positive timeout never early and preserves ambient");
-        testRequire(xrtEventSet(&E) && xrtEventWaiterWaitFor(&W,0)==XWAIT_OK && xrtGetError()==Ambient,"ready wins with zero budget");
+        double Deadline = xrtTimer() + 0.00035;
+        testRequire(__xrtEventWaiterWaitUntil(&W, Deadline) == XWAIT_TIMEOUT &&
+            xrtTimer() >= Deadline && xrtGetError() == Ambient, "fractional deadline never expires early");
+        testRequire(xrtEventSet(&E) && __xrtEventWaiterWaitUntil(&W, 0) == XWAIT_OK &&
+            xrtGetError() == Ambient, "ready wins after absolute expiry");
         if(Manual)testRequire(xrtEventWaiterWaitFor(&W,0)==XWAIT_OK,"manual signal remains signalled");
         else testRequire(xrtEventWaiterWaitFor(&W,0)==XWAIT_TIMEOUT,"auto signal consumed exactly once");
         testRequire(xrtEventReset(&E) && xrtEventWaiterWaitFor(&W,0)==XWAIT_TIMEOUT,"normal reset remains authoritative");

@@ -1,4 +1,5 @@
 #include "../internal/xrt_time.h"
+#include <xrt/detail/wait.h>
 #include <math.h>
 
 #include <errno.h>
@@ -594,8 +595,8 @@ XRT_API double xrtTimer(void)
 
 
 
-/* 返回当前公元 UTC 毫秒。 */
-XRT_API xtime xrtNow(void)
+/* 从同一墙钟采样得到毫秒与可选的亚毫秒部分。 */
+static inline xtime __xrtTimeNow(uint32* pSubNs)
 {
 #if defined(_WIN32) || defined(_WIN64)
     FILETIME FileTime;
@@ -603,6 +604,7 @@ XRT_API xtime xrtNow(void)
     __xrtTimeSystemFileTime(&FileTime);
     Ticks = ((uint64)FileTime.dwHighDateTime << 32) | FileTime.dwLowDateTime;
     /* FILETIME begins in 1601; this division is nonnegative and exact to ms. */
+    if ( pSubNs ) { *pSubNs = (uint32)(Ticks % 10000) * 100u; }
     return (xtime)(Ticks / UINT64_C(10000)) + INT64_C(50491123200000);
 #else
     struct timespec Now;
@@ -614,8 +616,20 @@ XRT_API xtime xrtNow(void)
     if ( !__xrtTimeFromUnixParts((int64)Now.tv_sec, (int)(Now.tv_nsec / 1000000), &Result) ) {
         __xrtTimeSetOverflow("now"); return 0;
     }
+    if ( pSubNs ) { *pSubNs = (uint32)(Now.tv_nsec % 1000000); }
     return Result;
 #endif
+}
+
+/* 返回当前公元 UTC 毫秒。 */
+XRT_API xtime xrtNow(void)
+{
+    return __xrtTimeNow(NULL);
+}
+
+XRT_API xtime __xrtNowWithSubMs(uint32* pSubNs)
+{
+    return __xrtTimeNow(pSubNs);
 }
 
 

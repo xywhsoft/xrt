@@ -15,7 +15,10 @@ scheduler is live. Join such callers before destroying the scheduler.
 
 Poll checks the earliest job immediately. Wait parks through XRT's reusable
 event waiter until a job may be due, the timeout expires, or an explicit wake
-arrives. On timer wake the scheduler checks wall time again. An explicit wake
+arrives. The waiter gets the earlier of the caller's monotonic timeout and the
+next UTC occurrence. The occurrence uses the fractional part of the same
+wall sample, carried through to the native monotonic timer where available.
+On timer wake the scheduler checks wall time again. An explicit wake
 returns WOKEN so the caller can apply APP changes or drive again. With a zero
 timeout, Wait dispatches due jobs and otherwise returns TIMEOUT. An empty
 scheduler can wait for Wake indefinitely.
@@ -106,12 +109,12 @@ XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 wait --samples
 XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 waiter --samples
 ```
 
-Each `phase_N_ns` row gives the number of wait calls in the wave, the
-last call's requested timeout in milliseconds, wall time on entry and
-return relative to the due time in nanoseconds, monotonic elapsed time
-from return to the first callback in nanoseconds, and monotonic duration
-of that last call in nanoseconds. A zero-call wave emits zeros in the
-other fields. Interpret the entry time plus the requested timeout as an
-estimate of the waiter's requested deadline. It includes the observer's
-placement and clock sampling overhead. Use the ordinary cohort executable
-to measure release tails.
+Each `phase_N_ns` row gives the number of wait calls in the wave,
+followed by five nanosecond fields. They are the last call's requested
+budget from observed entry, wall lateness on entry and return, elapsed
+time from return to the first callback, and elapsed time in the last
+wait. The direct waiter supplies a relative request. The scheduler
+supplies an absolute monotonic deadline. The observer subtracts the entry
+timestamp from that deadline to compute the budget. A zero-call wave emits
+zeros in the other fields. Use the ordinary cohort executable to measure
+release tails.

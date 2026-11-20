@@ -85,21 +85,53 @@ XRT_API bool xrtEventWaiterUnit(xeventwaiter* W)
 #endif
     memset(W,0,sizeof(*W));return true;
 }
-XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W,int64 Timeout)
+static bool __xrtEventWaiterCanWait(xrt_event_waiter_impl* I)
 {
-    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"wait");if(!I)return XWAIT_ERROR;
-    if(Timeout<XRT_WAIT_FOREVER){__xrtEventWaiterFail(XERR_ARGUMENT,"wait.timeout",0);return XWAIT_ERROR;}
-    if(I->Owner!=__xrtCurrentThreadId() || I->Active){__xrtEventWaiterFail(XERR_STATE,"wait.owner",0);return XWAIT_ERROR;}
-    if(__xrtEventImpl(I->Event)->Magic!=XRT_EVENT_MAGIC){__xrtEventWaiterFail(XERR_STATE,"wait.event",0);return XWAIT_ERROR;}
-    double Deadline=__xrtWaitAfter(Timeout);if(isnan(Deadline))return XWAIT_ERROR;
-    I->Active=true;xwaitresult R;
+    if (I->Owner != __xrtCurrentThreadId() || I->Active)
+        return __xrtEventWaiterFail(XERR_STATE, "wait.owner", 0);
+    if (__xrtEventImpl(I->Event)->Magic != XRT_EVENT_MAGIC)
+        return __xrtEventWaiterFail(XERR_STATE, "wait.event", 0);
+    return true;
+}
+
+static xwaitresult __xrtEventWaiterDrive(xrt_event_waiter_impl* I, double Deadline)
+{
+    I->Active = true;
+    xwaitresult R;
 #if defined(_WIN32) || defined(_WIN64)
     R=__xrtEventWaiterWindows(I,Deadline);
 #else
     R=__xrtEventWaitUntil(I->Event,Deadline);
 #endif
-    I->Active=false;return R;
+    I->Active = false;
+    return R;
 }
+
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W, int64 Timeout)
+{
+    xrt_event_waiter_impl* I = __xrtEventWaiterRequire(W, "wait");
+    if (!I) return XWAIT_ERROR;
+    if (Timeout < XRT_WAIT_FOREVER) {
+        __xrtEventWaiterFail(XERR_ARGUMENT, "wait.timeout", 0);
+        return XWAIT_ERROR;
+    }
+    if (!__xrtEventWaiterCanWait(I)) return XWAIT_ERROR;
+    double Deadline = __xrtWaitAfter(Timeout);
+    return isnan(Deadline) ? XWAIT_ERROR : __xrtEventWaiterDrive(I, Deadline);
+}
+
+XRT_API xwaitresult __xrtEventWaiterWaitUntil(xeventwaiter* W, double Deadline)
+{
+    xrt_event_waiter_impl* I = __xrtEventWaiterRequire(W, "wait");
+    if (!I) return XWAIT_ERROR;
+    if (isnan(Deadline) || Deadline < 0) {
+        __xrtEventWaiterFail(XERR_ARGUMENT, "wait.deadline", 0);
+        return XWAIT_ERROR;
+    }
+    if (!__xrtEventWaiterCanWait(I)) return XWAIT_ERROR;
+    return __xrtEventWaiterDrive(I, Deadline);
+}
+
 XRT_API bool xrtEventWaiterGet(const xeventwaiter* W,xeventwaiterinfo* Info)
 {
     xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"get");if(!I)return false;

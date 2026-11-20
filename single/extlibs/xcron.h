@@ -1248,6 +1248,12 @@ static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronp
     return Report.Count ? XCRON_SCHEDULE_DISPATCHED : XCRON_SCHEDULE_IDLE;
 }
 
+static double xcronScheduleDeadline(double Sample, uint64 DelayMs, uint32 SubNs)
+{
+    double Delay = (double)(DelayMs / 1000) + (double)(DelayMs % 1000) * 0.001;
+    return Sample + (Delay - (double)SubNs * 1e-9);
+}
+
 static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
     bool Wait, xcronpoll* Output)
 {
@@ -1262,8 +1268,10 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
     xcronpoll Report;
     xcronschedulestatus Status = XCRON_SCHEDULE_ERROR;
     if (!isfinite(Started)) goto Done;
+    double Limit = Timeout > 0 ? xcronScheduleDeadline(Started, (uint64)Timeout, 0) : INFINITY;
     for (;;) {
-        xtime Now = xrtNow();
+        uint32 SubNs = 0;
+        xtime Now = Wait && Timeout != 0 ? __xrtNowWithSubMs(&SubNs) : xrtNow();
         if (!Now) {
             xcronScheduleError(XERR_IO, "wall clock unavailable");
             Status = XCRON_SCHEDULE_ERROR;
@@ -1272,19 +1280,18 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         Status = xcronScheduleDue(S, Now, &Report);
         if (Status != XCRON_SCHEDULE_IDLE || !Wait) break;
 
-        int64 Delay = XRT_WAIT_FOREVER;
-        if (Timeout >= 0) {
-            double Sample = Timeout ? xrtTimer() : Started;
+        if (Timeout == 0) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
+        double Deadline = Limit;
+        if (Timeout > 0 || Report.HasNext) {
+            double Sample = xrtTimer();
             if (!isfinite(Sample)) { Status = XCRON_SCHEDULE_ERROR; break; }
-            double Elapsed = (Sample - Started) * 1000.0;
-            if (Elapsed >= (double)Timeout) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
-            double Remaining = ceil((double)Timeout - Elapsed);
-            Delay = Remaining >= (double)INT64_MAX ? INT64_MAX : (int64)Remaining;
-        }
-        if (Report.HasNext) {
-            uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
-            int64 Due = WallDelay > INT64_MAX ? INT64_MAX : (int64)WallDelay;
-            if (Delay == XRT_WAIT_FOREVER || Due < Delay) Delay = Due;
+            if (Sample >= Limit) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
+            if (Report.HasNext) {
+                uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
+                if (WallDelay > INT64_MAX) WallDelay = INT64_MAX;
+                double Due = nextafter(xcronScheduleDeadline(Sample, WallDelay, SubNs), INFINITY);
+                if (Due < Deadline) Deadline = Due;
+            }
         }
         if (!S->HasWaiter) {
             if (!xrtEventWaiterInit(&S->Waiter, &S->Wake, 0)) {
@@ -1293,7 +1300,7 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
             }
             S->HasWaiter = true;
         }
-        xwaitresult Result = xrtEventWaiterWaitFor(&S->Waiter, Delay);
+        xwaitresult Result = __xrtEventWaiterWaitUntil(&S->Waiter, Deadline);
         if (Result == XWAIT_OK) { Status = XCRON_SCHEDULE_WOKEN; break; }
         if (Result != XWAIT_TIMEOUT) { Status = XCRON_SCHEDULE_ERROR; break; }
     }

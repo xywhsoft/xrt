@@ -168,6 +168,36 @@ XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 
 
 
+#if !defined(_WIN32) && !defined(_WIN64)
+static bool __xrtEventDeadlineTime(double iDeadline, double iNow, bool bMonotonic,
+    struct timespec* pTime)
+{
+    if ( !bMonotonic ) { return __xrtSyncDeadlineTime(iDeadline, false, pTime); }
+
+    /* Keep the bounded native wait while preserving the absolute fraction. */
+    double Limit = fmin(iDeadline, iNow + 86400.0);
+    double Seconds = floor(Limit);
+    long Nanoseconds = (long)ceil((Limit - Seconds) * 1e9);
+    if ( Nanoseconds == 1000000000L ) {
+        ++Seconds;
+        Nanoseconds = 0;
+    }
+    if ( Seconds < 0 || Seconds >= 0x1p63 ) {
+        __xrtErrorSetInvalidArgument();
+        return false;
+    }
+    int64 Whole = (int64)Seconds;
+    time_t Native = (time_t)Whole;
+    if ( (int64)Native != Whole ) {
+        __xrtErrorSetInvalidArgument();
+        return false;
+    }
+    pTime->tv_sec = Native;
+    pTime->tv_nsec = Nanoseconds;
+    return true;
+}
+#endif
+
 /* 等待事件到指定单调时钟截止时间。 */
 XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 {
@@ -213,11 +243,12 @@ XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 				} else {
 					struct timespec tDeadline;
 
-					if ( __xrtWaitExpired(iDeadline) ) {
+					double Now = xrtTimer();
+					if ( !isfinite(Now) || Now >= iDeadline ) {
 						(void)pthread_mutex_unlock(&pImpl->Lock);
 						return XWAIT_TIMEOUT;
 					}
-					if ( !__xrtSyncDeadlineTime(iDeadline, pImpl->Monotonic, &tDeadline) ) {
+					if ( !__xrtEventDeadlineTime(iDeadline, Now, pImpl->Monotonic, &tDeadline) ) {
 						(void)pthread_mutex_unlock(&pImpl->Lock);
 						return XWAIT_ERROR;
 					}

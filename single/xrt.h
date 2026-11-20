@@ -47351,6 +47351,10 @@ bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode);
 
 
 XRT_EXTERN_C_BEGIN
+#if defined(XRT_FEATURE_TIME)
+/* UTC milliseconds and the fraction of the same wall-clock sample. */
+XRT_API xtime __xrtNowWithSubMs(uint32* pSubNs);
+#endif
 #if (defined(XRT_FEATURE_CHANNEL))
 XRT_API xwaitresult __xrtChannelSendUntil(
 	xchannel* pChannel,
@@ -47481,6 +47485,10 @@ XRT_API xwaitresult __xrtSemWaitUntil(xsem* pSem, double iDeadline);
 #endif
 #if (defined(XRT_FEATURE_EVENT))
 XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline);
+#endif
+#if defined(XRT_FEATURE_EVENT_WAITER)
+/* Absolute xrtTimer() seconds, or INFINITY. A ready event wins expiry. */
+XRT_API xwaitresult __xrtEventWaiterWaitUntil(xeventwaiter* pWaiter, double iDeadline);
 #endif
 #if (defined(XRT_FEATURE_TASK_GROUP))
 XRT_API xwaitresult __xrtTaskGroupWaitUntil(
@@ -77702,8 +77710,8 @@ XRT_API double xrtTimer(void)
 
 
 
-/* 返回当前公元 UTC 毫秒。 */
-XRT_API xtime xrtNow(void)
+/* 从同一墙钟采样得到毫秒与可选的亚毫秒部分。 */
+static inline xtime __xrtTimeNow(uint32* pSubNs)
 {
 #if defined(_WIN32) || defined(_WIN64)
     FILETIME FileTime;
@@ -77711,6 +77719,7 @@ XRT_API xtime xrtNow(void)
     __xrtTimeSystemFileTime(&FileTime);
     Ticks = ((uint64)FileTime.dwHighDateTime << 32) | FileTime.dwLowDateTime;
     /* FILETIME begins in 1601; this division is nonnegative and exact to ms. */
+    if ( pSubNs ) { *pSubNs = (uint32)(Ticks % 10000) * 100u; }
     return (xtime)(Ticks / UINT64_C(10000)) + INT64_C(50491123200000);
 #else
     struct timespec Now;
@@ -77722,8 +77731,20 @@ XRT_API xtime xrtNow(void)
     if ( !__xrtTimeFromUnixParts((int64)Now.tv_sec, (int)(Now.tv_nsec / 1000000), &Result) ) {
         __xrtTimeSetOverflow("now"); return 0;
     }
+    if ( pSubNs ) { *pSubNs = (uint32)(Now.tv_nsec % 1000000); }
     return Result;
 #endif
+}
+
+/* 返回当前公元 UTC 毫秒。 */
+XRT_API xtime xrtNow(void)
+{
+    return __xrtTimeNow(NULL);
+}
+
+XRT_API xtime __xrtNowWithSubMs(uint32* pSubNs)
+{
+    return __xrtTimeNow(pSubNs);
 }
 
 
@@ -135575,6 +135596,36 @@ XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 
 
 
+#if !defined(_WIN32) && !defined(_WIN64)
+static bool __xrtEventDeadlineTime(double iDeadline, double iNow, bool bMonotonic,
+    struct timespec* pTime)
+{
+    if ( !bMonotonic ) { return __xrtSyncDeadlineTime(iDeadline, false, pTime); }
+
+    /* Keep the bounded native wait while preserving the absolute fraction. */
+    double Limit = fmin(iDeadline, iNow + 86400.0);
+    double Seconds = floor(Limit);
+    long Nanoseconds = (long)ceil((Limit - Seconds) * 1e9);
+    if ( Nanoseconds == 1000000000L ) {
+        ++Seconds;
+        Nanoseconds = 0;
+    }
+    if ( Seconds < 0 || Seconds >= 0x1p63 ) {
+        __xrtErrorSetInvalidArgument();
+        return false;
+    }
+    int64 Whole = (int64)Seconds;
+    time_t Native = (time_t)Whole;
+    if ( (int64)Native != Whole ) {
+        __xrtErrorSetInvalidArgument();
+        return false;
+    }
+    pTime->tv_sec = Native;
+    pTime->tv_nsec = Nanoseconds;
+    return true;
+}
+#endif
+
 /* 等待事件到指定单调时钟截止时间。 */
 XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 {
@@ -135620,11 +135671,12 @@ XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 				} else {
 					struct timespec tDeadline;
 
-					if ( __xrtWaitExpired(iDeadline) ) {
+					double Now = xrtTimer();
+					if ( !isfinite(Now) || Now >= iDeadline ) {
 						(void)pthread_mutex_unlock(&pImpl->Lock);
 						return XWAIT_TIMEOUT;
 					}
-					if ( !__xrtSyncDeadlineTime(iDeadline, pImpl->Monotonic, &tDeadline) ) {
+					if ( !__xrtEventDeadlineTime(iDeadline, Now, pImpl->Monotonic, &tDeadline) ) {
 						(void)pthread_mutex_unlock(&pImpl->Lock);
 						return XWAIT_ERROR;
 					}
@@ -349568,21 +349620,53 @@ XRT_API bool xrtEventWaiterUnit(xeventwaiter* W)
 #endif
     memset(W,0,sizeof(*W));return true;
 }
-XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W,int64 Timeout)
+static bool __xrtEventWaiterCanWait(xrt_event_waiter_impl* I)
 {
-    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"wait");if(!I)return XWAIT_ERROR;
-    if(Timeout<XRT_WAIT_FOREVER){__xrtEventWaiterFail(XERR_ARGUMENT,"wait.timeout",0);return XWAIT_ERROR;}
-    if(I->Owner!=__xrtCurrentThreadId() || I->Active){__xrtEventWaiterFail(XERR_STATE,"wait.owner",0);return XWAIT_ERROR;}
-    if(__xrtEventImpl(I->Event)->Magic!=XRT_EVENT_MAGIC){__xrtEventWaiterFail(XERR_STATE,"wait.event",0);return XWAIT_ERROR;}
-    double Deadline=__xrtWaitAfter(Timeout);if(isnan(Deadline))return XWAIT_ERROR;
-    I->Active=true;xwaitresult R;
+    if (I->Owner != __xrtCurrentThreadId() || I->Active)
+        return __xrtEventWaiterFail(XERR_STATE, "wait.owner", 0);
+    if (__xrtEventImpl(I->Event)->Magic != XRT_EVENT_MAGIC)
+        return __xrtEventWaiterFail(XERR_STATE, "wait.event", 0);
+    return true;
+}
+
+static xwaitresult __xrtEventWaiterDrive(xrt_event_waiter_impl* I, double Deadline)
+{
+    I->Active = true;
+    xwaitresult R;
 #if defined(_WIN32) || defined(_WIN64)
     R=__xrtEventWaiterWindows(I,Deadline);
 #else
     R=__xrtEventWaitUntil(I->Event,Deadline);
 #endif
-    I->Active=false;return R;
+    I->Active = false;
+    return R;
 }
+
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W, int64 Timeout)
+{
+    xrt_event_waiter_impl* I = __xrtEventWaiterRequire(W, "wait");
+    if (!I) return XWAIT_ERROR;
+    if (Timeout < XRT_WAIT_FOREVER) {
+        __xrtEventWaiterFail(XERR_ARGUMENT, "wait.timeout", 0);
+        return XWAIT_ERROR;
+    }
+    if (!__xrtEventWaiterCanWait(I)) return XWAIT_ERROR;
+    double Deadline = __xrtWaitAfter(Timeout);
+    return isnan(Deadline) ? XWAIT_ERROR : __xrtEventWaiterDrive(I, Deadline);
+}
+
+XRT_API xwaitresult __xrtEventWaiterWaitUntil(xeventwaiter* W, double Deadline)
+{
+    xrt_event_waiter_impl* I = __xrtEventWaiterRequire(W, "wait");
+    if (!I) return XWAIT_ERROR;
+    if (isnan(Deadline) || Deadline < 0) {
+        __xrtEventWaiterFail(XERR_ARGUMENT, "wait.deadline", 0);
+        return XWAIT_ERROR;
+    }
+    if (!__xrtEventWaiterCanWait(I)) return XWAIT_ERROR;
+    return __xrtEventWaiterDrive(I, Deadline);
+}
+
 XRT_API bool xrtEventWaiterGet(const xeventwaiter* W,xeventwaiterinfo* Info)
 {
     xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"get");if(!I)return false;

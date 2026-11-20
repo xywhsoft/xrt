@@ -6,6 +6,10 @@
 
 
 XRT_EXTERN_C_BEGIN
+#if defined(XRT_FEATURE_TIME)
+/* UTC milliseconds and the fraction of the same wall-clock sample. */
+XRT_API xtime __xrtNowWithSubMs(uint32* pSubNs);
+#endif
 #if (defined(XRT_FEATURE_CHANNEL))
 XRT_API xwaitresult __xrtChannelSendUntil(
 	xchannel* pChannel,
@@ -136,6 +140,10 @@ XRT_API xwaitresult __xrtSemWaitUntil(xsem* pSem, double iDeadline);
 #endif
 #if (defined(XRT_FEATURE_EVENT))
 XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline);
+#endif
+#if defined(XRT_FEATURE_EVENT_WAITER)
+/* Absolute xrtTimer() seconds, or INFINITY. A ready event wins expiry. */
+XRT_API xwaitresult __xrtEventWaiterWaitUntil(xeventwaiter* pWaiter, double iDeadline);
 #endif
 #if (defined(XRT_FEATURE_TASK_GROUP))
 XRT_API xwaitresult __xrtTaskGroupWaitUntil(

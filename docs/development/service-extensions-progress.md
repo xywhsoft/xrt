@@ -20289,3 +20289,47 @@ logs are under
 `out/service-extensions/scope-reduction-20261119/xcron-deadline-precision/`.
 The comparison report SHA-256 is
 `8211ad2fa26f7bcb0e21e704a3fdb6ef5196f775e90f7e8cd8e53e23a74e43de`.
+
+## 2026-11-21 xcron precise waits integrated
+
+Blocking Scheduler Wait now carries one absolute caller budget across
+rechecks and preserves the UTC sample's fractional millisecond when
+arming the next occurrence. XRT EventWaiter accepts that monotonic
+deadline through its detail API. The POSIX monotonic event condition
+keeps the fraction when converting to a native timespec. The realtime
+fallback retains its existing conversion. Poll and zero-time Wait still
+use the millisecond clock and check due work immediately.
+
+The deterministic scheduler fixture checks fractional arming, retry
+after an early timer return, caller timeout, explicit wake, backwards
+and forwards wall steps, callback cutoff and full-range clamping. Both
+hosts passed the minimal and full xcron suites, the XRT EventWaiter
+suites and the static and shared xcron scheduler package consumers.
+The WSL scheduler clock fixture passed ASan/UBSan with leak detection.
+The first cross-platform build used two default output paths that
+resolved to the same native object directory. Rebuilding with separate
+Windows x64 and WSL native paths passed. The source and generated
+header checks, API coverage and ordinary maturity checks passed.
+
+An uninstrumented comparison compiled the same benchmark against
+baseline `86771e8c` and the updated headers. Each host pinned CPU 4 and
+reversed arm order in its second repeat. Independent inspection
+verified 16 runs, 256 one-second waves and 139,264 callbacks.
+
+| Host | Active jobs | First-callback median, baseline / precise us | First-callback P95, baseline / precise us |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 64 | 880.2 / 336.1 | 1,633.5 / 978.0 |
+| Windows x64 | 1,024 | 879.4 / 335.4 | 1,674.0 / 951.1 |
+| Ubuntu/WSL x64 | 64 | 504.1 / 91.6 | 1,022.2 / 103.2 |
+| Ubuntu/WSL x64 | 1,024 | 673.8 / 96.9 | 1,088.2 / 109.1 |
+
+The optional phase fixture passed in both modes on both hosts.
+Its raw row now reports the requested interval in nanoseconds.
+The live A/B comparison used 32 observations per series. Stable P99
+and P99.9 and native Linux qualification remain open. The strict
+release gate still lists `xcron` and `xcron_scheduler` as developing.
+
+Source and binary hashes, raw data, audit and test logs are under
+`out/service-extensions/scope-reduction-20261119/xcron-precise-scheduler/`.
+The comparison report SHA-256 is
+`9895ad39495fdac013206585c081d3579b3db4b1e69affc38761c02ec669544b`.

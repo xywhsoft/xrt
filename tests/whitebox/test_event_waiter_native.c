@@ -35,6 +35,7 @@ static BOOL WINAPI nativeTestClose(HANDLE T)
 #define xrtEventWaiterInit nativeTestWaiterInit
 #define xrtEventWaiterUnit nativeTestWaiterUnit
 #define xrtEventWaiterWaitFor nativeTestWaiterWaitFor
+#define __xrtEventWaiterWaitUntil nativeTestWaiterWaitUntil
 #define xrtEventWaiterGet nativeTestWaiterGet
 #include "../../src/concurrency/event_waiter.c"
 #undef GetProcAddress
@@ -46,6 +47,7 @@ static BOOL WINAPI nativeTestClose(HANDLE T)
 #undef xrtEventWaiterInit
 #undef xrtEventWaiterUnit
 #undef xrtEventWaiterWaitFor
+#undef __xrtEventWaiterWaitUntil
 #undef xrtEventWaiterGet
 static int32 nativeTestSignal(ptr Raw)
 {xrtSleep(1);return xrtEventSet(Raw)?0:1;}

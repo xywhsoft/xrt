@@ -6,7 +6,7 @@
 #include <math.h>
 
 typedef struct clockstep {
-    int64 Delay;
+    double Deadline;
     xtime Wall;
     double Monotonic;
     bool Wake;
@@ -23,6 +23,7 @@ static struct {
     xcronscheduler* Scheduler;
     xtime Wall;
     double Monotonic;
+    uint32 SubNs;
     const clockstep* Steps;
     size_t Count, Consumed;
     unsigned Trace[MODEL_CAPACITY];
@@ -34,16 +35,25 @@ static xtime readWall(void)
     return Clock.Wall;
 }
 
+static xtime readWallWithSubMs(uint32* SubNs)
+{
+    *SubNs = Clock.SubNs;
+    return Clock.Wall;
+}
+
 static double readMonotonic(void)
 {
     return Clock.Monotonic;
 }
 
-static xwaitresult waitStep(xeventwaiter* Waiter, int64 Delay)
+static xwaitresult waitStep(xeventwaiter* Waiter, double Deadline)
 {
     testRequire(Clock.Consumed < Clock.Count, "unexpected clock wait");
     const clockstep* Step = &Clock.Steps[Clock.Consumed++];
-    testRequire(Delay == Step->Delay, "relative wait uses the next deadline and remaining timeout");
+    testRequire(Deadline >= Step->Deadline - 1e-12 &&
+        Deadline <= nextafter(Step->Deadline, INFINITY) + 1e-12,
+        "absolute wait preserves the earlier of the occurrence and caller deadline");
+    Clock.SubNs = 0;
     Clock.Wall = Step->Wall;
     Clock.Monotonic = Step->Monotonic;
     if (!Step->Wake) return XWAIT_TIMEOUT;
@@ -54,12 +64,14 @@ static xwaitresult waitStep(xeventwaiter* Waiter, int64 Delay)
 /* Script only the scheduler's three clock/wait call sites. XRT keeps its
  * native clock, including the real event used by the explicit wake case. */
 #define xrtNow readWall
+#define __xrtNowWithSubMs readWallWithSubMs
 #define xrtTimer readMonotonic
-#define xrtEventWaiterWaitFor waitStep
+#define __xrtEventWaiterWaitUntil waitStep
 #define XCRON_IMPLEMENTATION
 #include "../../../../single/extlibs/xcron.h"
-#undef xrtEventWaiterWaitFor
+#undef __xrtEventWaiterWaitUntil
 #undef xrtTimer
+#undef __xrtNowWithSubMs
 #undef xrtNow
 
 static void recordCallback(void* Context)
@@ -74,6 +86,7 @@ static void beginScheduler(xtime Wall, double Monotonic, size_t Capacity, xcrond
 {
     Clock.Wall = Wall;
     Clock.Monotonic = Monotonic;
+    Clock.SubNs = 0;
     Clock.Steps = NULL;
     Clock.Count = Clock.Consumed = Clock.Called = 0;
     testRequire(xcronSchedulerCreate(Capacity, Dialect, &Clock.Scheduler), "create clock-test scheduler");
@@ -116,7 +129,7 @@ static void testForwardThenBack(void)
     clockjob First = {.Marker = 1}, Second = {.Marker = 2};
     add(XRT_STR_LITERAL("* * * * * *"), &First);
     add(XRT_STR_LITERAL("* * * * * *"), &Second);
-    const clockstep Forward[] = {{500, 16200, 10.125, true}};
+    const clockstep Forward[] = {{10.5, 16200, 10.125, true}};
     plan(Forward, 1);
     xcronpoll Result;
     testRequire(xcronSchedulerWait(Clock.Scheduler, XRT_WAIT_FOREVER, &Result) == XCRON_SCHEDULE_WOKEN &&
@@ -129,7 +142,7 @@ static void testForwardThenBack(void)
     testRequire(xcronSchedulerWait(Clock.Scheduler, 0, &Result) == XCRON_SCHEDULE_TIMEOUT &&
         report(Result, 0, 17000) && Clock.Called == 2, "rollback preserves advanced deadlines");
     Clock.Wall = 16999;
-    const clockstep Next[] = {{1, 17000, 10.25, false}};
+    const clockstep Next[] = {{10.126, 17000, 10.25, false}};
     plan(Next, 1);
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_DISPATCHED &&
         report(Result, 2, 18000) && Clock.Called == 4 && Clock.Trace[2] == 1 && Clock.Trace[3] == 2,
@@ -142,15 +155,31 @@ static void testBackwardTimeout(void)
     begin(20750, 100.0);
     clockjob Job = {.Marker = 1};
     add(XRT_STR_LITERAL("* * * * * *"), &Job);
-    const clockstep Backward[] = {{250, 19500, 100.25, false}, {750, 20250, 101.0, false}};
+    const clockstep Backward[] = {{100.25, 19500, 100.25, false}, {101.0, 20250, 101.0, false}};
     plan(Backward, 2);
     xcronpoll Result;
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_TIMEOUT &&
         report(Result, 0, 21000) && !Clock.Called, "the monotonic timeout survives a backward wall step");
-    const clockstep Resume[] = {{750, 21000, 101.75, false}};
+    const clockstep Resume[] = {{101.75, 21000, 101.75, false}};
     plan(Resume, 1);
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_DISPATCHED &&
         report(Result, 1, 22000) && Clock.Called == 1, "a later drive still delivers the original occurrence");
+    end();
+}
+
+static void testFractionalDeadline(void)
+{
+    begin(10999, 10.0);
+    clockjob Job = {.Marker = 1};
+    add(XRT_STR_LITERAL("* * * * * *"), &Job);
+    Clock.SubNs = 250000;
+    const clockstep Early[] = {{10.00075, 10999, 10.00070, false},
+        {10.00170, 11000, 10.00170, false}};
+    plan(Early, 2);
+    xcronpoll Result;
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 20, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 1, 12000) && Clock.Called == 1,
+        "fractional wait rechecks the wall occurrence before dispatch");
     end();
 }
 
@@ -187,7 +216,7 @@ static void testClockFailure(void)
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_ERROR &&
         report(Result, 17, 42) && !Clock.Called, "unavailable entry timer preserves output");
     Clock.Monotonic = 30.0;
-    const clockstep Broken[] = {{500, 30600, NAN, false}};
+    const clockstep Broken[] = {{30.5, 30600, NAN, false}};
     plan(Broken, 1);
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_ERROR &&
         report(Result, 17, 42) && !Clock.Called, "timer loss during a wait preserves output");
@@ -243,7 +272,7 @@ static void testLastInstant(void)
         "register before the final representable occurrence");
     add(EverySecond, &Job);
     Clock.Wall = INT64_MIN;
-    const clockstep Wide[] = {{INT64_MAX, Last, 50.5, true}};
+    const clockstep Wide[] = {{50.0 + (double)INT64_MAX * 0.001, Last, 50.5, true}};
     plan(Wide, 1);
     xcronpoll Result;
     testRequire(xcronSchedulerWait(Clock.Scheduler, XRT_WAIT_FOREVER, &Result) == XCRON_SCHEDULE_WOKEN &&
@@ -363,6 +392,7 @@ int main(void)
 {
     testForwardThenBack();
     testBackwardTimeout();
+    testFractionalDeadline();
     testWaveSample();
     testClockFailure();
     testDistinctRecurrences();
