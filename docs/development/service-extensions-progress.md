@@ -21345,3 +21345,25 @@ switches do not identify the individual functions responsible. The raw
 diagnostic windows and input hashes are under
 `out/service-extensions/scope-reduction-20261119/xredis-cpu-scheduling-diagnostics/`.
 Native Linux performance and strict release acceptance remain pending.
+
+## 2026-11-21 Redis I/O and wake calls during fixed-arrival traffic
+
+The WSL diagnostics counted selected libc call boundaries using linker
+wrappers in dedicated observer binaries. Event descriptors were tracked
+separately from other read and write calls. The counters distinguish
+the generator from the other process threads and cover the measured
+traffic window after establishment and before retirement. The 40
+measured windows completed 959,981 of 960,000 scheduled offers. The
+independent Redis command ledger reconciled every run.
+
+| Transport | xredis generator eventfd writes | xredis other-thread eventfd reads | xredis other-thread epoll waits | xredis other-thread epoll controls | Hiredis generator sched_yield calls |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TCP | 959.1 | 1,916.2 | 2,382.6 | 1,976.3 | 106,299.6 |
+| TLS | 796.2 | 5,986.8 | 6,462.1 | 2,967.1 | 78,716.6 |
+
+The table reports the per-run medians scaled to 1,000 verified replies.
+The wrappers count direct calls from the observer and linked static code.
+They provide call-frequency evidence. Dynamic OpenSSL internals and
+per-call CPU time are outside this measurement. Native Linux and strict
+release acceptance remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xredis-io-call-diagnostics/`.
