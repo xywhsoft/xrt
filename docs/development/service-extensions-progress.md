@@ -19275,3 +19275,12 @@ and Pub/Sub run with the private WSL Redis fixture, verifying 1,897
 rounds and exact server counts. Benchmarks, negative probes, logs and
 source snapshots are under
 `out/service-extensions/scope-reduction-20261119/xredis-write-drain/`.
+
+The `xredis_client` static and shared packages from `3084caf6` passed
+independent consumer runs on Windows and WSL. The Windows 72-hour mixed
+run started from the same client binary that passed the 30-second check.
+The supervisor verifies the binary and input digests before launching a
+separate WSL Redis 8.0.5 process. Its PID and run ID matched the launch
+receipt. The round count increased in consecutive telemetry samples. The previous Windows xredis and xmqtt runs remained live. The
+current run receipt and telemetry are `win-native-client-72h-start.json`
+and `win-native-client-72h.jsonl` in the evidence directory above.
