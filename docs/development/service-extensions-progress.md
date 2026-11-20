@@ -20908,3 +20908,31 @@ service-extension CI workflow now runs it in the Windows and Linux
 MQTT jobs. The source snapshots, binary digests, reports and audit are
 under `out/service-extensions/scope-reduction-20261119/xmqtt-writer-gate/`.
 [Checkpoint example and probe](../../extlibs/xmqtt/docs/server.md#retained-checkpoints-across-restarts).
+
+## 2026-11-21 Windows endurance candidates after TCP rearm
+
+The earlier Redis and MQTT Windows endurance binaries were reproduced
+from their saved core header and recorded compiler command. Each PE
+matched its running binary after zeroing the timestamp and checksum.
+Both rebuilds from `b8206441` had different executable text sections.
+The earlier runs continue as evidence for their recorded binaries.
+
+The `b8206441` Windows mixed-load builds passed their 30-second
+smokes. The new Redis client completed 1,928 rounds, with the Redis
+server accounting for 17,352 SETs, 17,352 GETs and 1,928 publications.
+The MQTT broker forwarded 11,695 deliveries and retired cleanly.
+A separate MQTT process stop after 645 verified rounds failed the
+run as expected. In WSL, the focused MQTT checkpoint quota and four
+orderly checkpoint recoveries passed with ThreadSanitizer. GCC issued
+its existing atomic thread-fence instrumentation warning.
+
+Both new Windows 72-hour processes started with the verified
+binaries. Their first audited windows showed roughly 1,600 mixed
+rounds each. Redis uses a native Windows client with a disposable
+WSL Redis peer. MQTT uses a native Windows client and broker. The
+completed duration and native Linux gates remain open.
+
+The PE comparison, compiler commands, source and binary hashes,
+smoke reports and live evidence are under
+`out/service-extensions/scope-reduction-20261119/native-windows-current-soak/windows-head-equivalence/`
+and `out/service-extensions/scope-reduction-20261119/native-windows-b8206441-soak/`.
