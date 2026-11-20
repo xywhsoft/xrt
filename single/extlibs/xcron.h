@@ -1046,6 +1046,7 @@ XCRON_API xcroncalendarstatus xcronCalendarCursorStepCivil(xcroncalendarcursor* 
 
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER)
 #include <math.h>
+#include <string.h>
 
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER)
 
@@ -1213,17 +1214,24 @@ XCRON_API bool xcronSchedulerRemove(xcronscheduler* S, xcronjobid Job)
 static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronpoll* Result)
 {
     xcronpoll Report = {0};
+    const xcronexpression* Previous = NULL;
+    xtime Next = 0;
     while (S->Count) {
         uint32 Slot = S->Heap[0];
         xcronslot* Job = &S->Jobs[Slot];
         if (Job->Next > Now) break;
         xcroncallback Callback = Job->Callback;
         void* Context = Job->Context;
-        xtime Next;
-        xcroncalendarstatus Search = xcronCalendarNext(&Job->Expression, Now, INT64_MAX,
-            XCRON_SEARCH_EXCLUSIVE, &Next, NULL);
-        if (Search == XCRON_CALENDAR_ERROR) return XCRON_SCHEDULE_ERROR;
-        if (Search == XCRON_CALENDAR_FOUND) {
+        /* Now and the scheduler dialect are fixed for the wave. Pending
+         * expressions stay immutable while callbacks run. */
+        if (!Previous || Previous->Flags != Job->Expression.Flags ||
+            memcmp(Previous->Fields, Job->Expression.Fields, sizeof(Previous->Fields))) {
+            xcroncalendarstatus Search = xcronCalendarNext(&Job->Expression, Now, INT64_MAX,
+                XCRON_SEARCH_EXCLUSIVE, &Next, NULL);
+            if (Search == XCRON_CALENDAR_ERROR) return XCRON_SCHEDULE_ERROR;
+            Previous = Search == XCRON_CALENDAR_FOUND ? &Job->Expression : NULL;
+        }
+        if (Previous) {
             Job->Next = Next;
             xcronScheduleDown(S, 0, Slot);
         } else {

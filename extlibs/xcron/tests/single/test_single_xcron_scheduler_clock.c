@@ -195,6 +195,36 @@ static void testClockFailure(void)
     end();
 }
 
+static void testDistinctRecurrences(void)
+{
+    const xtime Monday = XRT_TIME_UNIX_EPOCH + INT64_C(4) * 86400000;
+    const struct {
+        xstrview First, Second;
+        xtime Due, Next;
+    } Cases[] = {
+        /* Equal masks and different DOM star provenance have different deadlines. */
+        {XRT_STR_LITERAL("0 0 0 * * MON"), XRT_STR_LITERAL("0 0 0 1-31 * MON"),
+            Monday, Monday + 86400000},
+        {XRT_STR_LITERAL("0 * * * * *"), XRT_STR_LITERAL("* * * * * *"), 60000, 61000},
+    };
+    for (size_t I = 0; I < sizeof(Cases) / sizeof(*Cases); ++I) {
+        begin(Cases[I].Due - 1, 40.0);
+        clockjob First = {.Marker = 1}, Second = {.Marker = 2};
+        add(Cases[I].First, &First);
+        add(Cases[I].Second, &Second);
+        xcronpoll Result;
+        Clock.Wall = Cases[I].Due;
+        testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+            report(Result, 2, Cases[I].Next) && Clock.Called == 2 &&
+            Clock.Trace[0] == 1 && Clock.Trace[1] == 2, "equal due times preserve distinct recurrences");
+        Clock.Wall = Cases[I].Next;
+        testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+            Result.Count == 1 && Clock.Called == 3 && Clock.Trace[2] == 2,
+            "only the earlier recurrence fires next");
+        end();
+    }
+}
+
 static void testLastInstant(void)
 {
     const xtime Last = INT64_MAX - INT64_MAX % 1000;
@@ -204,6 +234,7 @@ static void testLastInstant(void)
     xcronjobid Id = 0;
     testRequire(xcronSchedulerAdd(Clock.Scheduler, EverySecond, recordCallback, &Job, &Id),
         "register before the final representable occurrence");
+    add(EverySecond, &Job);
     Clock.Wall = INT64_MIN;
     const clockstep Wide[] = {{INT64_MAX, Last, 50.5, true}};
     plan(Wide, 1);
@@ -211,7 +242,7 @@ static void testLastInstant(void)
     testRequire(xcronSchedulerWait(Clock.Scheduler, XRT_WAIT_FOREVER, &Result) == XCRON_SCHEDULE_WOKEN &&
         report(Result, 0, Last) && !Clock.Called, "full-range wall difference clamps to the wait limit");
     testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
-        Result.Count == 1 && !Result.HasNext && Clock.Called == 1, "final representable occurrence retires the job");
+        Result.Count == 2 && !Result.HasNext && Clock.Called == 2, "final representable occurrence retires both jobs");
     testRequire(!xcronSchedulerRemove(Clock.Scheduler, Id), "naturally retired handle is stale");
     xrtClearError();
     Clock.Wall = 40500;
@@ -228,6 +259,7 @@ int main(void)
     testBackwardTimeout();
     testWaveSample();
     testClockFailure();
+    testDistinctRecurrences();
     testLastInstant();
     puts("[PASS] xcron scheduler clock steps, timeout, wave cutoff, recovery and time bounds");
     return 0;

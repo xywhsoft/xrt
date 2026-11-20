@@ -33,6 +33,11 @@ advancement update the heap in logarithmic time. Storage is allocated during
 creation and the waiter is initialized on first use of blocking Wait. The
 dispatched APP callback controls execution cost.
 
+Dispatch reuses a successful next-time calculation for adjacent due jobs
+with equal compiled rule masks and day-star flags in the same wave.
+Each job advances its own heap entry and invokes its callback with its
+own context.
+
 See [the two drive paths](../examples/scheduler/main.c),
 [APP-owned worker dispatch](../examples/executor/main.c), and
 [configuration reload](../examples/service_checkpoint/main.c).

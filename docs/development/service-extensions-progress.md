@@ -19452,3 +19452,52 @@ the 2000 ms action, commits 3000 ms and reports the remaining
 backlog. Windows and WSL example aggregates and restart peers passed.
 Build and subprocess reports are under
 `out/service-extensions/scope-reduction-20261119/xcron-checkpoint-write-failure/`.
+
+## 2026-11-20 xcron shared recurrence in one dispatch wave
+
+The scheduler reuses a successful calendar result for adjacent due
+jobs with equal masks and day-star flags in the same sampled UTC wave.
+The scheduler dialect is fixed at creation. The heap still advances
+each job independently, with its callback and context. A search with
+no future occurrence retires that job.
+
+The clock fixture covers equal due times with different seconds masks
+and equal bitmaps with different day-star provenance. It also verifies
+the retirement of two jobs at the final representable occurrence.
+Test builds omitting either key component failed the distinct-recurrence
+case. The initial weekday fixture used a Unix-relative timestamp and was
+corrected using the XRT epoch constant.
+
+Control and candidate ran on logical CPU 4 with the same GCC options.
+The control is `12db359c`. Scripted runs measured the full Poll wave at
+4,096 stepped wall timestamps, after 32 warmups, with seven measured
+processes per build and case. The alternating mixed rules differ in
+their month masks and share the same January test interval. The real
+blocking wait runs measured the first-to-last callback span over eight
+waves per process and five processes per build. All 104 measured
+samples delivered the exact expected callbacks in order, for
+234,995,712 scripted and 163,840 real callbacks.
+
+| Environment | Test | P99 in microseconds, control / candidate |
+| --- | --- | ---: |
+| Windows x64 | Scripted, one job | 0.200 / 0.200 |
+| Windows x64 | Scripted, 1,024 equal rules | 201.9 / 65.3 |
+| Windows x64 | Scripted, 1,024 mixed rules | 195.7 / 198.9 |
+| Windows x64 | Real wait, 1,024 equal rules | 391.7 / 190.5 |
+| Ubuntu/WSL x64 | Scripted, one job | 0.200 / 0.200 |
+| Ubuntu/WSL x64 | Scripted, 1,024 equal rules | 219.5 / 79.1 |
+| Ubuntu/WSL x64 | Scripted, 1,024 mixed rules | 214.7 / 214.3 |
+| Ubuntu/WSL x64 | Real wait, 1,024 equal rules | 244.9 / 147.8 |
+
+The figures are medians of per-process P99. With eight real waves,
+the per-process P99 is the maximum. All six candidate scripted series
+met the variation limits. The four real series exceeded those limits.
+Native Linux and a stable release tail baseline remain open.
+
+Windows and WSL passed modular and single-header tests, examples, the
+restart subprocess peer, and static and shared scheduler consumers.
+WSL ASan/UBSan with leak detection passed the clock fixture. Generated
+assets, API docs and ordinary maturity passed. Strict release reports
+`xcron` and `xcron_scheduler` as developing. Source hashes, harnesses,
+initial build and fixture logs, and results are under
+`out/service-extensions/scope-reduction-20261119/xcron-shared-recurrence/`.
