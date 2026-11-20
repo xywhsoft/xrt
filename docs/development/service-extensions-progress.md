@@ -20238,3 +20238,54 @@ shape. The full matrix,
 raw samples, hashes and audit are under
 `out/service-extensions/scope-reduction-20261119/xcron-wait-phases/`.
 [Wait-phase benchmark instructions](../../extlibs/xcron/docs/scheduler.md).
+
+## 2026-11-21 xcron integer and precise deadline comparison
+
+An isolated build of the wait-phase fixture compared integer milliseconds
+with a precise UTC occurrence mapped to a monotonic deadline. The precise
+arm took a fractional wall sample and retained the caller's shorter
+timeout. Windows used the same high-resolution waitable timer in both
+arms. WSL ran a third arm with the precise scheduler deadline and the
+original millisecond conversion inside the native condition wait.
+
+Each host and job cohort used the same executable and pinned CPU 4 for
+all its arms. Two processes per arm each measured 16 one-second waves.
+The second repeat reversed arm order within each host and cohort.
+The terminal journal and independently re-parsed raw output verified all
+20 runs, 320 waves and 174,080 callbacks. No wave added a wait retry.
+
+| Host | Active jobs | Deadline and native conversion | First-callback median, us | P95, us | Max, us |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Windows x64 | 64 | Integer | 1,011.8 | 1,638.6 | 1,648.4 |
+| Windows x64 | 64 | Precise | 445.2 | 1,011.5 | 1,024.3 |
+| Windows x64 | 1,024 | Integer | 985.7 | 1,649.0 | 1,900.6 |
+| Windows x64 | 1,024 | Precise | 442.8 | 961.8 | 1,005.7 |
+| Ubuntu/WSL x64 | 64 | Integer | 660.0 | 1,079.2 | 1,079.6 |
+| Ubuntu/WSL x64 | 64 | Precise with rounded condition wait | 592.9 | 1,021.3 | 1,081.2 |
+| Ubuntu/WSL x64 | 64 | Precise with absolute monotonic condition wait | 92.4 | 115.0 | 116.5 |
+| Ubuntu/WSL x64 | 1,024 | Integer | 533.8 | 1,045.2 | 1,075.1 |
+| Ubuntu/WSL x64 | 1,024 | Precise with rounded condition wait | 619.1 | 1,028.7 | 1,062.6 |
+| Ubuntu/WSL x64 | 1,024 | Precise with absolute monotonic condition wait | 94.4 | 151.8 | 5,140.4 |
+
+In the 5,140.4 us WSL outlier the waiter returned 5,133.0 us after the
+occurrence, followed by 7.8 us of measured monotonic time to the first
+callback. The WSL control shows that retaining millisecond rounding in the
+condition wait holds the median near the integer arm. The Windows CPU
+counter did not resolve these samples. The 32-wave series characterize
+the change in central latency and leave release-tail stability open.
+
+The experimental waiter passed expired-deadline event priority,
+auto-reset, a shorter caller timeout, a future UTC occurrence and
+cross-thread wake on both hosts. Its WSL probe also passed ASan/UBSan
+with leak detection. The current scheduler passed the separate
+deterministic clock-jump and mixed-transition fixture on both hosts.
+A production candidate needs to carry the precise deadline through the
+waiter while preserving the real clock-jump and wake contract. The
+strict release gate still reports `xcron` and `xcron_scheduler` as
+developing. Native Linux remains open.
+
+The isolated source, build inputs, raw samples, audit and functional
+logs are under
+`out/service-extensions/scope-reduction-20261119/xcron-deadline-precision/`.
+The comparison report SHA-256 is
+`8211ad2fa26f7bcb0e21e704a3fdb6ef5196f775e90f7e8cd8e53e23a74e43de`.
