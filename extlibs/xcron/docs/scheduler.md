@@ -59,11 +59,12 @@ EventWaiter reference already knows the due cohort and calls the same
 callbacks. It has no cron calendar or dormant-job index to maintain.
 
 Both paths discard the first wave. The report records first and last
-callback lateness against the scheduled UTC second at the wall clock's
-millisecond resolution. The monotonic span from the first callback to the
-last measures dispatch within the wave with finer resolution. Process CPU
+callback lateness against the scheduled UTC second using the native wall
+clock. It identifies `precise-filetime` or the older `filetime` fallback
+on Windows, and `clock-realtime` on Linux. The monotonic span from the
+first to last callback measures dispatch within the wave. Process CPU
 includes waiting and callback dispatch. P99 and P99.9 are the largest
-observation in each eight-wave sample.
+observation in each standard eight-wave sample.
 
 Set XBENCH_PIN_CPU to one available logical CPU for the controlled profile.
 The benchmark verifies the resulting mask. Running without the variable
@@ -73,4 +74,18 @@ inherits the parent affinity, which also allows CI smoke execution.
 XBENCH_PIN_CPU=4 python tools/measure_performance.py \
   --config extlibs/xcron/config/performance_profiles.json \
   --profiles xcron_scheduler_cohort --report out/xcron-cohort.json
+```
+
+The same benchmark executable accepts up to 1,024 measured waves. The
+`--samples` option emits first callback lateness, last callback lateness
+and monotonic dispatch span in that order, all in nanoseconds.
+The raw values are printed after timing ends. The benchmark still emits
+the standard quantiles. Five runs of 256 waves per configuration give
+1,280 observations for pooled P99.9 and separate per-process P99 estimates
+for stability checks. Record the operating environment and CPU affinity
+with the results.
+
+```sh
+XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 wait --samples
+XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter --samples
 ```

@@ -77,6 +77,7 @@ typedef struct cronwave {
     unsigned Called, Count;
     bool Unexpected;
     xtime FirstWall, LastWall;
+    unsigned FirstSubNs, LastSubNs;
     uint64 FirstNs, LastNs;
 } cronwave;
 
@@ -85,18 +86,59 @@ typedef struct cronjob {
     unsigned Index;
 } cronjob;
 
+#if defined(_WIN32)
+static void (WINAPI* preciseFileTime)(LPFILETIME);
+#endif
+
+static bool cohortWallTime(xtime* Milliseconds, unsigned* SubNs)
+{
+#if defined(_WIN32)
+    FILETIME Now;
+    if (preciseFileTime) preciseFileTime(&Now);
+    else GetSystemTimeAsFileTime(&Now);
+    uint64 Ticks = ((uint64)Now.dwHighDateTime << 32) | Now.dwLowDateTime;
+    const int64 UnixOffsetMs = INT64_C(11644473600000);
+    *SubNs = (unsigned)(Ticks % 10000) * 100u;
+    return xrtTimeFromUnixMs((int64)(Ticks / 10000) - UnixOffsetMs, Milliseconds);
+#else
+    struct timespec Now;
+    if (clock_gettime(CLOCK_REALTIME, &Now) || !xrtTimeFromUnix((int64)Now.tv_sec, Milliseconds)) return false;
+    int64 WholeMs = Now.tv_nsec / 1000000;
+    if (*Milliseconds > INT64_MAX - WholeMs) return false;
+    *Milliseconds += WholeMs;
+    *SubNs = (unsigned)(Now.tv_nsec % 1000000);
+    return true;
+#endif
+}
+
+static xtime cohortLateness(xtime Due, xtime Wall, unsigned SubNs)
+{
+    return (Wall - Due) * 1000000 + SubNs;
+}
+
 static void cohortCallback(void* Context)
 {
     cronjob* Job = Context;
     cronwave* Wave = Job->Wave;
     if (Job->Index != Wave->Called++) Wave->Unexpected = true;
-    if (!Job->Index) {
-        Wave->FirstWall = xrtNow();
-        Wave->FirstNs = xbenchNowNs();
+    bool First = Job->Index == 0, Last = Job->Index + 1 == Wave->Count;
+    if (!First && !Last) return;
+    xtime Wall;
+    unsigned SubNs;
+    if (!cohortWallTime(&Wall, &SubNs)) {
+        Wave->Unexpected = true;
+        return;
     }
-    if (Job->Index + 1 == Wave->Count) {
-        Wave->LastNs = xbenchNowNs();
-        Wave->LastWall = xrtNow();
+    uint64 NowNs = xbenchNowNs();
+    if (First) {
+        Wave->FirstWall = Wall;
+        Wave->FirstSubNs = SubNs;
+        Wave->FirstNs = NowNs;
+    }
+    if (Last) {
+        Wave->LastWall = Wall;
+        Wave->LastSubNs = SubNs;
+        Wave->LastNs = NowNs;
     }
 }
 
@@ -192,7 +234,8 @@ static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, cronwave
         for (unsigned Index = 0; Index < Wave->Count; ++Index) cohortCallback(&Jobs[Index]);
     }
     return !Wave->Unexpected && Wave->Called == Wave->Count && Wave->FirstWall >= Due &&
-        Wave->LastWall >= Wave->FirstWall && Wave->LastWall < Due + 1000 && Wave->LastNs >= Wave->FirstNs;
+        Wave->LastWall >= Wave->FirstWall && Wave->LastWall < Due + 1000 && Wave->LastNs >= Wave->FirstNs &&
+        cohortLateness(Due, Wave->LastWall, Wave->LastSubNs) >= cohortLateness(Due, Wave->FirstWall, Wave->FirstSubNs);
 }
 
 static void cohortQuantiles(const char* Name, const char* Unit, xtime* Values, unsigned Count, double Scale)
@@ -207,13 +250,22 @@ static void cohortQuantiles(const char* Name, const char* Unit, xtime* Values, u
 
 static int cohort(int Argc, char** Argv)
 {
-    enum { MAX_WAVES = 64, MAX_JOBS = 4096 };
+    enum { MAX_WAVES = 1024, MAX_JOBS = 4096 };
     unsigned Waves, Active, Dormant;
-    if (Argc != 6 || !cohortValue(Argv[2], MAX_WAVES, &Waves) || !Waves ||
+    bool Samples = Argc == 7 && !strcmp(Argv[6], "--samples");
+    if ((Argc != 6 && !Samples) || !cohortValue(Argv[2], MAX_WAVES, &Waves) || !Waves ||
         !cohortValue(Argv[3], MAX_JOBS, &Active) || !Active ||
         !cohortValue(Argv[4], MAX_JOBS, &Dormant) || Active + Dormant > MAX_JOBS ||
         (strcmp(Argv[5], "wait") && strcmp(Argv[5], "waiter"))) return 1;
     if (!cohortAffinity()) return 2;
+#if defined(_WIN32)
+    HMODULE Kernel = GetModuleHandleA("kernel32.dll");
+    if (Kernel) preciseFileTime = (void (WINAPI*)(LPFILETIME))(uintptr_t)
+        GetProcAddress(Kernel, "GetSystemTimePreciseAsFileTime");
+    const char* WallClock = preciseFileTime ? "precise-filetime" : "filetime";
+#else
+    const char* WallClock = "clock-realtime";
+#endif
     bool Direct = !strcmp(Argv[5], "waiter");
     xevent Event = {0};
     xeventwaiter Waiter = {0};
@@ -233,8 +285,8 @@ static int cohort(int Argc, char** Argv)
     for (unsigned Index = 0; Index < Waves; ++Index) {
         Due += 1000;
         if (!cohortWave(Scheduler, &Waiter, &Wave, Jobs, Due)) return 5;
-        First[Index] = Wave.FirstWall - Due;
-        Last[Index] = Wave.LastWall - Due;
+        First[Index] = cohortLateness(Due, Wave.FirstWall, Wave.FirstSubNs);
+        Last[Index] = cohortLateness(Due, Wave.LastWall, Wave.LastSubNs);
         Span[Index] = (xtime)(Wave.LastNs - Wave.FirstNs);
     }
     double Seconds = xrtTimer() - Start, CpuEnd = processCpuMilliseconds();
@@ -244,8 +296,14 @@ static int cohort(int Argc, char** Argv)
     printf("drive: %s\nactive_jobs: %u\ndormant_jobs: %u\nwaves: %u\nverified_callbacks: %u\n",
         Argv[5], Active, Dormant, Waves, Active * Waves);
     printf("cpu_ns_per_callback: %.3f\nwait_seconds: %.6f\n", (CpuEnd - Cpu) * 1e6 / (Active * Waves), Seconds);
-    cohortQuantiles("first_lateness", "ms", First, Waves, 1.0);
-    cohortQuantiles("last_lateness", "ms", Last, Waves, 1.0);
+    printf("wall_clock: %s\n", WallClock);
+    if (Samples) {
+        for (unsigned Index = 0; Index < Waves; ++Index)
+            printf("wave_%u_ns: %lld,%lld,%lld\n", Index + 1, (long long)First[Index],
+                (long long)Last[Index], (long long)Span[Index]);
+    }
+    cohortQuantiles("first_lateness", "ms", First, Waves, 0.000001);
+    cohortQuantiles("last_lateness", "ms", Last, Waves, 0.000001);
     cohortQuantiles("callback_span", "us", Span, Waves, 0.001);
     return 0;
 }

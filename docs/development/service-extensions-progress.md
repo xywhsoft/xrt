@@ -19718,3 +19718,39 @@ ordinary maturity passed. Native Linux and stable release tails remain
 open. Strict xmqtt release reports 39 developing modules. Builds, source
 and dependency hashes, reports and diagnostic inputs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-tls/`.
+
+## 2026-11-20 xcron extended live scheduler tail samples
+
+The live cohort benchmark now accepts up to 1,024 measured waves and
+reports first and last callback lateness using the native wall clock's
+sub-millisecond value. The monotonic span measures dispatch within each
+wave. The optional raw sample output is emitted after timing ends. The
+benchmark identifies its wall-clock source and uses one timestamp for
+both ends of a one-callback wave.
+
+Windows x64 and Ubuntu/WSL x64 passed the single-header benchmark for
+both drive modes with one active job, 64 active and 960 dormant jobs,
+and 1,024 active jobs. The verifier checked exact callback counts and
+recomputed every reported quantile from the raw samples. A separate
+clock fixture checked a 34,167,800 ns offset on both hosts. Both rejected
+a request for more than 1,024 waves.
+
+The longer comparison runs serially on logical CPU 4. It covers
+scheduler Wait and direct XRT EventWaiter for both multi-job cohorts,
+with five processes of 256 waves per configuration and alternating drive
+order. Each series collects 1,280 raw waves for pooled P99.9 and five
+per-process P99 values for the variation check. The two environments are
+Windows x64 and Ubuntu/WSL x64. Native Linux measurement remains open.
+
+The first Windows sample completed all 256 waves with 64 active and 960
+dormant jobs using scheduler Wait. First-callback P99 was 1.9211 ms and
+the maximum was 5.5910 ms. Last-callback P99 was 1.9275 ms and dispatch
+span P99 was 20.1 us. The direct EventWaiter sample was running when this
+record was made. The standard cohort smoke profile also passed on both
+hosts, along with generated assets, API docs and ordinary maturity.
+Strict release lists `xcron` and `xcron_scheduler` as developing.
+
+The runner, binary and source hashes, raw samples and process events are
+under `out/service-extensions/scope-reduction-20261119/xcron-live-tails/`.
+The [scheduler guide](../../extlibs/xcron/docs/scheduler.md) documents
+the extended arguments and clock output.
