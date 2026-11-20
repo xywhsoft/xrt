@@ -20693,3 +20693,32 @@ The per-run results, source and binary hashes, build logs and
 audit are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-active-pressure/`.
 [Peer probe instructions](../../extlibs/xmqtt/bench/README.md#live-quota-at-connection-capacity).
+
+## 2026-11-21 xcron Windows scheduler release-tail checkpoint
+
+The Windows leg of the 40-run campaign completed all 20 runs on
+logical CPU 4. The independent audit checked the input and binary
+hashes, 5,120 one-second waves, 2,785,280 callbacks and quantiles
+recomputed from the raw samples. Each series includes five processes
+and 1,280 measured waves.
+
+| Active / dormant jobs | Drive | First callback pooled P99 / P99.9 in ms | Last callback pooled P99 / P99.9 in ms |
+| ---: | --- | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 1.020 / 1.412 | 1.030 / 1.418 |
+| 64 / 960 | XRT waiter and direct callbacks | 1.854 / 1.950 | 1.854 / 1.950 |
+| 1,024 / 0 | Scheduler Wait | 1.052 / 6.277 | 1.255 / 6.379 |
+| 1,024 / 0 | XRT waiter and direct callbacks | 1.823 / 2.207 | 1.826 / 2.210 |
+
+The direct XRT waiter is the integer-millisecond APP baseline. The
+scheduler arms fractional monotonic deadlines and requeues recurring
+jobs as it dispatches. The table measures each complete drive path.
+The 64-active scheduler series passed the 3% MAD and 6% central-range
+checks for first and last callback P99 across process repetitions.
+The other six first and last callback P99 series exceeded one or
+both limits. All four callback-span P99 series exceeded the limits.
+P99.9 is reported over pooled waves. WSL continues on the same
+campaign and native Linux acceptance remains open.
+
+The Windows audit and the campaign's live report and process ledger
+are in
+`out/service-extensions/scope-reduction-20261119/xcron-precise-scheduler/release-tails/`.
