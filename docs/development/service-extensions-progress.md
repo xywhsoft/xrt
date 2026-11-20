@@ -20155,3 +20155,46 @@ and a stable release baseline remain open.
 Builds, sanitizer output, provenance hashes and the independent
 audit are under
 `out/service-extensions/scope-reduction-20261119/xcron-heap-model/`.
+
+## 2026-11-20 xcron live scheduler tail campaign completed
+
+The campaign finished all 40 process runs on Windows x64 and Ubuntu/WSL x64.
+Each process ran 256 measured one-second waves after one warm-up wave.
+Each host tested five separate processes per mode and cohort on its CPU 4.
+The scheduler registered 1,024 entries in both cohorts, with 64 or 1,024
+active and the rest dormant. The raw EventWaiter control invoked the same
+active callbacks. An independent audit matched the process and terminal
+journal, source and binary hashes, callback counts, and quantiles from the
+benchmark's raw stdout. It verified 10,240 waves and 5,570,560 callbacks.
+
+| Host | Active jobs | Mode | First callback P99 / P99.9, ms | Last callback P99 / P99.9, ms | Callback span P99 / P99.9, us |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Windows x64 | 64 | Scheduler Wait | 1.871 / 5.801 | 1.878 / 5.809 | 12.6 / 53.4 |
+| Windows x64 | 64 | EventWaiter | 1.856 / 6.889 | 1.856 / 6.889 | 0.9 / 5.4 |
+| Windows x64 | 1,024 | Scheduler Wait | 1.940 / 6.616 | 2.082 / 6.730 | 364.7 / 566.6 |
+| Windows x64 | 1,024 | EventWaiter | 1.865 / 2.013 | 1.868 / 2.016 | 7.9 / 18.9 |
+| Ubuntu/WSL x64 | 64 | Scheduler Wait | 1.083 / 1.126 | 1.090 / 1.132 | 17.3 / 32.0 |
+| Ubuntu/WSL x64 | 64 | EventWaiter | 1.086 / 1.141 | 1.086 / 1.141 | 1.0 / 20.2 |
+| Ubuntu/WSL x64 | 1,024 | Scheduler Wait | 1.089 / 1.506 | 1.228 / 1.601 | 150.0 / 179.4 |
+| Ubuntu/WSL x64 | 1,024 | EventWaiter | 1.079 / 1.116 | 1.082 / 1.122 | 6.3 / 23.4 |
+
+The Windows scheduler missed the combined P99 variation gate (3% relative
+MAD and 6% central range) for first and last callbacks in both cohorts.
+Windows EventWaiter and the four WSL series passed those two metrics. All
+eight callback-span series exceeded at least one variation limit. Each
+pooled P99.9 comes from the second-largest observation of 1,280 waves.
+
+For each scheduler series, the audit selected the 13 waves with greatest
+last-callback lateness and measured elapsed time within the same waves.
+Time from the due instant to the first callback accounted for 90.2% to
+99.8% of cumulative last-callback lateness. A separate timestamp on return
+from EventWaiter would let a follow-up distinguish the wait from the
+scheduler work before the first callback. The performance profile remains
+unpinned. Native Linux and strict release acceptance remain open.
+
+The full report and journal are under
+`out/service-extensions/scope-reduction-20261119/xcron-live-tails/`.
+The independent auditor and result are `audit-live-final.py` and
+`live-tail-final-audit.json` under the sibling `xcron-heap-model/`.
+The campaign report SHA-256 is
+`9d4bff445bced2167f2205a691f50417c52d3ac06ad192aae2aca819cd69f5b5`.
