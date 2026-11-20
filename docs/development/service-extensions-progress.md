@@ -20555,3 +20555,39 @@ Raw samples, source and binary hashes and the runner and audit scripts
 are under
 `out/service-extensions/scope-reduction-20261119/xrpc-native-observer/`.
 [Native observer reproduction instructions](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+
+## 2026-11-21 xrpc single-record tail versus offered rate
+
+The native observer repeated the same two-second single-record workload
+at four offered rates with the APP and native observer binaries from
+the previous comparison. Each rate used eight staggered connections,
+two APP workers and 16 groups of credit per connection. The run kept
+the CPU masks and ran alongside the endurance jobs. The run order rotated and
+reversed across five repetitions for each host, APP mode and rate.
+All 80 samples completed and independently accounted for 16,000,000
+verified replies.
+
+| Host | APP | P99 in ms at 64k / 96k / 112k / 128k offered calls/s |
+| --- | --- | ---: |
+| Windows x64 | Duplex | 0.487 / 1.766 / 4.607 / 2.637 |
+| Windows x64 | Dispatch | 0.310 / 0.470 / 0.468 / 0.610 |
+| Ubuntu/WSL x64 | Duplex | 0.802 / 1.247 / 3.476 / 12.246 |
+| Ubuntu/WSL x64 | Dispatch | 0.678 / 0.909 / 1.246 / 2.572 |
+
+Each cell lists separate per-rate medians. All 16 throughput series
+met the variation gates and their medians were within 0.2% of the
+offer rate. Only the 96k WSL dispatch series met the P99 variation
+gates. No P99.9 series met them. The WSL duplex 128k P99 ranged from
+6.914 to 262.712 ms. At 112k on WSL, the median share of time in the
+slowest one percent after the initial send attempt was above 99% in
+both APP modes. At 128k in duplex mode, the median share of time
+spent waiting to offer outside observed credit rose to 33.6%.
+Windows duplex P99 varied across the five repetitions, reaching
+52.214 ms at 112k. These measurements leave stable release tails and
+native Linux acceptance open. Ordinary maturity passed for all four
+extensions and the strict release checks still report developing
+modules.
+
+The workload script, per-host reports, input hashes, and independent
+audit are under
+`out/service-extensions/scope-reduction-20261119/xrpc-native-observer/`.
