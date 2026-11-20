@@ -192,6 +192,17 @@ settings from `xmqttClientConfigInit`, which enable `TCP_NODELAY` through
 XRT. Paho keeps its default for both runs. The JSON report records this
 choice in `xmqtt_default_tcp`.
 
+Add `--broker /path/to/mosquitto --broker-cpu 10` to use standalone
+Mosquitto 2.1.2 on a separate CPU. A raw MQTT 5 publisher makes the same
+fixed-arrival offers through a dedicated loopback listener. The peer relays
+the subscriber connection, verifies the broker's forwarded payloads and
+Receive Maximum, and tracks publisher and subscriber acknowledgements
+by their separate packet IDs. The report includes the broker's CPU and
+memory and `subscriber_leg` percentiles from relay forwarding to the
+subscriber's terminal acknowledgement. The end-to-end times include
+the relay, which runs on the peer CPU with the publisher. The broker mode
+uses plaintext TCP with persistence disabled.
+
 Reuse the publisher comparison's compiler flags and pinned Paho builds.
 Add `-DXRT_MODULE_EVENT` for the receiver driver's completion event.
 

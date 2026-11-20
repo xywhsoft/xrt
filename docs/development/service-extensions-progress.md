@@ -19594,3 +19594,62 @@ rejected unsupported receiver arguments. Generated assets, API coverage and
 ordinary maturity passed. Strict release still reports 39 developing modules
 for xmqtt. Raw samples, binary and source hashes, gate logs and trace inputs are
 under `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-ack-tail/`.
+
+## 2026-11-20 MQTT 5 receiver load through standalone Mosquitto
+
+The receiver reference now supports a pinned Mosquitto 2.1.2 listener. A
+raw publisher schedules 32-byte MQTT 5 publications at fixed times. The
+subscriber relay validates the topic, payload, order and Receive Maximum
+and tracks the two legs' packet IDs independently through PUBACK or
+PUBREC/PUBREL/PUBCOMP. The application still validates every delivery.
+PINGRESP on the broker's subscriber stream follows the forwarded final ACK
+before a separate QoS 0 barrier releases the client for clean teardown.
+
+The timed path buffers fragments per connection so a partial frame cannot
+block the publisher waiting for the frame body. Measurements report offer
+lag, application delivery, publisher-send-to-subscriber-ACK, and timed
+relay-forward-to-subscriber-ACK separately. End-to-end times include the
+relay's work. Mosquitto used a fourth logical CPU, `TCP_NODELAY` on its
+sockets, plaintext TCP and no persistence. The two receiver executables
+used matched TCP settings, with one live subscription per sample.
+
+Native Windows x64 and Ubuntu/WSL x64 each completed the four-workload
+matrix. The matrices verified 252,000 measured deliveries and acknowledgements
+on both MQTT legs across 80 runs, with 16 process warm-ups. Each cell shows
+the median of five runs per client. Terminal latency starts at the planned
+offer and ends when the relay receives the subscriber's terminal ACK.
+
+| Host | QoS | Window | Offers/s | Verified/s, xmqtt / Paho | APP P99 in us, xmqtt / Paho | Terminal P99 in us, xmqtt / Paho |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 1 | 1,200 | 1,200.6 / 1,200.6 | 63,268.7 / 65,322.7 | 63,284.9 / 65,344.1 |
+| Windows x64 | 1 | 16 | 3,000 | 3,000.5 / 3,000.4 | 75,564.5 / 42,095.9 | 77,197.0 / 42,121.3 |
+| Windows x64 | 2 | 1 | 1,200 | 1,200.5 / 1,200.5 | 55,563.7 / 40,375.6 | 55,687.4 / 40,483.6 |
+| Windows x64 | 2 | 16 | 3,000 | 3,000.2 / 3,000.2 | 504.8 / 849.8 | 744.4 / 3,199.3 |
+| Ubuntu/WSL x64 | 1 | 1 | 1,200 | 1,200.5 / 1,200.5 | 302.6 / 293.6 | 371.4 / 366.7 |
+| Ubuntu/WSL x64 | 1 | 16 | 3,000 | 2,920.5 / 2,920.7 | 305.4 / 292.9 | 643.5 / 603.2 |
+| Ubuntu/WSL x64 | 2 | 1 | 1,200 | 1,200.4 / 1,200.4 | 447.6 / 447.8 | 675.8 / 661.9 |
+| Ubuntu/WSL x64 | 2 | 16 | 3,000 | 2,918.6 / 2,916.1 | 488.7 / 471.6 | 1,135.4 / 1,094.3 |
+
+The variation gate passed for all 16 throughput series, two application
+P99 series and four terminal P99 series. Windows QoS 1 window 1 offer-lag
+P99 medians were 62.4 and 64.5 ms. The corresponding actual-send-to-terminal
+P99 medians were 333 and 357 us. The original relay used blocking reads
+for complete frames and the revised relay buffered partial packets. Both
+matrices recorded Windows offer lag in tens of milliseconds.
+The later per-publication timing probe on Windows QoS 1 window 16 had a
+largest measured terminal time of 3.86 ms across ten runs. The long
+stall did not recur during that probe.
+
+An extra WSL QoS 1 window 16 run kept xmqtt's default `TCP_NODELAY` setting.
+Both clients completed about 3,000 messages/s. Their terminal P99 medians
+were 347.7 and 324.0 us. Paho used the same socket configuration as in the
+matched matrix. Release-grade Windows and native Linux tails, TLS and
+broader connection profiles remain open.
+
+Both platforms passed the direct-peer smoke and the broker relay's fragmented
+and coalesced frame checks. Negative controls rejected payload corruption,
+incorrect QoS 2 phase, invalid packet length encoding and an over-limit frame.
+Generated assets, API docs and ordinary maturity passed. Strict xmqtt release
+still reports 39 developing modules. The runner, inputs, original relay
+source and results are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-receiver-standalone/`.
