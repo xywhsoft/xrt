@@ -6527,7 +6527,21 @@ static void xredisClientOnEnd(xnetstream* Stream, ptr Data)
 }
 
 static void xredisClientOnWritable(xnetstream* Stream, ptr Data)
-{ (void)Stream; xredisClientWake((xredisclient*)Data); }
+{
+	(void)Stream;
+	xredisclient* Client = Data;
+	/* Drain can fire after every ordinary write. A new submission posts
+	 * its own turn and an ordinary reply returns in-flight credit. */
+	bool Waiting = Client->ReadyPromise != NULL ||
+		(Client->PendingHead != NULL && Client->SentCount < Client->Config.MaxInFlight);
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+	Waiting = Waiting || (Client->SentHead != NULL && Client->SentHead->Transaction);
+#endif
+	xrtMutexLock(&Client->Gate);
+	if (Waiting || Client->Info.State >= XREDIS_CLIENT_CLOSING)
+		(void)xredisClientWakeLocked(Client);
+	xrtMutexUnlock(&Client->Gate);
+}
 
 static void xredisClientOnLowWater(xnetstream* Stream, size_t Queued, ptr Data)
 { (void)Queued; xredisClientOnWritable(Stream, Data); }

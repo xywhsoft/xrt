@@ -19215,3 +19215,63 @@ reports 39 developing modules.
 Reproduce from [the connection benchmark guide](../../extlibs/xmqtt/bench/README.md#idle-connections-and-reconnect-waves).
 Raw data, diagnostic sources and validation logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-connect-tail/`.
+
+## 2026-11-20 xredis wakeups after TCP write drain
+
+TCP drain and low-water notifications post a client turn when connection
+initialization or transaction work can use it, pending requests have
+in-flight credit, or the connection is closing. Ordinary submissions
+post their own turns and replies return in-flight credit. This removes
+the second client turn after an ordinary write drains with no pending
+work.
+
+The pressure test pauses a real loopback peer and bounds the socket
+send buffer. One 256 KiB command occupies the transport queue and the
+next waits for capacity while a worker barrier checks both states.
+The peer withholds both replies until the second command arrives.
+Resuming its reads makes the client advance using write credit, and
+both results retain their FIFO identities. Removing the pending-write
+wake from a separate WSL build caused this test to time out waiting
+for a result.
+
+The fixed-arrival comparison used four RESP3 connections, 1,024-byte
+GET/SET values and a shared 128-request observer window. xredis control
+and candidate used the same observer and XRT snapshot with an engine
+counter read after retirement. A pinned Hiredis 1.3.0 binary from the
+earlier mixed comparison served as the reference. Each platform used a
+private WSL Redis 8.0.5 fixture pinned to CPU 0 and observers pinned to
+CPUs 4 and 8. Windows accessed the fixture through loopback forwarding.
+All 60 two-second measured samples and their warmups matched the Redis
+command ledgers. All 840,000 measured offers completed.
+
+| Observer | Offers/s | xredis worker posts, before / after | xredis process CPU seconds, before / after | P99 in microseconds, before / after / Hiredis |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 2,000 | 8,042 / 4,037 | 2.094 / 2.078 | 351.9 / 335.5 / 294.9 |
+| Windows x64 | 12,000 | 47,948 / 23,999 | 2.641 / 2.609 | 445.4 / 474.8 / 373.1 |
+| Ubuntu/WSL x64 | 2,000 | 8,042 / 4,037 | 2.226 / 2.213 | 217.6 / 215.2 / 119.8 |
+| Ubuntu/WSL x64 | 12,000 | 48,017 / 24,037 | 3.006 / 2.931 | 191.3 / 185.2 / 110.7 |
+
+The table gives five-sample medians. Timer cancellation counts matched
+between xredis variants in every case. The candidate's Windows and WSL
+2,000-offer P99 series met the variation limits. Its two
+12,000-offer P99 series exceeded the variation limits, and the Windows
+median was higher than the control. Stable release P99 and native Linux
+acceptance remain open.
+
+The complete xredis test suite passed on Windows, including modular and
+single-header builds. The focused single-header suite passed on WSL.
+WSL ASan/UBSan
+with leak detection and TSan passed, with GCC's thread-fence warning
+retained in the TSan build. A Windows compiler diagnostic in the
+existing invalid-configuration fixture was resolved by explicitly
+initializing and checking its config. The initial Hiredis smoke used
+the short client label and failed report validation. Repeating with
+the executable's pinned version label passed. Generated assets, API
+documentation and ordinary maturity passed. Strict release still
+reports 29 developing modules.
+
+The updated Windows client also passed a 30-second mixed pool, Tracking
+and Pub/Sub run with the private WSL Redis fixture, verifying 1,897
+rounds and exact server counts. Benchmarks, negative probes, logs and
+source snapshots are under
+`out/service-extensions/scope-reduction-20261119/xredis-write-drain/`.

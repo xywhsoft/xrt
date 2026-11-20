@@ -414,7 +414,8 @@ static void testClientEdges(void)
 		testRequire(Info.CloseStatus == (Trial == 0 ? XREDIS_REQUEST_PROTOCOL : XREDIS_REQUEST_LIMIT), "extra/push-byte close cause");
 		xrtFutureDestroy(Future); testClientClose(&Peer, Client);
 	}
-	redispeer Peer; redisPeerStart(&Peer); xredisclientconfig Config; xredisClientConfigInit(&Config);
+	redispeer Peer; redisPeerStart(&Peer); xredisclientconfig Config = {0};
+	testRequire(xredisClientConfigInit(&Config), "client defaults for edge cases");
 	for (size_t Trial = 0; Trial < 8; ++Trial) {
 		xredisclientconfig Bad = Config; xnetaddr Remote = Peer.Address; xredisclient* Output = (xredisclient*)(uintptr_t)1;
 		if (Trial == 0) Bad.Size = 0;
