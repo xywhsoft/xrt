@@ -521,6 +521,23 @@ A protocol round trip and the on-disk records identify completed
 acknowledgment commits before the following process stop.
 [MQTT 5.0 specification, sections 4.4, 4.9 and 4.12](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 
+### Authenticated checkpoint recovery across transports
+
+The independent peer can combine enhanced authentication and checkpoint recovery.
+Set `AUTH_EXAMPLE` and `CHECKPOINT_EXAMPLE` to the built authentication and
+checkpoint examples. Set `TLS_DIR` to the test certificate directory used in
+the preceding authentication probe.
+
+```sh
+python extlibs/xmqtt/tests/interop/run_server_auth.py "$AUTH_EXAMPLE" "$TLS_DIR"     --checkpoint "$CHECKPOINT_EXAMPLE" --checkpoint-transports
+```
+
+The peer restores one session through WebSocket, TLS, secure WebSocket and TCP
+across four broker process stops. A secure WebSocket Clean Start request with a
+proof from the prior connection is rejected and leaves the checkpoint file
+intact. A fresh proof allows the session to resume and the pending QoS 1 and 2
+flows to continue with their original packet identifiers.
+
 ## MQTT over TLS
 
 Select `XMQTT_MODULE_XMQTT_SERVER_TLS` and return

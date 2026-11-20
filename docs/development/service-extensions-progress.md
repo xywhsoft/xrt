@@ -21132,3 +21132,22 @@ passed. Strict release still lists 39 developing modules.
 Build logs, code and binary digests, and raw reports are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-checkpoint-transports/`.
 [Reproduction](../../extlibs/xmqtt/docs/server.md#checkpoint-recovery-across-transports).
+
+## 2026-11-21 MQTT authenticated checkpoint recovery across transports
+
+- Extended the independent MQTT 5 enhanced-authentication peer with opt-in
+  `--checkpoint-transports`. The checkpoint example opens in WebSocket mode and
+  restores the same session over TLS, secure WebSocket, WebSocket, secure
+  WebSocket and TCP. Missing, incorrect and stale authentication proofs cannot
+  activate or reset saved state. The stale-proof case submits Clean Start with
+  the prior connection's valid proof, receives Not Authorized and verifies the
+  checkpoint bytes. A fresh proof gates pending delivery, including the QoS 2
+  PUBREL and QoS 1/2 DUP stages. The test uses the existing runtime and examples.
+- Completed two runs per build form on native Windows and WSL (modular and
+  amalgamated checkpoint example), plus a WSL ASan/UBSan checkpoint run with
+  leak detection enabled. The nine cross-transport cases covered 36 deliberate
+  broker process stops and 153 unique deliveries (72 QoS 1 and 81 QoS 2).
+  The default TCP-only probes and the invalid option check also passed. WSL is
+  development coverage. Native Linux release qualification remains pending.
+  Evidence is in
+  `out/service-extensions/scope-reduction-20261119/xmqtt-auth-checkpoint-transports/`.

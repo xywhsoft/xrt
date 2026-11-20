@@ -69,6 +69,9 @@ class WsPeer:
         if self.sock:
             self.sock.close()
 
+    def settimeout(self, seconds):
+        self.sock.settimeout(seconds)
+
     def setsockopt(self, *args):
         self.sock.setsockopt(*args)
 

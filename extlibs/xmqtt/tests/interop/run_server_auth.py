@@ -237,17 +237,23 @@ def receive_after_proof(sock, key, name, nonce):
 
 
 @contextmanager
-def broker(program, key, mode, credentials, *arguments, require_method=False, crash=False):
+def broker(program, key, mode, credentials, *arguments, require_method=False, crash=False, transport=None):
     command = [str(program.resolve())]
     if require_method:
         command.append("--require-method")
-    command.append(mode)
+    if transport is None:
+        command.append(mode)
+    elif transport != "tcp":
+        command.append("--" + transport)
+    selected = transport or mode
     tls = None
-    if mode in ("tls", "wss"):
+    if selected in ("tls", "wss"):
         tls = ssl.create_default_context(cafile=str(credentials / "certificate.pem"))
         tls.minimum_version = ssl.TLSVersion.TLSv1_3
         command += [str(credentials / "certificate.der"), str(credentials / "key.der")]
-    context = WsContext(tls) if mode in ("ws", "wss") else tls
+    if transport is not None:
+        command.append(mode)
+    context = WsContext(tls) if selected in ("ws", "wss") else tls
     env = {**os.environ, "XMQTT_EXAMPLE_AUTH_KEY": key.decode("ascii")}
     with subprocess.Popen(command + list(arguments), env=env, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, text=True) as process:
@@ -348,11 +354,15 @@ def verify_checkpoint(program):
     return {"proved_before_replay": True, "original_qos1_id": True, "acked_delivery_retired_after_restart": True}
 
 
-def verify_crash_checkpoint(program):
+def verify_crash_checkpoint(program, credentials=None):
     key = secrets.token_hex(32).encode("ascii")
     publisher, subscriber, name = b"auth-crash-source", b"auth-crash-reader", b"auth/crash"
     messages = [(2 if index % 2 == 0 else 1, b"recover\0" + index.to_bytes(2, "big") + b"\xff")
                 for index in range(17)]
+
+    def open_checkpoint(mode, image, transport, *, crash=False):
+        return broker(program, key, mode, credentials, str(image), require_method=True,
+                      crash=crash, transport=transport if credentials else None)
 
     def authenticate(peer, identity, *, resumed=False, window=None, quiet=False):
         peer.sendall(connect_wire(identity, clean=not resumed, receive_maximum=window))
@@ -360,6 +370,7 @@ def verify_crash_checkpoint(program):
         if quiet:
             expect_silence(peer)
         accept(peer, key, identity, nonce, resumed=resumed)
+        return nonce
 
     def finish_qos2(peer, identifier):
         peer.sendall(frame(0x50, identifier))
@@ -372,17 +383,17 @@ def verify_crash_checkpoint(program):
 
     with tempfile.TemporaryDirectory(prefix="xmqtt-auth-crash-") as directory:
         image = Path(directory) / "broker.bin"
-        with broker(program, key, "capture", None, str(image), require_method=True) as open_peer:
+        with open_checkpoint("capture", image, "ws") as open_peer:
             for identity in (publisher, subscriber):
                 with open_peer() as peer:
-                    authenticate(peer, identity)
+                    nonce = authenticate(peer, identity)
                     if identity == subscriber:
+                        previous_nonce = nonce
                         subscribe(peer, name, 1, 2)
                     peer.sendall(b"\xe0\0")
                     graceful_close(peer)
 
-        arguments = program, key, "restore-online", None, str(image)
-        with ExitStack() as sockets, broker(*arguments, require_method=True, crash=True) as open_peer:
+        with ExitStack() as sockets, open_checkpoint("restore-online", image, "tls", crash=True) as open_peer:
             source = sockets.enter_context(open_peer())
             authenticate(source, publisher, resumed=True)
             for index, (qos, payload) in enumerate(messages, 1):
@@ -398,7 +409,7 @@ def verify_crash_checkpoint(program):
         records = durable_records(image)
         assert sum(kind == 3 for kind, _, _ in records) == 1
         assert sum(kind == 4 for kind, _, _ in records) == len(messages)
-        with ExitStack() as sockets, broker(*arguments, require_method=True, crash=True) as open_peer:
+        with ExitStack() as sockets, open_checkpoint("restore-online", image, "wss", crash=True) as open_peer:
             before_auth = image.read_bytes()
             with open_peer() as unauthenticated:
                 unauthenticated.sendall(connect_wire(subscriber, method=None, clean=False))
@@ -410,6 +421,13 @@ def verify_crash_checkpoint(program):
                 proof[0] ^= 1
                 rejected.sendall(auth(0x18, bytes(proof)))
                 refused(rejected, 0x87)
+            if credentials:
+                with open_peer() as stale:
+                    stale.sendall(connect_wire(subscriber, clean=True))
+                    nonce = expect_challenge(stale)
+                    assert nonce != previous_nonce
+                    stale.sendall(auth(0x18, mac(key, b"C", previous_nonce, subscriber)))
+                    refused(stale, 0x87)
             assert image.read_bytes() == before_auth
 
             with open_peer() as source:
@@ -427,7 +445,7 @@ def verify_crash_checkpoint(program):
             assert receive(recipient) == (0x62, qos2_id)
 
         assert (5, 7, qos2_id) in durable_records(image)
-        with ExitStack() as sockets, broker(*arguments, require_method=True, crash=True) as open_peer:
+        with ExitStack() as sockets, open_checkpoint("restore-online", image, "ws", crash=True) as open_peer:
             recipient = sockets.enter_context(open_peer())
             authenticate(recipient, subscriber, resumed=True, window=1)
             assert receive(recipient) == (0x62, qos2_id)
@@ -438,7 +456,7 @@ def verify_crash_checkpoint(program):
             barrier(recipient)
 
         assert (5, 7, qos2_id) not in durable_records(image)
-        with ExitStack() as sockets, broker(*arguments, require_method=True, crash=True) as open_peer:
+        with ExitStack() as sockets, open_checkpoint("restore-online", image, "wss", crash=True) as open_peer:
             recipient = sockets.enter_context(open_peer())
             authenticate(recipient, subscriber, resumed=True, window=1)
             assert received_publish(recipient, 0x3a, name, messages[1][1]) == qos1_id
@@ -453,13 +471,17 @@ def verify_crash_checkpoint(program):
             barrier(recipient)
 
         assert not any(kind in (3, 4, 5) for kind, _, _ in durable_records(image))
-        with broker(*arguments, require_method=True) as open_peer, open_peer() as recipient:
+        with open_checkpoint("restore-online", image, "tcp") as open_peer, open_peer() as recipient:
             authenticate(recipient, subscriber, resumed=True, window=1)
             barrier(recipient)
 
-    return {"process_stops": 4, "unique_qos1_deliveries": 8, "unique_qos2_deliveries": 9,
-            "authentication_gates_replay": True, "inbound_qos2_duplicate_suppressed": True,
-            "original_ids_on_pubrel_and_dup": True, "acknowledged_deliveries_retired": True}
+    result = {"process_stops": 4, "unique_qos1_deliveries": 8, "unique_qos2_deliveries": 9,
+              "authentication_gates_replay": True, "inbound_qos2_duplicate_suppressed": True,
+              "original_ids_on_pubrel_and_dup": True, "acknowledged_deliveries_retired": True}
+    if credentials:
+        result.update(transports=["ws", "tls", "wss", "ws", "wss", "tcp"],
+                      stale_proof_cannot_reset_session=True)
+    return result
 
 
 def main():
@@ -467,12 +489,18 @@ def main():
     parser.add_argument("program", type=Path)
     parser.add_argument("credentials", type=Path, nargs="?")
     parser.add_argument("--checkpoint", type=Path, help="checkpoint example built with server auth")
+    parser.add_argument("--checkpoint-transports", action="store_true",
+                        help="also test authenticated checkpoint recovery across TCP, TLS, WS and WSS")
     args = parser.parse_args()
+    if args.checkpoint_transports and not (args.checkpoint and args.credentials):
+        parser.error("--checkpoint-transports requires --checkpoint and a credentials directory")
     modes = ("tcp", "tls", "ws", "wss") if args.credentials else ("tcp",)
     result = {mode: probe(args.program, args.credentials, mode) for mode in modes}
     if args.checkpoint:
         result["checkpoint"] = verify_checkpoint(args.checkpoint)
         result["crash_checkpoint"] = verify_crash_checkpoint(args.checkpoint)
+        if args.checkpoint_transports:
+            result["cross_transport_crash_checkpoint"] = verify_crash_checkpoint(args.checkpoint, args.credentials)
     print(json.dumps(result))
 
 
