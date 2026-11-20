@@ -319,8 +319,27 @@ and resource observations on Windows or Linux. WSL and shorter runs
 remain diagnostic. A server crash or process interruption terminates the
 run without a successful result. Recovery scenarios have separate tests
 and evidence. This workload covers the TCP RESP3 shared-pool, Tracking
-and direct Pub/Sub paths. Keep separate qualification for TLS, other
+and direct Pub/Sub paths. Keep separate qualification for other
 deployment topologies, larger loads, and injected failures.
+
+### The same workload over verified TLS
+
+Add `-DXREDIS_MODULE_XREDIS_TLS` to the client build. On Windows link
+`-lws2_32 -liphlpapi -lbcrypt -ladvapi32`. Supply `--tls-directory`
+with `ca.pem` and `server.pem` for the `localhost` identity.
+With `--server`, also provide `server.key`. The supervisor starts a
+TLS-only listener or connects to the TLS endpoint supplied by `--port`.
+
+    python3 extlibs/xredis/tests/interop/run_redis_mixed.py \
+      --server /usr/bin/redis-server --client out/redis-mixed \
+      --tls-directory /path/to/fixture --seconds 60 --pause-ms 3 \
+      --report out/redis-mixed-tls.json
+
+The four workload connections and the independent INFO observer use
+TLS 1.3 with AES-128-GCM and verify the certificate. The observer also
+checks the expected leaf before and after the run. The same Redis
+command, latency, duration and resource checks apply to both transports.
+Use certificates valid through the final observation for an endurance run.
 
 ## Recovery across a Redis process restart
 

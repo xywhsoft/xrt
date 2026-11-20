@@ -21065,3 +21065,33 @@ remain open.
 
 The corrected report, probe and audit are under
 `out/service-extensions/scope-reduction-20261119/xrpc-worker-scaling/`.
+
+## 2026-11-21 xredis verified TLS mixed workload
+
+The continuous client probe supports the shared pool, Tracking and
+direct Pub/Sub on four verified TLS 1.3 connections. It uses the same
+pipeline, binary payload, push-order and teardown ledgers as the
+plaintext workload. The independent Redis INFO observer verifies
+TLS_AES_128_GCM_SHA256, the localhost identity and the exact leaf.
+
+The Windows x64 and Ubuntu/WSL clients completed 20-second TLS runs
+with 1,275 and 4,646 verified rounds against owned Redis 8.0.5
+processes on WSL. The WSL ASan/UBSan run with leak detection completed
+1,715 rounds. The Windows external-endpoint run with public trust
+files completed 382 rounds. The plaintext builds completed 638 rounds
+on Windows and 2,549 on WSL. The independent audit matched every Redis
+command delta and confirmed the same server identity and connected
+client count before and after each successful run.
+
+Both native clients refused the wrong CA before Redis observed any
+of the workload commands. The external-endpoint supervisor refused
+a different leaf from the same CA before launching its client. A
+separate process-stop case verified 1,093 rounds before stopping the
+owned Redis and reported failure without verified retirement. The
+existing native Windows endurance runs continue. Native Linux,
+complete endurance and release-tail acceptance remain open.
+
+Build logs, trusted-leaf receipts, raw tests and the independent
+audit are under
+`out/service-extensions/scope-reduction-20261119/xredis-mixed-tls/`.
+[Mixed workload reproduction](../../extlibs/xredis/docs/client-performance.md#the-same-workload-over-verified-tls).

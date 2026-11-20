@@ -23,6 +23,13 @@ static void require(bool Ok, const char* Message)
 	}
 }
 
+#include "tls_probe.h"
+
+typedef struct mixedendpoint {
+	xnetaddr Address;
+	redisprobetls Tls;
+} mixedendpoint;
+
 static uint64 argument(const char* Text, uint64 Min, uint64 Max)
 {
 	char* End;
@@ -69,16 +76,18 @@ static void verifySet(xredisreplyvalue Root)
 static bool connectMember(xnetengine* Engine, size_t Slot, uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Out)
 {
 	(void)Attempt;
+	const mixedendpoint* Endpoint = Data;
 	xredisclientinitconfig Init;
 	if (!xredisClientInitConfigInit(&Init)) return false;
 	Init.Timeout = Timeout;
-	return xredisClientConnectInit(Engine, Data, Slot, NULL, &Init, Out);
+	return redisProbeConnect(&Endpoint->Tls, Engine, &Endpoint->Address, Slot, &Init, Out);
 }
 
-static xredisclient* connectDedicated(xnetengine* Engine, const xnetaddr* Address, uint64 Affinity)
+static xredisclient* connectDedicated(xnetengine* Engine, const mixedendpoint* Endpoint, uint64 Affinity)
 {
 	xredisclient* Client = NULL;
-	require(xredisClientConnectInit(Engine, Address, Affinity, NULL, NULL, &Client), "dedicated client connect");
+	require(redisProbeConnect(&Endpoint->Tls, Engine, &Endpoint->Address, Affinity, NULL, &Client),
+		"dedicated client connect");
 	xfuture* Ready = xredisClientReady(Client);
 	const xredisreadyresult* Result = waitResult(Ready);
 	require(Result->Status == XREDIS_READY_OK && Result->Protocol == XREDIS_RESP3, "dedicated HELLO 3");
@@ -202,12 +211,13 @@ static void tick(uint64 Rounds, double Elapsed, double Cpu, double* Latency, siz
 
 int main(int Argc, char** Argv)
 {
-	if (Argc != 4) return 2;
+	if (Argc != 4 && Argc != 5) return 2;
 	uint16 Port = (uint16)argument(Argv[1], 1, UINT16_MAX);
 	double Duration = (double)argument(Argv[2], 1, 72u * 3600u + 3600u);
 	int64 Period = (int64)argument(Argv[3], 2, 100);
-	xnetaddr Address;
-	require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, Port), "loopback address");
+	mixedendpoint Endpoint = {0};
+	require(xrtNetAddrLoopback(&Endpoint.Address, XNET_FAMILY_IPV4, Port), "loopback address");
+	redisProbeTlsInit(&Endpoint.Tls, Argc == 5 ? Argv[4] : NULL);
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = 2;
@@ -217,7 +227,7 @@ int main(int Argc, char** Argv)
 	xredispoolconnectconfig Connect;
 	require(xredisPoolConnectConfigInit(&Connect), "pool factory defaults");
 	Connect.Connect = connectMember;
-	Connect.Data = &Address;
+	Connect.Data = &Endpoint;
 	xredispool* Pool = NULL;
 	require(xredisSharedPoolConnect(Engine, 0, MEMBERS, NULL, &Connect, &Pool) == XREDIS_ADMISSION_ACCEPTED, "start automatic shared pool");
 	xredispoolinfo PoolInfo = {.Size = sizeof(PoolInfo)};
@@ -227,8 +237,8 @@ int main(int Argc, char** Argv)
 		if (PoolInfo.Idle < MEMBERS) xrtSleep(1);
 	} while (PoolInfo.Idle < MEMBERS);
 
-	xredisclient* Tracking = connectDedicated(Engine, &Address, 0);
-	xredisclient* Subscriber = connectDedicated(Engine, &Address, 1);
+	xredisclient* Tracking = connectDedicated(Engine, &Endpoint, 0);
+	xredisclient* Subscriber = connectDedicated(Engine, &Endpoint, 1);
 	xredistrackingconfig TrackingConfig;
 	require(xredisTrackingConfigInit(&TrackingConfig) && xredisClientTrackingObserve(Tracking, 0) == XREDIS_ADMISSION_ACCEPTED,
 		"install tracking observer");
@@ -306,6 +316,7 @@ int main(int Argc, char** Argv)
 	xrtFutureDestroy(Closed);
 	xredisPoolRelease(Pool);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "engine worker retirement");
+	redisProbeTlsClose(&Endpoint.Tls);
 	printf("{\"complete\":true,\"rounds\":%" PRIu64 ",\"seconds\":%.6f}\n", Rounds, Now - Start);
 	return 0;
 }

@@ -12,6 +12,7 @@ from pathlib import Path
 import platform
 import queue
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -34,9 +35,15 @@ def require(ok, message):
         raise RuntimeError(message)
 
 
-def redis_info(port):
+def redis_info(port, tls=None):
     command = b"*2\r\n$4\r\nINFO\r\n$3\r\nall\r\n"
-    with socket.create_connection(("127.0.0.1", port), timeout=2) as connection:
+    if tls is None:
+        peer = socket.create_connection(("127.0.0.1", port), timeout=2)
+    else:
+        from run_redis_tls import listener_connection
+
+        peer = listener_connection(port, tls=tls)
+    with peer as connection:
         connection.sendall(command)
         with connection.makefile("rb") as reader:
             size = reader.readline(32)
@@ -54,12 +61,14 @@ def redis_info(port):
         "redis_version", "run_id", "process_id", "connected_clients", "used_memory", "used_cpu_sys", "used_cpu_user")}}
 
 
-def ready(server, port):
+def ready(server, port, tls=None):
     limit = time.monotonic() + 10
     while time.monotonic() < limit:
         require(server.poll() is None, "Redis exited during startup")
         try:
-            initial = redis_info(port)
+            initial = redis_info(port, tls)
+        except ssl.SSLError:
+            raise
         except OSError:
             time.sleep(0.05)
         else:
@@ -163,6 +172,8 @@ def main():
     endpoint = parser.add_mutually_exclusive_group(required=True)
     endpoint.add_argument("--server", type=Path, help="start this native Redis executable in a private directory")
     endpoint.add_argument("--port", type=int, help="use an already isolated loopback Redis fixture")
+    parser.add_argument("--tls-directory", type=Path,
+                        help="directory with ca.pem and server.pem, plus server.key for --server")
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--pause-ms", type=int, default=5)
     parser.add_argument("--report", type=Path, required=True)
@@ -176,10 +187,12 @@ def main():
     wsl = sys.platform.startswith("linux") and ("microsoft" in platform.release().lower() or "WSL_DISTRO_NAME" in os.environ)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     state = {"status": "running", "native_client_72h": False, "platform": platform_name, "wsl": wsl,
+             "transport": "tls13" if args.tls_directory else "tcp",
              "seconds_requested": args.seconds, "pause_ms": args.pause_ms, "clients": 4, "workers": 2, "pipeline": 8,
              "client_sha256": digest(client_path), "resource_growth_limits": {"private": PRIVATE_GROWTH, "handles": HANDLE_GROWTH},
              "inputs": {str(path.relative_to(ROOT)): digest(path) for path in (
                  Path(__file__).resolve(), Path(__file__).with_name("redis_mixed.c").resolve(),
+                 Path(__file__).with_name("tls_probe.h").resolve(),
                  ROOT / "extlibs/xredis/bench/openloop_schedule.h", ROOT / "single/xrt.h",
                  ROOT / "single/extlibs/xredis.h", ROOT / "tools/test_xrudp_native_soak.py",
              )}}
@@ -191,6 +204,19 @@ def main():
                 journal.write(json.dumps(event, allow_nan=False) + "\n")
                 journal.flush()
 
+            tls = None
+            client_tls = []
+            if args.tls_directory:
+                from run_redis_tls import TLS_CIPHER, tls_listener
+
+                material = args.tls_directory.resolve(strict=True)
+                tls = tls_listener(material, "server", "ca")
+                client_tls = [str(material / "ca.pem")]
+                helper = Path(__file__).with_name("run_redis_tls.py").resolve()
+                state["inputs"][str(helper.relative_to(ROOT))] = digest(helper)
+                state["tls"] = {"hostname": "localhost", "cipher": TLS_CIPHER,
+                                "leaf_sha256": hashlib.sha256(tls[1]).hexdigest()}
+
             if args.server:
                 server_path = args.server.absolute()
                 state["server_sha256"] = digest(server_path)
@@ -199,22 +225,23 @@ def main():
                     listener.bind(("127.0.0.1", 0))
                     port = listener.getsockname()[1]
                 log = cleanup.enter_context(args.report.with_suffix(".redis.log").open("x", encoding="utf-8"))
-                command = [str(server_path), "--bind", "127.0.0.1", "--port", str(port),
-                           "--save", "", "--appendonly", "no", "--dir", folder]
+                command = [str(server_path), "--bind", "127.0.0.1", "--save", "", "--appendonly", "no", "--dir", folder]
+                command.extend(["--port", str(port)] if tls is None else ["--tls-port", str(port), *tls[2]])
                 server = subprocess.Popen(command, stdout=log, stderr=log, cwd=ROOT)
                 cleanup.callback(stop, server)
-                before = ready(server, port)
+                before = ready(server, port, tls)
             else:
                 port = args.port
-                before = redis_info(port)
+                before = redis_info(port, tls)
             state["server_before"] = before
             state["server_owned"] = server is not None
             append(state)
             wall, start = time.time(), time.monotonic()
-            with subprocess.Popen([str(client_path), str(port), str(args.seconds), str(args.pause_ms)],
+            command = [str(client_path), str(port), str(args.seconds), str(args.pause_ms), *client_tls]
+            with subprocess.Popen(command,
                                   stdout=subprocess.PIPE, stderr=errors, text=True, encoding="utf-8", cwd=ROOT) as client:
                 state["workload"] = monitor(client, server, args.seconds, append, start, wall)
-            after = redis_info(port)
+            after = redis_info(port, tls)
             state["server_after"] = after
             rounds = state["workload"]["rounds"]
             state["command_delta"] = {cmd: after["counts"][cmd] - before["counts"][cmd] for cmd in COMMANDS}
