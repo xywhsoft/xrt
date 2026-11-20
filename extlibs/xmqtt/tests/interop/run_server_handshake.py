@@ -451,8 +451,10 @@ def probe_pressure(program, clients):
             assert read(peer, 6) == b"\x90\4\0\1\0\2"
 
         # An excess socket can be accepted by TCP and then closed by the APP's broker limit.
-        with socket.create_connection(endpoint, timeout=5) as excess:
+        with socket.socket() as excess:
+            excess.settimeout(5)
             try:
+                excess.connect(endpoint)
                 excess.sendall(connect_packet(5, b"over-capacity"))
                 header = excess.recv(1)
             except (ConnectionResetError, BrokenPipeError):
