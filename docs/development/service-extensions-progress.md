@@ -19754,3 +19754,60 @@ The runner, binary and source hashes, raw samples and process events are
 under `out/service-extensions/scope-reduction-20261119/xcron-live-tails/`.
 The [scheduler guide](../../extlibs/xcron/docs/scheduler.md) documents
 the extended arguments and clock output.
+
+## 2026-11-20 xrpc TCP observer pacing and tail attribution
+
+The phase probe matched one of every 31 APP documents to the independent
+observer on both hosts. It recorded the scheduled offer, actual offer,
+APP read and owner entry, executor submit/start/finish, owner resume,
+APP send entry, and observer receipt. The 48 diagnostic samples verified
+12,288,000 replies at 128,000 scheduled calls/s. The probe included the
+uninstrumented build of the same APP in each comparison.
+
+For duplex single-record traffic, the time before the observer's credit
+check accounted for 92.9–96.7% of the cumulative latency of the slowest 1%
+of the sampled replies on Windows, and 98.4–98.5% in Ubuntu/WSL. Each share
+uses the same individual replies across all phases. Executor queue wait
+and handler processing together contributed less than 0.1% in those runs.
+
+The saturation observer now uses one event loop and a shared monotonic
+schedule. All sockets use nonblocking I/O during the measured interval.
+The observer resumes partial writes, verifies fragmented and coalesced
+responses byte for byte, and keeps each connection's credit until the
+entire group completes. It still measures every call against its
+original schedule. A complete reply is timestamped at the socket read
+that supplied its final bytes.
+
+The A/B comparison used the same uninstrumented APP binary for both
+observers on each host. Eight connections shared two workers with a
+16-group window. Each run scheduled two seconds of traffic at 128,000
+calls/s in total. APP CPUs were 0 and 2 and observer CPUs were 6, 8 and 10.
+All 80 runs completed and verified 20,480,000 measured replies. Values
+are the medians of five runs per case.
+
+| Host | APP mode | Framing | Verified calls/s, threaded / multiplexed | P99 in ms, threaded / multiplexed |
+| --- | --- | --- | ---: | ---: |
+| Windows x64 | Duplex | Records | 122,343 / 127,988 | 80.223 / 11.061 |
+| Windows x64 | Duplex | Batch | 125,106 / 128,001 | 1.184 / 0.668 |
+| Windows x64 | Dispatch | Records | 125,020 / 127,996 | 1.944 / 1.395 |
+| Windows x64 | Dispatch | Batch | 125,560 / 128,010 | 1.117 / 0.578 |
+| Ubuntu/WSL x64 | Duplex | Records | 123,671 / 125,365 | 22.689 / 55.976 |
+| Ubuntu/WSL x64 | Duplex | Batch | 124,802 / 127,993 | 2.245 / 0.612 |
+| Ubuntu/WSL x64 | Dispatch | Records | 124,327 / 127,910 | 15.640 / 4.981 |
+| Ubuntu/WSL x64 | Dispatch | Batch | 125,361 / 127,996 | 2.214 / 0.459 |
+
+For duplex batch traffic, whole-run observer CPU rose from 0.625 to 2.328
+seconds on Windows and fell from 3.701 to 2.237 seconds on WSL. The
+multiplexed observer polls its sockets close to the next scheduled
+offer. Fifteen of 16 throughput series and three threaded P99 series
+met the variation limits. Every multiplexed P99 series exceeded the
+limits. The preliminary and final comparisons are both retained. Native
+Linux and stable release tails remain open.
+
+On both hosts, TCP interop, exact window, partial-send, fragmented reply
+and partial final batch checks passed. The verifier rejected a wrong
+reply ID, unexpected replies after warmup and after the last offer, and
+an incorrect APP execution ledger. Generated assets, API docs and
+ordinary maturity passed. Strict release lists `xrpc` and `xrpc_duplex`
+as developing. The phase probe, sources, builds and raw results are under
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-phase-trace/`.

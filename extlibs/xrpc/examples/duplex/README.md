@@ -73,13 +73,13 @@ costs together.
 
 ## TCP saturation sweep
 
-The saturation observer uses a sender and an independent reply reader per
-connection. It schedules batches of eight requests per connection and keeps
-a finite window of outstanding batches. A batch frees its slot after its
-last matching reply. The default 16-batch window admits up to 128 requests
-per connection. Every scheduled request must be verified within five
-seconds, and the APP completion ledger must include both the warmup and the
-measured replies. The report retains failed samples.
+The saturation observer schedules groups of eight requests per connection
+from one monotonic clock. One event loop drives nonblocking sends and replies
+across all sockets. It carries partial writes and reads across readiness
+notifications. A group frees its slot after its final matching reply. The
+default 16-group window admits up to 128 requests per connection. Every
+scheduled reply has a five-second deadline, and the APP completion ledger
+includes the warmup and measured requests. The report retains failed samples.
 
     python extlibs/xrpc/tests/interop/run_tcp_worker.py \
       out/gcc/native/xrpc_examples/examples_tcp_worker_main out/xrpc-tcp-saturation.json \
@@ -99,8 +99,9 @@ scheduled batch arrival for every request. Separate percentiles cover the
 delay until submission, the observer's wait for a window slot, and the
 interval from the actual send attempt to the reply. The report also
 records the largest in-flight window, the number of batches that found it
-full and observer CPU time. Compare tail medians only when the repeated
-samples meet the variation gate.
+full and observer CPU time. A socket read's timestamp applies to every
+complete reply delivered by that read. Compare tail medians only when the
+repeated samples meet the variation gate.
 
 The default framing sends a separate JSON-RPC record for each call.
 With `--batch-documents` the same calls travel in one JSON-RPC request

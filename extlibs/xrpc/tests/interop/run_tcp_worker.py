@@ -7,6 +7,7 @@ import json
 import os
 import platform
 from pathlib import Path
+import select
 import socket
 import statistics
 import subprocess
@@ -277,116 +278,160 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
             **percentiles(latency, ""), **percentiles(lag, "offer_lag_")}
 
 
+class SaturationPeer:
+    def __init__(self, sock, batches, window):
+        self.sock = sock
+        self.batches = batches
+        self.window = window
+        self.sent_at, self.credit_wait, self.times = [], [], []
+        self.peak = self.stalls = self.completed = self.reply_index = 0
+        self.blocked_since = None
+        self.outgoing = None
+        self.incoming = bytearray()
+
+    def flush(self):
+        try:
+            sent = self.sock.send(self.outgoing)
+        except BlockingIOError:
+            return
+        if not sent:
+            raise RuntimeError("saturation socket send stalled")
+        if sent < len(self.outgoing):
+            self.outgoing = self.outgoing[sent:]
+            return
+        self.outgoing = None
+        if len(self.sent_at) == len(self.batches):
+            self.sock.shutdown(socket.SHUT_WR)
+
+    def offer(self, start, period, rate, now, deadline):
+        index = len(self.sent_at)
+        if self.outgoing is not None or index == len(self.batches):
+            return None
+        due = start + index * period // rate
+        if due > now:
+            return due
+        used = index - self.completed
+        if used == self.window:
+            if self.blocked_since is None:
+                self.stalls += 1
+                self.blocked_since = now
+            return None
+        sent = time.perf_counter_ns()
+        if sent - due >= deadline:
+            raise RuntimeError("publisher window did not reopen before the deadline")
+        self.sent_at.append(sent)
+        self.credit_wait.append(sent - self.blocked_since if self.blocked_since is not None else 0)
+        self.blocked_since = None
+        self.peak = max(self.peak, used + 1)
+        self.outgoing = memoryview(self.batches[index][0])
+        self.flush()
+        return start + (index + 1) * period // rate
+
+    def read(self):
+        try:
+            data = self.sock.recv(65536)
+        except BlockingIOError:
+            return True
+        observed = time.perf_counter_ns()
+        if not data:
+            if self.completed != len(self.batches) or self.incoming or self.outgoing is not None:
+                raise RuntimeError("saturation reply identity or order mismatch")
+            return False
+        self.incoming.extend(data)
+        offset = 0
+        while offset < len(self.incoming):
+            if self.completed == len(self.batches):
+                raise RuntimeError("unexpected reply after the final offer")
+            if self.completed == len(self.sent_at):
+                raise RuntimeError("saturation reply identity or order mismatch")
+            _, replies, count = self.batches[self.completed]
+            reply = replies[self.reply_index]
+            end = offset + len(reply)
+            if end > len(self.incoming):
+                break
+            if self.incoming[offset:end] != reply:
+                raise RuntimeError("saturation reply identity or order mismatch")
+            offset = end
+            self.times.extend([observed] * (count if len(replies) == 1 else 1))
+            self.reply_index += 1
+            if self.reply_index == len(replies):
+                self.completed += 1
+                self.reply_index = 0
+        del self.incoming[:offset]
+        return True
+
+
 def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus,
                       batch_documents=False):
     depth, warmup, deadline_ns = 8, 64, 5_000_000_000
-    start = None
-    cpu = None
+    period = depth * 1_000_000_000
+    start = elapsed = cpu = None
     results = []
 
-    def synchronize():
-        nonlocal start, cpu
+    def drive(peers):
+        nonlocal start, elapsed, cpu
+        streams = {}
+        for index, peer in enumerate(peers):
+            first = index * (calls + warmup) + 1
+            # Preserve bytes beyond the warmup replies for the measured reader.
+            with peer.makefile("rb", buffering=0) as stream:
+                for wire, replies, _ in saturation_batches(warmup, depth, first, batch_documents):
+                    list(checked_batch(peer, stream, wire, replies))
+            peer.setblocking(False)
+            groups = list(saturation_batches(calls, depth, first + warmup, batch_documents))
+            streams[peer] = SaturationPeer(peer, groups, window)
+        results.extend(streams.values())
         cpu = time.process_time_ns()
         start = time.perf_counter_ns() + 20_000_000
-
-    barrier = threading.Barrier(connections, action=synchronize, timeout=10)
-
-    def drive(peers):
-        with ThreadPoolExecutor(max_workers=connections) as readers, ThreadPoolExecutor(max_workers=connections) as writers:
-            def observe(index):
-                peer = peers[index]
-                first = index * (calls + warmup) + 1
-                batches = list(saturation_batches(calls, depth, first + warmup, batch_documents))
-                condition = threading.Condition()
-                times, submitted_at, offer_lag, credit_wait = [], [], [], []
-                received = sent = peak = stalls = 0
-                failed = False
-
-                def read_replies(stream):
-                    nonlocal received, failed
-                    try:
-                        for _, replies, count in batches:
-                            for reply in replies:
-                                if stream.readline(len(reply) + 1) != reply:
-                                    raise RuntimeError("saturation reply identity or order mismatch")
-                                times.append(time.perf_counter_ns())
-                            if batch_documents:
-                                # The full array arrives as one framed response.
-                                times.extend([times[-1]] * (count - 1))
-                            with condition:
-                                received += 1
-                                condition.notify()
-                        if stream.read(1) != b"":
-                            raise RuntimeError("unexpected reply after the final offer")
-                    except Exception:
-                        with condition:
-                            failed = True
-                            condition.notify()
-                        raise
-
-                try:
-                    with peer.makefile("rb") as stream:
-                        for wire, replies, _ in saturation_batches(warmup, depth, first, batch_documents):
-                            list(checked_batch(peer, stream, wire, replies))
-                        reader = readers.submit(read_replies, stream)
-                        try:
-                            barrier.wait()
-                            for index, (wire, _, _) in enumerate(batches):
-                                due = start + index * depth * 1_000_000_000 // rate
-                                while (remaining := due - time.perf_counter_ns()) > 0:
-                                    time.sleep(remaining / 1e9)
-                                ready = time.perf_counter_ns()
-                                with condition:
-                                    if sent - received >= window:
-                                        stalls += 1
-                                    timeout = max(0, (due + deadline_ns - ready) / 1e9)
-                                    if not condition.wait_for(lambda: failed or sent - received < window, timeout):
-                                        raise RuntimeError("publisher window did not reopen before the deadline")
-                                    if not failed:
-                                        sent += 1
-                                        peak = max(peak, sent - received)
-                                if failed:
-                                    reader.result()
-                                submitted = time.perf_counter_ns()
-                                submitted_at.append(submitted)
-                                offer_lag.append(submitted - due)
-                                credit_wait.append(submitted - ready)
-                                peer.sendall(wire)
-                            peer.shutdown(socket.SHUT_WR)
-                            reader.result(timeout=10)
-                        except Exception:
-                            with suppress(OSError):
-                                peer.shutdown(socket.SHUT_RDWR)
-                            raise
-                except Exception:
-                    barrier.abort()
-                    raise
-
-                latency = [when - (start + (index // depth) * depth * 1_000_000_000 // rate)
-                           for index, when in enumerate(times)]
-                if len(latency) != calls or any(value < 0 or value >= deadline_ns for value in latency):
-                    raise RuntimeError("reply missed its fixed-arrival deadline")
-                after_send = [when - submitted_at[index // depth] for index, when in enumerate(times)]
-                return {"latencies": {"": latency, "offer_lag_": offer_lag, "credit_wait_": credit_wait,
-                                      "from_send_": after_send},
-                        "peak": peak, "stalls": stalls, "ended": times[-1]}
-
-            results.extend(writers.map(observe, range(connections)))
+        end = start + calls * 1_000_000_000 // rate + deadline_ns
+        while streams:
+            now = time.perf_counter_ns()
+            if now >= end:
+                raise RuntimeError("reply missed its fixed-arrival deadline")
+            next_due = now + 50_000_000
+            writable = []
+            for peer, stream in streams.items():
+                if (due := stream.offer(start, period, rate, now, deadline_ns)) is not None:
+                    next_due = min(next_due, due)
+                if stream.outgoing is not None:
+                    writable.append(peer)
+            # Keep sub-millisecond pacing independent of platform timeout rounding.
+            wait = max(0, next_due - time.perf_counter_ns() - 2_000_000) / 1e9
+            readers, writers, _ = select.select(streams, writable, [], wait)
+            for peer in writers:
+                streams[peer].flush()
+            for peer in readers:
+                if not streams[peer].read():
+                    del streams[peer]
+        elapsed = max(stream.times[-1] for stream in results) - start
+        cpu = (time.process_time_ns() - cpu) / 1e9
 
     status, report = multi_exchange(executable, mode, connections, workers, drive, app_cpus, observer_cpus)
-    documents_per_peer = ((calls + depth - 1) // depth + warmup // depth
-                          if batch_documents else calls + warmup)
+    batch_count = (calls + depth - 1) // depth
+    documents_per_peer = batch_count + warmup // depth if batch_documents else calls + warmup
     documents = documents_per_peer * connections
     if status != 0 or report != {"connections": connections, "workers": workers, "requests": documents}:
         raise RuntimeError(f"APP completion ledger mismatch (status={status}, report={report})")
-    elapsed = max(item["ended"] for item in results) - start
+    if elapsed <= 0:
+        raise RuntimeError("saturation measurement interval")
     total = calls * connections
     stats = {"calls": total, "app_documents": documents, "calls_per_second": total * 1e9 / elapsed,
-             "observer_cpu_seconds": (time.process_time_ns() - cpu) / 1e9,
-             "peak_batches_in_flight": max(item["peak"] for item in results),
-             "credit_stall_batches": sum(item["stalls"] for item in results)}
-    for prefix in results[0]["latencies"]:
-        stats.update(percentiles([value for item in results for value in item["latencies"][prefix]], prefix))
+             "observer_cpu_seconds": cpu, "peak_batches_in_flight": max(peer.peak for peer in results),
+             "credit_stall_batches": sum(peer.stalls for peer in results)}
+    dues = [start + index * period // rate for index in range(batch_count)]
+    latency, after_send, offer_lag, credit_wait = [], [], [], []
+    for peer in results:
+        if len(peer.times) != calls or len(peer.sent_at) != batch_count:
+            raise RuntimeError("saturation reply count mismatch")
+        latency.extend(when - dues[index // depth] for index, when in enumerate(peer.times))
+        after_send.extend(when - peer.sent_at[index // depth] for index, when in enumerate(peer.times))
+        offer_lag.extend(sent - due for sent, due in zip(peer.sent_at, dues))
+        credit_wait.extend(peer.credit_wait)
+    if any(value < 0 or value >= deadline_ns for value in latency):
+        raise RuntimeError("reply missed its fixed-arrival deadline")
+    for prefix, samples in (("", latency), ("from_send_", after_send), ("offer_lag_", offer_lag),
+                            ("credit_wait_", credit_wait)):
+        stats.update(percentiles(samples, prefix))
     return stats
 
 
@@ -471,6 +516,7 @@ def measure_saturation(executable, report, args):
             "calls_per_connection": args.calls, "warmup_per_connection": 64, "batch_depth": 8,
             "connections": args.connections, "workers": args.workers, "window_batches": args.window_batches,
             "request_framing": "json-rpc-batch" if args.batch_documents else "single-records",
+            "observer_pacing": "multiplexed-nonblocking",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
             "profiles": [], "complete": False}
     metrics = ("calls_per_second", "p99_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
