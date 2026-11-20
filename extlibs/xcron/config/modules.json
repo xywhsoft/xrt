@@ -177,7 +177,8 @@
         "extlibs/xcron/tests/test_scheduler.c"
       ],
       "single_tests": [
-        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c"
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler_clock.c"
       ],
       "examples": [
         "extlibs/xcron/examples/scheduler/main.c"
@@ -212,7 +213,8 @@
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
         "extlibs/xcron/tests/single/test_single_xcron_calendar.c",
-        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c"
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler_clock.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -222,7 +224,8 @@
       "single_test_owners": {
         "extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression",
         "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "xcron_calendar",
-        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler"
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler",
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler_clock.c": "xcron_scheduler"
       }
     },
     {

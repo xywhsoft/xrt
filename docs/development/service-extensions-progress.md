@@ -18660,3 +18660,42 @@ the XRT event feature; the successful binaries enabled it explicitly.
 Reproduction is in [the duplex APP guide](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
 Reports, hashes, fixture probes and logs are under
 out/service-extensions/scope-reduction-20261119/xrpc-tcp-saturation/.
+
+## 2026-11-20 xcron scheduler clock steps and deadline bounds
+
+The registered scheduler single-header test substitutes scripted wall and
+monotonic observations and relative waits at the scheduler call sites.
+The explicit Wake cases set and consume the native XRT event. The host
+clock and the native core remain available to the existing test suite.
+
+The forward-step case wakes the owner, delivers every late job once in
+registration order and preserves the advanced deadline on rollback. The
+backward-step case observes a 250 ms initial wait and exactly 750 ms
+remaining in the original 1,000 ms monotonic budget. A callback advancing
+the scripted wall clock leaves the current dispatch wave's cutoff intact.
+Clock-loss cases preserve caller output and pending jobs through recovery.
+The int64 endpoint case exercises wait-delay saturation, delivery of the
+last representable occurrence and return of the job slot.
+
+Windows x64 and Ubuntu/WSL x64 passed the full modular and single-header
+suites, including the new test, plus the restart catch-up subprocess test.
+WSL ASan/UBSan with leak detection passed both scheduler suites and TSan
+passed the native Wait and cross-thread Wake suite. Four deliberately
+altered local test builds were rejected for replaying missed occurrences,
+restarting a monotonic timeout, resampling inside a callback wave, and
+wrapping a large wait delay.
+
+Calendar and scheduler variants passed both static and shared consumer
+checks. The initial concurrent packaging commands shared the x64 output
+directory and the WSL link picked up Windows objects. The WSL verification
+was repeated in the native package directory. The four Windows consumers
+were re-run successfully after the isolated WSL build. The first failure
+and the previous native package artifacts are retained in the evidence
+directory.
+
+Generated-header, feature and API checks and ordinary maturity pass.
+Strict release still lists xcron and xcron_scheduler as developing.
+Native Linux and release-grade performance evidence remain open.
+Reproduce the clock fixture from [the coverage guide](../../extlibs/xcron/docs/coverage.md).
+Source digests and validation logs are under
+out/service-extensions/scope-reduction-20261119/xcron-clock-steps/.
