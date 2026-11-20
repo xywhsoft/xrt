@@ -171,7 +171,7 @@
         "xmqtt_client_store_ws",
         "xmqtt_reconnect_store",
         "xmqtt_journal_slot",
-        "xmqtt_store_compact",
+        "xmqtt_store_checkpoint",
         "xmqtt_store_compact_online"
       ],
       "public_headers": [
@@ -2937,15 +2937,14 @@
       "docs": []
     },
     {
-      "name": "xmqtt_store_compact",
+      "name": "xmqtt_store_checkpoint",
       "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_STORE_COMPACT",
+      "feature": "XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT",
       "depends": [
-        "xmqtt_store_state",
-        "xmqtt_journal_slot"
+        "xmqtt_store_state"
       ],
       "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/store_compact.h"
+        "extlibs/xmqtt/include/xmqtt/store_checkpoint.h"
       ],
       "internal_headers": [],
       "sources": [],
@@ -2964,7 +2963,9 @@
       "depends": [
         "file_root",
         "file_lock",
-        "xmqtt_store_compact",
+        "vfs",
+        "xmqtt_store_checkpoint",
+        "xmqtt_journal_slot",
         "xmqtt_store_write",
         "dir_temp",
         "memory_stats"
@@ -2987,7 +2988,8 @@
       "state": "developing",
       "feature": "XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE",
       "depends": [
-        "xmqtt_store_compact",
+        "xmqtt_store_checkpoint",
+        "xmqtt_journal_slot",
         "xmqtt_store_write"
       ],
       "public_headers": [

@@ -6,7 +6,10 @@
 /* Extension-private descriptor/cursor check. No public borrowed Journal layout. */
 XMQTT_INTERNAL bool xmqttJournalReplayStart(xmqttjournal* Journal,xmqttversion Version,
     xbytesview Binding,uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
+XMQTT_INTERNAL size_t xmqttJournalCheckpointLimit(xmqttjournal* Journal,xmqttversion Version,xbytesview Binding);
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 XMQTT_INTERNAL size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* Journal);
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)

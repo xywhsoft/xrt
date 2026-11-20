@@ -1,13 +1,21 @@
-# Offline MQTT store compaction
+# Offline MQTT checkpoint and APP compaction
 
-After closing, joining and destroying the Client and its Store Writer, call
-`xmqttStoreCompact` on the same exclusively owned typed journal slot.
-Set the recovery configuration to the selected storage generation and use a
-trusted wall clock. The compactor fully validates the selected history, takes
-its durable cut under the APP's exclusive file access, and retires the source
-Journal. It writes a versioned checkpoint and bounded ordered row blocks into
-the inactive file.
-Only after every block commits does it publish the new generation.
+Select `XMQTT_MODULE_XMQTT_STORE_CHECKPOINT` to copy a validated typed
+journal into a compact representation. `xmqttStoreCheckpointRecover` reads
+the complete durable prefix under the original replay and memory limits.
+The returned snapshot owns its state. Once recovery finishes, the APP can
+retire the source Journal. `xmqttStoreCheckpointWrite` encodes the snapshot
+as a versioned descriptor and ordered row blocks in an empty READY Journal
+with matching MQTT version, binding and schema. The APP chooses the target
+generation. The snapshot can be destroyed after writing or used for another
+empty destination.
+
+The [offline compaction example](../examples/common/store_compact.h)
+composes those primitives with the two-generation selector. Close, join and
+destroy the Client and its Store Writer first. Use the selected generation
+and a trusted wall clock for source recovery. The APP closes the source
+Journal, prepares the inactive file, and publishes only after the checkpoint
+has been fully written. The APP holds exclusive access throughout.
 
 The checkpoint keeps the original broker epoch, highest flow/delivery key,
 disconnect wall time, negotiated expiry, outgoing PUBLISH and PUBREL stage,

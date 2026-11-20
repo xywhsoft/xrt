@@ -1,8 +1,9 @@
 #ifndef XMQTT_STORE_COMPACT_ONLINE_H
 #define XMQTT_STORE_COMPACT_ONLINE_H
-#include <xmqtt/store_compact.h>
+#include <xmqtt/journal_slot.h>
+#include <xmqtt/store_checkpoint.h>
 #include <xmqtt/store_write.h>
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
 #error "Online MQTT compaction requires the typed slot and Store Writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)

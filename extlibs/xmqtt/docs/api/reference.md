@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `231` 个函数、`352` 个常量或宏、
-`151` 个公共类型。
+当前登记 `233` 个函数、`352` 个常量或宏、
+`152` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -1024,22 +1024,26 @@
 
 - `xmqttsessionimageconfig`
 
-## `extlibs/xmqtt/include/xmqtt/store_compact.h`
+## `extlibs/xmqtt/include/xmqtt/store_checkpoint.h`
 
-[查看带契约注释的公共头](../../include/xmqtt/store_compact.h)
+[查看带契约注释的公共头](../../include/xmqtt/store_checkpoint.h)
 
-### 函数 (1)
+### 函数 (3)
 
-- `xmqttStoreCompact`
+- `xmqttStoreCheckpointDestroy`
+- `xmqttStoreCheckpointRecover`
+- `xmqttStoreCheckpointWrite`
 
 ### 常量与宏 (2)
 
-- `XMQTT_FEATURE_XMQTT_STORE_COMPACT`
+- `XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT`
 - `XMQTT_FEATURE_XMQTT_STORE_STATE`
 
-### 类型 (1)
+### 类型 (3)
 
+- `xmqttstorecheckpoint`
 - `xmqttstorestateconfig`
+- `xmqttstorestatus`
 
 ## `extlibs/xmqtt/include/xmqtt/store_compact_online.h`
 
@@ -1148,10 +1152,9 @@
 - `XMQTT_STORE_OUTGOING`
 - `XMQTT_STORE_STATE_ERROR`
 
-### 类型 (4)
+### 类型 (3)
 
 - `xmqttstorestateinfo`
-- `xmqttstorestatus`
 - `xmqttstoreview`
 - `xmqttstoreviewkind`
 

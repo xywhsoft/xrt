@@ -622,8 +622,21 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerInfo(xmqttjournal* J,const void* O
 XMQTT_INTERNAL bool xmqttInternalJournalWorkerDestroy(xmqttjournal* J,const void* O){return xmqttJDestroyOwned(J,O);}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
-size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* J){return J->Config.MaxTransactionBytes;}
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
+XMQTT_INTERNAL size_t xmqttJournalCheckpointLimit(xmqttjournal* J,xmqttversion Version,xbytesview Binding)
+{
+    uint64 Transactions=0;
+    if(!J||J->Info.State!=XMQTT_JOURNAL_READY||
+       !xmqttJournalReplayStart(J,Version,Binding,J->Config.Generation,&Transactions,sizeof(Transactions),&Transactions)||
+       Transactions){
+        xmqttJError(XMQTT_JOURNAL_STATE,"checkpoint requires an empty matching READY Journal");
+        return 0;
+    }
+    return J->Config.MaxTransactionBytes;
+}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+XMQTT_INTERNAL size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* J){return J->Config.MaxTransactionBytes;}
 #endif
 bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,
     uint64 Generation,const void* Output,size_t Bytes,uint64* Transactions)

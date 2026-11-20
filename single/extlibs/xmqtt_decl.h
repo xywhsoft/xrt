@@ -147,8 +147,8 @@
 #if !defined(XMQTT_FEATURE_XMQTT_SESSION_IMAGE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SESSION_IMAGE 1
 #endif
-#if !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT 1
+#if !defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT 1
 #endif
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE 1
@@ -291,8 +291,8 @@
 #if !defined(XMQTT_MODULE_XMQTT_SESSION_IMAGE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SESSION_IMAGE 1
 #endif
-#if !defined(XMQTT_MODULE_XMQTT_STORE_COMPACT)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT 1
+#if !defined(XMQTT_MODULE_XMQTT_STORE_CHECKPOINT)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_CHECKPOINT 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE 1
@@ -3080,8 +3080,8 @@
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
 #define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
@@ -3093,24 +3093,24 @@
 #ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
 #define XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
+#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
 #endif
 
-/* xmqtt_store_compact 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_COMPACT)
-#ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT
-#define XMQTT_FEATURE_XMQTT_STORE_COMPACT
+/* xmqtt_store_checkpoint 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_CHECKPOINT)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_STATE
 #define XMQTT_MODULE_XMQTT_STORE_STATE
-#endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
 #endif
 
@@ -6353,36 +6353,33 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/store_compact.h */
+/* public: extlibs/xmqtt/include/xmqtt/store_checkpoint.h */
 /* ========================================================================== */
 
-#ifndef XMQTT_STORE_COMPACT_H
-#define XMQTT_STORE_COMPACT_H
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT) && (!defined(XMQTT_FEATURE_XMQTT_STORE_STATE) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT))
-#error "MQTT store compaction requires typed recovery and a native slot"
+#ifndef XMQTT_STORE_CHECKPOINT_H
+#define XMQTT_STORE_CHECKPOINT_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) && !defined(XMQTT_FEATURE_XMQTT_STORE_STATE)
+#error "MQTT checkpoints require typed recovery"
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
+typedef struct xmqttstorecheckpoint xmqttstorecheckpoint;
 XRT_EXTERN_C_BEGIN
-/* Blocking offline replacement of a typed slot's selected generation.
- * Exclusively own the Slot and retire all Journal/Worker/Client owners first.
- * Config identifies the current generation. Recovery and checkpoint creation
- * obey its original replay and memory limits. MaxScratchBytes bounds one
- * additional output buffer, also capped by both transaction byte limits.
- * Replays the complete durable prefix, preserving epoch, the highest issued key,
- * raw expiry and disconnect wall, protocol stages and pending Inbox deliveries.
- * Empty source history returns EMPTY; LIMIT can leave unused inactive bytes.
- * On DONE, query SlotInfo.Generation and reopen the current Journal to recover
- * the checkpoint before transferring it to a new writer. Earlier readers and
- * objects retain their original contents and lifetimes.
- * Source/torn checkpoint corruption returns CORRUPT. A failure before selector
- * publication leaves the old generation selected. With UNCERTAIN or a poisoned
- * slot, retire and reopen to resolve. SlotInfo reports the actual selector
- * effect even if final cleanup or error-slot restoration fails.
- * Writes the checkpoint payload format accepted by this version of StoreState
- * recovery. Older StoreState readers reject that payload. Serialize calls and
- * keep the namespace and inputs stable. Never call from a network callback. */
-XMQTT_API xmqttjournalstatus xmqttStoreCompact(xmqttjournalslot* Slot,
-    const xmqttstorestateconfig* Config,size_t MaxScratchBytes);
+/* Take an immutable snapshot of the fully validated typed Journal prefix.
+ * The exact descriptor, original cursor, wall clock and replay/memory limits
+ * follow StoreStateRecover. The snapshot preserves the stored expiry fields
+ * and protocol state at the durable cut. It is independent of the source
+ * Journal's lifetime. On EMPTY or failure the output stays untouched. */
+XMQTT_API xmqttstorestatus xmqttStoreCheckpointRecover(xmqttjournal* Source,
+    const xmqttstorestateconfig* Config,xmqttstorecheckpoint** Checkpoint);
+/* Encode the snapshot into a different, empty READY Journal with the same
+ * MQTT version, binding and typed schema. The application chooses its
+ * generation and storage. One output buffer is capped by MaxScratchBytes
+ * and the destination and delta transaction limits. A partial or uncertain
+ * write can leave bytes in Destination. Publish it for recovery only on DONE.
+ * Keep Checkpoint alive throughout the call and serialize access to Destination. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointWrite(const xmqttstorecheckpoint* Checkpoint,
+    xmqttjournal* Destination,size_t MaxScratchBytes);
+XMQTT_API void xmqttStoreCheckpointDestroy(xmqttstorecheckpoint* Checkpoint);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -6394,7 +6391,7 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_STORE_COMPACT_ONLINE_H
 #define XMQTT_STORE_COMPACT_ONLINE_H
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
 #error "Online MQTT compaction requires the typed slot and Store Writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
@@ -7328,9 +7325,9 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_SESSION_IMAGE
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_SESSION_IMAGE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT)
-#undef XMQTT_FEATURE_XMQTT_STORE_COMPACT
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
+#undef XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 #undef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
@@ -7520,9 +7517,9 @@ XRT_EXTERN_C_END
 #undef XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_SESSION_IMAGE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT)
-#undef XMQTT_MODULE_XMQTT_STORE_COMPACT
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_CHECKPOINT)
+#undef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
 #undef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
@@ -9546,8 +9543,8 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
 #define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
@@ -9559,24 +9556,24 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
 #define XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT
+#ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
+#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
 #endif
 
-/* xmqtt_store_compact 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_COMPACT)
-#ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT
-#define XMQTT_FEATURE_XMQTT_STORE_COMPACT
+/* xmqtt_store_checkpoint 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_CHECKPOINT)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
+#define XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_STATE
 #define XMQTT_MODULE_XMQTT_STORE_STATE
-#endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
 #endif
 

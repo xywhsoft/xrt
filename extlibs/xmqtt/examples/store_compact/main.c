@@ -1,5 +1,5 @@
 #include <xmqtt/store_compact_online.h>
-#include "../common/journal_files.h"
+#include "../common/store_compact.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -125,7 +125,7 @@ int main(int Argc,char** Argv)
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
             if(Online||Auto)OK=online(Slot,&C,Auto);else
 #endif
-            OK=xmqttStoreCompact(Slot,&C,256)==XMQTT_JOURNAL_DONE;
+            OK=mqttExampleCompactStore(Slot,&C,256)==XMQTT_JOURNAL_DONE;
         }
     }
     if(OK)OK=show(Slot,&C);

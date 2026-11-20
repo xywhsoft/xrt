@@ -49,7 +49,7 @@
 #endif
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
-#include <xmqtt/store_compact.h>
+#include <xmqtt/store_checkpoint.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE"
 #endif

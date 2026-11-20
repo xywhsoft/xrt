@@ -17969,3 +17969,39 @@ Ordinary maturity passes. Strict release still reports 40 developing
 MQTT modules. APP extraction of rotation and compaction policy, native
 Linux qualification, controlled throughput and tail-latency comparisons
 and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT offline checkpoints and APP compaction
+
+The APP example closes the selected Journal, prepares the inactive
+generation, writes the checkpoint and publishes the selector. The
+library offers optional checkpoint recovery, writing and destruction.
+A recovered checkpoint owns the validated raw protocol state, including
+the original expiry fields, and can be written to an empty matching
+Journal supplied by the APP. The checkpoint module depends on typed
+recovery. File provisioning, the selector and maintenance timing
+belong to the caller.
+
+The example can reset the inactive file before an encoding or scratch
+refusal. The selected history remains usable. The checkpoint API
+preserves destination write uncertainty for the caller. The APP treats
+an uncertain inactive append as a write failure and classifies uncertain
+selector publication separately. The initial compiler pass exposed a
+possibly uninitialized transaction count used in a range check. It is
+now initialized and both GCC matrices pass.
+
+Windows x64 and Ubuntu under WSL each passed five suites with 32 modular,
+single-header and example binaries plus four capacity smoke workloads.
+The direct VFS checkpoint cases covered both MQTT versions, reuse after
+a destination fault, separate source and destination lifetimes, and
+descriptor rejection. The single-header fault suite passed WSL ASan/UBSan
+with leak detection. The current and previous APP programs each read the
+other program's compacted checkpoint, and all three output files matched
+byte for byte on both platforms. Static and shared checkpoint consumer
+builds passed with the selector and native root and lock features disabled.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-offline-compaction/`.
+Ordinary maturity passes. Strict release still reports 40 developing
+MQTT modules. Online compaction still runs on the library Writer FIFO.
+Its extraction, native Linux qualification, controlled throughput and
+tail-latency comparisons and 72-hour mixed loads remain open.

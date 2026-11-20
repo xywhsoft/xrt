@@ -1,7 +1,7 @@
 #include "test.h"
-#include "../examples/common/journal_files.h"
-#include <xmqtt/store_compact.h>
+#include "../examples/common/store_compact.h"
 #include <xmqtt/store_write.h>
+#include "support/journal_peer.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
 static const char* Names[]={"journal.slot","journal.0","journal.1"};
@@ -141,7 +141,7 @@ static xmqttjournalstatus injected(xmqttjournalslot* Slot,const xmqttstorestatec
 {
     compactHit=compactSelectorWrites=0;
     compactFault=Point;
-    xmqttjournalstatus Status=xmqttStoreCompact(Slot,C,84);
+    xmqttjournalstatus Status=mqttExampleCompactStore(Slot,C,84);
     compactFault=0;
     testRequire(compactHit==1,"reached requested allocation or I/O fault exactly once");
     return Status;
@@ -172,20 +172,20 @@ static void local(xmqttversion V,bool Live)
     C.Binding=JC.Binding;C.Generation=JC.Generation;C.Delta.Version=V;
     C.ClientId=XRT_STR_LITERAL("checkpoint");C.WallMilliseconds=3000;
     C.MaxOutgoing=8;C.MaxIncoming=8;C.MaxInbox=8;
-    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_EMPTY,"empty slot has no history to rewrite");
+    expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_EMPTY,"empty slot has no history to rewrite");
     xmqttjournal* J=NULL;
     expect(xmqttJournalSlotOpenCurrent(Slot,&J),XMQTT_JOURNAL_DONE,"open initial journal");
     xmqttjournalrecord Record;
     expect(xmqttJournalNext(J,&Record),XMQTT_JOURNAL_EMPTY,"validate the empty starting point");
     seed(J,&C,Live);
-    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_STATE,"retire physical Journal before compaction");
+    expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_STATE,"retire physical Journal before compaction");
     testRequire(xmqttJournalDestroy(J),"release source writer");
 
     xmqttstorestate* Old=recover(Slot,&C,&J);
     testRequire(xmqttJournalDestroy(J),"keep immutable old State independent of old file");
     testRequire(info(Old).Outgoing==1&&info(Old).Incoming==1&&info(Old).Inbox==2&&info(Old).LastKey==50,
                 "oracle covers all three view kinds and a retired highest key");
-    expect(xmqttStoreCompact(Slot,&C,70),XMQTT_JOURNAL_LIMIT,"decline short scratch quota");
+    expect(mqttExampleCompactStore(Slot,&C,70),XMQTT_JOURNAL_LIMIT,"decline short scratch quota");
     xmqttjournalslotinfo SlotInfo;
     testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation&&!SlotInfo.JournalOpen,
                 "scratch refusal retains selector and releases handles");
@@ -220,7 +220,7 @@ static void local(xmqttversion V,bool Live)
         /* The checkpoint preserves the physical cut even when expiry has
          * already elapsed at the compactor's observation time. */
         if(!Live&&V==XMQTT_VERSION_5)C.WallMilliseconds=62000;
-        expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_DONE,"publish a bounded multi-block checkpoint");
+        expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_DONE,"publish a bounded multi-block checkpoint");
         C.WallMilliseconds=3000;
         testRequire(xrtGetError()==Ambient,"successful rotation preserves ambient diagnostics");
         xrtClearError();
@@ -255,7 +255,7 @@ static void local(xmqttversion V,bool Live)
     }
     writer(J,New,&C);
     C.WallMilliseconds=3100;
-    expect(xmqttStoreCompact(Slot,&C,84),XMQTT_JOURNAL_DONE,"compact a checkpoint followed by ordinary deltas");
+    expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_DONE,"compact a checkpoint followed by ordinary deltas");
     ++C.Generation;
     New=recover(Slot,&C,&J);
     xmqttstorestateinfo Current=info(New);
@@ -268,6 +268,65 @@ static void local(xmqttversion V,bool Live)
     for(size_t I=0;I<3;++I)testRequire(xrtRootRemove(Root,Names[I]),"unlink exact fixture file");
     testRequire(xrtRootClose(Root)&&xrtDirRemove(Dir),"retire fixture directory");
     xrtFree(Dir);
+}
+
+static void portableCheckpoint(xmqttversion V)
+{
+    static jpdrive SourceDrive,TargetDrive;
+    memset(&SourceDrive,0,sizeof(SourceDrive));
+    memset(&TargetDrive,0,sizeof(TargetDrive));
+    jpfile Source=jpFile(&SourceDrive),Target=jpFile(&TargetDrive);
+    xmqttjournalconfig JC=jpConfig();
+    JC.Version=V;
+    JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;
+    xmqttstorestateconfig C;
+    xmqttStoreStateConfigInit(&C);
+    C.Binding=JC.Binding;C.Generation=JC.Generation;C.Delta.Version=V;
+    C.ClientId=XRT_STR_LITERAL("checkpoint");C.WallMilliseconds=3000;
+
+    xmqttjournal* J=jpCreate(Source,&JC);
+    xmqttstorecheckpoint* Snapshot=(xmqttstorecheckpoint*)(uintptr_t)1;
+    testRequire(xmqttStoreCheckpointRecover(J,&C,&Snapshot)==XMQTT_STORE_EMPTY&&
+        Snapshot==(xmqttstorecheckpoint*)(uintptr_t)1,"empty cut leaves checkpoint output untouched");
+    seed(J,&C,false);
+    testRequire(xmqttJournalDestroy(J),"reopen source at its original cursor");
+    expect(xmqttJournalOpen(Source.File,&JC,&J),XMQTT_JOURNAL_DONE,"open source for snapshot");
+    testRequire(xmqttStoreCheckpointRecover(J,&C,&Snapshot)==XMQTT_STORE_DONE&&xmqttJournalDestroy(J),
+                "checkpoint owns recovered protocol state");
+    jpFileClose(Source);
+
+    xmqttjournalconfig Wrong=JC;
+    Wrong.Binding=XRT_BYTES_LITERAL("different store");
+    J=jpCreate(Target,&Wrong);
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,84),XMQTT_JOURNAL_STATE,"refuse different binding");
+    testRequire(xmqttJournalDestroy(J)&&xrtFileResize(Target.File,0),"clear unrelated destination");
+    xrtClearError();
+    JC.Generation+=5;
+    J=jpCreate(Target,&JC);
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,70),XMQTT_JOURNAL_LIMIT,"bounded scratch before any append");
+    /* Failing the first commit witness makes the first append ambiguous. */
+    TargetDrive.Fail=TargetDrive.Calls+5;
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,84),XMQTT_JOURNAL_UNCERTAIN,"report uncertainty to the APP");
+    TargetDrive.Fail=0;
+    testRequire(xmqttJournalDestroy(J)&&xrtFileResize(Target.File,0),"APP discards failed destination");
+    xrtClearError();
+
+    J=jpCreate(Target,&JC);
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,84),XMQTT_JOURNAL_DONE,"reuse snapshot in a different generation");
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,84),XMQTT_JOURNAL_STATE,"checkpoint must start at sequence one");
+    testRequire(xmqttJournalDestroy(J),"cold-open portable checkpoint");
+    xrtClearError();
+    xmqttStoreCheckpointDestroy(Snapshot);
+
+    expect(xmqttJournalOpen(Target.File,&JC,&J),XMQTT_JOURNAL_DONE,"open written snapshot");
+    xmqttstorestate* S=NULL;
+    C.Generation=JC.Generation;
+    testRequire(xmqttStoreStateRecover(J,&C,&S)==XMQTT_STORE_DONE&&info(S).LastKey==50&&
+        info(S).Transactions==3&&info(S).Outgoing==1&&info(S).Incoming==1&&info(S).Inbox==2,
+        "raw model survives independent source and destination lifetimes");
+    xmqttStoreStateDestroy(S);
+    testRequire(xmqttJournalDestroy(J),"retire portable target");
+    jpFileClose(Target);
 }
 
 enum {COMPACT_CORRUPT_CASES=12};
@@ -354,9 +413,11 @@ int main(void)
         xmqttversion V=I?XMQTT_VERSION_5:XMQTT_VERSION_311;
         local(V,false);
         local(V,true);
+        portableCheckpoint(V);
         for(unsigned Case=0;Case<=COMPACT_CORRUPT_CASES;++Case)corrupt(V,Case);
     }
     puts("[PASS] bounded typed rotation, state equivalence, expiry and subsequent native Writer");
+    puts("[PASS] portable checkpoint ownership, descriptor refusals and uncertain writes");
     puts("[PASS] 26 independent checkpoint cases, exact format and failure classifications");
 #if defined(TEST_COMPACT_FAULTS)
     puts("[PASS] eight injected checkpoint allocation, data and selector write failures");
