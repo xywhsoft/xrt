@@ -1235,6 +1235,12 @@ static void xredisClientTimer(xnetworker* Worker, uint64 Id, xnetresult Result, 
 {
 	(void)Worker; xredisrequest* Request = (xredisrequest*)Data; xredisclient* Client = Request->Client;
 	if (Request->Timer == Id) Request->Timer = 0;
+	if (Result == XNET_RESULT_CANCELLED && Request->Phase == XREDIS_R_DONE) {
+		/* The caller already retired the FIFO entry. Final release schedules
+		 * any remaining close work through the reservation drop. */
+		xredisRequestRelease(Request);
+		return;
+	}
 	if (Result == XNET_RESULT_OK) {
 		if (Request->Promise != NULL) xredisClientAbandon(Request, xrtAtomic32Load(&Request->Cancelled, XMEMORY_ACQUIRE) ?
 			XREDIS_REQUEST_CANCELLED : XREDIS_REQUEST_TIMEOUT);
@@ -1440,7 +1446,10 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 		xredisReplyRelease(Reply); xrtMutexLock(&Client->Gate); ++Client->Info.DiscardedReplies; xrtMutexUnlock(&Client->Gate);
 	}
 	xredisClientUnlink(Request); Request->Phase = XREDIS_R_DONE; XREDIS_SUBSCRIBER_RETIRE(Request);
-	xredisClientCancelTimer(Request); xredisRequestRelease(Request); xredisClientWake(Client);
+	xredisClientCancelTimer(Request); xredisRequestRelease(Request);
+	/* Use returned wire credit for requests already waiting on this worker.
+	 * New submissions carry their own wake. */
+	if (Client->PendingHead != NULL) xredisClientWake(Client);
 }
 
 static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer)

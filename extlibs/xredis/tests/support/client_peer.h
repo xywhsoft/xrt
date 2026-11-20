@@ -236,7 +236,15 @@ static void redisPeerStop(redispeer* Peer)
 {
 	redisPeerRequire(xrtNetListenerClose(Peer->Listener), "listener close"); redisPeerWait(&Peer->ListenerClosed, 1);
 	if (Peer->Stream != NULL) { xrtNetStreamAbort(Peer->Stream); redisPeerWait(&Peer->Closed, 1); }
-	redisPeerRequire(xrtNetEngineStop(Peer->Engine), "engine stop");
+	/* An owned transport may still be releasing its worker/engine pin when
+	 * the close callback publishes Closed. Stop after physical retirement. */
+	double Deadline = xrtTimer() + 5.0;
+	xnetretireresult Stopped = xrtNetEngineTryStop(Peer->Engine);
+	while (Stopped == XNET_RETIRE_BUSY && xrtTimer() < Deadline) {
+		xrtSleep(1);
+		Stopped = xrtNetEngineTryStop(Peer->Engine);
+	}
+	redisPeerRequire(Stopped == XNET_RETIRE_READY, "engine stop after peer retirement");
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 	if (Peer->Secure != NULL) xrtTlsStreamDestroy(Peer->Secure); else
 #endif

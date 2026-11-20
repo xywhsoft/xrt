@@ -18802,3 +18802,61 @@ command comparison smokes passed on both platforms. Generated asset and
 ordinary maturity checks passed. Strict release lists 29 developing
 modules. Source snapshots, binaries, reports and Redis ledgers are under
 out/service-extensions/scope-reduction-20261119/xredis-observer-cost/.
+
+## 2026-11-20 xredis worker posts after ordinary replies
+
+An ordinary reply now schedules another client turn when queued requests
+can use the returned in-flight credit. Cancelling the timer of a retired
+request releases its timer reference without a second wake request. New
+submissions still post their own work. Cancel and timeout handling and the
+reservation-drop wake for closing clients remain in force.
+
+The A/B experiment used four RESP3 connections, 1,024-byte mixed GET/SET
+data, a 128-request observer window, and five two-second samples per client
+and case. Windows used loopback forwarding to the same design of private
+WSL Redis 8.0.5 fixture as the WSL observer. Control and candidate completed
+all 560,000 measured offers, with exact Redis command ledgers and identical
+median timer-cancellation counts. The table shows per-sample medians.
+
+| Observer | Offers/s | Executed worker posts, control / candidate | P99 in microseconds, control / candidate | Process CPU seconds, control / candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 12,046 / 8,042 | 819.3 / 734.3 | 2.141 / 2.094 |
+| Windows | 12,000 | 71,194 / 47,634 | 960.6 / 843.8 | 2.516 / 2.625 |
+| Ubuntu/WSL | 2,000 | 12,035 / 8,032 | 278.2 / 233.8 | 2.248 / 2.233 |
+| Ubuntu/WSL | 12,000 | 71,861 / 47,983 | 220.3 / 227.9 | 3.089 / 3.028 |
+
+The trace build measured admission, the worker handoff and send setup,
+transport queue to final reader feed, the final feed and buffer consume,
+and dispatch to just before promise resolution. At 12,000 offers/s in
+WSL, the separate P99 medians were 3.0, 57.2, 133.7, 1.8 and 1.2
+microseconds. These percentiles are computed separately. The transport
+interval includes sending, Redis processing and receipt on the client
+worker. The trace build completed 279,940 measured offers. Its Windows
+high-load case had 60 observer-window rejections. The trace added request
+storage and clock reads and ran only in the evidence binaries.
+
+The in-flight regression holds a finite-timeout command against a
+one-request wire window. A worker barrier proves the next command was
+queued before release. Returning the reply completes the queued command
+with its matching value and retires all physical obligations. The first
+WSL modular sweep hit an intermittent TLS fixture stop failure. The
+fixture now waits up to five seconds for the engine to retire after its
+peer close notification. With identical runtime source from `100b57b0` and
+an injected pin held for 500 ms after notification, the old fixture
+rejected engine stop and the bounded wait passed. Delaying the callback
+alone did not reproduce the stop failure. A separate mutation removed
+the new reply-credit wake and failed the new queue regression.
+
+The Windows suite passed, and the final client, TLS and open-loop single
+headers passed focused Windows checks. The full WSL modular and single-header
+suite passed on the rerun with the updated fixture. Static and shared
+`xredis_client` packages passed independent consumers on Windows and WSL. The WSL client
+suite passed ASan/UBSan with leak detection and a TSan run retaining GCC's
+explicit warning for thread fences. A separate Windows `-O1` TLS build
+hit warnings in the unchanged XRT single header. The `-O2` build passed.
+Generated assets and ordinary maturity passed. Strict release remains
+open with 29 developing modules.
+
+The working copies, per-sample and per-request records, engine counters,
+Redis ledgers and validation logs are under
+out/service-extensions/scope-reduction-20261119/xredis-client-wake/.

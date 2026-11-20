@@ -101,6 +101,38 @@ static void testClientTimeoutCancel(void)
 	testClientClose(&Peer, Client);
 }
 
+static void testClientMarkWorker(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	xrtAtomic32Store((xatomic32*)Data, 1, XMEMORY_RELEASE);
+}
+
+static void testClientReplyReturnsCredit(void)
+{
+	redispeer Peer; redisPeerStart(&Peer);
+	xredisclientconfig Config; xredisClientConfigInit(&Config); Config.MaxInFlight = 1;
+	xredisclient* Client = testClientConnect(&Peer, &Config);
+	xfuture* Hold = testClientSubmit(Client, "HOLD", NULL, 30000);
+	redisPeerWait(&Peer.Commands, 1);
+	xfuture* Queued = testClientSubmit(Client, "ID", "42", XRT_WAIT_FOREVER);
+	xnetpost Barrier;
+	xatomic32 Ingested; xrtAtomic32Init(&Ingested, 0);
+	testRequire(xrtNetPostInit(&Barrier) && xrtNetPost(xrtNetEngineWorker(Peer.Engine, 0), &Barrier,
+		testClientMarkWorker, &Ingested), "queue credit worker barrier");
+	redisPeerWait(&Ingested, 1);
+	testRequire(!xrtFutureDone(Hold) && !xrtFutureDone(Queued) &&
+		xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 1, "in-flight credit exceeded before reply");
+
+	redisPeerReleaseBlocked(&Peer);
+	testRequire(testClientResult(Hold)->Status == XREDIS_REQUEST_OK, "initial request did not complete");
+	const xredisrequestresult* Result = testClientResult(Queued);
+	xredisreplyvalue Value;
+	testRequire(Result->Status == XREDIS_REQUEST_OK && Result->Delivery == XREDIS_REPLIED &&
+		xredisReplyGet(Result->Reply, 0, &Value) && Value.Integer == 42 &&
+		xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 2, "reply did not return in-flight credit");
+	xrtFutureDestroy(Hold); xrtFutureDestroy(Queued); testClientClose(&Peer, Client);
+}
+
 static void testClientFailures(void)
 {
 	const cstr Names[] = {"MALFORMED", "PARTIAL", "DROP", "FLOOD"};
@@ -421,7 +453,7 @@ static void testClientBatchedClose(void)
 
 int main(void)
 {
-	testClientBasic(); testClientTimeoutCancel(); testClientFailures(); testClientAdmission();
+	testClientBasic(); testClientTimeoutCancel(); testClientReplyReturnsCredit(); testClientFailures(); testClientAdmission();
 	testClientQueueDeadline(); testClientInvalid(); testClientThreads();
 	testClientAllocations(); testClientByteLimits();
 	testClientWorkerOOM(); testClientReentry();
