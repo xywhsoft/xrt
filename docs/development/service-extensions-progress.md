@@ -20430,3 +20430,42 @@ error-reporting correction. The final source passed the short matrix.
 Raw reports, exact source, binary hashes and audit output are under
 `out/service-extensions/scope-reduction-20261119/xrpc-observer-shards/`.
 [Sharded observer usage](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+
+## 2026-11-21 MQTT required authentication across process stops
+
+The independent authentication peer now runs the online checkpoint
+example over TCP. A publisher enqueues eight QoS 1 and nine QoS 2
+messages for an offline subscriber and leaves one incoming QoS 2
+exchange before PUBREL. The probe then stops its own broker process.
+Every new broker uses the required authentication policy.
+
+The resumed publisher retries the original QoS 2 PUBLISH and finishes
+the exchange. The subscriber verifies that the resulting queue contains
+each payload once. CONNECT without a method and CONNECT followed by an
+invalid proof are rejected and leave the checkpoint bytes intact. A
+paused authentication exchange remains silent, then the successful
+CONNACK carries Session Present and the expected final proof before
+the first replay packet.
+
+The probe uses Receive Maximum one and checks the saved QoS 2 PUBREL
+and the subsequent QoS 1 PUBLISH with DUP and its original packet ID
+across separate process stops. The first trial showed that receiving a
+new PUBLISH can precede committing an earlier PUBCOMP. The final
+fixture waits for PINGRESP and verifies on-disk retirement before the
+next cut. After acknowledging the last delivery, another process
+recovers the session with an empty replay queue.
+
+Windows and Ubuntu/WSL each passed ten repeated modular crash matrices.
+They verified 80 deliberate process stops and 340 expected deliveries
+in total. The full authentication probe on both hosts also passed
+over TCP, TLS, WS and WSS, including the pre-existing controlled
+checkpoint path. The crash case uses the TCP checkpoint example.
+Both single-header versions passed the controlled and crash cases.
+The WSL single-header run used ASan/UBSan with leak detection enabled.
+The full ordinary checkpoint regression, generated header check and API
+inventory also passed. Strict release still lists 39 developing modules.
+Native Linux and 72-hour release acceptance remain open.
+
+Source and binary hashes, process-stop reports and build logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-auth-crash-replay/`.
+[Checkpoint authentication probe](../../extlibs/xmqtt/docs/server.md#mqtt-5-enhanced-authentication).

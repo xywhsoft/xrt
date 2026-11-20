@@ -505,6 +505,17 @@ The peer verifies a successful restored CONNACK after the proof, replay
 with the original QoS 1 packet ID, and retirement of the acknowledged
 delivery across the next controlled restart.
 
+The same `--checkpoint` probe also opens the TCP checkpoint example in
+`restore-online` mode and stops its own broker process at four points.
+It checks that rejected CONNECTs leave the durable state intact and
+that a completed proof precedes replay. The recovered session retries
+the original QoS 2 PUBREL and the unacknowledged QoS 1 PUBLISH with its
+original identifier and DUP set. It also checks inbound QoS 2
+deduplication and drains the queue with Receive Maximum set to one.
+A protocol round trip and the on-disk records identify completed
+acknowledgment commits before the following process stop.
+[MQTT 5.0 specification, sections 4.4, 4.9 and 4.12](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+
 ## MQTT over TLS
 
 Select `XMQTT_MODULE_XMQTT_SERVER_TLS` and return
