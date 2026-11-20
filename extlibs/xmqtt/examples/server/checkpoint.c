@@ -9,6 +9,7 @@
 #include <xrt/crc32.h>
 #include <xrt/file.h>
 #include <xrt/memory.h>
+#include <xrt/sync.h>
 #include <xrt/task.h>
 #include <math.h>
 #include <stdlib.h>
@@ -303,8 +304,9 @@ static bool checkpointLoad(xmqttserver* Server, cstr Path, bool Online)
 typedef struct checkpointstore {
 	cstr Path;
 	xtaskpool* Writer;
+	xmutex* WriterGate;
 	int64 Delay;
-	bool Online, Expiry, Wills;
+	bool Online, Expiry, Wills, WriterReady;
 } checkpointstore;
 
 typedef struct checkpointchange {
@@ -704,7 +706,14 @@ static xtaskoutcome checkpointCommitTask(xcancel* Cancel, ptr Data, xtaskvalue* 
 	(void)Cancel;
 	(void)Value;
 	checkpointchange* Change = Data;
-	if (Change->Store->Delay) xrtSleep(Change->Store->Delay);
+	checkpointstore* Store = Change->Store;
+	/* The APP can hold its first running write before touching the file. */
+	if (Store->WriterGate && !Store->WriterReady) {
+		Store->WriterReady = true;
+		if (puts("writer-ready") == EOF || fflush(stdout) ||
+			!xrtMutexLock(Store->WriterGate) || !xrtMutexUnlock(Store->WriterGate)) abort();
+	}
+	if (Store->Delay) xrtSleep(Store->Delay);
 	xbytesview Cursor;
 	size_t Count;
 	bytes Image = checkpointOpen(Change->Store->Path, &Cursor, &Count);
@@ -788,11 +797,13 @@ int main(int Argc, char** Argv)
 	bool Expiry = Wills || (Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry"));
 	bool Online = Expiry || (Argc >= 3 && !strcmp(Argv[1], "restore-online"));
 	bool Fenced = Online || (Argc >= 3 && !strcmp(Argv[1], "restore-fenced"));
-	if ((Fenced && Argc > 4) ||
+	bool HoldWriter = Argc == 4 && !strcmp(Argv[3], "--hold-writer");
+	if ((HoldWriter && strcmp(Argv[1], "restore-online")) || (Fenced && Argc > 4) ||
 		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
 		puts("usage: examples_server_checkpoint [--require-method] [--compare] capture|restore checkpoint.bin");
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
 		puts("       examples_server_checkpoint restore-online-expiry|restore-online-will checkpoint.bin [delay-ms]");
+		puts("       examples_server_checkpoint restore-online checkpoint.bin --hold-writer");
 		return Argc == 1 ? 0 : 1;
 	}
 	serverexample Example = {0};
@@ -822,13 +833,27 @@ int main(int Argc, char** Argv)
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	Config.Allow311 = true;
 #endif
-	checkpointstore Store = {.Path = Argv[2], .Delay = Argc == 4 ? strtol(Argv[3], NULL, 10) : 0,
+	checkpointstore Store = {.Path = Argv[2], .Delay = Argc == 4 && !HoldWriter ? strtol(Argv[3], NULL, 10) : 0,
 		.Online = Online, .Expiry = Expiry, .Wills = Wills};
 	if (Store.Delay < 0 || Store.Delay > 2000) return 1;
+	if (HoldWriter) {
+		Store.WriterGate = xrtMutexCreate();
+		if (!Store.WriterGate) return 1;
+		if (!xrtMutexLock(Store.WriterGate)) {
+			xrtMutexDestroy(Store.WriterGate);
+			return 1;
+		}
+	}
 	if (Fenced) {
 		const xtaskpoolconfig PoolConfig = {.Threads = 1, .QueueLimit = 16};
 		Store.Writer = xrtTaskPoolCreate(&PoolConfig);
-		if (!Store.Writer) return 1;
+		if (!Store.Writer) {
+			if (Store.WriterGate) {
+				xrtMutexUnlock(Store.WriterGate);
+				xrtMutexDestroy(Store.WriterGate);
+			}
+			return 1;
+		}
 	}
 	if (strcmp(Argv[1], "capture")) {
 		Example.Prepare = checkpointPrepare;
@@ -843,12 +868,14 @@ int main(int Argc, char** Argv)
 		(void)getchar();
 	}
 	bool Capture = Ready && xmqttServerCloseForCheckpoint(Example.Server);
+	if (Store.WriterGate && !xrtMutexUnlock(Store.WriterGate)) abort();
 	bool Drained = exampleServerDrain(&Example);
 	bool Joined = Drained && (!Store.Writer ||
 		(xrtTaskPoolClose(Store.Writer) && xrtTaskPoolWaitFor(Store.Writer, 5000) == XWAIT_OK &&
 		xrtTaskPoolDestroy(Store.Writer)));
 	bool Saved = Capture && Joined && checkpointSave(Example.Server, Store.Path);
 	bool Closed = Joined && exampleServerStop(&Example);
+	if (Joined && Store.WriterGate) Closed = xrtMutexDestroy(Store.WriterGate) && Closed;
 #if defined(XMQTT_EXAMPLE_SERVER_AUTH)
 	Closed = Closed && (!RequireMethod || !xrtAtomic32Load(&AuthState.Active, XMEMORY_RELAXED));
 #endif

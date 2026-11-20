@@ -20884,3 +20884,27 @@ The early failures, final reports, fault fixtures and source and
 binary audit are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-capacity-10000/`.
 [Live quota workload](../../extlibs/xmqtt/bench/README.md#live-quota-at-connection-capacity).
+
+## 2026-11-21 MQTT synchronized checkpoint writer quota
+
+The checkpoint example can hold its first running write after emitting
+a readiness marker. The task pool counts queued work separately from
+running work. The peer waits for the marker, fills all 16 waiting slots
+and checks that the four excess writes receive the expected refusal.
+It verifies the subsequent retained QoS 1 and QoS 2 refusals, PING
+ordering, and the unchanged checkpoint after a process stop. Normal
+shutdown releases the writer and drains the queue.
+
+The Windows x64 and Ubuntu/WSL modular and single-header builds passed
+the full checkpoint peer in all four combinations. Across those
+builds the focused probe passed 80 process-stop runs and eight normal
+shutdown runs that recovered the stored payload. Four further
+shutdown and recovery runs passed under WSL ASan/UBSan with leak
+detection. An isolated example that emitted the marker without
+holding the writer failed eight out of eight quota probes.
+
+The focused command also passed locally on Windows and WSL. The
+service-extension CI workflow now runs it in the Windows and Linux
+MQTT jobs. The source snapshots, binary digests, reports and audit are
+under `out/service-extensions/scope-reduction-20261119/xmqtt-writer-gate/`.
+[Checkpoint example and probe](../../extlibs/xmqtt/docs/server.md#retained-checkpoints-across-restarts).

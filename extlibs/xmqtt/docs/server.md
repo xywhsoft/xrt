@@ -83,6 +83,11 @@ python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt
 python extlibs/xmqtt/tests/interop/run_server_checkpoint.py <path-to-examples_server_checkpoint>
 ```
 
+Run the writer-quota case by appending `--full-writer`. It uses the
+example's `restore-online checkpoint.bin --hold-writer` mode to hold the
+first running write. The example prints `writer-ready` before the worker
+waits. A line on stdin releases it during normal broker shutdown.
+
 Run the example directly as `examples_server_checkpoint capture checkpoint.bin`,
 then send it a line on stdin after publishing retained messages. Use
 `examples_server_checkpoint restore checkpoint.bin` for later runs. The example

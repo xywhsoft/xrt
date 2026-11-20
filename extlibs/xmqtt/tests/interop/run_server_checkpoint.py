@@ -29,11 +29,17 @@ PONG = (0xd0, b"")
 
 
 @contextmanager
-def broker(program, mode, image, *options, crash=False, exit_code=0):
+def broker(program, mode, image, *options, crash=False, exit_code=0, writer_ready=None):
     with subprocess.Popen([str(program.resolve()), mode, str(image), *options], stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, text=True) as process:
         lines = queue.Queue()
-        Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
+
+        def startup():
+            lines.put(process.stdout.readline())
+            if writer_ready is not None:
+                writer_ready.put(process.stdout.readline().strip())
+
+        Thread(target=startup, daemon=True).start()
         try:
             host, port = lines.get(timeout=10).strip().rsplit(":", 1)
             assert host == "127.0.0.1"
@@ -1549,19 +1555,33 @@ def verify_full_writer(program, directory):
                 barrier(peer)
     original = image.read_bytes()
     identifier = b"\0\x45"
-    with broker(program, "restore-online", image, "2000", crash=True) as address:
+    writer_ready = queue.Queue(maxsize=1)
+    with broker(program, "restore-online", image, "--hold-writer", crash=True, writer_ready=writer_ready) as address:
         with ExitStack() as owners:
             connected = [owners.enter_context(persistent(address, client_id, False, True)) for client_id in peers]
-            for peer in connected[:-1]:
-                peer.sendall(frame(0x34, topic(b"writer/fill") + identifier + b"\0pending"))
-            readable, _, _ = select(connected[:-1], [], [], 1.0)
-            assert readable, "the writer queue did not reach its bound"
-            assert receive(readable[0]) == (0x50, identifier + b"\x83")
+            filler = frame(0x34, topic(b"writer/fill") + identifier + b"\0pending")
+            connected[0].sendall(filler)
+            assert writer_ready.get(timeout=5) == "writer-ready"
+            waiting = connected[1:-1]
+            for peer in waiting:
+                peer.sendall(filler)
+
+            # One running task is held outside the waiting queue's 16 slots.
+            deadline = time.monotonic() + 5
+            while len(waiting) > 16:
+                readable, _, _ = select(waiting, [], [], max(0, deadline - time.monotonic()))
+                assert readable, "the writer queue did not reject the excess jobs"
+                for peer in readable:
+                    assert receive(peer) == (0x50, identifier + b"\x83")
+                    waiting.remove(peer)
+            assert len(waiting) == 16
             for publish_header, ack_header in ((0x35, 0x50), (0x33, 0x40), (0x33, 0x40)):
                 candidate = frame(publish_header, topic(b"writer/rejected") + identifier + b"\0retained")
                 connected[-1].sendall(candidate + PING)
                 assert receive(connected[-1]) == (ack_header, identifier + b"\x83")
                 assert receive(connected[-1]) == PONG
+            readable, _, _ = select([connected[0], *waiting], [], [], 0)
+            assert not readable, "a held write must keep admitted publications pending"
     assert image.read_bytes() == original
     return {"full_writer_preserves_input_order_and_releases_retained_lease": True}
 
@@ -1569,9 +1589,13 @@ def verify_full_writer(program, directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
+    parser.add_argument("--full-writer", action="store_true", help="run the synchronized writer quota case")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
+        if args.full_writer:
+            print(json.dumps(verify_full_writer(args.program, folder)))
+            return
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
                           **verify_online_transactions(args.program, folder),
