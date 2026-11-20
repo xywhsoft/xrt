@@ -281,15 +281,15 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT_ONLINE
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT_ONLINE
 #endif
 #endif
 
-/* xmqtt_store_compact_online 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE)
-#ifndef XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
-#define XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE
+/* xmqtt_store_checkpoint_online 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_CHECKPOINT_ONLINE)
+#ifndef XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE
+#define XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
@@ -3584,53 +3584,59 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/store_compact_online.h */
+/* public: extlibs/xmqtt/include/xmqtt/store_checkpoint_online.h */
 /* ========================================================================== */
 
-#ifndef XMQTT_STORE_COMPACT_ONLINE_H
-#define XMQTT_STORE_COMPACT_ONLINE_H
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
-#error "Online MQTT compaction requires the typed slot and Store Writer"
+#ifndef XMQTT_STORE_CHECKPOINT_ONLINE_H
+#define XMQTT_STORE_CHECKPOINT_ONLINE_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE) && \
+    (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "Online MQTT checkpoints require the typed slot and Store Writer"
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-typedef struct xmqttstorecompactconfig {
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+typedef struct xmqttstorecheckpointcut xmqttstorecheckpointcut;
+typedef xmqttjournalstatus (*xmqttstorecheckpointapply)(xmqttstorecheckpointcut* Cut,
+    uint64 CurrentBytes,uint64 CurrentDataBytes,uint64 User);
+typedef struct xmqttstorecheckpointrequest {
     size_t Size,MaxScratchBytes,MaxEntries;
-    uint64 MinReclaimBytes;
-} xmqttstorecompactconfig;
-typedef struct xmqttstorecompactresult {
+    xmqttstorecheckpointapply Apply;
+    uint64 User;
+} xmqttstorecheckpointrequest;
+typedef struct xmqttstorecheckpointresult {
     xmqttcommitstatus Status;xmqttjournalstatus StorageStatus;xmqttjournaleffect Effect;
     uint64 PreviousGeneration,Generation,Sequence,PreviousBytes,Bytes;
     const xerror* Cause;
-} xmqttstorecompactresult;
+} xmqttstorecheckpointresult;
 XRT_EXTERN_C_BEGIN
-/* Defaults: 1 MiB output scratch, 1024 live entries and 64 KiB minimum
- * selected-file reduction. Scratch and entry count are hard caps. */
-XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config);
-/* Queue one bounded checkpoint at a FIFO Store Writer commit boundary.
- * The Writer must own a native JournalSlot child. Keep the Slot/root alive
- * through Writer Destroy and serialize direct Slot calls with that lifetime.
- * Connection state and pending records stay with the same Writer. A source
- * whose recovery projected unsynchronized expiry requires a committed reset
- * establishing the durable cut before compaction is eligible.
- * The host storage task scans bounded live entries and writes inactive
- * blocks without replaying history or holding the model gate during I/O.
- * Other commits wait in the existing bounded FIFO. No additional task pool.
- * Scratch is allocated only during execution, capped by both transaction
- * limits. One extra Journal allocation is bounded by the Slot's configuration.
- * An insufficient reduction resolves EMPTY without replacement I/O.
- * The byte figures describe selected journal lengths. The old file remains
- * as the inactive generation until its next reuse. Sequence is generation
- * local, including the ordinary commit results before and after a switch.
- * Entry deadline, Close and explicit cancellation are sampled before the
- * next block or publication. Entered I/O completes physically. A late
- * stop can accompany COMMITTED. A definite inactive-file failure leaves
- * the old Writer usable. An ambiguous selector change fences the Writer.
- * Accepted Future resolves to an immutable xmqttstorecompactresult. On
- * COMMITTED, Generation/Sequence/Bytes describe the new cut. Otherwise
- * they describe the original cut if inspected; with MAY reopen to resolve.
- * The config is copied, and Future changes only on ACCEPTED. */
-XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* Writer,
-    const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future);
+/* Queue Apply at an exclusive Writer FIFO boundary on its storage task.
+ * The Writer owns the selected Slot child. Keep Slot and its files alive
+ * through Writer Destroy. Apply runs outside Writer and Worker locks.
+ * Cut is valid only synchronously in Apply on that task, including its
+ * calls to Measure, Stage and Publish. Apply must return before waiting
+ * for any later operation or for destruction of this Writer.
+ * CurrentBytes includes framing and the fixed descriptor/witness region.
+ * CurrentDataBytes excludes that fixed region. Return EMPTY to skip, or
+ * propagate the status from the last checkpoint operation. Request and
+ * User are copied on admission. Only ACCEPTED changes the Future output.
+ * The resolved immutable result reports the observed selector effect.
+ * COMMITTED rebases the same Writer before the next request runs, even
+ * if a late stop accompanies the effect. MAY fences the Writer until a
+ * fresh recovery. Other results retain the original generation and cut. */
+XMQTT_API xmqttjournaladmission xmqttStoreWriteCheckpointAsync(xmqttstorewrite* Writer,
+    const xmqttstorecheckpointrequest* Request,int64 Timeout,xfuture** Future);
+/* Measure the encoded Journal size, including framing. Scratch capacity
+ * and entries are capped by the request. A committed reset is required
+ * after recovery projected unsynchronized expiry. No storage I/O. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointMeasure(xmqttstorecheckpointcut* Cut,uint64* Bytes);
+/* After measurement, encode a replacement in the inactive file. One
+ * attempt per cut, with bounded scratch and no historical replay. An
+ * uncertain inactive append leaves the selected Journal in use. A failed
+ * selector witness repair fences the Writer. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut);
+/* Publish a successful Stage once. A stop observed before publication
+ * abandons the candidate. Once selector I/O enters, it retires physically.
+ * Returning from Apply abandons any candidate that was not published. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -4253,8 +4259,8 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #error "MQTT root requires journal worker"
 #endif
-#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE"
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #error "MQTT root requires store Session import"
@@ -4629,7 +4635,7 @@ XMQTT_INTERNAL bool xmqttJournalReplayStart(xmqttjournal* Journal,xmqttversion V
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
 XMQTT_INTERNAL size_t xmqttJournalCheckpointLimit(xmqttjournal* Journal,xmqttversion Version,xbytesview Binding);
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 XMQTT_INTERNAL size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* Journal);
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
@@ -4757,32 +4763,37 @@ XMQTT_INTERNAL void xmqttInternalSessionStoreClosed(xmqttsession* Session,const 
 
 
 /* ========================================================================== */
-/* internal: extlibs/xmqtt/src/internal/xmqtt_store_compact_online.h */
+/* internal: extlibs/xmqtt/src/internal/xmqtt_store_checkpoint_online.h */
 /* ========================================================================== */
 
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-#ifndef XMQTT_INTERNAL_STORE_COMPACT_ONLINE_H
-#define XMQTT_INTERNAL_STORE_COMPACT_ONLINE_H
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-typedef bool (*xmqttcompactstop)(ptr Context);
-typedef xmqttjournalstatus (*xmqttcompactencode)(xmqttjournal* Candidate,ptr Context);
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+#ifndef XMQTT_INTERNAL_STORE_CHECKPOINT_ONLINE_H
+#define XMQTT_INTERNAL_STORE_CHECKPOINT_ONLINE_H
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+typedef bool (*xmqttcheckpointstop)(ptr Context);
 typedef struct xmqttcheckpointstats {
     uint64 Transactions,Operations,ReplayBytes;
 } xmqttcheckpointstats;
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjournal* Journal,const void* Owner,
-    uint64 Transactions,uint64 ReplayBytes,uint64 MinReclaim,xmqttstorecompactresult* Result);
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactReplace(xmqttjournal** Journal,const void* Owner,
-    xmqttcompactencode Encode,ptr Context,xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result);
-XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjournalworker* Worker,
-    const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out);
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* Writer,
-    xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result);
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactModel(const xmqttstorestate* State,const void* StateOwner,
-    xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats);
-XMQTT_INTERNAL void xmqttInternalStoreCompactRebase(xmqttstorestate* State,const void* StateOwner,
-    const xmqttjournalinfo* Journal,const xmqttstorecompactresult* Result,const xmqttcheckpointstats* Stats);
+
+XMQTT_INTERNAL bool xmqttInternalJournalCheckpointCurrent(const xmqttjournal* Journal,const void* Owner,
+    xmqttstorecheckpointresult* Result,uint64* DataBytes);
+XMQTT_INTERNAL uint64 xmqttInternalJournalCheckpointBytes(uint64 Transactions,uint64 PayloadBytes);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointStage(xmqttjournal* Current,xmqttjournal** Candidate);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointPublish(xmqttjournal* Current,xmqttjournal* Candidate,
+    xmqttstorecheckpointresult* Result);
+XMQTT_INTERNAL void xmqttInternalJournalCheckpointFinish(xmqttjournal** Current,const void* Owner,xmqttjournal* Candidate,
+    xmqttstorecheckpointresult* Result);
+
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCheckpointSubmit(xmqttjournalworker* Worker,
+    const xmqttstorecheckpointrequest* Request,double Deadline,xfuture** Out);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointWork(xmqttstorewrite* Writer,
+    xmqttjournal** Journal,const void* Owner,const xmqttstorecheckpointrequest* Request,
+    xmqttcheckpointstop Stop,ptr StopContext,xmqttstorecheckpointresult* Result);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointModel(const xmqttstorestate* State,const void* StateOwner,
+    xmqttjournal** Journal,const void* Owner,const xmqttstorecheckpointrequest* Request,
+    xmqttcheckpointstop Stop,ptr StopContext,xmqttstorecheckpointresult* Result,xmqttcheckpointstats* Stats);
+XMQTT_INTERNAL void xmqttInternalStoreCheckpointRebase(xmqttstorestate* State,const void* StateOwner,
+    const xmqttjournalinfo* Journal,const xmqttstorecheckpointresult* Result,const xmqttcheckpointstats* Stats);
 #endif
 #endif
 #endif
@@ -12696,6 +12707,7 @@ XMQTT_API xmqttsessionstatus xmqttSessionImageRestoreAssigned(const xmqttsession
 /* ========================================================================== */
 
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#include <stdlib.h>
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL)
 enum {XMQTT_J_PAGE=4096,XMQTT_J_START=12288,XMQTT_J_HEAD=48,XMQTT_J_OVERHEAD=64};
@@ -13108,55 +13120,61 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* S,xmqttjo
     return Status;
 }
 
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-static bool xmqttJCompactAvailable(const xmqttjournal* J,const void* Owner)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+XMQTT_INTERNAL bool xmqttInternalJournalCheckpointCurrent(const xmqttjournal* J,
+    const void* Owner,xmqttstorecheckpointresult* Result,uint64* DataBytes)
 {
     const xmqttjournalslot* Slot=J->Slot;
-    return Slot&&Slot->Child==J&&!Slot->Prepared&&!Slot->Busy&&!Slot->Poisoned&&
-        Slot->Current.Generation==J->Config.Generation&&xmqttJOwner(J,Owner)&&
-        !J->Busy&&J->Info.State==XMQTT_JOURNAL_READY;
-}
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactCheck(const xmqttjournal* J,
-    const void* Owner,uint64 Transactions,uint64 ReplayBytes,uint64 MinReclaim,xmqttstorecompactresult* Result)
-{
-    if(!xmqttJCompactAvailable(J,Owner))
-        return xmqttJError(XMQTT_JOURNAL_STATE,"online compaction requires the selected owned Journal");
+    if(!Slot||Slot->Child!=J||Slot->Prepared||Slot->Busy||Slot->Poisoned||
+       Slot->Current.Generation!=J->Config.Generation||!xmqttJOwner(J,Owner)||
+       J->Busy||J->Info.State!=XMQTT_JOURNAL_READY){
+        xmqttJError(XMQTT_JOURNAL_STATE,"checkpoint requires the selected owned Journal");
+        return false;
+    }
     Result->PreviousGeneration=Result->Generation=J->Config.Generation;
     Result->PreviousBytes=Result->Bytes=J->Info.CommittedEnd;
     Result->Sequence=J->Info.Sequence;
-    uint64 Bytes=J->Info.CommittedEnd-XMQTT_J_START;
-    if(ReplayBytes>Bytes||Transactions>(Bytes-ReplayBytes)/XMQTT_J_OVERHEAD)
-        return XMQTT_JOURNAL_EMPTY;
-    uint64 Saved=Bytes-ReplayBytes-Transactions*XMQTT_J_OVERHEAD;
-    if(!Saved||Saved<MinReclaim)return XMQTT_JOURNAL_EMPTY;
-    return J->Config.Generation==UINT64_MAX?XMQTT_JOURNAL_LIMIT:XMQTT_JOURNAL_DONE;
+    *DataBytes=J->Info.CommittedEnd-XMQTT_J_START;
+    return true;
 }
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactReplace(xmqttjournal** Current,
-    const void* Owner,xmqttcompactencode Encode,ptr Context,xmqttcompactstop Stop,ptr StopContext,
-    xmqttstorecompactresult* Result)
+
+XMQTT_INTERNAL uint64 xmqttInternalJournalCheckpointBytes(uint64 Transactions,uint64 PayloadBytes)
+{
+    if(PayloadBytes>UINT64_MAX-XMQTT_J_START||
+       Transactions>(UINT64_MAX-XMQTT_J_START-PayloadBytes)/XMQTT_J_OVERHEAD)return UINT64_MAX;
+    return XMQTT_J_START+PayloadBytes+Transactions*XMQTT_J_OVERHEAD;
+}
+
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointStage(xmqttjournal* Old,xmqttjournal** Candidate)
+{
+    if(Old->Config.Generation==UINT64_MAX)return XMQTT_JOURNAL_LIMIT;
+    xmqttjournalslot* Slot=Old->Slot;
+    Slot->Busy=Old->Busy=true;
+    xmqttjournalstatus Status=xmqttJSRepair(Slot);
+    if(Status==XMQTT_JOURNAL_DONE)
+        Status=xmqttJSData(Slot,Old->Config.Generation+1,true,true,Candidate);
+    if(Status!=XMQTT_JOURNAL_DONE){
+        if(Slot->Poisoned)Old->Info.State=XMQTT_JOURNAL_POISONED;
+        Slot->Busy=Old->Busy=false;
+    }
+    return Status;
+}
+
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointPublish(xmqttjournal* Old,xmqttjournal* Candidate,
+    xmqttstorecheckpointresult* Result)
+{
+    xmqttjournalstatus Status=xmqttJSSelect(Old->Slot,Candidate);
+    Result->Effect=Old->Slot->Effect;
+    return Status;
+}
+
+XMQTT_INTERNAL void xmqttInternalJournalCheckpointFinish(xmqttjournal** Current,const void* Owner,xmqttjournal* Candidate,
+    xmqttstorecheckpointresult* Result)
 {
     xmqttjournal* Old=*Current;
     xmqttjournalslot* Slot=Old->Slot;
-    if(Stop(StopContext))return XMQTT_JOURNAL_EMPTY;
-    Slot->Busy=Old->Busy=true;
-    xmqttjournal* Candidate=NULL;
-    xmqttjournalstatus Status=xmqttJSRepair(Slot);
-    if(Status==XMQTT_JOURNAL_DONE)
-        Status=xmqttJSData(Slot,Old->Config.Generation+1,true,true,&Candidate);
-    if(Status==XMQTT_JOURNAL_DONE)
-        Status=Encode(Candidate,Context);
-    if(Status==XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_IO; /* inactive writes */
-    if(Status==XMQTT_JOURNAL_DONE){
-        if(Stop(StopContext))Status=XMQTT_JOURNAL_EMPTY;
-        else{
-            Status=xmqttJSSelect(Slot,Candidate);
-            Result->Effect=Slot->Effect;
-        }
-    }
     Old->Busy=false;
     if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
-        /* The durable selector governs the new worker owner. Both file
-         * handles remain owned by the application. */
         Old->Slot=NULL;
         Candidate->Worker=Owner;
         Candidate->Slot=Slot;
@@ -13164,23 +13182,17 @@ XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCompactReplace(xmqttjourna
         Result->Generation=Candidate->Config.Generation;
         Result->Sequence=Candidate->Info.Sequence;
         Result->Bytes=Candidate->Info.CommittedEnd;
-        if(!xmqttInternalJournalWorkerDestroy(Old,Owner)){
-            (void)xmqttInternalJournalWorkerDestroy(Old,Owner);
-            Slot->Poisoned=true;
-            Candidate->Info.State=XMQTT_JOURNAL_POISONED;
-            Status=XMQTT_JOURNAL_IO;
-        }
+        if(!xmqttInternalJournalWorkerDestroy(Old,Owner))abort();
     }else{
-        if(Status==XMQTT_JOURNAL_UNCERTAIN)Slot->Poisoned=true;
-        if(Slot->Poisoned)Old->Info.State=XMQTT_JOURNAL_POISONED;
-        if(!xmqttJournalDestroy(Candidate)){
-            (void)xmqttJournalDestroy(Candidate);
-            if(Status!=XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_IO;
+        if(Result->Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED){
+            Slot->Poisoned=true;
+            Old->Info.State=XMQTT_JOURNAL_POISONED;
         }
+        if(!xmqttJournalDestroy(Candidate))abort();
     }
     Slot->Busy=false;
-    return Status;
 }
+
 #endif
 
 XMQTT_API bool xmqttJournalSlotInfo(xmqttjournalslot* S,xmqttjournalslotinfo* Out)
@@ -13327,7 +13339,7 @@ XMQTT_INTERNAL size_t xmqttJournalCheckpointLimit(xmqttjournal* J,xmqttversion V
     return J->Config.MaxTransactionBytes;
 }
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 XMQTT_INTERNAL size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* J){return J->Config.MaxTransactionBytes;}
 #endif
 bool xmqttJournalReplayStart(xmqttjournal* J,xmqttversion Version,xbytesview Binding,
@@ -13533,7 +13545,7 @@ struct xmqttstorestate {
     xmqttstoreentry *Head,*Tail,**Keys,**Ids,**Views[3];size_t Buckets;
     uint32 Expiry;uint64 ClosedWall;bool Opened,Live;
     uintptr_t Lowest,Highest;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     bool ProjectionDirty;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
@@ -13684,7 +13696,7 @@ static void xmqttSDelete(xmqttstorestate* S,xmqttstoreentry* E)
 }
 static void xmqttSClear(xmqttstorestate* S)
 {
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     S->ProjectionDirty=false;
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
@@ -14055,7 +14067,7 @@ static xmqttstorestatus xmqttSRecover(xmqttjournal* J,const xmqttstorestateconfi
     S->Info.LiveAtCut=S->Live;
     if((S->Live&&!S->Expiry)||xmqttSExpired(S,K.WallMilliseconds)){
         xmqttSClear(S);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
         S->ProjectionDirty=true;
 #endif
     }
@@ -14213,29 +14225,33 @@ XMQTT_API void xmqttStoreCheckpointDestroy(xmqttstorecheckpoint* Checkpoint)
 {xmqttStoreStateDestroy((xmqttstorestate*)Checkpoint);}
 #endif
 
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-typedef struct xmqttcheckpointwork {
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+struct xmqttstorecheckpointcut {
     const xmqttstorestate* State;
-    unsigned char* Buffer;
+    xmqttjournal *Current,*Candidate;
+    const xmqttstorecheckpointrequest* Request;
+    xmqttstorecheckpointresult* Result;
+    xmqttcheckpointstop Stop;
+    ptr StopContext;
+    xmqttcheckpointstats Stats;
     size_t Capacity;
     uint64 Rows;
-    xmqttcompactstop Stop;
-    ptr StopContext;
-} xmqttcheckpointwork;
+    bool Measured,StageAttempted,Staged;
+};
 
-static xmqttjournalstatus xmqttSCMeasure(const xmqttcheckpointwork* Work,size_t MaxEntries,
+static xmqttjournalstatus xmqttSCMeasure(const xmqttstorecheckpointcut* Cut,size_t MaxEntries,
     xmqttcheckpointstats* Stats,uint64* Rows)
 {
-    const xmqttstorestate* S=Work->State;
+    const xmqttstorestate* S=Cut->State;
     if(!S->Info.ClientId.Size)return XMQTT_JOURNAL_DONE;
-    size_t Capacity=Work->Capacity,Head=XMQTT_CK_HEADER+S->Info.ClientId.Size;
+    size_t Capacity=Cut->Capacity,Head=XMQTT_CK_HEADER+S->Info.ClientId.Size;
     if(Head>Capacity||Head>S->Config.MaxReplayBytes||!S->Config.MaxTransactions||
        !S->Config.MaxOperations||!S->Config.Delta.MaxOperations)return XMQTT_JOURNAL_LIMIT;
 
     *Stats=(xmqttcheckpointstats){1,1,Head};
     const xmqttstoreentry* E=S->Head;
     while(E){
-        if(Work->Stop(Work->StopContext))return XMQTT_JOURNAL_EMPTY;
+        if(Cut->Stop(Cut->StopContext))return XMQTT_JOURNAL_EMPTY;
         size_t At=XMQTT_CK_CHUNK,InBlock=0;
         while(E&&xmqttSCFits(E,Capacity,At,InBlock,S->Config.Delta.MaxOperations)){
             if(*Rows>=MaxEntries||Stats->Operations==S->Config.MaxOperations)
@@ -14253,41 +14269,82 @@ static xmqttjournalstatus xmqttSCMeasure(const xmqttcheckpointwork* Work,size_t 
     }
     return XMQTT_JOURNAL_DONE;
 }
-static xmqttjournalstatus xmqttSCEncode(xmqttjournal* Candidate,ptr Context)
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointMeasure(xmqttstorecheckpointcut* Cut,uint64* Bytes)
 {
-    const xmqttcheckpointwork* Work=Context;
-    xmqttjournalstatus Status=xmqttSCWrite(Candidate,Work->State,Work->Buffer,Work->Capacity,Work->Rows,
-        Work->Stop,Work->StopContext);
-    /* Uncertainty in the inactive Journal cannot select it. */
-    return Status==XMQTT_JOURNAL_UNCERTAIN?XMQTT_JOURNAL_IO:Status;
-}
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactModel(const xmqttstorestate* S,
-    const void* StateOwner,xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result,xmqttcheckpointstats* Stats)
-{
-    if(!S||S->WriteOwner!=StateOwner||S->Plan||S->Retiring)abort();
-    xmqttjournalstatus Status=xmqttInternalJournalCompactCheck(*Journal,Owner,0,0,Config->MinReclaimBytes,Result);
-    if(Status!=XMQTT_JOURNAL_DONE)return Status;
-    if(S->ProjectionDirty){xmqttSError(XMQTT_STORE_STATE_ERROR,"durable reset required after recovery-time expiry");
-        return XMQTT_JOURNAL_STATE;}
-    size_t Capacity=xmqttJournalReplayTransactionLimit(*Journal);
-    if(Capacity>S->Config.Delta.MaxBytes)Capacity=S->Config.Delta.MaxBytes;
-    if(Capacity>Config->MaxScratchBytes)Capacity=Config->MaxScratchBytes;
-    xmqttcheckpointwork Work={.State=S,.Capacity=Capacity,.Stop=Stop,.StopContext=StopContext};
-    Status=xmqttSCMeasure(&Work,Config->MaxEntries,Stats,&Work.Rows);
-    if(Status!=XMQTT_JOURNAL_DONE)return Status;
-    Status=xmqttInternalJournalCompactCheck(*Journal,Owner,Stats->Transactions,Stats->ReplayBytes,Config->MinReclaimBytes,Result);
-    if(Status!=XMQTT_JOURNAL_DONE)return Status;
-    if(S->Info.ClientId.Size){
-        Work.Buffer=xrtMalloc(Capacity);
-        if(!Work.Buffer)return XMQTT_JOURNAL_ERROR;
+    if(!Cut||!xmqttSOutput(Cut->State,Bytes,sizeof(*Bytes))||
+       !xmqttSSeparate(Cut,sizeof(*Cut),Bytes,sizeof(*Bytes))){
+        xrtSetErrorKind(XERR_ARGUMENT);
+        return XMQTT_JOURNAL_ERROR;
     }
-    Status=xmqttInternalJournalCompactReplace(Journal,Owner,xmqttSCEncode,&Work,Stop,StopContext,Result);
-    xrtFree(Work.Buffer);
+    if(Cut->State->ProjectionDirty){
+        xmqttSError(XMQTT_STORE_STATE_ERROR,"durable reset required after recovery-time expiry");
+        return XMQTT_JOURNAL_STATE;
+    }
+    if(!Cut->Measured){
+        xmqttcheckpointstats Stats={0};
+        uint64 Rows=0;
+        xmqttjournalstatus Status=xmqttSCMeasure(Cut,Cut->Request->MaxEntries,&Stats,&Rows);
+        if(Status!=XMQTT_JOURNAL_DONE)return Status;
+        Cut->Stats=Stats;
+        Cut->Rows=Rows;
+        Cut->Measured=true;
+    }
+    *Bytes=xmqttInternalJournalCheckpointBytes(Cut->Stats.Transactions,Cut->Stats.ReplayBytes);
+    return XMQTT_JOURNAL_DONE;
+}
+
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut)
+{
+    if(!Cut||!Cut->Measured||Cut->StageAttempted){
+        xmqttSError(XMQTT_STORE_STATE_ERROR,"checkpoint Stage requires one measured cut");
+        return XMQTT_JOURNAL_STATE;
+    }
+    Cut->StageAttempted=true;
+    if(Cut->Stop(Cut->StopContext))return XMQTT_JOURNAL_EMPTY;
+    unsigned char* Buffer=NULL;
+    if(Cut->State->Info.ClientId.Size){
+        Buffer=xrtMalloc(Cut->Capacity);
+        if(!Buffer)return XMQTT_JOURNAL_ERROR;
+    }
+    xmqttjournalstatus Status=xmqttInternalJournalCheckpointStage(Cut->Current,&Cut->Candidate);
+    if(Status==XMQTT_JOURNAL_DONE)
+        Status=xmqttSCWrite(Cut->Candidate,Cut->State,Buffer,Cut->Capacity,Cut->Rows,Cut->Stop,Cut->StopContext);
+    xrtFree(Buffer);
+    Cut->Staged=Status==XMQTT_JOURNAL_DONE;
     return Status;
 }
-XMQTT_INTERNAL void xmqttInternalStoreCompactRebase(xmqttstorestate* S,const void* Owner,
-    const xmqttjournalinfo* J,const xmqttstorecompactresult* Result,const xmqttcheckpointstats* Stats)
+
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut)
+{
+    if(!Cut||!Cut->Staged||Cut->Result->Effect!=XMQTT_JOURNAL_NOT_COMMITTED){
+        xmqttSError(XMQTT_STORE_STATE_ERROR,"checkpoint Publish requires an unpublished Stage");
+        return XMQTT_JOURNAL_STATE;
+    }
+    Cut->Staged=false;
+    if(Cut->Stop(Cut->StopContext))return XMQTT_JOURNAL_EMPTY;
+    return xmqttInternalJournalCheckpointPublish(Cut->Current,Cut->Candidate,Cut->Result);
+}
+
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointModel(const xmqttstorestate* S,
+    const void* StateOwner,xmqttjournal** Journal,const void* Owner,const xmqttstorecheckpointrequest* Request,
+    xmqttcheckpointstop Stop,ptr StopContext,xmqttstorecheckpointresult* Result,xmqttcheckpointstats* Stats)
+{
+    if(!S||S->WriteOwner!=StateOwner||S->Plan||S->Retiring)abort();
+    uint64 DataBytes=0;
+    if(!xmqttInternalJournalCheckpointCurrent(*Journal,Owner,Result,&DataBytes))return XMQTT_JOURNAL_STATE;
+    size_t Capacity=xmqttJournalReplayTransactionLimit(*Journal);
+    if(Capacity>S->Config.Delta.MaxBytes)Capacity=S->Config.Delta.MaxBytes;
+    if(Capacity>Request->MaxScratchBytes)Capacity=Request->MaxScratchBytes;
+    xmqttstorecheckpointcut Cut={.State=S,.Current=*Journal,.Request=Request,.Result=Result,
+        .Stop=Stop,.StopContext=StopContext,.Capacity=Capacity};
+    xmqttjournalstatus Status=Request->Apply(&Cut,Result->PreviousBytes,DataBytes,Request->User);
+    if(Cut.Candidate)xmqttInternalJournalCheckpointFinish(Journal,Owner,Cut.Candidate,Result);
+    *Stats=Cut.Stats;
+    if(Result->Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED)return XMQTT_JOURNAL_UNCERTAIN;
+    return Status;
+}
+XMQTT_INTERNAL void xmqttInternalStoreCheckpointRebase(xmqttstorestate* S,const void* Owner,
+    const xmqttjournalinfo* J,const xmqttstorecheckpointresult* Result,const xmqttcheckpointstats* Stats)
 {
     if(S->WriteOwner!=Owner||S->Plan||S->Retiring||S->ProjectionDirty||
        J->Sequence!=Stats->Transactions||J->Sequence!=Result->Sequence||
@@ -14404,7 +14461,7 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* S,const void*
     }
     S->Retiring=NULL;P->Published=true;P->Refund=P->PhysicalBytes-P->Shadow.Info.MemoryBytes;
     S->Info=P->Shadow.Info;S->Info.MemoryBytes=P->PhysicalBytes;S->Expiry=P->Shadow.Expiry;S->ClosedWall=P->Shadow.ClosedWall;S->Opened=P->Shadow.Opened;S->Live=P->Shadow.Live;S->WriteEstablished=P->Shadow.WriteEstablished;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     S->ProjectionDirty=P->Shadow.ProjectionDirty;
 #endif
     if(S->Info.LastWallMilliseconds>S->Config.WallMilliseconds)S->Config.WallMilliseconds=S->Info.LastWallMilliseconds;
@@ -14544,16 +14601,16 @@ typedef struct xmqttjwitem {
     xmqttjournalworker* Owner;size_t Allocation;double Deadline;xpromise* Promise;xcancel* Cancel;
     xmqttcommitresult Result;
 } xmqttjwitem;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-typedef struct xmqttjwcompact {
-    xmqttstorecompactconfig Config;
-    xmqttstorecompactresult Result;
-} xmqttjwcompact;
-#define XMQTT_JW_COMPACT_PARAM ,const xmqttstorecompactconfig* Compact
-#define XMQTT_JW_COMPACT_ARG(C) ,C
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+typedef struct xmqttjwcheckpoint {
+    xmqttstorecheckpointrequest Request;
+    xmqttstorecheckpointresult Result;
+} xmqttjwcheckpoint;
+#define XMQTT_JW_CHECKPOINT_PARAM ,const xmqttstorecheckpointrequest* Checkpoint
+#define XMQTT_JW_CHECKPOINT_ARG(C) ,C
 #else
-#define XMQTT_JW_COMPACT_PARAM
-#define XMQTT_JW_COMPACT_ARG(C)
+#define XMQTT_JW_CHECKPOINT_PARAM
+#define XMQTT_JW_CHECKPOINT_ARG(C)
 #endif
 typedef struct xmqttjwpump {
     struct xmqttjwpump* Next;xmqttjournalworker* Owner;xfuture* Future;bool Ran,Dropped;
@@ -14630,9 +14687,9 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
     /* Only this owner can complete P. Publication invokes arbitrary watches
      * outside Gate; their retained result still owns the exact object credits. */
     ptr Value=&J->Result;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     if(!J->Result.Data.Data){
-        xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
+        xmqttjwcheckpoint* C=(xmqttjwcheckpoint*)(J+1);
         C->Result.Status=J->Result.Status;
         C->Result.Cause=J->Result.Cause;
         Value=&C->Result;
@@ -14641,14 +14698,14 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
     if(!xrtPromiseResolveOwned(P,Value,xmqttJWResultFree,J))abort();
     xrtPromiseDestroy(P); /* may free J: no access afterwards */
 }
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 typedef struct xmqttjwstop {
     xmqttjournalworker* Worker;
     xmqttjwitem* Item;
     xcancel* Native;
 } xmqttjwstop;
 
-static bool xmqttJWStopCompact(ptr Context)
+static bool xmqttJWStopCheckpoint(ptr Context)
 {
     const xmqttjwstop* S=Context;
     xrtMutexLock(&S->Worker->Gate);
@@ -14656,15 +14713,15 @@ static bool xmqttJWStopCompact(ptr Context)
     xrtMutexUnlock(&S->Worker->Gate);
     return Stop;
 }
-static void xmqttJWCompact(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,
-    const xmqttstorecompactconfig* Config,xmqttstorecompactresult* Result,xmqttjournalinfo After)
+static void xmqttJWCheckpoint(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,
+    const xmqttstorecheckpointrequest* Request,xmqttstorecheckpointresult* Result,xmqttjournalinfo After)
 {
     xerror* Saved=NULL;
     bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
     xmqttjournalstatus Status=XMQTT_JOURNAL_ERROR;
     if(!LocalFailure){
         xmqttjwstop Stop={W,J,Native};
-        Status=xmqttInternalStoreCompactWork(W->Store,&W->Journal,W,Config,xmqttJWStopCompact,&Stop,Result);
+        Status=xmqttInternalStoreCheckpointWork(W->Store,&W->Journal,W,Request,xmqttJWStopCheckpoint,&Stop,Result);
         if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
         if(Status>=XMQTT_JOURNAL_EMPTY){
             xerror* Discard=NULL;
@@ -14735,11 +14792,11 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
         }
         W->Head=J->Next;if(!W->Head)W->Tail=NULL;--W->Info.Queued;W->Info.Busy=true;
         J->Result.Status=xmqttJWStop(W,J,Cancel);xmqttjournalinfo Before=W->Info.Journal;xrtMutexUnlock(&W->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
         if(!J->Result.Data.Data){
             if(J->Result.Status==XMQTT_COMMIT_OK){
-                xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
-                xmqttJWCompact(W,J,Cancel,&C->Config,&C->Result,Before);
+                xmqttjwcheckpoint* C=(xmqttjwcheckpoint*)(J+1);
+                xmqttJWCheckpoint(W,J,Cancel,&C->Request,&C->Result,Before);
                 J->Result.Status=C->Result.Status;
                 J->Result.Effect=C->Result.Effect;
                 J->Result.Cause=C->Result.Cause;
@@ -14781,7 +14838,7 @@ XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,co
     *Out=W;return true;
 }
 static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out
-    XMQTT_JW_COMPACT_PARAM
+    XMQTT_JW_CHECKPOINT_PARAM
 )
 {
     if(!W||isnan(Deadline)||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
@@ -14793,14 +14850,14 @@ static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Da
     if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
     if(Data.Size>W->Config.MaxTransactionBytes||Data.Size>SIZE_MAX-sizeof(*J)||W->Info.Requests>=W->Config.MaxRequests||W->Info.Objects>=W->Config.MaxObjects||W->Info.Scheduling||!W->Config.WorkTransactions||(W->Running&&W->TurnAccepted>=W->Config.WorkTransactions))goto Overload;
     N=sizeof(*J)+Data.Size;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-    if(Compact)N=sizeof(*J)+sizeof(xmqttjwcompact);
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+    if(Checkpoint)N=sizeof(*J)+sizeof(xmqttjwcheckpoint);
 #endif
     if(N>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
     ++W->Info.Requests;++W->Info.Objects;W->Info.Bytes+=N;xmqttJWRef(W);Reserved=true;xrtMutexUnlock(&W->Gate);
     J=xrtCalloc(1,N);if(!J)goto End;J->Owner=W;J->Allocation=N;J->Deadline=Deadline;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-    if(Compact)((xmqttjwcompact*)(J+1))->Config=*Compact;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+    if(Checkpoint)((xmqttjwcheckpoint*)(J+1))->Request=*Checkpoint;
     else
 #endif
     {
@@ -14844,17 +14901,17 @@ XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker
     double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
     if(Timeout<XRT_WAIT_FOREVER){xmqttJWError(XERR_ARGUMENT,"invalid append timeout");return XMQTT_JWORK_ERROR;}
     return xmqttJWAppendAt(W,Data,Deadline,Out
-        XMQTT_JW_COMPACT_ARG(NULL)
+        XMQTT_JW_CHECKPOINT_ARG(NULL)
     );
 }
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out)
-{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_JW_COMPACT_ARG(NULL));}
+{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_JW_CHECKPOINT_ARG(NULL));}
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjournalworker* W,
-    const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out)
-{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_JW_COMPACT_ARG(Config));}
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCheckpointSubmit(xmqttjournalworker* W,
+    const xmqttstorecheckpointrequest* Request,double Deadline,xfuture** Out)
+{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_JW_CHECKPOINT_ARG(Request));}
 #endif
 XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
 {
@@ -15136,42 +15193,36 @@ static bool xmqttSWUnclaimed(xmqttstorewrite* W)
     return OK?true:xmqttSWError(XERR_STATE,"Client or controller owns store writer until physical destruction");
 }
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config)
-{
-    if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid compaction config output");
-    *Config=(xmqttstorecompactconfig){sizeof(*Config),1048576,1024,65536};
-    return true;
-}
-XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* W,
-    const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+XMQTT_API xmqttjournaladmission xmqttStoreWriteCheckpointAsync(xmqttstorewrite* W,
+    const xmqttstorecheckpointrequest* Request,int64 Timeout,xfuture** Future)
 {
     double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
-    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttSWSpan(Config,sizeof(*Config))||Config->Size!=sizeof(*Config)||
-       !xmqttSWSeparate(Config,sizeof(*Config),Future,sizeof(*Future))){
-        xmqttSWError(XERR_ARGUMENT,"invalid compaction config, timeout or Future");
+    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttSWSpan(Request,sizeof(*Request))||Request->Size!=sizeof(*Request)||!Request->Apply||
+       !xmqttSWSeparate(Request,sizeof(*Request),Future,sizeof(*Future))){
+        xmqttSWError(XERR_ARGUMENT,"invalid checkpoint request, timeout or Future");
         return XMQTT_JWORK_ERROR;
     }
     if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
     bool Valid=xmqttSWOutput(W,Future,sizeof(*Future));
     xrtMutexUnlock(&W->Gate);
     if(!Valid){
-        xmqttSWError(XERR_ARGUMENT,"compaction Future overlaps owned state");
+        xmqttSWError(XERR_ARGUMENT,"checkpoint Future overlaps owned state");
         return XMQTT_JWORK_ERROR;
     }
-    return xmqttInternalJournalCompactSubmit(W->Worker,Config,Deadline,Future);
+    return xmqttInternalJournalCheckpointSubmit(W->Worker,Request,Deadline,Future);
 }
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* W,
-    xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result)
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointWork(xmqttstorewrite* W,
+    xmqttjournal** Journal,const void* Owner,const xmqttstorecheckpointrequest* Request,
+    xmqttcheckpointstop Stop,ptr StopContext,xmqttstorecheckpointresult* Result)
 {
     if(!W||W->Pending)abort();
     xmqttcheckpointstats Stats={0};
-    xmqttjournalstatus Status=xmqttInternalStoreCompactModel(W->State,W,Journal,Owner,Config,Stop,StopContext,Result,&Stats);
+    xmqttjournalstatus Status=xmqttInternalStoreCheckpointModel(W->State,W,Journal,Owner,Request,Stop,StopContext,Result,&Stats);
     if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
         xmqttjournalinfo J;
         if(!xmqttInternalJournalWorkerInfo(*Journal,Owner,&J)||!xrtMutexLock(&W->Gate))abort();
-        xmqttInternalStoreCompactRebase(W->State,W,&J,Result,&Stats);
+        xmqttInternalStoreCheckpointRebase(W->State,W,&J,Result,&Stats);
         if(!xrtMutexUnlock(&W->Gate))abort();
     }
     return Status;

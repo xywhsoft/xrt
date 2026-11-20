@@ -1,6 +1,6 @@
 #include "../../../dev/bench/bench_common.h"
 #include "../examples/common/journal_files.h"
-#include <xmqtt/store_compact_online.h>
+#include "../examples/common/store_compact_online.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/memory_stats.h>
@@ -127,12 +127,12 @@ static void drain(run* R)
     }
 }
 
-static void rotate(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Config)
+static void rotate(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Config)
 {
     xfuture* Future=NULL;
-    require(xmqttStoreWriteCompactAsync(Writer,Config,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
+    require(mqttExampleCompactAsync(Writer,Config,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(Future,10000)==XWAIT_OK,"submit APP maintenance at the transaction cap");
-    const xmqttstorecompactresult* Result=xrtFutureValue(Future);
+    const xmqttstorecheckpointresult* Result=xrtFutureValue(Future);
     require(Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED&&
         Result->Sequence==1,"compact to one durable session checkpoint");
     xrtFutureDestroy(Future);
@@ -275,8 +275,8 @@ int main(int Argc,char** Argv)
     xmqttstorewrite* Writer=NULL;
     require(Pool&&xmqttStoreWriteCreate(Pool,Journal,State,&Config,&Writer),"create bounded Store Writer");
     establish(Writer,&SC.Delta);
-    xmqttstorecompactconfig Compact;
-    require(xmqttStoreCompactConfigInit(&Compact),"initialize APP maintenance");
+    mqttExampleCompactConfig Compact;
+    mqttExampleCompactConfigInit(&Compact);
     Compact.MinReclaimBytes=1;
     Compact.MaxEntries=1;
     Compact.MaxScratchBytes=256;

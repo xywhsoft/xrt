@@ -1,4 +1,5 @@
 #include "test.h"
+#include "../examples/common/store_compact_online.h"
 #include "../examples/common/journal_files.h"
 #include "../examples/common/client_peer.h"
 
@@ -119,24 +120,24 @@ static xmqttstorewriteinfo current(xmqttstorewrite* W)
     check(xmqttStoreWriteInfo(W,&Info),"snapshot active writer");
     return Info;
 }
-static xfuture* compact(xmqttstorewrite* W,const xmqttstorecompactconfig* C)
+static xfuture* compact(xmqttstorewrite* W,const mqttExampleCompactConfig* C)
 {
     xfuture* F=NULL;
     double End=xrtTimer()+5;
     xmqttjournaladmission A;
     do{
         check(xrtTimer()<End,"finite storage admission");
-        A=xmqttStoreWriteCompactAsync(W,C,10000,&F);
+        A=mqttExampleCompactAsync(W,C,10000,&F);
         if(A==XMQTT_JWORK_OVERLOADED)xrtSleep(1);
     }while(A==XMQTT_JWORK_OVERLOADED);
     check(A==XMQTT_JWORK_ACCEPTED&&F,"admit maintenance into existing FIFO");
     return F;
 }
-static const xmqttstorecompactresult* outcome(xfuture* F,xmqttcommitstatus Status,
+static const xmqttstorecheckpointresult* outcome(xfuture* F,xmqttcommitstatus Status,
     xmqttjournalstatus Storage,xmqttjournaleffect Effect)
 {
     check(xrtFutureWaitFor(F,10000)==XWAIT_OK,"maintenance completes physically");
-    const xmqttstorecompactresult* R=xrtFutureValue(F);
+    const xmqttstorecheckpointresult* R=xrtFutureValue(F);
     if(R&&(R->Status!=Status||R->StorageStatus!=Storage||R->Effect!=Effect))
         fprintf(stderr,"maintenance result %d/%d/%d, wanted %d/%d/%d\n",
             (int)R->Status,(int)R->StorageStatus,(int)R->Effect,(int)Status,(int)Storage,(int)Effect);
@@ -205,8 +206,8 @@ static void connected(xmqttversion V)
         "hold pending delivery lease across rotation");
     uint64 FirstKey=View.Key;
 
-    xmqttstorecompactconfig C;
-    xmqttStoreCompactConfigInit(&C);
+    mqttExampleCompactConfig C;
+    mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;C.MaxScratchBytes=512;
     C.MaxEntries=0;
     xfuture* F=compact(X.Writer,&C);
@@ -243,7 +244,7 @@ static void connected(xmqttversion V)
     xrtAtomic32Store(&onlineReleased,1,XMEMORY_RELEASE);
     xrtAtomic32Store(&onlineHook,0,XMEMORY_RELEASE);
 #endif
-    const xmqttstorecompactresult* Cut=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_DONE,XMQTT_JOURNAL_COMMITTED);
+    const xmqttstorecheckpointresult* Cut=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_DONE,XMQTT_JOURNAL_COMMITTED);
     check(Cut->PreviousGeneration==1&&Cut->Generation==2&&Cut->Sequence==2&&Cut->PreviousBytes>Cut->Bytes,
         "publish exact smaller checkpoint and keep generation-local sequence");
     check(xrtFutureWaitFor(Ack,10000)==XWAIT_OK,"later ACK retires");
@@ -252,7 +253,7 @@ static void connected(xmqttversion V)
     xrtFutureDestroy(Ack);
     C.MinReclaimBytes=UINT64_MAX;
     xfuture* Skip=compact(X.Writer,&C);
-    const xmqttstorecompactresult* Empty=outcome(Skip,XMQTT_COMMIT_OK,XMQTT_JOURNAL_EMPTY,XMQTT_JOURNAL_NOT_COMMITTED);
+    const xmqttstorecheckpointresult* Empty=outcome(Skip,XMQTT_COMMIT_OK,XMQTT_JOURNAL_EMPTY,XMQTT_JOURNAL_NOT_COMMITTED);
     xmqttstorewriteinfo BeforeNext=current(X.Writer);
     check(Empty->Generation==2&&Empty->Sequence==3&&BeforeNext.Worker.Journal.Sequence==3,
         "insufficient byte reduction preserves the cut");
@@ -273,12 +274,46 @@ static void connected(xmqttversion V)
     xrtFutureDestroy(F);
     end(&X);
 }
+static xmqttjournalstatus stageWithoutPublishing(xmqttstorecheckpointcut* Cut,
+    uint64 CurrentBytes,uint64 CurrentDataBytes,uint64 User)
+{
+    check(CurrentDataBytes>0&&User==17,"callback receives the selected cut and copied APP input");
+    check(xmqttStoreCheckpointPublish(Cut)==XMQTT_JOURNAL_STATE,"require staging before publishing");
+    uint64 Projected=0;
+    check(xmqttStoreCheckpointMeasure(Cut,&Projected)==XMQTT_JOURNAL_DONE&&Projected<CurrentBytes,
+        "measure a smaller equivalent Journal");
+    check(xmqttStoreCheckpointStage(Cut)==XMQTT_JOURNAL_DONE,"stage without authorizing publication");
+    check(xmqttStoreCheckpointStage(Cut)==XMQTT_JOURNAL_STATE,"refuse a second staging attempt");
+    return XMQTT_JOURNAL_EMPTY;
+}
+
+static void abandonStaged(void)
+{
+    onlinefixture X={0};
+    begin(&X,XMQTT_VERSION_5,false,true,0);
+    xmqttstorewriteinfo Before=current(X.Writer);
+    xmqttstorecheckpointrequest Request={
+        sizeof(Request),512,4,stageWithoutPublishing,17
+    };
+    xfuture* F=NULL;
+    check(xmqttStoreWriteCheckpointAsync(X.Writer,&Request,10000,&F)==XMQTT_JWORK_ACCEPTED,
+        "queue APP-controlled checkpoint");
+    Request.User=18;
+    const xmqttstorecheckpointresult* Result=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_EMPTY,XMQTT_JOURNAL_NOT_COMMITTED);
+    check(Result->Generation==1&&Result->Sequence==Before.Worker.Journal.Sequence&&
+        Result->Bytes==Before.Worker.Journal.CommittedEnd&&!current(X.Writer).Worker.Failed,
+        "return without Publish leaves the original Writer selected");
+    xrtFutureDestroy(F);
+    check(reopen(&X,1).Transactions==Before.State.Transactions,"reopen the old generation after explicit abandonment");
+    end(&X);
+}
+
 static void expired(void)
 {
     onlinefixture X={0};
     begin(&X,XMQTT_VERSION_5,true,false,0);
-    xmqttstorecompactconfig C;
-    xmqttStoreCompactConfigInit(&C);
+    mqttExampleCompactConfig C;
+    mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;
     xfuture* F=compact(X.Writer,&C);
     outcome(F,XMQTT_COMMIT_INVALID,XMQTT_JOURNAL_STATE,XMQTT_JOURNAL_NOT_COMMITTED);
@@ -302,8 +337,8 @@ static void uncertain(xmqttversion V)
 {
     onlinefixture X={0};
     begin(&X,V,false,false,0);
-    xmqttstorecompactconfig C;
-    xmqttStoreCompactConfigInit(&C);
+    mqttExampleCompactConfig C;
+    mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;
     xrtAtomic32Store(&onlineHook,3,XMEMORY_RELEASE);
     xrtAtomic32Store(&onlineWrites,0,XMEMORY_RELEASE);
@@ -313,10 +348,36 @@ static void uncertain(xmqttversion V)
     check(current(X.Writer).Worker.Failed&&current(X.Writer).Worker.Closed,
         "ambiguous selector physically fences future admissions");
     xfuture* Unchanged=NULL;
-    check(xmqttStoreWriteCompactAsync(X.Writer,&C,1000,&Unchanged)==XMQTT_JWORK_CLOSED&&!Unchanged,
+    check(mqttExampleCompactAsync(X.Writer,&C,1000,&Unchanged)==XMQTT_JWORK_CLOSED&&!Unchanged,
         "fenced owner refuses further replacement");
     check(reopen(&X,2).Transactions==0,"first durable selector recovers new empty cut");
     xrtFutureDestroy(F);
+
+    xmqttjournal* Journal=NULL;
+    xmqttstorestate* State=NULL;
+    xmqttstorewriteconfig Config;
+    xmqttStoreWriteConfigInit(&Config);
+    check(xmqttJournalSlotOpenCurrent(X.Slot,&Journal)==XMQTT_JOURNAL_DONE&&
+        xmqttStoreStateRecover(Journal,&X.State,&State)==XMQTT_STORE_DONE&&
+        xmqttStoreWriteCreate(X.Pool,Journal,State,&Config,&X.Writer),
+        "start Writer on the selected generation with a stale selector witness");
+    unsigned char Buffer[128];
+    size_t Bytes=0;
+    F=NULL;
+    check(xmqttStoreDeltaWrite(&X.State.Delta,NULL,0,NULL,0,Buffer,sizeof(Buffer),&Bytes)==XMQTT_STORE_DELTA_DONE&&
+        xmqttStoreWriteAppendAsync(X.Writer,(xbytesview){Buffer,Bytes},10000,&F)==XMQTT_JWORK_ACCEPTED&&
+        xrtFutureWaitFor(F,10000)==XWAIT_OK,"append a batch eligible for another checkpoint");
+    check(((const xmqttcommitresult*)xrtFutureValue(F))->Effect==XMQTT_JOURNAL_COMMITTED,"batch committed");
+    xrtFutureDestroy(F);
+
+    xrtAtomic32Store(&onlineHook,4,XMEMORY_RELEASE);
+    F=compact(X.Writer,&C);
+    outcome(F,XMQTT_COMMIT_STORAGE,XMQTT_JOURNAL_IO,XMQTT_JOURNAL_NOT_COMMITTED);
+    xrtAtomic32Store(&onlineHook,0,XMEMORY_RELEASE);
+    check(current(X.Writer).Worker.Failed&&current(X.Writer).Worker.Closed,
+        "failed selector repair fences the current Writer");
+    xrtFutureDestroy(F);
+    check(reopen(&X,2).Transactions==1,"selected history survives a failed selector repair");
     end(&X);
 }
 #endif
@@ -349,13 +410,13 @@ static void explicitPressure(xmqttversion Version,onlinequota Quota,uint64 FileB
         Refused.State.Inbox==1&&!Refused.Worker.Closed,
         "selected history and pending delivery survive the refusal");
 
-    xmqttstorecompactconfig C;
-    xmqttStoreCompactConfigInit(&C);
+    mqttExampleCompactConfig C;
+    mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;
     C.MaxScratchBytes=512;
     C.MaxEntries=4;
     F=compact(X.Writer,&C);
-    const xmqttstorecompactresult* Rotation=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_DONE,XMQTT_JOURNAL_COMMITTED);
+    const xmqttstorecheckpointresult* Rotation=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_DONE,XMQTT_JOURNAL_COMMITTED);
     check(Rotation->PreviousGeneration==1&&Rotation->Generation==2&&
         Rotation->Sequence==2&&Rotation->Bytes<Rotation->PreviousBytes,
         "the explicit APP operation reclaims capacity");
@@ -382,6 +443,7 @@ int main(void)
     connected(XMQTT_VERSION_5);
     connected(XMQTT_VERSION_311);
     expired();
+    abandonStaged();
     for(unsigned I=0;I<2;++I){
         xmqttversion V=I?XMQTT_VERSION_311:XMQTT_VERSION_5;
         explicitPressure(V,QUOTA_NONE,14350);
@@ -391,11 +453,11 @@ int main(void)
         explicitPressure(V,QUOTA_TRANSACTIONS,14350);
     }
     puts("[PASS] storage quotas refuse without rotation, APP compaction and one ACK retry");
-    puts("[PASS] online native rotation on the same TCP connection, Inbox lease, FIFO and expiry");
+    puts("[PASS] online APP rotation on the same TCP connection, pending delivery, FIFO and expiry");
 #if defined(TEST_ONLINE_FAULTS)
     uncertain(XMQTT_VERSION_5);
     uncertain(XMQTT_VERSION_311);
-    puts("[PASS] online checkpoint cancellation, inactive I/O and uncertain selector fencing");
+    puts("[PASS] online checkpoint cancellation, inactive I/O, selector publication and repair fencing");
 #endif
 #else
     puts("[SKIP] native store compaction requires Windows or Linux");

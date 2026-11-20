@@ -1,23 +1,28 @@
-# Online MQTT store compaction
+# APP-driven online MQTT store compaction
 
-`xmqttStoreWriteCompactAsync` inserts a maintenance operation into the existing
-Store Writer FIFO. The same Writer and Client connection remain active. The
-host storage task serializes durable writes while the network engine handles
-transport work. A later operation that needs a durable acknowledgement waits
-behind the checkpoint in the bounded FIFO.
+The [APP compaction helper](../examples/common/store_compact_online.h)
+queues an explicit operation on the Store Writer FIFO with
+`xmqttStoreWriteCheckpointAsync`. The callback runs on the storage task at
+a committed boundary. The same Writer and Client connection remain active,
+and later durable work waits behind the callback in the bounded FIFO.
 
-The selected Journal borrows a data file from the Slot. The compactor measures the replacement
-from the in-memory durable model before writing. It skips a generation switch
-when the resulting selected file would save too little space. Entry count and
-scratch capacity are separately bounded. The scan does not replay old
-transactions or allocate a second model. Writing copies the retained packets once
-into bounded blocks and uses the ordinary Journal barriers. The APP keeps both
-data handles and the control handle open across the switch.
+The APP compares the selected size to its recovery threshold, then calls
+`xmqttStoreCheckpointMeasure` to obtain the projected framed size. If the
+estimated reduction is sufficient, it calls `xmqttStoreCheckpointStage` and
+then `xmqttStoreCheckpointPublish`. The APP can leave the original
+generation selected by returning before publication. The checkpoint cut
+lives only for the callback and cannot be used by another task.
+
+The checkpoint uses the in-memory durable model to bound measurement and
+scratch by the request limits. It copies retained packets into bounded
+blocks and uses the ordinary Journal barriers. The APP keeps both data
+handles and the control handle open across the switch.
 
 After selector sync the Writer swaps its Journal and continues with the new
 generation's physical sequence. Previous results retain their original values.
 An inactive-file write failure leaves the old Writer usable. Unknown publication
-effect fences it. Retire the Client and Writer, then reopen the slot to resolve
+effect or failed selector witness repair fences it. Retire the Client and
+Writer, then reopen the slot to resolve
 the selected generation. When recovery dropped expired protocol state locally,
 a durable reset must commit before an online checkpoint can replace that
 history. The offline recovery path preserves the raw expiry state.
@@ -52,8 +57,8 @@ submit one compaction when needed. The capacity benchmark drains its own
 foreground requests and compacts at the configured transaction limit.
 
 Storage quota exhaustion completes the original request with
-`XMQTT_COMMIT_LIMIT` and `XMQTT_JOURNAL_NOT_COMMITTED`. The library schedules
-maintenance only through a separate explicit request. After a successful
+`XMQTT_COMMIT_LIMIT` and `XMQTT_JOURNAL_NOT_COMMITTED`. The APP submits
+maintenance through a separate explicit request. After a successful
 compaction, the APP can retry its own definitely uncommitted operation under
 its remaining deadline. A definitely uncommitted retirement leaves the record
 pending for the APP to retry. If selection is uncertain, reopen and resolve the selected

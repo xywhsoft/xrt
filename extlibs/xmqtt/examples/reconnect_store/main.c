@@ -1,10 +1,10 @@
 #include <xmqtt/reconnect_store.h>
 #include <xrt/memory.h>
 #include <xrt/time.h>
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE) && defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #define RECONNECT_EXAMPLE_COMPACT
 #include "../common/journal_files.h"
-#include <xmqtt/store_compact_online.h>
+#include "../common/store_compact_online.h"
 #include <xmqtt/store_session.h>
 #include <errno.h>
 #endif
@@ -224,12 +224,12 @@ static bool compactHistory(xmqttclient* Client)
     return true;
 }
 
-static bool compactManual(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
-    xmqttstorecompactresult* Selection)
+static bool compactManual(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Compact,
+    xmqttstorecheckpointresult* Selection)
 {
     xfuture* Future=NULL;
-    if(xmqttStoreWriteCompactAsync(Writer,Compact,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return false;
-    const xmqttstorecompactresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
+    if(mqttExampleCompactAsync(Writer,Compact,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return false;
+    const xmqttstorecheckpointresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
     if(Result){
         *Selection=*Result;
         Selection->Cause=NULL;
@@ -239,8 +239,8 @@ static bool compactManual(xmqttstorewrite* Writer,const xmqttstorecompactconfig*
     return Done;
 }
 
-static bool compactAutomatic(xmqttstorewrite* Writer,const xmqttstorecompactconfig* Compact,
-    xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecompactresult* Selection)
+static bool compactAutomatic(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Compact,
+    xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecheckpointresult* Selection)
 {
     /* In the capacity scenario the APP opens room before releasing its
      * next input. Its store configuration supplies the fixture's limit. */
@@ -303,12 +303,12 @@ static void compactCut(xmqttstorewrite* Writer,xfuture* Publish,bool Auto,bool P
     if(!xmqttStoreWriteInfo(Writer,&Info)||!Info.State.LiveAtCut||Info.State.Outgoing!=1||
        xmqttStoreWriteRead(Writer,Info.State.LastKey,Packet,sizeof(Packet),&Outgoing,&Bytes)!=XMQTT_STORE_DONE||
        Outgoing.Qos!=2||!Outgoing.Attempted)return;
-    xmqttstorecompactconfig Config;
-    xmqttStoreCompactConfigInit(&Config);
+    mqttExampleCompactConfig Config;
+    mqttExampleCompactConfigInit(&Config);
     Config.MinReclaimBytes=1;
     Config.MaxEntries=4;
     Config.MaxScratchBytes=1024;
-    xmqttstorecompactresult Result={0};
+    xmqttstorecheckpointresult Result={0};
     bool Selected=Auto?compactAutomatic(Writer,&Config,Publish,Pressure,InboxKey,&Result):compactManual(Writer,&Config,&Result);
     bool Held=Selected&&Result.Status==XMQTT_COMMIT_OK&&Result.Effect==XMQTT_JOURNAL_COMMITTED&&
        Result.PreviousGeneration==1&&Result.Generation==2&&Result.Sequence==2&&Result.Bytes<Result.PreviousBytes&&

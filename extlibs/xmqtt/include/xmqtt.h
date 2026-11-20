@@ -50,10 +50,10 @@
 #include <xmqtt/store_delta.h>
 #include <xmqtt/store_state.h>
 #include <xmqtt/store_checkpoint.h>
-#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE"
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE"
 #endif
-#include <xmqtt/store_compact_online.h>
+#include <xmqtt/store_checkpoint_online.h>
 #include <xmqtt/store_session.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #error "MQTT root requires store Session import"

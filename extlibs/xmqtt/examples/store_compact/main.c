@@ -1,5 +1,7 @@
-#include <xmqtt/store_compact_online.h>
 #include "../common/store_compact.h"
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+#include "../common/store_compact_online.h"
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -44,7 +46,7 @@ static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
     return Good;
 }
 
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bool Auto)
 {
     xmqttjournal* J=NULL;
@@ -67,12 +69,12 @@ static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bo
         if(!xmqttStoreWriteInfo(W,&Info))goto Done;
         if(Info.Worker.Journal.CommittedEnd<TriggerBytes){Good=true;goto Done;}
     }
-    xmqttstorecompactconfig C;
-    xmqttStoreCompactConfigInit(&C);
+    mqttExampleCompactConfig C;
+    mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;
-    if(xmqttStoreWriteCompactAsync(W,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
+    if(mqttExampleCompactAsync(W,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
        xrtFutureWaitFor(F,10000)!=XWAIT_OK)goto Done;
-    const xmqttstorecompactresult* R=xrtFutureValue(F);
+    const xmqttstorecheckpointresult* R=xrtFutureValue(F);
     Good=R&&R->Status==XMQTT_COMMIT_OK&&
         (R->Effect==XMQTT_JOURNAL_COMMITTED||
          (Auto&&R->StorageStatus==XMQTT_JOURNAL_EMPTY&&R->Effect==XMQTT_JOURNAL_NOT_COMMITTED));
@@ -89,7 +91,7 @@ Done:
 int main(int Argc,char** Argv)
 {
     if(Argc==1){
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
         puts("Usage: examples_store_compact_main create|compact|online|auto|read DIRECTORY");
 #else
         puts("Usage: examples_store_compact_main create|compact|read DIRECTORY");
@@ -99,7 +101,7 @@ int main(int Argc,char** Argv)
     if(Argc!=3)return 2;
     bool Create=!strcmp(Argv[1],"create"),Compact=!strcmp(Argv[1],"compact");
     bool Online=false,Auto=false;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     Online=!strcmp(Argv[1],"online");
     Auto=!strcmp(Argv[1],"auto");
 #endif
@@ -122,7 +124,7 @@ int main(int Argc,char** Argv)
         OK=xmqttJournalSlotInfo(Slot,&I);
         if(OK){
             C.Generation=I.Generation;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
             if(Online||Auto)OK=online(Slot,&C,Auto);else
 #endif
             OK=mqttExampleCompactStore(Slot,&C,256)==XMQTT_JOURNAL_DONE;

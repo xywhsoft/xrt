@@ -18005,3 +18005,36 @@ Ordinary maturity passes. Strict release still reports 40 developing
 MQTT modules. Online compaction still runs on the library Writer FIFO.
 Its extraction, native Linux qualification, controlled throughput and
 tail-latency comparisons and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT APP ownership of online compaction
+
+The APP callback decides the minimum reclaim, measures the framed
+checkpoint, stages it and explicitly publishes it. The optional online
+checkpoint API runs this callback at an existing Store Writer FIFO
+boundary. It borrows an ephemeral cut for that callback and keeps the
+same Client connection and Writer. A committed selector rebases the
+Writer before the next request. The library still provides the bounded
+checkpoint codec, two-generation selector and ownership transfer.
+
+Explicit abandonment leaves the selected history in use. A definite
+inactive-file write failure keeps the Writer usable. Uncertain selector
+publication and a failed repair of a stale selector witness fence the
+Writer. The initial split omitted the repair failure fence. The new
+regression reproduced that omission. The final tests verify the fence
+and cold recovery of the exact selected prefix in both MQTT versions.
+
+Windows x64 and Ubuntu under WSL each passed six suites with 44 modular,
+single-header and example binaries, four capacity smoke cases, and
+static/shared verification. Each platform ran the offline-only example.
+The current and previous APPs read each other's online checkpoints and
+produced identical bytes in all three files. The current automatic APP
+path produced the same files. WSL ASan/UBSan with leak detection and TSan
+passed the online fault suite, including cancellation, explicit
+abandonment and selector repair failure.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-online-compaction/`.
+Ordinary maturity passes. Strict release still reports 40 developing
+MQTT modules. Moving the two-generation selector to the APP, native
+Linux qualification, controlled throughput and tail-latency comparisons,
+and 72-hour mixed loads remain open.

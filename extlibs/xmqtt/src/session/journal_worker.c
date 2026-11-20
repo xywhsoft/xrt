@@ -1,5 +1,5 @@
 #include <xmqtt/journal_worker.h>
-#include "../internal/xmqtt_store_compact_online.h"
+#include "../internal/xmqtt_store_checkpoint_online.h"
 #include "../internal/xmqtt_journal_worker.h"
 #include "../internal/xmqtt_store_write.h"
 #include <xrt/atomic.h>
@@ -15,16 +15,16 @@ typedef struct xmqttjwitem {
     xmqttjournalworker* Owner;size_t Allocation;double Deadline;xpromise* Promise;xcancel* Cancel;
     xmqttcommitresult Result;
 } xmqttjwitem;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-typedef struct xmqttjwcompact {
-    xmqttstorecompactconfig Config;
-    xmqttstorecompactresult Result;
-} xmqttjwcompact;
-#define XMQTT_JW_COMPACT_PARAM ,const xmqttstorecompactconfig* Compact
-#define XMQTT_JW_COMPACT_ARG(C) ,C
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+typedef struct xmqttjwcheckpoint {
+    xmqttstorecheckpointrequest Request;
+    xmqttstorecheckpointresult Result;
+} xmqttjwcheckpoint;
+#define XMQTT_JW_CHECKPOINT_PARAM ,const xmqttstorecheckpointrequest* Checkpoint
+#define XMQTT_JW_CHECKPOINT_ARG(C) ,C
 #else
-#define XMQTT_JW_COMPACT_PARAM
-#define XMQTT_JW_COMPACT_ARG(C)
+#define XMQTT_JW_CHECKPOINT_PARAM
+#define XMQTT_JW_CHECKPOINT_ARG(C)
 #endif
 typedef struct xmqttjwpump {
     struct xmqttjwpump* Next;xmqttjournalworker* Owner;xfuture* Future;bool Ran,Dropped;
@@ -101,9 +101,9 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
     /* Only this owner can complete P. Publication invokes arbitrary watches
      * outside Gate; their retained result still owns the exact object credits. */
     ptr Value=&J->Result;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
     if(!J->Result.Data.Data){
-        xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
+        xmqttjwcheckpoint* C=(xmqttjwcheckpoint*)(J+1);
         C->Result.Status=J->Result.Status;
         C->Result.Cause=J->Result.Cause;
         Value=&C->Result;
@@ -112,14 +112,14 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
     if(!xrtPromiseResolveOwned(P,Value,xmqttJWResultFree,J))abort();
     xrtPromiseDestroy(P); /* may free J: no access afterwards */
 }
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 typedef struct xmqttjwstop {
     xmqttjournalworker* Worker;
     xmqttjwitem* Item;
     xcancel* Native;
 } xmqttjwstop;
 
-static bool xmqttJWStopCompact(ptr Context)
+static bool xmqttJWStopCheckpoint(ptr Context)
 {
     const xmqttjwstop* S=Context;
     xrtMutexLock(&S->Worker->Gate);
@@ -127,15 +127,15 @@ static bool xmqttJWStopCompact(ptr Context)
     xrtMutexUnlock(&S->Worker->Gate);
     return Stop;
 }
-static void xmqttJWCompact(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,
-    const xmqttstorecompactconfig* Config,xmqttstorecompactresult* Result,xmqttjournalinfo After)
+static void xmqttJWCheckpoint(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Native,
+    const xmqttstorecheckpointrequest* Request,xmqttstorecheckpointresult* Result,xmqttjournalinfo After)
 {
     xerror* Saved=NULL;
     bool LocalFailure=!xrtTrySwapErrorTake(NULL,&Saved);
     xmqttjournalstatus Status=XMQTT_JOURNAL_ERROR;
     if(!LocalFailure){
         xmqttjwstop Stop={W,J,Native};
-        Status=xmqttInternalStoreCompactWork(W->Store,&W->Journal,W,Config,xmqttJWStopCompact,&Stop,Result);
+        Status=xmqttInternalStoreCheckpointWork(W->Store,&W->Journal,W,Request,xmqttJWStopCheckpoint,&Stop,Result);
         if(!xmqttInternalJournalWorkerInfo(W->Journal,W,&After))abort();
         if(Status>=XMQTT_JOURNAL_EMPTY){
             xerror* Discard=NULL;
@@ -206,11 +206,11 @@ static xtaskoutcome xmqttJWPump(xcancel* Cancel,ptr Data,xtaskvalue* Value)
         }
         W->Head=J->Next;if(!W->Head)W->Tail=NULL;--W->Info.Queued;W->Info.Busy=true;
         J->Result.Status=xmqttJWStop(W,J,Cancel);xmqttjournalinfo Before=W->Info.Journal;xrtMutexUnlock(&W->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
         if(!J->Result.Data.Data){
             if(J->Result.Status==XMQTT_COMMIT_OK){
-                xmqttjwcompact* C=(xmqttjwcompact*)(J+1);
-                xmqttJWCompact(W,J,Cancel,&C->Config,&C->Result,Before);
+                xmqttjwcheckpoint* C=(xmqttjwcheckpoint*)(J+1);
+                xmqttJWCheckpoint(W,J,Cancel,&C->Request,&C->Result,Before);
                 J->Result.Status=C->Result.Status;
                 J->Result.Effect=C->Result.Effect;
                 J->Result.Cause=C->Result.Cause;
@@ -252,7 +252,7 @@ XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,co
     *Out=W;return true;
 }
 static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out
-    XMQTT_JW_COMPACT_PARAM
+    XMQTT_JW_CHECKPOINT_PARAM
 )
 {
     if(!W||isnan(Deadline)||!xmqttJWSpan(Data.Data,Data.Size)||!xmqttJWSpan(Out,sizeof(*Out))||!xmqttJWSeparate(Out,sizeof(*Out),Data.Data,Data.Size)){
@@ -264,14 +264,14 @@ static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Da
     if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
     if(Data.Size>W->Config.MaxTransactionBytes||Data.Size>SIZE_MAX-sizeof(*J)||W->Info.Requests>=W->Config.MaxRequests||W->Info.Objects>=W->Config.MaxObjects||W->Info.Scheduling||!W->Config.WorkTransactions||(W->Running&&W->TurnAccepted>=W->Config.WorkTransactions))goto Overload;
     N=sizeof(*J)+Data.Size;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-    if(Compact)N=sizeof(*J)+sizeof(xmqttjwcompact);
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+    if(Checkpoint)N=sizeof(*J)+sizeof(xmqttjwcheckpoint);
 #endif
     if(N>W->Config.MaxBytes-W->Info.Bytes)goto Overload;
     ++W->Info.Requests;++W->Info.Objects;W->Info.Bytes+=N;xmqttJWRef(W);Reserved=true;xrtMutexUnlock(&W->Gate);
     J=xrtCalloc(1,N);if(!J)goto End;J->Owner=W;J->Allocation=N;J->Deadline=Deadline;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-    if(Compact)((xmqttjwcompact*)(J+1))->Config=*Compact;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+    if(Checkpoint)((xmqttjwcheckpoint*)(J+1))->Request=*Checkpoint;
     else
 #endif
     {
@@ -315,17 +315,17 @@ XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker
     double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
     if(Timeout<XRT_WAIT_FOREVER){xmqttJWError(XERR_ARGUMENT,"invalid append timeout");return XMQTT_JWORK_ERROR;}
     return xmqttJWAppendAt(W,Data,Deadline,Out
-        XMQTT_JW_COMPACT_ARG(NULL)
+        XMQTT_JW_CHECKPOINT_ARG(NULL)
     );
 }
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out)
-{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_JW_COMPACT_ARG(NULL));}
+{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_JW_CHECKPOINT_ARG(NULL));}
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjournalworker* W,
-    const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out)
-{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_JW_COMPACT_ARG(Config));}
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCheckpointSubmit(xmqttjournalworker* W,
+    const xmqttstorecheckpointrequest* Request,double Deadline,xfuture** Out)
+{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_JW_CHECKPOINT_ARG(Request));}
 #endif
 XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
 {

@@ -172,7 +172,7 @@
         "xmqtt_reconnect_store",
         "xmqtt_journal_slot",
         "xmqtt_store_checkpoint",
-        "xmqtt_store_compact_online"
+        "xmqtt_store_checkpoint_online"
       ],
       "public_headers": [
         "extlibs/xmqtt/include/xmqtt.h",
@@ -2984,19 +2984,19 @@
       "docs": []
     },
     {
-      "name": "xmqtt_store_compact_online",
+      "name": "xmqtt_store_checkpoint_online",
       "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE",
+      "feature": "XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE",
       "depends": [
         "xmqtt_store_checkpoint",
         "xmqtt_journal_slot",
         "xmqtt_store_write"
       ],
       "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/store_compact_online.h"
+        "extlibs/xmqtt/include/xmqtt/store_checkpoint_online.h"
       ],
       "internal_headers": [
-        "extlibs/xmqtt/src/internal/xmqtt_store_compact_online.h"
+        "extlibs/xmqtt/src/internal/xmqtt_store_checkpoint_online.h"
       ],
       "sources": [],
       "tests": [],
@@ -3014,7 +3014,7 @@
       "depends": [
         "file_root",
         "file_lock",
-        "xmqtt_store_compact_online",
+        "xmqtt_store_checkpoint_online",
         "xmqtt_client_store",
         "dir_temp",
         "memory_stats"

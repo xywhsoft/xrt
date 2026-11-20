@@ -1,5 +1,5 @@
 #include <xmqtt/store_write.h>
-#include "../internal/xmqtt_store_compact_online.h"
+#include "../internal/xmqtt_store_checkpoint_online.h"
 #include "../internal/xmqtt_journal_worker.h"
 #include "../internal/xmqtt_store_write.h"
 #include "../internal/xmqtt_client_store.h"
@@ -231,42 +231,36 @@ static bool xmqttSWUnclaimed(xmqttstorewrite* W)
     return OK?true:xmqttSWError(XERR_STATE,"Client or controller owns store writer until physical destruction");
 }
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
-XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config)
-{
-    if(!xmqttSWSpan(Config,sizeof(*Config)))return xmqttSWError(XERR_ARGUMENT,"invalid compaction config output");
-    *Config=(xmqttstorecompactconfig){sizeof(*Config),1048576,1024,65536};
-    return true;
-}
-XMQTT_API xmqttjournaladmission xmqttStoreWriteCompactAsync(xmqttstorewrite* W,
-    const xmqttstorecompactconfig* Config,int64 Timeout,xfuture** Future)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
+XMQTT_API xmqttjournaladmission xmqttStoreWriteCheckpointAsync(xmqttstorewrite* W,
+    const xmqttstorecheckpointrequest* Request,int64 Timeout,xfuture** Future)
 {
     double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
-    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttSWSpan(Config,sizeof(*Config))||Config->Size!=sizeof(*Config)||
-       !xmqttSWSeparate(Config,sizeof(*Config),Future,sizeof(*Future))){
-        xmqttSWError(XERR_ARGUMENT,"invalid compaction config, timeout or Future");
+    if(!W||Timeout<XRT_WAIT_FOREVER||!xmqttSWSpan(Request,sizeof(*Request))||Request->Size!=sizeof(*Request)||!Request->Apply||
+       !xmqttSWSeparate(Request,sizeof(*Request),Future,sizeof(*Future))){
+        xmqttSWError(XERR_ARGUMENT,"invalid checkpoint request, timeout or Future");
         return XMQTT_JWORK_ERROR;
     }
     if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
     bool Valid=xmqttSWOutput(W,Future,sizeof(*Future));
     xrtMutexUnlock(&W->Gate);
     if(!Valid){
-        xmqttSWError(XERR_ARGUMENT,"compaction Future overlaps owned state");
+        xmqttSWError(XERR_ARGUMENT,"checkpoint Future overlaps owned state");
         return XMQTT_JWORK_ERROR;
     }
-    return xmqttInternalJournalCompactSubmit(W->Worker,Config,Deadline,Future);
+    return xmqttInternalJournalCheckpointSubmit(W->Worker,Request,Deadline,Future);
 }
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCompactWork(xmqttstorewrite* W,
-    xmqttjournal** Journal,const void* Owner,const xmqttstorecompactconfig* Config,
-    xmqttcompactstop Stop,ptr StopContext,xmqttstorecompactresult* Result)
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointWork(xmqttstorewrite* W,
+    xmqttjournal** Journal,const void* Owner,const xmqttstorecheckpointrequest* Request,
+    xmqttcheckpointstop Stop,ptr StopContext,xmqttstorecheckpointresult* Result)
 {
     if(!W||W->Pending)abort();
     xmqttcheckpointstats Stats={0};
-    xmqttjournalstatus Status=xmqttInternalStoreCompactModel(W->State,W,Journal,Owner,Config,Stop,StopContext,Result,&Stats);
+    xmqttjournalstatus Status=xmqttInternalStoreCheckpointModel(W->State,W,Journal,Owner,Request,Stop,StopContext,Result,&Stats);
     if(Result->Effect==XMQTT_JOURNAL_COMMITTED){
         xmqttjournalinfo J;
         if(!xmqttInternalJournalWorkerInfo(*Journal,Owner,&J)||!xrtMutexLock(&W->Gate))abort();
-        xmqttInternalStoreCompactRebase(W->State,W,&J,Result,&Stats);
+        xmqttInternalStoreCheckpointRebase(W->State,W,&J,Result,&Stats);
         if(!xrtMutexUnlock(&W->Gate))abort();
     }
     return Status;

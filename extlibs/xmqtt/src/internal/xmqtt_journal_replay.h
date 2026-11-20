@@ -9,7 +9,7 @@ XMQTT_INTERNAL bool xmqttJournalReplayStart(xmqttjournal* Journal,xmqttversion V
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT)
 XMQTT_INTERNAL size_t xmqttJournalCheckpointLimit(xmqttjournal* Journal,xmqttversion Version,xbytesview Binding);
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
+#if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 XMQTT_INTERNAL size_t xmqttJournalReplayTransactionLimit(const xmqttjournal* Journal);
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)

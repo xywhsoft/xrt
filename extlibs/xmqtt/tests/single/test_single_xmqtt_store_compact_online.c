@@ -1,4 +1,4 @@
-#define XMQTT_MODULE_XMQTT_STORE_COMPACT_ONLINE
+#define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT_ONLINE
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE
 #define XRT_MODULE_DIR_TEMP
 #define XRT_MODULE_MEMORY_STATS
@@ -21,6 +21,10 @@ static bool onlineWrite(xfile File,uint64 Offset,const void* Data,size_t Bytes,s
             if(xrtTimer()>=End){xrtSetErrorKind(XERR_TIMEOUT);return false;}
             xrtSleep(1);
         }
+    }
+    if(Mode==4&&Bytes==4096&&!memcmp(Data,"XMQSEL1",8)){
+        xrtSetErrorKind(XERR_IO);
+        return false;
     }
     if(Mode==3&&Bytes==4096&&!memcmp(Data,"XMQSEL1",8)&&
        xrtAtomic32FetchAdd(&onlineWrites,1,XMEMORY_ACQ_REL)==1){
