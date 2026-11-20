@@ -21367,3 +21367,27 @@ They provide call-frequency evidence. Dynamic OpenSSL internals and
 per-call CPU time are outside this measurement. Native Linux and strict
 release acceptance remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xredis-io-call-diagnostics/`.
+
+## 2026-11-21 Redis epoll single wake-read prototype
+
+The prototype returns after a successful read from the normal eventfd
+counter. The epoll registration is level-triggered. EINTR retry, empty
+counter and error handling follow the existing implementation.
+A WSL kernel check consumed all 160,000 writes from four concurrent
+producers and verified readiness for a write after an earlier read.
+
+The uninstrumented response and CPU runs verified 960,000 of
+960,000 offers. The API-count runs verified 384,000 of 384,000 offers.
+Both used the same eight-connection Redis mixed workload and exact
+server-side command accounting. The variant remains an isolated
+prototype pending the full XRT regression and repeatability checks.
+
+| Transport | Verified control / prototype | P99 control / prototype (us) | Process CPU per reply control / prototype (us) | Wake reads per 1,000 replies control / prototype |
+| --- | --- | --- | --- | --- |
+| TCP | 240,000 / 240,000 | 865.6 / 893.2 | 121.84 / 121.93 | 1928.9 / 964.1 |
+| TLS | 240,000 / 240,000 | 1283.2 / 1207.1 | 137.57 / 135.92 | 5876.4 / 3036.8 |
+
+The timing columns use complete matched loads in the clean builds. The
+separate API-count builds show the change in direct wake reads. Native
+Linux and strict release acceptance remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xredis-epoll-single-wake-read/`.
