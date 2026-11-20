@@ -67,7 +67,7 @@ python extlibs/xrpc/tests/interop/run_tcp_worker.py out/gcc/native/xrpc_examples
 
 The rate is per connection. CPU placement is inherited by the APP.
 The report keeps all repetitions and applies the 3% relative MAD and 6%
-central-range checks to throughput and P99. The test uses a bounded
+central-range checks to throughput, P99 and P99.9. The test uses a bounded
 one-job-per-connection APP and captures TCP, executor, and observer
 costs together.
 
@@ -140,6 +140,7 @@ window. Time behind earlier unsent groups is part of the offer delay. The observ
 precomputed wire sequence for each group. Within a split group, each reply
 takes the timestamp of the read that supplies its final byte. A JSON-RPC
 batch document supplies one timestamp for all calls in the document.
+The saturation summary checks variation across both P99 and P99.9.
 Compare tail medians only when the repeated samples meet the variation gate.
 
 The default framing sends a separate JSON-RPC record for each call.

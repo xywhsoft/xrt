@@ -654,7 +654,7 @@ def measure_concurrent(executable, report, calls, repeats, rate, cpus):
             report.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             raise
         entry["variation"] = {name: {metric: variation([run[name][metric] for run in runs])
-                                      for metric in ("calls_per_second", "p99_us")}
+                                      for metric in ("calls_per_second", "p99_us", "p999_us")}
                               for name in MODES}
         print(f"[measure] {connections} connections, {workers} workers, {repeats} verified pairs", flush=True)
         report.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -679,7 +679,7 @@ def measure_saturation(executable, report, args):
             "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
             "profiles": [], "complete": False}
-    metrics = ("calls_per_second", "p99_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
+    metrics = ("calls_per_second", "p99_us", "p999_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
     try:
         for rate in args.rates:
             runs = []
