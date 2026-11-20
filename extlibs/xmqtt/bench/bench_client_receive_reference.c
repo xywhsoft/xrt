@@ -14,6 +14,7 @@ typedef struct receiver {
     unsigned Qos, Count, Received;
     uint64* Latencies;
     xevent* Done;
+    bool DefaultTcp;
 } receiver;
 
 static void require(bool Ok, const char* Message)
@@ -188,7 +189,7 @@ static connection openReceiver(unsigned Port, unsigned Window, receiver* State)
     require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "xmqtt peer address");
     xmqttclientconfig Config;
     require(xmqttClientConfigInit(&Config), "xmqtt client config");
-    Config.Stream.NoDelay = false;
+    if (!State->DefaultTcp) Config.Stream.NoDelay = false;
     Config.Notify = notified;
     Config.User = State;
     xmqttpacket Connect;
@@ -246,10 +247,14 @@ int main(int Argc, char** Argv)
 {
     unsigned Port = xbenchArgU32(Argc, Argv, 1, 0), Count = xbenchArgU32(Argc, Argv, 2, 0);
     unsigned Window = xbenchArgU32(Argc, Argv, 3, 0), Qos = xbenchArgU32(Argc, Argv, 4, 0);
-    if (Argc != 5 || !Port || Port > 65535 || !Count || Count > 60000 || !Window || Window > 64 ||
+    bool DefaultTcp = false;
+#if !defined(XMQTT_BENCH_PAHO)
+    DefaultTcp = Argc == 6 && !strcmp(Argv[5], "--default-tcp");
+#endif
+    if ((Argc != 5 && !DefaultTcp) || !Port || Port > 65535 || !Count || Count > 60000 || !Window || Window > 64 ||
         (Qos != 1 && Qos != 2)) return 2;
     (void)xbenchNowNs();
-    receiver State = {.Qos = Qos, .Count = Count};
+    receiver State = {.Qos = Qos, .Count = Count, .DefaultTcp = DefaultTcp};
     State.Latencies = malloc(Count * sizeof(*State.Latencies));
     State.Done = xrtEventCreate(false, false);
     require(State.Latencies && State.Done, "observer storage");

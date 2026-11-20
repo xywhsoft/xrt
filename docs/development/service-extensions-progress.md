@@ -19550,3 +19550,47 @@ assets, API docs and ordinary maturity passed. Strict release reports
 [receiver comparison guide](../../extlibs/xmqtt/bench/README.md#mqtt-5-receiver-reference).
 Source and dependency hashes, builds, verification logs and reports
 are under `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-reference/`.
+
+## 2026-11-20 MQTT receiver TCP acknowledgement timing
+
+On Ubuntu/WSL x64, an isolated diagnostic build traced application delivery,
+completion of the socket send call, and peer receipt for the last PUBACK of
+each run. Both clients received 4,500 measured MQTT 5 QoS 1 messages at 3,000/s
+with Receive Maximum 16 and the same 128-message warm-up. Each of the five
+configurations passed seven measured repetitions and one process warm-up.
+
+With Nagle enabled, the last PUBACK took more than 20 ms from the send return
+to the peer in 7/7 xmqtt and 6/7 Paho repetitions. The 13 delays were
+40.1–43.8 ms. In each one, `TCP_INFO` reported four bytes still unsent and one
+unacknowledged segment after the call. The application had delivered the last
+message at most 5.4 us before that send returned. Keeping xmqtt's default
+`TCP_NODELAY` reduced its longest measured send-to-peer interval to 60.2 us.
+Requesting immediate TCP ACKs on the peer while keeping Nagle enabled gave
+maxima of 42.4 us for xmqtt and 45.4 us for Paho. These perturbations isolate
+the final PUBACK delay to TCP buffering under this fixture's socket settings.
+
+The receiver reference driver now exposes `--xmqtt-default-tcp` to retain
+the TCP setting from `xmqttClientConfigInit`. The matched run enables Nagle
+on both clients. The default-settings run uses `TCP_NODELAY` for xmqtt and
+the default Paho socket setting.
+
+Uninstrumented Windows x64 and Ubuntu/WSL x64 runs verified 252,000 measured
+deliveries and terminal acknowledgements across 56 samples, with eight
+separate process warm-ups. The table shows the median of seven repetitions
+per client and configuration for the same QoS 1 workload.
+
+| Host | TCP settings | Verified/s, xmqtt / Paho | APP P99 in us, xmqtt / Paho | Terminal P99 in us, xmqtt / Paho |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Matched | 3,000.6 / 3,000.6 | 247.7 / 291.7 | 352.1 / 391.9 |
+| Windows x64 | Defaults | 3,000.6 / 3,000.6 | 211.0 / 199.6 | 293.6 / 284.1 |
+| Ubuntu/WSL x64 | Matched | 2,917.8 / 3,000.5 | 142.5 / 131.8 | 471.8 / 202.7 |
+| Ubuntu/WSL x64 | Defaults | 3,000.5 / 2,917.4 | 137.4 / 138.6 | 210.5 / 453.2 |
+
+The latency series exceeded the variation limit in both settings. The probe
+explains the final PUBACK stall in the traced cases. Stable P99 measurements,
+standalone-broker receiver load, TLS, and native Linux validation remain open.
+Both platforms also verified a QoS 2 smoke run with the option enabled and
+rejected unsupported receiver arguments. Generated assets, API coverage and
+ordinary maturity passed. Strict release still reports 39 developing modules
+for xmqtt. Raw samples, binary and source hashes, gate logs and trace inputs are
+under `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-ack-tail/`.

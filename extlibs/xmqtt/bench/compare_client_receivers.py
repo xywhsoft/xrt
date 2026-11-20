@@ -121,7 +121,7 @@ def transfer(sock, qos, window, rate, count):
             **percentiles(from_send, "from_send")}
 
 
-def sample(executable, name, args):
+def sample(executable, name, args, *, xmqtt_default_tcp=False):
     row = {"client": name, "verified": False}
     process = None
     try:
@@ -130,6 +130,8 @@ def sample(executable, name, args):
             listener.listen(1)
             listener.settimeout(5)
             command = [str(executable), *map(str, (listener.getsockname()[1], args.count, args.window, args.qos))]
+            if name == "xmqtt" and xmqtt_default_tcp:
+                command.append("--default-tcp")
             process = start(command, args.client_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             connection, _ = listener.accept()
             with connection:
@@ -171,6 +173,8 @@ def main():
     parser.add_argument("--rate", type=int, required=True)
     parser.add_argument("--count", type=int, required=True)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--xmqtt-default-tcp", action="store_true",
+                        help="preserve xmqtt's default TCP settings for a deployment comparison")
     args = parser.parse_args()
     if not (1 <= args.rate <= 100000 and 1 <= args.count <= 60000 and
             args.count + WARMUP <= 15 * args.rate and 1 <= args.repeats <= 20):
@@ -185,6 +189,7 @@ def main():
     require(affinity(os.getpid()) == {args.peer_cpu}, "peer affinity")
     report = {"platform": platform.platform(), "mqtt": 5, "peer_cpu": args.peer_cpu,
               "client_cpus": sorted(args.client_cpus), "reference": "Paho C 1.3.15",
+              "xmqtt_default_tcp": args.xmqtt_default_tcp,
               "peer_clock": time.get_clock_info("perf_counter").implementation,
               "qos": args.qos, "window": args.window, "rate": args.rate, "count": args.count,
               "warmup": WARMUP, "payload_bytes": 32, "runs": [], "verified": False,
@@ -195,7 +200,7 @@ def main():
                          ROOT / "single/extlibs/xmqtt.h")]}
     for repeat in range(args.repeats + 1):
         for name in clients if repeat % 2 == 0 else reversed(clients):
-            run = sample(clients[name], name, args)
+            run = sample(clients[name], name, args, xmqtt_default_tcp=args.xmqtt_default_tcp)
             report["runs"].append(run | {"repeat": repeat, "warmup": repeat == 0})
             print(f"{name} repeat={repeat} verified={run['verified']} {run.get('error', '')}", flush=True)
         args.report.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")

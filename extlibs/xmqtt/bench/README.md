@@ -186,6 +186,12 @@ actual send attempt to terminal ACK, and sender scheduling lag. Both
 MQTT 5 clients can deliver to the APP before QoS 2 wire completion.
 Compare terminal ACK latency for the complete protocol exchange.
 
+The default comparison disables `TCP_NODELAY` on the xmqtt socket to match
+the Paho C build's socket setting. Add `--xmqtt-default-tcp` to keep the
+settings from `xmqttClientConfigInit`, which enable `TCP_NODELAY` through
+XRT. Paho keeps its default for both runs. The JSON report records this
+choice in `xmqtt_default_tcp`.
+
 Reuse the publisher comparison's compiler flags and pinned Paho builds.
 Add `-DXRT_MODULE_EVENT` for the receiver driver's completion event.
 
