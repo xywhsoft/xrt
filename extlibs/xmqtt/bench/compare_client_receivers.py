@@ -1,19 +1,23 @@
 """Compare MQTT 5 receivers against a paced wire peer or pinned standalone broker."""
 import argparse
-from contextlib import contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
+import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import platform
+import re
 import select
+import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
 import time
 
-from compare_broker import MOSQUITTO, affinity, fingerprint, noise, pin, start, stop, usage
+from compare_broker import MOSQUITTO, TLS_CIPHER, affinity, fingerprint, noise, pin, start, stop, usage
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -27,8 +31,13 @@ WARMUP = 128
 SECOND = 1_000_000_000
 DEADLINE = 5 * SECOND
 BROKER_MAX_PACKET = 16384
+TLS_MAX_PENDING = 128
 METRICS = ("application_p99_us", "terminal_p99_us", "from_send_p99_us",
            "offer_lag_p99_us", "verified_per_sec")
+TRACE_PUBLISH = re.compile(rb"Sending PUBLISH to " + IDENTITY + rb" \(d0, q([12]), r0, m(\d+), '" +
+                           re.escape(TOPIC) + rb"', \.\.\. \(32 bytes\)\)")
+TRACE_ACK = re.compile(rb"(Received PUBACK|Received PUBREC|Sending PUBREL|Received PUBCOMP) (?:from|to) " +
+                       IDENTITY + rb" \((?:Mid: |m)(\d+)(?:, RC:0)?\)")
 
 
 def require(ok, message):
@@ -152,6 +161,23 @@ def ack_id(body):
     return int.from_bytes(body[:2], "big")
 
 
+def start_publisher(sock):
+    sock.sendall(packet(0x10, b"\x00\x04MQTT\x05\x02\x00\x3c\x00" + string(IDENTITY + b"-pub")))
+    kind, body = read_packet(sock)
+    require(kind == 0x20 and len(body) >= 3 and body[:2] == b"\x00\x00", "broker publisher CONNACK")
+
+
+def publisher_ack(sock, pending, kind, body):
+    ident = ack_id(body)
+    require(pending.get(ident) == kind, "broker publisher ACK phase or ID")
+    if kind == 0x50:
+        pending[ident] = 0x70
+        sock.sendall(packet(0x62, body[:2]))
+        return None
+    del pending[ident]
+    return ident
+
+
 def receive_packets(sock, pending):
     """Read available bytes without waiting for the rest of a split packet."""
     data = sock.recv(BROKER_MAX_PACKET)
@@ -179,9 +205,7 @@ def receive_packets(sock, pending):
 def broker_transfer(receiver, upstream, publisher, qos, window, rate, count):
     """Relay the subscriber stream, correlating the broker's IDs with fixed offers."""
     total = count + WARMUP
-    publisher.sendall(packet(0x10, b"\x00\x04MQTT\x05\x02\x00\x3c\x00" + string(IDENTITY + b"-pub")))
-    kind, body = read_packet(publisher)
-    require(kind == 0x20 and len(body) >= 3 and body[:2] == b"\x00\x00", "broker publisher CONNACK")
+    start_publisher(publisher)
     cpu_started = time.process_time_ns()
     start_ns = time.perf_counter_ns() + 20_000_000
     begin = start_ns + WARMUP * SECOND // rate
@@ -203,13 +227,7 @@ def broker_transfer(receiver, upstream, publisher, qos, window, rate, count):
         for source, kind, body in frames:
             observed = time.perf_counter_ns()
             if source is publisher:
-                ident = ack_id(body)
-                require(pending_publish.get(ident) == kind, "broker publisher ACK phase or ID")
-                if kind == 0x50:
-                    pending_publish[ident] = 0x70
-                    publisher.sendall(packet(0x62, body[:2]))
-                else:
-                    del pending_publish[ident]
+                if publisher_ack(publisher, pending_publish, kind, body) is not None:
                     confirmed += 1
             elif source is upstream and kind == (0x30 | (qos << 1)):
                 topic, offset = take_string(body, 0)
@@ -275,20 +293,153 @@ def broker_transfer(receiver, upstream, publisher, qos, window, rate, count):
             **percentiles(from_send, "from_send"), **percentiles(relay, "subscriber_leg")}
 
 
-def sample(executable, name, args, *, xmqtt_default_tcp=False, broker=None):
+def trace_lines(trace, process, phase, timeout=5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        position = trace.tell()
+        line = trace.readline()
+        if line.endswith(b"\n"):
+            yield line.rstrip(b"\r\n")
+        else:
+            require(process.poll() is None, f"TLS subscriber exit before {phase}")
+            trace.seek(position)
+            time.sleep(0.001)
+    raise RuntimeError(f"TLS subscriber trace deadline at {phase}")
+
+
+def trace_subscriber(trace, process, qos, window, total, timeout):
+    next_ack = b"Received PUBACK" if qos == 1 else b"Received PUBREC"
+    pending = {}
+    delivered = completed = peak = 0
+    for line in trace_lines(trace, process, "terminal acknowledgements", timeout):
+        if IDENTITY not in line:
+            continue
+        require(line != b"Outgoing messages are being dropped for client " + IDENTITY,
+                "TLS broker dropped subscriber messages")
+        if line.startswith(b"Sending PUBLISH to " + IDENTITY + b" "):
+            found = TRACE_PUBLISH.fullmatch(line)
+            require(found is not None, "TLS broker PUBLISH trace envelope")
+            kind, ident = map(int, found.groups())
+            require(kind == qos and ident and ident not in pending and len(pending) < window,
+                    "TLS broker Receive Maximum or publish ID")
+            pending[ident] = next_ack
+            delivered += 1
+            peak = max(peak, len(pending))
+        elif line.startswith((b"Received PUB", b"Sending PUBREL")) and IDENTITY + b" (" in line:
+            found = TRACE_ACK.fullmatch(line)
+            require(found is not None, "TLS broker ACK trace envelope")
+            step, raw_id = found.groups()
+            ident = int(raw_id)
+            require(pending.get(ident) == step, "TLS broker subscriber ACK phase or ID")
+            if step == b"Received PUBREC":
+                pending[ident] = b"Sending PUBREL"
+            elif step == b"Sending PUBREL":
+                pending[ident] = b"Received PUBCOMP"
+            else:
+                del pending[ident]
+                completed += 1
+                if completed == total:
+                    require(not pending and delivered == total, "TLS broker subscriber trace ledger")
+                yield completed, peak
+                if completed == total:
+                    return
+
+
+def tls_transfer(publisher, trace, process, qos, window, rate, count):
+    negotiated = b"Client " + IDENTITY + b" negotiated TLSv1.3 cipher " + TLS_CIPHER.encode("ascii")
+    secure = False
+    for line in trace_lines(trace, process, "SUBACK"):
+        if line == negotiated:
+            secure = True
+        if line == b"Sending SUBACK to " + IDENTITY:
+            require(secure, "TLS subscriber negotiated profile")
+            break
+    start_publisher(publisher)
+    total = count + WARMUP
+    cpu_started = time.process_time_ns()
+    start_ns = time.perf_counter_ns() + 20_000_000
+    begin = start_ns + WARMUP * SECOND // rate
+    end = start_ns + total * SECOND // rate + DEADLINE
+    pending, buffer = {}, bytearray()
+    acks, offers = [], []
+    sent = confirmed = completed = peak = credit_checks = 0
+    ack = 0x40 if qos == 1 else 0x50
+    progress = trace_subscriber(trace, process, qos, window, total, total / rate + DEADLINE / SECOND)
+    while confirmed < total:
+        now = time.perf_counter_ns()
+        require(now < end, "TLS comparison publisher deadline")
+        due = start_ns + sent * SECOND // rate
+        subscriber_credit = sent - completed < TLS_MAX_PENDING
+        if not subscriber_credit and not pending:
+            credit_checks += 1
+            completed, peak = next(progress)
+            continue
+        available = sent < total and len(pending) < window and subscriber_credit
+        timeout = max(0, due - now - 2_000_000) if available else end - now
+        readable, _, _ = select.select([publisher], [], [], min(timeout / SECOND, 0.05))
+        if readable:
+            for kind, body in receive_packets(publisher, buffer):
+                ident = publisher_ack(publisher, pending, kind, body)
+                if ident is not None:
+                    confirmed += 1
+                    if ident > WARMUP:
+                        acks.append(time.perf_counter_ns() - (start_ns + (ident - 1) * SECOND // rate))
+        elif available and time.perf_counter_ns() >= due:
+            wire = publication(sent, due, qos)
+            actual = time.perf_counter_ns()
+            require(0 <= actual - due < DEADLINE, "TLS comparison per-publication send deadline")
+            publisher.sendall(wire)
+            pending[sent + 1] = ack
+            if sent >= WARMUP:
+                offers.append(actual - due)
+            sent += 1
+    elapsed = time.perf_counter_ns() - begin
+    peer_cpu = (time.process_time_ns() - cpu_started) / SECOND
+    require(elapsed > 0 and sent == confirmed == total and not pending and not buffer and
+            len(acks) == len(offers) == count, "TLS comparison publisher ledger")
+    while completed < total:
+        completed, peak = next(progress)
+    publisher.sendall(publication(total, time.perf_counter_ns(), 0))
+    for line in trace_lines(trace, process, "DISCONNECT"):
+        if line == b"Received DISCONNECT from " + IDENTITY:
+            break
+    publisher.sendall(packet(0xe0, b""))
+    return {"wire_completed": count, "publisher_confirmed": count, "broker_ack_drain": True,
+            "peak_inflight": peak, "publisher_confirmed_per_sec": count * SECOND / elapsed,
+            "subscriber_credit_checks": credit_checks,
+            "measurement_begin_ns": begin, "peer_cpu_seconds": peer_cpu,
+            **percentiles(acks, "publisher"), **percentiles(offers, "offer_lag")}
+
+
+def sample(executable, name, args, *, xmqtt_default_tcp=False, broker=None, tls_ca=None):
     row = {"client": name, "verified": False}
     process = None
     try:
-        with socket.socket() as listener:
-            listener.bind(("127.0.0.1", 0))
-            listener.listen(1)
-            listener.settimeout(5)
-            command = [str(executable), *map(str, (listener.getsockname()[1], args.count, args.window, args.qos))]
+        with ExitStack() as stack:
+            if tls_ca is None:
+                listener = stack.enter_context(socket.socket())
+                listener.bind(("127.0.0.1", 0))
+                listener.listen(1)
+                listener.settimeout(5)
+                port = listener.getsockname()[1]
+            else:
+                publisher_port, broker_pid, port, trace_path = broker
+                trace = stack.enter_context(trace_path.open("rb"))
+                trace.seek(0, os.SEEK_END)
+            command = [str(executable), *map(str, (port, args.count, args.window, args.qos))]
+            if tls_ca is not None:
+                command.extend(("--tls", str(tls_ca)))
             if name == "xmqtt" and xmqtt_default_tcp:
                 command.append("--default-tcp")
             process = start(command, args.client_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            connection, _ = listener.accept()
-            with connection:
+            if tls_ca is not None:
+                cpu, _, _ = usage(broker_pid)
+                with broker_socket(publisher_port) as publisher:
+                    wire = tls_transfer(publisher, trace, process, args.qos, args.window, args.rate, args.count)
+                after, rss, peak = usage(broker_pid)
+                wire.update(broker_cpu_seconds=after - cpu, broker_rss_bytes=rss, broker_peak_rss_bytes=peak)
+            else:
+                connection = stack.enter_context(listener.accept()[0])
                 connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 connection.settimeout(5)
                 if broker is None:
@@ -313,6 +464,11 @@ def sample(executable, name, args, *, xmqtt_default_tcp=False, broker=None):
         require(tails == sorted(tails) and all(math.isfinite(value) and value >= 0
                 for value in [*tails, metrics["cpu_seconds"]]), "application measurement")
         require(0 < wire["peak_inflight"] <= args.window, "wire window")
+        if tls_ca is not None:
+            elapsed = metrics["last_reliable_ns"] - wire["measurement_begin_ns"]
+            require(metrics["tls"] is True and 0 < elapsed < args.count * SECOND // args.rate + DEADLINE,
+                    "TLS application measurement interval")
+            wire["application_verified_per_sec"] = args.count * SECOND / elapsed
         row.update(verified=True, metrics=metrics | wire)
     except (OSError, EOFError, ValueError, AssertionError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
         row["error"] = str(error)
@@ -326,20 +482,30 @@ def sample(executable, name, args, *, xmqtt_default_tcp=False, broker=None):
 
 
 @contextmanager
-def standalone_broker(path, cpu, directory, report):
-    with socket.socket() as reservation:
+def standalone_broker(path, cpu, directory, report, *, tls=None, trace_path=None):
+    with socket.socket() as reservation, socket.socket() as secure:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
+        if tls is not None:
+            secure.bind(("127.0.0.1", 0))
+            tls_port = secure.getsockname()[1]
     report["broker_config"] = (
         f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n"
         f"max_inflight_messages 64\nmax_queued_messages 256\nmax_packet_size {BROKER_MAX_PACKET}\n"
         "set_tcp_nodelay true\nsys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n"
     )
-    with tempfile.TemporaryDirectory(prefix="xmqtt-receiver-", dir=directory) as temp:
+    if tls is not None:
+        report["broker_config"] += (
+            f"log_type debug\nlog_timestamp false\nlistener {tls_port} 127.0.0.1\n"
+            f"certfile certificate.pem\nkeyfile key.pem\ntls_version tlsv1.3\nciphers_tls1.3 {TLS_CIPHER}\n"
+        )
+    # Keep the live trace on the host's temporary filesystem. Archive it after the broker exits.
+    with tempfile.TemporaryDirectory(prefix="xmqtt-receiver-", dir=directory if tls is None else None) as temp:
         config = Path(temp) / "broker.conf"
         config.write_text(report["broker_config"], encoding="ascii")
-        with (Path(temp) / "broker.log").open("wb+") as log:
-            broker = start([str(path), "-c", str(config)], {cpu}, stdout=log, stderr=log)
+        output = Path(temp) / "broker.log"
+        with output.open("wb+") as log:
+            broker = start([str(path), "-c", str(config)], {cpu}, cwd=tls, stdout=log, stderr=log)
             try:
                 deadline = time.monotonic() + 8
                 while True:
@@ -349,12 +515,26 @@ def standalone_broker(path, cpu, directory, report):
                             break
                     except OSError:
                         time.sleep(0.025)
-                yield port, broker.pid
+                if tls is None:
+                    yield port, broker.pid
+                else:
+                    context = ssl.create_default_context(cafile=str(tls / "ca.pem"))
+                    context.minimum_version = ssl.TLSVersion.TLSv1_3
+                    leaf = ssl.PEM_cert_to_DER_cert((tls / "certificate.pem").read_text(encoding="ascii"))
+                    with broker_socket(tls_port) as peer, context.wrap_socket(peer, server_hostname="localhost") as checked:
+                        require(checked.version() == "TLSv1.3" and checked.cipher()[0] == TLS_CIPHER and
+                                checked.getpeercert(binary_form=True) == leaf, "TLS broker identity or negotiated profile")
+                    yield port, broker.pid, tls_port, output
                 require(broker.poll() is None, "unexpected broker exit")
             finally:
                 report["broker_exit"] = stop(broker)
                 log.seek(0)
-                report["broker_log"] = log.read().decode("utf-8", "replace")
+                if tls is None:
+                    report["broker_log"] = log.read().decode("utf-8", "replace")
+                else:
+                    shutil.copyfile(output, trace_path)
+                    report["broker_trace"] = {"name": trace_path.name, "bytes": output.stat().st_size,
+                                              "sha256": hashlib.file_digest(log, "sha256").hexdigest()}
 
 
 def main():
@@ -363,6 +543,8 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--broker", type=Path, help="relay the subscriber stream through pinned Mosquitto")
     parser.add_argument("--broker-cpu", type=int)
+    parser.add_argument("--tls-credentials", type=Path, metavar="DIRECTORY",
+                        help="connect TLS-enabled receivers directly to the pinned broker")
     parser.add_argument("--peer-cpu", type=int, required=True)
     parser.add_argument("--client-cpus", type=lambda text: set(map(int, text.split(","))), required=True)
     parser.add_argument("--qos", type=int, choices=(1, 2), required=True)
@@ -381,6 +563,11 @@ def main():
         parser.error("select one peer CPU and two disjoint available client CPUs")
     if (args.broker is None) != (args.broker_cpu is None):
         parser.error("select --broker and --broker-cpu together")
+    tls = args.tls_credentials.resolve(strict=True) if args.tls_credentials else None
+    if tls is not None and args.broker is None:
+        parser.error("--tls-credentials requires a standalone broker")
+    if tls is not None and not all((tls / file).is_file() for file in ("ca.pem", "certificate.pem", "key.pem")):
+        parser.error("TLS credentials require ca.pem, certificate.pem and key.pem")
     clients = {name: getattr(args, name).resolve(strict=True) for name in ("xmqtt", "paho")}
     require(len(set(clients.values())) == 2, "distinct client binaries required")
     broker = args.broker.resolve(strict=True) if args.broker else None
@@ -390,6 +577,7 @@ def main():
         require(broker not in clients.values(), "distinct broker and client binaries required")
         version = subprocess.run([str(broker), "-h"], capture_output=True, text=True, timeout=10)
         require(MOSQUITTO in version.stdout.splitlines(), "pinned broker version")
+    args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     pin(os.getpid(), {args.peer_cpu})
     require(affinity(os.getpid()) == {args.peer_cpu}, "peer affinity")
@@ -409,12 +597,21 @@ def main():
     if broker is not None:
         report.update(broker_version=MOSQUITTO, broker_cpu=args.broker_cpu)
         report["binaries"]["broker"] = fingerprint(broker)
-        fixture = standalone_broker(broker, args.broker_cpu, args.report.parent, report)
+        trace_path = None
+        if tls is not None:
+            trace_path = args.report.with_name(args.report.name + ".broker.log")
+            report["fixture"] = "mosquitto-tls-direct"
+            report["tls"] = {"version": "1.3", "cipher": TLS_CIPHER, "dns": "localhost",
+                             "ca": fingerprint(tls / "ca.pem"), "leaf": fingerprint(tls / "certificate.pem"),
+                             "outstanding_publications": TLS_MAX_PENDING}
+            report["inputs"].append(fingerprint(HERE.parent / "examples/tls/material.h"))
+        fixture = standalone_broker(broker, args.broker_cpu, args.report.parent, report, tls=tls, trace_path=trace_path)
     try:
         with fixture as running_broker:
             for repeat in range(args.repeats + 1):
                 for name in clients if repeat % 2 == 0 else reversed(clients):
-                    run = sample(clients[name], name, args, xmqtt_default_tcp=args.xmqtt_default_tcp, broker=running_broker)
+                    run = sample(clients[name], name, args, xmqtt_default_tcp=args.xmqtt_default_tcp,
+                                 broker=running_broker, tls_ca=tls / "ca.pem" if tls is not None else None)
                     report["runs"].append(run | {"repeat": repeat, "warmup": repeat == 0})
                     print(f"{name} repeat={repeat} verified={run['verified']} {run.get('error', '')}", flush=True)
                 args.report.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
@@ -425,7 +622,11 @@ def main():
         return 1
     report["verified"] = all(run["verified"] for run in report["runs"])
     if report["verified"] and args.repeats >= 5:
-        metrics = METRICS + (("subscriber_leg_p99_us",) if broker is not None else ())
+        if tls is not None:
+            metrics = ("application_p99_us", "application_verified_per_sec", "publisher_p99_us",
+                       "publisher_confirmed_per_sec", "offer_lag_p99_us")
+        else:
+            metrics = METRICS + (("subscriber_leg_p99_us",) if broker is not None else ())
         report["variation"] = {name: {metric: noise([run["metrics"][metric] for run in report["runs"]
                                   if run["client"] == name and not run["warmup"]])
                                       for metric in metrics} for name in clients}

@@ -224,6 +224,30 @@ verifies CPU affinity and retains raw runs and variation results.
 The dedicated peer CPU polls the socket during the final two milliseconds
 before an offer when it has credit. The reports record the peer CPU time.
 
+### Direct TLS receivers through Mosquitto
+
+Add `-DXMQTT_BENCH_RECEIVER_TLS` to both receiver builds. Select
+`-DXMQTT_MODULE_XMQTT_CLIENT_TLS` for the xmqtt build. Configure the pinned
+Paho build with `PAHO_WITH_SSL=ON` and `PAHO_HIGH_PERFORMANCE=ON`, then link
+its static `paho-mqtt3as` target with the matching OpenSSL libraries. On
+Windows, place the matching OpenSSL DLLs beside the receiver executable.
+
+Add `--broker /path/to/mosquitto --broker-cpu 10 --tls-credentials DIRECTORY`
+to the receiver command. The directory contains `ca.pem`, `certificate.pem`
+and `key.pem` for a localhost test identity. Keep the private key in the
+runtime directory. Both receivers validate the CA and hostname and connect
+directly to the TLS 1.3 listener with `TLS_AES_128_GCM_SHA256`. The publisher
+uses a second plaintext loopback listener.
+
+Mosquitto's debug trace independently verifies negotiated TLS, forwarded
+publications and both directions of the subscription's QoS acknowledgements.
+The publisher limits total outstanding publications to 128 and waits for
+subscriber completion credit before offering more. Time spent waiting is
+included in application and publisher latency. The report includes verified
+application and publisher rates, application latency percentiles, publisher
+ACK latency and a hash of the broker trace saved alongside the JSON. The
+measured workload includes broker tracing and excludes TLS handshake timing.
+
 ## Longer instrumented measurement
 
 `xmqtt_qos2_resolution` adds eight instrumented variants with 200000 operations,

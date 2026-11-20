@@ -4,6 +4,8 @@
 #include <xmqtt.h>
 #if defined(XMQTT_BENCH_PAHO)
 #include <MQTTAsync.h>
+#elif defined(XMQTT_BENCH_RECEIVER_TLS)
+#include "../examples/tls/material.h"
 #endif
 
 enum { WARMUP = 128, PAYLOAD_BYTES = 32 };
@@ -13,8 +15,10 @@ static const char Identity[] = "bench-client-receive-reference";
 typedef struct receiver {
     unsigned Qos, Count, Received;
     uint64* Latencies;
+    uint64 LastReliable;
     xevent* Done;
     bool DefaultTcp;
+    const char* CaFile;
 } receiver;
 
 static void require(bool Ok, const char* Message)
@@ -54,12 +58,21 @@ static bool observe(receiver* State, const char* Name, size_t NameSize,
     unsigned Index = State->Received, Total = WARMUP + State->Count;
     require(Index <= Total && Qos == (Index == Total ? 0u : State->Qos) &&
         NameSize == sizeof(Topic) - 1 && !memcmp(Name, Topic, NameSize) &&
-        Size == PAYLOAD_BYTES && load64(Data) == Index, "delivery envelope or sequence");
+        Size == PAYLOAD_BYTES, "delivery envelope");
+    uint64 Sequence = load64(Data);
+    if (Sequence != Index) {
+        fprintf(stderr, "MQTT receiver reference: delivered sequence %llu, expected %u\n",
+            (unsigned long long)Sequence, Index);
+        exit(EXIT_FAILURE);
+    }
     uint64 Due = load64(Data + 8);
     require(Due && Due <= Observed, "peer timestamp");
     for (unsigned I = 16; I < PAYLOAD_BYTES; ++I)
         require(Data[I] == (unsigned char)(Index * 17u + I * 131u), "binary payload");
-    if (Index >= WARMUP && Index < Total) State->Latencies[Index - WARMUP] = Observed - Due;
+    if (Index >= WARMUP && Index < Total) {
+        State->Latencies[Index - WARMUP] = Observed - Due;
+        if (Index + 1 == Total) State->LastReliable = Observed;
+    }
     ++State->Received;
     return Index == Total;
 }
@@ -112,7 +125,7 @@ static connection openReceiver(unsigned Port, unsigned Window, receiver* State)
     for (; Version->name && strcmp(Version->name, "Version"); ++Version) {}
     require(Version->name && !strcmp(Version->value, "1.3.15"), "Paho 1.3.15 identity");
     char Address[64];
-    snprintf(Address, sizeof(Address), "tcp://127.0.0.1:%u", Port);
+    snprintf(Address, sizeof(Address), "%s:%u", State->CaFile ? "ssl://localhost" : "tcp://127.0.0.1", Port);
     connection Client;
     MQTTAsync_createOptions Creation = MQTTAsync_createOptions_initializer5;
     require(MQTTAsync_createWithOptions(&Client, Address, Identity, MQTTCLIENT_PERSISTENCE_NONE,
@@ -131,6 +144,16 @@ static connection openReceiver(unsigned Port, unsigned Window, receiver* State)
     Connect.context = &Control;
     Connect.onSuccess5 = success;
     Connect.onFailure5 = failure;
+#if defined(XMQTT_BENCH_RECEIVER_TLS)
+    MQTTAsync_SSLOptions Tls = MQTTAsync_SSLOptions_initializer;
+    if (State->CaFile) {
+        Tls.trustStore = State->CaFile;
+        Tls.enableServerCertAuth = 1;
+        Tls.verify = 1;
+        Tls.disableDefaultTrustStore = 1;
+        Connect.ssl = &Tls;
+    }
+#endif
     require(MQTTAsync_connect(Client, &Connect) == MQTTASYNC_SUCCESS, "Paho CONNECT");
     await(&Control, 0);
     MQTTProperties_free(&Properties);
@@ -178,6 +201,55 @@ static void notified(xmqttclient* Client, ptr Context)
     }
 }
 
+#if defined(XMQTT_BENCH_RECEIVER_TLS)
+static bool connectTls(const char* CaFile, const xnetaddr* Address, const xmqttclientconfig* Config,
+    const xmqttpacket* Connect, connection* Client)
+{
+    size_t Size;
+    bytes Pem = xmqttExampleTlsRead(CaFile, 65536, &Size);
+    xx509store* Store = xrtX509StoreCreate();
+    bool Trusted = Pem && Store && xrtX509StoreAddData(Store, (xbytesview){Pem, Size}, NULL);
+    xrtFree(Pem);
+    require(Trusted, "xmqtt trust store");
+    xtlsverifylimits Limits;
+    xrtTlsVerifyLimitsInit(&Limits);
+    xtlsverifierconfig Verify;
+    xrtTlsVerifierConfigInit(&Verify);
+    Verify.Store = Store;
+    xtlsverifier* Verifier = xrtTlsVerifierCreateLimited(&Verify, &Limits);
+    xrtX509StoreFree(Store);
+    require(Verifier != NULL, "xmqtt verifier");
+    const xtlsversion Versions[] = {XTLS_VERSION_13};
+    const xtlscipher Ciphers[] = {XTLS_AES_128_GCM_SHA256};
+    const uint16 Groups[] = {XTLS_GROUP_X25519};
+    const xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
+    xtlspolicy Policy;
+    xrtTlsPolicyInit(&Policy);
+    Policy.Versions = Versions;
+    Policy.VersionCount = 1;
+    Policy.Ciphers = Ciphers;
+    Policy.CipherCount = 1;
+    Policy.Groups = Groups;
+    Policy.GroupCount = 1;
+    Policy.Signatures = Signatures;
+    Policy.SignatureCount = 1;
+    xtlscontextconfig Options;
+    xrtTlsContextConfigInit(&Options);
+    Options.Policy = &Policy;
+    xtlscontext* Context = xrtTlsContextCreate(&Options);
+    xmqttclienttlsconfig Tls;
+    require(Context && xmqttClientTlsConfigInit(&Tls), "xmqtt TLS configuration");
+    Tls.Session.Context = Context;
+    Tls.Session.Verifier = Verifier;
+    Tls.Session.ServerName = Tls.Session.VerifyName = XRT_STR_LITERAL("localhost");
+    Tls.Session.ResumeLimit = 0;
+    bool Started = xmqttClientTlsConnect(Engine, Address, 0, Config, &Tls, Connect, Client);
+    xrtTlsContextRelease(Context);
+    xrtTlsVerifierRelease(Verifier);
+    return Started;
+}
+#endif
+
 static connection openReceiver(unsigned Port, unsigned Window, receiver* State)
 {
     xnetengineconfig EngineConfig;
@@ -201,7 +273,12 @@ static connection openReceiver(unsigned Port, unsigned Window, receiver* State)
         .Type = XMQTT_PROPERTY_UINT16, .Value.Number = Window};
     Connect.Properties = (xmqttpropertylist){&Maximum, 1};
     connection Client;
-    require(xmqttClientConnect(Engine, &Address, 0, &Config, &Connect, &Client), "xmqtt CONNECT");
+#if defined(XMQTT_BENCH_RECEIVER_TLS)
+    if (State->CaFile)
+        require(connectTls(State->CaFile, &Address, &Config, &Connect, &Client), "xmqtt TLS CONNECT");
+    else
+#endif
+        require(xmqttClientConnect(Engine, &Address, 0, &Config, &Connect, &Client), "xmqtt CONNECT");
     xfuture* Ready = xmqttClientReady(Client);
     const xmqttreadyresult* Outcome = Ready && xrtFutureWaitFor(Ready, 5000) == XWAIT_OK ? xrtFutureValue(Ready) : NULL;
     require(Outcome && Outcome->Status == XMQTT_STATUS_OK, "xmqtt CONNACK");
@@ -247,14 +324,23 @@ int main(int Argc, char** Argv)
 {
     unsigned Port = xbenchArgU32(Argc, Argv, 1, 0), Count = xbenchArgU32(Argc, Argv, 2, 0);
     unsigned Window = xbenchArgU32(Argc, Argv, 3, 0), Qos = xbenchArgU32(Argc, Argv, 4, 0);
-    bool DefaultTcp = false;
-#if !defined(XMQTT_BENCH_PAHO)
-    DefaultTcp = Argc == 6 && !strcmp(Argv[5], "--default-tcp");
+    receiver State = {.Qos = Qos, .Count = Count};
+    int Next = 5;
+#if defined(XMQTT_BENCH_RECEIVER_TLS)
+    if (Argc > Next + 1 && !strcmp(Argv[Next], "--tls")) {
+        State.CaFile = Argv[Next + 1];
+        Next += 2;
+    }
 #endif
-    if ((Argc != 5 && !DefaultTcp) || !Port || Port > 65535 || !Count || Count > 60000 || !Window || Window > 64 ||
+#if !defined(XMQTT_BENCH_PAHO)
+    if (Argc > Next && !strcmp(Argv[Next], "--default-tcp")) {
+        State.DefaultTcp = true;
+        ++Next;
+    }
+#endif
+    if (Argc != Next || !Port || Port > 65535 || !Count || Count > 60000 || !Window || Window > 64 ||
         (Qos != 1 && Qos != 2)) return 2;
     (void)xbenchNowNs();
-    receiver State = {.Qos = Qos, .Count = Count, .DefaultTcp = DefaultTcp};
     State.Latencies = malloc(Count * sizeof(*State.Latencies));
     State.Done = xrtEventCreate(false, false);
     require(State.Latencies && State.Done, "observer storage");
@@ -268,9 +354,10 @@ int main(int Argc, char** Argv)
     printf("{\"client\":\"%s\",\"qos\":%u,\"window\":%u,\"measured\":%u,\"warmup\":%u,"
         "\"application_p50_us\":%.3f,\"application_p95_us\":%.3f,"
         "\"application_p99_us\":%.3f,\"application_p999_us\":%.3f,"
-        "\"cpu_seconds\":%.6f,\"retired\":true}\n",
+        "\"cpu_seconds\":%.6f,\"last_reliable_ns\":%llu,\"tls\":%s,\"retired\":true}\n",
         Implementation, Qos, Window, Count, WARMUP, quantileUs(&State, 500),
-        quantileUs(&State, 950), quantileUs(&State, 990), quantileUs(&State, 999), Cpu);
+        quantileUs(&State, 950), quantileUs(&State, 990), quantileUs(&State, 999), Cpu,
+        (unsigned long long)State.LastReliable, State.CaFile ? "true" : "false");
     free(State.Latencies);
     return 0;
 }

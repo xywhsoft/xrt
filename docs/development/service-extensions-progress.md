@@ -19653,3 +19653,68 @@ Generated assets, API docs and ordinary maturity passed. Strict xmqtt release
 still reports 39 developing modules. The runner, inputs, original relay
 source and results are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-standalone/`.
+
+## 2026-11-20 Direct MQTT 5 TLS receiver comparison
+
+The same receiver bench now connects xmqtt and Paho C 1.3.15 directly to
+Mosquitto 2.1.2 over verified TLS 1.3 with `TLS_AES_128_GCM_SHA256`. The
+clients validate the localhost DNS name and test CA. Mosquitto records
+the negotiated profile, the forwarded topic and the subscriber's full
+QoS exchange. A raw publisher uses the other loopback listener and
+independently checks publisher acknowledgements. Both receivers verify
+the ordered binary payload and complete graceful teardown.
+
+The initial WSL QoS 2 window 16 pilot at 2,000 offers/s filled the broker's
+outgoing queue in all four runs. Both applications detected a sequence gap
+and the broker trace recorded drops. The bounded publisher caps the total
+outstanding publications at 128 and verifies subscriber credit when the
+cap is reached. Delayed offers retain their original schedule timestamps.
+The four bounded pilot runs verified every delivery at 356–365/s.
+
+TLS results use the application completion timestamp from the last
+reliable delivery. The report also keeps publisher ACK latency and
+verified publisher rate. The broker trace proves subscriber ACK counts
+and phases. It is collected on the host's temporary filesystem and
+archived with a hash after broker shutdown. Broker tracing is included
+in the workload. Paho uses the same release flags and high-performance
+build setting as the plaintext comparisons. Its OpenSSL version is
+4.1.0 on Windows and 3.5.5 on WSL.
+
+The matched matrix verified 174,000 measured application deliveries and
+both MQTT acknowledgement legs across 80 measured runs and 16 process
+warm-ups. Each cell reports the median of five measured runs per client.
+
+| Host | QoS | Window | Offers/s | Application verified/s, xmqtt / Paho | Application P99 in us, xmqtt / Paho |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 1 | 1,200 | 1,200.6 / 1,200.6 | 11,284.6 / 15,619.9 |
+| Windows x64 | 1 | 16 | 3,000 | 3,000.5 / 3,000.5 | 8,954.3 / 1,638.4 |
+| Windows x64 | 2 | 1 | 1,200 | 1,200.8 / 1,200.9 | 2,854.5 / 6,094.1 |
+| Windows x64 | 2 | 16 | 3,000 | 3,001.7 / 3,001.7 | 610.8 / 1,042.0 |
+| Ubuntu/WSL x64 | 1 | 1 | 1,200 | 1,200.6 / 1,200.6 | 215.9 / 213.3 |
+| Ubuntu/WSL x64 | 1 | 16 | 3,000 | 3,000.5 / 3,000.5 | 273.9 / 259.0 |
+| Ubuntu/WSL x64 | 2 | 1 | 1,200 | 1,200.8 / 1,200.8 | 391.8 / 404.8 |
+| Ubuntu/WSL x64 | 2 | 16 | 3,000 | 3,001.2 / 3,001.3 | 558.5 / 504.3 |
+
+All 16 application and publisher throughput series passed the variation
+gate. Two application P99 series and one publisher P99 series passed it.
+An extra WSL QoS 2 window 16 matrix using xmqtt's default TCP setting
+verified 12,000 measured deliveries. Application P99 medians were 453.3
+us for xmqtt and 430.3 us for Paho at about 3,001/s.
+
+A WSL QoS 2 window 16 control used the same optimized binaries and matched
+TCP settings at 2,000 offers/s. With the live broker trace on the mounted
+Windows filesystem, xmqtt and Paho verified 365.7 and 369.0/s. With the
+live trace in WSL's temporary directory, both verified 2,002.2/s. The
+respective application P99 medians fell from 1.33 and 1.32 seconds to
+338.0 and 338.6 us. This control isolates the slowdown to the location of
+the live broker trace. Both profiles retained their trace after the sample.
+
+On Windows and WSL, both TLS receivers refused an unrelated trust anchor
+before SUBACK and the broker trace checker rejected an early PUBCOMP.
+Plaintext direct-peer and standalone-broker smoke runs passed. Dedicated
+plaintext builds also passed a direct-peer run on each host. The generated
+test key was removed after the runs. Generated assets, API coverage and
+ordinary maturity passed. Native Linux and stable release tails remain
+open. Strict xmqtt release reports 39 developing modules. Builds, source
+and dependency hashes, reports and diagnostic inputs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-receiver-tls/`.
