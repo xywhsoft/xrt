@@ -41,6 +41,22 @@ static void testOpenLedger(void)
 	testRequire(redisOpenByte(0, 8) == 24 && redisOpenByte(1, 8) == 41 && redisOpenByte(256, 8) == 25, "data-dependent tail corpus");
 }
 
+static void testOpenResponse(void)
+{
+	redisopenconfig Config = redisOpenDefaults(); Config.Count = 3;
+	redisopenresult Result = {0};
+	redisopenrecord Records[] = {{.Due = 1000, .Submitted = 4000},
+		{.Due = 2000, .Submitted = 3000}, {.Due = 5000, .Submitted = 6000}};
+	uint64 Samples[3];
+	testRequire(redisOpenFinish(&Records[0], 8000, REDIS_OPEN_ACCEPTED, XREDIS_REQUEST_OK, true, 20000, &Result.Counts) &&
+		redisOpenFinish(&Records[1], 5000, REDIS_OPEN_ACCEPTED, XREDIS_REQUEST_OK, true, 20000, &Result.Counts) &&
+		redisOpenFinish(&Records[2], 16000, REDIS_OPEN_CAPACITY, XREDIS_REQUEST_OK, true, 20000, &Result.Counts),
+		"response intervals test ledger");
+	redisOpenSummarize(&Config, &Result, Records, Samples);
+	testRequire(Result.Success[0] == 3 && Result.Success[2] == 7 && Result.All[2] == 11 &&
+		Result.Response[0] == 2 && Result.Response[2] == 4, "response percentiles must use successful submission timestamps");
+}
+
 static void testOpenInvalid(void)
 {
 	redisopenconfig Default = redisOpenDefaults(); testRequire(redisOpenConfigValid(&Default), "default open-loop config");
@@ -102,9 +118,13 @@ static void testOpenRuntime(void)
 	redisopenresult Result; testRequire(redisOpenRun(&Config, &Result), "open-loop normal runtime");
 	testRequire(Result.Counts.Total == 32 && Result.Counts.Accepted == 32 && Result.Counts.Successful == 32 &&
 		Result.Counts.Corrupt == 0 && Result.HarnessBytes != 0 && Result.PeerCommands == 34, "normal offer ledger/correlation");
+	for (size_t Index = 0; Index < 4; ++Index)
+		testRequire(Result.Response[Index] > 0 && Result.Response[Index] <= Result.Success[Index], "response interval exceeds offer latency");
+	testRequire(Result.GeneratorCpu >= 0 && Result.GeneratorCpu <= Result.Cpu + 0.000001, "generator CPU outside the process window");
 	Config.Count = 16; Config.Rate = 1000000; Config.Mode = 1; Config.Stall = 50; Config.Timeout = 10;
 	testRequire(redisOpenRun(&Config, &Result) && Result.Counts.Outcomes[REDIS_OPEN_EXPIRED] == 16 && Result.Counts.Accepted == 0 &&
-		Result.Counts.Missed == 16 && Result.Lag[0] >= 10000.0 && Result.PeerCommands == 2, "generator stall silently omitted/shifted offers");
+		Result.Counts.Missed == 16 && Result.Lag[0] >= 10000.0 && Result.Response[3] == 0 &&
+		Result.PeerCommands == 2, "generator stall silently omitted/shifted offers");
 	Config.Count = 32; Config.Rate = REDIS_OPEN_NS; Config.Slots = 4; Config.Mode = 2; Config.Stall = 0; Config.Timeout = 1000;
 	testRequire(redisOpenRun(&Config, &Result) && Result.Counts.Total == 32 && Result.Counts.Accepted != 0 && Result.Counts.Successful == 0 &&
 		Result.Counts.Status[XREDIS_REQUEST_TIMEOUT] == Result.Counts.Accepted && Result.Counts.Outcomes[REDIS_OPEN_CAPACITY] != 0,
@@ -118,6 +138,6 @@ static void testOpenRuntime(void)
 
 int main(void)
 {
-	testOpenSchedule(); testOpenLedger(); testOpenInvalid(); testOpenMixed(); testOpenRuntime();
+	testOpenSchedule(); testOpenLedger(); testOpenResponse(); testOpenInvalid(); testOpenMixed(); testOpenRuntime();
 	puts("[PASS] xredis open-loop workload: absolute offers/no omission/all outcomes/binary/deadlines/overload/watch retirement/process counters"); return 0;
 }

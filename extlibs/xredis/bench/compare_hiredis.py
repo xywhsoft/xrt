@@ -23,7 +23,8 @@ COUNTS = REJECTIONS | {"offered", "accepted", "successful", "unsuccessful", "cor
 QUALITY = {"success_requests_per_sec", "success_p50_us", "success_p95_us",
            "success_p99_us", "success_p999_us"}
 METRICS = COUNTS | QUALITY | {"generator_p99_us", "process_window_cpu_seconds",
-                             "process_peak_rss_bytes", "requests_peak_sampled", "window_peak"}
+                             "generator_window_cpu_seconds", "response_p99_us", "process_peak_rss_bytes",
+                             "requests_peak_sampled", "window_peak"}
 
 
 def digest(path: Path) -> str:
@@ -64,7 +65,9 @@ def sample(args, client: Path, name: str, command: list[str]) -> dict:
                  metrics["successful"] + metrics["unsuccessful"] == args.count and
                  metrics["accepted_get"] <= expected_get and metrics["accepted_set"] <= sets and
                  (not args.mixed or metrics["accepted_get"] + metrics["accepted_set"] == metrics["accepted"]) and
-                 0 <= metrics["window_peak"] <= args.window)
+                 0 <= metrics["window_peak"] <= args.window and
+                 0 <= metrics["response_p99_us"] <= metrics["success_p99_us"] and
+                 0 <= metrics["generator_window_cpu_seconds"] <= metrics["process_window_cpu_seconds"] + 0.000001)
     verified = (accounted and metrics["accepted"] == metrics["successful"] == args.count and
                 all(metrics[key] == 0 for key in ("unsuccessful", "corrupt", "deadline_missed")) and
                 metrics["window_peak"] > 0)

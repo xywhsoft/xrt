@@ -18754,3 +18754,51 @@ Reproduction is in [the client performance guide](../../extlibs/xredis/docs/clie
 Source and executable digests, per-sample records, server ledgers and
 verification logs are under
 out/service-extensions/scope-reduction-20261119/xredis-multiconnection-mixed/.
+
+## 2026-11-20 Redis observer overhead and response intervals
+
+`xredisClientInfo` takes the same client gate used by request admission
+and the I/O worker. A paired xredis-only A/B test changed the request and
+command-byte snapshots from every observer loop to a 1 ms target cadence.
+Both versions used four connections, 1,024-byte GET/SET data and the
+128-request observer window. The Windows and WSL tests used seven
+two-second repetitions per variant at 2,000 and 12,000 offers/s plus a
+warmup. All 56 measured samples completed all 784,000 scheduled requests
+and matched the Redis ledgers.
+
+At 12,000 offers/s, median Windows process CPU fell from 2.719 s to
+2.516 s per two-second window, with a decrease in six of seven pairs.
+Arrival-to-observation P99 was 337.2 versus 340.1 microseconds. Median
+WSL CPU was 3.031 versus 3.057 s and P99 was 181.7 versus 174.6
+microseconds. The observer now uses the 1 ms sampling cadence. Offer,
+completion, peak observer-window and final client ownership checks
+remain exact. The change reduces Windows observer overhead under this load.
+
+The paired observer directly measures successful submission-to-observation
+latency and reports generator-thread CPU alongside process CPU. The
+following measurements used five two-second repetitions per client and
+case. Each process had four connections. The paired command ledgers
+reconciled for all 40 measured samples, with 559,961 verified replies.
+
+| Observer | Offers/s | Offer-to-observation P99 in microseconds, xredis / Hiredis | Submission-to-observation P99 in microseconds, xredis / Hiredis | Process / generator CPU in seconds, xredis | Process / generator CPU in seconds, Hiredis |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 330.2 / 280.1 | 319.5 / 278.4 | 2.156 / 2.000 | 2.000 / 2.000 |
+| Ubuntu/WSL | 2,000 | 207.0 / 119.9 | 203.0 / 116.3 | 2.245 / 2.000 | 2.000 / 2.000 |
+| Ubuntu/WSL | 12,000 | 177.5 / 99.9 | 173.7 / 95.8 | 3.061 / 1.999 | 2.000 / 2.000 |
+
+At 12,000 offers/s on Windows, xredis reached the observer window limit
+on 39 offers out of 120,000. Hiredis completed all offers in that series.
+The partial pair is excluded from the tail table. Both observers used a
+private WSL Redis 8.0.5 fixture. These timestamps locate the measured
+gap after submission starts. They include submission, network I/O,
+server work and delivery to the observer. The paired comparisons did not
+pass the combined variation gate. Native Linux, a TLS performance peer
+and a release tail baseline remain open.
+
+Windows and WSL passed focused modular and single-header tests, including
+the direct response-time oracle and the TLS fixture. WSL ASan/UBSan with
+leak detection passed the single-header open-loop test. ECHO and mixed
+command comparison smokes passed on both platforms. Generated asset and
+ordinary maturity checks passed. Strict release lists 29 developing
+modules. Source snapshots, binaries, reports and Redis ledgers are under
+out/service-extensions/scope-reduction-20261119/xredis-observer-cost/.

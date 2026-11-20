@@ -87,7 +87,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 
 	size_t Active = 0, Next = 0;
 	const uint64 Timeout = (uint64)Config->Timeout * 1000000u;
-	double CpuStart = redisOpenCpu();
+	double CpuStart = redisOpenCpu(false), GeneratorStart = redisOpenCpu(true);
 	uint64 Start = redisOpenNow();
 	if (Config->Mode == 1) xrtSleep(Config->Stall);
 
@@ -172,7 +172,8 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	}
 	redisOpenRequire(Read == Output->Counts.Accepted, "Hiredis drain accounting");
 	Output->Retire = (double)(redisOpenNow() - LogicalEnd) / (double)REDIS_OPEN_NS;
-	Output->Cpu = redisOpenCpu() - CpuStart;
+	Output->GeneratorCpu = redisOpenCpu(true) - GeneratorStart;
+	Output->Cpu = redisOpenCpu(false) - CpuStart;
 	redisOpenSummarize(Config, Output, Records, Samples);
 	free(Payload);
 	free(Samples);

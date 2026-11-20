@@ -53,8 +53,13 @@ int main(int argc, char** argv)
 	printf("corrupt: %zu\ndeadline_missed: %zu\n", C->Corrupt, C->Missed);
 	printf("success_requests_per_sec: %.3f\noffered_requests_per_sec: %.3f\n", (double)C->Successful / Result.Elapsed, (double)C->Total / Result.Elapsed);
 	static const unsigned Quantiles[] = {50, 95, 99, 999};
-	for (size_t Index = 0; Index < 4; ++Index) printf("success_p%u_us: %.3f\nall_p%u_us: %.3f\ngenerator_p%u_us: %.3f\n", Quantiles[Index], Result.Success[Index], Quantiles[Index], Result.All[Index], Quantiles[Index], Result.Lag[Index]);
+	for (size_t Index = 0; Index < 4; ++Index) {
+		const unsigned P = Quantiles[Index];
+		printf("success_p%u_us: %.3f\nall_p%u_us: %.3f\ngenerator_p%u_us: %.3f\nresponse_p%u_us: %.3f\n",
+			P, Result.Success[Index], P, Result.All[Index], P, Result.Lag[Index], P, Result.Response[Index]);
+	}
 	printf("logical_seconds: %.9f\nretire_seconds: %.9f\nprocess_window_cpu_seconds: %.6f\n", Result.Elapsed, Result.Retire, Result.Cpu);
+	printf("generator_window_cpu_seconds: %.6f\n", Result.GeneratorCpu);
 	printf("harness_bytes: %zu\nrequests_peak_sampled: %zu\ncommand_bytes_peak_sampled: %zu\n", Result.HarnessBytes, Result.RequestsPeak, Result.CommandBytesPeak);
 	printf("process_peak_rss_bytes: %" PRIu64 "\nhandles_before: %" PRIu64 "\nhandles_after: %" PRIu64 "\n", Result.RssPeak, Result.HandlesBefore, Result.HandlesAfter);
 	printf("window_malloc_calls: %" PRIu64 "\nwindow_calloc_calls: %" PRIu64 "\nwindow_realloc_calls: %" PRIu64 "\nwindow_memdup_calls: %" PRIu64 "\n", Result.Malloc, Result.Calloc, Result.Realloc, Result.MemDup);

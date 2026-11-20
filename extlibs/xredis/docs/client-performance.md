@@ -73,9 +73,18 @@ CPU time is the entire benchmark process from measurement start through engine
 retirement. Thus local results include peer work; external results do not
 include Redis process CPU. The generator polls/yields; its CPU and callback/
 validation bookkeeping are included and must not be attributed solely to the
-library. Peak RSS/working set is a process-lifetime high-water
+library. The benchmark also reports generator-thread CPU for that window.
+For successful replies, `response_p*_us` measures directly from the timestamp
+immediately before submission to the observation used for `success_p*_us`.
+The response interval includes submission, transport, the server and reply
+delivery. `generator_p*_us` measures offer-to-submission delay for all scheduled
+offers, so the two percentile series have different populations.
+Peak RSS/working set is a process-lifetime high-water
 mark including warmup and harness storage. Sampled request/command peaks can
-miss shorter peaks. Native handles/Linux descriptors are reported before setup
+miss shorter peaks. xredis takes these snapshots at a 1 ms target cadence to
+limit contention with the client worker. Its exact observer window peak and
+final physical-ownership checks are independent of these snapshots.
+Native handles/Linux descriptors are reported before setup
 and after teardown; these observations are not a full resource-baseline audit.
 
 The separate `xredis_openloop_stats` profile compiles/enables XRT memory counters.
@@ -207,9 +216,11 @@ The report includes accepted GET and SET ledgers, observer window peaks and
 separate rejection causes for every scheduled offer. A pair is verified
 when every planned operation finishes successfully within its deadline.
 Redis commandstats can be checked against the accepted counts plus one seed
-SET per mixed sample and one HELLO and PING per connection. The client CPU
-budget includes the generator and worker when present. xredis samples its
-native request and command-byte counters across the selected connections.
+SET per mixed sample and one HELLO and PING per connection. The report includes
+submission-to-observation P99, generator-thread CPU and total process CPU.
+Hiredis runs its nonblocking socket and parser on the generator thread.
+xredis samples native request and command-byte counters across the selected
+connections.
 
 Native Linux, TLS comparisons, stable tail baselines, exact copy and syscall
 costs, and 72-hour acceptance remain open.

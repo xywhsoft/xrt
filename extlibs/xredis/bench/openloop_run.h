@@ -28,8 +28,8 @@
 
 typedef struct redisopenresult {
 	redisopencounts Counts;
-	double Elapsed, Retire, Cpu;
-	double All[4], Success[4], Lag[4];
+	double Elapsed, Retire, Cpu, GeneratorCpu;
+	double All[4], Success[4], Lag[4], Response[4];
 	uint64 Malloc, Calloc, Realloc, MemDup, BlockAlloc, BackingAlloc, BackingBytes;
 	size_t HarnessBytes, RequestsPeak, CommandBytesPeak, WindowPeak;
 	uint64 RssPeak, HandlesBefore, HandlesAfter;
@@ -50,16 +50,19 @@ static void redisOpenRequire(bool Condition, cstr Message)
 static uint64 redisOpenNow(void)
 { return (uint64)(xrtTimer() * (double)REDIS_OPEN_NS); }
 
-static double redisOpenCpu(void)
+static double redisOpenCpu(bool Generator)
 {
 #if defined(_WIN32)
 	FILETIME Created, Exited, Kernel, User; ULARGE_INTEGER K, U;
-	redisOpenRequire(GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User) != 0, "process CPU snapshot");
+	BOOL Ok = Generator ? GetThreadTimes(GetCurrentThread(), &Created, &Exited, &Kernel, &User) :
+		GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User);
+	redisOpenRequire(Ok != 0, "CPU snapshot");
 	K.LowPart = Kernel.dwLowDateTime; K.HighPart = Kernel.dwHighDateTime;
 	U.LowPart = User.dwLowDateTime; U.HighPart = User.dwHighDateTime;
 	return (double)(K.QuadPart + U.QuadPart) / 10000000.0;
 #else
-	struct timespec Time; redisOpenRequire(clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &Time) == 0, "process CPU snapshot");
+	struct timespec Time;
+	redisOpenRequire(clock_gettime(Generator ? CLOCK_THREAD_CPUTIME_ID : CLOCK_PROCESS_CPUTIME_ID, &Time) == 0, "CPU snapshot");
 	return (double)Time.tv_sec + (double)Time.tv_nsec / (double)REDIS_OPEN_NS;
 #endif
 }
@@ -158,6 +161,13 @@ static void redisOpenSummarize(const redisopenconfig* Config, redisopenresult* O
 	}
 	redisOpenRequire(Successes == Output->Counts.Successful, "open-loop success ledger");
 	redisOpenPercentiles(Samples, Successes, Output->Success);
+	Successes = 0;
+	for (size_t Index = 0; Index < Config->Count; ++Index) {
+		const redisopenrecord* Record = &Records[Index];
+		if (Record->Outcome == REDIS_OPEN_ACCEPTED && Record->Valid && Record->Status == XREDIS_REQUEST_OK)
+			Samples[Successes++] = Record->Finished - Record->Submitted;
+	}
+	redisOpenPercentiles(Samples, Successes, Output->Response);
 	Output->RssPeak = redisOpenRss();
 }
 
@@ -307,12 +317,14 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	if (Config->Stats) xrtMemStatsReset();
 #endif
 	xredisclientinfo Info = {0}; Info.Size = sizeof(Info); uint64 Timeout = (uint64)Config->Timeout * 1000000u;
-	double CpuStart = redisOpenCpu(); uint64 Start = redisOpenNow(), Horizon = 0;
+	double CpuStart = redisOpenCpu(false), GeneratorStart = redisOpenCpu(true);
+	uint64 Start = redisOpenNow(), Horizon = 0;
 	redisPeerRequire(redisOpenDue(Start, Config->Count - 1u, Config->Rate, &Horizon), "arrival horizon");
 	redisPeerRequire(Horizon <= UINT64_MAX - Timeout - 10u * REDIS_OPEN_NS, "bounded horizon arithmetic");
 	uint64 Limit = Horizon + Timeout + 10u * REDIS_OPEN_NS;
 	if (Config->Mode == 1) xrtSleep(Config->Stall);
 	size_t Next = 0, Active = 0, Available = Config->Slots;
+	uint64 SampleAt = Start;
 	while (Next < Config->Count || Active != 0) {
 		uint64 Now = redisOpenNow(); redisPeerRequire(Now < Limit, "bounded open-loop drain deadline");
 		for (size_t Index = 0; Index < Config->Slots; ++Index) if (Slots[Index].Active && xrtAtomic32Load(&Slots[Index].Done, XMEMORY_ACQUIRE)) {
@@ -352,14 +364,19 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 				redisPeerRequire(redisOpenFinish(Record, redisOpenNow(), Outcome, XREDIS_REQUEST_OK, true, Timeout, &Output->Counts), "open-loop rejected ledger");
 			++Next;
 		}
-		size_t Requests = 0, Bytes = 0;
-		for (unsigned Index = 0; Index < Connections; ++Index) {
-			redisPeerRequire(xredisClientInfo(Clients[Index], &Info), "open-loop client counters");
-			Requests += Info.Requests;
-			Bytes += Info.CommandBytes;
+		/* Each snapshot takes the same gate as the worker. Bound probe traffic
+		 * independently of the unconditional offer and completion ledgers. */
+		if (Now >= SampleAt) {
+			SampleAt = Now + 1000000u;
+			size_t Requests = 0, Bytes = 0;
+			for (unsigned Index = 0; Index < Connections; ++Index) {
+				redisPeerRequire(xredisClientInfo(Clients[Index], &Info), "open-loop client counters");
+				Requests += Info.Requests;
+				Bytes += Info.CommandBytes;
+			}
+			if (Requests > Output->RequestsPeak) Output->RequestsPeak = Requests;
+			if (Bytes > Output->CommandBytesPeak) Output->CommandBytesPeak = Bytes;
 		}
-		if (Requests > Output->RequestsPeak) Output->RequestsPeak = Requests;
-		if (Bytes > Output->CommandBytesPeak) Output->CommandBytesPeak = Bytes;
 		xrtThreadYield();
 	}
 	uint64 LogicalEnd = redisOpenNow(); Output->Elapsed = (double)(LogicalEnd - Start) / (double)REDIS_OPEN_NS;
@@ -377,7 +394,9 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 #if defined(REDIS_OPENLOOP_TLS)
 	redisTlsPeerCredentialsDrop(&Credentials);
 #endif
-	Output->Retire = (double)(redisOpenNow() - LogicalEnd) / (double)REDIS_OPEN_NS; Output->Cpu = redisOpenCpu() - CpuStart;
+	Output->Retire = (double)(redisOpenNow() - LogicalEnd) / (double)REDIS_OPEN_NS;
+	Output->GeneratorCpu = redisOpenCpu(true) - GeneratorStart;
+	Output->Cpu = redisOpenCpu(false) - CpuStart;
 #if defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) {
 		xmemstats Stats; xrtMemStatsGet(&Stats); Output->Malloc = Stats.MallocCalls; Output->Calloc = Stats.CallocCalls;
