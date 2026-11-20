@@ -19383,3 +19383,11 @@ ordinary maturity passed. Strict release reports 39 developing modules.
 
 Scripts, source hashes, initial test failures and final logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-single-filter/`.
+
+The Windows 72-hour run for `606a806c` uses the binary and source
+digests from the passed 30-second run. Both native processes were live,
+their reported binary digests matched the launch receipt, and consecutive
+telemetry windows increased the verified round count. The previous
+xmqtt run and both xredis runs continued. The new launch receipt and
+journal are `win-native-72h-start.json` and `win-native-72h.jsonl` in the
+evidence directory.
