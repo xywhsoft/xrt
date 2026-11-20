@@ -18306,3 +18306,40 @@ remain open. Build instructions are in
 [`bench/README.md`](../../extlibs/xmqtt/bench/README.md). Raw reports and
 compiler/fixture evidence are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-client-reference/`.
+
+## 2026-11-20 MQTT 5 continuous client and broker workload
+
+Two separately supervised native processes exercise the public xmqtt
+client and broker APIs over a private loopback listener. Six publications
+per round cover QoS 0/1/2, ordinary wildcard routing, No Local and a
+two-member shared group. The client verifies the exact recipient, topic,
+QoS, payload and terminal publisher outcomes. Every 16 rounds a new
+connection verifies the retained replay. A tombstone removes the record
+before both sides check physical teardown.
+
+| Environment | Duration | Rounds | Retained replays | Verified deliveries |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 90 s | 4,875 | 305 | 29,555 |
+| Ubuntu/WSL x64 | 90 s | 26,375 | 1,649 | 159,899 |
+| Ubuntu/WSL x64 ASan/UBSan with leak detection | 15 s | 3,254 | 204 | 19,728 |
+| Ubuntu/WSL x64 TSan | 12 s | 1,920 | 120 | 11,640 |
+
+All successful cases matched the broker's connection and forwarded
+delivery counters, completed engine shutdown and observed both process
+resource ledgers. The pacing and platform variants carry separate
+reports. In the isolated fault cases the supervisor killed the spawned
+broker after 269 verified rounds on Windows and 1,466 rounds on WSL.
+The client then rejected publication admission and both reports failed
+qualification.
+
+The GCC TSan build retained its warning for the uninstrumented
+atomic_thread_fence as a warning instead of an error. Its runtime
+produced no sanitizer diagnostics for this workload. Both build logs
+are preserved.
+
+Ordinary maturity passes and strict release still reports 39 developing
+modules. Native Linux, 72-hour completion, and the fault/recovery gates
+for persistent sessions and durable storage remain open. Reproduction
+is in [`bench/README.md`](../../extlibs/xmqtt/bench/README.md), and
+raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-mixed-soak/`.

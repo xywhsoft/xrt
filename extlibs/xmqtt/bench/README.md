@@ -307,3 +307,53 @@ python extlibs/xmqtt/bench/test_broker_observer.py /path/to/bench_server
 This profile covers traffic at specified arrival rates. Saturation,
 TLS, shared subscriptions, persistent state and
 mixed-load duration have separate acceptance workloads.
+
+## Continuous MQTT 5 mixed load
+
+The interop workload runs the xmqtt client and broker in two supervised
+processes on a private IPv4 loopback listener. The client keeps one
+publisher, one ordinary wildcard subscriber and two members of a shared
+wildcard subscription. Each round admits six publications in a burst,
+one per QoS for each route. It checks terminal publisher outcomes, the
+full binary payload, delivered QoS, and exactly one recipient in the
+shared group for each shared publication. The publisher also has a
+No Local subscription to the ordinary route and verifies zero echoes.
+The payload is 32 bytes, with a 256-byte payload every fourth round.
+
+Every 16 rounds, the publisher replaces one retained record, opens a
+temporary client and verifies the retained replay before retiring that
+client. At completion, a tombstone removes the retained record. The
+supervisor compares the broker's accepted connections and forwarded
+deliveries with the client's exact round and replay counts. Both sides
+verify their protocol and transport ownership counters at shutdown.
+
+Build from the repo root using the checked-in single headers. Use
+WIN32_LEAN_AND_MEAN in place of _GNU_SOURCE and -lws2_32 in place of
+-pthread -lm when building with MinGW on Windows.
+
+    flags=(-std=gnu11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror
+      -DXMQTT_MODULE_XMQTT_CLIENT -DXMQTT_MODULE_XMQTT_SERVER
+      -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION -Iinclude -Iextlibs/xmqtt/include
+      -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h)
+    gcc "${flags[@]}" extlibs/xmqtt/tests/interop/mqtt_mixed.c \
+      -o out/mqtt-mixed -pthread -lm
+    python3 extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
+      --binary out/mqtt-mixed --seconds 90 --pause-ms 3 --report out/mqtt-mixed-smoke.json
+
+Use a new report name for every run. The JSONL journal keeps five-second
+progress windows with round latency, client process CPU, wall and
+monotonic time continuity, and both processes' private-memory and
+handle/descriptor snapshots. Round latency includes all six terminal
+outcomes and received deliveries, plus the retained replay when due.
+Pacing sleeps contribute to the run duration. Growth above the first
+resource sample is guarded at 64 MiB of private memory and 32 handles or
+descriptors per process.
+
+For a 72-hour run use --seconds 259200. The native_72h result requires both
+live process resource ledgers, uninterrupted duration, graceful teardown
+and matching counters on native Windows or Linux. WSL runs retain their
+own environment label. For a separate fault run use --seconds 20 and
+--kill-broker-after 5. The supervisor kills only its spawned broker
+after a verified window and records the interrupted workload as failed.
+Persistent-session recovery, TLS/WebSocket, and sustained saturation
+have separate workloads.

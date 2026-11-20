@@ -1,0 +1,208 @@
+"""Supervise native xmqtt client and broker processes over private loopback."""
+from __future__ import annotations
+
+import argparse
+from contextlib import ExitStack, suppress
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import queue
+import subprocess
+import sys
+import threading
+import time
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[3]
+sys.path.insert(0, str(ROOT / "tools"))
+from test_xrudp_native_soak import observe_clock, resources
+
+RELEASE_SECONDS = 72 * 3600
+PRIVATE_GROWTH = 64 * 1024 * 1024
+HANDLE_GROWTH = 32
+
+
+def require(ok, message):
+    if not ok:
+        raise RuntimeError(message)
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def retire(process):
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=6)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=6)
+    for pipe in (process.stdin, process.stdout):
+        if pipe is not None:
+            pipe.close()
+
+
+def read_output(process):
+    inbox = queue.Queue()
+
+    def read():
+        try:
+            for line in process.stdout:
+                inbox.put(line)
+        finally:
+            inbox.put(None)
+
+    threading.Thread(target=read, daemon=True).start()
+    return inbox
+
+
+def wait_output(inbox, seconds):
+    try:
+        line = inbox.get(timeout=seconds)
+    except queue.Empty as error:
+        raise RuntimeError("workload progress deadline") from error
+    return json.loads(line) if line is not None else None
+
+
+def process_snapshot(process):
+    if process.poll() is not None:
+        return None
+    try:
+        return resources(process.pid)
+    except (OSError, AssertionError, KeyError):
+        # A final client window can be read during OS process cleanup.
+        with suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=0.2)
+            return None
+        raise
+
+
+def watch(client, broker, args, state, append, start, wall):
+    inbox = read_output(client)
+    last = None
+    previous = {"rounds": 0, "seconds": 0, "cpu_seconds": 0, "shared0": 0, "shared1": 0}
+    baseline, clock = {}, {}
+    windows = 0
+    final = None
+    while (event := wait_output(inbox, 25 if last is None else 15)) is not None:
+        now = time.monotonic()
+        observe_clock(clock, now, last, start, wall, time.time())
+        last = now
+        require(final is None, "output after terminal client report")
+        rounds, replays = event["rounds"], event["replays"]
+        require(isinstance(rounds, int) and rounds > 0 and replays == (rounds + 15) // 16 and
+                math.isfinite(event["seconds"]) and previous["seconds"] <= event["seconds"] <= now - start,
+                "client counters, retained replay or time ledger")
+        if event.get("complete") is True:
+            require(rounds == previous["rounds"] and event["deliveries"] == 6 * rounds + replays and
+                    event["seconds"] >= args.seconds and now - start >= args.seconds,
+                    "incomplete client delivery ledger or duration")
+            final = event
+        else:
+            require(event["samples"] == rounds - previous["rounds"] > 0 and
+                    event["seconds"] > previous["seconds"] and math.isfinite(event["cpu_seconds"]) and
+                    event["cpu_seconds"] >= previous["cpu_seconds"], "nonadvancing client window")
+            shares = ("shared0", "shared1")
+            require(all(isinstance(event[name], int) and event[name] >= previous[name] for name in shares) and
+                    sum(event[name] for name in shares) == 3 * rounds, "shared recipient accounting")
+            tails = [event[f"p{rank}_us"] for rank in (50, 95, 99, 999)]
+            require(all(math.isfinite(value) and value >= 0 for value in tails) and tails == sorted(tails),
+                    "invalid latency distribution")
+            for name, process in (("client", client), ("broker", broker)):
+                snapshot = process_snapshot(process)
+                if snapshot is None:
+                    continue
+                event[name] = snapshot
+                original = baseline.setdefault(name, snapshot)
+                require(snapshot["private"] - original["private"] <= PRIVATE_GROWTH and
+                        snapshot["handles"] - original["handles"] <= HANDLE_GROWTH, f"{name} resource growth limit")
+            previous = event
+            windows += 1
+        append(event | {"observer_seconds": now - start, "clock": clock["clock"]})
+        if args.kill_broker_after is not None and final is None and "fault" not in state and event["seconds"] >= args.kill_broker_after:
+            require(broker.poll() is None, "broker exited before injected kill")
+            broker.kill()
+            state["fault"] = {"verified_rounds": rounds, "broker_exit": broker.wait(timeout=6), "event": "broker process killed"}
+            append(state["fault"])
+    state["client_exit"] = client.wait(timeout=6)
+    require(state["client_exit"] == 0 and final is not None, "client exited without verified retirement")
+    return final | {"windows": windows, "baseline": baseline, "shared0": previous["shared0"], "shared1": previous["shared1"],
+                    "cpu_seconds": previous["cpu_seconds"], "largest_tick_gap_seconds": clock.get("largest_tick_gap", 0)}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--seconds", type=int, default=60)
+    parser.add_argument("--pause-ms", type=int, default=3)
+    parser.add_argument("--kill-broker-after", type=int, help="separate fault run, inject after a verified window")
+    parser.add_argument("--report", type=Path, required=True)
+    args = parser.parse_args()
+    if not (1 <= args.seconds <= 73 * 3600 and 2 <= args.pause_ms <= 100):
+        parser.error("invalid duration or pacing")
+    if args.kill_broker_after is not None and not 1 <= args.kill_broker_after <= args.seconds - 6:
+        parser.error("leave at least six seconds for fault observation")
+    binary = args.binary.resolve(strict=True)
+    base = args.report.with_suffix("")
+    base.parent.mkdir(parents=True, exist_ok=True)
+    wsl = sys.platform.startswith("linux") and ("microsoft" in platform.release().lower() or "WSL_DISTRO_NAME" in os.environ)
+    state = {"status": "running", "native_72h": False, "wsl": wsl, "platform": platform.platform(),
+             "seconds_requested": args.seconds, "pause_ms": args.pause_ms, "binary_sha256": digest(binary),
+             "resource_growth_limits": {"private": PRIVATE_GROWTH, "handles": HANDLE_GROWTH},
+             "inputs": {str(path.relative_to(ROOT)): digest(path) for path in (
+                 HERE / "mqtt_mixed.c", Path(__file__).resolve(), ROOT / "dev/bench/bench_common.h",
+                 ROOT / "extlibs/xmqtt/examples/server/app_listener.h", ROOT / "tools/test_xrudp_native_soak.py",
+                 ROOT / "single/xrt.h", ROOT / "single/extlibs/xmqtt.h",
+             )}}
+    try:
+        with ExitStack() as cleanup, Path(f"{base}.jsonl").open("x", encoding="utf-8") as journal:
+            def append(event):
+                journal.write(json.dumps(event, allow_nan=False) + "\n")
+                journal.flush()
+
+            def start(arguments, role, **options):
+                errors = cleanup.enter_context(Path(f"{base}.{role}.stderr").open("x", encoding="utf-8"))
+                process = subprocess.Popen([str(binary), *arguments], stdout=subprocess.PIPE, stderr=errors,
+                                           text=True, encoding="utf-8", cwd=ROOT, **options)
+                cleanup.callback(retire, process)
+                state[f"{role}_pid"] = process.pid
+                return process
+
+            broker = start(["--broker"], "broker", stdin=subprocess.PIPE)
+            status = read_output(broker)
+            ready = wait_output(status, 10)
+            require(ready and isinstance(ready["port"], int) and 1 <= ready["port"] <= 65535, "broker readiness")
+            state["port"] = ready["port"]
+            wall, clock = time.time(), time.monotonic()
+            client = start(["--load", str(ready["port"]), str(args.seconds), str(args.pause_ms)], "client")
+            append(state)
+            state["client"] = watch(client, broker, args, state, append, clock, wall)
+            require(args.kill_broker_after is None, "fault run unexpectedly completed")
+            broker.stdin.write("\n")
+            broker.stdin.flush()
+            final = wait_output(status, 12)
+            require(final and final["complete"] is True and broker.wait(timeout=6) == 0, "broker retirement report")
+            require(final["accepted"] == 4 + state["client"]["replays"] and
+                    final["forwarded"] == state["client"]["deliveries"], "broker and client counters disagree")
+            state["broker"] = final
+            state["native_72h"] = (args.seconds >= RELEASE_SECONDS and not wsl and sys.platform in ("win32", "linux") and
+                                   set(state["client"]["baseline"]) == {"client", "broker"})
+            state["status"] = "passed"
+    except (OSError, ValueError, KeyError, RuntimeError, AssertionError, subprocess.SubprocessError) as error:
+        state.update(status="failed", error=str(error), native_72h=False)
+    except KeyboardInterrupt:
+        state.update(status="cancelled", native_72h=False)
+    with Path(f"{base}.json").open("x", encoding="utf-8") as output:
+        json.dump(state, output, indent=2, allow_nan=False)
+        output.write("\n")
+    print(json.dumps({key: state[key] for key in ("status", "native_72h", "error", "broker", "fault") if key in state}), flush=True)
+    return 0 if state["status"] == "passed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
