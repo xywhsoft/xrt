@@ -423,6 +423,53 @@ The comparison covers graceful process restarts and serialized replay at
 Receive Maximum 1. Per-ACK commits, abrupt process termination and combined
 TLS/persistence have separate acceptance workloads.
 
+### Idle connections and reconnect waves
+
+Build `examples_server_main` with the `xmqtt_server` suite. The
+`--compare MAX_CONNECTIONS` argument selects a connection limit and one
+network worker. The observer uses Python 3.11 or later and disjoint
+logical CPUs for the broker and observer.
+
+```text
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --arch x64 --cflag=-O2
+python extlibs/xmqtt/bench/compare_broker_connections.py --xmqtt /path/to/examples_server_main --mosquitto /path/to/mosquitto --broker-cpu 0 --load-cpu 4 --clients 1 --clients 100 --clients 1000 --clients 8000 --clients 10000 --report out/broker-connections.json
+```
+
+Each repeat starts a fresh loopback broker with the same connection
+limit and verifies readiness with a separate clean MQTT 5 handshake
+and disconnect. It admits the complete cohort as clean MQTT 5 connections and
+tests one excess connection. After the idle interval, the observer
+requires a PINGRESP on every socket. It retires 10% of the connections
+(at least one), reconnects the same identities, retests the admission
+limit and checks every surviving and replacement socket. The final
+drain must retire every connection and allow a new client. CONNECT and
+PING latencies include each attempted socket or protocol operation.
+[Mosquitto listener limits](https://mosquitto.org/man/mosquitto-conf-5.html).
+
+Use `--concurrency` to set the rolling number of in-flight observer
+operations, default 32. Throughput uses the whole phase wall interval
+and per-operation percentiles start when an operation enters that
+window. The report retains partially completed phases and failures.
+It records broker CPU, working set or RSS, peak RSS and operating
+system handle or descriptor counts before filling, at either end of
+the idle period and after the final drain. Observer CPU is reported
+separately. The POSIX runner raises only its process descriptor limit
+and inherits it into the test broker. Use a host with enough descriptors
+and loopback ports for the largest cohort.
+
+Use the 8,000-client group for the near-capacity Windows comparison.
+Mosquitto 2.1.2 initializes its Windows polling table for 8,192 sockets
+and places the listener in the same table as client sockets. The
+10,000-client group preserves the reference timeouts and the xmqtt
+outcomes. A requested group with a failed peer gives the run a nonzero
+exit status while the JSON retains each completed series.
+[Mosquitto Windows startup](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mosquitto.c#L412-L419),
+[Mosquitto polling table](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mux_poll.c#L59-L94).
+
+This workload covers idle clean sessions and bounded reconnect waves.
+Full-rate reconnect storms, authenticated transports, loaded subscriber
+cohorts and durable recovery have separate workloads.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised

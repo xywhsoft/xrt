@@ -19083,3 +19083,78 @@ Reproduce from [the restart comparison guide](../../extlibs/xmqtt/bench/README.m
 The formal reports, initial Clean Start 1 outcomes, stale-image probes,
 source snapshots and validation logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-restart-broker/`.
+
+## 2026-11-20 MQTT 5 idle capacity and reconnect waves
+
+The independent observer ran on logical CPU 4 while either xmqtt or
+Mosquitto 2.1.2 ran on CPU 0. The xmqtt example used one network
+worker. Each broker's connection limit matched the requested cohort
+of 1, 100, 1,000, 8,000 or 10,000 clean MQTT 5 connections. The
+observer admitted connections in a rolling window of 32, held them
+idle for two seconds, and checked PING replies before and after
+reconnecting 10% of the cohort. Each completed sample rejected one
+excess connection at either plateau and admitted a fresh client after
+the final drain. The observer verified readiness with a complete MQTT
+handshake and disconnect after the initial TCP half-close probe failed
+on xmqtt.
+
+The two environments each ran five alternating repetitions per broker
+and case. Of 100 samples, 94 completed. They verified 322,020 initial
+connections, 32,220 reconnects, 644,040 PING replies and 188 capacity
+refusals. All 94 completed samples returned the broker process's handle
+or descriptor count to the pre-cohort snapshot after disconnect.
+
+| Environment | Clients | Initial connections/s, xmqtt / Mosquitto | CONNECT P99 in ms, xmqtt / Mosquitto | Idle RSS increase in MiB, xmqtt / Mosquitto | Reconnects/s, xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1,000 | 5,667 / 5,934 | 7.41 / 5.85 | 2.75 / 5.53 | 5,968 / 5,960 |
+| Windows x64 | 8,000 | 5,546 / 2,109 | 6.32 / 40.02 | 20.41 / 42.55 | 5,459 / 847 |
+| Ubuntu/WSL x64 | 8,000 | 6,953 / 7,535 | 24.82 / 6.60 | 15.29 / 38.81 | 7,738 / 7,503 |
+| Ubuntu/WSL x64 | 10,000 | 7,016 / 7,531 | 24.07 / 6.43 | 19.09 / 48.48 | 7,872 / 7,573 |
+
+The table uses five-sample medians. Latency starts at admission to the
+observer's rolling window. The 8,000-client Windows samples measured
+median idle broker CPU of zero at the accounting resolution for xmqtt
+and 0.328 s for Mosquitto over the two-second hold. Observer CPU and
+process-wide resident memory are recorded for each sample.
+
+In all five Windows 10,000-client reference attempts, 8,191 clients
+completed CONNECT before remaining attempts timed out. The pinned
+Windows source sizes its polling array from the 8,192-entry CRT limit
+and also inserts the listening socket into that array. Four of five
+xmqtt attempts completed. The other reached 9,027 verified connections
+before an operation returned WinError 52. The Windows TCP/IP log
+recorded event 4227 during the comparison, consistent with local
+endpoint reuse pressure. The event lacks a connection identifier.
+A diagnostic rerun with timestamps and tracebacks completed all three
+xmqtt repeats and reproduced the three reference limits. The formal
+Windows report remains incomplete.
+[Mosquitto Windows startup](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mosquitto.c#L412-L419),
+[Mosquitto polling table](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mux_poll.c#L59-L94),
+[Windows TCP/IP port diagnostics](https://learn.microsoft.com/en-us/troubleshoot/windows-client/networking/tcp-ip-port-exhaustion-troubleshooting).
+
+Of the 72 complete throughput series, 55 met the variation limits.
+Of 72 complete P99 series, 34 met them. Native Linux and stable release
+tails remain open. TLS, loaded subscriber cohorts and 100% reconnect
+storms require separate measurements.
+
+In 24 injected attempts, the observer rejected a broker configured to
+admit one extra connection. Both platforms passed the independent
+MQTT 5 and 3.1.1 handshake, routing, QoS and session tests. The Windows
+modular and single-header broker suite passed. Generated assets, public
+API documentation and ordinary maturity passed. Strict release still
+reports 39 developing modules.
+
+The separate native Windows mixed-load attempt 2 was running on the
+same host during the comparison. Its last verified window showed
+1,137,726 rounds at 18,149 seconds, with steady handle and private-memory
+counts. The client then exited on a fresh CONNACK check at 16:15:20.
+TCP/IP event 4227 preceded that exit by about six seconds. The terminal
+report records a failed run. Attempt 3 uses the same verified binary and
+input hashes and starts a new 72-hour interval with its own journal.
+The journals are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-mixed-soak/`.
+
+Reproduce from [the idle and reconnect guide](../../extlibs/xmqtt/bench/README.md#idle-connections-and-reconnect-waves).
+Reports, first readiness failures, capacity probes, source snapshots
+and validation logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-connection-broker/`.
