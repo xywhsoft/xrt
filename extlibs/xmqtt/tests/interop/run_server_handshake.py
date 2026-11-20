@@ -31,16 +31,31 @@ def connect_packet(level, client_id, receive_maximum=None):
     return small_frame(0x10, body + topic(client_id))
 
 
-def connect(endpoint, level, client_id, receive_maximum=None):
-    sock = socket.create_connection(endpoint, timeout=5)
+def connect(endpoint, level, client_id, receive_maximum=None, *, allow_refusal=False, timeout=5):
     wire = connect_packet(level, client_id, receive_maximum)
+    sock = socket.socket()
+    sock.settimeout(timeout)
     try:
-        # Split the CONNECT and pipeline the first PING.
-        sock.sendall(wire[:8])
-        sock.sendall(wire[8:] + b"\xc0\0")
-        header = read(sock, 2)
+        try:
+            sock.connect(endpoint)
+            # Split the CONNECT and pipeline the first PING.
+            sock.sendall(wire[:8])
+            sock.sendall(wire[8:] + b"\xc0\0")
+            header = sock.recv(2)
+        except (ConnectionResetError, BrokenPipeError):
+            if not allow_refusal:
+                raise
+            header = b""
+        if allow_refusal and not header:
+            sock.close()
+            return None, ""
+        assert header, "truncated MQTT reply"
+        header += read(sock, 2 - len(header))
         assert header[0] == 0x20 and header[1] < 64, header.hex()
         ack = read(sock, header[1])
+        if allow_refusal and level == 5 and len(ack) >= 3 and ack[0] == 0 and ack[1] >= 0x80:
+            sock.close()
+            return None, ack.hex()
         assert ack[:2] == b"\0\0", ack.hex()
         if level == 4:
             assert ack == b"\0\0", ack.hex()
@@ -413,10 +428,12 @@ def finish_qos2(peer, identifier):
 
 
 def ping(peers):
-    for peer in peers:
-        peer.sendall(b"\xc0\0")
-    for peer in peers:
-        assert read(peer, 2) == b"\xd0\0", "PING must pass while a recipient is blocked"
+    for start in range(0, len(peers), 128):
+        wave = peers[start:start + 128]
+        for peer in wave:
+            peer.sendall(b"\xc0\0")
+        for peer in wave:
+            assert read(peer, 2) == b"\xd0\0", "peer must answer PING"
 
 
 def healthy_flow(publisher, subscriber, name):
@@ -434,47 +451,76 @@ def healthy_flow(publisher, subscriber, name):
                                   for label, q in ((50, .50), (95, .95), (99, .99))}}
 
 
-def probe_pressure(program, clients):
+def drive_pressure(program, clients, result):
     # This is the standalone APP's default per-connection reliable quota.
     capacity = 256
     blocked, healthy = b"pressure/blocked", b"healthy/live"
     with running_server(program, "--compare", str(clients)) as endpoint, ExitStack() as cleanup:
+        result["phase"] = "connect"
+
         def open_peer(index, receive_maximum=None):
             sock, _ = connect(endpoint, 5, f"pressure-{index}".encode("ascii"), receive_maximum)
+            result["connected"] += 1
             return cleanup.enter_context(sock)
 
         slow = open_peer(0, receive_maximum=1)
         producer, fast, traffic = (open_peer(index) for index in range(1, 4))
         idle = [open_peer(index) for index in range(4, clients)]
+        result["phase"] = "admission"
         for peer, name in ((fast, healthy), (slow, blocked)):
             peer.sendall(small_frame(0x82, b"\0\1\0" + topic(name) + b"\2"))
             assert read(peer, 6) == b"\x90\4\0\1\0\2"
 
-        # An excess socket can be accepted by TCP and then closed by the APP's broker limit.
-        with socket.socket() as excess:
-            excess.settimeout(5)
-            try:
-                excess.connect(endpoint)
-                excess.sendall(connect_packet(5, b"over-capacity"))
-                header = excess.recv(1)
-            except (ConnectionResetError, BrokenPipeError):
-                header = b""
-            if header:
-                assert header == b"\x20", header.hex()
-                ack = read(excess, read(excess, 1)[0])
-                assert len(ack) >= 3 and ack[0] == 0 and ack[1] >= 0x80, "broker accepted beyond its configured limit"
+        excess, _ = connect(endpoint, 5, b"over-capacity", allow_refusal=True)
+        if excess is not None:
+            with excess:
+                raise AssertionError("broker accepted beyond its configured connection limit")
+        result["over_capacity_refusals"] = 1
         ping(idle)
-        baseline = healthy_flow(traffic, fast, healthy)
+        result["baseline"] = healthy_flow(traffic, fast, healthy)
 
+        result["phase"] = "fill"
         for number in range(1, capacity + 1):
             publish_qos2(producer, blocked, number, struct.pack("!H", number))
         first = receive_qos2(slow, blocked, b"\0\1")
         publish_qos2(producer, blocked, capacity + 1, b"rejected", quota=True)
+        result["quota_exceeded"] = 1
         ping(idle + [slow])
-        saturated = healthy_flow(traffic, fast, healthy)
+
+        # Reuse slots with the slow recipient's queue still full.
+        result["phase"] = "reconnect"
+        replaced = max(1, clients // 100)
+        for index in range(replaced):
+            peer = idle[index]
+            peer.sendall(b"\xe0\0")
+            eof(peer)
+            peer.close()
+            identity = f"pressure-{clients + index}".encode("ascii")
+            began = time.perf_counter()
+            deadline = began + 5
+            while True:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    raise TimeoutError("replacement slot did not become available")
+                replacement, _ = connect(endpoint, 5, identity, allow_refusal=True, timeout=remaining)
+                if replacement is not None:
+                    idle[index] = cleanup.enter_context(replacement)
+                    result["reconnected"] += 1
+                    result["replacement_max_us"] = max(result["replacement_max_us"],
+                                                        (time.perf_counter() - began) * 1_000_000)
+                    break
+                result["replacement_refusals"] += 1
+                time.sleep(min(0.001, remaining))
+        ping(idle[:replaced])
+        result["admission_after_retirement"] = True
+
+        result["phase"] = "saturated"
+        result["saturated"] = healthy_flow(traffic, fast, healthy)
         publish_qos2(producer, blocked, capacity + 1, b"still rejected", quota=True)
+        result["quota_exceeded"] += 1
         ping([slow])
 
+        result["phase"] = "drain"
         finish_qos2(slow, first)
         for number in range(2, capacity + 1):
             finish_qos2(slow, receive_qos2(slow, blocked, struct.pack("!H", number)))
@@ -482,43 +528,57 @@ def probe_pressure(program, clients):
         publish_qos2(producer, blocked, capacity + 1, b"reused")
         finish_qos2(slow, receive_qos2(slow, blocked, b"reused"))
         ping([slow])
-        recovered = healthy_flow(traffic, fast, healthy)
+        result["reliable_deliveries_drained"] = capacity + 1
+        result["recovered"] = healthy_flow(traffic, fast, healthy)
 
-        idle[-1].sendall(b"\xe0\0")
-        eof(idle[-1])
-        idle[-1].close()
-        replacement = open_peer(clients)
-        ping(idle[:-1] + [replacement])
-        for peer in [slow, producer, fast, traffic, *idle[:-1], replacement]:
+        result["phase"] = "retire"
+        ping(idle)
+        for peer in [slow, producer, fast, traffic, *idle]:
             peer.sendall(b"\xe0\0")
             eof(peer)
 
-    return {"platform": platform.platform(), "broker_sha256": hashlib.sha256(program.read_bytes()).hexdigest(),
-            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "clients": clients,
-            "over_capacity_refusals": 1, "quota_exceeded": 2, "reliable_deliveries_drained": capacity + 1,
-            "admission_after_retirement": True, "baseline": baseline, "saturated": saturated, "recovered": recovered}
+
+def probe_pressure(program, clients):
+    result = {"platform": platform.platform(), "broker_sha256": hashlib.sha256(program.read_bytes()).hexdigest(),
+              "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "clients": clients,
+              "phase": "startup", "connected": 0, "reconnected": 0, "replacement_refusals": 0,
+              "replacement_max_us": 0.0, "complete": False}
+    started = time.perf_counter()
+    try:
+        drive_pressure(program, clients, result)
+    except (AssertionError, OSError, queue.Empty, subprocess.SubprocessError) as error:
+        result["failure"] = f"{type(error).__name__}: {error}".rstrip()
+    else:
+        result.update(phase="complete", complete=True)
+    result["seconds"] = time.perf_counter() - started
+    return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
     parser.add_argument("report", type=Path)
-    parser.add_argument("--pressure-clients", type=int, metavar="5..1000",
+    parser.add_argument("--pressure-clients", type=int, metavar="5..10000",
                         help="run the separate MQTT 5 live-quota and healthy-traffic probe")
     args = parser.parse_args()
     if args.pressure_clients is None:
         result = probe(args.program)
     else:
-        if not 5 <= args.pressure_clients <= 1000:
-            parser.error("--pressure-clients must be 5..1000")
+        if not 5 <= args.pressure_clients <= 10000:
+            parser.error("--pressure-clients must be 5..10000")
         result = probe_pressure(args.program, args.pressure_clients)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if args.pressure_clients is None:
         print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2, persistent resume and Wills")
+    elif result["complete"]:
+        print(f"[pass] {result['clients']} MQTT 5 connections, {result['reconnected']} replacements and live quota pressure")
     else:
-        print(f"[pass] {result['clients']} MQTT 5 connections, live delivery quota and healthy QoS 2 traffic")
+        print(f"[fail] {result['phase']} with {result['connected']}/{result['clients']} MQTT 5 connections"
+              f" ({result['failure']})")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

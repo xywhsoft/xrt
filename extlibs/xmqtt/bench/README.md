@@ -569,22 +569,29 @@ cohorts and durable recovery have separate workloads.
 ### Live quota at connection capacity
 
 Use the independent MQTT 5 peer to hold a full connection cohort and
-exhaust one subscriber's reliable delivery quota. The slow subscriber
+exhaust one subscriber's reliable delivery quota. The subscriber
 advertises Receive Maximum one and withholds its first QoS 2 PUBREC.
-The broker rejects a new connection and two more publications to the
-full recipient. Other clients answer PING and a disjoint topic
-continues delivering verified QoS 2 messages. The peer then drains the
-blocked subscriber in order, reuses the rejected publisher packet ID
-and opens a replacement connection after retiring one client.
+The broker refuses an excess connection. Other clients answer PING
+while the peer retires and replaces 1% of the cohort, with at least
+one replacement. A peer can observe EOF before its slot is reusable.
+The probe retries pre-CONNACK refusals within each replacement's
+five-second budget and records the refusal count and longest replacement.
+Two publications to the full recipient are rejected
+on either side of the replacement wave. A disjoint topic continues
+delivering verified QoS 2 messages. The peer then drains the slow
+subscriber in order and reuses the rejected publisher packet ID.
 
     python extlibs/xmqtt/tests/interop/run_server_handshake.py \
-      /path/to/examples_server_main out/broker-active-pressure.json --pressure-clients 1000
+      /path/to/examples_server_main out/broker-active-pressure.json --pressure-clients 10000
 
-The report records the P50, P95 and P99 of 256 serial healthy-topic
-exchanges before, during and after the quota hold. Timing runs from
-the publisher's PUBLISH send attempt to the subscriber's PUBCOMP send
-return. A final PING confirms the broker saw the last PUBCOMP. This
-profile checks progress at capacity with one broker worker.
+Choose a cohort from 5 to 10,000 using the one-worker server example.
+The peer checks PING in groups of at most 128 sockets. The report
+records verified connections and replacements and records the failed
+phase if the workload stops early. The P50, P95 and P99 cover 256
+serial healthy-topic exchanges before, during and after the quota
+hold. Timing runs from the publisher's PUBLISH send attempt to the
+subscriber's PUBCOMP send return. A final PING confirms the broker
+received the last PUBCOMP.
 
 ## Continuous MQTT 5 mixed load
 

@@ -20845,3 +20845,42 @@ remains open.
 The source snapshots, binaries, modular and sanitizer logs, socket
 traces, Redis counter checks and audit are under
 `out/service-extensions/scope-reduction-20261119/xredis-epoll-short-read/`.
+
+## 2026-11-21 MQTT 5 live quota with 10,000 connections
+
+The independent TCP peer now holds up to 10,000 MQTT 5 connections.
+It replaces one percent of the cohort while the slow subscriber still
+holds its 256-delivery quota. The observer checks PING in groups of
+at most 128 sockets. It verifies a quota rejection before and after
+replacement, then drains the slow subscriber and reuses the rejected
+packet ID.
+
+The initial immediate-replacement probe encountered TCP resets in
+three WSL runs. The 1,000-connection run had completed eight
+replacements. The two 10,000-connection runs had completed 44 and
+80. The broker holds a connection slot until its native owner and
+subscriptions retire. The probe allows retries of TCP refusal or
+negative CONNACK within a five-second retry window and records the
+counts. A reset after a successful CONNACK fails the test. A scripted
+refusal exercised the retry and another injected failure verified the
+partial JSON report and nonzero exit status.
+
+Windows x64 and Ubuntu/WSL each passed three final 10,000-connection
+runs. The six runs verified 60,000 initial connections, 600
+replacements, 4,608 healthy QoS 2 exchanges and 1,542 deliveries
+through the slow subscriber. The longest replacement through PING
+was 23.138 ms on Windows and 0.886 ms on WSL. The final matrix saw
+zero replacement refusals. The 5-, 64- and 1,000-connection smokes
+and ordinary dual-version peer also passed on both environments.
+
+The previous epoll rearm build passed all 93 WSL xredis test entries
+and the modular MQTT dual-version server suite. The full WSL
+checkpoint peer hit a timeout in its saturated APP writer fixture.
+An isolated comparison reproduced that timeout in three of five
+baseline runs and two of five current runs. This fixture remains
+open for synchronized writer admission validation.
+
+The early failures, final reports, fault fixtures and source and
+binary audit are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-capacity-10000/`.
+[Live quota workload](../../extlibs/xmqtt/bench/README.md#live-quota-at-connection-capacity).

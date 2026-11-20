@@ -598,8 +598,10 @@ XRT coalesces a fragmented complete control packet when needed. One queued
 timer per connection observes updated deadlines, with a separate timer during
 online reauthentication. Close seals admission and
 requests stream aborts. Subscriptions are released before the connection
-quota is returned, after the native event owner and its pending timer retire. Join listener callbacks and
-then join the broker outside its workers before destruction.
+quota is returned, after the native event owner and its pending timer retire.
+A TCP peer may observe EOF before the slot can admit another connection.
+Join listener callbacks and then join the broker outside its workers before
+destruction.
 
 Sixteen keyed shards index exact topics and filters whose first level is
 literal. A separate trie holds filters that begin with a wildcard. Publishers
