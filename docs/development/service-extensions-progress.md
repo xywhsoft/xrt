@@ -20760,3 +20760,39 @@ new mode. Both wait-phase fixtures recorded four valid absolute
 wait rows. The diagnostic results and source receipts are under
 `out/service-extensions/scope-reduction-20261119/xcron-matched-waiter/`.
 [Scheduler benchmark commands](../../extlibs/xcron/docs/scheduler.md).
+
+## 2026-11-21 xredis plaintext socket I/O accounting
+
+The current xredis and pinned Hiredis 1.3.0 observers were rebuilt
+against the same XRT headers. Ubuntu/WSL ran strace 6.19 with both
+observers pinned to CPUs 8 and 10. The separate Redis 8.0.5 fixture ran
+on CPU 0. Each observer used four plaintext RESP3 connections,
+1,024-byte GET and SET values and a 128-slot window. Three repetitions
+of each two-second rate verified 30,000 measured replies and matched
+the fixture's GET, SET, HELLO and PING command ledgers.
+
+| Offers/s | Observer | TCP send calls | TCP receive calls | Successful receives | Receive EAGAIN |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 500 | xredis | 1,009 | 2,022 | 1,009 | 1,013 |
+| 500 | Hiredis 1.3.0 | 1,009 | 1,021 | 1,009 | 12 |
+| 2,000 | xredis | 4,009 | 8,014 | 4,006 | 4,006 |
+| 2,000 | Hiredis 1.3.0 | 4,009 | 4,047 | 4,009 | 40 |
+
+The table gives medians including connection setup, seed and teardown.
+At 2,000 offers/s both sent 1,191,216 bytes and received 3,104,901
+bytes per process. The additional xredis calls were nonblocking reads
+returning EAGAIN. The audit independently recounted the decoded TCP
+descriptors and transfer sizes from the thread traces.
+
+The first 2,000-offer trace wrote directly to the mounted Windows
+workspace and admitted 2,013 of 4,000 offers. That report and its
+1,987 harness-capacity rejections are retained. The completed comparison
+wrote traces to temporary Linux storage and copied them after each
+run. These results account for plaintext TCP I/O under tracing. The
+native platform, memory-copy and untraced release-tail evidence is
+still required.
+
+Tool and binary digests, fixture ledger, commands, raw traces and
+audit are under
+`out/service-extensions/scope-reduction-20261119/xredis-socket-accounting/`.
+[Socket tracing commands](../../extlibs/xredis/docs/client-performance.md#plaintext-socket-io-accounting).

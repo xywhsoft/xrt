@@ -222,6 +222,24 @@ Hiredis runs its nonblocking socket and parser on the generator thread.
 xredis samples native request and command-byte counters across the selected
 connections.
 
+### Plaintext socket I/O accounting
+
+Run each existing observer under the same tracer against the dedicated
+Redis fixture. The arguments below offer 4,000 mixed operations at
+2,000/s on four RESP3 connections with 1,024-byte values.
+
+    strace -ff -qq -yy -s 1 -e trace=%network,read,write,readv,writev \
+      -o /tmp/xredis-io -- out/xredis-echo 4000 2000 128 1024 1000 0 0 "$redis_port" 0 4 1
+
+Choose a distinct trace prefix for the Hiredis observer. Write the
+traces on the Linux filesystem and copy them after the run. Count I/O
+only on the TCP descriptors connected to the fixture port across all
+traced threads. Record successful byte transfers and EAGAIN separately.
+The totals include connection setup, the seed write and retirement.
+Verify the per-response results and the fixture's GET, SET, HELLO and
+PING counters before comparing the syscall totals. Use untraced runs
+for throughput and tail validation.
+
 ### Verified TLS comparison
 
 Use the same open-loop observer with `REDIS_OPENLOOP_EXTERNAL_TLS` defined
