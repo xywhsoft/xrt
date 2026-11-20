@@ -15,12 +15,12 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
     const xmqttclientconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
     const xmqttpacket* Connect,ptr FactoryData,xmqttclient** Client);
 /* Success consumes the matching fresh or recovered disconnected Session, and
- * reserves the caller-owned Inbox Writer through Destroy. Serialize creation
+ * reserves the caller-owned semantic Writer through Destroy. Serialize creation
  * with Writer lifecycle and mutations. CleanupPool is the existing Reconnect
  * cleanup pool and must differ from the Writer's IO pool. Both must keep
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
- * the transferred Session. Use StoreInboxTake and StoreInboxAckAsync
+ * the transferred Session. Use StoreWriteReadPending and StoreWriteRetireAsync
  * throughout the controller lifetime.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt

@@ -22,7 +22,7 @@ XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config);
 /* Queue one bounded checkpoint at a FIFO Store Writer commit boundary.
  * The Writer must own a native JournalSlot child. Keep the Slot/root alive
  * through Writer Destroy and serialize direct Slot calls with that lifetime.
- * Connection state and Inbox leases stay with the same Writer. A source
+ * Connection state and pending records stay with the same Writer. A source
  * whose recovery projected unsynchronized expiry requires a committed reset
  * establishing the durable cut before compaction is eligible.
  * The host storage task scans bounded live entries and writes inactive

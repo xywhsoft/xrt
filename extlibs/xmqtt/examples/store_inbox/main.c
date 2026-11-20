@@ -1,4 +1,4 @@
-#include <xmqtt/store_inbox.h>
+#include <xmqtt/store_write.h>
 #include <xrt/memory.h>
 #include <stdio.h>
 
@@ -30,7 +30,7 @@ int main(void)
     if(OK){
         xmqttstorewriteconfig WC;
         xmqttStoreWriteConfigInit(&WC);
-        OK=xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer);
+        OK=xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer);
         if(OK){Journal=NULL;State=NULL;}
     }
 
@@ -51,12 +51,11 @@ int main(void)
     xrtFutureDestroy(Future);
     Future=NULL;
 
-    xmqttstorelease Lease;
     xmqttstoreview Delivery;
-    if(OK)OK=xmqttStoreInboxTake(Writer,Buffer,sizeof(Buffer),&Lease,&Delivery,&Bytes)==XMQTT_STORE_DONE;
+    if(OK)OK=xmqttStoreWriteReadPending(Writer,Buffer,sizeof(Buffer),&Delivery,&Bytes)==XMQTT_STORE_DONE;
     if(OK){
         printf("Processing delivery %llu (%zu bytes)\n",(unsigned long long)Delivery.Key,Bytes);
-        OK=xmqttStoreInboxAckAsync(Writer,Lease,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
+        OK=xmqttStoreWriteRetireAsync(Writer,Delivery.Epoch,Delivery.Key,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
            xrtFutureWaitFor(Future,10000)==XWAIT_OK&&xrtFutureState(Future)==XFUTURE_RESOLVED&&
            ((const xmqttcommitresult*)xrtFutureValue(Future))->Effect==XMQTT_JOURNAL_COMMITTED;
     }

@@ -159,9 +159,6 @@
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA 1
 #endif
-#if !defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX 1
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION 1
 #endif
@@ -308,9 +305,6 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_DELTA)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA 1
-#endif
-#if !defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_STORE_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_SESSION 1
@@ -3092,9 +3086,6 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE_WS
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE_WS
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
-#define XMQTT_MODULE_XMQTT_STORE_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
@@ -3211,21 +3202,8 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
-#define XMQTT_MODULE_XMQTT_STORE_INBOX
-#endif
-#endif
-
-/* xmqtt_store_inbox 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
-#ifndef XMQTT_FEATURE_XMQTT_STORE_INBOX
-#define XMQTT_FEATURE_XMQTT_STORE_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
-#endif
-#ifndef XRT_MODULE_RANDOM_SECURE
-#define XRT_MODULE_RANDOM_SECURE
 #endif
 #endif
 
@@ -6103,6 +6081,17 @@ XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* Writer,xmqttstorewriteinfo* 
  * This read is neither a delivery claim/lease nor an application ACK capability. */
 XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* Writer,uint64 Key,
     ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
+/* Copy the oldest committed pending publication. The same output and buffer
+ * rules as StoreWriteRead apply. Peeking does not change the committed model.
+ * The application controls consumption, concurrency and retry. */
+XMQTT_API xmqttstorestatus xmqttStoreWriteReadPending(xmqttstorewrite* Writer,
+    ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
+/* Append retirement of one pending publication by its stored epoch and key.
+ * May run alongside a connected Client. A stale key or epoch resolves INVALID
+ * before any append. This operation does not change the MQTT receive identity.
+ * Inspect the Future's commit effect before proceeding or retrying. */
+XMQTT_API xmqttjournaladmission xmqttStoreWriteRetireAsync(xmqttstorewrite* Writer,
+    uint64 Epoch,uint64 Key,int64 Timeout,xfuture** Future);
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* Writer);
 /* Close first; same-pool or own callback/admission joins are rejected. */
 XMQTT_API xwaitresult xmqttStoreWriteWaitFor(xmqttstorewrite* Writer,int64 Timeout);
@@ -6116,54 +6105,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/store_inbox.h */
-/* ========================================================================== */
-
-#ifndef XMQTT_STORE_INBOX_H
-#define XMQTT_STORE_INBOX_H
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX) && (!defined(XMQTT_FEATURE_XMQTT_STORE_WRITE) || !defined(XRT_FEATURE_RANDOM_SECURE))
-#error "MQTT durable Inbox requires the semantic writer and secure randomness"
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-/* Copyable opaque reservation. Initialize with Take and pass unchanged.
- * Contains no resource pointer. Its authority ends with this Writer instance
- * or on accepted Ack/Release, whichever comes first. */
-typedef struct xmqttstorelease {uint64 Opaque[4];} xmqttstorelease;
-XRT_EXTERN_C_BEGIN
-/* Same transfer and native lifetime as StoreWriteCreate, with durable Inbox
- * leases enabled. A new incarnation fences tokens from earlier Writers.
- * All raw INBOX_ACK deltas submitted to this Writer are refused before IO.
- * Existing pending deliveries enter the ready queue in persistent key order. */
-XMQTT_API bool xmqttStoreInboxCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqttstorestate* State,
-    const xmqttstorewriteconfig* Config,xmqttstorewrite** Writer);
-/* Exclusive FIFO ready claim. Copy canonical bytes into caller Buffer; View
- * then borrows Buffer. Lease, View and Required publish only on DONE, except
- * LIMIT for short Buffer writes only Required. EMPTY includes the case where
- * all deliveries are already leased/acknowledging. Closed/failed or legacy
- * Writer returns STATE_ERROR. Outputs must be writable, mutually disjoint
- * and caller-owned. No allocation, decode, sync or wait for IO. Claims and
- * retries share MaxInbox credit with pending durable deliveries. */
-XMQTT_API xmqttstorestatus xmqttStoreInboxTake(xmqttstorewrite* Writer,ptr Buffer,size_t Capacity,
-    xmqttstorelease* Lease,xmqttstoreview* View,size_t* Required);
-/* Release the exact live claim and append its delivery to the ready tail.
- * No IO. Stale, foreign or acknowledging leases are refused. */
-XMQTT_API bool xmqttStoreInboxRelease(xmqttstorewrite* Writer,xmqttstorelease Lease);
-/* Call after application effects. ACCEPTED consumes the live claim; Future
- * resolves to xmqttcommitresult even after cancellation, Close or timeout.
- * COMMITTED removes delivery; definite NOT_COMMITTED requeues it with a
- * fresh claim on next Take if the Writer is usable. Uncertain/fatal results
- * suspend further claims until recovery. A refusal leaves Lease live and
- * output untouched. Releasing/destroying the Future does not cancel the ACK.
- * Take/Release/Ack are thread-safe and may coexist with a claimed Client.
- * Stop API entrants before destroying Writer, as for StoreWriteDestroy. */
-XMQTT_API xmqttjournaladmission xmqttStoreInboxAckAsync(xmqttstorewrite* Writer,xmqttstorelease Lease,
-    int64 Timeout,xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt/client_store.h */
 /* ========================================================================== */
 
@@ -6171,8 +6112,8 @@ XRT_EXTERN_C_END
 #define XMQTT_CLIENT_STORE_H
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) || !defined(XMQTT_FEATURE_XMQTT_STORE_INBOX))
-#error "MQTT durable Client requires Session and the durable Inbox writer"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "MQTT durable Client requires Session and the semantic writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 typedef bool (*xmqttclientstoreclock)(ptr User,uint64* Milliseconds);
@@ -6191,7 +6132,7 @@ typedef struct xmqttclientstoreoutcome {
     xmqttclientstorecheckpoint Attempt,Pubrel,Completion,End;
 } xmqttclientstoreoutcome;
 XRT_EXTERN_C_BEGIN
-/* Developing numeric TCP durable Client. Use a Writer from StoreInboxCreate
+/* Developing numeric TCP durable Client. Use a Writer from StoreWriteCreate
  * and a corresponding fresh or exactly recovered disconnected Session.
  * Serialize construction with Writer API calls. Successful construction claims
  * both through ClientDestroy and borrows the running Engine and storage pool.
@@ -6199,7 +6140,7 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. Incoming deliveries use StoreInboxTake.
+ * Ready follows durable OPEN. Use StoreWriteReadPending to inspect recorded deliveries.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
@@ -6316,7 +6257,7 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
 XRT_EXTERN_C_BEGIN
 /* Durable MQTT 5.0 and 3.1.1 over ws://. Use the matching Session and
- * Inbox-mode Writer as in Client Store. WebSocket may be NULL for defaults.
+ * semantic Writer as in Client Store. WebSocket may be NULL for defaults.
  * Its embedded Session must be NULL. Optional Auth uses
  * the existing ticket API and gates OPEN on acceptance of final proof.
  * The original SetupTimeout includes DNS, Upgrade, MQTT and durable OPEN.
@@ -6358,12 +6299,12 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
     const xmqttclientconfig* Config,xmqttsession* Session,const xmqttclientstoreconfig* Store,
     const xmqttpacket* Connect,ptr FactoryData,xmqttclient** Client);
 /* Success consumes the matching fresh or recovered disconnected Session, and
- * reserves the caller-owned Inbox Writer through Destroy. Serialize creation
+ * reserves the caller-owned semantic Writer through Destroy. Serialize creation
  * with Writer lifecycle and mutations. CleanupPool is the existing Reconnect
  * cleanup pool and must differ from the Writer's IO pool. Both must keep
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
- * the transferred Session. Use StoreInboxTake and StoreInboxAckAsync
+ * the transferred Session. Use StoreWriteReadPending and StoreWriteRetireAsync
  * throughout the controller lifetime.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt
@@ -6532,7 +6473,7 @@ XMQTT_API bool xmqttStoreCompactConfigInit(xmqttstorecompactconfig* Config);
 /* Queue one bounded checkpoint at a FIFO Store Writer commit boundary.
  * The Writer must own a native JournalSlot child. Keep the Slot/root alive
  * through Writer Destroy and serialize direct Slot calls with that lifetime.
- * Connection state and Inbox leases stay with the same Writer. A source
+ * Connection state and pending records stay with the same Writer. A source
  * whose recovery projected unsynchronized expiry requires a committed reset
  * establishing the durable cut before compaction is eligible.
  * The host storage task scans bounded live entries and writes inactive
@@ -7462,10 +7403,6 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_STORE_DELTA
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_DELTA
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX)
-#undef XMQTT_FEATURE_XMQTT_STORE_INBOX
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_INBOX
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #undef XMQTT_FEATURE_XMQTT_STORE_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_STORE_SESSION
@@ -7661,10 +7598,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA)
 #undef XMQTT_MODULE_XMQTT_STORE_DELTA
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_DELTA
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX)
-#undef XMQTT_MODULE_XMQTT_STORE_INBOX
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_INBOX
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_STORE_SESSION)
 #undef XMQTT_MODULE_XMQTT_STORE_SESSION
@@ -9682,9 +9615,6 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_STORE_WS
 #define XMQTT_MODULE_XMQTT_CLIENT_STORE_WS
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
-#define XMQTT_MODULE_XMQTT_STORE_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
@@ -9801,21 +9731,8 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #endif
-#ifndef XMQTT_MODULE_XMQTT_STORE_INBOX
-#define XMQTT_MODULE_XMQTT_STORE_INBOX
-#endif
-#endif
-
-/* xmqtt_store_inbox 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_STORE_INBOX)
-#ifndef XMQTT_FEATURE_XMQTT_STORE_INBOX
-#define XMQTT_FEATURE_XMQTT_STORE_INBOX
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
-#endif
-#ifndef XRT_MODULE_RANDOM_SECURE
-#define XRT_MODULE_RANDOM_SECURE
 #endif
 #endif
 

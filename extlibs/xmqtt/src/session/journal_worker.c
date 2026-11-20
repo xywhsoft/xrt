@@ -14,9 +14,6 @@ typedef struct xmqttjwitem {
     struct xmqttjwitem *Next,*OwnedNext,*OwnedPrevious;
     xmqttjournalworker* Owner;size_t Allocation;double Deadline;xpromise* Promise;xcancel* Cancel;
     xmqttcommitresult Result;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    uint64 InboxKey;
-#endif
 } xmqttjwitem;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 typedef struct xmqttjwcompact {
@@ -39,9 +36,6 @@ struct xmqttjournalworker {
     uintptr_t Low,High;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     xmqttstoreprepare Prepare;xmqttstorefinish Finish;ptr Store;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    xmqttstoresettle Settle;
-#endif
 #endif
 };
 typedef struct xmqttjwscope {struct xmqttjwscope* Previous;xmqttjournalworker* Owner;} xmqttjwscope;
@@ -103,15 +97,7 @@ static void xmqttJWFinish(xmqttjournalworker* W,xmqttjwitem* J)
 {
     xpromise* P=J->Promise;xcancel* C=J->Cancel;J->Promise=NULL;J->Cancel=NULL;xrtCancelDestroy(C);
     xrtMutexLock(&W->Gate);--W->Info.Requests;xmqttJWCount(&W->Info.Completed);xrtCondBroadcast(&W->Ready);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    bool Closed=W->Info.Closed;
-#endif
     xrtMutexUnlock(&W->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    /* Run for every accepted item, including a cancelled native pump. The
-     * model is installed and no worker gate is held before this callback. */
-    if(W->Settle)W->Settle(W->Store,J->InboxKey,&J->Result,Closed);
-#endif
     /* Only this owner can complete P. Publication invokes arbitrary watches
      * outside Gate; their retained result still owns the exact object credits. */
     ptr Value=&J->Result;
@@ -183,7 +169,7 @@ static void xmqttJWCommitOne(xmqttjournalworker* W,xmqttjwitem* J,xcancel* Cance
         if(!LocalFailure){uint64 Sequence=0;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
             if(W->Prepare){
-                J->Result.Status=W->Prepare(W->Store,J->Result.Data XMQTT_SW_INBOX_ARG(J->InboxKey));PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;
+                J->Result.Status=W->Prepare(W->Store,J->Result.Data);PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;
                 if(PolicyRefused&&(J->Result.Status==XMQTT_COMMIT_INVALID||J->Result.Status==XMQTT_COMMIT_INITIALIZATION))J->Result.Cause=xrtErrorRef(xrtGetError());
                 if(!PolicyRefused){xrtMutexLock(&W->Gate);J->Result.Status=xmqttJWStop(W,J,Cancel);xrtMutexUnlock(&W->Gate);PolicyRefused=J->Result.Status!=XMQTT_COMMIT_OK;}
             }
@@ -266,9 +252,6 @@ XMQTT_API bool xmqttJournalWorkerCreate(xtaskpool* Pool,xmqttjournal* Journal,co
     *Out=W;return true;
 }
 static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    ,uint64 InboxKey
-#endif
     XMQTT_JW_COMPACT_PARAM
 )
 {
@@ -296,9 +279,6 @@ static xmqttjournaladmission xmqttJWAppendAt(xmqttjournalworker* W,xbytesview Da
         J->Result.Data=(xbytesview){(const unsigned char*)(J+1),Data.Size};
         if(Data.Size)memcpy(J+1,Data.Data,Data.Size);
     }
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    J->InboxKey=InboxKey;
-#endif
     J->Promise=xrtPromiseCreate(&F,NULL);if(!J->Promise)goto End;J->Cancel=xrtPromiseCancelToken(J->Promise);if(!J->Cancel)goto End;
     xrtMutexLock(&W->Gate);
     if(W->Info.Closed){A=XMQTT_JWORK_CLOSED;goto Refuse;}
@@ -335,20 +315,17 @@ XMQTT_API xmqttjournaladmission xmqttJournalWorkerAppendAsync(xmqttjournalworker
     double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
     if(Timeout<XRT_WAIT_FOREVER){xmqttJWError(XERR_ARGUMENT,"invalid append timeout");return XMQTT_JWORK_ERROR;}
     return xmqttJWAppendAt(W,Data,Deadline,Out
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-        ,0
-#endif
         XMQTT_JW_COMPACT_ARG(NULL)
     );
 }
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out XMQTT_SW_INBOX_PARAM)
-{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_SW_INBOX_ARG(InboxKey) XMQTT_JW_COMPACT_ARG(NULL));}
+XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalWorkerAppendAt(xmqttjournalworker* W,xbytesview Data,double Deadline,xfuture** Out)
+{return xmqttJWAppendAt(W,Data,Deadline,Out XMQTT_JW_COMPACT_ARG(NULL));}
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE)
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalJournalCompactSubmit(xmqttjournalworker* W,
     const xmqttstorecompactconfig* Config,double Deadline,xfuture** Out)
-{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_SW_INBOX_ARG(0) XMQTT_JW_COMPACT_ARG(Config));}
+{return xmqttJWAppendAt(W,(xbytesview){0},Deadline,Out XMQTT_JW_COMPACT_ARG(Config));}
 #endif
 XMQTT_API bool xmqttJournalWorkerInfo(xmqttjournalworker* W,xmqttjournalworkerinfo* I)
 {
@@ -387,15 +364,12 @@ XMQTT_API bool xmqttJournalWorkerDestroy(xmqttjournalworker* W)
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* W,xmqttstoreprepare Prepare,xmqttstorefinish Finish,ptr Context XMQTT_SW_SETTLE_PARAM)
+XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* W,xmqttstoreprepare Prepare,xmqttstorefinish Finish,ptr Context)
 {
     if(!W||!Prepare||!Finish||!Context)return xmqttJWError(XERR_ARGUMENT,"invalid private semantic owner hooks");
     xrtMutexLock(&W->Gate);bool OK=!W->Prepare&&!W->Info.Accepted&&!W->Info.Closed&&!W->Info.Requests&&!W->Info.Tasks;
     if(OK){
         W->Prepare=Prepare;W->Finish=Finish;W->Store=Context;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-        W->Settle=Settle;
-#endif
     }xrtMutexUnlock(&W->Gate);return OK;
 }
 #endif

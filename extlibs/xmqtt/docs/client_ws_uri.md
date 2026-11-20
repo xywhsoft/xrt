@@ -95,5 +95,5 @@ post-Upgrade credential capture, durable state, broader async-OOM/partial-write/
 load and broker-close qualification, controlled throughput/tails/CPU and native
 Windows/Linux >=72h soak remain required, along with the other three products.
 
-For a URI connection owning a durable Session and Inbox Writer, use the
+For a URI connection owning a durable Session and semantic Writer, use the
 [durable WebSocket adapter](client_store_ws.md).

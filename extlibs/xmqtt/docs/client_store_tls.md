@@ -3,7 +3,7 @@
 Select the developing `xmqtt_client_store_tls` module. Its public factories
 accept a numeric address, a hostname with a resolver, or a prepared address
 list. TLS verification, protocol selection and native limits follow the
-[Client TLS contract](client_tls.md). The Session, Inbox-mode Writer and
+[Client TLS contract](client_tls.md). The Session, semantic Writer and
 trusted wall clock follow the [durable TCP contract](client_store.md).
 
 The verified handshake precedes MQTT CONNECT. The original setup deadline

@@ -171,9 +171,9 @@ static void saInbox(xmqttstorewrite* Writer,saPeer* Peer,unsigned Transport)
     mqttAuthWait(&Peer->TCP.Acks,1);
     unsigned char Wire[128];
     xmqttstoreview View;
-    xmqttstorelease Lease;
+
     size_t Size=0;
-    stStatus(xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Lease,&View,&Size),XMQTT_STORE_DONE,"post-proof durable delivery");
+    stStatus(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Size),XMQTT_STORE_DONE,"post-proof durable delivery");
     xmqttcodecbuffers B={0};
     xmqttpacket P;
     xbytesview Payload=Transport?XRT_BYTES_LITERAL("yes"):XRT_BYTES_LITERAL("quarantine");
@@ -181,7 +181,7 @@ static void saInbox(xmqttstorewrite* Writer,saPeer* Peer,unsigned Transport)
                 P.Identifier==77&&P.Body.Publish.Payload.Size==Payload.Size&&
                 !memcmp(P.Body.Publish.Payload.Data,Payload.Data,Payload.Size),"exact early delivery after OPEN");
     xfuture* Ack=NULL;
-    testRequire(xmqttStoreInboxAckAsync(Writer,Lease,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
+    testRequire(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
                 jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"coalesced application delivery committed once");
     xrtFutureDestroy(Ack);
 }
@@ -270,7 +270,7 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"auth fixture Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"auth fixture Writer");
     Drive.Base.Calls=0;
     if(Accept)Drive.Hold=7;
 

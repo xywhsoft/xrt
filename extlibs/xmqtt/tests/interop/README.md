@@ -360,7 +360,7 @@ delta following the checkpoint.
 
 The runner waits for the client PUBACK before terminating the process.
 After restart, the new client resumes the QoS 2 exchange. The application takes
-the recovered Inbox lease, verifies its original payload, and commits a durable
+the recovered pending record, verifies its payload, and commits a durable
 ACK. The broker sends no second trigger delivery in the observed recovery.
 The final cold reopen checks END and an empty Inbox.
 

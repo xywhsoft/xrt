@@ -15,8 +15,7 @@ retirement, and checks the graceful END checkpoint before retiring its owners
 and deleting the temporary file.
 
 See the [Client storage contract](../../docs/client_store.md) for recovery
-and the [durable Inbox example](../store_inbox/README.md) for application
-delivery leases.
+and the [pending publication example](../store_inbox/README.md) for APP processing.
 
 ## Verified TLS
 

@@ -65,7 +65,7 @@ int main(void)
     Pool=xrtTaskPoolCreate(&PC);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
-    if(!Pool||!xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer))goto Cleanup;
+    if(!Pool||!xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer))goto Cleanup;
     Journal=NULL;
     State=NULL;
     xmqttsessionconfig SK;

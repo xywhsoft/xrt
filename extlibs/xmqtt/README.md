@@ -67,7 +67,7 @@ recovery and numeric/hostname/prepared enhanced-auth factories. The developing
 [automatic reconnect controller](docs/reconnect.md) adds generation leases, bounded
 backoff/deadlines and physical cleanup over a borrowed Engine/task pool. Durable
 [automatic recovery](docs/reconnect_store.md) composes the same controller with
-an Inbox Writer and a fresh or journal-restored Session. The transport callback
+an semantic Writer and a fresh or journal-restored Session. The transport callback
 selects a durable Client factory. Subscription intent after session loss remains
 an application responsibility.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
@@ -289,7 +289,7 @@ Direct [State-to-Session import](docs/store_session.md) and bounded
 [Journal submission](docs/journal_worker.md) on a borrowed host task pool are
 now developing components, with [runnable worker example](examples/journal_worker/README.md).
 The developing [durable Client](docs/client_store.md) gates MQTT protocol
-progress on journal commits. [Inbox leases](docs/store_inbox.md) govern
+progress on journal commits. [APP pending record processing](docs/store_inbox.md) covers
 application delivery. Namespace publication, compaction and controlled
 production acceptance remain open.
 

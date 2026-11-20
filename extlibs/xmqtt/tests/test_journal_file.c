@@ -1,6 +1,6 @@
 #include "test.h"
 #include <xmqtt/journal_file.h>
-#include <xmqtt/store_inbox.h>
+#include <xmqtt/store_write.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
 static const char fileName[]="session.wal";
@@ -114,7 +114,7 @@ static void storeOwner(xroot Root,xmqttversion Version)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(Pool&&xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"Writer takes an owned ready Journal");
+    testRequire(Pool&&xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"Writer takes an owned ready Journal");
     testRequire(!xmqttJournalDestroy(Journal),"borrowed alias cannot bypass the Writer");
     xrtClearError();
     busy(Root,Name,&C);

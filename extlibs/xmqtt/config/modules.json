@@ -169,7 +169,6 @@
         "xmqtt_client_store",
         "xmqtt_client_store_tls",
         "xmqtt_client_store_ws",
-        "xmqtt_store_inbox",
         "xmqtt_reconnect_store",
         "xmqtt_journal_file",
         "xmqtt_journal_slot",
@@ -207,7 +206,7 @@
         "xmqtt_journal_tests",
         "xmqtt_store_delta_tests",
         "xmqtt_store_write_tests",
-        "xmqtt_store_inbox_tests"
+        "xmqtt_store_pending_tests"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -2538,6 +2537,7 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xmqtt/docs/store_write.md",
+        "extlibs/xmqtt/docs/store_inbox.md",
         "extlibs/xmqtt/docs/api/reference.md"
       ]
     },
@@ -2594,7 +2594,7 @@
       "feature": "XMQTT_FEATURE_XMQTT_CLIENT_STORE",
       "depends": [
         "xmqtt_client_session",
-        "xmqtt_store_inbox"
+        "xmqtt_store_write"
       ],
       "public_headers": [
         "extlibs/xmqtt/include/xmqtt/client_store.h"
@@ -2778,33 +2778,11 @@
       ]
     },
     {
-      "name": "xmqtt_store_inbox",
-      "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_STORE_INBOX",
-      "depends": [
-        "xmqtt_store_write",
-        "random_secure"
-      ],
-      "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/store_inbox.h"
-      ],
-      "internal_headers": [],
-      "sources": [],
-      "tests": [],
-      "single_tests": [],
-      "examples": [],
-      "benchmarks": [],
-      "docs": [
-        "extlibs/xmqtt/docs/store_inbox.md",
-        "extlibs/xmqtt/docs/api/reference.md"
-      ]
-    },
-    {
-      "name": "xmqtt_store_inbox_tests",
+      "name": "xmqtt_store_pending_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xmqtt_store_inbox",
+        "xmqtt_store_write",
         "xmqtt_client_store",
         "xmqtt_store_session",
         "vfs",
@@ -2815,12 +2793,10 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xmqtt/tests/test_store_inbox.c",
-        "extlibs/xmqtt/tests/test_client_store.c"
+        "extlibs/xmqtt/tests/test_store_pending.c"
       ],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_inbox.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_inbox_client.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_store_pending.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/store_inbox/main.c"
@@ -2911,7 +2887,7 @@
       "feature": null,
       "depends": [
         "xmqtt_journal_file",
-        "xmqtt_store_inbox",
+        "xmqtt_store_write",
         "dir_temp",
         "memory_stats"
       ],
@@ -3008,7 +2984,7 @@
       "feature": null,
       "depends": [
         "xmqtt_store_compact",
-        "xmqtt_store_inbox",
+        "xmqtt_store_write",
         "dir_temp",
         "memory_stats"
       ],

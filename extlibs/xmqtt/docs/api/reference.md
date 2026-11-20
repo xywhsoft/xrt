@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `235` 个函数、`354` 个常量或宏、
-`151` 个公共类型。
+当前登记 `233` 个函数、`353` 个常量或宏、
+`150` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -210,7 +210,7 @@
 ### 常量与宏 (2)
 
 - `XMQTT_FEATURE_XMQTT_CLIENT_STORE`
-- `XMQTT_FEATURE_XMQTT_STORE_INBOX`
+- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
 
 ### 类型 (6)
 
@@ -1062,10 +1062,9 @@
 - `xmqttStoreCompactConfigInit`
 - `xmqttStoreWriteCompactAsync`
 
-### 常量与宏 (2)
+### 常量与宏 (1)
 
 - `XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE`
-- `XMQTT_FEATURE_XMQTT_STORE_WRITE`
 
 ### 类型 (2)
 
@@ -1117,25 +1116,6 @@
 - `xmqttstoredeltastatus`
 - `xmqttstoredeltatype`
 
-## `extlibs/xmqtt/include/xmqtt/store_inbox.h`
-
-[查看带契约注释的公共头](../../include/xmqtt/store_inbox.h)
-
-### 函数 (4)
-
-- `xmqttStoreInboxAckAsync`
-- `xmqttStoreInboxCreate`
-- `xmqttStoreInboxRelease`
-- `xmqttStoreInboxTake`
-
-### 类型 (5)
-
-- `xmqttstorelease`
-- `xmqttstorestate`
-- `xmqttstorestatus`
-- `xmqttstoreview`
-- `xmqttstorewriteconfig`
-
 ## `extlibs/xmqtt/include/xmqtt/store_session.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/store_session.h)
@@ -1150,9 +1130,10 @@
 
 - `XMQTT_FEATURE_XMQTT_STORE_SESSION`
 
-### 类型 (1)
+### 类型 (2)
 
 - `xmqttstoresessionconfig`
+- `xmqttstorestate`
 
 ## `extlibs/xmqtt/include/xmqtt/store_state.h`
 
@@ -1179,16 +1160,18 @@
 - `XMQTT_STORE_OUTGOING`
 - `XMQTT_STORE_STATE_ERROR`
 
-### 类型 (2)
+### 类型 (4)
 
 - `xmqttstorestateinfo`
+- `xmqttstorestatus`
+- `xmqttstoreview`
 - `xmqttstoreviewkind`
 
 ## `extlibs/xmqtt/include/xmqtt/store_write.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/store_write.h)
 
-### 函数 (8)
+### 函数 (10)
 
 - `xmqttStoreWriteAppendAsync`
 - `xmqttStoreWriteClose`
@@ -1197,10 +1180,13 @@
 - `xmqttStoreWriteDestroy`
 - `xmqttStoreWriteInfo`
 - `xmqttStoreWriteRead`
+- `xmqttStoreWriteReadPending`
+- `xmqttStoreWriteRetireAsync`
 - `xmqttStoreWriteWaitFor`
 
-### 类型 (1)
+### 类型 (2)
 
+- `xmqttstorewriteconfig`
 - `xmqttstorewriteinfo`
 
 ## `extlibs/xmqtt/include/xmqtt/wire.h`

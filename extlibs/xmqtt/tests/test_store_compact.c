@@ -1,6 +1,6 @@
 #include "test.h"
 #include <xmqtt/store_compact.h>
-#include <xmqtt/store_inbox.h>
+#include <xmqtt/store_write.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
 static const char* Names[]={"journal.slot","journal.0","journal.1"};
@@ -97,15 +97,15 @@ static void writer(xmqttjournal* J,xmqttstorestate* State,const xmqttstorestatec
     xmqttstorewriteconfig Config;
     xmqttStoreWriteConfigInit(&Config);
     xmqttstorewrite* W=NULL;
-    testRequire(Pool&&xmqttStoreInboxCreate(Pool,J,State,&Config,&W),"writer adopts exact new generation");
+    testRequire(Pool&&xmqttStoreWriteCreate(Pool,J,State,&Config,&W),"writer adopts exact new generation");
     unsigned char Buffer[128];
     size_t Bytes;
-    xmqttstorelease Lease;
+
     xmqttstoreview View;
-    testRequire(xmqttStoreInboxTake(W,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&
+    testRequire(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&
         View.Key==1&&View.Epoch==4&&View.Pubrel,"old epoch Inbox delivery retains FIFO and retired PUBREL stage");
     xfuture* F=NULL;
-    testRequire(xmqttStoreInboxAckAsync(W,Lease,5000,&F)==XMQTT_JWORK_ACCEPTED&&
+    testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,5000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,5000)==XWAIT_OK,"post-compaction durable Inbox ACK");
     const xmqttcommitresult* Result=xrtFutureValue(F);
     testRequire(Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED,"Inbox acknowledgement committed");

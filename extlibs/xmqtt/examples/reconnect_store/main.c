@@ -267,9 +267,9 @@ static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version,uint64 
 {
     unsigned char Wire[1024];
     size_t Bytes=0;
-    xmqttstorelease Lease;
+
     xmqttstoreview View;
-    if(xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Lease,&View,&Bytes)!=XMQTT_STORE_DONE||
+    if(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Bytes)!=XMQTT_STORE_DONE||
        View.Key!=InboxKey||View.Epoch!=1||View.Qos!=1||!View.InboxPending)return false;
     xmqttpacket Packet;
     xbytesview Input={Wire,Bytes};
@@ -282,13 +282,13 @@ static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version,uint64 
        Packet.Body.Publish.Payload.Size!=compactTriggerBody.Size||
        memcmp(Packet.Body.Publish.Payload.Data,compactTriggerBody.Data,compactTriggerBody.Size))return false;
     xfuture* F=NULL;
-    if(xmqttStoreInboxAckAsync(Writer,Lease,10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
+    if(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
     const xmqttcommitresult* Result=xrtFutureWaitFor(F,10000)==XWAIT_OK?xrtFutureValue(F):NULL;
     bool Done=Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED;
     if(Done)printf("INBOX_ACKED %llu %llu %u\n",(unsigned long long)View.Key,
         (unsigned long long)Result->Sequence,(unsigned)View.Identifier);
     xrtFutureDestroy(F);
-    return Done&&xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Lease,&View,&Bytes)==XMQTT_STORE_EMPTY;
+    return Done&&xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Bytes)==XMQTT_STORE_EMPTY;
 }
 
 static void compactCut(xmqttstorewrite* Writer,xfuture* Publish,bool Auto,bool Pressure,uint64 InboxKey)
@@ -536,7 +536,7 @@ int main(int Argc,char** Argv)
     Cleanup=xrtTaskPoolCreate(&PC);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
-    if(!Storage||!Cleanup||!xmqttStoreInboxCreate(Storage,Journal,State,&WC,&Writer))goto Done;
+    if(!Storage||!Cleanup||!xmqttStoreWriteCreate(Storage,Journal,State,&WC,&Writer))goto Done;
     Journal=NULL;
     State=NULL;
 

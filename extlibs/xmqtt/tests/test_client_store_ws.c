@@ -109,12 +109,12 @@ static void dwInbox(xmqttclient* Client,xmqttstorewrite* Writer,xmqttversion Ver
 {
     double Deadline=xrtTimer()+10;
     unsigned char Buffer[128];
-    xmqttstorelease Lease;
+
     xmqttstoreview View;
     size_t Size=0;
     xmqttstorestatus Status;
     do{
-        Status=xmqttStoreInboxTake(Writer,Buffer,sizeof(Buffer),&Lease,&View,&Size);
+        Status=xmqttStoreWriteReadPending(Writer,Buffer,sizeof(Buffer),&View,&Size);
         if(Status==XMQTT_STORE_EMPTY){testRequire(xrtTimer()<Deadline,"durable coalesced inbox eventually visible");xrtSleep(1);}
     }while(Status==XMQTT_STORE_EMPTY);
     stStatus(Status,XMQTT_STORE_DONE,"one coalesced Inbox delivery");
@@ -125,7 +125,7 @@ static void dwInbox(xmqttclient* Client,xmqttstorewrite* Writer,xmqttversion Ver
     xmqttmessage* Volatile=NULL;
     testRequire(!xmqttClientTakeMessage(Client,&Volatile)&&!Volatile,"delivery lives only in durable Inbox");
     xfuture* Ack=NULL;
-    testRequire(xmqttStoreInboxAckAsync(Writer,Lease,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
+    testRequire(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
                 jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"application ACK persisted");
     xrtFutureDestroy(Ack);
 }
@@ -198,7 +198,7 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"store WS Inbox Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"store WS Inbox Writer");
     Drive.Base.Calls=0;
     if(Coalesced)Drive.Hold=7;
 

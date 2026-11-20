@@ -1,6 +1,6 @@
 #include "support/store_write_peer.h"
 #include <xmqtt/store_session.h>
-#include <xmqtt/store_inbox.h>
+#include <xmqtt/store_write.h>
 #include "../src/internal/xmqtt_client_store.h"
 #include "../examples/common/client_peer.h"
 typedef struct cgdrive {jwdrive IO;xatomicptr Client;xatomic32 Checked;} cgdrive;
@@ -46,7 +46,7 @@ static void cgCase(xmqttversion V,unsigned Mode)
     cgdrive D={0};str NativePath=NULL;if(Disk){D.IO.Base.Native=xrtFileTemp(NULL,"xmqtt-client-store-",NULL,&NativePath);testRequire(D.IO.Base.Native!=NULL,"actual native journal file");}
     jpfile File=cgFile(&D);xmqttjournalconfig JC=stJournalConfig(V);xmqttjournal* J=jpCreate(File,&JC);
     xmqttstorestateconfig SC=stConfig(V);SC.WallMilliseconds=Mode==4?300000:0;xmqttstorestate* S=NULL;stStatus(xmqttStoreStateRecover(J,&SC,&S),XMQTT_STORE_DONE,"empty prefix");
-    xtaskpool* Pool=jwPool(1);D.IO.Pool=Pool;xmqttstorewriteconfig WC;xmqttStoreWriteConfigInit(&WC);xmqttstorewrite* W=NULL;testRequire(xmqttStoreInboxCreate(Pool,J,S,&WC,&W),"exclusive storage writer");
+    xtaskpool* Pool=jwPool(1);D.IO.Pool=Pool;xmqttstorewriteconfig WC;xmqttStoreWriteConfigInit(&WC);xmqttstorewrite* W=NULL;testRequire(xmqttStoreWriteCreate(Pool,J,S,&WC,&W),"exclusive storage writer");
     D.IO.Base.Calls=0;if(Mode<3)D.IO.Hold=7;else if(Mode==3)D.IO.Base.Fail=1;
     xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=V;SK.ClientId=XRT_STR_LITERAL("delta-client");xmqttsession* Session=NULL;testRequire(xmqttSessionCreate(&SK,&Session),"passive native Session");
     mqttExamplePeer Peer;mqttExampleStart(&Peer,V);xmqttclientconfig Cfg;xmqttClientConfigInit(&Cfg);Cfg.Version=V;Cfg.MaxObjects=2;Cfg.Notify=cgDiagnostic;if(Mode==2)Cfg.SetupTimeout=500;
@@ -237,9 +237,7 @@ static void cgReceivePublish(cg_receive_peer* Peer,unsigned Qos,bool Duplicate,b
 
 typedef enum cg_receive_mode {
     CG_FLOW,CG_ACCEPT_CLOSE,CG_RELEASE_CLOSE,CG_WRITE_FAIL,CG_INBOX_LIMIT
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     ,CG_LIVE_LEASE
-#endif
 } cg_receive_mode;
 
 static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
@@ -262,13 +260,11 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* W=NULL;
-        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"receive store writer");
+        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
     D.IO.Base.Calls=0;
     if(Mode==CG_FLOW||Mode==CG_ACCEPT_CLOSE)D.IO.Hold=14;
     if(Mode==CG_RELEASE_CLOSE)D.IO.Hold=21;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     if(Mode==CG_LIVE_LEASE)D.IO.Hold=21;
-#endif
     if(Mode==CG_WRITE_FAIL)D.IO.Base.Fail=8;
 
     xmqttsessionconfig SK;
@@ -338,18 +334,17 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         while(swInfo(W).State.Transactions!=6){testRequire(xrtTimer()<Deadline,"QoS0 durable acceptance");xrtSleep(1);}
         FinalTx=7;FinalInbox=4;FinalIncoming=1;FinalAcks=6;
         testRequire(xmqttClientClose(C),"close after entire receive sequence");
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     }else if(Mode==CG_LIVE_LEASE){
         cgReceiveAck(&Peer,1,0x50,9,false,2);
-        xmqttstorelease Lease;
+
         xmqttstoreview View;
         unsigned char Buffer[64];
         size_t Bytes=0;
-        stStatus(xmqttStoreInboxTake(W,Buffer,sizeof(Buffer),&Lease,&View,&Bytes),XMQTT_STORE_DONE,
+        stStatus(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Bytes),XMQTT_STORE_DONE,
                  "lease acquired while actual TCP Client owns Writer");
         testRequire(View.Key==1&&View.Qos==2&&View.Wire.Data==Buffer&&Bytes==View.Wire.Size,"live delivery snapshot");
         xfuture* Ack=NULL;
-        testRequire(xmqttStoreInboxAckAsync(W,Lease,10000,&Ack)==XMQTT_JWORK_ACCEPTED,"application ACK admitted alongside Client");
+        testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED,"application ACK admitted alongside Client");
         jwAwait(&D.IO.Entered);
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
         double Deadline=xrtTimer()+10;
@@ -367,7 +362,6 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         xrtFutureDestroy(Ack);
         testRequire(xmqttClientClose(C),"close after independent app and protocol ACKs");
         FinalTx=5;FinalAcks=2;
-#endif
     }else if(Mode==CG_RELEASE_CLOSE){
         cgReceiveAck(&Peer,1,0x50,9,false,2);
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
@@ -427,7 +421,7 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
         Session=NULL;
         testRequire(xmqttStoreSessionRestore(Store,&SK,&Import,&Session)==XMQTT_SESSION_DONE,"import true committed receive identity");
         W=NULL;
-        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"reopened Writer");
+        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"reopened Writer");
         Plan.Writer=W;
         xrtAtomic64Store(&Clock.Value,201000,XMEMORY_RELEASE);
         cgReceiveStart(&Peer,V,W,true);
@@ -574,7 +568,7 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* W=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"outgoing writer consumes journal");
+    testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"outgoing writer consumes journal");
     D.IO.Base.Calls=0;
     if(PutHeld)D.IO.Hold=14;
     if(AckHeld)D.IO.Hold=21;
@@ -771,7 +765,7 @@ static void cgSendCase(xmqttversion V,cg_send_mode Mode)
                     Record.Sent==Qos2&&Record.Wire.Data[0]==(0x30u|(Qos<<1)),"canonical persistent attempt and PUBREL state");
         Session=cgImportSend(Store,&SK,&SC);
         W=NULL;
-        testRequire(xmqttStoreInboxCreate(Pool,J,Store,&WC,&W),"reopened outgoing writer");
+        testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"reopened outgoing writer");
         Plan.Writer=W;
         xrtAtomic64Store(&Clock.Value,201001,XMEMORY_RELEASE);
         bool Early=Mode==CG_SEND_EARLY_ACK;
@@ -921,7 +915,7 @@ static void cgEndCase(xmqttversion Version,cg_end_mode Mode,cg_transport Transpo
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,J,State,&WC,&Writer),"explicit durable Inbox");
+    testRequire(xmqttStoreWriteCreate(Pool,J,State,&WC,&Writer),"explicit durable Inbox");
     Drive.IO.Base.Calls=0;
     Drive.IO.Hold=14;
     if(Mode==CG_END_UNCERTAIN){Drive.IO.Base.Fail=14;Drive.IO.Base.FlushOnFailure=true;}
@@ -1115,7 +1109,7 @@ static void cgDialFailure(xmqttclientstatus Expected)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"dial failure Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"dial failure Writer");
     Drive.Base.Calls=0;
 
     xmqttsessionconfig SK;
@@ -1212,11 +1206,9 @@ int main(void)
     for(unsigned V=0;V<2;++V)
         for(cg_receive_mode Mode=CG_FLOW;Mode<=CG_INBOX_LIMIT;++Mode)
             cgReceiveCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
     cgReceiveCase(XMQTT_VERSION_311,CG_LIVE_LEASE);
     cgReceiveCase(XMQTT_VERSION_5,CG_LIVE_LEASE);
     puts("[PASS] live QoS2 protocol retirement queues behind an application ACK while file sync is held");
-#endif
     puts("[PASS] live receive persists before ACK, deduplicates across actual reconnect, retires QoS2 before PUBCOMP and recovers canonical delivery");
     puts("[PASS] actual TCP CONNACK waits for durable BIND/OPEN; late Close/deadline retain IO and END duties,both MQTT levels; storage/clock refusal and exclusive Writer ownership");return 0;
 }

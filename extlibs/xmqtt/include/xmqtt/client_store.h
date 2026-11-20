@@ -1,12 +1,12 @@
 #ifndef XMQTT_CLIENT_STORE_H
 #define XMQTT_CLIENT_STORE_H
 #include <xmqtt/client_session.h>
-#include <xmqtt/store_inbox.h>
+#include <xmqtt/store_write.h>
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
 #include <xmqtt/client_dial.h>
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) || !defined(XMQTT_FEATURE_XMQTT_STORE_INBOX))
-#error "MQTT durable Client requires Session and the durable Inbox writer"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "MQTT durable Client requires Session and the semantic writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
 typedef bool (*xmqttclientstoreclock)(ptr User,uint64* Milliseconds);
@@ -25,7 +25,7 @@ typedef struct xmqttclientstoreoutcome {
     xmqttclientstorecheckpoint Attempt,Pubrel,Completion,End;
 } xmqttclientstoreoutcome;
 XRT_EXTERN_C_BEGIN
-/* Developing numeric TCP durable Client. Use a Writer from StoreInboxCreate
+/* Developing numeric TCP durable Client. Use a Writer from StoreWriteCreate
  * and a corresponding fresh or exactly recovered disconnected Session.
  * Serialize construction with Writer API calls. Successful construction claims
  * both through ClientDestroy and borrows the running Engine and storage pool.
@@ -33,7 +33,7 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. Incoming deliveries use StoreInboxTake.
+ * Ready follows durable OPEN. Use StoreWriteReadPending to inspect recorded deliveries.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,

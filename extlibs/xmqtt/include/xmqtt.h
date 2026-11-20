@@ -33,7 +33,6 @@
 #include <xmqtt/journal_slot.h>
 #include <xmqtt/journal_worker.h>
 #include <xmqtt/store_write.h>
-#include <xmqtt/store_inbox.h>
 #include <xmqtt/client_store.h>
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS"

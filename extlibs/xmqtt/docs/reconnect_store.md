@@ -1,17 +1,17 @@
 # Durable MQTT reconnect
 
 Select `XMQTT_MODULE_XMQTT_RECONNECT_STORE` to run the normal reconnect controller
-over an Inbox Writer. Set `xmqttreconnectconfig.Store` to a typed
+over an semantic Writer. Set `xmqttreconnectconfig.Store` to a typed
 `xmqttreconnectstoreplan` before calling `xmqttReconnectCreate`. On success the
 controller takes ownership of the supplied disconnected Session. The optional
 `Subscriptions` plan can be supplied in the same call. The controller waits
 for both the committed OPEN and subscription restoration before issuing leases. Create a fresh Session for an empty store, or
 restore the exact Session from the journal before transferring the recovered
-state to `xmqttStoreInboxCreate`. Bind the Writer and CONNECT identity to the
+state to `xmqttStoreWriteCreate`. Bind the Writer and CONNECT identity to the
 same logical broker, principal and client slot across all attempts.
 
 The application retains the running Engine, the explicit cleanup pool and the
-Inbox Writer. The Writer also requires its own running storage pool. Keep both
+semantic Writer. The Writer also requires its own running storage pool. Keep both
 pools and the file/clock context alive until disposal. The worker callback uses
 the supplied Session, store configuration and original attempt policy to choose
 a compatible durable transport. Connect to a stable endpoint and keep the
@@ -28,9 +28,9 @@ controller observes retirement. When waiting for a replacement, check that
 the controller has reached the next generation before acquiring a lease. Retransmission and completion of
 durable obligations follow the journal across generations.
 
-Use `xmqttStoreInboxTake`, `xmqttStoreInboxRelease` and `xmqttStoreInboxAckAsync`
-on the same Writer while online, offline or reconnecting. After application
-effects, wait for a COMMITTED Inbox ACK to confirm durable removal. The
+Use `xmqttStoreWriteReadPending` and `xmqttStoreWriteRetireAsync` on the same
+Writer while online, offline or reconnecting. The APP processes the record and
+waits for a committed retirement before advancing its cursor. The
 controller reserves protocol mutations and Writer lifecycle until Destroy.
 When policy allows another attempt, an unusable Writer stops it with
 `XMQTT_STATUS_SESSION`.
@@ -121,7 +121,7 @@ checkpoint after a trigger delivery commits. With `compact-pressure-cut`
 and `compact-pressure-resume` the APP opens space before releasing the
 next input into the physical file limit. In both cases the broker receives
 the network acknowledgment before termination. The restored
-application consumes the pending Inbox message through a fresh lease and
+application reads and processes the pending record and
 commits its separate application acknowledgment.
 
 The replay-pressure variants use `compact-replay-cut` and

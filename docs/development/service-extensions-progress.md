@@ -17896,3 +17896,42 @@ Strict release still reports 42 developing MQTT modules. Moving durable
 application acknowledgements and storage backends to APP examples, native
 Linux qualification, controlled performance comparisons and 72-hour
 mixed-load validation remain open.
+
+## 2026-11-20 MQTT APP processing of durable pending publications
+
+Removed the library's durable Inbox leases, lease cookies and application
+dispatch state. Applications create the semantic Writer, copy the oldest
+committed pending record and decide when to process and retire it. They can
+assign disjoint keys for parallel processing. The Writer retires the exact
+record by its stored epoch and key in the existing commit FIFO. Pending
+records have a committed index with constant-time head selection and
+unlinking. The index carries no consumer ownership.
+
+Retirement uses the existing INBOX_ACK journal format. It rejects stale
+epochs and retired keys before I/O and leaves MQTT QoS 2 receive
+identity and protocol acknowledgement ordering intact. The APP checks
+the commit effect before advancing and reconciles after uncertain results.
+Both the simple real-file example and the reconnect example apply this
+contract. The initial test run exposed an omitted copy of staged
+record metadata. The copy is restored, keeping the pending index in the
+committed model only.
+
+The pending record suite exercises short and overlapping outputs, OOM,
+out-of-order APP retirement, stale epochs and duplicates, late commit,
+storage failures, uncertain recovery and native partitioned consumers.
+It passes WSL ASan/UBSan with leak detection and TSan. Windows x64 and
+Ubuntu/WSL passed eleven modular and single-header suites covering the
+journal, writer, durable TCP/TLS/auth/WS clients, reconnect and
+compaction. Both environments passed static/shared consumers, four
+capacity smoke cases and the real-file APP example.
+
+Windows and WSL clients passed 24 Mosquitto 2.1.2 cases in total over
+TCP and WSS through an independent TLS 1.3 gateway. They exercise
+MQTT 5 and 3.1.1 with withheld PUBACK, PUBREC and PUBCOMP, then
+verify the APP retirement after reopening the journal.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-durable-records/`.
+Ordinary maturity passes. Strict release still reports 41 developing
+MQTT modules. The concrete storage backends, native Linux qualification,
+controlled performance comparisons and 72-hour mixed loads remain open.

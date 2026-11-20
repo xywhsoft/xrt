@@ -118,15 +118,15 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
     }
 
     unsigned char Wire[128];
-    xmqttstorelease Delivery={0};
+
     xmqttstoreview View;
     size_t Required=0;
     xmqttmessage* Message=NULL;
     testRequire(!xmqttClientTakeMessage(L.Client,&Message)&&
-        xmqttStoreInboxTake(W,Wire,sizeof(Wire),&Delivery,&View,&Required)==XMQTT_STORE_DONE,
+        xmqttStoreWriteReadPending(W,Wire,sizeof(Wire),&View,&Required)==XMQTT_STORE_DONE,
         "durable-only Inbox remains readable offline");
     xfuture* Ack=NULL;
-    testRequire(xmqttStoreInboxAckAsync(W,Delivery,5000,&Ack)==XMQTT_JWORK_ACCEPTED,"offline application ACK");
+    testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,5000,&Ack)==XMQTT_JWORK_ACCEPTED,"offline application ACK");
     jwAwait(&Drive->Entered);
     testRequire(xmqttReconnectRelease(&L),"release original Client lease");
     rcWait(&Peer->Connects,2);
@@ -165,7 +165,7 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"controller Inbox Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"controller Inbox Writer");
     Drive.Base.Calls=0;
     if(Mode==DR_REPLAY)Drive.Hold=35;
     else if(Mode==DR_LATE_OPEN)Drive.Hold=7;
@@ -215,7 +215,7 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
         Restore.Binding=SC.Binding;Restore.Generation=SC.Generation;
         Restore.WallMilliseconds=SC.WallMilliseconds;Restore.MonotonicTime=xrtTimer();
         testRequire(xmqttStoreSessionRestore(State,&SK,&Restore,&Session)==XMQTT_SESSION_DONE&&
-            xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"restore new passive Session and Writer");
+            xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"restore new passive Session and Writer");
         Store.Writer=Writer;
         testRequire(mqttAppReconnectStored(Peer.Engine,Peer.Pool,1,&K,Session,&Store,drFactory,&Connect,&R),
             "start new controller from recovered obligations");
@@ -225,11 +225,11 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
         testRequire(Replayed.Outgoing==0&&Replayed.Inbox==1,"cold DUP retires only protocol obligation");
         unsigned char Wire[128];
         size_t Required=0;
-        xmqttstorelease Delivery={0};
+
         xmqttstoreview View;
         xfuture* Ack=NULL;
-        testRequire(xmqttStoreInboxTake(Writer,Wire,sizeof(Wire),&Delivery,&View,&Required)==XMQTT_STORE_DONE&&
-            xmqttStoreInboxAckAsync(Writer,Delivery,5000,&Ack)==XMQTT_JWORK_ACCEPTED&&
+        testRequire(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Required)==XMQTT_STORE_DONE&&
+            xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,5000,&Ack)==XMQTT_JWORK_ACCEPTED&&
             jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"restored Inbox separately acknowledged");
         xrtFutureDestroy(Ack);
         rcClose(R);
@@ -298,7 +298,7 @@ static void drCombined(xmqttversion Version,bool Retained)
     xmqttstorewrite* Writer=NULL;
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"combined Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"combined Writer");
 
     xmqttsessionconfig SK;
     xmqttSessionConfigInit(&SK);

@@ -156,7 +156,7 @@ static void tsCase(xmqttversion Version,unsigned Factory,tlsStoreMode Mode)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreInboxCreate(Pool,Journal,State,&WC,&Writer),"durable TLS Inbox Writer");
+    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"durable TLS Inbox Writer");
     Drive.Base.Calls=0;
     if(Mode==TLS_STORE_NORMAL)Drive.Hold=28;
     if(Mode==TLS_STORE_HOLD_OPEN)Drive.Hold=7;

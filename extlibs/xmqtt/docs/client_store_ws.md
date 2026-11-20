@@ -3,7 +3,7 @@
 Select `xmqtt_client_store_ws` for ws://. Add `xmqtt_client_ws_uri_tls` for wss://.
 URI parsing, strict HTTP Upgrade, message framing and verification follow the
 [ordinary URI factories](client_ws_uri.md). The matching durable Session and
-Inbox-mode Writer follow the [Client Store contract](client_store.md).
+semantic Writer follow the [Client Store contract](client_store.md).
 
 HTTP failure leaves the journal untouched. Ready waits for committed OPEN after
 accepted MQTT CONNACK. If `WebSocket.Auth` is configured, the application's

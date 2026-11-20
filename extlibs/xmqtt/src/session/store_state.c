@@ -14,9 +14,8 @@
 typedef struct xmqttstoreentry {
     struct xmqttstoreentry *Next,*Previous,*KeyNext,*IdNext;
     xmqttstoreview View;size_t Allocation;unsigned Receive;bool Out;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    struct xmqttstoreentry* ReadyNext;
-    uint64 Lease;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+    struct xmqttstoreentry *PendingPrevious,*PendingNext;
 #endif
 } xmqttstoreentry;
 struct xmqttstorestate {
@@ -30,9 +29,8 @@ struct xmqttstorestate {
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     const void* WriteOwner;bool WriteEstablished;xmqttstoreplan *Plan,*Retiring;uint32 JournalChain;uint64 JournalEnd;xstrview ExpectedId;
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    xmqttstoreentry *InboxReadyHead,*InboxReadyTail;
-    bool InboxEnabled;
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+    xmqttstoreentry *PendingHead,*PendingTail;
 #endif
 };
 static bool xmqttSSpan(const void* P,size_t N){return (P||!N)&&xrtMemRangeValid(P,N);}
@@ -92,13 +90,8 @@ static xmqttstorechange* xmqttSPlanTouch(xmqttstoreplan* P,xmqttstoreentry* E,bo
 {
     if(P->Count==P->Capacity)abort(); /* batch-derived bound is established before allocation */
     xmqttstorechange* N=P->Nodes+P->Count++;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    /* Only the publisher under the Writer gate touches live lease metadata.
-     * Staging outside that gate copies only the immutable model prefix. */
-    memcpy(&N->Value,E,offsetof(xmqttstoreentry,ReadyNext));
-#else
-    N->Value=*E;
-#endif
+    /* The pending index belongs to the committed model only. */
+    memcpy(&N->Value,E,offsetof(xmqttstoreentry,PendingPrevious));
     N->Base=Fresh?NULL:E;N->Fresh=Fresh?E:NULL;N->Alive=true;
     size_t B=xmqttSPlanKey(P,E->View.Key);N->KeyNext=P->Keys[B];P->Keys[B]=N;xmqttSPlanLinkId(P,N);return N;
 }
@@ -145,6 +138,21 @@ static void xmqttSUnlinkId(xmqttstorestate* S,xmqttstoreentry* E)
     {xmqttstoreentry** P=&S->Ids[xmqttSIdBucket(S,E->View.Identifier,E->Out)];while(*P!=E)P=&(*P)->IdNext;*P=E->IdNext;E->IdNext=NULL;}
     if(E->Out)--S->Info.Outgoing;else {--S->Info.Incoming;E->Receive=0;}
 }
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+static void xmqttSLinkPending(xmqttstorestate* S,xmqttstoreentry* E)
+{
+    E->PendingPrevious=S->PendingTail;
+    E->PendingNext=NULL;
+    if(S->PendingTail)S->PendingTail->PendingNext=E;else S->PendingHead=E;
+    S->PendingTail=E;
+}
+static void xmqttSUnlinkPending(xmqttstorestate* S,xmqttstoreentry* E)
+{
+    if(E->PendingPrevious)E->PendingPrevious->PendingNext=E->PendingNext;else S->PendingHead=E->PendingNext;
+    if(E->PendingNext)E->PendingNext->PendingPrevious=E->PendingPrevious;else S->PendingTail=E->PendingPrevious;
+    E->PendingNext=E->PendingPrevious=NULL;
+}
+#endif
 static void xmqttSDelete(xmqttstorestate* S,xmqttstoreentry* E)
 {
     if(E->Out||E->Receive)xmqttSUnlinkId(S,E);
@@ -152,8 +160,8 @@ static void xmqttSDelete(xmqttstorestate* S,xmqttstoreentry* E)
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     if(S->Plan){((xmqttstorechange*)E)->Alive=false;S->Info.MemoryBytes-=E->Allocation;return;}
 #endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    if(S->InboxEnabled&&E->View.InboxPending&&!(E->Lease&XMQTT_INBOX_ACKING))abort();
+#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
+    if(S->WriteOwner&&E->View.InboxPending)xmqttSUnlinkPending(S,E);
 #endif
     xmqttstoreentry** P=&S->Keys[xmqttSKeyBucket(S,E->View.Key)];while(*P!=E)P=&(*P)->KeyNext;*P=E->KeyNext;
     if(E->Previous)E->Previous->Next=E->Next;else S->Head=E->Next;
@@ -853,11 +861,7 @@ XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* 
     size_t Buckets=0,N=0;if(!xmqttSPlanSize(Cap,&Buckets,&N)||N>MaxPlanBytes)return XMQTT_STORE_LIMIT;
     xmqttstoreplan* P=xrtCalloc(1,N);if(!P)return XMQTT_STORE_ERROR;
     P->Allocation=N;P->PhysicalBytes=S->Info.MemoryBytes;P->Work=D->Count;P->MaxWork=MaxWork;P->Capacity=Cap;P->Buckets=Buckets;P->Nodes=(xmqttstorechange*)(P+1);P->Keys=(xmqttstorechange**)(P->Nodes+Cap);P->Ids=P->Keys+Buckets;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-    memcpy(&P->Shadow,S,offsetof(xmqttstorestate,InboxReadyHead));
-#else
-    P->Shadow=*S;
-#endif
+    memcpy(&P->Shadow,S,offsetof(xmqttstorestate,PendingHead));
     P->Shadow.Plan=P;xmqttstorestatus Status=XMQTT_STORE_DONE;
     for(size_t I=0;I<D->Count;++I){Status=xmqttSApply(&P->Shadow,D->Operations+I);if(P->Exhausted)Status=XMQTT_STORE_LIMIT;if(Status!=XMQTT_STORE_DONE)break;}
     if(Status!=XMQTT_STORE_DONE){xmqttSPlanFree(S,P);return Status;}
@@ -865,73 +869,6 @@ XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* 
     if(P->PhysicalBytes>P->Shadow.Info.PeakMemoryBytes)P->Shadow.Info.PeakMemoryBytes=P->PhysicalBytes;
     *Out=P;return XMQTT_STORE_DONE;
 }
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-static void xmqttSInboxReady(xmqttstorestate* S,xmqttstoreentry* E)
-{
-    if(E->ReadyNext||E->Lease||!E->View.InboxPending)abort();
-    if(S->InboxReadyTail)S->InboxReadyTail->ReadyNext=E;
-    else S->InboxReadyHead=E;
-    S->InboxReadyTail=E;
-}
-XMQTT_INTERNAL void xmqttInternalStoreInboxEnable(xmqttstorestate* S,const void* Owner)
-{
-    if(S->WriteOwner!=Owner||S->InboxEnabled)abort();
-    for(xmqttstoreentry* E=S->Head;E;E=E->Next)
-        if(E->View.InboxPending)xmqttSInboxReady(S,E);
-    S->InboxEnabled=true;
-}
-XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreInboxTake(xmqttstorestate* S,const void* Owner,
-    ptr Buffer,size_t Capacity,uint64 Serial,xmqttstoreview* View,size_t* Required)
-{
-    if(S->WriteOwner!=Owner||!S->InboxEnabled)abort();
-    xmqttstoreentry* E=S->InboxReadyHead;
-    if(!E)return XMQTT_STORE_EMPTY;
-    size_t Bytes=E->View.Wire.Size;
-    if(Capacity<Bytes){*Required=Bytes;return XMQTT_STORE_LIMIT;}
-    if(!Serial||Serial>=XMQTT_INBOX_ACKING)return XMQTT_STORE_STATE_ERROR;
-    if(E->Lease)abort();
-    memcpy(Buffer,E->View.Wire.Data,Bytes);
-    S->InboxReadyHead=E->ReadyNext;
-    if(!S->InboxReadyHead)S->InboxReadyTail=NULL;
-    E->ReadyNext=NULL;
-    E->Lease=Serial;
-    *View=E->View;
-    View->Wire.Data=Buffer;
-    *Required=Bytes;
-    return XMQTT_STORE_DONE;
-}
-static xmqttstoreentry* xmqttSInboxFind(xmqttstorestate* S,const void* Owner,uint64 Key,uint64 Serial)
-{
-    if(S->WriteOwner!=Owner||!S->InboxEnabled)abort();
-    if(!Key||!Serial||Serial>=XMQTT_INBOX_ACKING)return NULL;
-    xmqttstoreentry* E=xmqttSFindBase(S,Key);
-    return E&&E->View.InboxPending&&E->Lease==Serial?E:NULL;
-}
-XMQTT_INTERNAL bool xmqttInternalStoreInboxRelease(xmqttstorestate* S,const void* Owner,uint64 Key,uint64 Serial)
-{
-    xmqttstoreentry* E=xmqttSInboxFind(S,Owner,Key,Serial);
-    if(!E)return false;
-    E->Lease=0;
-    xmqttSInboxReady(S,E);
-    return true;
-}
-XMQTT_INTERNAL bool xmqttInternalStoreInboxBegin(xmqttstorestate* S,const void* Owner,uint64 Key,uint64 Serial,uint64* Epoch)
-{
-    xmqttstoreentry* E=xmqttSInboxFind(S,Owner,Key,Serial);
-    if(!E)return false;
-    E->Lease|=XMQTT_INBOX_ACKING;
-    *Epoch=E->View.Epoch;
-    return true;
-}
-XMQTT_INTERNAL void xmqttInternalStoreInboxUndo(xmqttstorestate* S,const void* Owner,uint64 Key,bool Requeue)
-{
-    if(S->WriteOwner!=Owner||!S->InboxEnabled)abort();
-    xmqttstoreentry* E=xmqttSFindBase(S,Key);
-    if(!E||!(E->Lease&XMQTT_INBOX_ACKING)||!E->View.InboxPending)abort();
-    E->Lease=Requeue?0:E->Lease&~XMQTT_INBOX_ACKING;
-    if(Requeue)xmqttSInboxReady(S,E);
-}
-#endif
 XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* S,const void* Owner,xmqttstoreplan* P,bool Committed,uint64 Sequence)
 {
     if(!S||S->WriteOwner!=Owner||S->Plan)abort();
@@ -944,10 +881,7 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* S,const void*
             if(!N->Alive){xmqttSDelete(S,E);continue;}
             if(E->Receive&&!N->Value.Receive)xmqttSUnlinkId(S,E);
             if(E->View.InboxPending&&!N->Value.View.InboxPending){
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-                if(S->InboxEnabled&&!(E->Lease&XMQTT_INBOX_ACKING))abort();
-                E->Lease=0;
-#endif
+                xmqttSUnlinkPending(S,E);
                 --S->Info.Inbox;
             }
             E->View=N->Value.View;E->Receive=N->Value.Receive;
@@ -956,9 +890,7 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* S,const void*
             size_t B=xmqttSKeyBucket(S,E->View.Key);E->KeyNext=S->Keys[B];S->Keys[B]=E;
             if(E->Out||E->Receive){B=xmqttSIdBucket(S,E->View.Identifier,E->Out);E->IdNext=S->Ids[B];S->Ids[B]=E;if(E->Out)++S->Info.Outgoing;else ++S->Info.Incoming;}
             if(E->View.InboxPending){
-#if defined(XMQTT_FEATURE_XMQTT_STORE_INBOX)
-                if(S->InboxEnabled)xmqttSInboxReady(S,E);
-#endif
+                xmqttSLinkPending(S,E);
                 ++S->Info.Inbox;
             }
             E->Previous=S->Tail;E->Next=NULL;if(S->Tail)S->Tail->Next=E;else S->Head=E;S->Tail=E;N->Fresh=NULL;
@@ -985,12 +917,18 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteRefund(xmqttstorestate* S,const void*
 {if(!S||S->WriteOwner!=Owner||Bytes>S->Info.MemoryBytes)abort();S->Info.MemoryBytes-=Bytes;}
 XMQTT_INTERNAL void xmqttInternalStoreWriteInfo(xmqttstorestate* S,const void* Owner,xmqttstorestateinfo* Info)
 {if(!S||S->WriteOwner!=Owner)abort();*Info=S->Info;}
+XMQTT_INTERNAL void xmqttInternalStoreWriteIndexPending(xmqttstorestate* S,const void* Owner)
+{
+    if(!S||S->WriteOwner!=Owner||S->PendingHead||S->PendingTail)abort();
+    for(xmqttstoreentry* E=S->Head;E;E=E->Next)
+        if(E->View.InboxPending)xmqttSLinkPending(S,E);
+}
 XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWriteRead(xmqttstorestate* S,const void* Owner,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
 {
     if(!S||S->WriteOwner!=Owner)abort();
-    if(!Key||!xmqttSOutput(S,Buffer,Capacity)||!xmqttSOutput(S,View,sizeof(*View))||!xmqttSOutput(S,Required,sizeof(*Required))||
+    if(!xmqttSOutput(S,Buffer,Capacity)||!xmqttSOutput(S,View,sizeof(*View))||!xmqttSOutput(S,Required,sizeof(*Required))||
        !xmqttSSeparate(Buffer,Capacity,View,sizeof(*View))||!xmqttSSeparate(Buffer,Capacity,Required,sizeof(*Required))||!xmqttSSeparate(View,sizeof(*View),Required,sizeof(*Required)))return XMQTT_STORE_ERROR;
-    xmqttstoreentry* E=xmqttSFindBase(S,Key);if(!E)return XMQTT_STORE_EMPTY;
+    xmqttstoreentry* E=Key?xmqttSFindBase(S,Key):S->PendingHead;if(!E)return XMQTT_STORE_EMPTY;
     *Required=E->View.Wire.Size;if(Capacity<E->View.Wire.Size)return XMQTT_STORE_LIMIT;
     if(E->View.Wire.Size)memcpy(Buffer,E->View.Wire.Data,E->View.Wire.Size);
     *View=E->View;View->Wire.Data=Buffer;return XMQTT_STORE_DONE;

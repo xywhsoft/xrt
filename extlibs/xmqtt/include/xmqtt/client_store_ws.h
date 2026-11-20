@@ -8,7 +8,7 @@
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_WS)
 XRT_EXTERN_C_BEGIN
 /* Durable MQTT 5.0 and 3.1.1 over ws://. Use the matching Session and
- * Inbox-mode Writer as in Client Store. WebSocket may be NULL for defaults.
+ * semantic Writer as in Client Store. WebSocket may be NULL for defaults.
  * Its embedded Session must be NULL. Optional Auth uses
  * the existing ticket API and gates OPEN on acceptance of final proof.
  * The original SetupTimeout includes DNS, Upgrade, MQTT and durable OPEN.

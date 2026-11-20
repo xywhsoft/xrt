@@ -2,7 +2,7 @@
 
 The developing `xmqtt_client_store` module exports
 `xmqttClientConnectStore` for numeric TCP in MQTT 5.0 and 3.1.1.
-Create the Writer with `xmqttStoreInboxCreate` and supply the matching fresh
+Create the Writer with `xmqttStoreWriteCreate` and supply the matching fresh
 or recovered disconnected Session. Accepted CONNACK precedes the BIND/OPEN
 commit, and Ready follows it. Keep the borrowed Engine and storage task pool
 running through actual Client retirement. Destroy the Client before destroying
@@ -14,8 +14,8 @@ nondecreasing Unix milliseconds.
 The receive driver journals each accepted PUBLISH, including QoS 0. It queues
 PUBACK or PUBREC only after commit. MQTT 5 alias binds and lookups follow the
 existing connection rules; the persisted packet has a full topic and no alias
-property. Claim and acknowledge committed deliveries through the
-[durable Inbox Writer](store_inbox.md) while the Client is connected.
+property. The APP can [read and retire pending publications](store_inbox.md) while
+the Client is connected.
 
 For QoS 2, a duplicate PUBLISH repeats PUBREC without another acceptance.
 A known PUBREL commits the release and identifier retirement together before

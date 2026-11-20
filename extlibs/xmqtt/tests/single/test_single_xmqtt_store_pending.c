@@ -1,6 +1,5 @@
-#define XMQTT_MODULE_XMQTT_STORE_INBOX
-#define XMQTT_MODULE_XMQTT_CLIENT_STORE
-#define XMQTT_MODULE_XMQTT_STORE_SESSION
+#define XMQTT_MODULE_XMQTT_STORE_WRITE
+#define XRT_MODULE_FILE_TEMP
 #define XRT_MODULE_VFS
 #define XRT_MODULE_MEMORY_STATS
 #include <xmqtt/features.h>
@@ -8,4 +7,4 @@
 #include "../../../../single/xrt.h"
 #define XMQTT_IMPLEMENTATION
 #include "../../../../single/extlibs/xmqtt.h"
-#include "../test_client_store.c"
+#include "../test_store_pending.c"

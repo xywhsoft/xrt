@@ -56,6 +56,6 @@ Storage quota exhaustion completes the original request with
 `XMQTT_COMMIT_LIMIT` and `XMQTT_JOURNAL_NOT_COMMITTED`. The library schedules
 maintenance only through a separate explicit request. After a successful
 compaction, the APP can retry its own definitely uncommitted operation under
-its remaining deadline. An uncommitted Inbox ACK releases the delivery for
-a new lease. If selection is uncertain, reopen and resolve the selected
+its remaining deadline. A definitely uncommitted retirement leaves the record
+pending for the APP to retry. If selection is uncertain, reopen and resolve the selected
 generation before taking further action.

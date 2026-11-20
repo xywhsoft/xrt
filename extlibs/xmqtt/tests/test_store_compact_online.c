@@ -80,7 +80,7 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
     X->Pool=xrtTaskPoolCreate(&T);
     xmqttstorewriteconfig C;
     xmqttStoreWriteConfigInit(&C);
-    check(X->Pool&&xmqttStoreInboxCreate(X->Pool,J,State,&C,&X->Writer),"create sole Store Writer");
+    check(X->Pool&&xmqttStoreWriteCreate(X->Pool,J,State,&C,&X->Writer),"create sole Store Writer");
 }
 static xmqttstorestateinfo reopen(onlinefixture* X,uint64 Generation)
 {
@@ -196,10 +196,10 @@ static void connected(xmqttversion V)
     publish(Client,'a');
     waitAcks(&Peer,1);
     unsigned char Buffer[128];
-    xmqttstorelease Lease;
+
     xmqttstoreview View;
     size_t Bytes;
-    check(xmqttStoreInboxTake(X.Writer,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE,
+    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE,
         "hold pending delivery lease across rotation");
     uint64 FirstKey=View.Key;
 
@@ -234,7 +234,7 @@ static void connected(xmqttversion V)
     check(current(X.Writer).Worker.Busy,"read model while inactive storage call is held");
 #endif
     xfuture* Ack=NULL;
-    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&Ack)==XMQTT_JWORK_ACCEPTED,
+    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED,
         "same lease can queue an ACK behind the rotation");
 #if defined(TEST_ONLINE_FAULTS)
     check(xrtFutureState(Ack)==XFUTURE_PENDING,"later ACK waits for the physical checkpoint");
@@ -258,8 +258,8 @@ static void connected(xmqttversion V)
 
     publish(Client,'b');
     waitAcks(&Peer,2);
-    check(xmqttStoreInboxTake(X.Writer,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&
-        View.Key>FirstKey&&xmqttStoreInboxRelease(X.Writer,Lease),"same TCP connection advances durable delivery keys");
+    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&
+        View.Key>FirstKey,"same TCP connection advances durable delivery keys");
     check(xmqttClientClose(Client)&&xmqttClientWaitFor(Client,10000)==XWAIT_OK&&xmqttClientDestroy(Client),
         "physical client retirement after online rotation");
     mqttExampleStop(&Peer);
@@ -327,13 +327,13 @@ static void explicitPressure(xmqttversion Version,onlinequota Quota,uint64 FileB
         "recover exactly one pending delivery at the configured limit");
 
     unsigned char Buffer[128];
-    xmqttstorelease Lease;
+
     xmqttstoreview View;
     size_t Bytes;
     xfuture* F=NULL;
-    check(xmqttStoreInboxTake(X.Writer,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
+    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
         "take delivery before the refusal");
-    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&F)==XMQTT_JWORK_ACCEPTED&&
+    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,10000)==XWAIT_OK,"get terminal ACK refusal");
     const xmqttcommitresult* R=xrtFutureValue(F);
     check(R&&R->Status==XMQTT_COMMIT_LIMIT&&R->Effect==XMQTT_JOURNAL_NOT_COMMITTED&&
@@ -360,9 +360,9 @@ static void explicitPressure(xmqttversion Version,onlinequota Quota,uint64 FileB
     xrtFutureDestroy(F);
 
     F=NULL;
-    check(xmqttStoreInboxTake(X.Writer,Buffer,sizeof(Buffer),&Lease,&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
+    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
         "a definite refusal releases the exact delivery for APP retry");
-    check(xmqttStoreInboxAckAsync(X.Writer,Lease,10000,&F)==XMQTT_JWORK_ACCEPTED&&
+    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,10000)==XWAIT_OK,"submit the ACK again after rotation");
     R=xrtFutureValue(F);
     check(R&&R->Status==XMQTT_COMMIT_OK&&R->Effect==XMQTT_JOURNAL_COMMITTED&&
