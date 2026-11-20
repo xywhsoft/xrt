@@ -18119,3 +18119,59 @@ Evidence, executable digests and build logs are under
 Ordinary maturity passes. Strict release still reports 39 developing
 MQTT modules. Native Linux, reliable and durable comparison workloads
 and 72-hour mixed-load runs remain open.
+
+## 2026-11-20 MQTT QoS 1 and QoS 2 fixed-arrival broker comparison
+
+The observer now completes both sides of the MQTT 5 reliable exchange.
+It recycles publisher packet identifiers only after PUBACK or PUBCOMP
+and tracks the broker's subscriber identifiers independently. Each
+reliable repeat uses the requested window in the observer and advertises
+it to the broker on subscriber connections. The publisher verifies the
+broker's Receive Maximum. The queue settings give each subscriber 256
+pending slots, including the active window.
+
+Publisher P99 ends at the received terminal acknowledgement. Subscriber
+P99 ends when its terminal acknowledgement has been sent. Both begin at
+the scheduled publication time, including waiting for a publisher credit.
+The observer checks publisher and subscriber counts and drains both sides.
+A scripted peer reproduces early PUBCOMP, wrong PUBCOMP identity and
+duplicate subscriber delivery. The first Windows failure probe left a
+blocking reader waiting. The observer now bounds individual socket
+operations and all three regressions pass on both environments.
+
+Windows x64 and Ubuntu/WSL each completed 112 reliable repeats against
+Mosquitto 2.1.2 with the same observer and CPU budget. Each sample checked
+3,000 publisher confirmations and the full subscriber delivery set after
+300 warmups. The exact-filter scenario used one subscriber and 2,000
+publications/s. The wildcard scenario used eight subscribers and 3,000
+publications/s. The table gives medians of seven repeats in the latter
+scenario. Each result column shows xmqtt / Mosquitto.
+
+| Environment | QoS | Window | Deliveries/s | Publisher P99 (us) | Subscriber P99 (us) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 1 | 24,003 / 24,003 | 749.7 / 323.4 | 847.9 / 245.3 |
+| Windows x64 | 1 | 16 | 24,003 / 24,003 | 53.8 / 594.2 | 219.8 / 923.9 |
+| Windows x64 | 2 | 1 | 23,986 / 24,000 | 16,532.5 / 6,684.5 | 16,776.1 / 6,768.5 |
+| Windows x64 | 2 | 16 | 23,996 / 24,000 | 7,051.0 / 7,005.4 | 7,147.5 / 7,390.6 |
+| Ubuntu/WSL x64 | 1 | 1 | 24,002 / 24,000 | 111.2 / 726.8 | 466.6 / 1,283.4 |
+| Ubuntu/WSL x64 | 1 | 16 | 24,001 / 23,998 | 91.4 / 523.3 | 341.5 / 416.7 |
+| Ubuntu/WSL x64 | 2 | 1 | 22,329 / 23,999 | 78,792.9 / 929.2 | 78,889.6 / 1,042.3 |
+| Ubuntu/WSL x64 | 2 | 16 | 24,000 / 23,999 | 1,319.1 / 290.5 | 3,603.2 / 395.6 |
+
+The variation gates passed 31 of 32 ingress series and one of 64 P99
+series. The WSL QoS 2 wildcard workload with window one had a median
+xmqtt offer-lag P99 of 78.5 ms. The same offered rate at window 16 had
+0.5 us offer-lag P99 and sustained the scheduled rate. These observations
+trace the delay before the send and motivate reproducing the narrow-window
+limit before ranking broker latency.
+
+Both platforms passed the registered modular routing smoke, QoS 0
+regression, the reliable smoke at window 64 and the scripted peer.
+The single-header WSL observer passed ASan/UBSan with leak detection
+and TSan across QoS 1/2 with both brokers.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-reliable-broker-baseline/`.
+Ordinary maturity passes. Strict release still reports 39 developing
+MQTT modules. Native Linux, stable tail-latency baselines, TLS and
+durable comparisons, and 72-hour mixed loads remain open.

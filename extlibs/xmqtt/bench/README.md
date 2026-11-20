@@ -201,7 +201,7 @@ require separate workloads.
 
 ## External broker comparison
 
-The `--remote` mode of `bench_server` sends MQTT 5 QoS 0 publications with
+The `--remote` mode of `bench_server` sends MQTT 5 publications with
 a 128-byte payload to a loopback broker. It uses one publisher and up to
 64 subscribers, with one exact filter or one wildcard per subscriber.
 Each repeat warms the established connections, then sends at fixed
@@ -209,6 +209,18 @@ scheduled times. The observer checks every payload and sequence for every
 subscriber and checks for extra deliveries after draining. The report
 keeps missed or failed repeats. Latency starts at the scheduled send time,
 and the separate offer-lag metric records producer scheduling delay.
+
+Select `--qos 1` or `--qos 2` and `--window 1..64` for reliable tests.
+The publisher enforces the same window against the broker's advertised
+Receive Maximum. It advances only on PUBACK or PUBCOMP. Each subscriber
+advertises the requested window, uses its broker-assigned identifiers and
+completes the full exchange. The runner requires every publisher confirmation
+and every subscriber delivery. Subscriber latency ends when the observer has
+sent PUBACK or PUBCOMP. Publisher latency ends when it receives the terminal
+acknowledgement. Every latency starts at the scheduled arrival, including
+any time spent waiting for credit. The connection drain checks for excess
+packets on both sides. The reliable profile configures 256 total pending
+deliveries per subscriber, counting the active window and the queue.
 
 Build the broker with the `xmqtt_server` suite and build the observer
 with the registered `xmqtt_server_routes` smoke profile. Use the resulting
@@ -231,6 +243,14 @@ P50/P95/P99/P99.9, offer lag, broker CPU through connection and warmup,
 and peak resident memory. Each throughput and P99 series has a sample
 noise verdict using 3% relative MAD and 6% trimmed central range.
 
+The scripted observer regression checks early PUBCOMP, a wrong PUBCOMP
+identifier and duplicate subscriber delivery. It also exercises bounded
+socket retirement after failure.
+
+```text
+python extlibs/xmqtt/bench/test_broker_observer.py /path/to/bench_server
+```
+
 This profile covers traffic at specified arrival rates. Saturation,
-TLS, reliable delivery, shared subscriptions, persistent state and
+TLS, shared subscriptions, persistent state and
 mixed-load duration have separate acceptance workloads.

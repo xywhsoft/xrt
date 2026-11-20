@@ -1,4 +1,4 @@
-"""Compare loopback MQTT 5 QoS 0 fan-out with an identical fixed-arrival observer."""
+"""Compare loopback MQTT 5 fan-out with an identical fixed-arrival observer."""
 import argparse
 from contextlib import contextmanager
 import ctypes
@@ -120,6 +120,8 @@ def run_observer(args, port, workload):
     kind, peers, rate = workload
     command = [str(args.observer), "--remote", str(port), str(peers), str(args.rounds),
                str(rate), str(args.warmup), kind]
+    if args.qos:
+        command.extend((str(args.qos), str(args.window)))
     process = start(command, args.load_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         output, errors = process.communicate(timeout=20 + (args.rounds + args.warmup) / rate)
@@ -129,10 +131,13 @@ def run_observer(args, port, workload):
     if process.returncode:
         raise RuntimeError(f"observer exit {process.returncode}: {errors.strip()}")
     result = {key: float(value) for key, value in (line.split(": ", 1) for line in output.splitlines())}
-    if set(result) != set(METRICS) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
+    metrics = METRICS + (("publish_confirmed", "publisher_p99_us") if args.qos else ())
+    if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     if result["offered"] != args.rounds or result["deliveries"] != peers * args.rounds:
         raise ValueError("publication and delivery counts do not match the workload")
+    if args.qos and result["publish_confirmed"] != args.rounds:
+        raise ValueError("missing terminal publisher confirmations")
     return result
 
 
@@ -143,9 +148,12 @@ def run_sample(args, implementation, workload, directory):
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
         config = directory / "mosquitto.conf"
+        # The xmqtt APP admits 256 outstanding deliveries per connection.
+        # Mosquitto's queue limit applies beyond the active inflight window.
+        limits = f"max_inflight_messages 64\nmax_queued_messages {256 - args.window}\n" if args.qos else ""
         config.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n"
                           "max_connections 1024\nmax_packet_size 16384\nset_tcp_nodelay true\n"
-                          "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n", encoding="ascii")
+                          "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n" + limits, encoding="ascii")
         command = [str(args.mosquitto), "-c", str(config)]
         pattern = None
     else:
@@ -218,6 +226,8 @@ def main():
     parser.add_argument("--workload", action="append", type=parse_workload, required=True)
     parser.add_argument("--rounds", type=int, default=6000)
     parser.add_argument("--warmup", type=int, default=512)
+    parser.add_argument("--qos", type=int, choices=(0, 1, 2), default=0)
+    parser.add_argument("--window", type=int, choices=range(1, 65), metavar="1..64", default=16)
     parser.add_argument("--repeats", type=int, default=7)
     args = parser.parse_args()
     if not ({args.broker_cpu} | args.load_cpus) <= affinity(os.getpid()) or args.broker_cpu in args.load_cpus:
@@ -231,7 +241,8 @@ def main():
         parser.error(f"expected {MOSQUITTO!r}, obtained {version!r}")
     report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu, "load_cpus": sorted(args.load_cpus),
               "rounds": args.rounds, "warmup": args.warmup, "repeats": args.repeats,
-              "mosquitto_version": version, "mqtt": 5, "qos": 0, "payload_bytes": 128, "security": "plaintext",
+              "mosquitto_version": version, "mqtt": 5, "qos": args.qos,
+              "window": args.window if args.qos else None, "payload_bytes": 128, "security": "plaintext",
               "persistence": False, "complete": False,
               "programs": {label: fingerprint(getattr(args, label)) for label in ("xmqtt", "mosquitto", "observer")},
               "runner": fingerprint(Path(__file__)),
@@ -239,6 +250,7 @@ def main():
               "workloads": []}
     args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
+    summaries = ("ingress_per_sec", "delivery_p99_us") + (("publisher_p99_us",) if args.qos else ())
     try:
         for workload in args.workload:
             group = {"filter": workload[0], "subscribers": workload[1], "scheduled_rate": workload[2], "samples": []}
@@ -257,7 +269,7 @@ def main():
             if not any("failure" in row for row in group["samples"]):
                 group["summary"] = {
                     label: {metric: noise([row[metric] for row in group["samples"] if row["broker"] == label])
-                            for metric in ("ingress_per_sec", "delivery_p99_us")}
+                            for metric in summaries}
                     for label in ("xmqtt", "mosquitto")
                 }
         report["complete"] = all("summary" in group for group in report["workloads"])

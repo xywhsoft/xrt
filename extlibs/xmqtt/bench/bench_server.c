@@ -1,3 +1,9 @@
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#include <sys/time.h>
+#endif
 #include "../examples/server/app_listener.h"
 #include <xrt/memory_stats.h>
 #include <math.h>
@@ -28,26 +34,37 @@ static bool benchReceive(xnetsocket Socket, unsigned char* Data, size_t Size)
 }
 
 static bool benchConnectFrame(xnetsocket Socket, const xnetaddr* Address,
-	const unsigned char* Frame, size_t Size, bool Resume)
+	const unsigned char* Frame, size_t Size, bool Resume, uint16 RequiredWindow)
 {
 	unsigned char Reply[48];
-	return xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) &&
-		xrtNetSocketConnect(Socket, Address) == XNET_RESULT_OK &&
-		benchSend(Socket, Frame, Size) && benchReceive(Socket, Reply, 2) &&
-		Reply[0] == 0x20 && Reply[1] >= 3 && Reply[1] <= sizeof(Reply) - 2 &&
-		benchReceive(Socket, Reply + 2, Reply[1]) && Reply[2] == Resume && !Reply[3];
+	if (!xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) ||
+		xrtNetSocketConnect(Socket, Address) != XNET_RESULT_OK ||
+		!benchSend(Socket, Frame, Size) || !benchReceive(Socket, Reply, 2) ||
+		Reply[0] != 0x20 || Reply[1] < 3 || Reply[1] > sizeof(Reply) - 2 ||
+		!benchReceive(Socket, Reply + 2, Reply[1]) || Reply[2] != Resume || Reply[3]) return false;
+	if (!RequiredWindow) return true;
+	xmqttproperty Properties[16];
+	const xmqttcodecbuffers Buffers = {.Properties = Properties, .PropertyCapacity = 16};
+	xmqttpacket Connack;
+	if (xmqttPacketRead5((xbytesview){Reply, Reply[1] + 2u}, XMQTT_SERVER_TO_CLIENT, NULL, &Buffers,
+		&Connack, NULL) != XMQTT_CODEC_DONE) return false;
+	for (size_t I = 0; I < Connack.Properties.Count; ++I) {
+		const xmqttproperty* Property = Connack.Properties.Data + I;
+		if (Property->Id == XMQTT_PROPERTY_RECEIVE_MAXIMUM) return Property->Value.Number >= RequiredWindow;
+	}
+	return true; /* Omitting Receive Maximum advertises 65535. */
 }
 
-static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window,
-	bool Persistent, bool Resume)
+static bool benchConnectLimits(xnetsocket Socket, const xnetaddr* Address, size_t Index, uint16 Window,
+	bool Persistent, bool Resume, uint16 RequiredWindow)
 {
 	/* Eight ASCII digits keep each identity distinct and valid in MQTT. */
 	unsigned char Frame[31] = {0x10,0,0,4,'M','Q','T','T',5,Resume ? 0 : 2,0,0};
 	size_t Size = 13;
 	if (Window) {
 		Frame[Size++] = 0x21;
-		Frame[Size++] = 0;
-		Frame[Size++] = 1;
+		Frame[Size++] = (uint8)(Window >> 8);
+		Frame[Size++] = (uint8)Window;
 	}
 	if (Persistent) {
 		const unsigned char Expiry[] = {0x11,0,0,0,60};
@@ -64,7 +81,13 @@ static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Inde
 		Frame[--Pos] = '0' + (unsigned char)(Index % 10u);
 		Index /= 10u;
 	}
-	return benchConnectFrame(Socket, Address, Frame, Size, Resume);
+	return benchConnectFrame(Socket, Address, Frame, Size, Resume, RequiredWindow);
+}
+
+static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window,
+	bool Persistent, bool Resume)
+{
+	return benchConnectLimits(Socket, Address, Index, Window, Persistent, Resume, 0);
 }
 
 static const unsigned char ExactSubscribe[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
@@ -256,7 +279,7 @@ static bool benchWillRound(const serverexample* Example, const xnetsocket* Socke
 	memcpy(Connect + sizeof(Connect) - 128, Expected + sizeof(Expected) - 128, 128);
 	xnetsocket Publisher = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
 	if (!Publisher) return false;
-	bool Ready = benchConnectFrame(Publisher, &Example->Address, Connect, sizeof(Connect), false);
+	bool Ready = benchConnectFrame(Publisher, &Example->Address, Connect, sizeof(Connect), false, 0);
 	const unsigned char Disconnect[] = {0xe0,1,0x04};
 	unsigned char Reply[sizeof(Expected)];
 	size_t Read;
@@ -291,6 +314,8 @@ typedef struct benchRemotePeer {
 	size_t Warmup, Rounds;
 	double* Samples;
 	double Last;
+	uint8 Qos;
+	uint16 Window;
 	bool Complete;
 } benchRemotePeer;
 
@@ -302,33 +327,233 @@ static bool benchPing(xnetsocket Socket)
 		Reply[0] == 0xd0 && !Reply[1];
 }
 
-static void benchRemoteFrame(unsigned char* Frame, size_t Round)
+typedef struct benchRemoteReader {
+	xnetsocket Socket;
+	unsigned char Bytes[4096];
+	size_t Begin, End;
+} benchRemoteReader;
+
+static bool benchRemoteReadFrame(benchRemoteReader* Reader, xmqttframe* Frame)
 {
-	const unsigned char Header[] = {0x30,0x87,1,0,4,'l','o','a','d',0};
+	for (;;) {
+		size_t Pending = Reader->End - Reader->Begin;
+		xmqttwirestatus Status = xmqttFrameRead((xbytesview){Reader->Bytes + Reader->Begin, Pending}, NULL, Frame);
+		if (Status == XMQTT_WIRE_DONE) {
+			Reader->Begin += Frame->Wire.Size;
+			return true;
+		}
+		if (Status != XMQTT_WIRE_MORE || Pending == sizeof(Reader->Bytes)) return false;
+		if (Pending && Reader->Begin) memmove(Reader->Bytes, Reader->Bytes + Reader->Begin, Pending);
+		size_t Read = 0;
+		if (xrtNetSocketRecv(Reader->Socket, Reader->Bytes + Pending, sizeof(Reader->Bytes) - Pending,
+			&Read) != XNET_RESULT_OK || !Read) return false;
+		Reader->Begin = 0;
+		Reader->End = Pending + Read;
+	}
+}
+
+static uint16 benchRemotePacketId(const unsigned char* P)
+{
+	return (uint16)((uint16)P[0] << 8 | P[1]);
+}
+
+/* Successful MQTT 5 acknowledgement with no properties. Accept all three
+ * wire forms, including explicit reason and empty property sections. */
+static uint16 benchRemoteAckId(const xmqttframe* Frame)
+{
+	xbytesview Body = Frame->Body;
+	if (Body.Size < 2 || Body.Size > 4 || (Body.Size > 2 && Body.Data[2]) ||
+		(Body.Size == 4 && Body.Data[3])) return 0;
+	return benchRemotePacketId(Body.Data);
+}
+
+static size_t benchRemoteFrame(unsigned char* Frame, size_t Round, uint8 Qos, uint16 Id)
+{
+	const unsigned char Header[] = {0x30,0x87,1,0,4,'l','o','a','d'};
 	memcpy(Frame, Header, sizeof(Header));
-	memset(Frame + sizeof(Header), 0x41, 128);
+	size_t Offset = sizeof(Header);
+	if (Qos) {
+		Frame[0] |= (uint8)(Qos << 1);
+		Frame[1] += 2;
+		Frame[Offset++] = (uint8)(Id >> 8);
+		Frame[Offset++] = (uint8)Id;
+	}
+	Frame[Offset++] = 0;
+	memset(Frame + Offset, 0x41, 128);
 	for (size_t Byte = 0; Byte < 4; ++Byte)
-		Frame[137 - Byte] = (unsigned char)(Round >> (Byte * 8));
+		Frame[Offset + 127 - Byte] = (unsigned char)(Round >> (Byte * 8));
+	return Offset + 128;
+}
+
+static bool benchRemoteDelivery(benchRemotePeer* Peer, size_t Round, double Arrived)
+{
+	if (Round >= Peer->Warmup) {
+		double Latency = Arrived - (Peer->Start + (double)Round / Peer->Rate);
+		if (Latency < 0) return false;
+		Peer->Samples[Round - Peer->Warmup] = Latency;
+	}
+	Peer->Last = Arrived;
+	return true;
+}
+
+static bool benchRemoteReadReliable(benchRemotePeer* Peer)
+{
+	typedef struct { uint16 Id; size_t Round; } pending;
+	pending Pending[64] = {0};
+	benchRemoteReader Reader = {.Socket = Peer->Socket};
+	size_t Received = 0, Finished = 0, Total = Peer->Warmup + Peer->Rounds;
+	while (Finished < Total) {
+		xmqttframe Frame;
+		if (!benchRemoteReadFrame(&Reader, &Frame)) return false;
+		if (Frame.Header.Type == XMQTT_PACKET_PUBLISH && Received < Total && Frame.Wire.Size == 140) {
+			uint16 Id = benchRemotePacketId(Frame.Wire.Data + 9);
+			unsigned char Expected[140];
+			size_t Size = benchRemoteFrame(Expected, Received, Peer->Qos, Id);
+			if (!Id || memcmp(Frame.Wire.Data, Expected, Size)) return false;
+			if (Peer->Qos == 2) {
+				pending* Free = NULL;
+				for (size_t I = 0; I < Peer->Window; ++I) {
+					if (Pending[I].Id == Id) return false;
+					if (!Pending[I].Id && !Free) Free = Pending + I;
+				}
+				if (!Free || !benchSendFlowReply(Peer->Socket, 0x50, Id)) return false;
+				*Free = (pending){Id, Received};
+			} else {
+				if (!benchSendFlowReply(Peer->Socket, 0x40, Id) ||
+					!benchRemoteDelivery(Peer, Received, xrtTimer())) return false;
+				++Finished;
+			}
+			++Received;
+		} else if (Peer->Qos == 2 && Frame.Header.Type == XMQTT_PACKET_PUBREL) {
+			uint16 Id = benchRemoteAckId(&Frame);
+			size_t I = 0;
+			if (!Id) return false;
+			while (I < Peer->Window && Pending[I].Id != Id) ++I;
+			if (I == Peer->Window || !benchSendFlowReply(Peer->Socket, 0x70, Id) ||
+				!benchRemoteDelivery(Peer, Pending[I].Round, xrtTimer())) return false;
+			Pending[I].Id = 0;
+			++Finished;
+		} else return false;
+	}
+	return Reader.Begin == Reader.End;
 }
 
 static int32 benchRemoteRead(ptr Context)
 {
 	benchRemotePeer* Peer = Context;
+	if (Peer->Qos) {
+		Peer->Complete = benchRemoteReadReliable(Peer);
+		return Peer->Complete ? 0 : 1;
+	}
 	for (size_t Round = 0; Round < Peer->Warmup + Peer->Rounds; ++Round) {
 		unsigned char Wire[138], Expected[138];
 		if (!benchReceive(Peer->Socket, Wire, sizeof(Wire))) return 1;
 		double Arrived = xrtTimer();
-		benchRemoteFrame(Expected, Round);
-		if (memcmp(Wire, Expected, sizeof(Wire))) return 1;
-		if (Round >= Peer->Warmup) {
-			double Latency = Arrived - (Peer->Start + (double)Round / Peer->Rate);
-			if (Latency < 0) return 1;
-			Peer->Samples[Round - Peer->Warmup] = Latency;
-		}
-		Peer->Last = Arrived;
+		benchRemoteFrame(Expected, Round, 0, 0);
+		if (memcmp(Wire, Expected, sizeof(Wire)) || !benchRemoteDelivery(Peer, Round, Arrived)) return 1;
 	}
 	Peer->Complete = true;
 	return 0;
+}
+
+typedef enum { BENCH_PUBLISH_FREE, BENCH_PUBLISH_WAIT_RECEIPT, BENCH_PUBLISH_WAIT_COMPLETE } benchPublishPhase;
+typedef struct benchRemotePublisher {
+	xnetsocket Socket;
+	xmutex Gate;
+	xcond Changed;
+	struct { benchPublishPhase Phase; size_t Round; } Slots[64];
+	uint8 Qos;
+	size_t Window, Warmup, Rounds;
+	double Start, Rate, Last;
+	double* Samples;
+	bool Complete, Failed;
+} benchRemotePublisher;
+
+/* Publisher and ACK reader share only one short send and slot transition
+ * at a time. Packet identifiers are recycled only once fully confirmed. */
+static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Scheduled, double* Lag)
+{
+	if (!P->Qos) {
+		unsigned char Frame[138];
+		benchRemoteFrame(Frame, Round, 0, 0);
+		if (Lag) *Lag = xrtTimer() - Scheduled;
+		return benchSend(P->Socket, Frame, sizeof(Frame));
+	}
+	size_t Slot = Round % P->Window;
+	if (!xrtMutexLock(&P->Gate)) return false;
+	while (!P->Failed && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) {
+		if (xrtCondWaitFor(&P->Changed, &P->Gate, 5000) != XWAIT_OK) {
+			(void)xrtMutexUnlock(&P->Gate);
+			return false;
+		}
+	}
+	bool Sent = false;
+	if (!P->Failed) {
+		unsigned char Frame[140];
+		size_t Size = benchRemoteFrame(Frame, Round, P->Qos, (uint16)(Slot + 1));
+		P->Slots[Slot].Round = Round;
+		P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_RECEIPT;
+		if (Lag) *Lag = xrtTimer() - Scheduled;
+		Sent = benchSend(P->Socket, Frame, Size);
+	}
+	return xrtMutexUnlock(&P->Gate) && Sent;
+}
+
+static int32 benchRemoteConfirm(ptr Context)
+{
+	benchRemotePublisher* P = Context;
+	benchRemoteReader Reader = {.Socket = P->Socket};
+	size_t Finished = 0, Total = P->Warmup + P->Rounds;
+	while (Finished < Total) {
+		xmqttframe Frame;
+		if (!benchRemoteReadFrame(&Reader, &Frame)) break;
+		double Confirmed = xrtTimer();
+		uint16 Id = benchRemoteAckId(&Frame);
+		if (!Id || Id > P->Window || !xrtMutexLock(&P->Gate)) break;
+		size_t Slot = Id - 1u;
+		benchPublishPhase Phase = P->Slots[Slot].Phase;
+		xmqttpackettype Type = Frame.Header.Type;
+		bool Terminal = (P->Qos == 1 && Phase == BENCH_PUBLISH_WAIT_RECEIPT && Type == XMQTT_PACKET_PUBACK) ||
+			(P->Qos == 2 && Phase == BENCH_PUBLISH_WAIT_COMPLETE && Type == XMQTT_PACKET_PUBCOMP);
+		bool OK = true;
+		if (Terminal) {
+			size_t Round = P->Slots[Slot].Round;
+			if (Round >= P->Warmup) P->Samples[Round - P->Warmup] = Confirmed - (P->Start + (double)Round / P->Rate);
+			P->Last = Confirmed;
+			P->Slots[Slot].Phase = BENCH_PUBLISH_FREE;
+			OK = xrtCondSignal(&P->Changed);
+		} else if (P->Qos == 2 && Phase == BENCH_PUBLISH_WAIT_RECEIPT && Type == XMQTT_PACKET_PUBREC) {
+			P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_COMPLETE;
+			OK = benchSendFlowReply(P->Socket, 0x62, Id);
+		} else OK = false;
+		if (!xrtMutexUnlock(&P->Gate) || !OK) break;
+		if (Terminal) ++Finished;
+	}
+	P->Complete = Finished == Total && Reader.Begin == Reader.End;
+	if (!P->Complete && xrtMutexLock(&P->Gate)) {
+		P->Failed = true;
+		(void)xrtCondSignal(&P->Changed);
+		(void)xrtMutexUnlock(&P->Gate);
+	}
+	return P->Complete ? 0 : 1;
+}
+
+
+/* Bound the blocking I/O on both brokers, including the join of a
+ * reader whose peer stopped responding. The XRT object owns the handle. */
+static bool benchRemoteTimeouts(xnetsocket Socket)
+{
+	intptr_t Native = xrtNetSocketNative(Socket);
+	if (Native == -1) return false;
+#if defined(_WIN32) || defined(_WIN64)
+	const DWORD Timeout = 5000;
+	return setsockopt((SOCKET)Native, SOL_SOCKET, SO_RCVTIMEO, (const char*)&Timeout, sizeof(Timeout)) == 0 &&
+		setsockopt((SOCKET)Native, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Timeout, sizeof(Timeout)) == 0;
+#else
+	const struct timeval Timeout = {.tv_sec = 5};
+	return setsockopt((int)Native, SOL_SOCKET, SO_RCVTIMEO, &Timeout, sizeof(Timeout)) == 0 &&
+		setsockopt((int)Native, SOL_SOCKET, SO_SNDTIMEO, &Timeout, sizeof(Timeout)) == 0;
+#endif
 }
 
 static bool benchRemoteNumber(const char* Text, unsigned long Min, unsigned long Max, unsigned long* Out)
@@ -346,64 +571,84 @@ static bool benchRemoteNumber(const char* Text, unsigned long Min, unsigned long
  * from every subscriber or the entire repeat is recorded as a failure. */
 static int benchRemote(int Argc, char** Argv)
 {
-	unsigned long Port, Peers, Rounds, Rate, Warmup;
-	if (Argc != 8 || !benchRemoteNumber(Argv[2], 1, 65535, &Port) ||
+	unsigned long Port, Peers, Rounds, Rate, Warmup, Qos = 0, Window = 1;
+	if ((Argc != 8 && Argc != 10) || !benchRemoteNumber(Argv[2], 1, 65535, &Port) ||
 		!benchRemoteNumber(Argv[3], 1, 64, &Peers) ||
 		!benchRemoteNumber(Argv[4], 1, 100000, &Rounds) ||
 		!benchRemoteNumber(Argv[5], 1, 100000, &Rate) ||
 		!benchRemoteNumber(Argv[6], 0, 100000, &Warmup) ||
-		(strcmp(Argv[7], "exact") && strcmp(Argv[7], "wildcard"))) {
-		fprintf(stderr, "Usage: bench_server --remote PORT SUBSCRIBERS ROUNDS RATE WARMUP exact|wildcard\n");
+		(strcmp(Argv[7], "exact") && strcmp(Argv[7], "wildcard")) ||
+		(Argc == 10 && (!benchRemoteNumber(Argv[8], 1, 2, &Qos) ||
+			!benchRemoteNumber(Argv[9], 1, 64, &Window)))) {
+		fprintf(stderr, "Usage: bench_server --remote PORT SUBSCRIBERS ROUNDS RATE WARMUP exact|wildcard [QOS WINDOW]\n");
 		return 2;
 	}
 	benchRemotePeer State[64] = {0};
 	xthread* Readers[64] = {0};
 	double* Samples = malloc(Peers * Rounds * sizeof(*Samples));
 	double* Lag = malloc(Rounds * sizeof(*Lag));
-	xnetsocket Publisher = NULL;
+	benchRemotePublisher Publisher = {.Qos = (uint8)Qos, .Window = Window, .Warmup = Warmup,
+		.Rounds = Rounds, .Rate = (double)Rate};
+	xthread* Confirmations = NULL;
+	bool Gate = false, Changed = false;
 	bool OK = false;
 	const char* Stage = "allocate measurement buffers";
 	if (!Samples || !Lag) goto Done;
+	if (Qos) {
+		Publisher.Samples = malloc(Rounds * sizeof(*Publisher.Samples));
+		if (!Publisher.Samples || !(Gate = xrtMutexInit(&Publisher.Gate)) ||
+			!(Changed = xrtCondInit(&Publisher.Changed))) goto Done;
+	}
 	xnetaddr Address;
 	xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port);
 	Stage = "connect and subscribe";
+	bool Wild = !strcmp(Argv[7], "wildcard");
+	const unsigned char Wildcard[] = {0x82,7,0,1,0,0,1,'+',(uint8)Qos};
+	const unsigned char ExpectedAck[] = {0x90,4,0,1,0,(uint8)Qos};
 	for (size_t I = 0; I < Peers; ++I) {
-		const unsigned char Wildcard[] = {0x82,7,0,1,0,0,1,'+',0};
-		unsigned char Reply[sizeof(SubscribeAck)];
-		bool Wild = !strcmp(Argv[7], "wildcard");
-		const unsigned char* Wire = Wild ? Wildcard : ExactSubscribe;
-		size_t Size = Wild ? sizeof(Wildcard) : sizeof(ExactSubscribe);
 		State[I].Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
-		if (!State[I].Socket || !benchConnect(State[I].Socket, &Address, I, false, false, false) ||
-			!benchSend(State[I].Socket, Wire, Size) ||
-			!benchReceive(State[I].Socket, Reply, sizeof(Reply)) ||
-			memcmp(Reply, SubscribeAck, sizeof(Reply))) goto Done;
+		if (!State[I].Socket || !benchRemoteTimeouts(State[I].Socket) ||
+			!benchConnectLimits(State[I].Socket, &Address, I,
+			Qos ? (uint16)Window : 0, false, false, 0)) goto Done;
+		if (Wild) {
+			unsigned char Reply[sizeof(ExpectedAck)];
+			if (!benchSend(State[I].Socket, Wildcard, sizeof(Wildcard)) ||
+				!benchReceive(State[I].Socket, Reply, sizeof(Reply)) ||
+				memcmp(Reply, ExpectedAck, sizeof(Reply))) goto Done;
+		} else if (!benchSubscribe(State[I].Socket, false, false, (uint8)Qos)) goto Done;
 	}
-	Publisher = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
-	if (!Publisher || !benchConnect(Publisher, &Address, Peers, false, false, false)) goto Done;
+	Publisher.Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+	if (!Publisher.Socket || !benchRemoteTimeouts(Publisher.Socket) ||
+		!benchConnectLimits(Publisher.Socket, &Address, Peers, 0, false, false, Qos ? (uint16)Window : 0))
+		goto Done;
 
 	Stage = "start subscribers";
 	double Start = xrtTimer() + 0.05;
+	Publisher.Start = Start;
+	if (Qos) {
+		Confirmations = xrtThreadCreate(benchRemoteConfirm, &Publisher, 0);
+		if (!Confirmations) goto Done;
+	}
 	for (size_t I = 0; I < Peers; ++I) {
 		State[I].Start = Start;
 		State[I].Rate = (double)Rate;
 		State[I].Warmup = Warmup;
 		State[I].Rounds = Rounds;
+		State[I].Qos = (uint8)Qos;
+		State[I].Window = (uint16)Window;
 		State[I].Samples = Samples + I * Rounds;
 		Readers[I] = xrtThreadCreate(benchRemoteRead, State + I, 0);
 		if (!Readers[I]) goto Done;
 	}
 	Stage = "offer scheduled publications";
 	for (size_t Round = 0; Round < Warmup + Rounds; ++Round) {
-		unsigned char Wire[138];
-		benchRemoteFrame(Wire, Round);
 		double Scheduled = Start + (double)Round / (double)Rate;
 		double Now;
 		while ((Now = xrtTimer()) < Scheduled) {
 			if (Scheduled - Now > 0.003) xrtSleep(1);
 		}
-		if (Round >= Warmup) Lag[Round - Warmup] = Now - Scheduled;
-		if (!benchSend(Publisher, Wire, sizeof(Wire))) goto Done;
+		if (!benchRemoteOffer(&Publisher, Round, Scheduled, Round >= Warmup ? Lag + Round - Warmup : NULL))
+			goto Done;
 	}
 	Stage = "check subscriber delivery counts and order";
 	double Last = 0;
@@ -411,7 +656,13 @@ static int benchRemote(int Argc, char** Argv)
 		if (xrtThreadWaitFor(Readers[I], 5000) != XWAIT_OK || !State[I].Complete) goto Done;
 		if (State[I].Last > Last) Last = State[I].Last;
 	}
-	Stage = "check for excess deliveries";
+	if (Confirmations) {
+		Stage = "check publisher confirmation counts";
+		if (xrtThreadWaitFor(Confirmations, 5000) != XWAIT_OK || !Publisher.Complete) goto Done;
+		if (Publisher.Last > Last) Last = Publisher.Last;
+	}
+	Stage = "check for excess packets";
+	if (Qos && !benchPing(Publisher.Socket)) goto Done;
 	for (size_t I = 0; I < Peers; ++I) if (!benchPing(State[I].Socket)) goto Done;
 	double Seconds = Last - (Start + (double)Warmup / (double)Rate);
 	if (Seconds <= 0) goto Done;
@@ -426,6 +677,11 @@ static int benchRemote(int Argc, char** Argv)
 		benchPercentile(Samples, Count, 0.5), benchPercentile(Samples, Count, 0.95),
 		benchPercentile(Samples, Count, 0.99), benchPercentile(Samples, Count, 0.999),
 		benchPercentile(Lag, Rounds, 0.99));
+	if (Qos) {
+		qsort(Publisher.Samples, Rounds, sizeof(*Publisher.Samples), benchOrder);
+		printf("publish_confirmed: %lu\npublisher_p99_us: %.3f\n", Rounds,
+			benchPercentile(Publisher.Samples, Rounds, 0.99));
+	}
 	OK = true;
 
 Done:
@@ -439,7 +695,15 @@ Done:
 		}
 		if (State[I].Socket) xrtNetSocketClose(State[I].Socket);
 	}
-	if (Publisher) xrtNetSocketClose(Publisher);
+	if (Confirmations) {
+		(void)xrtNetSocketShutdown(Publisher.Socket, XNET_SHUTDOWN_BOTH);
+		if (xrtThreadWait(Confirmations) != XWAIT_OK) abort();
+		xrtThreadDestroy(Confirmations);
+	}
+	if (Publisher.Socket) xrtNetSocketClose(Publisher.Socket);
+	if (Changed) (void)xrtCondUnit(&Publisher.Changed);
+	if (Gate) (void)xrtMutexUnit(&Publisher.Gate);
+	free(Publisher.Samples);
 	free(Lag);
 	free(Samples);
 	return OK ? 0 : 1;
