@@ -1,7 +1,7 @@
 """Exercise fixed-arrival TCP reply verification across arbitrary reads."""
 from collections import deque
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from run_tcp_worker import SaturationPeer
 
@@ -44,6 +44,23 @@ class ReplyStreamTest(unittest.TestCase):
                     self.assertEqual(peer.times, [1 if end <= first else 2 if end <= second else 3
                                                   for end in self.ends])
                     self.assertEqual(peer.completed, len(self.batches))
+
+    def test_staggered_offer_keeps_its_phase_while_waiting_for_credit(self):
+        sock = Mock()
+        sock.send.side_effect = len
+        sock.recv.return_value = b"abc\ndefg\n"
+        peer = SaturationPeer(sock, self.batches, window=1, phase_ns=25)
+        with patch("run_tcp_worker.time.perf_counter_ns", side_effect=(125, 237, 240)):
+            self.assertEqual(peer.offer(100, 200, 2, 124, 1000), 125)
+            sock.send.assert_not_called()
+            self.assertEqual(peer.offer(100, 200, 2, 125, 1000), 225)
+            self.assertIsNone(peer.offer(100, 200, 2, 228, 1000))
+            self.assertEqual(peer.stalls, 1)
+            self.assertTrue(peer.read())
+            self.assertEqual(peer.offer(100, 200, 2, 240, 1000), 325)
+        self.assertEqual(peer.sent_at, [125, 240])
+        self.assertEqual(peer.credit_wait, [0, 12])
+        self.assertEqual(peer.peak, 1)
 
     def test_changed_byte_in_any_reply(self):
         for offset in range(len(self.wire)):

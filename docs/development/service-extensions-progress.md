@@ -20070,3 +20070,50 @@ release acceptance remain open.
 Source and binary hashes, server logs and per-node execution counts are under
 `out/service-extensions/scope-reduction-20261119/xredis-cluster-tls-migration/`.
 [Reproduction instructions](../../extlibs/xredis/docs/cluster_client.md#real-slot-migration).
+
+## 2026-11-20 xrpc aligned and staggered TCP arrivals
+
+The saturation observer can now stagger connections within each group
+period. It retains the original arrival deadline even when a group has
+to wait for credit, and records every connection phase in the report.
+For the same slowest 1% of replies it sums offer delay outside observed
+credit wait, observed credit wait and the interval from first send attempt
+to receipt. Delay behind earlier unsent groups is part of the offer delay.
+
+The comparison used the same APP binary and observer in both schedules.
+Eight connections, two executor workers and 16 groups of outstanding
+credit per connection scheduled 128,000 calls/s for two seconds. Aligned
+offers had 64 calls due every 500 us. Staggered offers had eight calls due
+every 62.5 us. APP CPUs were 0 and 2 and observer CPUs were 6, 8 and 10.
+The existing endurance and xcron measurements remained active. All 80
+samples completed, verifying 20,480,000 replies. Each row is the median
+of five runs per schedule.
+
+| Host | APP mode | Framing | Verified calls/s, aligned / staggered | P99 in ms, aligned / staggered |
+| --- | --- | --- | ---: | ---: |
+| Windows x64 | Duplex | Records | 127,992 / 127,987 | 1.944 / 1.017 |
+| Windows x64 | Duplex | Batch | 128,001 / 127,999 | 0.471 / 0.385 |
+| Windows x64 | Dispatch | Records | 128,001 / 127,996 | 0.925 / 0.651 |
+| Windows x64 | Dispatch | Batch | 128,010 / 127,999 | 0.452 / 0.283 |
+| Ubuntu/WSL x64 | Duplex | Records | 127,044 / 127,479 | 22.028 / 14.736 |
+| Ubuntu/WSL x64 | Duplex | Batch | 127,994 / 127,989 | 0.545 / 0.405 |
+| Ubuntu/WSL x64 | Dispatch | Records | 127,943 / 127,948 | 5.947 / 5.046 |
+| Ubuntu/WSL x64 | Dispatch | Batch | 128,000 / 127,996 | 0.487 / 0.340 |
+
+All 16 throughput series passed the 3% relative MAD and 6% central-range
+checks. The two WSL dispatch batch P99 series also passed. The other 14
+P99 series exceeded the variation limits. In WSL dispatch record mode,
+the median share of slow-tail time from first send attempt to receipt
+was 98.3% aligned and 97.8% staggered. In the longest-tail WSL duplex
+record sample, aligned P99 was 247.135 ms and 96.7% of the slowest
+1% cumulative time was offer delay outside observed credit wait.
+
+The stream tests, TCP interop and staggered CLI checks with a partial
+final request group passed on Windows and WSL. Generated assets, API
+docs and ordinary maturity passed. Strict release still lists
+`xrpc` and `xrpc_duplex` as developing. Native Linux and stable release
+tails remain open.
+
+Source and binary hashes, raw reports and the comparison driver are under
+`out/service-extensions/scope-reduction-20261119/xrpc-staggered-arrivals/`.
+[Reproduction instructions](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).

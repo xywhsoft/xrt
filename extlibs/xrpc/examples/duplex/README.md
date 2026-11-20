@@ -93,13 +93,24 @@ Windows. The second sweep uses the same workload at 8,000 and 16,000
 offers per connection with one executor worker. To offer more traffic with
 two workers, use --rates 24000,32000.
 
+The default aligns every connection's groups on the same schedule.
+Append `--stagger-arrivals` to space their offers evenly within one group
+period. The per-connection rate, number of calls and credit window stay
+the same. Use distinct reports for the two schedules. Each sample
+reports its phase offsets in nanoseconds and preserves the original
+scheduled time even when credit delays an offer.
+
 Throughput is the count of verified replies from the planned start to the
 final observed reply, including any drain time. Latency starts at the
 scheduled batch arrival for every request. Separate percentiles cover the
 delay until submission, the observer's wait for a window slot, and the
 interval from the actual send attempt to the reply. The report also
 records the largest in-flight window, the number of batches that found it
-full and observer CPU time. The observer compares received bytes against a
+full and observer CPU time. For the same slowest one percent of replies,
+it sums the offer delay outside observed credit wait, observed credit wait,
+and time from the first send attempt through receipt. Credit wait begins
+when the observer first finds the scheduled group blocked by the full
+window. Time behind earlier unsent groups is part of the offer delay. The observer compares received bytes against a
 precomputed wire sequence for each group. Within a split group, each reply
 takes the timestamp of the read that supplies its final byte. A JSON-RPC
 batch document supplies one timestamp for all calls in the document.

@@ -4,8 +4,10 @@ from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, suppress
 import hashlib
+from heapq import nlargest
 from itertools import accumulate
 import json
+from operator import itemgetter
 import os
 import platform
 from pathlib import Path
@@ -281,12 +283,13 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
 
 
 class SaturationPeer:
-    def __init__(self, sock, batches, window):
+    def __init__(self, sock, batches, window, phase_ns=0):
         self.sock = sock
         self.batches = [(wire, b"".join(replies),
                          tuple(accumulate(map(len, replies))) if len(replies) > 1 else (len(replies[0]),) * count)
                         for wire, replies, count in batches]
         self.window = window
+        self.phase_ns = phase_ns
         self.sent_at, self.credit_wait, self.times = [], [], []
         self.peak = self.stalls = self.completed = self.reply_index = 0
         self.blocked_since = None
@@ -311,7 +314,7 @@ class SaturationPeer:
         index = len(self.sent_at)
         if self.outgoing is not None or index == len(self.batches):
             return None
-        due = start + index * period // rate
+        due = start + self.phase_ns + index * period // rate
         if due > now:
             return due
         used = index - self.completed
@@ -329,7 +332,7 @@ class SaturationPeer:
         self.peak = max(self.peak, used + 1)
         self.outgoing = memoryview(self.batches[index][0])
         self.flush()
-        return start + (index + 1) * period // rate
+        return start + self.phase_ns + (index + 1) * period // rate
 
     def read(self):
         try:
@@ -373,9 +376,10 @@ class SaturationPeer:
 
 
 def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus,
-                      batch_documents=False):
+                      batch_documents=False, stagger_arrivals=False):
     depth, warmup, deadline_ns = 8, 64, 5_000_000_000
     period = depth * 1_000_000_000
+    batch_count = (calls + depth - 1) // depth
     start = elapsed = cpu = None
     results = []
 
@@ -390,11 +394,13 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
                     list(checked_batch(peer, stream, wire, replies))
             peer.setblocking(False)
             groups = list(saturation_batches(calls, depth, first + warmup, batch_documents))
-            streams[peer] = SaturationPeer(peer, groups, window)
+            phase = index * period // (rate * len(peers)) if stagger_arrivals else 0
+            streams[peer] = SaturationPeer(peer, groups, window, phase)
         results.extend(streams.values())
         cpu = time.process_time_ns()
         start = time.perf_counter_ns() + 20_000_000
-        end = start + calls * 1_000_000_000 // rate + deadline_ns
+        last_due = start + (batch_count - 1) * period // rate + results[-1].phase_ns
+        end = max(last_due, start + calls * 1_000_000_000 // rate) + deadline_ns
         while streams:
             now = time.perf_counter_ns()
             if now >= end:
@@ -418,7 +424,6 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
         cpu = (time.process_time_ns() - cpu) / 1e9
 
     status, report = multi_exchange(executable, mode, connections, workers, drive, app_cpus, observer_cpus)
-    batch_count = (calls + depth - 1) // depth
     documents_per_peer = batch_count + warmup // depth if batch_documents else calls + warmup
     documents = documents_per_peer * connections
     if status != 0 or report != {"connections": connections, "workers": workers, "requests": documents}:
@@ -428,18 +433,31 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
     total = calls * connections
     stats = {"calls": total, "app_documents": documents, "calls_per_second": total * 1e9 / elapsed,
              "observer_cpu_seconds": cpu, "peak_batches_in_flight": max(peer.peak for peer in results),
-             "credit_stall_batches": sum(peer.stalls for peer in results)}
+             "credit_stall_batches": sum(peer.stalls for peer in results),
+             "phase_offsets_ns": [peer.phase_ns for peer in results]}
     dues = [start + index * period // rate for index in range(batch_count)]
     latency, after_send, offer_lag, credit_wait = [], [], [], []
     for peer in results:
         if len(peer.times) != calls or len(peer.sent_at) != batch_count:
             raise RuntimeError("saturation reply count mismatch")
-        latency.extend(when - dues[index // depth] for index, when in enumerate(peer.times))
+        latency.extend(when - dues[index // depth] - peer.phase_ns for index, when in enumerate(peer.times))
         after_send.extend(when - peer.sent_at[index // depth] for index, when in enumerate(peer.times))
-        offer_lag.extend(sent - due for sent, due in zip(peer.sent_at, dues))
+        offer_lag.extend(sent - due - peer.phase_ns for sent, due in zip(peer.sent_at, dues))
         credit_wait.extend(peer.credit_wait)
     if any(value < 0 or value >= deadline_ns for value in latency):
         raise RuntimeError("reply missed its fixed-arrival deadline")
+    # Attribute the same slow replies in every phase. Quantiles of separate
+    # populations cannot be subtracted to recover a stage's tail.
+    credit_by_call = (peer.credit_wait[index // depth] for peer in results for index in range(calls))
+    tail = nlargest((total + 99) // 100, zip(latency, after_send, credit_by_call), key=itemgetter(0))
+    elapsed_tail = sum(elapsed for elapsed, _, _ in tail)
+    after_send_tail = sum(received for _, received, _ in tail)
+    credit_tail = sum(blocked for _, _, blocked in tail)
+    stats["slowest_one_percent"] = {
+        "replies": len(tail), "elapsed_ns": elapsed_tail,
+        "offer_delay_excluding_credit_wait_ns": elapsed_tail - after_send_tail - credit_tail,
+        "observed_credit_wait_ns": credit_tail, "from_send_to_reply_ns": after_send_tail,
+    }
     for prefix, samples in (("", latency), ("from_send_", after_send), ("offer_lag_", offer_lag),
                             ("credit_wait_", credit_wait)):
         stats.update(percentiles(samples, prefix))
@@ -528,6 +546,7 @@ def measure_saturation(executable, report, args):
             "connections": args.connections, "workers": args.workers, "window_batches": args.window_batches,
             "request_framing": "json-rpc-batch" if args.batch_documents else "single-records",
             "observer_pacing": "multiplexed-nonblocking",
+            "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
             "profiles": [], "complete": False}
     metrics = ("calls_per_second", "p99_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
@@ -544,7 +563,7 @@ def measure_saturation(executable, report, args):
                     try:
                         run[name] = saturation_sample(executable, MODES[name], args.calls, args.connections,
                                                       args.workers, rate, args.window_batches, args.app_cpus,
-                                                      args.cpus, args.batch_documents)
+                                                      args.cpus, args.batch_documents, args.stagger_arrivals)
                     except (OSError, AssertionError, RuntimeError, subprocess.SubprocessError, ValueError) as error:
                         run[name] = {"failure": str(error)}
             entry["summary"] = {}
@@ -583,13 +602,15 @@ def main():
     parser.add_argument("--window-batches", type=int, default=16)
     parser.add_argument("--batch-documents", action="store_true",
                         help="send each scheduled group as one JSON-RPC batch in saturation mode")
+    parser.add_argument("--stagger-arrivals", action="store_true",
+                        help="evenly offset each connection within the same saturation offer period")
     args = parser.parse_args()
     if not 1000 <= args.calls <= 100000 or not 1 <= args.repeats <= 30:
         parser.error("choose 1000..100000 calls and 1..30 repeats")
     if args.concurrent and not (1 <= args.rate <= 100000 and args.calls <= args.rate * 15):
         parser.error("concurrent offers must fit a 15 second horizon")
-    if args.batch_documents and not args.saturation:
-        parser.error("--batch-documents requires --saturation")
+    if (args.batch_documents or args.stagger_arrivals) and not args.saturation:
+        parser.error("--batch-documents and --stagger-arrivals require --saturation")
     if args.saturation:
         if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:
             parser.error("saturation requires disjoint --cpus and --app-cpus")
