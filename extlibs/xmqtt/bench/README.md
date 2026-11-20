@@ -457,6 +457,23 @@ separately. The POSIX runner raises only its process descriptor limit
 and inherits it into the test broker. Use a host with enough descriptors
 and loopback ports for the largest cohort.
 
+Add `--trace-connect` to record TCP dial and MQTT handshake times for
+each successful initial or replacement connection. Each sample gives
+the connection index and the two durations in microseconds. Segment
+percentiles summarize each distribution independently. Run the same
+observer mode and CPU placement on both brokers when comparing timings.
+
+On Linux, `--prepare-xmqtt-fds` enables the xmqtt example's
+`--compare MAX_CONNECTIONS --prepare-fds` mode. It duplicates standard
+input above the expected connection range and closes the duplicate
+before starting the network worker. This expands the process descriptor
+table before it becomes shared with the worker. The example uses a
+64-slot allowance for listener and other process descriptors and uses
+the existing process descriptor limit. Run the same workload with and
+without the option to measure its effect on xmqtt. The reference
+configuration is identical in the two runs.
+[WSL 6.18 descriptor table expansion](https://github.com/microsoft/WSL2-Linux-Kernel/blob/linux-msft-wsl-6.18.y/fs/file.c).
+
 Use the 8,000-client group for the near-capacity Windows comparison.
 Mosquitto 2.1.2 initializes its Windows polling table for 8,192 sockets
 and places the listener in the same table as client sockets. The

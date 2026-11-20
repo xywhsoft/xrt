@@ -2,20 +2,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__linux__)
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 int main(int Argc, char** Argv)
 {
 	bool Compare = Argc >= 2 && !strcmp(Argv[1], "--compare");
+	bool Prepare = Compare && Argc == 4 && !strcmp(Argv[3], "--prepare-fds");
 	xmqttserverconfig Config;
 	if (!xmqttServerConfigInit(&Config)) return 1;
 	if (Compare && Argc > 2) {
 		char* End;
 		unsigned long Limit = strtoul(Argv[2], &End, 10);
-		if (Argc != 3 || *Argv[2] < '0' || *Argv[2] > '9' || *End || !Limit || Limit > 10000) {
-			fputs("usage: examples_server_main --compare [max-connections 1..10000]\n", stderr);
+		if ((Argc != 3 && !Prepare) || *Argv[2] < '0' || *Argv[2] > '9' || *End || !Limit || Limit > 10000) {
+			fputs("usage: examples_server_main --compare [max-connections 1..10000 [--prepare-fds]]\n", stderr);
 			return 2;
 		}
 		Config.MaxConnections = (size_t)Limit;
+	}
+	if (Prepare) {
+#if defined(__linux__)
+		/* Expand the process fd table before the worker shares it. Allow
+		 * room for the listener, epoll descriptors and inherited streams. */
+		int Descriptor = fcntl(STDIN_FILENO, F_DUPFD, (int)Config.MaxConnections + 64);
+		if (Descriptor < 0 || close(Descriptor) != 0) {
+			perror("prepare file descriptor table");
+			return 1;
+		}
+#else
+		fputs("--prepare-fds requires the Linux server example\n", stderr);
+		return 2;
+#endif
 	}
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	Config.Allow311 = true;

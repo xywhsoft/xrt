@@ -19158,3 +19158,60 @@ Reproduce from [the idle and reconnect guide](../../extlibs/xmqtt/bench/README.m
 Reports, first readiness failures, capacity probes, source snapshots
 and validation logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-connection-broker/`.
+
+## 2026-11-20 MQTT connection latency at descriptor table growth
+
+The connection observer can record TCP dial and MQTT handshake durations
+per successful connection. On WSL 6.18.33.2, moving either process to a
+different logical CPU and reducing observer concurrency from 32 to 8
+left a 27–36 ms median CONNECT P99 in the 1,000-client diagnostic.
+The two segment times put most of the delay after TCP connected.
+
+A socket trace matched clients to kernel resources by loopback source
+port. It matched 9,999 of 10,000 connections in a five-pair diagnostic.
+For the slowest 1% in each xmqtt run, the median interval between the
+first completed CONNECT read and the CONNACK write was 12–13
+microseconds. The long interval was before the broker read CONNECT.
+A separate kernel trace mapped the worker's WSL PID via a trace
+marker. In its complete retained window, `accept4` took 17.13, 11.49,
+12.55 and 14.32 ms when returning descriptors 64, 128, 256 and 512.
+The kernel expands the table at those boundaries and waits for an RCU
+grace period when the process shares the table between threads.
+Initial incomplete joins, PID mapping attempts and ring overruns are
+preserved with the traces.
+[WSL 6.18 descriptor table implementation](https://github.com/microsoft/WSL2-Linux-Kernel/blob/linux-msft-wsl-6.18.y/fs/file.c#L232-L260).
+
+The Linux APP example now has an explicit `--prepare-fds` option.
+It expands its descriptor table before starting the network worker.
+At startup, the test observed 64 slots with the option disabled and
+2,048 or 16,384 slots with it enabled for 1,000 or 10,000 requested
+clients. The process held six open descriptors in each case. With a
+soft limit of 64 and preparation requested above that limit, the
+example exited before opening the listener.
+
+The comparison used the same xmqtt binary with preparation off, then
+on. The Mosquitto binary, CPU pins, 32-slot observer window, plaintext
+MQTT and workload stayed fixed. All 40 samples completed, verifying
+220,000 initial connections and 22,000 reconnects. Both brokers
+returned their open-descriptor count to the baseline in every sample.
+
+| WSL cohort | xmqtt CONNECT P99 off / on | Mosquitto control P99 first / second | xmqtt initial connections/s off / on |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 32.89 / 5.42 ms | 5.08 / 5.45 ms | 4,879 / 7,684 |
+| 10,000 | 21.90 / 7.14 ms | 5.17 / 7.36 ms | 6,936 / 6,320 |
+
+These are five-sample medians. The 10,000-client prepared CONNECT P99
+met the variation limit. The 1,000-client prepared P99 still varied
+beyond that limit. The reference's 10,000-client throughput also fell
+between runs, from 7,424 to 6,184 connections/s. This leaves a
+repeatable native Linux throughput and tail baseline open.
+
+Windows and WSL passed the independent MQTT 5 and 3.1.1 broker
+interop, and Windows passed cohort smokes with tracing on and off.
+The Windows example rejected the Linux preparation option.
+Generated assets and ordinary maturity passed. Strict release still
+reports 39 developing modules.
+
+Reproduce from [the connection benchmark guide](../../extlibs/xmqtt/bench/README.md#idle-connections-and-reconnect-waves).
+Raw data, diagnostic sources and validation logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-connect-tail/`.

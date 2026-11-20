@@ -75,9 +75,15 @@ async def handshake(loop, sock, index):
     return ack[1]
 
 
-async def connect_mqtt(loop, sock, address, index):
+async def connect_mqtt(loop, sock, address, index, timings=None):
+    began = time.perf_counter_ns() if timings is not None else 0
     await loop.sock_connect(sock, address)
-    return await handshake(loop, sock, index)
+    connected = time.perf_counter_ns() if timings is not None else 0
+    reason = await handshake(loop, sock, index)
+    if timings is not None and reason == 0:
+        completed = time.perf_counter_ns()
+        timings.append((index, (connected - began) / 1000, (completed - connected) / 1000))
+    return reason
 
 
 def connection_socket():
@@ -127,13 +133,14 @@ def latency_summary(values):
 async def sample_cohort(args, address, ready, clients, broker, row):
     loop = asyncio.get_running_loop()
     sockets = {}
+    dial_times = [] if args.trace_connect else None
     snapshots = row["broker_resources"] = {}
     outcomes = row["phases"] = {}
 
     async def open_peer(index):
         sock = connection_socket()
         try:
-            reason = await connect_mqtt(loop, sock, address, index)
+            reason = await connect_mqtt(loop, sock, address, index, dial_times)
             require(reason == 0, f"client {index} was refused with reason 0x{reason:02x}")
             sockets[index] = sock
         except BaseException:
@@ -156,6 +163,8 @@ async def sample_cohort(args, address, ready, clients, broker, row):
     async def measure(label, indices, operation):
         times = []
         result = outcomes[label] = {"requested": len(indices), "completed": 0}
+        if dial_times is not None:
+            dial_times.clear()
 
         async def timed(index):
             began = time.perf_counter_ns()
@@ -176,6 +185,12 @@ async def sample_cohort(args, address, ready, clients, broker, row):
                           observer_cpu_seconds=time.process_time() - cpu)
             if times:
                 result.update(latency_summary(times))
+            if dial_times:
+                result["connect_parts"] = {
+                    "tcp": latency_summary([item[1] for item in dial_times]),
+                    "mqtt": latency_summary([item[2] for item in dial_times]),
+                    "samples": dial_times.copy(),
+                }
 
     all_clients = range(clients)
     churn = range(max(1, clients // 10))
@@ -219,6 +234,8 @@ def running_broker(args, implementation, clients, directory, row):
     port = None
     if implementation == "xmqtt":
         command = [args.xmqtt, "--compare", str(clients)]
+        if args.prepare_xmqtt_fds:
+            command.append("--prepare-fds")
     else:
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
@@ -267,6 +284,10 @@ def main():
     parser.add_argument("--concurrency", type=int, choices=range(1, 129), metavar="1..128", default=32)
     parser.add_argument("--idle-seconds", type=float, default=2)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--trace-connect", action="store_true",
+                        help="record TCP dial and MQTT handshake time for each connection")
+    parser.add_argument("--prepare-xmqtt-fds", action="store_true",
+                        help="enable the Linux xmqtt example's startup descriptor preparation")
     args = parser.parse_args()
     original = affinity(os.getpid())
     if args.broker_cpu == args.load_cpu or not {args.broker_cpu, args.load_cpu} <= original:
@@ -275,6 +296,8 @@ def main():
         parser.error("each client count must be 1..10000")
     if not 3 <= args.repeats <= 31 or not 1 <= args.idle_seconds <= 60:
         parser.error("invalid repeat count or idle duration")
+    if args.prepare_xmqtt_fds and platform.system() != "Linux":
+        parser.error("--prepare-xmqtt-fds requires Linux")
     descriptor_budget(max(args.clients), args.concurrency)
     for name in ("xmqtt", "mosquitto"):
         setattr(args, name, getattr(args, name).resolve(strict=True))
@@ -285,6 +308,8 @@ def main():
     report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu, "load_cpu": args.load_cpu,
               "mosquitto_version": version, "mqtt": 5, "security": "plaintext", "persistence": False,
               "concurrency": args.concurrency, "idle_seconds": args.idle_seconds, "repeats": args.repeats,
+              "trace_connect": args.trace_connect,
+              "xmqtt_prepared_descriptors": args.prepare_xmqtt_fds,
               "programs": {name: fingerprint(getattr(args, name)) for name in ("xmqtt", "mosquitto")},
               "runner": fingerprint(Path(__file__)), "workloads": [], "complete": False}
     pin(os.getpid(), {args.load_cpu})
