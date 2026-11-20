@@ -21294,3 +21294,30 @@ WSL leg retain separate results. Native Linux qualification and the
 scheduler release-tail gate remain open. The raw reports, launch and build
 receipts and the independent audits are in
 `out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
+
+## 2026-11-21 Redis TCP and TLS CPU comparison on one server
+
+The controlled run used one isolated Redis 8.0.5 process per host with
+both TCP and verified TLS 1.3 loopback listeners. The observer ran TLS,
+TCP, TCP and TLS blocks on each host. Both clients used the same fixed
+rate of 12,000 offers/s, eight connections, 1,024-byte mixed GET/SET
+payloads and the 128-request observer window. The TCP binaries used the
+current benchmark sources and the same pinned Hiredis 1.3.0 archive.
+The native Windows observers reached WSL Redis through its loopback
+forwarding. WSL observers reached the local Redis process directly.
+
+All raw sample ledgers reconciled with Redis command counts. The 48
+measured samples verified 1,152,000.0 of 1,152,000.0 scheduled offers.
+
+| Observer | Transport | Completed xredis / Hiredis | P99 xredis / Hiredis (us) | CPU per reply xredis / Hiredis (us) | CPU outside generator xredis / Hiredis (us) |
+| --- | --- | --- | --- | --- | --- |
+| Windows x64 | TCP | 144,000.0 / 144,000.0 | 1456.9 / 1457.6 | 104.8 / 81.4 | 25.7 / 0.0 |
+| Windows x64 | TLS | 144,000.0 / 144,000.0 | 1702.5 / 1818.6 | 114.3 / 82.7 | 33.2 / 0.0 |
+| Ubuntu/WSL x64 | TCP | 144,000.0 / 144,000.0 | 861.0 / 754.6 | 121.5 / 83.3 | 38.2 / 0.0 |
+| Ubuntu/WSL x64 | TLS | 144,000.0 / 144,000.0 | 1201.5 / 962.5 | 135.3 / 83.3 | 52.0 / 0.0 |
+
+The table compares timing and CPU for complete matched loads. The
+outside-generator value is process CPU minus the generator thread CPU.
+The audit retains all admission outcomes and per-run tail distributions.
+Native Linux and strict release acceptance remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xredis-tls-transport-control/`.
