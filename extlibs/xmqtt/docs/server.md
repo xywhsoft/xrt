@@ -591,6 +591,28 @@ example path, the same credentials directory as the TLS probe and a JSON
 report path. Optional `--ping-samples 1000` records sequential loopback PING
 round trips for both transports.
 
+### Checkpoint recovery across transports
+
+Build the combined `xmqtt_examples` suite for the checkpoint example
+with all four transports. Place `--ws`, `--tls certificate.der key.der`
+or `--wss certificate.der key.der` before the checkpoint mode. The
+plain TCP form starts with the mode. For example, initialize an empty
+file with `capture`, then use `--wss certificate.der key.der restore-online checkpoint.bin`
+to commit session changes from the first delivery.
+
+The independent peer verifies a transaction-backed session created over
+WS or WSS, advances an outbound QoS 2 exchange over TLS before a
+process stop and resumes on the other WebSocket transport. A final TCP
+connection checks that acknowledged deliveries have retired.
+
+    python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_examples --no-single
+    python extlibs/xmqtt/tests/interop/run_server_checkpoint_transports.py \
+      out/gcc/native/xmqtt_examples/examples_server_checkpoint \
+      out/xmqtt-local-tls out/xmqtt-checkpoint-transports.json
+
+Use the test credentials from the TLS example and append `.exe` to the
+checkpoint executable path on Windows.
+
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS
 records. The peer owns the stream, negotiated transport limits and native

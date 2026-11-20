@@ -21095,3 +21095,40 @@ Build logs, trusted-leaf receipts, raw tests and the independent
 audit are under
 `out/service-extensions/scope-reduction-20261119/xredis-mixed-tls/`.
 [Mixed workload reproduction](../../extlibs/xredis/docs/client-performance.md#the-same-workload-over-verified-tls).
+
+## 2026-11-21 MQTT checkpoint recovery across TCP, TLS and WebSocket
+
+The combined APP examples build can select TCP, TLS, WS or WSS for
+the checkpoint listener. It uses the shared listener, TLS credential
+loader and WebSocket Upgrade code. All four transports use the same
+checkpoint format and transaction callbacks.
+
+The independent peer establishes a session and records its first
+deliveries over WS or WSS, then recovers session presence, the
+original QoS 1 DUP and QoS 2 PUBREL packet IDs and offline delivery
+over TLS. It completes those exchanges, advances another outgoing
+QoS 2 delivery and stops the broker while both TLS connections are
+open. The saved image contains exactly one keyed outbound PUBREL.
+The other WebSocket transport restores that PUBREL and verifies the
+retained binary value. A final TCP connection verifies that the
+completed deliveries have retired.
+[MQTT 5.0 session retry rules](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+The first pilot began with unkeyed deliveries from a plain snapshot
+and observed the old QoS 1 delivery again after a process stop. The
+existing store contract accepts unkeyed records with older callbacks.
+The final probe enables online transactions before admitting its
+first durable delivery.
+
+The final matrix passed 24 transport paths across Windows x64 and
+Ubuntu/WSL modular and single-header builds. Two additional paths
+passed with WSL ASan/UBSan and leak detection during normal exits.
+The combined example passed the full default TCP checkpoint peer
+on both environments. Each host also verified that invalid credentials
+and a transport request against the TCP-only build preserve the
+existing image. Generated headers, API docs and ordinary maturity
+passed. Strict release still lists 39 developing modules.
+
+Build logs, code and binary digests, and raw reports are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-checkpoint-transports/`.
+[Reproduction](../../extlibs/xmqtt/docs/server.md#checkpoint-recovery-across-transports).

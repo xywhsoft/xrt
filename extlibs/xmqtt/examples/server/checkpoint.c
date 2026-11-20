@@ -3,7 +3,14 @@
 #define XMQTT_EXAMPLE_SERVER_AUTH
 #include "app_auth.h"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_WS_TLS) && defined(XMQTT_FEATURE_XMQTT_SERVER_TLS) && \
+	defined(XRT_FEATURE_HTTP1_TLS) && defined(XRT_FEATURE_WEBSOCKET_UPGRADE_STREAM) && defined(XRT_FEATURE_TLS_IDENTITY_RSA)
+#define XMQTT_EXAMPLE_SERVER_WS
+#include "app_tls.h"
+#include "app_ws.h"
+#else
 #include "app_listener.h"
+#endif
 #include <xmqtt/server_retained_commit.h>
 #include <xrt/buffer.h>
 #include <xrt/crc32.h>
@@ -793,6 +800,23 @@ int main(int Argc, char** Argv)
 		--Argc;
 		++Argv;
 	}
+	bool WebSocket = Argc > 1 && (!strcmp(Argv[1], "--ws") || !strcmp(Argv[1], "--wss"));
+	bool Secure = Argc > 1 && (!strcmp(Argv[1], "--tls") || !strcmp(Argv[1], "--wss"));
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	char** Transport = Argv;
+	if (Secure && Argc < 4) {
+		fputs("Supply certificate.der and rsa-private-key.der after --tls or --wss.\n", stderr);
+		return 1;
+	}
+	int Prefix = Secure ? 3 : WebSocket ? 1 : 0;
+	Argc -= Prefix;
+	Argv += Prefix;
+#else
+	if (WebSocket || Secure) {
+		fputs("Build the checkpoint example with the WS and TLS example dependencies.\n", stderr);
+		return 1;
+	}
+#endif
 	bool Wills = Argc >= 3 && !strcmp(Argv[1], "restore-online-will");
 	bool Expiry = Wills || (Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry"));
 	bool Online = Expiry || (Argc >= 3 && !strcmp(Argv[1], "restore-online"));
@@ -804,6 +828,9 @@ int main(int Argc, char** Argv)
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
 		puts("       examples_server_checkpoint restore-online-expiry|restore-online-will checkpoint.bin [delay-ms]");
 		puts("       examples_server_checkpoint restore-online checkpoint.bin --hold-writer");
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+		puts("       optional transport prefix: --ws or --tls|--wss certificate.der rsa-private-key.der");
+#endif
 		return Argc == 1 ? 0 : 1;
 	}
 	serverexample Example = {0};
@@ -859,8 +886,18 @@ int main(int Argc, char** Argv)
 		Example.Prepare = checkpointPrepare;
 		Example.PrepareData = &Store;
 	}
+	bool TransportReady = true;
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	xtlsserverconfig Tls;
+	Example.WebSocket = WebSocket;
+	if (Secure) {
+		TransportReady = exampleServerLoadTls(&Tls, Transport[2], Transport[3]);
+		if (TransportReady) Example.Tls = &Tls;
+		else fputs("Could not load checkpoint listener TLS credentials.\n", stderr);
+	}
+#endif
 	char Endpoint[80];
-	bool Ready = exampleServerStart(&Example, &Config, Compare ? 1 : 2) &&
+	bool Ready = TransportReady && exampleServerStart(&Example, &Config, Compare ? 1 : 2) &&
 		xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint));
 	if (Ready) {
 		puts(Endpoint);
@@ -876,6 +913,9 @@ int main(int Argc, char** Argv)
 	bool Saved = Capture && Joined && checkpointSave(Example.Server, Store.Path);
 	bool Closed = Joined && exampleServerStop(&Example);
 	if (Joined && Store.WriterGate) Closed = xrtMutexDestroy(Store.WriterGate) && Closed;
+#if defined(XMQTT_EXAMPLE_SERVER_WS)
+	if (Closed && Example.Tls) exampleServerReleaseTls(Example.Tls);
+#endif
 #if defined(XMQTT_EXAMPLE_SERVER_AUTH)
 	Closed = Closed && (!RequireMethod || !xrtAtomic32Load(&AuthState.Active, XMEMORY_RELAXED));
 #endif

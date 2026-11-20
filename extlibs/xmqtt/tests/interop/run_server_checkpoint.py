@@ -29,8 +29,8 @@ PONG = (0xd0, b"")
 
 
 @contextmanager
-def broker(program, mode, image, *options, crash=False, exit_code=0, writer_ready=None):
-    with subprocess.Popen([str(program.resolve()), mode, str(image), *options], stdin=subprocess.PIPE,
+def broker(program, mode, image, *options, crash=False, exit_code=0, writer_ready=None, prefix=()):
+    with subprocess.Popen([str(program.resolve()), *prefix, mode, str(image), *options], stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, text=True) as process:
         lines = queue.Queue()
 
