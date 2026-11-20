@@ -21321,3 +21321,27 @@ outside-generator value is process CPU minus the generator thread CPU.
 The audit retains all admission outcomes and per-run tail distributions.
 Native Linux and strict release acceptance remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xredis-tls-transport-control/`.
+
+## 2026-11-21 Redis CPU and context switches by benchmark phase
+
+The Ubuntu/WSL diagnostics used an isolated Redis 8.0.5 process with TCP
+and verified TLS listeners. The observer ran TLS, TCP, TCP and TLS blocks
+at eight connections, 12,000 offers/s and 1,024-byte mixed GET/SET payloads.
+The diagnostic observers sampled getrusage for the process and the
+generator thread before measured traffic, at the end of traffic and
+after connection retirement. The audit reconciled Redis command counters
+and checked the CPU samples against the original per-window CPU clocks.
+The 40 measured windows completed 960,000.0 of 960,000.0 offers.
+
+| Transport | Client | Verified replies | Outside generator user / kernel (us/reply) | Outside generator voluntary / involuntary switches (per 1,000 replies) | Outside generator retirement user / kernel (us/window) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| TCP | xredis | 240,000 | 9.72 / 33.03 | 1411.8 / 6.1 | 119.0 / 350.0 |
+| TCP | hiredis-1.3.0 | 240,000 | 0.00 / 0.00 | 0.0 / 0.0 | 0.0 / 0.0 |
+| TLS | xredis | 240,000 | 19.93 / 34.37 | 1116.8 / 3.0 | 182.5 / 327.0 |
+| TLS | hiredis-1.3.0 | 240,000 | 0.00 / 0.00 | 0.0 / 0.0 | 0.0 / 0.0 |
+
+The counters aggregate all other process threads. CPU time and context
+switches do not identify the individual functions responsible. The raw
+diagnostic windows and input hashes are under
+`out/service-extensions/scope-reduction-20261119/xredis-cpu-scheduling-diagnostics/`.
+Native Linux performance and strict release acceptance remain pending.
