@@ -21391,3 +21391,29 @@ The timing columns use complete matched loads in the clean builds. The
 separate API-count builds show the change in direct wake reads. Native
 Linux and strict release acceptance remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xredis-epoll-single-wake-read/`.
+
+## 2026-11-21 Epoll single wake-read regression and repeat decision
+
+The control and prototype both passed the existing epoll behavior,
+nonblocking connect, 256-socket readiness, allocator failure and TCP
+descriptor reuse tests. A four-producer XRT port probe verified
+1,120,000 ordered user events and 3,584 cross-thread wakes on an empty
+queue across 28 trials. Four prototype trials used ASan/UBSan with leak
+detection. The probe allows wake coalescing while user events are queued.
+
+The independent uninstrumented repeat used the prior binaries and
+alternated verified TLS and TCP blocks on the same WSL Redis process.
+All 960,000 measured requests matched the server ledger. The table
+reports medians over ten measured pairs per transport.
+
+| Transport | P99 control / prototype (us) | Process CPU per reply control / prototype (us) | Pairs with lower prototype CPU | P99 central range control / prototype |
+| --- | ---: | ---: | ---: | ---: |
+| TCP | 899.8 / 929.2 | 122.28 / 121.57 | 9 / 10 | 34.7% / 26.3% |
+| TLS | 1322.4 / 1256.1 | 137.80 / 137.10 | 10 / 10 | 26.5% / 26.0% |
+
+All four P99 series exceeded the 6% central-range limit. The prototype
+raised the median TCP P99 in both campaigns and lowered the TLS median.
+The gate evidence supports retaining the result as an isolated prototype.
+Native Linux and release performance acceptance remain pending. Raw
+test and repeat evidence is in
+`out/service-extensions/scope-reduction-20261119/xredis-epoll-single-read-regression-verified/`.
