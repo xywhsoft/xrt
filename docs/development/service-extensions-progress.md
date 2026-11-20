@@ -20591,3 +20591,45 @@ modules.
 The workload script, per-host reports, input hashes, and independent
 audit are under
 `out/service-extensions/scope-reduction-20261119/xrpc-native-observer/`.
+
+## 2026-11-21 xrpc executor submissions per TCP receive
+
+An APP-only prototype submitted up to four complete newline records
+from the current receive buffer in one executor job. The connection
+owner staged requests, sent replies in order and released duplex
+outputs. A short group was submitted before reading again. The executor
+ledger checked jobs and completed documents separately.
+
+Two comparisons each ran 80 verified samples across Windows and
+Ubuntu/WSL, verifying 30,720,000 replies in total. One compared the same
+prototype at caps of one and four. The other used the existing APP
+binary as the baseline. Both used eight staggered connections, two
+workers, 16 groups of credit and the same native observer. Each cell
+lists separate medians across five two-second runs against the current
+APP and the four-record prototype.
+
+| Host | APP | Offered calls/s | P99 in ms, current / grouped | P99.9 in ms, current / grouped |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Duplex | 64,000 | 0.310 / 0.317 | 2.625 / 2.548 |
+| Windows x64 | Duplex | 128,000 | 0.841 / 0.491 | 4.964 / 5.226 |
+| Windows x64 | Dispatch | 64,000 | 0.276 / 0.275 | 2.814 / 2.571 |
+| Windows x64 | Dispatch | 128,000 | 0.513 / 0.385 | 5.078 / 9.243 |
+| Ubuntu/WSL x64 | Duplex | 64,000 | 0.845 / 0.410 | 1.364 / 0.671 |
+| Ubuntu/WSL x64 | Duplex | 128,000 | 19.551 / 0.800 | 22.254 / 1.281 |
+| Ubuntu/WSL x64 | Dispatch | 64,000 | 0.743 / 0.346 | 1.180 / 0.585 |
+| Ubuntu/WSL x64 | Dispatch | 128,000 | 3.548 / 0.579 | 5.174 / 0.869 |
+
+Grouped submissions fell by approximately 75% in every profile, and
+the second comparison's median throughput stayed near the offered rates.
+The first comparison's one-record prototype had substantially higher
+latency than the existing executable in the second comparison. Three
+grouped WSL series met the P99 variation gates. Only 64k grouped duplex
+on WSL met the P99.9 gates. Windows dispatch at 128k recorded a higher
+P99.9 median with grouping. The prototype holds three additional fixed
+request and reply buffers per connection. The example keeps its
+one-document submission path pending repeatable cross-platform gains.
+
+Both prototype builds passed the existing independent TCP peer matrix
+on both hosts. The prototype, input and binary hashes, raw runs and
+audits are in
+`out/service-extensions/scope-reduction-20261119/xrpc-app-executor-groups/`.
