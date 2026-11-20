@@ -20660,3 +20660,36 @@ resource acceptance and native Linux qualification remain open.
 Build and launch inputs, smoke and injection reports and live journals
 are under
 `out/service-extensions/scope-reduction-20261119/native-windows-current-soak/`.
+
+## 2026-11-21 MQTT 5 delivery quota at active connection capacity
+
+The independent peer fills the configured MQTT 5 connection cohort
+and checks refusal of an excess connection. One subscriber advertises
+Receive Maximum one, reads the first QoS 2 delivery and holds PUBREC.
+The publisher fills that subscriber's 256-delivery quota and verifies
+PUBREC 0x97 twice. Idle peers answer PING while the quota remains full.
+A disjoint topic completes 256 healthy QoS 2 exchanges before, during
+and after the hold. The slow subscriber drains in payload order and
+receives a new message using the rejected publisher packet ID. After
+one idle client retires, a replacement connects and answers PING.
+
+Both Windows x64 and Ubuntu/WSL completed five single-header repetitions
+at 100 and 1,000 connections. The 20 runs checked 20 excess connection
+refusals, 40 quota responses, 15,360 healthy exchanges and 5,140
+deliveries through the slow subscriber. The 1,000-connection healthy
+P99 medians were 306.4, 258.0 and 279.7 us on Windows, and 519.6,
+433.8 and 401.6 us on WSL, before, during and after the hold. These
+are serial exchange timings with the endurance runs active.
+
+The modular server and codec suites passed on both environments.
+The modular broker also passed the peer probe at 64 and 1,000
+connections on both. WSL used ASan/UBSan with leak detection. The
+existing dual-version standalone peer, generated-header freshness,
+public API coverage and ordinary maturity passed. CI now invokes
+the 64-connection case. Native Linux qualification and the 39
+developing module declarations remain open.
+
+The per-run results, source and binary hashes, build logs and
+audit are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-active-pressure/`.
+[Peer probe instructions](../../extlibs/xmqtt/bench/README.md#live-quota-at-connection-capacity).

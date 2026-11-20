@@ -566,6 +566,26 @@ This workload covers idle clean sessions and bounded reconnect waves.
 Full-rate reconnect storms, authenticated transports, loaded subscriber
 cohorts and durable recovery have separate workloads.
 
+### Live quota at connection capacity
+
+Use the independent MQTT 5 peer to hold a full connection cohort and
+exhaust one subscriber's reliable delivery quota. The slow subscriber
+advertises Receive Maximum one and withholds its first QoS 2 PUBREC.
+The broker rejects a new connection and two more publications to the
+full recipient. Other clients answer PING and a disjoint topic
+continues delivering verified QoS 2 messages. The peer then drains the
+blocked subscriber in order, reuses the rejected publisher packet ID
+and opens a replacement connection after retiring one client.
+
+    python extlibs/xmqtt/tests/interop/run_server_handshake.py \
+      /path/to/examples_server_main out/broker-active-pressure.json --pressure-clients 1000
+
+The report records the P50, P95 and P99 of 256 serial healthy-topic
+exchanges before, during and after the quota hold. Timing runs from
+the publisher's PUBLISH send attempt to the subscriber's PUBCOMP send
+return. A final PING confirms the broker saw the last PUBCOMP. This
+profile checks progress at capacity with one broker worker.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised

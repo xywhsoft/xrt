@@ -130,7 +130,8 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --trim-only
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
-          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json &&
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-pressure-linux.json --pressure-clients 64
       - name: Required MQTT authentication across checkpoint restart
         if: matrix.product == 'xmqtt'
         run: >-
@@ -249,7 +250,8 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --trim-only
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
-          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-windows.json
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-windows.json &&
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-pressure-windows.json --pressure-clients 64
       - name: Required MQTT authentication across checkpoint restart
         if: matrix.product == 'xmqtt'
         run: >-

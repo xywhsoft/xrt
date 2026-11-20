@@ -1,7 +1,10 @@
 """Exercise the standalone MQTT TCP server and subscription routes with a separate peer."""
 import argparse
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
+import hashlib
 import json
+import math
+import platform
 from pathlib import Path
 import queue
 import socket
@@ -21,24 +24,31 @@ def read(sock, size):
     return bytes(data)
 
 
-def connect(endpoint, level, client_id):
-    sock = socket.create_connection(endpoint, timeout=5)
+def connect_packet(level, client_id, receive_maximum=None):
     body = b"\0\4MQTT" + bytes((level, 2, 0, 0))
     if level == 5:
-        body += b"\0"
-    body += struct.pack("!H", len(client_id)) + client_id
-    # Send the protocol level in a later TCP write and pipeline the first PING.
-    wire = bytes((0x10, len(body))) + body
-    sock.sendall(wire[:8])
-    sock.sendall(wire[8:] + b"\xc0\0")
-    header = read(sock, 2)
-    assert header[0] == 0x20 and header[1] < 64, header.hex()
-    ack = read(sock, header[1])
-    assert ack[:2] == b"\0\0", ack.hex()
-    if level == 4:
-        assert ack == b"\0\0", ack.hex()
-    assert read(sock, 2) == b"\xd0\0"
-    return sock, ack.hex()
+        body += b"\0" if receive_maximum is None else b"\3\x21" + struct.pack("!H", receive_maximum)
+    return small_frame(0x10, body + topic(client_id))
+
+
+def connect(endpoint, level, client_id, receive_maximum=None):
+    sock = socket.create_connection(endpoint, timeout=5)
+    wire = connect_packet(level, client_id, receive_maximum)
+    try:
+        # Split the CONNECT and pipeline the first PING.
+        sock.sendall(wire[:8])
+        sock.sendall(wire[8:] + b"\xc0\0")
+        header = read(sock, 2)
+        assert header[0] == 0x20 and header[1] < 64, header.hex()
+        ack = read(sock, header[1])
+        assert ack[:2] == b"\0\0", ack.hex()
+        if level == 4:
+            assert ack == b"\0\0", ack.hex()
+        assert read(sock, 2) == b"\xd0\0"
+        return sock, ack.hex()
+    except BaseException:
+        sock.close()
+        raise
 
 
 def small_frame(kind, data):
@@ -321,9 +331,10 @@ def check_will(endpoint, subscriber, level):
             assert time.monotonic() - start >= delay - 0.1, "Will Delay must elapse"
 
 
-def probe(program):
+@contextmanager
+def running_server(program, *arguments):
     with subprocess.Popen(
-        [str(program.resolve()), "wait"],
+        [str(program.resolve()), *arguments],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
     ) as server:
         start = queue.Queue(maxsize=1)
@@ -331,50 +342,180 @@ def probe(program):
         try:
             host, sep, port = start.get(timeout=8).strip().partition(":")
             assert host == "127.0.0.1" and sep and int(port) > 0, (host, port)
-            endpoint = (host, int(port))
-            preserved, connack5 = connect(endpoint, 5, b"literal")
-            with preserved:
-                legacy, connack311 = connect(endpoint, 4, b"legacy")
-                with legacy:
-                    newer, duplicate = connect(endpoint, 5, b"literal")
-                    with newer:
-                        assert read(preserved, 3) == b"\xe0\x01\x8e"
-                        eof(preserved)
-                        legacy.sendall(b"\xc0\0")
-                        assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
-                        check_routes(legacy, newer)
-                        check_wildcards(legacy, newer)
-                        check_shared(endpoint, legacy, newer)
-                        check_retained(legacy, newer)
-                        check_retained_parallel(endpoint, legacy)
-                        check_qos1(legacy, newer)
-                        check_qos2(legacy, newer)
-                        check_session_resume(endpoint, newer, 5)
-                        check_session_resume(endpoint, newer, 4)
-                        check_will(endpoint, newer, 5)
-                        check_will(endpoint, newer, 4)
-                        newer.sendall(b"\xe0\0")
-                        eof(newer)
+            yield host, int(port)
             server.stdin.write("\n")
             server.stdin.flush()
             assert server.wait(timeout=8) == 0, "server teardown failed"
         finally:
             if server.poll() is None:
                 server.kill()
+
+
+def probe(program):
+    with running_server(program, "wait") as endpoint:
+        preserved, connack5 = connect(endpoint, 5, b"literal")
+        with preserved:
+            legacy, connack311 = connect(endpoint, 4, b"legacy")
+            with legacy:
+                newer, duplicate = connect(endpoint, 5, b"literal")
+                with newer:
+                    assert read(preserved, 3) == b"\xe0\x01\x8e"
+                    eof(preserved)
+                    legacy.sendall(b"\xc0\0")
+                    assert read(legacy, 2) == b"\xd0\0", "other session must remain connected"
+                    check_routes(legacy, newer)
+                    check_wildcards(legacy, newer)
+                    check_shared(endpoint, legacy, newer)
+                    check_retained(legacy, newer)
+                    check_retained_parallel(endpoint, legacy)
+                    check_qos1(legacy, newer)
+                    check_qos2(legacy, newer)
+                    check_session_resume(endpoint, newer, 5)
+                    check_session_resume(endpoint, newer, 4)
+                    check_will(endpoint, newer, 5)
+                    check_will(endpoint, newer, 4)
+                    newer.sendall(b"\xe0\0")
+                    eof(newer)
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
             "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+
+
+
+def publish_qos2(peer, name, number, payload, quota=False):
+    identifier = struct.pack("!H", number)
+    peer.sendall(small_frame(0x34, topic(name) + identifier + b"\0" + payload))
+    expected = identifier + b"\x97" if quota else identifier
+    header = read(peer, 2)
+    assert header == bytes((0x50, len(expected))), f"unexpected PUBREC header {header.hex()}"
+    reply = read(peer, header[1])
+    assert reply == expected, f"unexpected PUBREC {reply.hex()}, wanted {expected.hex()}"
+    if quota:
+        return
+    peer.sendall(small_frame(0x62, identifier))
+    assert read(peer, 4) == small_frame(0x70, identifier)
+
+
+def receive_qos2(peer, name, payload):
+    key = topic(name)
+    header = read(peer, 2)
+    assert header == bytes((0x34, len(key) + 3 + len(payload))), header.hex()
+    body = read(peer, header[1])
+    identifier = body[len(key):len(key) + 2]
+    assert identifier != b"\0\0" and body == key + identifier + b"\0" + payload, body.hex()
+    return identifier
+
+
+def finish_qos2(peer, identifier):
+    peer.sendall(small_frame(0x50, identifier))
+    assert read(peer, 4) == small_frame(0x62, identifier)
+    peer.sendall(small_frame(0x70, identifier))
+
+
+def ping(peers):
+    for peer in peers:
+        peer.sendall(b"\xc0\0")
+    for peer in peers:
+        assert read(peer, 2) == b"\xd0\0", "PING must pass while a recipient is blocked"
+
+
+def healthy_flow(publisher, subscriber, name):
+    times = []
+    for number in range(1, 257):
+        payload = struct.pack("!H", number)
+        began = time.perf_counter_ns()
+        publish_qos2(publisher, name, number, payload)
+        finish_qos2(subscriber, receive_qos2(subscriber, name, payload))
+        times.append((time.perf_counter_ns() - began) / 1000)
+    # Confirm receipt of the last PUBCOMP and absence of an extra delivery.
+    ping((subscriber,))
+    times.sort()
+    return {"rounds": len(times), **{f"p{label}_us": times[math.ceil(q * len(times)) - 1]
+                                  for label, q in ((50, .50), (95, .95), (99, .99))}}
+
+
+def probe_pressure(program, clients):
+    # This is the standalone APP's default per-connection reliable quota.
+    capacity = 256
+    blocked, healthy = b"pressure/blocked", b"healthy/live"
+    with running_server(program, "--compare", str(clients)) as endpoint, ExitStack() as cleanup:
+        def open_peer(index, receive_maximum=None):
+            sock, _ = connect(endpoint, 5, f"pressure-{index}".encode("ascii"), receive_maximum)
+            return cleanup.enter_context(sock)
+
+        slow = open_peer(0, receive_maximum=1)
+        producer, fast, traffic = (open_peer(index) for index in range(1, 4))
+        idle = [open_peer(index) for index in range(4, clients)]
+        for peer, name in ((fast, healthy), (slow, blocked)):
+            peer.sendall(small_frame(0x82, b"\0\1\0" + topic(name) + b"\2"))
+            assert read(peer, 6) == b"\x90\4\0\1\0\2"
+
+        # An excess socket can be accepted by TCP and then closed by the APP's broker limit.
+        with socket.create_connection(endpoint, timeout=5) as excess:
+            try:
+                excess.sendall(connect_packet(5, b"over-capacity"))
+                header = excess.recv(1)
+            except (ConnectionResetError, BrokenPipeError):
+                header = b""
+            if header:
+                assert header == b"\x20", header.hex()
+                ack = read(excess, read(excess, 1)[0])
+                assert len(ack) >= 3 and ack[0] == 0 and ack[1] >= 0x80, "broker accepted beyond its configured limit"
+        ping(idle)
+        baseline = healthy_flow(traffic, fast, healthy)
+
+        for number in range(1, capacity + 1):
+            publish_qos2(producer, blocked, number, struct.pack("!H", number))
+        first = receive_qos2(slow, blocked, b"\0\1")
+        publish_qos2(producer, blocked, capacity + 1, b"rejected", quota=True)
+        ping(idle + [slow])
+        saturated = healthy_flow(traffic, fast, healthy)
+        publish_qos2(producer, blocked, capacity + 1, b"still rejected", quota=True)
+        ping([slow])
+
+        finish_qos2(slow, first)
+        for number in range(2, capacity + 1):
+            finish_qos2(slow, receive_qos2(slow, blocked, struct.pack("!H", number)))
+        ping([slow])
+        publish_qos2(producer, blocked, capacity + 1, b"reused")
+        finish_qos2(slow, receive_qos2(slow, blocked, b"reused"))
+        ping([slow])
+        recovered = healthy_flow(traffic, fast, healthy)
+
+        idle[-1].sendall(b"\xe0\0")
+        eof(idle[-1])
+        idle[-1].close()
+        replacement = open_peer(clients)
+        ping(idle[:-1] + [replacement])
+        for peer in [slow, producer, fast, traffic, *idle[:-1], replacement]:
+            peer.sendall(b"\xe0\0")
+            eof(peer)
+
+    return {"platform": platform.platform(), "broker_sha256": hashlib.sha256(program.read_bytes()).hexdigest(),
+            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "clients": clients,
+            "over_capacity_refusals": 1, "quota_exceeded": 2, "reliable_deliveries_drained": capacity + 1,
+            "admission_after_retirement": True, "baseline": baseline, "saturated": saturated, "recovered": recovered}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
     parser.add_argument("report", type=Path)
+    parser.add_argument("--pressure-clients", type=int, metavar="5..1000",
+                        help="run the separate MQTT 5 live-quota and healthy-traffic probe")
     args = parser.parse_args()
-    result = probe(args.program)
+    if args.pressure_clients is None:
+        result = probe(args.program)
+    else:
+        if not 5 <= args.pressure_clients <= 1000:
+            parser.error("--pressure-clients must be 5..1000")
+        result = probe_pressure(args.program, args.pressure_clients)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2, persistent resume and Wills")
+    if args.pressure_clients is None:
+        print("[pass] separate Python MQTT 5/3.1.1 peer, PING, takeover, exact, wildcard, shared and retained routing bidirectional QoS 1/2, persistent resume and Wills")
+    else:
+        print(f"[pass] {result['clients']} MQTT 5 connections, live delivery quota and healthy QoS 2 traffic")
 
 
 if __name__ == "__main__":
