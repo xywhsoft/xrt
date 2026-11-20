@@ -19284,3 +19284,48 @@ separate WSL Redis 8.0.5 process. Its PID and run ID matched the launch
 receipt. The round count increased in consecutive telemetry samples. The previous Windows xredis and xmqtt runs remained live. The
 current run receipt and telemetry are `win-native-client-72h-start.json`
 and `win-native-client-72h.jsonl` in the evidence directory above.
+
+## 2026-11-20 xredis Windows high-load tail recheck
+
+The full xredis modular and single-header suite for `3084caf6` passed on
+Ubuntu/WSL x64. The build runner executed 93 test entries and exited zero.
+
+The Windows x64 recheck reused the verified binaries for `597c951e`,
+`3084caf6` and Hiredis 1.3.0. Each phase ran twelve two-second samples per
+client plus a warmup and cycled through all six client orders twice. The
+observers ran on CPUs 4 and 8. Each phase used a private WSL Redis 8.0.5
+fixture pinned to CPU 0. The four RESP3 connections carried 1,024-byte
+GET/SET values at 12,000 fixed arrivals/s with a 128-request window.
+Redis command counts matched the admitted operations and warmups in
+both phases. The existing soak processes remained active.
+
+| Background | Verified replies out of 288,000 each, control / candidate / Hiredis | Complete-sample P99 in microseconds, control / candidate / Hiredis | xredis worker posts, control / candidate |
+| --- | ---: | ---: | ---: |
+| WSL suite compiling | 288,000 / 288,000 / 287,183 | 868.9 / 999.4 / 786.7 | 47,645 / 23,891 |
+| After the WSL suite | 288,000 / 287,970 / 287,611 | 696.7 / 697.4 / 599.5 | 47,840 / 23,976 |
+
+The table uses per-client medians over complete samples. In the first
+phase, one Hiredis sample reached the observer window limit on 817 offers.
+In the second phase, one xredis candidate sample reached the limit on 30
+offers and one Hiredis sample on 389. The run records include every
+rejected offer. Candidate P99 increased in eight of twelve complete
+pairs during compilation and in three of eleven complete pairs after
+compilation. The latter pairs had a median candidate-minus-control
+change of -20.1 microseconds. Every end-to-end P99 series exceeded the
+variation limits.
+
+The separately instrumented control and candidate each completed six
+samples with 144,000 verified replies. Median P99 from publication to
+send setup was 47.2 and 47.0 microseconds. From send setup to the final
+reader feed it was 411.3 and 407.8 microseconds. This longer interval
+includes the network exchange, Redis processing and client worker
+receipt. The timing binaries add request storage and clock reads. An
+older trace observer failed to compile against the current TLS config
+fields. Applying the same trace hooks to the current observer passed.
+
+The repeated reduction in worker posts supports retaining the change
+while Windows P99 remains an open acceptance item. Native Linux test
+and release-performance evidence also remain open. Reports, input
+hashes, command ledgers, raw traces and the initial trace compile log are
+under `out/service-extensions/scope-reduction-20261119/xredis-write-drain/`
+in `windows-recheck` and `windows-recheck-quiet`.
