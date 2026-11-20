@@ -58,6 +58,10 @@ XMQTT_API bool xmqttServerAuthConfigInit(xmqttserverauthconfig* Config);
  * The application owns the authentication algorithm and its credentials. */
 XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
 	const xmqttserverauthconfig* Auth, xmqttserver** Server);
+/* Same setup as CreateAuth, with enhanced authentication required on every
+ * CONNECT. Legacy MQTT 3.1.1 and MQTT 5.0 without a method receive Not Authorized. */
+XMQTT_API bool xmqttServerCreateAuthRequired(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Server);
 
 XRT_EXTERN_C_END
 #endif

@@ -20,6 +20,7 @@ int main(void)
     if (!xmqttServerAuthConfigInit(&Auth) || Auth.Size != sizeof(Auth) ||
         Auth.MaxRounds != 32 || Auth.MaxExchangeBytes != 1048576 || Auth.ReauthTimeout != 5000 ||
         xmqttServerCreateAuth(NULL, &ServerConfig, &Auth, &Server) ||
+        xmqttServerCreateAuthRequired(NULL, &ServerConfig, &Auth, &Server) ||
         Server != (xmqttserver*)(uintptr_t)1) return 72;
     xrtClearError();
 #endif

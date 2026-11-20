@@ -12,9 +12,11 @@ import secrets
 import socket
 import ssl
 import subprocess
+import tempfile
 from threading import Thread
 import time
 
+from run_server_checkpoint import persistent_connect
 from run_server_handshake import topic
 from run_server_tls import frame, receive
 from run_server_ws import WsContext, WsPeer
@@ -232,8 +234,11 @@ def receive_after_proof(sock, key, name, nonce):
 
 
 @contextmanager
-def broker(program, key, mode, credentials, *limits):
-    command = [str(program.resolve()), mode]
+def broker(program, key, mode, credentials, *arguments, require_method=False):
+    command = [str(program.resolve())]
+    if require_method:
+        command.append("--require-method")
+    command.append(mode)
     tls = None
     if mode in ("tls", "wss"):
         tls = ssl.create_default_context(cafile=str(credentials / "certificate.pem"))
@@ -241,7 +246,7 @@ def broker(program, key, mode, credentials, *limits):
         command += [str(credentials / "certificate.der"), str(credentials / "key.der")]
     context = WsContext(tls) if mode in ("ws", "wss") else tls
     env = {**os.environ, "XMQTT_EXAMPLE_AUTH_KEY": key.decode("ascii")}
-    with subprocess.Popen(command + list(limits), env=env, stdin=subprocess.PIPE,
+    with subprocess.Popen(command + list(arguments), env=env, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, text=True) as process:
         lines = queue.Queue()
         Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
@@ -283,16 +288,69 @@ def probe(program, credentials, mode):
     with broker(*command, "32", "64") as open_peer, open_peer() as peer:
         peer.sendall(connect_wire(b"aggregate"))
         refused(peer, 0x97)
-    return {"broker_auth": "pass", "rounds": 2, "method": METHOD.decode("ascii")}
+    with broker(*command, require_method=True) as open_peer:
+        name = b"required"
+        with open_peer() as peer:
+            peer.sendall(connect_wire(name, method=None))
+            refused(peer, 0x87)
+        with open_peer() as peer:
+            peer.sendall(connect_wire(name))
+            accept(peer, key, name, expect_challenge(peer))
+            peer.sendall(PING)
+            assert receive(peer) == PONG
+    return {"broker_auth": "pass", "rounds": 2, "method": METHOD.decode("ascii"), "required_method": True}
+
+
+def verify_checkpoint(program):
+    key = secrets.token_hex(32).encode("ascii")
+    name = b"auth-checkpoint"
+    with tempfile.TemporaryDirectory(prefix="xmqtt-auth-checkpoint-") as directory:
+        image = str(Path(directory) / "broker.bin")
+        with broker(program, key, "capture", None, image, require_method=True) as open_peer:
+            with open_peer() as peer:
+                peer.sendall(connect_wire(name))
+                accept(peer, key, name, expect_challenge(peer))
+                peer.sendall(frame(0x82, b"\0\1\0" + FILTER + b"\1"))
+                assert receive(peer) == (0x90, b"\0\1\0\1")
+                pending = publish_to_self(peer, b"\0\x09", b"checkpoint\0delivery")
+                peer.sendall(b"\xe0\0")
+                graceful_close(peer)
+        assert Path(image).is_file()
+        with broker(program, key, "restore", None, image, require_method=True) as open_peer:
+            with open_peer() as peer:
+                peer.sendall(connect_wire(name, method=None, clean=False))
+                refused(peer, 0x87)
+            with open_peer() as peer:
+                peer.sendall(persistent_connect(name, False, version=4))
+                assert receive(peer) == (0x20, b"\0\x05")
+                graceful_close(peer)
+            with open_peer() as peer:
+                peer.sendall(connect_wire(name, clean=False))
+                accept(peer, key, name, expect_challenge(peer), resumed=True)
+                assert receive(peer) == (0x3a, pending)
+                peer.sendall(frame(0x40, pending[len(FILTER):len(FILTER) + 2]) + PING)
+                assert receive(peer) == PONG
+                peer.sendall(b"\xe0\0")
+                graceful_close(peer)
+        with broker(program, key, "restore", None, image, require_method=True) as open_peer, open_peer() as peer:
+            peer.sendall(connect_wire(name, clean=False))
+            accept(peer, key, name, expect_challenge(peer), resumed=True)
+            peer.sendall(PING)
+            assert receive(peer) == PONG
+    return {"proved_before_replay": True, "original_qos1_id": True, "acked_delivery_retired_after_restart": True}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
     parser.add_argument("credentials", type=Path, nargs="?")
+    parser.add_argument("--checkpoint", type=Path, help="checkpoint example built with server auth")
     args = parser.parse_args()
     modes = ("tcp", "tls", "ws", "wss") if args.credentials else ("tcp",)
-    print(json.dumps({mode: probe(args.program, args.credentials, mode) for mode in modes}))
+    result = {mode: probe(args.program, args.credentials, mode) for mode in modes}
+    if args.checkpoint:
+        result["checkpoint"] = verify_checkpoint(args.checkpoint)
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":

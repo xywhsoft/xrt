@@ -445,11 +445,16 @@ Select `XMQTT_MODULE_XMQTT_SERVER_AUTH`, initialize the optional config with
 `xmqttServerAuthConfigInit` and create the broker with `xmqttServerCreateAuth`.
 The worker runs the ordinary CONNECT admission check, then invokes the
 authentication step for clients that supply Authentication Method. With no
-method, the ordinary admission policy decides whether to allow the connection.
-Configure that policy to require a method if all clients must authenticate.
-The broker claims the Client ID and activates the session only after a
-successful proof. It can hold a CONNECT Will under the existing Will quota
-while authentication is pending.
+method, `xmqttServerCreateAuth` leaves admission to the ordinary policy.
+Use `xmqttServerCreateAuthRequired` to require enhanced authentication on every
+connection. It rejects a CONNECT without an Authentication Method with
+Not Authorized and applies the same rule to MQTT 3.1.1. It makes this
+decision before invoking ordinary policy, preparing a Will or claiming a
+Client ID. A CONNECT with a method still passes both the ordinary policy
+and the enhanced authentication steps. The broker publishes session state
+only once those steps succeed. It can hold a CONNECT Will under the existing
+Will quota while authentication is pending.
+[MQTT 5.0 specification, section 4.12](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 
 Each application step can challenge, accept with an optional final proof,
 deny or reject an unsupported method. Its exchange belongs to that connection
@@ -477,9 +482,25 @@ verifies the final server proof. The first invocation tests TCP. Supply the
 TLS fixture described below to test TCP, TLS, WS and WSS. The probe checks
 that an authenticated successor resumes the session and receives unacknowledged
 QoS 1 deliveries. Run the example directly with the mode `tcp` or `ws`, or
-with `tls certificate.der key.der` or `wss certificate.der key.der`. The
+with `tls certificate.der key.der` or `wss certificate.der key.der`. Prefix
+the mode with `--require-method` to require enhanced authentication. The
 demonstration uses a private method. In deployment, select an interoperable
 method and suitable transport security and credential policy.
+
+The checkpoint example also accepts `--require-method` when built alongside
+the auth example. Set the demonstration secret through
+`XMQTT_EXAMPLE_AUTH_KEY` for both capture and restore. The application chooses
+this policy again on every restart.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_checkpoint_example,xmqtt_server_auth_example --no-single
+app=out/gcc/native/xmqtt_server_checkpoint_example,xmqtt_server_auth_example
+python extlibs/xmqtt/tests/interop/run_server_auth.py "$app/examples_server_auth" --checkpoint "$app/examples_server_checkpoint"
+```
+
+The peer verifies a successful restored CONNACK after the proof, replay
+with the original QoS 1 packet ID, and retirement of the acknowledged
+delivery across the next controlled restart.
 
 ## MQTT over TLS
 

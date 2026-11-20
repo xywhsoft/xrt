@@ -19945,3 +19945,50 @@ Generated assets, API docs and ordinary maturity passed. Strict release
 still lists `xrpc` and `xrpc_duplex` as developing. The reports,
 source and binary hashes and scripts are under
 `out/service-extensions/scope-reduction-20261119/xrpc-tcp-reply-observer/`.
+
+## 2026-11-20 MQTT required broker authentication across restart
+
+The ordinary CONNECT policy receives the decoded CONNECT fields without
+the Authentication Method property. The optional auth module now offers
+`xmqttServerCreateAuthRequired` for applications that require an enhanced
+exchange on every connection. The broker refuses a method-less CONNECT
+before policy callbacks, Will preparation or session claim. MQTT 5 returns
+0x87 and MQTT 3.1.1 returns 0x05 when that version is enabled. Existing
+`xmqttServerCreateAuth` callers retain the ordinary admission path and the
+public configuration layout is unchanged.
+
+The auth and checkpoint examples share their existing loopback proof
+method. The APP selects required authentication again on restore. The
+independent peer verifies two challenges and the final proof. Across
+three broker processes it observes the pending binary QoS 1 delivery
+after a successful CONNACK with Session Present. It checks DUP and
+the original packet ID, then confirms
+that the acknowledged delivery stays retired across the next restart.
+The required policy denies method-less MQTT 5 and legacy connections
+before the authenticated session resumes.
+
+Windows and Ubuntu/WSL passed TCP, TLS, WS and WSS proof and admission
+tests. Both passed the modular checkpoint sequence. The single-header
+checkpoint sequence passed on Windows and under WSL ASan/UBSan with leak
+detection. The standalone checkpoint build rejects the required option
+when auth is absent. The full ordinary checkpoint peer passed in WSL.
+On Windows that regression failed when its Will transaction observer
+saw FileNotFoundError from stat during checkpoint replacement. Static
+and shared consumers passed for the auth closure, and the Windows auth
+limits and allocation rollback test passed. The controlled restart
+regression is wired into the Windows and Linux interop jobs.
+
+A separate Windows probe exercised the current `xrtFileWriteAtomic`
+without a broker. Across three sets of 2,048 successful replacements,
+an independent GetFileAttributesW observer recorded 23,629
+ERROR_FILE_NOT_FOUND results in 832,928 checks after initial publication.
+This reproduces the visibility gap while all writer calls report success.
+The broader Windows checkpoint acceptance remains open.
+
+Generated headers and API docs passed. Ordinary maturity checks passed.
+Strict release still lists 39 developing xmqtt modules. Native Linux
+runtime, authenticated crash-recovery load and release soak acceptance
+remain open. The restart experiment uses controlled shutdown and the
+local demonstration method. Evidence and binary/source hashes are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-required-auth/`.
+[Broker authentication and restart instructions](../../extlibs/xmqtt/docs/server.md#mqtt-5-enhanced-authentication).

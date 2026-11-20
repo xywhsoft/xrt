@@ -3752,6 +3752,10 @@ XMQTT_API bool xmqttServerAuthConfigInit(xmqttserverauthconfig* Config);
  * The application owns the authentication algorithm and its credentials. */
 XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
 	const xmqttserverauthconfig* Auth, xmqttserver** Server);
+/* Same setup as CreateAuth, with enhanced authentication required on every
+ * CONNECT. Legacy MQTT 3.1.1 and MQTT 5.0 without a method receive Not Authorized. */
+XMQTT_API bool xmqttServerCreateAuthRequired(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Server);
 
 XRT_EXTERN_C_END
 #endif
@@ -15093,6 +15097,7 @@ struct xmqttserver {
 	xmqttserverconfig Config;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
 	xmqttserverauthconfig Auth;
+	bool RequireAuthMethod;
 #endif
 	xmutex Gate;
 	xcond Drained;
@@ -17168,6 +17173,10 @@ static void xmqttServerConnect(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 		return;
 	}
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
+	if (Server->RequireAuthMethod && !AuthMethod) {
+		xmqttServerRefuse(Peer, 0x87, 5, PacketLimit, Now);
+		return;
+	}
 	if (AuthMethod && WireBytes > Server->Auth.MaxExchangeBytes) {
 		xmqttServerRefuse(Peer, 0x97, 3, PacketLimit, Now);
 		return;
@@ -20796,8 +20805,8 @@ XMQTT_API bool xmqttServerAuthConfigInit(xmqttserverauthconfig* Config)
 	return true;
 }
 
-XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
-	const xmqttserverauthconfig* Auth, xmqttserver** Out)
+static bool xmqttServerOpenAuth(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, bool RequireMethod, xmqttserver** Out)
 {
 	if (!xrtMemRangeValid(Auth, sizeof(*Auth)) || !xrtMemRangeValid(Out, sizeof(*Out)) ||
 		xrtMemRangesOverlap(Auth, sizeof(*Auth), Out, sizeof(*Out)) ||
@@ -20809,8 +20818,21 @@ XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig
 	xmqttserver* Server;
 	if (!xmqttServerCreate(Engine, Config, &Server)) return false;
 	Server->Auth = *Auth;
+	Server->RequireAuthMethod = RequireMethod;
 	*Out = Server;
 	return true;
+}
+
+XMQTT_API bool xmqttServerCreateAuth(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Out)
+{
+	return xmqttServerOpenAuth(Engine, Config, Auth, false, Out);
+}
+
+XMQTT_API bool xmqttServerCreateAuthRequired(xnetengine* Engine, const xmqttserverconfig* Config,
+	const xmqttserverauthconfig* Auth, xmqttserver** Out)
+{
+	return xmqttServerOpenAuth(Engine, Config, Auth, true, Out);
 }
 #endif
 

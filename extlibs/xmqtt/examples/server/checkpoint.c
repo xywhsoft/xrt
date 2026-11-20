@@ -1,3 +1,8 @@
+#include <xmqtt/features.h>
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH) && defined(XRT_FEATURE_CRYPTO_HMAC_SHA256)
+#define XMQTT_EXAMPLE_SERVER_AUTH
+#include "app_auth.h"
+#endif
 #include "app_listener.h"
 #include <xmqtt/server_retained_commit.h>
 #include <xrt/buffer.h>
@@ -769,6 +774,11 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 
 int main(int Argc, char** Argv)
 {
+	bool RequireMethod = Argc > 1 && !strcmp(Argv[1], "--require-method");
+	if (RequireMethod) {
+		--Argc;
+		++Argv;
+	}
 	bool Compare = Argc >= 2 && !strcmp(Argv[1], "--compare");
 	if (Compare) {
 		--Argc;
@@ -780,11 +790,31 @@ int main(int Argc, char** Argv)
 	bool Fenced = Online || (Argc >= 3 && !strcmp(Argv[1], "restore-fenced"));
 	if ((Fenced && Argc > 4) ||
 		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
-		puts("usage: examples_server_checkpoint [--compare] capture|restore checkpoint.bin");
+		puts("usage: examples_server_checkpoint [--require-method] [--compare] capture|restore checkpoint.bin");
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
 		puts("       examples_server_checkpoint restore-online-expiry|restore-online-will checkpoint.bin [delay-ms]");
 		return Argc == 1 ? 0 : 1;
 	}
+	serverexample Example = {0};
+#if defined(XMQTT_EXAMPLE_SERVER_AUTH)
+	exampleauth AuthState;
+	xmqttserverauthconfig Auth;
+	if (RequireMethod) {
+		const char* Secret = getenv("XMQTT_EXAMPLE_AUTH_KEY");
+		if (!Secret || strlen(Secret) < 32) {
+			fputs("Set XMQTT_EXAMPLE_AUTH_KEY to a test secret with at least 32 bytes.\n", stderr);
+			return 1;
+		}
+		exampleAuthInit(&AuthState, &Auth, Secret);
+		Example.RequireMethod = true;
+		Example.Auth = &Auth;
+	}
+#else
+	if (RequireMethod) {
+		fputs("Build the checkpoint example with MQTT server auth and XRT HMAC-SHA256.\n", stderr);
+		return 1;
+	}
+#endif
 	xmqttserverconfig Config;
 	xmqttServerConfigInit(&Config);
 	Config.MaxRetainedTopics = RetainedTopics;
@@ -800,7 +830,6 @@ int main(int Argc, char** Argv)
 		Store.Writer = xrtTaskPoolCreate(&PoolConfig);
 		if (!Store.Writer) return 1;
 	}
-	serverexample Example = {0};
 	if (strcmp(Argv[1], "capture")) {
 		Example.Prepare = checkpointPrepare;
 		Example.PrepareData = &Store;
@@ -820,6 +849,9 @@ int main(int Argc, char** Argv)
 		xrtTaskPoolDestroy(Store.Writer)));
 	bool Saved = Capture && Joined && checkpointSave(Example.Server, Store.Path);
 	bool Closed = Joined && exampleServerStop(&Example);
+#if defined(XMQTT_EXAMPLE_SERVER_AUTH)
+	Closed = Closed && (!RequireMethod || !xrtAtomic32Load(&AuthState.Active, XMEMORY_RELAXED));
+#endif
 	if (!Saved) fputs("broker checkpoint could not be restored or saved\n", stderr);
 	return Saved && Closed ? 0 : 1;
 }

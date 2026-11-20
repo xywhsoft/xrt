@@ -24,6 +24,7 @@ typedef struct serverexample {
 #endif
 #if defined(XMQTT_EXAMPLE_SERVER_AUTH)
 	const xmqttserverauthconfig* Auth;
+	bool RequireMethod;
 #endif
 } serverexample;
 
@@ -106,10 +107,14 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 	Example->Engine = xrtNetEngineCreate(&EngineConfig);
 	if (!Example->Engine || !xrtNetEngineStart(Example->Engine)) goto Failed;
 #if defined(XMQTT_EXAMPLE_SERVER_AUTH)
-	if (!xmqttServerCreateAuth(Example->Engine, Config, Example->Auth, &Example->Server)) goto Failed;
-#else
-	if (!xmqttServerCreate(Example->Engine, Config, &Example->Server)) goto Failed;
+	if (Example->Auth) {
+		bool Created = Example->RequireMethod ?
+			xmqttServerCreateAuthRequired(Example->Engine, Config, Example->Auth, &Example->Server) :
+			xmqttServerCreateAuth(Example->Engine, Config, Example->Auth, &Example->Server);
+		if (!Created) goto Failed;
+	} else
 #endif
+	if (!xmqttServerCreate(Example->Engine, Config, &Example->Server)) goto Failed;
 	if (Example->Prepare && !Example->Prepare(Example->Server, Example->PrepareData)) goto Failed;
 
 	xnetlistenconfig Listen;

@@ -132,6 +132,13 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json
+      - name: Required MQTT authentication across checkpoint restart
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_auth.py
+          out/gcc/native/xmqtt_examples/examples_server_auth
+          --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint
+          > out/service-extensions/xmqtt-auth-checkpoint-linux.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
@@ -245,6 +252,13 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-windows.json
+      - name: Required MQTT authentication across checkpoint restart
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_auth.py
+          out/gcc/native/xmqtt_examples/examples_server_auth.exe
+          --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe
+          > out/service-extensions/xmqtt-auth-checkpoint-windows.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
