@@ -8,6 +8,7 @@
 #define REDIS_OPEN_NS 1000000000ull
 #define REDIS_OPEN_MAX_COUNT 1000000u
 #define REDIS_OPEN_MAX_SLOTS 4096u
+#define REDIS_OPEN_MAX_CONNECTIONS 8u
 #define REDIS_OPEN_MAX_PAYLOAD (256u * 1024u)
 typedef enum redisopenoutcome {
 	REDIS_OPEN_PENDING = 0, REDIS_OPEN_ACCEPTED, REDIS_OPEN_CAPACITY,
@@ -21,6 +22,8 @@ typedef struct redisopenconfig {
 	unsigned Mode; /* 0 normal, 1 initial generator stall, 2 fixture holds ECHO. */
 	uint32 Stall, Port;
 	bool Stats;
+	unsigned Connections;
+	bool Mixed;
 } redisopenconfig;
 typedef struct redisopenrecord {
 	uint64 Due, Submitted, Finished;
@@ -35,7 +38,13 @@ typedef struct redisopencounts {
 } redisopencounts;
 
 static inline redisopenconfig redisOpenDefaults(void)
-{ return (redisopenconfig){100000, 256, 32, 100000, 1000, 0, 0, 0, false}; }
+{ return (redisopenconfig){100000, 256, 32, 100000, 1000, 0, 0, 0, false, 1, false}; }
+
+static inline unsigned redisOpenConnections(const redisopenconfig* Config)
+{ return Config->Connections ? Config->Connections : 1u; }
+
+static inline bool redisOpenWrite(const redisopenconfig* Config, size_t Id)
+{ return Config->Mixed && (Id / redisOpenConnections(Config)) % 4u == 0; }
 
 static inline bool redisOpenConfigValid(const redisopenconfig* Config)
 {
@@ -43,6 +52,8 @@ static inline bool redisOpenConfigValid(const redisopenconfig* Config)
 		Config->Rate != 0 && Config->Rate <= REDIS_OPEN_NS && Config->Slots != 0 && Config->Slots <= REDIS_OPEN_MAX_SLOTS &&
 		Config->Payload >= 8 && Config->Payload <= REDIS_OPEN_MAX_PAYLOAD && Config->Payload <= (64u * 1024u * 1024u) / Config->Slots &&
 		Config->Timeout > 0 && Config->Timeout <= 10000 && Config->Mode <= 2 && Config->Stall <= 5000 && Config->Port <= UINT16_MAX &&
+		Config->Connections <= REDIS_OPEN_MAX_CONNECTIONS &&
+		((redisOpenConnections(Config) == 1 && !Config->Mixed) || Config->Port != 0) &&
 		(Config->Mode == 1 || Config->Stall == 0) && (Config->Mode != 2 || (Config->Port == 0 &&
 		 Config->Payload + 64u <= 65536u / Config->Slots)) &&
 		(Config->Count - 1u) / Config->Rate <= 30 &&

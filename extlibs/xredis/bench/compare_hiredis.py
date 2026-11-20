@@ -16,11 +16,14 @@ ROOT = BENCH.parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from measure_performance import _metric_summary, _parse_facts, _parse_metrics
 
-COUNTS = {"offered", "accepted", "successful", "unsuccessful", "corrupt", "deadline_missed"}
+REJECTIONS = {"harness_capacity", "client_overloaded", "client_closed",
+              "admission_error", "expired_before_admission"}
+COUNTS = REJECTIONS | {"offered", "accepted", "successful", "unsuccessful", "corrupt",
+                       "deadline_missed", "accepted_get", "accepted_set"}
 QUALITY = {"success_requests_per_sec", "success_p50_us", "success_p95_us",
            "success_p99_us", "success_p999_us"}
 METRICS = COUNTS | QUALITY | {"generator_p99_us", "process_window_cpu_seconds",
-                             "process_peak_rss_bytes", "requests_peak_sampled"}
+                             "process_peak_rss_bytes", "requests_peak_sampled", "window_peak"}
 
 
 def digest(path: Path) -> str:
@@ -44,18 +47,28 @@ def sample(args, client: Path, name: str, command: list[str]) -> dict:
         "memory_stats": "not_compiled", "generator_mode": "0",
         "slot_capacity": str(args.window), "max_inflight": str(args.window),
         "payload_bytes": str(args.payload), "target_rate_per_sec": str(args.rate),
-        "intended_timeout_ms": "1000",
+        "intended_timeout_ms": "1000", "connections": str(args.connections),
+        "workload": "get_set" if args.mixed else "echo",
     }
     try:
         facts = _parse_facts(result.stdout, set(expected) | {"network_backend"})
         metrics = _parse_metrics(result.stdout, METRICS)
     except SystemExit as error:
         return sample | {"verified": False, "error": str(error)}
-    verified = (all(facts[key] == value for key, value in expected.items()) and
-                all(metrics[key] == args.count for key in ("offered", "accepted", "successful")) and
+    groups, tail = divmod(args.count, 4 * args.connections)
+    sets = groups * args.connections + min(tail, args.connections) if args.mixed else 0
+    expected_get = args.count - sets if args.mixed else 0
+    accounted = (all(facts[key] == value for key, value in expected.items()) and
+                 metrics["offered"] == args.count and
+                 metrics["accepted"] + sum(metrics[key] for key in REJECTIONS) == args.count and
+                 metrics["successful"] + metrics["unsuccessful"] == args.count and
+                 metrics["accepted_get"] <= expected_get and metrics["accepted_set"] <= sets and
+                 (not args.mixed or metrics["accepted_get"] + metrics["accepted_set"] == metrics["accepted"]) and
+                 0 <= metrics["window_peak"] <= args.window)
+    verified = (accounted and metrics["accepted"] == metrics["successful"] == args.count and
                 all(metrics[key] == 0 for key in ("unsuccessful", "corrupt", "deadline_missed")) and
-                0 < metrics["requests_peak_sampled"] <= args.window)
-    return sample | {"verified": verified, "facts": facts, "metrics": metrics}
+                metrics["window_peak"] > 0)
+    return sample | {"verified": verified, "accounted": accounted, "facts": facts, "metrics": metrics}
 
 
 def main() -> int:
@@ -67,16 +80,18 @@ def main() -> int:
     parser.add_argument("--count", type=int, default=20000)
     parser.add_argument("--window", type=int, default=16)
     parser.add_argument("--payload", type=int, default=32)
+    parser.add_argument("--connections", type=int, default=1)
+    parser.add_argument("--mixed", action="store_true", help="three binary GETs per SET on each connection")
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
     if not (1 <= args.port <= 65535 and 1 <= args.window <= 128 and
-            1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
+            1 <= args.connections <= 8 and 1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
         parser.error("invalid workload or repeat count")
     clients = {"xredis": args.xredis.resolve(strict=True), "hiredis-1.3.0": args.hiredis.resolve(strict=True)}
     if clients["xredis"] == clients["hiredis-1.3.0"]:
         parser.error("provide two distinct executables")
-    command = list(map(str, (args.count, args.rate, args.window, args.payload, 1000, 0, 0, args.port, 0)))
+    command = list(map(str, (args.count, args.rate, args.window, args.payload, 1000, 0, 0, args.port, 0, args.connections, int(args.mixed))))
     report = {
         "platform": platform.platform(), "arguments": command, "runs": [], "summary": {},
         "executables": {name: {"path": str(path), "sha256": digest(path)} for name, path in clients.items()},

@@ -44,7 +44,7 @@ static void testOpenLedger(void)
 static void testOpenInvalid(void)
 {
 	redisopenconfig Default = redisOpenDefaults(); testRequire(redisOpenConfigValid(&Default), "default open-loop config");
-	for (size_t Trial = 0; Trial < 14; ++Trial) {
+	for (size_t Trial = 0; Trial < 17; ++Trial) {
 		redisopenconfig Bad = Default;
 		if (Trial == 0) Bad.Count = 0;
 		if (Trial == 1) Bad.Count = REDIS_OPEN_MAX_COUNT + 1u;
@@ -60,8 +60,40 @@ static void testOpenInvalid(void)
 		if (Trial == 11) Bad.Stall = 1;
 		if (Trial == 12) Bad.Port = UINT16_MAX + 1u;
 		if (Trial == 13) Bad.Rate = 1;
+		if (Trial == 14) Bad.Connections = REDIS_OPEN_MAX_CONNECTIONS + 1u;
+		if (Trial == 15) Bad.Connections = 2;
+		if (Trial == 16) Bad.Mixed = true;
 		testRequire(!redisOpenConfigValid(&Bad), "invalid open-loop config accepted");
 	}
+}
+
+static void testOpenMixed(void)
+{
+	redisopenconfig Config = redisOpenDefaults();
+	Config.Port = 1;
+	Config.Connections = 4;
+	Config.Mixed = true;
+	testRequire(redisOpenConfigValid(&Config), "valid external mixed workload");
+	unsigned Gets[4] = {0}, Sets[4] = {0};
+	unsigned char Payload[32];
+	for (size_t Index = 0; Index < 32; ++Index) {
+		xbytesview Args[3];
+		size_t Count = redisOpenCommand(&Config, Index, Payload, Args);
+		testRequire(Count == 2 || Count == 3, "mixed command arity");
+		testRequire(Args[0].Size == 3 && Args[1].Size > 0 &&
+			memchr(Args[1].Data, 0, Args[1].Size) != NULL, "binary key and command name");
+		if (Count == 3) {
+			testRequire(memcmp(Args[0].Data, "SET", 3) == 0 && Args[1].Data == RedisOpenWriteKey.Data &&
+				redisOpenBinary(Args[2], sizeof(Payload), Index), "SET uses its own key and carries the offer payload");
+			++Sets[Index % Config.Connections];
+		} else {
+			testRequire(memcmp(Args[0].Data, "GET", 3) == 0 && Args[1].Data == RedisOpenReadKey.Data,
+				"GET reads the separate seed key");
+			++Gets[Index % Config.Connections];
+		}
+	}
+	for (size_t Index = 0; Index < 4; ++Index)
+		testRequire(Gets[Index] == 6 && Sets[Index] == 2, "mix ratio per connection");
 }
 
 static void testOpenRuntime(void)
@@ -86,6 +118,6 @@ static void testOpenRuntime(void)
 
 int main(void)
 {
-	testOpenSchedule(); testOpenLedger(); testOpenInvalid(); testOpenRuntime();
+	testOpenSchedule(); testOpenLedger(); testOpenInvalid(); testOpenMixed(); testOpenRuntime();
 	puts("[PASS] xredis open-loop workload: absolute offers/no omission/all outcomes/binary/deadlines/overload/watch retirement/process counters"); return 0;
 }

@@ -18699,3 +18699,58 @@ Native Linux and release-grade performance evidence remain open.
 Reproduce the clock fixture from [the coverage guide](../../extlibs/xcron/docs/coverage.md).
 Source digests and validation logs are under
 out/service-extensions/scope-reduction-20261119/xcron-clock-steps/.
+
+## 2026-11-20 Redis mixed commands across one and four connections
+
+The fixed-arrival observer runs the same RESP3 workload for xredis and
+Hiredis 1.3.0. It assigns offers round-robin by connection, with one SET
+followed by three GETs on each connection. The GET key is seeded once per
+run before timing. Both clients check the binary GET value and the SET
+status. HELLO and PING finish before timing on every connection. The
+128-request observer window is shared across connections. xredis uses
+one XRT I/O worker. The Hiredis generator services each connection's
+nonblocking I/O and matches replies against its own FIFO.
+
+The Windows x64 and Ubuntu/WSL x64 observers used the same private
+Redis 8.0.5 fixture design in WSL and 1,024-byte values. Each client ran
+five two-second measured repetitions and one warmup per case. The client
+affinity was CPUs 4 and 8. Redis was pinned to CPU 0. The Windows client
+used WSL loopback forwarding. All 80 measured samples reconciled with
+the server's GET, SET, HELLO and PING counts. The clients validated
+1,119,337 replies out of 1,120,000 scheduled offers, including 839,508
+GETs and 279,829 SETs. There were no malformed replies, missed deadlines
+or client admission errors. xredis completed every scheduled offer.
+
+| Observer | Connections | Offers/s | Completed, xredis / Hiredis | P99 in microseconds, xredis / Hiredis |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1 | 2,000 | 20,000 / 20,000 | 490.2 / 309.2 |
+| Windows | 4 | 2,000 | 20,000 / 20,000 | 404.6 / 295.7 |
+| Windows | 1 | 12,000 | 120,000 / 119,967 | |
+| Windows | 4 | 12,000 | 120,000 / 119,725 | |
+| Ubuntu/WSL | 1 | 2,000 | 20,000 / 20,000 | 830.7 / 311.6 |
+| Ubuntu/WSL | 4 | 2,000 | 20,000 / 20,000 | 800.6 / 172.1 |
+| Ubuntu/WSL | 1 | 12,000 | 120,000 / 119,645 | |
+| Ubuntu/WSL | 4 | 12,000 | 120,000 / 120,000 | 231.0 / 129.1 |
+
+All 663 rejected offers were counted against the Hiredis observer
+window. The comparison excludes those three partial cases from P99
+ranking. Only two of the ten eligible P99 series met the existing
+variation limit. At 12,000 offers/s and four WSL connections, both
+clients sustained approximately 12,000 verified replies/s. Median
+client process CPU time was 3.052 s for xredis and 2.000 s for Hiredis
+per two-second window. Native Linux, a repeatable release tail baseline
+and the TLS comparison remain open.
+
+Windows and WSL passed the modular and single-header open-loop tests,
+the ECHO smoke and the single-header TLS fixture. The TLS benchmark
+rejects unsupported external endpoint arguments before printing metrics.
+The final plaintext benchmark preprocessing matched the measured sources
+on both platforms. WSL ASan/UBSan with leak detection passed the
+instrumented xredis and Hiredis observers for one and four connections.
+Generated-header, feature, API and ordinary maturity checks passed.
+Strict release still lists 29 developing modules.
+
+Reproduction is in [the client performance guide](../../extlibs/xredis/docs/client-performance.md#multiple-connections-and-mixed-getset).
+Source and executable digests, per-sample records, server ledgers and
+verification logs are under
+out/service-extensions/scope-reduction-20261119/xredis-multiconnection-mixed/.

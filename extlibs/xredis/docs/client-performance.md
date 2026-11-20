@@ -187,9 +187,32 @@ retain Redis INFO commandstats and INFO cpu before and after the run.
       --report out/xredis-echo-comparison.json
 
 The offered rate is fixed. Successful throughput measures how much of that
-rate the pair delivered at this CPU and connection budget. Native Linux,
-multi-connection, mixed-command and TLS comparisons, stable tail baselines,
-exact copy/synchronization/syscall costs and 72-hour acceptance remain open.
+rate the pair delivered at this CPU and connection budget.
+
+### Multiple connections and mixed GET/SET
+
+The same binaries support up to eight independent connections with a shared
+observer window. Append the two switches below to the paired command.
+
+    --connections 4 --mixed
+
+One quarter of the planned offers on each connection are SETs, with three
+GETs after each SET. Both paths assign offers round-robin by index. The
+clients negotiate RESP3 and warm up each connection. One setup SET seeds a
+binary read key before timing starts. Measured writes use a separate binary
+key and include the offer index in their payload. Each admitted operation
+checks the exact seeded GET value or the SET status reply.
+
+The report includes accepted GET and SET ledgers, observer window peaks and
+separate rejection causes for every scheduled offer. A pair is verified
+when every planned operation finishes successfully within its deadline.
+Redis commandstats can be checked against the accepted counts plus one seed
+SET per mixed sample and one HELLO and PING per connection. The client CPU
+budget includes the generator and worker when present. xredis samples its
+native request and command-byte counters across the selected connections.
+
+Native Linux, TLS comparisons, stable tail baselines, exact copy and syscall
+costs, and 72-hour acceptance remain open.
 
 ## Continuous mixed workload
 
