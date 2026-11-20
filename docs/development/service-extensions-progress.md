@@ -21192,3 +21192,22 @@ and left the pressure report absent. The temporary credential directory was
 empty after the successful replay. Hosted execution and native Linux release
 qualification remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xmqtt-auth-checkpoint-ci/`.
+
+## 2026-11-21 Relocatable shared packages and xrpc TCP APP
+
+The xrpc TCP worker APP exposed an absolute XRT dependency in the generated
+ELF extension library. GNU-style ELF shared packages now record their library
+name as SONAME. A split package with sibling dependencies also records an
+origin-relative runtime search path. A loader inspection verified that the XRT
+library resolves from the relocated package directory, including when the
+extension library is inspected without the APP.
+
+The xrpc examples package profile passed static and shared consumer
+verification on native Windows and Ubuntu/WSL. The TCP worker example then
+linked against the generated XRT and xrpc libraries and passed the independent
+peer on all four host/link combinations. Each combination covered 131 replies
+and 512 parallel replies per APP mode, with seven cases per mode and peer
+fault isolation across duplex and dispatch. The package tool unit suite also
+passed on both hosts. Native Linux release and repeatable tail acceptance
+remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-package/`.

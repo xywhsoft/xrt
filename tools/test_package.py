@@ -195,6 +195,10 @@ class CommandTest(unittest.TestCase):
 			command = run.call_args.args[0]
 			self.assertIn(expected, command)
 			self.assertNotIn(rejected, command)
+			if platform == "linux":
+				self.assertIn("-Wl,-soname,libxrt.so", command)
+			else:
+				self.assertFalse(any(arg.startswith("-Wl,-soname,") for arg in command))
 			self.assertIn(
 				"-dynamiclib" if platform == "darwin" else "-shared",
 				command,

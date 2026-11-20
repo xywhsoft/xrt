@@ -356,7 +356,7 @@ def _link_gnu_shared(
 		if sys.platform == "darwin":
 			command.append("-Wl,-undefined,error")
 		elif sys.platform != "win32":
-			command.append("-Wl,--no-undefined")
+			command.extend(["-Wl,--no-undefined", f"-Wl,-soname,{output.name}"])
 	command.extend(extra_ldflags)
 	command.extend(["-o", str(output)])
 	xrt_build._run_compiler(command, output.with_suffix(output.suffix + ".rsp"))
@@ -708,7 +708,11 @@ def _separate_packages(
 			assert import_library is not None
 			_link_msvc_shared(compiler, args.arch, objects, links, artifact, import_library, [*dependencies, *args.ldflag])
 		else:
-			_link_gnu_shared(compiler, args.arch, family, objects, links, artifact, import_library, [*dependencies, *args.ldflag])
+			ldflags = [*dependencies, *args.ldflag]
+			if dependencies and family == "gnu" and _platform() == "linux":
+				ldflags.append("-Wl,-rpath,$ORIGIN")
+			_link_gnu_shared(compiler, args.arch, family, objects, links, artifact,
+							 import_library, ldflags)
 		artifacts.append((name, artifact, import_library, objects))
 		use_macros.append(prefix + "_USE_SHARED")
 		metadata.append({"product": name, "artifact": main_name, "sources": owned,
