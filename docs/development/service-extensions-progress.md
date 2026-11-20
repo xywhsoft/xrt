@@ -21239,3 +21239,35 @@ library failed the dependency check with the original build still present.
 Hosted execution and native Linux release acceptance remain pending.
 Evidence is in
 `out/service-extensions/scope-reduction-20261119/elf-package-relocation-ci/`.
+
+## 2026-11-21 Redis TLS mixed load at eight connections
+
+The fixed-arrival observer reused the pinned Hiredis 1.3.0 archives and
+rebuilt both clients from the current single headers. It compared four
+and eight established connections on the same Redis 8.0.5 server profile
+with verified TLS 1.3, 1,024-byte payloads, three GETs per SET and a global
+128-request observer window. Windows used a native client through WSL
+loopback forwarding. The WSL comparison used direct local sockets. Both
+clients had the same logical CPU budget on each host.
+
+The independent Redis ledger reconciled all commands, including warmups.
+The 60 measured runs verified 1,040,000.0 of 1,040,000.0 offers. Any missed
+offers in the table were rejected at the observer window. The six trust
+and DNS rejection checks per host sent no Redis commands.
+
+| Observer | Connections | Offers/s | Verified xredis / Hiredis (out of offers per client) | Median P99 xredis / Hiredis (us) | Median CPU per verified reply total xredis / Hiredis (us) | Outside generator xredis / Hiredis (us) |
+| --- | ---: | ---: | --- | --- | --- | --- |
+| Windows x64 | 4 | 12,000 | 120,000.0 / 120,000.0 (120,000.0) | 1487.9 / 1469.0 | 115.2 / 82.7 | 31.9 / 0.0 |
+| Windows x64 | 8 | 2,000 | 20,000.0 / 20,000.0 (20,000.0) | 1117.4 / 1032.5 | 531.2 / 488.3 | 46.9 / 0.0 |
+| Windows x64 | 8 | 12,000 | 120,000.0 / 120,000.0 (120,000.0) | 1655.1 / 1672.3 | 106.8 / 69.7 | 26.7 / 0.0 |
+| Ubuntu/WSL x64 | 4 | 12,000 | 120,000.0 / 120,000.0 (120,000.0) | 1095.0 / 888.4 | 135.3 / 83.3 | 52.0 / 0.0 |
+| Ubuntu/WSL x64 | 8 | 2,000 | 20,000.0 / 20,000.0 (20,000.0) | 605.6 / 634.6 | 574.3 / 499.9 | 74.4 / 0.0 |
+| Ubuntu/WSL x64 | 8 | 12,000 | 120,000.0 / 120,000.0 (120,000.0) | 1168.7 / 930.4 | 135.3 / 83.3 | 52.1 / 0.0 |
+
+9 of 12 P99 series passed the 3% MAD and 6% central-range limits.
+Outside-generator CPU is process CPU minus generator thread CPU for
+each measured window. It includes all other threads. The table reports
+latency and CPU comparisons only for pairs that completed every offer.
+Raw P50, P95, P99, P99.9, CPU and all rejected offers are retained.
+Native Linux and strict release acceptance remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xredis-tls-eight-connections/`.
