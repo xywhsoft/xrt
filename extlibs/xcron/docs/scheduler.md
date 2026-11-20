@@ -61,7 +61,13 @@ registration order. A missing or extra wave fails the run. The direct
 EventWaiter reference already knows the due cohort and calls the same
 callbacks. It has no cron calendar or dormant-job index to maintain.
 
-Both paths discard the first wave. The report records first and last
+The `waiter` mode uses the relative integer-millisecond XRT API.
+The `waiter-precise` mode reads the fractional UTC sample and supplies
+the same kind of absolute monotonic deadline as Scheduler Wait. The
+precise control calls the due callbacks directly. Use it to compare
+dispatch spans under matched deadline precision.
+
+Each path discards the first wave. The report records first and last
 callback lateness against the scheduled UTC second using the native wall
 clock. It identifies `precise-filetime` or the older `filetime` fallback
 on Windows, and `clock-realtime` on Linux. The monotonic span from the
@@ -91,6 +97,7 @@ with the results.
 ```sh
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 wait --samples
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter --samples
+XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter-precise --samples
 ```
 
 The separate wait-phase benchmark samples the wall and monotonic clocks on
@@ -107,14 +114,15 @@ gcc -O2 -std=c11 -I. -Iinclude -Iextlibs/xcron/include -pthread \
   extlibs/xcron/bench/bench_scheduler_wait_phase.c -o out/xcron-wait-phase -lm
 XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 wait --samples
 XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 waiter --samples
+XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 waiter-precise --samples
 ```
 
 Each `phase_N_ns` row gives the number of wait calls in the wave,
 followed by five nanosecond fields. They are the last call's requested
 budget from observed entry, wall lateness on entry and return, elapsed
 time from return to the first callback, and elapsed time in the last
-wait. The direct waiter supplies a relative request. The scheduler
-supplies an absolute monotonic deadline. The observer subtracts the entry
+wait. The integer waiter supplies a relative request. The scheduler
+and precise waiter supply absolute monotonic deadlines. The observer subtracts the entry
 timestamp from that deadline to compute the budget. A zero-call wave emits
 zeros in the other fields. Use the ordinary cohort executable to measure
 release tails.

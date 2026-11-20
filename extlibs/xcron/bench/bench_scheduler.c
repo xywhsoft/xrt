@@ -3,9 +3,11 @@
 #endif
 #include "../../../dev/bench/bench_common.h"
 #include <xcron.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xrt/detail/wait.h>
 #include <xrt/event_waiter.h>
 #include <xrt/thread.h>
 #if defined(_WIN32)
@@ -47,8 +49,10 @@ static xtime nextSecond(xtime Now)
 
 #if defined(XCRON_BENCH_WAIT_PHASE)
 #define COHORT_WAIT_FOR phaseWaitFor
+#define COHORT_WAIT_UNTIL phaseWaitUntil
 #else
 #define COHORT_WAIT_FOR xrtEventWaiterWaitFor
+#define COHORT_WAIT_UNTIL __xrtEventWaiterWaitUntil
 #endif
 
 static bool waitUntil(xeventwaiter* Waiter, xtime Due, xtime* Observed)
@@ -66,6 +70,29 @@ static bool waitUntil(xeventwaiter* Waiter, xtime Due, xtime* Observed)
         int64 Remaining = 3000 - (int64)Elapsed;
         int64 Delay = Due - Now;
         if (COHORT_WAIT_FOR(Waiter, Delay < Remaining ? Delay : Remaining) != XWAIT_TIMEOUT)
+            return false;
+    }
+}
+
+/* Match the scheduler's clock and absolute arming in the direct cohort control. */
+static bool waitPrecise(xeventwaiter* Waiter, xtime Due, xtime* Observed)
+{
+    double Limit = xrtTimer() + 3.0;
+    if (!isfinite(Limit)) return false;
+    for (;;) {
+        uint32 SubNs;
+        xtime Now = __xrtNowWithSubMs(&SubNs);
+        if (!Now) return false;
+        if (Now >= Due) {
+            *Observed = Now;
+            return true;
+        }
+        double Sample = xrtTimer();
+        if (!isfinite(Sample) || Sample >= Limit) return false;
+        uint64 DelayMs = (uint64)Due - (uint64)Now;
+        double Delay = (double)(DelayMs / 1000) + (double)(DelayMs % 1000) * 0.001;
+        double Deadline = nextafter(Sample + (Delay - (double)SubNs * 1e-9), INFINITY);
+        if (COHORT_WAIT_UNTIL(Waiter, Deadline < Limit ? Deadline : Limit) != XWAIT_TIMEOUT)
             return false;
     }
 }
@@ -227,7 +254,8 @@ static bool cohortRegister(xcronscheduler* Scheduler, cronwave* Wave, cronjob* J
     return xcronSchedulerPoll(Scheduler, &Ready) == XCRON_SCHEDULE_IDLE && Ready.HasNext && Ready.Next == *Due;
 }
 
-static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, cronwave* Wave, cronjob* Jobs, xtime Due)
+static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, bool Precise,
+    cronwave* Wave, cronjob* Jobs, xtime Due)
 {
 #if defined(XCRON_BENCH_WAIT_PHASE)
     phaseReset();
@@ -239,7 +267,8 @@ static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, cronwave
             Result.Count != Wave->Count || !Result.HasNext || Result.Next != Due + 1000) return false;
     } else {
         xtime Observed;
-        if (!waitUntil(Waiter, Due, &Observed) || Observed >= Due + 1000) return false;
+        bool Ready = Precise ? waitPrecise(Waiter, Due, &Observed) : waitUntil(Waiter, Due, &Observed);
+        if (!Ready || Observed >= Due + 1000) return false;
         for (unsigned Index = 0; Index < Wave->Count; ++Index) cohortCallback(&Jobs[Index]);
     }
     return !Wave->Unexpected && Wave->Called == Wave->Count && Wave->FirstWall >= Due &&
@@ -265,7 +294,7 @@ static int cohort(int Argc, char** Argv)
     if ((Argc != 6 && !Samples) || !cohortValue(Argv[2], MAX_WAVES, &Waves) || !Waves ||
         !cohortValue(Argv[3], MAX_JOBS, &Active) || !Active ||
         !cohortValue(Argv[4], MAX_JOBS, &Dormant) || Active + Dormant > MAX_JOBS ||
-        (strcmp(Argv[5], "wait") && strcmp(Argv[5], "waiter"))) return 1;
+        (strcmp(Argv[5], "wait") && strcmp(Argv[5], "waiter") && strcmp(Argv[5], "waiter-precise"))) return 1;
     if (!cohortAffinity()) return 2;
 #if defined(_WIN32)
     HMODULE Kernel = GetModuleHandleA("kernel32.dll");
@@ -275,7 +304,8 @@ static int cohort(int Argc, char** Argv)
 #else
     const char* WallClock = "clock-realtime";
 #endif
-    bool Direct = !strcmp(Argv[5], "waiter");
+    bool Direct = strcmp(Argv[5], "wait") != 0;
+    bool Precise = !strcmp(Argv[5], "waiter-precise");
     xevent Event = {0};
     xeventwaiter Waiter = {0};
     xcronscheduler* Scheduler = NULL;
@@ -288,7 +318,7 @@ static int cohort(int Argc, char** Argv)
     cronwave Wave = {.Count = Active};
     xtime Due;
     if (!Jobs || !cohortRegister(Scheduler, &Wave, Jobs, Dormant, Waves, &Due)) return 4;
-    if (!cohortWave(Scheduler, &Waiter, &Wave, Jobs, Due)) return 5;
+    if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) return 5;
     double Cpu = processCpuMilliseconds(), Start = xrtTimer();
     xtime First[MAX_WAVES], Last[MAX_WAVES], Span[MAX_WAVES];
 #if defined(XCRON_BENCH_WAIT_PHASE)
@@ -296,7 +326,7 @@ static int cohort(int Argc, char** Argv)
 #endif
     for (unsigned Index = 0; Index < Waves; ++Index) {
         Due += 1000;
-        if (!cohortWave(Scheduler, &Waiter, &Wave, Jobs, Due)) return 5;
+        if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) return 5;
         First[Index] = cohortLateness(Due, Wave.FirstWall, Wave.FirstSubNs);
         Last[Index] = cohortLateness(Due, Wave.LastWall, Wave.LastSubNs);
         Span[Index] = (xtime)(Wave.LastNs - Wave.FirstNs);

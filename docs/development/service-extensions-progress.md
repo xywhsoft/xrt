@@ -20722,3 +20722,41 @@ campaign and native Linux acceptance remains open.
 The Windows audit and the campaign's live report and process ledger
 are in
 `out/service-extensions/scope-reduction-20261119/xcron-precise-scheduler/release-tails/`.
+
+## 2026-11-21 xcron matched-precision XRT wait control
+
+The cohort benchmark accepts `waiter-precise`. It uses the same
+fractional UTC sample, monotonic deadline arithmetic and XRT
+EventWaiter as Scheduler Wait. Its callback loop already knows
+which jobs are due. The original integer wait control remains
+available for historical reporting.
+
+The diagnostic rotated all three drivers in three 24-wave runs
+per host with 1,024 active jobs and logical CPU 6. Background
+endurance and release-tail jobs continued. The audit checked all
+18 runs, 432 waves and 442,368 callbacks against the raw samples,
+source hashes and executable hashes.
+
+| Host | Drive | First callback P50 / P95 in us | Callback span P95 in us |
+| --- | --- | ---: | ---: |
+| Windows x64 | Scheduler Wait | 731.9 / 9,223.6 | 535.5 |
+| Windows x64 | Integer XRT waiter | 1,186.2 / 5,938.3 | 17.7 |
+| Windows x64 | Precise XRT waiter | 443.5 / 7,197.2 | 4.5 |
+| Ubuntu/WSL x64 | Scheduler Wait | 89.4 / 124.5 | 129.3 |
+| Ubuntu/WSL x64 | Integer XRT waiter | 562.4 / 1,024.6 | 5.0 |
+| Ubuntu/WSL x64 | Precise XRT waiter | 85.6 / 105.7 | 5.6 |
+
+These are pooled diagnostics with 72 observations per series. On
+WSL, the two precise paths had similar median first-callback
+lateness and distinct within-wave dispatch spans. Windows showed
+millisecond-scale first-callback tail variability across all three
+drivers. The longer original release-tail campaign continues with
+its original bench and binaries. A source snapshot of that bench
+is retained beside the live report.
+
+The Windows and WSL modular cohort profile smokes passed. Each
+modular executable also verified four single-job waves with the
+new mode. Both wait-phase fixtures recorded four valid absolute
+wait rows. The diagnostic results and source receipts are under
+`out/service-extensions/scope-reduction-20261119/xcron-matched-waiter/`.
+[Scheduler benchmark commands](../../extlibs/xcron/docs/scheduler.md).
