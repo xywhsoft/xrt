@@ -105,3 +105,30 @@ and 72-hour acceptance remain open.
 The optional [synchronous facade](cluster_sync.md) shares the original entry
 deadline and native operation. It refuses both dependent Engines' workers and
 returns an owned Future plus the actual native wait status on accepted calls.
+
+## Real slot migration
+
+The real Cluster runner accepts `--tls` for server-authenticated TLS 1.3
+on a disposable three-primary Redis Cluster. It checks migration ASK,
+actual ownership change and MOVED refresh for SHARDS and SLOTS with
+RESP2, RESP3 and AUTO. Every successful attempt uses the expected
+transport and destination. Four producer threads submit 32 slotted INCR
+calls per case, and the runner checks Redis command counts independently.
+
+Run the optional app command catalogue and synchronous facade in the
+same fixture with the static package.
+
+```sh
+suite=xredis_cluster_client_sync,xredis_tls
+lib=release/gnu/native/$suite/static
+probe=out/service-extensions/xredis-cluster-tls
+mkdir -p out/service-extensions
+python3 tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite "$suite" --kind static --verify
+gcc -std=c11 -O2 -Wall -Wextra -Werror -pthread -DXREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC -DXREDIS_MODULE_XREDIS_TLS -Iinclude -Iextlibs/xredis/include extlibs/xredis/tests/interop/redis_cluster_client.c "$lib/libxredis.a" "$lib/libxrt.a" -lm -o "$probe"
+python3 extlibs/xredis/tests/interop/run_redis_cluster_client.py --tls --expect-command-routing --expect-sync-routing --expect-command-cache --client "$probe" --report "$probe.json"
+```
+
+The runner needs a TLS-enabled Redis and OpenSSL. It generates temporary
+test certificates and publishes only their digests. Build with
+`XREDIS_INTEROP_EXPLICIT_SLOT_ONLY` and omit the three `--expect` options to
+exercise only explicit-slot calls. Omit `--tls` for the plaintext fixture.

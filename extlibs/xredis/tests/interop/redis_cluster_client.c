@@ -5,12 +5,17 @@
 #endif
 #include <xredis/pool_shared_connect.h>
 #include <xredis/dial.h>
+#include <xredis/tls.h>
 #include <xrt.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 static void rrRequire(bool B,cstr T){if(!B){fprintf(stderr,"[FAIL] real Cluster client: %s\n",T);exit(1);}}
+#define require rrRequire
+#include "tls_probe.h"
+#undef require
+
 static const void* rrWait(xfuture* F){rrRequire(F && xrtFutureWaitFor(F,15000)==XWAIT_OK && xrtFutureValue(F),"typed native wait");return xrtFutureValue(F);}
 static xredisreplyvalue rrValue(xredisreply* R)
 {xredisreplyinfo I={0};I.Size=sizeof(I);xredisreplyvalue V;rrRequire(xredisReplyInfo(R,&I) && xredisReplyGet(R,I.Root,&V),"native reply root");return V;}
@@ -20,13 +25,34 @@ typedef struct rrnode {
     xnetresolver* Resolver;xnetaddr Address;xredisclientinitconfig Init;unsigned Factory;
     xredispool* Pool;xredisclient* Client;xfuture* Closed[8];xatomic32 Calls,Drops;
 } rrnode;
-static bool rrConnect(xnetengine* E,size_t Slot,uint64 Attempt,int64 Timeout,ptr Data,xredisclient** Out)
+static bool rrConnect(xnetengine* E, rrnode* N, const redisprobetls* Tls, int64 Timeout, xredisclient** Out)
 {
-    (void)Slot;(void)Attempt;rrnode* N=Data;uint32 Call=xrtAtomic32FetchAdd(&N->Calls,1,XMEMORY_RELEASE);rrRequire(Call<8,"unexpected node churn");
+    uint32 Call=xrtAtomic32FetchAdd(&N->Calls,1,XMEMORY_RELEASE);rrRequire(Call<8,"unexpected node churn");
     xredisclientinitconfig I=N->Init;I.Timeout=Timeout;xredisclientdialconfig D;xredisClientDialConfigInit(&D);D.Family=XNET_FAMILY_IPV4;bool OK;
-    if(N->Factory==1)OK=xredisClientDial(E,N->Resolver,XRT_STR_LITERAL("localhost"),N->Address.Port,0,NULL,&I,&D,Out);
-    else if(N->Factory==2){xnetaddrlist* A=xrtNetAddrListCreate(&N->Address,1);if(!A)return false;OK=xredisClientDialAddresses(E,A,0,NULL,&I,&D,Out);xrtNetAddrListDestroy(A);}
-    else OK=xredisClientConnectInit(E,&N->Address,0,NULL,&I,Out);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+    xredisclienttlsconfig Secure = Tls->Config;
+    Secure.Dial = D;
+#endif
+    if (N->Factory == 1) {
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+        if (Tls->Enabled)
+            OK = xredisClientTlsDial(E, N->Resolver, XRT_STR_LITERAL("localhost"), N->Address.Port, 0, NULL, &I, &Secure, Out);
+        else
+#endif
+            OK = xredisClientDial(E, N->Resolver, XRT_STR_LITERAL("localhost"), N->Address.Port, 0, NULL, &I, &D, Out);
+    } else if (N->Factory == 2) {
+        xnetaddrlist* A = xrtNetAddrListCreate(&N->Address, 1);
+        if (!A) return false;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+        if (Tls->Enabled)
+            OK = xredisClientTlsDialAddresses(E, A, 0, NULL, &I, &Secure, Out);
+        else
+#endif
+            OK = xredisClientDialAddresses(E, A, 0, NULL, &I, &D, Out);
+        xrtNetAddrListDestroy(A);
+    } else {
+        OK = redisProbeConnect(Tls, E, &N->Address, 0, &I, Out);
+    }
     if(OK)N->Closed[Call]=xredisClientClosed(*Out);
     return OK;
 }
@@ -35,11 +61,24 @@ static void rrDrop(ptr Data)
     rrnode* N=Data;for(size_t I=0;I<8;++I)if(N->Closed[I]){rrRequire(xrtFutureState(N->Closed[I])==XFUTURE_RESOLVED,"context before physical close");xrtFutureDestroy(N->Closed[I]);N->Closed[I]=NULL;}
     xrtAtomic32FetchAdd(&N->Drops,1,XMEMORY_RELEASE);
 }
-typedef struct rrcontext {rrnode Nodes[3];xatomic32 Providers,DenySeed,SeedDenied;xredisclusternodes* Cache;} rrcontext;
+typedef struct rrcontext {
+    rrnode Nodes[3];
+    const redisprobetls* Tls;
+    xatomic32 Providers, DenySeed, SeedDenied;
+    xredisclusternodes* Cache;
+} rrcontext;
 static bool rrCacheAuthorize(const xredisclusteraddress* A,ptr Data)
-{rrcontext* C=Data;if(A->Tls || A->Host.Size!=9 || memcmp(A->Host.Data,"127.0.0.1",9))return false;if(xrtAtomic32Load(&C->DenySeed,XMEMORY_ACQUIRE) && A->Port==C->Nodes[0].Address.Port){xrtAtomic32FetchAdd(&C->SeedDenied,1,XMEMORY_RELEASE);return false;}for(size_t I=0;I<3;++I)if(A->Port==C->Nodes[I].Address.Port)return true;return false;}
+{rrcontext* C=Data;if(A->Tls!=C->Tls->Enabled || A->Host.Size!=9 || memcmp(A->Host.Data,"127.0.0.1",9))return false;if(xrtAtomic32Load(&C->DenySeed,XMEMORY_ACQUIRE) && A->Port==C->Nodes[0].Address.Port){xrtAtomic32FetchAdd(&C->SeedDenied,1,XMEMORY_RELEASE);return false;}for(size_t I=0;I<3;++I)if(A->Port==C->Nodes[I].Address.Port)return true;return false;}
 static bool rrCacheConnect(const xredisclusteraddress* A,xnetengine* E,size_t Slot,uint64 Attempt,int64 Timeout,ptr Data,xredisclient** Out)
-{rrcontext* C=Data;for(size_t I=0;I<3;++I)if(A->Port==C->Nodes[I].Address.Port)return rrConnect(E,Slot,Attempt,Timeout,&C->Nodes[I],Out);return false;}
+{
+    (void)Slot;
+    (void)Attempt;
+    rrcontext* C = Data;
+    for (size_t I = 0; I < 3; ++I)
+        if (A->Port == C->Nodes[I].Address.Port)
+            return rrConnect(E, &C->Nodes[I], C->Tls, Timeout, Out);
+    return false;
+}
 static void rrCacheDrop(ptr Data){rrcontext* C=Data;for(size_t I=0;I<3;++I)rrDrop(&C->Nodes[I]);}
 static xfuture* rrCall(xredispool* P,const xbytesview* A,size_t N)
 {xfuture* F=NULL;rrRequire(xredisSharedPoolCall(P,A,N,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"ordinary shared call");return F;}
@@ -68,7 +107,7 @@ static void rrOwner(rrcontext* C,const char* Slot,unsigned Owner,char Ids[3][41]
     while(!rrOwnerViews(C,(uint16)strtoul(Slot,NULL,10),Owner)){rrRequire(xrtTimer()<Due,"all actual slot views agree");xrtSleep(5);}
 }
 typedef struct rrproducer {
-    xredisclusterclient* Client;uint16 Slot;bool Stale;size_t Moved,Case;
+    xredisclusterclient* Client;uint16 Slot,Target;bool Stale,Tls;size_t Moved,Case;
     int64 Values[8];xfuture* Saved;
 #if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
     const xrediscommandcatalog* Catalogue;
@@ -95,6 +134,8 @@ static int32 rrProduce(ptr Data)
             rrRequire(false,"managed native outcome");}
         if(P->Stale)rrRequire(R->Attempts>=1 && R->Attempts<=2 && R->Moved==R->Attempts-1 && !R->Asks && !R->UsedAsking,"real MOVED to new owner");
         else rrRequire(R->Attempts==2 && !R->Moved && R->Asks==1 && R->UsedAsking && R->ControlReceived && R->Control.Status==XREDIS_REQUEST_OK,"real one-shot ASK");
+        rrRequire(R->AttemptAddress.Port == P->Target && R->AttemptAddress.Tls == P->Tls,
+            "exact redirect destination and transport");
         P->Moved+=R->Moved;xredisreplyvalue Value=rrValue(R->Query.Reply);rrRequire(Value.Type==XREDIS_REPLY_INTEGER && Value.Integer>=1 && Value.Integer<=32,"exactly one counter mutation per managed request");P->Values[N]=Value.Integer;
         if(!N)P->Saved=F;else xrtFutureDestroy(F);
     }
@@ -102,17 +143,19 @@ static int32 rrProduce(ptr Data)
 }
 int main(int Argc,char** Argv)
 {
-    if(Argc!=7)return 2;
+    if(Argc!=7 && Argc!=8)return 2;
     uint16 Ports[3];for(unsigned I=0;I<3;++I){unsigned long P=strtoul(Argv[1+I],NULL,10);if(!P || P>65535 || strlen(Argv[4+I])!=40)return 2;Ports[I]=(uint16)P;}
+    redisprobetls Tls = {0};
+    redisProbeTlsInit(&Tls, Argc == 8 ? Argv[7] : NULL);
     xnetengineconfig EC;xrtNetEngineConfigInit(&EC);EC.Workers=2;xnetengine* E=xrtNetEngineCreate(&EC);rrRequire(E && xrtNetEngineStart(E),"engine start");xnetresolver* Resolver=xrtNetResolverCreate(NULL);rrRequire(Resolver!=NULL,"resolver");
     const xredisinitmode Modes[]={XREDIS_INIT_RESP2,XREDIS_INIT_RESP3,XREDIS_INIT_AUTO};xfuture* Saved[144]={0};int64 Expected[144]={0};size_t Retained=0,Cases=0;xredisclustermap* Maps[36]={0};uint64 Generations[36]={0};
     for(unsigned Factory=0;Factory<3;++Factory)for(unsigned Protocol=0;Protocol<3;++Protocol)for(unsigned Stale=0;Stale<2;++Stale)for(unsigned Format=0;Format<2;++Format){
         printf("[case] %zu factory=%u protocol=%u stale=%u format=%u\n",Cases,Factory,Protocol,Stale,Format);fflush(stdout);
-        rrcontext Context={0};
+        rrcontext Context={.Tls = &Tls};
         for(unsigned I=0;I<3;++I){rrnode* N=&Context.Nodes[I];N->Resolver=Resolver;N->Factory=Factory;xredisClientInitConfigInit(&N->Init);N->Init.Mode=Modes[Protocol];rrRequire(xrtNetAddrParse(&N->Address,"127.0.0.1",Ports[I]),"owned node address");}
         xredisclusternodesconfig NC;xredisClusterNodesConfigInit(&NC);NC.MaxNodes=3;NC.MaxHostBytes=64;NC.Protocol=Protocol==0?XREDIS_RESP2:XREDIS_RESP3;NC.RetryMin=NC.RetryMax=5;NC.Authorize=rrCacheAuthorize;NC.Connect=rrCacheConnect;NC.Drop=rrCacheDrop;NC.Data=&Context;
         rrRequire(xredisClusterNodesCreate(E,1,&NC,&Context.Cache)==XREDIS_ADMISSION_ACCEPTED,"owned node cache");
-        for(unsigned I=0;I<3;++I){rrnode* N=&Context.Nodes[I];xredisclusteraddress Address={XRT_BYTES_LITERAL("127.0.0.1"),Ports[I],0,false,0};
+        for(unsigned I=0;I<3;++I){rrnode* N=&Context.Nodes[I];xredisclusteraddress Address={XRT_BYTES_LITERAL("127.0.0.1"),Ports[I],0,Tls.Enabled,0};
             rrRequire(xredisClusterNodesGetPool(&Address,10000,Context.Cache,&N->Pool)==XREDIS_CLUSTER_POOL_READY,"cached native pool");double Due=xrtTimer()+15;
             for(;;){xredispoolinfo PI={0};PI.Size=sizeof(PI);rrRequire(xredisPoolInfo(N->Pool,&PI) && xrtTimer()<Due,"cached node ready");if(PI.Idle==1)break;xrtSleep(1);}
             xbytesview Info[]={XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("SERVER")};xfuture* F=rrCall(N->Pool,Info,2);const xredisrequestresult* R=rrWait(F);
@@ -120,7 +163,7 @@ int main(int Argc,char** Argv)
         }
         char Ids[3][41];for(unsigned I=0;I<3;++I){xbytesview A[]={XRT_BYTES_LITERAL("CLUSTER"),XRT_BYTES_LITERAL("MYID")};xfuture* F=rrCall(Context.Nodes[I].Pool,A,2);const xredisrequestresult* R=rrWait(F);xredisreplyvalue V=rrValue(R->Reply);rrRequire(R->Status==XREDIS_REQUEST_OK && V.Data.Size==40,"actual fixture node IDs");memcpy(Ids[I],V.Data.Data,40);Ids[I][40]=0;xrtFutureDestroy(F);}
         xredisclusterclientconfig CC;xredisClusterClientConfigInit(&CC);CC.RefreshMin=1;CC.RefreshRetryMax=5;CC.Refresh.RetryDelay=1;CC.Route.RetryDelay=1;CC.Refresh.Format=Format?XREDIS_CLUSTER_LEGACY_SLOTS:XREDIS_CLUSTER_SHARDS;
-        xredisclusteraddress Seed={XRT_BYTES_LITERAL("127.0.0.1"),Ports[0],0,false,0};xredisclusterclient* Client=NULL;rrRequire(xredisClusterClientCreate(E,1,Context.Cache,&Seed,1,&CC,&Client)==XREDIS_ADMISSION_ACCEPTED,"managed owned Cluster client");xfuture* Ready=xredisClusterClientReady(Client);const xredisclusterclientready* ReadyResult=rrWait(Ready);rrRequire(ReadyResult->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && ReadyResult->Generation==1,"real asynchronous bootstrap");xrtFutureDestroy(Ready);
+        xredisclusteraddress Seed={XRT_BYTES_LITERAL("127.0.0.1"),Ports[0],0,Tls.Enabled,0};xredisclusterclient* Client=NULL;rrRequire(xredisClusterClientCreate(E,1,Context.Cache,&Seed,1,&CC,&Client)==XREDIS_ADMISSION_ACCEPTED,"managed owned Cluster client");xfuture* Ready=xredisClusterClientReady(Client);const xredisclusterclientready* ReadyResult=rrWait(Ready);rrRequire(ReadyResult->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && ReadyResult->Generation==1,"real asynchronous bootstrap");xrtFutureDestroy(Ready);
         xbytesview Reset[]={XRT_BYTES_LITERAL("SET"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter"),XRT_BYTES_LITERAL("0")};uint16 Slot;rrRequire(xredisClusterKeySlot(Reset[1],&Slot),"counter slot");char SlotText[6];snprintf(SlotText,sizeof(SlotText),"%u",(unsigned)Slot);
 #if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
@@ -136,7 +179,7 @@ int main(int Argc,char** Argv)
 #endif
         if(Stale)rrOwner(&Context,SlotText,1,Ids);
         xfuture* F=NULL;if(Stale)F=rrCall(Context.Nodes[1].Pool,Reset,3);else rrRequire(xredisSharedPoolAskingCall(Context.Nodes[1].Pool,Reset,3,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"owned importing initialization");const xredisrequestresult* ResetResult=rrWait(F);rrRequire(ResetResult->Status==XREDIS_REQUEST_OK,"owned counter reset");xrtFutureDestroy(F);
-        rrproducer Work[4];xthread* Threads[4];for(unsigned I=0;I<4;++I){Work[I]=(rrproducer){.Client=Client,.Slot=Slot,.Stale=Stale!=0,.Case=Cases};
+        rrproducer Work[4];xthread* Threads[4];for(unsigned I=0;I<4;++I){Work[I]=(rrproducer){.Client=Client,.Slot=Slot,.Target=Ports[1],.Stale=Stale!=0,.Tls=Tls.Enabled,.Case=Cases};
 #if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
             Work[I].Catalogue=Catalogue;
 #endif
@@ -154,11 +197,12 @@ int main(int Argc,char** Argv)
 #else
             rrRequire(xredisClusterClientCall(Client,Slot,Probe,2,10000,&P)==XREDIS_ADMISSION_ACCEPTED,"post-MOVED route");
 #endif
-            const xredisclusterclientresult* V=rrWait(P);rrRequire(V->Route.Query.Status==XREDIS_REQUEST_OK && V->Route.Attempts==1 && !V->Route.Moved && V->Generation>=2,"new shared map still routes through old owner");xrtFutureDestroy(P);}
+            const xredisclusterclientresult* V=rrWait(P);rrRequire(V->Route.Query.Status==XREDIS_REQUEST_OK && V->Route.Attempts==1 && !V->Route.Moved && V->Generation>=2 &&
+                V->Route.AttemptAddress.Port==Ports[1] && V->Route.AttemptAddress.Tls==Tls.Enabled,"new shared map still routes through old owner");xrtFutureDestroy(P);}
         xbytesview Get[]={XRT_BYTES_LITERAL("GET"),Reset[1]};F=NULL;if(Stale)F=rrCall(Context.Nodes[1].Pool,Get,2);else rrRequire(xredisSharedPoolAskingCall(Context.Nodes[1].Pool,Get,2,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"verify actual final counter");const xredisrequestresult* Final=rrWait(F);xredisreplyvalue V=rrValue(Final->Reply);rrRequire(Final->Status==XREDIS_REQUEST_OK && V.Data.Size==2 && !memcmp(V.Data.Data,"32",2),"server counter proves no extra execution");xrtFutureDestroy(F);
         uint64 BeforeSeedFailure=rrInfo(Client).Generation;xrtAtomic32Store(&Context.DenySeed,1,XMEMORY_RELEASE);rrRequire(xredisClusterClientInvalidate(Client),"original seed denial demand");double SeedDue=xrtTimer()+15;
         while(rrInfo(Client).Generation<=BeforeSeedFailure || rrInfo(Client).Dirty){rrRequire(xrtTimer()<SeedDue,"metadata stranded at denied original seed");xrtSleep(1);}
-        xredisclustermap* NewOrigin=NULL;bool SeedDirty=true;rrRequire(xredisClusterClientSnapshot(Client,&NewOrigin,&SeedDirty)==XREDIS_CLUSTER_VALUE && !SeedDirty,"new query origin map");xredisclustermapinfo NewInfo={0};NewInfo.Size=sizeof(NewInfo);rrRequire(xredisClusterMapInfo(NewOrigin,&NewInfo) && NewInfo.Origin.Port!=Ports[0] && xrtAtomic32Load(&Context.SeedDenied,XMEMORY_ACQUIRE)>0,"metadata did not use discovered authorized endpoint");xredisClusterMapRelease(NewOrigin);
+        xredisclustermap* NewOrigin=NULL;bool SeedDirty=true;rrRequire(xredisClusterClientSnapshot(Client,&NewOrigin,&SeedDirty)==XREDIS_CLUSTER_VALUE && !SeedDirty,"new query origin map");xredisclustermapinfo NewInfo={0};NewInfo.Size=sizeof(NewInfo);rrRequire(xredisClusterMapInfo(NewOrigin,&NewInfo) && NewInfo.Origin.Port!=Ports[0] && NewInfo.Origin.Tls==Tls.Enabled && xrtAtomic32Load(&Context.SeedDenied,XMEMORY_ACQUIRE)>0,"metadata did not use discovered authorized endpoint");xredisClusterMapRelease(NewOrigin);
 #if !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY)
         xredisCommandCatalogRelease(Catalogue);
 #endif
@@ -184,5 +228,6 @@ int main(int Argc,char** Argv)
 #if (defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && !defined(XREDIS_INTEROP_EXPLICIT_SLOT_ONLY))
     puts("[PASS] synchronous Cluster routing: explicit and metadata calls, actual wait outcomes, four producers and exactly32 unique INCR effects per case");
 #endif
+    redisProbeTlsClose(&Tls);
     puts("[PASS] real Cluster client: 36 SHARDS/SLOTS numeric/DNS/prepared RESP2/3/AUTO migrating ASK/actual-owner-change MOVED cases; automatic bootstrap/refresh, denied original seed with discovered endpoint recovery, four producers, exactly32 INCR executions, new-map direct routes and retained native outcomes");return 0;
 }

@@ -20028,3 +20028,45 @@ Evidence and source/binary hashes are under
 The Windows evidence covers the tested NTFS profile. Native Linux,
 power-loss durability and release soak acceptance remain open.
 [Windows rename semantics](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).
+
+## 2026-11-20 xredis TLS slot migration and ownership refresh
+
+The real Cluster client probe now supports verified TLS 1.3 with
+AES-128-GCM across all three Redis 8.0.5 primaries. Every node reports
+plaintext port zero and TLS enabled for the client listener, Cluster bus
+and replication. The independent observer verifies the localhost certificate,
+process ID and Redis run ID, then witnesses the real ASK reply.
+
+Each client runs 36 scenarios spanning numeric, DNS and prepared-address
+factories, RESP2/RESP3/AUTO initialization, SHARDS/SLOTS metadata and
+migration ASK or actual slot ownership change. Four client threads
+submit 32 INCRs per case. The test verifies the exact target and
+transport on each successful route. ASK uses one ASKING pair and keeps
+the existing slot map. Ownership change produces MOVED and a refreshed
+map that sends the next call directly to the new owner. Rejecting the
+original seed verifies a new authorized map origin on the same transport.
+Retained Futures and maps remain valid after engine teardown.
+
+Redis command statistics independently show 1,152 INCR executions on the
+target and zero executions on the two other nodes for each complete
+36-case matrix. Counts below use the final binaries and runner.
+
+| Configuration | Verified cases | Redis INCR executions |
+| --- | ---: | ---: |
+| TLS explicit-slot, Windows x64, five matrices | 180 | 5,760 |
+| TLS explicit-slot, Ubuntu/WSL x64, five matrices | 180 | 5,760 |
+| TLS explicit-slot, Ubuntu/WSL x64 with ASan/UBSan and leak detection, five matrices | 180 | 5,760 |
+| TLS static package and APP catalogue with synchronous calls, Ubuntu/WSL | 36 | 1,152 |
+| Plaintext explicit-slot, Windows and Ubuntu/WSL | 72 | 2,304 |
+
+Redis ran in Ubuntu/WSL in all cases. The standalone static probe initially
+lacked its direct TLS declaration include. The corrected build passed the
+package consumer and the real fixture. A plaintext-only build declined
+a requested TLS profile before connecting. Generated assets, API docs and
+ordinary maturity passed. Strict release still lists 29 developing xredis
+modules. Native Linux, end-to-end migration under mixed load and 72-hour
+release acceptance remain open.
+
+Source and binary hashes, server logs and per-node execution counts are under
+`out/service-extensions/scope-reduction-20261119/xredis-cluster-tls-migration/`.
+[Reproduction instructions](../../extlibs/xredis/docs/cluster_client.md#real-slot-migration).
