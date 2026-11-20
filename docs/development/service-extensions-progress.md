@@ -20333,3 +20333,51 @@ Source and binary hashes, raw data, audit and test logs are under
 `out/service-extensions/scope-reduction-20261119/xcron-precise-scheduler/`.
 The comparison report SHA-256 is
 `9895ad39495fdac013206585c081d3579b3db4b1e69affc38761c02ec669544b`.
+
+## 2026-11-21 xrpc staggered TCP phase attribution
+
+The staggered observer now has a diagnostic build that matches one in
+31 APP documents on the same monotonic clock. It locates the observer's
+send attempt that supplies the sampled document's final byte, including
+when a short write and a blocked send split the document. The APP
+records complete-document read, owner entry, executor submit and
+processing, owner resume and reply send. It also measures send-call
+return separately. Across the sampled tails, the observer had already
+received 77 replies when the APP recorded send return.
+
+Windows and Ubuntu/WSL each ran three instrumented and three ordinary
+samples per framing and APP mode. The original setup scheduled 128,000
+calls/s in eight staggered connections, with two APP workers and a credit
+window of 16 groups per connection. Each load lasted two seconds.
+Independent verification matched source and binary hashes, exact wire
+reply and APP completion counts, sample timestamps and same-reply phase
+sums. All 48 runs verified 12,288,000 replies and 111,456 matched APP
+documents. A scripted short-send fixture also verified the final-byte
+matching for both framings.
+
+The table gives the median phase share across three runs for the slowest
+1% of sampled single-record replies. The request-to-read interval spans
+the final-byte send attempt, TCP delivery and the APP thread's completed
+read. The read-to-owner interval includes time behind earlier records in
+the same read. The executor column includes queueing and APP handler
+execution, including dispatch and encoding on that worker.
+
+| Host | APP mode | Offer outside observed credit, % | Observed credit, % | Last request write attempt to APP read, % | APP read to owner, % | Executor queue and handler, % |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | Duplex | 49.3 | 2.3 | 34.6 | 11.9 | 0.16 |
+| Windows x64 | Dispatch | 22.4 | 0.7 | 44.6 | 15.6 | 0.33 |
+| Ubuntu/WSL x64 | Duplex | 87.6 | 0.7 | 8.4 | 3.2 | 0.03 |
+| Ubuntu/WSL x64 | Dispatch | 50.7 | 1.6 | 33.7 | 12.2 | 0.12 |
+
+Reported columns are separate per-run medians. For native batch documents
+the median full-run P99 across the four ordinary series ranged from
+0.474 to 0.601 ms. Single-record P99 varied widely between repetitions and
+between builds. WSL duplex record medians were 107.833 ms in the ordinary
+build and 63.731 ms with tracing. The traces establish phase attribution
+within each measured reply. A lower-overhead load observer and an APP
+receive-loop measurement are needed to qualify the record tail. Native
+Linux and strict release acceptance remain open.
+
+The diagnostic overlays, observer and binary ledgers, reports and audit
+are under
+`out/service-extensions/scope-reduction-20261119/xrpc-staggered-phase-trace/`.
