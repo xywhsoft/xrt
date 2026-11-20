@@ -19391,3 +19391,47 @@ telemetry windows increased the verified round count. The previous
 xmqtt run and both xredis runs continued. The new launch receipt and
 journal are `win-native-72h-start.json` and `win-native-72h.jsonl` in the
 evidence directory.
+
+## 2026-11-20 xrpc sustained TCP comparison with native batch documents
+
+The TCP observer supports the APP's existing JSON-RPC array format.
+Each group of eight calls still has one scheduled arrival and occupies
+one observer credit. With native batches, the observer verifies the
+response array, records one arrival time for its calls and reconciles
+one executor job per framed document. The 1,003-call smokes cover a
+partial final array. Both operating environments also rejected a wrong
+ID inside an array, an extra reply and an incorrect executor ledger.
+The existing single-record credit and fault fixtures passed again.
+
+The comparison used the same TCP APP and observer at `75b351bf`.
+Eight connections shared two executor workers and each connection had
+a 16-group window. The APP used CPUs 2 and 4. The observer used CPUs
+6, 8 and 10. Each sample scheduled six seconds of requests after 64
+warmup calls per connection. Five repeats alternated the four combinations
+of framing and APP mode at 64,000 and 128,000 scheduled calls/s on Windows
+and Ubuntu/WSL. All 80 samples completed, with 46,080,000 verified
+measured replies and matching execution ledgers.
+
+| Environment | Offered calls/s | Duplex replies/s, records / batches | Duplex P99 in ms, records / batches | Dispatch P99 in ms, records / batches |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 64,000 | 62,871 / 63,365 | 1.258 / 1.071 | 1.303 / 1.012 |
+| Windows x64 | 128,000 | 125,013 / 126,366 | 18.923 / 1.384 | 5.364 / 1.400 |
+| Ubuntu/WSL x64 | 64,000 | 63,258 / 63,508 | 2.007 / 0.927 | 1.900 / 0.937 |
+| Ubuntu/WSL x64 | 128,000 | 117,067 / 126,483 | 405.343 / 2.365 | 18.330 / 2.296 |
+
+The figures are five-sample medians. At the higher rate the APP retired
+768,512 jobs with individual records and 96,064 with batch documents,
+including warmups. In the WSL high-rate duplex samples, offer-lag P99
+fell from 400.690 ms to 1.472 ms. Send-to-reply P99 moved from 17.573 ms
+to 1.635 ms. The intervals have separate distributions and include the
+observer and transport in addition to APP processing.
+
+All 16 throughput series and eight of 16 end-to-end P99 series met the
+variation limits. Native Linux and a stable release tail baseline remain
+open. Windows and WSL examples and independent TCP interop passed.
+Generated features, headers, API documentation and ordinary maturity
+passed. Strict release still lists `xrpc` and `xrpc_duplex` as developing.
+
+Reproduce from [the TCP example benchmark guide](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+Input hashes, builds, fixture logs and the full reports are under
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-batch-documents/`.
