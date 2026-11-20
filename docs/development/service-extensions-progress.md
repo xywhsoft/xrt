@@ -20936,3 +20936,43 @@ The PE comparison, compiler commands, source and binary hashes,
 smoke reports and live evidence are under
 `out/service-extensions/scope-reduction-20261119/native-windows-current-soak/windows-head-equivalence/`
 and `out/service-extensions/scope-reduction-20261119/native-windows-b8206441-soak/`.
+
+## 2026-11-21 xcron scheduler tail campaign completion
+
+All 40 processes in the original scheduler campaign passed the
+correctness ledger. The final independent audit checked both binary
+digests, the retained source snapshots, all 10,240 measured waves and
+5,570,560 verified callbacks. The Windows leg is recorded above. Each
+WSL series used five 256-wave processes pinned to logical CPU 4.
+
+| Active / dormant jobs | Drive | First callback pooled P99 / P99.9 in ms | Last callback pooled P99 / P99.9 in ms |
+| ---: | --- | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 0.653 / 1.338 | 0.660 / 1.350 |
+| 64 / 960 | XRT waiter and direct callbacks | 1.087 / 1.199 | 1.088 / 1.200 |
+| 1,024 / 0 | Scheduler Wait | 0.143 / 0.286 | 0.288 / 0.448 |
+| 1,024 / 0 | XRT waiter and direct callbacks | 1.078 / 1.122 | 1.082 / 1.125 |
+
+On WSL, both direct-waiter profiles passed the 3% MAD and 6%
+central-range limits for first and last callback P99. The WSL
+scheduler profiles exceeded the limits. Across Windows and WSL,
+six of 16 first and last callback series met both limits. All eight
+callback-span series exceeded at least one limit. The direct waiter
+uses the original integer-millisecond baseline. This completes that
+measurement campaign. Stable scheduler tails and native Linux
+testing with the matched-precision control remain open.
+
+The terminal process ledger, raw per-wave data and independent audit
+are under
+`out/service-extensions/scope-reduction-20261119/xcron-precise-scheduler/release-tails/`.
+
+## 2026-11-21 xrpc modular and single-header revalidation
+
+The xrpc_tests suite at `cc242aea` passed all 23 test executables on
+Windows x64 and on Ubuntu/WSL x64, covering 11 modular and 12
+single-header executables per host. The ordinary asset and API
+reference audits passed. Strict release still lists xrpc and
+xrpc_duplex as developing. Native Linux and stable end-to-end tails
+remain open.
+
+Build logs and the test-count audit are under
+`out/service-extensions/scope-reduction-20261119/current-xrpc-verification/`.
