@@ -20509,3 +20509,49 @@ Source and binary hashes, per-cycle server identities and exact
 command ledgers are under
 `out/service-extensions/scope-reduction-20261119/xredis-outage-edits/`.
 [Restart probe instructions](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).
+
+## 2026-11-21 xrpc Python and native saturation observers
+
+The TCP test harness can run the fixed-arrival event loop in C. The
+Python coordinator uses the same request and reply fixtures, APP
+completion check, CPU masks and per-connection window for both loops.
+The C loop checks every reply byte and records each call at the read
+that reaches its final reply byte. It carries partial reads and writes
+across readiness events and returns observations after verified EOF.
+
+The paired comparison completed 80 samples and verified 20,480,000
+calls. It used eight connections, two APP workers, 16 groups of credit
+per connection, an offered rate of 128,000 calls/s and 62.5 us between
+connection phases. Each cell gives the median across five repetitions
+for each observer. Both used one process.
+
+| Host | APP | Framing | Verified calls/s, Python / C | P99 in ms, Python / C |
+| --- | --- | --- | ---: | ---: |
+| Windows x64 | Duplex | Records | 127,989 / 127,988 | 0.699 / 1.139 |
+| Windows x64 | Duplex | Batch | 127,998 / 127,994 | 0.348 / 0.397 |
+| Windows x64 | Dispatch | Records | 127,996 / 127,997 | 0.801 / 0.517 |
+| Windows x64 | Dispatch | Batch | 128,000 / 128,001 | 0.283 / 0.325 |
+| Ubuntu/WSL x64 | Duplex | Records | 126,666 / 122,894 | 23.048 / 78.200 |
+| Ubuntu/WSL x64 | Duplex | Batch | 127,996 / 127,992 | 0.406 / 0.331 |
+| Ubuntu/WSL x64 | Dispatch | Records | 127,917 / 127,924 | 5.064 / 3.453 |
+| Ubuntu/WSL x64 | Dispatch | Batch | 127,996 / 127,996 | 0.402 / 0.258 |
+
+The C loop reduced median offer-lag P99 in seven of eight profiles.
+Median observer CPU time stayed between 1.926 and 2.008 seconds across
+both loops for the approximately two-second offer interval. WSL duplex
+records grew to 69.304 ms offer-lag P99 with the C loop, and its
+throughput and P99 both missed the variation gates. Python met the
+P99 variation gates on Windows duplex records and WSL duplex batch.
+C met them on WSL dispatch batch. The Windows duplex records Python
+series includes one 13.806 ms observation beyond its central range.
+The comparison shows that replacing the Python event loop alone leaves
+the release tails unresolved. The existing Python observer stays the
+default. Native Linux qualification remains open.
+
+Both hosts passed the 11 observer tests, the ordinary TCP APP peer and
+the two saturation framings using an uneven five-connection workload.
+The existing CI steps now build and exercise the native verifier.
+Raw samples, source and binary hashes and the runner and audit scripts
+are under
+`out/service-extensions/scope-reduction-20261119/xrpc-native-observer/`.
+[Native observer reproduction instructions](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).

@@ -1,6 +1,9 @@
 """Exercise fixed-arrival TCP reply verification across arbitrary reads."""
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
+import os
+import socket
 import time
 import unittest
 from unittest.mock import Mock, patch
@@ -111,6 +114,55 @@ class ShardShutdownTest(unittest.TestCase):
         pid = worker.pid
         retire_shard(worker)
         self.assertFalse(any(child.pid == pid for child in multiprocessing.active_children()))
+
+
+@unittest.skipUnless(os.environ.get("XRPC_TCP_OBSERVER_NATIVE"), "native observer library not selected")
+class NativeObserverTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from tcp_native_observer import NativeObserver
+        cls.observer = NativeObserver(os.environ["XRPC_TCP_OBSERVER_NATIVE"])
+
+    def exchange(self, batches, reply_chunks):
+        observer, responder = socket.socketpair()
+        with observer, responder, ThreadPoolExecutor(max_workers=1) as pool:
+            observer.setblocking(False)
+            responder.settimeout(2)
+            expected_request = b"".join(wire for wire, _, _ in batches)
+
+            def reply():
+                with responder.makefile("rb") as stream:
+                    self.assertEqual(stream.read(), expected_request)
+                for chunk in reply_chunks:
+                    responder.sendall(chunk)
+                responder.shutdown(socket.SHUT_WR)
+
+            responding = pool.submit(reply)
+            window = len(batches)
+            peer = SaturationPeer(observer, batches, window)
+            streams = {observer: peer}
+            peers = self.observer.prepare(streams, sum(count for _, _, count in batches))
+            start = time.perf_counter_ns()
+            try:
+                self.observer.drive(peers, window, 100000, start, start + 2_000_000_000, 2_000_000_000)
+            finally:
+                responding.result()
+            self.observer.collect(peers, streams)
+            return peer
+
+    def test_checks_records_and_batch_in_one_reply_stream(self):
+        peer = self.exchange(ReplyStreamTest.batches, (b"ab", b"c\ndefg\n[", b"a,b]\nlast", b"\n"))
+        self.assertEqual(len(peer.times), 5)
+        self.assertEqual(peer.times, sorted(peer.times))
+        self.assertEqual(peer.times[2], peer.times[3])
+        self.assertGreaterEqual(peer.times[0], peer.sent_at[-1])
+        self.assertEqual(peer.peak, 3)
+
+    def test_rejects_wrong_reply_and_premature_eof(self):
+        for reply in (b"ab!", b"ab", b"abc\nextra"):
+            with self.subTest(reply=reply):
+                with self.assertRaisesRegex(RuntimeError, "reply or EOF mismatch"):
+                    self.exchange([(b"request", [b"abc\n"], 1)], (reply,))
 
 
 if __name__ == "__main__":

@@ -103,6 +103,22 @@ CPU is outside that measurement. For a comparison, keep the APP, CPU
 masks, framing, rates and windows fixed and save each run to its own
 report. Choose at most one shard per observer CPU and connection.
 
+Use `--observer-native <library>` with one observer process to measure how
+the Python event loop affects the result. The same Python coordinator
+prepares requests and expected replies and verifies the APP ledger.
+The native loop paces the same groups, verifies replies byte for byte,
+and timestamps each call at its last observed reply byte. Use the same
+CPU masks and workload for the Python comparison. Build the observer
+from the repository root with GCC on Linux or MinGW-w64 on Windows.
+
+    gcc -O2 -std=c11 -fPIC -shared extlibs/xrpc/tests/interop/tcp_native_observer.c -o out/xrpc-observer.so
+
+    gcc -O2 -std=c11 -shared extlibs/xrpc/tests/interop/tcp_native_observer.c -o out/xrpc-observer.dll -lws2_32
+
+Set `XRPC_TCP_OBSERVER_NATIVE` to the built library path and run
+`python extlibs/xrpc/tests/interop/test_tcp_observer.py` to include the
+native reply-verification tests.
+
 The default aligns every connection's groups on the same schedule.
 Append `--stagger-arrivals` to space their offers evenly within one group
 period. The per-connection rate, number of calls and credit window stay

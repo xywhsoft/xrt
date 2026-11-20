@@ -497,12 +497,14 @@ def saturation_sharded(peers, settings, cpus, bounds):
 
 
 def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus,
-                      batch_documents=False, stagger_arrivals=False, observer_shards=1):
+                      batch_documents=False, stagger_arrivals=False, observer_shards=1, native_observer=None):
     depth, warmup, deadline_ns = SATURATION_DEPTH, SATURATION_WARMUP, 5_000_000_000
     period = depth * 1_000_000_000
     batch_count = (calls + depth - 1) // depth
     if observer_shards < 1 or (observer_shards > 1 and observer_shards > min(connections, len(observer_cpus or ()))):
         raise ValueError("observer shards need distinct CPUs and at least one connection each")
+    if native_observer is not None and observer_shards != 1:
+        raise ValueError("native observer requires one shard")
     shard_cpus = sorted(observer_cpus)[:observer_shards] if observer_shards > 1 else []
     start = elapsed = None
     cpu_seconds = []
@@ -529,10 +531,16 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
         else:
             streams = saturation_streams(enumerate(peers), **settings)
             results = list(streams.values())
+            native_peers = native_observer.prepare(streams, calls) if native_observer is not None else None
             used = time.process_time_ns()
             start = time.perf_counter_ns() + 20_000_000
-            saturation_drive(streams, start, rate, *bounds(start))
+            if native_peers is None:
+                saturation_drive(streams, start, rate, *bounds(start))
+            else:
+                native_observer.drive(native_peers, window, rate, start, *bounds(start))
             cpu_seconds = [(time.process_time_ns() - used) / 1e9]
+            if native_peers is not None:
+                native_observer.collect(native_peers, streams)
         elapsed = max(stream.times[-1] for stream in results) - start
 
     status, report = multi_exchange(executable, mode, connections, workers, drive, app_cpus, observer_cpus)
@@ -545,6 +553,7 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
     total = calls * connections
     stats = {"calls": total, "app_documents": documents, "calls_per_second": total * 1e9 / elapsed,
              "observer_cpu_seconds": sum(cpu_seconds), "observer_shards": observer_shards,
+             "observer_native": native_observer is not None,
              "observer_shard_cpus": shard_cpus, "observer_shard_cpu_seconds": cpu_seconds,
              "peak_batches_in_flight": max(peer.peak for peer in results),
              "credit_stall_batches": sum(peer.stalls for peer in results),
@@ -653,13 +662,19 @@ def measure_concurrent(executable, report, calls, repeats, rate, cpus):
 
 
 def measure_saturation(executable, report, args):
+    native_observer = None
+    if args.observer_native is not None:
+        from tcp_native_observer import NativeObserver
+        native_observer = NativeObserver(args.observer_native)
     data = {"platform": platform.platform(), "machine": platform.machine(), "python": platform.python_version(),
             "binary_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
             "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "calls_per_connection": args.calls, "warmup_per_connection": 64, "batch_depth": 8,
             "connections": args.connections, "workers": args.workers, "window_batches": args.window_batches,
             "request_framing": "json-rpc-batch" if args.batch_documents else "single-records",
-            "observer_pacing": "multiplexed-nonblocking",
+            "observer_pacing": "native-select" if native_observer else "multiplexed-nonblocking",
+            "observer_library_sha256": hashlib.sha256(args.observer_native.read_bytes()).hexdigest()
+            if native_observer else None,
             "observer_shards": args.observer_shards,
             "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
@@ -679,7 +694,7 @@ def measure_saturation(executable, report, args):
                         run[name] = saturation_sample(executable, MODES[name], args.calls, args.connections,
                                                       args.workers, rate, args.window_batches, args.app_cpus,
                                                       args.cpus, args.batch_documents, args.stagger_arrivals,
-                                                      args.observer_shards)
+                                                      args.observer_shards, native_observer)
                     except (OSError, AssertionError, RuntimeError, subprocess.SubprocessError, ValueError) as error:
                         run[name] = {"failure": str(error)}
             entry["summary"] = {}
@@ -718,6 +733,8 @@ def main():
     parser.add_argument("--window-batches", type=int, default=16)
     parser.add_argument("--observer-shards", type=int, default=1,
                         help="split the saturation observer across this many processes and CPUs")
+    parser.add_argument("--observer-native", type=Path,
+                        help="load the native verifier shared library for a single saturation observer")
     parser.add_argument("--batch-documents", action="store_true",
                         help="send each scheduled group as one JSON-RPC batch in saturation mode")
     parser.add_argument("--stagger-arrivals", action="store_true",
@@ -727,8 +744,11 @@ def main():
         parser.error("choose 1000..100000 calls and 1..30 repeats")
     if args.concurrent and not (1 <= args.rate <= 100000 and args.calls <= args.rate * 15):
         parser.error("concurrent offers must fit a 15 second horizon")
-    if (args.batch_documents or args.stagger_arrivals or args.observer_shards != 1) and not args.saturation:
-        parser.error("batch documents, staggered arrivals and observer shards require --saturation")
+    if (args.batch_documents or args.stagger_arrivals or args.observer_shards != 1 or
+            args.observer_native is not None) and not args.saturation:
+        parser.error("batch documents, staggered arrivals and observer options require --saturation")
+    if args.observer_native is not None and args.observer_shards != 1:
+        parser.error("--observer-native requires a single observer shard")
     if args.saturation:
         if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:
             parser.error("saturation requires disjoint --cpus and --app-cpus")
