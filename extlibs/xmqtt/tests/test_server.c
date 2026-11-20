@@ -59,20 +59,20 @@ static xmqttserverpermission serverAuthorizeTopic(xmqttversion Version, xstrview
 
 static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budget, bool Routing,
 	size_t WildcardNodes, size_t RetainedTopics, size_t RetainedBytes, uint16 ReceiveMaximum,
-	size_t OutgoingLimit, size_t TimerLimit)
+	size_t OutgoingLimit, size_t TimerLimit, size_t LocalConnections)
 {
 	memset(Fixture, 0, sizeof(*Fixture));
 	xrtAtomic32Init(&Fixture->ListenerClosed, 0);
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
-	EngineConfig.Workers = 2;
+	EngineConfig.Workers = LocalConnections ? 1 : 2;
 	if (TimerLimit) EngineConfig.TimerLimit = TimerLimit;
 	Fixture->Engine = xrtNetEngineCreate(&EngineConfig);
 	testRequire(Fixture->Engine && xrtNetEngineStart(Fixture->Engine), "server engine");
 	xmqttserverconfig Config;
 	testRequire(xmqttServerConfigInit(&Config), "server defaults");
 	Config.Allow311 = Allow311;
-	Config.MaxConnections = 2;
+	Config.MaxConnections = LocalConnections ? LocalConnections : 2;
 	Config.ConnectTimeout = 1800;
 	Config.Codec.MaxPacketBytes = 256;
 	Config.MaxWildcardNodes = WildcardNodes;
@@ -123,7 +123,7 @@ static void serverStartLimits(serverfixture* Fixture, bool Allow311, size_t Budg
 static void serverStartConfigured(serverfixture* Fixture, bool Allow311, size_t Budget,
 	bool Routing, size_t WildcardNodes)
 {
-	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64, 0, 0);
+	serverStartLimits(Fixture, Allow311, Budget, Routing, WildcardNodes, 4096, 16u * 1024u * 1024u, 64, 0, 0, 0);
 }
 
 static void serverStart(serverfixture* Fixture, bool Allow311, size_t Budget)
@@ -781,7 +781,7 @@ static void serverRetainedRoutes(xmqttversion Origin, xmqttversion Target)
 static void serverRetainedLimits(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64, 0, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 1, 32, 64, 0, 0, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -860,7 +860,7 @@ static void serverInboundQos1(xmqttversion Origin, xmqttversion Target)
 {
 	serverfixture Fixture;
 	serverStartLimits(&Fixture, Origin == XMQTT_VERSION_311 || Target == XMQTT_VERSION_311,
-		0, true, 65536, 1, 34, 1, 0, 0);
+		0, true, 65536, 1, 34, 1, 0, 0, 0);
 	unsigned char Wire[128];
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverSend(Producer, Wire, serverConnectWire(Wire, Origin, true, 0, "qos1"));
@@ -1030,6 +1030,74 @@ static void serverReleaseQos2(xnetsocket Peer, xmqttversion Version, uint16 Id)
 	serverExpectFlowReply(Peer, Version, 0x70, Id, 0);
 }
 
+static void serverCompleteQos2Delivery(xnetsocket Sink, const char* Topic, const char* Payload, uint16 Id)
+{
+	const xmqttversion Version = XMQTT_VERSION_5;
+	serverPublishQos2(Sink, Version, Topic, Payload, Id, 0, true);
+	serverSendFlowReply(Sink, Version, 0x50, Id, 0);
+	serverExpectFlowReply(Sink, Version, 0x62, Id, 0);
+	serverSendFlowReply(Sink, Version, 0x70, Id, 0);
+}
+
+static void serverQos2PressureRecovery(void)
+{
+	enum { SUBSCRIBERS = 10, SLOW = SUBSCRIBERS - 1 };
+	const xmqttversion Version = XMQTT_VERSION_5;
+	const char* Topic = "pressure/item";
+	const char* Filter[] = {"pressure/#"};
+	const char* Payload[] = {"first", "second"};
+	const uint8 Two[] = {2};
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2, 0, SUBSCRIBERS + 1);
+	xnetsocket Publisher = serverDial(&Fixture), Subscribers[SUBSCRIBERS];
+	serverQos1Connect(Publisher, Version, "prod");
+	for (unsigned Index = 0; Index < SUBSCRIBERS; ++Index) {
+		const char Name[] = {'s', 'u', 'b', (char)('0' + Index)};
+		Subscribers[Index] = serverDial(&Fixture);
+		serverQos1Connect(Subscribers[Index], Version, Name);
+		serverSubscribeWire(Subscribers[Index], Version, true, 1, Filter, Two, Two, 1);
+	}
+	for (uint16 Id = 1; Id <= 2; ++Id) {
+		serverPublishQos2(Publisher, Version, Topic, Payload[Id - 1], Id, 0, false);
+		serverExpectFlowReply(Publisher, Version, 0x50, Id, 0);
+		serverReleaseQos2(Publisher, Version, Id);
+	}
+	serverWaitOutgoing(Fixture.Server, 2 * SUBSCRIBERS, 0);
+
+	/* One recipient retains both credits while every other route has room. */
+	for (unsigned Index = 0; Index < SLOW; ++Index)
+		for (uint16 Id = 1; Id <= 2; ++Id)
+			serverCompleteQos2Delivery(Subscribers[Index], Topic, Payload[Id - 1], Id);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+	serverPublishQos2(Publisher, Version, Topic, "refused", 3, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 3, 0x97);
+	for (unsigned Index = 0; Index < SLOW; ++Index) serverPingPeer(Subscribers[Index]);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+	xmqttserverinfo Rejected;
+	testRequire(xmqttServerInfo(Fixture.Server, &Rejected) && Rejected.RejectedPublications == 1 &&
+		Rejected.Forwarded == 2 * SUBSCRIBERS - 1 && !Rejected.DroppedDeliveries,
+		"quota rejection preserves existing fan-out");
+
+	for (uint16 Id = 1; Id <= 2; ++Id)
+		serverCompleteQos2Delivery(Subscribers[SLOW], Topic, Payload[Id - 1], Id);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverPublishQos2(Publisher, Version, Topic, "recovered", 3, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 3, 0);
+	serverReleaseQos2(Publisher, Version, 3);
+	for (unsigned Index = 0; Index < SUBSCRIBERS; ++Index) {
+		serverCompleteQos2Delivery(Subscribers[Index], Topic, "recovered", 3);
+		serverPingPeer(Subscribers[Index]);
+		xrtNetSocketClose(Subscribers[Index]);
+	}
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	xmqttserverinfo Recovered;
+	testRequire(xmqttServerInfo(Fixture.Server, &Recovered) && Recovered.RejectedPublications == 1 &&
+		Recovered.Forwarded == 3 * SUBSCRIBERS && !Recovered.DroppedDeliveries,
+		"all recipients reopen delivery credit and receive the retry once");
+	xrtNetSocketClose(Publisher);
+	serverStop(&Fixture);
+}
+
 static void serverQos2(xmqttversion Origin, xmqttversion Target)
 {
 	serverfixture Fixture;
@@ -1119,7 +1187,7 @@ static void serverQos2(xmqttversion Origin, xmqttversion Target)
 static void serverQos2Window(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 1, 0, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 1, 0, 0, 0);
 	xnetsocket Publisher = serverDial(&Fixture);
 	unsigned char Wire[32];
 	serverSend(Publisher, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "prod"));
@@ -1174,7 +1242,7 @@ static void serverWaitSessions(serverfixture* Fixture, size_t Persistent, size_t
 static void serverQos2Admission(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, true, 65536, 4096, 65536, 64, 1, 0);
+	serverStartLimits(&Fixture, false, 0, true, 65536, 4096, 65536, 64, 1, 0, 0);
 	const xmqttversion Version = XMQTT_VERSION_5;
 	const char* Routes[] = {"atomic/x", "seed"};
 	const char* Shared[] = {"$share/team/atomic/+"};
@@ -1393,7 +1461,7 @@ static void serverFillTimer(xnetworker* Worker, uint64 Id, xnetresult Result, pt
 static void serverExpiryTimerAdmission(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 1);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 1, 0);
 	xnetsocket Socket = serverDial(&Fixture);
 	serverWillConnect(Socket, XMQTT_VERSION_5, "gone", "last", 10, 1, 0, false, 0x89);
 	serverEof(Socket);
@@ -1410,7 +1478,7 @@ static void serverExpiryTimerAdmission(void)
 static void serverWillTimerPressure(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 2);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 0, 2, 0);
 	const xmqttversion Version = XMQTT_VERSION_5;
 	xnetsocket Observer = serverDial(&Fixture);
 	serverQos1Connect(Observer, Version, "sink");
@@ -1530,7 +1598,7 @@ static void serverPersistentFlows(void)
 static void serverOfflineLimit(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 1, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 1, 0, 0);
 	const xmqttversion Version = XMQTT_VERSION_5;
 	xnetsocket Publisher = serverDial(&Fixture), Subscriber = serverDial(&Fixture);
 	serverQos1Connect(Publisher, Version, "prod");
@@ -1649,7 +1717,7 @@ static void serverOutgoingExpiry(void)
 static void serverOutgoingLimit(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 2, 0, 0);
 	xnetsocket Producer = serverDial(&Fixture), Consumer = serverDial(&Fixture);
 	serverQos1Connect(Producer, XMQTT_VERSION_5, "prod");
 	serverQos1Connect(Consumer, XMQTT_VERSION_5, "slow");
@@ -1779,7 +1847,7 @@ static void serverWildcardQuota(void)
 static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0, 0);
+	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0, 0, 0);
 	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
 		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
 		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
@@ -1840,7 +1908,7 @@ static void serverPostAckFixture(serverfixture* Fixture, uint32 Worker, serverac
 static void serverQos1Exceeded(void)
 {
 	serverfixture Fixture;
-	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1, 0, 0);
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 8u * 1024u * 1024u, 1, 0, 0, 0);
 	xnetsocket Socket = serverDial(&Fixture);
 	unsigned char Wire[32];
 	serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "full"));
@@ -2544,6 +2612,7 @@ int main(void)
 	serverInboundQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2(XMQTT_VERSION_5, XMQTT_VERSION_5);
+	serverQos2PressureRecovery();
 	serverQos2Window();
 	serverQos2Admission();
 	serverWillFlows(XMQTT_VERSION_5);

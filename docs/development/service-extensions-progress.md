@@ -18546,3 +18546,61 @@ Reproduction is in [the benchmark guide](../../extlibs/xmqtt/bench/README.md#ext
 The individual repeats, build and test logs, executable digests and audit
 summary are in
 out/service-extensions/scope-reduction-20261119/xmqtt-qos2-credit/.
+
+## 2026-11-20 MQTT QoS 2 fan-out under uneven subscriber pressure
+
+The broker regression uses one worker, ten wildcard subscribers, Receive
+Maximum one and a two-delivery cap per destination. It fills each
+recipient's two credits, finishes both exchanges on nine subscribers and
+leaves the tenth full. The next PUBLISH receives PUBREC 0x97. The nine
+available subscribers answer PING without an unexpected delivery. The
+broker retains the two outstanding obligations at the slow subscriber.
+After it drains, the publisher reuses the rejected packet ID and all ten
+subscribers receive the new payload in order. Final accounting verifies
+30 forwards, one rejected publication, zero dropped deliveries and zero
+remaining reliable deliveries and bytes.
+
+A production experiment grouped contiguous ready nonpersistent deliveries
+on the current worker in one native post per group of up to eight. It used
+two worker callbacks for a ten-recipient publication. The source, generated
+header and test diff are retained with the experiment.
+
+The comparison paired the baseline at 5294e5f6 with the experiment built by
+the same compiler. Both used the same external observer, one broker worker,
+one broker logical CPU and three disjoint observer logical CPUs, one
+publisher, eight wildcard subscribers, in-memory MQTT 5 and plaintext TCP.
+Each pair alternated order and ran seven times on Windows and WSL. A complete
+run verified 3,000 publisher confirmations and 24,000 deliveries after 300
+warmups. Across 112 attempts, 98 completed and verified 294,000 confirmations
+and 2,352,000 deliveries. All 14 incomplete attempts reported PUBREC 0x97.
+
+| Environment | Publisher / subscriber window | Target publications/s | Complete runs, baseline / experiment | Delivery P99 median in ms, baseline / experiment |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 16 / 1 | 3,000 | 7 / 6 | 30.655 / 10.394 |
+| Windows x64 | 16 / 16 | 3,000 | 7 / 7 | 5.195 / 8.505 |
+| Windows x64 | 1 / 16 | 3,000 | 7 / 7 | 3.858 / 3.500 |
+| Windows x64 | 16 / 1 | 2,000 | 7 / 7 | 5.882 / 6.094 |
+| Ubuntu/WSL x64 | 16 / 1 | 3,000 | 0 / 1 | unavailable / 78.182 |
+| Ubuntu/WSL x64 | 16 / 16 | 3,000 | 7 / 7 | 3.765 / 4.257 |
+| Ubuntu/WSL x64 | 1 / 16 | 3,000 | 7 / 7 | 237.688 / 222.804 |
+| Ubuntu/WSL x64 | 16 / 1 | 2,000 | 7 / 7 | 3.635 / 8.204 |
+
+All 12 delivery P99 series from complete A/B pairs exceeded the existing
+variation limits. Throughput was close for profiles that both builds completed. The
+experiment reduced native posts and produced mixed tail results with no
+qualified net improvement. The commit ships the uneven-pressure recovery
+case and leaves the experiment in the evidence directory. The narrowed
+subscriber window at the higher rate remains an unresolved performance
+and overload condition.
+
+The experiment passed the Windows and WSL modular and single-header broker
+suites, MQTT 3.1.1/5 and checkpoint tests, and 30-second mixed-load smokes.
+The WSL single-header suite passed ASan/UBSan with leak detection. The
+uneven-pressure regression was then built on the original runtime and
+passed Windows and WSL modular and single-header suites and WSL ASan/UBSan
+with leak detection. The asset checks passed and strict release still
+reports 39 developing modules.
+
+The A/B runner, per-repeat ledgers, failed rounds, candidate patch and
+verification logs are under
+out/service-extensions/scope-reduction-20261119/xmqtt-local-fanout/.
