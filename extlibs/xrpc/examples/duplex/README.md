@@ -70,3 +70,34 @@ The report keeps all repetitions and applies the 3% relative MAD and 6%
 central-range checks to throughput and P99. The test uses a bounded
 one-job-per-connection APP and captures TCP, executor, and observer
 costs together.
+
+## TCP saturation sweep
+
+The saturation observer uses a sender and an independent reply reader per
+connection. It schedules batches of eight requests per connection and keeps
+a finite window of outstanding batches. A batch frees its slot after its
+last matching reply. The default 16-batch window admits up to 128 requests
+per connection. Every scheduled request must be verified within five
+seconds, and the APP completion ledger must include both the warmup and the
+measured replies. The report retains failed samples.
+
+    python extlibs/xrpc/tests/interop/run_tcp_worker.py \
+      out/gcc/native/xrpc_examples/examples_tcp_worker_main out/xrpc-tcp-saturation.json \
+      --saturation --connections 8 --workers 2 --window-batches 16 --calls 4800 \
+      --rates 1600,4000,8000,16000 --repeats 5 --app-cpus 2,4 --cpus 6,8,10
+
+Select disjoint CPU sets available to the caller and verify their physical
+core placement on the test host. The observer checks the APP process's
+inherited affinity each time it starts. Append .exe to the executable on
+Windows. The second sweep uses the same workload at 8,000 and 16,000
+offers per connection with one executor worker. To offer more traffic with
+two workers, use --rates 24000,32000.
+
+Throughput is the count of verified replies from the planned start to the
+final observed reply, including any drain time. Latency starts at the
+scheduled batch arrival for every request. Separate percentiles cover the
+delay until submission, the observer's wait for a window slot, and the
+interval from the actual send attempt to the reply. The report also
+records the largest in-flight window, the number of batches that found it
+full and observer CPU time. Compare tail medians only when the repeated
+samples meet the variation gate.

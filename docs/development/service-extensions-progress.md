@@ -18604,3 +18604,59 @@ reports 39 developing modules.
 The A/B runner, per-repeat ledgers, failed rounds, candidate patch and
 verification logs are under
 out/service-extensions/scope-reduction-20261119/xmqtt-local-fanout/.
+
+## 2026-11-20 xrpc bounded-window TCP saturation sweep
+
+The TCP observer now uses a separate sender and reply reader per
+connection. A batch occupies one observer slot until its final matching
+reply. Scheduled arrivals remain in the latency denominator when the
+window fills. Each run verifies every reply in order within five
+seconds and reconciles the APP's full executor ledger. Latency starts
+at the scheduled arrival. Offer lag, window wait and send-to-reply
+percentiles are reported separately.
+
+Windows x64 and Ubuntu/WSL x64 each ran five repetitions per mode
+with eight connections, sixteen batches in flight per connection,
+and 4,800 measured calls plus 64 warmups per connection. The APP
+was pinned to logical CPUs 2,4 and the observer to 6,8,10. The
+two-worker sweep used six offered rates from 12,800 to 256,000
+calls/s in aggregate. The one-worker sweep used 64,000 and 128,000
+calls/s. The duplex and dispatch-only APP modes shared framing,
+the executor and CPU placement. All 160 samples matched the APP
+and observer ledgers, for 6,144,000 verified measured replies.
+
+| Environment | Workers | Offered calls/s | Verified replies/s, duplex / dispatch | P99 in ms, duplex / dispatch |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2 | 64,000 | 62,947 / 62,629 | 1.721 / 1.447 |
+| Windows | 1 | 128,000 | 121,081 / 124,087 | 12.909 / 4.333 |
+| Windows | 2 | 128,000 | 122,143 / 123,539 | 3.195 / 4.972 |
+| Windows | 2 | 256,000 | 145,644 / 184,538 | 121.210 / 78.953 |
+| Ubuntu/WSL | 2 | 64,000 | 63,044 / 63,296 | 2.161 / 1.940 |
+| Ubuntu/WSL | 1 | 128,000 | 71,450 / 86,897 | 233.848 / 144.960 |
+| Ubuntu/WSL | 2 | 128,000 | 122,128 / 123,373 | 15.544 / 9.762 |
+| Ubuntu/WSL | 2 | 256,000 | 89,230 / 93,655 | 270.007 / 252.537 |
+
+At the last two offered rates, the duplex windows reached their full
+sixteen batches in both environments. At 256,000 offered calls/s,
+duplex offer-lag P99 was 119.358 ms on Windows and 260.577 ms on WSL.
+The corresponding P99 after the send attempt was 16.783 ms and
+14.970 ms. The arrival-to-reply tails include the waiting time. The
+top rate offers its 4,800 calls per connection in about 0.15 seconds,
+then drains. The data describes the offered bursts on this host.
+
+Of 32 comparable series, 27 throughput and 9 tail-latency series met
+the existing variation limits. Native Linux, a stable release tail
+baseline and the strict release gate remain open. Ordinary maturity
+and generated asset checks passed. Strict release reports xrpc and
+xrpc_duplex as developing.
+
+Windows and WSL passed TCP interoperability, the original closed-loop
+and concurrent modes, and the one-batch-window smoke. The socket-pair
+checks verified the one-batch limit and rejected a mismatched ID and
+an extra reply. WSL ASan/UBSan with leak detection passed a 1,003-call
+sweep whose last batch was partial. The first standalone build omitted
+the XRT event feature; the successful binaries enabled it explicitly.
+
+Reproduction is in [the duplex APP guide](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+Reports, hashes, fixture probes and logs are under
+out/service-extensions/scope-reduction-20261119/xrpc-tcp-saturation/.

@@ -1,7 +1,7 @@
 """Drive or measure the TCP example with an independent socket peer."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 import hashlib
 import json
 import os
@@ -141,11 +141,23 @@ def measure(executable, calls, repeats):
             "profiles": profiles}
 
 
-def multi_exchange(executable, mode, connections, workers, drive):
-    with subprocess.Popen([executable, mode, str(connections), str(workers)], stdout=subprocess.PIPE) as process:
+def multi_exchange(executable, mode, connections, workers, drive, app_cpus=None, observer_cpus=None):
+    command = [executable, mode, str(connections), str(workers)]
+    if app_cpus:
+        process_affinity(app_cpus)
+    try:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    except OSError:
+        if observer_cpus:
+            process_affinity(observer_cpus)
+        raise
+    with process:
         watchdog = threading.Timer(25, process.kill)
         watchdog.start()
         try:
+            if observer_cpus:
+                process_affinity(observer_cpus)
+                process_affinity(app_cpus, process.pid)
             host, port = process.stdout.readline().decode("ascii").strip().split(":")
             assert host == "127.0.0.1"
             with ExitStack() as peers:
@@ -256,37 +268,156 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
             **percentiles(latency, ""), **percentiles(lag, "offer_lag_")}
 
 
+def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus):
+    depth, warmup, deadline_ns = 8, 64, 5_000_000_000
+    start = None
+    cpu = None
+    results = []
+
+    def synchronize():
+        nonlocal start, cpu
+        cpu = time.process_time_ns()
+        start = time.perf_counter_ns() + 20_000_000
+
+    barrier = threading.Barrier(connections, action=synchronize, timeout=10)
+
+    def drive(peers):
+        with ThreadPoolExecutor(max_workers=connections) as readers, ThreadPoolExecutor(max_workers=connections) as writers:
+            def observe(index):
+                peer = peers[index]
+                first = index * (calls + warmup) + 1
+                batches = list(requests(calls, depth, first + warmup))
+                condition = threading.Condition()
+                times, submitted_at, offer_lag, credit_wait = [], [], [], []
+                received = sent = peak = stalls = 0
+                failed = False
+
+                def read_replies(stream):
+                    nonlocal received, failed
+                    try:
+                        for _, replies in batches:
+                            for reply in replies:
+                                if stream.readline(len(reply) + 1) != reply:
+                                    raise RuntimeError("saturation reply identity or order mismatch")
+                                times.append(time.perf_counter_ns())
+                            with condition:
+                                received += 1
+                                condition.notify()
+                        if stream.read(1) != b"":
+                            raise RuntimeError("unexpected reply after the final offer")
+                    except Exception:
+                        with condition:
+                            failed = True
+                            condition.notify()
+                        raise
+
+                try:
+                    with peer.makefile("rb") as stream:
+                        for wire, replies in requests(warmup, depth, first):
+                            list(checked_batch(peer, stream, wire, replies))
+                        reader = readers.submit(read_replies, stream)
+                        try:
+                            barrier.wait()
+                            for index, (wire, _) in enumerate(batches):
+                                due = start + index * depth * 1_000_000_000 // rate
+                                while (remaining := due - time.perf_counter_ns()) > 0:
+                                    time.sleep(remaining / 1e9)
+                                ready = time.perf_counter_ns()
+                                with condition:
+                                    if sent - received >= window:
+                                        stalls += 1
+                                    timeout = max(0, (due + deadline_ns - ready) / 1e9)
+                                    if not condition.wait_for(lambda: failed or sent - received < window, timeout):
+                                        raise RuntimeError("publisher window did not reopen before the deadline")
+                                    if not failed:
+                                        sent += 1
+                                        peak = max(peak, sent - received)
+                                if failed:
+                                    reader.result()
+                                submitted = time.perf_counter_ns()
+                                submitted_at.append(submitted)
+                                offer_lag.append(submitted - due)
+                                credit_wait.append(submitted - ready)
+                                peer.sendall(wire)
+                            peer.shutdown(socket.SHUT_WR)
+                            reader.result(timeout=10)
+                        except Exception:
+                            with suppress(OSError):
+                                peer.shutdown(socket.SHUT_RDWR)
+                            raise
+                except Exception:
+                    barrier.abort()
+                    raise
+
+                latency = [when - (start + (index // depth) * depth * 1_000_000_000 // rate)
+                           for index, when in enumerate(times)]
+                if len(latency) != calls or any(value < 0 or value >= deadline_ns for value in latency):
+                    raise RuntimeError("reply missed its fixed-arrival deadline")
+                after_send = [when - submitted_at[index // depth] for index, when in enumerate(times)]
+                return {"latencies": {"": latency, "offer_lag_": offer_lag, "credit_wait_": credit_wait,
+                                      "from_send_": after_send},
+                        "peak": peak, "stalls": stalls, "ended": times[-1]}
+
+            results.extend(writers.map(observe, range(connections)))
+
+    status, report = multi_exchange(executable, mode, connections, workers, drive, app_cpus, observer_cpus)
+    if status != 0 or report != {"connections": connections, "workers": workers,
+                                "requests": (calls + warmup) * connections}:
+        raise RuntimeError(f"APP completion ledger mismatch (status={status}, report={report})")
+    elapsed = max(item["ended"] for item in results) - start
+    total = calls * connections
+    stats = {"calls": total, "calls_per_second": total * 1e9 / elapsed,
+             "observer_cpu_seconds": (time.process_time_ns() - cpu) / 1e9,
+             "peak_batches_in_flight": max(item["peak"] for item in results),
+             "credit_stall_batches": sum(item["stalls"] for item in results)}
+    for prefix in results[0]["latencies"]:
+        stats.update(percentiles([value for item in results for value in item["latencies"][prefix]], prefix))
+    return stats
+
+
 def variation(samples):
     mid = statistics.median(samples)
-    mad = statistics.median(abs(value - mid) for value in samples) / mid
+    mad = statistics.median(abs(value - mid) for value in samples)
     central = sorted(samples)[1:-1] if len(samples) >= 5 else samples
-    span = (max(central) - min(central)) / mid
-    return {"median": mid, "relative_mad": mad, "relative_central_range": span,
-            "stable": len(samples) >= 5 and mad <= 0.03 and span <= 0.06}
+    span = max(central) - min(central)
+    return {"median": mid, "relative_mad": mad / mid if mid else None,
+            "relative_central_range": span / mid if mid else None,
+            "stable": len(samples) >= 5 and mad <= mid * 0.03 and span <= mid * 0.06}
 
 
-def pin_observer(cpus):
+def process_affinity(cpus, pid=None):
     if hasattr(os, "sched_setaffinity"):
-        os.sched_setaffinity(0, cpus)
-        assert os.sched_getaffinity(0) == cpus
+        if pid is None:
+            os.sched_setaffinity(0, cpus)
+        if os.sched_getaffinity(pid or 0) != cpus:
+            raise RuntimeError("incorrect process affinity")
     elif os.name == "nt":
         import ctypes
         from ctypes import wintypes
 
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         kernel.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
         kernel.SetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
         kernel.GetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.POINTER(ctypes.c_size_t),
                                                  ctypes.POINTER(ctypes.c_size_t)]
-        handle = kernel.GetCurrentProcess()
-        mask, system = ctypes.c_size_t(), ctypes.c_size_t()
-        requested = sum(1 << cpu for cpu in cpus)
-        if not kernel.SetProcessAffinityMask(handle, requested):
+        handle = kernel.GetCurrentProcess() if pid is None else kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
             raise ctypes.WinError(ctypes.get_last_error())
-        if not kernel.GetProcessAffinityMask(handle, ctypes.byref(mask), ctypes.byref(system)) or mask.value != requested:
-            raise RuntimeError("incorrect observer affinity")
+        try:
+            mask, system = ctypes.c_size_t(), ctypes.c_size_t()
+            requested = sum(1 << cpu for cpu in cpus)
+            if pid is None and not kernel.SetProcessAffinityMask(handle, requested):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not kernel.GetProcessAffinityMask(handle, ctypes.byref(mask), ctypes.byref(system)) or mask.value != requested:
+                raise RuntimeError("incorrect process affinity")
+        finally:
+            if pid is not None:
+                kernel.CloseHandle(handle)
     else:
-        raise RuntimeError("observer affinity is unavailable on this platform")
+        raise RuntimeError("process affinity is unavailable on this platform")
 
 
 def measure_concurrent(executable, report, calls, repeats, rate, cpus):
@@ -318,6 +449,47 @@ def measure_concurrent(executable, report, calls, repeats, rate, cpus):
     return data
 
 
+def measure_saturation(executable, report, args):
+    data = {"platform": platform.platform(), "machine": platform.machine(), "python": platform.python_version(),
+            "binary_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "calls_per_connection": args.calls, "warmup_per_connection": 64, "batch_depth": 8,
+            "connections": args.connections, "workers": args.workers, "window_batches": args.window_batches,
+            "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
+            "profiles": [], "complete": False}
+    metrics = ("calls_per_second", "p99_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
+    try:
+        for rate in args.rates:
+            runs = []
+            entry = {"rate_per_connection": rate, "samples": runs}
+            data["profiles"].append(entry)
+            for repeat in range(args.repeats):
+                order = list(MODES) if repeat % 2 == 0 else list(reversed(MODES))
+                run = {}
+                runs.append(run)
+                for name in order:
+                    try:
+                        run[name] = saturation_sample(executable, MODES[name], args.calls, args.connections,
+                                                      args.workers, rate, args.window_batches, args.app_cpus, args.cpus)
+                    except (OSError, AssertionError, RuntimeError, subprocess.SubprocessError, ValueError) as error:
+                        run[name] = {"failure": str(error)}
+            entry["summary"] = {}
+            for name in MODES:
+                samples = [run[name] for run in runs if "failure" not in run[name]]
+                entry["summary"][name] = {"completed": len(samples), "metrics": {
+                    metric: variation([sample[metric] for sample in samples]) for metric in metrics
+                } if samples else {}}
+            counts = ", ".join(f"{name}={summary['completed']}/{args.repeats}" for name, summary in entry["summary"].items())
+            print(f"[saturation] {rate} per connection, {counts}", flush=True)
+            report.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        data["complete"] = all(entry["summary"][name]["completed"] == args.repeats
+                               for entry in data["profiles"] for name in MODES)
+    finally:
+        report.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return data["complete"]
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("executable", type=Path)
@@ -325,21 +497,37 @@ def main():
     workload = parser.add_mutually_exclusive_group()
     workload.add_argument("--measure", action="store_true")
     workload.add_argument("--concurrent", action="store_true")
+    workload.add_argument("--saturation", action="store_true")
     parser.add_argument("--calls", type=int, default=12000)
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--rate", type=int, default=1600, help="offers per connection per second for --concurrent")
-    parser.add_argument("--cpus", type=lambda value: set(map(int, value.split(","))), help="inherited CPU mask for observer and server")
+    parser.add_argument("--cpus", type=lambda value: set(map(int, value.split(","))), help="observer CPU mask, inherited by the APP outside saturation")
+    parser.add_argument("--app-cpus", type=lambda value: set(map(int, value.split(","))), help="separate APP CPU mask for saturation")
+    parser.add_argument("--rates", type=lambda value: tuple(map(int, value.split(","))), default=(1600, 4000, 8000, 16000))
+    parser.add_argument("--connections", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--window-batches", type=int, default=16)
     args = parser.parse_args()
     if not 1000 <= args.calls <= 100000 or not 1 <= args.repeats <= 30:
         parser.error("choose 1000..100000 calls and 1..30 repeats")
     if args.concurrent and not (1 <= args.rate <= 100000 and args.calls <= args.rate * 15):
         parser.error("concurrent offers must fit a 15 second horizon")
-    if args.cpus:
-        if not all(0 <= index < 64 for index in args.cpus):
+    if args.saturation:
+        if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:
+            parser.error("saturation requires disjoint --cpus and --app-cpus")
+        if not all(1 <= rate <= 100000 and args.calls <= rate * 15 for rate in args.rates):
+            parser.error("saturation offers must fit a 15 second horizon at each rate")
+        if not (1 <= args.connections <= 32 and 1 <= args.workers <= 8 and 1 <= args.window_batches <= 64):
+            parser.error("saturation allows 1..32 connections, 1..8 workers and 1..64 batches in flight")
+    for cpus in (args.cpus, args.app_cpus):
+        if cpus and not all(0 <= index < 64 for index in cpus):
             parser.error("CPU indices must be in 0..63")
-        pin_observer(args.cpus)
+    if args.cpus:
+        process_affinity(args.cpus)
     executable = args.executable.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
+    if args.saturation:
+        return 0 if measure_saturation(executable, args.report, args) else 1
     if args.concurrent:
         measure_concurrent(executable, args.report, args.calls, args.repeats, args.rate, args.cpus)
         return
@@ -348,4 +536,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
