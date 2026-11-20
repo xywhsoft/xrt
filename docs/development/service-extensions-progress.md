@@ -21211,3 +21211,17 @@ fault isolation across duplex and dispatch. The package tool unit suite also
 passed on both hosts. Native Linux release and repeatable tail acceptance
 remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xrpc-tcp-package/`.
+
+## 2026-11-21 Relocated ELF packages for xcron, xredis and xmqtt
+
+Built and verified the xcron base and optional scheduler, xredis client, and
+xmqtt client and server shared-package profiles on Ubuntu/WSL. Copied the
+shared libraries and each profile's consumer to a separate directory whose
+name contains a space. All five consumers passed with library search and
+preload environment overrides cleared. Each shared library recorded its
+filename as SONAME. Loader inspection resolved every package sibling from
+the relocated directory, including dependencies of the libraries themselves.
+The audit saved package and consumer hashes and the loader tables for all
+five profiles. Native Linux production and strict release acceptance remain
+pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/elf-package-relocation/`.
