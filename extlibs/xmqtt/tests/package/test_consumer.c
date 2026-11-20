@@ -16,11 +16,11 @@ int main(void)
     xrtClearError();
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_AUTH)
-    xmqttserverauthconfig Auth;
-    if (!xmqttServerAuthConfigInit(&Auth) || Auth.Size != sizeof(Auth) ||
-        Auth.MaxRounds != 32 || Auth.MaxExchangeBytes != 1048576 || Auth.ReauthTimeout != 5000 ||
-        xmqttServerCreateAuth(NULL, &ServerConfig, &Auth, &Server) ||
-        xmqttServerCreateAuthRequired(NULL, &ServerConfig, &Auth, &Server) ||
+    xmqttserverauthconfig ServerAuth;
+    if (!xmqttServerAuthConfigInit(&ServerAuth) || ServerAuth.Size != sizeof(ServerAuth) ||
+        ServerAuth.MaxRounds != 32 || ServerAuth.MaxExchangeBytes != 1048576 || ServerAuth.ReauthTimeout != 5000 ||
+        xmqttServerCreateAuth(NULL, &ServerConfig, &ServerAuth, &Server) ||
+        xmqttServerCreateAuthRequired(NULL, &ServerConfig, &ServerAuth, &Server) ||
         Server != (xmqttserver*)(uintptr_t)1) return 72;
     xrtClearError();
 #endif

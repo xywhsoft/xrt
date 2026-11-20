@@ -21417,3 +21417,10 @@ The gate evidence supports retaining the result as an isolated prototype.
 Native Linux and release performance acceptance remain pending. Raw
 test and repeat evidence is in
 `out/service-extensions/scope-reduction-20261119/xredis-epoll-single-read-regression-verified/`.
+
+### 2026-11-21 · Combined xmqtt client and broker SDK
+
+- The `xmqtt_examples` package now verifies with client and broker enabled together, including broker TLS, WebSocket, enhanced authentication and session storage. The consumer fixture uses a dedicated broker authentication config variable. Building both roles previously produced incompatible declarations in the same C scope.
+- The standard `tools/package.py --verify` path passed for x64 GNU static and shared packages on native Windows and Ubuntu under WSL. Four existing APP examples compiled against each package's public headers and linked against the copied xmqtt and xrt artifacts. The shared executables imported both libraries. The WSL loader resolved both libraries from the relocated directory.
+- Across all four variants, the MQTT 5 client example verified QoS 0/1 echo, ordered PUBACKs, shutdown and retained messages. The independent broker wire test recorded 17 results per variant, including MQTT 5 and 3.1.1 handshakes, dual-version routing and bidirectional QoS 1/2. The authentication and checkpoint examples passed TCP, WebSocket, TLS and secure WebSocket recovery probes. The four variants covered 16 forced process stops and 68 unique QoS 1/2 deliveries during recovery. Session replay required fresh authentication and rejected attempts to reset a session with stale proof.
+- Raw receipts, hashes and wire reports are under `out/service-extensions/scope-reduction-20261119/xmqtt-combined-sdk/`. Native Linux acceptance and the production endurance and performance gates remain open.
