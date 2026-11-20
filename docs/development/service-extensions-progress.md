@@ -21271,3 +21271,26 @@ latency and CPU comparisons only for pairs that completed every offer.
 Raw P50, P95, P99, P99.9, CPU and all rejected offers are retained.
 Native Linux and strict release acceptance remain pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/xredis-tls-eight-connections/`.
+
+## 2026-11-21 xcron matched-precision cohort campaign completion
+
+The Ubuntu/WSL matched-precision leg completed 20 processes pinned to
+logical CPU 6. The audit verified the live executable and runner digests,
+5,120 raw UTC waves, all cohort totals and 2,785,280 callback observations.
+Both platform legs together accounted for 40 processes, 10,240 waves
+and 5,570,560 callbacks. The WSL build receipt records the original
+benchmark source identity and whether the build tree was dirty.
+
+| Active / dormant jobs | Driver | First lateness P99 / P99.9 (ms) | Last lateness P99 / P99.9 (ms) | Callback span P99 / P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | wait | 0.165 / 0.258 | 0.182 / 0.266 | 13.500 / 34.100 |
+| 64 / 960 | waiter-precise | 0.167 / 0.277 | 0.168 / 0.278 | 0.900 / 1.400 |
+| 1024 / 0 | wait | 0.167 / 0.265 | 0.287 / 0.382 | 147.900 / 232.300 |
+| 1024 / 0 | waiter-precise | 0.140 / 0.226 | 0.146 / 0.231 | 5.700 / 14.600 |
+
+0 of eight WSL first/last P99 series passed the 3% median absolute
+deviation and 6% central-range limits. The native Windows leg and the
+WSL leg retain separate results. Native Linux qualification and the
+scheduler release-tail gate remain open. The raw reports, launch and build
+receipts and the independent audits are in
+`out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
