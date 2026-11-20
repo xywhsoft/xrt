@@ -20796,3 +20796,52 @@ Tool and binary digests, fixture ledger, commands, raw traces and
 audit are under
 `out/service-extensions/scope-reduction-20261119/xredis-socket-accounting/`.
 [Socket tracing commands](../../extlibs/xredis/docs/client-performance.md#plaintext-socket-io-accounting).
+
+## 2026-11-21 XRT TCP rearm after short epoll reads
+
+The xredis socket trace located a speculative receive in XRT's
+readiness loop. On an ordinary epoll read event, a successful short
+read now rearms the existing level-triggered one-shot watch after
+publishing the bytes. Full reads still drive the bounded loop. Read
+events with hangup or error retain the terminal processing path.
+The optimization applies to the epoll backend.
+[Linux epoll semantics](https://man7.org/linux/man-pages/man7/epoll.7.html).
+
+The rearm regression holds the first read callback after one byte.
+The peer queues the remaining payload and FIN while the worker is
+held. The test checks the remaining bytes are readable before releasing
+the worker, then verifies ordered delivery, EOF and stream retirement.
+It passed 25 times under WSL ASan/UBSan with leak detection. Returning
+without rearming in an isolated negative build failed at the expected
+EOF wait. The modular TCP and TCP Future suites passed on Windows
+and WSL. Rebuilt MQTT broker examples also passed the ordinary
+dual-version probe and five 1,000-connection pressure runs each.
+The pressure probe now recognizes a refusal reset during connect.
+
+The matched WSL comparison used the original XRT at `c0ae848d`
+and the regenerated candidate. It verified all 400,000 replies across
+30 runs using four RESP3 connections, 1,024-byte mixed GET/SET values,
+a 128-slot window and two seconds per run. The Redis fixture used
+logical CPU 6 and both client arms used CPUs 8 and 10. The trace used
+Linux-local temporary storage.
+
+| Traced at 2,000 offers/s | Baseline median | Candidate median |
+| --- | ---: | ---: |
+| TCP send calls | 4,009 | 4,009 |
+| TCP receive calls | 6,719 | 3,926 |
+| Receive EAGAIN | 3,159 | 4 |
+| TCP epoll registrations and removals, each | 3,163 | 3,858 |
+| epoll wait calls | 837 | 1,285 |
+| Send, receive, TCP epoll control and epoll wait combined | 17,897 | 16,933 |
+
+The combined row is the median of per-run totals and fell 5.4%.
+The untraced throughput medians matched the offered rates. At 2,000
+and 12,000 offers/s the untraced P99 medians were 292.4 / 272.8 us
+and 573.8 / 556.6 us in baseline / candidate order. The 12,000-rate
+process CPU median was 2.963 / 3.046 seconds. All four untraced P99
+series exceeded the variation gates. Native Linux release performance
+remains open.
+
+The source snapshots, binaries, modular and sanitizer logs, socket
+traces, Redis counter checks and audit are under
+`out/service-extensions/scope-reduction-20261119/xredis-epoll-short-read/`.

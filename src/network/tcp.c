@@ -1144,7 +1144,7 @@ static void __xrtNetStreamFreeSecureTaken(ptr pContext,cbytes pData,size_t iSize
 
 
 
-static void __xrtNetStreamDriveRead(xnetstream* pStream);
+static void __xrtNetStreamDriveRead(xnetstream* pStream, bool bRearmShort);
 static void __xrtNetStreamDriveWrite(xnetstream* pStream);
 static void __xrtNetStreamTryFinish(xnetstream* pStream);
 static void __xrtNetStreamReleaseRuntime(xnetstream* pStream);
@@ -1781,7 +1781,7 @@ static bool __xrtNetStreamSubmitReadProbe(xnetstream* pStream)
 
 
 /* 在 readiness 后端同步排空可读数据，在 completion 后端预投递一次。 */
-static void __xrtNetStreamDriveRead(xnetstream* pStream)
+static void __xrtNetStreamDriveRead(xnetstream* pStream, bool bRearmShort)
 {
 	if ( (xrtNetStreamState(pStream) != XNET_STREAM_OPEN) ||
 		 xrtAtomic32Load(&pStream->CloseGate, XMEMORY_ACQUIRE) ||
@@ -1868,6 +1868,10 @@ static void __xrtNetStreamDriveRead(xnetstream* pStream)
 			 ) ) {
 			return;
 		}
+		/* Level-triggered epoll reports pending data or EOF on the new watch. */
+		if ( bRearmShort && (iReceived < Span.Size) ) {
+			break;
+		}
 	}
 	if ( !__xrtNetStreamWatch(pStream) ) {
 		__xrtNetStreamRememberError(pStream);
@@ -1893,7 +1897,7 @@ void __xrtNetStreamReadRefresh(xnetstream* pStream, bool bDrive)
 		XMEMORY_RELEASE
 	);
 	if ( bDrive && (iBuffered < pStream->Config.ReadLimit) ) {
-		__xrtNetStreamDriveRead(pStream);
+		__xrtNetStreamDriveRead(pStream, false);
 	}
 }
 
@@ -2265,7 +2269,7 @@ static void __xrtNetStreamOpened(xnetstream* pStream)
 		(void)xrtNetStreamRef(pStream);
 		__xrtNetStreamDriveWrite(pStream);
 		if ( xrtNetStreamState(pStream) == XNET_STREAM_OPEN ) {
-			__xrtNetStreamDriveRead(pStream);
+			__xrtNetStreamDriveRead(pStream, false);
 		}
 		xrtNetStreamDestroy(pStream);
 	}
@@ -2326,7 +2330,7 @@ static void __xrtNetStreamReadComplete(
 		pEvent->Bytes,
 		iCapacity
 	);
-	__xrtNetStreamDriveRead(pStream);
+	__xrtNetStreamDriveRead(pStream, false);
 }
 
 
@@ -2362,7 +2366,7 @@ static void __xrtNetStreamReadProbeComplete(
 		return;
 	}
 	pStream->ReadDirect = true;
-	__xrtNetStreamDriveRead(pStream);
+	__xrtNetStreamDriveRead(pStream, false);
 }
 
 
@@ -2493,8 +2497,13 @@ static void __xrtNetStreamCompletion(
 			goto Finish;
 		}
 		if ( (pEvent->Flags & XNET_PORT_EVENT_READ) != 0 ) {
+			bool bRearmShort = false;
+			#if defined(XRT_FEATURE_NET_PORT_EPOLL) && defined(__linux__)
+			bRearmShort = (pEvent->Flags & (XNET_PORT_EVENT_HANGUP | XNET_PORT_EVENT_ERROR)) == 0 &&
+				xrtNetPortBackend(__xrtNetWorkerPortBorrow(pStream->Worker)) == XNET_PORT_EPOLL;
+			#endif
 			bDriven = true;
-			__xrtNetStreamDriveRead(pStream);
+			__xrtNetStreamDriveRead(pStream, bRearmShort);
 		}
 		if ( (pEvent->Flags & XNET_PORT_EVENT_WRITE) != 0 ) {
 			bDriven = true;
@@ -4421,7 +4430,7 @@ static void __xrtNetStreamApplyResume(xnetstream* pStream)
 			&pStream->ReadPaused,
 			XMEMORY_ACQUIRE
 		 ) ) {
-		__xrtNetStreamDriveRead(pStream);
+		__xrtNetStreamDriveRead(pStream, false);
 	}
 }
 
@@ -5075,7 +5084,7 @@ static void __xrtNetListenerAcceptTask(
 				&pStream->CloseGate,
 				XMEMORY_ACQUIRE
 			 ) ) {
-			__xrtNetStreamDriveRead(pStream);
+			__xrtNetStreamDriveRead(pStream, false);
 		}
 	} else {
 		if ( !bSetupFailed && !bClosing ) {

@@ -16,6 +16,9 @@ typedef struct testcontext {
 	int FirstFd;
 	int LastFd;
 	uint32 LastWorker;
+	xatomic32 ReadHeld;
+	xatomic32 ReleaseRead;
+	size_t Received;
 } testcontext;
 
 static const char Payload[262144];
@@ -184,6 +187,87 @@ static void testReuse(uint32 iWorkers)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetEngineDestroy(pEngine), "retire the epoll engine");
 }
+
+static const char RearmPayload[] = "abcde";
+
+static bool testRearmAccept(xnetlistener* pListener, xnetstream* pStream, ptr pData)
+{
+	testcontext* pContext = (testcontext*)pData;
+
+	(void)pListener;
+	testRequire(xrtNetStreamSetData(pStream, pContext), "set rearm stream context");
+	pContext->LastFd = (int)xrtNetSocketNative(xrtNetStreamSocket(pStream));
+	pContext->LastWorker = xrtNetWorkerIndex(xrtNetStreamWorker(pStream));
+	xrtAtomic32Store(&pContext->Accepted, 1, XMEMORY_RELEASE);
+	return true;
+}
+
+static void testRearmRead(xnetstream* pStream, xnetbuf* pBuffer, ptr pData)
+{
+	testcontext* pContext = (testcontext*)pData;
+	char Bytes[sizeof(RearmPayload) - 1];
+	size_t Available = xrtNetBufSize(pBuffer);
+
+	(void)pStream;
+	testRequire(Available && Available <= sizeof(Bytes) - pContext->Received,
+		"rearmed read must deliver each byte once");
+	testRequire(xrtNetBufRead(pBuffer, Bytes, Available) == Available &&
+		memcmp(Bytes, RearmPayload + pContext->Received, Available) == 0,
+		"rearmed read must preserve byte order");
+	pContext->Received += Available;
+	if ( pContext->Received == 1 ) {
+		xrtAtomic32Store(&pContext->ReadHeld, 1, XMEMORY_RELEASE);
+		testWait(&pContext->ReleaseRead, 1, "wait for peer data before rearming");
+	}
+}
+
+static void testRearmEnd(xnetstream* pStream, ptr pData)
+{
+	testcontext* pContext = (testcontext*)pData;
+
+	testRequire(pContext->Received == sizeof(RearmPayload) - 1,
+		"peer FIN must follow all data queued before rearm");
+	testRequire(xrtNetStreamClose(pStream), "close the rearmed stream");
+}
+
+static void testRearmPendingRead(void)
+{
+	testcontext Context = {0};
+	xnetengineconfig EngineConfig;
+	xnetlistenconfig ListenConfig;
+	xnetlistenerevents ListenerEvents = {.Accept = testRearmAccept, .Close = testListenerClose};
+	xnetstreamevents StreamEvents = {.Read = testRearmRead, .End = testRearmEnd, .Close = testClose};
+	xnetaddr Address;
+
+	xrtNetEngineConfigInit(&EngineConfig);
+	EngineConfig.Workers = 1;
+	EngineConfig.Backend = XNET_PORT_EPOLL;
+	xnetengine* pEngine = xrtNetEngineCreate(&EngineConfig);
+	testRequire(pEngine != NULL && xrtNetEngineStart(pEngine), "start rearm engine");
+	xrtNetListenConfigInit(&ListenConfig);
+	xnetlistener* pListener =
+		xrtNetListen(pEngine, &ListenConfig, &ListenerEvents, &StreamEvents, &Context);
+	testRequire(pListener != NULL && xrtNetListenerLocal(pListener, &Address), "start rearm listener");
+
+	int iPeer = testConnect(Address.Port);
+	testWait(&Context.Accepted, 1, "wait for rearm stream");
+	testWaitForWorker(pEngine, &Context);
+	testRequire(send(iPeer, RearmPayload, 1, 0) == 1, "send one byte for a short read");
+	testWait(&Context.ReadHeld, 1, "wait for the first read callback");
+	testRequire(send(iPeer, RearmPayload + 1, sizeof(RearmPayload) - 2, 0) == sizeof(RearmPayload) - 2 &&
+		shutdown(iPeer, SHUT_WR) == 0, "send the remaining bytes and FIN before rearm");
+	struct pollfd Pending = { Context.LastFd, POLLIN, 0 };
+	testRequire(poll(&Pending, 1, 5000) == 1 && (Pending.revents & POLLIN),
+		"remaining peer bytes must be ready before the first callback returns");
+	xrtAtomic32Store(&Context.ReleaseRead, 1, XMEMORY_RELEASE);
+	testWait(&Context.Closed, 1, "wait for the rearmed read and EOF");
+	(void)close(iPeer);
+
+	testRequire(xrtNetListenerClose(pListener), "close the rearm listener");
+	testWait(&Context.ListenerClosed, 1, "wait for rearm listener close");
+	xrtNetListenerDestroy(pListener);
+	testRequire(xrtNetEngineDestroy(pEngine), "retire the rearm engine");
+}
 #endif
 
 int main(void)
@@ -191,7 +275,8 @@ int main(void)
 	#if defined(__linux__) && defined(XRT_FEATURE_NET_PORT_EPOLL)
 		testReuse(1);
 		testReuse(64);
-		printf("[PASS] TCP epoll descriptor reuse after partial readiness\n");
+		testRearmPendingRead();
+		printf("[PASS] TCP epoll descriptor reuse and pending read rearm\n");
 	#else
 		testRequire(true, "epoll is unavailable on this platform");
 	#endif
