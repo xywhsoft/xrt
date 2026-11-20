@@ -4,6 +4,7 @@ from contextlib import ExitStack
 from pathlib import Path
 import select
 import socket
+import ssl
 import subprocess
 import time
 
@@ -113,7 +114,7 @@ def case(binary, name, qos):
                 p.wait(timeout=5)
 
 
-def shared_case(binary, duplicate):
+def shared_case(binary, duplicate, tls=None, ca=None):
     with ExitStack() as stack:
         listener = stack.enter_context(socket.socket())
         listener.bind(("127.0.0.1", 0))
@@ -122,14 +123,19 @@ def shared_case(binary, duplicate):
         port = listener.getsockname()[1]
         rate = "100" if duplicate else "1"
         warmup = 2 if duplicate else 4
-        process = subprocess.Popen([binary, "--remote", str(port), "4", "4", rate, str(warmup), "shared", "2", "1"],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        command = [binary, "--remote", str(port), "4", "4", rate, str(warmup), "shared", "2", "1"]
+        if tls:
+            command.extend(("--tls", str(ca), "localhost"))
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             peers = []
             for member in range(5):
                 peer, _ = listener.accept()
-                peers.append(stack.enter_context(peer))
+                stack.enter_context(peer)
                 peer.settimeout(6)
+                if tls:
+                    peer = stack.enter_context(tls.wrap_socket(peer, server_side=True))
+                peers.append(peer)
                 assert frame(peer)[0] == b"\x10"
                 peer.sendall(b"\x20\x03\x00\x00\x00")
                 if member < 4:
@@ -178,7 +184,35 @@ def shared_case(binary, duplicate):
             result = dict(line.split(": ", 1) for line in out.splitlines())
             assert result["offered"] == "4" and result["deliveries"] == "8" and result["publish_confirmed"] == "4"
             assert result["share_min_deliveries"] == "0" and result["share_max_deliveries"] == "4"
+            if tls:
+                assert result["tls_connections"] == "5"
             print("arbitrary shared member selection and idle reader verified")
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
+def reject_tls_identity(binary, tls, ca, name):
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        listener.settimeout(8)
+        port = listener.getsockname()[1]
+        command = [binary, "--remote", str(port), "1", "1", "100", "0", "exact", "--tls", str(ca), name]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            peer, _ = listener.accept()
+            with peer:
+                peer.settimeout(6)
+                try:
+                    with tls.wrap_socket(peer, server_side=True) as secure:
+                        assert not secure.recv(1), "observer sent MQTT data before verifying TLS identity"
+                except (ssl.SSLError, ConnectionError):
+                    pass
+            out, err = process.communicate(timeout=8)
+            assert process.returncode == 1 and not out and "TLS connection 0:" in err, (process.returncode, out, err)
+            print(f"TLS identity rejected ({ca.name}, {name}) before MQTT")
         finally:
             if process.poll() is None:
                 process.kill()
@@ -188,6 +222,7 @@ def shared_case(binary, duplicate):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("observer", type=Path)
+    parser.add_argument("--tls-credentials", type=Path, help="localhost TLS fixture with an additional unrelated wrong.pem CA")
     args = parser.parse_args()
     binary = str(args.observer.resolve(strict=True))
     for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("wrong-pubcomp", 2),
@@ -195,6 +230,15 @@ def main():
         case(binary, name, qos)
     shared_case(binary, False)
     shared_case(binary, True)
+    if args.tls_credentials:
+        root = args.tls_credentials.resolve(strict=True)
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.minimum_version = ssl.TLSVersion.TLSv1_3
+        tls.load_cert_chain(root / "certificate.pem", root / "key.pem")
+        shared_case(binary, False, tls, root / "ca.pem")
+        shared_case(binary, True, tls, root / "ca.pem")
+        reject_tls_identity(binary, tls, root / "wrong.pem", "localhost")
+        reject_tls_identity(binary, tls, root / "ca.pem", "wrong.invalid")
 
 
 if __name__ == "__main__":

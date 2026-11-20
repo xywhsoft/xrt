@@ -18970,3 +18970,60 @@ ordinary maturity passed. Strict release still lists 39 developing modules.
 Reproduce from [the external broker comparison guide](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).
 Source snapshots, per-repeat results and validation logs are under
 out/service-extensions/scope-reduction-20261119/xmqtt-shared-broker/.
+
+## 2026-11-20 MQTT 5 verified TLS broker comparison
+
+The fixed-arrival observer connected directly to xmqtt and Mosquitto 2.1.2
+with TLS 1.3, AES-128-GCM, X25519 and verification of the supplied CA and
+`localhost` identity. An independent Python TLS connection checked the
+protocol, cipher and identical leaf before each sample. The xmqtt TLS APP
+example used one engine worker. Each broker used logical CPU 0 while the
+observer used CPUs 4, 6 and 8. Every connection used a clean MQTT 5 session
+and a 128-byte payload. Reliable publisher and subscriber windows were 16.
+The observer's TLS worker, Futures and plaintext copies were common to
+both measurements. Handshakes finished before the timed intervals.
+
+The exact case had one subscriber at 1,000 publications/s. The shared
+case had eight subscribers in two groups at 2,000 publications/s. Five
+alternating repeats per broker, case, platform and QoS used 300 warmup
+and 3,000 measured publications each. All 120 repeats completed. The
+observer verified 660 authenticated connections, 360,000 measured
+publications, 540,000 deliveries and 240,000 terminal publisher
+confirmations. The shared case delivered approximately 4,000 messages/s
+for both brokers at each QoS level.
+
+| Environment | QoS | Shared delivery P99 in microseconds, xmqtt / Mosquitto | Broker CPU seconds, xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 0 | 4,076.7 / 3,495.2 | 0.172 / 0.109 |
+| Windows x64 | 1 | 3,720.9 / 3,300.1 | 0.547 / 0.328 |
+| Windows x64 | 2 | 1,111.2 / 1,194.6 | 0.547 / 0.578 |
+| Ubuntu/WSL x64 | 0 | 289.7 / 281.9 | 0.310 / 0.240 |
+| Ubuntu/WSL x64 | 1 | 384.8 / 370.7 | 0.470 / 0.330 |
+| Ubuntu/WSL x64 | 2 | 640.1 / 702.4 | 0.690 / 0.530 |
+
+The table gives medians of the five samples in each group. All 24 ingress
+series met the variation limits. Eight of 24 delivery P99 series and six
+of 16 publisher P99 series met them. Stable release tails, native Linux
+and durable-session comparison remain open.
+
+Both platforms passed the scripted plaintext and TLS cases, including
+an idle shared member, a cross-member QoS 2 duplicate before PUBREL,
+an unrelated CA and a wrong DNS identity. The peer received zero MQTT
+bytes in both TLS identity negatives. The plaintext-only observer passed
+the embedded shared workload on both platforms. The TLS APP also passed
+independent MQTT 5 and 3.1.1 interoperability, fragmented traffic, live
+takeover and queued replay on both platforms. WSL ASan/UBSan with
+leak detection passed the scripted cases and short QoS 2 runs against
+both brokers. Initial observer builds omitted TLS feature selections.
+The build flags now require certificate verification and the selected
+TLS 1.3 backends. The Windows TLS APP build used `-fno-ipa-cp` after
+GCC 16.2 terminated during its IPA constant propagation pass. The
+first failures and the final successful runs are retained.
+
+Generated features, single headers and public documentation passed their
+checks. Ordinary maturity passed. Strict release still reports 39
+developing modules.
+
+Reproduce from [the verified TLS comparison guide](../../extlibs/xmqtt/bench/README.md#verified-tls-broker-comparison).
+Reports, source snapshots and validation logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-tls-broker/`.

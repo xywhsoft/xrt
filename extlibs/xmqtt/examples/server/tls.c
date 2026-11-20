@@ -1,10 +1,12 @@
 #include "app_listener.h"
 #include "app_tls.h"
+#include <string.h>
 
 int main(int Argc, char** Argv)
 {
-	if (Argc != 3) {
-		puts("usage: examples_server_tls certificate.der rsa-private-key.der");
+	bool Compare = Argc == 4 && !strcmp(Argv[3], "--compare");
+	if (Argc != 3 && !Compare) {
+		puts("usage: examples_server_tls certificate.der rsa-private-key.der [--compare]");
 		return Argc == 1 ? 0 : 1;
 	}
 	xtlsserverconfig Tls;
@@ -17,7 +19,7 @@ int main(int Argc, char** Argv)
 #endif
 	serverexample Example = {.Tls = &Tls};
 	char Endpoint[80];
-	bool Ready = exampleServerStart(&Example, &Config, 2) &&
+	bool Ready = exampleServerStart(&Example, &Config, Compare ? 1 : 2) &&
 		xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint));
 	if (Ready) {
 		puts(Endpoint);

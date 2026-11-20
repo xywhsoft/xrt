@@ -8,6 +8,17 @@
 #endif
 #include "../examples/server/app_listener.h"
 #include <xrt/memory_stats.h>
+#if defined(XMQTT_BENCH_TLS)
+#include <xrt/tls_client.h>
+#include <xrt/tls_stream.h>
+#include <xrt/tls_verify.h>
+#include <xrt/x509.h>
+#if !defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || !defined(XRT_FEATURE_TLS_RECORD_AES) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || \
+	!defined(XRT_FEATURE_TLS_STREAM_FUTURE) || !defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#error "See the verified TLS broker comparison build flags in bench/README.md"
+#endif
+#endif
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,26 +35,87 @@ static bool benchSend(xnetsocket Socket, const unsigned char* Data, size_t Size)
 	return true;
 }
 
-static bool benchReceive(xnetsocket Socket, unsigned char* Data, size_t Size)
+typedef struct benchConnection {
+	xnetsocket Socket;
+#if defined(XMQTT_BENCH_TLS)
+	xtlsstream* Tls;
+#endif
+} benchConnection;
+
+#if defined(XMQTT_BENCH_TLS)
+static bool benchTlsAwait(xfuture* Future, const xatomic32* Stop)
+{
+	if (!Future) return false;
+	xwaitresult Result;
+	do {
+		Result = xrtFutureWaitFor(Future, Stop ? 200 : 5000);
+	} while (Result == XWAIT_TIMEOUT && Stop && !xrtAtomic32Load(Stop, XMEMORY_ACQUIRE));
+	if (Result != XWAIT_OK) (void)xrtFutureCancel(Future);
+	return Result == XWAIT_OK && xrtFutureState(Future) == XFUTURE_RESOLVED;
+}
+
+static bool benchTlsFinish(xfuture* Future)
+{
+	bool OK = benchTlsAwait(Future, NULL);
+	if (Future) xrtFutureDestroy(Future);
+	return OK;
+}
+#endif
+
+static bool benchWireSend(benchConnection Connection, const unsigned char* Data, size_t Size)
+{
+#if defined(XMQTT_BENCH_TLS)
+	if (Connection.Tls) return benchTlsFinish(xrtTlsStreamSendAsync(Connection.Tls, Data, Size));
+#endif
+	return benchSend(Connection.Socket, Data, Size);
+}
+
+static size_t benchWireRead(benchConnection Connection, unsigned char* Data, size_t Size, const xatomic32* Stop)
+{
+#if defined(XMQTT_BENCH_TLS)
+	if (Connection.Tls) {
+		xfuture* Future = xrtTlsStreamRecvAsync(Connection.Tls, Size);
+		size_t Read = 0;
+		if (benchTlsAwait(Future, Stop)) {
+			xnetbytes* Bytes = xrtFutureValue(Future);
+			xbytesview View = Bytes ? xrtNetBytesView(Bytes) : (xbytesview){0};
+			if (View.Size && View.Size <= Size) {
+				memcpy(Data, View.Data, View.Size);
+				Read = View.Size;
+			}
+		}
+		if (Future) xrtFutureDestroy(Future);
+		return Read;
+	}
+#endif
+	(void)Stop;
+	size_t Read = 0;
+	return xrtNetSocketRecv(Connection.Socket, Data, Size, &Read) == XNET_RESULT_OK ? Read : 0;
+}
+
+static bool benchWireReceive(benchConnection Connection, unsigned char* Data, size_t Size)
 {
 	while (Size) {
-		size_t Read;
-		if (xrtNetSocketRecv(Socket, Data, Size, &Read) != XNET_RESULT_OK || !Read) return false;
+		size_t Read = benchWireRead(Connection, Data, Size, NULL);
+		if (!Read) return false;
 		Data += Read;
 		Size -= Read;
 	}
 	return true;
 }
 
-static bool benchConnectFrame(xnetsocket Socket, const xnetaddr* Address,
-	const unsigned char* Frame, size_t Size, bool Resume, uint16 RequiredWindow)
+static bool benchReceive(xnetsocket Socket, unsigned char* Data, size_t Size)
+{
+	return benchWireReceive((benchConnection){.Socket = Socket}, Data, Size);
+}
+
+static bool benchMqttConnect(benchConnection Connection, const unsigned char* Frame, size_t Size,
+	bool Resume, uint16 RequiredWindow)
 {
 	unsigned char Reply[48];
-	if (!xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) ||
-		xrtNetSocketConnect(Socket, Address) != XNET_RESULT_OK ||
-		!benchSend(Socket, Frame, Size) || !benchReceive(Socket, Reply, 2) ||
+	if (!benchWireSend(Connection, Frame, Size) || !benchWireReceive(Connection, Reply, 2) ||
 		Reply[0] != 0x20 || Reply[1] < 3 || Reply[1] > sizeof(Reply) - 2 ||
-		!benchReceive(Socket, Reply + 2, Reply[1]) || Reply[2] != Resume || Reply[3]) return false;
+		!benchWireReceive(Connection, Reply + 2, Reply[1]) || Reply[2] != Resume || Reply[3]) return false;
 	if (!RequiredWindow) return true;
 	xmqttproperty Properties[16];
 	const xmqttcodecbuffers Buffers = {.Properties = Properties, .PropertyCapacity = 16};
@@ -57,12 +129,20 @@ static bool benchConnectFrame(xnetsocket Socket, const xnetaddr* Address,
 	return true; /* Omitting Receive Maximum advertises 65535. */
 }
 
-static bool benchConnectLimits(xnetsocket Socket, const xnetaddr* Address, size_t Index, uint16 Window,
-	bool Persistent, bool Resume, uint16 RequiredWindow)
+static bool benchConnectFrame(xnetsocket Socket, const xnetaddr* Address,
+	const unsigned char* Frame, size_t Size, bool Resume, uint16 RequiredWindow)
+{
+	return xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1) &&
+		xrtNetSocketConnect(Socket, Address) == XNET_RESULT_OK &&
+		benchMqttConnect((benchConnection){.Socket = Socket}, Frame, Size, Resume, RequiredWindow);
+}
+
+static size_t benchConnectWire(unsigned char Frame[31], size_t Index, uint16 Window, bool Persistent, bool Resume)
 {
 	/* Eight ASCII digits keep each identity distinct and valid in MQTT. */
-	unsigned char Frame[31] = {0x10,0,0,4,'M','Q','T','T',5,Resume ? 0 : 2,0,0};
-	size_t Size = 13;
+	const unsigned char Header[] = {0x10,0,0,4,'M','Q','T','T',5,Resume ? 0 : 2,0,0,0};
+	memcpy(Frame, Header, sizeof(Header));
+	size_t Size = sizeof(Header);
 	if (Window) {
 		Frame[Size++] = 0x21;
 		Frame[Size++] = (uint8)(Window >> 8);
@@ -83,20 +163,22 @@ static bool benchConnectLimits(xnetsocket Socket, const xnetaddr* Address, size_
 		Frame[--Pos] = '0' + (unsigned char)(Index % 10u);
 		Index /= 10u;
 	}
-	return benchConnectFrame(Socket, Address, Frame, Size, Resume, RequiredWindow);
+	return Size;
 }
 
 static bool benchConnect(xnetsocket Socket, const xnetaddr* Address, size_t Index, bool Window,
 	bool Persistent, bool Resume)
 {
-	return benchConnectLimits(Socket, Address, Index, Window, Persistent, Resume, 0);
+	unsigned char Frame[31];
+	size_t Size = benchConnectWire(Frame, Index, Window, Persistent, Resume);
+	return benchConnectFrame(Socket, Address, Frame, Size, Resume, 0);
 }
 
 static const unsigned char ExactSubscribe[] = {0x82,10,0,1,0,0,4,'l','o','a','d',0};
 static const unsigned char SubscribeAck[] = {0x90,4,0,1,0,0};
 static const unsigned char RetainedFrame[138] = {0x31,0x87,1,0,4,'l','o','a','d',0};
 
-static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared, uint8 Qos)
+static bool benchWireSubscribe(benchConnection Connection, bool Overlap, bool Shared, uint8 Qos)
 {
 	const unsigned char Group[] = {0x82,19,0,1,0,0,13,'$','s','h','a','r','e','/','g','/','l','o','a','d',0};
 	const unsigned char Extra[] = {0x82,16,0,1,0,0,4,'l','o','a','d',0,0,3,'+','/','#',0};
@@ -108,7 +190,13 @@ static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared, uint8 Q
 	const unsigned char* Wire = Shared ? Group : (Overlap ? Extra : (Qos ? QosSubscribe : ExactSubscribe));
 	size_t WireSize = Shared ? sizeof(Group) : (Overlap ? sizeof(Extra) : sizeof(ExactSubscribe));
 	const unsigned char* Expected = Overlap ? ExtraAck : (Qos ? QosAck : SubscribeAck);
-	return benchSend(Socket, Wire, WireSize) && benchReceive(Socket, Reply, Bytes) && !memcmp(Reply, Expected, Bytes);
+	return benchWireSend(Connection, Wire, WireSize) &&
+		benchWireReceive(Connection, Reply, Bytes) && !memcmp(Reply, Expected, Bytes);
+}
+
+static bool benchSubscribe(xnetsocket Socket, bool Overlap, bool Shared, uint8 Qos)
+{
+	return benchWireSubscribe((benchConnection){.Socket = Socket}, Overlap, Shared, Qos);
 }
 
 static bool benchReceiveFlowReply(xnetsocket Socket, unsigned char Header, uint16 Id)
@@ -118,10 +206,15 @@ static bool benchReceiveFlowReply(xnetsocket Socket, unsigned char Header, uint1
 	return benchReceive(Socket, Reply, sizeof(Reply)) && !memcmp(Reply, Expected, sizeof(Reply));
 }
 
-static bool benchSendFlowReply(xnetsocket Socket, unsigned char Header, uint16 Id)
+static bool benchWireFlowReply(benchConnection Connection, unsigned char Header, uint16 Id)
 {
 	const unsigned char Wire[] = {Header, 2, (uint8)(Id >> 8), (uint8)Id};
-	return benchSend(Socket, Wire, sizeof(Wire));
+	return benchWireSend(Connection, Wire, sizeof(Wire));
+}
+
+static bool benchSendFlowReply(xnetsocket Socket, unsigned char Header, uint16 Id)
+{
+	return benchWireFlowReply((benchConnection){.Socket = Socket}, Header, Id);
 }
 
 static bool benchPublishRound(const xnetsocket* Sockets, size_t Peers, size_t Round, size_t Deliveries,
@@ -317,7 +410,7 @@ typedef struct benchRemoteShared {
 } benchRemoteShared;
 
 typedef struct benchRemotePeer {
-	xnetsocket Socket;
+	benchConnection Connection;
 	double Start, Rate;
 	size_t Warmup, Rounds;
 	double* Samples;
@@ -331,16 +424,16 @@ typedef struct benchRemotePeer {
 	bool Complete;
 } benchRemotePeer;
 
-static bool benchPing(xnetsocket Socket)
+static bool benchPing(benchConnection Connection)
 {
 	const unsigned char Wire[] = {0xc0,0};
 	unsigned char Reply[2];
-	return benchSend(Socket, Wire, sizeof(Wire)) && benchReceive(Socket, Reply, sizeof(Reply)) &&
+	return benchWireSend(Connection, Wire, sizeof(Wire)) && benchWireReceive(Connection, Reply, sizeof(Reply)) &&
 		Reply[0] == 0xd0 && !Reply[1];
 }
 
 typedef struct benchRemoteReader {
-	xnetsocket Socket;
+	benchConnection Connection;
 	benchRemoteShared* Shared;
 	unsigned char Bytes[4096];
 	size_t Begin, End;
@@ -348,7 +441,7 @@ typedef struct benchRemoteReader {
 
 static bool benchRemoteSharedReadable(const benchRemoteReader* Reader)
 {
-	intptr_t Socket = xrtNetSocketNative(Reader->Socket);
+	intptr_t Socket = xrtNetSocketNative(Reader->Connection.Socket);
 	if (Socket == -1) return false;
 	while (!xrtAtomic32Load(&Reader->Shared->Failed, XMEMORY_ACQUIRE)) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -376,10 +469,10 @@ static bool benchRemoteReadFrame(benchRemoteReader* Reader, xmqttframe* Frame)
 		}
 		if (Status != XMQTT_WIRE_MORE || Pending == sizeof(Reader->Bytes)) return false;
 		if (Pending && Reader->Begin) memmove(Reader->Bytes, Reader->Bytes + Reader->Begin, Pending);
-		if (Reader->Shared && !benchRemoteSharedReadable(Reader)) return false;
-		size_t Read = 0;
-		if (xrtNetSocketRecv(Reader->Socket, Reader->Bytes + Pending, sizeof(Reader->Bytes) - Pending,
-			&Read) != XNET_RESULT_OK || !Read) return false;
+		if (Reader->Shared && Reader->Connection.Socket && !benchRemoteSharedReadable(Reader)) return false;
+		size_t Read = benchWireRead(Reader->Connection, Reader->Bytes + Pending,
+			sizeof(Reader->Bytes) - Pending, Reader->Shared ? &Reader->Shared->Failed : NULL);
+		if (!Read) return false;
 		Reader->Begin = 0;
 		Reader->End = Pending + Read;
 	}
@@ -454,7 +547,7 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 {
 	typedef struct { uint16 Id; size_t Round; } pending;
 	pending Pending[64] = {0};
-	benchRemoteReader Reader = {.Socket = Peer->Socket, .Shared = Peer->Shared};
+	benchRemoteReader Reader = {.Connection = Peer->Connection, .Shared = Peer->Shared};
 	size_t Received = 0, Finished = 0, Total = Peer->Warmup + Peer->Rounds;
 	while (Peer->Shared || Finished < Total) {
 		xmqttframe Frame;
@@ -472,10 +565,10 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 					if (Pending[I].Id == Id) return false;
 					if (!Pending[I].Id && !Free) Free = Pending + I;
 				}
-				if (!Free || !benchSendFlowReply(Peer->Socket, 0x50, Id)) return false;
+				if (!Free || !benchWireFlowReply(Peer->Connection, 0x50, Id)) return false;
 				*Free = (pending){Id, Round};
 			} else {
-				if ((Peer->Qos && !benchSendFlowReply(Peer->Socket, 0x40, Id)) ||
+				if ((Peer->Qos && !benchWireFlowReply(Peer->Connection, 0x40, Id)) ||
 					!benchRemoteDelivery(Peer, Round, xrtTimer())) return false;
 				++Finished;
 			}
@@ -485,7 +578,7 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 			size_t I = 0;
 			if (!Id) return false;
 			while (I < Peer->Window && Pending[I].Id != Id) ++I;
-			if (I == Peer->Window || !benchSendFlowReply(Peer->Socket, 0x70, Id) ||
+			if (I == Peer->Window || !benchWireFlowReply(Peer->Connection, 0x70, Id) ||
 				!benchRemoteDelivery(Peer, Pending[I].Round, xrtTimer())) return false;
 			Pending[I].Id = 0;
 			++Finished;
@@ -504,7 +597,7 @@ static int32 benchRemoteRead(ptr Context)
 	}
 	for (size_t Round = 0; Round < Peer->Warmup + Peer->Rounds; ++Round) {
 		unsigned char Wire[138], Expected[138];
-		if (!benchReceive(Peer->Socket, Wire, sizeof(Wire))) return 1;
+		if (!benchWireReceive(Peer->Connection, Wire, sizeof(Wire))) return 1;
 		double Arrived = xrtTimer();
 		benchRemoteFrame(Expected, Round, 0, 0);
 		if (memcmp(Wire, Expected, sizeof(Wire)) || !benchRemoteDelivery(Peer, Round, Arrived)) return 1;
@@ -515,7 +608,7 @@ static int32 benchRemoteRead(ptr Context)
 
 typedef enum { BENCH_PUBLISH_FREE, BENCH_PUBLISH_WAIT_RECEIPT, BENCH_PUBLISH_WAIT_COMPLETE } benchPublishPhase;
 typedef struct benchRemotePublisher {
-	xnetsocket Socket;
+	benchConnection Connection;
 	xmutex Gate;
 	xcond Changed;
 	struct { benchPublishPhase Phase; size_t Round; double Sent; } Slots[64];
@@ -535,7 +628,7 @@ static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Sched
 		unsigned char Frame[138];
 		benchRemoteFrame(Frame, Round, 0, 0);
 		if (Lag) *Lag = xrtTimer() - Scheduled;
-		return benchSend(P->Socket, Frame, sizeof(Frame));
+		return benchWireSend(P->Connection, Frame, sizeof(Frame));
 	}
 	size_t Slot = Round % P->Window;
 	if (!xrtMutexLock(&P->Gate)) return false;
@@ -555,7 +648,7 @@ static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Sched
 		P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_RECEIPT;
 		P->Slots[Slot].Sent = xrtTimer();
 		if (Lag) *Lag = P->Slots[Slot].Sent - Scheduled;
-		Sent = benchSend(P->Socket, Frame, Size);
+		Sent = benchWireSend(P->Connection, Frame, Size);
 	}
 	return xrtMutexUnlock(&P->Gate) && Sent;
 }
@@ -563,7 +656,7 @@ static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Sched
 static int32 benchRemoteConfirm(ptr Context)
 {
 	benchRemotePublisher* P = Context;
-	benchRemoteReader Reader = {.Socket = P->Socket};
+	benchRemoteReader Reader = {.Connection = P->Connection};
 	size_t Finished = 0, Total = P->Warmup + P->Rounds;
 	while (Finished < Total) {
 		xmqttframe Frame;
@@ -599,7 +692,7 @@ static int32 benchRemoteConfirm(ptr Context)
 			OK = xrtCondSignal(&P->Changed);
 		} else if (P->Qos == 2 && Phase == BENCH_PUBLISH_WAIT_RECEIPT && Type == XMQTT_PACKET_PUBREC) {
 			P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_COMPLETE;
-			OK = benchSendFlowReply(P->Socket, 0x62, Id);
+			OK = benchWireFlowReply(P->Connection, 0x62, Id);
 		} else OK = false;
 		if (!xrtMutexUnlock(&P->Gate) || !OK) break;
 		if (Terminal) ++Finished;
@@ -631,6 +724,124 @@ static bool benchRemoteTimeouts(xnetsocket Socket)
 #endif
 }
 
+typedef struct benchRemoteTransport {
+#if defined(XMQTT_BENCH_TLS)
+	xnetengine* Engine;
+	xtlscontext* Context;
+	xtlsverifier* Verifier;
+	xtlsclientconfig Client;
+#else
+	unsigned char Unused;
+#endif
+} benchRemoteTransport;
+
+#if defined(XMQTT_BENCH_TLS)
+static bool benchRemoteTlsStart(benchRemoteTransport* Transport, const char* Ca, const char* Name)
+{
+	unsigned char Pem[65536];
+	FILE* File = fopen(Ca, "rb");
+	if (!File) return false;
+	size_t Size = fread(Pem, 1, sizeof(Pem), File);
+	bool Complete = Size && Size < sizeof(Pem) && feof(File) && !ferror(File);
+	if (fclose(File) != 0 || !Complete) return false;
+	xx509store* Store = xrtX509StoreCreate();
+	if (!Store) return false;
+	if (xrtX509StoreAddData(Store, (xbytesview){Pem, Size}, NULL)) {
+		xtlsverifierconfig Verify;
+		xrtTlsVerifierConfigInit(&Verify);
+		Verify.Store = Store;
+		xtlsverifylimits Limits;
+		xrtTlsVerifyLimitsInit(&Limits);
+		Transport->Verifier = xrtTlsVerifierCreateLimited(&Verify, &Limits);
+	}
+	xrtX509StoreFree(Store);
+	if (!Transport->Verifier) return false;
+	const xtlsversion Versions[] = {XTLS_VERSION_13};
+	const xtlscipher Ciphers[] = {XTLS_AES_128_GCM_SHA256};
+	const uint16 Groups[] = {XTLS_GROUP_X25519};
+	const xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
+	xtlspolicy Policy;
+	xrtTlsPolicyInit(&Policy);
+	Policy.Versions = Versions; Policy.VersionCount = 1;
+	Policy.Ciphers = Ciphers; Policy.CipherCount = 1;
+	Policy.Groups = Groups; Policy.GroupCount = 1;
+	Policy.Signatures = Signatures; Policy.SignatureCount = 1;
+	xtlscontextconfig Context;
+	xrtTlsContextConfigInit(&Context);
+	Context.Policy = &Policy;
+	Transport->Context = xrtTlsContextCreate(&Context);
+	if (!Transport->Context) return false;
+	xrtTlsClientConfigInit(&Transport->Client);
+	Transport->Client.Context = Transport->Context;
+	Transport->Client.Verifier = Transport->Verifier;
+	Transport->Client.ServerName = Transport->Client.VerifyName = (xstrview){Name, strlen(Name)};
+	xnetengineconfig Engine;
+	xrtNetEngineConfigInit(&Engine);
+	Engine.Workers = 1;
+	Transport->Engine = xrtNetEngineCreate(&Engine);
+	return Transport->Engine && xrtNetEngineStart(Transport->Engine);
+}
+
+static bool benchRemoteTlsStop(benchRemoteTransport* Transport)
+{
+	bool OK = !Transport->Engine || xrtNetEngineDestroy(Transport->Engine);
+	if (Transport->Context) xrtTlsContextRelease(Transport->Context);
+	if (Transport->Verifier) xrtTlsVerifierRelease(Transport->Verifier);
+	return OK;
+}
+#endif
+
+static bool benchRemoteConnect(benchConnection* Connection, const benchRemoteTransport* Transport,
+	const xnetaddr* Address, size_t Index, uint16 Window, uint16 RequiredWindow)
+{
+	unsigned char Frame[31];
+	size_t Size = benchConnectWire(Frame, Index, Window, false, false);
+#if defined(XMQTT_BENCH_TLS)
+	if (Transport->Engine) {
+		xnetstreamconfig Tcp;
+		xrtNetStreamConfigInit(&Tcp);
+		Tcp.NoDelay = true;
+		Connection->Tls = xrtTlsStreamConnect(Transport->Engine, Address, 0, &Tcp,
+			&Transport->Client, NULL, NULL, NULL);
+		xfuture* Open = Connection->Tls ? xrtTlsStreamWaitAsync(Connection->Tls, XTLS_STREAM_WAIT_OPEN) : NULL;
+		bool Ready = benchTlsAwait(Open, NULL);
+		if (!Ready) {
+			const xerror* Error = Open ? xrtFutureError(Open) : xrtGetError();
+			fprintf(stderr, "TLS connection %zu: %s\n", Index, Error ? xrtErrorMessage(Error) : "open timed out");
+		}
+		if (Open) xrtFutureDestroy(Open);
+		return Ready && benchMqttConnect(*Connection, Frame, Size, false, RequiredWindow);
+	}
+#else
+	(void)Transport;
+#endif
+	Connection->Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+	return Connection->Socket && benchRemoteTimeouts(Connection->Socket) &&
+		benchConnectFrame(Connection->Socket, Address, Frame, Size, false, RequiredWindow);
+}
+
+static void benchRemoteAbort(benchConnection Connection)
+{
+#if defined(XMQTT_BENCH_TLS)
+	if (Connection.Tls) (void)xrtTlsStreamAbort(Connection.Tls);
+#endif
+	if (Connection.Socket) (void)xrtNetSocketShutdown(Connection.Socket, XNET_SHUTDOWN_BOTH);
+}
+
+static bool benchRemoteClose(benchConnection Connection)
+{
+#if defined(XMQTT_BENCH_TLS)
+	if (Connection.Tls) {
+		(void)xrtTlsStreamAbort(Connection.Tls);
+		bool Retired = xrtTlsStreamWaitRetired(Connection.Tls, 5000) == XWAIT_OK;
+		xrtTlsStreamDestroy(Connection.Tls);
+		return Retired;
+	}
+#endif
+	if (Connection.Socket) xrtNetSocketClose(Connection.Socket);
+	return true;
+}
+
 static bool benchRemoteNumber(const char* Text, unsigned long Min, unsigned long Max, unsigned long* Out)
 {
 	char* End;
@@ -653,7 +864,7 @@ static bool benchRemoteSharedDrain(benchRemoteShared* State, benchRemotePeer* Pe
 	const unsigned char Ping[] = {0xc0, 0};
 	for (size_t I = 0; I < Count; ++I) {
 		xrtAtomic32Store(&Peers[I].ExpectPing, 1, XMEMORY_RELEASE);
-		if (!benchSend(Peers[I].Socket, Ping, sizeof(Ping))) return false;
+		if (!benchWireSend(Peers[I].Connection, Ping, sizeof(Ping))) return false;
 	}
 	return true;
 }
@@ -663,6 +874,16 @@ static bool benchRemoteSharedDrain(benchRemoteShared* State, benchRemotePeer* Pe
  * or exactly one member of each shared group. */
 static int benchRemote(int Argc, char** Argv)
 {
+#if defined(XMQTT_BENCH_TLS)
+	const char* Ca = NULL;
+	const char* Name = NULL;
+	if (Argc >= 4 && !strcmp(Argv[Argc - 3], "--tls")) {
+		Ca = Argv[Argc - 2];
+		Name = Argv[Argc - 1];
+		Argc -= 3;
+		if (!*Ca || !*Name) return 2;
+	}
+#endif
 	unsigned long Port, Peers, Rounds, Rate, Warmup, Qos = 0, Window = 1, SubscriberWindow = 0;
 	if ((Argc != 8 && Argc != 10 && Argc != 11) || !benchRemoteNumber(Argv[2], 1, 65535, &Port) ||
 		!benchRemoteNumber(Argv[3], 1, 64, &Peers) ||
@@ -675,11 +896,16 @@ static int benchRemote(int Argc, char** Argv)
 			!benchRemoteNumber(Argv[9], 1, 64, &Window))) ||
 		(Argc == 11 && !benchRemoteNumber(Argv[10], 1, 64, &SubscriberWindow))) {
 		fprintf(stderr, "Usage: bench_server --remote PORT SUBSCRIBERS ROUNDS RATE WARMUP exact|wildcard|shared "
-			"[QOS PUBLISHER_WINDOW [SUBSCRIBER_WINDOW]]\n");
+			"[QOS PUBLISHER_WINDOW [SUBSCRIBER_WINDOW]]"
+#if defined(XMQTT_BENCH_TLS)
+			" [--tls CA_PEM DNS_NAME]"
+#endif
+			"\n");
 		return 2;
 	}
 	if (Qos && !SubscriberWindow) SubscriberWindow = Window;
 	benchRemotePeer State[64] = {0};
+	benchRemoteTransport Transport = {0};
 	xthread* Readers[64] = {0};
 	bool Shared = !strcmp(Argv[7], "shared");
 	size_t Destinations = Shared ? BENCH_SHARED_GROUPS : Peers, Total = Warmup + Rounds;
@@ -706,27 +932,29 @@ static int benchRemote(int Argc, char** Argv)
 	}
 	xnetaddr Address;
 	xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port);
+#if defined(XMQTT_BENCH_TLS)
+	Stage = "initialize authenticated TLS";
+	if (Ca && !benchRemoteTlsStart(&Transport, Ca, Name)) goto Done;
+#endif
 	Stage = "connect and subscribe";
 	bool Wild = !strcmp(Argv[7], "wildcard");
 	const unsigned char Wildcard[] = {0x82,7,0,1,0,0,1,'+',(uint8)Qos};
 	const unsigned char ExpectedAck[] = {0x90,4,0,1,0,(uint8)Qos};
 	for (size_t I = 0; I < Peers; ++I) {
-		State[I].Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
-		if (!State[I].Socket || !benchRemoteTimeouts(State[I].Socket) ||
-			!benchConnectLimits(State[I].Socket, &Address, I,
-			(uint16)SubscriberWindow, false, false, 0)) goto Done;
+		if (!benchRemoteConnect(&State[I].Connection, &Transport, &Address, I,
+			(uint16)SubscriberWindow, 0)) goto Done;
 		if (Shared || Wild) {
 			const unsigned char Filter[] = {0x82,16,0,1,0,0,10,'$','s','h','a','r','e','/',
 				(unsigned char)('a' + I % BENCH_SHARED_GROUPS),'/', '+',(uint8)Qos};
 			unsigned char Reply[sizeof(ExpectedAck)];
-			if (!benchSend(State[I].Socket, Shared ? Filter : Wildcard, Shared ? sizeof(Filter) : sizeof(Wildcard)) ||
-				!benchReceive(State[I].Socket, Reply, sizeof(Reply)) ||
+			if (!benchWireSend(State[I].Connection, Shared ? Filter : Wildcard,
+					Shared ? sizeof(Filter) : sizeof(Wildcard)) ||
+				!benchWireReceive(State[I].Connection, Reply, sizeof(Reply)) ||
 				memcmp(Reply, ExpectedAck, sizeof(Reply))) goto Done;
-		} else if (!benchSubscribe(State[I].Socket, false, false, (uint8)Qos)) goto Done;
+		} else if (!benchWireSubscribe(State[I].Connection, false, false, (uint8)Qos)) goto Done;
 	}
-	Publisher.Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
-	if (!Publisher.Socket || !benchRemoteTimeouts(Publisher.Socket) ||
-		!benchConnectLimits(Publisher.Socket, &Address, Peers, 0, false, false, Qos ? (uint16)Window : 0))
+	Stage = "connect publisher";
+	if (!benchRemoteConnect(&Publisher.Connection, &Transport, &Address, Peers, 0, Qos ? (uint16)Window : 0))
 		goto Done;
 
 	Stage = "start subscribers";
@@ -779,8 +1007,8 @@ static int benchRemote(int Argc, char** Argv)
 		if (Publisher.Last > Last) Last = Publisher.Last;
 	}
 	Stage = "check for excess packets";
-	if (Qos && !benchPing(Publisher.Socket)) goto Done;
-	if (!Shared) for (size_t I = 0; I < Peers; ++I) if (!benchPing(State[I].Socket)) goto Done;
+	if (Qos && !benchPing(Publisher.Connection)) goto Done;
+	if (!Shared) for (size_t I = 0; I < Peers; ++I) if (!benchPing(State[I].Connection)) goto Done;
 	double Seconds = Last - (Start + (double)Warmup / (double)Rate);
 	if (Seconds <= 0) goto Done;
 	size_t Count = Destinations * Rounds;
@@ -795,6 +1023,9 @@ static int benchRemote(int Argc, char** Argv)
 		benchPercentile(Samples, Count, 0.5), benchPercentile(Samples, Count, 0.95),
 		benchPercentile(Samples, Count, 0.99), benchPercentile(Samples, Count, 0.999),
 		benchPercentile(Lag, Rounds, 0.99), benchPercentile(PacerLag, Rounds, 0.99));
+#if defined(XMQTT_BENCH_TLS)
+	if (Ca) printf("tls_connections: %lu\n", Peers + 1);
+#endif
 	if (Shared) {
 		size_t Min = Rounds, Max = 0;
 		for (size_t I = 0; I < Peers; ++I) {
@@ -815,29 +1046,33 @@ static int benchRemote(int Argc, char** Argv)
 	OK = true;
 
 Done:
-	if (!OK) fprintf(stderr, "Remote benchmark failed during %s\n", Stage);
+	if (OK) Stage = "retire observer connections";
 	if (Shared) xrtAtomic32Store(&Group.Failed, 1, XMEMORY_RELEASE);
 	for (size_t I = 0; I < Peers; ++I)
-		if (Readers[I]) (void)xrtNetSocketShutdown(State[I].Socket, XNET_SHUTDOWN_BOTH);
+		if (Readers[I]) benchRemoteAbort(State[I].Connection);
+	if (Confirmations) benchRemoteAbort(Publisher.Connection);
 	for (size_t I = 0; I < Peers; ++I) {
 		if (Readers[I]) {
 			if (xrtThreadWait(Readers[I]) != XWAIT_OK) abort();
 			xrtThreadDestroy(Readers[I]);
 		}
-		if (State[I].Socket) xrtNetSocketClose(State[I].Socket);
+		if (!benchRemoteClose(State[I].Connection)) OK = false;
 	}
 	if (Confirmations) {
-		(void)xrtNetSocketShutdown(Publisher.Socket, XNET_SHUTDOWN_BOTH);
 		if (xrtThreadWait(Confirmations) != XWAIT_OK) abort();
 		xrtThreadDestroy(Confirmations);
 	}
-	if (Publisher.Socket) xrtNetSocketClose(Publisher.Socket);
+	if (!benchRemoteClose(Publisher.Connection)) OK = false;
+#if defined(XMQTT_BENCH_TLS)
+	if (!benchRemoteTlsStop(&Transport)) OK = false;
+#endif
 	if (Changed) (void)xrtCondUnit(&Publisher.Changed);
 	if (Gate) (void)xrtMutexUnit(&Publisher.Gate);
 	free(Publisher.Samples);
 	free(Lag);
 	free(Samples);
 	free(Seen);
+	if (!OK) fprintf(stderr, "Remote benchmark failed during %s\n", Stage);
 	return OK ? 0 : 1;
 }
 

@@ -10,6 +10,7 @@ from pathlib import Path
 import platform
 import re
 import socket
+import ssl
 import statistics
 import subprocess
 import tempfile
@@ -22,6 +23,7 @@ METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "d
 PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
+TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
 
 
 if os.name == "nt":
@@ -126,6 +128,8 @@ def run_observer(args, port, workload):
                str(rate), str(args.warmup), kind]
     if args.qos:
         command.extend((str(args.qos), str(args.window), str(args.subscriber_window)))
+    if args.tls_credentials:
+        command.extend(("--tls", str(args.tls_credentials / "ca.pem"), "localhost"))
     process = start(command, args.load_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         output, errors = process.communicate(timeout=20 + (args.rounds + args.warmup) / rate)
@@ -138,11 +142,15 @@ def run_observer(args, port, workload):
     metrics = METRICS + (("publish_confirmed", "publisher_credit_stalls") + PUBLISHER_METRICS if args.qos else ())
     if kind == "shared":
         metrics += SHARED_METRICS
+    if args.tls_credentials:
+        metrics += ("tls_connections",)
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     destinations = SHARED_GROUPS if kind == "shared" else peers
     if result["offered"] != args.rounds or result["deliveries"] != destinations * args.rounds:
         raise ValueError("publication and delivery counts do not match the workload")
+    if args.tls_credentials and result["tls_connections"] != peers + 1:
+        raise ValueError("missing authenticated observer connections")
     if kind == "shared":
         low, high = (result[key] for key in SHARED_METRICS)
         if not (low.is_integer() and high.is_integer() and low <= high <= args.rounds
@@ -159,6 +167,8 @@ def run_observer(args, port, workload):
 
 def run_sample(args, implementation, workload, directory):
     path = directory / "broker.log"
+    tls = args.tls_credentials
+    cwd = None
     if implementation == "mosquitto":
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
@@ -167,17 +177,26 @@ def run_sample(args, implementation, workload, directory):
         # The xmqtt APP admits 256 outstanding deliveries per connection.
         # Mosquitto's queue limit applies beyond the active inflight window.
         limits = f"max_inflight_messages 64\nmax_queued_messages {256 - args.subscriber_window}\n" if args.qos else ""
+        security = ""
+        if tls:
+            cwd = tls
+            security = ("certfile certificate.pem\nkeyfile key.pem\n"
+                        f"tls_version tlsv1.3\nciphers_tls1.3 {TLS_CIPHER}\n")
         config.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n"
                           "max_connections 1024\nmax_packet_size 16384\nset_tcp_nodelay true\n"
-                          "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n" + limits, encoding="ascii")
+                          "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n"
+                          + limits + security, encoding="ascii")
         command = [str(args.mosquitto), "-c", str(config)]
         pattern = None
     else:
         port = None
-        command = [str(args.xmqtt), "--compare"]
+        command = [str(args.xmqtt)]
+        if tls:
+            command.extend((str(tls / "certificate.der"), str(tls / "key.der")))
+        command.append("--compare")
         pattern = re.compile(r"^127\.0\.0\.1:(\d+)$", re.M)
     with path.open("wb") as log:
-        broker = start(command, {args.broker_cpu}, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        broker = start(command, {args.broker_cpu}, cwd=cwd, stdin=subprocess.PIPE, stdout=log, stderr=log)
         try:
             deadline = time.monotonic() + 8
             while True:
@@ -188,7 +207,12 @@ def run_sample(args, implementation, workload, directory):
                     port = int(match[1])
                 if port is not None:
                     try:
-                        with socket.create_connection(("127.0.0.1", port), timeout=0.05):
+                        with socket.create_connection(("127.0.0.1", port), timeout=0.1 if tls else 0.05) as peer:
+                            if tls:
+                                with args.tls_context.wrap_socket(peer, server_hostname="localhost") as secure:
+                                    if (secure.version() != "TLSv1.3" or secure.cipher()[0] != TLS_CIPHER
+                                            or secure.getpeercert(binary_form=True) != args.tls_leaf):
+                                        raise ValueError("negotiated TLS profile or leaf certificate differs")
                             break
                     except (ConnectionError, TimeoutError):
                         pass
@@ -250,6 +274,8 @@ def main():
     parser.add_argument("--subscriber-window", type=int, choices=range(1, 65), metavar="1..64",
                         help="Receive Maximum advertised by each subscriber, defaults to --window")
     parser.add_argument("--repeats", type=int, default=7)
+    parser.add_argument("--tls-credentials", type=Path, metavar="DIRECTORY",
+                        help="use the same CA and localhost test identity for both brokers")
     args = parser.parse_args()
     if args.subscriber_window is not None and not args.qos:
         parser.error("--subscriber-window requires QoS 1 or 2")
@@ -261,6 +287,17 @@ def main():
         parser.error("invalid round, warmup, or repeat count")
     for label in ("xmqtt", "mosquitto", "observer"):
         setattr(args, label, getattr(args, label).resolve(strict=True))
+    if args.tls_credentials:
+        args.tls_credentials = args.tls_credentials.resolve(strict=True)
+        tls = args.tls_credentials
+        for filename in ("ca.pem", "certificate.pem", "certificate.der", "key.pem", "key.der"):
+            if not (tls / filename).is_file():
+                parser.error(f"missing TLS fixture file {filename}")
+        args.tls_context = ssl.create_default_context(cafile=str(tls / "ca.pem"))
+        args.tls_context.minimum_version = ssl.TLSVersion.TLSv1_3
+        args.tls_leaf = (tls / "certificate.der").read_bytes()
+        if ssl.PEM_cert_to_DER_cert((tls / "certificate.pem").read_text(encoding="ascii")) != args.tls_leaf:
+            parser.error("both brokers require the same leaf certificate")
     version = subprocess.check_output([args.mosquitto, "-h"], stderr=subprocess.DEVNULL, text=True, timeout=8).splitlines()[0]
     if version != MOSQUITTO:
         parser.error(f"expected {MOSQUITTO!r}, obtained {version!r}")
@@ -268,12 +305,16 @@ def main():
               "rounds": args.rounds, "warmup": args.warmup, "repeats": args.repeats,
               "mosquitto_version": version, "mqtt": 5, "qos": args.qos,
               "window": args.window if args.qos else None, "subscriber_window": args.subscriber_window,
-              "payload_bytes": 128, "security": "plaintext",
+              "payload_bytes": 128, "security": "tls1.3" if args.tls_credentials else "plaintext",
               "persistence": False, "complete": False,
               "programs": {label: fingerprint(getattr(args, label)) for label in ("xmqtt", "mosquitto", "observer")},
               "runner": fingerprint(Path(__file__)),
               "observer_source": fingerprint(Path(__file__).with_name("bench_server.c")),
               "workloads": []}
+    if args.tls_credentials:
+        report["tls"] = {"cipher": TLS_CIPHER, "observer_group": "X25519", "dns_name": "localhost",
+                         "trust_anchor": fingerprint(args.tls_credentials / "ca.pem"),
+                         "leaf": fingerprint(args.tls_credentials / "certificate.der")}
     args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     summaries = ("ingress_per_sec", "delivery_p99_us", "offer_lag_p99_us", "pacer_lag_p99_us")

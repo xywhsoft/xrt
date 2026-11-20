@@ -335,9 +335,54 @@ socket retirement after failure.
 python extlibs/xmqtt/bench/test_broker_observer.py /path/to/bench_server
 ```
 
-This profile covers traffic at specified arrival rates. Saturation,
-TLS, shared subscriptions, persistent state and
-mixed-load duration have separate acceptance workloads.
+This profile covers connected sessions at specified arrival rates. Saturation,
+persistent state and mixed-load duration have separate acceptance workloads.
+
+### Verified TLS broker comparison
+
+Build a TLS broker and an observer with the following flags from the
+repository root. On MinGW, replace `-D_GNU_SOURCE` with
+`-DWIN32_LEAN_AND_MEAN` and `-pthread -lm` with `-lws2_32`. If GCC 16.2
+fails in its IPA constant propagation pass for the Windows TLS example,
+add `-fno-ipa-cp` to that build.
+
+```bash
+mkdir -p out
+flags=(-std=gnu11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror
+  -DXMQTT_MODULE_XMQTT_SERVER -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION
+  -Iinclude -Iextlibs/xmqtt/include
+  -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h)
+gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER_TLS -DXRT_MODULE_TLS_IDENTITY_RSA \
+  extlibs/xmqtt/examples/server/tls.c -o out/compare-server-tls -pthread -lm
+gcc "${flags[@]}" -DXRT_MODULE_MEMORY_STATS -DXMQTT_BENCH_TLS \
+  -DXRT_MODULE_TLS_CLIENT_VERIFY -DXRT_MODULE_TLS_STREAM_FUTURE -DXRT_MODULE_TLS_STREAM_RETIRE \
+  -DXRT_MODULE_TLS_RECORD_AES -DXRT_MODULE_TLS_SCHEDULE_SHA256 -DXRT_MODULE_TLS_KEY_EXCHANGE_X25519 \
+  extlibs/xmqtt/bench/bench_server.c -o out/compare-observer-tls -pthread -lm
+python extlibs/xmqtt/bench/compare_broker.py --xmqtt out/compare-server-tls \
+  --mosquitto /path/to/mosquitto --observer out/compare-observer-tls \
+  --tls-credentials /path/to/local-test-identity --broker-cpu 0 --load-cpus 4,6,8 \
+  --qos 2 --workload exact:1:1000 --workload shared:8:2000 --report out/broker-tls-q2.json
+```
+
+Supply `ca.pem`, the same RSA test certificate as `certificate.pem` and
+`certificate.der`, and its private key as `key.pem` and PKCS#1 `key.der`.
+The certificate needs a DNS SAN for `localhost` and must chain to the
+supplied local CA. Generate these files for the test and keep the private
+key out of the repository. The runner checks identity, leaf certificate,
+TLS 1.3 and AES-128-GCM on both loopback listeners before every sample. The
+same C observer connects directly to each broker over TLS 1.3 with X25519,
+RSA-PSS and CA/DNS verification. The report verifies the authenticated
+connection count and keeps hashes of the public CA and leaf.
+[Mosquitto listener TLS options](https://mosquitto.org/man/mosquitto-conf-5.html).
+
+Repeat with `--qos 0` and `--qos 1` for the corresponding MQTT flows.
+TLS handshakes finish before the measured interval. Broker process CPU
+includes connection setup and warmup. Both measurements include the same
+observer TLS worker, Futures and plaintext copies. Compare the brokers
+within a TLS workload. Run the scripted observer cases with the same
+`--tls-credentials` directory and an additional unrelated CA in
+`wrong.pem` to cover idle and duplicate shared delivery over TLS and
+rejection of an unrelated CA or a wrong DNS name before any MQTT traffic.
 
 ## Continuous MQTT 5 mixed load
 
