@@ -89,3 +89,29 @@ with the results.
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 wait --samples
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter --samples
 ```
+
+The separate wait-phase benchmark samples the wall and monotonic clocks on
+entry to and return from XRT EventWaiter. It also prints the actual waiter
+backend. The numeric backend values follow `xeventwaiterbackend` in
+[the XRT header](../../../include/xrt/event_waiter.h). Timing samples are
+printed after the measured interval.
+
+Build from the repository root. With GCC on Windows, omit `-pthread` and
+`-lm` and use an `.exe` suffix on the output file.
+
+```sh
+gcc -O2 -std=c11 -I. -Iinclude -Iextlibs/xcron/include -pthread \
+  extlibs/xcron/bench/bench_scheduler_wait_phase.c -o out/xcron-wait-phase -lm
+XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 wait --samples
+XBENCH_PIN_CPU=4 ./out/xcron-wait-phase cohort 32 1024 0 waiter --samples
+```
+
+Each `phase_N_ns` row gives the number of wait calls in the wave, the
+last call's requested timeout in milliseconds, wall time on entry and
+return relative to the due time in nanoseconds, monotonic elapsed time
+from return to the first callback in nanoseconds, and monotonic duration
+of that last call in nanoseconds. A zero-call wave emits zeros in the
+other fields. Interpret the entry time plus the requested timeout as an
+estimate of the waiter's requested deadline. It includes the observer's
+placement and clock sampling overhead. Use the ordinary cohort executable
+to measure release tails.

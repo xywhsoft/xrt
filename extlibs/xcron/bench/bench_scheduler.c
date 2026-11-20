@@ -45,6 +45,12 @@ static xtime nextSecond(xtime Now)
     return (Now / 1000 + 1) * 1000;
 }
 
+#if defined(XCRON_BENCH_WAIT_PHASE)
+#define COHORT_WAIT_FOR phaseWaitFor
+#else
+#define COHORT_WAIT_FOR xrtEventWaiterWaitFor
+#endif
+
 static bool waitUntil(xeventwaiter* Waiter, xtime Due, xtime* Observed)
 {
     double Started = xrtTimer();
@@ -59,7 +65,7 @@ static bool waitUntil(xeventwaiter* Waiter, xtime Due, xtime* Observed)
         if (!(Elapsed >= 0.0 && Elapsed < 3000.0)) return false;
         int64 Remaining = 3000 - (int64)Elapsed;
         int64 Delay = Due - Now;
-        if (xrtEventWaiterWaitFor(Waiter, Delay < Remaining ? Delay : Remaining) != XWAIT_TIMEOUT)
+        if (COHORT_WAIT_FOR(Waiter, Delay < Remaining ? Delay : Remaining) != XWAIT_TIMEOUT)
             return false;
     }
 }
@@ -223,6 +229,9 @@ static bool cohortRegister(xcronscheduler* Scheduler, cronwave* Wave, cronjob* J
 
 static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, cronwave* Wave, cronjob* Jobs, xtime Due)
 {
+#if defined(XCRON_BENCH_WAIT_PHASE)
+    phaseReset();
+#endif
     *Wave = (cronwave){.Count = Wave->Count};
     if (Scheduler) {
         xcronpoll Result;
@@ -282,12 +291,18 @@ static int cohort(int Argc, char** Argv)
     if (!cohortWave(Scheduler, &Waiter, &Wave, Jobs, Due)) return 5;
     double Cpu = processCpuMilliseconds(), Start = xrtTimer();
     xtime First[MAX_WAVES], Last[MAX_WAVES], Span[MAX_WAVES];
+#if defined(XCRON_BENCH_WAIT_PHASE)
+    waitphase Phases[MAX_WAVES];
+#endif
     for (unsigned Index = 0; Index < Waves; ++Index) {
         Due += 1000;
         if (!cohortWave(Scheduler, &Waiter, &Wave, Jobs, Due)) return 5;
         First[Index] = cohortLateness(Due, Wave.FirstWall, Wave.FirstSubNs);
         Last[Index] = cohortLateness(Due, Wave.LastWall, Wave.LastSubNs);
         Span[Index] = (xtime)(Wave.LastNs - Wave.FirstNs);
+#if defined(XCRON_BENCH_WAIT_PHASE)
+        if (!phaseRecord(&Phases[Index], Due, Wave.FirstNs)) return 7;
+#endif
     }
     double Seconds = xrtTimer() - Start, CpuEnd = processCpuMilliseconds();
     bool Closed = Direct ? xrtEventWaiterUnit(&Waiter) && xrtEventUnit(&Event) : xcronSchedulerDestroy(Scheduler);
@@ -301,6 +316,9 @@ static int cohort(int Argc, char** Argv)
         for (unsigned Index = 0; Index < Waves; ++Index)
             printf("wave_%u_ns: %lld,%lld,%lld\n", Index + 1, (long long)First[Index],
                 (long long)Last[Index], (long long)Span[Index]);
+#if defined(XCRON_BENCH_WAIT_PHASE)
+        phasePrint(Phases, Waves);
+#endif
     }
     cohortQuantiles("first_lateness", "ms", First, Waves, 0.000001);
     cohortQuantiles("last_lateness", "ms", Last, Waves, 0.000001);

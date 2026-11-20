@@ -20198,3 +20198,43 @@ The independent auditor and result are `audit-live-final.py` and
 `live-tail-final-audit.json` under the sibling `xcron-heap-model/`.
 The campaign report SHA-256 is
 `9d4bff445bced2167f2205a691f50417c52d3ac06ad192aae2aca819cd69f5b5`.
+
+## 2026-11-20 xcron measured waiter return and first dispatch separately
+
+The wait-phase benchmark clocks entry to and return from the actual XRT
+EventWaiter in both scheduler and raw-waiter modes. The diagnostic covered
+16 processes, 256 measured one-second waves and 139,264 callbacks. Every
+wave used one wait. Windows selected its high-resolution waitable timer
+and Ubuntu/WSL selected its POSIX monotonic event backend. The independent
+audit matched raw output to each run and terminal record.
+
+| Host | Active jobs | Mode | Estimated requested deadline after due, median us | Actual wait minus request, median us | Wait return after due, median us | Return to first callback, median us |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 64 | Scheduler Wait | 489.0 | 81.8 | 714.9 | 4.3 |
+| Windows x64 | 64 | EventWaiter | 251.7 | 180.6 | 536.4 | 1.2 |
+| Windows x64 | 1,024 | Scheduler Wait | 649.5 | 383.3 | 882.7 | 4.3 |
+| Windows x64 | 1,024 | EventWaiter | 258.5 | 97.0 | 840.2 | 1.2 |
+| Ubuntu/WSL x64 | 64 | Scheduler Wait | 496.9 | 91.1 | 592.2 | 5.2 |
+| Ubuntu/WSL x64 | 64 | EventWaiter | 480.5 | 89.1 | 573.3 | 1.5 |
+| Ubuntu/WSL x64 | 1,024 | Scheduler Wait | 532.6 | 86.7 | 620.7 | 5.4 |
+| Ubuntu/WSL x64 | 1,024 | EventWaiter | 454.9 | 86.9 | 539.7 | 1.4 |
+
+The largest scheduler interval from wait return to the first callback was
+9.4 us. In the slowest wave by last-callback lateness in each scheduler
+series, 99.49% to 99.76% of the first-callback lateness had accumulated
+at wait return. The requested-deadline estimate includes clock sampling
+and observer placement. The median columns summarize separate paired
+measurements. The measured excess over the integer timeout includes
+the waiter itself and the platform wake. Each diagnostic series has 32
+waves. A controlled comparison of integer and precise deadline arming
+is the next performance experiment. Stable release tails and native
+Linux acceptance remain open.
+
+The matrix used a temporary instrumented build of the mainline benchmark.
+The checked-in fixture was then built with GCC warnings as errors on
+Windows and WSL. Both modes passed single-job phase checks and two live
+waves in each cohort, and the ordinary executable retained its raw output
+shape. The full matrix,
+raw samples, hashes and audit are under
+`out/service-extensions/scope-reduction-20261119/xcron-wait-phases/`.
+[Wait-phase benchmark instructions](../../extlibs/xcron/docs/scheduler.md).
