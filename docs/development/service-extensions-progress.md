@@ -18224,3 +18224,37 @@ The commands for rebuilding and repeating the comparison are in
 The raw samples, fixture CPU and Redis command counts, sources, and binary
 hashes are under
 `out/service-extensions/scope-reduction-20261119/xredis-hiredis-baseline/`.
+
+## 2026-11-20 Redis continuous pool, Tracking and Pub/Sub qualification
+
+The mixed workload holds four RESP3 connections in one client process and
+checks each of 19 commands per round, the Tracking invalidation's exact key
+and receive order, and the Pub/Sub recipient count and binary message.
+It records window latency, client CPU, resource samples and wall/monotonic
+clock continuity. The supervisor reconciles independent Redis command
+counters and connection retirement before certifying a successful run.
+
+| Client environment | Duration | Validated rounds | Redis commands in rounds |
+| --- | ---: | ---: | ---: |
+| Windows x64 via WSL loopback | 90 s | 4,668 | 88,692 |
+| Ubuntu/WSL x64 | 90 s | 23,433 | 445,227 |
+| Ubuntu/WSL x64 ASan/UBSan with leak detection | 15 s | 2,976 | 56,544 |
+
+The Windows and WSL runs each retained 18 latency windows. Redis 8.0.5
+returned to its initial connection count, and both clients completed
+physical teardown. The supervisors applied identical request validation.
+Their reported throughput reflects the local pacing and network path.
+
+In the separate WSL fault run, the fixture process was killed after
+1,299 verified rounds. xredis returned DISCONNECTED with MAY_HAVE_EXECUTED
+for a pending request. The supervisor recorded an incomplete run and
+rejected qualification. This exercises outage detection through the live
+path. Reconnect and recovery acceptance still require separate evidence.
+
+The two builds used GCC with warnings as errors. The monitor's existing
+clock/resource tests and ordinary xredis maturity passed on Windows.
+Strict release still reports 29 developing modules. Native Linux and
+72-hour qualification remain open. Reproduction is in
+[`client-performance.md`](../../extlibs/xredis/docs/client-performance.md).
+The evidence is under
+`out/service-extensions/scope-reduction-20261119/xredis-mixed-soak/`.

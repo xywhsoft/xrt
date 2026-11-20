@@ -190,3 +190,55 @@ The offered rate is fixed. Successful throughput measures how much of that
 rate the pair delivered at this CPU and connection budget. Native Linux,
 multi-connection, mixed-command and TLS comparisons, stable tail baselines,
 exact copy/synchronization/syscall costs and 72-hour acceptance remain open.
+
+## Continuous mixed workload
+
+The mixed workload holds two shared pool connections, one Tracking
+connection and one Pub/Sub subscriber on two XRT I/O workers. Each
+round pipelines eight SETs, pipelines eight GETs and verifies every
+binary reply. It reads and replaces one tracked key and verifies the
+invalidation's key and receive order. Then it sends one publication and
+checks one recipient and the exact binary payload. Payloads alternate
+between 32 and 1,024 bytes, with one larger payload every four rounds.
+The same eight disposable keys and one private channel are reused.
+This is a paced closed-loop workload for continuous validation.
+
+Build the host against the checked-in single headers from the repo root.
+On Windows with MinGW GCC use WIN32_LEAN_AND_MEAN in place of _GNU_SOURCE,
+link with -lws2_32 in place of -pthread -lm, and use an .exe output.
+
+    flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE
+      -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING
+      -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION
+      -Iinclude -Iextlibs/xredis/include -include xredis/features.h
+      -include ./single/xrt.h -include ./single/extlibs/xredis.h)
+    gcc "${flags[@]}" extlibs/xredis/tests/interop/redis_mixed.c \
+      -o out/redis-mixed -pthread -lm
+
+Run the supervisor on the candidate client OS using a local disposable
+Redis. The server must be dedicated to this test because the observer
+reconciles the entire Redis command delta. Use a new report name for each
+attempt.
+
+    python3 extlibs/xredis/tests/interop/run_redis_mixed.py \
+      --server /usr/bin/redis-server --client out/redis-mixed \
+      --seconds 60 --pause-ms 3 --report out/redis-mixed-smoke.json
+
+Use --port instead of --server for an already isolated loopback service.
+Record the Redis host and build in that case. The supervisor checks server
+identity and connection count before and after the workload. JSONL windows
+record round counts, CPU, P50/P95/P99/P99.9, and client memory and handle
+counts. A supervised Redis also gets process resource samples. Round latency
+includes all 19 commands and both delivery validations. Pacing sleeps are
+outside that latency and inside the run's wall time. Resource-growth guards
+are 64 MiB of private memory and 32 handles/descriptors above the first
+sample. The client verifies zero outstanding work at physical close.
+
+For the 72-hour run use --seconds 259200. The native-client result requires
+successful teardown, exact command accounting, continuous clock progress
+and resource observations on Windows or Linux. WSL and shorter runs
+remain diagnostic. A server crash or process interruption terminates the
+run without a successful result. Recovery scenarios have separate tests
+and evidence. This workload covers the TCP RESP3 shared-pool, Tracking
+and direct Pub/Sub paths. Keep separate qualification for TLS, other
+deployment topologies, larger loads, and injected failures.
