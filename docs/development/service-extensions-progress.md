@@ -18442,3 +18442,47 @@ developing.
 Reproduction is in [the duplex APP guide](../../extlibs/xrpc/examples/duplex/README.md).
 The raw repetitions, artifact hashes and test logs are under
 `out/service-extensions/scope-reduction-20261119/xrpc-tcp-concurrent/`.
+
+## 2026-11-20 Redis recovery across a real process restart
+
+One xredis process kept its shared pool and subscription session through
+forced termination and replacement of an owned Redis 8.0.5 fixture. A
+separate observer identified the fixture and confirmed BLPOP had blocked.
+The original Future reported DISCONNECTED and MAY_HAVE_EXECUTED without
+a reply and retained that outcome after recovery. The pool retired both
+established members and rejected a call during the outage without
+overwriting the caller's Future. Both the pool and subscription session
+observed failed reconnects before the observer started the replacement.
+
+The replacement used a different Redis process ID and run ID on the same
+port. Two pool members became ready and the subscription session restored
+the existing binary channel intent in generation two. The APP opened a
+fresh Tracking connection and verified receive order and key identity on
+invalidation. The client also verified one binary publication and all 16
+post-recovery pipelined replies. Independent server command counts matched the
+expected ledger at each phase. No BLPOP or rejected PING reached the replacement.
+After teardown, Redis reported only the observer connection.
+
+| Client configuration | Completed restarts | Recovery min / median / max in ms |
+| --- | ---: | ---: |
+| Windows x64, GCC 16.2 | 7 / 7 | 139.270 / 184.714 / 1229.657 |
+| Ubuntu/WSL x64, GCC 15.2 | 7 / 7 | 95.940 / 127.004 / 143.365 |
+| Ubuntu/WSL x64, ASan/UBSan with leak detection | 7 / 7 | 119.569 / 136.258 / 165.111 |
+
+The Redis fixture ran in Ubuntu/WSL for every case. Timings start after
+observation of the old dedicated connections' physical closes and include
+the failed reconnect barrier, fixture replacement and verification of
+resumed traffic. The Windows path included WSL loopback forwarding. These
+observations cover standalone RESP3 over plaintext TCP. Native Linux and
+72-hour acceptance remain open. The ordinary maturity check passed and
+the strict xredis gate failed with 29 developing modules.
+
+The initial fixture invocation followed a multi-call Redis symlink and
+ran the wrong entry point. An early probe sampled generation retirement
+before the worker had finished it, and one repetition reused a port that
+was still unavailable. The final series keeps the Redis invocation name,
+waits for physical retirement and failed replacement attempts, and uses
+a fresh screened port every time. The failed attempts, per-case results
+and qualification summary are under
+out/service-extensions/scope-reduction-20261119/xredis-restart-recovery/.
+See [the xredis reproduction guide](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).

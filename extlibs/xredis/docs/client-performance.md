@@ -242,3 +242,35 @@ run without a successful result. Recovery scenarios have separate tests
 and evidence. This workload covers the TCP RESP3 shared-pool, Tracking
 and direct Pub/Sub paths. Keep separate qualification for TLS, other
 deployment topologies, larger loads, and injected failures.
+
+## Recovery across a Redis process restart
+
+This separate integration probe keeps one xredis process, shared pool and
+subscription session alive while replacing a disposable Redis server on the
+same loopback port. The harness confirms Redis reports one blocked client
+before terminating its own process. The probe checks a disconnected
+MAY_HAVE_EXECUTED outcome, preserves it across recovery and observes rejection
+while both pool members are gone. After replacement it checks both restored
+members, automatic replay of the binary subscription intent, fresh Tracking
+setup on a new APP-owned connection, an ordered invalidation, one matching
+binary publication and 16 pipelined binary replies. The Redis command ledger
+checks that no BLPOP or PING reaches the replacement.
+
+Use the mixed-workload compiler flags above and add the subscription session
+module. Run the Python harness on the same host as the disposable Redis
+server. With a Windows client and a WSL fixture, use the MinGW build described
+above and point the WSL supervisor at the .exe. Pass a fresh screened
+loopback port for each attempt with --port-candidate. The report preserves
+server identities, phase results and the final command ledger alongside
+each process log.
+
+    gcc "${flags[@]}" -DXREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION \
+      extlibs/xredis/tests/interop/redis_restart.c -o out/redis-restart -pthread -lm
+    python3 -B extlibs/xredis/tests/interop/run_redis_restart.py \
+      --server /usr/bin/redis-server --client out/redis-restart \
+      --report out/redis-restart.json
+
+Recovery time runs from the client's observation of the old physical closes
+to verification of resumed traffic. It includes the forced outage barrier,
+fixture restart and workload verification. It is diagnostic for this local
+setup. This case uses standalone RESP3 over plaintext TCP.
