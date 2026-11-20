@@ -256,12 +256,25 @@ require separate workloads.
 
 The `--remote` mode of `bench_server` sends MQTT 5 publications with
 a 128-byte payload to a loopback broker. It uses one publisher and up to
-64 subscribers, with one exact filter or one wildcard per subscriber.
+64 subscribers, with one exact, wildcard or shared filter per subscriber.
 Each repeat warms the established connections, then sends at fixed
-scheduled times. The observer checks every payload and sequence for every
-subscriber and checks for extra deliveries after draining. The report
+scheduled times. The observer checks each expected payload and sequence
+and checks for extra deliveries after draining. The report
 keeps missed or failed repeats. Latency starts at the scheduled send time,
 and the separate offer-lag metric records producer scheduling delay.
+
+Use `--workload shared:8:3000` for two shared subscriptions, `$share/a/+`
+and `$share/b/+`, with members assigned alternately. Every publication
+must reach exactly one member of each group. The observer checks each
+group's publication set through warmup and measurement, claims each
+sequence before acknowledging it and waits for terminal delivery in both
+groups before draining every connection with PING. A member can receive
+no publications. Shared readers wait for socket readiness and check for
+cancellation while idle. Their latency includes this observer work.
+`share_min_deliveries` and `share_max_deliveries` report
+the observed allocation among members during measurement. The shared
+workload requires at least two subscribers and covers connected sessions.
+[MQTT 5.0, section 4.8.2](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
 
 Select `--qos 1` or `--qos 2` with `--window 1..64` for reliable tests.
 The observer requires the broker's advertised Receive Maximum to cover the

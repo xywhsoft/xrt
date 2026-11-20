@@ -20,6 +20,8 @@ METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "d
            "delivery_p50_us", "delivery_p95_us", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us",
            "pacer_lag_p99_us")
 PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
+SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
+SHARED_GROUPS = 2
 
 
 if os.name == "nt":
@@ -134,10 +136,18 @@ def run_observer(args, port, workload):
         raise RuntimeError(f"observer exit {process.returncode}: {errors.strip()}")
     result = {key: float(value) for key, value in (line.split(": ", 1) for line in output.splitlines())}
     metrics = METRICS + (("publish_confirmed", "publisher_credit_stalls") + PUBLISHER_METRICS if args.qos else ())
+    if kind == "shared":
+        metrics += SHARED_METRICS
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
-    if result["offered"] != args.rounds or result["deliveries"] != peers * args.rounds:
+    destinations = SHARED_GROUPS if kind == "shared" else peers
+    if result["offered"] != args.rounds or result["deliveries"] != destinations * args.rounds:
         raise ValueError("publication and delivery counts do not match the workload")
+    if kind == "shared":
+        low, high = (result[key] for key in SHARED_METRICS)
+        if not (low.is_integer() and high.is_integer() and low <= high <= args.rounds
+                and low * peers <= result["deliveries"] <= high * peers):
+            raise ValueError("invalid shared member delivery bounds")
     if args.qos:
         if result["publish_confirmed"] != args.rounds:
             raise ValueError("missing terminal publisher confirmations")
@@ -216,10 +226,12 @@ def parse_workload(value):
     try:
         kind, peers, rate = value.split(":")
         peers, rate = int(peers), int(rate)
-        if kind not in ("exact", "wildcard") or not 1 <= peers <= 64 or not 1 <= rate <= 100000:
+        if kind not in ("exact", "wildcard", "shared") or not 1 <= peers <= 64 or not 1 <= rate <= 100000:
+            raise ValueError(value)
+        if kind == "shared" and peers < SHARED_GROUPS:
             raise ValueError(value)
     except ValueError as error:
-        raise argparse.ArgumentTypeError("expected exact|wildcard:subscribers:rate") from error
+        raise argparse.ArgumentTypeError("expected exact|wildcard|shared:subscribers:rate, with at least two shared members") from error
     return kind, peers, rate
 
 
@@ -270,6 +282,8 @@ def main():
     try:
         for workload in args.workload:
             group = {"filter": workload[0], "subscribers": workload[1], "scheduled_rate": workload[2], "samples": []}
+            if workload[0] == "shared":
+                group["shared_groups"] = SHARED_GROUPS
             report["workloads"].append(group)
             for repeat in range(args.repeats):
                 order = ("xmqtt", "mosquitto") if repeat % 2 == 0 else ("mosquitto", "xmqtt")

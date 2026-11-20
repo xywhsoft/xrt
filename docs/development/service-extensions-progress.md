@@ -18920,3 +18920,53 @@ Reproduce from [the TLS comparison guide](../../extlibs/xredis/docs/client-perfo
 Raw reports, failed and successful checks, compiler logs and runtime
 dependencies are under
 out/service-extensions/scope-reduction-20261119/xredis-hiredis-tls/.
+
+## 2026-11-20 MQTT 5 shared-subscription broker comparison
+
+The observer assigns eight connections to `$share/a/+` and `$share/b/+`.
+It validates each publication's bytes and claims the sequence in that
+group before acknowledging it. It requires terminal delivery in both
+groups for every offer, including warmup, then checks PING on all sockets.
+The scripted peer leaves a member idle for over five seconds and probes a
+cross-member QoS 2 duplicate sent before PUBREL. The observer rejects it
+before acknowledging it. The first idle probe
+hit a socket timeout. An unbounded read exposed a Windows teardown hang.
+The measured build uses cancellable readiness polling. The first WSL
+Mosquitto launch needed the pinned package's library search path. Those
+failures and the initial Windows samples are retained.
+
+Both brokers used logical CPU 0. The observer used CPUs 4, 6 and 8.
+xmqtt ran one worker and the reference was Mosquitto 2.1.2. The workloads
+used MQTT 5 over plaintext TCP, clean sessions, 128-byte payloads and
+publisher/subscriber windows of 16 for QoS 1 and 2. Each case had five
+repetitions per broker, with 600 warmup and 6,000 measured publications.
+All 120 repeats passed at the 3,000 and 10,000 publications/s schedules.
+The observer checked 720,000 measured publications, 1,440,000 deliveries
+and 480,000 terminal publisher confirmations. Each member received
+1,500 measured messages per repeat.
+
+The table gives medians at 10,000 publications/s, in xmqtt / Mosquitto order.
+
+| Environment | QoS | Deliveries/s | Delivery P99 in microseconds | Broker CPU seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 0 | 20,002 / 20,002 | 1,259.9 / 935.1 | 0.297 / 0.266 |
+| Windows x64 | 1 | 20,001 / 20,002 | 987.3 / 1,591.2 | 0.312 / 0.250 |
+| Windows x64 | 2 | 20,000 / 20,000 | 352.5 / 313.4 | 0.469 / 0.469 |
+| Ubuntu/WSL x64 | 0 | 20,001 / 20,001 | 144.0 / 137.9 | 0.320 / 0.300 |
+| Ubuntu/WSL x64 | 1 | 20,000 / 20,001 | 252.7 / 172.2 | 0.510 / 0.390 |
+| Ubuntu/WSL x64 | 2 | 19,995 / 19,998 | 1,091.5 / 2,085.6 | 0.650 / 0.600 |
+
+All 24 ingress series met the variation limits. Ten of 24 delivery P99
+series and five of 16 publisher P99 series met them. Native Linux, TLS,
+durable-session and stable release performance baselines remain open.
+
+Windows and WSL passed the broker's modular and single-header tests, the
+embedded shared smoke, exact and wildcard controls and the scripted cases.
+WSL ASan/UBSan with leak detection and TSan passed the scripted cases and
+separate short QoS 2 comparisons against both brokers. The TSan compiler
+log retains GCC's warning about thread fences. Generated assets and
+ordinary maturity passed. Strict release still lists 39 developing modules.
+
+Reproduce from [the external broker comparison guide](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).
+Source snapshots, per-repeat results and validation logs are under
+out/service-extensions/scope-reduction-20261119/xmqtt-shared-broker/.
