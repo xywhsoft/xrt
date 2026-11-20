@@ -19435,3 +19435,20 @@ passed. Strict release still lists `xrpc` and `xrpc_duplex` as developing.
 Reproduce from [the TCP example benchmark guide](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
 Input hashes, builds, fixture logs and the full reports are under
 `out/service-extensions/scope-reduction-20261119/xrpc-tcp-batch-documents/`.
+
+## 2026-11-20 xcron catch-up checkpoint write refusal
+
+The subprocess test makes the checkpoint readable and its write fail
+after the APP prints its first successful action. Windows holds the
+target open without delete sharing. Ubuntu/WSL removes directory write
+permission. When the WSL runner is privileged, the fixture runs the
+child as an unprivileged UID. An additional WSL run used an
+unprivileged runner throughout.
+
+The example reports the occurrence whose checkpoint failed. The
+original bytes remain at 1000 ms and the failed attempt leaves no
+temporary checkpoint. With storage writable again, the APP repeats
+the 2000 ms action, commits 3000 ms and reports the remaining
+backlog. Windows and WSL example aggregates and restart peers passed.
+Build and subprocess reports are under
+`out/service-extensions/scope-reduction-20261119/xcron-checkpoint-write-failure/`.

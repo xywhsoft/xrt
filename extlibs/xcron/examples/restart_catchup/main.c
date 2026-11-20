@@ -67,7 +67,10 @@ static bool catchUp(const char* Path, xtime Last, xtime Through, unsigned Budget
         /* Scheduled UTC time identifies the APP action across restarts. Save
          * progress after success so a failed or interrupted job can retry. */
         if (printf("ran %" PRId64 "\n", Next) < 0 || fflush(stdout) != 0) return false;
-        if (Path && !save(Path, Next)) return false;
+        if (Path && !save(Path, Next)) {
+            fprintf(stderr, "checkpoint write failed after %" PRId64 "\n", Next);
+            return false;
+        }
         Last = Next;
         ++Count;
     }

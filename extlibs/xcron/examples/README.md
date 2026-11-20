@@ -42,5 +42,10 @@ Each process samples one upper bound and advances through strictly later
 occurrences within its supplied count budget. It atomically replaces its
 single-writer checkpoint after each successful action. An optional final
 timestamp simulates a failed action and leaves that occurrence available
-to retry. A crash between action and checkpoint can replay that action.
-Use the scheduled UTC timestamp as the APP's idempotency key.
+to retry.
+
+If a checkpoint write fails after a successful action, the example
+reports that occurrence and exits. Once storage is available, the next
+run starts at the previous checkpoint and retries the occurrence. The
+same retry can follow a crash between the action and checkpoint. Use
+the scheduled UTC timestamp as the APP's idempotency key.
