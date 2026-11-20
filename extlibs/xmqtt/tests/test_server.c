@@ -2549,6 +2549,38 @@ static void serverRoutingOom(void)
 		"recipient set retry and deduplication after growth");
 	xrtFree(Targets.Slots);
 
+	for (size_t Index = 0; Index < 48; ++Index) TargetsFixture[Index].Next = TargetsFixture + Index + 1;
+	for (size_t Index = 0; Index < 49; ++Index) {
+		xrtAtomic32Init(&TargetSessions[Index].State, XMQTT_SERVER_ONLINE);
+		TargetSessions[Index].Identity = Index + 1;
+		TargetSessions[Index].Version = XMQTT_VERSION_5;
+	}
+	xmqttservertopic Single = {.Head = TargetsFixture};
+	xmqttservertargets Direct = {.Capacity = sizeof(Direct.Local) / sizeof(Direct.Local[0])};
+	Direct.Slots = Direct.Local;
+	xallocationbudget* DirectBudget;
+	xallocationscope DirectScope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &DirectBudget) &&
+		xrtAllocationBudgetEnter(DirectBudget, &DirectScope), "single filter allocation failpoint");
+	bool DirectCollected = xmqttServerCollectFilter(&Direct, &Single, 1);
+	testRequire(xrtAllocationBudgetLeave(&DirectScope) && DirectCollected && Direct.Direct == Single.Head &&
+		!Direct.Count && Direct.Slots == Direct.Local, "large single filter keeps its subscription list");
+	xallocationbudgetinfo DirectAllocation = {.Size = sizeof(DirectAllocation)};
+	testRequire(xrtAllocationBudgetInfo(DirectBudget, &DirectAllocation) &&
+		!DirectAllocation.Rejections && !DirectAllocation.LiveBytes, "single filter uses no recipient scratch allocation");
+	xrtAllocationBudgetFree(DirectBudget);
+	TargetsFixture[0].Options = XMQTT_SUBSCRIBE_NO_LOCAL;
+	xmqttserverrouteiter DirectIter = {.Link = Direct.Direct, .Origin = 1};
+	for (size_t Index = 1; Index < 49; ++Index)
+		testRequire(xmqttServerRouteNext(&DirectIter) == TargetsFixture + Index, "direct iteration honors No Local");
+	testRequire(!xmqttServerRouteNext(&DirectIter), "direct iteration ends at the exact count");
+	xmqttserverlink HigherQos = {.Session = TargetSessions + 1, .Options = 2};
+	xmqttservertopic Overlap = {.Head = &HigherQos};
+	testRequire(xmqttServerCollectFilter(&Direct, &Overlap, 1) && !Direct.Direct && Direct.Count == 48 &&
+		Direct.Slots == Direct.Local &&
+		*xmqttServerTargetSlot(Direct.Slots, Direct.Capacity, &HigherQos, false) == &HigherQos,
+		"overlapping filters deduplicate and select the highest QoS");
+
 	xbytesview SharedKey = XRT_BYTES_LITERAL("shared/#"), Team = XRT_BYTES_LITERAL("team");
 	testRequire(xmqttServerSubscribeSession(&Session, SharedKey, (xbytesview){0}, 0, NULL, NULL) == 0,
 		"ordinary route anchors the group allocation failpoint");

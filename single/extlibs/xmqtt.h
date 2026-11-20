@@ -18623,6 +18623,7 @@ typedef union xmqttserversharedelivery {
 
 typedef struct xmqttservertargets {
 	size_t Count, Capacity;
+	xmqttserverlink* Direct;
 	xmqttserverlink** Slots;
 	xmqttserverlink* Local[64];
 	size_t ShareCount, ShareCapacity;
@@ -18721,14 +18722,30 @@ static xmqttserverlink* xmqttServerShareMember(xmqttservershare* Share)
 	}
 }
 
-static bool xmqttServerCollectFilter(xmqttservertargets* Targets, const xmqttservertopic* Filter, uint64 Origin)
+static bool xmqttServerAddFilterTargets(xmqttservertargets* Targets, xmqttserverlink* Link, uint64 Origin)
 {
-	for (xmqttserverlink* Link = Filter ? Filter->Head : NULL; Link; Link = Link->Next) {
+	for (; Link; Link = Link->Next) {
 		if (xrtAtomic32Load(&Link->Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_SEALED ||
 			((Link->Options & XMQTT_SUBSCRIBE_NO_LOCAL) && Link->Session->Identity == Origin)) continue;
 		if (!xmqttServerAddTarget(Targets, Link)) return false;
 	}
 	return true;
+}
+
+static bool xmqttServerCollectFilter(xmqttservertargets* Targets, const xmqttservertopic* Filter, uint64 Origin)
+{
+	if (!Filter || !Filter->Head) return true;
+	if (!Targets->Count) {
+		/* A single ordinary filter has at most one link per session. */
+		if (!Targets->Direct) {
+			Targets->Direct = Filter->Head;
+			return true;
+		}
+		memset(Targets->Local, 0, sizeof(Targets->Local));
+		if (!xmqttServerAddFilterTargets(Targets, Targets->Direct, Origin)) return false;
+		Targets->Direct = NULL;
+	}
+	return xmqttServerAddFilterTargets(Targets, Filter->Head, Origin);
 }
 
 static bool xmqttServerCollectWildcard(xmqttservertargets* Targets, const xmqttservershard* Shard,
@@ -18839,6 +18856,7 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 	Targets.Slots = Targets.Local;
 	Targets.Capacity = sizeof(Targets.Local) / sizeof(Targets.Local[0]);
 	Targets.Count = 0;
+	Targets.Direct = NULL;
 	Targets.Shares = Targets.LocalShares;
 	Targets.ShareCapacity = sizeof(Targets.LocalShares) / sizeof(Targets.LocalShares[0]);
 	Targets.ShareCount = 0;
@@ -18852,10 +18870,9 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 	xmqttserverdelivery* Batch = NULL;
 	uint64 Forwarded = 0, Dropped = 0;
 	if (Wildcard || Root) {
-		memset(Targets.Local, 0, sizeof(Targets.Local));
 		if ((Wildcard && !xmqttServerCollectWildcard(&Targets, Wildcard, Key, Identity)) ||
 			(Root && !xmqttServerCollectWildcard(&Targets, Root, Key, Identity)) ||
-			(Targets.Count && !xmqttServerCollectFilter(&Targets, Topic, Identity))) {
+			((Targets.Direct || Targets.Count) && !xmqttServerCollectFilter(&Targets, Topic, Identity))) {
 			Reason = 0x97;
 			Rejected = true;
 			goto Done;
@@ -18866,7 +18883,7 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 		Rejected = true;
 		goto Done;
 	}
-	if (!Topic && !Targets.Count && !Targets.ShareCount) goto Done;
+	if (!Topic && !Targets.Direct && !Targets.Count && !Targets.ShareCount) goto Done;
 
 	bool Rewrite = SourceQos != 0;
 	double Expires = Expiry ? Now + Expiry->Value.Number : 0;
@@ -18882,7 +18899,8 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 		}
 	}
 	xmqttserverrouteiter Start = {
-		.Targets = Targets.Count ? &Targets : NULL, .Link = Topic ? Topic->Head : NULL, .Origin = Identity
+		.Targets = Targets.Count ? &Targets : NULL,
+		.Link = Targets.Direct ? Targets.Direct : (Topic ? Topic->Head : NULL), .Origin = Identity
 	};
 	bool Needed[9] = {false};
 	xmqttserverrouteiter Iter = Start;

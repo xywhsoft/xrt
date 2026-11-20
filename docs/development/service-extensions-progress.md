@@ -19329,3 +19329,57 @@ and release-performance evidence also remain open. Reports, input
 hashes, command ledgers, raw traces and the initial trace compile log are
 under `out/service-extensions/scope-reduction-20261119/xredis-write-drain/`
 in `windows-recheck` and `windows-recheck-quiet`.
+
+## 2026-11-20 MQTT single-filter fan-out without recipient scratch
+
+The broker traverses a single matching ordinary subscription list under
+the existing shard read locks. Each list holds at most one link per
+session. A second matching list activates the hash-based merge by
+session and wire mode, with the highest matching QoS. Shared groups are
+selected independently. The single-header allocation-budget regression
+covers 49 recipients, No Local and promotion to the overlapping merge.
+
+An instrumented, closed-loop QoS 0 probe counted the recipient hash
+allocations in each build. On both Windows x64 and Ubuntu/WSL x64 the
+control allocated one scratch block per publication at 64 recipients and
+five at 1,000. Both counts were zero after the change. The probe verified
+the actual delivery counts and payloads. Its process-wide allocation
+counts also include framing and transport work.
+
+The external fixed-arrival observer compared the control at `32b1498a`,
+the updated broker and Mosquitto 2.1.2. All used plaintext MQTT 5 and
+128-byte payloads with either 64 exact or 64 wildcard subscribers.
+The brokers used logical CPU 0 with one xmqtt engine worker. The observer
+used CPUs 4, 6, 8 and 10. Reliable publishers and subscribers each used
+a window of 16. Each group ran all six broker orders, with 96 warmup
+and 600 QoS 0 or 300 reliable publications per sample. All 216 samples
+completed, verifying 86,400 measured publications, 5,529,600 deliveries
+and 43,200 reliable publisher confirmations.
+
+| Environment | QoS | Wildcard delivery P99 in ms, control / updated / Mosquitto |
+| --- | ---: | ---: |
+| Windows x64 | 0 | 1.260 / 1.332 / 1.248 |
+| Windows x64 | 1 | 13.468 / 13.151 / 13.281 |
+| Windows x64 | 2 | 14.425 / 14.347 / 14.362 |
+| Ubuntu/WSL x64 | 0 | 1.335 / 1.345 / 1.358 |
+| Ubuntu/WSL x64 | 1 | 1.561 / 1.526 / 1.469 |
+| Ubuntu/WSL x64 | 2 | 2.923 / 3.118 / 2.752 |
+
+All 36 delivery-rate series met the variation limits. Twenty-three of
+36 delivery P99 series met them. Exact and wildcard medians stayed
+within the planned 5% throughput and 10% tail regression limits against
+the control. Native Linux and a stable release tail baseline remain open.
+
+Windows and WSL passed the modular and single-header server suites,
+independent MQTT 5 and 3.1.1 interoperability, and the scripted observer
+cases. WSL ASan/UBSan with leak detection passed the server suite.
+A 30-second mixed run on each platform matched the broker counters,
+with 1,924 Windows rounds and 8,748 WSL rounds. Both short fault runs
+verified progress before killing their own broker and reported failed
+endurance qualification. Static and shared server packages passed their
+independent consumers on both platforms. Generated assets, API
+documentation and
+ordinary maturity passed. Strict release reports 39 developing modules.
+
+Scripts, source hashes, initial test failures and final logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-single-filter/`.
