@@ -21225,3 +21225,17 @@ The audit saved package and consumer hashes and the loader tables for all
 five profiles. Native Linux production and strict release acceptance remain
 pending. Evidence is in
 `out/service-extensions/scope-reduction-20261119/elf-package-relocation/`.
+
+## 2026-11-21 ELF package relocation in the Ubuntu extension job
+
+The existing Ubuntu matrix now copies each product's verified shared
+package and consumer into a temporary directory. The job checks the
+extension library's dependency on the relocated XRT sibling and runs the
+consumer with loader path, preload and audit overrides cleared.
+
+The workflow command passed on WSL for the base xcron, xrpc, xredis and
+xmqtt package profiles. A replay using the retained pre-fix xrpc shared
+library failed the dependency check with the original build still present.
+Hosted execution and native Linux release acceptance remain pending.
+Evidence is in
+`out/service-extensions/scope-reduction-20261119/elf-package-relocation-ci/`.
