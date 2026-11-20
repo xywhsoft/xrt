@@ -20976,3 +20976,32 @@ remain open.
 
 Build logs and the test-count audit are under
 `out/service-extensions/scope-reduction-20261119/current-xrpc-verification/`.
+
+## 2026-11-21 xcron matched-precision cohort runner
+
+The portable runner measures the scheduler and the direct waiter
+through one executable. It alternates the two drivers for each
+job mix, saves raw waves and recomputes the benchmark`s quantiles. Each
+process result is flushed to the report before the next process. The
+series summarize pooled tails and process-to-process P99 variation.
+The runner lives under the xcron benchmark directory.
+
+Windows x64 and Ubuntu/WSL each passed the ordinary modular cohort
+build and an eight-process runner smoke with 8,704 verified callbacks.
+Two fault fixtures changed the reported P99 and callback count. Both
+failed and kept the previously verified process result. The default
+256-wave campaign started on Windows with an audited binary and
+affinity. The WSL leg has the same workload and waits for the Windows
+leg to finish.
+
+The fixed-clock comparison also measured the existing heap adjustment,
+cached moving-job keys and a bottom-up heap adjustment. An independent
+audit checked 192 processes and 415,432,704 measured callbacks. In the
+64-active and 960-dormant case, the original, cached-key and bottom-up
+median P99 values were 2.8 / 3.0 / 4.9 us on Windows and
+3.0 / 3.5 / 7.8 us on WSL. The 1,024-active cases showed mixed tail
+results. The existing heap adjustment remains in use.
+
+Commands, source and binary digests and the raw reports are under
+`out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
+[Matched cohort instructions](../../extlibs/xcron/docs/scheduler.md).

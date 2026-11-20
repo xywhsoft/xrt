@@ -100,6 +100,32 @@ XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter --samples
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter-precise --samples
 ```
 
+Run the matched-precision campaign on the machine being measured. Use
+a logical CPU available to the process and gather the report on each
+host separately. The following builds the ordinary cohort executable,
+then measures both drives through that same binary.
+
+```sh
+python tools/measure_performance.py --compiler gcc \
+  --config extlibs/xcron/config/performance_profiles.json \
+  --profiles xcron_scheduler_cohort --smoke --warmups 0 --repeats 1 \
+  --report out/xcron-cohort-build.json
+python extlibs/xcron/bench/run_scheduler_cohorts.py \
+  out/performance/gnu/native/xcron/xcron_cohort_1024_wait \
+  --cpu 4 --report out/xcron-matched-cohorts.jsonl
+```
+
+On Windows use the same executable path with an `.exe` suffix. Keep
+the build report and executable with the run. The runner alternates
+Scheduler Wait and the precise direct waiter over both job mixes.
+It saves each verified process immediately, including raw wave readings,
+count, affinity and benchmark binary identity. Its summaries report pooled
+P50/P95/P99/P99.9 and the variation across per-process P99 values.
+The default is five 256-wave processes per drive and job mix.
+For a shorter verification, set `--waves 2 --repeats 1`. A completed
+report describes the environment that ran it. Use an independent native
+Linux run for acceptance.
+
 The separate wait-phase benchmark samples the wall and monotonic clocks on
 entry to and return from XRT EventWaiter. It also prints the actual waiter
 backend. The numeric backend values follow `xeventwaiterbackend` in
