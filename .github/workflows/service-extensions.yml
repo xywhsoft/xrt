@@ -93,6 +93,7 @@ jobs:
       - name: Independent TCP peer and APP executor
         if: matrix.product == 'xrpc'
         run: >-
+          python extlibs/xrpc/tests/interop/test_tcp_observer.py &&
           python extlibs/xrpc/tests/interop/run_tcp_worker.py
           out/gcc/native/xrpc_examples/examples_tcp_worker_main
           out/service-extensions/xrpc-tcp-worker-linux.json
@@ -211,6 +212,7 @@ jobs:
       - name: Independent TCP peer and APP executor
         if: matrix.product == 'xrpc'
         run: >-
+          python extlibs/xrpc/tests/interop/test_tcp_observer.py &&
           python extlibs/xrpc/tests/interop/run_tcp_worker.py
           out/gcc/native/xrpc_examples/examples_tcp_worker_main.exe
           out/service-extensions/xrpc-tcp-worker-windows.json

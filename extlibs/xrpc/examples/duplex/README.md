@@ -99,9 +99,11 @@ scheduled batch arrival for every request. Separate percentiles cover the
 delay until submission, the observer's wait for a window slot, and the
 interval from the actual send attempt to the reply. The report also
 records the largest in-flight window, the number of batches that found it
-full and observer CPU time. A socket read's timestamp applies to every
-complete reply delivered by that read. Compare tail medians only when the
-repeated samples meet the variation gate.
+full and observer CPU time. The observer compares received bytes against a
+precomputed wire sequence for each group. Within a split group, each reply
+takes the timestamp of the read that supplies its final byte. A JSON-RPC
+batch document supplies one timestamp for all calls in the document.
+Compare tail medians only when the repeated samples meet the variation gate.
 
 The default framing sends a separate JSON-RPC record for each call.
 With `--batch-documents` the same calls travel in one JSON-RPC request

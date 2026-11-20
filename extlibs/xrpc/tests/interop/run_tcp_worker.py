@@ -1,8 +1,10 @@
 """Drive or measure the TCP example with an independent socket peer."""
 import argparse
+from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, suppress
 import hashlib
+from itertools import accumulate
 import json
 import os
 import platform
@@ -281,13 +283,15 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
 class SaturationPeer:
     def __init__(self, sock, batches, window):
         self.sock = sock
-        self.batches = batches
+        self.batches = [(wire, b"".join(replies),
+                         tuple(accumulate(map(len, replies))) if len(replies) > 1 else (len(replies[0]),) * count)
+                        for wire, replies, count in batches]
         self.window = window
         self.sent_at, self.credit_wait, self.times = [], [], []
         self.peak = self.stalls = self.completed = self.reply_index = 0
         self.blocked_since = None
         self.outgoing = None
-        self.incoming = bytearray()
+        self.reply_offset = 0
 
     def flush(self):
         try:
@@ -334,30 +338,37 @@ class SaturationPeer:
             return True
         observed = time.perf_counter_ns()
         if not data:
-            if self.completed != len(self.batches) or self.incoming or self.outgoing is not None:
+            if self.completed != len(self.batches) or self.outgoing is not None:
                 raise RuntimeError("saturation reply identity or order mismatch")
             return False
-        self.incoming.extend(data)
         offset = 0
-        while offset < len(self.incoming):
+        while offset < len(data):
             if self.completed == len(self.batches):
                 raise RuntimeError("unexpected reply after the final offer")
             if self.completed == len(self.sent_at):
                 raise RuntimeError("saturation reply identity or order mismatch")
-            _, replies, count = self.batches[self.completed]
-            reply = replies[self.reply_index]
-            end = offset + len(reply)
-            if end > len(self.incoming):
-                break
-            if self.incoming[offset:end] != reply:
+            _, expected, ends = self.batches[self.completed]
+            start = self.reply_offset
+            size = min(len(data) - offset, len(expected) - start)
+            end = start + size
+            if start == 0 and end == len(expected):
+                matched = data.startswith(expected, offset)
+            else:
+                matched = data[offset:offset + size] == expected[start:end]
+            if not matched:
                 raise RuntimeError("saturation reply identity or order mismatch")
-            offset = end
-            self.times.extend([observed] * (count if len(replies) == 1 else 1))
-            self.reply_index += 1
-            if self.reply_index == len(replies):
+            offset += size
+            # Credit remains tied to the whole batch. An individual call is
+            # timestamped as soon as the read reaches its final reply byte.
+            if end == len(expected):
+                self.times.extend([observed] * (len(ends) - self.reply_index))
                 self.completed += 1
-                self.reply_index = 0
-        del self.incoming[:offset]
+                self.reply_index = self.reply_offset = 0
+            else:
+                replies = bisect_right(ends, end, self.reply_index)
+                self.times.extend([observed] * (replies - self.reply_index))
+                self.reply_index = replies
+                self.reply_offset = end
         return True
 
 

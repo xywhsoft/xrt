@@ -19894,3 +19894,54 @@ permitted for both Redis peer roles on the Cluster bus.
 Source hashes, build logs, exact election evidence and server logs are
 under `out/service-extensions/scope-reduction-20261119/xredis-cluster-tls/`.
 Reproduce from the [client initialization guide](../../extlibs/xredis/docs/client-init.md#cluster-replica-readonly).
+
+## 2026-11-20 xrpc TCP observer reply verification
+
+The fixed-arrival observer prepares one expected byte sequence and its
+reply-end offsets per offer group. The measured loop compares bytes
+directly from each socket read. It records a call when its final reply
+byte arrives and returns the offer credit after the full group. A
+JSON-RPC batch shares its document's completion timestamp. The APP,
+offer schedule and queue limits are the same in both versions.
+
+On Windows and Ubuntu/WSL the stream test verified all 171 two-cut
+partitions of a mixed sequence and rejected every one-byte mutation,
+premature EOF, a reply before its offer and data after the last reply.
+The TCP APP and the independent partial-send, final partial batch and
+completion-ledger fixtures also passed. The stream test runs in the
+Windows and Linux interop jobs.
+
+For the loopback comparison, eight connections scheduled 128,000 calls/s
+in total for two seconds with two APP workers and a 16-group window.
+Each of the 80 samples verified all replies, for 20,480,000 replies
+across both hosts. Each table entry uses five runs per observer.
+
+| Host | APP mode | Framing | Verified calls/s, old / new | P99 in ms, old / new |
+| --- | --- | --- | ---: | ---: |
+| Windows x64 | Duplex | Records | 127,992 / 127,991 | 1.776 / 1.185 |
+| Windows x64 | Duplex | Batch | 127,999 / 127,998 | 0.622 / 0.568 |
+| Windows x64 | Dispatch | Records | 128,001 / 127,997 | 0.873 / 0.874 |
+| Windows x64 | Dispatch | Batch | 128,009 / 128,011 | 0.498 / 0.469 |
+| Ubuntu/WSL x64 | Duplex | Records | 124,714 / 126,276 | 54.864 / 34.674 |
+| Ubuntu/WSL x64 | Duplex | Batch | 127,997 / 128,000 | 0.622 / 0.558 |
+| Ubuntu/WSL x64 | Dispatch | Records | 127,946 / 127,971 | 5.272 / 6.350 |
+| Ubuntu/WSL x64 | Dispatch | Batch | 127,996 / 127,999 | 0.482 / 0.475 |
+
+All throughput series met the variation thresholds. Every P99 series
+exceeded them. Whole-observer CPU medians stayed between 2.24 and 2.33
+seconds. These results leave native Linux and stable release tails open.
+
+In a separate replay of identical read boundaries, coalesced record
+verification used 495 to 109 CPU ns per reply on Windows and 372 to
+70 on WSL. With each record group split once, the figures were 536 to
+217 and 429 to 165. The new precomputation cost 88 CPU ns per record
+reply on Windows and 76 to 88 on WSL. For a split native batch document,
+verification increased from 190 to 244 CPU ns per call on Windows and
+139 to 155 on WSL. The initial Windows replay was too short for its
+CPU accounting resolution. The extended replay accumulates 24 passes
+per observation. Replay excludes networking, pacing and APP work.
+
+Generated assets, API docs and ordinary maturity passed. Strict release
+still lists `xrpc` and `xrpc_duplex` as developing. The reports,
+source and binary hashes and scripts are under
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-reply-observer/`.
