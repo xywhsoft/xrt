@@ -24,6 +24,7 @@ typedef struct redisopenconfig {
 	bool Stats;
 	unsigned Connections;
 	bool Mixed;
+	cstr CaFile, ServerName;
 } redisopenconfig;
 typedef struct redisopenrecord {
 	uint64 Due, Submitted, Finished;
@@ -38,7 +39,7 @@ typedef struct redisopencounts {
 } redisopencounts;
 
 static inline redisopenconfig redisOpenDefaults(void)
-{ return (redisopenconfig){100000, 256, 32, 100000, 1000, 0, 0, 0, false, 1, false}; }
+{ return (redisopenconfig){100000, 256, 32, 100000, 1000, 0, 0, 0, false, 1, false, NULL, NULL}; }
 
 static inline unsigned redisOpenConnections(const redisopenconfig* Config)
 { return Config->Connections ? Config->Connections : 1u; }

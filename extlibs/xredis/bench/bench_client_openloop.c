@@ -12,15 +12,23 @@ static bool redisOpenArgument(cstr Text, uint64* Value)
 int main(int argc, char** argv)
 {
 	redisopenconfig Config = redisOpenDefaults(); uint64 Args[11] = {Config.Count, Config.Rate, Config.Slots, Config.Payload, (uint64)Config.Timeout, 0, 0, 0, 0, 1, 0};
-	if (argc > 12) return 2;
-	for (int Index = 1; Index < argc; ++Index) if (!redisOpenArgument(argv[Index], &Args[Index - 1])) return 2;
+	int Numeric = argc - 1;
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	if (argc != 14 || !argv[12][0] || !argv[13][0]) return 2;
+	Numeric -= 2;
+#endif
+	if (Numeric > 11) return 2;
+	for (int Index = 0; Index < Numeric; ++Index) if (!redisOpenArgument(argv[Index + 1], &Args[Index])) return 2;
 	if (Args[0] > SIZE_MAX || Args[2] > SIZE_MAX || Args[3] > SIZE_MAX || Args[4] > INT64_MAX ||
 		Args[5] > 2 || Args[6] > 5000 || Args[7] > UINT16_MAX || Args[8] > 1 || !Args[9] ||
 		Args[9] > REDIS_OPEN_MAX_CONNECTIONS || Args[10] > 1) return 2;
-	Config = (redisopenconfig){(size_t)Args[0], (size_t)Args[2], (size_t)Args[3], Args[1], (int64)Args[4], (unsigned)Args[5], (uint32)Args[6], (uint32)Args[7], Args[8] != 0, (unsigned)Args[9], Args[10] != 0};
+	Config = (redisopenconfig){(size_t)Args[0], (size_t)Args[2], (size_t)Args[3], Args[1], (int64)Args[4], (unsigned)Args[5], (uint32)Args[6], (uint32)Args[7], Args[8] != 0, (unsigned)Args[9], Args[10] != 0, NULL, NULL};
 	redisopenresult Result; if (!redisOpenConfigValid(&Config)) return 2;
 #if defined(REDIS_OPENLOOP_TLS)
 	if (Config.Port != 0) return 2;
+#elif defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	if (Config.Port == 0) return 2;
+	Config.CaFile = argv[12]; Config.ServerName = argv[13];
 #endif
 #if defined(REDIS_OPENLOOP_HIREDIS)
 	if (Config.Port == 0 || Config.Mode == 2 || Config.Stats) return 2;
@@ -38,6 +46,11 @@ int main(int argc, char** argv)
 	printf("memory_stats=%s\n", Config.Stats ? "enabled" : Result.StatsCompiled ? "compiled_disabled" : "not_compiled");
 #if defined(REDIS_OPENLOOP_TLS)
 	puts("transport=TLS13_AES128GCM_X25519_fixture");
+#elif defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	puts("transport=tls13_aes128gcm_x25519");
+#if defined(REDIS_OPENLOOP_HIREDIS)
+	printf("tls_library=%s\n", OpenSSL_version(OPENSSL_VERSION));
+#endif
 #else
 	puts("transport=tcp");
 #endif

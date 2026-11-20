@@ -18860,3 +18860,63 @@ open with 29 developing modules.
 The working copies, per-sample and per-request records, engine counters,
 Redis ledgers and validation logs are under
 out/service-extensions/scope-reduction-20261119/xredis-client-wake/.
+
+## 2026-11-20 xredis and Hiredis verified TLS comparison
+
+The optional external TLS build uses the same observer, arrival schedule,
+payloads and outcomes as the plaintext comparison. Both clients use a
+supplied CA and expected DNS name, TLS 1.3, AES-128-GCM and X25519, with
+RSA-PSS server handshake signatures. They negotiate RESP3, verify PING
+and seed the read key before timing starts. Redis 8.0.5 served TLS only.
+The Windows x64 client reached the private WSL Redis through loopback
+forwarding. The client processes used logical CPUs 4 and 8, and Redis
+used guest CPU 0. The benchmark retained hashes of public certificates,
+source files, binaries and reference libraries. The fixture removed all
+certificate material at teardown.
+
+The pinned Hiredis 1.3.0 reference used OpenSSL 4.1.0 on Windows and
+3.5.5 on WSL. The Windows package hash matched the MSYS2 inventory.
+The Hiredis adapter uses OpenSSL's verification parameters for DNS
+checks. The initial Windows build encountered two diagnostics in the
+upstream system certificate store path. The reference build kept those
+diagnostics as warnings and used the explicit-CA path for every handshake.
+[MSYS2 OpenSSL package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-openssl?repo=ucrt64) and
+[OpenSSL DNS verification](https://docs.openssl.org/3.5/man3/X509_VERIFY_PARAM_set_flags/).
+
+Five two-second repetitions per client and case yielded 60 measured
+samples. The server command counts reconciled for all 639,934 completed
+requests out of 640,000 offers. All 66 rejections occurred at the Hiredis
+observer window in the Windows four-connection high-rate case. Five pairs
+completed every offer. P99 medians are shown for those pairs only.
+
+| Observer | Connections | Offers/s | Completed xredis / Hiredis | P99 in microseconds xredis / Hiredis |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1 | 2,000 | 20,000 / 20,000 | 443.7 / 331.7 |
+| Windows | 4 | 2,000 | 20,000 / 20,000 | 494.6 / 334.3 |
+| Windows | 4 | 12,000 | 120,000 / 119,934 | |
+| Ubuntu/WSL | 1 | 2,000 | 20,000 / 20,000 | 240.0 / 151.8 |
+| Ubuntu/WSL | 4 | 2,000 | 20,000 / 20,000 | 233.6 / 162.8 |
+| Ubuntu/WSL | 4 | 12,000 | 120,000 / 120,000 | 262.2 / 149.6 |
+
+At the high WSL rate, both clients delivered approximately 12,000
+verified replies/s. Median process CPU per two-second window was
+3.252 s for xredis and 2.000 s for Hiredis. The complete pairs did not
+meet the combined variation gate. These measurements cover established
+TLS sessions. Handshake cost, native Linux and stable release tails
+remain open.
+
+Twelve negative checks covered missing trust, an unrelated CA and a
+wrong DNS name on both systems. The Redis ledgers confirmed that these
+checks issued zero Redis commands. The Windows and WSL TLS ECHO and mixed
+RESP3 smokes passed, along with the focused modular tests, the original
+single-header TLS fixture and the rebuilt plaintext comparison. WSL
+ASan/UBSan with leak detection passed the one- and four-connection TLS
+smokes. The reference observer and Hiredis TLS adapter were instrumented,
+and the reference Hiredis archive and OpenSSL libraries were unchanged.
+Generated asset and ordinary maturity checks passed.
+Strict release still lists 29 developing modules.
+
+Reproduce from [the TLS comparison guide](../../extlibs/xredis/docs/client-performance.md#verified-tls-comparison).
+Raw reports, failed and successful checks, compiler logs and runtime
+dependencies are under
+out/service-extensions/scope-reduction-20261119/xredis-hiredis-tls/.

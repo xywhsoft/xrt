@@ -42,9 +42,10 @@ def sample(args, client: Path, name: str, command: list[str]) -> dict:
     sample = {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
     if result.returncode != 0:
         return sample | {"verified": False}
+    transport = "tls13_aes128gcm_x25519" if getattr(args, "tls_ca", None) else "tcp"
     expected = {
         "client": name, "target": "external_loopback", "arrival_model": "fixed_absolute",
-        "workers": "1" if name == "xredis" else "0", "transport": "tcp",
+        "workers": "1" if name == "xredis" else "0", "transport": transport,
         "memory_stats": "not_compiled", "generator_mode": "0",
         "slot_capacity": str(args.window), "max_inflight": str(args.window),
         "payload_bytes": str(args.payload), "target_rate_per_sec": str(args.rate),
@@ -85,6 +86,8 @@ def main() -> int:
     parser.add_argument("--payload", type=int, default=32)
     parser.add_argument("--connections", type=int, default=1)
     parser.add_argument("--mixed", action="store_true", help="three binary GETs per SET on each connection")
+    parser.add_argument("--tls-ca", type=Path, help="explicit PEM trust for TLS comparison binaries")
+    parser.add_argument("--tls-server-name", help="expected peer name and SNI, defaults to localhost")
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
@@ -95,6 +98,13 @@ def main() -> int:
     if clients["xredis"] == clients["hiredis-1.3.0"]:
         parser.error("provide two distinct executables")
     command = list(map(str, (args.count, args.rate, args.window, args.payload, 1000, 0, 0, args.port, 0, args.connections, int(args.mixed))))
+    if args.tls_ca is not None:
+        args.tls_ca = args.tls_ca.resolve(strict=True)
+        if not args.tls_ca.is_file() or not 0 < args.tls_ca.stat().st_size < 65536 or args.tls_server_name == "":
+            parser.error("TLS requires a nonempty peer name and a PEM CA file smaller than 64 KiB")
+        command += [str(args.tls_ca), args.tls_server_name or "localhost"]
+    elif args.tls_server_name is not None:
+        parser.error("--tls-server-name requires --tls-ca")
     report = {
         "platform": platform.platform(), "arguments": command, "runs": [], "summary": {},
         "executables": {name: {"path": str(path), "sha256": digest(path)} for name, path in clients.items()},
@@ -105,6 +115,8 @@ def main() -> int:
         )},
         "variation_limits": {"minimum_repeats": 5, "relative_mad": 0.03, "relative_central_range": 0.06},
     }
+    if args.tls_ca is not None:
+        report["tls_ca_sha256"] = digest(args.tls_ca)
     for repeat in range(args.repeats + 1):
         order = list(clients)
         if repeat % 2:

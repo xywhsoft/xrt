@@ -13,6 +13,9 @@
 #if defined(REDIS_OPENLOOP_TLS)
 #include "../tests/support/tls_peer.h"
 #endif
+#if defined(REDIS_OPENLOOP_TLS) && defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+#error Select a single TLS endpoint mode.
+#endif
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,6 +251,44 @@ static void redisOpenWarmCommand(xredisclient* Client, const xbytesview* Args, s
 	xrtFutureDestroy(Future);
 }
 
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+static xtlsverifier* redisOpenTlsVerifier(cstr CaFile)
+{
+	unsigned char Pem[65536];
+	FILE* File = fopen(CaFile, "rb");
+	redisOpenRequire(File != NULL, "TLS CA file");
+	size_t Size = fread(Pem, 1, sizeof(Pem), File);
+	bool Complete = Size && Size < sizeof(Pem) && !ferror(File);
+	redisOpenRequire(fclose(File) == 0 && Complete, "bounded TLS CA file");
+	xx509store* Store = xrtX509StoreCreate();
+	redisOpenRequire(Store && xrtX509StoreAddData(Store, (xbytesview){Pem, Size}, NULL), "TLS CA trust");
+	xtlsverifierconfig Verify; xrtTlsVerifierConfigInit(&Verify); Verify.Store = Store;
+	xtlsverifylimits Limits; xrtTlsVerifyLimitsInit(&Limits);
+	xtlsverifier* Verifier = xrtTlsVerifierCreateLimited(&Verify, &Limits);
+	xrtX509StoreFree(Store);
+	redisOpenRequire(Verifier != NULL, "TLS comparison verifier");
+	return Verifier;
+}
+
+static xtlscontext* redisOpenTlsContext(void)
+{
+	const xtlsversion Versions[] = {XTLS_VERSION_13};
+	const xtlscipher Ciphers[] = {XTLS_AES_128_GCM_SHA256};
+	const uint16 Groups[] = {XTLS_GROUP_X25519};
+	const xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
+	xtlspolicy Policy; xrtTlsPolicyInit(&Policy);
+	Policy.Versions = Versions; Policy.VersionCount = 1;
+	Policy.Ciphers = Ciphers; Policy.CipherCount = 1;
+	Policy.Groups = Groups; Policy.GroupCount = 1;
+	Policy.Signatures = Signatures; Policy.SignatureCount = 1;
+	xtlscontextconfig Settings; xrtTlsContextConfigInit(&Settings); Settings.Policy = &Policy;
+	xtlscontext* Context = xrtTlsContextCreate(&Settings);
+	if (Context == NULL) fprintf(stderr, "TLS policy: %s\n", xrtErrorMessage(xrtGetError()));
+	redisOpenRequire(Context != NULL, "TLS comparison policy");
+	return Context;
+}
+#endif
+
 static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 {
 	if (!redisOpenConfigValid(Config) || Output == NULL) return false;
@@ -285,11 +326,17 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 #if defined(REDIS_OPENLOOP_TLS)
 	redistlspeer Credentials; memset(&Credentials, 0, sizeof(Credentials)); redisTlsPeerCredentials(&Credentials, &Endpoint.Peer, false, false);
 	xredisclienttlsconfig TLS; redisTlsPeerConfig(&Credentials, &TLS);
+#elif defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	xtlsverifier* Verifier = redisOpenTlsVerifier(Config->CaFile);
+	xtlscontext* Context = redisOpenTlsContext();
+	xredisclienttlsconfig TLS; xredisClientTlsConfigInit(&TLS);
+	TLS.Session.Context = Context; TLS.Session.Verifier = Verifier;
+	TLS.Session.ServerName = TLS.Session.VerifyName = (xstrview){Config->ServerName, strlen(Config->ServerName)};
 #endif
 
 	for (unsigned Index = 0; Index < Connections; ++Index) {
 		xredisclient** Client = &Clients[Index];
-#if defined(REDIS_OPENLOOP_TLS)
+#if defined(REDIS_OPENLOOP_TLS) || defined(REDIS_OPENLOOP_EXTERNAL_TLS)
 		redisPeerRequire(xredisClientTlsConnect(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, &TLS, Client), "open-loop TLS connect");
 #else
 		redisPeerRequire(xredisClientConnectInit(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, Client), "open-loop connect");
@@ -312,6 +359,10 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 			if (WarmInfo.Requests || WarmInfo.InitBytes) xrtThreadYield();
 		} while (WarmInfo.Requests || WarmInfo.InitBytes);
 	}
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	xrtTlsContextRelease(Context);
+	xrtTlsVerifierRelease(Verifier);
+#endif
 #if defined(XRT_FEATURE_MEMORY_STATS)
 	bool WasEnabled = xrtMemStatsEnabled(); xrtMemStatsEnable(Config->Stats); Output->StatsCompiled = true;
 	if (Config->Stats) xrtMemStatsReset();

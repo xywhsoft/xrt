@@ -1,6 +1,10 @@
 #ifndef XREDIS_BENCH_OPENLOOP_HIREDIS_H
 #define XREDIS_BENCH_OPENLOOP_HIREDIS_H
 #include <hiredis.h>
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+#include <hiredis_ssl.h>
+#include <openssl/ssl.h>
+#endif
 #if !defined(_WIN32)
 #include <fcntl.h>
 #endif
@@ -9,7 +13,26 @@
 #error This comparison uses Hiredis 1.3.0.
 #endif
 
-static redisContext* redisOpenHiredisConnect(const redisopenconfig* Config, unsigned Index, unsigned char* Payload)
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+static SSL_CTX* redisOpenHiredisTlsContext(const redisopenconfig* Config)
+{
+	SSL_CTX* Context = SSL_CTX_new(TLS_client_method());
+	redisOpenRequire(Context && SSL_CTX_set_min_proto_version(Context, TLS1_3_VERSION) == 1 &&
+		SSL_CTX_set_max_proto_version(Context, TLS1_3_VERSION) == 1 &&
+		SSL_CTX_set_ciphersuites(Context, "TLS_AES_128_GCM_SHA256") == 1 &&
+		SSL_CTX_set1_groups_list(Context, "X25519") == 1 &&
+		SSL_CTX_set1_sigalgs_list(Context, "rsa_pss_rsae_sha256:rsa_pkcs1_sha256") == 1 &&
+		SSL_CTX_load_verify_locations(Context, Config->CaFile, NULL) == 1, "Hiredis TLS policy and CA");
+	SSL_CTX_set_verify(Context, SSL_VERIFY_PEER, NULL);
+	return Context;
+}
+#endif
+
+static redisContext* redisOpenHiredisConnect(const redisopenconfig* Config, unsigned Index, unsigned char* Payload
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	, SSL_CTX* Context
+#endif
+)
 {
 	struct timeval Timeout = {5, 0};
 	redisOptions Options = {0};
@@ -18,6 +41,15 @@ static redisContext* redisOpenHiredisConnect(const redisopenconfig* Config, unsi
 	Options.command_timeout = &Timeout;
 	redisContext* Client = redisConnectWithOptions(&Options);
 	redisOpenRequire(Client != NULL && Client->err == 0, "Hiredis connection");
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	SSL* Session = SSL_new(Context);
+	redisOpenRequire(Session && SSL_set_tlsext_host_name(Session, Config->ServerName) == 1 &&
+		X509_VERIFY_PARAM_set1_host(SSL_get0_param(Session), Config->ServerName, 0) == 1, "Hiredis TLS peer name");
+	redisOpenRequire(redisInitiateSSL(Client, Session) == REDIS_OK &&
+		SSL_get_verify_result(Session) == X509_V_OK && SSL_version(Session) == TLS1_3_VERSION &&
+		strcmp(SSL_get_cipher_name(Session), "TLS_AES_128_GCM_SHA256") == 0 &&
+		SSL_get_negotiated_group(Session) == NID_X25519, "Hiredis verified TLS handshake");
+#endif
 
 	redisReply* Hello = redisCommand(Client, "HELLO 3");
 	redisOpenRequire(Hello != NULL && Hello->type == REDIS_REPLY_MAP, "Hiredis HELLO map");
@@ -80,10 +112,20 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	unsigned char* Payload = malloc(Config->Payload);
 	redisOpenRequire(Records != NULL && Samples != NULL && Payload != NULL, "Hiredis observer allocation");
 	Output->HarnessBytes = Config->Count * (sizeof(*Records) + sizeof(*Samples)) + Config->Payload + sizeof(Peers);
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	SSL_CTX* Context = redisOpenHiredisTlsContext(Config);
+#endif
 	for (unsigned Index = 0; Index < Connections; ++Index) {
-		Peers[Index].Client = redisOpenHiredisConnect(Config, Index, Payload);
+		Peers[Index].Client = redisOpenHiredisConnect(Config, Index, Payload
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+			, Context
+#endif
+		);
 		Peers[Index].Flushed = 1;
 	}
+#if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
+	SSL_CTX_free(Context);
+#endif
 
 	size_t Active = 0, Next = 0;
 	const uint64 Timeout = (uint64)Config->Timeout * 1000000u;

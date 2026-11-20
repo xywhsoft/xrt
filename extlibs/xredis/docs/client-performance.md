@@ -222,8 +222,35 @@ Hiredis runs its nonblocking socket and parser on the generator thread.
 xredis samples native request and command-byte counters across the selected
 connections.
 
-Native Linux, TLS comparisons, stable tail baselines, exact copy and syscall
-costs, and 72-hour acceptance remain open.
+### Verified TLS comparison
+
+Use the same open-loop observer with `REDIS_OPENLOOP_EXTERNAL_TLS` defined
+for both builds. Select `XREDIS_MODULE_XREDIS_TLS` for the xredis binary. For
+the Hiredis binary, also compile the pinned Hiredis `ssl.c` and link that
+object with `libhiredis.a` and matching OpenSSL 3 or later SSL and crypto
+libraries.
+The Hiredis observer uses XRT's clock and runner utilities. Its build can
+omit `XREDIS_IMPLEMENTATION` and the xredis single-header forced include.
+Record the OpenSSL runtime version and library hashes along with the binary
+hashes. This OpenSSL dependency is specific to the reference observer.
+
+Use an isolated Redis instance with plaintext disabled and configure
+`tls-protocols TLSv1.3`, `tls-ciphersuites TLS_AES_128_GCM_SHA256`, and
+`tls-auth-clients no`. Use an RSA server certificate with a DNS SAN and a
+PEM CA file. The example fixture can generate those certificates.
+[Redis TLS interop fixture](../tests/interop/run_redis_tls.py)
+
+Append the CA and expected DNS name to the paired run.
+
+    --tls-ca /path/to/ca.pem --tls-server-name localhost
+
+Both clients verify the chain and DNS name and constrain the handshake to
+TLS 1.3, AES-128-GCM and X25519. They negotiate RESP3 and verify PING before
+timing starts. Preserve the server command ledger and retain failed offers in
+the latency report. The reported CPU and throughput are for established
+connections. Handshake, mutual TLS, TLS 1.2 performance, native Linux,
+stable release tails, exact syscall/copy counts and 72-hour acceptance
+have separate evidence requirements.
 
 ## Continuous mixed workload
 
