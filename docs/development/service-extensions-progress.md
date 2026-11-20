@@ -20633,3 +20633,30 @@ Both prototype builds passed the existing independent TCP peer matrix
 on both hosts. The prototype, input and binary hashes, raw runs and
 audits are in
 `out/service-extensions/scope-reduction-20261119/xrpc-app-executor-groups/`.
+
+## 2026-11-21 xredis and xmqtt Windows endurance candidates
+
+The Windows endurance candidates were rebuilt from master
+`0a1f5b62` with optimized, warning-clean single-header builds. The
+build receipts record the compiler, selected features, input hashes and
+binary hashes. Earlier runs retained their original candidate identities
+and continued collecting data.
+
+The 65-second Redis smoke verified 4,144 mixed rounds against Redis
+8.0.5. The command ledger recorded 37,296 SETs, 37,296 GETs, 4,144
+PUBLISH commands, one SUBSCRIBE and four HELLOs. The client runs
+natively on Windows and the disposable Redis peer runs in Ubuntu/WSL.
+The TCP workload checks pool replies, Pub/Sub and ordered Tracking.
+
+The 65-second MQTT smoke verified 4,180 mixed rounds. The native
+Windows broker accepted 266 connections and counted 25,342 forwarded
+deliveries, matching the client ledger. A separate run verified 645
+rounds before stopping its own broker. The runner recorded the injected
+stop and rejected successful client retirement. The same client and
+broker binary is used for the endurance run.
+
+Both 72-hour runs started and produced verified heartbeats. Completion,
+resource acceptance and native Linux qualification remain open.
+Build and launch inputs, smoke and injection reports and live journals
+are under
+`out/service-extensions/scope-reduction-20261119/native-windows-current-soak/`.
