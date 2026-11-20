@@ -21151,3 +21151,28 @@ Build logs, code and binary digests, and raw reports are under
   development coverage. Native Linux release qualification remains pending.
   Evidence is in
   `out/service-extensions/scope-reduction-20261119/xmqtt-auth-checkpoint-transports/`.
+
+## 2026-11-21 xcron Windows matched-precision cohort result
+
+The native Windows x64 leg completed 20 processes on logical CPU 4, five
+per job mix and driver. Each process measured 256 consecutive one-second
+UTC waves. An independent recomputation checked all 5,120 wave records,
+2,785,280 callbacks, and the pooled and per-process quantiles. The
+current runner and the Windows binary matched the launch digests.
+The GNU 16.2.0 -O2 build receipt records a dirty tree at 6700ddde.
+
+| Active / dormant | Driver | First callback lateness P99 / P99.9 (ms) | Last callback lateness P99 / P99.9 (ms) | Callback span P99 / P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | wait | 1.988 / 5.500 | 1.997 / 5.509 | 120.300 / 393.400 |
+| 64 / 960 | waiter-precise | 6.521 / 23.538 | 6.521 / 23.539 | 1.000 / 16.100 |
+| 1024 / 0 | wait | 1.223 / 3.765 | 1.569 / 3.868 | 689.700 / 1103.700 |
+| 1024 / 0 | waiter-precise | 1.540 / 3.584 | 1.585 / 3.588 | 42.400 / 82.400 |
+
+First- and last-callback lateness failed the across-process P99
+stability gate in all four series. The gate allows a median absolute
+deviation of 3% and a central range of 6% of the median process P99.
+The direct waiter also failed the wake-up stability gate. This campaign
+leaves the scheduler release-tail gate open. The WSL leg and native Linux
+qualification are pending. Raw waves, process receipts and the
+independent audit are in
+`out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
