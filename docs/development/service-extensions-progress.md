@@ -20469,3 +20469,43 @@ Native Linux and 72-hour release acceptance remain open.
 Source and binary hashes, process-stop reports and build logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-auth-crash-replay/`.
 [Checkpoint authentication probe](../../extlibs/xmqtt/docs/server.md#mqtt-5-enhanced-authentication).
+
+## 2026-11-21 xredis edited subscription intent across process restart
+
+The optional restart profile applies four local edits while the first
+Redis is down. It removes the original binary channel, adds and removes
+an intermediate channel, then adds the final binary channel. The
+replacement publishes generation two at the final revision, four
+revisions beyond the original. Two pool members recover and verify 16
+pipelined replies. A new APP-owned Tracking connection checks its own
+read and invalidation order.
+
+An independent Redis observer checks subscriber counts of 0, 0 and 1
+for the original, intermediate and final channels while traffic is
+live, then verifies 0, 0 and 0 after teardown. The client's two
+publications to the removed channels also report zero recipients.
+The replacement command ledger records one SUBSCRIBE and three
+PUBLISH commands. No application commands reach the untrusted TLS
+listener. The original blocked Future retains its disconnected and
+may-have-executed result. The original Tracking Future, ordered
+invalidation and binary Pub/Sub message remain readable after engine
+destruction and are then released by the probe.
+
+| Client environment | Transport | Verified edit cycles | Recovery min / median / max in ms |
+| --- | --- | ---: | ---: |
+| Windows x64 | TCP | 5 | 139.995 / 154.732 / 1218.237 |
+| Windows x64 | TLS 1.3 | 5 | 274.383 / 293.065 / 352.277 |
+| Ubuntu/WSL x64 | TCP | 5 | 101.507 / 137.013 / 144.290 |
+| Ubuntu/WSL x64 | TLS 1.3 | 5 | 261.366 / 278.325 / 282.905 |
+| Ubuntu/WSL x64 with ASan/UBSan and leak detection | TLS 1.3 | 5 | 245.010 / 276.989 / 292.779 |
+
+Redis 8.0.5 ran in Ubuntu/WSL. Four unchanged-intent TCP and TLS
+regressions also passed. Recovery time includes the forced-offline
+barrier, fixture startup and recovery traffic. The Windows TCP series
+includes the 1.218 second observation. Native Linux and strict release
+acceptance remain open.
+
+Source and binary hashes, per-cycle server identities and exact
+command ledgers are under
+`out/service-extensions/scope-reduction-20261119/xredis-outage-edits/`.
+[Restart probe instructions](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).

@@ -16,8 +16,18 @@ import threading
 import time
 import traceback
 
-from run_redis_role import frame, send, sha
+from run_redis_role import sha
 from run_redis_tls import TLS_CIPHER, certificates, issue_server_certificate, listener_exchange, tls_listener
+
+
+EDIT_CHANNELS = (b"xrt:restart:\0channel", b"xrt:restart:\0intermediate", b"xrt:restart:\0replacement")
+
+
+def check_subscribers(port, counts, tls):
+    expected = [item for pair in zip(EDIT_CHANNELS, counts) for item in pair]
+    reply, _ = listener_exchange(port, ["PUBSUB", "NUMSUB", *EDIT_CHANNELS], tls=tls)
+    require(reply == expected, f"unexpected independent subscription ledger {reply!r}")
+    return counts
 
 
 def require(ok, message):
@@ -129,6 +139,8 @@ def run(args, report, stack):
         if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
             ca = subprocess.check_output(["wslpath", "-w", ca], text=True, timeout=5).strip()
         client_args.append(ca)
+    if args.edit_subscriptions:
+        client_args.append("--edit-subscriptions")
 
     first, before = start(stack, args.server, runtime, port, "before", log_path("before"), before_tls)
     report["before"] = before
@@ -136,7 +148,7 @@ def run(args, report, stack):
     if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
         time.sleep(1)
     log = stack.enter_context(log_path("client").open("wb"))
-    probe = subprocess.Popen(client_args, stdin=subprocess.PIPE if args.tls else None,
+    probe = subprocess.Popen(client_args, stdin=subprocess.PIPE if args.tls or args.edit_subscriptions else None,
                              stdout=subprocess.PIPE, stderr=log, text=True)
     stack.enter_context(probe.stdout)
     if probe.stdin is not None:
@@ -147,7 +159,7 @@ def run(args, report, stack):
     reader = threading.Thread(target=read_phases, args=(probe.stdout, lines), daemon=True)
     reader.start()
 
-    wait_phase(lines, report["phases"], "blocked_submitted")
+    initial = wait_phase(lines, report["phases"], "blocked_submitted")
     due = time.monotonic() + 5
     while True:
         fields = info(port, "all", before_tls)
@@ -195,7 +207,22 @@ def run(args, report, stack):
     report["after"] = after
     require(after["run_id"] != before["run_id"] and
             (not args.tls or after["run_id"] != report["untrusted"]["run_id"]), "replacement Redis reused run_id")
+    expected = {**warmup, "get": 2, "echo": 16}
+    if args.edit_subscriptions:
+        edited = wait_phase(lines, report["phases"], "edited_recovered")
+        require(edited["subscription_revision"] == initial["subscription_revision"] + 4,
+                "replacement did not publish the final desired revision")
+        after["active_subscriber_counts"] = check_subscribers(port, [0, 0, 1], after_tls)
+        probe.stdin.write("\n")
+        probe.stdin.flush()
+        expected.update(publish=3, **{"pubsub|numsub": 2})
+
     complete = wait_phase(lines, report["phases"], "complete")
+    if args.edit_subscriptions:
+        require(complete["retained_observations"] and
+                complete["subscription_revision"] == edited["subscription_revision"],
+                "edited revision or retained observations were lost after teardown")
+        after["retired_subscriber_counts"] = check_subscribers(port, [0, 0, 0], after_tls)
     require(complete["pool_generations"] == 4 and complete["subscription_generation"] == 2 and
             complete["recovery_ms"] > 0, f"unexpected recovery result {complete}")
     report["launcher_exit_code"] = probe.wait(timeout=5)
@@ -208,7 +235,7 @@ def run(args, report, stack):
             "replacement Redis identity changed")
     calls = command_calls(fields)
     after.update(commands=calls, blocked_clients=int(fields["blocked_clients"]), connected_clients=int(fields["connected_clients"]))
-    check_commands(calls, {**warmup, "get": 2, "echo": 16}, "replacement")
+    check_commands(calls, expected, "replacement")
     require(after["blocked_clients"] == 0 and after["connected_clients"] == 1,
             "only the observer connection may remain")
 
@@ -220,6 +247,8 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--tls", action="store_true", help="test verified TLS 1.3 recovery and certificate rotation")
     parser.add_argument("--openssl", type=Path, default=shutil.which("openssl"))
+    parser.add_argument("--edit-subscriptions", action="store_true",
+                        help="replace binary subscription intent while Redis is unavailable")
     parser.add_argument("--port-candidate", type=int, action="append", default=[],
                         help="Caller-screened candidate for cross-host WSL and Windows loopback")
     args = parser.parse_args()
@@ -235,7 +264,7 @@ def main():
     report = dict(schema=1, complete=False, fixture_host=platform.platform(), client=str(args.client),
                   client_sha256=sha(args.client), server_sha256=sha(args.server), runner_sha256=sha(__file__),
                   server_version=subprocess.check_output([str(args.server), "--version"], text=True).strip(),
-                  transport="tls1.3" if args.tls else "tcp", phases=[])
+                  transport="tls1.3" if args.tls else "tcp", edit_subscriptions=args.edit_subscriptions, phases=[])
     if args.tls:
         report["tls"] = dict(cipher=TLS_CIPHER, hostname="localhost", openssl_sha256=sha(args.openssl),
                              certificate_helper_sha256=sha(Path(__file__).with_name("run_redis_tls.py")))

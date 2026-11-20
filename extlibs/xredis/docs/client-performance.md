@@ -336,6 +336,16 @@ to verification of resumed traffic. It includes the forced outage barrier,
 fixture restart and workload verification. It is diagnostic for this local
 setup. The default profile uses standalone RESP3 over plaintext TCP.
 
+Pass `--edit-subscriptions` to exercise a four-edit sequence during the
+outage. The replacement exposes the final subscription revision. Its
+new channel receives a binary message and the removed original and
+intermediate channels have zero subscribers. The independent observer
+uses `PUBSUB NUMSUB` before teardown and again after teardown. The old
+generation's retained Tracking reply, invalidation and Pub/Sub message
+are checked after engine destruction. Tracking results and invalidations
+are paired within their own generation.
+[Redis PUBSUB NUMSUB](https://redis.io/docs/latest/commands/pubsub-numsub/)
+
 For verified TLS, add `-DXREDIS_MODULE_XREDIS_TLS` to the build and pass
 `--tls` to the harness. Use TLS-enabled Redis and OpenSSL on the fixture
 host. The harness generates temporary keys and three distinct localhost

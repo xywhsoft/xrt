@@ -7,6 +7,9 @@
 
 enum { MEMBERS = 2, BATCH = 16, IO_MS = 3000, PHASE_MS = 15000 };
 static const xbytesview Channel = XRT_BYTES_LITERAL("xrt:restart:\0channel");
+static const xbytesview Intermediate = XRT_BYTES_LITERAL("xrt:restart:\0intermediate");
+static const xbytesview Replacement = XRT_BYTES_LITERAL("xrt:restart:\0replacement");
+static const xbytesview Before = XRT_BYTES_LITERAL("before\0restart");
 static const xbytesview Key = XRT_BYTES_LITERAL("xrt:restart:\0tracking");
 
 static void require(bool Ok, const char* Message)
@@ -127,7 +130,40 @@ static xredisclient* waitOnline(xredispool* Pool, xredissubscriptionsession* Ses
 	}
 }
 
-static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subscriber, xbytesview Value)
+typedef struct restartobservations {
+	xfuture* Read;
+	xredistrackingpush Push;
+	xredisreply* Message;
+} restartobservations;
+
+static uint64 checkTrackedGet(xfuture* Future, xbytesview Expected)
+{
+	const xredistrackingresult* Tracked = result(Future, IO_MS);
+	xredisreplyvalue Read = root(&Tracked->Request);
+	require(Tracked->Sequence && Read.Type == XREDIS_REPLY_BULK_STRING && same(Read.Data, Expected),
+		"tracked GET content");
+	return Tracked->Sequence;
+}
+
+static void checkInvalidation(xredistrackingpush Push, uint64 Sequence)
+{
+	xredistrackingevent Invalidation;
+	xredisreplyvalue Item;
+	require(Push.Sequence > Sequence && xredisTrackingEventRead(Push.Reply, &Invalidation) == XREDIS_TRACKING_EVENT &&
+		Invalidation.Kind == XREDIS_TRACKING_KEYS && Invalidation.Keys == 1 &&
+		xredisReplyGet(Push.Reply, Invalidation.FirstKey, &Item) && same(Item.Data, Key), "invalidation identity and ordering");
+}
+
+static void checkPublication(xredisreply* Message, xbytesview Topic, xbytesview Value)
+{
+	xredispubsubevent Event;
+	require(xredisPubSubEventRead(Message, &Event) == XREDIS_PUBSUB_EVENT &&
+		Event.Kind == XREDIS_PUBSUB_MESSAGE && same(Event.Channel, Topic) && same(Event.Payload, Value),
+		"publication identity");
+}
+
+static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subscriber,
+	xbytesview Topic, xbytesview Value, restartobservations* Retained)
 {
 	xbytesview Set[] = {XRT_BYTES_LITERAL("SET"), Key, Value};
 	xfuture* Future = call(Pool, Set, 3, IO_MS);
@@ -137,11 +173,9 @@ static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subs
 	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Key};
 	Future = NULL;
 	require(xredisClientTrackingCall(Tracking, Get, 2, IO_MS, &Future) == XREDIS_ADMISSION_ACCEPTED, "tracked GET admission");
-	const xredistrackingresult* Tracked = result(Future, IO_MS);
-	xredisreplyvalue Read = root(&Tracked->Request);
-	uint64 Sequence = Tracked->Sequence;
-	require(Sequence && Read.Type == XREDIS_REPLY_BULK_STRING && same(Read.Data, Value), "tracked GET content");
-	xrtFutureDestroy(Future);
+	uint64 Sequence = checkTrackedGet(Future, Value);
+	if (Retained) Retained->Read = Future;
+	else xrtFutureDestroy(Future);
 
 	Set[2] = (xbytesview)XRT_BYTES_LITERAL("updated\0value");
 	Future = call(Pool, Set, 3, IO_MS);
@@ -153,17 +187,14 @@ static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subs
 		require(xrtTimer() < Due, "tracking invalidation deadline");
 		xrtSleep(1);
 	}
-	xredistrackingevent Invalidation;
-	xredisreplyvalue Item;
-	require(Push.Sequence > Sequence && xredisTrackingEventRead(Push.Reply, &Invalidation) == XREDIS_TRACKING_EVENT &&
-		Invalidation.Kind == XREDIS_TRACKING_KEYS && Invalidation.Keys == 1 &&
-		xredisReplyGet(Push.Reply, Invalidation.FirstKey, &Item) && same(Item.Data, Key), "invalidation identity and ordering");
-	xredisReplyRelease(Push.Reply);
+	checkInvalidation(Push, Sequence);
+	if (Retained) Retained->Push = Push;
+	else xredisReplyRelease(Push.Reply);
 
 	xfuture* Notification = NULL;
 	require(xredisSubscriberReadable(Subscriber, &Notification) == XREDIS_ADMISSION_ACCEPTED &&
 		Notification && !xrtFutureDone(Notification), "empty subscriber queue before PUBLISH");
-	xbytesview Publish[] = {XRT_BYTES_LITERAL("PUBLISH"), Channel, Value};
+	xbytesview Publish[] = {XRT_BYTES_LITERAL("PUBLISH"), Topic, Value};
 	Future = call(Pool, Publish, 3, IO_MS);
 	xredisreplyvalue Count = root(result(Future, IO_MS));
 	require(Count.Type == XREDIS_REPLY_INTEGER && Count.Integer == 1, "one live PUBLISH recipient");
@@ -171,10 +202,32 @@ static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subs
 	require(xrtFutureWaitFor(Notification, IO_MS) == XWAIT_OK, "subscription readability deadline");
 	xrtFutureDestroy(Notification);
 	xredisreply* Message = NULL;
-	xredispubsubevent Event;
-	require(xredisClientTakePush(Subscriber, &Message) && xredisPubSubEventRead(Message, &Event) == XREDIS_PUBSUB_EVENT &&
-		Event.Kind == XREDIS_PUBSUB_MESSAGE && same(Event.Channel, Channel) && same(Event.Payload, Value), "live publication content");
-	xredisReplyRelease(Message);
+	require(xredisClientTakePush(Subscriber, &Message), "take publication");
+	checkPublication(Message, Topic, Value);
+	if (Retained) Retained->Message = Message;
+	else xredisReplyRelease(Message);
+}
+
+static void editSubscriptions(xredissubscriptionsession* Session, uint64* Revision)
+{
+	uint64 BeforeEdit = *Revision;
+	require(xredisSubscriptionSessionApply(Session, XREDIS_PUBSUB_CMD_UNSUBSCRIBE, &Channel, 1, Revision) ==
+		XREDIS_ADMISSION_ACCEPTED &&
+		xredisSubscriptionSessionApply(Session, XREDIS_PUBSUB_CMD_SUBSCRIBE, &Intermediate, 1, Revision) ==
+		XREDIS_ADMISSION_ACCEPTED &&
+		xredisSubscriptionSessionApply(Session, XREDIS_PUBSUB_CMD_UNSUBSCRIBE, &Intermediate, 1, Revision) ==
+		XREDIS_ADMISSION_ACCEPTED &&
+		xredisSubscriptionSessionApply(Session, XREDIS_PUBSUB_CMD_SUBSCRIBE, &Replacement, 1, Revision) ==
+		XREDIS_ADMISSION_ACCEPTED && *Revision == BeforeEdit + 4, "edit desired subscriptions during the outage");
+}
+
+static void publishAbsent(xredispool* Pool, xbytesview Topic)
+{
+	xbytesview Args[] = {XRT_BYTES_LITERAL("PUBLISH"), Topic, XRT_BYTES_LITERAL("removed")};
+	xfuture* Future = call(Pool, Args, 3, IO_MS);
+	xredisreplyvalue Reply = root(result(Future, IO_MS));
+	require(Reply.Type == XREDIS_REPLY_INTEGER && Reply.Integer == 0, "retired subscription remains absent");
+	xrtFutureDestroy(Future);
 }
 
 static void verifyOutage(xredispool* Pool, xredissubscriptionsession* Session, xfuture* Lost,
@@ -249,6 +302,8 @@ static void verifyBatch(xredispool* Pool)
 
 int main(int Argc, char** Argv)
 {
+	bool Edit = Argc > 2 && strcmp(Argv[Argc - 1], "--edit-subscriptions") == 0;
+	if (Edit) --Argc;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 	if (Argc != 2 && Argc != 3) return 2;
 #else
@@ -293,16 +348,18 @@ int main(int Argc, char** Argv)
 
 	xredisclient* Subscriber = waitOnline(Pool, Session, 1, Revision);
 	xredisclient* Tracking = startTracking(Engine, &Endpoint);
-	traffic(Pool, Tracking, Subscriber, (xbytesview)XRT_BYTES_LITERAL("before\0restart"));
+	restartobservations Observed = {0};
+	traffic(Pool, Tracking, Subscriber, Channel, Before, Edit ? &Observed : NULL);
 	xbytesview Block[] = {XRT_BYTES_LITERAL("BLPOP"), XRT_BYTES_LITERAL("xrt:restart:\0blocked"), XRT_BYTES_LITERAL("0")};
 	xfuture* Pending = call(Pool, Block, 3, PHASE_MS);
-	puts("{\"phase\":\"blocked_submitted\"}");
+	printf("{\"phase\":\"blocked_submitted\",\"subscription_revision\":%" PRIu64 "}\n", Revision);
 	fflush(stdout);
 	const xredisrequestresult* Lost = result(Pending, PHASE_MS);
 	require(Lost->Status == XREDIS_REQUEST_DISCONNECTED && Lost->Delivery == XREDIS_MAY_HAVE_EXECUTED && !Lost->Reply, "blocked request loss");
 	closedClient(Tracking, true);
 	closedClient(Subscriber, true);
 	double Outage = xrtTimer();
+	if (Edit) editSubscriptions(Session, &Revision);
 	verifyOutage(Pool, Session, Pending, "outage_ready", MEMBERS, 1);
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 	if (Argc == 3) verifyUntrusted(Engine, &Endpoint, Pool, Session, Pending);
@@ -314,9 +371,19 @@ int main(int Argc, char** Argv)
 	xfuture* Future = call(Pool, Get, 2, IO_MS);
 	require(root(result(Future, IO_MS)).Type == XREDIS_REPLY_NULL, "fresh server has no prior key");
 	xrtFutureDestroy(Future);
-	traffic(Pool, Tracking, Subscriber, (xbytesview)XRT_BYTES_LITERAL("after\0restart"));
+	if (Edit) {
+		publishAbsent(Pool, Channel);
+		publishAbsent(Pool, Intermediate);
+	}
+	traffic(Pool, Tracking, Subscriber, Edit ? Replacement : Channel,
+		(xbytesview)XRT_BYTES_LITERAL("after\0restart"), NULL);
 	verifyBatch(Pool);
 	double Recovered = xrtTimer();
+	if (Edit) {
+		printf("{\"phase\":\"edited_recovered\",\"subscription_revision\":%" PRIu64 "}\n", Revision);
+		fflush(stdout);
+		require(getchar() == '\n', "independent subscription ledger barrier");
+	}
 	require(Lost->Status == XREDIS_REQUEST_DISCONNECTED && Lost->Delivery == XREDIS_MAY_HAVE_EXECUTED && !Lost->Reply,
 		"retained failure unchanged after recovery");
 	xrtFutureDestroy(Pending);
@@ -344,8 +411,16 @@ int main(int Argc, char** Argv)
 	require(xredisPoolConnectInfo(Pool, &Connect) && Connect.Connected == 2 * MEMBERS, "final pool generations");
 	xredisPoolRelease(Pool);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire engine workers");
+	if (Edit) {
+		checkInvalidation(Observed.Push, checkTrackedGet(Observed.Read, Before));
+		checkPublication(Observed.Message, Channel, Before);
+		xrtFutureDestroy(Observed.Read);
+		xredisReplyRelease(Observed.Push.Reply);
+		xredisReplyRelease(Observed.Message);
+	}
 	redisProbeTlsClose(&Endpoint.Tls);
 	printf("{\"phase\":\"complete\",\"pool_generations\":%" PRIu64 ",\"subscription_generation\":%" PRIu64
-		",\"recovery_ms\":%.3f}\n", Connect.Connected, SubscriptionGenerations, (Recovered - Outage) * 1000.0);
+		",\"subscription_revision\":%" PRIu64 ",\"retained_observations\":%s,\"recovery_ms\":%.3f}\n",
+		Connect.Connected, SubscriptionGenerations, Revision, Edit ? "true" : "false", (Recovered - Outage) * 1000.0);
 	return 0;
 }
