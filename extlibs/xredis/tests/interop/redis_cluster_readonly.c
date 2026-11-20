@@ -18,6 +18,8 @@ static void require(bool Condition, cstr Message)
     }
 }
 
+#include "tls_probe.h"
+
 static const void* waitValue(xfuture* Future)
 {
     require(Future && xrtFutureWaitFor(Future, 5000) == XWAIT_OK && xrtFutureValue(Future), "typed Future");
@@ -62,7 +64,7 @@ static void checkOwner(xredisclient* Client, cstr RunId)
     xrtFutureDestroy(Future);
 }
 
-static bool connectReplica(xnetengine* Engine, const xnetaddr* Address, xredisinitmode Mode,
+static bool connectReplica(const redisprobetls* Tls, xnetengine* Engine, const xnetaddr* Address, xredisinitmode Mode,
     bool Readonly, int64 Timeout, xredisclient** Client)
 {
     xredisclientinitconfig Init;
@@ -70,7 +72,7 @@ static bool connectReplica(xnetengine* Engine, const xnetaddr* Address, xredisin
     Init.Mode = Mode;
     Init.Timeout = Timeout;
     Init.Flags = XREDIS_INIT_REQUIRE_REPLICA | (Readonly ? XREDIS_INIT_CLUSTER_READONLY : 0u);
-    return xredisClientConnectInit(Engine, Address, 0, NULL, &Init, Client);
+    return redisProbeConnect(Tls, Engine, Address, 0, &Init, Client);
 }
 
 static void closeClient(xredisclient* Client)
@@ -83,11 +85,11 @@ static void closeClient(xredisclient* Client)
     xredisClientRelease(Client);
 }
 
-static void checkDirect(xnetengine* Engine, const xnetaddr* Address, xredisinitmode Mode,
+static void checkDirect(const redisprobetls* Tls, xnetengine* Engine, const xnetaddr* Address, xredisinitmode Mode,
     bool Readonly, cstr RunId, cstr Moved)
 {
     xredisclient* Client = NULL;
-    require(connectReplica(Engine, Address, Mode, Readonly, 5000, &Client), "direct connect");
+    require(connectReplica(Tls, Engine, Address, Mode, Readonly, 5000, &Client), "direct connect");
     xfuture* Ready = xredisClientReady(Client), *Read = NULL;
     require(xredisClientCallAsync(Client, Get, 2, 5000, &Read) == XREDIS_ADMISSION_ACCEPTED, "direct GET");
     const xredisreadyresult* State = waitValue(Ready);
@@ -113,11 +115,17 @@ static void checkDirect(xnetengine* Engine, const xnetaddr* Address, xredisinitm
     closeClient(Client);
 }
 
+typedef struct replicafixture {
+    const redisprobetls* Tls;
+    const xnetaddr* Address;
+} replicafixture;
+
 static bool poolConnect(xnetengine* Engine, size_t Slot, uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Client)
 {
     (void)Slot;
     (void)Attempt;
-    return connectReplica(Engine, Data, XREDIS_INIT_RESP2, true, Timeout, Client);
+    const replicafixture* Fixture = Data;
+    return connectReplica(Fixture->Tls, Engine, Fixture->Address, XREDIS_INIT_RESP2, true, Timeout, Client);
 }
 
 static void waitPool(xredispool* Pool, size_t Members)
@@ -131,12 +139,13 @@ static void waitPool(xredispool* Pool, size_t Members)
     }
 }
 
-static void checkPool(xnetengine* Engine, xnetaddr* Address)
+static void checkPool(const redisprobetls* Tls, xnetengine* Engine, const xnetaddr* Address)
 {
+    replicafixture Fixture = {Tls, Address};
     xredispoolconnectconfig Connect;
     xredisPoolConnectConfigInit(&Connect);
     Connect.Connect = poolConnect;
-    Connect.Data = Address;
+    Connect.Data = &Fixture;
     Connect.Protocol = XREDIS_RESP2;
     xredispool* Pool = NULL;
     require(xredisSharedPoolConnect(Engine, 0, 2, NULL, &Connect, &Pool) == XREDIS_ADMISSION_ACCEPTED, "maintained shared pool");
@@ -156,6 +165,7 @@ static void checkPool(xnetengine* Engine, xnetaddr* Address)
 }
 
 typedef struct clusterfixture {
+    const redisprobetls* Tls;
     uint16 Primary, Replica, Witness;
     xredisinitmode Mode;
     xatomic32 DenyReplica;
@@ -164,7 +174,7 @@ typedef struct clusterfixture {
 static bool clusterAuthorize(const xredisclusteraddress* Address, ptr Data)
 {
     clusterfixture* Fixture = Data;
-    if (Address->Tls || Address->Host.Size != 9 || memcmp(Address->Host.Data, "127.0.0.1", 9)) return false;
+    if (Address->Tls != Fixture->Tls->Enabled || Address->Host.Size != 9 || memcmp(Address->Host.Data, "127.0.0.1", 9)) return false;
     if (Address->Reason == XREDIS_CLUSTER_REPLICA_READ)
         return Address->Port == Fixture->Replica && !xrtAtomic32Load(&Fixture->DenyReplica, XMEMORY_ACQUIRE);
     return Address->Port == Fixture->Primary ||
@@ -180,16 +190,16 @@ static bool clusterConnect(const xredisclusteraddress* Endpoint, xnetengine* Eng
     xnetaddr Address;
     if (!xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, Endpoint->Port)) return false;
     if (Endpoint->Reason == XREDIS_CLUSTER_REPLICA_READ)
-        return connectReplica(Engine, &Address, Fixture->Mode, true, Timeout, Client);
+        return connectReplica(Fixture->Tls, Engine, &Address, Fixture->Mode, true, Timeout, Client);
     xredisclientinitconfig Init;
     xredisClientInitConfigInit(&Init);
     Init.Timeout = Timeout;
     Init.Mode = Fixture->Mode;
-    return xredisClientConnectInit(Engine, &Address, 0, NULL, &Init, Client);
+    return redisProbeConnect(Fixture->Tls, Engine, &Address, 0, &Init, Client);
 }
 
 static void checkManagedRead(xredisclusterclient* Client, xredisclusternodes* Nodes,
-    uint16 Slot, bool PreferReplica, uint16 Port, xredisclusterredirectkind Profile)
+    uint16 Slot, bool PreferReplica, uint16 Port, bool Tls, xredisclusterredirectkind Profile)
 {
     xfuture* Future = NULL;
     if (PreferReplica) {
@@ -213,7 +223,7 @@ static void checkManagedRead(xredisclusterclient* Client, xredisclusternodes* No
     require(Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
         Result->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Result->Route.Attempts == 1 &&
         Result->Route.AttemptAddress.Port == Port && !Result->Route.AttemptAddress.Reason &&
-        Result->Route.ProviderCalls == 1,"primary GET endpoint");
+        Result->Route.AttemptAddress.Tls == Tls && Result->Route.ProviderCalls == 1, "primary GET endpoint");
     checkValue(root(Result->Native, XREDIS_REQUEST_OK));
     xrtFutureDestroy(Future);
 }
@@ -230,10 +240,11 @@ static void closeManaged(xredisclusterclient* Client, xredisclusternodes* Nodes)
     xredisClusterNodesRelease(Nodes);
 }
 
-static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xredisinitmode Mode, xredisclusterformat Format)
+static void checkManaged(const redisprobetls* Tls, xnetengine* Engine, uint16 Primary, uint16 Replica,
+    xredisinitmode Mode, xredisclusterformat Format)
 {
     printf("managed replica case mode=%d format=%d\n", (int)Mode, (int)Format);
-    clusterfixture Fixture = {.Primary = Primary, .Replica = Replica, .Mode = Mode};
+    clusterfixture Fixture = {.Tls = Tls, .Primary = Primary, .Replica = Replica, .Mode = Mode};
     xrtAtomic32Init(&Fixture.DenyReplica, 0);
     xredisclusternodesconfig NodesConfig;
     xredisClusterNodesConfigInit(&NodesConfig);
@@ -243,8 +254,10 @@ static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xre
     NodesConfig.Data = &Fixture;
     xredisclusternodes* Nodes = NULL;
     require(xredisClusterNodesCreate(Engine, 0, &NodesConfig, &Nodes) == XREDIS_ADMISSION_ACCEPTED, "managed node cache");
-    xredisclusteraddress Seed = {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Primary};
-    xredisclusteraddress ReadNode = {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Replica, .Reason = XREDIS_CLUSTER_REPLICA_READ};
+    xredisclusteraddress Seed = {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Primary, .Tls = Tls->Enabled};
+    xredisclusteraddress ReadNode = Seed;
+    ReadNode.Port = Replica;
+    ReadNode.Reason = XREDIS_CLUSTER_REPLICA_READ;
     xredispool* ReadPool = NULL;
     require(xredisClusterNodesGetPool(&ReadNode, 5000, Nodes, &ReadPool) == XREDIS_CLUSTER_POOL_READY, "prewarm managed read pool");
     waitPool(ReadPool, 1);
@@ -255,10 +268,10 @@ static void checkManaged(xnetengine* Engine, uint16 Primary, uint16 Replica, xre
     require(xredisClusterClientCreate(Engine, 0, Nodes, &Seed, 1, &Config, &Client) == XREDIS_ADMISSION_ACCEPTED, "managed Cluster startup");
     uint16 Slot;
     require(xredisClusterKeySlot(Get[1], &Slot), "local binary key slot");
-    checkManagedRead(Client, Nodes, Slot, false, Primary, 0);
-    checkManagedRead(Client, Nodes, Slot, true, Replica, XREDIS_CLUSTER_REPLICA_READ);
+    checkManagedRead(Client, Nodes, Slot, false, Primary, Tls->Enabled, 0);
+    checkManagedRead(Client, Nodes, Slot, true, Replica, Tls->Enabled, XREDIS_CLUSTER_REPLICA_READ);
     xrtAtomic32Store(&Fixture.DenyReplica, 1, XMEMORY_RELEASE);
-    checkManagedRead(Client, Nodes, Slot, true, Primary, 0);
+    checkManagedRead(Client, Nodes, Slot, true, Primary, Tls->Enabled, 0);
     closeManaged(Client, Nodes);
     xredisPoolRelease(ReadPool);
 }
@@ -296,11 +309,13 @@ static void waitSignal(cstr Path)
 
 static int checkPromotion(int argc, char** argv)
 {
-    if (argc != 8 || (strcmp(argv[5], "inflight") && strcmp(argv[5], "unsent") && strcmp(argv[5], "election")))
+    if ((argc != 8 && argc != 9) || (strcmp(argv[5], "inflight") && strcmp(argv[5], "unsent") && strcmp(argv[5], "election")))
         return 2;
     long Primary = strtol(argv[2], NULL, 10), Replica = strtol(argv[3], NULL, 10), Witness = strtol(argv[4], NULL, 10);
     if (Primary <= 0 || Replica <= 0 || Witness <= 0 || Primary > 65535 || Replica > 65535 || Witness > 65535 ||
         Primary == Replica || Primary == Witness || Replica == Witness) return 2;
+    redisprobetls Tls = {0};
+    redisProbeTlsInit(&Tls, argc == 9 ? argv[8] : NULL);
     bool Inflight = !strcmp(argv[5], "inflight");
     bool Election = !strcmp(argv[5], "election");
     bool Shards = Inflight || Election;
@@ -310,7 +325,7 @@ static int checkPromotion(int argc, char** argv)
     xnetengine* Engine = xrtNetEngineCreate(NULL);
     require(Engine && xrtNetEngineStart(Engine), "promotion engine start");
     clusterfixture Fixture = {
-        .Primary = (uint16)Primary, .Replica = (uint16)Replica, .Witness = (uint16)Witness,
+        .Tls = &Tls, .Primary = (uint16)Primary, .Replica = (uint16)Replica, .Witness = (uint16)Witness,
         .Mode = Shards ? XREDIS_INIT_RESP3 : XREDIS_INIT_RESP2,
     };
     xrtAtomic32Init(&Fixture.DenyReplica, 0);
@@ -326,8 +341,8 @@ static int checkPromotion(int argc, char** argv)
     xredisclusternodes* Nodes = NULL;
     require(xredisClusterNodesCreate(Engine, 0, &NC, &Nodes) == XREDIS_ADMISSION_ACCEPTED, "promotion node cache");
     xredisclusteraddress Seeds[] = {
-        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Primary},
-        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Witness},
+        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Primary, .Tls = Tls.Enabled},
+        {.Host = XRT_BYTES_LITERAL("127.0.0.1"), .Port = Fixture.Witness, .Tls = Tls.Enabled},
     };
     xredisclusteraddress ReadNode = Seeds[0];
     ReadNode.Port = Fixture.Replica;
@@ -352,8 +367,8 @@ static int checkPromotion(int argc, char** argv)
     const xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), {(cbytes)Counter, (size_t)Size}};
     require(xredisClusterKeySlot(Get[1], &Slot) && xredisClusterKeySlot(Increment[1], &CounterSlot) && Slot == CounterSlot,
         "promotion slot");
-    checkManagedRead(Client, Nodes, Slot, false, Fixture.Primary, 0);
-    checkManagedRead(Client, Nodes, Slot, true, Fixture.Replica, XREDIS_CLUSTER_REPLICA_READ);
+    checkManagedRead(Client, Nodes, Slot, false, Fixture.Primary, Tls.Enabled, 0);
+    checkManagedRead(Client, Nodes, Slot, true, Fixture.Replica, Tls.Enabled, XREDIS_CLUSTER_REPLICA_READ);
     xredisclusterclientinfo Before = clientInfo(Client);
     xfuture* Blocked = NULL;
     if (Inflight) {
@@ -401,7 +416,7 @@ static int checkPromotion(int argc, char** argv)
     bool Recovered = Result->Status == XREDIS_CLUSTER_CLIENT_COMPLETE && Result->RouteObserved &&
         Result->Route.Status == XREDIS_CLUSTER_ROUTE_COMPLETE && Result->Generation > Before.Generation &&
         Result->Route.Attempts == 1 && Result->Route.Moved == 0 && Result->Route.AttemptAddress.Port == Fixture.Replica &&
-        !Result->Route.AttemptAddress.Reason && !After.Moved &&
+        Result->Route.AttemptAddress.Tls == Tls.Enabled && !Result->Route.AttemptAddress.Reason && !After.Moved &&
         (!Election || After.Refreshes > Before.Refreshes + 1u);
     if (!Recovered)
         fprintf(stderr, "recovery result status=%d route=%d query=%d delivery=%d attempts=%zu port=%u candidate=%u provider=%d admission=%d generation=%llu current=%llu refreshes=%llu refresh_status=%d moved=%llu\n",
@@ -428,6 +443,7 @@ static int checkPromotion(int argc, char** argv)
     xredisPoolRelease(Old);
     xredisPoolRelease(Read);
     require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "promotion engine physical close");
+    redisProbeTlsClose(&Tls);
     printf("[PASS] real Cluster primary loss: %s %s\n", argv[5], argv[6]);
     return 0;
 }
@@ -435,24 +451,27 @@ static int checkPromotion(int argc, char** argv)
 int main(int argc, char** argv)
 {
     if (argc > 1 && !strcmp(argv[1], "promotion")) return checkPromotion(argc, argv);
-    if (argc != 5 || strlen(argv[2]) != 40) return 2;
+    if ((argc != 5 && argc != 6) || strlen(argv[2]) != 40) return 2;
     long Port = strtol(argv[1], NULL, 10);
     long Primary = strtol(argv[4], NULL, 10);
     if (Port <= 0 || Port > 65535 || Primary <= 0 || Primary > 65535 || Primary == Port) return 2;
+    redisprobetls Tls = {0};
+    redisProbeTlsInit(&Tls, argc == 6 ? argv[5] : NULL);
     xnetaddr Address;
     require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "loopback address");
     xnetengine* Engine = xrtNetEngineCreate(NULL);
     require(Engine && xrtNetEngineStart(Engine), "engine start");
-    checkDirect(Engine, &Address, XREDIS_INIT_RESP2, false, argv[2], argv[3]);
-    checkDirect(Engine, &Address, XREDIS_INIT_RESP2, true, argv[2], argv[3]);
-    checkDirect(Engine, &Address, XREDIS_INIT_RESP3, false, argv[2], argv[3]);
-    checkDirect(Engine, &Address, XREDIS_INIT_RESP3, true, argv[2], argv[3]);
-    checkPool(Engine, &Address);
-    checkManaged(Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP2, XREDIS_CLUSTER_SHARDS);
-    checkManaged(Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP3, XREDIS_CLUSTER_SHARDS);
-    checkManaged(Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP2, XREDIS_CLUSTER_LEGACY_SLOTS);
-    checkManaged(Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP3, XREDIS_CLUSTER_LEGACY_SLOTS);
+    checkDirect(&Tls, Engine, &Address, XREDIS_INIT_RESP2, false, argv[2], argv[3]);
+    checkDirect(&Tls, Engine, &Address, XREDIS_INIT_RESP2, true, argv[2], argv[3]);
+    checkDirect(&Tls, Engine, &Address, XREDIS_INIT_RESP3, false, argv[2], argv[3]);
+    checkDirect(&Tls, Engine, &Address, XREDIS_INIT_RESP3, true, argv[2], argv[3]);
+    checkPool(&Tls, Engine, &Address);
+    checkManaged(&Tls, Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP2, XREDIS_CLUSTER_SHARDS);
+    checkManaged(&Tls, Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP3, XREDIS_CLUSTER_SHARDS);
+    checkManaged(&Tls, Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP2, XREDIS_CLUSTER_LEGACY_SLOTS);
+    checkManaged(&Tls, Engine, (uint16)Primary, (uint16)Port, XREDIS_INIT_RESP3, XREDIS_CLUSTER_LEGACY_SLOTS);
     require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "engine physical teardown");
+    redisProbeTlsClose(&Tls);
     puts("[PASS] real Cluster READONLY: RESP2/RESP3 MOVED controls, binary reads and shared pool");
     puts("[PASS] real Cluster replica routing: SHARDS/SLOTS, RESP2/RESP3, selection, ordinary and denied-replica fallback");
     return 0;

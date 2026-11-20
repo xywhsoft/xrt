@@ -2,36 +2,78 @@
 """Opt-in TLS 1.2/1.3 real Redis matrix; all keys/services are ephemeral fixtures."""
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import platform
 import shutil
+import socket
+import ssl
 import subprocess
 import tempfile
 from run_redis_init import digest, run
+from run_redis_role import frame, send
 
 
-def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str) -> str:
+def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str, *, cluster_peer: bool = False) -> str:
     def command(*arguments: str) -> None:
         subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
     command("req", "-newkey", "rsa:2048", "-nodes", "-sha256", "-subj", "/CN=localhost",
             "-keyout", f"{name}.key", "-out", f"{name}.csr")
+    usage = "serverAuth,clientAuth" if cluster_peer else "serverAuth"
     (root / "server.ext").write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
-                                     "extendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost,IP:127.0.0.1\n", encoding="utf-8")
+                                     f"extendedKeyUsage={usage}\nsubjectAltName=DNS:localhost,IP:127.0.0.1\n", encoding="utf-8")
     command("x509", "-req", "-in", f"{name}.csr", "-CA", f"{issuer}.pem", "-CAkey", f"{issuer}.key", "-CAcreateserial",
             "-days", "2", "-sha256", "-extfile", "server.ext", "-out", f"{name}.pem")
     return digest(root / f"{name}.pem")
 
 
-def certificates(openssl: Path, root: Path) -> dict[str, str]:
+def certificates(openssl: Path, root: Path, *, cluster_peer: bool = False) -> dict[str, str]:
     def command(*arguments: str) -> None:
         subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
     for name in ("ca", "wrong"):
         command("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "2",
                 "-subj", f"/CN=xredis-fixture-{name}", "-keyout", f"{name}.key", "-out", f"{name}.pem",
                 "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
-    server = issue_server_certificate(openssl, root, "server", "ca")
+    server = issue_server_certificate(openssl, root, "server", "ca", cluster_peer=cluster_peer)
     return {"ca.pem": digest(root / "ca.pem"), "wrong.pem": digest(root / "wrong.pem"), "server.pem": server}
+
+
+TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
+
+
+def tls_listener(root, certificate, issuer):
+    context = ssl.create_default_context(cafile=str(root / f"{issuer}.pem"))
+    context.minimum_version = context.maximum_version = ssl.TLSVersion.TLSv1_3
+    leaf = ssl.PEM_cert_to_DER_cert((root / f"{certificate}.pem").read_text(encoding="ascii"))
+    options = ["--port", "0", "--tls-cert-file", str(root / f"{certificate}.pem"),
+               "--tls-key-file", str(root / f"{certificate}.key"), "--tls-ca-cert-file", str(root / f"{issuer}.pem"),
+               "--tls-protocols", "TLSv1.3", "--tls-ciphersuites", TLS_CIPHER, "--tls-auth-clients", "no"]
+    return context, leaf, options
+
+
+@contextmanager
+def listener_connection(port, *, tls=None, timeout=2):
+    with socket.create_connection(("127.0.0.1", port), timeout=timeout) as raw:
+        if tls is None:
+            yield raw
+            return
+        context, leaf, _ = tls
+        with context.wrap_socket(raw, server_hostname="localhost") as peer:
+            if (peer.version() != "TLSv1.3" or peer.cipher()[0] != TLS_CIPHER or
+                    peer.getpeercert(binary_form=True) != leaf):
+                raise RuntimeError("unexpected Redis TLS identity or profile")
+            yield peer
+
+
+def listener_exchange(port, args, protocol=2, *, tls=None):
+    with listener_connection(port, tls=tls) as peer, peer.makefile("rb") as stream:
+        if protocol == 3:
+            send(peer, ["HELLO", 3])
+            hello, _ = frame(stream)
+            assert hello[b"proto"] == 3
+        send(peer, args)
+        return frame(stream)
 
 
 def main() -> None:

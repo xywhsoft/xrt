@@ -9,15 +9,6 @@ enum { MEMBERS = 2, BATCH = 16, IO_MS = 3000, PHASE_MS = 15000 };
 static const xbytesview Channel = XRT_BYTES_LITERAL("xrt:restart:\0channel");
 static const xbytesview Key = XRT_BYTES_LITERAL("xrt:restart:\0tracking");
 
-typedef struct restartendpoint {
-	xnetaddr Address;
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-	xredisclienttlsconfig Tls;
-	xtlscontext* Context;
-	xtlsverifier* Verifier;
-#endif
-} restartendpoint;
-
 static void require(bool Ok, const char* Message)
 {
 	if (!Ok) {
@@ -26,45 +17,12 @@ static void require(bool Ok, const char* Message)
 	}
 }
 
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-static void configureTls(restartendpoint* Endpoint, const char* CaFile)
-{
-	unsigned char Pem[65536];
-	FILE* File = fopen(CaFile, "rb");
-	require(File != NULL, "open TLS trust file");
-	size_t Size = fread(Pem, 1, sizeof(Pem), File);
-	bool Complete = Size && Size < sizeof(Pem) && !ferror(File);
-	require(fclose(File) == 0 && Complete, "read TLS trust file");
-	xx509store* Store = xrtX509StoreCreate();
-	require(Store && xrtX509StoreAddData(Store, (xbytesview){Pem, Size}, NULL), "load TLS trust anchor");
-	xtlsverifierconfig Verify;
-	xrtTlsVerifierConfigInit(&Verify);
-	Verify.Store = Store;
-	xtlsverifylimits Limits;
-	xrtTlsVerifyLimitsInit(&Limits);
-	Endpoint->Verifier = xrtTlsVerifierCreateLimited(&Verify, &Limits);
-	xrtX509StoreFree(Store);
-	const xtlsversion Versions[] = {XTLS_VERSION_13};
-	const xtlscipher Ciphers[] = {XTLS_AES_128_GCM_SHA256};
-	const uint16 Groups[] = {XTLS_GROUP_X25519};
-	const xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
-	xtlspolicy Policy;
-	xrtTlsPolicyInit(&Policy);
-	Policy.Versions = Versions; Policy.VersionCount = 1;
-	Policy.Ciphers = Ciphers; Policy.CipherCount = 1;
-	Policy.Groups = Groups; Policy.GroupCount = 1;
-	Policy.Signatures = Signatures; Policy.SignatureCount = 1;
-	xtlscontextconfig Settings;
-	xrtTlsContextConfigInit(&Settings);
-	Settings.Policy = &Policy;
-	Endpoint->Context = xrtTlsContextCreate(&Settings);
-	require(Endpoint->Verifier && Endpoint->Context && xredisClientTlsConfigInit(&Endpoint->Tls), "restart TLS configuration");
-	Endpoint->Tls.Session.Context = Endpoint->Context;
-	Endpoint->Tls.Session.Verifier = Endpoint->Verifier;
-	Endpoint->Tls.Session.ServerName = Endpoint->Tls.Session.VerifyName = XRT_STR_LITERAL("localhost");
-	Endpoint->Tls.Session.ResumeLimit = 0;
-}
-#endif
+#include "tls_probe.h"
+
+typedef struct restartendpoint {
+	xnetaddr Address;
+	redisprobetls Tls;
+} restartendpoint;
 
 static const void* result(xfuture* Future, int64 Timeout)
 {
@@ -107,11 +65,7 @@ static bool connectMember(xnetengine* Engine, size_t Slot, uint64 Attempt, int64
 	xredisclientinitconfig Init;
 	if (!xredisClientInitConfigInit(&Init)) return false;
 	Init.Timeout = Timeout;
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-	if (Endpoint->Verifier)
-		return xredisClientTlsConnect(Engine, &Endpoint->Address, Slot, NULL, &Init, &Endpoint->Tls, Out);
-#endif
-	return xredisClientConnectInit(Engine, &Endpoint->Address, Slot, NULL, &Init, Out);
+	return redisProbeConnect(&Endpoint->Tls, Engine, &Endpoint->Address, Slot, &Init, Out);
 }
 
 static bool connectSubscriber(xnetengine* Engine, uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Out)
@@ -305,9 +259,7 @@ int main(int Argc, char** Argv)
 	if (*End || Port == 0 || Port > UINT16_MAX) return 2;
 	restartendpoint Endpoint = {0};
 	require(xrtNetAddrLoopback(&Endpoint.Address, XNET_FAMILY_IPV4, (uint16)Port), "loopback address");
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-	if (Argc == 3) configureTls(&Endpoint, Argv[2]);
-#endif
+	redisProbeTlsInit(&Endpoint.Tls, Argc == 3 ? Argv[2] : NULL);
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = 2;
@@ -392,10 +344,7 @@ int main(int Argc, char** Argv)
 	require(xredisPoolConnectInfo(Pool, &Connect) && Connect.Connected == 2 * MEMBERS, "final pool generations");
 	xredisPoolRelease(Pool);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire engine workers");
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-	xrtTlsContextRelease(Endpoint.Context);
-	xrtTlsVerifierRelease(Endpoint.Verifier);
-#endif
+	redisProbeTlsClose(&Endpoint.Tls);
 	printf("{\"phase\":\"complete\",\"pool_generations\":%" PRIu64 ",\"subscription_generation\":%" PRIu64
 		",\"recovery_ms\":%.3f}\n", Connect.Connected, SubscriptionGenerations, (Recovered - Outage) * 1000.0);
 	return 0;

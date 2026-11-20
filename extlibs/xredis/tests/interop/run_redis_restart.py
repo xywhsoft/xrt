@@ -16,11 +16,8 @@ import threading
 import time
 import traceback
 
-from run_redis_role import exchange, frame, send, sha
-from run_redis_tls import certificates, issue_server_certificate
-
-
-TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
+from run_redis_role import frame, send, sha
+from run_redis_tls import TLS_CIPHER, certificates, issue_server_certificate, listener_exchange, tls_listener
 
 
 def require(ok, message):
@@ -28,27 +25,8 @@ def require(ok, message):
         raise RuntimeError(message)
 
 
-def tls_listener(root, certificate, issuer):
-    context = ssl.create_default_context(cafile=str(root / f"{issuer}.pem"))
-    context.minimum_version = context.maximum_version = ssl.TLSVersion.TLSv1_3
-    leaf = ssl.PEM_cert_to_DER_cert((root / f"{certificate}.pem").read_text(encoding="ascii"))
-    options = ["--port", "0", "--tls-cert-file", str(root / f"{certificate}.pem"),
-               "--tls-key-file", str(root / f"{certificate}.key"), "--tls-ca-cert-file", str(root / f"{issuer}.pem"),
-               "--tls-protocols", "TLSv1.3", "--tls-ciphersuites", TLS_CIPHER, "--tls-auth-clients", "no"]
-    return context, leaf, options
-
-
 def info(port, section, tls=None):
-    if tls is None:
-        value, _ = exchange(port, ["INFO", section])
-    else:
-        context, leaf, _ = tls
-        with socket.create_connection(("127.0.0.1", port), timeout=2) as raw:
-            with context.wrap_socket(raw, server_hostname="localhost") as peer, peer.makefile("rb") as stream:
-                require(peer.version() == "TLSv1.3" and peer.cipher()[0] == TLS_CIPHER and
-                        peer.getpeercert(binary_form=True) == leaf, "unexpected Redis TLS identity or profile")
-                send(peer, ["INFO", section])
-                value, _ = frame(stream)
+    value, _ = listener_exchange(port, ["INFO", section], tls=tls)
     return dict(row.split(":", 1) for row in value.decode().splitlines() if ":" in row)
 
 

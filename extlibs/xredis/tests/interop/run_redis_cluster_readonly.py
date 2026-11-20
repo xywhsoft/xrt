@@ -1,5 +1,7 @@
 """Check READONLY against a disposable three-primary Redis Cluster and one replica."""
 import argparse
+from functools import partial
+import os
 from pathlib import Path
 import random
 import shutil
@@ -10,7 +12,8 @@ import time
 import json
 import traceback
 
-from run_redis_role import exchange, frame, send, sha
+from run_redis_role import frame, send, sha
+from run_redis_tls import TLS_CIPHER, certificates, listener_connection, listener_exchange, tls_listener
 
 
 KEY = b"xrt-owned:readonly:{fixed}\0key"
@@ -49,7 +52,13 @@ def wait_until(check, seconds, message):
         time.sleep(0.05)
 
 
-def identity(port, process):
+def client_path(client, path):
+    if os.name != "nt" and client.suffix.lower() == ".exe":
+        return subprocess.check_output(["wslpath", "-w", str(path)], text=True).strip()
+    return str(path)
+
+
+def identity(port, process, exchange):
     assert process.poll() is None, ("fixture exited", port, process.returncode)
     reply, _ = exchange(port, ["INFO", "SERVER"])
     fields = dict(line.split(b":", 1) for line in reply.split(b"\r\n") if b":" in line)
@@ -57,7 +66,8 @@ def identity(port, process):
     return fields[b"run_id"].decode()
 
 
-def check_primary_loss(clients, children, metadata, master, replica, slot, report, during_election):
+def check_primary_loss(clients, children, metadata, master, replica, slot, report, during_election,
+                       exchange, connect, ca):
     by_port = dict(children)
     run_ids = {node["port"]: node["run_id"] for node in metadata["nodes"]}
     node_ids = {node["port"]: node["node_id"].encode() for node in metadata["nodes"]}
@@ -72,8 +82,8 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
     cases = [(client, f"c{index}-{kind}", kind) for index, client in enumerate(clients) for kind in kinds]
     try:
         for port, process in children:
-            assert identity(port, process) == run_ids[port]
-        with socket.create_connection(("127.0.0.1", master), timeout=8) as connection, connection.makefile("rb") as reply:
+            assert identity(port, process, exchange) == run_ids[port]
+        with connect(master, timeout=8) as connection, connection.makefile("rb") as reply:
             for _, label, _ in cases:
                 send(connection, ["SET", f"xrt-owned:failover:{{fixed}}:{label}", 0])
                 assert frame(reply)[0] == b"OK"
@@ -82,13 +92,13 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
 
         for client, label, kind in cases:
             log = report.with_name(f"{report.stem}-{label}.log")
-            signal_path = str(down if kind == "election" else signal)
-            if client.suffix.lower() == ".exe":
-                signal_path = subprocess.check_output(["wslpath", "-w", signal_path], text=True).strip()
+            signal_path = client_path(client, down if kind == "election" else signal)
+            command = [str(client), "promotion", str(master), str(replica), str(witness), kind, label, signal_path]
+            if ca:
+                command.append(client_path(client, ca))
             with log.open("wb") as output:
                 process = subprocess.Popen(
-                    [str(client), "promotion", str(master), str(replica), str(witness), kind, label, signal_path],
-                    stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                    command, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
                 )
             probes.append((client, label, kind, process, log))
 
@@ -107,7 +117,7 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
         wait_until(clients_ready, 20, "all native clients observed the old topology")
         wait_until(lambda: blocked_clients() == len(clients), 5, "all blocking requests reached the old primary")
         evidence["observed_blpop"] = blocked_clients()
-        assert identity(master, by_port[master]) == run_ids[master]
+        assert identity(master, by_port[master], exchange) == run_ids[master]
         began = time.monotonic()
         by_port[master].kill()
         evidence["old_primary_exit_code"] = by_port[master].wait(timeout=5)
@@ -130,7 +140,7 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
             return True
 
         wait_until(ownership_changed, 25, "survivors converge on automatic election")
-        assert identity(replica, by_port[replica]) == run_ids[replica]
+        assert identity(replica, by_port[replica], exchange) == run_ids[replica]
         evidence["kill_to_survivor_convergence_ms"] = (time.monotonic() - began) * 1000
         evidence["promoted_role"] = exchange(replica, ["ROLE"])[0][0].decode()
         evidence["metadata_wire"] = {
@@ -169,9 +179,13 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--primary-loss", action="store_true", help="kill the owned primary and observe automatic election")
     parser.add_argument("--during-election", action="store_true", help="also offer unsent writes before the replica promotes")
+    parser.add_argument("--tls", action="store_true", help="require server-authenticated TLS 1.3 on every node")
+    parser.add_argument("--openssl", type=Path, default=shutil.which("openssl"))
     args = parser.parse_args()
     if args.during_election and not args.primary_loss:
         parser.error("--during-election requires --primary-loss")
+    if args.tls and args.openssl is None:
+        parser.error("--tls needs OpenSSL to generate fixture certificates")
     server = args.server.absolute()
     clients = [client.absolute() for client in args.client]
     report = args.report.absolute()
@@ -179,31 +193,55 @@ def main():
         parser.error("report already exists")
     report.parent.mkdir(parents=True, exist_ok=True)
     result = dict(
-        complete=False, server_version=subprocess.check_output([str(server), "--version"], text=True).strip(),
+        complete=False, transport="tls" if args.tls else "tcp", server_version=subprocess.check_output([str(server), "--version"], text=True).strip(),
         server_sha256=sha(server), runner_sha256=sha(__file__), nodes=[], cases=[],
     )
     children = []
     with tempfile.TemporaryDirectory(prefix="xredis-cluster-readonly-") as temporary:
         runtime = Path(temporary)
         try:
+            tls = ca = None
+            if args.tls:
+                openssl = args.openssl.absolute()
+                hashes = certificates(openssl, runtime, cluster_peer=True)
+                ca = runtime / "ca.pem"
+                tls = tls_listener(runtime, "server", "ca")
+                result["tls"] = dict(protocol="TLSv1.3", cipher=TLS_CIPHER, hostname="localhost",
+                                     ca_sha256=hashes["ca.pem"], leaf_sha256=hashes["server.pem"],
+                                     openssl_sha256=sha(openssl))
+            exchange = partial(listener_exchange, tls=tls)
+            connect = partial(listener_connection, tls=tls)
+            service_port = b"tls-port" if args.tls else b"port"
             ports = available_ports()
             for port in ports:
                 directory = runtime / str(port)
                 directory.mkdir()
                 command = [
-                    str(server), "--bind", "127.0.0.1", "--port", str(port), "--save", "", "--appendonly", "no",
+                    str(server), "--bind", "127.0.0.1", "--save", "", "--appendonly", "no",
                     "--dir", str(directory), "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf",
                     "--cluster-node-timeout", "2000" if args.during_election else "1000", "--repl-diskless-sync-delay", "0",
                 ]
+                if tls:
+                    command += [*tls[2], "--tls-port", str(port), "--tls-cluster", "yes",
+                                "--tls-replication", "yes", "--cluster-announce-ip", "127.0.0.1"]
+                else:
+                    command += ["--port", str(port)]
                 with (directory / "server.log").open("wb") as log:
                     process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
                 children.append((port, process))
-                run_id = wait_until(lambda: identity(port, process), 10, "owned Redis startup")
+                run_id = wait_until(lambda: identity(port, process, exchange), 10, "owned Redis startup")
                 node_id, _ = exchange(port, ["CLUSTER", "MYID"])
-                result["nodes"].append(dict(port=port, pid=process.pid, run_id=run_id, node_id=node_id.decode()))
+                node = dict(port=port, pid=process.pid, run_id=run_id, node_id=node_id.decode())
+                result["nodes"].append(node)
+                if tls:
+                    config, _ = exchange(port, ["CONFIG", "GET", "port", "tls-port", "tls-cluster",
+                                                "tls-replication", "tls-protocols"], protocol=3)
+                    assert config == {b"port": b"0", b"tls-port": str(port).encode(), b"tls-cluster": b"yes",
+                                      b"tls-replication": b"yes", b"tls-protocols": b"TLSv1.3"}, config
+                    node["tls_settings"] = {key.decode(): value.decode() for key, value in config.items()}
 
             for (port, process), node in zip(children, result["nodes"]):
-                assert identity(port, process) == node["run_id"]
+                assert identity(port, process, exchange) == node["run_id"]
             for port in ports[1:]:
                 assert exchange(ports[0], ["CLUSTER", "MEET", "127.0.0.1", port])[0] == b"OK"
             ranges = [(ports[0], 0, 5460), (ports[1], 5461, 10922), (ports[2], 10923, 16383)]
@@ -224,12 +262,12 @@ def main():
                 return role[:4] == [b"slave", b"127.0.0.1", master, b"connected"]
 
             wait_until(replica_ready, 15, "replica link")
-            with socket.create_connection(("127.0.0.1", master), timeout=8) as connection, connection.makefile("rb") as reply:
+            with connect(master, timeout=8) as connection, connection.makefile("rb") as reply:
                 send(connection, ["SET", KEY, VALUE])
                 assert frame(reply)[0] == b"OK"
                 send(connection, ["WAIT", 1, 5000])
                 assert frame(reply)[0] == 1
-            with socket.create_connection(("127.0.0.1", replica), timeout=5) as connection, connection.makefile("rb") as reply:
+            with connect(replica, timeout=5) as connection, connection.makefile("rb") as reply:
                 send(connection, ["READONLY"])
                 assert frame(reply)[0] == b"OK"
                 send(connection, ["GET", KEY])
@@ -245,7 +283,7 @@ def main():
                         continue
                     if not any(
                         node.get(b"id") == replica_id and node.get(b"role") == b"replica" and
-                        node.get(b"health") == b"online" and node.get(b"port") == replica
+                        node.get(b"health") == b"online" and node.get(service_port) == replica
                         for node in shard[b"nodes"]
                     ):
                         return False
@@ -264,9 +302,12 @@ def main():
             }
             run_id = result["nodes"][3]["run_id"]
             for client in clients:
-                assert identity(replica, children[3][1]) == run_id
+                assert identity(replica, children[3][1], exchange) == run_id
+                command = [str(client), str(replica), run_id, moved, str(master)]
+                if ca:
+                    command.append(client_path(client, ca))
                 run = subprocess.run(
-                    [str(client), str(replica), run_id, moved, str(master)], text=True,
+                    command, text=True,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=45,
                 )
                 result["cases"].append(dict(client=str(client), sha256=sha(client), exit_code=run.returncode, output=run.stdout))
@@ -274,7 +315,8 @@ def main():
                     "[PASS] real Cluster replica routing:" in run.stdout, run.stdout
                 print(client.name, "passed", flush=True)
             if args.primary_loss:
-                check_primary_loss(clients, children, result, master, replica, slot, report, args.during_election)
+                check_primary_loss(clients, children, result, master, replica, slot, report, args.during_election,
+                                   exchange, connect, ca)
             result["complete"] = True
         except BaseException:
             result["failure"] = traceback.format_exc()

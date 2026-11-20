@@ -151,6 +151,8 @@ platform. This check is opt-in because an external Redis executable is not a
 library build dependency. Linux commands above use default native output paths;
 Windows needs native Redis and the appropriate socket libraries/compiler.
 
+### Cluster replica READONLY
+
 The separate managed READONLY fixture starts three loopback Cluster primaries
 and one replica. The native probe checks RESP2/RESP3 MOVED on connections
 without READONLY, binary GET on managed READONLY connections and pipelined reads
@@ -179,6 +181,14 @@ mkdir -p out/service-extensions
 gcc -std=c11 -Wall -Wextra -Werror -O2 -pthread -Iinclude -Iextlibs/xredis/include extlibs/xredis/tests/interop/redis_cluster_readonly.c "$lib/libxredis.a" "$lib/libxrt.a" -lm -o out/service-extensions/redis-cluster-readonly
 python extlibs/xredis/tests/interop/run_redis_cluster_readonly.py --client out/service-extensions/redis-cluster-readonly --report out/service-extensions/evidence/redis-cluster-readonly.json
 ```
+
+For TLS 1.3, append `xredis_tls` to the suite and library directory names
+and compile the probe with `-DXREDIS_MODULE_XREDIS_TLS`. Pass `--tls` to
+the runner with a TLS-enabled Redis server and OpenSSL available. The
+runner creates a temporary CA, verifies `localhost` on each client
+connection, and enables TLS for replication and the Cluster bus. With
+`--primary-loss --during-election`, the probe checks the announced TLS
+ports before and after automatic promotion.
 
 The cold setup workloads `xredis_client_init` and `xredis_client_init_readonly`
 record ConnectInit-entry-to-ready-observation P50/P95/P99/P99.9 against the

@@ -19856,3 +19856,41 @@ remain open. Source and binary digests, diagnostic builds and per-run
 Redis ledgers are under
 `out/service-extensions/scope-reduction-20261119/xredis-tls-restart/`.
 Reproduce from [the restart guide](../../extlibs/xredis/docs/client-performance.md#recovery-across-a-redis-process-restart).
+
+## 2026-11-20 xredis real TLS Cluster promotion
+
+The current explicit-slot client passed five automatic promotions against
+four owned Redis 8.0.5 nodes in Ubuntu/WSL. The fixture verifies each
+process and Redis run ID, the localhost certificate and TLS 1.3 with
+AES-128-GCM. All four server configurations reported plaintext port zero
+and TLS enabled for client traffic, the Cluster bus and replication.
+
+Native Windows through the WSL relay, Ubuntu/WSL, and the Ubuntu/WSL
+ASan/UBSan build with leak detection each ran all five trials. Before
+each failure, all three clients verified READONLY and ordinary modes,
+binary reads, and replica selection and denied-replica fallback for
+RESP2 and RESP3 with SHARDS and SLOTS. A separate plaintext election
+passed with both native client builds. The documented static package
+built, linked and passed a sixth TLS election with all three cases on WSL.
+The standalone plaintext and TLS certificate-rotation probes passed after
+sharing the TLS setup.
+
+Each client ran three failure cases per promotion. On-wire BLPOP returned
+DISCONNECTED and MAY_HAVE_EXECUTED with one attempt. A stale-map write
+submitted after convergence and a write submitted during voting both
+refreshed under their original deadlines. Each recovered write used one
+native attempt through the promoted node's ordinary TLS pool with no
+MOVED, and the Redis-side counter was one. All 45 TLS cases and six
+plaintext cases passed. Redis survivor convergence after process
+termination was 3.226 to 4.279 seconds in the five TLS trials, with a
+median of 3.646 seconds. This interval describes the owned Redis election.
+
+Generated assets, API docs and ordinary maturity passed. Strict release
+still lists 29 developing xredis modules. Native Linux and mixed-load TLS
+failover remain open. The initial attempt with a server-only certificate
+did not form the Cluster. The verified fixture uses a certificate
+permitted for both Redis peer roles on the Cluster bus.
+
+Source hashes, build logs, exact election evidence and server logs are
+under `out/service-extensions/scope-reduction-20261119/xredis-cluster-tls/`.
+Reproduce from the [client initialization guide](../../extlibs/xredis/docs/client-init.md#cluster-replica-readonly).

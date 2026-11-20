@@ -96,8 +96,11 @@ posts/timer and progress-engine pin before Closed. Shared Nodes remains open;
 its owner separately closes Nodes and joins engines for native physical FIFO
 retirement and factory release. Retained results/maps survive client teardown;
 pending native work can retain independent resources. Code remains loaded until
-all results are destroyed. Production/native-Linux/TLS/auth/trust/upstream/
-fixed-arrival/mixed-load/CPU/RSS/72h performance acceptance remains open.
+all results are destroyed. The [real Cluster fixture](client-init.md#cluster-replica-readonly)
+exercises automatic promotion and replica reads over plaintext and
+server-authenticated TLS 1.3. Native Linux, broader authentication and trust
+profiles, upstream comparisons, and fixed-arrival, mixed-load, CPU, RSS
+and 72-hour acceptance remain open.
 
 The optional [synchronous facade](cluster_sync.md) shares the original entry
 deadline and native operation. It refuses both dependent Engines' workers and
