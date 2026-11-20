@@ -120,24 +120,31 @@ jobs:
           python tools/measure_size.py --compiler gcc
           --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client,xredis_dial,xredis_tls --kind single
           --report out/service-extensions/size-xredis-runtime-linux.json
-      - name: Independent static and shared consumers
-        run: |
-          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
-          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
-      - name: Relocate and run shared package consumers
+      - name: Verify static and relocated shared package consumers
         shell: bash
         env:
           PRODUCT: ${{ matrix.product }}
+          EXAMPLES: ${{ matrix.examples }}
         run: |
-          package="release/gnu/native/$PRODUCT/shared"
-          relocated="$(mktemp -d "$RUNNER_TEMP/$PRODUCT sdk.XXXXXX")"
-          trap 'rm -f -- "$relocated/lib$PRODUCT.so" "$relocated/libxrt.so" "$relocated/test_package_$PRODUCT"; rmdir -- "$relocated"' EXIT
-          relocated="$(realpath "$relocated")"
-          cp -- "$package/lib$PRODUCT.so" "$package/libxrt.so" "$package/test_package_$PRODUCT" "$relocated/"
-          dependencies="$(env -u LD_LIBRARY_PATH -u LD_PRELOAD -u LD_AUDIT ldd "$relocated/lib$PRODUCT.so")"
-          printf '%s\n' "$dependencies"
-          grep -F "libxrt.so => $relocated/libxrt.so " <<< "$dependencies"
-          env -u LD_LIBRARY_PATH -u LD_PRELOAD -u LD_AUDIT "$relocated/test_package_$PRODUCT"
+          suites=("$PRODUCT")
+          if [[ "$PRODUCT" == xmqtt ]]; then
+            suites+=("$EXAMPLES")
+          fi
+          for suite in "${suites[@]}"; do
+            python tools/package.py --compiler gcc --manifest "extlibs/$PRODUCT/config/modules.json" --suite "$suite" --kind static --verify
+            python tools/package.py --compiler gcc --manifest "extlibs/$PRODUCT/config/modules.json" --suite "$suite" --kind shared --verify
+            (
+              package="release/gnu/native/$suite/shared"
+              relocated="$(mktemp -d "$RUNNER_TEMP/$suite sdk.XXXXXX")"
+              trap 'rm -f -- "$relocated/lib$PRODUCT.so" "$relocated/libxrt.so" "$relocated/test_package_$PRODUCT"; rmdir -- "$relocated"' EXIT
+              relocated="$(realpath "$relocated")"
+              cp -- "$package/lib$PRODUCT.so" "$package/libxrt.so" "$package/test_package_$PRODUCT" "$relocated/"
+              dependencies="$(env -u LD_LIBRARY_PATH -u LD_PRELOAD -u LD_AUDIT ldd "$relocated/lib$PRODUCT.so")"
+              printf '%s\n' "$dependencies"
+              grep -F "libxrt.so => $relocated/libxrt.so " <<< "$dependencies"
+              env -u LD_LIBRARY_PATH -u LD_PRELOAD -u LD_AUDIT "$relocated/test_package_$PRODUCT"
+            )
+          done
       - name: Optional MQTT TCP server packages and independent peer
         if: matrix.product == 'xmqtt'
         run: |
