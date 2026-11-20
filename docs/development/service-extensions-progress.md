@@ -19501,3 +19501,52 @@ assets, API docs and ordinary maturity passed. Strict release reports
 `xcron` and `xcron_scheduler` as developing. Source hashes, harnesses,
 initial build and fixture logs, and results are under
 `out/service-extensions/scope-reduction-20261119/xcron-shared-recurrence/`.
+
+## 2026-11-20 MQTT 5 receiver comparison against Paho C
+
+The same independent plaintext MQTT 5 peer checks the Subscribe and
+Receive Maximum parameters for xmqtt and pinned Paho C 1.3.15. Each
+client receives and validates the same ordered 32-byte payloads through
+its application notification path. The peer confirms PUBACK or the
+complete PUBREC/PUBREL/PUBCOMP exchange for every offer and releases
+the client for graceful teardown after those exchanges. Reports keep
+the application, scheduled-to-terminal, actual-send-to-terminal and
+offer-lag distributions separately.
+
+Windows x64 and Ubuntu/WSL x64 used one connection, peer CPU 0 and
+client CPUs 4 and 8. Each matrix used five measured repeats per client
+and case, with 128 initial offers per process. Both matrices completed
+all 80 measured samples and all 16 process warmups. Each verified
+240,000 measured application deliveries and terminal acknowledgements.
+Windows offer-lag medians reached 13–20 ms with the initial socket
+timeout pacing. Polling in the final two milliseconds before an
+eligible offer reduced the Windows medians to about 24–109 microseconds.
+Both matrices and the initial peer source are retained.
+
+| Host | QoS | Window | Offers/s | APP P99 in us, xmqtt / Paho | Terminal P99 in us, xmqtt / Paho |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 1 | 1,000 | 106.6 / 82.7 | 206.7 / 179.0 |
+| Windows x64 | 1 | 16 | 3,000 | 145.3 / 164.6 | 229.9 / 252.5 |
+| Windows x64 | 2 | 1 | 1,000 | 101.2 / 109.0 | 310.8 / 335.7 |
+| Windows x64 | 2 | 16 | 3,000 | 164.5 / 181.6 | 372.7 / 380.4 |
+| Ubuntu/WSL x64 | 1 | 1 | 1,000 | 134.5 / 115.6 | 216.0 / 230.2 |
+| Ubuntu/WSL x64 | 1 | 16 | 3,000 | 126.1 / 109.0 | 433.9 / 159.4 |
+| Ubuntu/WSL x64 | 2 | 1 | 1,000 | 124.2 / 119.8 | 382.8 / 385.9 |
+| Ubuntu/WSL x64 | 2 | 16 | 3,000 | 180.1 / 173.1 | 637.9 / 627.8 |
+
+The table uses medians from the revised peer. At QoS 1 and window 16
+on WSL the observed rates were 2,916 and 3,000 verified deliveries/s.
+Both clients had sender-lag P99 near 50 microseconds in that case.
+All 16 throughput series met the variation limits. One of 16 APP P99
+and three of 16 terminal P99 series met them. Stable release tails,
+receiver comparison through a standalone broker, TLS and native Linux
+remain open.
+
+The independent negative controls rejected an early PUBCOMP and a
+wrong packet ID. Both receiver binaries rejected an out-of-order
+sequence and corrupted binary payload on both platforms. Generated
+assets, API docs and ordinary maturity passed. Strict release reports
+39 developing modules. Reproduction is in the
+[receiver comparison guide](../../extlibs/xmqtt/bench/README.md#mqtt-5-receiver-reference).
+Source and dependency hashes, builds, verification logs and reports
+are under `out/service-extensions/scope-reduction-20261119/xmqtt-receiver-reference/`.

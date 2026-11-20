@@ -169,6 +169,44 @@ Saturation, receiver overhead, TLS, durable sessions and the native
 72-hour mixed workloads have separate qualification.
 
 
+## MQTT 5 receiver reference
+
+The receiver comparison sends the same 32-byte payloads to xmqtt and Paho C
+1.3.15 from an independent plaintext TCP peer. It requires a clean MQTT 5
+connection, the requested Receive Maximum, and a matching SUBSCRIBE. The
+peer schedules publications at fixed arrival times and never exceeds the
+requested window. It verifies every PUBACK for QoS 1 and every PUBREC and
+PUBCOMP exchange for QoS 2.
+
+Both clients validate the topic, delivery order and binary contents as
+the application receives the message. The peer releases the client for
+a graceful DISCONNECT after all reliable wire exchanges finish. The
+report includes application latency, terminal ACK latency, time from
+actual send attempt to terminal ACK, and sender scheduling lag. Both
+MQTT 5 clients can deliver to the APP before QoS 2 wire completion.
+Compare terminal ACK latency for the complete protocol exchange.
+
+Reuse the publisher comparison's compiler flags and pinned Paho builds.
+Add `-DXRT_MODULE_EVENT` for the receiver driver's completion event.
+
+    source=extlibs/xmqtt/bench/bench_client_receive_reference.c
+    gcc "${flags[@]}" -DXRT_MODULE_EVENT "$source" -o out/xmqtt-receive -pthread -lm
+    gcc "${flags[@]}" -DXRT_MODULE_EVENT -DXMQTT_BENCH_PAHO -DPAHO_MQTT_STATIC=1 \
+      -I"$PAHO_SRC/src" "$source" "$PAHO_BUILD/src/libpaho-mqtt3a.a" \
+      -o out/paho-receive -pthread -lrt -ldl -lm
+
+    python3 extlibs/xmqtt/bench/compare_client_receivers.py \
+      --xmqtt out/xmqtt-receive --paho out/paho-receive --peer-cpu 0 --client-cpus 4,8 \
+      --qos 2 --window 16 --rate 3000 --count 4500 --repeats 5 \
+      --report out/mqtt-receiver-reference.json
+
+Use the same Windows compiler and linker substitutions as the publisher
+build and append .exe to the receiver executables. Each measured process
+warms up with 128 publications. The runner alternates client order,
+verifies CPU affinity and retains raw runs and variation results.
+The dedicated peer CPU polls the socket during the final two milliseconds
+before an offer when it has credit. The reports record the peer CPU time.
+
 ## Longer instrumented measurement
 
 `xmqtt_qos2_resolution` adds eight instrumented variants with 200000 operations,
