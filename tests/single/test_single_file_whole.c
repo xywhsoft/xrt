@@ -15,7 +15,8 @@ int main(void)
 	xrtClearError();
 	if ( !xrtFileWriteAll(sPath, XRT_BYTES_LITERAL("ab")) ||
 		 !xrtFileAppend(sPath, XRT_BYTES_LITERAL("c")) ||
-		 !xrtFileWriteAtomic(sPath, XRT_BYTES_LITERAL("xyz")) ) {
+		 !xrtFileWriteAtomic(sPath, XRT_BYTES_LITERAL("rst")) ||
+		 !xrtFileWriteAtomicRename(sPath, XRT_BYTES_LITERAL("xyz")) ) {
 		return 1;
 	}
 	pData = xrtFileReadAllLimit(sPath, 3u, &iSize);

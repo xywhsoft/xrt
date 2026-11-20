@@ -118,7 +118,7 @@ static bool checkpointSave(xmqttserver* Server, cstr Path)
 		unsigned char Checksum[CheckpointChecksum];
 		checkpointWriteNumber(Checksum, sizeof(Checksum), xrtCrc32(Output.Image.Data, Output.Image.Size));
 		Written = xrtBufferAppend(&Output.Image, (xbytesview){Checksum, sizeof(Checksum)}) &&
-			xrtFileWriteAtomic(Path, xrtBufferView(&Output.Image));
+			xrtFileWriteAtomicRename(Path, xrtBufferView(&Output.Image));
 	}
 	xrtBufferUnit(&Output.Image);
 	return Written;
@@ -293,7 +293,7 @@ static bool checkpointLoad(xmqttserver* Server, cstr Path, bool Online)
 			checkpointRestoreSessions(Server, Cursor, Image[7], Elapsed, &Rebased);
 	if (Restored && Rebased) {
 		checkpointWriteNumber(Image + Content, CheckpointChecksum, xrtCrc32(Image, Content));
-		Restored = xrtFileWriteAtomic(Path, (xbytesview){Image, Content + CheckpointChecksum});
+		Restored = xrtFileWriteAtomicRename(Path, (xbytesview){Image, Content + CheckpointChecksum});
 	}
 	xrtFree(Records);
 	xrtFree(Image);
@@ -352,7 +352,7 @@ static xmqttserversessionresult checkpointApply(const checkpointchange* Change, 
 	checkpointWriteNumber(CountField, 4, Kept);
 	size_t Size = (size_t)(Output - Image);
 	checkpointWriteNumber(Output, CheckpointChecksum, xrtCrc32(Image, Size));
-	return xrtFileWriteAtomic(Change->Store->Path, (xbytesview){Image, Size + CheckpointChecksum}) ?
+	return xrtFileWriteAtomicRename(Change->Store->Path, (xbytesview){Image, Size + CheckpointChecksum}) ?
 		XMQTT_SERVER_SESSION_COMMITTED : XMQTT_SERVER_SESSION_UNKNOWN;
 }
 
@@ -692,7 +692,7 @@ static xmqttserversessionresult checkpointTransact(const checkpointchange* Reque
 		unsigned char Sum[CheckpointChecksum];
 		checkpointWriteNumber(Sum, sizeof(Sum), xrtCrc32(Output.Image.Data, Output.Image.Size));
 		if (xrtBufferAppend(&Output.Image, (xbytesview){Sum, sizeof(Sum)}))
-			Result = xrtFileWriteAtomic(Request->Store->Path, xrtBufferView(&Output.Image)) ?
+			Result = xrtFileWriteAtomicRename(Request->Store->Path, xrtBufferView(&Output.Image)) ?
 				XMQTT_SERVER_SESSION_COMMITTED : XMQTT_SERVER_SESSION_UNKNOWN;
 	}
 	xrtBufferUnit(&Output.Image);

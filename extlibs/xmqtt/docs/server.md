@@ -86,8 +86,11 @@ python extlibs/xmqtt/tests/interop/run_server_checkpoint.py <path-to-examples_se
 Run the example directly as `examples_server_checkpoint capture checkpoint.bin`,
 then send it a line on stdin after publishing retained messages. Use
 `examples_server_checkpoint restore checkpoint.bin` for later runs. The example
-owns the file format, CRC, UTC clock check and atomic file replacement.
-The same file also carries the session checkpoint described below. The APP
+owns the file format, CRC, UTC clock check and checkpoint publication.
+It flushes the new file and publishes it with one same-directory rename.
+Use a directory whose inherited Windows ACL is appropriate for the
+checkpoint. Windows requires a filesystem with POSIX-style replacement
+support. The same file also carries the session checkpoint described below. The APP
 example can reload its earlier retained-only files.
 
 ### Online retained commits

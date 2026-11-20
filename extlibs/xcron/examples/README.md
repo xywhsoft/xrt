@@ -40,9 +40,10 @@ examples_restart_catchup_main replay checkpoint.txt 5000 2
 
 Each process samples one upper bound and advances through strictly later
 occurrences within its supplied count budget. It atomically replaces its
-single-writer checkpoint after each successful action. An optional final
-timestamp simulates a failed action and leaves that occurrence available
-to retry.
+single-writer checkpoint after each successful action. On Windows the
+checkpoint directory supplies the inherited ACL and its filesystem must
+support POSIX-style replacement. An optional final timestamp simulates a
+failed action and leaves that occurrence available to retry.
 
 If a checkpoint write fails after a successful action, the example
 reports that occurrence and exits. Once storage is available, the next

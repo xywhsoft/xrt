@@ -18346,6 +18346,11 @@ XRT_API bool xrtFileAppend(cstr sPath, xbytesview Data);
 /* 在同目录完整写入排他临时文件，再原子替换目标。 */
 XRT_API bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
 
+/* Flush and publish by one same-directory rename. On Windows the filesystem
+ * must support POSIX replacement. The new file uses the directory's inherited
+ * security and its own metadata. On POSIX this preserves the target mode. */
+XRT_API bool xrtFileWriteAtomicRename(cstr sPath, xbytesview Data);
+
 
 
 /* 流式复制普通文件；不跟随末级链接，bReplace 控制是否替换普通文件目标。 */
@@ -244497,15 +244502,90 @@ static bool __xrtFileReplacePreserve(cstr sTemporary, cstr sTarget)
 	return true;
 }
 
+/* FILE_RENAME_INFO layout for SDKs predating the FileRenameInfoEx enum. */
+typedef struct __xrt_file_publish_info {
+	DWORD Flags;
+	HANDLE RootDirectory;
+	DWORD FileNameLength;
+	WCHAR FileName[1];
+} __xrt_file_publish_info;
+
+#if defined(__TINYC__)
+BOOL WINAPI SetFileInformationByHandle(HANDLE File, int Class, LPVOID Info, DWORD Size);
+#endif
+
+static bool __xrtFileReplaceByRename(cstr sTemporary, cstr sTarget)
+{
+	enum { RenameInfoEx = 22, ReplaceIfExists = 1, PosixSemantics = 2 };
+	size_t iUnits;
+	uint16* pTarget = __xrtPathToWide(sTarget, &iUnits);
+	if ( pTarget == NULL ) {
+		return false;
+	}
+	const size_t iHeader = offsetof(__xrt_file_publish_info, FileName);
+	if ( iUnits > ((UINT32_MAX - iHeader - sizeof(WCHAR)) / sizeof(WCHAR)) ) {
+		xrtFree(pTarget);
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	size_t iNameBytes = iUnits * sizeof(WCHAR);
+	size_t iBytes = iHeader + iNameBytes + sizeof(WCHAR);
+	if ( iBytes < sizeof(__xrt_file_publish_info) ) {
+		iBytes = sizeof(__xrt_file_publish_info);
+	}
+	__xrt_file_publish_info* pInfo = (__xrt_file_publish_info*)xrtCalloc(1u, iBytes);
+	if ( pInfo == NULL ) {
+		xrtFree(pTarget);
+		return false;
+	}
+	pInfo->Flags = ReplaceIfExists | PosixSemantics;
+	pInfo->FileNameLength = (DWORD)iNameBytes;
+	memcpy(pInfo->FileName, pTarget, iNameBytes);
+	xrtFree(pTarget);
+	uint16* pTemporary = __xrtPathToWide(sTemporary, NULL);
+	if ( pTemporary == NULL ) {
+		xrtFree(pInfo);
+		return false;
+	}
+	HANDLE hFile = CreateFileW((const WCHAR*)pTemporary, DELETE,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+		OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	int iCode = 0;
+	bool bRenamed = false;
+	if ( hFile != INVALID_HANDLE_VALUE ) {
+		#if defined(__TINYC__)
+			bRenamed = SetFileInformationByHandle(hFile, RenameInfoEx, pInfo, (DWORD)iBytes) != 0;
+		#else
+			bRenamed = SetFileInformationByHandle(hFile,
+				(FILE_INFO_BY_HANDLE_CLASS)RenameInfoEx, pInfo, (DWORD)iBytes) != 0;
+		#endif
+		if ( !bRenamed ) {
+			iCode = (int)GetLastError();
+		}
+		(void)CloseHandle(hFile);
+	} else {
+		iCode = (int)GetLastError();
+	}
+	xrtFree(pTemporary);
+	xrtFree(pInfo);
+	if ( !bRenamed ) {
+		__xrtFileSetError(XFILE_ERROR_MOVE, "publish",
+			"failed to publish the file with a single rename", iCode);
+	}
+	return bRenamed;
+}
+
 #endif
 
 
 
 /* 在目标同目录写入临时文件并原子替换目标。 */
-XRT_API bool xrtFileWriteAtomic(cstr sPath, xbytesview Data)
+static bool __xrtFileWriteAtomic(cstr sPath, xbytesview Data,
+	bool bPreserveWindowsMetadata)
 {
 	xfileinfo TargetInfo;
 	bool bTargetExists;
+	bool bPublished;
 	uint32 iMode = 0666u;
 	str sDirectory;
 	str sTemporary = NULL;
@@ -244562,27 +244642,40 @@ XRT_API bool xrtFileWriteAtomic(cstr sPath, xbytesview Data)
 		}
 	#endif
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( bTargetExists ) {
-			if ( !__xrtFileReplacePreserve(sTemporary, sPath) ) {
-				__xrtFileCleanup(NULL, sTemporary, true);
-				xrtFree(sTemporary);
-				return false;
-			}
-		} else if ( !xrtPathRename(sTemporary, sPath, true) ) {
-			__xrtFileCleanup(NULL, sTemporary, true);
-			xrtFree(sTemporary);
-			return false;
-		}
+		if ( !bPreserveWindowsMetadata ) {
+			bPublished = __xrtFileReplaceByRename(sTemporary, sPath);
+		} else if ( bTargetExists ) {
+			bPublished = __xrtFileReplacePreserve(sTemporary, sPath);
+		} else
 	#else
-		if ( !xrtPathRename(sTemporary, sPath, true) ) {
-			__xrtFileCleanup(NULL, sTemporary, true);
-			xrtFree(sTemporary);
-			return false;
-		}
+		(void)bPreserveWindowsMetadata;
 	#endif
+		{
+			bPublished = xrtPathRename(sTemporary, sPath, true);
+		}
+	if ( !bPublished ) {
+		__xrtFileCleanup(NULL, sTemporary, true);
+		xrtFree(sTemporary);
+		return false;
+	}
 	xrtFree(sTemporary);
 	return true;
 }
+
+
+
+XRT_API bool xrtFileWriteAtomic(cstr sPath, xbytesview Data)
+{
+	return __xrtFileWriteAtomic(sPath, Data, true);
+}
+
+
+
+XRT_API bool xrtFileWriteAtomicRename(cstr sPath, xbytesview Data)
+{
+	return __xrtFileWriteAtomic(sPath, Data, false);
+}
+
 
 
 

@@ -155,6 +155,46 @@ static void testWholeAtomic(cstr sPath)
 
 
 
+/* An open reader keeps the old bytes across publication of the new file. */
+static void testWholeAtomicRename(cstr sPath)
+{
+	testRequire(xrtFileDelete(sPath) &&
+		xrtFileWriteAtomicRename(sPath, XRT_BYTES_LITERAL("old")),
+		"rename publication of a new target failed");
+	#if defined(_WIN32) || defined(_WIN64)
+		xfileinfo OldInfo;
+		testRequire(xrtPathStat(sPath, false, &OldInfo) &&
+			xrtPathSetAttributes(sPath, OldInfo.Attributes | TEST_WHOLE_ATTRIBUTE_HIDDEN),
+			"rename Windows attribute fixture setup failed");
+	#else
+		testRequire(xrtPathSetMode(sPath, true, 0640u),
+			"rename POSIX mode fixture setup failed");
+	#endif
+	xfile Old = xrtOpen(sPath, XFILE_READ);
+	testRequire(Old != NULL && xrtFileWriteAtomicRename(sPath, XRT_BYTES_LITERAL("new")),
+		"rename publication failed with a reader on the old file");
+	unsigned char arrOld[3];
+	testRequire(xrtReadFull(Old, arrOld, sizeof(arrOld), NULL) &&
+		memcmp(arrOld, "old", sizeof(arrOld)) == 0 && xrtClose(Old),
+		"existing reader did not retain the original bytes");
+	size_t iSize;
+	bytes pData = xrtFileReadAll(sPath, &iSize);
+	testRequire(pData != NULL && iSize == 3u && memcmp(pData, "new", iSize) == 0,
+		"new reader did not open the published bytes");
+	xrtFree(pData);
+	xfileinfo Info;
+	testRequire(xrtPathStat(sPath, true, &Info), "rename publication metadata query failed");
+	#if defined(_WIN32) || defined(_WIN64)
+		testRequire((Info.Attributes & TEST_WHOLE_ATTRIBUTE_HIDDEN) == 0u,
+			"rename publication merged the replaced Windows file attributes");
+	#else
+		testRequire((Info.Mode & 0777u) == 0640u,
+			"rename publication changed the POSIX target mode");
+	#endif
+}
+
+
+
 /* 复制必须流式处理、保护现有目标并拒绝同一文件。 */
 static void testWholeCopy(cstr sSource, cstr sTarget)
 {
@@ -326,6 +366,7 @@ int main(void)
 	testWholeReadWrite(sFirst);
 	testWholeReadLimit(sFirst);
 	testWholeAtomic(sFirst);
+	testWholeAtomicRename(sFirst);
 	testWholeCopy(sFirst, sSecond);
 	testWholeMoveTypes(sFirst, sSecond);
 	#if !defined(_WIN32) && !defined(_WIN64)

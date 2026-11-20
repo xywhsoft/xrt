@@ -19992,3 +19992,39 @@ remain open. The restart experiment uses controlled shutdown and the
 local demonstration method. Evidence and binary/source hashes are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-required-auth/`.
 [Broker authentication and restart instructions](../../extlibs/xmqtt/docs/server.md#mqtt-5-enhanced-authentication).
+
+## 2026-11-20 continuously visible Windows checkpoint publication
+
+The file module now exposes `xrtFileWriteAtomicRename`. It shares
+temporary creation, write, flush, validation and cleanup with the
+existing API. Windows uses one `FileRenameInfoEx` request with POSIX-style
+replacement. Existing readers can finish on the old file and subsequent
+opens resolve to the published file. The published Windows file uses
+the parent directory's inherited ACL and its own metadata. The existing
+`xrtFileWriteAtomic` path retains its Windows metadata-merge behavior.
+Both APIs preserve the existing mode on POSIX.
+
+On Windows 10 build 19045 and NTFS, the prior probe observed missing
+paths during successful calls to the existing API. A same-directory
+`MoveFileExW` control returned ERROR_ACCESS_DENIED while the observer
+queried the target. The new public API completed 6,144 replacements
+without a missing path or another lookup error in 529,312 concurrent
+GetFileAttributesW calls. The probe observed the initial and final
+bytes. Separate modular tests opened the old content before publication
+and read old and new content through different handles afterwards.
+
+The MQTT server checkpoint and retained-write examples and the xcron
+restart catch-up example now use the rename API. Windows and Ubuntu/WSL
+passed the complete MQTT checkpoint and auth-before-replay probes,
+including the Will transaction that previously failed on Windows.
+The WSL checkpoint build used ASan/UBSan with leak detection. Both
+systems passed the retained commit fixture over TCP, TLS, WS and WSS,
+and xcron passed the cross-process catch-up and checkpoint failure
+retries. The file module passed modular, OOM and single-header tests.
+Generated headers, file API docs and ordinary Core maturity passed.
+
+Evidence and source/binary hashes are under
+`out/service-extensions/scope-reduction-20261119/windows-checkpoint-publish/`.
+The Windows evidence covers the tested NTFS profile. Native Linux,
+power-loss durability and release soak acceptance remain open.
+[Windows rename semantics](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).

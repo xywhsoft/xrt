@@ -24,7 +24,7 @@ static bool save(const char* Path, xtime Last)
     char Bytes[32];
     int Count = snprintf(Bytes, sizeof(Bytes), "%" PRId64 "\n", Last);
     return Count > 0 && (size_t)Count < sizeof(Bytes) &&
-        xrtFileWriteAtomic(Path, (xbytesview){(cbytes)Bytes, (size_t)Count});
+        xrtFileWriteAtomicRename(Path, (xbytesview){(cbytes)Bytes, (size_t)Count});
 }
 
 static bool load(const char* Path, xtime* Last)

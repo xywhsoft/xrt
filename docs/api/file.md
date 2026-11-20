@@ -2654,6 +2654,7 @@ bytes xrtFileReadAllLimit(cstr sPath,
 bool xrtFileWriteAll(cstr sPath, xbytesview Data);
 bool xrtFileAppend(cstr sPath, xbytesview Data);
 bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
+bool xrtFileWriteAtomicRename(cstr sPath, xbytesview Data);
 bool xrtFileCopy(cstr sSource, cstr sTarget, bool bReplace);
 bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
 ```
@@ -2663,6 +2664,8 @@ bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
 `xrtFileReadAllLimit` 在同一读取契约上增加硬字节上限。打开时已知大小超限会在分配前失败；读取期间增长越过上限也会在扩容前失败，错误码为 `XFILE_ERROR_LIMIT`。`iLimit=0` 只允许空文件。这是读取上传内容、配置或其他不可信文件时的首选入口。
 
 `xrtFileWriteAll` 创建或截断并完整写入，失败可能留下部分目标。`xrtFileAppend` 使用系统追加打开语义。`xrtFileWriteAtomic` 在目标同目录排他创建临时文件，完整写入并 `xrtFlush` 后原子替换目标；失败会清理临时文件。新文件按 `0666 + umask` 创建；替换已有 POSIX 普通文件时保留其模式，Windows 使用 `ReplaceFileW` 保留原目标可合并的 ACL、属性和文件系统元数据。链接、目录和特殊对象不是原子写目标。它保证普通读者不会看到半份新内容，但不承诺所有 POSIX ACL、扩展属性或父目录项已经完成断电持久化。
+
+`xrtFileWriteAtomicRename` 以一次同目录改名发布刷新后的文件。Windows 需要文件系统支持 `FileRenameInfoEx` 的 POSIX 替换语义。已打开的读者仍然读取旧文件，之后打开目标路径的读者读取新文件。新文件继承父目录的 ACL 并使用自身元数据。`ReplaceFileW` 的元数据合并过程中，并发读者可能短暂看不到目标路径。POSIX 仍保留已有目标的模式位。
 
 `xrtFileCopy` 和 `xrtFileMove` 都只接受末级路径本身为普通文件的源与目标，不跟随末级符号链接或 Windows 重解析点；移动目录、链接等文件系统条目应使用 `xrtPathRename`，跨卷链接和目录使用对应模块构建策略。复制使用固定大小栈缓冲流式写入目标同目录临时文件，完成后一次发布，不会按源大小分配复制缓冲。新目标按 `0666 + umask` 创建，不再继承内部私有临时文件的 `0600`，但默认不复制时间、POSIX 模式、ACL 或扩展元数据。`xrtFileMove` 优先改名，只在系统明确报告跨卷时复制成功后删除源文件。删除源失败时目标已经完整存在，错误会明确保留该状态。
 

@@ -66,6 +66,13 @@ int main(void)
 		"atomic write OOM changed the old target");
 	xrtClearError();
 
+	testRequire(!xrtFileWriteAtomicRename(sTarget, XRT_BYTES_LITERAL("new")) &&
+		(xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_MEMORY) &&
+		testWholeOomMatches(sTarget, "old"),
+		"rename write OOM changed the old target");
+	xrtClearError();
+
 	testRequire(!xrtFileCopy(sSource, sTarget, true) &&
 		(xrtGetError() != NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_MEMORY) &&

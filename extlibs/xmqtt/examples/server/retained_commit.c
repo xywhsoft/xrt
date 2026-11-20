@@ -74,7 +74,7 @@ static xmqttserverretainedresult slotSave(const retainedwrite* Write)
 	memcpy(Image + SlotHeader, Record->PublisherId.Data, Record->PublisherId.Size);
 	memcpy(Image + SlotHeader + Record->PublisherId.Size, Record->Publish.Data, Record->Publish.Size);
 	slotPut(Image + Size - SlotTrailer, SlotTrailer, xrtCrc32(Image, Size - SlotTrailer));
-	bool Saved = xrtFileWriteAtomic(Write->Slot->Path, (xbytesview){Image, Size});
+	bool Saved = xrtFileWriteAtomicRename(Write->Slot->Path, (xbytesview){Image, Size});
 	xrtFree(Image);
 	return Saved ? XMQTT_SERVER_RETAINED_COMMITTED : XMQTT_SERVER_RETAINED_UNKNOWN;
 }

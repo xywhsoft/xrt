@@ -20762,6 +20762,11 @@ XRT_API bool xrtFileAppend(cstr sPath, xbytesview Data);
 /* 在同目录完整写入排他临时文件，再原子替换目标。 */
 XRT_API bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
 
+/* Flush and publish by one same-directory rename. On Windows the filesystem
+ * must support POSIX replacement. The new file uses the directory's inherited
+ * security and its own metadata. On POSIX this preserves the target mode. */
+XRT_API bool xrtFileWriteAtomicRename(cstr sPath, xbytesview Data);
+
 
 
 /* 流式复制普通文件；不跟随末级链接，bReplace 控制是否替换普通文件目标。 */
