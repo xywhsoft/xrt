@@ -769,13 +769,18 @@ static bool checkpointPrepare(xmqttserver* Server, ptr User)
 
 int main(int Argc, char** Argv)
 {
+	bool Compare = Argc >= 2 && !strcmp(Argv[1], "--compare");
+	if (Compare) {
+		--Argc;
+		++Argv;
+	}
 	bool Wills = Argc >= 3 && !strcmp(Argv[1], "restore-online-will");
 	bool Expiry = Wills || (Argc >= 3 && !strcmp(Argv[1], "restore-online-expiry"));
 	bool Online = Expiry || (Argc >= 3 && !strcmp(Argv[1], "restore-online"));
 	bool Fenced = Online || (Argc >= 3 && !strcmp(Argv[1], "restore-fenced"));
 	if ((Fenced && Argc > 4) ||
 		(!Fenced && (Argc != 3 || (strcmp(Argv[1], "capture") && strcmp(Argv[1], "restore"))))) {
-		puts("usage: examples_server_checkpoint capture|restore checkpoint.bin");
+		puts("usage: examples_server_checkpoint [--compare] capture|restore checkpoint.bin");
 		puts("       examples_server_checkpoint restore-fenced|restore-online checkpoint.bin [delay-ms]");
 		puts("       examples_server_checkpoint restore-online-expiry|restore-online-will checkpoint.bin [delay-ms]");
 		return Argc == 1 ? 0 : 1;
@@ -801,7 +806,7 @@ int main(int Argc, char** Argv)
 		Example.PrepareData = &Store;
 	}
 	char Endpoint[80];
-	bool Ready = exampleServerStart(&Example, &Config, 2) &&
+	bool Ready = exampleServerStart(&Example, &Config, Compare ? 1 : 2) &&
 		xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint));
 	if (Ready) {
 		puts(Endpoint);

@@ -19027,3 +19027,59 @@ developing modules.
 Reproduce from [the verified TLS comparison guide](../../extlibs/xmqtt/bench/README.md#verified-tls-broker-comparison).
 Reports, source snapshots and validation logs are under
 `out/service-extensions/scope-reduction-20261119/xmqtt-tls-broker/`.
+
+## 2026-11-20 MQTT 5 broker checkpoint and offline replay comparison
+
+The same independent observer ran against the xmqtt checkpoint APP and
+Mosquitto 2.1.2. The first probe created subscribers with Clean Start 1
+and a 600-second expiry. xmqtt restored the sessions in all 12 attempts.
+In all 12 reference attempts, Mosquitto restored the base messages and
+zero clients, subscriptions or queued deliveries. The pinned version
+filters clients and subscriptions on the Clean Start flag when writing
+the database. The matched workload used a fresh directory and Clean
+Start 0 from the first subscriber CONNECT, with Session Present 0
+required on that initial connection. Both brokers used the same setting.
+[Mosquitto 2.1.2 database writer](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/persist_write.c).
+
+Each broker ran on logical CPU 0. The observer ran on CPU 4 and both
+brokers checkpointed on graceful exit. The xmqtt APP used one network
+worker. Windows used its native temporary directory. Ubuntu/WSL used
+the guest temporary directory under an unprivileged account. Cases used
+one subscriber with 32 queued publications or eight subscribers with
+128 queued publications each, with separate QoS 1 and QoS 2 flows.
+Five alternating repetitions per broker, platform and case completed
+all 80 samples. The observer verified 6,400 publisher acknowledgements
+and 42,240 ordered, byte-exact offline deliveries. After a second
+checkpoint and restart, 360 drained sessions retained their subscriptions,
+delivered a new publication and produced no stale replay.
+
+The table gives five-sample medians for the eight-subscriber case in
+xmqtt / Mosquitto order. Drain time includes sequential reconnects,
+terminal acknowledgements, PING barriers and observer work.
+
+| Environment | QoS | Confirmed replay per second | First delivery P99 in microseconds | First checkpoint and exit in milliseconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 1 | 21,178 / 21,860 | 109.0 / 309.9 | 20.57 / 115.78 |
+| Windows x64 | 2 | 12,297 / 12,390 | 109.0 / 431.5 | 17.29 / 112.67 |
+| Ubuntu/WSL x64 | 1 | 15,092 / 15,890 | 399.7 / 236.5 | 7.29 / 3.20 |
+| Ubuntu/WSL x64 | 2 | 7,888 / 8,198 | 420.7 / 257.5 | 7.29 / 3.20 |
+
+Seven of 16 replay throughput series, three of 16 first-delivery P99
+series and five of 16 publisher P99 series met the variation limits.
+The checkpoint timing includes the shutdown command and process exit.
+Native Linux and stable release performance remain open. Combined TLS
+and persistent paths and per-ACK durability have separate requirements.
+
+Replacing the post-drain checkpoint with the original pre-drain image
+caused all 24 injected attempts to fail at the second restart. The
+independent checkpoint interop suite produced all 66 expected result
+fields on both platforms, covering session lifecycle, QoS phase recovery,
+stored Wills, retained state and online commit failures. The Windows
+modular and single-header checkpoint suite passed. Generated assets,
+public API documentation and ordinary maturity passed. Strict release
+still reports 39 developing modules.
+
+Reproduce from [the restart comparison guide](../../extlibs/xmqtt/bench/README.md#persistent-session-restart-comparison).
+The formal reports, initial Clean Start 1 outcomes, stale-image probes,
+source snapshots and validation logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-restart-broker/`.

@@ -384,6 +384,45 @@ within a TLS workload. Run the scripted observer cases with the same
 `wrong.pem` to cover idle and duplicate shared delivery over TLS and
 rejection of an unrelated CA or a wrong DNS name before any MQTT traffic.
 
+### Persistent-session restart comparison
+
+Build `examples_server_checkpoint` with the `xmqtt_server_checkpoint_example`
+suite. Run the comparison from an ordinary user account so both brokers
+can read and write the same temporary directory with their normal privileges.
+
+```text
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_checkpoint_example --arch x64 --cflag=-O2
+python extlibs/xmqtt/bench/compare_broker_restart.py --xmqtt /path/to/examples_server_checkpoint --mosquitto /path/to/mosquitto --broker-cpu 0 --load-cpu 4 --workload 1:32:1 --workload 1:32:2 --workload 8:128:1 --workload 8:128:2 --report out/broker-restart.json
+```
+
+Each repeat uses an empty temporary directory and three fresh broker
+processes. The observer creates each subscriber with Clean Start 0 and
+Session Expiry Interval 600 s and checks that its first CONNACK has Session
+Present 0. It parks the subscribers after SUBACK, confirms the
+publisher's terminal QoS 1 or 2 acknowledgements, and requests a clean
+checkpoint. On the first restart, it resumes each subscriber with Receive
+Maximum 1. It checks Session Present, topic, all 128 payload bytes, sequence,
+QoS, the terminal acknowledgement exchange and a PING barrier. After a
+second checkpoint and restart, the observer resumes those same identities
+again, checks for stale acknowledgements or replay, and delivers a new
+publication through their restored subscriptions. The broker and observer
+use separate logical CPUs. The xmqtt APP uses one network worker and a
+checkpoint on exit. Mosquitto uses its built-in persistence at shutdown,
+requested by its process-specific Windows event or POSIX SIGTERM.
+[Mosquitto persistence settings](https://mosquitto.org/man/mosquitto-conf-5.html),
+[Mosquitto 2.1.2 shutdown implementation](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/signals.c),
+[MQTT 5 session state](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+The JSON retains each outcome, broker logs, image sizes, publisher
+acknowledgement latency, checkpoint-to-exit duration, time from spawn to
+listener readiness, time from each resumed CONNECT to first delivery and
+the total confirmed drain duration. Drain includes sequential reconnects,
+wire exchanges and the observer's validation. Checkpoint and restore
+measurements include process signalling, startup and readiness observation.
+The comparison covers graceful process restarts and serialized replay at
+Receive Maximum 1. Per-ACK commits, abrupt process termination and combined
+TLS/persistence have separate acceptance workloads.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised
