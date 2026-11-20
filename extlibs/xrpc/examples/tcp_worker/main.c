@@ -2,12 +2,26 @@
 #include <xrt/executor.h>
 #include <xrt/net.h>
 #include <xrt/sync.h>
+#include <xrt/thread.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+enum { MAX_PEERS = 32, MAX_WORKERS = 8 };
 
 typedef struct appexecution {
     apprequest Request;
     xevent* Done;
 } appexecution;
+
+typedef struct apppeer {
+    xnetsocket Socket;
+    xexecutor* Workers;
+    appexecution Job;
+    bool Duplex;
+    uint64 Requests;
+} apppeer;
 
 static void execute(ptr Data)
 {
@@ -63,7 +77,7 @@ static bool handle(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
 }
 
 static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
-    appexecution* Job)
+    appexecution* Job, uint64* Requests)
 {
     char Record[sizeof(Job->Request.Input) + 1];
     size_t Used = 0;
@@ -80,6 +94,7 @@ static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
             size_t Bytes = (size_t)(End - (Record + Start));
             if (!handle(Peer, Endpoint, Workers, Job, (xstrview){Record + Start, Bytes}))
                 return false;
+            ++*Requests;
             Start += Bytes + 1;
         }
         if (Start) {
@@ -90,46 +105,124 @@ static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
     }
 }
 
-static bool serve(xnetsocket Listener, bool Duplex)
+static bool runPeer(apppeer* Peer)
 {
-    appexecution Job = {0};
-    const xexecutorconfig Pool = {.Threads = 2, .QueueLimit = 4};
+    appexecution* Job = &Peer->Job;
     xrpcduplexconfig Config;
     xrpcduplex* Endpoint = NULL;
-    if (Duplex) {
+    if (Peer->Duplex) {
         if (!xrpcDuplexConfigInit(&Config)) return false;
         Config.OnRequest = appTakeRequest;
-        Config.User = &Job.Request;
+        Config.User = &Job->Request;
         if (!xrpcDuplexCreate(&Config, &Endpoint)) return false;
     }
 
-    Job.Done = xrtEventCreate(false, false);
-    xexecutor* Workers = Job.Done ? xrtExecutorCreate(&Pool) : NULL;
-    xnetsocket Peer = NULL;
-    bool OK = Workers && xrtNetSocketAccept(Listener, &Peer, NULL) == XNET_RESULT_OK &&
-        xrtNetSocketSet(Peer, XNET_OPTION_NO_DELAY, 1) && receive(Peer, Endpoint, Workers, &Job);
-    if (Peer && !xrtNetSocketClose(Peer)) OK = false;
-    if (Workers && !xrtExecutorDestroy(Workers)) OK = false;
-    if (Job.Done && !xrtEventDestroy(Job.Done)) OK = false;
+    Job->Done = xrtEventCreate(false, false);
+    bool OK = Job->Done && receive(Peer->Socket, Endpoint, Peer->Workers, Job, &Peer->Requests);
     bool Closed = !Endpoint || (xrpcDuplexClose(Endpoint, XRPC_CALL_CLOSED) &&
         xrpcDuplexStep(Endpoint) && xrpcDuplexDestroy(Endpoint));
     return OK && Closed;
 }
 
+static int32 drivePeer(ptr Data)
+{
+    apppeer* Peer = Data;
+    bool OK = runPeer(Peer);
+    bool EOFSignaled = xrtNetSocketShutdown(Peer->Socket, XNET_SHUTDOWN_WRITE);
+    return OK && EOFSignaled ? 0 : 1;
+}
+
+static bool serve(xnetsocket Listener, bool Duplex, unsigned Clients, unsigned Threads, bool Report)
+{
+    apppeer* Peers = calloc(Clients, sizeof(*Peers));
+    if (!Peers) return false;
+    const xexecutorconfig Pool = {.Threads = Threads, .QueueLimit = Clients > 4 ? Clients : 4};
+    xexecutor* Workers = xrtExecutorCreate(&Pool);
+    if (!Workers) {
+        free(Peers);
+        return false;
+    }
+    xthread* Owners[MAX_PEERS] = {0};
+    unsigned Accepted = 0, Started = 0;
+    bool OK = true;
+    while (Accepted < Clients) {
+        xnetsocket Socket = NULL;
+        if (xrtNetSocketAccept(Listener, &Socket, NULL) != XNET_RESULT_OK) {
+            OK = false;
+            break;
+        }
+        Peers[Accepted++] = (apppeer){.Socket = Socket, .Workers = Workers, .Duplex = Duplex};
+        if (!xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1)) {
+            OK = false;
+            break;
+        }
+    }
+    if (OK && Clients == 1) {
+        OK = drivePeer(&Peers[0]) == 0;
+    } else if (OK) {
+        while (Started < Accepted) {
+            Owners[Started] = xrtThreadCreate(drivePeer, &Peers[Started], 0);
+            if (!Owners[Started]) {
+                OK = false;
+                /* The listener owner retains every socket until its thread retires. */
+                for (unsigned Index = 0; Index < Started; ++Index)
+                    (void)xrtNetSocketShutdown(Peers[Index].Socket, XNET_SHUTDOWN_BOTH);
+                break;
+            }
+            ++Started;
+        }
+    }
+    for (unsigned Index = 0; Index < Started; ++Index) {
+        if (xrtThreadWait(Owners[Index]) != XWAIT_OK) abort();
+        if (xrtThreadExitCode(Owners[Index])) OK = false;
+        xrtThreadDestroy(Owners[Index]);
+    }
+    uint64 Requests = 0;
+    for (unsigned Index = 0; Index < Accepted; ++Index) {
+        Requests += Peers[Index].Requests;
+        if (!xrtNetSocketClose(Peers[Index].Socket)) OK = false;
+    }
+    xexecutorstats Stats;
+    if (!xrtExecutorClose(Workers) || xrtExecutorWait(Workers) != XWAIT_OK ||
+        !xrtExecutorGet(Workers, &Stats) || Stats.Submitted != Requests || Stats.Completed != Requests ||
+        Stats.Executed != Requests || Stats.Queued || Stats.Running || Stats.Rejected || Stats.Cancelled) OK = false;
+    if (!xrtExecutorDestroy(Workers)) abort();
+    for (unsigned Index = 0; Index < Accepted; ++Index)
+        if (Peers[Index].Job.Done && !xrtEventDestroy(Peers[Index].Job.Done)) OK = false;
+    free(Peers);
+    if (Report && OK) {
+        if (printf("{\"connections\":%u,\"workers\":%u,\"requests\":%" PRIu64 "}\n",
+            Accepted, Threads, Requests) < 0 || fflush(stdout)) OK = false;
+    }
+    return OK;
+}
+
+static bool argument(const char* Text, unsigned Limit, unsigned* Output)
+{
+    char* End;
+    errno = 0;
+    unsigned long Value = strtoul(Text, &End, 10);
+    if (*Text < '0' || *Text > '9' || *End || errno || !Value || Value > Limit) return false;
+    *Output = (unsigned)Value;
+    return true;
+}
+
 int main(int Argc, char** Argv)
 {
-    bool Direct = Argc == 2 && !strcmp(Argv[1], "--dispatch-only");
-    if (Argc != 1 && (Argc != 2 || (!Direct && strcmp(Argv[1], "--serve")))) return 2;
+    bool Direct = Argc > 1 && !strcmp(Argv[1], "--dispatch-only");
+    unsigned Clients = 1, Workers = 2;
+    if (Argc != 1 && ((Argc != 2 && Argc != 4) || (!Direct && strcmp(Argv[1], "--serve")))) return 2;
+    if (Argc == 4 && (!argument(Argv[2], MAX_PEERS, &Clients) || !argument(Argv[3], MAX_WORKERS, &Workers))) return 2;
     xnetaddr Address;
     xnetsocket Listener = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
     if (!Listener) return 1;
     char Text[80];
     bool OK = xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, 0) &&
-        xrtNetSocketBind(Listener, &Address) && xrtNetSocketListen(Listener, 1) &&
+        xrtNetSocketBind(Listener, &Address) && xrtNetSocketListen(Listener, (int)Clients) &&
         xrtNetSocketLocal(Listener, &Address) &&
         xrtNetAddrEndpointText(&Address, Text, sizeof(Text)) != 0 &&
         puts(Text) != EOF && fflush(stdout) == 0;
-    if (OK && Argc == 2) OK = serve(Listener, !Direct);
+    if (OK && Argc > 1) OK = serve(Listener, !Direct, Clients, Workers, Argc == 4);
     bool Closed = xrtNetSocketClose(Listener);
     return OK && Closed ? 0 : 1;
 }

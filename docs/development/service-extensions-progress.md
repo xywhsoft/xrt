@@ -18393,3 +18393,52 @@ Native Linux and release-grade performance evidence remain open.
 Reproduction is in [`scheduler.md`](../../extlibs/xcron/docs/scheduler.md).
 Raw reports and compiler logs are under
 `out/service-extensions/scope-reduction-20261119/xcron-cohort/`.
+
+## 2026-11-20 xrpc concurrent TCP and shared executor APP
+
+The TCP APP accepts an explicit connection count. Each connection has
+its own xrpc endpoint owner and one copied job in flight. All owners
+share one bounded XRT executor. The APP retires socket writes per peer
+and drains the executor before releasing job and event storage. The
+APP owns transport and executor policy. The independent peer
+verified 512 parallel replies per mode and confirmed that another
+connection still completed its 128 replies after an oversized record
+closed the offending connection.
+
+The fixed-arrival comparison uses eight requests per batch and 1,600
+scheduled offers/s per connection. The observer verifies reply
+identity and order, including for separate clients. Both modes use the
+same workers, framing and CPU allowance. The reader measures latency
+from the scheduled arrival and reports offer lag separately. Windows
+x64 and Ubuntu/WSL x64 ran five repeats each with one connection and one
+worker, four connections and two workers, and eight connections with
+either one or two workers.
+All 1,344,000 measured replies matched the APP and observer ledgers.
+
+| Environment | Connections | Workers | Replies/s, duplex / dispatch | P99 in us, duplex / dispatch |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 8 | 1 | 12,821 / 12,825 | 1,572.0 / 1,526.7 |
+| Windows | 8 | 2 | 12,824 / 12,823 | 1,632.1 / 1,401.2 |
+| Ubuntu/WSL | 8 | 1 | 12,816 / 12,817 | 1,696.2 / 1,658.1 |
+| Ubuntu/WSL | 8 | 2 | 12,817 / 12,818 | 1,463.9 / 1,386.9 |
+
+All 16 throughput series and 12 of 16 P99 series passed the variation
+limits. The Windows eight-connection duplex runs with two workers
+recorded an offer-lag P99 median of 990.4 us. The median for the same
+WSL workload was 521.3 us. These observations include the independent
+observer's scheduling, with both continuous-load runs sharing the host.
+Saturation capacity, native Linux, and strict release remain open.
+
+Windows and WSL passed the original TCP timing smoke, stdio peer,
+modular and single-header suites and static and shared package consumers.
+The platform-specific build directories bypass the two stale output
+junctions. The original launcher failures are preserved. On WSL,
+ASan/UBSan with leak detection passed the independent peer and concurrent
+load smoke. TSan passed the independent peer. GCC retained its warning
+for the uninstrumented atomic_thread_fence. Asset, generated header and
+API checks passed. Strict release still lists xrpc and xrpc_duplex as
+developing.
+
+Reproduction is in [the duplex APP guide](../../extlibs/xrpc/examples/duplex/README.md).
+The raw repetitions, artifact hashes and test logs are under
+`out/service-extensions/scope-reduction-20261119/xrpc-tcp-concurrent/`.

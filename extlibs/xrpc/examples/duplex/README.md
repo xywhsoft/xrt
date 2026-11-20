@@ -16,6 +16,15 @@ disables Nagle's algorithm and sends the reply and its LF delimiter together
 using XRT's scatter/gather API. Framing, socket and thread pool lifetime stay
 in the example.
 
+Pass `--serve CLIENTS WORKERS` to share one bounded XRT executor across
+up to 32 connections and 8 executor workers. The APP accepts the requested
+number of loopback connections and gives each connection its own endpoint
+owner. Each connection queues one copied job at a time. The owner shuts
+down its output when it finishes, and the listener owner retains the
+socket until that thread retires. The APP checks the executor completion
+ledger before freeing job storage. With explicit counts, it prints
+connections, workers and completed requests after shutdown.
+
 Build from the repository root.
 
 ```sh
@@ -43,3 +52,21 @@ receipt of the individual reply, including its queue wait. The report contains
 throughput and P50/P95/P99/P99.9 for each repetition and the median of each
 metric. The client waits for the previous batch to finish before sending the
 next one. These results describe that arrival pattern with one connection.
+
+The concurrent comparison uses fixed-arrival batches of eight requests
+per connection. Each connection warms up with 64 calls and then begins
+at the same scheduled time. All operation latencies start at their
+batch's scheduled arrival. The report also records delay before send,
+so contention and observer scheduling time remain visible. The
+independent peer verifies every reply and reconciles the APP's completion
+ledger across 1, 4 and 8 concurrent connections.
+
+```sh
+python extlibs/xrpc/tests/interop/run_tcp_worker.py out/gcc/native/xrpc_examples/examples_tcp_worker_main out/xrpc-tcp-concurrent.json --concurrent --calls 3200 --rate 1600 --repeats 5 --cpus 4,6,8,10
+```
+
+The rate is per connection. CPU placement is inherited by the APP.
+The report keeps all repetitions and applies the 3% relative MAD and 6%
+central-range checks to throughput and P99. The test uses a bounded
+one-job-per-connection APP and captures TCP, executor, and observer
+costs together.
