@@ -18071,3 +18071,51 @@ Raw evidence is under
 Ordinary maturity passes. Strict release still reports 39 developing
 MQTT modules. Native Linux qualification, throughput and tail-latency
 comparisons, 72-hour mixed loads and the remaining product work stay open.
+
+## 2026-11-20 MQTT fixed-arrival broker comparison
+
+The native observer sends MQTT 5 QoS 0 at scheduled arrival times and
+checks all expected bytes and sequence numbers on every subscriber.
+The online benchmark takes latency from the scheduled time and records
+the offer lag separately. Broker processes alternate by repeat. Each
+runs on one logical CPU, with the observer pinned to CPUs 4, 6 and 8.
+The workload uses plaintext, clean sessions, no disk persistence and
+a 128-byte payload. The measured repeats use 600 warmup publications
+and then 6,000 measured publications.
+
+The Windows x64 comparator is the official Mosquitto 2.1.2 distribution
+extracted into the fixture directory. The WSL comparator is the existing
+version-pinned Mosquitto 2.1.2 fixture. The first smoke run depended on a
+startup log line that was absent on both platforms. Both brokers now use
+a loopback readiness probe before connection setup and warmup.
+
+| Environment | Filter | Subscribers | Offered/s | xmqtt deliveries/s | Mosquitto deliveries/s | xmqtt P99 (us) | Mosquitto P99 (us) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | Exact | 1 | 3,000 | 3,000 | 3,000 | 7,074.3 | 8,828.3 |
+| Windows x64 | Exact | 8 | 3,000 | 24,002 | 24,002 | 6,997.2 | 8,619.9 |
+| Windows x64 | Wildcard | 8 | 3,000 | 24,002 | 24,002 | 5,696.2 | 8,662.9 |
+| Windows x64 | Wildcard | 8 | 10,000 | 79,992 | 79,949 | 6,089.0 | 6,760.8 |
+| Ubuntu/WSL x64 | Exact | 1 | 3,000 | 3,000 | 3,000 | 107.1 | 95.4 |
+| Ubuntu/WSL x64 | Exact | 8 | 3,000 | 24,001 | 24,001 | 184.4 | 183.2 |
+| Ubuntu/WSL x64 | Wildcard | 8 | 3,000 | 24,001 | 24,001 | 181.6 | 178.7 |
+| Ubuntu/WSL x64 | Wildcard | 8 | 10,000 | 79,541 | 78,477 | 5,641.4 | 13,409.4 |
+
+Each cell is the median of seven repeats. All 56 repeats per environment
+validated the complete expected delivery set. All ingress rate series
+passed the variation checks. P99 passed for both brokers only in the
+WSL eight-subscriber wildcard workload at 3,000 publications/s. The raw
+reports retain the other 14 noise failures alongside offer lag, P50,
+P95, P99.9, CPU and peak resident memory. These are fixed-arrival results.
+Saturation and the full release performance workload remain open.
+
+The Windows and WSL modular and single-header broker suites and the
+embedded wildcard benchmark smoke passed. The relocated APP selector
+also passed 24 independent TCP cases with Mosquitto under WSL, covering
+Windows and WSL clients, MQTT 5 and 3.1.1, dropped PUBREC and PUBCOMP,
+and manual, automatic and storage-pressure compaction.
+
+Evidence, executable digests and build logs are under
+`out/service-extensions/scope-reduction-20261119/xmqtt-broker-baseline/`.
+Ordinary maturity passes. Strict release still reports 39 developing
+MQTT modules. Native Linux, reliable and durable comparison workloads
+and 72-hour mixed-load runs remain open.

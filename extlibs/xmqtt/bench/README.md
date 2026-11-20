@@ -198,3 +198,39 @@ has closed, with the filesystem cache in its resulting state. This is a
 component workload on the recorded host. Broker traffic, populated checkpoints,
 production CPU and tail-latency acceptance, and device power-loss qualification
 require separate workloads.
+
+## External broker comparison
+
+The `--remote` mode of `bench_server` sends MQTT 5 QoS 0 publications with
+a 128-byte payload to a loopback broker. It uses one publisher and up to
+64 subscribers, with one exact filter or one wildcard per subscriber.
+Each repeat warms the established connections, then sends at fixed
+scheduled times. The observer checks every payload and sequence for every
+subscriber and checks for extra deliveries after draining. The report
+keeps missed or failed repeats. Latency starts at the scheduled send time,
+and the separate offer-lag metric records producer scheduling delay.
+
+Build the broker with the `xmqtt_server` suite and build the observer
+with the registered `xmqtt_server_routes` smoke profile. Use the resulting
+`examples_server_main` and `bench_server` executable paths.
+
+```text
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --arch x64 --cflag=-O2
+python tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_server_routes --smoke --report out/server-routing-smoke.json
+python extlibs/xmqtt/bench/compare_broker.py --xmqtt /path/to/examples_server_main --mosquitto /path/to/mosquitto --observer /path/to/bench_server --broker-cpu 2 --load-cpus 4,6,8 --workload exact:1:3000 --workload wildcard:8:10000 --report out/broker-compare.json
+```
+
+Use [Mosquitto 2.1.2](https://github.com/eclipse-mosquitto/mosquitto/releases/tag/v2.1.2)
+and choose disjoint logical CPUs available to the caller. On Windows, the
+official 2.1.2 x64 installer can be extracted to a test directory with its
+adjacent DLLs. The runner starts both brokers on loopback with one broker
+logical CPU, plaintext transport and in-memory state. It uses one engine
+worker for xmqtt and verifies each child's CPU mask. The order alternates
+by repeat. The JSON retains executable and runner digests, throughput,
+P50/P95/P99/P99.9, offer lag, broker CPU through connection and warmup,
+and peak resident memory. Each throughput and P99 series has a sample
+noise verdict using 3% relative MAD and 6% trimmed central range.
+
+This profile covers traffic at specified arrival rates. Saturation,
+TLS, reliable delivery, shared subscriptions, persistent state and
+mixed-load duration have separate acceptance workloads.
