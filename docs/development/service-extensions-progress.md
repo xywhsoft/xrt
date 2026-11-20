@@ -21176,3 +21176,19 @@ leaves the scheduler release-tail gate open. The WSL leg and native Linux
 qualification are pending. Raw waves, process receipts and the
 independent audit are in
 `out/service-extensions/scope-reduction-20261119/xcron-heap-sift/`.
+
+## 2026-11-21 MQTT authenticated checkpoint recovery in Linux CI
+
+The Ubuntu service-extension job generates a short-lived local test certificate
+in its temporary directory and runs the cross-transport checkpoint probe. The
+probe also runs the TCP checkpoint and crash cases. The two Linux server
+handshake probes execute in sequence. A failure in the first probe stops
+the step before the 64-client pressure probe starts.
+
+A local WSL replay of the workflow commands passed both handshake probes and
+recovered 8 QoS 1 and 9 QoS 2 deliveries across four broker process stops. A
+separate replay with an unavailable broker executable failed the first test
+and left the pressure report absent. The temporary credential directory was
+empty after the successful replay. Hosted execution and native Linux release
+qualification remain pending. Evidence is in
+`out/service-extensions/scope-reduction-20261119/xmqtt-auth-checkpoint-ci/`.

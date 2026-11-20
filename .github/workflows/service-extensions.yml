@@ -132,13 +132,20 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json &&
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-pressure-linux.json --pressure-clients 64
-      - name: Required MQTT authentication across checkpoint restart
+      - name: Required MQTT authentication across checkpoint transports
         if: matrix.product == 'xmqtt'
-        run: >-
-          python extlibs/xmqtt/tests/interop/run_server_auth.py
-          out/gcc/native/xmqtt_examples/examples_server_auth
-          --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint
-          > out/service-extensions/xmqtt-auth-checkpoint-linux.json
+        shell: bash
+        run: |
+          tls_dir="$(mktemp -d "$RUNNER_TEMP/xmqtt-auth.XXXXXX")"
+          trap 'rm -f -- "$tls_dir"/{certificate.pem,certificate.der,key.pem,key.der}; rmdir -- "$tls_dir"' EXIT
+          openssl req -x509 -newkey rsa:2048 -sha256 -noenc -days 1 -subj /CN=localhost \
+            -addext subjectAltName=DNS:localhost -keyout "$tls_dir/key.pem" -out "$tls_dir/certificate.pem"
+          openssl x509 -in "$tls_dir/certificate.pem" -outform DER -out "$tls_dir/certificate.der"
+          openssl pkey -in "$tls_dir/key.pem" -outform DER -out "$tls_dir/key.der"
+          python extlibs/xmqtt/tests/interop/run_server_auth.py \
+            out/gcc/native/xmqtt_examples/examples_server_auth "$tls_dir" \
+            --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint --checkpoint-transports \
+            > out/service-extensions/xmqtt-auth-checkpoint-linux.json
       - name: MQTT checkpoint writer quota
         if: matrix.product == 'xmqtt'
         run: >-
