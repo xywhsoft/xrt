@@ -17,13 +17,15 @@ typedef struct clockjob {
     xtime MoveWallTo;
 } clockjob;
 
+enum { MODEL_CAPACITY = 24, MODEL_STEPS = 2048 };
+
 static struct {
     xcronscheduler* Scheduler;
     xtime Wall;
     double Monotonic;
     const clockstep* Steps;
     size_t Count, Consumed;
-    unsigned Trace[4];
+    unsigned Trace[MODEL_CAPACITY];
     size_t Called;
 } Clock;
 
@@ -68,13 +70,18 @@ static void recordCallback(void* Context)
     if (Job->MoveWallTo) Clock.Wall = Job->MoveWallTo;
 }
 
-static void begin(xtime Wall, double Monotonic)
+static void beginScheduler(xtime Wall, double Monotonic, size_t Capacity, xcrondialect Dialect)
 {
     Clock.Wall = Wall;
     Clock.Monotonic = Monotonic;
     Clock.Steps = NULL;
     Clock.Count = Clock.Consumed = Clock.Called = 0;
-    testRequire(xcronSchedulerCreate(2, XCRON_SECONDS6, &Clock.Scheduler), "create clock-test scheduler");
+    testRequire(xcronSchedulerCreate(Capacity, Dialect, &Clock.Scheduler), "create clock-test scheduler");
+}
+
+static void begin(xtime Wall, double Monotonic)
+{
+    beginScheduler(Wall, Monotonic, 2, XCRON_SECONDS6);
 }
 
 static void end(void)
@@ -253,6 +260,105 @@ static void testLastInstant(void)
     end();
 }
 
+typedef struct modeljob {
+    xcronjobid Id, Retired;
+    unsigned Marker, Rule;
+    xtime Next;
+} modeljob;
+
+/* The reference scans wall labels and keeps a flat list of jobs. */
+static xtime modelNext(xtime Now, xtime Unit, unsigned Rule)
+{
+    xtime At = (Now - XRT_TIME_UNIX_EPOCH) / Unit + 1;
+    for (;; ++At) {
+        const unsigned Field = (unsigned)(At % 60);
+        const bool Matches[] = {Field % 2 == 0, Field % 3 == 1, Field % 15 == 0,
+            true, Field == 7 || Field == 11 || Field == 18 || Field == 35 || Field == 48};
+        if (Matches[Rule]) return XRT_TIME_UNIX_EPOCH + At * Unit;
+    }
+}
+
+static void modelCheckWave(modeljob* Jobs, xtime Unit, bool Wait)
+{
+    unsigned Expected[MODEL_CAPACITY];
+    size_t Count = 0;
+    xtime Next;
+    for (;;) {
+        modeljob* First = NULL;
+        for (size_t I = 0; I < MODEL_CAPACITY; ++I) {
+            modeljob* Job = Jobs + I;
+            if (Job->Id && (!First || Job->Next < First->Next ||
+                (Job->Next == First->Next && Job->Marker < First->Marker))) First = Job;
+        }
+        Next = First ? First->Next : 0;
+        if (!First || Next > Clock.Wall) break;
+        testRequire(Count < MODEL_CAPACITY, "each reference job dispatches at most once");
+        Expected[Count++] = First->Marker;
+        First->Next = modelNext(Clock.Wall, Unit, First->Rule);
+    }
+    xcronpoll Result;
+    Clock.Called = 0;
+    xcronschedulestatus Status = Wait ? xcronSchedulerWait(Clock.Scheduler, 0, &Result) :
+        xcronSchedulerPoll(Clock.Scheduler, &Result);
+    testRequire(Status == (Count ? XCRON_SCHEDULE_DISPATCHED :
+        (Wait ? XCRON_SCHEDULE_TIMEOUT : XCRON_SCHEDULE_IDLE)), "mixed scheduler status");
+    testRequire(Result.Count == Count && Result.HasNext == (Next != 0) &&
+        (!Next || Result.Next == Next), "mixed scheduler count and next UTC deadline");
+    testRequire(Clock.Called == Count && !memcmp(Clock.Trace, Expected, Count * sizeof(*Expected)),
+        "mixed scheduler callback order and context");
+}
+
+static void testMixedScheduler(xcrondialect Dialect)
+{
+    const char* Fields[] = {"*/2", "1-59/3", "0,15,30,45", "*", "7,11,18,35,48"};
+    xtime Unit = Dialect == XCRON_UNIX5 ? 60000 : 1000;
+    modeljob Jobs[MODEL_CAPACITY] = {0};
+    clockjob Contexts[MODEL_STEPS];
+    unsigned Registered = 0, Removed = 0, Reused = 0;
+    uint32 Random = 0x93792155u;
+    beginScheduler(XRT_TIME_UNIX_EPOCH + 3600000 + 123, 100.0, MODEL_CAPACITY, Dialect);
+    for (unsigned Step = 0; Step < MODEL_STEPS; ++Step) {
+        Random = Random * 1664525u + 1013904223u;
+        modeljob* Job = Jobs + ((Random >> 16) % MODEL_CAPACITY);
+        if ((Random >> 29) < 3) {
+            if (Job->Id) {
+                testRequire(xcronSchedulerRemove(Clock.Scheduler, Job->Id), "remove mixed scheduler job");
+                Job->Retired = Job->Id;
+                Job->Id = 0;
+                ++Removed;
+            } else {
+                Job->Rule = (Random >> 8) % (sizeof(Fields) / sizeof(*Fields));
+                Job->Marker = Registered + 1;
+                Job->Next = modelNext(Clock.Wall, Unit, Job->Rule);
+                Contexts[Registered++] = (clockjob){.Marker = Job->Marker};
+                char Cron[40];
+                int Size = snprintf(Cron, sizeof(Cron), "%s %s", Fields[Job->Rule],
+                    Dialect == XCRON_UNIX5 ? "* * * *" : "* * * * *");
+                testRequire(Size > 0 && (size_t)Size < sizeof(Cron) &&
+                    xcronSchedulerAdd(Clock.Scheduler, (xstrview){Cron, (size_t)Size}, recordCallback,
+                        Contexts + Registered - 1, &Job->Id) && Job->Id,
+                    "register a mixed scheduler rule and context");
+                if (Job->Retired) {
+                    testRequire(!xcronSchedulerRemove(Clock.Scheduler, Job->Retired),
+                        "stale handle cannot remove a mixed scheduler job");
+                    xrtClearError();
+                    ++Reused;
+                }
+            }
+        } else {
+            /* Include backward steps and forward jumps across whole periods. */
+            const int Steps = (int)((Random >> 6) % 21) - 6;
+            Clock.Wall += (xtime)Steps * Unit + (xtime)(Random % 1000u);
+        }
+        modelCheckWave(Jobs, Unit, Step % 2 != 0);
+    }
+    testRequire(Registered > 300 && Removed > 300 && Reused > 300,
+        "mixed scheduler fixture covered repeated registration, removal and reuse");
+    printf("[PASS] xcron mixed scheduler dialect=%d transitions=%u added=%u removed=%u stale=%u\n",
+        (int)Dialect, (unsigned)MODEL_STEPS, Registered, Removed, Reused);
+    end();
+}
+
 int main(void)
 {
     testForwardThenBack();
@@ -261,6 +367,8 @@ int main(void)
     testClockFailure();
     testDistinctRecurrences();
     testLastInstant();
+    testMixedScheduler(XCRON_UNIX5);
+    testMixedScheduler(XCRON_SECONDS6);
     puts("[PASS] xcron scheduler clock steps, timeout, wave cutoff, recovery and time bounds");
     return 0;
 }

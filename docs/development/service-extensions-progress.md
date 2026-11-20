@@ -20117,3 +20117,41 @@ tails remain open.
 Source and binary hashes, raw reports and the comparison driver are under
 `out/service-extensions/scope-reduction-20261119/xrpc-staggered-arrivals/`.
 [Reproduction instructions](../../extlibs/xrpc/examples/duplex/README.md#tcp-saturation-sweep).
+
+## 2026-11-20 xcron mixed scheduler model and standalone test closure
+
+A deterministic clock fixture exercises the five-field and seconds-first
+dialects against a flat-list reference that enumerates qualifying UTC
+seconds or minutes. It checks every reported deadline, callback count and
+context in registration order for ties. Both Poll and zero-time Wait
+drive mixed recurrences after forward jumps and backward clock steps.
+Each dialect covers 2,048 transitions, 393 registrations, 382 removals
+and 369 stale-handle checks after reuse.
+
+The standalone scheduler test initially failed to compile on Windows and
+WSL because its wake fixture required the optional XRT thread module.
+The minimal suite now tests a wake already signaled before the wait.
+With the thread module present, the same test continues to verify real
+cross-thread wake and thread retirement. The scheduler dependency
+closure stays calendar plus EventWaiter.
+
+The isolated modular suite, single-header scheduler and clock suites,
+and static and shared package consumers passed on Windows and WSL.
+The mixed clock test also passed on WSL under ASan/UBSan with leak
+detection. Generated headers, API coverage and ordinary maturity passed.
+Strict release still lists `xcron` and `xcron_scheduler` as developing.
+
+An independent audit re-parsed 37 completed runs from the live cohort
+campaign and recomputed each raw-sample quantile. The original and current
+benchmark translation units had identical preprocessor output on both
+hosts despite the intervening Core file changes. The Windows series
+were complete. Pooled first-callback P99 for scheduler Wait and raw
+EventWaiter was 1.871 and 1.856 ms with 64 active jobs, and 1.940 and
+1.865 ms with 1,024 active jobs. The Windows scheduler's first and last
+P99 series exceeded the process-variation limit for both job counts.
+WSL's last scheduled runs were still active at the audit. Native Linux
+and a stable release baseline remain open.
+
+Builds, sanitizer output, provenance hashes and the independent
+audit are under
+`out/service-extensions/scope-reduction-20261119/xcron-heap-model/`.

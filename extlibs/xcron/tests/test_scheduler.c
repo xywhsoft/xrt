@@ -17,11 +17,13 @@ static void dispatched(void* Context)
     ++T->Called;
 }
 
+#if defined(XRT_FEATURE_THREAD)
 static int32 wakeScheduler(ptr Data)
 {
     xrtSleep(35);
     return xcronSchedulerWake(Data) ? 0 : 1;
 }
+#endif
 
 static void testWait(void)
 {
@@ -32,13 +34,19 @@ static void testWait(void)
         !Result.Count && !Result.HasNext, "empty poll");
     testRequire(xcronSchedulerWait(S, 10, &Result) == XCRON_SCHEDULE_TIMEOUT &&
         !Result.HasNext, "empty timed wait");
+#if defined(XRT_FEATURE_THREAD)
     xthread* Thread = xrtThreadCreate(wakeScheduler, S, 0);
     testRequire(Thread != NULL, "create wake thread");
+#else
+    testRequire(xcronSchedulerWake(S), "signal the event before the scheduler waits");
+#endif
     testRequire(xcronSchedulerWait(S, 3000, &Result) == XCRON_SCHEDULE_WOKEN &&
-        !Result.Count && !Result.HasNext, "cross-thread wake");
+        !Result.Count && !Result.HasNext, "explicit wake");
+#if defined(XRT_FEATURE_THREAD)
     testRequire(xrtThreadWaitFor(Thread, 3000) == XWAIT_OK &&
         xrtThreadExitCode(Thread) == 0, "wake physically joined");
     xrtThreadDestroy(Thread);
+#endif
 
     xtime Before = xrtNow();
     schedulertest T = {.Scheduler = S, .Due = Before + 1000 - Before % 1000};
