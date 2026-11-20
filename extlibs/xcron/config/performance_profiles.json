@@ -74,7 +74,8 @@
         {
           "name": "xcron_scheduler",
           "source": "extlibs/xcron/bench/bench_scheduler.c",
-          "suite": "xcron_scheduler",
+          "inputs": ["dev/bench/bench_common.h"],
+          "suite": "xcron_scheduler,thread",
           "args": [
             "16"
           ],
@@ -107,7 +108,8 @@
         {
           "name": "xcron_xrt_waiter",
           "source": "extlibs/xcron/bench/bench_scheduler.c",
-          "suite": "xcron_scheduler",
+          "inputs": ["dev/bench/bench_common.h"],
+          "suite": "xcron_scheduler,thread",
           "args": [
             "16",
             "waiter"
@@ -136,6 +138,253 @@
             "wake_lateness_p95_ms": {
               "direction": "lower",
               "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_cohort",
+      "system": "scheduler",
+      "description": "Same-second live callback cohorts with exact order and deadline checks, compared against an APP-known cohort on XRT EventWaiter.",
+      "benchmarks": [
+        {
+          "name": "xcron_cohort_64_wait",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "suite": "xcron_scheduler,thread",
+          "args": [
+            "cohort",
+            "8",
+            "64",
+            "960",
+            "wait"
+          ],
+          "smoke_args": [
+            "cohort",
+            "2",
+            "64",
+            "960",
+            "wait"
+          ],
+          "facts": [
+            "affinity",
+            "drive",
+            "active_jobs",
+            "dormant_jobs",
+            "waves",
+            "verified_callbacks"
+          ],
+          "observations": [
+            "wait_seconds",
+            "first_lateness_p50_ms",
+            "first_lateness_p95_ms",
+            "first_lateness_p999_ms",
+            "last_lateness_p50_ms",
+            "last_lateness_p95_ms",
+            "last_lateness_p999_ms",
+            "callback_span_p50_us",
+            "callback_span_p95_us",
+            "callback_span_p999_us"
+          ],
+          "metrics": {
+            "cpu_ns_per_callback": {
+              "direction": "lower",
+              "unit": "ns/callback"
+            },
+            "first_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "last_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "callback_span_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xcron_cohort_64_waiter",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "suite": "xcron_scheduler,thread",
+          "args": [
+            "cohort",
+            "8",
+            "64",
+            "960",
+            "waiter"
+          ],
+          "smoke_args": [
+            "cohort",
+            "2",
+            "64",
+            "960",
+            "waiter"
+          ],
+          "facts": [
+            "affinity",
+            "drive",
+            "active_jobs",
+            "dormant_jobs",
+            "waves",
+            "verified_callbacks"
+          ],
+          "observations": [
+            "wait_seconds",
+            "first_lateness_p50_ms",
+            "first_lateness_p95_ms",
+            "first_lateness_p999_ms",
+            "last_lateness_p50_ms",
+            "last_lateness_p95_ms",
+            "last_lateness_p999_ms",
+            "callback_span_p50_us",
+            "callback_span_p95_us",
+            "callback_span_p999_us"
+          ],
+          "metrics": {
+            "cpu_ns_per_callback": {
+              "direction": "lower",
+              "unit": "ns/callback"
+            },
+            "first_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "last_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "callback_span_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xcron_cohort_1024_wait",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "suite": "xcron_scheduler,thread",
+          "args": [
+            "cohort",
+            "8",
+            "1024",
+            "0",
+            "wait"
+          ],
+          "smoke_args": [
+            "cohort",
+            "2",
+            "1024",
+            "0",
+            "wait"
+          ],
+          "facts": [
+            "affinity",
+            "drive",
+            "active_jobs",
+            "dormant_jobs",
+            "waves",
+            "verified_callbacks"
+          ],
+          "observations": [
+            "wait_seconds",
+            "first_lateness_p50_ms",
+            "first_lateness_p95_ms",
+            "first_lateness_p999_ms",
+            "last_lateness_p50_ms",
+            "last_lateness_p95_ms",
+            "last_lateness_p999_ms",
+            "callback_span_p50_us",
+            "callback_span_p95_us",
+            "callback_span_p999_us"
+          ],
+          "metrics": {
+            "cpu_ns_per_callback": {
+              "direction": "lower",
+              "unit": "ns/callback"
+            },
+            "first_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "last_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "callback_span_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xcron_cohort_1024_waiter",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "suite": "xcron_scheduler,thread",
+          "args": [
+            "cohort",
+            "8",
+            "1024",
+            "0",
+            "waiter"
+          ],
+          "smoke_args": [
+            "cohort",
+            "2",
+            "1024",
+            "0",
+            "waiter"
+          ],
+          "facts": [
+            "affinity",
+            "drive",
+            "active_jobs",
+            "dormant_jobs",
+            "waves",
+            "verified_callbacks"
+          ],
+          "observations": [
+            "wait_seconds",
+            "first_lateness_p50_ms",
+            "first_lateness_p95_ms",
+            "first_lateness_p999_ms",
+            "last_lateness_p50_ms",
+            "last_lateness_p95_ms",
+            "last_lateness_p999_ms",
+            "callback_span_p50_us",
+            "callback_span_p95_us",
+            "callback_span_p999_us"
+          ],
+          "metrics": {
+            "cpu_ns_per_callback": {
+              "direction": "lower",
+              "unit": "ns/callback"
+            },
+            "first_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "last_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "callback_span_p99_us": {
+              "direction": "lower",
+              "unit": "us"
             }
           }
         }

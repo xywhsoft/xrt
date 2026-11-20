@@ -46,3 +46,26 @@ deadline. The idle poll reference reads the wall clock once per iteration.
 ```sh
 python tools/measure_performance.py --config extlibs/xcron/config/performance_profiles.json --profiles xcron_scheduler
 ```
+
+The multi-job profile uses either 64 every-second jobs and 960 dormant jobs,
+or 1,024 every-second jobs. Each mode checks exact callback counts and
+registration order. A missing or extra wave fails the run. The direct
+EventWaiter reference already knows the due cohort and calls the same
+callbacks. It has no cron calendar or dormant-job index to maintain.
+
+Both paths discard the first wave. The report records first and last
+callback lateness against the scheduled UTC second at the wall clock's
+millisecond resolution. The monotonic span from the first callback to the
+last measures dispatch within the wave with finer resolution. Process CPU
+includes waiting and callback dispatch. P99 and P99.9 are the largest
+observation in each eight-wave sample.
+
+Set XBENCH_PIN_CPU to one available logical CPU for the controlled profile.
+The benchmark verifies the resulting mask. Running without the variable
+inherits the parent affinity, which also allows CI smoke execution.
+
+```sh
+XBENCH_PIN_CPU=4 python tools/measure_performance.py \
+  --config extlibs/xcron/config/performance_profiles.json \
+  --profiles xcron_scheduler_cohort --report out/xcron-cohort.json
+```

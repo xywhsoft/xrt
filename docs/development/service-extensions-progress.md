@@ -18355,3 +18355,41 @@ The first failure is preserved. Twelve one-second Windows launches,
 a 35-second Windows run, and a 25-second WSL run passed with the revised
 clock. Separate broker kill runs on both platforms still failed
 qualification after verified progress.
+
+## 2026-11-20 xcron same-second callback cohorts
+
+The periodic-wait benchmark now checks the exact callback count and
+registration order for 64 due jobs among 1,024 registered jobs, and for
+1,024 simultaneous due jobs. The direct XRT EventWaiter control knows
+its due cohort in advance and executes the same callback body. Each
+process discards its first wake. The normal observer records both the
+millisecond UTC lateness and the high-resolution first-to-last span.
+
+Windows x64 and Ubuntu/WSL x64 verified logical CPU 4 affinity and ran
+five measured samples of eight waves per mode, with one additional
+process warmup per mode. All 174,080 measured callbacks matched the
+ledger. The Redis and MQTT continuous-load processes were active on
+the same host.
+
+| Environment | Due jobs | Dormant jobs | P99 callback span in us, scheduler / waiter |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 64 | 960 | 19.6 / 0.7 |
+| Windows x64 | 1,024 | 0 | 221.7 / 2.3 |
+| Ubuntu/WSL x64 | 64 | 960 | 15.4 / 0.4 |
+| Ubuntu/WSL x64 | 1,024 | 0 | 252.7 / 3.4 |
+
+The table uses medians of the per-process P99. With eight waves, each
+sample P99 is its maximum. For all modes the median first and last
+callback wall-lateness P99 was 1 ms. The median Windows CPU samples
+were below timer resolution. The 3% MAD and 6% central-range checks
+reported seven violations on Windows and thirteen on WSL.
+
+Both environments passed the original single-job benchmark smoke,
+modular and single-header suites, the restart peer and the optional
+scheduler's static and shared package consumers. Asset, generated
+header freshness and API checks passed. Strict release still lists
+xcron and xcron_scheduler as developing.
+Native Linux and release-grade performance evidence remain open.
+Reproduction is in [`scheduler.md`](../../extlibs/xcron/docs/scheduler.md).
+Raw reports and compiler logs are under
+`out/service-extensions/scope-reduction-20261119/xcron-cohort/`.
