@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <string.h>
 
-static bool seed(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
+static bool seed(mqttExampleJournalSlot* Slot,const xmqttstorestateconfig* Config)
 {
     xmqttjournal* J=NULL;
-    if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
+    if(mqttExampleJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
     const unsigned char Message[]={0x30,0x05,0,1,'t',0,'a'};
     const xmqttstoredelta Operations[]={
         {.Type=XMQTT_STORE_BIND,.Epoch=1,.Data=XRT_BYTES_LITERAL("example")},
@@ -25,16 +25,16 @@ static bool seed(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config)
         Good=xmqttStoreDeltaWrite(&Config->Delta,Operations+I,1,NULL,0,Buffer,sizeof(Buffer),&Bytes)==XMQTT_STORE_DELTA_DONE&&
              xmqttJournalAppend(J,(xbytesview){Buffer,Bytes},&Sequence)==XMQTT_JOURNAL_DONE;
     }
-    if(!xmqttJournalDestroy(J)){(void)xmqttJournalDestroy(J);return false;}
+    if(!mqttExampleJournalSlotClose(Slot,J)){(void)mqttExampleJournalSlotClose(Slot,J);return false;}
     return Good;
 }
-static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
+static bool show(mqttExampleJournalSlot* Slot,xmqttstorestateconfig* Config)
 {
-    xmqttjournalslotinfo SI;
-    if(!xmqttJournalSlotInfo(Slot,&SI))return false;
+    mqttExampleJournalSlotInfo SI={0};
+    if(!mqttExampleJournalSlotGetInfo(Slot,&SI))return false;
     Config->Generation=SI.Generation;
     xmqttjournal* J=NULL;
-    if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
+    if(mqttExampleJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
     xmqttstorestate* State=NULL;
     xmqttstorestateinfo Info;
     bool Good=xmqttStoreStateRecover(J,Config,&State)==XMQTT_STORE_DONE&&xmqttStoreStateInfo(State,&Info);
@@ -42,15 +42,15 @@ static bool show(xmqttjournalslot* Slot,xmqttstorestateconfig* Config)
         (unsigned long long)SI.Generation,(unsigned long long)Info.Transactions,
         Info.Inbox,(unsigned long long)Info.LastKey);
     xmqttStoreStateDestroy(State);
-    if(!xmqttJournalDestroy(J)){(void)xmqttJournalDestroy(J);return false;}
+    if(!mqttExampleJournalSlotClose(Slot,J)){(void)mqttExampleJournalSlotClose(Slot,J);return false;}
     return Good;
 }
 
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
-static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bool Auto)
+static bool online(mqttExampleJournalSlot* Slot,const xmqttstorestateconfig* Config,bool Auto)
 {
     xmqttjournal* J=NULL;
-    if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
+    if(mqttExampleJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)return false;
     xmqttstorestate* State=NULL;
     xmqttstorewrite* W=NULL;
     xtaskpool* Pool=NULL;
@@ -61,6 +61,7 @@ static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bo
     Pool=xrtTaskPoolCreate(&PC);
     xmqttstorewriteconfig WC;
     if(!Pool||!xmqttStoreWriteConfigInit(&WC)||!xmqttStoreWriteCreate(Pool,J,State,&WC,&W))goto Done;
+    (void)mqttExampleJournalSlotDetach(Slot,J);
     J=NULL;
     State=NULL;
     if(Auto){
@@ -72,7 +73,7 @@ static bool online(xmqttjournalslot* Slot,const xmqttstorestateconfig* Config,bo
     mqttExampleCompactConfig C;
     mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;
-    if(mqttExampleCompactAsync(W,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
+    if(mqttExampleCompactAsync(W,Slot,&C,10000,&F)!=XMQTT_JWORK_ACCEPTED||
        xrtFutureWaitFor(F,10000)!=XWAIT_OK)goto Done;
     const xmqttstorecheckpointresult* R=xrtFutureValue(F);
     Good=R&&R->Status==XMQTT_COMMIT_OK&&
@@ -82,7 +83,7 @@ Done:
     xrtFutureDestroy(F);
     if(!xmqttStoreWriteDestroy(W)){(void)xmqttStoreWriteDestroy(W);Good=false;}
     xmqttStoreStateDestroy(State);
-    if(!xmqttJournalDestroy(J)){(void)xmqttJournalDestroy(J);Good=false;}
+    if(!mqttExampleJournalSlotClose(Slot,J)){(void)mqttExampleJournalSlotClose(Slot,J);Good=false;}
     if(Pool&&(!xrtTaskPoolClose(Pool)||xrtTaskPoolWaitFor(Pool,XRT_WAIT_FOREVER)!=XWAIT_OK||!xrtTaskPoolDestroy(Pool)))Good=false;
     return Good;
 }
@@ -115,13 +116,13 @@ int main(int Argc,char** Argv)
     xmqttstorestateconfig C;
     xmqttStoreStateConfigInit(&C);
     C.Binding=JC.Binding;C.ClientId=XRT_STR_LITERAL("example");C.WallMilliseconds=1000;
-    xmqttjournalslotfiles Files={0};
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlotFiles Files={0};
+    mqttExampleJournalSlot* Slot=NULL;
     bool OK=(mqttExampleOpenNativeSlot(Root,&JC,Create,&Files,&Slot))==XMQTT_JOURNAL_DONE;
     if(OK&&Create)OK=seed(Slot,&C);
     if(OK&&(Compact||Online||Auto)){
-        xmqttjournalslotinfo I;
-        OK=xmqttJournalSlotInfo(Slot,&I);
+        mqttExampleJournalSlotInfo I={0};
+        OK=mqttExampleJournalSlotGetInfo(Slot,&I);
         if(OK){
             C.Generation=I.Generation;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)

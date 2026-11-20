@@ -1,19 +1,29 @@
 #ifndef XMQTT_STORE_CHECKPOINT_ONLINE_H
 #define XMQTT_STORE_CHECKPOINT_ONLINE_H
-#include <xmqtt/journal_slot.h>
 #include <xmqtt/store_checkpoint.h>
 #include <xmqtt/store_write.h>
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE) && \
-    (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
-#error "Online MQTT checkpoints require the typed slot and Store Writer"
+    (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "Online MQTT checkpoints require typed recovery and Store Writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 typedef struct xmqttstorecheckpointcut xmqttstorecheckpointcut;
 typedef xmqttjournalstatus (*xmqttstorecheckpointapply)(xmqttstorecheckpointcut* Cut,
-    uint64 CurrentBytes,uint64 CurrentDataBytes,uint64 User);
+    uint64 CurrentBytes,uint64 CurrentDataBytes,ptr Context,uint64 User);
+/* Prepare transfers one exclusive empty Journal on DONE. Supply a distinct
+ * file with the same binding, version and schema at Generation+1. A failure
+ * retains all candidate ownership in the APP. Set Fence if the source can no
+ * longer safely accept appends, for example after a failed selector repair. */
+typedef xmqttjournalstatus (*xmqttstorecheckpointprepare)(ptr Context,uint64 Generation,
+    const xmqttjournalinfo* Current,xmqttjournal** Candidate,bool* Fence);
+/* Persist the new selected prefix. Set Effect to MAY before issuing a
+ * potentially durable selector change and COMMITTED after successful sync. */
+typedef xmqttjournalstatus (*xmqttstorecheckpointselect)(ptr Context,uint64 Generation,
+    const xmqttjournalinfo* Candidate,xmqttjournaleffect* Effect);
 typedef struct xmqttstorecheckpointrequest {
     size_t Size,MaxScratchBytes,MaxEntries;
     xmqttstorecheckpointapply Apply;
+    ptr Context;
     uint64 User;
 } xmqttstorecheckpointrequest;
 typedef struct xmqttstorecheckpointresult {
@@ -23,8 +33,8 @@ typedef struct xmqttstorecheckpointresult {
 } xmqttstorecheckpointresult;
 XRT_EXTERN_C_BEGIN
 /* Queue Apply at an exclusive Writer FIFO boundary on its storage task.
- * The Writer owns the selected Slot child. Keep Slot and its files alive
- * through Writer Destroy. Apply runs outside Writer and Worker locks.
+ * Keep the APP file handles alive through Writer Destroy. Keep Context
+ * alive through Future resolution. Apply runs outside both Writer locks.
  * Cut is valid only synchronously in Apply on that task, including its
  * calls to Measure, Stage and Publish. Apply must return before waiting
  * for any later operation or for destruction of this Writer.
@@ -42,15 +52,17 @@ XMQTT_API xmqttjournaladmission xmqttStoreWriteCheckpointAsync(xmqttstorewrite* 
  * and entries are capped by the request. A committed reset is required
  * after recovery projected unsynchronized expiry. No storage I/O. */
 XMQTT_API xmqttjournalstatus xmqttStoreCheckpointMeasure(xmqttstorecheckpointcut* Cut,uint64* Bytes);
-/* After measurement, encode a replacement in the inactive file. One
- * attempt per cut, with bounded scratch and no historical replay. An
- * uncertain inactive append leaves the selected Journal in use. A failed
- * selector witness repair fences the Writer. */
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut);
+/* After measurement, obtain an APP-prepared file and encode its Journal.
+ * One attempt per cut with bounded scratch. An uncertain candidate append
+ * leaves the current Journal in use. The library destroys the transferred
+ * candidate or adopts it at the FIFO boundary after publication. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointprepare Prepare,ptr Context);
 /* Publish a successful Stage once. A stop observed before publication
  * abandons the candidate. Once selector I/O enters, it retires physically.
  * Returning from Apply abandons any candidate that was not published. */
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut);
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointselect Select,ptr Context);
 XRT_EXTERN_C_END
 #endif
 #endif

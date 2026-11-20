@@ -17,7 +17,7 @@ static inline xmqttjournalstatus mqttExampleCheckpointRecoverStatus(xmqttstorest
     }
 }
 
-static inline xmqttjournalstatus mqttExampleCompactStore(xmqttjournalslot* Slot,
+static inline xmqttjournalstatus mqttExampleCompactStore(mqttExampleJournalSlot* Slot,
     const xmqttstorestateconfig* Config,size_t MaxScratchBytes)
 {
     xerror* Saved=NULL;
@@ -25,18 +25,18 @@ static inline xmqttjournalstatus mqttExampleCompactStore(xmqttjournalslot* Slot,
     xmqttjournal* Current=NULL;
     xmqttjournal* Next=NULL;
     xmqttstorecheckpoint* Checkpoint=NULL;
-    xmqttjournalstatus Status=xmqttJournalSlotOpenCurrent(Slot,&Current);
+    xmqttjournalstatus Status=mqttExampleJournalSlotOpenCurrent(Slot,&Current);
     if(Status==XMQTT_JOURNAL_DONE)
         Status=mqttExampleCheckpointRecoverStatus(xmqttStoreCheckpointRecover(Current,Config,&Checkpoint));
-    if(!xmqttJournalDestroy(Current))Status=XMQTT_JOURNAL_STATE;
-    if(Status==XMQTT_JOURNAL_DONE)Status=xmqttJournalSlotPrepare(Slot,&Next);
+    if(!mqttExampleJournalSlotClose(Slot,Current))Status=XMQTT_JOURNAL_STATE;
+    if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleJournalSlotPrepare(Slot,&Next);
     if(Status==XMQTT_JOURNAL_DONE){
         Status=xmqttStoreCheckpointWrite(Checkpoint,Next,MaxScratchBytes);
         /* An uncertain append to the inactive file leaves the old selector valid. */
         if(Status==XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_IO;
-        if(Status==XMQTT_JOURNAL_DONE)Status=xmqttJournalSlotPublish(Slot,Next);
+        if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleJournalSlotPublish(Slot,Next);
     }
-    if(!xmqttJournalDestroy(Next)&&Status!=XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_STATE;
+    if(!mqttExampleJournalSlotClose(Slot,Next)&&Status!=XMQTT_JOURNAL_UNCERTAIN)Status=XMQTT_JOURNAL_STATE;
     xmqttStoreCheckpointDestroy(Checkpoint);
     return mqttExampleJournalIOResult(Status,Saved);
 }

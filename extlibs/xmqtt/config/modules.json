@@ -170,7 +170,6 @@
         "xmqtt_client_store_tls",
         "xmqtt_client_store_ws",
         "xmqtt_reconnect_store",
-        "xmqtt_journal_slot",
         "xmqtt_store_checkpoint",
         "xmqtt_store_checkpoint_online"
       ],
@@ -2887,27 +2886,6 @@
       ]
     },
     {
-      "name": "xmqtt_journal_slot",
-      "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_JOURNAL_SLOT",
-      "depends": [
-        "xmqtt_journal"
-      ],
-      "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/journal_slot.h"
-      ],
-      "internal_headers": [],
-      "sources": [],
-      "tests": [],
-      "single_tests": [],
-      "examples": [],
-      "benchmarks": [],
-      "docs": [
-        "extlibs/xmqtt/docs/journal_slot.md",
-        "extlibs/xmqtt/docs/api/reference.md"
-      ]
-    },
-    {
       "name": "xmqtt_journal_slot_tests",
       "state": "implemented",
       "feature": null,
@@ -2915,7 +2893,7 @@
         "file_root",
         "file_lock",
         "vfs",
-        "xmqtt_journal_slot",
+        "xmqtt_journal",
         "xmqtt_journal_worker",
         "dir_temp",
         "memory_stats"
@@ -2934,7 +2912,7 @@
         "extlibs/xmqtt/examples/journal_slot/main.c"
       ],
       "benchmarks": [],
-      "docs": []
+      "docs": ["extlibs/xmqtt/docs/journal_slot.md"]
     },
     {
       "name": "xmqtt_store_checkpoint",
@@ -2965,7 +2943,6 @@
         "file_lock",
         "vfs",
         "xmqtt_store_checkpoint",
-        "xmqtt_journal_slot",
         "xmqtt_store_write",
         "dir_temp",
         "memory_stats"
@@ -2989,7 +2966,6 @@
       "feature": "XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE",
       "depends": [
         "xmqtt_store_checkpoint",
-        "xmqtt_journal_slot",
         "xmqtt_store_write"
       ],
       "public_headers": [

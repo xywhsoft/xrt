@@ -59,9 +59,9 @@ static void seed(xmqttjournal* J,const xmqttstorestateconfig* C,bool Live)
     size_t Count=sizeof(Ops)/sizeof(Ops[0])-(Live?1u:0u);
     for(size_t I=0;I<Count;++I)append(J,&C->Delta,Ops+I,1);
 }
-static xmqttstorestate* recover(xmqttjournalslot* Slot,const xmqttstorestateconfig* C,xmqttjournal** J)
+static xmqttstorestate* recover(mqttExampleJournalSlot* Slot,const xmqttstorestateconfig* C,xmqttjournal** J)
 {
-    expect(xmqttJournalSlotOpenCurrent(Slot,J),XMQTT_JOURNAL_DONE,"open exact current file");
+    expect(mqttExampleJournalSlotOpenCurrent(Slot,J),XMQTT_JOURNAL_DONE,"open exact current file");
     xmqttstorestate* State=NULL;
     testRequire(xmqttStoreStateRecover(*J,C,&State)==XMQTT_STORE_DONE,"recover exact typed history");
     return State;
@@ -91,14 +91,15 @@ static void same(const xmqttstorestate* A,const xmqttstorestate* B)
             !memcmp(L.Wire.Data,R.Wire.Data,L.Wire.Size),"same protocol stage, delivery and exact canonical wire");
     }
 }
-static void writer(xmqttjournal* J,xmqttstorestate* State,const xmqttstorestateconfig* C)
+static void writer(mqttExampleJournalSlot* Slot,xmqttjournal* J,xmqttstorestate* State,const xmqttstorestateconfig* C)
 {
     xtaskpoolconfig PoolConfig={.Threads=1,.QueueLimit=8};
     xtaskpool* Pool=xrtTaskPoolCreate(&PoolConfig);
     xmqttstorewriteconfig Config;
     xmqttStoreWriteConfigInit(&Config);
     xmqttstorewrite* W=NULL;
-    testRequire(Pool&&xmqttStoreWriteCreate(Pool,J,State,&Config,&W),"writer adopts exact new generation");
+    testRequire(Pool&&xmqttStoreWriteCreate(Pool,J,State,&Config,&W)&&mqttExampleJournalSlotDetach(Slot,J),
+        "writer adopts exact new generation");
     unsigned char Buffer[128];
     size_t Bytes;
 
@@ -137,7 +138,7 @@ static void writer(xmqttjournal* J,xmqttstorestate* State,const xmqttstorestatec
         xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK&&xrtTaskPoolDestroy(Pool),"retire writer then pool");
 }
 #if defined(TEST_COMPACT_FAULTS)
-static xmqttjournalstatus injected(xmqttjournalslot* Slot,const xmqttstorestateconfig* C,unsigned Point)
+static xmqttjournalstatus injected(mqttExampleJournalSlot* Slot,const xmqttstorestateconfig* C,unsigned Point)
 {
     compactHit=compactSelectorWrites=0;
     compactFault=Point;
@@ -164,8 +165,8 @@ static void local(xmqttversion V,bool Live)
     xmqttJournalConfigInit(&JC);
     JC.Version=V;JC.Binding=XRT_BYTES_LITERAL("test/checkpoint");JC.Generation=11;
     JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;JC.MaxTransactionBytes=2048;
-    xmqttjournalslotfiles Files={0};
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlotFiles Files={0};
+    mqttExampleJournalSlot* Slot=NULL;
     expect(mqttExampleOpenNativeSlot(Root,&JC,true,&Files,&Slot),XMQTT_JOURNAL_DONE,"create typed slot");
     xmqttstorestateconfig C;
     xmqttStoreStateConfigInit(&C);
@@ -174,20 +175,20 @@ static void local(xmqttversion V,bool Live)
     C.MaxOutgoing=8;C.MaxIncoming=8;C.MaxInbox=8;
     expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_EMPTY,"empty slot has no history to rewrite");
     xmqttjournal* J=NULL;
-    expect(xmqttJournalSlotOpenCurrent(Slot,&J),XMQTT_JOURNAL_DONE,"open initial journal");
+    expect(mqttExampleJournalSlotOpenCurrent(Slot,&J),XMQTT_JOURNAL_DONE,"open initial journal");
     xmqttjournalrecord Record;
     expect(xmqttJournalNext(J,&Record),XMQTT_JOURNAL_EMPTY,"validate the empty starting point");
     seed(J,&C,Live);
     expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_STATE,"retire physical Journal before compaction");
-    testRequire(xmqttJournalDestroy(J),"release source writer");
+    testRequire(mqttExampleJournalSlotClose(Slot,J),"release source writer");
 
     xmqttstorestate* Old=recover(Slot,&C,&J);
-    testRequire(xmqttJournalDestroy(J),"keep immutable old State independent of old file");
+    testRequire(mqttExampleJournalSlotClose(Slot,J),"keep immutable old State independent of old file");
     testRequire(info(Old).Outgoing==1&&info(Old).Incoming==1&&info(Old).Inbox==2&&info(Old).LastKey==50,
                 "oracle covers all three view kinds and a retired highest key");
     expect(mqttExampleCompactStore(Slot,&C,70),XMQTT_JOURNAL_LIMIT,"decline short scratch quota");
-    xmqttjournalslotinfo SlotInfo;
-    testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation&&!SlotInfo.JournalOpen,
+    mqttExampleJournalSlotInfo SlotInfo={0};
+    testRequire(mqttExampleJournalSlotGetInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation&&!SlotInfo.JournalOpen,
                 "scratch refusal retains selector and releases handles");
 
 #if defined(TEST_COMPACT_FAULTS)
@@ -195,22 +196,22 @@ static void local(xmqttversion V,bool Live)
         expect(injected(Slot,&C,1),XMQTT_JOURNAL_ERROR,"scratch allocation failure");
         expect(injected(Slot,&C,2),XMQTT_JOURNAL_IO,"inactive data failure is a definite selector refusal");
         expect(injected(Slot,&C,3),XMQTT_JOURNAL_UNCERTAIN,"first selector write could have had effects");
-        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
+        testRequire(mqttExampleJournalSlotGetInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
                     "close failed preparation and fence its selector");
         testRequire(mqttExampleCloseNativeSlot(Slot,&Files),"retire uncertain owner");
         expect(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot),XMQTT_JOURNAL_DONE,"recover old generation before selector output");
         xmqttstorestate* Current=recover(Slot,&C,&J);
         same(Old,Current);
         xmqttStoreStateDestroy(Current);
-        testRequire(xmqttJournalDestroy(J),"release old recovery owner");
+        testRequire(mqttExampleJournalSlotClose(Slot,J),"release old recovery owner");
     }
     if(Live){
         expect(injected(Slot,&C,4),XMQTT_JOURNAL_UNCERTAIN,"second selector write fails after first is synced");
-        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
+        testRequire(mqttExampleJournalSlotGetInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
                     "retire ambiguous publish before fresh selection");
         testRequire(mqttExampleCloseNativeSlot(Slot,&Files),"retire ambiguous selector owner");
         expect(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot),XMQTT_JOURNAL_DONE,"recover the first synchronized choice");
-        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
+        testRequire(mqttExampleJournalSlotGetInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
             SlotInfo.PublishedSequence==3,"first valid choice selects the complete typed checkpoint");
     }else
 #endif
@@ -224,7 +225,7 @@ static void local(xmqttversion V,bool Live)
         C.WallMilliseconds=3000;
         testRequire(xrtGetError()==Ambient,"successful rotation preserves ambient diagnostics");
         xrtClearError();
-        testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
+        testRequire(mqttExampleJournalSlotGetInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
             SlotInfo.PublishedSequence==3&&SlotInfo.Effect==XMQTT_JOURNAL_COMMITTED,"one descriptor and two row blocks");
     }
     ++C.Generation;
@@ -235,25 +236,25 @@ static void local(xmqttversion V,bool Live)
     testRequire(info(New).Transactions==3&&info(New).ReplayBytes<info(Old).ReplayBytes/2,"physical replay reduction");
 
     if(!Live&&V==XMQTT_VERSION_5){
-        testRequire(xmqttJournalDestroy(J),"retire before expiry read");
+        testRequire(mqttExampleJournalSlotClose(Slot,J),"retire before expiry read");
         xmqttStoreStateDestroy(New);
         C.WallMilliseconds=61999;
         New=recover(Slot,&C,&J);
         testRequire(info(New).HasSession&&info(New).RemainingMilliseconds==1&&info(New).Outgoing==1,
                     "compactor's later wall did not consume earlier observation's final millisecond");
-        testRequire(xmqttJournalDestroy(J),"release before exact boundary read");
+        testRequire(mqttExampleJournalSlotClose(Slot,J),"release before exact boundary read");
         xmqttStoreStateDestroy(New);
         C.WallMilliseconds=62000;
         New=recover(Slot,&C,&J);
         testRequire(!info(New).HasSession&&info(New).Inbox==2&&!info(New).Outgoing&&!info(New).Incoming,
                     "original absolute expiry consumed despite generation change");
-        testRequire(xmqttJournalDestroy(J),"retire expired reader");
+        testRequire(mqttExampleJournalSlotClose(Slot,J),"retire expired reader");
         xmqttStoreStateDestroy(New);
         C.WallMilliseconds=3000;
         New=recover(Slot,&C,&J);
         same(Old,New);
     }
-    writer(J,New,&C);
+    writer(Slot,J,New,&C);
     C.WallMilliseconds=3100;
     expect(mqttExampleCompactStore(Slot,&C,84),XMQTT_JOURNAL_DONE,"compact a checkpoint followed by ordinary deltas");
     ++C.Generation;
@@ -262,7 +263,7 @@ static void local(xmqttversion V,bool Live)
     testRequire(Current.LastKey==51&&Current.Epoch==5&&Current.LiveAtCut&&Current.Outgoing==1&&
         !Current.Incoming&&Current.Inbox==2&&Current.Transactions==3,"new committed state survives subsequent rotation");
     testRequire(info(Old).LastKey==50&&info(Old).Inbox==2,"earlier State remains immutable across physical reuse");
-    testRequire(xmqttJournalDestroy(J)&&mqttExampleCloseNativeSlot(Slot,&Files),"release all native owners");
+    testRequire(mqttExampleJournalSlotClose(Slot,J)&&mqttExampleCloseNativeSlot(Slot,&Files),"release all native owners");
     xmqttStoreStateDestroy(New);
     xmqttStoreStateDestroy(Old);
     for(size_t I=0;I<3;++I)testRequire(xrtRootRemove(Root,Names[I]),"unlink exact fixture file");

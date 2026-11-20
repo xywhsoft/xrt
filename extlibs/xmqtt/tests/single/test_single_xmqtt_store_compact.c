@@ -1,5 +1,4 @@
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XRT_MODULE_DIR_TEMP
 #define XRT_MODULE_MEMORY_STATS
@@ -43,6 +42,7 @@ static bool compactWrite(xfile File,uint64 Offset,const void* Data,size_t Bytes,
 #define xrtMalloc compactAlloc
 #define xrtWriteAtFull compactWrite
 #include "../../../../single/extlibs/xmqtt.h"
+#include "../../examples/common/journal_slot.h"
 #undef xrtMalloc
 #undef xrtWriteAtFull
 #define TEST_COMPACT_FAULTS

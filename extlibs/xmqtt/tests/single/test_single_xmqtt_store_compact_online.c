@@ -37,6 +37,7 @@ static bool onlineWrite(xfile File,uint64 Offset,const void* Data,size_t Bytes,s
 #define XMQTT_IMPLEMENTATION
 #define xrtWriteAtFull onlineWrite
 #include "../../../../single/extlibs/xmqtt.h"
+#include "../../examples/common/journal_slot.h"
 #undef xrtWriteAtFull
 #define TEST_ONLINE_FAULTS
 #include "../test_store_compact_online.c"

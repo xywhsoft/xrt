@@ -11,9 +11,10 @@ typedef struct xmqttcheckpointstats {
 XMQTT_INTERNAL bool xmqttInternalJournalCheckpointCurrent(const xmqttjournal* Journal,const void* Owner,
     xmqttstorecheckpointresult* Result,uint64* DataBytes);
 XMQTT_INTERNAL uint64 xmqttInternalJournalCheckpointBytes(uint64 Transactions,uint64 PayloadBytes);
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointStage(xmqttjournal* Current,xmqttjournal** Candidate);
-XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointPublish(xmqttjournal* Current,xmqttjournal* Candidate,
-    xmqttstorecheckpointresult* Result);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointStage(xmqttjournal* Current,
+    xmqttstorecheckpointprepare Prepare,ptr Context,xmqttjournal** Candidate);
+XMQTT_INTERNAL xmqttjournalstatus xmqttInternalJournalCheckpointPublish(xmqttjournal* Candidate,
+    xmqttstorecheckpointselect Select,ptr Context,xmqttstorecheckpointresult* Result);
 XMQTT_INTERNAL void xmqttInternalJournalCheckpointFinish(xmqttjournal** Current,const void* Owner,xmqttjournal* Candidate,
     xmqttstorecheckpointresult* Result);
 

@@ -224,11 +224,11 @@ static bool compactHistory(xmqttclient* Client)
     return true;
 }
 
-static bool compactManual(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Compact,
+static bool compactManual(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,const mqttExampleCompactConfig* Compact,
     xmqttstorecheckpointresult* Selection)
 {
     xfuture* Future=NULL;
-    if(mqttExampleCompactAsync(Writer,Compact,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return false;
+    if(mqttExampleCompactAsync(Writer,Slot,Compact,10000,&Future)!=XMQTT_JWORK_ACCEPTED)return false;
     const xmqttstorecheckpointresult* Result=xrtFutureWaitFor(Future,10000)==XWAIT_OK?xrtFutureValue(Future):NULL;
     if(Result){
         *Selection=*Result;
@@ -239,12 +239,12 @@ static bool compactManual(xmqttstorewrite* Writer,const mqttExampleCompactConfig
     return Done;
 }
 
-static bool compactAutomatic(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Compact,
+static bool compactAutomatic(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,const mqttExampleCompactConfig* Compact,
     xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecheckpointresult* Selection)
 {
     /* In the capacity scenario the APP opens room before releasing its
      * next input. Its store configuration supplies the fixture's limit. */
-    if(Pressure&&(!compactManual(Writer,Compact,Selection)||
+    if(Pressure&&(!compactManual(Writer,Slot,Compact,Selection)||
        Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
 
     puts("AUTO_ARMED");
@@ -258,7 +258,7 @@ static bool compactAutomatic(xmqttstorewrite* Writer,const mqttExampleCompactCon
            (!Pressure||Info.Worker.Journal.Sequence==3))break;
         xrtSleep(1);
     }
-    if(!Pressure&&(!compactManual(Writer,Compact,Selection)||
+    if(!Pressure&&(!compactManual(Writer,Slot,Compact,Selection)||
        Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
     puts("AUTO_ROTATED 1 1");
     return true;
@@ -292,7 +292,7 @@ static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version,uint64 
     return Done&&xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Bytes)==XMQTT_STORE_EMPTY;
 }
 
-static void compactCut(xmqttstorewrite* Writer,xfuture* Publish,bool Auto,bool Pressure,uint64 InboxKey)
+static void compactCut(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,xfuture* Publish,bool Auto,bool Pressure,uint64 InboxKey)
 {
     /* The fixture signals only after independently observing the dropped ACK. */
     if(fgetc(stdin)!='c'||xrtFutureState(Publish)!=XFUTURE_PENDING)return;
@@ -309,7 +309,7 @@ static void compactCut(xmqttstorewrite* Writer,xfuture* Publish,bool Auto,bool P
     Config.MaxEntries=4;
     Config.MaxScratchBytes=1024;
     xmqttstorecheckpointresult Result={0};
-    bool Selected=Auto?compactAutomatic(Writer,&Config,Publish,Pressure,InboxKey,&Result):compactManual(Writer,&Config,&Result);
+    bool Selected=Auto?compactAutomatic(Writer,Slot,&Config,Publish,Pressure,InboxKey,&Result):compactManual(Writer,Slot,&Config,&Result);
     bool Held=Selected&&Result.Status==XMQTT_COMMIT_OK&&Result.Effect==XMQTT_JOURNAL_COMMITTED&&
        Result.PreviousGeneration==1&&Result.Generation==2&&Result.Sequence==2&&Result.Bytes<Result.PreviousBytes&&
        xrtFutureState(Publish)==XFUTURE_PENDING;
@@ -345,17 +345,17 @@ static bool compactRestore(const xmqttstorestate* State,const xmqttsessionconfig
     return true;
 }
 
-static bool compactVerify(xmqttjournalslot* Slot,xmqttstorestateconfig* C,uint64* Last,uint64 End)
+static bool compactVerify(mqttExampleJournalSlot* Slot,xmqttstorestateconfig* C,uint64* Last,uint64 End)
 {
     if(!wall(Last,&C->WallMilliseconds))return false;
     xmqttjournal* Journal=NULL;
     xmqttstorestate* State=NULL;
     xmqttstorestateinfo Info;
-    bool OK=xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
+    bool OK=mqttExampleJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,C,&State)==XMQTT_STORE_DONE&&xmqttStoreStateInfo(State,&Info)&&
         !Info.LiveAtCut&&!Info.Outgoing&&!Info.Inbox&&Info.Transactions==End;
     xmqttStoreStateDestroy(State);
-    if(!xmqttJournalDestroy(Journal)){(void)xmqttJournalDestroy(Journal);return false;}
+    if(!mqttExampleJournalSlotClose(Slot,Journal)){(void)mqttExampleJournalSlotClose(Slot,Journal);return false;}
     if(OK)printf("VERIFIED %llu %llu\n",(unsigned long long)C->Generation,(unsigned long long)End);
     return OK;
 }
@@ -487,8 +487,8 @@ int main(int Argc,char** Argv)
     xfile File=NULL;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     xroot Root=NULL;
-    xmqttjournalslotfiles Files={0};
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlotFiles Files={0};
+    mqttExampleJournalSlot* Slot=NULL;
 #endif
     xmqttjournal* Journal=NULL;
     xmqttstorestate* State=NULL;
@@ -505,15 +505,15 @@ int main(int Argc,char** Argv)
         Root=xrtRootOpen(Directory);
         if(!Root)goto Done;
         xmqttjournalstatus Open=mqttExampleOpenNativeSlot(Root,&JC,Cut,&Files,&Slot);
-        xmqttjournalslotinfo Selected;
-        if(Open!=XMQTT_JOURNAL_DONE||!xmqttJournalSlotInfo(Slot,&Selected)||
+        mqttExampleJournalSlotInfo Selected={0};
+        if(Open!=XMQTT_JOURNAL_DONE||!mqttExampleJournalSlotGetInfo(Slot,&Selected)||
            Selected.Generation!=(Cut?1u:2u))goto Done;
         SC.Generation=Selected.Generation;
-        if(xmqttJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
+        if(mqttExampleJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
         if(Cut){
-            if(!compactSeed(Journal,&SC.Delta)||!xmqttJournalDestroy(Journal))goto Done;
+            if(!compactSeed(Journal,&SC.Delta)||!mqttExampleJournalSlotClose(Slot,Journal))goto Done;
             Journal=NULL;
-            if(xmqttJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
+            if(mqttExampleJournalSlotOpenCurrent(Slot,&Journal)!=XMQTT_JOURNAL_DONE)goto Done;
         }
     }else
 #endif
@@ -539,6 +539,9 @@ int main(int Argc,char** Argv)
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
     if(!Storage||!Cleanup||!xmqttStoreWriteCreate(Storage,Journal,State,&WC,&Writer))goto Done;
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Slot)(void)mqttExampleJournalSlotDetach(Slot,Journal);
+#endif
     Journal=NULL;
     State=NULL;
 
@@ -589,7 +592,7 @@ int main(int Argc,char** Argv)
     if(xmqttClientPublishAsync(Lease.Client,&Packet,10000,&Publish)!=XMQTT_ADMISSION_ACCEPTED)goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Cut){
-        compactCut(Writer,Publish,Auto,Pressure,InboxKey);
+        compactCut(Writer,Slot,Publish,Auto,Pressure,InboxKey);
         goto Done;
     }
 #endif
@@ -629,10 +632,12 @@ Done:
     if(Engine&&!xrtNetEngineDestroy(Engine))return 1;
     if(!destroyPool(Cleanup)||!destroyPool(Storage))return 1;
     xmqttStoreStateDestroy(State);
-    if(!xmqttJournalDestroy(Journal)){
-        (void)xmqttJournalDestroy(Journal);
-        OK=false;
-    }
+#if defined(RECONNECT_EXAMPLE_COMPACT)
+    if(Slot){
+        if(!mqttExampleJournalSlotClose(Slot,Journal))OK=false;
+    }else
+#endif
+    if(!xmqttJournalDestroy(Journal))OK=false;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(!mqttExampleCloseNativeSlot(Slot,&Files))OK=false;
     if(Root&&!xrtRootClose(Root))OK=false;

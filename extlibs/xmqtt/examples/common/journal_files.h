@@ -1,7 +1,7 @@
 #ifndef XMQTT_EXAMPLE_JOURNAL_FILES_H
 #define XMQTT_EXAMPLE_JOURNAL_FILES_H
 
-#include <xmqtt/journal_slot.h>
+#include "journal_slot.h"
 #include <xrt/file.h>
 
 static inline bool mqttExampleCloseJournalFile(xfile* File)
@@ -9,22 +9,6 @@ static inline bool mqttExampleCloseJournalFile(xfile* File)
     xfile Owned=*File;
     *File=NULL;
     return !Owned||xrtClose(Owned);
-}
-
-static inline xmqttjournalstatus mqttExampleJournalIOResult(xmqttjournalstatus Status,xerror* Saved)
-{
-    if(Status<0){
-        xrtErrorFree(Saved);
-        if(!xrtGetError())xrtSetErrorKind(XERR_IO);
-        return Status;
-    }
-    xerror* Discard=NULL;
-    if(!xrtTrySwapErrorTake(Saved,&Discard)){
-        xrtErrorFree(Saved);
-        return XMQTT_JOURNAL_ERROR;
-    }
-    xrtErrorFree(Discard);
-    return Status;
 }
 
 static inline xmqttjournalstatus mqttExampleOpenJournalFile(xroot Root,cstr Path,xfile* File,xfileinfo* Info)
@@ -84,8 +68,7 @@ static inline bool mqttExampleCloseNativeJournal(xmqttjournal* Journal,xfile* Fi
     return xmqttJournalDestroy(Journal)&&mqttExampleCloseJournalFile(File);
 }
 
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
-static inline bool mqttExampleCloseJournalSlotFiles(xmqttjournalslotfiles* Files)
+static inline bool mqttExampleCloseJournalSlotFiles(mqttExampleJournalSlotFiles* Files)
 {
     bool OK=mqttExampleCloseJournalFile(&Files->Data[1]);
     if(!mqttExampleCloseJournalFile(&Files->Data[0]))OK=false;
@@ -99,13 +82,13 @@ static inline bool mqttExampleSameJournalFile(const xfileinfo* A,const xfileinfo
 /* Use a stable anchored directory with three pre-provisioned names.
  * Keep all three native locks through the final Slot/Writer retirement. */
 static inline xmqttjournalstatus mqttExampleOpenNativeSlot(xroot Root,const xmqttjournalconfig* Config,
-    bool Create,xmqttjournalslotfiles* FilesOut,xmqttjournalslot** Out)
+    bool Create,mqttExampleJournalSlotFiles* FilesOut,mqttExampleJournalSlot** Out)
 {
     xerror* Saved=NULL;
     if(!xrtTrySwapErrorTake(NULL,&Saved))return XMQTT_JOURNAL_ERROR;
-    xmqttjournalslotfiles Files={0};
+    mqttExampleJournalSlotFiles Files={0};
     xfileinfo Control,A,B;
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlot* Slot=NULL;
     xmqttjournalstatus Status=mqttExampleOpenJournalFile(Root,"journal.slot",&Files.Control,&Control);
     if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleLockJournalFile(Files.Control);
     if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleOpenJournalFile(Root,"journal.0",&Files.Data[0],&A);
@@ -119,23 +102,21 @@ static inline xmqttjournalstatus mqttExampleOpenNativeSlot(xroot Root,const xmqt
     if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleLockJournalFile(Files.Data[0]);
     if(Status==XMQTT_JOURNAL_DONE)Status=mqttExampleLockJournalFile(Files.Data[1]);
     if(Status==XMQTT_JOURNAL_DONE)
-        Status=Create?xmqttJournalSlotCreate(&Files,Config,&Slot):xmqttJournalSlotOpen(&Files,Config,&Slot);
+        Status=Create?mqttExampleJournalSlotCreate(&Files,Config,&Slot):mqttExampleJournalSlotOpen(&Files,Config,&Slot);
     if(Status!=XMQTT_JOURNAL_DONE&&!mqttExampleCloseJournalSlotFiles(&Files))Status=XMQTT_JOURNAL_IO;
     Status=mqttExampleJournalIOResult(Status,Saved);
     if(Status==XMQTT_JOURNAL_DONE){
         *FilesOut=Files;
         *Out=Slot;
     }else if(Slot){
-        (void)xmqttJournalSlotDestroy(Slot);
+        (void)mqttExampleJournalSlotDestroy(Slot);
         (void)mqttExampleCloseJournalSlotFiles(&Files);
     }
     return Status;
 }
 
-static inline bool mqttExampleCloseNativeSlot(xmqttjournalslot* Slot,xmqttjournalslotfiles* Files)
+static inline bool mqttExampleCloseNativeSlot(mqttExampleJournalSlot* Slot,mqttExampleJournalSlotFiles* Files)
 {
-    return xmqttJournalSlotDestroy(Slot)&&mqttExampleCloseJournalSlotFiles(Files);
+    return mqttExampleJournalSlotDestroy(Slot)&&mqttExampleCloseJournalSlotFiles(Files);
 }
-#endif
-
 #endif

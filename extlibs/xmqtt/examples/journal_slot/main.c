@@ -1,4 +1,3 @@
-#include <xmqtt/journal_slot.h>
 #include "../common/journal_files.h"
 #include <stdio.h>
 #include <string.h>
@@ -20,13 +19,13 @@ int main(int Argc,char** Argv)
     xmqttJournalConfigInit(&C);
     C.Generation=1;
     C.Binding=XRT_BYTES_LITERAL("example/complete-snapshots");
-    xmqttjournalslotfiles Files={0};
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlotFiles Files={0};
+    mqttExampleJournalSlot* Slot=NULL;
     xmqttjournal* J=NULL;
     bool OK=false;
     xmqttjournalstatus Status=mqttExampleOpenNativeSlot(Root,&C,Create,&Files,&Slot);
     if(Status!=XMQTT_JOURNAL_DONE)goto Done;
-    if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)goto Done;
+    if(mqttExampleJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)goto Done;
     unsigned char Snapshot[64];
     size_t Bytes=0;
     xmqttjournalrecord Record;
@@ -38,24 +37,24 @@ int main(int Argc,char** Argv)
     if(Status!=XMQTT_JOURNAL_EMPTY)goto Done;
     uint64 Sequence=0;
     if(Create){
-        if(xmqttJournalAppend(J,XRT_BYTES_LITERAL("state=1"),&Sequence)!=XMQTT_JOURNAL_DONE||
-           xmqttJournalAppend(J,XRT_BYTES_LITERAL("state=2"),&Sequence)!=XMQTT_JOURNAL_DONE)goto Done;
+        if(mqttExampleJournalSlotAppend(Slot,J,XRT_BYTES_LITERAL("state=1"),&Sequence)!=XMQTT_JOURNAL_DONE||
+           mqttExampleJournalSlotAppend(Slot,J,XRT_BYTES_LITERAL("state=2"),&Sequence)!=XMQTT_JOURNAL_DONE)goto Done;
     }else if(Rotate){
-        if(!Bytes||!xmqttJournalDestroy(J))goto Done;
+        if(!Bytes||!mqttExampleJournalSlotClose(Slot,J))goto Done;
         J=NULL;
-        if(xmqttJournalSlotPrepare(Slot,&J)!=XMQTT_JOURNAL_DONE||
-           xmqttJournalAppend(J,(xbytesview){Snapshot,Bytes},&Sequence)!=XMQTT_JOURNAL_DONE||
-           xmqttJournalSlotPublish(Slot,J)!=XMQTT_JOURNAL_DONE)goto Done;
+        if(mqttExampleJournalSlotPrepare(Slot,&J)!=XMQTT_JOURNAL_DONE||
+           mqttExampleJournalSlotAppend(Slot,J,(xbytesview){Snapshot,Bytes},&Sequence)!=XMQTT_JOURNAL_DONE||
+           mqttExampleJournalSlotPublish(Slot,J)!=XMQTT_JOURNAL_DONE)goto Done;
     }
-    xmqttjournalslotinfo Info;
-    if(!xmqttJournalSlotInfo(Slot,&Info))goto Done;
+    mqttExampleJournalSlotInfo Info={0};
+    if(!mqttExampleJournalSlotGetInfo(Slot,&Info))goto Done;
     printf("Selected generation %llu\n",(unsigned long long)Info.Generation);
     if(Bytes)printf("Snapshot %.*s\n",(int)Bytes,(const char*)Snapshot);
     OK=true;
 
 Done:
-    if(!xmqttJournalDestroy(J)){
-        (void)xmqttJournalDestroy(J);
+    if(!mqttExampleJournalSlotClose(Slot,J)){
+        (void)mqttExampleJournalSlotClose(Slot,J);
         OK=false;
     }
     if(!mqttExampleCloseNativeSlot(Slot,&Files))OK=false;

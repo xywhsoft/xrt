@@ -127,10 +127,10 @@ static void drain(run* R)
     }
 }
 
-static void rotate(xmqttstorewrite* Writer,const mqttExampleCompactConfig* Config)
+static void rotate(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,const mqttExampleCompactConfig* Config)
 {
     xfuture* Future=NULL;
-    require(mqttExampleCompactAsync(Writer,Config,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
+    require(mqttExampleCompactAsync(Writer,Slot,Config,10000,&Future)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(Future,10000)==XWAIT_OK,"submit APP maintenance at the transaction cap");
     const xmqttstorecheckpointresult* Result=xrtFutureValue(Future);
     require(Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED&&
@@ -261,19 +261,20 @@ int main(int Argc,char** Argv)
     SC.MaxOutgoing=SC.MaxIncoming=0;
     SC.MaxInbox=1;
     SC.MaxTransactions=Cap?Cap:Count+1;
-    xmqttjournalslotfiles Files={0};
-    xmqttjournalslot* Slot=NULL;
+    mqttExampleJournalSlotFiles Files={0};
+    mqttExampleJournalSlot* Slot=NULL;
     xmqttjournal* Journal=NULL;
     xmqttstorestate* State=NULL;
     require(mqttExampleOpenNativeSlot(Root,&JC,true,&Files,&Slot)==XMQTT_JOURNAL_DONE&&
-        xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
+        mqttExampleJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,&SC,&State)==XMQTT_STORE_DONE,"recover empty native slot");
     xtaskpoolconfig PoolConfig={.Threads=1,.QueueLimit=8};
     xtaskpool* Pool=xrtTaskPoolCreate(&PoolConfig);
     xmqttstorewriteconfig Config;
     xmqttStoreWriteConfigInit(&Config);
     xmqttstorewrite* Writer=NULL;
-    require(Pool&&xmqttStoreWriteCreate(Pool,Journal,State,&Config,&Writer),"create bounded Store Writer");
+    require(Pool&&xmqttStoreWriteCreate(Pool,Journal,State,&Config,&Writer)&&
+        mqttExampleJournalSlotDetach(Slot,Journal),"create bounded Store Writer");
     establish(Writer,&SC.Delta);
     mqttExampleCompactConfig Compact;
     mqttExampleCompactConfigInit(&Compact);
@@ -317,7 +318,7 @@ int main(int Argc,char** Argv)
              * keeps running while the APP drains or rotates. */
             drain(&R);
             if(R.Committed+1-Rotations*(Cap-1)>=Cap){
-                rotate(Writer,&Compact);
+                rotate(Writer,Slot,&Compact);
                 ++Rotations;
             }
         }
@@ -352,17 +353,17 @@ int main(int Argc,char** Argv)
         "release native writer and task pool");
     double Reopen=xrtTimer();
     require(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot)==XMQTT_JOURNAL_DONE,"cold reopen selector");
-    xmqttjournalslotinfo Selected;
-    require(xmqttJournalSlotInfo(Slot,&Selected)&&Selected.Generation==Rotations+1,"recover selected generation");
+    mqttExampleJournalSlotInfo Selected={0};
+    require(mqttExampleJournalSlotGetInfo(Slot,&Selected)&&Selected.Generation==Rotations+1,"recover selected generation");
     SC.Generation=Selected.Generation;
-    require(xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
+    require(mqttExampleJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,&SC,&State)==XMQTT_STORE_DONE,"cold replay at unchanged bounds");
     double ReplayUs=(xrtTimer()-Reopen)*1e6;
     xmqttstorestateinfo Recovered;
     require(xmqttStoreStateInfo(State,&Recovered)&&Recovered.LastKey==R.LastKey&&
         Recovered.Transactions==ExpectedTransactions&&!Recovered.Inbox,"verify final recovered cut");
     xmqttStoreStateDestroy(State);
-    require(xmqttJournalDestroy(Journal)&&mqttExampleCloseNativeSlot(Slot,&Files),"retire recovery owners");
+    require(mqttExampleJournalSlotClose(Slot,Journal)&&mqttExampleCloseNativeSlot(Slot,&Files),"retire recovery owners");
 
     qsort(All,(size_t)Count,sizeof(*All),compare);
     qsort(Committed,R.Committed,sizeof(*Committed),compare);

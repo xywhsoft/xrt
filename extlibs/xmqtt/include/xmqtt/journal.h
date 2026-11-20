@@ -22,6 +22,7 @@ typedef struct xmqttjournalconfig {
     size_t Size;xmqttversion Version;xbytesview Binding;uint64 Generation;
     uint32 PayloadSchema;size_t MaxTransactionBytes,MaxMemoryBytes;uint64 MaxFileBytes;
 } xmqttjournalconfig;
+typedef struct xmqttjournalprefix {uint64 Sequence,End;uint32 Chain;} xmqttjournalprefix;
 typedef struct xmqttjournalrecord {uint64 Sequence;xbytesview Data;} xmqttjournalrecord;
 typedef struct xmqttjournalinfo {
     xmqttjournalstate State;xmqttjournaleffect Effect;
@@ -46,6 +47,11 @@ XMQTT_API bool xmqttJournalConfigInit(xmqttjournalconfig* Config);
  * Constructors leave Journal untouched on failure; never take File ownership. */
 XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
 XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
+/* Open with an APP-published prefix. The latest committed witness must
+ * cover this prefix. Replay also verifies the exact offset and chain at
+ * that sequence before it admits any later transactions. Prefix is copied. */
+XMQTT_API xmqttjournalstatus xmqttJournalOpenAtPrefix(xfile File,const xmqttjournalconfig* Config,
+    const xmqttjournalprefix* Prefix,xmqttjournal** Journal);
 /* At most one transaction per call. Record.Data is borrowed until ANY next
  * operation/Destroy. Validate committed frames/checksums before publishing a
  * record. EMPTY verifies final sequence/chain, truncates any uncommitted suffix

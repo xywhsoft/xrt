@@ -771,9 +771,10 @@ XMQTT_API xmqttjournalstatus xmqttStoreCheckpointMeasure(xmqttstorecheckpointcut
     return XMQTT_JOURNAL_DONE;
 }
 
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut)
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointprepare Prepare,ptr Context)
 {
-    if(!Cut||!Cut->Measured||Cut->StageAttempted){
+    if(!Cut||!Prepare||!Cut->Measured||Cut->StageAttempted){
         xmqttSError(XMQTT_STORE_STATE_ERROR,"checkpoint Stage requires one measured cut");
         return XMQTT_JOURNAL_STATE;
     }
@@ -784,7 +785,7 @@ XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* 
         Buffer=xrtMalloc(Cut->Capacity);
         if(!Buffer)return XMQTT_JOURNAL_ERROR;
     }
-    xmqttjournalstatus Status=xmqttInternalJournalCheckpointStage(Cut->Current,&Cut->Candidate);
+    xmqttjournalstatus Status=xmqttInternalJournalCheckpointStage(Cut->Current,Prepare,Context,&Cut->Candidate);
     if(Status==XMQTT_JOURNAL_DONE)
         Status=xmqttSCWrite(Cut->Candidate,Cut->State,Buffer,Cut->Capacity,Cut->Rows,Cut->Stop,Cut->StopContext);
     xrtFree(Buffer);
@@ -792,15 +793,16 @@ XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* 
     return Status;
 }
 
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut)
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointselect Select,ptr Context)
 {
-    if(!Cut||!Cut->Staged||Cut->Result->Effect!=XMQTT_JOURNAL_NOT_COMMITTED){
+    if(!Cut||!Select||!Cut->Staged||Cut->Result->Effect!=XMQTT_JOURNAL_NOT_COMMITTED){
         xmqttSError(XMQTT_STORE_STATE_ERROR,"checkpoint Publish requires an unpublished Stage");
         return XMQTT_JOURNAL_STATE;
     }
     Cut->Staged=false;
     if(Cut->Stop(Cut->StopContext))return XMQTT_JOURNAL_EMPTY;
-    return xmqttInternalJournalCheckpointPublish(Cut->Current,Cut->Candidate,Cut->Result);
+    return xmqttInternalJournalCheckpointPublish(Cut->Candidate,Select,Context,Cut->Result);
 }
 
 XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointModel(const xmqttstorestate* S,
@@ -815,7 +817,7 @@ XMQTT_INTERNAL xmqttjournalstatus xmqttInternalStoreCheckpointModel(const xmqtts
     if(Capacity>Request->MaxScratchBytes)Capacity=Request->MaxScratchBytes;
     xmqttstorecheckpointcut Cut={.State=S,.Current=*Journal,.Request=Request,.Result=Result,
         .Stop=Stop,.StopContext=StopContext,.Capacity=Capacity};
-    xmqttjournalstatus Status=Request->Apply(&Cut,Result->PreviousBytes,DataBytes,Request->User);
+    xmqttjournalstatus Status=Request->Apply(&Cut,Result->PreviousBytes,DataBytes,Request->Context,Request->User);
     if(Cut.Candidate)xmqttInternalJournalCheckpointFinish(Journal,Owner,Cut.Candidate,Result);
     *Stats=Cut.Stats;
     if(Result->Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED)return XMQTT_JOURNAL_UNCERTAIN;

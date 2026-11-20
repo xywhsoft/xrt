@@ -5135,6 +5135,7 @@
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
             "extlibs/xmqtt/examples/common/journal_files.h",
+            "extlibs/xmqtt/examples/common/journal_slot.h",
             "extlibs/xmqtt/examples/common/store_compact_online.h",
             "dev/bench/bench_common.h"
           ],
@@ -5234,6 +5235,7 @@
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
             "extlibs/xmqtt/examples/common/journal_files.h",
+            "extlibs/xmqtt/examples/common/journal_slot.h",
             "extlibs/xmqtt/examples/common/store_compact_online.h",
             "dev/bench/bench_common.h"
           ],
@@ -5333,6 +5335,7 @@
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
             "extlibs/xmqtt/examples/common/journal_files.h",
+            "extlibs/xmqtt/examples/common/journal_slot.h",
             "extlibs/xmqtt/examples/common/store_compact_online.h",
             "dev/bench/bench_common.h"
           ],
@@ -5432,6 +5435,7 @@
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
             "extlibs/xmqtt/examples/common/journal_files.h",
+            "extlibs/xmqtt/examples/common/journal_slot.h",
             "extlibs/xmqtt/examples/common/store_compact_online.h",
             "dev/bench/bench_common.h"
           ],

@@ -18038,3 +18038,36 @@ Ordinary maturity passes. Strict release still reports 40 developing
 MQTT modules. Moving the two-generation selector to the APP, native
 Linux qualification, controlled throughput and tail-latency comparisons,
 and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT two-generation selector in the APP
+
+Moved the control-file descriptor, two witnesses, generation selection,
+repair, data file reuse and publication to the APP example. The library
+now provides `xmqttJournalOpenAtPrefix` for checking an APP-supplied
+published prefix. It validates coverage at open and validates the exact
+chain and end offset during replay. The online Writer accepts object
+preparation and durable selection callbacks from the APP. It validates
+the replacement Journal, serializes adoption with ordinary commits and
+fences the current owner on an uncertain selection or requested fence.
+
+The APP retains its slot and all three files until its Writer retires.
+For offline use it closes each child through the slot helper. A child
+passed to the Writer is detached from APP ownership. The old public slot
+module and feature selection are removed. The Journal implementation is
+282 lines smaller. GCC initially diagnosed an output object passed to
+the APP range check. The final check compares numeric address ranges.
+
+Windows x64 and Ubuntu under WSL each passed seven suites with 47 modular,
+single-header and example binaries, 52 cross-process lock and recovery
+cases, and four capacity smoke workloads. The pre-move and post-move
+programs read each other's checkpoints and saved identical bytes in all
+three files. The automatic APP path produced the same files. The
+checkpoint static and shared packages linked and ran using their direct
+Journal and Writer dependencies. WSL ASan/UBSan with leak detection
+passed the selector and online fault suites. WSL TSan passed the online suite.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-selector/`.
+Ordinary maturity passes. Strict release still reports 39 developing
+MQTT modules. Native Linux qualification, throughput and tail-latency
+comparisons, 72-hour mixed loads and the remaining product work stay open.

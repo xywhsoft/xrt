@@ -96,9 +96,6 @@
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL 1
 #endif
-#if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT 1
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_WORKER 1
 #endif
@@ -239,9 +236,6 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL 1
-#endif
-#if !defined(XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_SLOT 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL_WORKER)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_WORKER 1
@@ -3077,9 +3071,6 @@
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
@@ -3096,9 +3087,6 @@
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
@@ -3111,16 +3099,6 @@
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_STATE
 #define XMQTT_MODULE_XMQTT_STORE_STATE
-#endif
-#endif
-
-/* xmqtt_journal_slot 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
-#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#define XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL
-#define XMQTT_MODULE_XMQTT_JOURNAL
 #endif
 #endif
 
@@ -5600,6 +5578,7 @@ typedef struct xmqttjournalconfig {
     size_t Size;xmqttversion Version;xbytesview Binding;uint64 Generation;
     uint32 PayloadSchema;size_t MaxTransactionBytes,MaxMemoryBytes;uint64 MaxFileBytes;
 } xmqttjournalconfig;
+typedef struct xmqttjournalprefix {uint64 Sequence,End;uint32 Chain;} xmqttjournalprefix;
 typedef struct xmqttjournalrecord {uint64 Sequence;xbytesview Data;} xmqttjournalrecord;
 typedef struct xmqttjournalinfo {
     xmqttjournalstate State;xmqttjournaleffect Effect;
@@ -5624,6 +5603,11 @@ XMQTT_API bool xmqttJournalConfigInit(xmqttjournalconfig* Config);
  * Constructors leave Journal untouched on failure; never take File ownership. */
 XMQTT_API xmqttjournalstatus xmqttJournalCreate(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
 XMQTT_API xmqttjournalstatus xmqttJournalOpen(xfile File,const xmqttjournalconfig* Config,xmqttjournal** Journal);
+/* Open with an APP-published prefix. The latest committed witness must
+ * cover this prefix. Replay also verifies the exact offset and chain at
+ * that sequence before it admits any later transactions. Prefix is copied. */
+XMQTT_API xmqttjournalstatus xmqttJournalOpenAtPrefix(xfile File,const xmqttjournalconfig* Config,
+    const xmqttjournalprefix* Prefix,xmqttjournal** Journal);
 /* At most one transaction per call. Record.Data is borrowed until ANY next
  * operation/Destroy. Validate committed frames/checksums before publishing a
  * record. EMPTY verifies final sequence/chain, truncates any uncommitted suffix
@@ -6290,69 +6274,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/journal_slot.h */
-/* ========================================================================== */
-
-#ifndef XMQTT_JOURNAL_SLOT_H
-#define XMQTT_JOURNAL_SLOT_H
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
-#error "Journal slot rotation requires the MQTT journal"
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
-typedef struct xmqttjournalslot xmqttjournalslot;
-typedef struct xmqttjournalslotfiles {
-    xfile Control,Data[2];
-} xmqttjournalslotfiles;
-typedef struct xmqttjournalslotinfo {
-    uint64 Generation,PublishedSequence;
-    xmqttjournaleffect Effect;
-    bool Poisoned,JournalOpen,Prepared;
-} xmqttjournalslotinfo;
-XRT_EXTERN_C_BEGIN
-/* Borrow three handles referring to distinct files through Slot Destroy.
- * Supply exclusive access to their contents and synchronize their initial
- * publication in the APP. Control needs synchronous absolute read/write,
- * stat and flush; both data files additionally require resize.
- * Create requires three empty files. Config.Generation is the exact initial
- * generation for both constructors. Handles, Config and Binding are copied.
- * The two data-file limits apply independently. Failed construction leaves
- * the output untouched and the handles with the APP. Initial writes can leave
- * incomplete bytes. File I/O belongs outside network callbacks. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotCreate(const xmqttjournalslotfiles* Files,
-    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
-XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(const xmqttjournalslotfiles* Files,
-    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
-/* Open the exact selected generation. Replay all records through EMPTY to
- * verify its complete history and the published prefix. The returned Journal
- * may transfer into the existing JournalWorker. Join and destroy it before
- * opening another Journal or preparing a replacement through the public slot
- * API. An online Store Writer can rotate its own child on the storage task.
- * Serialize direct Slot access with that Writer lifetime. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotOpenCurrent(xmqttjournalslot* Slot,xmqttjournal** Journal);
-/* After the selected generation has been fully recovered and retired, reset
- * only the inactive file and initialize it at Generation+1. Supply a complete
- * replacement using ordinary synchronous Journal operations. The application
- * owns payload equivalence, including any MQTT snapshot or compaction rules.
- * Destroy the prepared Journal to abandon it. It cannot enter JournalWorker
- * before Publish. No publication is attempted if preparation fails. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotPrepare(xmqttjournalslot* Slot,xmqttjournal** Journal);
-/* Select the prepared Journal after its durable initialization/appends.
- * Publish writes two matching selector witnesses then syncs the control file.
- * On success the same Journal becomes the current one without a reopen.
- * UNCERTAIN poisons the Slot and Journal. Destroy both and reopen to resolve.
- * Info retains the last attempted publication effect. Local error restoration
- * can fail after COMMITTED. Recover only the selected generation. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* Slot,xmqttjournal* Journal);
-XMQTT_API bool xmqttJournalSlotInfo(xmqttjournalslot* Slot,xmqttjournalslotinfo* Info);
-/* Refuses while a child or an operation is live. On success the APP can
- * close the three file handles. */
-XMQTT_API bool xmqttJournalSlotDestroy(xmqttjournalslot* Slot);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt/store_checkpoint.h */
 /* ========================================================================== */
 
@@ -6392,16 +6313,27 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_STORE_CHECKPOINT_ONLINE_H
 #define XMQTT_STORE_CHECKPOINT_ONLINE_H
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE) && \
-    (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
-#error "Online MQTT checkpoints require the typed slot and Store Writer"
+    (!defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT) || !defined(XMQTT_FEATURE_XMQTT_STORE_WRITE))
+#error "Online MQTT checkpoints require typed recovery and Store Writer"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_CHECKPOINT_ONLINE)
 typedef struct xmqttstorecheckpointcut xmqttstorecheckpointcut;
 typedef xmqttjournalstatus (*xmqttstorecheckpointapply)(xmqttstorecheckpointcut* Cut,
-    uint64 CurrentBytes,uint64 CurrentDataBytes,uint64 User);
+    uint64 CurrentBytes,uint64 CurrentDataBytes,ptr Context,uint64 User);
+/* Prepare transfers one exclusive empty Journal on DONE. Supply a distinct
+ * file with the same binding, version and schema at Generation+1. A failure
+ * retains all candidate ownership in the APP. Set Fence if the source can no
+ * longer safely accept appends, for example after a failed selector repair. */
+typedef xmqttjournalstatus (*xmqttstorecheckpointprepare)(ptr Context,uint64 Generation,
+    const xmqttjournalinfo* Current,xmqttjournal** Candidate,bool* Fence);
+/* Persist the new selected prefix. Set Effect to MAY before issuing a
+ * potentially durable selector change and COMMITTED after successful sync. */
+typedef xmqttjournalstatus (*xmqttstorecheckpointselect)(ptr Context,uint64 Generation,
+    const xmqttjournalinfo* Candidate,xmqttjournaleffect* Effect);
 typedef struct xmqttstorecheckpointrequest {
     size_t Size,MaxScratchBytes,MaxEntries;
     xmqttstorecheckpointapply Apply;
+    ptr Context;
     uint64 User;
 } xmqttstorecheckpointrequest;
 typedef struct xmqttstorecheckpointresult {
@@ -6411,8 +6343,8 @@ typedef struct xmqttstorecheckpointresult {
 } xmqttstorecheckpointresult;
 XRT_EXTERN_C_BEGIN
 /* Queue Apply at an exclusive Writer FIFO boundary on its storage task.
- * The Writer owns the selected Slot child. Keep Slot and its files alive
- * through Writer Destroy. Apply runs outside Writer and Worker locks.
+ * Keep the APP file handles alive through Writer Destroy. Keep Context
+ * alive through Future resolution. Apply runs outside both Writer locks.
  * Cut is valid only synchronously in Apply on that task, including its
  * calls to Measure, Stage and Publish. Apply must return before waiting
  * for any later operation or for destruction of this Writer.
@@ -6430,15 +6362,17 @@ XMQTT_API xmqttjournaladmission xmqttStoreWriteCheckpointAsync(xmqttstorewrite* 
  * and entries are capped by the request. A committed reset is required
  * after recovery projected unsynchronized expiry. No storage I/O. */
 XMQTT_API xmqttjournalstatus xmqttStoreCheckpointMeasure(xmqttstorecheckpointcut* Cut,uint64* Bytes);
-/* After measurement, encode a replacement in the inactive file. One
- * attempt per cut, with bounded scratch and no historical replay. An
- * uncertain inactive append leaves the selected Journal in use. A failed
- * selector witness repair fences the Writer. */
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut);
+/* After measurement, obtain an APP-prepared file and encode its Journal.
+ * One attempt per cut with bounded scratch. An uncertain candidate append
+ * leaves the current Journal in use. The library destroys the transferred
+ * candidate or adopts it at the FIFO boundary after publication. */
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointStage(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointprepare Prepare,ptr Context);
 /* Publish a successful Stage once. A stop observed before publication
  * abandons the candidate. Once selector I/O enters, it retires physically.
  * Returning from Apply abandons any candidate that was not published. */
-XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut);
+XMQTT_API xmqttjournalstatus xmqttStoreCheckpointPublish(xmqttstorecheckpointcut* Cut,
+    xmqttstorecheckpointselect Select,ptr Context);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -7263,10 +7197,6 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
-#undef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_WORKER)
 #undef XMQTT_FEATURE_XMQTT_JOURNAL_WORKER
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_WORKER
@@ -7454,10 +7384,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL)
 #undef XMQTT_MODULE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
-#undef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_WORKER)
 #undef XMQTT_MODULE_XMQTT_JOURNAL_WORKER
@@ -9546,9 +9472,6 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
@@ -9565,9 +9488,6 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #define XMQTT_MODULE_XMQTT_STORE_CHECKPOINT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
-#endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #endif
@@ -9580,16 +9500,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_STORE_STATE
 #define XMQTT_MODULE_XMQTT_STORE_STATE
-#endif
-#endif
-
-/* xmqtt_journal_slot 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
-#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#define XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
-#endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL
-#define XMQTT_MODULE_XMQTT_JOURNAL
 #endif
 #endif
 
