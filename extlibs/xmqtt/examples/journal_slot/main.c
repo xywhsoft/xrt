@@ -1,4 +1,5 @@
 #include <xmqtt/journal_slot.h>
+#include "../common/journal_files.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -19,10 +20,11 @@ int main(int Argc,char** Argv)
     xmqttJournalConfigInit(&C);
     C.Generation=1;
     C.Binding=XRT_BYTES_LITERAL("example/complete-snapshots");
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
     xmqttjournal* J=NULL;
     bool OK=false;
-    xmqttjournalstatus Status=Create?xmqttJournalSlotCreate(Root,&C,&Slot):xmqttJournalSlotOpen(Root,&C,&Slot);
+    xmqttjournalstatus Status=mqttExampleOpenNativeSlot(Root,&C,Create,&Files,&Slot);
     if(Status!=XMQTT_JOURNAL_DONE)goto Done;
     if(xmqttJournalSlotOpenCurrent(Slot,&J)!=XMQTT_JOURNAL_DONE)goto Done;
     unsigned char Snapshot[64];
@@ -56,10 +58,7 @@ Done:
         (void)xmqttJournalDestroy(J);
         OK=false;
     }
-    if(!xmqttJournalSlotDestroy(Slot)){
-        (void)xmqttJournalSlotDestroy(Slot);
-        OK=false;
-    }
+    if(!mqttExampleCloseNativeSlot(Slot,&Files))OK=false;
     if(!xrtRootClose(Root))OK=false;
     return OK?0:1;
 }

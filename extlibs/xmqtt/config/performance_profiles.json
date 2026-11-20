@@ -5134,6 +5134,7 @@
           "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
+            "extlibs/xmqtt/examples/common/journal_files.h",
             "dev/bench/bench_common.h"
           ],
           "args": [
@@ -5231,6 +5232,7 @@
           "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
+            "extlibs/xmqtt/examples/common/journal_files.h",
             "dev/bench/bench_common.h"
           ],
           "args": [
@@ -5328,6 +5330,7 @@
           "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
+            "extlibs/xmqtt/examples/common/journal_files.h",
             "dev/bench/bench_common.h"
           ],
           "args": [
@@ -5425,6 +5428,7 @@
           "source": "extlibs/xmqtt/bench/bench_store_capacity.c",
           "suite": "xmqtt_store_compact_online_tests",
           "inputs": [
+            "extlibs/xmqtt/examples/common/journal_files.h",
             "dev/bench/bench_common.h"
           ],
           "args": [

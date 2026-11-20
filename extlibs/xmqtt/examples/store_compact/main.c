@@ -1,4 +1,5 @@
 #include <xmqtt/store_compact_online.h>
+#include "../common/journal_files.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -112,8 +113,9 @@ int main(int Argc,char** Argv)
     xmqttstorestateconfig C;
     xmqttStoreStateConfigInit(&C);
     C.Binding=JC.Binding;C.ClientId=XRT_STR_LITERAL("example");C.WallMilliseconds=1000;
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
-    bool OK=(Create?xmqttJournalSlotCreate(Root,&JC,&Slot):xmqttJournalSlotOpen(Root,&JC,&Slot))==XMQTT_JOURNAL_DONE;
+    bool OK=(mqttExampleOpenNativeSlot(Root,&JC,Create,&Files,&Slot))==XMQTT_JOURNAL_DONE;
     if(OK&&Create)OK=seed(Slot,&C);
     if(OK&&(Compact||Online||Auto)){
         xmqttjournalslotinfo I;
@@ -127,7 +129,7 @@ int main(int Argc,char** Argv)
         }
     }
     if(OK)OK=show(Slot,&C);
-    if(!xmqttJournalSlotDestroy(Slot)){(void)xmqttJournalSlotDestroy(Slot);OK=false;}
+    if(!mqttExampleCloseNativeSlot(Slot,&Files))OK=false;
     if(!xrtRootClose(Root))OK=false;
     return OK?0:1;
 }

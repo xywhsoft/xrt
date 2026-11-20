@@ -1,4 +1,5 @@
 #include "test.h"
+#include "../examples/common/journal_files.h"
 #include <xmqtt/store_compact.h>
 #include <xmqtt/store_write.h>
 
@@ -163,8 +164,9 @@ static void local(xmqttversion V,bool Live)
     xmqttJournalConfigInit(&JC);
     JC.Version=V;JC.Binding=XRT_BYTES_LITERAL("test/checkpoint");JC.Generation=11;
     JC.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;JC.MaxTransactionBytes=2048;
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
-    expect(xmqttJournalSlotCreate(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"create typed slot");
+    expect(mqttExampleOpenNativeSlot(Root,&JC,true,&Files,&Slot),XMQTT_JOURNAL_DONE,"create typed slot");
     xmqttstorestateconfig C;
     xmqttStoreStateConfigInit(&C);
     C.Binding=JC.Binding;C.Generation=JC.Generation;C.Delta.Version=V;
@@ -195,8 +197,8 @@ static void local(xmqttversion V,bool Live)
         expect(injected(Slot,&C,3),XMQTT_JOURNAL_UNCERTAIN,"first selector write could have had effects");
         testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
                     "close failed preparation and fence its selector");
-        testRequire(xmqttJournalSlotDestroy(Slot),"retire uncertain owner");
-        expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"recover old generation before selector output");
+        testRequire(mqttExampleCloseNativeSlot(Slot,&Files),"retire uncertain owner");
+        expect(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot),XMQTT_JOURNAL_DONE,"recover old generation before selector output");
         xmqttstorestate* Current=recover(Slot,&C,&J);
         same(Old,Current);
         xmqttStoreStateDestroy(Current);
@@ -206,8 +208,8 @@ static void local(xmqttversion V,bool Live)
         expect(injected(Slot,&C,4),XMQTT_JOURNAL_UNCERTAIN,"second selector write fails after first is synced");
         testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Poisoned&&!SlotInfo.JournalOpen,
                     "retire ambiguous publish before fresh selection");
-        testRequire(xmqttJournalSlotDestroy(Slot),"retire ambiguous selector owner");
-        expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"recover the first synchronized choice");
+        testRequire(mqttExampleCloseNativeSlot(Slot,&Files),"retire ambiguous selector owner");
+        expect(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot),XMQTT_JOURNAL_DONE,"recover the first synchronized choice");
         testRequire(xmqttJournalSlotInfo(Slot,&SlotInfo)&&SlotInfo.Generation==C.Generation+1&&
             SlotInfo.PublishedSequence==3,"first valid choice selects the complete typed checkpoint");
     }else
@@ -226,8 +228,8 @@ static void local(xmqttversion V,bool Live)
             SlotInfo.PublishedSequence==3&&SlotInfo.Effect==XMQTT_JOURNAL_COMMITTED,"one descriptor and two row blocks");
     }
     ++C.Generation;
-    testRequire(xmqttJournalSlotDestroy(Slot),"drop original selector owner");
-    expect(xmqttJournalSlotOpen(Root,&JC,&Slot),XMQTT_JOURNAL_DONE,"fresh native selector owner");
+    testRequire(mqttExampleCloseNativeSlot(Slot,&Files),"drop original selector owner");
+    expect(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot),XMQTT_JOURNAL_DONE,"fresh native selector owner");
     xmqttstorestate* New=recover(Slot,&C,&J);
     same(Old,New);
     testRequire(info(New).Transactions==3&&info(New).ReplayBytes<info(Old).ReplayBytes/2,"physical replay reduction");
@@ -260,7 +262,7 @@ static void local(xmqttversion V,bool Live)
     testRequire(Current.LastKey==51&&Current.Epoch==5&&Current.LiveAtCut&&Current.Outgoing==1&&
         !Current.Incoming&&Current.Inbox==2&&Current.Transactions==3,"new committed state survives subsequent rotation");
     testRequire(info(Old).LastKey==50&&info(Old).Inbox==2,"earlier State remains immutable across physical reuse");
-    testRequire(xmqttJournalDestroy(J)&&xmqttJournalSlotDestroy(Slot),"release all native owners");
+    testRequire(xmqttJournalDestroy(J)&&mqttExampleCloseNativeSlot(Slot,&Files),"release all native owners");
     xmqttStoreStateDestroy(New);
     xmqttStoreStateDestroy(Old);
     for(size_t I=0;I<3;++I)testRequire(xrtRootRemove(Root,Names[I]),"unlink exact fixture file");

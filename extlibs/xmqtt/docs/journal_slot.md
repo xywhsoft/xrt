@@ -1,9 +1,17 @@
-# Bounded native journal generation switch
+# Bounded journal generation switch
 
-Select `XMQTT_MODULE_XMQTT_JOURNAL_SLOT` for a two-generation store in one
-anchored directory. Provision three distinct empty regular files named
-`journal.slot`, `journal.0` and `journal.1`. Keep the names and directory
-stable. The application ensures initial durable publication of those names.
+Select `XMQTT_MODULE_XMQTT_JOURNAL_SLOT` for a two-generation store.
+Pass an `xmqttjournalslotfiles` containing three distinct, exclusively
+accessible XRT file handles to `xmqttJournalSlotCreate` or
+`xmqttJournalSlotOpen`. The handles can come from native files or a VFS
+provider. The control file needs synchronous absolute read/write, stat and
+flush. The two data files additionally require resize. Keep all three handles
+alive until the Slot and its Journal or Writer have retired.
+
+The [native APP example](../examples/common/journal_files.h) opens
+`journal.slot`, `journal.0` and `journal.1` in a stable private directory.
+The caller provides the three files and ensures their initial durable publication. The helper verifies the three file identities,
+locks all three handles and keeps the locks through logical retirement.
 Later switches update file contents in place with XRT sync operations.
 [Linux file and directory sync](https://man7.org/linux/man-pages/man2/fsync.2.html) ·
 [Windows file sync](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers)
@@ -11,8 +19,8 @@ Later switches update file contents in place with XRT sync operations.
 The control file has a fixed 12 KiB layout. Its descriptor identifies this
 broker, principal, payload format, MQTT version and initial generation. The
 two checksummed witnesses identify the generation and its published journal
-prefix. The open file lock stays held from slot open through destruction.
-Every participant uses the slot owner, including while the data file is idle.
+prefix. Every participant uses the same exclusive-access policy, including
+while either data file is idle.
 
 Open the selected Journal, fully replay it and retire the old owner before
 preparing a replacement. Only the inactive file is reset. The application

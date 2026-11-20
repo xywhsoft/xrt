@@ -1,5 +1,7 @@
 #define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XRT_MODULE_DIR_TEMP
+#define XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_LOCK
 #include <xmqtt/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"
@@ -31,6 +33,7 @@ static bool selectorSync(xfile File)
 #undef xrtWriteAtFull
 #undef xrtFlush
 #include "../test.h"
+#include "../../examples/common/journal_files.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
 static void must(xmqttjournalstatus Status,xmqttjournalstatus Wanted)
@@ -68,9 +71,10 @@ static void fault(unsigned Point,xmqttversion Version)
     C.Version=Version;
     C.Generation=8;
     C.Binding=XRT_BYTES_LITERAL("actual/control/io");
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
     xmqttjournal* J=NULL;
-    must(xmqttJournalSlotCreate(Root,&C,&Slot),XMQTT_JOURNAL_DONE);
+    must(mqttExampleOpenNativeSlot(Root,&C,true,&Files,&Slot),XMQTT_JOURNAL_DONE);
     must(xmqttJournalSlotPrepare(Slot,&J),XMQTT_JOURNAL_DONE);
     uint64 Seq;
     must(xmqttJournalAppend(J,XRT_BYTES_LITERAL("next"),&Seq),XMQTT_JOURNAL_DONE);
@@ -83,8 +87,8 @@ static void fault(unsigned Point,xmqttversion Version)
     testRequire(xmqttJournalSlotInfo(Slot,&I)&&I.Poisoned&&I.Effect==XMQTT_JOURNAL_MAY_BE_COMMITTED,
         "publication failure fences the slot and retains uncertain effect");
     must(xmqttJournalAppend(J,XRT_BYTES_LITERAL("late"),&Seq),XMQTT_JOURNAL_STATE);
-    testRequire(xmqttJournalDestroy(J)&&xmqttJournalSlotDestroy(Slot),"retire uncertain ownership");
-    must(xmqttJournalSlotOpen(Root,&C,&Slot),XMQTT_JOURNAL_DONE);
+    testRequire(xmqttJournalDestroy(J)&&mqttExampleCloseNativeSlot(Slot,&Files),"retire uncertain ownership");
+    must(mqttExampleOpenNativeSlot(Root,&C,false,&Files,&Slot),XMQTT_JOURNAL_DONE);
     testRequire(xmqttJournalSlotInfo(Slot,&I)&&I.Generation==(Point>1?9u:8u),"select actual durable effect");
     must(xmqttJournalSlotOpenCurrent(Slot,&J),XMQTT_JOURNAL_DONE);
     xmqttjournalrecord R;
@@ -93,7 +97,7 @@ static void fault(unsigned Point,xmqttversion Version)
         testRequire(R.Data.Size==4&&!memcmp(R.Data.Data,"next",4),"recover predecessor's committed replacement");
     }
     must(xmqttJournalNext(J,&R),XMQTT_JOURNAL_EMPTY);
-    testRequire(xmqttJournalDestroy(J)&&xmqttJournalSlotDestroy(Slot),"retire recovered effect");
+    testRequire(xmqttJournalDestroy(J)&&mqttExampleCloseNativeSlot(Slot,&Files),"retire recovered effect");
     clean(Root,Dir);
 }
 

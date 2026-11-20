@@ -1,28 +1,33 @@
 #ifndef XMQTT_JOURNAL_SLOT_H
 #define XMQTT_JOURNAL_SLOT_H
-#include <xmqtt/journal_file.h>
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
-#error "Journal slot rotation requires the locked MQTT journal"
+#include <xmqtt/journal.h>
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#error "Journal slot rotation requires the MQTT journal"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
 typedef struct xmqttjournalslot xmqttjournalslot;
+typedef struct xmqttjournalslotfiles {
+    xfile Control,Data[2];
+} xmqttjournalslotfiles;
 typedef struct xmqttjournalslotinfo {
     uint64 Generation,PublishedSequence;
     xmqttjournaleffect Effect;
     bool Poisoned,JournalOpen,Prepared;
 } xmqttjournalslotinfo;
 XRT_EXTERN_C_BEGIN
-/* Borrow the anchored directory until Destroy. It contains three distinct
- * regular files: journal.slot, journal.0 and journal.1. Provision these names
- * durably and keep them stable. Create requires all three files empty.
- * Config.Generation is the exact initial generation for both constructors.
- * Config and Binding are copied. The two data-file limits apply independently.
- * One control-file lock excludes cooperating owners until physical Destroy.
- * Serialize control operations with the Journal's lifecycle. Functions that
- * touch files can block and belong outside network callbacks. BUSY preserves
- * the output. A failed Create can leave an incomplete initial installation. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotCreate(xroot Root,const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
-XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(xroot Root,const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
+/* Borrow three handles referring to distinct files through Slot Destroy.
+ * Supply exclusive access to their contents and synchronize their initial
+ * publication in the APP. Control needs synchronous absolute read/write,
+ * stat and flush; both data files additionally require resize.
+ * Create requires three empty files. Config.Generation is the exact initial
+ * generation for both constructors. Handles, Config and Binding are copied.
+ * The two data-file limits apply independently. Failed construction leaves
+ * the output untouched and the handles with the APP. Initial writes can leave
+ * incomplete bytes. File I/O belongs outside network callbacks. */
+XMQTT_API xmqttjournalstatus xmqttJournalSlotCreate(const xmqttjournalslotfiles* Files,
+    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
+XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(const xmqttjournalslotfiles* Files,
+    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
 /* Open the exact selected generation. Replay all records through EMPTY to
  * verify its complete history and the published prefix. The returned Journal
  * may transfer into the existing JournalWorker. Join and destroy it before
@@ -45,8 +50,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPrepare(xmqttjournalslot* Slot,xmqt
  * can fail after COMMITTED. Recover only the selected generation. */
 XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* Slot,xmqttjournal* Journal);
 XMQTT_API bool xmqttJournalSlotInfo(xmqttjournalslot* Slot,xmqttjournalslotinfo* Info);
-/* With a live Journal, refuse and retain ownership. On a native close error,
- * retry Destroy to free the poisoned wrapper. */
+/* Refuses while a child or an operation is live. On success the APP can
+ * close the three file handles. */
 XMQTT_API bool xmqttJournalSlotDestroy(xmqttjournalslot* Slot);
 XRT_EXTERN_C_END
 #endif

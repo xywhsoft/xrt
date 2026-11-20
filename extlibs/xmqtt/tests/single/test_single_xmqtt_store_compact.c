@@ -2,6 +2,8 @@
 #define XMQTT_MODULE_XMQTT_STORE_WRITE
 #define XRT_MODULE_DIR_TEMP
 #define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_LOCK
 #include <xmqtt/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"

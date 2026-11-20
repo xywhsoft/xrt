@@ -1,4 +1,5 @@
 #include "test.h"
+#include "../examples/common/journal_files.h"
 #include "../examples/common/client_peer.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
@@ -10,6 +11,7 @@ typedef struct onlinefixture {
     xroot Root;
     xmqttjournalconfig Journal;
     xmqttstorestateconfig State;
+    xmqttjournalslotfiles Files;
     xmqttjournalslot* Slot;
     xtaskpool* Pool;
     xmqttstorewrite* Writer;
@@ -39,7 +41,7 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
     X->Journal.Version=V;X->Journal.Generation=1;X->Journal.PayloadSchema=XMQTT_STORE_DELTA_SCHEMA;
     X->Journal.MaxTransactionBytes=8192;
     if(FileBytes)X->Journal.MaxFileBytes=FileBytes;
-    check(xmqttJournalSlotCreate(X->Root,&X->Journal,&X->Slot)==XMQTT_JOURNAL_DONE,"create native selector");
+    check(mqttExampleOpenNativeSlot(X->Root,&X->Journal,true,&X->Files,&X->Slot)==XMQTT_JOURNAL_DONE,"create native selector");
     xmqttStoreStateConfigInit(&X->State);
     X->State.Binding=X->Journal.Binding;X->State.Generation=1;X->State.Delta.Version=V;
     X->State.ClientId=XRT_STR_LITERAL("online");
@@ -86,7 +88,7 @@ static xmqttstorestateinfo reopen(onlinefixture* X,uint64 Generation)
 {
     check(xmqttStoreWriteDestroy(X->Writer),"retire worker before reopening selector");
     X->Writer=NULL;
-    check(xmqttJournalSlotDestroy(X->Slot)&&xmqttJournalSlotOpen(X->Root,&X->Journal,&X->Slot)==XMQTT_JOURNAL_DONE,
+    check(mqttExampleCloseNativeSlot(X->Slot,&X->Files)&&mqttExampleOpenNativeSlot(X->Root,&X->Journal,false,&X->Files,&X->Slot)==XMQTT_JOURNAL_DONE,
         "fresh control owner");
     xmqttjournalslotinfo S;
     check(xmqttJournalSlotInfo(X->Slot,&S)&&S.Generation==Generation,"precise selected generation on cold reopen");
@@ -105,7 +107,7 @@ static xmqttstorestateinfo reopen(onlinefixture* X,uint64 Generation)
 }
 static void end(onlinefixture* X)
 {
-    check(xmqttStoreWriteDestroy(X->Writer)&&xmqttJournalSlotDestroy(X->Slot),"retire writer/slot");
+    check(xmqttStoreWriteDestroy(X->Writer)&&mqttExampleCloseNativeSlot(X->Slot,&X->Files),"retire writer/slot");
     check(xrtTaskPoolClose(X->Pool)&&xrtTaskPoolWaitFor(X->Pool,10000)==XWAIT_OK&&xrtTaskPoolDestroy(X->Pool),"retire storage host");
     for(size_t I=0;I<3;++I)check(xrtRootRemove(X->Root,Paths[I]),"delete exact fixture");
     check(xrtRootClose(X->Root)&&xrtDirRemove(X->Path),"release fixture directory");

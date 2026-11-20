@@ -2,6 +2,9 @@
 #define XMQTT_MODULE_XMQTT_JOURNAL_WORKER
 #define XRT_MODULE_DIR_TEMP
 #define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_VFS
 #include <xmqtt/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"

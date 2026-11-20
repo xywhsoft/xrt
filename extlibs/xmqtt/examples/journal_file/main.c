@@ -1,4 +1,4 @@
-#include <xmqtt/journal_file.h>
+#include "../common/journal_files.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -17,9 +17,9 @@ int main(int Argc,char** Argv)
     xmqttJournalConfigInit(&C);
     C.Binding=XRT_BYTES_LITERAL("example/broker/principal/slot");
     C.Generation=1;
+    xfile LockedFile=NULL;
     xmqttjournal* Journal=NULL;
-    xmqttjournalstatus Status=Create?xmqttJournalCreateLocked(Root,Argv[3],&C,&Journal):
-                                    xmqttJournalOpenLocked(Root,Argv[3],&C,&Journal);
+    xmqttjournalstatus Status=mqttExampleOpenNativeJournal(Root,Argv[3],&C,Create,&LockedFile,&Journal);
     bool RootClosed=xrtRootClose(Root);
     if(Status==XMQTT_JOURNAL_BUSY){
         puts("Journal already has an owner");
@@ -38,9 +38,6 @@ int main(int Argc,char** Argv)
         OK=xmqttJournalAppend(Journal,XRT_BYTES_LITERAL("opaque demo transaction"),&Sequence)==XMQTT_JOURNAL_DONE;
         if(OK)printf("Committed transaction %llu\n",(unsigned long long)Sequence);
     }
-    if(!xmqttJournalDestroy(Journal)){
-        (void)xmqttJournalDestroy(Journal);
-        return 1;
-    }
+    if(!mqttExampleCloseNativeJournal(Journal,&LockedFile))return 1;
     return OK?0:1;
 }

@@ -1,4 +1,5 @@
 #include "../../../dev/bench/bench_common.h"
+#include "../examples/common/journal_files.h"
 #include <xmqtt/store_compact_online.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
@@ -260,10 +261,11 @@ int main(int Argc,char** Argv)
     SC.MaxOutgoing=SC.MaxIncoming=0;
     SC.MaxInbox=1;
     SC.MaxTransactions=Cap?Cap:Count+1;
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
     xmqttjournal* Journal=NULL;
     xmqttstorestate* State=NULL;
-    require(xmqttJournalSlotCreate(Root,&JC,&Slot)==XMQTT_JOURNAL_DONE&&
+    require(mqttExampleOpenNativeSlot(Root,&JC,true,&Files,&Slot)==XMQTT_JOURNAL_DONE&&
         xmqttJournalSlotOpenCurrent(Slot,&Journal)==XMQTT_JOURNAL_DONE&&
         xmqttStoreStateRecover(Journal,&SC,&State)==XMQTT_STORE_DONE,"recover empty native slot");
     xtaskpoolconfig PoolConfig={.Threads=1,.QueueLimit=8};
@@ -345,11 +347,11 @@ int main(int Argc,char** Argv)
     require(Info.State.Transactions==ExpectedTransactions&&Info.Worker.Journal.Sequence==ExpectedTransactions,
         "check selected journal sequence after foreground commits");
 
-    require(xmqttStoreWriteDestroy(Writer)&&xmqttJournalSlotDestroy(Slot)&&
+    require(xmqttStoreWriteDestroy(Writer)&&mqttExampleCloseNativeSlot(Slot,&Files)&&
         xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,10000)==XWAIT_OK&&xrtTaskPoolDestroy(Pool),
         "release native writer and task pool");
     double Reopen=xrtTimer();
-    require(xmqttJournalSlotOpen(Root,&JC,&Slot)==XMQTT_JOURNAL_DONE,"cold reopen selector");
+    require(mqttExampleOpenNativeSlot(Root,&JC,false,&Files,&Slot)==XMQTT_JOURNAL_DONE,"cold reopen selector");
     xmqttjournalslotinfo Selected;
     require(xmqttJournalSlotInfo(Slot,&Selected)&&Selected.Generation==Rotations+1,"recover selected generation");
     SC.Generation=Selected.Generation;
@@ -360,7 +362,7 @@ int main(int Argc,char** Argv)
     require(xmqttStoreStateInfo(State,&Recovered)&&Recovered.LastKey==R.LastKey&&
         Recovered.Transactions==ExpectedTransactions&&!Recovered.Inbox,"verify final recovered cut");
     xmqttStoreStateDestroy(State);
-    require(xmqttJournalDestroy(Journal)&&xmqttJournalSlotDestroy(Slot),"retire recovery owners");
+    require(xmqttJournalDestroy(Journal)&&mqttExampleCloseNativeSlot(Slot,&Files),"retire recovery owners");
 
     qsort(All,(size_t)Count,sizeof(*All),compare);
     qsort(Committed,R.Committed,sizeof(*Committed),compare);

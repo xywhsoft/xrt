@@ -96,9 +96,6 @@
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL 1
 #endif
-#if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE 1
-#endif
 #if !defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT 1
 #endif
@@ -242,9 +239,6 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL 1
-#endif
-#if !defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
-#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_SLOT 1
@@ -1547,12 +1541,6 @@
 #endif
 #if !defined(XRT_MODULE_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE 1
-#endif
-#if !defined(XRT_MODULE_FILE_LOCK)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK 1
-#endif
-#if !defined(XRT_MODULE_FILE_ROOT)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT 1
 #endif
 #if !defined(XRT_MODULE_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE 1
@@ -3089,9 +3077,6 @@
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#endif
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
@@ -3134,24 +3119,8 @@
 #ifndef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
 #define XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#endif
-#endif
-
-/* xmqtt_journal_file 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
-#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#endif
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL
 #define XMQTT_MODULE_XMQTT_JOURNAL
-#endif
-#ifndef XRT_MODULE_FILE_LOCK
-#define XRT_MODULE_FILE_LOCK
-#endif
-#ifndef XRT_MODULE_FILE_ROOT
-#define XRT_MODULE_FILE_ROOT
 #endif
 #endif
 
@@ -6321,66 +6290,38 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xmqtt/include/xmqtt/journal_file.h */
-/* ========================================================================== */
-
-#ifndef XMQTT_JOURNAL_FILE_H
-#define XMQTT_JOURNAL_FILE_H
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE) && \
-    (!defined(XMQTT_FEATURE_XMQTT_JOURNAL) || !defined(XRT_FEATURE_FILE_ROOT) || !defined(XRT_FEATURE_FILE_LOCK))
-#error "The locked journal requires the MQTT journal, native root and file locks"
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
-XRT_EXTERN_C_BEGIN
-/* Open an existing regular file relative to the borrowed Root. Names and
- * root lifetime follow xrtRootFileOpen. The final component must be a regular
- * file in a trusted, stable namespace. Provision the name durably beforehand.
- * The new native handle locks before any journal data read, replay or write.
- * BUSY leaves Journal and the committed data unchanged; native contention
- * may notify an error handler, while the ambient error is restored.
- * Success transfers the locked handle to Journal and downstream owners.
- * Physical Destroy releases it. A close error leaves a poisoned Journal
- * that can be destroyed again to finish disposal. The Root is borrowed
- * only during construction. Windows and Linux with native lock support. */
-XMQTT_API xmqttjournalstatus xmqttJournalOpenLocked(xroot Root,cstr Path,
-    const xmqttjournalconfig* Config,xmqttjournal** Journal);
-/* Initialize a pre-existing empty file under the same ownership lock.
- * A failed initialization can leave partial bytes for explicit recovery. */
-XMQTT_API xmqttjournalstatus xmqttJournalCreateLocked(xroot Root,cstr Path,
-    const xmqttjournalconfig* Config,xmqttjournal** Journal);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt/journal_slot.h */
 /* ========================================================================== */
 
 #ifndef XMQTT_JOURNAL_SLOT_H
 #define XMQTT_JOURNAL_SLOT_H
-#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
-#error "Journal slot rotation requires the locked MQTT journal"
+#if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT) && !defined(XMQTT_FEATURE_XMQTT_JOURNAL)
+#error "Journal slot rotation requires the MQTT journal"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
 typedef struct xmqttjournalslot xmqttjournalslot;
+typedef struct xmqttjournalslotfiles {
+    xfile Control,Data[2];
+} xmqttjournalslotfiles;
 typedef struct xmqttjournalslotinfo {
     uint64 Generation,PublishedSequence;
     xmqttjournaleffect Effect;
     bool Poisoned,JournalOpen,Prepared;
 } xmqttjournalslotinfo;
 XRT_EXTERN_C_BEGIN
-/* Borrow the anchored directory until Destroy. It contains three distinct
- * regular files: journal.slot, journal.0 and journal.1. Provision these names
- * durably and keep them stable. Create requires all three files empty.
- * Config.Generation is the exact initial generation for both constructors.
- * Config and Binding are copied. The two data-file limits apply independently.
- * One control-file lock excludes cooperating owners until physical Destroy.
- * Serialize control operations with the Journal's lifecycle. Functions that
- * touch files can block and belong outside network callbacks. BUSY preserves
- * the output. A failed Create can leave an incomplete initial installation. */
-XMQTT_API xmqttjournalstatus xmqttJournalSlotCreate(xroot Root,const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
-XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(xroot Root,const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
+/* Borrow three handles referring to distinct files through Slot Destroy.
+ * Supply exclusive access to their contents and synchronize their initial
+ * publication in the APP. Control needs synchronous absolute read/write,
+ * stat and flush; both data files additionally require resize.
+ * Create requires three empty files. Config.Generation is the exact initial
+ * generation for both constructors. Handles, Config and Binding are copied.
+ * The two data-file limits apply independently. Failed construction leaves
+ * the output untouched and the handles with the APP. Initial writes can leave
+ * incomplete bytes. File I/O belongs outside network callbacks. */
+XMQTT_API xmqttjournalstatus xmqttJournalSlotCreate(const xmqttjournalslotfiles* Files,
+    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
+XMQTT_API xmqttjournalstatus xmqttJournalSlotOpen(const xmqttjournalslotfiles* Files,
+    const xmqttjournalconfig* Config,xmqttjournalslot** Slot);
 /* Open the exact selected generation. Replay all records through EMPTY to
  * verify its complete history and the published prefix. The returned Journal
  * may transfer into the existing JournalWorker. Join and destroy it before
@@ -6403,8 +6344,8 @@ XMQTT_API xmqttjournalstatus xmqttJournalSlotPrepare(xmqttjournalslot* Slot,xmqt
  * can fail after COMMITTED. Recover only the selected generation. */
 XMQTT_API xmqttjournalstatus xmqttJournalSlotPublish(xmqttjournalslot* Slot,xmqttjournal* Journal);
 XMQTT_API bool xmqttJournalSlotInfo(xmqttjournalslot* Slot,xmqttjournalslotinfo* Info);
-/* With a live Journal, refuse and retain ownership. On a native close error,
- * retry Destroy to free the poisoned wrapper. */
+/* Refuses while a child or an operation is live. On success the APP can
+ * close the three file handles. */
 XMQTT_API bool xmqttJournalSlotDestroy(xmqttjournalslot* Slot);
 XRT_EXTERN_C_END
 #endif
@@ -7319,10 +7260,6 @@ XRT_EXTERN_C_END
 #undef XMQTT_FEATURE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE)
-#undef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT)
 #undef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
@@ -7514,10 +7451,6 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL)
 #undef XMQTT_MODULE_XMQTT_JOURNAL
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE)
-#undef XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_FILE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_JOURNAL_SLOT)
 #undef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
@@ -9255,14 +9188,6 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK)
-#undef XRT_MODULE_FILE_LOCK
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_LOCK
-#endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT)
-#undef XRT_MODULE_FILE_ROOT
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_ROOT
-#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE)
 #undef XRT_MODULE_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE
@@ -9618,9 +9543,6 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #define XMQTT_MODULE_XMQTT_RECONNECT_STORE
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#endif
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #define XMQTT_MODULE_XMQTT_JOURNAL_SLOT
 #endif
@@ -9663,24 +9585,8 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
 #define XMQTT_FEATURE_XMQTT_JOURNAL_SLOT
 #endif
-#ifndef XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#define XMQTT_MODULE_XMQTT_JOURNAL_FILE
-#endif
-#endif
-
-/* xmqtt_journal_file 及其直接依赖。 */
-#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_JOURNAL_FILE)
-#ifndef XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#define XMQTT_FEATURE_XMQTT_JOURNAL_FILE
-#endif
 #ifndef XMQTT_MODULE_XMQTT_JOURNAL
 #define XMQTT_MODULE_XMQTT_JOURNAL
-#endif
-#ifndef XRT_MODULE_FILE_LOCK
-#define XRT_MODULE_FILE_LOCK
-#endif
-#ifndef XRT_MODULE_FILE_ROOT
-#define XRT_MODULE_FILE_ROOT
 #endif
 #endif
 

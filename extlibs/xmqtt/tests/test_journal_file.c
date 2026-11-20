@@ -1,5 +1,5 @@
 #include "test.h"
-#include <xmqtt/journal_file.h>
+#include "../examples/common/journal_files.h"
 #include <xmqtt/store_write.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
@@ -29,11 +29,12 @@ static xmqttjournalconfig config(xmqttversion Version,uint32 Schema)
 
 static void busy(xroot Root,const char* Name,const xmqttjournalconfig* C)
 {
+    xfile LockedFile=NULL;
     xmqttjournal* Out=(xmqttjournal*)(uintptr_t)1;
     xrtSetErrorKind(XERR_TIMEOUT);
     const xerror* Ambient=xrtGetError();
-    status(xmqttJournalOpenLocked(Root,Name,C,&Out),XMQTT_JOURNAL_BUSY,"same object is still locked");
-    testRequire(Out==(xmqttjournal*)(uintptr_t)1&&xrtGetError()==Ambient,
+    status(mqttExampleOpenNativeJournal(Root,Name,C,false,&LockedFile,&Out),XMQTT_JOURNAL_BUSY,"same object is still locked");
+    testRequire(Out==(xmqttjournal*)(uintptr_t)1&&!LockedFile&&xrtGetError()==Ambient,
                 "busy preserves output and ambient error");
     xrtClearError();
 }
@@ -62,10 +63,11 @@ static void attempts(xroot Root,const xmqttjournalconfig* C)
         xallocationscope Scope={0};
         testRequire(xrtAllocationBudgetCreate(Limits[I],&Budget)&&xrtAllocationBudgetEnter(Budget,&Scope),
                     "bounded construction allocation scope");
+        xfile LockedFile=NULL;
         xmqttjournal* Journal=(xmqttjournal*)(uintptr_t)1;
-        xmqttjournalstatus S=xmqttJournalOpenLocked(Root,fileName,C,&Journal);
+        xmqttjournalstatus S=mqttExampleOpenNativeJournal(Root,fileName,C,false,&LockedFile,&Journal);
         testRequire(xrtAllocationBudgetLeave(&Scope),"leave construction scope");
-        if(S==XMQTT_JOURNAL_DONE)testRequire(xmqttJournalDestroy(Journal),"owned file under allocation scope");
+        if(S==XMQTT_JOURNAL_DONE)testRequire(mqttExampleCloseNativeJournal(Journal,&LockedFile),"owned file under allocation scope");
         else testRequire((S==XMQTT_JOURNAL_IO||S==XMQTT_JOURNAL_ERROR)&&Journal==(xmqttjournal*)(uintptr_t)1,
                          "allocation refusal preserves output");
         xrtClearError();
@@ -73,9 +75,9 @@ static void attempts(xroot Root,const xmqttjournalconfig* C)
         testRequire(xrtAllocationBudgetInfo(Budget,&Info)&&!Info.LiveBytes&&!Info.LiveCount,
                     "no failed-construction allocation or native wrapper held");
         xrtAllocationBudgetFree(Budget);
-        status(xmqttJournalOpenLocked(Root,fileName,C,&Journal),XMQTT_JOURNAL_DONE,"lock available after failed open");
+        status(mqttExampleOpenNativeJournal(Root,fileName,C,false,&LockedFile,&Journal),XMQTT_JOURNAL_DONE,"lock available after failed open");
         replay(Journal);
-        testRequire(xmqttJournalDestroy(Journal),"release recovery probe");
+        testRequire(mqttExampleCloseNativeJournal(Journal,&LockedFile),"release recovery probe");
     }
 }
 
@@ -98,8 +100,9 @@ static void storeOwner(xroot Root,xmqttversion Version)
     xfile File=xrtRootFileOpen(Root,Name,&Options);
     testRequire(File&&xrtClose(File),"empty typed native file");
     xmqttjournalconfig C=config(Version,XMQTT_STORE_DELTA_SCHEMA);
+    xfile LockedFile=NULL;
     xmqttjournal* Journal=NULL;
-    status(xmqttJournalCreateLocked(Root,Name,&C,&Journal),XMQTT_JOURNAL_DONE,"initialize typed owned journal");
+    status(mqttExampleOpenNativeJournal(Root,Name,&C,true,&LockedFile,&Journal),XMQTT_JOURNAL_DONE,"initialize typed owned journal");
 
     xmqttstorestateconfig SC;
     xmqttStoreStateConfigInit(&SC);
@@ -139,11 +142,13 @@ static void storeOwner(xroot Root,xmqttversion Version)
     testRequire(xmqttStoreWriteClose(Writer)&&xmqttStoreWriteWaitFor(Writer,5000)==XWAIT_OK,
                 "join native work before releasing the owner");
     busy(Root,Name,&C);
-    testRequire(xmqttStoreWriteDestroy(Writer),"destroy releases native open and lock");
+    testRequire(xmqttStoreWriteDestroy(Writer),"destroy releases the logical Writer and Journal");
+    busy(Root,Name,&C);
+    testRequire(mqttExampleCloseJournalFile(&LockedFile),"APP releases the file after Writer retirement");
     testRequire(xrtTaskPoolClose(Pool)&&xrtTaskPoolWaitFor(Pool,5000)==XWAIT_OK&&xrtTaskPoolDestroy(Pool),
                 "retire borrowed pool");
     testRequire(Result->Effect==XMQTT_JOURNAL_COMMITTED,"retained result does not own the native file");
-    status(xmqttJournalOpenLocked(Root,Name,&C,&Journal),XMQTT_JOURNAL_DONE,"reacquire after Writer destroy");
+    status(mqttExampleOpenNativeJournal(Root,Name,&C,false,&LockedFile,&Journal),XMQTT_JOURNAL_DONE,"reacquire after Writer destroy");
     SC.WallMilliseconds=2000;
     testRequire(xmqttStoreStateRecover(Journal,&SC,&State)==XMQTT_STORE_DONE,"fresh typed recovery");
     xmqttstorestateinfo Info;
@@ -151,7 +156,7 @@ static void storeOwner(xroot Root,xmqttversion Version)
                 "typed history preserved by the owner transition");
     xmqttStoreStateDestroy(State);
     xrtFutureDestroy(Future);
-    testRequire(xmqttJournalDestroy(Journal)&&xrtRootRemove(Root,Name),"release typed fixture");
+    testRequire(mqttExampleCloseNativeJournal(Journal,&LockedFile)&&xrtRootRemove(Root,Name),"release typed fixture");
 }
 
 static void local(xmqttversion Version)
@@ -160,20 +165,21 @@ static void local(xmqttversion Version)
     xroot Root=Directory?xrtRootOpen(Directory):NULL;
     testRequire(Root!=NULL,"anchored private fixture directory");
     xmqttjournalconfig C=config(Version,1);
+    xfile LockedFile=NULL;
     xmqttjournal* Journal=(xmqttjournal*)(uintptr_t)1;
-    status(xmqttJournalCreateLocked(Root,fileName,&C,&Journal),XMQTT_JOURNAL_IO,"missing name is not implicitly created");
+    status(mqttExampleOpenNativeJournal(Root,fileName,&C,true,&LockedFile,&Journal),XMQTT_JOURNAL_IO,"missing name is not implicitly created");
     testRequire(Journal==(xmqttjournal*)(uintptr_t)1,"failed constructor preserves output");
     xrtClearError();
 
     testRequire(xrtRootDirCreate(Root,"subdir",0700),"fixture directory entry");
-    status(xmqttJournalOpenLocked(Root,"subdir",&C,&Journal),XMQTT_JOURNAL_ERROR,
+    status(mqttExampleOpenNativeJournal(Root,"subdir",&C,false,&LockedFile,&Journal),XMQTT_JOURNAL_ERROR,
            "nonregular entries are rejected before open");
     testRequire(Journal==(xmqttjournal*)(uintptr_t)1&&xrtRootRemove(Root,"subdir"),
                 "directory failure preserves output");
     xrtClearError();
 
     provision(Root);
-    status(xmqttJournalCreateLocked(Root,fileName,&C,&Journal),XMQTT_JOURNAL_DONE,"lock before initialization");
+    status(mqttExampleOpenNativeJournal(Root,fileName,&C,true,&LockedFile,&Journal),XMQTT_JOURNAL_DONE,"lock before initialization");
     busy(Root,fileName,&C);
     busy(Root,aliasName,&C);
     testRequire(xrtRootClose(Root),"borrowed root can close after construction");
@@ -181,10 +187,10 @@ static void local(xmqttversion Version)
     Root=xrtRootOpen(Directory);
     testRequire(Root!=NULL,"independent native root");
     busy(Root,aliasName,&C);
-    testRequire(xmqttJournalDestroy(Journal),"owner physically closes");
+    testRequire(mqttExampleCloseNativeJournal(Journal,&LockedFile),"owner physically closes");
     xmqttjournalconfig Other=C;
     Other.Generation++;
-    status(xmqttJournalOpenLocked(Root,fileName,&Other,&Journal),XMQTT_JOURNAL_CORRUPT,
+    status(mqttExampleOpenNativeJournal(Root,fileName,&Other,false,&LockedFile,&Journal),XMQTT_JOURNAL_CORRUPT,
            "descriptor mismatch closes the newly locked handle");
     xrtClearError();
     attempts(Root,&C);
@@ -201,12 +207,13 @@ static int process(int Argc,char** Argv)
     xroot Root=xrtRootOpen(Argv[2]);
     testRequire(Root!=NULL,"existing process fixture root");
     xmqttjournalconfig C=config(!strcmp(Argv[4],"5")?XMQTT_VERSION_5:XMQTT_VERSION_311,1);
+    xfile LockedFile=NULL;
     xmqttjournal* Journal=NULL;
     if(!strcmp(Mode,"busy")){
         busy(Root,Argv[3],&C);
         puts("BUSY");
     }else if(!strcmp(Mode,"hold")){
-        xmqttjournalstatus S=xmqttJournalCreateLocked(Root,Argv[3],&C,&Journal);
+        xmqttjournalstatus S=mqttExampleOpenNativeJournal(Root,Argv[3],&C,true,&LockedFile,&Journal);
         if(S==XMQTT_JOURNAL_BUSY){
             puts("BUSY");
             testRequire(xrtRootClose(Root),"contender root close");
@@ -218,11 +225,11 @@ static int process(int Argc,char** Argv)
         fflush(stdout);
         (void)getchar();
     }else if(!strcmp(Mode,"recover")){
-        status(xmqttJournalOpenLocked(Root,Argv[3],&C,&Journal),XMQTT_JOURNAL_DONE,"fresh process reclaims file");
+        status(mqttExampleOpenNativeJournal(Root,Argv[3],&C,false,&LockedFile,&Journal),XMQTT_JOURNAL_DONE,"fresh process reclaims file");
         replay(Journal);
         puts("RECOVERED");
     }else return 2;
-    testRequire(xmqttJournalDestroy(Journal)&&xrtRootClose(Root),"process cleanup");
+    testRequire(mqttExampleCloseNativeJournal(Journal,&LockedFile)&&xrtRootClose(Root),"process cleanup");
     return 0;
 }
 #endif

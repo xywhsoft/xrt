@@ -1,30 +1,23 @@
-# Locked native MQTT journal
+# APP example for a locked native MQTT journal
 
-`XMQTT_MODULE_XMQTT_JOURNAL_FILE` opens a native Journal through an anchored
-XRT directory. Use an existing regular file in a trusted directory. Provision
-the directory entry durably before opening it. The last path component must be
-a file, with symbolic links rejected. The application coordinates any
-namespace changes across all processes that use the store.
+The [example helper](../examples/common/journal_files.h) opens an existing
+regular file through an anchored XRT directory and acquires an exclusive
+open-file lock before calling `xmqttJournalCreate` or `xmqttJournalOpen`.
+Provision the directory entry durably in a trusted directory. The helper
+rejects symbolic links in the final component. Coordinate replacement or
+removal of the entry across all processes that use the store.
 
-`xmqttJournalCreateLocked` initializes a pre-existing empty file.
-`xmqttJournalOpenLocked` verifies an existing log. Both obtain an exclusive
-open-file lock before examining journal bytes. Another process, another open
-in the same process, and an independent hard-link alias contend for that lock.
-On `XMQTT_JOURNAL_BUSY`, the caller's output and committed history are
-preserved. Process-associated Linux record locks can be lost on an unrelated
-close. This API uses an open-file-description lock on Linux and a native
-handle lock on Windows. Use the locked constructors consistently for all
-writers. Replacing or removing a data file while it is owned violates the
-namespace contract.
+Other processes, independent opens within the same process, and hard-link
+aliases contend for the same lock. The helper returns `XMQTT_JOURNAL_BUSY`
+on contention and preserves the caller's output and current error. XRT uses
+an open-file-description lock on Linux and a native handle lock on Windows.
 
-The root is borrowed during construction. The locked native handle moves
-with the Journal to JournalWorker or Store Writer. Close and Wait retire the
-worker's I/O while the owner continues to hold the lock. Destroy closes the
-file. Retained commit results can outlive that ownership. If native close
-reports an error, the poisoned Journal or its enclosing owner can be
-destroyed again to finish disposal.
+The APP owns the open file and can close the directory after construction.
+If a JournalWorker or Store Writer takes the Journal, the APP keeps the file
+open until that worker's Destroy succeeds. Retained commit results can outlive
+the worker and the file. Handle close errors in the APP after retirement.
 
-Build the module, tests and example.
+Build the Journal, APP example and tests.
 
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_journal_file_tests

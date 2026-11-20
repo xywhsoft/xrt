@@ -170,7 +170,6 @@
         "xmqtt_client_store_tls",
         "xmqtt_client_store_ws",
         "xmqtt_reconnect_store",
-        "xmqtt_journal_file",
         "xmqtt_journal_slot",
         "xmqtt_store_compact",
         "xmqtt_store_compact_online"
@@ -2833,6 +2832,8 @@
       "state": "implemented",
       "feature": null,
       "depends": [
+        "file_root",
+        "file_lock",
         "xmqtt_reconnect_subscriptions",
         "xmqtt_reconnect_store",
         "xmqtt_client_dial",
@@ -2857,36 +2858,13 @@
       "docs": []
     },
     {
-      "name": "xmqtt_journal_file",
-      "state": "developing",
-      "feature": "XMQTT_FEATURE_XMQTT_JOURNAL_FILE",
-      "depends": [
-        "xmqtt_journal",
-        "file_lock",
-        "file_root"
-      ],
-      "public_headers": [
-        "extlibs/xmqtt/include/xmqtt/journal_file.h"
-      ],
-      "internal_headers": [],
-      "sources": [],
-      "tests": [],
-      "single_tests": [],
-      "examples": [
-        "extlibs/xmqtt/examples/journal_file/main.c"
-      ],
-      "benchmarks": [],
-      "docs": [
-        "extlibs/xmqtt/docs/journal_file.md",
-        "extlibs/xmqtt/docs/api/reference.md"
-      ]
-    },
-    {
       "name": "xmqtt_journal_file_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
-        "xmqtt_journal_file",
+        "file_root",
+        "file_lock",
+        "xmqtt_journal",
         "xmqtt_store_write",
         "dir_temp",
         "memory_stats"
@@ -2904,14 +2882,16 @@
         "extlibs/xmqtt/examples/journal_file/main.c"
       ],
       "benchmarks": [],
-      "docs": []
+      "docs": [
+        "extlibs/xmqtt/docs/journal_file.md"
+      ]
     },
     {
       "name": "xmqtt_journal_slot",
       "state": "developing",
       "feature": "XMQTT_FEATURE_XMQTT_JOURNAL_SLOT",
       "depends": [
-        "xmqtt_journal_file"
+        "xmqtt_journal"
       ],
       "public_headers": [
         "extlibs/xmqtt/include/xmqtt/journal_slot.h"
@@ -2920,9 +2900,7 @@
       "sources": [],
       "tests": [],
       "single_tests": [],
-      "examples": [
-        "extlibs/xmqtt/examples/journal_slot/main.c"
-      ],
+      "examples": [],
       "benchmarks": [],
       "docs": [
         "extlibs/xmqtt/docs/journal_slot.md",
@@ -2934,6 +2912,9 @@
       "state": "implemented",
       "feature": null,
       "depends": [
+        "file_root",
+        "file_lock",
+        "vfs",
         "xmqtt_journal_slot",
         "xmqtt_journal_worker",
         "dir_temp",
@@ -2970,9 +2951,7 @@
       "sources": [],
       "tests": [],
       "single_tests": [],
-      "examples": [
-        "extlibs/xmqtt/examples/store_compact/main.c"
-      ],
+      "examples": [],
       "benchmarks": [],
       "docs": [
         "extlibs/xmqtt/docs/store_compact.md"
@@ -2983,6 +2962,8 @@
       "state": "implemented",
       "feature": null,
       "depends": [
+        "file_root",
+        "file_lock",
         "xmqtt_store_compact",
         "xmqtt_store_write",
         "dir_temp",
@@ -2997,9 +2978,7 @@
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_store_compact.c"
       ],
-      "examples": [
-        "extlibs/xmqtt/examples/store_compact/main.c"
-      ],
+      "examples": [],
       "benchmarks": [],
       "docs": []
     },
@@ -3020,12 +2999,8 @@
       "sources": [],
       "tests": [],
       "single_tests": [],
-      "examples": [
-        "extlibs/xmqtt/examples/store_compact/main.c"
-      ],
-      "benchmarks": [
-        "extlibs/xmqtt/bench/bench_store_capacity.c"
-      ],
+      "examples": [],
+      "benchmarks": [],
       "docs": [
         "extlibs/xmqtt/docs/store_compact_online.md"
       ]
@@ -3035,6 +3010,8 @@
       "state": "implemented",
       "feature": null,
       "depends": [
+        "file_root",
+        "file_lock",
         "xmqtt_store_compact_online",
         "xmqtt_client_store",
         "dir_temp",
@@ -3052,7 +3029,9 @@
       "examples": [
         "extlibs/xmqtt/examples/store_compact/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_store_capacity.c"
+      ],
       "docs": []
     }
   ]

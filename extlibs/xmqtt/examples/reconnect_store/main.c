@@ -3,6 +3,7 @@
 #include <xrt/time.h>
 #if defined(XMQTT_FEATURE_XMQTT_STORE_COMPACT_ONLINE) && defined(XMQTT_FEATURE_XMQTT_STORE_SESSION)
 #define RECONNECT_EXAMPLE_COMPACT
+#include "../common/journal_files.h"
 #include <xmqtt/store_compact_online.h>
 #include <xmqtt/store_session.h>
 #include <errno.h>
@@ -486,6 +487,7 @@ int main(int Argc,char** Argv)
     xfile File=NULL;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     xroot Root=NULL;
+    xmqttjournalslotfiles Files={0};
     xmqttjournalslot* Slot=NULL;
 #endif
     xmqttjournal* Journal=NULL;
@@ -502,7 +504,7 @@ int main(int Argc,char** Argv)
     if(Directory){
         Root=xrtRootOpen(Directory);
         if(!Root)goto Done;
-        xmqttjournalstatus Open=Cut?xmqttJournalSlotCreate(Root,&JC,&Slot):xmqttJournalSlotOpen(Root,&JC,&Slot);
+        xmqttjournalstatus Open=mqttExampleOpenNativeSlot(Root,&JC,Cut,&Files,&Slot);
         xmqttjournalslotinfo Selected;
         if(Open!=XMQTT_JOURNAL_DONE||!xmqttJournalSlotInfo(Slot,&Selected)||
            Selected.Generation!=(Cut?1u:2u))goto Done;
@@ -632,10 +634,7 @@ Done:
         OK=false;
     }
 #if defined(RECONNECT_EXAMPLE_COMPACT)
-    if(!xmqttJournalSlotDestroy(Slot)){
-        (void)xmqttJournalSlotDestroy(Slot);
-        OK=false;
-    }
+    if(!mqttExampleCloseNativeSlot(Slot,&Files))OK=false;
     if(Root&&!xrtRootClose(Root))OK=false;
 #endif
     if(File&&(!xrtClose(File)||!xrtFileDelete(Path)))OK=false;

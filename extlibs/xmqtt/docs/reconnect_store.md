@@ -108,7 +108,8 @@ and [MQTT 3.1.1 §4.4](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1
 With the complete `xmqtt` feature set the example also accepts
 `compact-cut DIRECTORY` and `compact-resume DIRECTORY`. These modes are
 driven by the interop runner. It provisions the three journal slot filenames
-in a private directory and tells the first publisher to compact while one
+in a private directory. The APP opens and locks those files and gives the Slot
+borrowed handles. The runner tells the first publisher to compact while one
 QoS 2 acknowledgement is withheld. After the selector has committed, the
 runner terminates the process. The replacement opens the selected slot,
 recovers the typed State, restores a fresh Session, and connects with the

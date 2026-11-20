@@ -17935,3 +17935,37 @@ Raw evidence is under
 Ordinary maturity passes. Strict release still reports 41 developing
 MQTT modules. The concrete storage backends, native Linux qualification,
 controlled performance comparisons and 72-hour mixed loads remain open.
+
+## 2026-11-20 MQTT APP ownership of journal files
+
+The APP example now opens native journal files, checks their identities and
+takes exclusive locks. It closes the handles after the final Journal, Writer or Slot is
+destroyed. The native slot example locks all three files for the entire
+lifetime. The optional slot takes three borrowed synchronous XRT file
+handles and can use the same VFS interface as the single-file Journal.
+The library still validates records and publishes the durable selector.
+Removed the native locked constructors and the `xmqtt_journal_file` module.
+Existing slot callers pass `xmqttjournalslotfiles` and keep the three
+handles alive. The two compaction APIs still use the slot.
+
+Windows x64 and Ubuntu under WSL each passed six suites with 27 modular,
+single-header and example binaries, 52 cross-process lock and recovery
+cases, 14 direct APP invocations and four capacity smoke cases. Each
+platform opened the previous commit's journal, switched generations with
+both revisions and recovered the selected records in both directions.
+The VFS test created, rotated and reopened a journal without native paths
+and checked that only the APP closes its handles. It passed WSL ASan/UBSan
+with leak detection.
+
+Static and shared consumer verification passed on both platforms without
+the XRT file-root and file-lock features. The first WSL package attempt
+linked against a Windows archive because both runs targeted the same
+output directory. The WSL packages were rebuilt and verified with their
+own output path.
+
+Raw evidence is under
+`out/service-extensions/scope-reduction-20261119/xmqtt-app-journal-files/`.
+Ordinary maturity passes. Strict release still reports 40 developing
+MQTT modules. APP extraction of rotation and compaction policy, native
+Linux qualification, controlled throughput and tail-latency comparisons
+and 72-hour mixed loads remain open.
