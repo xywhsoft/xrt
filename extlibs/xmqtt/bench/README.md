@@ -347,7 +347,8 @@ handle/descriptor snapshots. Round latency includes all six terminal
 outcomes and received deliveries, plus the retained replay when due.
 Pacing sleeps contribute to the run duration. Growth above the first
 resource sample is guarded at 64 MiB of private memory and 32 handles or
-descriptors per process.
+descriptors per process. The Windows supervisor and the C workload use
+QueryPerformanceCounter for elapsed time.
 
 For a 72-hour run use --seconds 259200. The native_72h result requires both
 live process resource ledgers, uninterrupted duration, graceful teardown

@@ -18343,3 +18343,15 @@ for persistent sessions and durable storage remain open. Reproduction
 is in [`bench/README.md`](../../extlibs/xmqtt/bench/README.md), and
 raw evidence is under
 `out/service-extensions/scope-reduction-20261119/xmqtt-mixed-soak/`.
+
+The first native 72-hour launch stopped at the supervisor's first
+timestamp check. Windows Python 3.12 was using GetTickCount64 with
+15.625 ms resolution while the C workload used QueryPerformanceCounter.
+A local clock probe measured shorter elapsed intervals from the coarse
+clock. The supervisor now uses QueryPerformanceCounter on Windows
+through perf_counter and logs observed and reported times on rejection.
+The duration and wall-clock continuity requirements remain enforced.
+The first failure is preserved. Twelve one-second Windows launches,
+a 35-second Windows run, and a 25-second WSL run passed with the revised
+clock. Separate broker kill runs on both platforms still failed
+qualification after verified progress.

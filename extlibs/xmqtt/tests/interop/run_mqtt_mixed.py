@@ -90,22 +90,25 @@ def watch(client, broker, args, state, append, start, wall):
     windows = 0
     final = None
     while (event := wait_output(inbox, 25 if last is None else 15)) is not None:
-        now = time.monotonic()
+        now = time.perf_counter()
         observe_clock(clock, now, last, start, wall, time.time())
         last = now
         require(final is None, "output after terminal client report")
         rounds, replays = event["rounds"], event["replays"]
-        require(isinstance(rounds, int) and rounds > 0 and replays == (rounds + 15) // 16 and
-                math.isfinite(event["seconds"]) and previous["seconds"] <= event["seconds"] <= now - start,
-                "client counters, retained replay or time ledger")
+        require(isinstance(rounds, int) and rounds > 0 and replays == (rounds + 15) // 16,
+                "client round or retained replay ledger")
+        elapsed = event["seconds"]
+        observed = now - start
+        require(math.isfinite(elapsed) and previous["seconds"] <= elapsed <= observed,
+                f"client time ledger: previous={previous['seconds']:.6f} client={elapsed:.6f} observer={observed:.6f}")
         if event.get("complete") is True:
             require(rounds == previous["rounds"] and event["deliveries"] == 6 * rounds + replays and
-                    event["seconds"] >= args.seconds and now - start >= args.seconds,
+                    elapsed >= args.seconds and observed >= args.seconds,
                     "incomplete client delivery ledger or duration")
             final = event
         else:
             require(event["samples"] == rounds - previous["rounds"] > 0 and
-                    event["seconds"] > previous["seconds"] and math.isfinite(event["cpu_seconds"]) and
+                    elapsed > previous["seconds"] and math.isfinite(event["cpu_seconds"]) and
                     event["cpu_seconds"] >= previous["cpu_seconds"], "nonadvancing client window")
             shares = ("shared0", "shared1")
             require(all(isinstance(event[name], int) and event[name] >= previous[name] for name in shares) and
@@ -123,7 +126,7 @@ def watch(client, broker, args, state, append, start, wall):
                         snapshot["handles"] - original["handles"] <= HANDLE_GROWTH, f"{name} resource growth limit")
             previous = event
             windows += 1
-        append(event | {"observer_seconds": now - start, "clock": clock["clock"]})
+        append(event | {"observer_seconds": observed, "clock": clock["clock"]})
         if args.kill_broker_after is not None and final is None and "fault" not in state and event["seconds"] >= args.kill_broker_after:
             require(broker.poll() is None, "broker exited before injected kill")
             broker.kill()
@@ -178,7 +181,8 @@ def main():
             ready = wait_output(status, 10)
             require(ready and isinstance(ready["port"], int) and 1 <= ready["port"] <= 65535, "broker readiness")
             state["port"] = ready["port"]
-            wall, clock = time.time(), time.monotonic()
+            # Use QPC on Windows, together with the native workload timer.
+            wall, clock = time.time(), time.perf_counter()
             client = start(["--load", str(ready["port"]), str(args.seconds), str(args.pause_ms)], "client")
             append(state)
             state["client"] = watch(client, broker, args, state, append, clock, wall)
