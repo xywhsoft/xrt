@@ -169,6 +169,21 @@ XCRON_API bool xcronSchedulerRemove(xcronscheduler* S, xcronjobid Job)
     return true;
 }
 
+static bool xcronScheduleOrderedWave(const xcronscheduler* S, const xcronslot* First)
+{
+    if (S->Jobs[S->Heap[S->Count - 1]].Next != First->Next) return false;
+    uint32 Serial = First->Serial;
+    for (uint32 I = 1; I < S->Count; ++I) {
+        const xcronslot* Job = &S->Jobs[S->Heap[I]];
+        if (Job->Next != First->Next || Job->Serial <= Serial ||
+            Job->Expression.Flags != First->Expression.Flags ||
+            memcmp(Job->Expression.Fields, First->Expression.Fields, sizeof(First->Expression.Fields)))
+            return false;
+        Serial = Job->Serial;
+    }
+    return true;
+}
+
 static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronpoll* Result)
 {
     xcronpoll Report = {0};
@@ -190,6 +205,16 @@ static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronp
             Previous = Search == XCRON_CALENDAR_FOUND ? &Job->Expression : NULL;
         }
         if (Previous) {
+            if (!Report.Count && S->Count > 1 && xcronScheduleOrderedWave(S, Job)) {
+                /* Equal future deadlines preserve the validated serial order. */
+                for (uint32 I = 0; I < S->Count; ++I) {
+                    xcronslot* Pending = &S->Jobs[S->Heap[I]];
+                    Pending->Next = Next;
+                    Pending->Callback(Pending->Context);
+                }
+                Report.Count = S->Count;
+                break;
+            }
             Job->Next = Next;
             xcronScheduleDown(S, 0, Slot);
         } else {

@@ -31,15 +31,17 @@ clock steps forward during a monotonic wait, signal Wake from the APP's system
 time-change or resume handler to bring the check forward.
 
 The heap preserves registration order for equal deadlines. An idle Poll reads
-one wall timestamp and inspects the heap minimum. Registration, removal and
-advancement update the heap in logarithmic time. Storage is allocated during
+one wall timestamp and inspects the heap minimum. Registration and removal
+use logarithmic heap updates. Storage is allocated during
 creation and the waiter is initialized on first use of blocking Wait. The
 dispatched APP callback controls execution cost.
 
 Dispatch reuses a successful next-time calculation for adjacent due jobs
 with equal compiled rule masks and day-star flags in the same wave.
-Each job advances its own heap entry and invokes its callback with its
-own context.
+Each job advances its own deadline and invokes its callback with its own
+context. When the entire heap has the same due time and rule and is
+already in registration order, the scheduler advances the wave in place.
+The optimized wave uses the same heap storage and next-time calculation.
 
 See [the two drive paths](../examples/scheduler/main.c),
 [APP-owned worker dispatch](../examples/executor/main.c), and

@@ -285,6 +285,27 @@ static void testDistinctRecurrences(void)
     }
 }
 
+static void testReusedSlotWaveOrder(void)
+{
+    beginScheduler(10500, 40.0, 4, XCRON_SECONDS6);
+    const xstrview EverySecond = XRT_STR_LITERAL("* * * * * *");
+    clockjob Jobs[] = {{.Marker = 1}, {.Marker = 2}, {.Marker = 3}, {.Marker = 4}, {.Marker = 5}};
+    xcronjobid Ids[4];
+    for (unsigned I = 0; I < 4; ++I)
+        testRequire(xcronSchedulerAdd(Clock.Scheduler, EverySecond, recordCallback, &Jobs[I], &Ids[I]),
+            "register equal-deadline job before slot reuse");
+    testRequire(xcronSchedulerRemove(Clock.Scheduler, Ids[1]), "remove the second job");
+    add(EverySecond, &Jobs[4]);
+
+    Clock.Wall = 11000;
+    const unsigned Expected[] = {1, 3, 4, 5};
+    xcronpoll Result;
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 4, 12000) && Clock.Called == 4 && !memcmp(Clock.Trace, Expected, sizeof(Expected)),
+        "equal deadlines dispatch in registration order after heap slot reuse");
+    end();
+}
+
 static void testLastInstant(void)
 {
     const xtime Last = INT64_MAX - INT64_MAX % 1000;
@@ -421,6 +442,7 @@ int main(void)
     testWaveSample();
     testClockFailure();
     testDistinctRecurrences();
+    testReusedSlotWaveOrder();
     testLastInstant();
     testMixedScheduler(XCRON_UNIX5);
     testMixedScheduler(XCRON_SECONDS6);

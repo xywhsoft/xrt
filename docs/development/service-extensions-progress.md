@@ -22136,3 +22136,41 @@ limits. Stable release tails and native Linux validation remain open.
 
 The raw journal, executable, launch receipt and independent audit are
 under `out/service-extensions/xcron-current-matched-6c0936d2/guarded-c696b498/`.
+
+## 2026-11-22 xcron in-place dispatch for ordered equal-deadline waves
+
+When every heap entry has the same due time and compiled recurrence, and
+heap positions already follow registration order, the scheduler computes the
+next deadline once and advances the wave in place. The check uses the heap's
+existing slots and the wave retains one sampled wall time. The regression
+removes the second of four equal-deadline jobs and reuses its slot, which
+leaves heap positions out of registration order. The reference callback
+order is 1, 3, 4, 5. A test-only build without the serial check fails that
+assertion.
+
+The fixed-clock comparison ran seven measured processes per variant and
+case, each with 4,096 measured waves. The short actual waits ran two
+measured processes of eight waves per variant and cohort. Both pinned
+logical CPU 4. The reader reconciled 367,116,288 measured fixed-clock
+callbacks across the whole-wave and first-callback tests and 69,632
+measured live callbacks, excluding the process warmups.
+
+| Environment | 1,024 equal rules, whole Poll P99 (us) | Poll entry to first callback P99 (us) | Live first-to-last callback span P99 (us) |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 55.1 to 5.4 | 0.2 to 2.7 | 104.0 to 6.75 |
+| Ubuntu WSL x64 | 67.9 to 6.0 | 0.4 to 3.0 | 110.65 to 7.15 |
+
+Single-job Poll and 64-active / 960-dormant Poll had equal whole-wave P99
+medians on each host. For 1,024 mixed rules, Windows Poll P99 was 137.7
+and 139.9 us, and WSL was 171.5 and 171.0 us. The short Windows
+1,024-job first wall lateness P99 was 252.5 and 699.0 us. Those short
+runs include native wake variation. The fixed-clock measurement shows
+the validation cost before the first callback separately from native
+waiting. The full native Windows and Linux release-tail gates remain open.
+
+Windows and WSL passed modular and single-header xcron tests and the
+static and shared scheduler package consumers. The WSL clock suite
+also passed ASan/UBSan with leak detection. Generated headers, API docs
+and ordinary maturity passed. Source and command receipts, raw results,
+mutation output and the independent audit are under
+`out/service-extensions/xcron-ordered-wave-544b50fc/`.
