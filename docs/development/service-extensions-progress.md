@@ -21667,3 +21667,36 @@ and then reached sanitizers. Commit 479d55ee sets a 60-minute limit on
 the two service matrices. The remote reevaluation is pending. Job
 metadata, artifact hashes, annotations and local test logs are under
 `out/service-extensions/native-ci-672040bc/`.
+
+## 2026-11-21 MQTT reliable-only fan-out traversal comparison
+
+A scratch broker based on 8e58fb7a tried skipping the best-effort
+traversal when all discovered wire modes require acknowledgements.
+Windows and Ubuntu WSL each passed the separate MQTT 5.0 and 3.1.1
+protocol peer and the 64-connection live-quota fixture. The pressure
+fixture verified atomic fan-out refusal and recovery of credit on
+PUBCOMP.
+
+The two brokers on each host used the same compiler flags, two workers,
+CPU masks, 1,024 outgoing publications per connection and an independent
+fixed-arrival observer. One publisher sent a 128-byte payload to 64
+wildcard subscribers. Both QoS 2 windows were 16. Five alternating
+pairs offered 600 QoS 2 publications per second for 3,600 offers each.
+Three alternating QoS 0 control pairs offered 400 per second. The
+Windows endurance runs stayed active. All 32 samples verified 86,400
+measured publications, 5,529,600 deliveries and 72,000 QoS 2 terminal
+publisher confirmations.
+
+| QoS 2 host | Broker CPU seconds before / candidate | Delivery P99 in us before / candidate | Candidate CPU wins |
+| --- | ---: | ---: | ---: |
+| Native Windows | 4.094 / 3.953 | 686.1 / 675.1 | 4/5 |
+| Ubuntu WSL | 6.890 / 6.930 | 1526.8 / 1524.5 | 1/5 |
+
+Windows baseline CPU had 3.8% relative MAD. Windows QoS 0 baseline CPU
+had 25.5% relative MAD. Both WSL QoS 2 CPU series met the 3% MAD and 6%
+central-range limits, with a 0.7% paired median CPU increase in the
+candidate. Three of four QoS 2 delivery P99 series exceeded the
+repeatability limits. The optimization remains a prototype. Native
+Linux and release performance qualification remain open. The patch,
+build fingerprints, timing series and protocol results are under
+`out/service-extensions/xmqtt-route-best-effort-8e58fb7a/`.
