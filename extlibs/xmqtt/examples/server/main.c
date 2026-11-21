@@ -52,7 +52,20 @@ int main(int Argc, char** Argv)
 	Config.Allow311 = true;
 #endif
 	serverexample Example = {0};
-	if (!exampleServerStart(&Example, &Config, Workers)) return 1;
+	const char* Backend = getenv("XMQTT_EXAMPLE_BACKEND");
+	if (Backend && strcmp(Backend, "auto")) {
+		if (!strcmp(Backend, "epoll")) Example.Backend = XNET_PORT_EPOLL;
+		else if (!strcmp(Backend, "uring")) Example.Backend = XNET_PORT_URING;
+		else {
+			fputs("XMQTT_EXAMPLE_BACKEND requires auto, epoll or uring\n", stderr);
+			return 2;
+		}
+	}
+	if (!exampleServerStart(&Example, &Config, Workers)) {
+		const xerror* Error = xrtGetError();
+		fprintf(stderr, "MQTT broker startup failed: %s\n", Error ? xrtErrorMessage(Error) : "listener unavailable");
+		return 1;
+	}
 	char Endpoint[80];
 	bool Ready = xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint)) != 0;
 	if (Ready) {

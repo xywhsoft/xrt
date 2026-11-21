@@ -13,6 +13,7 @@ typedef struct serverexample {
 	xnetlistener* Listener;
 	xnetaddr Address;
 	xatomic32 ListenerClosed;
+	xnetportbackend Backend;
 	bool (*Prepare)(xmqttserver* Server, ptr Data);
 	ptr PrepareData;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
@@ -104,6 +105,7 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 	xnetengineconfig EngineConfig;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = Workers;
+	EngineConfig.Backend = Example->Backend;
 	Example->Engine = xrtNetEngineCreate(&EngineConfig);
 	if (!Example->Engine || !xrtNetEngineStart(Example->Engine)) goto Failed;
 #if defined(XMQTT_EXAMPLE_SERVER_AUTH)

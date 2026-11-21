@@ -21777,3 +21777,62 @@ This tested profile is Windows loopback. Native Linux and release
 performance qualification remain open. The source overlays, receipts
 and raw observations are under
 `out/service-extensions/xmqtt-broker-io-4199e7b3/`.
+
+## 2026-11-21 MQTT epoll and io_uring on WSL
+
+The kernel setup probe created a working io_uring instance. The same
+plaintext MQTT broker selected epoll or io_uring through the APP's
+XRT engine configuration. Both modes passed the independent MQTT
+5.0/3.1.1 wire peer and 64-connection quota test. The benchmark
+verified the backend of each worker.
+
+At 600 QoS 2 publications/s with 64 wildcard subscribers, windows of
+16 and 128-byte payloads, all five clean pairs reached the offered
+rate and verified 2,304,000 deliveries. Three additional pairs used
+a separate counter build. Median counts per 1,000 deliveries were
+2,024 epoll ADDs, 2,024 DELs and zero MODs. The io_uring samples had
+zero epoll_ctl calls and 1,021 io_uring_enter calls with submissions.
+Both broker modes used two workers on CPUs 0, 2, 4 and 6. The
+observer used CPUs 8 and 10. Windows endurance testing continued.
+
+| 64-subscriber profile | epoll | io_uring |
+| --- | ---: | ---: |
+| Broker CPU seconds | 6.87 | 6.14 |
+| Delivery P99 (ms) | 1.376 | 1.981 |
+| Delivery P99.9 (ms) | 4.341 | 4.933 |
+| Idle RSS increase with 1,000 connections (MiB) | 1.92 | 2.42 |
+
+Both CPU series met the variation limits. Both P99 series exceeded
+them. The idle figures come from three separate pairs with one
+worker. Every idle run verified the connection cap, PING replies,
+100 reconnects and admission after drain.
+
+A separate eight-subscriber comparison used the same payload, CPU
+masks and windows. Five alternating pairs at each rate ran for
+3 seconds of scheduled offers with 600 warmup publications. The
+per-connection outgoing quota was 1,024 in both configurations.
+All 20 samples verified 780,000 publisher confirmations and
+6,240,000 deliveries.
+
+| Offered publications/s | Metric | epoll | io_uring |
+| --- | --- | ---: | ---: |
+| 10,000 | Minimum verified ingress/s | 9,998 | 9,998 |
+| | Median delivery P99 (ms) | 1.921 | 1.709 |
+| 16,000 | Minimum verified ingress/s | 15,084 | 15,979 |
+| | Median delivery P99 (ms) | 111.364 | 8.475 |
+
+Both 10,000/s P99 series met the variation limits. Neither 16,000/s P99
+series qualified. At 16,000/s, one epoll sample fell below the 95%
+offered-rate threshold. All five io_uring samples met it. These
+results identify different behavior across the measured load
+profiles. Native Linux release performance remains open.
+
+The plaintext broker example now reads `XMQTT_EXAMPLE_BACKEND`
+with `auto`, `epoll` and `uring` choices. The WSL modular
+and single-header builds verified the selected backend via the
+sample's descriptors and passed the pressure peer in both modes.
+The WSL single-header build also passed the dual-version peer.
+Windows passed the default and explicit `auto` dual-version
+runs and reported an error for unavailable `uring`. The test
+programs, source overlays, input hashes and logs are under
+`out/service-extensions/xmqtt-backends-c52d0d2f/`.

@@ -385,6 +385,23 @@ python tools/measure_performance.py --config extlibs/xmqtt/config/performance_pr
 python extlibs/xmqtt/bench/compare_broker.py --xmqtt /path/to/examples_server_main --mosquitto /path/to/mosquitto --observer /path/to/bench_server --broker-cpu 2 --load-cpus 4,6,8 --workload exact:1:3000 --workload wildcard:8:10000 --report out/broker-compare.json
 ```
 
+
+On Linux, set ``XMQTT_EXAMPLE_BACKEND`` to ``epoll`` or ``uring`` when
+starting the plaintext broker example or this comparison driver.
+``auto`` selects the platform default. Build with the XRT
+``net_port_uring`` module to try ``uring``.
+
+```sh
+python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server,net_port_uring --no-single --exclude-test '*' --cflag=-O2
+XMQTT_EXAMPLE_BACKEND=uring /path/to/examples_server_main --compare
+```
+
+For a single-header build, select ``XRT_MODULE_NET_PORT_URING``.
+The selected backend must start successfully on the host. The WSL
+[backend comparison](../../../docs/development/service-extensions-progress.md#2026-11-21-mqtt-epoll-and-io_uring-on-wsl)
+covers 64-subscriber fan-out, higher offered rates with eight
+subscribers, and 1,000 idle connections.
+
 For the eight-subscriber QoS 2 diagnostic, keep the offered rate at
 3,000/s and rerun with each pair of publisher and subscriber windows
 (1/1, 1/16, 16/1, 16/16). Select separate reports for each run. For example,
