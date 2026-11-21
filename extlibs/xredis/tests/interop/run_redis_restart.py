@@ -51,6 +51,16 @@ def check_commands(calls, expected, stage):
             f"unexpected {stage} command ledger {calls}")
 
 
+def blocked_queues(port, tls):
+    clients, _ = listener_exchange(port, ["CLIENT", "LIST", "TYPE", "normal"], tls=tls)
+    queues = []
+    for line in clients.decode("ascii").splitlines():
+        fields = dict(entry.split("=", 1) for entry in line.split())
+        if "b" in fields["flags"] and fields["cmd"] == "blpop":
+            queues.append(int(fields["qbuf"]))
+    return sorted(queues)
+
+
 def fixture_port(candidates):
     for port in candidates:
         require(0 < port < 65536, f"invalid port {port}")
@@ -160,19 +170,27 @@ def run(args, report, stack):
     reader.start()
 
     initial = wait_phase(lines, report["phases"], "blocked_submitted")
+    key = b"xrt:restart:\0pipeline-write"
+    queued_wire = b"*2\r\n$4\r\nINCR\r\n$" + str(len(key)).encode("ascii") + b"\r\n" + key + b"\r\n"
+    inspections = 0
+    queues = []
     due = time.monotonic() + 5
     while True:
         fields = info(port, "all", before_tls)
         require(first.poll() is None and int(fields["process_id"]) == before["pid"] and
                 fields["run_id"] == before["run_id"], "original Redis identity changed")
         blocked = int(fields["blocked_clients"])
-        if blocked == 1:
-            break
-        require(blocked == 0 and time.monotonic() < due, f"BLPOP not observed, blocked_clients={blocked}")
+        if blocked == 2:
+            queues = blocked_queues(port, before_tls)
+            inspections += 1
+            if queues == [0, len(queued_wire)]:
+                break
+        require(0 <= blocked <= 2 and time.monotonic() < due,
+                f"blocked pipeline not observed, blocked_clients={blocked}, queues={queues}")
         time.sleep(.005)
-    before.update(blocked_clients=blocked, commands=command_calls(fields))
+    before.update(blocked_clients=blocked, blocked_query_bytes=queues, commands=command_calls(info(port, "all", before_tls)))
     warmup = {"hello": 4, "subscribe": 1, "client|tracking": 1, "get": 1, "set": 2, "publish": 1}
-    check_commands(before["commands"], warmup, "original")
+    check_commands(before["commands"], {**warmup, "echo": 1, "client|list": inspections}, "original")
     before["killed_at_monotonic"] = time.monotonic()
     first.kill()
     before["exit_code"] = first.wait(timeout=5)
@@ -218,6 +236,8 @@ def run(args, report, stack):
         expected.update(publish=3, **{"pubsub|numsub": 2})
 
     complete = wait_phase(lines, report["phases"], "complete")
+    require(complete["pipeline_prefix_sequence"] == initial["pipeline_prefix_sequence"] > 0 and
+            complete["unconfirmed_pipeline_commands"] == 2, "pipeline outcomes changed during recovery")
     if args.edit_subscriptions:
         require(complete["retained_observations"] and
                 complete["subscription_revision"] == edited["subscription_revision"],

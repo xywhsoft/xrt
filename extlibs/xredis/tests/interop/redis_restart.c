@@ -11,6 +11,7 @@ static const xbytesview Intermediate = XRT_BYTES_LITERAL("xrt:restart:\0intermed
 static const xbytesview Replacement = XRT_BYTES_LITERAL("xrt:restart:\0replacement");
 static const xbytesview Before = XRT_BYTES_LITERAL("before\0restart");
 static const xbytesview Key = XRT_BYTES_LITERAL("xrt:restart:\0tracking");
+static const xbytesview Prefix = XRT_BYTES_LITERAL("pipeline\0prefix");
 
 static void require(bool Ok, const char* Message)
 {
@@ -136,13 +137,29 @@ typedef struct restartobservations {
 	xredisreply* Message;
 } restartobservations;
 
-static uint64 checkTrackedGet(xfuture* Future, xbytesview Expected)
+static uint64 checkObservedBulk(xfuture* Future, xbytesview Expected)
 {
 	const xredistrackingresult* Tracked = result(Future, IO_MS);
 	xredisreplyvalue Read = root(&Tracked->Request);
 	require(Tracked->Sequence && Read.Type == XREDIS_REPLY_BULK_STRING && same(Read.Data, Expected),
-		"tracked GET content");
+		"observed bulk reply content");
 	return Tracked->Sequence;
+}
+
+static xfuture* pipelineCall(xredisclient* Client, const xbytesview* Args, size_t Count)
+{
+	xfuture* Future = NULL;
+	require(xredisClientTrackingCallAsync(Client, Args, Count, PHASE_MS, &Future) == XREDIS_ADMISSION_ACCEPTED &&
+			Future, "admit observed pipeline command");
+	return Future;
+}
+
+static void checkPipelineLoss(xfuture* Future)
+{
+	const xredistrackingresult* Observed = result(Future, PHASE_MS);
+	require(Observed->Request.Status == XREDIS_REQUEST_DISCONNECTED &&
+			Observed->Request.Delivery == XREDIS_MAY_HAVE_EXECUTED &&
+			!Observed->Request.Reply && !Observed->Sequence, "unconfirmed pipeline command has no reply sequence");
 }
 
 static void checkInvalidation(xredistrackingpush Push, uint64 Sequence)
@@ -173,7 +190,7 @@ static void traffic(xredispool* Pool, xredisclient* Tracking, xredisclient* Subs
 	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Key};
 	Future = NULL;
 	require(xredisClientTrackingCall(Tracking, Get, 2, IO_MS, &Future) == XREDIS_ADMISSION_ACCEPTED, "tracked GET admission");
-	uint64 Sequence = checkTrackedGet(Future, Value);
+	uint64 Sequence = checkObservedBulk(Future, Value);
 	if (Retained) Retained->Read = Future;
 	else xrtFutureDestroy(Future);
 
@@ -352,10 +369,20 @@ int main(int Argc, char** Argv)
 	traffic(Pool, Tracking, Subscriber, Channel, Before, Edit ? &Observed : NULL);
 	xbytesview Block[] = {XRT_BYTES_LITERAL("BLPOP"), XRT_BYTES_LITERAL("xrt:restart:\0blocked"), XRT_BYTES_LITERAL("0")};
 	xfuture* Pending = call(Pool, Block, 3, PHASE_MS);
-	printf("{\"phase\":\"blocked_submitted\",\"subscription_revision\":%" PRIu64 "}\n", Revision);
+	xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), Prefix};
+	xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), XRT_BYTES_LITERAL("xrt:restart:\0pipeline-write")};
+	xfuture* Replied = pipelineCall(Tracking, Echo, 2);
+	xfuture* Blocked = pipelineCall(Tracking, Block, 3);
+	xfuture* Tail = pipelineCall(Tracking, Increment, 2);
+	uint64 PrefixSequence = checkObservedBulk(Replied, Prefix);
+	require(!xrtFutureDone(Blocked) && !xrtFutureDone(Tail), "pipeline suffix still awaiting replies");
+	printf("{\"phase\":\"blocked_submitted\",\"subscription_revision\":%" PRIu64
+		   ",\"pipeline_prefix_sequence\":%" PRIu64 "}\n", Revision, PrefixSequence);
 	fflush(stdout);
 	const xredisrequestresult* Lost = result(Pending, PHASE_MS);
 	require(Lost->Status == XREDIS_REQUEST_DISCONNECTED && Lost->Delivery == XREDIS_MAY_HAVE_EXECUTED && !Lost->Reply, "blocked request loss");
+	checkPipelineLoss(Blocked);
+	checkPipelineLoss(Tail);
 	closedClient(Tracking, true);
 	closedClient(Subscriber, true);
 	double Outage = xrtTimer();
@@ -412,15 +439,23 @@ int main(int Argc, char** Argv)
 	xredisPoolRelease(Pool);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire engine workers");
 	if (Edit) {
-		checkInvalidation(Observed.Push, checkTrackedGet(Observed.Read, Before));
+		checkInvalidation(Observed.Push, checkObservedBulk(Observed.Read, Before));
 		checkPublication(Observed.Message, Channel, Before);
 		xrtFutureDestroy(Observed.Read);
 		xredisReplyRelease(Observed.Push.Reply);
 		xredisReplyRelease(Observed.Message);
 	}
+	require(checkObservedBulk(Replied, Prefix) == PrefixSequence, "retained pipeline prefix after retirement");
+	checkPipelineLoss(Blocked);
+	checkPipelineLoss(Tail);
+	xrtFutureDestroy(Replied);
+	xrtFutureDestroy(Blocked);
+	xrtFutureDestroy(Tail);
 	redisProbeTlsClose(&Endpoint.Tls);
 	printf("{\"phase\":\"complete\",\"pool_generations\":%" PRIu64 ",\"subscription_generation\":%" PRIu64
-		",\"subscription_revision\":%" PRIu64 ",\"retained_observations\":%s,\"recovery_ms\":%.3f}\n",
-		Connect.Connected, SubscriptionGenerations, Revision, Edit ? "true" : "false", (Recovered - Outage) * 1000.0);
+		",\"subscription_revision\":%" PRIu64 ",\"retained_observations\":%s,\"pipeline_prefix_sequence\":%" PRIu64
+		",\"unconfirmed_pipeline_commands\":2,\"recovery_ms\":%.3f}\n",
+		Connect.Connected, SubscriptionGenerations, Revision, Edit ? "true" : "false", PrefixSequence,
+		(Recovered - Outage) * 1000.0);
 	return 0;
 }

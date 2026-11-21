@@ -345,14 +345,19 @@ Use certificates valid through the final observation for an endurance run.
 
 This separate integration probe keeps one xredis process, shared pool and
 subscription session alive while replacing a disposable Redis server on the
-same loopback port. The harness confirms Redis reports one blocked client
-before terminating its own process. The probe checks a disconnected
+same loopback port. The harness observes both the original blocked pool call and a pipeline on the
+Tracking connection before stopping its Redis process. The pipeline has a
+completed binary `ECHO`, a blocked `BLPOP` and an `INCR` queued behind it.
+`CLIENT LIST` confirms the full mutation frame is buffered and the command
+ledger confirms it has not executed. The received binary reply retains its
+sequence. Both pending calls report `DISCONNECTED` and `MAY_HAVE_EXECUTED`
+with no reply sequence. The probe checks all three results after engine teardown. The probe checks a disconnected
 MAY_HAVE_EXECUTED outcome, preserves it across recovery and observes rejection
 while both pool members are gone. After replacement it checks both restored
 members, automatic replay of the binary subscription intent, fresh Tracking
 setup on a new APP-owned connection, an ordered invalidation, one matching
-binary publication and 16 pipelined binary replies. The Redis command ledger
-checks that no BLPOP or PING reaches the replacement.
+binary publication and 16 pipelined binary replies. The replacement Redis command ledger records zero BLPOP, INCR and PING
+executions.
 
 Use the mixed-workload compiler flags above and add the subscription session
 module. Run the Python harness on the same host as the disposable Redis
