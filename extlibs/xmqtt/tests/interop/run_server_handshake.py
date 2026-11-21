@@ -516,18 +516,27 @@ def drive_pressure(program, clients, result):
 
         result["phase"] = "saturated"
         result["saturated"] = healthy_flow(traffic, fast, healthy)
+        # Match both the full subscriber and an otherwise healthy wildcard subscriber.
+        fast.sendall(small_frame(0x82, b"\0\2\0" + topic(b"pressure/+") + b"\2"))
+        assert read(fast, 6) == b"\x90\4\0\2\0\2"
+        slow.sendall(small_frame(0x50, first))
+        assert read(slow, 4) == small_frame(0x62, first)
         publish_qos2(producer, blocked, capacity + 1, b"still rejected", quota=True)
         result["quota_exceeded"] += 1
-        ping([slow])
+        ping([slow, fast])
+        result["fanout_quota_atomic"] = True
 
         result["phase"] = "drain"
-        finish_qos2(slow, first)
-        for number in range(2, capacity + 1):
-            finish_qos2(slow, receive_qos2(slow, blocked, struct.pack("!H", number)))
-        ping([slow])
+        slow.sendall(small_frame(0x70, first))
+        second = receive_qos2(slow, blocked, b"\0\2")
         publish_qos2(producer, blocked, capacity + 1, b"reused")
+        finish_qos2(fast, receive_qos2(fast, blocked, b"reused"))
+        result["quota_reclaimed_on_pubcomp"] = True
+        finish_qos2(slow, second)
+        for number in range(3, capacity + 1):
+            finish_qos2(slow, receive_qos2(slow, blocked, struct.pack("!H", number)))
         finish_qos2(slow, receive_qos2(slow, blocked, b"reused"))
-        ping([slow])
+        ping([slow, fast])
         result["reliable_deliveries_drained"] = capacity + 1
         result["recovered"] = healthy_flow(traffic, fast, healthy)
 
