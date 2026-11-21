@@ -349600,6 +349600,20 @@ static xwaitresult __xrtEventWaiterWindows(xrt_event_waiter_impl* I,double Deadl
         double Remaining=Deadline-Now;if(Remaining>4294967.0)Remaining=4294967.0;
         LARGE_INTEGER Due;Due.QuadPart=-(LONGLONG)ceil(Remaining*1e7);if(Due.QuadPart==0)Due.QuadPart=-1;
         if(!SetWaitableTimer(I->Timer,&Due,0,NULL,NULL,FALSE)){__xrtEventWaiterFail(XERR_IO,"wait.arm",(int32)GetLastError());return XWAIT_ERROR;}
+        /* Arming uses a relative duration. A delay before the arm may have
+         * exhausted the original monotonic budget. */
+        double ArmedAt = xrtTimer();
+        if (!isfinite(ArmedAt)) {
+            (void)CancelWaitableTimer(I->Timer);
+            return XWAIT_ERROR;
+        }
+        if (ArmedAt >= Deadline) {
+            if (!CancelWaitableTimer(I->Timer)) {
+                __xrtEventWaiterFail(XERR_IO, "wait.cancel", (int32)GetLastError());
+                return XWAIT_ERROR;
+            }
+            continue; /* Check the event before returning a timeout. */
+        }
         HANDLE Handles[2]={Event,I->Timer};DWORD R=WaitForMultipleObjects(2,Handles,FALSE,INFINITE);
         if(R==WAIT_OBJECT_0){if(!CancelWaitableTimer(I->Timer)){__xrtEventWaiterFail(XERR_IO,"wait.cancel",(int32)GetLastError());return XWAIT_ERROR;}return XWAIT_OK;}
         if(R==WAIT_OBJECT_0+1)continue; /* Recheck original monotonic budget and ready event. */

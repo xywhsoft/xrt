@@ -4,6 +4,15 @@
 #include <xrt/event_waiter.h>
 static unsigned NativeFault,NativeFallbacks,NativeReentry;
 static xeventwaiter* NativeActive;
+static bool NativeExpireOnArm;
+static double NativeNow;
+static xevent* NativeArmSignal;
+static unsigned NativeExpiredCancels;
+
+static double nativeTestClock(void)
+{
+    return NativeExpireOnArm ? NativeNow : xrtTimer();
+}
 XRT_API bool nativeTestWaiterUnit(xeventwaiter* W);
 static HANDLE WINAPI nativeTestCreate(LPSECURITY_ATTRIBUTES A,LPCWSTR N,DWORD F,DWORD R)
 {
@@ -18,14 +27,28 @@ static HANDLE WINAPI nativeTestFallback(LPSECURITY_ATTRIBUTES A,BOOL M,LPCWSTR N
 static BOOL WINAPI nativeTestArm(HANDLE T,const LARGE_INTEGER* D,LONG P,PTIMERAPCROUTINE C,LPVOID A,BOOL R)
 {
     if(NativeFault==4){testRequire(NativeActive && !nativeTestWaiterUnit(NativeActive) && xrtErrorKind(xrtGetError())==XERR_STATE,"active native-call reentry cannot unit live context");++NativeReentry;xrtClearError();SetLastError(ERROR_NOT_ENOUGH_MEMORY);return FALSE;}
+    if (NativeExpireOnArm) {
+        NativeNow += 1.5;
+        if (NativeArmSignal)
+            testRequire(xrtEventSet(NativeArmSignal), "signal event during timer arming");
+    }
     return SetWaitableTimer(T,D,P,C,A,R);
 }
 static DWORD WINAPI nativeTestWait(DWORD N,const HANDLE* H,BOOL A,DWORD T)
-{if(NativeFault==5){SetLastError(ERROR_INVALID_HANDLE);return WAIT_FAILED;}return WaitForMultipleObjects(N,H,A,T);}
+{
+    testRequire(!NativeExpireOnArm, "expired arm must skip the native block");
+    if(NativeFault==5){SetLastError(ERROR_INVALID_HANDLE);return WAIT_FAILED;}
+    return WaitForMultipleObjects(N,H,A,T);
+}
 static BOOL WINAPI nativeTestCancel(HANDLE T)
-{if(NativeFault==6){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return CancelWaitableTimer(T);}
+{
+    if (NativeExpireOnArm) ++NativeExpiredCancels;
+    if(NativeFault==6){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
+    return CancelWaitableTimer(T);
+}
 static BOOL WINAPI nativeTestClose(HANDLE T)
 {if(NativeFault==7){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return CloseHandle(T);}
+#define xrtTimer nativeTestClock
 #define GetProcAddress nativeTestAddress
 #define CreateWaitableTimerW nativeTestFallback
 #define SetWaitableTimer nativeTestArm
@@ -38,6 +61,7 @@ static BOOL WINAPI nativeTestClose(HANDLE T)
 #define __xrtEventWaiterWaitUntil nativeTestWaiterWaitUntil
 #define xrtEventWaiterGet nativeTestWaiterGet
 #include "../../src/concurrency/event_waiter.c"
+#undef xrtTimer
 #undef GetProcAddress
 #undef CreateWaitableTimerW
 #undef SetWaitableTimer
@@ -51,6 +75,22 @@ static BOOL WINAPI nativeTestClose(HANDLE T)
 #undef xrtEventWaiterGet
 static int32 nativeTestSignal(ptr Raw)
 {xrtSleep(1);return xrtEventSet(Raw)?0:1;}
+static void nativeTestExpiredArm(xeventwaiter* W, xevent* E)
+{
+    NativeExpireOnArm = true;
+    NativeNow = 5.0;
+    testRequire(nativeTestWaiterWaitUntil(W, 6.0) == XWAIT_TIMEOUT && NativeExpiredCancels == 1,
+                "deadline passed during arming cancels the timer and times out");
+    NativeNow = 5.0;
+    NativeArmSignal = E;
+    testRequire(nativeTestWaiterWaitUntil(W, 6.0) == XWAIT_OK && NativeExpiredCancels == 2,
+                "event signaled during an expired arm still wins");
+    NativeExpireOnArm = false;
+    NativeArmSignal = NULL;
+    testRequire(nativeTestWaiterWaitFor(W, 0) == XWAIT_TIMEOUT,
+                "arm-time auto-reset signal is consumed exactly once");
+}
+
 int main(void)
 {
     xevent E;xeventwaiter W,Before;testRequire(xrtEventInit(&E,false,false),"native fault event");memset(&W,0xa5,sizeof(W));Before=W;NativeFault=1;
@@ -60,9 +100,10 @@ int main(void)
     NativeFault=3;testRequire(!nativeTestWaiterInit(&W,&E,0) && xrtErrorSystemCode(xrtGetError())==ERROR_ACCESS_DENIED && NativeFallbacks==2,"fallback creation failure is observable");xrtClearError();
     xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&B) && xrtAllocationBudgetEnter(B,&Scope),"native failure diagnostic OOM");NativeFault=1;Before=W;testRequire(!nativeTestWaiterInit(&W,&E,XRT_EVENT_WAITER_REQUIRE_PRECISE) && xrtErrorKind(xrtGetError())==XERR_MEMORY && !memcmp(&W,&Before,sizeof(W)),"failure output contract survives diagnostic OOM");testRequire(xrtAllocationBudgetLeave(&Scope),"leave native diagnostic quota");xrtClearError();xallocationbudgetinfo BI={.Size=sizeof(BI)};testRequire(xrtAllocationBudgetInfo(B,&BI) && !BI.LiveBytes && !BI.LiveCount,"native failed init owns no quota residue");xrtAllocationBudgetFree(B);
     NativeFault=0;testRequire(nativeTestWaiterInit(&W,&E,0),"native fault wait context");NativeActive=&W;
-    for(unsigned Mode=4;Mode<=5;++Mode){NativeFault=Mode;testRequire(nativeTestWaiterWaitFor(&W,1)==XWAIT_ERROR && xrtErrorKind(xrtGetError())==XERR_IO,"arm/backend failure observable");xrtClearError();NativeFault=0;double Start=xrtTimer();testRequire(nativeTestWaiterWaitFor(&W,1)==XWAIT_TIMEOUT && xrtTimer()-Start>=0.001,"native failed wait leaves reusable context, no shortened budget");}
+    nativeTestExpiredArm(&W, &E);
+    for(unsigned Mode=4;Mode<=5;++Mode){NativeFault=Mode;testRequire(nativeTestWaiterWaitFor(&W,1000)==XWAIT_ERROR && xrtErrorKind(xrtGetError())==XERR_IO,"arm/backend failure observable");xrtClearError();NativeFault=0;double Start=xrtTimer();testRequire(nativeTestWaiterWaitFor(&W,1)==XWAIT_TIMEOUT && xrtTimer()-Start>=0.001,"native failed wait leaves reusable context, no shortened budget");}
     NativeFault=6;xthread* T=xrtThreadCreate(nativeTestSignal,&E,0);testRequire(T && nativeTestWaiterWaitFor(&W,1000)==XWAIT_ERROR && xrtErrorSystemCode(xrtGetError())==ERROR_ACCESS_DENIED,"event-won timer cancellation failure observable");xrtClearError();testRequire(xrtThreadWaitFor(T,10000)==XWAIT_OK,"native signal thread completes");xrtThreadDestroy(T);NativeFault=0;testRequire(nativeTestWaiterWaitFor(&W,1)==XWAIT_TIMEOUT,"rearm resets an event-won stale timer");
-    NativeFault=7;Before=W;testRequire(!nativeTestWaiterUnit(&W) && !memcmp(&W,&Before,sizeof(W)) && xrtErrorSystemCode(xrtGetError())==ERROR_ACCESS_DENIED,"unit failure retains context for retry");xrtClearError();NativeFault=0;testRequire(nativeTestWaiterUnit(&W) && NativeReentry==1 && xrtEventUnit(&E),"native resource retries and reentry balance");puts("[PASS] native event waiter: unsupported/fallback/resource/diagnostic OOM/arm/wait/cancel/unit/reentry");return 0;
+    NativeFault=7;Before=W;testRequire(!nativeTestWaiterUnit(&W) && !memcmp(&W,&Before,sizeof(W)) && xrtErrorSystemCode(xrtGetError())==ERROR_ACCESS_DENIED,"unit failure retains context for retry");xrtClearError();NativeFault=0;testRequire(nativeTestWaiterUnit(&W) && NativeReentry==1 && xrtEventUnit(&E),"native resource retries and reentry balance");puts("[PASS] native event waiter: unsupported/fallback/resource/diagnostic OOM/arm/expired-arm/wait/cancel/unit/reentry");return 0;
 }
 #else
 #include "../../src/internal/xrt_sync.h"
