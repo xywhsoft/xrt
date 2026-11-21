@@ -4,63 +4,18 @@ Target and rules: [development contract](service-extensions-plan.md).
 
 ## Current state
 
-- All four final products are in development, not production accepted.
-- P0 source/worktree isolation and execution contract are established.
-- xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
-  TCP/TLS async/sync request connection, bounded hostname/address dialing and
-  explicit HELLO/AUTH/name/database setup are locally verified, including Redis
-  8.0.5 interoperability. Managed READONLY and topology-based selection are
-  verified for explicit stale-tolerant Cluster reads. Reactive recovery from an
-  abruptly terminated Cluster primary is verified with surviving metadata
-  seeds, including unsent writes submitted during the election. Initial client-certificate
-  signing/authentication is locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
-  pools with bounded repair are locally verified. Identity-bound ticket
-  management, remaining dedicated modes, HA/tracking and final performance
-  acceptance remain pending.
-- xcron expression/calendar, named zone/TZif reload, budgeted recurrence,
-  DST selection, scheduling and the bounded live service are locally verified.
-  The two-slot stores recover job and group checkpoints, and live groups can
-  run bounded periodic captures and storage executor commits. Power-loss
-  and native mixed-load acceptance remain pending.
-- P1 codec/expression/calendar foundations are locally verified. P2 now has a
-  measured-workload TCP request/deadline/cancel/close slice and bounded pool
-  repair; remaining modes and pinned overhead/performance acceptance are pending.
-- The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
-  a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
-  request dispatch, immutable method indexing, exact ID comparison keys and bounded
-  pending-call admission/removal, immutable owned responses and complete-document
-  response correlation, native call/Future lifetime and the first ordinary
-  HTTP/TCP call client are locally verified. Bounded asynchronous server execution,
-  ordinary/notification/batch HTTP client/server traffic, retained-result quotas,
-  asynchronous DNS/prepared-address dialing and an explicit TLS client with
-  verified server identity are also locally verified. The client has bounded concurrent submission,
-  worker ownership and API-entry
-  deadlines. Later stages also locally verify bounded bidirectional Duplex,
-  framed TCP/TLS with DNS/prepared dialing, and native WS/WSS attachment with
-  checked HTTP Upgrade, shared-executor authorization and optional compression.
-  Richer HTTP metadata/recovery/pooling, WS URI input, asynchronous
-  framed stdio, negotiated remote deadline/cancellation and deferred business
-  handlers remain pending; the dated evidence below defines each delivered scope.
-- xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
-  locally verified. All standard MQTT 5.0 property sections are also locally
-  verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
-  grammar and negotiated connection constraints. The developing TCP
-  client supports CONNECT/CONNACK, keep-alive, QoS-0/1/2 send/receive,
-  bounded identifiers/credit, retained ACK/message ownership, diagnostic and
-  application graceful DISCONNECT, subscriptions, send/receive aliases, enhanced
-  authentication and physical retirement. Hostname/prepared-address Dial is
-  locally verified, along with verified TLS and TLS1.3 credential handoff.
-  In-memory Session/expiry and explicit numeric TCP recovery are locally verified.
-  Optional numeric/hostname/prepared TLS Session factories and MQTT5 proof-gated
-  authentication composition are locally verified. Plain Dial/Auth Session and
-  the developing reconnect controller have dated local evidence below. Native
-  WS/WSS attachment and numeric/DNS/prepared HTTP connection factories are now
-  locally verified with selected Auth/Session/Inbox recovery. Strict ws/wss URI
-  parsing and IP/decoded-name setup are also locally verified. Automatic WS/WSS
-  reconnect composition has its own qualification stage. Post-Upgrade TLS
-  credential capture, durable storage,
-  strict broker-close and full performance/production qualification remain pending.
-- Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
+All four extensions remain in development. The strict release audit reports
+2 developing modules for xcron, 2 for xrpc, 29 for xredis, and 39 for xmqtt.
+The dated entries below retain the earlier implementation and test evidence.
+
+| Extension | Current library scope | Release evidence still open |
+| --- | --- | --- |
+| xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Native Linux and repeatable scheduler tails. |
+| xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Native Linux and repeatable TCP concurrency tails. |
+| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Native Linux, matched release performance, and 72 continuous hours of mixed load. |
+| xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Native Linux, matched client and broker performance, and 72 continuous hours of mixed load. |
+
+Work and verification use D:/GIT/xrt on master.
 
 ## Baseline checks
 
@@ -21622,3 +21577,35 @@ provides a repeatable comparison on that host. Native Linux qualification
 and strict release acceptance remain open. Driver source, raw per-batch
 samples, process affinity and binary fingerprints are under
 `out/service-extensions/xrpc-tcp-ab-870cd1ce/`.
+
+## 2026-11-21 xredis RESP scalar line scan budget
+
+The reader limits both delimiter searches to the remaining line budget. On
+the following state-machine step, CRLF stays valid at exactly the limit.
+A bare LF reports a protocol error, and an additional content byte reports
+the line limit at that same offset. The fixture also checks retained input
+after one frame and CRLF split by the feed budget.
+
+Reader, owned reply, and client regression suites passed on native Windows
+and Ubuntu WSL. ASan/UBSan with leak detection passed the modular and
+single-header reader/reply suites on WSL. The pinned Redis 8.0.5 process
+replacement fixture passed on WSL for plaintext and TLS 1.3 with subscription
+edits. The initial local Redis build lacked OpenSSL development headers.
+The successful retry extracted the matching Ubuntu package into its build
+directory. The generated single header and ordinary maturity check passed.
+The strict xredis audit still reports 29 developing modules.
+
+Seven alternating, single-CPU pairs compared the reader with 672040bc. A
+two-million-frame RESP benchmark and an independent 40,000-input limit
+benchmark agreed on their frame or checksum totals across versions.
+
+| Host | Valid frames/s before / after | Overlong inputs/s before / after |
+| --- | ---: | ---: |
+| Native Windows | 6,965,983 / 7,308,681 | 16,764 / 6,876,160 |
+| Ubuntu WSL | 7,421,109 / 8,020,002 | 485,431 / 8,679,237 |
+
+The overlong fixture supplies 64 KiB and permits 64 line bytes. Each trial
+verifies rejection after consuming 65 bytes including the type prefix.
+These codec results measure parser work. Build records, checksums, raw
+samples, and interop ledgers are under
+`out/service-extensions/xredis-line-budget-672040bc/`.

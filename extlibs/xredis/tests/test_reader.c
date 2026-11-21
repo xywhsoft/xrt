@@ -275,6 +275,39 @@ static void testReadGoodConfig(const xredisreaderconfig* Config, xbytesview Wire
 	testRequire(Context.Ready == 1 && xredisReaderFinish(Context.Reader) && xredisReaderDestroy(Context.Reader), "config boundary success");
 }
 
+static void testReadLineBudget(void)
+{
+	xredisreaderconfig Config;
+	testRequire(xredisReaderConfigInit(&Config), "line budget config");
+	Config.MaxLineBytes = 8;
+	unsigned char Wire[1024];
+	memset(Wire, 'x', sizeof(Wire));
+	Wire[0] = '+';
+	for (unsigned Case = 0; Case < 3; ++Case) {
+		Wire[9] = Case == 0 ? '\r' : Case == 1 ? '\n' : 'x';
+		Wire[10] = '\n';
+		testReadContext Context = {0};
+		xredisreader* Reader = testReadCreate(&Context, &Config);
+		size_t Consumed = 0;
+		Context.Input = (xbytesview){Wire, sizeof(Wire)};
+		xredisreadstatus Status = xredisReaderFeed(Reader, Context.Input, &Consumed);
+		if (!Case) {
+			testRequire(Status == XREDIS_READER_READY && Consumed == 11 &&
+				Context.Count == 1 && Context.Records[0].Ended && Context.Records[0].Bytes == 8,
+				"CRLF at the byte limit leaves the coalesced suffix unread");
+		} else {
+			xredisreaderinfo Info = {.Size = sizeof(Info)};
+			xredisreadererror Expected = Case == 1 ? XREDIS_READER_PROTOCOL : XREDIS_READER_LIMIT;
+			testRequire(Status == XREDIS_READER_ERROR && Consumed == 9 &&
+				xredisReaderInfo(Reader, &Info) && Info.Error == Expected && Info.ErrorOffset == 9,
+				"bare LF or excess content fails at the exact line limit");
+		}
+		testRequire(xredisReaderDestroy(Reader), "line budget reader destroy");
+	}
+	Config.MaxFeedBytes = 5;
+	testReadGoodConfig(&Config, XRT_BYTES_LITERAL("+12345678\r\n"));
+}
+
 static void testReadLimits(void)
 {
 	xredisreaderconfig Config; testRequire(xredisReaderConfigInit(&Config), "default config");
@@ -534,7 +567,7 @@ static void testReadMutations(void)
 
 int main(void)
 {
-	testReadKnown(); testReadMalformed(); testReadLimits(); testReadLifecycle();
+	testReadKnown(); testReadMalformed(); testReadLineBudget(); testReadLimits(); testReadLifecycle();
 	testReadProperties(); testReadAllocations(); testReadMutations();
 	printf("[PASS] xredis reader: RESP2/3/all-splits/pause/stream/attribute/push/limits/property/OOM/lifetime\n");
 	return 0;

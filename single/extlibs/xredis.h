@@ -4571,18 +4571,18 @@ XREDIS_API xredisreadstatus xredisReaderFeed(xredisreader* Reader,
 				if (!xredisReaderHeaderEnd(Reader)) goto failed;
 				break;
 			case XREDIS_RS_LINE: {
+				if (Byte == '\r') {
+					xredisReaderAdvance(Reader, &Index, 1); P->State = XREDIS_RS_LINE_LF; break;
+				}
+				if (Byte == '\n') goto bad_terminator;
+				uint64 LineRoom = Reader->Config.MaxLineBytes - P->LineBytes;
+				if (LineRoom == 0) { xredisReaderFail(Reader, XERR_RANGE, XREDIS_READER_LIMIT, "RESP scalar line limit exceeded"); goto failed; }
 				size_t Count = xredisReaderAvailable(Reader, Budget - Index);
+				if ((uint64)Count > LineRoom) Count = (size_t)LineRoom;
 				const unsigned char* CR = (const unsigned char*)memchr(Input.Data + Index, '\r', Count);
 				if (CR != NULL) Count = (size_t)(CR - Input.Data - Index);
 				const unsigned char* LF = (const unsigned char*)memchr(Input.Data + Index, '\n', Count);
 				if (LF != NULL) Count = (size_t)(LF - Input.Data - Index);
-				if (Count == 0) {
-					if (Byte != '\r') goto bad_terminator;
-					xredisReaderAdvance(Reader, &Index, 1); P->State = XREDIS_RS_LINE_LF; break;
-				}
-				uint64 LineRoom = Reader->Config.MaxLineBytes - P->LineBytes;
-				if (LineRoom == 0) { xredisReaderFail(Reader, XERR_RANGE, XREDIS_READER_LIMIT, "RESP scalar line limit exceeded"); goto failed; }
-				if ((uint64)Count > LineRoom) Count = (size_t)LineRoom;
 				if (P->Current.Type == XREDIS_REPLY_SIMPLE_STRING || P->Current.Type == XREDIS_REPLY_SIMPLE_ERROR) P->LineBytes += Count;
 				else for (size_t Part = 0; Part < Count; ++Part) {
 					if (!xredisReaderScalarByte(Reader, Input.Data[Index + Part])) {
