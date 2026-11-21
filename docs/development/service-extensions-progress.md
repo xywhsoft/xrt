@@ -22035,3 +22035,46 @@ end-to-end release-tail acceptance remain open.
 Source overlays, commands, failed setup, raw samples, benchmark binaries,
 input fingerprints and independent audits are under
 `out/service-extensions/xrpc-native-postsend-65818d97/`.
+
+## 2026-11-21 MQTT fixed-arrival traffic during live QoS 2 quota pressure
+
+The new broker benchmark runs the existing byte-verifying fixed-arrival
+observer with eight healthy wildcard subscribers. Each broker keeps
+1,000 idle peers and two worker threads. A disjoint slow subscriber
+holds its 256-delivery quota and its first PUBREC while a separate
+publisher receives verified quota acknowledgements. The peer checks the
+full quota on both sides of the measured pressure interval, drains 256
+payloads in order, and verifies a new delivery with the previous rejected
+publisher identifier before the recovery run.
+
+The healthy publisher offered 4,000 QoS 2 messages/s for three seconds
+per phase, with 512 warmups and independent windows of 16. Each host
+completed five repetitions with fresh brokers. The initial Windows
+pilot's relative event waits produced about 45 quota checks/s. The
+revised controller sleeps to an absolute schedule and achieved
+249.7 to 249.9 verified quota responses/s in the ten final runs.
+The maximum observed response gap was 4.9 ms in Windows and 4.3 ms
+in WSL. Across both hosts the audit reconciled 360,000 healthy terminal
+confirmations, 2,880,000 healthy deliveries, 8,050 quota responses inside
+the supervised observer intervals and 2,570 drained or reclaimed deliveries.
+
+| Environment | Delivery P99 before / during / after (us) | P99 variation checks passed |
+| --- | ---: | ---: |
+| Windows x64 | 202.4 / 212.8 / 196.2 | 3 of 3 |
+| Ubuntu WSL x64 | 1520.3 / 389.6 / 420.6 | 0 of 3 |
+
+All six throughput series met the variation limits and their medians
+were within one publication/s of the offered rate. The Windows pressure
+phase and all WSL phases exceeded the P99.9 variation limits. The
+ordered phases describe activity and recovery under the tested load.
+The first and later phases can experience different warmup and host
+scheduling. Native Linux and stable release tails remain open.
+
+An injected observer failure during the hold preserved the verified
+baseline and the failure phase, retired the pressure publisher and
+closed the fixture broker on both hosts. The original serial 64-peer
+pressure probe, dual-version peer, scripted broker observer, ordinary
+maturity and generated-header checks passed. [Reproduction commands](../../extlibs/xmqtt/bench/README.md#fixed-arrival-qos-2-traffic-during-quota-pressure).
+
+Build receipts, per-run logs, reports and audits are under
+`out/service-extensions/xmqtt-live-qos2-pressure-d171fe84/`.

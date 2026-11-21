@@ -643,6 +643,32 @@ hold. Timing runs from the publisher's PUBLISH send attempt to the
 subscriber's PUBCOMP send return. A final PING confirms the broker
 received the last PUBCOMP.
 
+### Fixed-arrival QoS 2 traffic during quota pressure
+
+The benchmark keeps one broker alive through three healthy traffic
+phases. Each offers the same fixed-arrival MQTT 5 QoS 2 stream to eight
+wildcard subscribers. During the middle phase, a subscriber on a
+separate topic withholds its first PUBREC and fills its 256-delivery
+quota. A second publisher schedules new publications to that topic at
+250/s and verifies PUBREC reason 0x97. It reuses the packet identifier
+after receiving each negative acknowledgement. [MQTT 5.0, sections 3.5.2 and 4.3.3](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+The peer drains all queued payloads in order and verifies a new
+publication on the reclaimed credit before the final healthy phase.
+The report includes healthy throughput and tail latency, broker CPU and
+resident memory, and verified refusals and their largest gap during the
+observer lifetime. Each repeat opens a fresh broker. The default uses
+1,000 additional idle connections and 4,000 healthy publications/s for
+three seconds per phase.
+
+    python extlibs/xmqtt/bench/compare_broker_pressure.py \
+      /path/to/examples_server_main /path/to/bench_server out/broker-pressure.json \
+      --broker-cpus 0,2 --load-cpus 8,10 --control-cpu 6
+
+Use disjoint available CPUs and a fresh report path. Append `.exe` to the
+binary paths on Windows. The broker and observer builds match the
+plaintext external comparison above.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised
