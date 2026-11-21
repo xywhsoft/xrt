@@ -21609,3 +21609,27 @@ verifies rejection after consuming 65 bytes including the type prefix.
 These codec results measure parser work. Build records, checksums, raw
 samples, and interop ledgers are under
 `out/service-extensions/xredis-line-budget-672040bc/`.
+
+## 2026-11-21 Windows endurance restart
+
+The Windows reboot at 12:32 UTC+08:00 interrupted both endurance
+campaigns. The latest ledger samples for the 0a1f5b62 binaries were
+38,906 seconds for xredis and 38,907 seconds for xmqtt. The b8206441
+samples reached 33,743 and 33,749 seconds respectively. The old
+journals remain available with their original build receipts.
+
+The replacement candidate is 08cf2cac. Both x64 single-header builds
+passed a 20-second Windows mixed-load smoke. The xredis peer verified
+11,115 SETs, 11,115 GETs and 1,235 publications. The xmqtt broker
+accounted for 7,603 deliveries and retired cleanly. The separate MQTT
+fault run killed the broker after 307 verified rounds and produced the
+expected unsuccessful workload report.
+
+The two new runs each request 259,200 continuous seconds. The first
+supervisor check verified 1,050 xredis rounds and 1,993 xmqtt rounds
+with their journals advancing. The Redis client is native Windows and
+uses a disposable WSL Redis 8.0.5 peer. The MQTT client and broker
+both run natively on Windows. The completed duration and native Linux
+qualification are still open. Build fingerprints, receipts and live
+journals are under
+`out/service-extensions/scope-reduction-20261119/native-windows-08cf2cac-soak/`.
