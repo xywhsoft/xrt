@@ -21654,12 +21654,12 @@ runs that example. The MQTT aggregate also includes the documented TLS
 broker example, and the inventory test accounts for named broker examples.
 
 The 26 inventory and API tests passed on native Windows and Ubuntu WSL.
-The Windows example aggregates ran 40 Redis and 51 MQTT programs. WSL
-ran all 40 Redis programs. The broker TLS example built by the Windows
-aggregate passed the independent MQTT 5.0 and 3.1.1 peer, including
-verified TLS 1.3, QoS 1/2 and takeover. The WSL MQTT aggregate was still
-running at this checkpoint. The first local build pair shared a default
-object directory. The successful runs used distinct x64 platform roots.
+The example aggregates ran 40 Redis and 51 MQTT programs on each host.
+The broker TLS examples built by those aggregates passed the independent
+MQTT 5.0 and 3.1.1 peer on both hosts, covering verified TLS 1.3,
+fragmentation, QoS 1/2, live takeover, 48 queued QoS 1 deliveries and
+clean shutdown. The first local build pair shared a default object
+directory. The successful runs used distinct x64 platform roots.
 
 The three cancelled jobs each reported the 20-minute ceiling. On Ubuntu,
 MQTT completed the ordinary module and example step in 1,122 seconds
