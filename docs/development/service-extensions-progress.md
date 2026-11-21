@@ -21735,3 +21735,45 @@ between listener readiness and requested shutdown. These instrumented
 samples identify call frequencies and phase costs. Release latency
 requires separate clean runs. Source overlays, build fingerprints and
 ledgers are under `out/service-extensions/xmqtt-broker-io-4199e7b3/`.
+
+## 2026-11-21 MQTT APP listener receive mode on Windows
+
+The same x64 broker executable switched only the APP listener's
+`Stream.ReadMode` between adaptive and direct. The direct configuration
+passed the independent MQTT 5.0 and 3.1.1 peer and the 64-connection
+live-quota fixture. The first scratch fixture printed its mode before
+the endpoint expected by the peer. The passing fixture prints the
+endpoint first.
+
+The two-worker broker used logical CPUs 0, 2, 4 and 6. The independent
+observer used 8 and 10. The broker used 1,024 outstanding publishes per
+connection and both protocol windows were 16. Five alternating clean
+pairs offered 600 plaintext QoS 2 publications/s to 64 wildcard
+subscribers, with 128-byte payloads, 480 warmup and 3,600 measured
+publications each. The endurance runs stayed active. All 10 samples
+verified 36,000 publisher confirmations and 2,304,000 measured
+deliveries. Three additional pairs used a counter build and 1,800
+measured publications each.
+
+| Metric | Adaptive | Direct |
+| --- | ---: | ---: |
+| Zero-byte WSARecv calls per 1,000 deliveries | 2,031 | 0 |
+| IOCP dequeues per 1,000 deliveries | 6,761 | 4,624 |
+| Clean broker CPU seconds | 3.859 | 3.391 |
+| Clean delivery P99 (us) | 653.0 | 635.3 |
+| Clean delivery P99.9 (us) | 771.6 | 1010.1 |
+
+The median is taken separately for each series. The P99 series met
+the repeatability limits in both modes. Both CPU series and the
+direct P99.9 series exceeded those limits.
+
+Three separate idle pairs reached 1,000 MQTT connections with one
+worker, verified the cap, held the cohort for two seconds, and
+verified PING, 100 reconnects and admission after draining. Median
+idle RSS growth was 2.74 MiB in adaptive and 5.08 MiB in direct mode.
+Median PING-after-idle P99 was 1.865 ms and 7.475 ms respectively.
+The application can select the receive mode to match its workload.
+This tested profile is Windows loopback. Native Linux and release
+performance qualification remain open. The source overlays, receipts
+and raw observations are under
+`out/service-extensions/xmqtt-broker-io-4199e7b3/`.

@@ -7,6 +7,15 @@ transfer the accepted stream. Keep the listener's receive limit at least as
 large as the MQTT packet cap. Choose appropriate XRT accept, read and write
 limits for the aggregate connection budget.
 
+The XRT listener's `Stream.ReadMode` selects how IOCP receives are armed.
+The adaptive mode can use a zero-byte readiness probe. The APP may set
+`Listen.Stream.ReadMode = XNET_STREAM_READ_DIRECT` to keep a payload buffer
+posted. On the measured Windows QoS 2 fan-out workload, direct mode reduced
+completion dequeues. The 1,000-idle-connection cohort used more resident
+memory and had higher PING P99. Use the deployment's active traffic and
+idle connection mix when choosing a mode. See the
+[comparison and conditions](../../../docs/development/service-extensions-progress.md#2026-11-21-mqtt-app-listener-receive-mode-on-windows).
+
 The TCP stage implements bounded CONNECT admission, one active binding per
 Client ID, keep alive, and QoS 0 routing for exact, wildcard and shared
 subscriptions. The APP can inspect borrowed CONNECT credentials and authorize individual publishes
