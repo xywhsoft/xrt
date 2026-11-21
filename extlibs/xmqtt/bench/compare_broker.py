@@ -194,9 +194,11 @@ def run_sample(args, implementation, workload, directory):
         if tls:
             command.extend((str(tls / "certificate.der"), str(tls / "key.der")))
         command.append("--compare")
+        if args.xmqtt_workers != 1:
+            command.extend(("--workers", str(args.xmqtt_workers)))
         pattern = re.compile(r"^127\.0\.0\.1:(\d+)$", re.M)
     with path.open("wb") as log:
-        broker = start(command, {args.broker_cpu}, cwd=cwd, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        broker = start(command, args.broker_cpus, cwd=cwd, stdin=subprocess.PIPE, stdout=log, stderr=log)
         try:
             deadline = time.monotonic() + 8
             while True:
@@ -259,12 +261,19 @@ def parse_workload(value):
     return kind, peers, rate
 
 
+def parse_cpus(value):
+    return {int(cpu) for cpu in value.split(",")}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for label in ("xmqtt", "mosquitto", "observer", "report"):
         parser.add_argument(f"--{label}", required=True, type=Path)
-    parser.add_argument("--broker-cpu", type=int, required=True)
-    parser.add_argument("--load-cpus", type=lambda value: {int(cpu) for cpu in value.split(",")}, required=True)
+    affinity_args = parser.add_mutually_exclusive_group(required=True)
+    affinity_args.add_argument("--broker-cpu", type=int)
+    affinity_args.add_argument("--broker-cpus", type=parse_cpus)
+    parser.add_argument("--load-cpus", type=parse_cpus, required=True)
+    parser.add_argument("--xmqtt-workers", type=int, choices=range(1, 65), metavar="1..64", default=1)
     parser.add_argument("--workload", action="append", type=parse_workload, required=True)
     parser.add_argument("--rounds", type=int, default=6000)
     parser.add_argument("--warmup", type=int, default=512)
@@ -281,7 +290,11 @@ def main():
         parser.error("--subscriber-window requires QoS 1 or 2")
     if args.qos and args.subscriber_window is None:
         args.subscriber_window = args.window
-    if not ({args.broker_cpu} | args.load_cpus) <= affinity(os.getpid()) or args.broker_cpu in args.load_cpus:
+    if args.broker_cpu is not None:
+        args.broker_cpus = {args.broker_cpu}
+    if args.tls_credentials and args.xmqtt_workers != 1:
+        parser.error("the TLS example requires a single comparison worker")
+    if not (args.broker_cpus | args.load_cpus) <= affinity(os.getpid()) or args.broker_cpus & args.load_cpus:
         parser.error("broker and observer need disjoint available logical CPUs")
     if not 1 <= args.rounds <= 100000 or not 0 <= args.warmup <= 100000 or not 3 <= args.repeats <= 31:
         parser.error("invalid round, warmup, or repeat count")
@@ -301,7 +314,9 @@ def main():
     version = subprocess.check_output([args.mosquitto, "-h"], stderr=subprocess.DEVNULL, text=True, timeout=8).splitlines()[0]
     if version != MOSQUITTO:
         parser.error(f"expected {MOSQUITTO!r}, obtained {version!r}")
-    report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu, "load_cpus": sorted(args.load_cpus),
+    report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu,
+              "broker_cpus": sorted(args.broker_cpus), "load_cpus": sorted(args.load_cpus),
+              "xmqtt_workers": args.xmqtt_workers,
               "rounds": args.rounds, "warmup": args.warmup, "repeats": args.repeats,
               "mosquitto_version": version, "mqtt": 5, "qos": args.qos,
               "window": args.window if args.qos else None, "subscriber_window": args.subscriber_window,

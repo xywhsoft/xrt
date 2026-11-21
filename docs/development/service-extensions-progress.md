@@ -21430,3 +21430,26 @@ test and repeat evidence is in
 - The Ubuntu matrix runs the standard static and shared consumer checks for the base `xmqtt` suite and the combined `xmqtt_examples` suite. Both shared consumers run from temporary directories with spaces. The loader check verifies that `libxmqtt.so` resolves the adjacent `libxrt.so`. The existing server-only, broker wire and authenticated checkpoint checks keep their separate coverage.
 - Local Ubuntu WSL x64 validation covered all four package builds and both relocation runs. The workflow YAML parsed, its Bash step passed a syntax check and the local execution used `python3` and the x64 package output path. All 17 package-tool unit tests and the xmqtt API, feature, single-header and normal maturity audits passed.
 - The native Ubuntu workflow result is pending. The current `--release` audits report developing modules for xcron (2), xrpc (2), xredis (29) and xmqtt (39). Raw package and gate output is available under `out/service-extensions/scope-reduction-20261119/xmqtt-combined-sdk-ci/`.
+
+## 2026-11-21 MQTT broker worker-count comparison
+
+The plaintext broker example accepts an explicit worker count in comparison mode. The fixed-arrival driver applies the same CPU mask to xmqtt and Mosquitto 2.1.2. It verifies both masks and keeps the original single-CPU invocation. XRT distributes the accepted connections in round-robin order.
+
+Windows x64 and Ubuntu WSL x64 ran serially. Both brokers used logical CPUs 0, 2, 4 and 6 and the observer used 8 and 10. Each worker count ran in a separate cohort with five alternating repeats per broker, 240 warmup and 1,800 measured MQTT 5 publications per repeat. One publisher sent 128-byte payloads. Eight wildcard subscribers received 2,800 publications/s and 32 received 850/s. Both reliable windows were 16. The Windows endurance jobs continued during the campaign.
+
+The observer completed 240 of 240 samples. It verified 432,000 measured publications, 8,640,000 deliveries and 216,000 QoS 2 publisher confirmations. 48 of 48 ingress series and 6 of 48 delivery P99 series met the variation limits.
+
+The 32-subscriber table gives delivery P99 medians in milliseconds. The three reference medians come from the corresponding worker cohorts.
+
+| Host | QoS | xmqtt 1 / 2 / 4 workers | Mosquitto in the same cohorts |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 0 | 12.131 / 1.111 / 1.087 | 11.214 / 0.929 / 1.021 |
+| Windows x64 | 2 | 2.128 / 1.485 / 1.416 | 1.534 / 2.993 / 1.461 |
+| Ubuntu WSL x64 | 0 | 0.781 / 0.884 / 0.937 | 0.811 / 0.828 / 0.954 |
+| Ubuntu WSL x64 | 2 | 3.485 / 2.308 / 2.628 | 2.375 / 2.522 / 2.250 |
+
+Across the cohorts, median delivery rates ranged from 22,399 to 22,407/s at eight subscribers and from 27,191 to 27,210/s at 32 subscribers.
+
+Windows and WSL passed the MQTT 5/3.1.1 wire fixture, scripted observer checks and the legacy single-CPU comparison. The first build omitted MQTT 3.1.1 and failed the legacy CONNECT case. The retained performance reports use the rebuilt dual-protocol executables.
+
+The fixed rates establish delivery at the offered load. Peak sustainable throughput, a release-quality tail baseline and native Linux performance remain open. Raw samples, hashes and failed setup logs are under `out/service-extensions/scope-reduction-20261119/xmqtt-worker-scaling/`. Reproduction commands are in the [broker comparison guide](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).

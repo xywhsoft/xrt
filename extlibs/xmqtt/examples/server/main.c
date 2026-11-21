@@ -10,6 +10,18 @@
 int main(int Argc, char** Argv)
 {
 	bool Compare = Argc >= 2 && !strcmp(Argv[1], "--compare");
+	uint32 Workers = Compare ? 1 : 2;
+	if (Compare && Argc >= 4 && !strcmp(Argv[Argc - 2], "--workers")) {
+		const char* Text = Argv[Argc - 1];
+		char* End;
+		unsigned long Count = strtoul(Text, &End, 10);
+		if (*Text < '0' || *Text > '9' || *End || !Count || Count > 64) {
+			fputs("--workers requires a count from 1 to 64\n", stderr);
+			return 2;
+		}
+		Workers = (uint32)Count;
+		Argc -= 2;
+	}
 	bool Prepare = Compare && Argc == 4 && !strcmp(Argv[3], "--prepare-fds");
 	xmqttserverconfig Config;
 	if (!xmqttServerConfigInit(&Config)) return 1;
@@ -17,7 +29,7 @@ int main(int Argc, char** Argv)
 		char* End;
 		unsigned long Limit = strtoul(Argv[2], &End, 10);
 		if ((Argc != 3 && !Prepare) || *Argv[2] < '0' || *Argv[2] > '9' || *End || !Limit || Limit > 10000) {
-			fputs("usage: examples_server_main --compare [max-connections 1..10000 [--prepare-fds]]\n", stderr);
+			fputs("usage: examples_server_main --compare [max-connections 1..10000 [--prepare-fds]] [--workers 1..64]\n", stderr);
 			return 2;
 		}
 		Config.MaxConnections = (size_t)Limit;
@@ -40,7 +52,7 @@ int main(int Argc, char** Argv)
 	Config.Allow311 = true;
 #endif
 	serverexample Example = {0};
-	if (!exampleServerStart(&Example, &Config, Compare ? 1 : 2)) return 1;
+	if (!exampleServerStart(&Example, &Config, Workers)) return 1;
 	char Endpoint[80];
 	bool Ready = xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint)) != 0;
 	if (Ready) {

@@ -398,13 +398,27 @@ workload and report arguments.
 Use [Mosquitto 2.1.2](https://github.com/eclipse-mosquitto/mosquitto/releases/tag/v2.1.2)
 and choose disjoint logical CPUs available to the caller. On Windows, the
 official 2.1.2 x64 installer can be extracted to a test directory with its
-adjacent DLLs. The runner starts both brokers on loopback with one broker
+adjacent DLLs. The default comparison starts both brokers on loopback with one broker
 logical CPU, plaintext transport and in-memory state. It uses one engine
 worker for xmqtt and verifies each child's CPU mask. The order alternates
 by repeat. The JSON retains executable and runner digests, throughput,
 P50/P95/P99/P99.9, offer lag, broker CPU through connection and warmup,
 and peak resident memory. Each throughput and P99 series has a sample
 noise verdict using 3% relative MAD and 6% trimmed central range.
+
+For a network worker comparison, use the same CPU set for each worker
+count. With the plaintext server example, run separate cohorts with
+`--xmqtt-workers 1`, `--xmqtt-workers 2` and `--xmqtt-workers 4`.
+Replace the CPU, workload and report arguments in the command above.
+Use a distinct report for each worker count and QoS.
+
+```text
+--broker-cpus 0,2,4,6 --load-cpus 8,10 --xmqtt-workers 4 --qos 2 --workload wildcard:8:2800 --workload wildcard:32:850 --rounds 1800 --warmup 240 --repeats 5 --report out/broker-workers4-qos2.json
+```
+
+The APP option is `--compare --workers NUMBER`. It uses the XRT
+listener's round-robin connection distribution. The fixed-arrival observer
+has one publisher and measures delivery to subscribers on multiple workers.
 
 The scripted observer regression checks negative PUBREC with its reason code,
 early PUBCOMP, a wrong PUBCOMP identifier and duplicate subscriber delivery. It also exercises bounded
