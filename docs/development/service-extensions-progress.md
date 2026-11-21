@@ -22174,3 +22174,34 @@ also passed ASan/UBSan with leak detection. Generated headers, API docs
 and ordinary maturity passed. Source and command receipts, raw results,
 mutation output and the independent audit are under
 `out/service-extensions/xcron-ordered-wave-544b50fc/`.
+
+## 2026-11-22 Offline replay of mixed-load evidence
+
+`tools/check_service_mixed.py` reconciles the saved binary and build receipt
+with the start record, time and resource samples, terminal summary and
+Redis or MQTT counters. The Ubuntu workflow preflights both audits and
+preserves the binaries with the reports and build receipts. The checker's
+native mode requires a complete native 72-hour journal.
+
+Fresh Windows and WSL runs from `3f7d0efd` produced three verified windows
+each. The Windows Redis client used a separate private Redis peer in WSL.
+The Windows MQTT client and broker both ran natively. The Redis command
+ledger matched 570 Windows and 3,042 WSL rounds. The MQTT client and broker
+matched 586 Windows and 3,086 WSL rounds. The audit also accepted short
+Windows reports produced by the legacy receipt format used for the active
+endurance campaigns, including the older supervised Redis reports.
+Eleven negative cases rejected wrong executables or input hashes, omitted
+records, summary changes, clock or latency corruption, wrong command or
+delivery counters, and unsupported native claims. Short runs are diagnostic.
+
+Both Windows endurance campaigns remained live after 6 hours and 36
+minutes. The host logged a 1.756-second wall-clock adjustment at 02:33:15
+local time, consistent with the step in both journals. The workload sampling
+gaps remained within limits and the supervisors continued with their
+original clock guards. The native Linux and completed native Windows
+72-hour evidence remains open. WSL passed the diagnostic replay and keeps
+its own environment label.
+
+Reports, build receipts, negative controls, the clock event and local
+maturity results are under
+`out/service-extensions/service-mixed-audit-3f7d0efd/`.

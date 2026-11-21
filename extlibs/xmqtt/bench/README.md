@@ -714,3 +714,10 @@ own environment label. For a separate fault run use --seconds 20 and
 after a verified window and records the interrupted workload as failed.
 Persistent-session recovery, TLS/WebSocket, and sustained saturation
 have separate workloads.
+
+Keep the binary, its `.build.json`, and both report files. Reconcile them
+after the run with the offline checker. Use `--require-native-72h` for
+release evidence and omit it for diagnostic runs.
+
+    python3 tools/check_service_mixed.py xmqtt --binary out/mqtt-mixed \
+      --report out/mqtt-mixed-72h.json --require-native-72h

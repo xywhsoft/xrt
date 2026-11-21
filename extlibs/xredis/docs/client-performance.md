@@ -316,6 +316,13 @@ and evidence. This workload covers the TCP RESP3 shared-pool, Tracking
 and direct Pub/Sub paths. Keep separate qualification for other
 deployment topologies, larger loads, and injected failures.
 
+Keep the client binary, its `.build.json`, and both report files. Reconcile
+them after the run with the offline checker. Use `--require-native-72h`
+for release evidence and omit it for diagnostic runs.
+
+    python3 tools/check_service_mixed.py xredis --binary out/redis-mixed \
+      --report out/redis-mixed-72h.json --require-native-72h
+
 ### The same workload over verified TLS
 
 Build a fresh client with `--tls` on the build command. Supply

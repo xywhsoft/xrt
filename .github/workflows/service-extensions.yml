@@ -161,6 +161,8 @@ jobs:
           python -B tools/build_service_mixed.py xmqtt --output "$evidence/mixed"
           python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
             --binary "$evidence/mixed" --seconds 30 --pause-ms 3 --report "$evidence/mixed.json"
+          python -B tools/check_service_mixed.py xmqtt --binary "$evidence/mixed" \
+            --report "$evidence/mixed.json" > "$evidence/audit.json"
           fault_status=0
           python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
             --binary "$evidence/mixed" --seconds 20 --pause-ms 3 --kill-broker-after 5 \
@@ -213,6 +215,7 @@ jobs:
           name: service-extensions-${{ matrix.product }}-linux-smoke
           path: |
             out/service-extensions/*.json
+            out/service-extensions/xmqtt-mixed/mixed
             out/service-extensions/xmqtt-mixed/*.json
             out/service-extensions/xmqtt-mixed/*.jsonl
             out/service-extensions/xmqtt-mixed/*.stderr
@@ -400,6 +403,8 @@ jobs:
           python -B extlibs/xredis/tests/interop/run_redis_mixed.py \
             --server "$peer" --client "$evidence/mixed" --seconds 30 --pause-ms 3 \
             --report "$evidence/mixed.json"
+          python -B tools/check_service_mixed.py xredis --binary "$evidence/mixed" \
+            --report "$evidence/mixed.json" > "$evidence/audit.json"
       - name: Preserve Redis process restart and mixed-load evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -408,6 +413,7 @@ jobs:
           path: |
             out/service-extensions/redis-restart/*.json
             out/service-extensions/redis-restart/*.log
+            out/service-extensions/redis-mixed/mixed
             out/service-extensions/redis-mixed/*.json
             out/service-extensions/redis-mixed/*.jsonl
             out/service-extensions/redis-mixed/*.log
