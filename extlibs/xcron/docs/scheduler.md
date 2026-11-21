@@ -150,5 +150,7 @@ time from return to the first callback, and elapsed time in the last
 wait. The integer waiter supplies a relative request. The scheduler
 and precise waiter supply absolute monotonic deadlines. The observer subtracts the entry
 timestamp from that deadline to compute the budget. A zero-call wave emits
-zeros in the other fields. Use the ordinary cohort executable to measure
-release tails.
+zeros in the other fields. Run the same Python cohort driver with this
+diagnostic executable to retain `wait_phases_ns` and `waiter_backend`
+in each verified run. The phase tuple uses the same field order as the
+raw output. Use the ordinary cohort executable to measure release tails.

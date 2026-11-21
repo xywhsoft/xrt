@@ -63,8 +63,23 @@ def observe(program, cpu, waves, active, dormant, drive):
     elapsed = float(fields["wait_seconds"])
     if not math.isfinite(cpu_cost) or cpu_cost < 0 or not math.isfinite(elapsed) or abs(elapsed - waves) >= 1:
         raise ValueError("invalid process CPU or elapsed time")
-    return {"verified_callbacks": callbacks, "samples_ns": samples, "cpu_ns_per_callback": cpu_cost,
-            "wait_seconds": elapsed, "wall_clock": fields["wall_clock"]}
+    result = {"verified_callbacks": callbacks, "samples_ns": samples, "cpu_ns_per_callback": cpu_cost,
+              "wait_seconds": elapsed, "wall_clock": fields["wall_clock"]}
+    phase_keys = [key for key in fields if key.startswith("phase_")]
+    if phase_keys or "waiter_backend" in fields:
+        if len(phase_keys) != waves:
+            raise ValueError("wait phase sample count differs from the reported workload")
+        phases = []
+        for index in range(1, waves + 1):
+            calls, budget, entry, returned, dispatch, wait = map(int, fields[f"phase_{index}_ns"].split(","))
+            if min(calls, budget, dispatch, wait) < 0 or (calls == 0 and any((budget, entry, returned, dispatch, wait))):
+                raise ValueError(f"invalid wait phase in wave {index}")
+            phases.append((calls, budget, entry, returned, dispatch, wait))
+        backend = int(fields["waiter_backend"])
+        if backend < -1 or (backend == -1 and any(phase[0] for phase in phases)):
+            raise ValueError("missing measured waiter backend")
+        result.update(waiter_backend=backend, wait_phases_ns=phases)
+    return result
 
 
 def summarize(runs):
