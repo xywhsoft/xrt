@@ -22109,3 +22109,30 @@ remain open.
 
 Build commands, the initial failure, final reports and the audit are
 under `out/service-extensions/xredis-executed-reply-loss-273e248a/`.
+
+## 2026-11-21 Completed Windows xcron matched-precision campaign
+
+The Windows run launched at c696b498 finished all 20 processes on
+logical CPU 4. It verified 5,120 measured waves and 2,785,280 callbacks.
+Each drive and cohort has five independent runs of 256 waves. Both
+drives used the same executable and precise Windows wall clock. An
+independent reader replayed the callback ledger, pooled percentiles and
+per-process P99 variation from the raw samples. The runner, executable
+and build inputs matched the recorded hashes.
+
+| Active jobs | Drive | First / last P99 (us) | First / last P99.9 (us) | P99 variation checks passed |
+| --- | --- | ---: | ---: | ---: |
+| 64 | Scheduler Wait | 582.6 / 590.0 | 794.2 / 806.8 | 2 of 2 |
+| 64 | Precise direct waiter | 552.4 / 552.8 | 910.3 / 910.8 | 0 of 2 |
+| 1,024 | Scheduler Wait | 736.6 / 839.6 | 1047.0 / 1143.5 | 0 of 2 |
+| 1,024 | Precise direct waiter | 714.3 / 717.3 | 934.5 / 939.4 | 0 of 2 |
+
+For the 1,024 active cohort, the pooled P99 first-to-last dispatch span
+was 131.3 us for Scheduler Wait and 14.1 us for the direct callback
+control. Both Windows endurance workloads ran alongside this campaign.
+The host also ran the recorded extension build and diagnostic steps.
+Two of the eight first and last callback series met the repeatability
+limits. Stable release tails and native Linux validation remain open.
+
+The raw journal, executable, launch receipt and independent audit are
+under `out/service-extensions/xcron-current-matched-6c0936d2/guarded-c696b498/`.
