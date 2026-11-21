@@ -69,6 +69,48 @@ static void testDuplexStops(void)
         duplexTestClose(D);if(O){testRequire(xrpcDuplexOutputWire(O).Size>0,"retained wire after endpoint destroy");xrpcDuplexOutputRelease(O);}xrtFutureDestroy(F);
     }
 }
+static void testDuplexCancelledBatchReply(void)
+{
+	duplexTestContext Context;
+	duplexTestInit(&Context);
+	xrpcduplex* D = duplexTestCreate(&Context, NULL);
+	xfuture *Batch = NULL, *Live = NULL;
+	const xrpcduplexitem Items[] = {
+		{false, XRT_STR_LITERAL("echo"), (xstrview){0}},
+		{false, XRT_STR_LITERAL("echo"), (xstrview){0}}
+	};
+	testRequire(xrpcDuplexBatch(D, Items, 2, XRT_WAIT_FOREVER, &Batch) == XRPC_DUPLEX_ACCEPTED &&
+		xrpcDuplexCall(D, XRT_STR_LITERAL("echo"), (xstrview){0}, XRT_WAIT_FOREVER, &Live) ==
+		XRPC_DUPLEX_ACCEPTED, "admit a batch and a separate live call");
+	uint64 Token = 0;
+	xrpcDuplexOutputRelease(duplexTestSend(D, &Token));
+	xrpcDuplexOutputRelease(duplexTestSend(D, &Token));
+	testRequire(xrtFutureCancel(Batch) && !xrtFutureDone(Batch), "request batch cancellation before owner step");
+
+	const xstrview Reply = XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":2},"
+		"{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}]");
+	testRequire(xrpcDuplexReceive(D, Reply, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED,
+		"receive reordered batch reply before cancellation cleanup");
+	const xrpccallresult* Result = duplexTestResult(Batch, XRPC_CALL_CANCELLED, XRPC_REPLIED);
+	testRequire(!Result->Responses, "discard cancelled batch payload while recording delivery");
+	testRequire(xrpcDuplexReceive(D, Reply, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED &&
+		duplexTestInfo(D).UnknownResponses == 2 && !xrtFutureDone(Live),
+		"replayed batch replies have no association with a live call");
+
+	const xstrview LiveReply = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":42}");
+	testRequire(xrpcDuplexReceive(D, LiveReply, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED,
+		"accept live reply after stale batch replay");
+	Result = duplexTestResult(Live, XRPC_CALL_OK, XRPC_REPLIED);
+	xrpcresponseinfo Info = {0};
+	Info.Size = sizeof(Info);
+	testRequire(Result->Responses && xrpcResponsesInfo(Result->Responses, &Info) && Info.Count == 1 && Result->Index == 0 &&
+		Info.Messages[Result->Index].Result.Raw.Size == 2 &&
+		memcmp(Info.Messages[Result->Index].Result.Raw.Data, "42", 2) == 0, "preserve the live call payload");
+	duplexTestClose(D);
+	xrtFutureDestroy(Batch);
+	xrtFutureDestroy(Live);
+}
+
 static void testDuplexResponseAtomicity(void)
 {
     static const char* Bad[]={
@@ -379,6 +421,7 @@ int main(void)
 {
     testDuplexHost();
     testDuplexStops();
+    testDuplexCancelledBatchReply();
     testDuplexResponseAtomicity();
     testDuplexAllocation();
     testDuplexConcurrency();
