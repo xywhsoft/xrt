@@ -32,6 +32,9 @@ static void testWait(void)
     xcronpoll Result;
     testRequire(xcronSchedulerPoll(S, &Result) == XCRON_SCHEDULE_IDLE &&
         !Result.Count && !Result.HasNext, "empty poll");
+	testRequire(xcronSchedulerWake(S) && xcronSchedulerWake(S), "coalesce wakes before first wait");
+	testRequire(xcronSchedulerWait(S, 3000, &Result) == XCRON_SCHEDULE_WOKEN &&
+		!Result.Count && !Result.HasNext, "first wait observes a previously signalled wake");
     testRequire(xcronSchedulerWait(S, 10, &Result) == XCRON_SCHEDULE_TIMEOUT &&
         !Result.HasNext, "empty timed wait");
 #if defined(XRT_FEATURE_THREAD)

@@ -12,6 +12,7 @@ python tools/build.py --manifest extlibs/xcron/config/modules.json --suite xcron
 | [calendar](calendar/main.c) | Iterate UTC trigger times or budget a search across host turns |
 | [scheduler](scheduler/main.c) | Register a callback and choose polling or blocking wait |
 | [executor](executor/main.c) | Hand a callback to an APP-owned XRT executor and join its work |
+| [wake_registration](wake_registration/main.c) | Wake the APP owner to register and retire one task |
 | [service_checkpoint](service_checkpoint/main.c) | Reload a persisted task name and rule, then rebind the APP callback |
 | [restart_catchup](restart_catchup/main.c) | Replay a bounded number of UTC occurrences after restarting from the last successful action |
 | [timezone](timezone/main.c) | Resolve one civil result using an APP-selected host time zone and fold policy |
@@ -61,3 +62,10 @@ python extlibs/xcron/tests/interop/run_restart_catchup.py out/gcc/native/xcron_e
 ```
 
 Use the built executable's path and include the `.exe` suffix on Windows.
+
+The `wake_registration` example shows an APP thread requesting registration
+while the scheduler owner is waiting. Only the owner registers and removes the
+task. The callback signals the requesting thread, which wakes the owner again
+for shutdown. The owner joins that thread before destroying the scheduler.
+Wake signals can coalesce. APPs with several pending requests keep the
+requests in their own queue and use Wake to notify the owner.

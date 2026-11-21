@@ -21542,3 +21542,11 @@ The table gives completed samples and quota-refused samples out of five. P99 and
 Changing the single-connection budget can change admission at the same offered rate. The measured P99 distributions and resident memory give the cost of using a deeper queue. The results concern this bounded loopback profile. Native Linux, sustainable peak capacity and repeatable release tails remain open.
 
 The APP probe source, build flags, individual broker snapshots and all sample ledgers are under `out/service-extensions/scope-reduction-20261119/xmqtt-qos2-queue-depth/`.
+
+## 2026-11-21 xcron APP registration through Wake
+
+The new `wake_registration` example shows the single-owner API with an APP control thread. The first Wake requests registration. The owner registers the task and runs its callback. The callback notifies the control thread, which sends a shutdown Wake. The owner removes the task and joins the control thread before destroying the scheduler. The APP example uses the thread dependency already present in the examples aggregate.
+
+The scheduler regression sends two signals before any native waiter exists. The first positive wait observes a single wake, and the next empty timed wait expires. Native Windows and Ubuntu WSL passed the modular and single-header suites and five fresh runs of the new APP on each platform. The WSL ASan/UBSan run with leak checking verified a further APP run. Standalone scheduler builds and generated assets passed. Strict release reports `xcron` and `xcron_scheduler` as developing. Native Linux and repeatable release tails remain open.
+
+The module manifests, executable identities and per-process logs are under `out/service-extensions/scope-reduction-20261119/xcron-owner-wake/`. [Example guide](../../extlibs/xcron/examples/README.md).

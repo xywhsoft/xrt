@@ -251,6 +251,7 @@
         "extlibs/xcron/examples/executor/main.c",
         "extlibs/xcron/examples/service_checkpoint/main.c",
         "extlibs/xcron/examples/restart_catchup/main.c",
+        "extlibs/xcron/examples/wake_registration/main.c",
         "extlibs/xcron/examples/timezone/main.c"
       ],
       "benchmarks": [],
