@@ -21868,3 +21868,48 @@ Extracted steps, rebuild receipts and the live journal audit are
 under `out/service-extensions/native-mixed-smoke-38681de5/`.
 The exact step outputs are under `out/service-extensions/redis-mixed/`
 and `out/service-extensions/xmqtt-mixed/`.
+
+## 2026-11-21 Matched xcron wait diagnostics and Windows deadline repair
+
+The phase runner now retains wait-entry budget, return lateness, dispatch
+handoff, native wait duration and backend for each checked wave. Windows
+x64 (CPU 4) and WSL2 (CPU 6) each verified 104,448 callbacks across 192
+measured waves at 64 and 1,024 active jobs on the 6c0936d2 candidate.
+Each wave entered the wait path once. Windows used the high-resolution
+waiter and WSL2 used the monotonic condition waiter.
+
+The table gives the largest first callback lateness in each drive and
+its same-wave return lateness and monotonic handoff. Values are in
+microseconds. These 24-wave repetitions provide diagnostic samples.
+
+| Environment | Drive | Active jobs | First callback | Wait return | Handoff |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Windows | Scheduler Wait | 1,024 | 518.5 | 514.8 | 4.2 |
+| Windows | Precise direct waiter | 1,024 | 13,159.1 | 13,158.2 | 1.8 |
+| WSL2 | Scheduler Wait | 64 | 279.3 | 275.2 | 4.3 |
+| WSL2 | Precise direct waiter | 64 | 235.4 | 234.0 | 1.7 |
+
+A separate controlled arm-time delay reproduced a Windows waiter defect.
+A 300 ms deadline with a simulated 450 ms delay before relative timer
+arming completed at 750 ms on the old code. The guarded path completed
+at 450 ms, cancelled the timer, and skipped the native block. Ordinary
+300 ms waits and auto-reset signal consumption also checked out. The
+native white-box regression failed on the old code and passed after
+c696b498, including event priority when a signal arrives while arming.
+The Core EventWaiter and xcron modular and single-header suites passed
+on Windows and WSL2. This controlled failure is separate from the
+scheduler tail observations above.
+
+The updated ordinary executable verified 4,352 callbacks in a smoke.
+A Windows matched-precision campaign then started with five 256-wave
+repetitions per drive and job mix, pinned to logical CPU 4. The launch
+receipt records the c696b498 sources, binary identity and concurrent
+Windows Redis and MQTT soak workloads. Both ongoing workload binaries
+matched fresh c696b498 rebuilds after normalizing the PE timestamp and
+checksum. The full xcron distribution and native Linux gate remain
+pending.
+
+Phase records, builds, failing and passing regression logs, and the
+formal Windows journal are under
+`out/service-extensions/xcron-current-matched-6c0936d2/`. The formal run
+and independent mixed-load rebuild receipt are in `guarded-c696b498/`.
