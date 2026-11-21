@@ -153,6 +153,34 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json &&
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-pressure-linux.json --pressure-clients 64
+      - name: MQTT mixed load and separate broker termination
+        if: matrix.product == 'xmqtt'
+        shell: bash
+        run: |
+          evidence=out/service-extensions/xmqtt-mixed
+          mkdir -p "$evidence"
+          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE \
+            -DXMQTT_MODULE_XMQTT_CLIENT -DXMQTT_MODULE_XMQTT_SERVER \
+            -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION -Iinclude -Iextlibs/xmqtt/include \
+            -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h \
+            extlibs/xmqtt/tests/interop/mqtt_mixed.c -o "$evidence/mixed" -pthread -lm
+          python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
+            --binary "$evidence/mixed" --seconds 30 --pause-ms 3 --report "$evidence/mixed.json"
+          fault_status=0
+          python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
+            --binary "$evidence/mixed" --seconds 20 --pause-ms 3 --kill-broker-after 5 \
+            --report "$evidence/broker-terminated.json" || fault_status=$?
+          test "$fault_status" -eq 1
+          python -B - "$evidence/broker-terminated.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          fault = report["fault"]
+          assert report["status"] == "failed" and report["native_72h"] is False
+          assert fault["event"] == "broker process killed" and fault["verified_rounds"] > 0 and fault["broker_exit"] != 0
+          PY
       - name: Required MQTT authentication across checkpoint transports
         if: matrix.product == 'xmqtt'
         shell: bash
@@ -188,7 +216,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: service-extensions-${{ matrix.product }}-linux-smoke
-          path: out/service-extensions/*.json
+          path: |
+            out/service-extensions/*.json
+            out/service-extensions/xmqtt-mixed/*.json
+            out/service-extensions/xmqtt-mixed/*.jsonl
+            out/service-extensions/xmqtt-mixed/*.stderr
           if-no-files-found: warn
 
   windows:
@@ -362,7 +394,22 @@ jobs:
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/tls-edited.json" \
             --tls --edit-subscriptions
-      - name: Preserve Redis process restart evidence
+      - name: Redis client mixed load with pinned native peer
+        shell: bash
+        run: |
+          evidence=out/service-extensions/redis-mixed
+          mkdir -p "$evidence"
+          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE \
+            -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING \
+            -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION \
+            -Iinclude -Iextlibs/xredis/include -include xredis/features.h \
+            -include ./single/xrt.h -include ./single/extlibs/xredis.h \
+            extlibs/xredis/tests/interop/redis_mixed.c -o "$evidence/mixed" -pthread -lm
+          peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
+          python -B extlibs/xredis/tests/interop/run_redis_mixed.py \
+            --server "$peer" --client "$evidence/mixed" --seconds 30 --pause-ms 3 \
+            --report "$evidence/mixed.json"
+      - name: Preserve Redis process restart and mixed-load evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -370,6 +417,10 @@ jobs:
           path: |
             out/service-extensions/redis-restart/*.json
             out/service-extensions/redis-restart/*.log
+            out/service-extensions/redis-mixed/*.json
+            out/service-extensions/redis-mixed/*.jsonl
+            out/service-extensions/redis-mixed/*.log
+            out/service-extensions/redis-mixed/*.stderr
           if-no-files-found: warn
       - name: Verify fixed Sentinel seed recovery and primary failover
         shell: bash

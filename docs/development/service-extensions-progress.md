@@ -21836,3 +21836,35 @@ Windows passed the default and explicit `auto` dual-version
 runs and reported an error for unavailable `uring`. The test
 programs, source overlays, input hashes and logs are under
 `out/service-extensions/xmqtt-backends-c52d0d2f/`.
+
+## 2026-11-21 Native CI mixed-load preflight
+
+The Ubuntu service jobs now build the two endurance workload programs
+from the checkout and run a 30-second mixed-load smoke. Redis reuses the
+pinned 8.0.5 binary from the existing interop job in a private supervised
+fixture. MQTT separately kills its own broker after a verified progress
+window. The step checks the expected process failure, and the artifacts
+include the JSON reports, JSONL clocks and resource windows, and process
+logs. The two 72-hour gates remain separate.
+
+The exact extracted Bash steps passed on Ubuntu WSL. Redis reconciled
+8,073 rounds with 72,657 SETs, 72,657 GETs, and 8,073 publications.
+MQTT verified 53,235 deliveries and graceful broker retirement. The
+separate broker stop occurred after 1,456 verified rounds and returned
+SIGKILL to the supervisor. All reports carry the WSL environment and
+have their native endurance flags clear. The Ubuntu CI result is pending.
+
+The 08cf2cac Windows campaign binaries were rebuilt from 38681de5
+with the commands and compiler from their original receipts. Both
+rebuilt PEs match their running versions after normalizing the PE
+timestamp and checksum. The only changed build input was the MQTT
+APP listener header. Its new backend field retains the automatic
+backend in the mixed workload. An independent read of both live
+journals checked their binary fingerprints, progress and clock
+continuity through the latest complete windows. Both supervisors
+were running. The completed duration remains open.
+
+Extracted steps, rebuild receipts and the live journal audit are
+under `out/service-extensions/native-mixed-smoke-38681de5/`.
+The exact step outputs are under `out/service-extensions/redis-mixed/`
+and `out/service-extensions/xmqtt-mixed/`.
