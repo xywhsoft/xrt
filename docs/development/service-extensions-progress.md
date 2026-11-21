@@ -21940,3 +21940,43 @@ and runs shared the host with the active xcron Windows series. Keep their
 log timestamps with the scheduler measurements. The running Windows
 endurance workloads retain their original candidate receipts. Native
 Linux and completed 72-hour evidence remain pending.
+
+## 2026-11-21 xrpc per-call TCP tail evidence
+
+The existing saturation driver can retain first-send, credit wait and
+reply timestamps with `--raw-dir`. It writes a gzip JSON Lines file per
+verified process run after timing and APP retirement. Scheduled times
+are reconstructed from each peer's phase, group index and exact rate.
+The files preserve individual reply times within a burst and include
+calls in the short final group.
+
+Both observers were checked on Windows x64 and Ubuntu WSL. The 40 native
+observer runs used eight staggered peers, two APP workers, 16 groups of
+credit, APP CPUs 0 and 2 and observer CPU 8. Each offered 64,000 or
+128,000 calls/s for two seconds. Four Python-observer runs also verified
+native JSON-RPC batch framing with 1,003 measured calls per peer. The
+independent reader reconciled 7,700,060 replies, all latency quantiles,
+throughput and the same-call tail phase totals from the saved timestamps.
+Both hosts passed the 11 observer tests and the TCP peer suite with its
+backpressure and reset cases.
+
+At 64,000 calls/s on Windows, the median share of total tail time before
+the first send and outside observed credit wait was 68.6% in duplex and
+67.0% in direct dispatch. In some windows all eight peers had a group
+due in the same millisecond that was at least 1 ms late at first send,
+excluding observed credit wait. Across the five runs per mode, 3,704
+of 6,400 duplex tail replies and 2,680 of 6,400 dispatch tail replies
+had this delay in a window shared by at least four peers.
+
+On WSL at both rates, the median share spent after first send was
+99.6% to 99.8% across the four cases. At 64,000 calls/s both WSL modes
+met the P99 and P99.9 variation limits, with median P99 of 479 and
+408 microseconds in duplex and direct dispatch. All four Windows cases
+and both WSL cases at 128,000 calls/s exceeded those variation limits.
+One WSL duplex sample at 128,000 offered calls/s verified 114,254/s.
+The measurements shared the host with the live xcron and Windows
+endurance runs. The timestamps locate the delay by phase and peer.
+Native Linux and repeatable cross-platform release tails remain open.
+
+Build logs, reports, raw files and the independent audit are under
+`out/service-extensions/xrpc-raw-saturation-ff1ab5e5/`.

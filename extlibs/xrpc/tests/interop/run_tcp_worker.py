@@ -3,6 +3,7 @@ import argparse
 from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, suppress
+import gzip
 import hashlib
 from heapq import nlargest
 from itertools import accumulate
@@ -547,8 +548,20 @@ def saturation_sharded(peers, settings, cpus, bounds):
         return results, start, cpu_seconds
 
 
+def write_saturation_samples(path, start, rate, streams):
+    with gzip.open(path, "xt", compresslevel=3, encoding="utf-8", newline="\n") as output:
+        header = {"version": 1, "start_ns": start, "rate_per_connection": rate,
+                  "batch_depth": SATURATION_DEPTH}
+        output.write(json.dumps(header) + "\n")
+        for stream in streams:
+            data = {"phase_ns": stream.phase_ns, "sent_ns": stream.sent_at,
+                    "credit_wait_ns": stream.credit_wait, "reply_ns": stream.times}
+            output.write(json.dumps(data, separators=(",", ":")) + "\n")
+
+
 def saturation_sample(executable, mode, calls, connections, workers, rate, window, app_cpus, observer_cpus,
-                      batch_documents=False, stagger_arrivals=False, observer_shards=1, native_observer=None):
+                      batch_documents=False, stagger_arrivals=False, observer_shards=1, native_observer=None,
+                      *, raw_samples=None):
     depth, warmup, deadline_ns = SATURATION_DEPTH, SATURATION_WARMUP, 5_000_000_000
     period = depth * 1_000_000_000
     batch_count = (calls + depth - 1) // depth
@@ -612,7 +625,7 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
     dues = [start + index * period // rate for index in range(batch_count)]
     latency, after_send, offer_lag, credit_wait = [], [], [], []
     for peer in results:
-        if len(peer.times) != calls or len(peer.sent_at) != batch_count:
+        if len(peer.times) != calls or len(peer.sent_at) != batch_count or len(peer.credit_wait) != batch_count:
             raise RuntimeError("saturation reply count mismatch")
         latency.extend(when - dues[index // depth] - peer.phase_ns for index, when in enumerate(peer.times))
         after_send.extend(when - peer.sent_at[index // depth] for index, when in enumerate(peer.times))
@@ -635,6 +648,9 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
     for prefix, samples in (("", latency), ("from_send_", after_send), ("offer_lag_", offer_lag),
                             ("credit_wait_", credit_wait)):
         stats.update(percentiles(samples, prefix))
+    if raw_samples is not None:
+        write_saturation_samples(raw_samples, start, rate, results)
+        stats["raw_samples"] = raw_samples.name
     return stats
 
 
@@ -712,7 +728,7 @@ def measure_concurrent(executable, report, calls, repeats, rate, cpus):
     return data
 
 
-def measure_saturation(executable, report, args):
+def measure_saturation(executable, report, args, raw_dir=None):
     native_observer = None
     if args.observer_native is not None:
         from tcp_native_observer import NativeObserver
@@ -730,9 +746,12 @@ def measure_saturation(executable, report, args):
             "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
             "profiles": [], "complete": False}
+    if raw_dir is not None:
+        raw_dir.mkdir(parents=True)
+        data["raw_samples_directory"] = str(raw_dir.resolve())
     metrics = ("calls_per_second", "p99_us", "p999_us", "offer_lag_p99_us", "credit_wait_p99_us", "from_send_p99_us")
     try:
-        for rate in args.rates:
+        for profile, rate in enumerate(args.rates, 1):
             runs = []
             entry = {"rate_per_connection": rate, "samples": runs}
             data["profiles"].append(entry)
@@ -742,10 +761,11 @@ def measure_saturation(executable, report, args):
                 runs.append(run)
                 for name in order:
                     try:
+                        raw_samples = None if raw_dir is None else raw_dir / f"{profile}-{repeat + 1}-{name}.jsonl.gz"
                         run[name] = saturation_sample(executable, MODES[name], args.calls, args.connections,
                                                       args.workers, rate, args.window_batches, args.app_cpus,
                                                       args.cpus, args.batch_documents, args.stagger_arrivals,
-                                                      args.observer_shards, native_observer)
+                                                      args.observer_shards, native_observer, raw_samples=raw_samples)
                     except (OSError, AssertionError, RuntimeError, subprocess.SubprocessError, ValueError) as error:
                         run[name] = {"failure": str(error)}
             entry["summary"] = {}
@@ -790,6 +810,7 @@ def main():
                         help="send each scheduled group as one JSON-RPC batch in saturation mode")
     parser.add_argument("--stagger-arrivals", action="store_true",
                         help="evenly offset each connection within the same saturation offer period")
+    parser.add_argument("--raw-dir", type=Path, help="new directory for verified per-call saturation timestamps")
     args = parser.parse_args()
     if not 1000 <= args.calls <= 100000 or not 1 <= args.repeats <= 30:
         parser.error("choose 1000..100000 calls and 1..30 repeats")
@@ -800,7 +821,11 @@ def main():
         parser.error("batch documents, staggered arrivals and observer options require --saturation")
     if args.observer_native is not None and args.observer_shards != 1:
         parser.error("--observer-native requires a single observer shard")
+    if args.raw_dir is not None and not args.saturation:
+        parser.error("--raw-dir requires --saturation")
     if args.saturation:
+        if args.raw_dir is not None and args.raw_dir.exists():
+            parser.error("--raw-dir must name a new directory")
         if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:
             parser.error("saturation requires disjoint --cpus and --app-cpus")
         if not 1 <= args.observer_shards <= min(args.connections, len(args.cpus)):
@@ -817,7 +842,7 @@ def main():
     executable = args.executable.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     if args.saturation:
-        return 0 if measure_saturation(executable, args.report, args) else 1
+        return 0 if measure_saturation(executable, args.report, args, args.raw_dir) else 1
     if args.concurrent:
         measure_concurrent(executable, args.report, args.calls, args.repeats, args.rate, args.cpus)
         return

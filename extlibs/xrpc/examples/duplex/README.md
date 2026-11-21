@@ -157,6 +157,17 @@ batch document supplies one timestamp for all calls in the document.
 The saturation summary checks variation across both P99 and P99.9.
 Compare tail medians only when the repeated samples meet the variation gate.
 
+Add `--raw-dir out/xrpc-tcp-samples` to retain the verified timestamps for
+individual calls and compare the same spike across connections. Use a new
+sample directory for each report. Each successful process run adds one
+gzip-compressed JSON Lines file. Its header records the monotonic start,
+rate per connection and group depth. Each following row contains a peer's
+phase offset, first-send timestamps and credit wait per group, and receive
+timestamps per reply. For group index `i` the scheduled time in nanoseconds
+is `start_ns + phase_ns + i * batch_depth * 1_000_000_000 // rate_per_connection`.
+The report associates each sample file with its run after the APP and wire
+ledgers are verified. Export runs after the measured interval.
+
 The default framing sends a separate JSON-RPC record for each call.
 With `--batch-documents` the same calls travel in one JSON-RPC request
 array per scheduled group. Each response array is checked byte for byte
