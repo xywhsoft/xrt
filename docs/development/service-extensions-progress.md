@@ -21587,3 +21587,38 @@ reported rates are per-variant medians in calls/s.
 Raw pairs, binary fingerprints and tests are under
 `out/service-extensions/xrpc-response-decode-70852791/`. Native Linux,
 network concurrency tails and strict release acceptance remain open.
+
+## 2026-11-21 xrpc TCP client decode comparison
+
+The same loopback TCP worker example served four connections through four XRT
+executor threads. The benchmark linked the client from 70852791 and 870cd1ce
+against the same C driver. Each connection retained one eight-call JSON-RPC
+batch in flight. Delay is measured from the planned batch release to the end
+of the real client duplex receive. Both platforms used logical CPUs 0, 2, 4
+and 6 for the host and 8, 10, 9 and 11 for the client processes. The pilot now
+chooses client CPUs from the available mask after the first Windows affinity
+setup encountered unavailable CPU IDs.
+
+Five alternating pairs per load and platform checked 3.2 million measured
+calls against the echoed payloads and the server's request totals. Both
+platforms also passed the separate TCP protocol and fault interop fixture.
+Every measured sample completed the full call set. Even the lowest per-peer
+achieved/target ratio was above 99.8%.
+
+The table gives per-variant medians of sample P99 and P99.9 in milliseconds.
+The last column counts the P99 series passing the existing 3% MAD and 6%
+central-range limits.
+
+| Host | Offered calls/s | Before P99 / P99.9 | After P99 / P99.9 | Stable series |
+| --- | ---: | ---: | ---: | ---: |
+| Native Windows | 16,000 | 2.322 / 10.940 | 1.941 / 8.394 | 0/2 |
+| Native Windows | 64,000 | 6.568 / 12.366 | 7.599 / 15.232 | 0/2 |
+| Ubuntu WSL | 16,000 | 1.083 / 1.812 | 1.089 / 1.793 | 0/2 |
+| Ubuntu WSL | 64,000 | 1.315 / 2.017 | 1.268 / 1.953 | 2/2 |
+
+2 of 8 P99 series met the variation limits. The Windows series leave
+network tail qualification open. The Ubuntu WSL result at 64,000 calls/s
+provides a repeatable comparison on that host. Native Linux qualification
+and strict release acceptance remain open. Driver source, raw per-batch
+samples, process affinity and binary fingerprints are under
+`out/service-extensions/xrpc-tcp-ab-870cd1ce/`.
