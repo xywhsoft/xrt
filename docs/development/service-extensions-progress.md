@@ -21980,3 +21980,58 @@ Native Linux and repeatable cross-platform release tails remain open.
 
 Build logs, reports, raw files and the independent audit are under
 `out/service-extensions/xrpc-raw-saturation-ff1ab5e5/`.
+
+## 2026-11-21 xrpc APP read and executor handoff attribution
+
+On Ubuntu WSL, a diagnostic native observer recorded the attempt that
+supplied each request record's final byte. The APP traced one in 31
+records from its completed read through executor admission and reply
+send. The comparison used two-second fixed-arrival single records,
+eight peers, two workers, APP CPUs 0 and 2, and observer CPU 8. Three
+pairs per rate and mode verified 4,608,000 replies. The independent
+reader joined 74,304 traced calls and checked their phase sums against
+the full-run P99 cutoff. A separate sender limited writes to 13 bytes
+and verified 16,048 replies and 512 matching trace rows. The first
+fixture attempt exposed an output-path junction, which the report
+writer handled by recording absolute input paths.
+
+At 64,000 calls/s, the median share of sampled tail time between the
+completed APP read and the record's turn was 80.3% in duplex and 76.7%
+in direct dispatch. At 128,000 calls/s, the interval from the final
+request write attempt to the completed APP read accounted for 57.2%
+and 48.1%, respectively. The read-to-turn shares were 41.6% and 49.1%.
+Executor queueing, handler work and the worker-to-owner wake for the
+sampled request accounted for under 2.4% combined at that higher load.
+The traced and ordinary P99 medians varied at the high rate, so the
+phase shares apply to the sampled trace runs.
+
+A second control executed the example's existing echo handler on the
+connection owner. Both variants kept the same two-thread pool and TCP
+wire behavior. The control verified its zero-submission ledger and
+passed the existing TCP backpressure and reset peer in both modes on
+both hosts. Five alternating pairs at each rate and mode verified
+15,360,000 replies. The table shows the median P99 in milliseconds.
+
+| Host | Mode | Calls/s | Thread pool | Owner control |
+| --- | --- | ---: | ---: | ---: |
+| WSL | Duplex | 64,000 | 0.469 | 0.126 |
+| WSL | Duplex | 128,000 | 4.220 | 0.140 |
+| WSL | Direct dispatch | 64,000 | 0.403 | 0.109 |
+| WSL | Direct dispatch | 128,000 | 1.728 | 0.111 |
+| Windows | Duplex | 64,000 | 0.192 | 0.114 |
+| Windows | Duplex | 128,000 | 0.669 | 0.139 |
+| Windows | Direct dispatch | 64,000 | 0.157 | 0.130 |
+| Windows | Direct dispatch | 128,000 | 0.141 | 0.120 |
+
+The WSL owner control met all four P99 variation checks and three P99.9
+checks. The Windows owner control improved P99 in 17 of 20 pairs.
+Windows direct-dispatch median P99.9 grew from 4.83 to 11.21 ms at 64,000
+calls/s and from 2.43 to 8.61 ms at 128,000 calls/s. All Windows P99 and
+P99.9 series exceeded the variation limits. The control isolates the
+cumulative cost of APP handoffs under this workload. It is diagnostic
+performance evidence for the host execution policy. Native Linux and
+end-to-end release-tail acceptance remain open.
+
+Source overlays, commands, failed setup, raw samples, benchmark binaries,
+input fingerprints and independent audits are under
+`out/service-extensions/xrpc-native-postsend-65818d97/`.
