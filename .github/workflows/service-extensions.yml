@@ -316,3 +316,58 @@ jobs:
           name: service-extensions-${{ matrix.product }}-windows-smoke
           path: out/service-extensions/*.json
           if-no-files-found: warn
+
+  redis-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REDIS_VERSION: '8.0.5'
+      REDIS_SHA256: 012bca956fc7151abc2281950e69768ee9c53ce4b36588772041675bc95fd313
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Build pinned Redis with TLS
+        shell: bash
+        run: |
+          if [[ ! -r /usr/include/openssl/ssl.h ]]; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y libssl-dev
+          fi
+          archive="$RUNNER_TEMP/redis-$REDIS_VERSION.tar.gz"
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            "https://download.redis.io/releases/redis-$REDIS_VERSION.tar.gz" --output "$archive"
+          printf '%s  %s\n' "$REDIS_SHA256" "$archive" | sha256sum --check
+          tar --no-same-owner -xzf "$archive" -C "$RUNNER_TEMP"
+          make -C "$RUNNER_TEMP/redis-$REDIS_VERSION" -j2 BUILD_TLS=yes MALLOC=libc OPTIMIZATION=-O2 redis-server
+          "$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server" --version
+      - name: Verify Redis process replacement and interrupted pipeline
+        shell: bash
+        env:
+          REDIS_REPORT_DIR: out/service-extensions/redis-restart
+        run: |
+          evidence="$REDIS_REPORT_DIR"
+          mkdir -p "$evidence"
+          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE \
+            -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING \
+            -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION \
+            -DXREDIS_MODULE_XREDIS_TLS -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION \
+            -Iinclude -Iextlibs/xredis/include -include xredis/features.h \
+            -include ./single/xrt.h -include ./single/extlibs/xredis.h \
+            extlibs/xredis/tests/interop/redis_restart.c -o "$evidence/probe" -pthread -lm
+          peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
+          python -B extlibs/xredis/tests/interop/run_redis_restart.py \
+            --server "$peer" --client "$evidence/probe" --report "$evidence/plain.json"
+          python -B extlibs/xredis/tests/interop/run_redis_restart.py \
+            --server "$peer" --client "$evidence/probe" --report "$evidence/tls-edited.json" \
+            --tls --edit-subscriptions
+      - name: Preserve Redis process restart evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xredis-process-restart-linux
+          path: |
+            out/service-extensions/redis-restart/*.json
+            out/service-extensions/redis-restart/*.log
+          if-no-files-found: warn
