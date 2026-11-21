@@ -21485,3 +21485,31 @@ A dedicated Ubuntu job builds Redis 8.0.5 with TLS from the upstream release arc
 The job commands passed locally under Ubuntu WSL. The verification used a fresh upstream build with the libc allocator and recorded its binary digest. Both Redis ledgers showed the complete 48-byte queued INCR before the stop and zero INCR executions after replacement. Each run retained the observed prefix, verified 16 new replies and returned Redis to the observer-only connection count. Local OpenSSL development headers were extracted into a temporary directory. The hosted job can use the Ubuntu development package when its image needs it.
 
 The native Ubuntu job result is pending. The source archive receipt, local Bash execution and both restart reports are under `out/service-extensions/scope-reduction-20261119/xredis-ubuntu-restart-ci/`. [Upstream Redis archive checksums](https://github.com/redis/redis-hashes/blob/master/README)
+
+## 2026-11-21 MQTT QoS 2 fan-out rate sweep
+
+The fixed-arrival observer ran one MQTT 5 publisher and eight wildcard subscribers with 128-byte payloads over plaintext TCP. Both reliable windows were 16. The two xmqtt engine workers and Mosquitto 2.1.2 used logical CPUs 0, 2, 4 and 6. The observer used 8 and 10. Windows x64 and Ubuntu WSL x64 ran sequentially while the Windows mixed-load endurance jobs continued. Both passed the scripted observer checks and independent MQTT 5/3.1.1 broker peer.
+
+Each pilot rate used 2,400 measured publications, three repeats per broker and alternating broker order. The longer samples used four times the offered rate in publications, 600 warmup and five repeats per broker. They covered the highest passing pilot rate and its next tested rate for each broker, along with the 2,800, 6,000 and 8,000 controls. A rate met the scheduled load when all five samples verified every delivery and confirmation and each achieved at least 95% of the offered rate.
+
+The observer completed 138 of 170 samples and verified 3,000,800 measured publisher confirmations and 24,006,400 deliveries. The longer subset completed 81 of 110 samples. Delivery P99 met the 3% relative MAD and 6% central-range limits in 1 of 11 complete broker and rate series.
+
+The table gives the count of fully verified samples out of five and the lowest achieved ingress percentage across the completed samples. The load criterion requires five successful samples.
+
+| Host | Scheduled publications/s | xmqtt | Mosquitto |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 2,800 | 5/5 (100.0%) | 5/5 (100.0%) |
+|  | 6,000 | 4/5 (100.0%) | 4/5 (100.0%) |
+|  | 8,000 | 2/5 (100.0%) | 0/5 |
+|  | 10,000 | 1/5 (100.0%) | 1/5 (100.0%) |
+|  | 16,000 | 3/5 (99.6%) | 5/5 (93.0%) |
+|  | 24,000 | 2/5 (99.4%) | 2/5 (59.7%) |
+| Ubuntu WSL x64 | 2,800 | 5/5 (100.0%) | 5/5 (100.0%) |
+|  | 6,000 | 5/5 (100.0%) | 5/5 (99.9%) |
+|  | 8,000 | 5/5 (100.0%) | 5/5 (87.6%) |
+|  | 10,000 | 5/5 (100.0%) | 5/5 (67.6%) |
+|  | 16,000 | 3/5 (78.5%) | 4/5 (44.9%) |
+
+Both brokers completed the short Windows 10,000/s pilot. The longer Windows runs at that rate exposed quota refusal from xmqtt and incomplete subscriber ledgers from Mosquitto. The full reports retain each failed sample and record pacer lag, publisher credit wait and end-to-end delivery on successful runs. Higher rates can show nonmonotonic results on this host. Peak sustained capacity, repeatable release tails and native Linux remain open.
+
+Raw samples, build fingerprints and the phase audit are under `out/service-extensions/scope-reduction-20261119/xmqtt-qos2-rate-sweep/`. [Rate sweep reproduction](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).

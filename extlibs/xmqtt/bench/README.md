@@ -420,6 +420,25 @@ The APP option is `--compare --workers NUMBER`. It uses the XRT
 listener's round-robin connection distribution. The fixed-arrival observer
 has one publisher and measures delivery to subscribers on multiple workers.
 
+For a reliable fan-out rate sweep, keep the window sizes, payload and CPU
+placement fixed. Run the same number of repeats for both brokers at each
+scheduled rate. A short trial helps choose rates to repeat with more
+publications. This example uses an approximately four-second offer interval.
+
+```sh
+rate=6000
+python extlibs/xmqtt/bench/compare_broker.py \
+  --xmqtt out/examples_server_main --mosquitto /path/to/mosquitto \
+  --observer out/bench_server --broker-cpus 0,2,4,6 --load-cpus 8,10 \
+  --xmqtt-workers 2 --qos 2 --window 16 --subscriber-window 16 \
+  --workload "wildcard:8:$rate" --rounds "$((4 * rate))" --warmup 600 \
+  --repeats 5 --report "out/broker-qos2-rate-$rate.json"
+```
+
+Keep the JSON from unsuccessful rates. Count a rate as completed only when
+both publication and delivery ledgers match. Compare achieved ingress to the
+scheduled rate for each repetition. Evaluate P99 repeat variation separately.
+
 The scripted observer regression checks negative PUBREC with its reason code,
 early PUBCOMP, a wrong PUBCOMP identifier and duplicate subscriber delivery. It also exercises bounded
 socket retirement after failure.
