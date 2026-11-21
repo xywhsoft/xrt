@@ -97,14 +97,14 @@ static xredisclient* startTracking(xnetengine* Engine, restartendpoint* Endpoint
 	return Client;
 }
 
-static void closedClient(xredisclient* Client, bool Disconnected)
+static void closedClient(xredisclient* Client, xredisrequeststatus Status)
 {
 	xfuture* Closed = xredisClientClosed(Client);
-	if (!Disconnected) require(xredisClientClose(Client), "request tracking close");
+	if (Status == XREDIS_REQUEST_CLOSED) require(xredisClientClose(Client), "request client close");
 	require(Closed && xrtFutureWaitFor(Closed, IO_MS) == XWAIT_OK, "physical client close");
 	xredisclientinfo Info = {.Size = sizeof(Info)};
 	require(xredisClientInfo(Client, &Info) && Info.State == XREDIS_CLIENT_CLOSED &&
-		(!Disconnected || Info.CloseStatus == XREDIS_REQUEST_DISCONNECTED) && !Info.Requests && !Info.InitBytes &&
+		Info.CloseStatus == Status && !Info.Requests && !Info.InitBytes &&
 		!Info.CommandBytes && !Info.Pushes && !Info.PushBytes && Info.Accepted == Info.Completed, "closed client accounting");
 	xrtFutureDestroy(Closed);
 	xredisClientRelease(Client);
@@ -154,12 +154,17 @@ static xfuture* pipelineCall(xredisclient* Client, const xbytesview* Args, size_
 	return Future;
 }
 
+static void checkUnconfirmed(const xredisrequestresult* Request, xredisrequeststatus Status)
+{
+	require(Request->Status == Status && Request->Delivery == XREDIS_MAY_HAVE_EXECUTED && !Request->Reply,
+		"lost reply leaves the request outcome uncertain");
+}
+
 static void checkPipelineLoss(xfuture* Future)
 {
 	const xredistrackingresult* Observed = result(Future, PHASE_MS);
-	require(Observed->Request.Status == XREDIS_REQUEST_DISCONNECTED &&
-			Observed->Request.Delivery == XREDIS_MAY_HAVE_EXECUTED &&
-			!Observed->Request.Reply && !Observed->Sequence, "unconfirmed pipeline command has no reply sequence");
+	checkUnconfirmed(&Observed->Request, XREDIS_REQUEST_DISCONNECTED);
+	require(!Observed->Sequence, "unconfirmed pipeline command has no reply sequence");
 }
 
 static void checkInvalidation(xredistrackingpush Push, uint64 Sequence)
@@ -293,7 +298,7 @@ static void verifyUntrusted(xnetengine* Engine, restartendpoint* Endpoint, xredi
 	require(State->Status == XREDIS_READY_DISCONNECTED && !State->Hello && State->Cause &&
 		xrtErrorFind(State->Cause, "xrt.tls", XTLS_ERROR_VERIFY), "untrusted listener certificate rejection");
 	xrtFutureDestroy(Ready);
-	closedClient(Client, true);
+	closedClient(Client, XREDIS_REQUEST_DISCONNECTED);
 	verifyOutage(Pool, Session, Lost, "untrusted_rejected", PoolBefore.Failures, SessionBefore.Failures);
 }
 #endif
@@ -317,8 +322,93 @@ static void verifyBatch(xredispool* Pool)
 	}
 }
 
+static xnetengine* startEngine(void)
+{
+	xnetengineconfig Config;
+	xrtNetEngineConfigInit(&Config);
+	Config.Workers = 2;
+	xnetengine* Engine = xrtNetEngineCreate(&Config);
+	require(Engine && xrtNetEngineStart(Engine), "start engine");
+	return Engine;
+}
+
+static uint16 argumentPort(const char* Text)
+{
+	char* End;
+	unsigned long Port = strtoul(Text, &End, 10);
+	return *End || Port == 0 || Port > UINT16_MAX ? 0 : (uint16)Port;
+}
+
+static xredisclient* rawClient(xnetengine* Engine, uint16 Port)
+{
+	xnetaddr Address;
+	xredisclient* Client = NULL;
+	require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, Port) &&
+		xredisClientConnect(Engine, &Address, 0, NULL, &Client), "open raw fixture connection");
+	xfuture* Ready = xredisClientReady(Client);
+	const xredisreadyresult* State = result(Ready, IO_MS);
+	require(State->Status == XREDIS_READY_OK, "raw fixture connection ready");
+	xrtFutureDestroy(Ready);
+	return Client;
+}
+
+static xfuture* rawCall(xredisclient* Client, const xbytesview* Args, size_t Count)
+{
+	xfuture* Future = NULL;
+	require(xredisClientCallAsync(Client, Args, Count, PHASE_MS, &Future) == XREDIS_ADMISSION_ACCEPTED,
+		"admit raw pipeline command");
+	return Future;
+}
+
+static void checkBulk(xfuture* Future, xbytesview Expected)
+{
+	xredisreplyvalue Value = root(result(Future, IO_MS));
+	require(Value.Type == XREDIS_REPLY_BULK_STRING && same(Value.Data, Expected), "retained bulk reply value");
+}
+
+static int lostReply(uint16 RelayPort, uint16 RedisPort)
+{
+	xnetengine* Engine = startEngine();
+	xredisclient* Client = rawClient(Engine, RelayPort);
+	const xbytesview Applied = XRT_BYTES_LITERAL("xrt:restart:\0applied");
+	xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), Prefix};
+	xfuture* Replied = rawCall(Client, Echo, 2);
+	xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), Applied};
+	xfuture* Lost = rawCall(Client, Increment, 2);
+	Echo[1] = (xbytesview)XRT_BYTES_LITERAL("pipeline\0tail");
+	xfuture* Tail = rawCall(Client, Echo, 2);
+	checkBulk(Replied, Prefix);
+	require(!xrtFutureDone(Lost) && !xrtFutureDone(Tail), "suffix still pending before reply cutoff");
+	puts("{\"phase\":\"prefix_verified\"}");
+	fflush(stdout);
+	checkUnconfirmed(result(Lost, PHASE_MS), XREDIS_REQUEST_PROTOCOL);
+	checkUnconfirmed(result(Tail, PHASE_MS), XREDIS_REQUEST_PROTOCOL);
+	closedClient(Client, XREDIS_REQUEST_PROTOCOL);
+
+	Client = rawClient(Engine, RedisPort);
+	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Applied};
+	xfuture* Read = rawCall(Client, Get, 2);
+	checkBulk(Read, (xbytesview)XRT_BYTES_LITERAL("1"));
+	xrtFutureDestroy(Read);
+	closedClient(Client, XREDIS_REQUEST_CLOSED);
+	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire raw fixture engine");
+	checkBulk(Replied, Prefix);
+	checkUnconfirmed(result(Lost, IO_MS), XREDIS_REQUEST_PROTOCOL);
+	checkUnconfirmed(result(Tail, IO_MS), XREDIS_REQUEST_PROTOCOL);
+	xrtFutureDestroy(Replied);
+	xrtFutureDestroy(Lost);
+	xrtFutureDestroy(Tail);
+	puts("{\"phase\":\"complete\",\"retained_replied\":1,\"retained_uncertain\":2,\"status\":\"PROTOCOL\","
+		"\"delivery\":\"MAY_HAVE_EXECUTED\",\"read_after_reconnect\":1}");
+	return 0;
+}
+
 int main(int Argc, char** Argv)
 {
+	if (Argc == 4 && strcmp(Argv[1], "--lost-reply") == 0) {
+		uint16 Relay = argumentPort(Argv[2]), Redis = argumentPort(Argv[3]);
+		return Relay && Redis && Relay != Redis ? lostReply(Relay, Redis) : 2;
+	}
 	bool Edit = Argc > 2 && strcmp(Argv[Argc - 1], "--edit-subscriptions") == 0;
 	if (Edit) --Argc;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
@@ -326,17 +416,12 @@ int main(int Argc, char** Argv)
 #else
 	if (Argc != 2) return 2;
 #endif
-	char* End;
-	unsigned long Port = strtoul(Argv[1], &End, 10);
-	if (*End || Port == 0 || Port > UINT16_MAX) return 2;
+	uint16 Port = argumentPort(Argv[1]);
+	if (!Port) return 2;
 	restartendpoint Endpoint = {0};
-	require(xrtNetAddrLoopback(&Endpoint.Address, XNET_FAMILY_IPV4, (uint16)Port), "loopback address");
+	require(xrtNetAddrLoopback(&Endpoint.Address, XNET_FAMILY_IPV4, Port), "loopback address");
 	redisProbeTlsInit(&Endpoint.Tls, Argc == 3 ? Argv[2] : NULL);
-	xnetengineconfig EngineConfig;
-	xrtNetEngineConfigInit(&EngineConfig);
-	EngineConfig.Workers = 2;
-	xnetengine* Engine = xrtNetEngineCreate(&EngineConfig);
-	require(Engine && xrtNetEngineStart(Engine), "start engine");
+	xnetengine* Engine = startEngine();
 
 	xredispoolconnectconfig PoolConfig;
 	require(xredisPoolConnectConfigInit(&PoolConfig), "automatic pool defaults");
@@ -383,8 +468,8 @@ int main(int Argc, char** Argv)
 	require(Lost->Status == XREDIS_REQUEST_DISCONNECTED && Lost->Delivery == XREDIS_MAY_HAVE_EXECUTED && !Lost->Reply, "blocked request loss");
 	checkPipelineLoss(Blocked);
 	checkPipelineLoss(Tail);
-	closedClient(Tracking, true);
-	closedClient(Subscriber, true);
+	closedClient(Tracking, XREDIS_REQUEST_DISCONNECTED);
+	closedClient(Subscriber, XREDIS_REQUEST_DISCONNECTED);
 	double Outage = xrtTimer();
 	if (Edit) editSubscriptions(Session, &Revision);
 	verifyOutage(Pool, Session, Pending, "outage_ready", MEMBERS, 1);
@@ -418,7 +503,7 @@ int main(int Argc, char** Argv)
 	xredissubscriberinfo Deliveries = {.Size = sizeof(Deliveries)};
 	require(xredisSubscriberInfo(Subscriber, &Deliveries) && Deliveries.Messages == 1, "one restored subscription delivery");
 	xredisClientRelease(Subscriber);
-	closedClient(Tracking, false);
+	closedClient(Tracking, XREDIS_REQUEST_CLOSED);
 	xfuture* Closed = xredisSubscriptionSessionClosed(Session);
 	require(xredisSubscriptionSessionClose(Session), "request session close");
 	const xredissubscriptionsessionclosed* SessionEnd = result(Closed, IO_MS);

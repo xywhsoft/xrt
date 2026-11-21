@@ -353,16 +353,22 @@ setup on a new APP-owned connection, an ordered invalidation, one matching
 binary publication and 16 pipelined binary replies. The replacement Redis command ledger records zero BLPOP, INCR and PING
 executions.
 
-Use the mixed-workload compiler flags above and add the subscription session
-module. Run the Python harness on the same host as the disposable Redis
-server. With a Windows client and a WSL fixture, use the MinGW build described
-above and point the WSL supervisor at the .exe. Pass a fresh screened
-loopback port for each attempt with --port-candidate. The report preserves
-server identities, phase results and the final command ledger alongside
-each process log.
+Run the Python harness on the same host as the disposable Redis server.
+For MinGW, use `-DWIN32_LEAN_AND_MEAN` in place of `-D_GNU_SOURCE`, an `.exe`
+output and `-lws2_32` in place of `-pthread -lm`. If the TLS module is enabled,
+link `-liphlpapi -lbcrypt -ladvapi32` as well. The WSL supervisor can launch
+the Windows probe. Pass fresh screened loopback ports with `--port-candidate`
+when using that setup. The reports preserve server identities, phase results
+and command ledgers alongside each process log.
 
-    gcc "${flags[@]}" -DXREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION \
-      extlibs/xredis/tests/interop/redis_restart.c -o out/redis-restart -pthread -lm
+    mkdir -p out
+    flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE
+      -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING
+      -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+      -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION -Iinclude -Iextlibs/xredis/include
+      -include xredis/features.h -include ./single/xrt.h -include ./single/extlibs/xredis.h)
+    gcc "${flags[@]}" extlibs/xredis/tests/interop/redis_restart.c \
+      -o out/redis-restart -pthread -lm
     python3 -B extlibs/xredis/tests/interop/run_redis_restart.py \
       --server /usr/bin/redis-server --client out/redis-restart \
       --report out/redis-restart.json
@@ -371,6 +377,21 @@ Recovery time runs from the client's observation of the old physical closes
 to verification of resumed traffic. It includes the forced outage barrier,
 fixture restart and workload verification. It is diagnostic for this local
 setup. The default profile uses standalone RESP3 over plaintext TCP.
+
+Run the separate `--lost-reply` case to exercise an already executed
+mutation. A single-use loopback relay forwards a binary `ECHO`, `INCR` and
+binary `ECHO` to the real Redis fixture. It forwards the first reply and
+an incomplete integer frame, then cuts the stream after an independent
+`GET` verifies the mutation. EOF with an incomplete reply produces
+`PROTOCOL` and `MAY_HAVE_EXECUTED` for both pending calls. The client keeps
+the successful prefix and both uncertain results across reconnect and
+engine teardown. The same Redis process records one `INCR` and preserves the value
+`1`. Use two screened `--port-candidate` values when supplying ports for
+this case.
+
+    python3 -B extlibs/xredis/tests/interop/run_redis_restart.py \
+      --server /usr/bin/redis-server --client out/redis-restart \
+      --report out/redis-lost-reply.json --lost-reply
 
 Pass `--edit-subscriptions` to exercise a four-edit sequence during the
 outage. The replacement exposes the final subscription revision. Its

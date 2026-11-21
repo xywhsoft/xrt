@@ -1,4 +1,4 @@
-"""Kill one owned loopback Redis after BLPOP is on the wire, then start a new one."""
+"""Verify xredis across Redis process replacement and deliberate loopback reply loss."""
 import argparse
 from contextlib import ExitStack
 import hashlib
@@ -16,7 +16,7 @@ import threading
 import time
 import traceback
 
-from run_redis_role import sha
+from run_redis_role import frame, sha
 from run_redis_tls import TLS_CIPHER, certificates, issue_server_certificate, listener_exchange, tls_listener
 
 
@@ -125,6 +125,87 @@ def wait_phase(lines, phases, name):
     return phase
 
 
+def launch_client(stack, command, log_path, report, *, with_input=False):
+    log = stack.enter_context(log_path.open("wb"))
+    probe = subprocess.Popen(command, stdin=subprocess.PIPE if with_input else None,
+                             stdout=subprocess.PIPE, stderr=log, text=True)
+    stack.enter_context(probe.stdout)
+    if probe.stdin is not None:
+        stack.enter_context(probe.stdin)
+    stack.callback(stop, probe)
+    report["launcher_pid"] = probe.pid
+    lines = queue.Queue()
+    reader = threading.Thread(target=read_phases, args=(probe.stdout, lines), daemon=True)
+    reader.start()
+    return probe, lines, reader
+
+
+def wait_client(probe, lines, reader, report):
+    report["launcher_exit_code"] = probe.wait(timeout=5)
+    require(report["launcher_exit_code"] == 0, "client did not close successfully")
+    reader.join(timeout=5)
+    require(not reader.is_alive() and lines.get_nowait() is None and lines.empty(), "unexpected client output at exit")
+
+
+def run_lost_reply(args, report, stack):
+    candidates = args.port_candidate or random.sample(range(12000, 45000), 64)
+    port = fixture_port(candidates)
+    runtime = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="xredis-reply-loss-")))
+    server, identity = start(stack, args.server, runtime, port, "reply-loss", args.report.with_suffix(".redis.log"))
+    report["server"] = identity
+    relay = stack.enter_context(socket.socket())
+    relay_port = fixture_port(candidates) if args.port_candidate else 0
+    relay.bind(("127.0.0.1", relay_port))
+    relay.listen(1)
+    relay.settimeout(6)
+    relay_port = relay.getsockname()[1]
+    report.update(port=port, relay_port=relay_port)
+    if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
+        time.sleep(1)  # Allow WSL to publish both loopback listeners on Windows.
+    probe, lines, reader = launch_client(stack, [str(args.client), "--lost-reply", str(relay_port), str(port)],
+                                         args.report.with_suffix(".client.log"), report)
+
+    key = b"xrt:restart:\0applied"
+    prefix = b"pipeline\0prefix"
+    tail = b"pipeline\0tail"
+    client, _ = relay.accept()
+    client.settimeout(5)
+    relay.close()
+    # Forward exactly the three requests and hold the actual Redis responses.
+    with client, socket.create_connection(("127.0.0.1", port), timeout=5) as upstream:
+        with client.makefile("rb") as client_wire, upstream.makefile("rb") as server_wire:
+            for expected in ([b"ECHO", prefix], [b"INCR", key], [b"ECHO", tail]):
+                request, wire = frame(client_wire)
+                require(request == expected, f"unexpected pipeline command {request!r}")
+                upstream.sendall(wire)
+            replies = [frame(server_wire) for _ in range(3)]
+        require([value for value, _ in replies] == [prefix, 1, tail], "unexpected Redis pipeline replies")
+        partial = replies[1][1][:-1]
+        client.sendall(replies[0][1] + partial)
+        wait_phase(lines, report["phases"], "prefix_verified")
+        stored, _ = listener_exchange(port, ["GET", key])
+        require(stored == b"1", "independent observer did not see the applied INCR before cutoff")
+        calls = command_calls(info(port, "commandstats"))
+        check_commands(calls, {"echo": 2, "incr": 1, "get": 1}, "before reply cutoff")
+        report["cutoff"] = {"stored_value": 1, "commands": calls, "partial_reply_bytes": len(partial),
+                            "withheld_bytes": 1 + len(replies[2][1])}
+        client.shutdown(socket.SHUT_WR)
+
+    completed = wait_phase(lines, report["phases"], "complete")
+    require(completed == {"phase": "complete", "retained_replied": 1, "retained_uncertain": 2,
+                          "status": "PROTOCOL", "delivery": "MAY_HAVE_EXECUTED", "read_after_reconnect": 1},
+            "unexpected retained result ledger")
+    wait_client(probe, lines, reader, report)
+    stored, _ = listener_exchange(port, ["GET", key])
+    fields = info(port, "all")
+    require(server.poll() is None and fields["run_id"] == identity["run_id"] and
+            int(fields["process_id"]) == identity["pid"], "Redis identity changed during reply loss")
+    require(stored == b"1" and int(fields["connected_clients"]) == 1, "duplicate mutation or surviving application connection")
+    calls = command_calls(fields)
+    check_commands(calls, {"echo": 2, "incr": 1, "get": 3}, "after reply loss recovery")
+    report["after"] = {"stored_value": 1, "commands": calls, "connected_clients": 1}
+
+
 def run(args, report, stack):
     candidates = args.port_candidate or random.sample(range(12000, 45000), 64)
     port = fixture_port(candidates)
@@ -157,17 +238,8 @@ def run(args, report, stack):
     # The Windows relay can appear slightly after Redis is already reachable in WSL.
     if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
         time.sleep(1)
-    log = stack.enter_context(log_path("client").open("wb"))
-    probe = subprocess.Popen(client_args, stdin=subprocess.PIPE if args.tls or args.edit_subscriptions else None,
-                             stdout=subprocess.PIPE, stderr=log, text=True)
-    stack.enter_context(probe.stdout)
-    if probe.stdin is not None:
-        stack.enter_context(probe.stdin)
-    stack.callback(stop, probe)
-    report["launcher_pid"] = probe.pid
-    lines = queue.Queue()
-    reader = threading.Thread(target=read_phases, args=(probe.stdout, lines), daemon=True)
-    reader.start()
+    probe, lines, reader = launch_client(stack, client_args, log_path("client"), report,
+                                         with_input=args.tls or args.edit_subscriptions)
 
     initial = wait_phase(lines, report["phases"], "blocked_submitted")
     key = b"xrt:restart:\0pipeline-write"
@@ -245,10 +317,7 @@ def run(args, report, stack):
         after["retired_subscriber_counts"] = check_subscribers(port, [0, 0, 0], after_tls)
     require(complete["pool_generations"] == 4 and complete["subscription_generation"] == 2 and
             complete["recovery_ms"] > 0, f"unexpected recovery result {complete}")
-    report["launcher_exit_code"] = probe.wait(timeout=5)
-    require(report["launcher_exit_code"] == 0, "client did not close successfully")
-    reader.join(timeout=5)
-    require(not reader.is_alive() and lines.get_nowait() is None and lines.empty(), "unexpected client output at exit")
+    wait_client(probe, lines, reader, report)
 
     fields = info(port, "all", after_tls)
     require(second.poll() is None and int(fields["process_id"]) == after["pid"] and fields["run_id"] == after["run_id"],
@@ -271,7 +340,11 @@ def main():
                         help="replace binary subscription intent while Redis is unavailable")
     parser.add_argument("--port-candidate", type=int, action="append", default=[],
                         help="Caller-screened candidate for cross-host WSL and Windows loopback")
+    parser.add_argument("--lost-reply", action="store_true",
+                        help="verify an executed INCR when the loopback relay cuts off its plaintext reply")
     args = parser.parse_args()
+    if args.lost_reply and (args.tls or args.edit_subscriptions):
+        parser.error("--lost-reply uses the separate plaintext pipeline fixture")
     if args.tls and args.openssl is None:
         parser.error("--tls requires openssl to generate temporary identities")
     if args.tls:
@@ -288,9 +361,12 @@ def main():
     if args.tls:
         report["tls"] = dict(cipher=TLS_CIPHER, hostname="localhost", openssl_sha256=sha(args.openssl),
                              certificate_helper_sha256=sha(Path(__file__).with_name("run_redis_tls.py")))
+    if args.lost_reply:
+        report["scenario"] = "lost-reply"
     try:
         with ExitStack() as stack:
-            run(args, report, stack)
+            run_fixture = run_lost_reply if args.lost_reply else run
+            run_fixture(args, report, stack)
         report["complete"] = True
         print(json.dumps(report["phases"][-1]))
     except Exception:

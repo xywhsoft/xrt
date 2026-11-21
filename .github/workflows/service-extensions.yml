@@ -387,6 +387,8 @@ jobs:
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/plain.json"
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
+            --server "$peer" --client "$evidence/probe" --report "$evidence/lost-reply.json" --lost-reply
+          python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/tls-edited.json" \
             --tls --edit-subscriptions
       - name: Redis client mixed load with pinned native peer

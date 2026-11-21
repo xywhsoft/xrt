@@ -22078,3 +22078,34 @@ maturity and generated-header checks passed. [Reproduction commands](../../extli
 
 Build receipts, per-run logs, reports and audits are under
 `out/service-extensions/xmqtt-live-qos2-pressure-d171fe84/`.
+
+## 2026-11-21 xredis executed mutation with a lost reply
+
+The restart probe now has a separate `--lost-reply` scenario. Its
+one-shot relay forwards three exact commands to a private Redis 8.0.5
+process. It receives the executable server's binary ECHO, INCR result
+and final binary ECHO, then sends the client the first reply and three
+bytes of the integer reply, ending before LF. An independent GET and
+command ledger establish that INCR ran before the relay sends EOF.
+
+The client keeps the complete prefix and classifies both pending calls
+as `PROTOCOL` and `MAY_HAVE_EXECUTED` with no reply. The initial trial
+expected `DISCONNECTED` and exposed the existing truncated-frame
+classification, also covered by the scripted client test. The final
+probe checks the physical close status, then opens a new connection to
+the same Redis process and reads `1`. The original results are checked
+again after engine destruction. The independent ledger confirms exactly
+one INCR before cutoff and after recovery, with only the observer
+connection left at the final INFO sample.
+
+Eight partial-reply trials passed. Three used Windows clients and five
+used Ubuntu WSL clients, including one ASan/UBSan run with leak detection
+and the exact updated Ubuntu workflow step run locally. The Redis peer
+ran in WSL throughout. The existing plaintext process replacement
+passed in the workflow step. TLS certificate rotation with edited
+subscription intent passed on Windows and WSL. Ordinary maturity and the
+generated-header check passed. Native Linux and the strict release gate
+remain open.
+
+Build commands, the initial failure, final reports and the audit are
+under `out/service-extensions/xredis-executed-reply-loss-273e248a/`.
