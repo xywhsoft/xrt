@@ -195,6 +195,7 @@
       "feature": null,
       "depends": [
         "xmqtt_tests",
+        "xmqtt_server_tls_example",
         "xmqtt_client_ws_tests",
         "xmqtt_client_ws_connect_tls_tests",
         "xmqtt_client_ws_uri_tls_tests",

@@ -667,7 +667,8 @@
       "depends": [
         "xredis",
         "xredis_tls_auth_examples",
-        "xredis_app_command_cache"
+        "xredis_app_command_cache",
+        "xredis_app_cluster_command_sync"
       ],
       "collect_dependency_assets": [
         "examples"

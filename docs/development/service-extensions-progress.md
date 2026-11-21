@@ -21633,3 +21633,37 @@ both run natively on Windows. The completed duration and native Linux
 qualification are still open. Build fingerprints, receipts and live
 journals are under
 `out/service-extensions/scope-reduction-20261119/native-windows-08cf2cac-soak/`.
+
+## 2026-11-21 Native CI results and service example inventory
+
+[Ubuntu jobs at 672040bc](https://github.com/xywhsoft/xrt/actions/runs/44902773862)
+passed xcron and xrpc. The archived xcron report verifies restart replay
+after forced termination, bounded catch-up, clock rollback and corrupt
+checkpoint handling. The xrpc report verifies stdio and both TCP executor
+modes, including 512 parallel replies and 256 backpressure-isolation
+replies per mode. Local xcron, xrpc and XRT implementation and package
+inputs match that revision. The results establish functional coverage
+on the Ubuntu runner. Repeatable release tails are still open.
+
+At that same revision, the Ubuntu Redis 8.0.5 job passed plaintext and
+TLS 1.3 restart, fixed Sentinel seeds and primary failover. The two Redis
+matrix jobs stopped in the example inventory test. The Redis examples
+aggregate omitted the APP synchronous Cluster command example, and the
+inventory test only recognized the name main.c. The Redis aggregate now
+runs that example. The MQTT aggregate also includes the documented TLS
+broker example, and the inventory test accounts for named broker examples.
+
+The 26 inventory and API tests passed on native Windows and Ubuntu WSL.
+The Windows example aggregates ran 40 Redis and 51 MQTT programs. WSL
+ran all 40 Redis programs. The broker TLS example built by the Windows
+aggregate passed the independent MQTT 5.0 and 3.1.1 peer, including
+verified TLS 1.3, QoS 1/2 and takeover. The WSL MQTT aggregate was still
+running at this checkpoint. The first local build pair shared a default
+object directory. The successful runs used distinct x64 platform roots.
+
+The three cancelled jobs each reported the 20-minute ceiling. On Ubuntu,
+MQTT completed the ordinary module and example step in 1,122 seconds
+and then reached sanitizers. Commit 479d55ee sets a 60-minute limit on
+the two service matrices. The remote reevaluation is pending. Job
+metadata, artifact hashes, annotations and local test logs are under
+`out/service-extensions/native-ci-672040bc/`.

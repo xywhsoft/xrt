@@ -244,6 +244,12 @@ class AggregateAssetTest(unittest.TestCase):
 			manifest = xrt_build.ROOT / "extlibs" / product / "config/modules.json"
 			expected = {path.relative_to(xrt_build.ROOT).as_posix()
 				for path in (manifest.parent.parent / "examples").rglob("main.c")}
+			if product == "xmqtt":
+				# The broker examples share a directory and each has a named entry point.
+				expected.update(
+					f"extlibs/xmqtt/examples/server/{name}.c"
+					for name in ("auth", "checkpoint", "retained_commit", "tls", "ws")
+				)
 			self.assertTrue(expected)
 			for platform in ("windows", "linux"):
 				with self.subTest(product=product, platform=platform):
