@@ -401,7 +401,9 @@ XCRON_API xcronschedulestatus xcronSchedulerPoll(xcronscheduler* Scheduler,
     xcronpoll* Output);
 
 /* Relative milliseconds. XRT_WAIT_FOREVER keeps waiting until due or woken.
- * A zero timeout dispatches due jobs and otherwise returns TIMEOUT. An explicit
+ * A zero timeout dispatches due jobs and otherwise returns TIMEOUT. If a
+ * finite wait's timeout precedes the projected occurrence, the occurrence
+ * remains pending on timeout even after a late timer return. An explicit
  * wake interrupts the wait; the owner can drive again to recheck the wall clock. */
 XCRON_API xcronschedulestatus xcronSchedulerWait(xcronscheduler* Scheduler,
     int64 Timeout, xcronpoll* Output);
@@ -1310,6 +1312,7 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
 
         if (Timeout == 0) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
         double Deadline = Limit;
+        bool CallerFirst = true;
         if (Timeout > 0 || Report.HasNext) {
             double Current = Timeout > 0 ? xrtTimer() : Sample;
             if (!isfinite(Sample) || !isfinite(Current)) { Status = XCRON_SCHEDULE_ERROR; break; }
@@ -1317,7 +1320,9 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
             if (Report.HasNext) {
                 uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
                 if (WallDelay > INT64_MAX) WallDelay = INT64_MAX;
-                double Due = nextafter(xcronScheduleDeadline(Sample, WallDelay, SubNs), INFINITY);
+                double Due = xcronScheduleDeadline(Sample, WallDelay, SubNs);
+                CallerFirst = Limit < Due;
+                Due = nextafter(Due, INFINITY);
                 if (Due < Deadline) Deadline = Due;
             }
         }
@@ -1332,6 +1337,11 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         if (Result == XWAIT_OK) { Status = XCRON_SCHEDULE_WOKEN; break; }
         if (Result != XWAIT_TIMEOUT) { Status = XCRON_SCHEDULE_ERROR; break; }
         Sample = xrtTimer();
+        /* A timer return can be delayed past both deadlines. */
+        if (Timeout > 0 && CallerFirst && isfinite(Sample) && Sample >= Limit) {
+            Status = XCRON_SCHEDULE_TIMEOUT;
+            break;
+        }
     }
 Done:
     S->Driving = false;

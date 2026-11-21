@@ -50,7 +50,9 @@ XCRON_API xcronschedulestatus xcronSchedulerPoll(xcronscheduler* Scheduler,
     xcronpoll* Output);
 
 /* Relative milliseconds. XRT_WAIT_FOREVER keeps waiting until due or woken.
- * A zero timeout dispatches due jobs and otherwise returns TIMEOUT. An explicit
+ * A zero timeout dispatches due jobs and otherwise returns TIMEOUT. If a
+ * finite wait's timeout precedes the projected occurrence, the occurrence
+ * remains pending on timeout even after a late timer return. An explicit
  * wake interrupts the wait; the owner can drive again to recheck the wall clock. */
 XCRON_API xcronschedulestatus xcronSchedulerWait(xcronscheduler* Scheduler,
     int64 Timeout, xcronpoll* Output);

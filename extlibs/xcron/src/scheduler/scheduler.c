@@ -268,6 +268,7 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
 
         if (Timeout == 0) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
         double Deadline = Limit;
+        bool CallerFirst = true;
         if (Timeout > 0 || Report.HasNext) {
             double Current = Timeout > 0 ? xrtTimer() : Sample;
             if (!isfinite(Sample) || !isfinite(Current)) { Status = XCRON_SCHEDULE_ERROR; break; }
@@ -275,7 +276,9 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
             if (Report.HasNext) {
                 uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
                 if (WallDelay > INT64_MAX) WallDelay = INT64_MAX;
-                double Due = nextafter(xcronScheduleDeadline(Sample, WallDelay, SubNs), INFINITY);
+                double Due = xcronScheduleDeadline(Sample, WallDelay, SubNs);
+                CallerFirst = Limit < Due;
+                Due = nextafter(Due, INFINITY);
                 if (Due < Deadline) Deadline = Due;
             }
         }
@@ -290,6 +293,11 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         if (Result == XWAIT_OK) { Status = XCRON_SCHEDULE_WOKEN; break; }
         if (Result != XWAIT_TIMEOUT) { Status = XCRON_SCHEDULE_ERROR; break; }
         Sample = xrtTimer();
+        /* A timer return can be delayed past both deadlines. */
+        if (Timeout > 0 && CallerFirst && isfinite(Sample) && Sample >= Limit) {
+            Status = XCRON_SCHEDULE_TIMEOUT;
+            break;
+        }
     }
 Done:
     S->Driving = false;

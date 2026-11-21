@@ -18,10 +18,13 @@ event waiter until a job may be due, the timeout expires, or an explicit wake
 arrives. The waiter gets the earlier of the caller's monotonic timeout and the
 next UTC occurrence. The occurrence uses the fractional part of the same
 wall sample, carried through to the native monotonic timer where available.
-On timer wake the scheduler checks wall time again. An explicit wake
-returns WOKEN so the caller can apply APP changes or drive again. With a zero
-timeout, Wait dispatches due jobs and otherwise returns TIMEOUT. An empty
-scheduler can wait for Wake indefinitely.
+On an occurrence timer wake the scheduler checks wall time again. If the
+caller timeout came before the projected occurrence, Wait returns TIMEOUT
+even when the thread resumes after both deadlines. The next drive can
+dispatch the pending job. An explicit wake returns WOKEN so the caller can
+apply APP changes or drive again. With a zero timeout, Wait dispatches due
+jobs and otherwise returns TIMEOUT. An empty scheduler can wait for Wake
+indefinitely.
 
 Each drive samples UTC wall time once per dispatch wave. Each due job invokes
 its callback once. Its next deadline follows the original expression strictly

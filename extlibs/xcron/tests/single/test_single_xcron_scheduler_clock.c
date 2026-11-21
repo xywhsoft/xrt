@@ -171,6 +171,39 @@ static void testBackwardTimeout(void)
     end();
 }
 
+static void testLateTimerReturn(void)
+{
+    const struct {
+        int64 Timeout;
+        double Deadline;
+        xcronschedulestatus Expected;
+    } Cases[] = {
+        {125, 100.125, XCRON_SCHEDULE_TIMEOUT},
+        {250, 100.25, XCRON_SCHEDULE_DISPATCHED},
+        {500, 100.25, XCRON_SCHEDULE_DISPATCHED}
+    };
+
+    for (size_t I = 0; I < sizeof(Cases) / sizeof(Cases[0]); ++I) {
+        begin(20750, 100.0);
+        clockjob Job = {.Marker = 1};
+        add(XRT_STR_LITERAL("* * * * * *"), &Job);
+        const clockstep Late = {Cases[I].Deadline, 21375, 100.625, false};
+        plan(&Late, 1);
+        xcronpoll Result;
+        testRequire(xcronSchedulerWait(Clock.Scheduler, Cases[I].Timeout, &Result) == Cases[I].Expected,
+            "late timer return preserves caller and occurrence precedence");
+        if (Cases[I].Expected == XCRON_SCHEDULE_TIMEOUT) {
+            testRequire(report(Result, 0, 21000) && !Clock.Called,
+                "a shorter caller timeout leaves the occurrence pending");
+            testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED,
+                "the next drive dispatches the pending occurrence");
+        }
+        testRequire(report(Result, 1, 22000) && Clock.Called == 1,
+            "late timer return delivers the occurrence once");
+        end();
+    }
+}
+
 static void testFractionalDeadline(void)
 {
     begin(10999, 10.0);
@@ -437,6 +470,7 @@ int main(void)
 {
     testForwardThenBack();
     testBackwardTimeout();
+    testLateTimerReturn();
     testFractionalDeadline();
     testWaitAfterSamplingDelay();
     testWaveSample();

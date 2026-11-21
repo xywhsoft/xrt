@@ -22205,3 +22205,26 @@ its own environment label.
 Reports, build receipts, negative controls, the clock event and local
 maturity results are under
 `out/service-extensions/service-mixed-audit-3f7d0efd/`.
+
+## 2026-11-22 xcron finite wait after a late timer return
+
+When the projected occurrence follows the caller's finite timeout, a
+late timer return now leaves that occurrence pending and reports TIMEOUT.
+The regression advances wall and monotonic time together past both
+deadlines. The 125 ms timeout must return before dispatch, and the next
+Poll must dispatch exactly once. At 250 ms the deadlines tie, and at
+500 ms the occurrence precedes the timeout. Both latter cases dispatch
+exactly once in the original wait. Explicit Wake retains its existing
+priority.
+
+The new assertion failed against `1ff943bb` on Windows and Ubuntu WSL.
+The fixed modular and single-header suites and static/shared scheduler
+package consumers passed on both environments. WSL also passed the
+scheduler clock suite with ASan/UBSan and leak detection. Generated
+headers and ordinary maturity passed. The strict release checker still
+reports `xcron` and `xcron_scheduler` as developing.
+
+The running Windows matched tail campaign retains the `3f7d0efd` binary
+as baseline evidence. The fixed candidate needs its own tail samples and
+native Linux acceptance. Logs are under
+`out/service-extensions/xcron-late-timeout-1ff943bb/`.
