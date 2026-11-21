@@ -378,10 +378,10 @@ typedef enum xrpcduplexcontrol {
     XRPC_CONTROL_DEADLINE_OFFER,XRPC_CONTROL_DEADLINE
 } xrpcduplexcontrol;
 
-static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
+static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input,const xrpcdocument* Decoded)
 {
     xrpcresponses* Responses=NULL;
-    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,&Responses,D->Results);
+    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,Decoded,&Responses,D->Results);
     if(S!=XRPC_RESPONSE_DONE)return S==XRPC_RESPONSE_LOCAL_ERROR?XRPC_DUPLEX_ERROR:xrpcDuplexProtocol(D);
     xrpcresponseinfo I={0};I.Size=sizeof(I);xrpcResponsesInfo(Responses,&I);
     for(size_t N=0;N<I.Count;++N)D->CorrelationIds[N]=xrpcDuplexCorrelationId(I.Messages+N,D->CorrelationText+N*24u);
@@ -579,7 +579,8 @@ XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D, xstrview Input, xb
     if (Requests && Responses) {
         Status = xrpcDuplexProtocol(D);
     } else if (Responses) {
-        Status = xrpcDuplexResponse(D, Input);
+        /* Response mode still handles envelopes that duplex mode rejects. */
+        Status = xrpcDuplexResponse(D, Input, Document.InvalidCount ? NULL : &Document);
         if (Status == XRPC_DUPLEX_ACCEPTED) ++D->Received;
     } else if (D->Config.OnRequest) {
         Status = xrpcDuplexHostReceive(D, Input, Context,

@@ -21566,3 +21566,24 @@ comparison driver. Native Linux and the scheduler release-tail gate remain
 open. The strict maturity check still lists xcron and xcron_scheduler as
 developing. Logs and raw waves are under
 `out/service-extensions/xcron-bracketed-clock-9d94ebb5/`.
+
+## 2026-11-21 xrpc reuses validated duplex responses
+
+The duplex endpoint uses its first JSON decode to construct the owned response
+snapshot when every envelope is valid. The existing response-mode parser
+handles its compatibility cases. Modular and single-header regressions on
+native Windows and Ubuntu WSL cover response retirement and retained input
+views. The WSL ASan and UBSan run also passed.
+
+The in-process duplex echo benchmark used one pinned logical CPU per host.
+Seven alternating pairs ran 200,000 RPC calls per sample with GNU -O2. The
+reported rates are per-variant medians in calls/s.
+
+| Host | Before | After | Median change | Faster pairs |
+| --- | ---: | ---: | ---: | ---: |
+| Native Windows | 157,842 | 170,030 | +7.7% | 7/7 |
+| Ubuntu WSL | 123,706 | 135,327 | +9.4% | 7/7 |
+
+Raw pairs, binary fingerprints and tests are under
+`out/service-extensions/xrpc-response-decode-70852791/`. Native Linux,
+network concurrency tails and strict release acceptance remain open.

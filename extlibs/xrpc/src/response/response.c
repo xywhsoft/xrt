@@ -24,7 +24,8 @@ XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config)
 static xstrview xrpcResponseRebase(xstrview View,xstrview Input,cstr Copy)
 { if(View.Data)View.Data=Copy+(size_t)(View.Data-Input.Data);return View; }
 static xrpcresponsestatus xrpcResponsesReadImpl(xstrview Input,const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
+	xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota)
 {
 	(void)Quota;
 	if(!Result || !xrtMemRangeValid(Result,sizeof(*Result)) || !Capacity || !Scratch || Capacity>SIZE_MAX/sizeof(*Scratch) ||
@@ -36,9 +37,13 @@ static xrpcresponsestatus xrpcResponsesReadImpl(xstrview Input,const xrpcrespons
 		 xrtMemRangesOverlap(Scratch,Capacity*sizeof(*Scratch),Config,sizeof(*Config)))))goto Argument;
 	xrpcresponseconfig C;if(Config)C=*Config;else xrpcResponseConfigInit(&C);
 	if(C.Size!=sizeof(C) || !C.MaxOwnedBytes || C.Decode.Mode!=XRPC_DECODE_RESPONSES)goto Argument;
-	xrpcdocument Document;xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
-	if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
-	if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
+	xrpcdocument Document;
+	if(Decoded)Document=*Decoded;
+	else {
+		xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
+		if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
+		if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
+	}
 	if(Document.InvalidCount){xrpcResponseReport(XERR_VALUE,XRPC_RESPONSE_ENVELOPE,"invalid RPC response envelope/batch");
 		return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_RESPONSE_LOCAL_ERROR:XRPC_RESPONSE_INVALID;}
 	size_t Bytes=sizeof(xrpcresponses);
@@ -71,11 +76,12 @@ Limit:
 }
 XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input,const xrpcresponseconfig* Config,
 	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result)
-{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,NULL);}
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,NULL,Result,NULL);}
 #if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
 xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
-{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,Quota);}
+	xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota)
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Decoded,Result,Quota);}
 #endif
 XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses)
 {

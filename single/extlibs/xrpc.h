@@ -1384,8 +1384,10 @@ ptr xrpcResultQuotaAlloc(xrpcresultquota* Quota,size_t Bytes,bool* Limited);
 bool xrpcResultQuotaFits(xrpcresultquota* Quota,size_t Charge);
 ptr xrpcResultQuotaAllocCharged(xrpcresultquota* Quota,size_t Allocation,size_t Charge,bool* Limited);
 void xrpcResultQuotaFree(ptr Value);
+/* Decoded, when supplied, describes validated responses in Scratch from Input. */
 xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
-    xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota);
+    xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota);
 #endif
 #endif
 #endif
@@ -1765,7 +1767,8 @@ XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config)
 static xstrview xrpcResponseRebase(xstrview View,xstrview Input,cstr Copy)
 { if(View.Data)View.Data=Copy+(size_t)(View.Data-Input.Data);return View; }
 static xrpcresponsestatus xrpcResponsesReadImpl(xstrview Input,const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
+	xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota)
 {
 	(void)Quota;
 	if(!Result || !xrtMemRangeValid(Result,sizeof(*Result)) || !Capacity || !Scratch || Capacity>SIZE_MAX/sizeof(*Scratch) ||
@@ -1777,9 +1780,13 @@ static xrpcresponsestatus xrpcResponsesReadImpl(xstrview Input,const xrpcrespons
 		 xrtMemRangesOverlap(Scratch,Capacity*sizeof(*Scratch),Config,sizeof(*Config)))))goto Argument;
 	xrpcresponseconfig C;if(Config)C=*Config;else xrpcResponseConfigInit(&C);
 	if(C.Size!=sizeof(C) || !C.MaxOwnedBytes || C.Decode.Mode!=XRPC_DECODE_RESPONSES)goto Argument;
-	xrpcdocument Document;xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
-	if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
-	if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
+	xrpcdocument Document;
+	if(Decoded)Document=*Decoded;
+	else {
+		xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
+		if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
+		if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
+	}
 	if(Document.InvalidCount){xrpcResponseReport(XERR_VALUE,XRPC_RESPONSE_ENVELOPE,"invalid RPC response envelope/batch");
 		return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_RESPONSE_LOCAL_ERROR:XRPC_RESPONSE_INVALID;}
 	size_t Bytes=sizeof(xrpcresponses);
@@ -1812,11 +1819,12 @@ Limit:
 }
 XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input,const xrpcresponseconfig* Config,
 	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result)
-{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,NULL);}
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,NULL,Result,NULL);}
 #if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
 xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
-{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,Quota);}
+	xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota)
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Decoded,Result,Quota);}
 #endif
 XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses)
 {
@@ -3710,10 +3718,10 @@ typedef enum xrpcduplexcontrol {
     XRPC_CONTROL_DEADLINE_OFFER,XRPC_CONTROL_DEADLINE
 } xrpcduplexcontrol;
 
-static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
+static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input,const xrpcdocument* Decoded)
 {
     xrpcresponses* Responses=NULL;
-    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,&Responses,D->Results);
+    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,Decoded,&Responses,D->Results);
     if(S!=XRPC_RESPONSE_DONE)return S==XRPC_RESPONSE_LOCAL_ERROR?XRPC_DUPLEX_ERROR:xrpcDuplexProtocol(D);
     xrpcresponseinfo I={0};I.Size=sizeof(I);xrpcResponsesInfo(Responses,&I);
     for(size_t N=0;N<I.Count;++N)D->CorrelationIds[N]=xrpcDuplexCorrelationId(I.Messages+N,D->CorrelationText+N*24u);
@@ -3911,7 +3919,8 @@ XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D, xstrview Input, xb
     if (Requests && Responses) {
         Status = xrpcDuplexProtocol(D);
     } else if (Responses) {
-        Status = xrpcDuplexResponse(D, Input);
+        /* Response mode still handles envelopes that duplex mode rejects. */
+        Status = xrpcDuplexResponse(D, Input, Document.InvalidCount ? NULL : &Document);
         if (Status == XRPC_DUPLEX_ACCEPTED) ++D->Received;
     } else if (D->Config.OnRequest) {
         Status = xrpcDuplexHostReceive(D, Input, Context,

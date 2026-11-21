@@ -111,6 +111,44 @@ static void testDuplexCancelledBatchReply(void)
 	xrtFutureDestroy(Live);
 }
 
+static void testDuplexResponseSnapshot(void)
+{
+	static const cstr Replies[] = {
+		"{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"error\":{\"code\":-32603,\"message\":\"failed\",\"data\":{\"why\":[1,2]}}}",
+		"{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"error\":{\"code\":-32603,\"message\":\"failed\",\"data\":{\"why\":[1,2]}},"
+		"\"params\":1,\"params\":[]}"
+	};
+	for (size_t Index = 0; Index < sizeof(Replies) / sizeof(Replies[0]); ++Index) {
+		duplexTestContext Context;
+		duplexTestInit(&Context);
+		xrpcduplex* D = duplexTestCreate(&Context, NULL);
+		xfuture* F = NULL;
+		testRequire(xrpcDuplexCall(D, XRT_STR_LITERAL("effect"), (xstrview){0}, XRT_WAIT_FOREVER, &F) ==
+			XRPC_DUPLEX_ACCEPTED, "admit a call for the response snapshot");
+		uint64 Token = 0;
+		xrpcDuplexOutputRelease(duplexTestSend(D, &Token));
+		char Input[160];
+		size_t Size = strlen(Replies[Index]);
+		testRequire(Size <= sizeof(Input), "response fixture fits its mutable buffer");
+		memcpy(Input, Replies[Index], Size);
+		testRequire(xrpcDuplexReceive(D, (xstrview){Input, Size}, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED,
+			"accept both strict responses and existing response-mode extensions");
+		memset(Input, 0, Size);
+		duplexTestClose(D);
+
+		const xrpccallresult* Result = duplexTestResult(F, XRPC_CALL_REMOTE_ERROR, XRPC_REPLIED);
+		xrpcresponseinfo Info = {0};
+		Info.Size = sizeof(Info);
+		testRequire(Result->Responses && xrpcResponsesInfo(Result->Responses, &Info) &&
+			Info.Count == 1 && Result->Index == 0, "response survives the input and endpoint retirement");
+		const xstrview Expected = XRT_STR_LITERAL("{\"why\":[1,2]}");
+		const xstrview Retained = Info.Messages[0].ErrorData.Raw;
+		testRequire(Retained.Size == Expected.Size && memcmp(Retained.Data, Expected.Data, Expected.Size) == 0,
+			"retained error data points into the owned response snapshot");
+		xrtFutureDestroy(F);
+	}
+}
+
 static void testDuplexResponseAtomicity(void)
 {
     static const char* Bad[]={
@@ -422,6 +460,7 @@ int main(void)
     testDuplexHost();
     testDuplexStops();
     testDuplexCancelledBatchReply();
+    testDuplexResponseSnapshot();
     testDuplexResponseAtomicity();
     testDuplexAllocation();
     testDuplexConcurrency();

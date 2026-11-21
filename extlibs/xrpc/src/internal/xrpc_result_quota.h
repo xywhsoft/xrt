@@ -13,7 +13,9 @@ ptr xrpcResultQuotaAlloc(xrpcresultquota* Quota,size_t Bytes,bool* Limited);
 bool xrpcResultQuotaFits(xrpcresultquota* Quota,size_t Charge);
 ptr xrpcResultQuotaAllocCharged(xrpcresultquota* Quota,size_t Allocation,size_t Charge,bool* Limited);
 void xrpcResultQuotaFree(ptr Value);
+/* Decoded, when supplied, describes validated responses in Scratch from Input. */
 xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
-    xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota);
+    xrpcmessage* Scratch,size_t Capacity,const xrpcdocument* Decoded,
+	xrpcresponses** Result,xrpcresultquota* Quota);
 #endif
 #endif
