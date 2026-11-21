@@ -21550,3 +21550,19 @@ The new `wake_registration` example shows the single-owner API with an APP contr
 The scheduler regression sends two signals before any native waiter exists. The first positive wait observes a single wake, and the next empty timed wait expires. Native Windows and Ubuntu WSL passed the modular and single-header suites and five fresh runs of the new APP on each platform. The WSL ASan/UBSan run with leak checking verified a further APP run. Standalone scheduler builds and generated assets passed. Strict release reports `xcron` and `xcron_scheduler` as developing. Native Linux and repeatable release tails remain open.
 
 The module manifests, executable identities and per-process logs are under `out/service-extensions/scope-reduction-20261119/xcron-owner-wake/`. [Example guide](../../extlibs/xcron/examples/README.md).
+
+## 2026-11-21 xcron monotonic anchor before UTC sampling
+
+The scripted clock paused the owner for 450 ms after its UTC sample. The
+former wait armed at monotonic 81.05 s for a UTC occurrence due at 80.60 s.
+The scheduler now takes its monotonic anchor before UTC and still checks
+whether the caller's timeout has elapsed before arming. The direct precise
+XRT waiter control uses the same sampling sequence.
+
+Native Windows and Ubuntu WSL passed the modular and single-header scheduler
+suites. WSL also passed ASan and UBSan. The matched-precision smoke run checked
+16 UTC waves and 8,704 callbacks per platform. These short runs validate the
+comparison driver. Native Linux and the scheduler release-tail gate remain
+open. The strict maturity check still lists xcron and xcron_scheduler as
+developing. Logs and raw waves are under
+`out/service-extensions/xcron-bracketed-clock-9d94ebb5/`.

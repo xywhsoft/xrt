@@ -222,14 +222,17 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
     }
 
     S->Driving = true;
-    double Started = Timeout > 0 ? xrtTimer() : 0;
+    bool Blocking = Wait && Timeout != 0;
+    /* Take the monotonic anchor before UTC. A pause after the UTC sample
+     * must not extend the absolute deadline. Recheck UTC after every expiry. */
+    double Sample = Blocking && (Timeout > 0 || S->Count) ? xrtTimer() : 0;
     xcronpoll Report;
     xcronschedulestatus Status = XCRON_SCHEDULE_ERROR;
-    if (!isfinite(Started)) goto Done;
-    double Limit = Timeout > 0 ? xcronScheduleDeadline(Started, (uint64)Timeout, 0) : INFINITY;
+    if (Timeout > 0 && !isfinite(Sample)) goto Done;
+    double Limit = Timeout > 0 ? xcronScheduleDeadline(Sample, (uint64)Timeout, 0) : INFINITY;
     for (;;) {
         uint32 SubNs = 0;
-        xtime Now = Wait && Timeout != 0 ? __xrtNowWithSubMs(&SubNs) : xrtNow();
+        xtime Now = Blocking ? __xrtNowWithSubMs(&SubNs) : xrtNow();
         if (!Now) {
             xcronScheduleError(XERR_IO, "wall clock unavailable");
             Status = XCRON_SCHEDULE_ERROR;
@@ -241,9 +244,9 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         if (Timeout == 0) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
         double Deadline = Limit;
         if (Timeout > 0 || Report.HasNext) {
-            double Sample = xrtTimer();
-            if (!isfinite(Sample)) { Status = XCRON_SCHEDULE_ERROR; break; }
-            if (Sample >= Limit) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
+            double Current = Timeout > 0 ? xrtTimer() : Sample;
+            if (!isfinite(Sample) || !isfinite(Current)) { Status = XCRON_SCHEDULE_ERROR; break; }
+            if (Current >= Limit) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
             if (Report.HasNext) {
                 uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
                 if (WallDelay > INT64_MAX) WallDelay = INT64_MAX;
@@ -261,6 +264,7 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         xwaitresult Result = __xrtEventWaiterWaitUntil(&S->Waiter, Deadline);
         if (Result == XWAIT_OK) { Status = XCRON_SCHEDULE_WOKEN; break; }
         if (Result != XWAIT_TIMEOUT) { Status = XCRON_SCHEDULE_ERROR; break; }
+        Sample = xrtTimer();
     }
 Done:
     S->Driving = false;

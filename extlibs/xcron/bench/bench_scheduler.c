@@ -77,7 +77,8 @@ static bool waitUntil(xeventwaiter* Waiter, xtime Due, xtime* Observed)
 /* Match the scheduler's clock and absolute arming in the direct cohort control. */
 static bool waitPrecise(xeventwaiter* Waiter, xtime Due, xtime* Observed)
 {
-    double Limit = xrtTimer() + 3.0;
+    double Sample = xrtTimer();
+    double Limit = Sample + 3.0;
     if (!isfinite(Limit)) return false;
     for (;;) {
         uint32 SubNs;
@@ -87,13 +88,14 @@ static bool waitPrecise(xeventwaiter* Waiter, xtime Due, xtime* Observed)
             *Observed = Now;
             return true;
         }
-        double Sample = xrtTimer();
-        if (!isfinite(Sample) || Sample >= Limit) return false;
+        double Current = xrtTimer();
+        if (!isfinite(Sample) || !isfinite(Current) || Current >= Limit) return false;
         uint64 DelayMs = (uint64)Due - (uint64)Now;
         double Delay = (double)(DelayMs / 1000) + (double)(DelayMs % 1000) * 0.001;
         double Deadline = nextafter(Sample + (Delay - (double)SubNs * 1e-9), INFINITY);
         if (COHORT_WAIT_UNTIL(Waiter, Deadline < Limit ? Deadline : Limit) != XWAIT_TIMEOUT)
             return false;
+        Sample = xrtTimer();
     }
 }
 

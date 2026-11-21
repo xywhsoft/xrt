@@ -23,6 +23,7 @@ static struct {
     xcronscheduler* Scheduler;
     xtime Wall;
     double Monotonic;
+    double DelayAfterWall;
     uint32 SubNs;
     const clockstep* Steps;
     size_t Count, Consumed;
@@ -37,8 +38,11 @@ static xtime readWall(void)
 
 static xtime readWallWithSubMs(uint32* SubNs)
 {
+    xtime Wall = Clock.Wall;
     *SubNs = Clock.SubNs;
-    return Clock.Wall;
+    Clock.Monotonic += Clock.DelayAfterWall;
+    Clock.DelayAfterWall = 0;
+    return Wall;
 }
 
 static double readMonotonic(void)
@@ -181,6 +185,26 @@ static void testFractionalDeadline(void)
         report(Result, 1, 12000) && Clock.Called == 1,
         "fractional wait rechecks the wall occurrence before dispatch");
     end();
+}
+
+static void testWaitAfterSamplingDelay(void)
+{
+	begin(30400, 80.0);
+	clockjob Job = {.Marker = 1};
+	add(XRT_STR_LITERAL("* * * * * *"), &Job);
+	Clock.DelayAfterWall = 0.45;
+	xcronpoll Result;
+	testRequire(xcronSchedulerWait(Clock.Scheduler, 250, &Result) == XCRON_SCHEDULE_TIMEOUT &&
+		report(Result, 0, 31000) && !Clock.Called, "elapsed caller limit is checked before arming");
+
+	Clock.Wall = 30400;
+	Clock.Monotonic = 80.0;
+	Clock.DelayAfterWall = 0.45;
+	const clockstep AtDue[] = {{80.6, 31000, 80.6, false}};
+	plan(AtDue, 1);
+	testRequire(xcronSchedulerWait(Clock.Scheduler, 1500, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+		report(Result, 1, 32000) && Clock.Called == 1, "time after a UTC sample is not added to the deadline");
+	end();
 }
 
 static void testWaveSample(void)
@@ -393,6 +417,7 @@ int main(void)
     testForwardThenBack();
     testBackwardTimeout();
     testFractionalDeadline();
+    testWaitAfterSamplingDelay();
     testWaveSample();
     testClockFailure();
     testDistinctRecurrences();
