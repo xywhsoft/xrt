@@ -283,16 +283,10 @@ The same eight disposable keys and one private channel are reused.
 This is a paced closed-loop workload for continuous validation.
 
 Build the host against the checked-in single headers from the repo root.
-On Windows with MinGW GCC use WIN32_LEAN_AND_MEAN in place of _GNU_SOURCE,
-link with -lws2_32 in place of -pthread -lm, and use an .exe output.
+Use GCC on Linux or MinGW GCC on Windows. On Windows give the binary an
+`.exe` suffix. Keep the binary's `.build.json` receipt with the run.
 
-    flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE
-      -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING
-      -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION
-      -Iinclude -Iextlibs/xredis/include -include xredis/features.h
-      -include ./single/xrt.h -include ./single/extlibs/xredis.h)
-    gcc "${flags[@]}" extlibs/xredis/tests/interop/redis_mixed.c \
-      -o out/redis-mixed -pthread -lm
+    python3 tools/build_service_mixed.py xredis --output out/redis-mixed
 
 Run the supervisor on the candidate client OS using a local disposable
 Redis. The server must be dedicated to this test because the observer
@@ -324,14 +318,14 @@ deployment topologies, larger loads, and injected failures.
 
 ### The same workload over verified TLS
 
-Add `-DXREDIS_MODULE_XREDIS_TLS` to the client build. On Windows link
-`-lws2_32 -liphlpapi -lbcrypt -ladvapi32`. Supply `--tls-directory`
-with `ca.pem` and `server.pem` for the `localhost` identity.
+Build a fresh client with `--tls` on the build command. Supply
+`--tls-directory` with `ca.pem` and `server.pem` for the `localhost` identity.
 With `--server`, also provide `server.key`. The supervisor starts a
 TLS-only listener or connects to the TLS endpoint supplied by `--port`.
 
+    python3 tools/build_service_mixed.py xredis --tls --output out/redis-mixed-tls
     python3 extlibs/xredis/tests/interop/run_redis_mixed.py \
-      --server /usr/bin/redis-server --client out/redis-mixed \
+      --server /usr/bin/redis-server --client out/redis-mixed-tls \
       --tls-directory /path/to/fixture --seconds 60 --pause-ms 3 \
       --report out/redis-mixed-tls.json
 

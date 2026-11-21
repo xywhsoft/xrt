@@ -21913,3 +21913,30 @@ Phase records, builds, failing and passing regression logs, and the
 formal Windows journal are under
 `out/service-extensions/xcron-current-matched-6c0936d2/`. The formal run
 and independent mixed-load rebuild receipt are in `guarded-c696b498/`.
+
+## 2026-11-21 Reproducible Redis and MQTT mixed-load builds
+
+The short Linux CI runs and the documented endurance commands now use
+`tools/build_service_mixed.py`. It builds the existing workloads with
+GCC or MinGW GCC and retains a receipt with the revision, worktree state,
+compiler version, compile command and SHA-256 of the binary and project
+inputs. The build enumerates project dependencies from the compiler and
+checks them again after linking. The existing optional Redis TLS workload
+uses the same entry point.
+
+Windows completed 675 Redis TCP rounds, 650 Redis TLS 1.3 rounds and 708
+MQTT rounds with the new builds. The Redis peer ran in WSL. Ubuntu WSL
+replayed the two Linux CI steps with a pinned Redis 8.0.5 peer. It
+verified 7,014 Redis TCP rounds, 7,708 MQTT rounds and 46,730 MQTT
+deliveries. The separate MQTT kill test detected the spawned broker's
+exit after 1,291 verified rounds. The WSL Redis TLS run completed 2,660
+rounds. An independent check matched the six run identities to their
+build receipts and all recorded input hashes. The builder refused an
+existing output path and the Redis-only TLS option on MQTT.
+
+Run reports, receipts and the initial execution logs are under
+`out/service-extensions/service-mixed-builder-298a24f3/`. The short builds
+and runs shared the host with the active xcron Windows series. Keep their
+log timestamps with the scheduler measurements. The running Windows
+endurance workloads retain their original candidate receipts. Native
+Linux and completed 72-hour evidence remain pending.

@@ -158,12 +158,7 @@ jobs:
         shell: bash
         run: |
           evidence=out/service-extensions/xmqtt-mixed
-          mkdir -p "$evidence"
-          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE \
-            -DXMQTT_MODULE_XMQTT_CLIENT -DXMQTT_MODULE_XMQTT_SERVER \
-            -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION -Iinclude -Iextlibs/xmqtt/include \
-            -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h \
-            extlibs/xmqtt/tests/interop/mqtt_mixed.c -o "$evidence/mixed" -pthread -lm
+          python -B tools/build_service_mixed.py xmqtt --output "$evidence/mixed"
           python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
             --binary "$evidence/mixed" --seconds 30 --pause-ms 3 --report "$evidence/mixed.json"
           fault_status=0
@@ -398,13 +393,7 @@ jobs:
         shell: bash
         run: |
           evidence=out/service-extensions/redis-mixed
-          mkdir -p "$evidence"
-          gcc -std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE \
-            -DXREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT -DXREDIS_MODULE_XREDIS_TRACKING \
-            -DXREDIS_MODULE_XREDIS_SUBSCRIBER_NOTIFY -DXRT_IMPLEMENTATION -DXREDIS_IMPLEMENTATION \
-            -Iinclude -Iextlibs/xredis/include -include xredis/features.h \
-            -include ./single/xrt.h -include ./single/extlibs/xredis.h \
-            extlibs/xredis/tests/interop/redis_mixed.c -o "$evidence/mixed" -pthread -lm
+          python -B tools/build_service_mixed.py xredis --output "$evidence/mixed"
           peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
           python -B extlibs/xredis/tests/interop/run_redis_mixed.py \
             --server "$peer" --client "$evidence/mixed" --seconds 30 --pause-ms 3 \
