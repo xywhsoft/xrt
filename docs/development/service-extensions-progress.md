@@ -21513,3 +21513,32 @@ The table gives the count of fully verified samples out of five and the lowest a
 Both brokers completed the short Windows 10,000/s pilot. The longer Windows runs at that rate exposed quota refusal from xmqtt and incomplete subscriber ledgers from Mosquitto. The full reports retain each failed sample and record pacer lag, publisher credit wait and end-to-end delivery on successful runs. Higher rates can show nonmonotonic results on this host. Peak sustained capacity, repeatable release tails and native Linux remain open.
 
 Raw samples, build fingerprints and the phase audit are under `out/service-extensions/scope-reduction-20261119/xmqtt-qos2-rate-sweep/`. [Rate sweep reproduction](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).
+
+## 2026-11-21 MQTT QoS 2 per-connection delivery budget
+
+This comparison varied MaxOutgoingPublishesPerConnection from 256 to 512 and 1,024 in the plaintext broker APP. The comparison used a fixed global quota of 16,384 deliveries and 64 MiB. A local copy of the APP accepted the budget through an environment setting and read xmqttServerInfo after the observer retired. Every budget on a host used the same broker executable and observer.
+
+The observer offered MQTT 5 QoS 2 with a single publisher, eight wildcard subscribers, 128-byte payloads and windows of 16. The two broker workers used logical CPUs 0, 2, 4 and 6. The observer used 8 and 10. Each budget ran five short fixed-arrival samples at both 10,000 and 16,000 publications/s. Each sample included 600 warmup publications and approximately four seconds of measured offers. The budget order rotated between repeats. Windows and WSL ran sequentially while the Windows endurance processes continued.
+
+The audit verified 49 of 60 samples, 2,512,000 terminal publisher confirmations and 20,096,000 subscriber deliveries. It matched received PUBREC quota refusals to the broker's rejected publication counter in all 11 affected samples. Delivery P99 met the repeat-variation limits in 1 of 7 complete series.
+
+The table gives completed samples and quota-refused samples out of five. P99 and peak resident memory are medians over completed samples. Resident memory includes the broker process.
+
+| Host | Publications/s | Per-connection budget | Complete | Quota refused | Delivery P99 (ms) | Peak RSS (MiB) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows x64 | 10,000 | 256 | 2 | 3 | 1.898 | 4.42 |
+| Windows x64 | 10,000 | 512 | 4 | 1 | 1.523 | 4.50 |
+| Windows x64 | 10,000 | 1,024 | 5 | 0 | 1.588 | 4.60 |
+| Windows x64 | 16,000 | 256 | 3 | 2 | 3.754 | 4.49 |
+| Windows x64 | 16,000 | 512 | 3 | 2 | 1.882 | 4.39 |
+| Windows x64 | 16,000 | 1,024 | 5 | 0 | 1.927 | 4.50 |
+| Ubuntu WSL x64 | 10,000 | 256 | 5 | 0 | 5.231 | 3.23 |
+| Ubuntu WSL x64 | 10,000 | 512 | 5 | 0 | 4.432 | 3.22 |
+| Ubuntu WSL x64 | 10,000 | 1,024 | 5 | 0 | 5.909 | 3.25 |
+| Ubuntu WSL x64 | 16,000 | 256 | 2 | 3 | 1079.088 | 3.25 |
+| Ubuntu WSL x64 | 16,000 | 512 | 5 | 0 | 1093.262 | 3.36 |
+| Ubuntu WSL x64 | 16,000 | 1,024 | 5 | 0 | 1176.767 | 3.35 |
+
+Changing the single-connection budget can change admission at the same offered rate. The measured P99 distributions and resident memory give the cost of using a deeper queue. The results concern this bounded loopback profile. Native Linux, sustainable peak capacity and repeatable release tails remain open.
+
+The APP probe source, build flags, individual broker snapshots and all sample ledgers are under `out/service-extensions/scope-reduction-20261119/xmqtt-qos2-queue-depth/`.
