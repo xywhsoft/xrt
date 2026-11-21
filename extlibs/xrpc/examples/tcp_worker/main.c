@@ -151,26 +151,26 @@ static bool serve(xnetsocket Listener, bool Duplex, unsigned Clients, unsigned T
             OK = false;
             break;
         }
-        Peers[Accepted++] = (apppeer){.Socket = Socket, .Workers = Workers, .Duplex = Duplex};
+        apppeer* Peer = &Peers[Accepted++];
+        *Peer = (apppeer){.Socket = Socket, .Workers = Workers, .Duplex = Duplex};
         if (!xrtNetSocketSet(Socket, XNET_OPTION_NO_DELAY, 1)) {
             OK = false;
             break;
         }
-    }
-    if (OK && Clients == 1) {
-        OK = drivePeer(&Peers[0]) == 0;
-    } else if (OK) {
-        while (Started < Accepted) {
-            Owners[Started] = xrtThreadCreate(drivePeer, &Peers[Started], 0);
-            if (!Owners[Started]) {
+        if (Clients > 1) {
+            xthread* Owner = xrtThreadCreate(drivePeer, Peer, 0);
+            if (!Owner) {
                 OK = false;
-                /* The listener owner retains every socket until its thread retires. */
-                for (unsigned Index = 0; Index < Started; ++Index)
-                    (void)xrtNetSocketShutdown(Peers[Index].Socket, XNET_SHUTDOWN_BOTH);
                 break;
             }
-            ++Started;
+            Owners[Started++] = Owner;
         }
+    }
+    if (OK && Clients == 1) OK = drivePeer(&Peers[0]) == 0;
+    if (!OK) {
+        /* Unblock active owners before joining. The listener owner still owns the sockets. */
+        for (unsigned Index = 0; Index < Started; ++Index)
+            (void)xrtNetSocketShutdown(Peers[Index].Socket, XNET_SHUTDOWN_BOTH);
     }
     for (unsigned Index = 0; Index < Started; ++Index) {
         if (xrtThreadWait(Owners[Index]) != XWAIT_OK) abort();

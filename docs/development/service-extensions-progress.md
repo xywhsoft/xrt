@@ -22228,3 +22228,32 @@ The running Windows matched tail campaign retains the `3f7d0efd` binary
 as baseline evidence. The fixed candidate needs its own tail samples and
 native Linux acceptance. Logs are under
 `out/service-extensions/xcron-late-timeout-1ff943bb/`.
+
+## 2026-11-22 xrpc TCP APP starts peers as they arrive
+
+The TCP example starts one owner per accepted connection immediately.
+The first client can finish a pipelined exchange while the listener is
+still accepting the next client. A startup failure stops I/O on the
+already started owners, joins them and then closes their sockets and
+retires the executor. The single-peer path drives inline on the listener
+thread. The change is confined to the APP.
+
+The independent staggered peer waits for 128 ordered replies and EOF on
+its first socket before opening the second one. The original build timed
+out on Windows and WSL. The corrected example passed all eight cases in
+both duplex and direct-dispatch modes on both environments, including
+fragmentation, concurrent peers, backpressure and reset isolation. An
+isolated test build refused the second owner creation after the first peer
+had exchanged a request. The first live connection retired in both modes.
+That injected failure also passed WSL ASan/UBSan with leak detection.
+
+A fixed-arrival diagnostic verified 614,400 measured replies across the
+original and corrected examples. It used eight peers, two workers,
+1,600 and 4,000 calls/s per peer, three repeats, APP CPUs 0 and 2 and
+observer CPU 8. The observer verified response bytes and the APP ledger
+separately. The short runs leave release-tail repeatability open.
+Ordinary maturity passed. The strict release checker still reports
+`xrpc` and `xrpc_duplex` as developing. Native Linux remains open.
+
+Build logs, binaries, wire reports, fault injection and the count audit
+are under `out/service-extensions/xrpc-staggered-admission-1173f73e/`.

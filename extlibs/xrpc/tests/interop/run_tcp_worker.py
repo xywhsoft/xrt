@@ -27,8 +27,8 @@ def record(value):
     return json.dumps(value).encode("utf-8") + b"\n"
 
 
-def exchange(executable, mode, drive):
-    with subprocess.Popen([executable, mode], stdout=subprocess.PIPE) as process:
+def exchange(executable, mode, drive, *settings):
+    with subprocess.Popen([executable, mode, *settings], stdout=subprocess.PIPE) as process:
         watchdog = threading.Timer(15, process.kill)
         watchdog.start()
         try:
@@ -88,8 +88,16 @@ def pipelined(peer):
         assert list(stream) == replies, "coalesced request stream changed the reply order"
 
 
+def staggered_start(first):
+    address = first.getpeername()
+    pipelined(first)
+    with socket.create_connection(address, timeout=5) as second:
+        pipelined(second)
+
+
 def dispatch_cases(executable):
     for mode in MODES.values():
+        assert exchange(executable, mode, staggered_start, "2", "1") == 0
         assert exchange(executable, mode, normal) == 0
         assert exchange(executable, mode, pipelined) == 0
         assert exchange(executable, mode, lambda peer: peer.sendall(b" " * 4097)) == 1
@@ -100,9 +108,9 @@ def dispatch_cases(executable):
         assert failed == 1 and report is None
         reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
         assert reset == 1 and report is None
-    print("[pass] TCP worker dispatch, framing, peer fault and backpressure isolation in both modes")
+    print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
     return {"cases_per_mode": 8, "modes": list(MODES), "replies_per_mode": 131,
-            "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
+            "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 256, "ok": True}
 
 

@@ -18,8 +18,9 @@ in the example.
 
 Pass `--serve CLIENTS WORKERS` to share one bounded XRT executor across
 up to 32 connections and 8 executor workers. The APP accepts the requested
-number of loopback connections and gives each connection its own endpoint
-owner. Each connection queues one copied job at a time. The owner shuts
+number of loopback connections and starts each connection's owner as it
+arrives. Requests can complete while the listener waits for another peer.
+Each connection queues one copied job at a time. The owner shuts
 down its output when it finishes, and the listener owner retains the
 socket until that thread retires. The APP checks the executor completion
 ledger before freeing job storage. With explicit counts, it prints
@@ -31,8 +32,10 @@ Build from the repository root.
 python tools/build.py --manifest extlibs/xrpc/config/modules.json --suite xrpc_examples --no-single
 ```
 
-Run the independent peer driver without timing options to exercise real TCP
-backpressure and peer reset. Two connections share one executor worker.
+Run the independent peer driver without timing options to exercise staggered
+connections, real TCP backpressure and peer reset. The staggered case
+verifies all replies and EOF on the first connection before opening the second.
+The backpressure case shares one executor worker across two connections.
 The driver leaves one connection's large replies unread until its send window
 stalls. It verifies 128 ordered replies on the healthy connection, fills the
 slow connection again, and resets it with zero linger. The healthy connection
