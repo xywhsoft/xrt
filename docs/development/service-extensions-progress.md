@@ -21453,3 +21453,11 @@ Across the cohorts, median delivery rates ranged from 22,399 to 22,407/s at eigh
 Windows and WSL passed the MQTT 5/3.1.1 wire fixture, scripted observer checks and the legacy single-CPU comparison. The first build omitted MQTT 3.1.1 and failed the legacy CONNECT case. The retained performance reports use the rebuilt dual-protocol executables.
 
 The fixed rates establish delivery at the offered load. Peak sustainable throughput, a release-quality tail baseline and native Linux performance remain open. Raw samples, hashes and failed setup logs are under `out/service-extensions/scope-reduction-20261119/xmqtt-worker-scaling/`. Reproduction commands are in the [broker comparison guide](../../extlibs/xmqtt/bench/README.md#external-broker-comparison).
+
+## 2026-11-21 xrpc TCP backpressure and reset isolation
+
+The independent peer now drives two TCP connections through a single XRT executor worker in both duplex and direct-dispatch modes. It leaves 3,000-byte echo payloads unread, waits for a full send window and checks that a reply is queued. The healthy peer completes 128 ordered replies. The driver confirms backpressure again, resets the slow peer and verifies 128 further replies and clean output EOF on the healthy peer. The APP returns its expected peer-fault exit after retiring both owners and the pool.
+
+The initial Windows probe accepted a single oversized send in full. The WSL send window became writable again before the reset check. The revised driver writes bounded chunks and fills the window again before reset. Native Windows and Ubuntu WSL each passed three full peer runs and the stdio peer. WSL ASan/UBSan with leak detection passed a seventh TCP run. Across the two modes this verified 14 backpressure and reset scenarios and 3,584 healthy replies. The test belongs to the existing Ubuntu TCP example step.
+
+Generated single headers and the ordinary maturity audit passed. Strict release still reports `xrpc` and `xrpc_duplex` as developing. Native Linux and repeatable performance-tail acceptance remain open. Reports, component hashes and the first failed fixture are under `out/service-extensions/scope-reduction-20261119/xrpc-tcp-backpressure/`.

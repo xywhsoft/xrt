@@ -31,6 +31,17 @@ Build from the repository root.
 python tools/build.py --manifest extlibs/xrpc/config/modules.json --suite xrpc_examples --no-single
 ```
 
+Run the independent peer driver without timing options to exercise real TCP
+backpressure and peer reset. Two connections share one executor worker.
+The driver leaves one connection's large replies unread until its send window
+stalls. It verifies 128 ordered replies on the healthy connection, fills the
+slow connection again, and resets it with zero linger. The healthy connection
+completes another 128 replies and retires cleanly. Both APP modes run this case.
+
+```sh
+python extlibs/xrpc/tests/interop/run_tcp_worker.py out/gcc/native/xrpc_examples/examples_tcp_worker_main out/xrpc-tcp-peer.json
+```
+
 ## TCP performance comparison
 
 The TCP APP also accepts `--dispatch-only`. This calls the same xrpc dispatch

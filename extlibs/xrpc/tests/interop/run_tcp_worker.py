@@ -15,6 +15,7 @@ from pathlib import Path
 import select
 import socket
 import statistics
+import struct
 import subprocess
 import threading
 import time
@@ -96,9 +97,12 @@ def dispatch_cases(executable):
         assert healthy == 0 and report == {"connections": 4, "workers": 2, "requests": 512}
         failed, report = multi_exchange(executable, mode, 2, 2, malformed_peer)
         assert failed == 1 and report is None
-    print("[pass] TCP worker dispatch, pipeline, notification, batch, parse error and record bounds in both modes")
-    return {"cases_per_mode": 7, "modes": list(MODES), "replies_per_mode": 131,
-            "parallel_replies_per_mode": 512, "peer_fault_isolation": True, "ok": True}
+        reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
+        assert reset == 1 and report is None
+    print("[pass] TCP worker dispatch, framing, peer fault and backpressure isolation in both modes")
+    return {"cases_per_mode": 8, "modes": list(MODES), "replies_per_mode": 131,
+            "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
+            "backpressure_isolation_replies_per_mode": 256, "ok": True}
 
 
 def sample(executable, mode, warmup, batches, calls):
@@ -218,6 +222,53 @@ def malformed_peer(peers):
     bad.shutdown(socket.SHUT_WR)
     assert bad.recv(1) == b"", "malformed connection did not close independently"
     pipelined(healthy)
+
+
+def backpressured_peer(peers):
+    stalled, healthy = peers
+    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
+    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+    payload = "x" * 3000
+    offer = record({"jsonrpc": "2.0", "method": "echo", "params": [payload], "id": 2})
+    stalled.sendall(offer)
+    with stalled.makefile("rb") as stream:
+        assert json.loads(stream.readline(4097)) == {"jsonrpc": "2.0", "result": [payload], "id": 2}
+
+    # Leave replies unread. Bound each write so Winsock cannot queue one giant send.
+    pending = memoryview(offer * 4096)
+    stalled.setblocking(False)
+    sent = 0
+
+    def fill():
+        nonlocal sent
+        deadline = time.monotonic() + 5
+        while sent < len(pending) and time.monotonic() < deadline:
+            if not select.select([], [stalled], [], 0.2)[1]:
+                assert sent >= len(offer), "peer stalled before accepting a record"
+                return
+            try:
+                count = stalled.send(pending[sent:sent + 4096])
+            except BlockingIOError:
+                continue
+            assert count, "peer closed before reaching backpressure"
+            sent += count
+        raise AssertionError("failed to fill the slow peer's TCP windows")
+
+    fill()
+    assert select.select([stalled], [], [], 5)[0], "slow peer has no queued replies"
+    assert stalled.recv(1, socket.MSG_PEEK) == b"{", "slow peer closed before isolation check"
+    with healthy.makefile("rb") as stream:
+        wire, replies = next(requests(128, 128))
+        list(checked_batch(healthy, stream, wire, replies))
+        fill()
+        # SO_LINGER uses two shorts on Winsock and two ints on POSIX.
+        linger = struct.pack("@HH" if os.name == "nt" else "@ii", 1, 0)
+        stalled.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger)
+        stalled.close()
+        wire, replies = next(requests(128, 128, first=129))
+        list(checked_batch(healthy, stream, wire, replies))
+        healthy.shutdown(socket.SHUT_WR)
+        assert stream.read(1) == b"", "healthy peer did not retire after reset"
 
 
 def percentiles(samples, prefix):
