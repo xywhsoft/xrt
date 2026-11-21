@@ -371,3 +371,24 @@ jobs:
             out/service-extensions/redis-restart/*.json
             out/service-extensions/redis-restart/*.log
           if-no-files-found: warn
+      - name: Verify fixed Sentinel seed recovery and primary failover
+        shell: bash
+        env:
+          REDIS_SENTINEL_REPORT_DIR: out/service-extensions/redis-sentinel
+        run: |
+          evidence="$REDIS_SENTINEL_REPORT_DIR"
+          peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
+          python -B extlibs/xredis/tests/interop/build_sentinel_probe.py --output "$evidence/probe"
+          python -B extlibs/xredis/tests/interop/run_redis_sentinel_seeds.py \
+            --server "$peer" --client "$evidence/probe" --report "$evidence/fixed-seeds.json" --role master
+          python -B extlibs/xredis/tests/interop/run_redis_sentinel_pool.py \
+            --server "$peer" --client "$evidence/probe" --report "$evidence/primary-failover.json" --case 1 3
+      - name: Preserve Redis Sentinel recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xredis-sentinel-recovery-linux
+          path: |
+            out/service-extensions/redis-sentinel/**/*.json
+            out/service-extensions/redis-sentinel/**/*.log
+          if-no-files-found: warn
