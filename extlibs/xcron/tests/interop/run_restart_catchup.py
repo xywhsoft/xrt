@@ -8,6 +8,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import threading
 
 
 def run(program, checkpoint, *args, **process_options):
@@ -79,6 +80,43 @@ def verify_checkpoint_failure(program, checkpoint):
     assert checkpoint.read_bytes() == b"3000\n"
 
 
+def verify_process_interrupt(program, checkpoint):
+    assert run(program, checkpoint, "seed", "1000").returncode == 0
+    command = [str(program.resolve()), "replay", str(checkpoint), "1001000", "1000"]
+    # Leave the remaining output unread so a fast child cannot finish this replay.
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          bufsize=0, pipesize=4096) as process:
+        watchdog = threading.Timer(10, process.kill)
+        watchdog.start()
+        try:
+            first = process.stdout.readline()
+            second = process.stdout.readline()
+            assert first.rstrip() == b"ran 2000" and second.rstrip() == b"ran 3000", (first, second)
+            assert process.poll() is None, "replay finished before interruption"
+            process.kill()
+            remaining, errors = process.communicate(timeout=5)
+        finally:
+            watchdog.cancel()
+            if process.poll() is None:
+                process.kill()
+    assert process.returncode != 0 and not errors, (process.returncode, errors)
+    events = (first + second + remaining).splitlines()
+    assert 2 <= len(events) < 1000
+    assert events == [f"ran {instant}".encode("ascii") for instant in range(2000, (len(events) + 2) * 1000, 1000)]
+    emitted = (len(events) + 1) * 1000
+    saved = int(checkpoint.read_bytes())
+    assert checkpoint.read_bytes() == f"{saved}\n".encode("ascii")
+    assert 2000 <= saved <= emitted and emitted - saved <= 1000, (saved, emitted)
+
+    resumed = run(program, checkpoint, "replay", str(saved + 3000), "2")
+    assert resumed.returncode == 0 and resumed.stdout.splitlines() == [
+        f"ran {saved + 1000}", f"ran {saved + 2000}", f"last={saved + 2000} ran=2 pending=1",
+    ], resumed
+    assert checkpoint.read_bytes() == f"{saved + 2000}\n".encode("ascii")
+    return {"last_emitted_ms": emitted, "last_committed_ms": saved,
+            "replay_started_ms": saved + 1000, "committed_after_replay_ms": saved + 2000}
+
+
 def verify(program):
     with tempfile.TemporaryDirectory() as work:
         checkpoint = Path(work) / "cron checkpoint.txt"
@@ -106,8 +144,10 @@ def verify(program):
         assert checkpoint.read_bytes() == b"9000\0\n"
         assert run(program, checkpoint, "seed", "1000").returncode == 0
         verify_checkpoint_failure(program, checkpoint)
+        forced_stop = verify_process_interrupt(program, checkpoint)
     return {"persisted_last_ms": 5000, "retried_ms": 3000, "budgeted": True, "clock_rollback": True,
-            "rejected_corrupt_checkpoint": True, "checkpoint_failure_retried_ms": 2000}
+            "rejected_corrupt_checkpoint": True, "checkpoint_failure_retried_ms": 2000,
+            "forced_stop": forced_stop}
 
 
 def main():
@@ -118,7 +158,7 @@ def main():
     result = verify(args.program)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] cross-process cron catch-up, retry, bounded replay, clock rollback, invalid checkpoint and checkpoint write failure")
+    print("[pass] cross-process cron catch-up, retry, bounded replay, clock rollback, invalid checkpoint, checkpoint write refusal and forced process interruption")
 
 
 if __name__ == "__main__":

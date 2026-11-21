@@ -50,3 +50,14 @@ reports that occurrence and exits. Once storage is available, the next
 run starts at the previous checkpoint and retries the occurrence. The
 same retry can follow a crash between the action and checkpoint. Use
 the scheduled UTC timestamp as the APP's idempotency key.
+
+The independent peer driver force-stops a replay after its first actions and
+starts the APP again with the recovered checkpoint. It checks that committed
+occurrences stay complete and that an emitted occurrence without a committed
+checkpoint is eligible to run again.
+
+```sh
+python extlibs/xcron/tests/interop/run_restart_catchup.py out/gcc/native/xcron_examples/examples_restart_catchup_main out/xcron-restart-catchup.json
+```
+
+Use the built executable's path and include the `.exe` suffix on Windows.

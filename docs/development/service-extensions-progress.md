@@ -21461,3 +21461,11 @@ The independent peer now drives two TCP connections through a single XRT executo
 The initial Windows probe accepted a single oversized send in full. The WSL send window became writable again before the reset check. The revised driver writes bounded chunks and fills the window again before reset. Native Windows and Ubuntu WSL each passed three full peer runs and the stdio peer. WSL ASan/UBSan with leak detection passed a seventh TCP run. Across the two modes this verified 14 backpressure and reset scenarios and 3,584 healthy replies. The test belongs to the existing Ubuntu TCP example step.
 
 Generated single headers and the ordinary maturity audit passed. Strict release still reports `xrpc` and `xrpc_duplex` as developing. Native Linux and repeatable performance-tail acceptance remain open. Reports, component hashes and the first failed fixture are under `out/service-extensions/scope-reduction-20261119/xrpc-tcp-backpressure/`.
+
+## 2026-11-21 xcron restart catch-up after forced process termination
+
+The independent restart peer terminates a live APP replay after reading two action records. It checks the complete emitted prefix and reopens the checkpoint from disk. The committed timestamp must equal the final observed occurrence or trail it by exactly one second. A new process runs the next two occurrences and persists progress within its supplied budget.
+
+Windows x64 and Ubuntu WSL x64 each passed five complete restart-peer runs and the xcron test aggregate. In 8 of 10 interruptions the last emitted action was still uncommitted (5 Windows, 3 WSL). Each of those actions was replayed. The other 2 runs resumed after the last emitted action, which had committed before termination. All runs resumed from the recovered checkpoint and left the next backlog entry pending. The older simulated task failure, checkpoint write refusal and rollback cases still passed.
+
+The ordinary maturity and single-header checks passed. Strict release still reports `xcron` and `xcron_scheduler` as developing. Native Linux, release-tail and power-loss acceptance remain open. Raw reports and build identities are under `out/service-extensions/scope-reduction-20261119/xcron-process-interrupt/`.
