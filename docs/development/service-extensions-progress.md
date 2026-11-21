@@ -21700,3 +21700,38 @@ repeatability limits. The optimization remains a prototype. Native
 Linux and release performance qualification remain open. The patch,
 build fingerprints, timing series and protocol results are under
 `out/service-extensions/xmqtt-route-best-effort-8e58fb7a/`.
+
+## 2026-11-21 MQTT QoS 2 broker phase and native I/O counts
+
+Diagnostic builds from 4199e7b3 counted broker function entries and
+selected native I/O call boundaries. They timed one in 64 entries per
+thread, using QPC elapsed time on Windows and thread CPU time on WSL.
+The separate MQTT 5.0/3.1.1 protocol peer passed on both builds. One or
+two workers served a fixed-arrival plaintext workload with 64 wildcard
+subscribers, 128-byte messages, and 320 publications/s. Both reliable
+windows were 16. Each cohort ran three repeats, with 256 warmup and
+1,600 measured offers per repeat. The QoS 0 control used two workers and
+the same offered rate. The endurance runs stayed active.
+
+All 18 samples verified 1,843,200 measured deliveries. The broker's
+scope counts also reconciled the warmup deliveries. Each QoS 2 sample
+entered routing 1,856 times, the delivery post callback and publish
+send 118,784 times each, and the delivery ACK handler 237,568 times.
+The table gives the medians of sampled mean times with two workers.
+The post and send scopes can overlap.
+
+| Host and clock | Route per publication (us) | Post callback per delivery (us) | ACK per call (us) |
+| --- | ---: | ---: | ---: |
+| Native Windows, QPC elapsed | 19.23 | 4.66 | 1.56 |
+| Ubuntu WSL, thread CPU | 29.08 | 19.26 | 9.83 |
+
+The two-worker Windows QoS 2 median had 1,195 zero-byte WSARecv
+readiness submissions and 1,195 payload WSARecv submissions per 1,000
+deliveries. It had 1,386 WSASend calls and 4,372 completion dequeues in
+the same units. WSL recorded 2,033 recv, 2,033 sendmsg and 4,066
+epoll_ctl calls per 1,000 deliveries. The Windows counters include
+startup and retirement. The WSL wrappers count direct libc calls
+between listener readiness and requested shutdown. These instrumented
+samples identify call frequencies and phase costs. Release latency
+requires separate clean runs. Source overlays, build fingerprints and
+ledgers are under `out/service-extensions/xmqtt-broker-io-4199e7b3/`.
