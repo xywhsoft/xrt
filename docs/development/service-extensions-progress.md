@@ -22382,3 +22382,17 @@ passed. Native Linux and the strict release checks remain open.
 
 Original and fixed probe output, raw state observations, and the
 test audit are under `out/service-extensions/xmqtt-takeover-88526d0d/`.
+
+## 2026-11-22 MQTT Windows endurance after the session-resume fix
+
+A separate 72-hour campaign started on Windows x64 with the binary built
+from clean `c3d465ba`. The startup receipt and first live windows match the
+binary digest and include native broker and client resource observations.
+The previous MQTT campaign continues with its own original binary and
+journal. The Redis client campaign also continues.
+
+A separate fault run on the new MQTT binary killed its private broker
+after 282 verified rounds. The supervisor classified the interruption as
+failed and retained the nonqualifying journal. The replacement campaign
+and fault reports are under
+`out/service-extensions/xmqtt-windows-takeover-soak-c3d465ba/`.
