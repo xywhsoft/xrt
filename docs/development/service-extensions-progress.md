@@ -22459,3 +22459,25 @@ leak detection. Generated headers and ordinary maturity passed. The
 change only adds test coverage and keeps the active `c2aa9f5d` campaign
 on its original binary. Logs and the negative control are under
 `out/service-extensions/xmqtt-resume-quota-1a1b149e/`.
+
+
+## 2026-11-23 Windows endurance binary and live-journal review
+
+The Redis client still uses the binary built from `08cf2cac`. Rebuilding
+its exact translation unit, flags and toolchain against clean `1a1b149e`
+changed only the recorded `single/xrt.h` input. The rebuilt PE matched
+every byte after normalizing its timestamp and checksum. Its original
+receipt still matches the running binary and journal. The Redis peer
+runs in WSL and the candidate client runs on Windows.
+
+An independent reader reconciled the append-only journal prefixes
+through 20,681 Redis observations (5,237,615 rounds) and 75 MQTT
+observations (23,832 rounds). It checked binary hashes, continuous
+observations, sample and MQTT replay counts, and per-process memory
+and handle limits. The largest observed gap was 5.047 seconds for
+Redis and 5.015 seconds for MQTT. Both supervisors were live after
+the review. Completed 72-hour qualification and native Linux remain
+open. The rebuild proof is in
+`out/service-extensions/xredis-current-soak-equivalence-1a1b149e/`
+and the saved review is in
+`out/service-extensions/xmqtt-resume-quota-1a1b149e/audit-live.json`.
