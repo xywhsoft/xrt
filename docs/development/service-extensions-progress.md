@@ -22396,3 +22396,32 @@ after 282 verified rounds. The supervisor classified the interruption as
 failed and retained the nonqualifying journal. The replacement campaign
 and fault reports are under
 `out/service-extensions/xmqtt-windows-takeover-soak-c3d465ba/`.
+
+
+## 2026-11-23 MQTT protects CONNACK write credit during TCP resume
+
+A native TCP session becomes routable before its resumed CONNACK. On the
+previous build a different network worker could reserve the entire stream
+write budget with a QoS 0 publication before the owner submitted CONNACK.
+A paused two-worker probe reproduced the close on Windows and WSL with a
+128-byte stream write limit. The versioned single-header regression also
+failed against the previous Windows implementation.
+
+During that interval QoS 0 delivery uses the existing bounded owner queue
+without reserving native TCP write credit. Later QoS 0 deliveries keep
+using that queue while those posts drain. A post that cannot be admitted
+drops the best-effort publication and releases its peer reference.
+The regression checks both a 128-byte publication that must leave room for
+CONNACK and a smaller publication that must follow CONNACK.
+
+Windows and WSL passed modular and single-header dual-version tests,
+the independent MQTT 5 and 3.1.1 wire and checkpoint suites, recovery
+between TCP, TLS, WS and WSS, and static/shared package consumers. The
+single-header dual-version suite passed WSL ASan/UBSan with leak detection.
+The independent 64-client pressure test passed on both environments,
+including connection replacement, quota reclamation and recovery.
+Generated headers and ordinary maturity passed. Strict release and native
+Linux remain open.
+
+The baseline reproduction and the new reports are under
+`out/service-extensions/xmqtt-resume-credit-c3d465ba/`.

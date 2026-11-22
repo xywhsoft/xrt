@@ -205,6 +205,9 @@ still live, the broker asks its worker to close it. For MQTT 5 the broker
 attempts DISCONNECT 0x8E (Session taken over). MQTT 3.1.1 closes the old
 transport. CONNACK and any replay wait for that transport's retirement.
 The successor can receive publications as soon as it observes CONNACK.
+While a native TCP CONNACK is being submitted, best-effort publications use
+the bounded owner queue. They enter the TCP write queue after CONNACK.
+When a best-effort delivery exceeds a queue limit, the broker drops it.
 The broker allows one pending successor per Client ID and answers another
 contender with Server Busy. If a resuming successor closes during handoff,
 the session remains eligible for offline resume until expiry. Clean Start
