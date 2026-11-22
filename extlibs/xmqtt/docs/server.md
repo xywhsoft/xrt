@@ -204,6 +204,7 @@ for the same Client ID and protocol version. If the previous connection is
 still live, the broker asks its worker to close it. For MQTT 5 the broker
 attempts DISCONNECT 0x8E (Session taken over). MQTT 3.1.1 closes the old
 transport. CONNACK and any replay wait for that transport's retirement.
+The successor can receive publications as soon as it observes CONNACK.
 The broker allows one pending successor per Client ID and answers another
 contender with Server Busy. If a resuming successor closes during handoff,
 the session remains eligible for offline resume until expiry. Clean Start

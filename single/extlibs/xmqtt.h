@@ -16453,7 +16453,7 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	return 0;
 }
 
-static void xmqttServerActivateSession(xmqttserverpeer* Peer);
+static bool xmqttServerActivateSession(xmqttserverpeer* Peer);
 static bool xmqttServerCanRead(xmqttserverpeer* Peer);
 static bool xmqttServerReadPackets(xmqttserverpeer* Peer, const xnetbuf* Buffer, xnetbuf* Writable);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
@@ -16488,21 +16488,38 @@ static void xmqttServerResumeInput(xmqttserverpeer* Peer)
 static void xmqttServerAcceptSession(xmqttserverpeer* Peer, double Now)
 {
 	if (Peer->Closing || xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE)) return;
-	if (!xmqttServerDeadline(Peer, Now, Peer->KeepAliveMs) ||
-		!xmqttServerWriteConnack(Peer, 0, 0, Peer->PacketLimit)) {
+	if (!xmqttServerDeadline(Peer, Now, Peer->KeepAliveMs)) {
 		xmqttServerAbortPeer(Peer);
 		return;
 	}
-	if (!Peer->Closing) {
-		if (Peer->Resumed && Peer->Session->Will) {
-			/* Binding removed this session from the registry's expiry sweep. */
-			xmqttserverwill* Will = Peer->Session->Will;
-			Peer->Session->Will = NULL;
-			if (Will->Due <= Now) xmqttServerPublishWill(Peer->Server, Will);
-			else xmqttServerDropWill(Peer->Server, Will);
-		}
-		Peer->Online = true;
-		xmqttServerActivateSession(Peer);
+	bool ActivateFirst = Peer->Resumed;
+#if defined(XMQTT_SERVER_QUEUED_OUTPUT)
+	ActivateFirst &= Peer->Output == NULL;
+#endif
+	/* A native TCP send can become readable before it returns. Publish the
+	 * resumed route first: other workers queue sends to this owner, and this
+	 * owner appends CONNACK before it runs those sends or pumps the replay.
+	 * TLS and WebSocket queue CONNACK before activation and drive it later. */
+	if (ActivateFirst && !xmqttServerActivateSession(Peer)) {
+		xmqttServerRefuse(Peer, 0x97, 3, Peer->PacketLimit, Now);
+		return;
+	}
+	if (!xmqttServerWriteConnack(Peer, 0, 0, Peer->PacketLimit)) {
+		xmqttServerAbortPeer(Peer);
+		return;
+	}
+	if (Peer->Closing) return;
+	if (Peer->Resumed && Peer->Session->Will) {
+		/* Binding removed this session from the registry's expiry sweep. */
+		xmqttserverwill* Will = Peer->Session->Will;
+		Peer->Session->Will = NULL;
+		if (Will->Due <= Now) xmqttServerPublishWill(Peer->Server, Will);
+		else xmqttServerDropWill(Peer->Server, Will);
+	}
+	Peer->Online = true;
+	if (Peer->Resumed) {
+		if (ActivateFirst || xmqttServerActivateSession(Peer)) xmqttServerPumpOutgoing(Peer);
+		else xmqttServerProtocolClose(Peer, 0x97, xrtTimer());
 	}
 }
 
@@ -17993,16 +18010,14 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 	Peer->Pumping = false;
 }
 
-static void xmqttServerActivateSession(xmqttserverpeer* Peer)
+static bool xmqttServerActivateSession(xmqttserverpeer* Peer)
 {
-	if (!Peer->Resumed) return;
 	xmqttserversession* Session = Peer->Session;
 	xrtMutexLock(&Session->Gate);
 	uint32 State = XMQTT_SERVER_OFFLINE;
 	if (!xrtAtomic32CompareExchange(&Session->State, &State, XMQTT_SERVER_ONLINE, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE)) {
 		xrtMutexUnlock(&Session->Gate);
-		xmqttServerProtocolClose(Peer, 0x97, xrtTimer());
-		return;
+		return false;
 	}
 	if (Session->OfflineQueue) {
 		*Session->WaitingTail = Session->OfflineQueue;
@@ -18014,7 +18029,7 @@ static void xmqttServerActivateSession(xmqttserverpeer* Peer)
 	++Session->Generation;
 	Peer->Replay = Session->SentHead;
 	xrtMutexUnlock(&Session->Gate);
-	xmqttServerPumpOutgoing(Peer);
+	return true;
 }
 
 static void xmqttServerPostDelivery(xnetworker* Worker, ptr Data)

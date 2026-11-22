@@ -22354,3 +22354,31 @@ limits, including both precise direct-waiter controls. The observed
 Stable native Windows release tails and native Linux acceptance remain
 open. The binary, launch receipt, raw journal and independent replay are
 under `out/service-extensions/xcron-late-timeout-1ff943bb/`.
+
+## 2026-11-22 MQTT routing at native TCP session resume
+
+On Windows, the original checkpoint fixture lost a QoS 0 publication
+sent on another connection immediately after a resumed CONNACK. A
+diagnostic build saw the persisted subscription and a bound peer with
+the session still OFFLINE. A later publication after a PING barrier
+selected the same session as ONLINE. Three uninstrumented runs of the
+original pinned fixture failed.
+
+Native TCP marks the resumed session routable before offering the
+CONNACK. Other workers post TCP sends to the owning worker. The owner
+appends CONNACK before it can execute the posts, and replay is pumped
+after CONNACK. TLS and WebSocket already queue CONNACK for later
+transmission, so their queue order is preserved. The independent
+MQTT 5 and MQTT 3.1.1 peers now check a publication immediately after
+CONNACK alongside the original unacknowledged delivery.
+
+All three pinned Windows pending-subscription repetitions passed after
+the fix. The modular and single-header dual-version broker tests and
+the complete checkpoint peer passed on Windows and WSL. Single-header
+combined builds also passed checkpoint transfer between TCP, TLS, WS
+and WSS. The WSL PUBREL fixture needed the same second-connection seal
+handling as the reset case. Ordinary maturity and generated headers
+passed. Native Linux and the strict release checks remain open.
+
+Original and fixed probe output, raw state observations, and the
+test audit are under `out/service-extensions/xmqtt-takeover-88526d0d/`.

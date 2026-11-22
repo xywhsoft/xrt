@@ -307,11 +307,16 @@ def check_session_resume(endpoint, publisher, level):
         frame = small_frame(0x32, body)
         assert read(peer, len(frame)) == frame
         with open_session(endpoint, level, clean=False, present=True) as successor:
+            live = b"after-connack"
+            publisher.sendall(small_frame(0x30, key + b"\0" + live) + b"\xc0\0")
+            assert read(publisher, 2) == b"\xd0\0"
             if level == 5:
                 assert read(peer, 3) == b"\xe0\x01\x8e"
             eof(peer)
             retry = small_frame(0x3a, body)
             assert read(successor, len(retry)) == retry
+            delivery = small_frame(0x30, key + properties + live)
+            assert read(successor, len(delivery)) == delivery
             successor.sendall(b"\x40\x02\0\1\xc0\0")
             assert read(successor, 2) == b"\xd0\0"
 
