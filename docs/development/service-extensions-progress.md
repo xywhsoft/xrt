@@ -22516,3 +22516,23 @@ partial final groups. Generated headers and ordinary maturity passed.
 Native Linux and release-tail repeatability remain open. Build inputs,
 the initial path-resolution error, the corrected runs and raw audits
 are under `out/service-extensions/xrpc-observer-start-d1d2fb77/`.
+
+
+## 2026-11-23 xcron monotonic clock failure after a late wait
+
+A finite wait projects a 125 ms caller limit before the next
+occurrence. The regression delays the timer return until after both
+deadlines and makes the subsequent monotonic read fail. The previous
+scheduler dispatched the due job while the timeout order was unknown.
+The fixed scheduler returns ERROR immediately, preserves the caller's
+output and leaves the occurrence pending. Poll after clock recovery
+dispatches the pending job once.
+
+The regression failed on the previous Windows and WSL binaries.
+Windows x64 and Ubuntu WSL passed the optimized modular and
+single-header xcron suites, the static and shared scheduler package
+consumers and the independent restart catch-up example. The clock
+suite also passed ASan/UBSan with leak detection on WSL. Generated
+headers, API coverage and ordinary maturity passed. The strict
+release gate and native Linux validation remain open. Evidence is
+under `out/service-extensions/xcron-late-clock-loss-f5637e54/`.

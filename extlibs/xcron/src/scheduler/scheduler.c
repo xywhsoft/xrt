@@ -293,8 +293,9 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         if (Result == XWAIT_OK) { Status = XCRON_SCHEDULE_WOKEN; break; }
         if (Result != XWAIT_TIMEOUT) { Status = XCRON_SCHEDULE_ERROR; break; }
         Sample = xrtTimer();
+        if (!isfinite(Sample)) { Status = XCRON_SCHEDULE_ERROR; break; }
         /* A timer return can be delayed past both deadlines. */
-        if (Timeout > 0 && CallerFirst && isfinite(Sample) && Sample >= Limit) {
+        if (Timeout > 0 && CallerFirst && Sample >= Limit) {
             Status = XCRON_SCHEDULE_TIMEOUT;
             break;
         }

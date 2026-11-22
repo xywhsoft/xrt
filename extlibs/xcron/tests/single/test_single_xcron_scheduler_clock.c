@@ -277,6 +277,15 @@ static void testClockFailure(void)
     plan(Broken, 1);
     testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_ERROR &&
         report(Result, 17, 42) && !Clock.Called, "timer loss during a wait preserves output");
+
+    Clock.Wall = 30500;
+    Clock.Monotonic = 30.0;
+    const clockstep LateBroken[] = {{30.125, 31100, NAN, false}};
+    plan(LateBroken, 1);
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 125, &Result) == XCRON_SCHEDULE_ERROR &&
+        report(Result, 17, 42) && !Clock.Called,
+        "timer loss after a late return leaves the occurrence pending");
+
     Clock.Monotonic = 30.5;
     Clock.Wall = 0;
     testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_ERROR &&
