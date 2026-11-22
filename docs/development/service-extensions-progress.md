@@ -22607,3 +22607,37 @@ journals both recorded their first observation near five seconds with
 matching build platform families and digests. These checks are evidence
 review for in-progress runs. Native 72-hour qualification remains open.
 Logs are under `out/service-extensions/service-mixed-continuity-81d28546/`.
+
+
+## 2026-11-23 xrpc Windows connection and executor CPU placement
+
+A Windows APP control compared a shared process mask on CPUs 0, 2, 6
+and 10 with four connection owners bound to CPU 0, four to CPU 2
+and one executor worker each bound to 6 and 10. The guarded native
+observer ran on CPU 8 for both variants. A separate loopback check
+read the actual thread affinity masks from Windows during live traffic
+and verified 1,024 replies and the final APP ledger.
+
+The comparison ran five alternating repetitions per variant, mode and
+rate. Each repetition offered two seconds of individual records with
+eight staggered connections, two workers and a 16-group window. The
+independent audit reconciled all 40 processes and 7,680,000 replies
+with schedules, tails and phase totals.
+
+| Offered calls/s | APP | End-to-end P99 (us), shared / partitioned | End-to-end P99.9 (us), shared / partitioned |
+| --- | --- | ---: | ---: |
+| 64,000 | Duplex | 262.7 / 366.3 | 403.8 / 664.0 |
+| 64,000 | Dispatch | 230.1 / 1,221.5 | 397.1 / 6,468.5 |
+| 128,000 | Duplex | 282.3 / 879.6 | 635.6 / 12,140.0 |
+| 128,000 | Dispatch | 271.8 / 431.2 | 503.0 / 6,947.2 |
+
+All eight verified throughput series met the variation limits and their
+medians stayed within 0.02% of the offered rates. One shared-mask P99
+series met its variation limits, and all P99.9 series exceeded them.
+The shared process mask had lower median tails in these four comparisons.
+The TCP APP keeps its existing CPU policy. Windows observer tests, the
+TCP peer matrix and ordinary maturity passed. Native Linux and stable
+release tails remain open. The live Windows endurance and xcron
+campaigns continued during the comparison. The overlays, binaries,
+raw timestamps and independent audits are under
+`out/service-extensions/xrpc-owner-executor-affinity-cf03d563/`.
