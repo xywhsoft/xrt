@@ -22641,3 +22641,41 @@ release tails remain open. The live Windows endurance and xcron
 campaigns continued during the comparison. The overlays, binaries,
 raw timestamps and independent audits are under
 `out/service-extensions/xrpc-owner-executor-affinity-cf03d563/`.
+
+
+## 2026-11-23 MQTT QoS 2 quota pressure near 10,000 connections
+
+The current MQTT server and native observer were rebuilt from clean
+`1c9cc918`. Each host alternated five brokers with 1,000 idle peers
+and five with 9,968 idle peers. The larger cohort held 9,979 MQTT 5
+connections during the healthy observer interval, including the
+pressure publisher, slow subscriber and healthy traffic peers.
+Each two-worker broker offered 4,000 healthy QoS 2 publications/s
+to eight wildcard subscribers across three consecutive phases.
+
+All 20 runs passed. An independent audit verified 720,000 publisher
+confirmations, 5,760,000 deliveries, 15,991 quota responses inside
+the observer intervals and 5,140 drained or reclaimed deliveries.
+All 12 ingress series met the variation limits. Phase median
+ingress ranged from 3,999.731 to 4,000.000 publications/s.
+
+| Environment | Idle peers | Delivery P99 before / during / after (ms) | Delivery P99.9 under pressure (ms) | Broker resident memory under pressure (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 1,000 | 3.384 / 2.609 / 2.021 | 9.917 | 7.55 |
+| Windows x64 | 9,968 | 7.012 / 3.510 / 1.947 | 10.320 | 30.68 |
+| Ubuntu WSL | 1,000 | 2.242 / 1.682 / 2.633 | 4.145 | 5.22 |
+| Ubuntu WSL | 9,968 | 2.321 / 1.782 / 2.186 | 4.158 | 22.49 |
+
+Every P99 and P99.9 series exceeded its repeatability limits.
+The phases run in a fixed order with the Windows endurance and
+scheduler workloads live. A separate one-worker probe reached
+exactly 10,000 connections on each host, refused the excess
+connection and replaced 100 peers while delivery credit was held.
+It verified atomic fan-out refusal and credit reclamation on
+PUBCOMP. The longest verified replacement was 30.14 ms on Windows
+and 1.67 ms on WSL. WSL observed one retry before a slot retired.
+
+Ordinary maturity and generated headers passed. Native Linux and
+stable release tails remain open. Build receipts, alternating
+runs, full-capacity probes and audits are under
+`out/service-extensions/xmqtt-current-pressure-capacity-1c9cc918/`.
