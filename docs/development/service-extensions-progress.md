@@ -22754,3 +22754,58 @@ leave stable Windows tails, native Linux and strict release open.
 Both hosts used Redis 8.0.5 in WSL. Inputs, binaries, trace data
 and audit output are under
 `out/service-extensions/xredis-client-phases-d7c93341/`.
+
+
+## 2026-11-23 xredis worker handoff and native loopback control
+
+The phase probe now records submission after the embedded post, worker
+callback entry, gate acquisition and dequeue. The audit accounts for
+overlap when a worker enters before the submitter releases the gate.
+It checks the timestamp ordering and reconciles each phase with the
+same request's end-to-end latency.
+
+The control and diagnostic clients alternated five measured pairs per
+host after warmup. Both used eight RESP3 connections, a shared
+128-slot observer window, 1,024-byte GET/SET values, and 12,000 offers/s.
+Each host verified 240,000 of 240,000 measured replies against the
+private Redis 8.0.5 in WSL. The audit matched each warmup, server
+command and 7,060 measured phase samples per host.
+
+| Observer | P99 control / probe (us) | Submission post to worker entry | Worker entry to gate plus gate to dequeue | Native send offer to final reader feed |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 400.2 / 402.6 | 9.9% | 0.09% | 72.6% |
+| Ubuntu WSL | 221.0 / 204.8 | 28.4% | 0.09% | 53.8% |
+
+Percentages describe the slowest sampled 1% within the diagnostic runs.
+Each stage uses its own per-run median. In another Windows campaign
+with the same binaries and
+offered load, the post-to-worker-entry stage represented 73.0% of the
+sampled tail against that campaign's WSL Redis. In all these campaigns
+the gate and dequeue stages accounted for little of the sampled tail.
+
+The second Windows campaign interleaved the WSL Redis route with a
+separate Winsock loopback fixture. Each endpoint used one logical CPU
+and received 96 RESP3 connections, including warmups. The fixture
+accepted HELLO and PING, retained the binary seed and accounted for
+every GET and SET. The first fixture lacked the version field in the
+HELLO response and failed readiness. The corrected fixture and Redis
+both reconciled the complete wire command ledgers.
+
+| Windows endpoint | Verified measured replies | Observer window refusals | Admitted-reply P99 control / probe (us) | Native send offer to final reader feed |
+| --- | ---: | ---: | ---: | ---: |
+| Redis 8.0.5 through WSL | 240,000 / 240,000 | 0 | 756.8 / 1,415.3 | 25.5% |
+| Winsock loopback fixture | 239,723 / 240,000 | 277 | 3,572.6 / 6,718.2 | 93.1% |
+
+Each fixture variant had one fully admitted run out of five. The P99
+table includes successful replies from partially admitted runs. The
+scripted peer and Redis have different server implementations and
+execution environments. Delays between the native send offer and final
+reader feed also include peer scheduling and client receive dispatch.
+Large end-to-end tails also occurred on the Winsock loopback path.
+The results prioritize worker dispatch and endpoint timing for further
+measurement. The matched Windows and native Linux performance
+comparison and strict release acceptance remain open.
+
+The scratch sources, build receipts, raw rows, failed HELLO fixture
+and independent audits are under
+out/service-extensions/xredis-worker-queue-87ceecf2/.
