@@ -22536,3 +22536,27 @@ suite also passed ASan/UBSan with leak detection on WSL. Generated
 headers, API coverage and ordinary maturity passed. The strict
 release gate and native Linux validation remain open. Evidence is
 under `out/service-extensions/xcron-late-clock-loss-f5637e54/`.
+
+
+## 2026-11-23 xredis executed increment reply boundaries
+
+The independent Redis fixture now cuts the connection after each prefix
+length of the four-byte integer reply, including zero and all four bytes.
+At zero bytes both pending calls report DISCONNECTED and MAY_HAVE_EXECUTED.
+At one through three bytes they report PROTOCOL with the same delivery
+certainty. At four bytes the validated increment reply survives reconnect
+and engine retirement, and the final call reports DISCONNECTED and
+MAY_HAVE_EXECUTED. The fixture keeps the first binary reply in every case.
+An independent GET and command ledger confirm one executed increment,
+a final value of 1 and retirement of both xredis connections.
+
+Five cuts each passed with the Windows client, the WSL client, the WSL
+ASan/UBSan client with leak detection and the extracted Ubuntu workflow
+step replayed on WSL. The replay also passed the plaintext process restart
+and TLS rotation with edited subscription intent. An independent reader
+matched all 20 reports to the binaries, pinned Redis 8.0.5 peer, distinct
+server identities, reply cutoffs and command ledgers. Ordinary maturity
+and generated headers passed. The Redis peer ran in WSL throughout.
+Native Linux, 72-hour qualification and strict release remain open.
+Reports and the audit are under
+`out/service-extensions/xredis-reply-cutpoints-d74c1951/`.

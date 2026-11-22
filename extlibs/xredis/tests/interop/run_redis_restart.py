@@ -21,6 +21,7 @@ from run_redis_tls import TLS_CIPHER, certificates, issue_server_certificate, li
 
 
 EDIT_CHANNELS = (b"xrt:restart:\0channel", b"xrt:restart:\0intermediate", b"xrt:restart:\0replacement")
+INCREMENT_REPLY = b":1\r\n"
 
 
 def check_subscribers(port, counts, tls):
@@ -162,8 +163,8 @@ def run_lost_reply(args, report, stack):
     report.update(port=port, relay_port=relay_port)
     if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
         time.sleep(1)  # Allow WSL to publish both loopback listeners on Windows.
-    probe, lines, reader = launch_client(stack, [str(args.client), "--lost-reply", str(relay_port), str(port)],
-                                         args.report.with_suffix(".client.log"), report)
+    command = [str(args.client), "--lost-reply", str(relay_port), str(port), str(args.reply_bytes)]
+    probe, lines, reader = launch_client(stack, command, args.report.with_suffix(".client.log"), report)
 
     key = b"xrt:restart:\0applied"
     prefix = b"pipeline\0prefix"
@@ -180,20 +181,24 @@ def run_lost_reply(args, report, stack):
                 upstream.sendall(wire)
             replies = [frame(server_wire) for _ in range(3)]
         require([value for value, _ in replies] == [prefix, 1, tail], "unexpected Redis pipeline replies")
-        partial = replies[1][1][:-1]
-        client.sendall(replies[0][1] + partial)
+        require(replies[1][1] == INCREMENT_REPLY, "unexpected integer reply framing")
+        integer_prefix = INCREMENT_REPLY[:args.reply_bytes]
+        client.sendall(replies[0][1] + integer_prefix)
         wait_phase(lines, report["phases"], "prefix_verified")
         stored, _ = listener_exchange(port, ["GET", key])
         require(stored == b"1", "independent observer did not see the applied INCR before cutoff")
         calls = command_calls(info(port, "commandstats"))
         check_commands(calls, {"echo": 2, "incr": 1, "get": 1}, "before reply cutoff")
-        report["cutoff"] = {"stored_value": 1, "commands": calls, "partial_reply_bytes": len(partial),
-                            "withheld_bytes": 1 + len(replies[2][1])}
+        report["cutoff"] = {"stored_value": 1, "commands": calls, "forwarded_integer_bytes": len(integer_prefix),
+                            "withheld_bytes": len(INCREMENT_REPLY) - len(integer_prefix) + len(replies[2][1])}
         client.shutdown(socket.SHUT_WR)
 
     completed = wait_phase(lines, report["phases"], "complete")
-    require(completed == {"phase": "complete", "retained_replied": 1, "retained_uncertain": 2,
-                          "status": "PROTOCOL", "delivery": "MAY_HAVE_EXECUTED", "read_after_reconnect": 1},
+    replied = args.reply_bytes == len(INCREMENT_REPLY)
+    truncated = 0 < args.reply_bytes < len(INCREMENT_REPLY)
+    require(completed == {"phase": "complete", "retained_replied": 1 + replied, "retained_uncertain": 2 - replied,
+                          "status": "PROTOCOL" if truncated else "DISCONNECTED",
+                          "delivery": "MAY_HAVE_EXECUTED", "read_after_reconnect": 1},
             "unexpected retained result ledger")
     wait_client(probe, lines, reader, report)
     stored, _ = listener_exchange(port, ["GET", key])
@@ -342,7 +347,13 @@ def main():
                         help="Caller-screened candidate for cross-host WSL and Windows loopback")
     parser.add_argument("--lost-reply", action="store_true",
                         help="verify an executed INCR when the loopback relay cuts off its plaintext reply")
+    parser.add_argument("--reply-bytes", type=int, choices=range(len(INCREMENT_REPLY) + 1),
+                        help="integer reply bytes forwarded by --lost-reply (default: 3)")
     args = parser.parse_args()
+    if args.reply_bytes is not None and not args.lost_reply:
+        parser.error("--reply-bytes requires --lost-reply")
+    if args.reply_bytes is None:
+        args.reply_bytes = len(INCREMENT_REPLY) - 1
     if args.lost_reply and (args.tls or args.edit_subscriptions):
         parser.error("--lost-reply uses the separate plaintext pipeline fixture")
     if args.tls and args.openssl is None:

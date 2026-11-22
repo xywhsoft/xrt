@@ -366,24 +366,37 @@ static void checkBulk(xfuture* Future, xbytesview Expected)
 	require(Value.Type == XREDIS_REPLY_BULK_STRING && same(Value.Data, Expected), "retained bulk reply value");
 }
 
-static int lostReply(uint16 RelayPort, uint16 RedisPort)
+enum { INCREMENT_REPLY_BYTES = sizeof(":1\r\n") - 1 };
+
+static void checkIncrement(xfuture* Future)
 {
+	xredisreplyvalue Value = root(result(Future, IO_MS));
+	require(Value.Type == XREDIS_REPLY_INTEGER && Value.Integer == 1, "retained increment reply value");
+}
+
+static int lostReply(uint16 RelayPort, uint16 RedisPort, size_t ReplyBytes)
+{
+	bool MutationReplied = ReplyBytes == INCREMENT_REPLY_BYTES;
+	bool Truncated = ReplyBytes && !MutationReplied;
+	xredisrequeststatus Interrupted = Truncated ? XREDIS_REQUEST_PROTOCOL : XREDIS_REQUEST_DISCONNECTED;
 	xnetengine* Engine = startEngine();
 	xredisclient* Client = rawClient(Engine, RelayPort);
 	const xbytesview Applied = XRT_BYTES_LITERAL("xrt:restart:\0applied");
 	xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), Prefix};
 	xfuture* Replied = rawCall(Client, Echo, 2);
 	xbytesview Increment[] = {XRT_BYTES_LITERAL("INCR"), Applied};
-	xfuture* Lost = rawCall(Client, Increment, 2);
+	xfuture* Mutation = rawCall(Client, Increment, 2);
 	Echo[1] = (xbytesview)XRT_BYTES_LITERAL("pipeline\0tail");
 	xfuture* Tail = rawCall(Client, Echo, 2);
 	checkBulk(Replied, Prefix);
-	require(!xrtFutureDone(Lost) && !xrtFutureDone(Tail), "suffix still pending before reply cutoff");
+	if (MutationReplied) checkIncrement(Mutation);
+	else require(!xrtFutureDone(Mutation), "unconfirmed increment still pending before cutoff");
+	require(!xrtFutureDone(Tail), "suffix still pending before reply cutoff");
 	puts("{\"phase\":\"prefix_verified\"}");
 	fflush(stdout);
-	checkUnconfirmed(result(Lost, PHASE_MS), XREDIS_REQUEST_PROTOCOL);
-	checkUnconfirmed(result(Tail, PHASE_MS), XREDIS_REQUEST_PROTOCOL);
-	closedClient(Client, XREDIS_REQUEST_PROTOCOL);
+	if (!MutationReplied) checkUnconfirmed(result(Mutation, PHASE_MS), Interrupted);
+	checkUnconfirmed(result(Tail, PHASE_MS), Interrupted);
+	closedClient(Client, Interrupted);
 
 	Client = rawClient(Engine, RedisPort);
 	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Applied};
@@ -393,21 +406,26 @@ static int lostReply(uint16 RelayPort, uint16 RedisPort)
 	closedClient(Client, XREDIS_REQUEST_CLOSED);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire raw fixture engine");
 	checkBulk(Replied, Prefix);
-	checkUnconfirmed(result(Lost, IO_MS), XREDIS_REQUEST_PROTOCOL);
-	checkUnconfirmed(result(Tail, IO_MS), XREDIS_REQUEST_PROTOCOL);
+	if (MutationReplied) checkIncrement(Mutation);
+	else checkUnconfirmed(result(Mutation, IO_MS), Interrupted);
+	checkUnconfirmed(result(Tail, IO_MS), Interrupted);
 	xrtFutureDestroy(Replied);
-	xrtFutureDestroy(Lost);
+	xrtFutureDestroy(Mutation);
 	xrtFutureDestroy(Tail);
-	puts("{\"phase\":\"complete\",\"retained_replied\":1,\"retained_uncertain\":2,\"status\":\"PROTOCOL\","
-		"\"delivery\":\"MAY_HAVE_EXECUTED\",\"read_after_reconnect\":1}");
+	printf("{\"phase\":\"complete\",\"retained_replied\":%d,\"retained_uncertain\":%d,\"status\":\"%s\","
+		"\"delivery\":\"MAY_HAVE_EXECUTED\",\"read_after_reconnect\":1}\n",
+		1 + MutationReplied, 2 - MutationReplied, Truncated ? "PROTOCOL" : "DISCONNECTED");
 	return 0;
 }
 
 int main(int Argc, char** Argv)
 {
-	if (Argc == 4 && strcmp(Argv[1], "--lost-reply") == 0) {
+	if (Argc > 1 && strcmp(Argv[1], "--lost-reply") == 0) {
+		if (Argc != 4 && Argc != 5) return 2;
+		const char* Cut = Argc == 5 ? Argv[4] : "3";
+		if (Cut[0] < '0' || Cut[0] > '0' + INCREMENT_REPLY_BYTES || Cut[1]) return 2;
 		uint16 Relay = argumentPort(Argv[2]), Redis = argumentPort(Argv[3]);
-		return Relay && Redis && Relay != Redis ? lostReply(Relay, Redis) : 2;
+		return Relay && Redis && Relay != Redis ? lostReply(Relay, Redis, (size_t)(Cut[0] - '0')) : 2;
 	}
 	bool Edit = Argc > 2 && strcmp(Argv[Argc - 1], "--edit-subscriptions") == 0;
 	if (Edit) --Argc;

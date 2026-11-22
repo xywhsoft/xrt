@@ -401,8 +401,11 @@ jobs:
           peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/plain.json"
-          python -B extlibs/xredis/tests/interop/run_redis_restart.py \
-            --server "$peer" --client "$evidence/probe" --report "$evidence/lost-reply.json" --lost-reply
+          for bytes in 0 1 2 3 4; do
+            python -B extlibs/xredis/tests/interop/run_redis_restart.py \
+              --server "$peer" --client "$evidence/probe" --report "$evidence/lost-reply-$bytes.json" \
+              --lost-reply --reply-bytes "$bytes"
+          done
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/tls-edited.json" \
             --tls --edit-subscriptions

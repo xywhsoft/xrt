@@ -387,18 +387,23 @@ setup. The default profile uses standalone RESP3 over plaintext TCP.
 
 Run the separate `--lost-reply` case to exercise an already executed
 mutation. A single-use loopback relay forwards a binary `ECHO`, `INCR` and
-binary `ECHO` to the real Redis fixture. It forwards the first reply and
-an incomplete integer frame, then cuts the stream after an independent
-`GET` verifies the mutation. EOF with an incomplete reply produces
-`PROTOCOL` and `MAY_HAVE_EXECUTED` for both pending calls. The client keeps
-the successful prefix and both uncertain results across reconnect and
-engine teardown. The same Redis process records one `INCR` and preserves the value
-`1`. Use two screened `--port-candidate` values when supplying ports for
-this case.
+binary `ECHO` to the real Redis fixture. It forwards the first reply
+and the selected number of bytes from the integer reply. An independent
+`GET` verifies the mutation before the relay sends EOF.
+
+Use `--reply-bytes` from 0 to 4. With zero bytes the two pending calls
+report `DISCONNECTED` and `MAY_HAVE_EXECUTED`. A partial integer reply
+reports `PROTOCOL` with the same delivery certainty. With all four
+bytes the increment keeps its validated integer result, and the
+remaining call reports `DISCONNECTED` and `MAY_HAVE_EXECUTED`.
+The client verifies its retained results after reconnect and engine
+teardown. Redis records exactly one `INCR` and preserves the value
+`1` in every case. The default cut is three bytes. Use two screened
+`--port-candidate` values when supplying ports for this case.
 
     python3 -B extlibs/xredis/tests/interop/run_redis_restart.py \
       --server /usr/bin/redis-server --client out/redis-restart \
-      --report out/redis-lost-reply.json --lost-reply
+      --report out/redis-lost-reply.json --lost-reply --reply-bytes 3
 
 Pass `--edit-subscriptions` to exercise a four-edit sequence during the
 outage. The replacement exposes the final subscription revision. Its
