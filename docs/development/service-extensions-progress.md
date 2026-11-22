@@ -22560,3 +22560,25 @@ and generated headers passed. The Redis peer ran in WSL throughout.
 Native Linux, 72-hour qualification and strict release remain open.
 Reports and the audit are under
 `out/service-extensions/xredis-reply-cutpoints-d74c1951/`.
+
+
+## 2026-11-23 MQTT session taken over during a paused native resume
+
+The two-worker regression now reserves a newer connection for the same
+session while its previous connection is paused before the resumed
+CONNACK. At reservation the resume queue already owns one QoS 0
+delivery and has refused a second. The replacement's socket stays
+silent until the paused connection can retire. The previous connection
+receives CONNACK, MQTT 5 Session Taken Over and EOF. The replacement
+receives a resumed CONNACK and only a fresh publication sent after
+takeover. Accounting records both drops, one forward, zero queued
+delivery credits and no reliable overload.
+
+The dual-version suite passed on Windows and WSL. The checked
+single-header test passed WSL ASan/UBSan with leak detection.
+Optimized focused runs passed 100 consecutive takeovers per host.
+A test-only omission of the pending discard counter failed at the
+final accounting assertion. Generated headers and ordinary maturity
+passed. The test change leaves the active `c2aa9f5d` Windows mixed
+workload binary intact. Session takeover and retirement use their
+separate evidence in `out/service-extensions/xmqtt-repeat-resume-1611fc32/`.
