@@ -379,20 +379,13 @@ def verify_reset(program, directory):
 
     with prevent_replacement(image):
         with broker(program, "restore-fenced", image, exit_code=1) as address:
-            for client_id, clean in ((replaced, True), (kept, False)):
+            with socket.create_connection(address, timeout=8) as trigger:
                 try:
-                    rejected = socket.create_connection(address, timeout=8)
-                except (ConnectionRefusedError, ConnectionResetError):
-                    # The second attempt can reach a listener that has already sealed.
-                    if clean:
-                        raise
-                    continue
-                with rejected:
-                    try:
-                        rejected.sendall(persistent_connect(client_id, clean))
-                        assert not rejected.recv(1), "broker sent a reply after an unknown outcome"
-                    except ConnectionResetError:
-                        pass
+                    trigger.sendall(persistent_connect(replaced, True))
+                    expect_disconnect(trigger)
+                except ConnectionResetError:
+                    pass
+            expect_sealed_listener(address, persistent_connect(kept, False))
     assert image.read_bytes() == original, "unknown outcome allowed checkpoint export"
 
     # Retire the server while the replacement is still queued in the APP.
@@ -421,6 +414,16 @@ def expect_disconnect(peer):
     try:
         assert not peer.recv(1), "the broker sent a reply before closing"
     except ConnectionResetError:
+        pass
+
+
+def expect_sealed_listener(address, packet):
+    try:
+        with socket.create_connection(address, timeout=8) as peer:
+            peer.sendall(packet)
+            expect_disconnect(peer)
+    except (ConnectionRefusedError, ConnectionResetError):
+        # A sealed listener can reject the new connection before CONNECT is sent.
         pass
 
 
@@ -515,12 +518,7 @@ def verify_pubrel_commit(program, directory):
             with persistent(address, sender, False, True) as peer:
                 peer.sendall(pubrel)
                 expect_disconnect(peer)
-            with socket.create_connection(address, timeout=8) as rejected:
-                try:
-                    rejected.sendall(persistent_connect(sender, False))
-                    expect_disconnect(rejected)
-                except ConnectionResetError:
-                    pass
+            expect_sealed_listener(address, persistent_connect(sender, False))
     assert image.read_bytes() == original
     return {"pubcomp_after_durable_remove": ["5.0", "3.1.1"], "pubrel_recovery_and_identifier_reuse": True,
             "pubrel_takeover_and_lost_pubcomp": True, "pubrel_unknown_seals_broker": True}
