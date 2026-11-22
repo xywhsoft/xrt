@@ -22333,3 +22333,24 @@ consecutive reset runs against that same binary. The full checkpoint
 matrix passed on WSL with the current broker, including the pending
 subscription takeover and delayed first-send expiry. Raw results are
 under `out/service-extensions/xmqtt-takeover-88526d0d/`.
+
+## 2026-11-22 xcron finite-timeout Windows campaign completed
+
+The Windows campaign for `1173f73e` completed all 20 processes on
+logical CPU 4 with both endurance workloads running. Its independent
+replay verified the benchmark and journal identities, all 5,120 measured
+waves, 2,785,280 callbacks, and every percentile and variation decision.
+
+| Active / dormant | Drive | First / last P99 (us) | First / last P99.9 (us) | P99 span (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 719.6 / 726.5 | 1,014.7 / 1,021.3 | 12.2 |
+| 64 / 960 | Precise waiter | 705.8 / 706.4 | 994.7 / 995.1 | 11.0 |
+| 1,024 / 0 | Scheduler Wait | 759.3 / 766.1 | 1,152.7 / 1,159.2 | 7.3 |
+| 1,024 / 0 | Precise waiter | 712.4 / 724.9 | 1,016.0 / 1,020.0 | 14.4 |
+
+All eight first/last P99 repeatability checks exceeded the variation
+limits, including both precise direct-waiter controls. The observed
+1,024-job scheduler span remains in single-digit microseconds at P99.
+Stable native Windows release tails and native Linux acceptance remain
+open. The binary, launch receipt, raw journal and independent replay are
+under `out/service-extensions/xcron-late-timeout-1ff943bb/`.
