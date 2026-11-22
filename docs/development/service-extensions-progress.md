@@ -22679,3 +22679,37 @@ Ordinary maturity and generated headers passed. Native Linux and
 stable release tails remain open. Build receipts, alternating
 runs, full-capacity probes and audits are under
 `out/service-extensions/xmqtt-current-pressure-capacity-1c9cc918/`.
+
+
+## 2026-11-23 xredis raw fixed-arrival offer evidence
+
+The paired observer can export per-offer timestamps, admission and
+request outcomes, and reply validity as CSV. Export runs after timing
+and the peak memory snapshot. Each row preserves the scheduled offer
+including refusal or expiry. The paired report records trace names
+and digests. The Windows CRT rejected the initial exclusive fopen
+mode. The final Windows build uses wide-path exclusive creation.
+Both hosts verified Unicode paths, existing-file protection, 80
+successful rows and 80 expired rows. The ordinary no-trace run and
+the new-directory guard passed.
+
+The paired TCP run used Hiredis 1.3.0, Redis 8.0.5, eight RESP3
+connections, a 128-request window and 1,024-byte GET/SET values.
+Each client offered 12,000 calls/s in five two-second windows.
+An independent reader verified the 576,000 raw rows including
+warmups, the due schedule, outcome counts and all 16 reported
+latency quantiles per process. Both fixtures had exact Redis
+command ledgers. All 480,000 measured replies succeeded.
+
+| Observer host | End-to-end P99 xredis / Hiredis (us) | Submit-to-observation P99 xredis / Hiredis (us) | Pre-submit share of the same slowest 1%, xredis / Hiredis |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 414.0 / 332.7 | 370.4 / 303.3 | 13.4% / 14.2% |
+| Ubuntu WSL | 184.1 / 106.1 | 169.6 / 98.3 | 7.6% / 16.2% |
+
+Values are separate per-run medians. Redis ran in WSL for both
+observer hosts. The response interval includes the network, Redis
+processing and client observation. Both paired variation gates
+remain open. Generated headers and ordinary maturity passed.
+Native Linux, strict release and 72-hour qualification remain open.
+Reports, traces, build receipts and audits are under
+`out/service-extensions/xredis-raw-openloop-6e80f41e/`.

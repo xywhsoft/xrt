@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -31,10 +32,14 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def sample(args, client: Path, name: str, command: list[str]) -> dict:
+def sample(args, client: Path, name: str, command: list[str], raw_path: Path | None = None) -> dict:
+    env = os.environ.copy()
+    env.pop("XREDIS_OPENLOOP_TRACE", None)
+    if raw_path is not None:
+        env["XREDIS_OPENLOOP_TRACE"] = str(raw_path)
     try:
         result = subprocess.run([str(client), *command], capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", timeout=45, cwd=ROOT)
+                                encoding="utf-8", errors="replace", timeout=45, cwd=ROOT, env=env)
     except subprocess.TimeoutExpired as error:
         return {"verified": False, "error": "benchmark exceeded 45 seconds",
                 "stdout": (error.stdout or b"").decode("utf-8", "replace"),
@@ -42,6 +47,10 @@ def sample(args, client: Path, name: str, command: list[str]) -> dict:
     sample = {"returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
     if result.returncode != 0:
         return sample | {"verified": False}
+    if raw_path is not None:
+        if not raw_path.is_file():
+            return sample | {"verified": False, "error": "missing requested open-loop trace"}
+        sample["raw_samples"] = {"name": raw_path.name, "sha256": digest(raw_path)}
     transport = "tls13_aes128gcm_x25519" if getattr(args, "tls_ca", None) else "tcp"
     expected = {
         "client": name, "target": "external_loopback", "arrival_model": "fixed_absolute",
@@ -90,6 +99,7 @@ def main() -> int:
     parser.add_argument("--tls-server-name", help="expected peer name and SNI, defaults to localhost")
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--raw-dir", type=Path, help="new directory for per-offer CSV traces")
     args = parser.parse_args()
     if not (1 <= args.port <= 65535 and 1 <= args.window <= 128 and
             1 <= args.connections <= 8 and 1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
@@ -117,13 +127,21 @@ def main() -> int:
     }
     if args.tls_ca is not None:
         report["tls_ca_sha256"] = digest(args.tls_ca)
+    if args.raw_dir is not None:
+        args.raw_dir = args.raw_dir.resolve()
+        try:
+            args.raw_dir.mkdir(parents=True)
+        except OSError as error:
+            parser.error(f"cannot create a new trace directory: {error}")
+        report["raw_samples_directory"] = str(args.raw_dir)
     for repeat in range(args.repeats + 1):
         order = list(clients)
         if repeat % 2:
             order.reverse()
         for name in order:
+            raw = args.raw_dir / f"{repeat:03}-{name}.csv" if args.raw_dir is not None else None
             report["runs"].append({"client": name, "repeat": repeat, "warmup": repeat == 0,
-                                   **sample(args, clients[name], name, command)})
+                                   **sample(args, clients[name], name, command, raw)})
     verified = all(run["verified"] for run in report["runs"])
     if verified:
         for name in clients:

@@ -21,8 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
 #include <windows.h>
 #include <psapi.h>
+#include <sys/stat.h>
 #else
 #include <dirent.h>
 #include <sys/resource.h>
@@ -139,6 +142,32 @@ static bool redisOpenBinary(xbytesview Reply, size_t Size, size_t Id)
 	return true;
 }
 
+static void redisOpenWriteTrace(const redisopenrecord* Records, size_t Count)
+{
+#if defined(_WIN32)
+	const wchar_t* Path = _wgetenv(L"XREDIS_OPENLOOP_TRACE");
+	if (!Path || !*Path) return;
+	int Descriptor = _wopen(Path, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+	redisOpenRequire(Descriptor >= 0, "create new open-loop trace");
+	FILE* Trace = _fdopen(Descriptor, "wb");
+	if (!Trace) _close(Descriptor);
+#else
+	cstr Path = getenv("XREDIS_OPENLOOP_TRACE");
+	if (!Path || !*Path) return;
+	FILE* Trace = fopen(Path, "wbx");
+#endif
+	redisOpenRequire(Trace != NULL, "create new open-loop trace");
+	bool Written = fputs("due_ns,submitted_ns,finished_ns,outcome,status,valid\n", Trace) >= 0;
+	for (size_t Index = 0; Written && Index < Count; ++Index) {
+		const redisopenrecord* Record = &Records[Index];
+		Written = fprintf(Trace, "%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%u,%u,%u\n",
+			Record->Due, Record->Submitted, Record->Finished, (unsigned)Record->Outcome,
+			(unsigned)Record->Status, (unsigned)Record->Valid) >= 0;
+	}
+	bool Closed = fclose(Trace) == 0;
+	redisOpenRequire(Written && Closed, "write open-loop trace");
+}
+
 static void redisOpenSummarize(const redisopenconfig* Config, redisopenresult* Output,
 	const redisopenrecord* Records, uint64* Samples)
 {
@@ -172,6 +201,7 @@ static void redisOpenSummarize(const redisopenconfig* Config, redisopenresult* O
 	}
 	redisOpenPercentiles(Samples, Successes, Output->Response);
 	Output->RssPeak = redisOpenRss();
+	redisOpenWriteTrace(Records, Config->Count);
 }
 
 #if defined(REDIS_OPENLOOP_HIREDIS)

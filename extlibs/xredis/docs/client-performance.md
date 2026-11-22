@@ -198,6 +198,17 @@ retain Redis INFO commandstats and INFO cpu before and after the run.
 The offered rate is fixed. Successful throughput measures how much of that
 rate the pair delivered at this CPU and connection budget.
 
+Add `--raw-dir out/redis-echo-traces` to keep one CSV for each observer
+process, including warmup runs. Use a new directory for each comparison.
+The paired JSON records each file name and SHA-256. Rows follow scheduled
+offer order and include the due, submit and finish timestamps in monotonic
+nanoseconds, the admission outcome, request status and reply-validity flag.
+Export happens after timing and peak memory sampling.
+To attribute tail latency, select the slowest offers by finish minus due
+and sum the two intervals for those same offers. Submit through finish
+includes socket, server and client reply handling.
+[Numeric outcome definitions](../bench/openloop_schedule.h).
+
 ### Multiple connections and mixed GET/SET
 
 The same binaries support up to eight independent connections with a shared
