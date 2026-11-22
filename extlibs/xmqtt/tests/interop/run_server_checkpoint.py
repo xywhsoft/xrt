@@ -380,7 +380,14 @@ def verify_reset(program, directory):
     with prevent_replacement(image):
         with broker(program, "restore-fenced", image, exit_code=1) as address:
             for client_id, clean in ((replaced, True), (kept, False)):
-                with socket.create_connection(address, timeout=8) as rejected:
+                try:
+                    rejected = socket.create_connection(address, timeout=8)
+                except (ConnectionRefusedError, ConnectionResetError):
+                    # The second attempt can reach a listener that has already sealed.
+                    if clean:
+                        raise
+                    continue
+                with rejected:
                     try:
                         rejected.sendall(persistent_connect(client_id, clean))
                         assert not rejected.recv(1), "broker sent a reply after an unknown outcome"

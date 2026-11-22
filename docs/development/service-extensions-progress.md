@@ -22317,3 +22317,19 @@ The original run and independent audit are under
 `out/service-extensions/xcron-ordered-wave-544b50fc/formal-3f7d0efd/`.
 The corrected candidate's build and running journal are under
 `out/service-extensions/xcron-late-timeout-1ff943bb/`.
+
+## 2026-11-22 MQTT checkpoint shutdown and the second CONNECT
+
+The reset fixture now accepts connection refusal or reset during the
+second TCP connection attempt after a checkpoint commit becomes unknown.
+The first connection still submits the reset that triggers the failed
+store operation. Any second connection that opens must close without an
+MQTT reply. Both the broker error exit and the unchanged checkpoint
+bytes remain required.
+
+The original test reported a reset at connect on WSL with the broker
+built before the outbound expiry change. The adjusted peer passed six
+consecutive reset runs against that same binary. The full checkpoint
+matrix passed on WSL with the current broker, including the pending
+subscription takeover and delayed first-send expiry. Raw results are
+under `out/service-extensions/xmqtt-takeover-88526d0d/`.
