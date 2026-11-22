@@ -22582,3 +22582,28 @@ final accounting assertion. Generated headers and ordinary maturity
 passed. The test change leaves the active `c2aa9f5d` Windows mixed
 workload binary intact. Session takeover and retirement use their
 separate evidence in `out/service-extensions/xmqtt-repeat-resume-1611fc32/`.
+
+
+## 2026-11-23 Mixed-load first observation and platform checks
+
+The offline checker now requires the first journal observation within
+the supervisors' 25-second startup budget and ties the build receipt's
+platform family to the runtime report. Legacy Windows receipts carrying
+`win32` still match Windows. WSL retains its runtime label.
+
+The previous checker accepted both a 60-second shift of all observer
+timestamps and a conflicting platform receipt for the archived Windows
+MQTT and WSL Redis smokes. The updated checker rejected all four
+modified cases, and the two new negative assertions fail against the
+previous checker. The three focused checks passed on Windows and WSL.
+
+Five complete archived short journals, including the legacy Redis
+build, still replay. A real Windows broker interruption remains
+disqualified. Fresh short replays verified 754 Windows MQTT rounds,
+3,107 WSL Redis rounds and 8,861 WSL MQTT rounds. The complete Ubuntu
+MQTT workflow step also passed locally on WSL and recorded the
+separate broker interruption. The active Windows Redis and MQTT
+journals both recorded their first observation near five seconds with
+matching build platform families and digests. These checks are evidence
+review for in-progress runs. Native 72-hour qualification remains open.
+Logs are under `out/service-extensions/service-mixed-continuity-81d28546/`.

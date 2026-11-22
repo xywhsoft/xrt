@@ -10,6 +10,7 @@ import re
 from build_service_mixed import PROBES, digest
 
 RELEASE_SECONDS = 72 * 3600
+FIRST_WINDOW_SECONDS = 25  # Both mixed-load supervisors use this startup budget.
 
 
 def require(condition, message):
@@ -21,11 +22,18 @@ def input_hashes(record):
     return {path.replace("\\", "/"): value for path, value in record["inputs"].items()}
 
 
+def platform_family(name):
+    family = name.split("-", 1)[0].lower()
+    return "windows" if family == "win32" else family
+
+
 def check_build(product, binary, receipt, report, binary_field):
     sha = digest(binary)
     require(sha == receipt["binary_sha256"] == report[binary_field], "binary SHA-256 mismatch")
     # Receipts for the initial Windows campaigns predate the product field.
     require(receipt.get("product", product) == product, "build product mismatch")
+    require(platform_family(receipt["platform"]) == platform_family(report["platform"]),
+            "build and run platform families differ")
     built, observed = input_hashes(receipt), input_hashes(report)
     source, _ = PROBES[product]
     required = (f"extlibs/{product}/tests/interop/{source}", "single/xrt.h", f"single/extlibs/{product}.h")
@@ -64,6 +72,8 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
                                                    rel_tol=0, abs_tol=1e-6),
                     "journal observation gap")
             largest_gap = max(largest_gap, gap)
+        else:
+            require(elapsed <= FIRST_WINDOW_SECONDS, "initial journal observation gap")
         rounds = row["rounds"]
         require(type(rounds) is int and rounds > 0, "invalid round count")
         if mqtt:

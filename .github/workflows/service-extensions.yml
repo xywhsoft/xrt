@@ -158,6 +158,7 @@ jobs:
         shell: bash
         run: |
           evidence=out/service-extensions/xmqtt-mixed
+          python -B tools/test_service_mixed.py
           python -B tools/build_service_mixed.py xmqtt --output "$evidence/mixed"
           python -B extlibs/xmqtt/tests/interop/run_mqtt_mixed.py \
             --binary "$evidence/mixed" --seconds 30 --pause-ms 3 --report "$evidence/mixed.json"
