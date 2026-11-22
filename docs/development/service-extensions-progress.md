@@ -22425,3 +22425,18 @@ Linux remain open.
 
 The baseline reproduction and the new reports are under
 `out/service-extensions/xmqtt-resume-credit-c3d465ba/`.
+
+
+## 2026-11-23 MQTT Windows endurance after the CONNACK credit fix
+
+A separate 72-hour Windows x64 run started at 01:17 Asia/Shanghai from a
+clean build of `c2aa9f5d`. The build receipt, launch receipt and journal
+match the executable digest. The first six observation windows verified
+1,949 rounds and sampled both native processes. Previous endurance
+candidates retain their own journals and continue independently.
+
+A separate run killed the same build's private broker after 320 verified
+rounds. The supervisor recorded the broker exit and classified the run as
+failed, with no 72-hour qualification. Build and launch receipts, the
+active journal and the injection report are under
+`out/service-extensions/xmqtt-windows-resume-credit-soak-c2aa9f5d/`.
