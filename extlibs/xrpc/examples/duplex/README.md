@@ -120,6 +120,12 @@ CPU is outside that measurement. For a comparison, keep the APP, CPU
 masks, framing, rates and windows fixed and save each run to its own
 report. Choose at most one shard per observer CPU and connection.
 
+Both observers poll sockets without blocking within 16 ms of the next
+offer on Windows and within 2 ms on Linux. Windows socket wait
+timeouts otherwise delay scheduled offers, including the first offer.
+The Windows guard can occupy a full observer CPU even with one peer.
+Use the disjoint CPU masks and retain observer CPU time with the results.
+
 Use `--observer-native <library>` with one observer process to measure how
 the Python event loop affects the result. The same Python coordinator
 prepares requests and expected replies and verifies the APP ledger.

@@ -15,6 +15,12 @@ typedef int benchsocket;
 
 enum { TCP_GROUP_DEPTH = 8, TCP_MAX_PEERS = 32 };
 #define TCP_PERIOD_NS UINT64_C(8000000000)
+/* Leave one coarse Winsock timeout interval before a scheduled offer. */
+#if defined(_WIN32)
+#define TCP_SELECT_GUARD_NS UINT64_C(16000000)
+#else
+#define TCP_SELECT_GUARD_NS UINT64_C(2000000)
+#endif
 
 typedef struct tcpgroup {
     const char* Wire;
@@ -179,7 +185,8 @@ BENCH_EXPORT int xrpcTcpObserve(tcppeer* Peers, size_t Count, size_t Window, uin
         if (!Live) return 0;
 
         Now = xbenchNowNs();
-        uint64_t Wait = Next > Now + 2000000 ? (Next - Now - 2000000 + 999) / 1000 : 0;
+        uint64_t Wait = Next > Now + TCP_SELECT_GUARD_NS ?
+            (Next - Now - TCP_SELECT_GUARD_NS + 999) / 1000 : 0;
         struct timeval Timeout = {(long)(Wait / 1000000), (long)(Wait % 1000000)};
         if (select(MaxFd + 1, &Readable, &Writable, NULL, &Timeout) < 0) {
             if (tcpWouldBlock()) continue;

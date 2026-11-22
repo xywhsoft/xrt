@@ -22481,3 +22481,38 @@ open. The rebuild proof is in
 `out/service-extensions/xredis-current-soak-equivalence-1a1b149e/`
 and the saved review is in
 `out/service-extensions/xmqtt-resume-quota-1a1b149e/audit-live.json`.
+
+
+## 2026-11-23 xrpc Windows fixed-arrival observer waits
+
+A loopback probe reproduced late sends before APP execution. With a
+20 ms scheduled startup lead, the previous native observer's first
+send was 9.710 ms late at the median of 48 attempts. A pre-start
+nonblocking control brought that median to 0.5 us. Both Windows
+observers now leave a 16 ms guard before a scheduled offer, including
+later offers from sparse peers. Linux keeps its 2 ms guard.
+
+The alternating Windows comparison used the same APP executable,
+two workers, one or eight staggered peers and five repetitions per
+variant and mode. An independent reader reconciled the raw schedules,
+verified reply counts, throughput, phase sums and percentiles for all
+1,312,000 replies. Values below are separate per-run medians.
+
+| Peers / offered calls/s | APP | Maximum first-offer delay (us) | End-to-end P99 (ms) | Observer CPU (s per one-second run) |
+| --- | --- | ---: | ---: | ---: |
+| 1 / 1,600 | Duplex | 4311.6 to 0.7 | 15.123 to 0.498 | 0.047 to 1.000 |
+| 1 / 1,600 | Dispatch | 4598.6 to 0.6 | 15.953 to 0.407 | 0.047 to 0.984 |
+| 8 / 64,000 | Duplex | 9088.7 to 2.0 | 4.523 to 0.535 | 0.969 to 1.000 |
+| 8 / 64,000 | Dispatch | 6757.8 to 1.5 | 1.166 to 0.468 | 0.984 to 1.000 |
+
+The guarded observer consumes a dedicated CPU during closely spaced
+offers. All eight Windows throughput series met the repeatability
+limit. The P99 and P99.9 series exceeded their variation limits,
+including after the guard change. The APP and library binaries share
+the same runtime code across the comparison. Both hosts passed the
+11 observer checks and the independent TCP peer matrix. The Windows
+Python single and sharded loops and the WSL native loop verified
+partial final groups. Generated headers and ordinary maturity passed.
+Native Linux and release-tail repeatability remain open. Build inputs,
+the initial path-resolution error, the corrected runs and raw audits
+are under `out/service-extensions/xrpc-observer-start-d1d2fb77/`.

@@ -346,6 +346,8 @@ def concurrent_sample(executable, mode, calls, connections, workers, rate):
 
 SATURATION_DEPTH = 8
 SATURATION_WARMUP = 64
+# Match the native observer's wait guard for coarse Winsock timeouts.
+SATURATION_SELECT_GUARD_NS = 16_000_000 if os.name == "nt" else 2_000_000
 
 
 class SaturationPeer:
@@ -465,7 +467,7 @@ def saturation_drive(streams, start, rate, end, deadline_ns):
             if stream.outgoing is not None:
                 writable.append(peer)
         # Keep sub-millisecond pacing independent of platform timeout rounding.
-        wait = max(0, next_due - time.perf_counter_ns() - 2_000_000) / 1e9
+        wait = max(0, next_due - time.perf_counter_ns() - SATURATION_SELECT_GUARD_NS) / 1e9
         readers, writers, _ = select.select(streams, writable, [], wait)
         for peer in writers:
             streams[peer].flush()
