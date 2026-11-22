@@ -37,7 +37,7 @@ static void serverResumeWriteCredit(size_t PayloadBytes)
 {
     const xmqttversion Version = XMQTT_VERSION_5;
     serverfixture Fixture;
-    serverStartConfigured(&Fixture, true, 0, true, 65536);
+    serverStartLimits(&Fixture, true, 0, true, 65536, 4096, 16u * 1024u * 1024u, 64, 1, 0, 0);
     xnetsocket Old = serverDial(&Fixture);
     serverPersistentConnect(Old, Version, "cred", true, 60, 1, false, 0);
     const unsigned char Subscribe[] = {0x82,10,0,1,0,0,4,'f','i','l','l',0};
@@ -68,7 +68,18 @@ static void serverResumeWriteCredit(size_t PayloadBytes)
     size_t Bytes = serverPublishWire(Publish, Version, "fill", Payload, PayloadBytes, NULL, 0);
     testRequire(Bytes == PayloadBytes + 9, "publication uses the planned write credit");
     serverSend(Publisher, Publish, Bytes);
+    if (Bytes < sizeof(Publish)) {
+        Publish[Bytes - 1] = 'b';
+        serverSend(Publisher, Publish, Bytes);
+        Publish[Bytes - 1] = 'a';
+    }
     serverPingPeer(Publisher); /* The other worker processed the publication before CONNACK. */
+    xmqttserverinfo Info;
+    if (Bytes < sizeof(Publish)) {
+        testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.OutgoingPublishes == 1 &&
+            Info.OutgoingPublishBytes == Bytes && Info.DroppedDeliveries == 1 && !Info.Forwarded &&
+            !Info.OutgoingPublishOverloads, "a full resume queue drops only the extra QoS 0 publication");
+    }
     xrtAtomic32Store(&serverResumeFence, RESUME_RELEASED, XMEMORY_RELEASE);
     serverConnackState(Successor, Version, 0, true, true, true, 64);
     if (Bytes < sizeof(Publish)) {
@@ -76,6 +87,15 @@ static void serverResumeWriteCredit(size_t PayloadBytes)
         serverRecv(Successor, Actual, Bytes);
         testRequire(!memcmp(Actual, Publish, Bytes), "queued PUBLISH follows CONNACK");
         serverPingPeer(Successor);
+        Publish[Bytes - 1] = 'c';
+        serverSend(Publisher, Publish, Bytes);
+        serverPingPeer(Publisher);
+        serverRecv(Successor, Actual, Bytes);
+        testRequire(!memcmp(Actual, Publish, Bytes), "resumed session accepts later QoS 0 after a drop");
+        serverPingPeer(Successor);
+        testRequire(xmqttServerInfo(Fixture.Server, &Info) && !Info.OutgoingPublishes &&
+            !Info.OutgoingPublishBytes && Info.DroppedDeliveries == 1 && Info.Forwarded == 2 &&
+            !Info.OutgoingPublishOverloads, "resume queue retires credit and counts each delivery once");
     }
     xrtNetSocketClose(Successor);
     xrtNetSocketClose(Publisher);
@@ -87,6 +107,6 @@ int main(void)
     xrtAtomic32Init(&serverResumeFence, 0);
     serverResumeWriteCredit(119); /* Occupies the entire 128-byte TCP write allowance. */
     serverResumeWriteCredit(23);
-    puts("[PASS] resumed CONNACK precedes best-effort sends under TCP write pressure");
+    puts("[PASS] resumed CONNACK precedes bounded best-effort sends under TCP write pressure");
     return serverDualSuite();
 }

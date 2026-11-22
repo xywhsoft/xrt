@@ -22440,3 +22440,22 @@ rounds. The supervisor recorded the broker exit and classified the run as
 failed, with no 72-hour qualification. Build and launch receipts, the
 active journal and the injection report are under
 `out/service-extensions/xmqtt-windows-resume-credit-soak-c2aa9f5d/`.
+
+
+## 2026-11-23 MQTT bounded best-effort sends during TCP resume
+
+The two-worker regression sets the broker's pending delivery limit to
+one. A publisher sends two different 32-byte QoS 0 messages while the
+owner is paused at the resumed CONNACK. The broker charges one pending
+delivery, drops the second and keeps the connection open. After CONNACK
+the subscriber receives the first message and a third publication sent
+after resumption. The fixture checks one drop, two forwards, zero
+pending delivery count and bytes, and no reliable overload. A test-only
+increase in the effective limit from one to two fails the new assertion.
+
+Optimized Windows and WSL builds passed both dual-version test paths and
+the modular example. The WSL single-header suite passed ASan/UBSan with
+leak detection. Generated headers and ordinary maturity passed. The
+change only adds test coverage and keeps the active `c2aa9f5d` campaign
+on its original binary. Logs and the negative control are under
+`out/service-extensions/xmqtt-resume-quota-1a1b149e/`.
