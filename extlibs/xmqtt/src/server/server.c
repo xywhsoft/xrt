@@ -2976,9 +2976,12 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 		if (!Release && Peer->InFlight >= Peer->SendMaximum) break;
 		xmqttserverdelivery* Delivery = Retry ? Peer->Replay : Session->Waiting;
 		xmqttserverpublication* Publication = Delivery->Publication;
+		bool Undelivered = !Retry;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 		bool Durable = Peer->Server->OutboundEpoch && xmqttServerHasDeliveryKey(Delivery);
 		bool First = Peer->FirstPublish == Delivery;
+		/* A committed SEND reserves the ID before the first transport offer. */
+		Undelivered |= Durable && !Delivery->SentGeneration;
 		if (Durable && !xmqttServerCanRead(Peer)) break;
 #endif
 		bool TooLarge = Publication->Size > Peer->PacketLimit;
@@ -2986,7 +2989,7 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 		if (Durable && !Release && Publication->Size > xrtNetStreamWriteLimit(Peer->Stream)) TooLarge = true;
 #endif
 		if (!Retry) (void)xmqttServerPopWaiting(Session);
-		if (!Release && (TooLarge || (!Retry && !xmqttServerPrepareWaiting(Delivery)))) {
+		if (!Release && (TooLarge || (Undelivered && !xmqttServerPrepareWaiting(Delivery)))) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 			if (Durable) {
 				if (!Retry) xmqttServerPrependWaiting(Session, Delivery);

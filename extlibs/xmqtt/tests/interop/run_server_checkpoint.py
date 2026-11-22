@@ -782,6 +782,58 @@ def verify_outbound_transactions(program, directory):
             "terminal_pubcomp_and_negative_pubrec_retired": True, "outgoing_rejection_and_unknown": True,
             "outgoing_pubrel_commit_survives_takeover": True, "oversized_queued_publish_retired": True}
 
+def verify_first_send_expiry(program, directory):
+    image = directory / "outgoing-expiry.bin"
+    name, subscriber = b"outgoing/expiry", b"expiry-target"
+
+    with broker(program, "capture", image) as address:
+        with persistent(address, subscriber, True) as peer:
+            subscribe(peer, name, 1, 1)
+
+    def deliveries():
+        data = image.read_bytes()
+        return [(data[at], data[at + 2:at + 4], int.from_bytes(data[at + 4:at + 8], "big"))
+                for at, _, _ in session_records(data) if data[at] in (4, 5)]
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        publisher, _ = connect(address, 5, b"expiry-source")
+        with publisher:
+            for number, seconds, payload in ((1, 1, b"expired"), (2, 30, b"fresh")):
+                identifier = number.to_bytes(2, "big")
+                properties = b"\5\x02" + seconds.to_bytes(4, "big")
+                publisher.sendall(frame(0x32, topic(name) + identifier + properties + payload))
+                assert receive(publisher) == (0x40, identifier)
+    assert deliveries() == [(4, b"\0\0", 0)] * 2
+
+    with broker(program, "restore-online", image, "1700", crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            peer.sendall(PING)
+            first = receive(peer)
+            header, wire = receive(peer) if first == PONG else first
+            prefix = topic(name) + b"\0\2\5\x02"
+            assert header == 0x32 and wire.startswith(prefix) and wire[len(prefix) + 4:] == b"fresh", (header, wire)
+            if first != PONG:
+                assert receive(peer) == PONG
+            # Identifier 2 proves the expired message made it through SEND_OUTGOING.
+            remaining = int.from_bytes(wire[len(prefix):len(prefix) + 4], "big")
+            [(kind, identifier, submitted)] = deliveries()
+            assert kind == 5 and identifier == b"\0\2" and 0 < remaining < submitted <= 30
+
+            with persistent(address, subscriber, False, True) as successor:
+                assert receive(peer) == (0xe0, b"\x8e")
+                assert receive(successor) == (0x3a, wire)
+                successor.sendall(frame(0x40, identifier))
+                barrier(successor)
+                assert not deliveries()
+
+    with broker(program, "restore-online", image, crash=True) as address:
+        with persistent(address, subscriber, False, True) as peer:
+            barrier(peer)
+            expect_silence(peer)
+    return {"expired_during_send_commit_discarded": True, "first_send_expiry_aged_after_commit": True,
+            "in_memory_replay_retains_aged_expiry": True, "discarded_delivery_absent_after_restart": True}
+
+
 def verify_qos1_transactions(program, directory):
     image = directory / "online-qos1.bin"
     source, subscriber = b"qos1-source", b"qos1-offline"
@@ -1589,17 +1641,23 @@ def verify_full_writer(program, directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", type=Path)
-    parser.add_argument("--full-writer", action="store_true", help="run the synchronized writer quota case")
+    cases = parser.add_mutually_exclusive_group()
+    cases.add_argument("--full-writer", action="store_true", help="run the synchronized writer quota case")
+    cases.add_argument("--outgoing-expiry", action="store_true", help="run the delayed first-send expiry case")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
         if args.full_writer:
             print(json.dumps(verify_full_writer(args.program, folder)))
             return
+        if args.outgoing_expiry:
+            print(json.dumps(verify_first_send_expiry(args.program, folder)))
+            return
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
                           **verify_online_transactions(args.program, folder),
                           **verify_outbound_transactions(args.program, folder),
+                          **verify_first_send_expiry(args.program, folder),
                           **verify_qos1_transactions(args.program, folder),
                           **verify_subscription_transactions(args.program, folder),
                           **verify_session_expiry_transactions(args.program, folder),

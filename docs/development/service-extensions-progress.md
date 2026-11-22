@@ -22257,3 +22257,37 @@ Ordinary maturity passed. The strict release checker still reports
 
 Build logs, binaries, wire reports, fault injection and the count audit
 are under `out/service-extensions/xrpc-staggered-admission-1173f73e/`.
+
+## 2026-11-22 MQTT expiry while committing first delivery
+
+A live broker with outbound transactions now rechecks the remaining
+Message Expiry Interval before the first transport offer. An accepted
+SEND reserves its packet identifier before the write. If its queued
+publication expires during that commit, FINISH removes it without a wire
+delivery. A still-live publication gets its remaining interval reduced
+for the writer delay. In-memory retransmission reuses the transmitted
+prefix and packet identifier. The saved SEND snapshot still represents
+a potentially transmitted PUBLISH after broker process recovery.
+
+The independent MQTT 5 peer queued one one-second PUBLISH and one 30-second
+PUBLISH for a persistent subscriber. A 1.7-second writer delay exposed
+identifier 1 carrying the expired payload on the original Windows and
+WSL builds. The fixed broker discarded identifier 1, delivered identifier
+2 with a lower expiry than the SEND snapshot, retransmitted it with DUP
+on live takeover, and left no queued records after the final ACK and a
+broker restart. The case passed on Windows, WSL and a WSL ASan/UBSan
+single-header build. The Ubuntu and Windows workflow include this case.
+
+The adjacent outbound QoS 2 and incoming QoS 1 checkpoint suites passed
+against the original and fixed binaries on both hosts. The full
+checkpoint run still has a Windows subscription takeover timeout
+reproduced on both builds. The WSL full run can see the broker reset a
+connection during the unknown-outcome test's second connect. The targeted
+expiry result is recorded separately from those suite failures.
+Ordinary maturity and generated header verification passed.
+
+The running Windows mixed-load binary excludes SERVER_STORE. Rebuilding
+that probe with current inputs matched every byte after
+normalizing the PE timestamp and checksum. The active workload continues
+to use the original binary and receipt. Logs, probes and the equivalence
+record are under `out/service-extensions/xmqtt-first-send-expiry-8721080a/`.

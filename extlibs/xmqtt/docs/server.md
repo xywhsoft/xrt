@@ -344,9 +344,14 @@ transaction callback to commit outbound progress for recipients created by
 that callback. Carry the recipient's `DeliveryKey` through every checkpoint.
 The broker records the Packet Identifier before first PUBLISH, records the
 PUBCOMP phase before PUBREL, and retires the record after the final ACK.
-The first send has DUP clear. A resumed session retransmits unacknowledged
-PUBLISH with DUP set and repeats unacknowledged PUBREL, with the saved
-identifiers. Persist transitions in first-send order. A definite backend
+SEND includes the remaining Message Expiry Interval at submission. Before
+the first transport offer the broker recomputes the interval, including
+time spent awaiting the commit. An expired unsent message is retired
+through FINISH without a PUBLISH. The first send has DUP clear. A resumed
+session retransmits unacknowledged PUBLISH with DUP set and repeats
+unacknowledged PUBREL, with the saved identifiers. After process recovery,
+the saved SEND snapshot represents a potentially transmitted PUBLISH.
+Persist transitions in first-send order. A definite backend
 rejection closes the affected connection so it can resume the previous
 phase. The same store handles session admission and the outbound operations.
 

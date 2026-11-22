@@ -6758,7 +6758,7 @@ typedef struct xmqttservertransaction {
 	double RetainedReceived; /* XRT monotonic time at admission. */
 	bool RemoveRetained;
 	xmqttserversessionkey DeliveryKey;
-	uint32 OutgoingExpiry; /* Message Expiry Interval written on first PUBLISH. */
+	uint32 OutgoingExpiry; /* Remaining Message Expiry seconds when SEND is submitted. */
 	uint8 OutgoingPhase; /* Expected ACK after SEND or RELEASE; before FINISH. */
 	uint64 OfflineLifetimeMs; /* CLOSE: lifetime at ClosedAt, UINT64_MAX for no expiry. */
 	double ClosedAt; /* CLOSE: XRT monotonic time of network closure. */

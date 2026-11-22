@@ -198,6 +198,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint --full-writer
           > out/service-extensions/xmqtt-checkpoint-writer-linux.json
+      - name: MQTT durable first-send expiry
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
+          out/gcc/native/xmqtt_examples/examples_server_checkpoint --outgoing-expiry
+          > out/service-extensions/xmqtt-outgoing-expiry-linux.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
@@ -329,6 +335,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe --full-writer
           > out/service-extensions/xmqtt-checkpoint-writer-windows.json
+      - name: MQTT durable first-send expiry
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
+          out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe --outgoing-expiry
+          > out/service-extensions/xmqtt-outgoing-expiry-windows.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
