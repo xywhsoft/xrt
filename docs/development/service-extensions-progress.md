@@ -22291,3 +22291,29 @@ that probe with current inputs matched every byte after
 normalizing the PE timestamp and checksum. The active workload continues
 to use the original binary and receipt. Logs, probes and the equivalence
 record are under `out/service-extensions/xmqtt-first-send-expiry-8721080a/`.
+
+## 2026-11-22 xcron ordered-wave Windows campaign completed
+
+The native Windows campaign for `3f7d0efd` completed all 20 processes
+on logical CPU 4. It verified 5,120 measured waves and 2,785,280
+callbacks. The independent reader reproduced all four pooled series and
+the per-process P99 variation decisions from the raw values.
+
+| Active / dormant | Drive | First / last P99 (us) | First / last P99.9 (us) | P99 span (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 722.6 / 729.3 | 11,943.3 / 11,951.4 | 12.6 |
+| 64 / 960 | Precise waiter | 704.4 / 704.9 | 3,078.1 / 3,078.8 | 6.2 |
+| 1,024 / 0 | Scheduler Wait | 622.5 / 629.1 | 800.3 / 807.3 | 7.2 |
+| 1,024 / 0 | Precise waiter | 616.4 / 621.3 | 817.8 / 828.8 | 14.4 |
+
+Two of eight first/last P99 repeatability checks passed. The observed
+short dispatch span in the 1,024-job scheduler cohort and unresolved
+wall-clock tail variation both remain in the evidence. The candidate
+with the finite-timeout correction, `1173f73e`, started its own
+20-process campaign at 16:05 Asia/Shanghai with the same CPU and wave
+counts. The native Linux campaign remains open.
+
+The original run and independent audit are under
+`out/service-extensions/xcron-ordered-wave-544b50fc/formal-3f7d0efd/`.
+The corrected candidate's build and running journal are under
+`out/service-extensions/xcron-late-timeout-1ff943bb/`.
