@@ -22713,3 +22713,44 @@ remain open. Generated headers and ordinary maturity passed.
 Native Linux, strict release and 72-hour qualification remain open.
 Reports, traces, build receipts and audits are under
 `out/service-extensions/xredis-raw-openloop-6e80f41e/`.
+
+
+## 2026-11-23 xredis same-request client phase and CPU placement controls
+
+A diagnostic build sampled one in 17 offers with the existing fixed
+schedule. It recorded submission publication, the native send offer,
+entry and return of the final reply feed, and result resolution.
+The audit joined each sample to its due and observed completion
+timestamps and checked that the stage durations summed to the
+same response's end-to-end latency.
+
+Each host alternated five two-second runs per clean and diagnostic
+variant. The workload used 12,000 offers/s, eight RESP3 connections,
+1,024-byte mixed GET/SET payloads and a 128-request observer window.
+All 480,000 measured requests completed. The audit reconciled
+14,120 phase samples, including 150 in the slowest sampled
+one-percent groups, and checked the independent Redis command ledger.
+
+| Observer | End-to-end P99 clean / diagnostic (us) | Queue publication to native send offer (% of sampled tail) | Native send offer to final reply feed (% of sampled tail) |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 1,653.8 / 2,520.0 | 73.0% | 20.0% |
+| Ubuntu WSL | 231.0 / 219.5 | 36.2% | 52.8% |
+
+Tail shares are separate per-run medians over the same requests.
+The send-to-feed interval includes transport, Redis execution and
+the worker's receive scheduling. The Windows P99 shifted between
+the clean and diagnostic variants. Its phase shares describe the
+instrumented runs.
+
+A separate Windows control compared a shared CPU 6 and 8 mask with
+the same two cores split between the XRT worker and generator, with
+no phase clock probes. At 12,000 offers/s the shared and split
+variants rejected 9 and 29 offers at the observer's 128-slot limit,
+with two complete pairs. At 8,000 offers/s they rejected 0 and 95
+offers, with four complete pairs. The latter pairs had median P99
+of 2,438.7 us shared and 5,926.2 us split. The audit retained all
+400,000 measured offers and every server command. These results
+leave stable Windows tails, native Linux and strict release open.
+Both hosts used Redis 8.0.5 in WSL. Inputs, binaries, trace data
+and audit output are under
+`out/service-extensions/xredis-client-phases-d7c93341/`.
