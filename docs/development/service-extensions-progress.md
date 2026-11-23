@@ -26105,3 +26105,31 @@ additional evidence.
 
 The wrapper, source hashes, raw logs and replay are under
 out/service-extensions/xcron-windows-timer-boundary-cc1ca32d/.
+
+## 2026-11-24 Replayed host and guest endurance prefixes
+
+The Windows supervisor and QEMU were live with the recorded
+process identities. Independent replay verified 960 observations
+of the same VM process, a maximum observation gap of 5.061 s
+and 4,797 awake seconds on the host. The host trace began
+before both Ubuntu workload units started and covered the
+capture of their journal prefixes. The guest boot ID matched
+the recovery receipt and both original supervisors were active.
+
+| Ubuntu workload | Verified windows | Verified rounds | Awake seconds | Largest observation gap (s) |
+| --- | ---: | ---: | ---: | ---: |
+| xredis client | 947 | 1,116,544 | 4,737.336 | 5.033 |
+| xmqtt client and broker | 947 | 1,190,132 | 4,737.264 | 5.047 |
+
+The replay matched the guest journal and executable hashes,
+checked both clocks, and rejected three altered host traces
+covering a changed PID, a missing interval and a suspend.
+Both guest journals had reached their last retained window
+within five seconds of the live observation. The running
+prefixes have no terminal records. The Windows-native
+journals separately replayed 27,009 awake seconds for Redis
+and 28,468 for MQTT, also without terminal records.
+
+The QEMU result is Ubuntu on WHPX. Captured receipts,
+journals and the independent replay are under
+out/service-extensions/linux-guest-9ce2606c/restart-20261124-0415/host-witness-prefix-20261124-0540/.
