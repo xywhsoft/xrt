@@ -24436,3 +24436,40 @@ The cycle counter resolves work in these mostly sleeping processes.
 All 12 P99 series exceeded the repeatability limits. Windows tail
 acceptance remains open. The raw run, build receipt and independent
 audit are under out/service-extensions/xcron-cycle-accounting-ecc5c7ec/win/.
+
+## 2026-11-23 QoS 2 worker scaling at fixed CPU budget
+
+The same plaintext broker binary ran with two or four workers on
+logical CPUs 0, 2, 4 and 6. The observer used CPUs 8 and 10, four
+publishing connections and eight wildcard subscribers with Receive
+Maximum 32. The per-session delivery limit remained 256. Each
+worker and publisher-window pairing ran five rotated trials at
+each fixed ingress rate on each host. The Windows cycle campaign
+had finished before these trials. The Windows endurance jobs
+continued.
+
+| Host | Scheduled offers/s | Publisher window | Two workers complete / at rate | Four workers complete / at rate |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 12,000 | 4 | 5 / 5 | 4 / 4 |
+| Windows x64 | 12,000 | 16 | 5 / 5 | 5 / 5 |
+| Windows x64 | 24,000 | 4 | 5 / 2 | 1 / 0 |
+| Windows x64 | 24,000 | 16 | 0 / 0 | 0 / 0 |
+| Ubuntu WSL | 12,000 | 4 | 4 / 4 | 0 / 0 |
+| Ubuntu WSL | 12,000 | 16 | 1 / 1 | 0 / 0 |
+| Ubuntu WSL | 24,000 | 4 | 3 / 0 | 0 / 0 |
+| Ubuntu WSL | 24,000 | 16 | 0 / 0 | 0 / 0 |
+
+Replay checked all 80 trials and the 33 complete ledgers, including
+2,016,000 published messages and 16,128,000 deliveries. Every
+incomplete trial reported PUBREC reason 0x97. At rate means at
+least 95 percent of the scheduled ingress with the full ledger.
+
+At 12,000/s on Windows with the window of 16, median broker CPU rose
+from 6.625 to 8.781 seconds for four workers. Both CPU series met the
+variation limits. The last delivery P99 medians were 0.866 and
+0.762 ms and both tails exceeded variation limits. At 24,000/s,
+two workers with window 4 achieved median ingress of 21,492/s and
+a delivery P99 of 675 ms. Both series exceeded variation limits.
+The experiment leaves sustained capacity and release tails open.
+The raw data and audits are under
+out/service-extensions/xmqtt-qos2-workers-2945c71f/.
