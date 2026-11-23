@@ -209,6 +209,27 @@ and sum the two intervals for those same offers. Submit through finish
 includes socket, server and client reply handling.
 [Numeric outcome definitions](../bench/openloop_schedule.h).
 
+### Native Linux fixture and CI
+
+On Linux, the paired runner can start a disposable loopback Redis process
+using `--server /path/to/redis-server --fixture-cpus 0,2,4`. Use three
+available logical CPUs from separate cores. The first runs Redis and the
+other two form the shared CPU budget for the client observers. The runner
+checks the spawned PID, CPU masks and Redis command counts, including the
+setup traffic. Use `--fixture-tls` with the TLS observer builds to give the
+fixture temporary certificates. Its logs and the public certificate hashes
+are retained with the report.
+
+Enable `xredis_hiredis` when manually dispatching the service-extensions
+workflow to collect native Linux samples. The Redis job uses checksum-pinned
+Redis 8.0.5 and Hiredis 1.3.0. Each transport runs five alternating measured
+pairs after warmup, with four RESP3 connections, 2,000 mixed GET/SET offers
+per second, 1,024-byte values and a 128-offer window. The artifact contains
+both binaries per transport, revision, host and toolchain evidence, paired
+reports and per-offer CSV. The reports retain the measured variation result
+for each client. Repeatable release baselines require measurements on a
+controlled host.
+
 ### Multiple connections and mixed GET/SET
 
 The same binaries support up to eight independent connections with a shared

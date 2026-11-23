@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import platform
+import shutil
+import socket
 import subprocess
 import sys
+import tempfile
 
 BENCH = Path(__file__).resolve().parent
 ROOT = BENCH.parents[2]
@@ -84,11 +88,78 @@ def sample(args, client: Path, name: str, command: list[str], raw_path: Path | N
     return sample | {"verified": verified, "accounted": accounted, "facts": facts, "metrics": metrics}
 
 
+def start_fixture(args, stack: ExitStack):
+    interop = BENCH.parent / "tests" / "interop"
+    sys.path.insert(0, str(interop))
+    from run_redis_restart import command_calls, info, start
+    from run_redis_tls import certificates, tls_listener
+
+    original = os.sched_getaffinity(0)
+    server_cpu, *client_cpus = args.fixture_cpus
+    server_mask = {server_cpu}
+    client_mask = set(client_cpus)
+    stack.callback(os.sched_setaffinity, 0, original)
+    runtime = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="xredis-hiredis-")))
+    tls = None
+    certificates_sha256 = {}
+    if args.fixture_tls:
+        openssl = shutil.which("openssl")
+        if openssl is None:
+            raise RuntimeError("TLS comparison requires openssl")
+        certificates_sha256 = certificates(Path(openssl), runtime)
+        tls = tls_listener(runtime, "server", "ca")
+        args.tls_ca = runtime / "ca.pem"
+
+    # Verify the server's PID and advertised identity after releasing this reservation.
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", 0))
+        args.port = reservation.getsockname()[1]
+    server = args.server.absolute()
+    os.sched_setaffinity(0, server_mask)
+    process, identity = start(stack, server, runtime, args.port, "redis", args.report.with_suffix(".redis.log"), tls)
+    os.sched_setaffinity(0, client_mask)
+    if os.sched_getaffinity(process.pid) != server_mask or os.sched_getaffinity(0) != client_mask:
+        raise RuntimeError("Redis comparison CPU placement differs from the requested masks")
+
+    report = {
+        "path": str(server), "sha256": digest(server), "identity": identity,
+        "version": info(args.port, "server", tls)["redis_version"],
+        "port": args.port, "server_cpu": server_cpu, "client_cpus": client_cpus,
+        "certificates_sha256": certificates_sha256, "ledger_verified": False,
+        "cpu_before": info(args.port, "cpu", tls),
+    }
+
+    def audit(runs):
+        final = info(args.port, "server", tls)
+        if process.poll() is not None or final["run_id"] != identity["run_id"] or int(final["process_id"]) != process.pid:
+            raise RuntimeError("Redis fixture changed during the comparison")
+        report["cpu_after"] = info(args.port, "cpu", tls)
+        report["commands"] = calls = command_calls(info(args.port, "commandstats", tls))
+        if all(run["verified"] for run in runs):
+            expected = dict(hello=len(runs) * args.connections, ping=len(runs) * args.connections)
+            if args.mixed:
+                gets = sum(run["metrics"]["accepted_get"] for run in runs)
+                if gets:
+                    expected["get"] = gets
+                expected["set"] = len(runs) + sum(run["metrics"]["accepted_set"] for run in runs)
+            else:
+                expected["echo"] = len(runs) * args.count
+            report["expected_commands"] = expected
+            report["ledger_verified"] = {key: count for key, count in calls.items() if key != "info"} == expected
+        return report
+
+    return audit
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--xredis", type=Path, required=True)
     parser.add_argument("--hiredis", type=Path, required=True)
-    parser.add_argument("--port", type=int, required=True)
+    endpoint = parser.add_mutually_exclusive_group(required=True)
+    endpoint.add_argument("--port", type=int)
+    endpoint.add_argument("--server", type=Path, help="start a disposable local Redis fixture on Linux")
+    parser.add_argument("--fixture-cpus", help="three distinct logical CPUs: Redis, then two for both clients")
+    parser.add_argument("--fixture-tls", action="store_true", help="give the fixture freshly generated TLS credentials")
     parser.add_argument("--rate", type=int, default=5000)
     parser.add_argument("--count", type=int, default=20000)
     parser.add_argument("--window", type=int, default=16)
@@ -101,12 +172,34 @@ def main() -> int:
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--raw-dir", type=Path, help="new directory for per-offer CSV traces")
     args = parser.parse_args()
-    if not (1 <= args.port <= 65535 and 1 <= args.window <= 128 and
+    if not ((args.port is None or 1 <= args.port <= 65535) and 1 <= args.window <= 128 and
             1 <= args.connections <= 8 and 1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
         parser.error("invalid workload or repeat count")
     clients = {"xredis": args.xredis.resolve(strict=True), "hiredis-1.3.0": args.hiredis.resolve(strict=True)}
     if clients["xredis"] == clients["hiredis-1.3.0"]:
         parser.error("provide two distinct executables")
+    if args.server is None:
+        if args.fixture_cpus is not None or args.fixture_tls:
+            parser.error("fixture options require --server")
+    else:
+        if args.tls_ca is not None or args.tls_server_name is not None:
+            parser.error("use --fixture-tls to configure TLS with --server")
+        if not hasattr(os, "sched_getaffinity") or args.fixture_cpus is None:
+            parser.error("--server requires Linux and --fixture-cpus")
+        try:
+            args.fixture_cpus = tuple(int(cpu) for cpu in args.fixture_cpus.split(","))
+        except ValueError:
+            parser.error("expected --fixture-cpus SERVER,CLIENT,CLIENT")
+        if (len(args.fixture_cpus) != 3 or len(set(args.fixture_cpus)) != 3 or
+                not set(args.fixture_cpus) <= os.sched_getaffinity(0)):
+            parser.error("--fixture-cpus needs three different available logical CPUs")
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    with ExitStack() as stack:
+        fixture = start_fixture(args, stack) if args.server is not None else None
+        return compare(args, clients, parser, fixture)
+
+
+def compare(args, clients, parser, fixture) -> int:
     command = list(map(str, (args.count, args.rate, args.window, args.payload, 1000, 0, 0, args.port, 0, args.connections, int(args.mixed))))
     if args.tls_ca is not None:
         args.tls_ca = args.tls_ca.resolve(strict=True)
@@ -143,6 +236,12 @@ def main() -> int:
             report["runs"].append({"client": name, "repeat": repeat, "warmup": repeat == 0,
                                    **sample(args, clients[name], name, command, raw)})
     verified = all(run["verified"] for run in report["runs"])
+    if fixture is not None:
+        try:
+            report["fixture"] = fixture(report["runs"])
+        except (OSError, RuntimeError, KeyError, ValueError) as error:
+            report["fixture"] = {"ledger_verified": False, "error": str(error)}
+        verified = verified and report["fixture"]["ledger_verified"]
     if verified:
         for name in clients:
             results = [run["metrics"] for run in report["runs"] if run["client"] == name and not run["warmup"]]
@@ -159,7 +258,6 @@ def main() -> int:
     report["variation_pass"] = (all(report["summary"][name][key]["variation_pass"]
                                    for name in clients for key in QUALITY)
                                 if verified and args.repeats >= 5 else None)
-    args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     print(f"Redis paired comparison verified={verified} variation_pass={report['variation_pass']}", flush=True)
     return 0 if verified else 1

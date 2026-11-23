@@ -23022,3 +23022,42 @@ The case counts describe the build plan. The full post-change smoke
 and elapsed CI budget still need end-to-end verification. Logs and the
 independent audit are under
 out/service-extensions/performance-build-reuse-98e35075/.
+
+
+## 2026-11-23 Native Linux xredis and Hiredis comparison
+
+The Redis workflow now offers a manual xredis_hiredis input on the
+pinned Redis job. It builds Hiredis 1.3.0 from the verified archive
+and samples TCP and verified TLS 1.3 using the same four-connection
+mixed GET/SET workload. Redis runs on one core. Both observers use
+the same two other cores. The disposable fixture verifies PID, server
+identity and affinity and reconciles all commands, including HELLO,
+PING and the setup SETs. The job preserves binaries, build identities,
+Redis logs, per-offer timestamps and variation results.
+
+The extracted workflow step passed on Ubuntu WSL with Redis 8.0.5.
+An independent replay verified 96,000 offers including warmup,
+all 80,000 measured replies, the sample hashes, P50/P95/P99/P99.9,
+and the server command counts for both transports.
+
+| WSL transport | P99 median xredis / Hiredis (us) | P99.9 median xredis / Hiredis (us) |
+| --- | ---: | ---: |
+| TCP | 227.9 / 139.9 | 708.9 / 285.6 |
+| TLS 1.3 | 249.0 / 191.2 | 494.2 / 342.3 |
+
+Both transports exceeded the tail variation limits on this host.
+The fixture accepted a valid all-SET workload and rejected two injected
+server commands despite every client's reply count passing. The first
+local run needed the WSL Python virtual environment because the system
+provided only python3. The GitHub step uses setup-python.
+
+Fresh Windows observers using the existing external-port interface
+verified 48,000 operations through the WSL Redis listener. The first
+Windows attempt used historical observers with an older argument
+contract and exited before measurement. The current builds reconciled
+the exact server ledger and exceeded the variation limit. actionlint
+1.7.7, ordinary maturity and the 17 workload-tooling tests passed.
+The native Linux job still needs to run, and strict release remains open.
+
+Raw reports, independent replay and local build receipts are under
+out/service-extensions/xredis-hiredis-native-248638d7/.

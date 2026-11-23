@@ -37,6 +37,10 @@ on:
         description: Run the full native Linux xcron latency campaign
         type: boolean
         default: false
+      xredis_hiredis:
+        description: Sample native Linux Redis TCP and TLS against pinned Hiredis
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -470,7 +474,7 @@ jobs:
 
   redis-restart:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       REDIS_VERSION: '8.0.5'
       REDIS_SHA256: 012bca956fc7151abc2281950e69768ee9c53ce4b36588772041675bc95fd313
@@ -563,4 +567,80 @@ jobs:
           path: |
             out/service-extensions/redis-sentinel/**/*.json
             out/service-extensions/redis-sentinel/**/*.log
+          if-no-files-found: warn
+      - name: Compare native Linux Redis TCP and TLS with Hiredis
+        if: github.event_name == 'workflow_dispatch' && inputs.xredis_hiredis
+        shell: bash
+        run: |
+          evidence=out/service-extensions/xredis-hiredis-linux
+          mkdir -p "$evidence"
+          hiredis_sha=25cee4500f359cf5cad3b51ed62059aadfc0939b05150c1f19c7e2829123631c
+          archive="$RUNNER_TEMP/hiredis-1.3.0.tar.gz"
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            https://codeload.github.com/redis/hiredis/tar.gz/refs/tags/v1.3.0 --output "$archive"
+          printf '%s  %s\n' "$hiredis_sha" "$archive" | sha256sum --check
+          tar --no-same-owner -xzf "$archive" -C "$RUNNER_TEMP"
+          hiredis="$RUNNER_TEMP/hiredis-1.3.0"
+          cmake -S "$hiredis" -B "$RUNNER_TEMP/hiredis-build" \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DBUILD_SHARED_LIBS=OFF -DDISABLE_TESTS=ON -DENABLE_SSL=OFF
+          cmake --build "$RUNNER_TEMP/hiredis-build" --target hiredis -j2
+          library="$RUNNER_TEMP/hiredis-build/libhiredis.a"
+          peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
+          git rev-parse HEAD > "$evidence/revision.txt"
+          lscpu > "$evidence/cpu.txt"
+          gcc --version > "$evidence/compiler.txt"
+          openssl version -a > "$evidence/openssl.txt"
+          "$peer" --version > "$evidence/redis.txt"
+          sha256sum "$archive" "$library" "$peer" > "$evidence/sha256.txt"
+          cpus=$(python - <<'PY'
+          import os
+          import subprocess
+          available = os.sched_getaffinity(0)
+          cores = {}
+          for row in subprocess.check_output(["lscpu", "-p=CPU,CORE,SOCKET"], text=True).splitlines():
+              if not row.startswith("#"):
+                  cpu, core, socket = map(int, row.split(","))
+                  if cpu in available:
+                      cores.setdefault((socket, core), cpu)
+          if len(cores) < 3:
+              raise SystemExit("Redis comparison needs three available cores")
+          print(",".join(map(str, list(cores.values())[:3])))
+          PY
+          )
+          observer=extlibs/xredis/bench/bench_client_openloop.c
+          flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE -DXRT_IMPLEMENTATION
+            -Iinclude -Iextlibs/xredis/include -include xredis/features.h -include ./single/xrt.h)
+          status=0
+          for transport in tcp tls; do
+            xredis_module=XREDIS_MODULE_XREDIS_CLIENT
+            transport_flags=()
+            reference_tls=()
+            fixture_tls=()
+            if [[ "$transport" == tls ]]; then
+              xredis_module=XREDIS_MODULE_XREDIS_TLS
+              transport_flags=(-DREDIS_OPENLOOP_EXTERNAL_TLS)
+              gcc -std=gnu11 -O2 -I"$hiredis" -c "$hiredis/ssl.c" -o "$RUNNER_TEMP/hiredis-ssl.o"
+              reference_tls=("$RUNNER_TEMP/hiredis-ssl.o" -lssl -lcrypto)
+              fixture_tls=(--fixture-tls)
+            fi
+            gcc "${flags[@]}" "${transport_flags[@]}" -D"$xredis_module" -DXREDIS_IMPLEMENTATION \
+              -include ./single/extlibs/xredis.h "$observer" -o "$evidence/xredis-$transport" -pthread -lm
+            gcc "${flags[@]}" "${transport_flags[@]}" -DXREDIS_MODULE_XREDIS_CLIENT -DREDIS_OPENLOOP_HIREDIS \
+              -I"$hiredis" "$observer" "$library" "${reference_tls[@]}" \
+              -o "$evidence/hiredis-$transport" -pthread -lm
+            python -B extlibs/xredis/bench/compare_hiredis.py \
+              --xredis "$evidence/xredis-$transport" --hiredis "$evidence/hiredis-$transport" \
+              --server "$peer" --fixture-cpus "$cpus" "${fixture_tls[@]}" \
+              --mixed --connections 4 --rate 2000 --count 4000 --window 128 --payload 1024 --repeats 5 \
+              --report "$evidence/$transport.json" --raw-dir "$evidence/$transport-raw" || status=1
+          done
+          exit "$status"
+      - name: Preserve native Hiredis comparison evidence
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.xredis_hiredis
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xredis-hiredis-linux
+          path: out/service-extensions/xredis-hiredis-linux/
           if-no-files-found: warn
