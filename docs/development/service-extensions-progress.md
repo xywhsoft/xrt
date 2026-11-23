@@ -25457,3 +25457,30 @@ verified one Sentinel-directed primary failover and client cleanup.
 Raw reports, source identities and replay are under
 out/service-extensions/linux-guest-9ce2606c/redis-recovery-evidence/.
 The separate mixed-load and matched-performance gates remain open.
+
+## 2026-11-23 xcron and xrpc Linux VM test and package replay
+
+On Ubuntu 24.04.5 in the QEMU/WHPX guest, the clean 9ce2606c
+build passed all seven xcron and 23 xrpc test executables in each
+of the optimized and ASan/UBSan configurations. Native module
+and single-header suites included OOM, lifetime, bounds and
+malformed input cases. Leak checking was enabled. The generated
+assets, API inventories, trimming checks, and ordinary maturity
+checks passed. Independent peers verified restart catch-up, stdio
+records and TCP dispatch with the host executor.
+
+Five SDK profiles, including the bare xcron and xrpc profiles
+and the optional xcron scheduler, passed in static and shared
+form. Relocated consumers used directories containing spaces and
+ran as the unprivileged Ubuntu user. Nine standalone APP builds
+passed: restart catch-up, scheduler polling/waiting and the
+xrpc TCP worker each linked as static, shared and single-header.
+Loader and dependency checks verified the packaged XRT and
+extension libraries. Host replay verified the ten SDKs, nine APP
+binaries and hashes of their 69 distinct library source inputs
+against master. Library source closures contained library files.
+
+The 26 check results and artifacts are under
+out/service-extensions/linux-guest-9ce2606c/cron-rpc-evidence/.
+Performance repeatability and strict release status are tracked
+separately.
