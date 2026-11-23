@@ -723,7 +723,10 @@ outcomes and received deliveries, plus the retained replay when due.
 Pacing sleeps contribute to the run duration. Growth above the first
 resource sample is guarded at 64 MiB of private memory and 32 handles or
 descriptors per process. The Windows supervisor and the C workload use
-QueryPerformanceCounter for elapsed time.
+QueryPerformanceCounter for elapsed time. New journals also record
+uptime and awake time. The observer checks the requested awake
+duration, observation gaps and the accumulated suspend difference.
+UTC offset remains in the journal for diagnosing host time steps.
 
 For a 72-hour run use --seconds 259200. The native_72h result requires both
 live process resource ledgers, uninterrupted duration, graceful teardown

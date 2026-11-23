@@ -8,9 +8,9 @@ from pathlib import Path
 import re
 
 from build_service_mixed import PROBES, digest
+from service_mixed_clock import CLOCK_BASIS, FIRST_WINDOW_SECONDS, validate_clock
 
 RELEASE_SECONDS = 72 * 3600
-FIRST_WINDOW_SECONDS = 25  # Both mixed-load supervisors use this startup budget.
 
 
 def require(condition, message):
@@ -48,6 +48,8 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
     require(all(report[key] == value for key, value in start.items() if key not in ("status", claim)),
             "journal start and report disagree")
 
+    basis = report.get("clock_basis")
+    require(basis in (None, CLOCK_BASIS) and start.get("clock_basis") == basis, "invalid journal clock basis")
     limits = report["resource_growth_limits"]
     require(limits == dict(private=64 * 1024 * 1024, handles=32), "unexpected resource growth limits")
     required_roles = set(roles) - {"server"}
@@ -56,24 +58,31 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
     previous = dict(rounds=0, seconds=0, cpu_seconds=0, observer_seconds=0, shared0=0, shared1=0)
     windows, largest_gap, terminal = 0, 0, None
     baseline = {}
+    previous_clock = None
     for line in journal:
         require(terminal is None, "data after journal terminal record")
         row = json.loads(line)
         run_time, elapsed = row["seconds"], row["observer_seconds"]
         clock = row["clock"]
-        offset = clock["wall_elapsed_seconds"] - elapsed
         require(0 < run_time <= elapsed and math.isfinite(elapsed) and
-                elapsed == clock["monotonic_elapsed_seconds"] and abs(offset) < 5 and
-                math.isclose(offset, clock["offset_seconds"], rel_tol=0, abs_tol=1e-6),
-                "invalid journal clock")
-        if windows:
-            gap = clock["tick_gap_seconds"]
-            require(0 <= gap < 15 and math.isclose(gap, elapsed - previous["observer_seconds"],
-                                                   rel_tol=0, abs_tol=1e-6),
-                    "journal observation gap")
-            largest_gap = max(largest_gap, gap)
+                elapsed == clock["monotonic_elapsed_seconds"], "invalid journal clock")
+        if basis == CLOCK_BASIS:
+            duration = report["seconds_requested"] if row.get("complete") is True else None
+            validate_clock(clock, previous_clock, duration)
         else:
-            require(elapsed <= FIRST_WINDOW_SECONDS, "initial journal observation gap")
+            offset = clock["wall_elapsed_seconds"] - elapsed
+            require(abs(offset) < 5 and math.isclose(offset, clock["offset_seconds"], rel_tol=0, abs_tol=1e-6),
+                    "invalid journal clock")
+            if windows:
+                gap = clock["tick_gap_seconds"]
+                require(0 <= gap < 15 and math.isclose(gap, elapsed - previous["observer_seconds"],
+                                                       rel_tol=0, abs_tol=1e-6),
+                        "journal observation gap")
+            else:
+                require(elapsed <= FIRST_WINDOW_SECONDS, "initial journal observation gap")
+        if previous_clock is not None:
+            largest_gap = max(largest_gap, clock["tick_gap_seconds"])
+        previous_clock = clock
         rounds = row["rounds"]
         require(type(rounds) is int and rounds > 0, "invalid round count")
         if mqtt:

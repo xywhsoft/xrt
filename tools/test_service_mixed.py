@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from check_service_mixed import check_build, check_windows, digest
+from service_mixed_clock import CLOCK_BASIS, validate_clock
 
 
 class MixedEvidenceTest(unittest.TestCase):
@@ -21,7 +22,7 @@ class MixedEvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "build and run platform families differ"):
                 check_build("xredis", binary, receipt, report, "client_sha256")
 
-    def check_journal(self, first):
+    def check_journal(self, first, wall_step=None):
         claim = "native_client_72h"
         start = {"status": "running", claim: False, "seconds_requested": 8,
                  "resource_growth_limits": {"private": 64 * 1024 * 1024, "handles": 32}}
@@ -37,6 +38,13 @@ class MixedEvidenceTest(unittest.TestCase):
         end = {**terminal, "observer_seconds": first + 3, "clock": {"monotonic_elapsed_seconds": first + 3,
                                                                    "wall_elapsed_seconds": first + 3,
                                                                    "offset_seconds": 0, "tick_gap_seconds": 3}}
+        if wall_step is not None:
+            start["clock_basis"] = report["clock_basis"] = CLOCK_BASIS
+            for row in (sample, end):
+                elapsed = row["observer_seconds"]
+                row["clock"].update(wall_elapsed_seconds=elapsed + wall_step,
+                                    offset_seconds=wall_step,
+                                    boot_elapsed_seconds=elapsed, active_elapsed_seconds=elapsed)
         return check_windows(map(json.dumps, (start, sample, end)), report, summary, claim, ("client",), False)
 
     def test_reconciles_first_progress_at_startup_deadline(self):
@@ -45,6 +53,32 @@ class MixedEvidenceTest(unittest.TestCase):
     def test_rejects_unobserved_startup_interval(self):
         with self.assertRaisesRegex(ValueError, "initial journal observation gap"):
             self.check_journal(65)
+
+
+    def test_utc_correction_preserves_observed_run(self):
+        for step in (-40, 60):
+            with self.subTest(step=step):
+                self.assertTrue(self.check_journal(5, wall_step=step)["complete"])
+
+    def test_clock_requires_awake_duration_and_coverage(self):
+        previous = dict(monotonic_elapsed_seconds=5, wall_elapsed_seconds=5, offset_seconds=0,
+                        boot_elapsed_seconds=5, active_elapsed_seconds=5)
+        healthy = dict(monotonic_elapsed_seconds=10, wall_elapsed_seconds=70, offset_seconds=60,
+                       boot_elapsed_seconds=10, active_elapsed_seconds=10, tick_gap_seconds=5)
+        validate_clock(healthy, previous, duration=10)
+        cases = [
+            ("host suspend detected", {"boot_elapsed_seconds": 10.5}, None),
+            ("active clock diverged", {"boot_elapsed_seconds": 5, "active_elapsed_seconds": 5}, None),
+            ("journal observation gap", {"tick_gap_seconds": 6}, None),
+            ("journal observation gap", dict(monotonic_elapsed_seconds=20, wall_elapsed_seconds=80,
+                                             boot_elapsed_seconds=20, active_elapsed_seconds=20,
+                                             tick_gap_seconds=15), None),
+            ("incomplete awake duration", {}, 10.1),
+        ]
+        for reason, changed, duration in cases:
+            with self.subTest(reason=reason, changed=changed):
+                with self.assertRaisesRegex(ValueError, reason):
+                    validate_clock(healthy | changed, previous, duration)
 
 
 if __name__ == "__main__":

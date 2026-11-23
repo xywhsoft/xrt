@@ -341,7 +341,10 @@ sample. The client verifies zero outstanding work at physical close.
 
 For the 72-hour run use --seconds 259200. The native-client result requires
 successful teardown, exact command accounting, continuous clock progress
-and resource observations on Windows or Linux. WSL and shorter runs
+and resource observations on Windows or Linux. New runs verify the
+requested interval using both monotonic and awake time. The journal
+keeps UTC corrections and checks the difference between uptime and
+awake time for suspension. WSL and shorter runs
 remain diagnostic. A server crash or process interruption terminates the
 run without a successful result. Recovery scenarios have separate tests
 and evidence. This workload covers the TCP RESP3 shared-pool, Tracking

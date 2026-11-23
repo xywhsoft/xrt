@@ -21,7 +21,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
-from test_xrudp_native_soak import observe_clock, resources
+from service_mixed_clock import CLOCK_BASIS, FIRST_WINDOW_SECONDS, MAX_GAP_SECONDS, WorkloadClock
+from test_xrudp_native_soak import resources
 
 LONG_SECONDS = 72 * 3600
 COMMANDS = ("set", "get", "publish", "subscribe", "hello")
@@ -87,7 +88,7 @@ def stop(process):
             process.wait(timeout=6)
 
 
-def monitor(client, server, duration, append, start, wall):
+def monitor(client, server, duration, append, clock):
     inbox = queue.Queue()
 
     def copy_lines():
@@ -103,26 +104,25 @@ def monitor(client, server, duration, append, start, wall):
     elapsed = 0
     final = None
     baseline = {}
-    clock = {"largest_tick_gap": 0}
-    last = None
     try:
         while True:
             try:
-                line = inbox.get(timeout=25 if last is None else 15)
+                timeout = FIRST_WINDOW_SECONDS if clock.previous is None else MAX_GAP_SECONDS
+                line = inbox.get(timeout=timeout)
             except queue.Empty as error:
                 raise RuntimeError("mixed workload heartbeat deadline") from error
             if line is None:
                 break
-            now = time.monotonic()
-            observe_clock(clock, now, last, start, wall, time.time())
-            last = now
             event = json.loads(line)
+            complete = event.get("complete") is True
+            tick = clock.sample(duration if complete else None)
+            observed = tick["monotonic_elapsed_seconds"]
             require(isinstance(event["rounds"], int) and math.isfinite(event["seconds"]) and
-                    0 < event["seconds"] <= now - start, "mixed workload clock or count")
+                    0 < event["seconds"] <= observed, "mixed workload clock or count")
             require(final is None, "output after terminal report")
-            if event.get("complete") is True:
+            if complete:
                 require(rounds > 0 and event["rounds"] == rounds and event["seconds"] >= duration and
-                        now - start >= duration, "incomplete measured interval")
+                        observed >= duration, "incomplete measured interval")
                 final = event
             else:
                 require(event["rounds"] > rounds and event["samples"] == event["rounds"] - rounds,
@@ -153,10 +153,10 @@ def monitor(client, server, duration, append, start, wall):
                     original = baseline.setdefault(name, snapshot)
                     require(snapshot["private"] - original["private"] <= PRIVATE_GROWTH and
                             snapshot["handles"] - original["handles"] <= HANDLE_GROWTH, f"{name} resource growth limit")
-            append(event | {"observer_seconds": now - start, "clock": clock["clock"]})
+            append(event | {"observer_seconds": observed, "clock": tick})
         require(client.wait(timeout=6) == 0 and final is not None, "workload exited without verified retirement")
         return final | {"windows": samples, "cpu_seconds": cpu,
-                        "largest_tick_gap_seconds": clock["largest_tick_gap"], "baseline": baseline}
+                        "largest_tick_gap_seconds": clock.largest_gap, "baseline": baseline}
     finally:
         stop(client)
         thread.join(timeout=3)
@@ -187,7 +187,7 @@ def main():
     wsl = sys.platform.startswith("linux") and ("microsoft" in platform.release().lower() or "WSL_DISTRO_NAME" in os.environ)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     state = {"status": "running", "native_client_72h": False, "platform": platform_name, "wsl": wsl,
-             "transport": "tls13" if args.tls_directory else "tcp",
+             "clock_basis": CLOCK_BASIS, "transport": "tls13" if args.tls_directory else "tcp",
              "seconds_requested": args.seconds, "pause_ms": args.pause_ms, "clients": 4, "workers": 2, "pipeline": 8,
              "client_sha256": digest(client_path), "resource_growth_limits": {"private": PRIVATE_GROWTH, "handles": HANDLE_GROWTH},
              "inputs": {str(path.relative_to(ROOT)): digest(path) for path in (
@@ -195,8 +195,10 @@ def main():
                  Path(__file__).with_name("tls_probe.h").resolve(),
                  ROOT / "extlibs/xredis/bench/openloop_schedule.h", ROOT / "single/xrt.h",
                  ROOT / "single/extlibs/xredis.h", ROOT / "tools/test_xrudp_native_soak.py",
+                 ROOT / "tools/service_mixed_clock.py",
              )}}
     server = None
+    clock = None
     try:
         with ExitStack() as cleanup, args.report.with_suffix(".jsonl").open("x", encoding="utf-8") as journal, \
                 args.report.with_suffix(".stderr").open("x", encoding="utf-8") as errors:
@@ -236,11 +238,11 @@ def main():
             state["server_before"] = before
             state["server_owned"] = server is not None
             append(state)
-            wall, start = time.time(), time.monotonic()
+            clock = WorkloadClock()
             command = [str(client_path), str(port), str(args.seconds), str(args.pause_ms), *client_tls]
             with subprocess.Popen(command,
                                   stdout=subprocess.PIPE, stderr=errors, text=True, encoding="utf-8", cwd=ROOT) as client:
-                state["workload"] = monitor(client, server, args.seconds, append, start, wall)
+                state["workload"] = monitor(client, server, args.seconds, append, clock)
             after = redis_info(port, tls)
             state["server_after"] = after
             rounds = state["workload"]["rounds"]
@@ -256,6 +258,8 @@ def main():
             state["status"] = "passed"
     except (OSError, ValueError, KeyError, RuntimeError, AssertionError, subprocess.SubprocessError) as error:
         state.update(status="failed", error=str(error), native_client_72h=False)
+        if clock is not None and clock.failure is not None:
+            state["clock_failure"] = clock.failure
     except KeyboardInterrupt:
         state.update(status="cancelled", native_client_72h=False)
     output = args.report.with_suffix(".json")

@@ -23136,3 +23136,34 @@ performance results remain separate.
 Raw reports, logs and the audit are under
 out/service-extensions/performance-build-reuse-98e35075/ and
 out/service-extensions/native-ci-48b0ba85/.
+
+
+## 2026-11-23 Mixed-load duration through UTC corrections
+
+The Redis and MQTT supervisors now record system uptime, awake
+time and the high-resolution observer clock in each new journal
+window. Windows uses GetTickCount64 and QueryUnbiasedInterruptTime.
+Linux uses CLOCK_BOOTTIME and CLOCK_MONOTONIC. The observer records
+UTC offsets for diagnosis and bases duration on awake and monotonic
+time. It checks for a change in the suspend difference beyond
+250 ms, gaps of 15 seconds or more, disagreement between the
+observer and awake clocks, and insufficient awake time at retirement.
+The offline checker replays these checks and still verifies existing
+journals using their original clock rules.
+
+Each product completed a 20-second workload on Windows and WSL
+through an injected UTC jump in the supervisor's clock reader.
+Windows advanced by 60 seconds and reconciled 1,275 Redis rounds
+and 1,277 MQTT rounds. WSL stepped back by 40 seconds and reconciled
+3,297 Redis rounds and 5,695 MQTT rounds. A simulated 750 ms suspend
+failed and preserved the rejecting clock sample. The separate
+Windows MQTT broker kill still failed after 322 verified rounds.
+Both historical Windows smoke receipts replayed successfully, and
+the strict checker rejected a new 20-second receipt for missing
+72-hour coverage. Five clock/evidence tests and nine UDP monitor
+regressions passed.
+
+Existing Windows endurance processes continue with their launch-time
+monitor. The changes apply to new runs. The WSL checks are diagnostic
+and native Linux endurance is still pending. The test scripts,
+journals and audit are under out/service-extensions/mixed-active-clock-1a225f61/.

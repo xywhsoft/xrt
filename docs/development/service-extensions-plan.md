@@ -139,6 +139,11 @@ Planned module families (not declarations of implemented modules):
 - Final Redis client and MQTT client and broker candidates require native Windows and Linux mixed-load runs of at least
   72 continuous hours, plus separately recorded failure-injection runs. Process
   kill is not represented as proof of power-loss durability.
+- Mixed-load journals record uptime, awake time, observer time and UTC.
+  Each new run must cover the requested duration while awake, stay within
+  the observation gap, and reject changes in the suspend counter beyond
+  the measurement tolerance. The verifier replays both elapsed clocks.
+  UTC offsets remain available for investigating host time corrections.
 - Product destruction returns resources to a documented baseline: live operations
   and handles are zero; retained core caches have explicit ownership/accounting.
 
