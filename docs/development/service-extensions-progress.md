@@ -24869,3 +24869,72 @@ on both hosts, for 18 APP builds. Compiler and linker commands,
 artifact identities, package manifests, loader checks and peer
 results are under out/service-extensions/xcron-xrpc-sdk-005fb832/.
 The WSL results are supplementary to native Linux release evidence.
+
+## 2026-11-23 MQTT QoS 2 worker scaling and observer CPU
+
+The fixed-arrival observer ran against the same optimized broker
+binary on each host for all worker counts. The APP used adaptive reads,
+four broker logical CPUs on distinct physical cores and two observer
+CPUs on distinct remaining cores. Each sample offered four seconds
+of QoS 2 traffic with four publishers, four credits per publisher and
+eight wildcard subscribers with Receive Maximum 32. The worker counts
+1, 2, 4 and 8 rotated through five repeats at each rate. Eight workers
+shared the same four broker CPUs.
+
+Each result reports complete ledgers and, after the slash, complete
+ledgers that reached at least 95 percent of the scheduled ingress.
+Each profile ran five trials.
+
+| Host | Offers/s | 1 worker | 2 workers | 4 workers | 8 workers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Native Windows | 12,000 | 5 / 5 | 4 / 4 | 5 / 5 | 4 / 4 |
+| Native Windows | 24,000 | 5 / 0 | 2 / 0 | 2 / 0 | 1 / 0 |
+| Ubuntu WSL | 12,000 | 5 / 0 | 4 / 4 | 1 / 1 | 0 / 0 |
+| Ubuntu WSL | 24,000 | 5 / 0 | 5 / 0 | 0 / 0 | 0 / 0 |
+
+Independent replay checked all 80 samples. The 48 complete
+ledgers verified 3,264,000 terminal publisher confirmations and
+26,112,000 deliveries. The other 32 samples reported PUBREC
+reason 0x97 and kept their partial wire counts. Native Windows
+with four workers at 12,000/s met repeatability for throughput
+and delivery P99 and P99.9, with medians of 11,999/s, 9.29 ms and
+13.02 ms. The one-worker Windows profile used 3.97 median CPU
+seconds and the four-worker profile used 9.38. The worker-count
+results show different capacity limits on the two hosts. The
+24,000/s workload and native Linux release evidence remain open.
+
+The observer now records process CPU through the delivery and
+confirmation drain and pacer thread CPU through the offer loop.
+The comparator reports these fields separately from broker CPU
+and elapsed time. It accepts historical observers whose output
+predates both fields. Native Windows and WSL passed the scripted
+peer suite, then compared QoS 0 and QoS 2 against Mosquitto 2.1.2.
+A WSL ASan/UBSan build also passed the plaintext and TLS fixtures
+with leak detection. The registered xmqtt_server_routes smoke profile
+passed on both hosts with the ordinary modular C11 build.
+
+A second 12,000/s campaign held the broker mask and QoS windows
+fixed. On each host, it alternated the two observer CPUs with the
+same two physical cores plus their SMT siblings. Windows used
+four broker workers and WSL used two. All 20 ledgers completed,
+for 960,000 confirmations and 7,680,000 deliveries. The following
+results are medians over five samples.
+
+| Host | Observer logical CPUs | At rate | Ingress/s | Delivery P99 (ms) | Pacer CPU (s) | Observer CPU (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Native Windows | 2 | 5 / 5 | 11,999 | 0.83 | 1.98 | 6.86 |
+| Native Windows | 4 | 5 / 5 | 11,999 | 0.92 | 2.78 | 7.88 |
+| Ubuntu WSL | 2 | 5 / 5 | 11,998 | 7.44 | 2.36 | 7.86 |
+| Ubuntu WSL | 4 | 0 / 5 | 10,350 | 663.32 | 0.58 | 8.54 |
+
+Ingress met repeatability in all four cohorts. P99 and P99.9
+exceeded the variation limits in all four. In WSL with four observer
+CPUs, median offer lag P99 was 661.95 ms. The measured latency and
+rate depend on observer affinity even with the same broker binary
+and settings. The Windows four-worker throughput reproduced across
+the campaigns at the two-CPU assignment. Its tail repeatability
+remains open across campaigns.
+
+The worker loops, source and binary identities, CPU topology,
+broker logs, comparison reports and independent ledger audits are
+under out/service-extensions/xmqtt-worker-sweep-bdcf4aaf/.

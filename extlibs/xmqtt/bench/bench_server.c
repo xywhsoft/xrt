@@ -1,10 +1,15 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
+#include <windows.h>
 #else
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <errno.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <time.h>
 #endif
 #include "../examples/server/app_listener.h"
 #include <xrt/memory_stats.h>
@@ -23,6 +28,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static double benchObserverCpu(bool Pacer)
+{
+#if defined(_WIN32) || defined(_WIN64)
+	FILETIME Created, Exited, Kernel, User;
+	BOOL OK = Pacer ? GetThreadTimes(GetCurrentThread(), &Created, &Exited, &Kernel, &User) :
+		GetProcessTimes(GetCurrentProcess(), &Created, &Exited, &Kernel, &User);
+	if (!OK) return -1;
+	uint64 Work = ((uint64)Kernel.dwHighDateTime << 32) + Kernel.dwLowDateTime;
+	Work += ((uint64)User.dwHighDateTime << 32) + User.dwLowDateTime;
+	return (double)Work / 10000000.0;
+#else
+	struct timespec Work;
+	if (clock_gettime(Pacer ? CLOCK_THREAD_CPUTIME_ID : CLOCK_PROCESS_CPUTIME_ID, &Work) != 0) return -1;
+	return (double)Work.tv_sec + (double)Work.tv_nsec / 1000000000.0;
+#endif
+}
 
 static bool benchSend(xnetsocket Socket, const unsigned char* Data, size_t Size)
 {
@@ -1119,6 +1141,9 @@ static int benchRemote(int Argc, char** Argv)
 		Readers[I] = xrtThreadCreate(benchRemoteRead, State + I, 0);
 		if (!Readers[I]) goto Done;
 	}
+	Stage = "sample observer CPU clocks";
+	double CpuStart = benchObserverCpu(false), PacerStart = benchObserverCpu(true);
+	if (CpuStart < 0 || PacerStart < 0) goto Done;
 	Stage = "offer scheduled publications";
 	if (PublisherCount > 1) {
 		if (!benchRemoteOfferMany(Publishers, PublisherCount, Warmup, Rounds, Start, (double)Rate,
@@ -1136,6 +1161,7 @@ static int benchRemote(int Argc, char** Argv)
 			Measured && CreditWait ? CreditWait + Sample : NULL) != BENCH_OFFER_SENT) goto Done;
 		if (Measured) ++Publishers[0].Sent;
 	}
+	double PacerCpu = benchObserverCpu(true) - PacerStart;
 	Stage = "check subscriber delivery counts and order";
 	if (Shared && !benchRemoteSharedDrain(&Group, State, Peers, (uint32)(Destinations * Total))) goto Done;
 	double Last = 0;
@@ -1150,6 +1176,9 @@ static int benchRemote(int Argc, char** Argv)
 		if (Publishers[I].Last > Last) Last = Publishers[I].Last;
 		CreditStalls += Publishers[I].CreditStalls;
 	}
+	Stage = "sample observer CPU clocks";
+	double ObserverCpu = benchObserverCpu(false) - CpuStart;
+	if (ObserverCpu < 0 || PacerCpu < 0) goto Done;
 	Stage = "check for excess packets";
 	if (Qos) for (size_t I = 0; I < PublisherCount; ++I)
 		if (!benchPing(Publishers[I].Connection)) goto Done;
@@ -1168,6 +1197,7 @@ static int benchRemote(int Argc, char** Argv)
 		benchPercentile(Samples, Count, 0.5), benchPercentile(Samples, Count, 0.95),
 		benchPercentile(Samples, Count, 0.99), benchPercentile(Samples, Count, 0.999),
 		benchPercentile(Lag, Rounds, 0.99), benchPercentile(PacerLag, Rounds, 0.99));
+	printf("observer_cpu_seconds: %.9f\npacer_cpu_seconds: %.9f\n", ObserverCpu, PacerCpu);
 #if defined(XMQTT_BENCH_TLS)
 	if (Ca) printf("tls_connections: %lu\n", Peers + PublisherCount);
 #endif

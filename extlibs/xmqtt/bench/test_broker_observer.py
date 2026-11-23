@@ -1,5 +1,6 @@
 """Verify the remote benchmark rejects invalid reliable acknowledgement and delivery traces."""
 import argparse
+import math
 from contextlib import ExitStack
 from pathlib import Path
 import select
@@ -8,7 +9,7 @@ import ssl
 import subprocess
 import time
 
-from compare_broker import ObserverFailure
+from compare_broker import OBSERVER_CPU_METRICS, ObserverFailure
 
 def read(sock, size):
     result = b""
@@ -202,6 +203,9 @@ def multi_publisher_case(binary, reorder, tls=None, ca=None):
                 metrics = dict(line.split(": ") for line in out.splitlines())
                 assert metrics["offered"] == metrics["deliveries"] == metrics["publish_confirmed"] == "5"
                 assert int(metrics["publisher_credit_stalls"]) > 0
+                for name in OBSERVER_CPU_METRICS:
+                    cpu = float(metrics[name])
+                    assert math.isfinite(cpu) and cpu >= 0
                 if tls:
                     assert metrics["tls_connections"] == "3"
                 print("unblocked publisher advanced and cross-publisher order was accepted")

@@ -410,6 +410,13 @@ arrivals. The current-slot wait includes lock and wake-up time. The
 `publisher_credit_stalls` count identifies arrivals that actually saw an
 occupied slot. Each P99 comes from that interval's own samples.
 
+The observer also samples process and pacer thread CPU. Process CPU covers
+the offer loop through the end of the confirmation and delivery drain.
+Pacer CPU covers the offer loop. Both include warmup. The shared workload
+also counts the PING drain that retires idle readers in process CPU. The
+runner records these metrics before percentile sorting and keeps them
+separate from broker CPU and observer elapsed time.
+
 Build the broker with the `xmqtt_server` suite and build the observer
 with the registered `xmqtt_server_routes` smoke profile. Use the resulting
 `examples_server_main` and `bench_server` executable paths.

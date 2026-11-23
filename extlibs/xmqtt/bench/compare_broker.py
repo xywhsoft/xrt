@@ -20,6 +20,7 @@ MOSQUITTO = "mosquitto version 2.1.2"
 METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "deliveries_per_sec",
            "delivery_p50_us", "delivery_p95_us", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us",
            "pacer_lag_p99_us")
+OBSERVER_CPU_METRICS = ("observer_cpu_seconds", "pacer_cpu_seconds")
 PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
@@ -159,6 +160,8 @@ def run_observer(args, port, workload):
         metrics += SHARED_METRICS
     if args.tls_credentials:
         metrics += ("tls_connections",)
+    if result.keys() & set(OBSERVER_CPU_METRICS):
+        metrics += OBSERVER_CPU_METRICS
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     destinations = SHARED_GROUPS if kind == "shared" else peers
@@ -376,9 +379,12 @@ def main():
                             row["failure"] = str(error)
                     print(workload, repeat, label, row.get("failure", row.get("delivery_p99_us")), flush=True)
             if not any("failure" in row for row in group["samples"]):
+                group_metrics = summaries
+                if all("observer_cpu_seconds" in row for row in group["samples"]):
+                    group_metrics += OBSERVER_CPU_METRICS
                 group["summary"] = {
                     label: {metric: noise([row[metric] for row in group["samples"] if row["broker"] == label])
-                            for metric in summaries}
+                            for metric in group_metrics}
                     for label in ("xmqtt", "mosquitto")
                 }
         report["complete"] = all("summary" in group for group in report["workloads"])
