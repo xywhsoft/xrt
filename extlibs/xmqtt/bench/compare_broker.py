@@ -140,6 +140,9 @@ def run_observer(args, port, workload):
                str(rate), str(args.warmup), kind]
     if args.qos:
         command.extend((str(args.qos), str(args.window), str(args.subscriber_window)))
+    publishers = getattr(args, "publishers", 1)
+    if publishers > 1:
+        command.extend(("--publishers", str(publishers)))
     if args.tls_credentials:
         command.extend(("--tls", str(args.tls_credentials / "ca.pem"), "localhost"))
     process = start(command, args.load_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -161,7 +164,7 @@ def run_observer(args, port, workload):
     destinations = SHARED_GROUPS if kind == "shared" else peers
     if result["offered"] != args.rounds or result["deliveries"] != destinations * args.rounds:
         raise ValueError("publication and delivery counts do not match the workload")
-    if args.tls_credentials and result["tls_connections"] != peers + 1:
+    if args.tls_credentials and result["tls_connections"] != peers + publishers:
         raise ValueError("missing authenticated observer connections")
     if kind == "shared":
         low, high = (result[key] for key in SHARED_METRICS)
@@ -294,12 +297,16 @@ def main():
                         help="publisher outstanding window for QoS 1/2")
     parser.add_argument("--subscriber-window", type=int, choices=range(1, 65), metavar="1..64",
                         help="Receive Maximum advertised by each subscriber, defaults to --window")
+    parser.add_argument("--publishers", type=int, choices=range(1, 9), metavar="1..8", default=1,
+                        help="publishing connections sharing the reliable arrival schedule")
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--tls-credentials", type=Path, metavar="DIRECTORY",
                         help="use the same CA and localhost test identity for both brokers")
     args = parser.parse_args()
     if args.subscriber_window is not None and not args.qos:
         parser.error("--subscriber-window requires QoS 1 or 2")
+    if args.publishers > 1 and not args.qos:
+        parser.error("multiple publishers require QoS 1 or 2")
     if args.qos and args.subscriber_window is None:
         args.subscriber_window = args.window
     if args.broker_cpu is not None:
@@ -328,7 +335,7 @@ def main():
         parser.error(f"expected {MOSQUITTO!r}, obtained {version!r}")
     report = {"platform": platform.platform(), "broker_cpu": args.broker_cpu,
               "broker_cpus": sorted(args.broker_cpus), "load_cpus": sorted(args.load_cpus),
-              "xmqtt_workers": args.xmqtt_workers,
+              "xmqtt_workers": args.xmqtt_workers, "publishers": args.publishers,
               "rounds": args.rounds, "warmup": args.warmup, "repeats": args.repeats,
               "mosquitto_version": version, "mqtt": 5, "qos": args.qos,
               "window": args.window if args.qos else None, "subscriber_window": args.subscriber_window,

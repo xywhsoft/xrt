@@ -403,7 +403,7 @@ static double benchPercentile(const double* Values, size_t Count, double Fractio
 	return Values[Rank - 1] * 1000000.0;
 }
 
-enum { BENCH_SHARED_GROUPS = 2 };
+enum { BENCH_SHARED_GROUPS = 2, BENCH_MAX_PUBLISHERS = 8 };
 
 typedef struct benchRemoteShared {
 	xatomic32 Finished, Failed;
@@ -412,7 +412,7 @@ typedef struct benchRemoteShared {
 typedef struct benchRemotePeer {
 	benchConnection Connection;
 	double Start, Rate;
-	size_t Warmup, Rounds;
+	size_t Warmup, Rounds, Publishers;
 	double* Samples;
 	double Last;
 	uint8 Qos;
@@ -530,7 +530,7 @@ static bool benchRemotePublication(benchRemotePeer* Peer, const xmqttframe* Fram
 	if (Frame->Wire.Size != Size) return false;
 	*Id = Peer->Qos ? benchRemotePacketId(Frame->Wire.Data + 9) : 0;
 	if (Peer->Qos && !*Id) return false;
-	if (Peer->Shared) {
+	if (Peer->Shared || Peer->Publishers > 1) {
 		*Round = ((size_t)Frame->Wire.Data[Size - 4] << 24) | ((size_t)Frame->Wire.Data[Size - 3] << 16) |
 			((size_t)Frame->Wire.Data[Size - 2] << 8) | Frame->Wire.Data[Size - 1];
 	}
@@ -549,6 +549,8 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 	pending Pending[64] = {0};
 	benchRemoteReader Reader = {.Connection = Peer->Connection, .Shared = Peer->Shared};
 	size_t Received = 0, Finished = 0, Total = Peer->Warmup + Peer->Rounds;
+	size_t Next[BENCH_MAX_PUBLISHERS];
+	for (size_t Lane = 0; Lane < Peer->Publishers; ++Lane) Next[Lane] = Lane;
 	while (Peer->Shared || Finished < Total) {
 		xmqttframe Frame;
 		if (!benchRemoteReadFrame(&Reader, &Frame)) return false;
@@ -559,6 +561,11 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 			uint16 Id;
 			size_t Round = Received;
 			if (!benchRemotePublication(Peer, &Frame, &Round, &Id)) return false;
+			if (!Peer->Shared && Peer->Publishers > 1) {
+				size_t Lane = Round % Peer->Publishers;
+				if (Round != Next[Lane]) return false;
+				Next[Lane] += Peer->Publishers;
+			}
 			if (Peer->Qos == 2) {
 				pending* Free = NULL;
 				for (size_t I = 0; I < Peer->Window; ++I) {
@@ -607,36 +614,50 @@ static int32 benchRemoteRead(ptr Context)
 }
 
 typedef enum { BENCH_PUBLISH_FREE, BENCH_PUBLISH_WAIT_RECEIPT, BENCH_PUBLISH_WAIT_COMPLETE } benchPublishPhase;
+typedef enum { BENCH_OFFER_ERROR, BENCH_OFFER_BLOCKED, BENCH_OFFER_SENT } benchOfferResult;
+
+typedef struct benchRemoteCredit {
+	xmutex Gate;
+	xcond Changed;
+	xatomic32 Waiting;
+	bool Pending;
+} benchRemoteCredit;
+
 typedef struct benchRemotePublisher {
 	benchConnection Connection;
 	xmutex Gate;
 	xcond Changed;
+	benchRemoteCredit* Credit;
 	struct { benchPublishPhase Phase; size_t Round; double Sent; } Slots[64];
 	uint8 Qos;
-	size_t Window, Warmup, Rounds, CreditStalls, Confirmed;
-	double Start, Rate, Last;
+	size_t Window, Warmup, Rounds, CreditStalls, Confirmed, Sent;
+	size_t Index, Stride, Next;
+	double Start, Rate, Last, ReadyAt;
 	double *Samples, *FromSend;
-	bool Complete, Failed;
+	bool Complete, Failed, Stalled;
 } benchRemotePublisher;
 
 /* Publisher and ACK reader share only one short send and slot transition
  * at a time. Packet identifiers are recycled only once fully confirmed. */
-static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Scheduled, double Ready,
+static benchOfferResult benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Scheduled, double Ready,
 	double* Lag, double* CreditWait)
 {
 	if (!P->Qos) {
 		unsigned char Frame[138];
 		benchRemoteFrame(Frame, Round, 0, 0);
 		if (Lag) *Lag = xrtTimer() - Scheduled;
-		return benchWireSend(P->Connection, Frame, sizeof(Frame));
+		return benchWireSend(P->Connection, Frame, sizeof(Frame)) ? BENCH_OFFER_SENT : BENCH_OFFER_ERROR;
 	}
-	size_t Slot = Round % P->Window;
-	if (!xrtMutexLock(&P->Gate)) return false;
+	size_t LocalRound = P->Credit ? Round / P->Stride : Round;
+	size_t Slot = LocalRound % P->Window;
+	if (!xrtMutexLock(&P->Gate)) return BENCH_OFFER_ERROR;
+	if (P->Credit && !P->Failed && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE)
+		return xrtMutexUnlock(&P->Gate) ? BENCH_OFFER_BLOCKED : BENCH_OFFER_ERROR;
 	if (CreditWait && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) ++P->CreditStalls;
 	while (!P->Failed && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) {
 		if (xrtCondWaitFor(&P->Changed, &P->Gate, 5000) != XWAIT_OK) {
 			(void)xrtMutexUnlock(&P->Gate);
-			return false;
+			return BENCH_OFFER_ERROR;
 		}
 	}
 	bool Sent = false;
@@ -650,14 +671,35 @@ static bool benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Sched
 		if (Lag) *Lag = P->Slots[Slot].Sent - Scheduled;
 		Sent = benchWireSend(P->Connection, Frame, Size);
 	}
-	return xrtMutexUnlock(&P->Gate) && Sent;
+	return xrtMutexUnlock(&P->Gate) && Sent ? BENCH_OFFER_SENT : BENCH_OFFER_ERROR;
+}
+
+static bool benchRemoteCreditChanged(benchRemotePublisher* P)
+{
+	benchRemoteCredit* Credit = P->Credit;
+	if (!Credit) return xrtCondSignal(&P->Changed);
+	if (!xrtAtomic32Load(&Credit->Waiting, XMEMORY_ACQUIRE)) return true;
+	if (!xrtMutexLock(&Credit->Gate)) return false;
+	Credit->Pending = true;
+	bool OK = xrtCondSignal(&Credit->Changed);
+	return xrtMutexUnlock(&Credit->Gate) && OK;
+}
+
+static xwaitresult benchRemoteWaitCredit(benchRemoteCredit* Credit, int64 Milliseconds)
+{
+	if (!xrtMutexLock(&Credit->Gate)) return XWAIT_ERROR;
+	xwaitresult Result = Credit->Pending ? XWAIT_OK :
+		xrtCondWaitFor(&Credit->Changed, &Credit->Gate, Milliseconds);
+	if (Credit->Pending) Result = XWAIT_OK;
+	Credit->Pending = false;
+	return xrtMutexUnlock(&Credit->Gate) ? Result : XWAIT_ERROR;
 }
 
 static int32 benchRemoteConfirm(ptr Context)
 {
 	benchRemotePublisher* P = Context;
 	benchRemoteReader Reader = {.Connection = P->Connection};
-	size_t Finished = 0, Total = P->Warmup + P->Rounds;
+	size_t Finished = 0, Total = (P->Warmup + P->Rounds + P->Stride - 1u - P->Index) / P->Stride;
 	size_t Measured = 0;
 	while (Finished < Total) {
 		xmqttframe Frame;
@@ -691,7 +733,7 @@ static int32 benchRemoteConfirm(ptr Context)
 			}
 			P->Last = Confirmed;
 			P->Slots[Slot].Phase = BENCH_PUBLISH_FREE;
-			OK = xrtCondSignal(&P->Changed);
+			OK = benchRemoteCreditChanged(P);
 		} else if (P->Qos == 2 && Phase == BENCH_PUBLISH_WAIT_RECEIPT && Type == XMQTT_PACKET_PUBREC) {
 			P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_COMPLETE;
 			OK = benchWireFlowReply(P->Connection, 0x62, Id);
@@ -703,12 +745,78 @@ static int32 benchRemoteConfirm(ptr Context)
 	P->Complete = Finished == Total && Reader.Begin == Reader.End;
 	if (!P->Complete && xrtMutexLock(&P->Gate)) {
 		P->Failed = true;
-		(void)xrtCondSignal(&P->Changed);
+		(void)benchRemoteCreditChanged(P);
 		(void)xrtMutexUnlock(&P->Gate);
 	}
 	return P->Complete ? 0 : 1;
 }
 
+
+/* One pacer offers each lane its own fixed subset of the arrival schedule.
+ * A flow without credit does not delay offers on eligible flows. */
+static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count, size_t Warmup,
+	size_t Rounds, double Start, double Rate, double* Lag, double* PacerLag, double* CreditWait)
+{
+	benchRemoteCredit* Credit = Publishers[0].Credit;
+	size_t Total = Warmup + Rounds, Offered = 0, Cursor = 0;
+	bool Waiting = false;
+	while (Offered < Total) {
+		double Now = xrtTimer(), NextDue = INFINITY;
+		bool Sent = false, Blocked = false;
+		for (size_t Offset = 0; Offset < Count; ++Offset) {
+			size_t Lane = (Cursor + Offset) % Count;
+			benchRemotePublisher* P = Publishers + Lane;
+			size_t Round = P->Next;
+			if (Round >= Total) continue;
+			double Scheduled = Start + (double)Round / Rate;
+			if (Scheduled > Now) {
+				if (Scheduled < NextDue) NextDue = Scheduled;
+				continue;
+			}
+			bool Measured = Round >= Warmup;
+			size_t Sample = Measured ? Round - Warmup : 0;
+			if (!P->ReadyAt) P->ReadyAt = Now;
+			benchOfferResult Result = benchRemoteOffer(P, Round, Scheduled, P->ReadyAt,
+				Measured ? Lag + Sample : NULL, Measured ? CreditWait + Sample : NULL);
+			if (Result == BENCH_OFFER_ERROR) return false;
+			if (Result == BENCH_OFFER_BLOCKED) {
+				Blocked = true;
+				if (!P->Stalled && Measured) ++P->CreditStalls;
+				P->Stalled = true;
+				continue;
+			}
+			if (Measured) {
+				PacerLag[Sample] = P->ReadyAt - Scheduled;
+				++P->Sent;
+			}
+			P->ReadyAt = 0;
+			P->Stalled = false;
+			P->Next += Count;
+			Cursor = (Lane + 1) % Count;
+			++Offered;
+			Sent = true;
+			break;
+		}
+		if (Sent || !Blocked) {
+			if (Waiting) {
+				xrtAtomic32Store(&Credit->Waiting, 0, XMEMORY_RELEASE);
+				Waiting = false;
+			}
+			if (!Sent && NextDue - Now > 0.003) xrtSleep(1);
+		} else if (!Waiting) {
+			/* Register before rechecking the credits under the publisher gates. */
+			xrtAtomic32Store(&Credit->Waiting, 1, XMEMORY_RELEASE);
+			Waiting = true;
+		} else {
+			double Delay = fmin(5000, (NextDue - xrtTimer()) * 1000);
+			if (Delay >= 1) {
+				xwaitresult Result = benchRemoteWaitCredit(Credit, (int64)Delay);
+				if (Result != XWAIT_OK && (Result != XWAIT_TIMEOUT || !isfinite(NextDue))) return false;
+			}
+		}
+	}
+	return true;
+}
 
 /* Bound the blocking I/O on both brokers, including the join of a
  * reader whose peer stopped responding. The XRT object owns the handle. */
@@ -887,6 +995,11 @@ static int benchRemote(int Argc, char** Argv)
 		if (!*Ca || !*Name) return 2;
 	}
 #endif
+	unsigned long PublisherCount = 1;
+	if (Argc >= 4 && !strcmp(Argv[Argc - 2], "--publishers")) {
+		if (!benchRemoteNumber(Argv[Argc - 1], 1, BENCH_MAX_PUBLISHERS, &PublisherCount)) return 2;
+		Argc -= 2;
+	}
 	unsigned long Port, Peers, Rounds, Rate, Warmup, Qos = 0, Window = 1, SubscriberWindow = 0;
 	if ((Argc != 8 && Argc != 10 && Argc != 11) || !benchRemoteNumber(Argv[2], 1, 65535, &Port) ||
 		!benchRemoteNumber(Argv[3], 1, 64, &Peers) ||
@@ -897,9 +1010,9 @@ static int benchRemote(int Argc, char** Argv)
 			(strcmp(Argv[7], "shared") || Peers < BENCH_SHARED_GROUPS)) ||
 		(Argc >= 10 && (!benchRemoteNumber(Argv[8], 1, 2, &Qos) ||
 			!benchRemoteNumber(Argv[9], 1, 64, &Window))) ||
-		(Argc == 11 && !benchRemoteNumber(Argv[10], 1, 64, &SubscriberWindow))) {
+		(Argc == 11 && !benchRemoteNumber(Argv[10], 1, 64, &SubscriberWindow)) || (PublisherCount > 1 && !Qos)) {
 		fprintf(stderr, "Usage: bench_server --remote PORT SUBSCRIBERS ROUNDS RATE WARMUP exact|wildcard|shared "
-			"[QOS PUBLISHER_WINDOW [SUBSCRIBER_WINDOW]]"
+			"[QOS PUBLISHER_WINDOW [SUBSCRIBER_WINDOW]] [--publishers 1..8]"
 #if defined(XMQTT_BENCH_TLS)
 			" [--tls CA_PEM DNS_NAME]"
 #endif
@@ -917,11 +1030,11 @@ static int benchRemote(int Argc, char** Argv)
 	xatomic32* Seen = Shared ? malloc(Destinations * Total * sizeof(*Seen)) : NULL;
 	double* Samples = malloc(Destinations * Rounds * sizeof(*Samples));
 	double* Lag = malloc((Qos ? 3 : 2) * Rounds * sizeof(*Lag));
-	benchRemotePublisher Publisher = {.Qos = (uint8)Qos, .Window = Window, .Warmup = Warmup,
-		.Rounds = Rounds, .Rate = (double)Rate};
-	xthread* Confirmations = NULL;
-	bool Gate = false, Changed = false;
-	size_t Sent = 0;
+	benchRemotePublisher Publishers[BENCH_MAX_PUBLISHERS] = {0};
+	xthread* Confirmations[BENCH_MAX_PUBLISHERS] = {0};
+	bool Gates[BENCH_MAX_PUBLISHERS] = {0}, Changed = false, CreditGate = false, CreditReady = false;
+	benchRemoteCredit Credit = {0};
+	double* ConfirmationSamples = NULL;
 	bool OK = false;
 	const char* Stage = "allocate measurement buffers";
 	if (!Samples || !Lag || (Shared && !Seen)) goto Done;
@@ -929,10 +1042,29 @@ static int benchRemote(int Argc, char** Argv)
 	double* PacerLag = Lag + Rounds;
 	double* CreditWait = Qos ? PacerLag + Rounds : NULL;
 	if (Qos) {
-		Publisher.Samples = malloc(2 * Rounds * sizeof(*Publisher.Samples));
-		if (!Publisher.Samples || !(Gate = xrtMutexInit(&Publisher.Gate)) ||
-			!(Changed = xrtCondInit(&Publisher.Changed))) goto Done;
-		Publisher.FromSend = Publisher.Samples + Rounds;
+		ConfirmationSamples = malloc(2 * Rounds * sizeof(*ConfirmationSamples));
+		if (!ConfirmationSamples) goto Done;
+		if (PublisherCount > 1) {
+			xrtAtomic32Init(&Credit.Waiting, 0);
+			if (!(CreditGate = xrtMutexInit(&Credit.Gate)) ||
+				!(CreditReady = xrtCondInit(&Credit.Changed))) goto Done;
+		} else if (!(Changed = xrtCondInit(&Publishers[0].Changed))) goto Done;
+	}
+	for (size_t I = 0; I < PublisherCount; ++I) {
+		benchRemotePublisher* P = Publishers + I;
+		P->Qos = (uint8)Qos;
+		P->Window = Window;
+		P->Warmup = Warmup;
+		P->Rounds = Rounds;
+		P->Rate = (double)Rate;
+		P->Index = P->Next = I;
+		P->Stride = PublisherCount;
+		if (Qos) {
+			if (!(Gates[I] = xrtMutexInit(&P->Gate))) goto Done;
+			P->Credit = CreditReady ? &Credit : NULL;
+			P->Samples = ConfirmationSamples;
+			P->FromSend = ConfirmationSamples + Rounds;
+		}
 	}
 	xnetaddr Address;
 	xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port);
@@ -958,21 +1090,23 @@ static int benchRemote(int Argc, char** Argv)
 		} else if (!benchWireSubscribe(State[I].Connection, false, false, (uint8)Qos)) goto Done;
 	}
 	Stage = "connect publisher";
-	if (!benchRemoteConnect(&Publisher.Connection, &Transport, &Address, Peers, 0, Qos ? (uint16)Window : 0))
-		goto Done;
+	for (size_t I = 0; I < PublisherCount; ++I)
+		if (!benchRemoteConnect(&Publishers[I].Connection, &Transport, &Address, Peers + I, 0, Qos ? (uint16)Window : 0))
+			goto Done;
 
 	Stage = "start subscribers";
 	double Start = xrtTimer() + 0.05;
-	Publisher.Start = Start;
-	if (Qos) {
-		Confirmations = xrtThreadCreate(benchRemoteConfirm, &Publisher, 0);
-		if (!Confirmations) goto Done;
+	if (Qos) for (size_t I = 0; I < PublisherCount; ++I) {
+		Publishers[I].Start = Start;
+		Confirmations[I] = xrtThreadCreate(benchRemoteConfirm, Publishers + I, 0);
+		if (!Confirmations[I]) goto Done;
 	}
 	for (size_t I = 0; I < Peers; ++I) {
 		State[I].Start = Start;
 		State[I].Rate = (double)Rate;
 		State[I].Warmup = Warmup;
 		State[I].Rounds = Rounds;
+		State[I].Publishers = PublisherCount;
 		State[I].Qos = (uint8)Qos;
 		State[I].Window = (uint16)SubscriberWindow;
 		size_t Destination = Shared ? I % Destinations : I;
@@ -986,7 +1120,10 @@ static int benchRemote(int Argc, char** Argv)
 		if (!Readers[I]) goto Done;
 	}
 	Stage = "offer scheduled publications";
-	for (size_t Round = 0; Round < Warmup + Rounds; ++Round) {
+	if (PublisherCount > 1) {
+		if (!benchRemoteOfferMany(Publishers, PublisherCount, Warmup, Rounds, Start, (double)Rate,
+			Lag, PacerLag, CreditWait)) goto Done;
+	} else for (size_t Round = 0; Round < Warmup + Rounds; ++Round) {
 		double Scheduled = Start + (double)Round / (double)Rate;
 		double Now;
 		while ((Now = xrtTimer()) < Scheduled) {
@@ -995,9 +1132,9 @@ static int benchRemote(int Argc, char** Argv)
 		bool Measured = Round >= Warmup;
 		size_t Sample = Measured ? Round - Warmup : 0;
 		if (Measured) PacerLag[Sample] = Now - Scheduled;
-		if (!benchRemoteOffer(&Publisher, Round, Scheduled, Now, Measured ? Lag + Sample : NULL,
-			Measured && CreditWait ? CreditWait + Sample : NULL)) goto Done;
-		if (Measured) ++Sent;
+		if (benchRemoteOffer(Publishers, Round, Scheduled, Now, Measured ? Lag + Sample : NULL,
+			Measured && CreditWait ? CreditWait + Sample : NULL) != BENCH_OFFER_SENT) goto Done;
+		if (Measured) ++Publishers[0].Sent;
 	}
 	Stage = "check subscriber delivery counts and order";
 	if (Shared && !benchRemoteSharedDrain(&Group, State, Peers, (uint32)(Destinations * Total))) goto Done;
@@ -1006,13 +1143,16 @@ static int benchRemote(int Argc, char** Argv)
 		if (xrtThreadWaitFor(Readers[I], 5000) != XWAIT_OK || !State[I].Complete) goto Done;
 		if (State[I].Last > Last) Last = State[I].Last;
 	}
-	if (Confirmations) {
+	size_t CreditStalls = 0;
+	if (Qos) for (size_t I = 0; I < PublisherCount; ++I) {
 		Stage = "check publisher confirmation counts";
-		if (xrtThreadWaitFor(Confirmations, 5000) != XWAIT_OK || !Publisher.Complete) goto Done;
-		if (Publisher.Last > Last) Last = Publisher.Last;
+		if (xrtThreadWaitFor(Confirmations[I], 5000) != XWAIT_OK || !Publishers[I].Complete) goto Done;
+		if (Publishers[I].Last > Last) Last = Publishers[I].Last;
+		CreditStalls += Publishers[I].CreditStalls;
 	}
 	Stage = "check for excess packets";
-	if (Qos && !benchPing(Publisher.Connection)) goto Done;
+	if (Qos) for (size_t I = 0; I < PublisherCount; ++I)
+		if (!benchPing(Publishers[I].Connection)) goto Done;
 	if (!Shared) for (size_t I = 0; I < Peers; ++I) if (!benchPing(State[I].Connection)) goto Done;
 	double Seconds = Last - (Start + (double)Warmup / (double)Rate);
 	if (Seconds <= 0) goto Done;
@@ -1029,7 +1169,7 @@ static int benchRemote(int Argc, char** Argv)
 		benchPercentile(Samples, Count, 0.99), benchPercentile(Samples, Count, 0.999),
 		benchPercentile(Lag, Rounds, 0.99), benchPercentile(PacerLag, Rounds, 0.99));
 #if defined(XMQTT_BENCH_TLS)
-	if (Ca) printf("tls_connections: %lu\n", Peers + 1);
+	if (Ca) printf("tls_connections: %lu\n", Peers + PublisherCount);
 #endif
 	if (Shared) {
 		size_t Min = Rounds, Max = 0;
@@ -1040,13 +1180,14 @@ static int benchRemote(int Argc, char** Argv)
 		printf("share_min_deliveries: %zu\nshare_max_deliveries: %zu\n", Min, Max);
 	}
 	if (Qos) {
-		qsort(Publisher.Samples, Rounds, sizeof(*Publisher.Samples), benchOrder);
+		double* FromSend = ConfirmationSamples + Rounds;
+		qsort(ConfirmationSamples, Rounds, sizeof(*ConfirmationSamples), benchOrder);
 		qsort(CreditWait, Rounds, sizeof(*CreditWait), benchOrder);
-		qsort(Publisher.FromSend, Rounds, sizeof(*Publisher.FromSend), benchOrder);
+		qsort(FromSend, Rounds, sizeof(*FromSend), benchOrder);
 		printf("publish_confirmed: %lu\npublisher_p99_us: %.3f\n"
 			"publisher_credit_stalls: %zu\npublisher_credit_wait_p99_us: %.3f\npublisher_from_send_p99_us: %.3f\n",
-			Rounds, benchPercentile(Publisher.Samples, Rounds, 0.99), Publisher.CreditStalls,
-			benchPercentile(CreditWait, Rounds, 0.99), benchPercentile(Publisher.FromSend, Rounds, 0.99));
+			Rounds, benchPercentile(ConfirmationSamples, Rounds, 0.99), CreditStalls,
+			benchPercentile(CreditWait, Rounds, 0.99), benchPercentile(FromSend, Rounds, 0.99));
 	}
 	OK = true;
 
@@ -1055,7 +1196,8 @@ Done:
 	if (Shared) xrtAtomic32Store(&Group.Failed, 1, XMEMORY_RELEASE);
 	for (size_t I = 0; I < Peers; ++I)
 		if (Readers[I]) benchRemoteAbort(State[I].Connection);
-	if (Confirmations) benchRemoteAbort(Publisher.Connection);
+	for (size_t I = 0; I < PublisherCount; ++I)
+		if (Confirmations[I]) benchRemoteAbort(Publishers[I].Connection);
 	for (size_t I = 0; I < Peers; ++I) {
 		if (Readers[I]) {
 			if (xrtThreadWait(Readers[I]) != XWAIT_OK) abort();
@@ -1063,17 +1205,24 @@ Done:
 		}
 		if (!benchRemoteClose(State[I].Connection)) OK = false;
 	}
-	if (Confirmations) {
-		if (xrtThreadWait(Confirmations) != XWAIT_OK) abort();
-		xrtThreadDestroy(Confirmations);
+	size_t Sent = 0, Confirmed = 0;
+	for (size_t I = 0; I < PublisherCount; ++I) {
+		if (Confirmations[I]) {
+			if (xrtThreadWait(Confirmations[I]) != XWAIT_OK) abort();
+			xrtThreadDestroy(Confirmations[I]);
+		}
+		if (!benchRemoteClose(Publishers[I].Connection)) OK = false;
+		if (Gates[I]) (void)xrtMutexUnit(&Publishers[I].Gate);
+		Sent += Publishers[I].Sent;
+		Confirmed += Publishers[I].Confirmed;
 	}
-	if (!benchRemoteClose(Publisher.Connection)) OK = false;
 #if defined(XMQTT_BENCH_TLS)
 	if (!benchRemoteTlsStop(&Transport)) OK = false;
 #endif
-	if (Changed) (void)xrtCondUnit(&Publisher.Changed);
-	if (Gate) (void)xrtMutexUnit(&Publisher.Gate);
-	free(Publisher.Samples);
+	if (Changed) (void)xrtCondUnit(&Publishers[0].Changed);
+	if (CreditReady) (void)xrtCondUnit(&Credit.Changed);
+	if (CreditGate) (void)xrtMutexUnit(&Credit.Gate);
+	free(ConfirmationSamples);
 	free(Lag);
 	free(Samples);
 	free(Seen);
@@ -1082,7 +1231,7 @@ Done:
 		for (size_t I = 0; I < Peers; ++I) Delivered += State[I].Delivered;
 		fprintf(stderr, "Remote benchmark failed during %s\n"
 			"Partial measurement: sent=%zu confirmed=%zu deliveries=%zu\n",
-			Stage, Sent, Publisher.Confirmed, Delivered);
+			Stage, Sent, Confirmed, Delivered);
 	}
 	return OK ? 0 : 1;
 }

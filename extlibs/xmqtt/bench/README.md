@@ -359,7 +359,7 @@ require separate workloads.
 ## External broker comparison
 
 The `--remote` mode of `bench_server` sends MQTT 5 publications with
-a 128-byte payload to a loopback broker. It uses one publisher and up to
+a 128-byte payload to a loopback broker. By default it uses one publisher and up to
 64 subscribers, with one exact, wildcard or shared filter per subscriber.
 Each repeat warms the established connections, then sends at fixed
 scheduled times. The observer checks each expected payload and sequence
@@ -389,6 +389,16 @@ The runner requires every publisher confirmation, every subscriber delivery
 and a final PING drain on both sides. Each subscriber has 256 total pending
 slots, counting the active window and the queue. The flow-control rules
 are in [MQTT 5.0, section 4.9](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+Use `--publishers 2..8` with QoS 1 or 2 to distribute one aggregate
+arrival schedule across multiple publishing connections. Each has its own
+`--window`; use the same product of publisher count and window size when
+isolating the effect of the number of connections. The observer continues
+offering arrivals on eligible connections while another publisher waits for
+credit. Ordinary subscribers verify order within each publisher's sequence.
+Shared subscribers still verify each group's complete publication set.
+The direct observer takes `--publishers N` after the numeric arguments and
+before optional TLS settings.
 
 End-to-end latency starts at the scheduled arrival. Subscriber latency ends
 after the observer sends PUBACK or PUBCOMP. Publisher latency ends when it

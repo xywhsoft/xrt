@@ -24339,3 +24339,26 @@ with additional concurrent publishing connections. The prototype,
 builds, original reports and replay are under
 out/service-extensions/xmqtt-post-groups-f8e402a0/. Ordinary maturity
 and generated headers passed.
+
+## 2026-11-23 Concurrent publishers in the MQTT broker observer
+
+The observer accepts up to eight publishing connections in reliable
+mode. The existing pacer assigns fixed arrival ordinals to the
+connections and can send on any eligible connection while one waits
+for credit. Each connection owns its packet identifier slots and
+confirmation reader. The ordinary receiver checks the sequence per
+publisher. Shared groups retain their complete publication ledger.
+The Python comparator records publisher count and per-connection
+window, retains the existing default and checks all TLS connections.
+
+The scripted peer fills a one-slot window on the first publisher
+and completes three rounds on the second before releasing credit.
+It checks that interleaved delivery is accepted and same-publisher
+reordering is rejected. The plaintext fixtures passed on Windows and
+WSL. WSL ASan/UBSan with leak detection passed the plaintext and TLS
+fixtures. The original local QoS 2 benchmark passed on Windows.
+The comparator CLI completed three 900/s samples each with xmqtt
+and Mosquitto 2.1.2, four publishers, four slots per publisher and
+eight wildcard subscribers. All six verified 900 confirmations and
+7,200 deliveries each. Raw outcomes are under
+out/service-extensions/xmqtt-multi-publisher-2acf8474/.

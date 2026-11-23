@@ -129,6 +129,88 @@ def case(binary, name, qos):
                 p.wait(timeout=5)
 
 
+def multi_publisher_case(binary, reorder, tls=None, ca=None):
+    with ExitStack() as stack:
+        listener = stack.enter_context(socket.socket())
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        listener.settimeout(8)
+        port = listener.getsockname()[1]
+        command = [binary, "--remote", str(port), "1", "5", "100", "1", "exact", "2", "1", "2",
+                   "--publishers", "2"]
+        if tls:
+            command.extend(("--tls", str(ca), "localhost"))
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            def accept(index):
+                peer = stack.enter_context(listener.accept()[0])
+                peer.settimeout(6)
+                if tls:
+                    peer = stack.enter_context(tls.wrap_socket(peer, server_side=True))
+                tag, body = frame(peer)
+                assert tag == b"\x10" and body[-8:] == f"{index:08d}".encode(), body
+                peer.sendall(b"\x20\x03\x00\x00\x00")
+                return peer
+
+            subscriber = accept(0)
+            assert frame(subscriber) == (b"\x82", b"\x00\x01\x00\x00\x04load\x02")
+            subscriber.sendall(b"\x90\x04\x00\x01\x00\x02")
+            first, second = accept(1), accept(2)
+
+            def receive_publication(publisher, sequence):
+                tag, body = frame(publisher)
+                assert tag == b"\x34" and body[:9] == b"\x00\x04load\x00\x01\x00"
+                assert body[9:] == b"A" * 124 + sequence.to_bytes(4, "big")
+                return body
+
+            def confirm(publisher, body, sequence):
+                identifier = body[6:8]
+                publisher.sendall(b"\x50\x02" + identifier)
+                assert frame(publisher) == (b"\x62", identifier)
+                publisher.sendall(b"\x70\x02" + identifier)
+                if not reorder:
+                    delivery_id = (20 + sequence).to_bytes(2, "big")
+                    subscriber.sendall(b"\x34\x89\x01" + body[:6] + delivery_id + body[8:])
+                    assert frame(subscriber) == (b"\x50", delivery_id)
+                    subscriber.sendall(b"\x62\x02" + delivery_id)
+                    assert frame(subscriber) == (b"\x70", delivery_id)
+
+            held = receive_publication(first, 0)
+            # Complete the other publisher before returning any credit to the first.
+            for sequence in (1, 3, 5):
+                confirm(second, receive_publication(second, sequence), sequence)
+            confirm(first, held, 0)
+            confirm(first, receive_publication(first, 2), 2)
+            last = receive_publication(first, 4)
+            confirm(first, last, 4)
+            if reorder:
+                # Inject a later same-publisher frame after all offers have reached the peer.
+                subscriber.sendall(b"\x34\x89\x01" + last[:6] + b"\x00\x18" + last[8:])
+                try:
+                    assert not subscriber.recv(1), "observer acknowledged out-of-order delivery"
+                except ConnectionResetError:
+                    pass
+                out, err = process.communicate(timeout=8)
+                assert process.returncode == 1 and not out and "check subscriber delivery counts" in err, err
+                print("same-publisher reorder rejected")
+            else:
+                for peer in (first, second, subscriber):
+                    assert frame(peer) == (b"\xc0", b"")
+                    peer.sendall(b"\xd0\x00")
+                out, err = process.communicate(timeout=8)
+                assert process.returncode == 0 and not err, (out, err)
+                metrics = dict(line.split(": ") for line in out.splitlines())
+                assert metrics["offered"] == metrics["deliveries"] == metrics["publish_confirmed"] == "5"
+                assert int(metrics["publisher_credit_stalls"]) > 0
+                if tls:
+                    assert metrics["tls_connections"] == "3"
+                print("unblocked publisher advanced and cross-publisher order was accepted")
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
 def shared_case(binary, duplicate, tls=None, ca=None):
     with ExitStack() as stack:
         listener = stack.enter_context(socket.socket())
@@ -245,6 +327,8 @@ def main():
         case(binary, name, qos)
     shared_case(binary, False)
     shared_case(binary, True)
+    multi_publisher_case(binary, False)
+    multi_publisher_case(binary, True)
     if args.tls_credentials:
         root = args.tls_credentials.resolve(strict=True)
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -252,6 +336,7 @@ def main():
         tls.load_cert_chain(root / "certificate.pem", root / "key.pem")
         shared_case(binary, False, tls, root / "ca.pem")
         shared_case(binary, True, tls, root / "ca.pem")
+        multi_publisher_case(binary, False, tls, root / "ca.pem")
         reject_tls_identity(binary, tls, root / "wrong.pem", "localhost")
         reject_tls_identity(binary, tls, root / "ca.pem", "wrong.invalid")
 
