@@ -25771,3 +25771,36 @@ repeats, so the first request-admission failure remains
 unattributed beyond the fixture ordering hazard. Results and
 replay inputs are under
 out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
+
+## 2026-11-24 Redis request phases and small TCP writes on Ubuntu
+
+At 2,000 scheduled offers/s, the instrumented comparison on
+the Ubuntu QEMU/WHPX guest verified the Redis peer ledger and
+the full request phase order. In the slowest one percent of
+successful xredis requests, the median measured share was 28
+percent between publication and worker ingestion, and 39
+percent from offering the write to dispatching the read.
+That latter interval includes network and peer work. The
+median per-run P99 for those phases was 233 and 433 microseconds.
+Ingestion-to-offer, reply decoding and result delivery each
+had per-run median P99 at or below 3.1 microseconds. The separate
+12,000/s instrumented run recorded five non-successful offers
+in one measured trial and failed the Redis command ledger.
+
+A prototype sent ordinary, non-sensitive TCP frames of up to
+64 bytes through the transport's copying send path. Five
+alternating measured pairs per rate used the same peer and
+CPU placements. Host replay verified all 336,000 scheduled
+offers including warmup, both binaries and the peer ledgers.
+The columns give medians of the measured samples.
+
+| Offered calls/s | P99 baseline / prototype (µs) | P99.9 baseline / prototype (µs) | CPU seconds baseline / prototype |
+| ---: | ---: | ---: | ---: |
+| 2,000 | 753.9 / 743.0 | 1,155.6 / 1,160.9 | 2.195 / 2.197 |
+| 12,000 | 796.8 / 826.6 | 1,169.1 / 1,152.7 | 2.717 / 2.711 |
+
+The prototype did not demonstrate a repeatable tail or CPU
+improvement. Production retains the existing send path. The
+timing measurements and replay are under
+out/service-extensions/linux-guest-9ce2606c/redis-phase-samples/
+and out/service-extensions/linux-guest-9ce2606c/redis-short-send/.
