@@ -24565,3 +24565,36 @@ CPU gap. The production timeout implementation is unchanged.
 
 The observers, build receipts, traces, and replay are under
 out/service-extensions/xredis-timer-cost-48995748/.
+
+## 2026-11-23 xredis Future completion CPU on WSL
+
+A diagnostic build measured the XRT worker's thread CPU around
+xrtPromiseResolveOwned and xrtPromiseDestroy for every 31st completion.
+The resolve span includes synchronous watch delivery on the worker.
+Adjacent empty clock reads supplied the baseline cost in each sample.
+Both modes used finite request deadlines. The opt-in probe ran in one
+binary with the control and left the observer's existing reply checks
+and timestamp capture in place.
+
+The private Redis 8.0.5 peer and eight-connection, 12,000 offers/s,
+1 KiB GET/SET workload used the same CPU masks as the timer comparison.
+The audit replayed all 576,000 timed offer rows including warmup,
+checked benchmark and input identities, and matched all Redis commands.
+The measured probe completed 252,000 replies with 8,127 CPU samples.
+The control completed 251,242 of 252,000 offers and refused 758 at the
+observer window. Three of seven measured pairs completed in both modes.
+
+Across the seven measured probe runs, the median of the run means
+was 0.487 us per sampled resolve and Promise release after subtracting
+the clock baseline. The run means ranged from 0.387 to 0.582 us.
+The matched three-pair non-generator CPU medians were 41.08 us/reply
+control and 40.83 us/reply instrumented. The matched P99 medians
+were 718.3 and 885.5 us. The CPU span covers the two completion calls;
+request allocation, reply parsing, command publication and network work
+are outside the timed interval. The completion and timer diagnostics
+leave the larger measured CPU costs elsewhere in the request path.
+
+The host was Ubuntu WSL. The generated diagnostic header, build
+receipt, raw observations and independent replay are under
+out/service-extensions/xredis-completion-cost-48995748/. Strict
+performance acceptance remains open.
