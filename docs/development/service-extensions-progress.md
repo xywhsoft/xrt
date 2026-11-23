@@ -24473,3 +24473,29 @@ a delivery P99 of 675 ms. Both series exceeded variation limits.
 The experiment leaves sustained capacity and release tails open.
 The raw data and audits are under
 out/service-extensions/xmqtt-qos2-workers-2945c71f/.
+
+## 2026-11-23 Grouped worker posts with four QoS 2 publishers
+
+The previously archived broker prototype grouped clean-session
+deliveries by network worker. This repeat used four publishing
+connections with window 4, eight wildcard subscribers with Receive
+Maximum 32, and the fixed CPU masks of the two/four-worker comparison.
+The same binaries ran one 12,000/s calibration and five 24,000/s
+trials per worker/build combination. Replay verified 48 trials and
+22 complete ledgers with 1,824,000 messages and 14,592,000 deliveries.
+All 26 incomplete trials reported PUBREC reason 0x97.
+
+| Host | Workers | Baseline complete / at rate at 24,000/s | Prototype complete / at rate at 24,000/s |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 2 | 3 / 1 | 4 / 0 |
+| Windows x64 | 4 | 2 / 0 | 3 / 0 |
+| Ubuntu WSL | 2 | 3 / 0 | 1 / 0 |
+| Ubuntu WSL | 4 | 0 / 0 | 0 / 0 |
+
+For every complete 24,000/s sample the baseline recorded 772,827
+worker posts. The prototype recorded 193,227 with two workers and
+386,427 with four. Its successful two-worker Windows samples had
+median ingress of 20,619/s and a delivery P99 of 1.112 s. This
+comparison leaves the prototype experimental and the capacity
+gate open. The raw evidence and independent replay are under
+out/service-extensions/xmqtt-qos2-workers-2945c71f/.
