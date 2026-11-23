@@ -26736,3 +26736,32 @@ records and the binaries' SHA-256 values.
 
 The diagnostic sources and evidence are under
 out/service-extensions/linux-guest-9ce2606c/xredis-capacity-85f4ad5c/.
+
+## 2026-11-24 Windows TCP port reuse during Redis turnover
+
+Two Hiredis trials in the direct Windows-to-WSL campaign
+lost a new connection during turnover. The 1,000-connection
+trial verified its first 1,000 ECHOs and reached 1,027 HELLO
+commands. The 10,000-connection trial verified its first
+10,000 ECHOs and reached 10,462 HELLO commands. Redis
+reported zero rejected connections in both trials.
+
+Windows System log TCP/IP event 4227 was within 0.08 and
+0.42 seconds of the two failure receipts. Both events
+report an outgoing connection refused after recent use of
+the selected local endpoint against the same peer endpoint.
+The host has 16,384 dynamic TCP ports. A later sample of
+the same private route observed 11,009 TIME_WAIT sockets
+and 2,525 established sockets. The event timing explains
+these Hiredis failures at the transport boundary. The
+other interrupted xredis trials still need typed transport
+cause evidence.
+
+The diagnostic binaries record the xredis readiness step
+and its typed cause chain or Hiredis socket errors. An
+isolated two-pair replay waits for the current campaign
+process, checks preceding socket occupancy and starts
+each 10,000-connection trial from a cool route. The
+machine TCP configuration stays fixed. Event receipts
+and connection reports are under
+out/service-extensions/xredis-capacity-85f4ad5c/.
