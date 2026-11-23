@@ -26943,3 +26943,33 @@ The independent Ubuntu workload remained active.
 Build inputs, the smoke and injected failure, and the
 replacement journal and process receipt are under
 out/service-extensions/xmqtt-readiness-e5185ff8/.
+
+## 2026-11-24 Native Windows MQTT shared group pressure
+
+Windows completed the 15 shared pressure trials using
+the same client counts, two-worker broker, QoS 2 windows,
+payload validation and three-second phases as the guest
+campaign. Windows pinned the broker to logical CPUs 6
+and 8, observer to 0 and 4, and controller to 2. The
+controller verified the 9,968 idle connections through
+retirement in the largest cohorts.
+
+Host replay verified 720,000 publisher confirmations,
+1,440,000 deliveries, 11,920 quota replies overlapping
+the healthy observer and 3,855 drained or reclaimed
+deliveries. It checked the executable and observer source
+hashes. Every shared group delivered each publication
+exactly once to its active observers under pressure.
+
+| Idle peers / offers per second | Delivery P99 before / during / after (ms) | P99.9 during (ms) |
+| --- | ---: | ---: |
+| 1,000 / 4,000 | 0.171 / 0.196 / 0.163 | 1.540 |
+| 9,968 / 4,000 | 0.305 / 0.390 / 0.446 | 1.280 |
+| 9,968 / 8,000 | 0.709 / 0.644 / 0.753 | 1.521 |
+
+Windows P99 exceeded the variation limits in each
+series. The workload demonstrates maintained delivery
+and recoverable quota during measured pressure. The
+strict Windows latency gate remains open. Reports and
+independent replay are under
+out/service-extensions/xmqtt-shared-pressure-e5185ff8/.
