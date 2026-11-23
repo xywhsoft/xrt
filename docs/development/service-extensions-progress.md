@@ -26658,3 +26658,51 @@ counts. The strict performance gate stays open.
 The traces, build inputs and independent replays are under
 out/service-extensions/xredis-worker-scale-f3a53364/
 and out/service-extensions/linux-guest-9ce2606c/xredis-worker-scale-f3a53364/.
+
+## 2026-11-24 Redis connection capacity and turnover
+
+A paired workload held one, 100, 1,000 or 10,000 verified
+RESP3 connections per observer. It checked an exact binary
+ECHO on every connection, replaced ten percent of the
+connections with a minimum of one, then checked a second
+ECHO on every connection. A separate Redis 8.0.5 process
+counted every HELLO and ECHO and checked both loaded
+connection counts and the final zero. Each xredis close
+also checked physical retirement and the client ledger.
+
+The Ubuntu QEMU/WHPX cohorts used guest-local loopback and
+completed five trials per count and observer. All 222,020
+binary replies reconciled. Every process returned to the
+initial descriptor count. The client observers used guest
+CPUs 2 and 3 with Redis on CPU 0.
+
+Windows loopback forwarding to Ubuntu/WSL verified all
+4,404 replies up to 1,000 connections. Both 10,000-connection
+attempts lost the handshake before reaching the loaded
+state. On a separate direct path to the private WSL IPv4
+address, each Windows observer verified 10,000 connections,
+1,000 replacements and 20,000 replies in its first trial.
+Direct-path authentication used runtime-only credentials.
+The alternate route demonstrates a working 10,000-connection
+case. It leaves the original loopback forwarding failure
+recorded separately.
+
+| 10,000 connections | xredis / Hiredis setup (s) | xredis / Hiredis idle RSS growth (MiB) | xredis / Hiredis RSS growth after close (MiB) |
+| --- | ---: | ---: | ---: |
+| Ubuntu guest, five-trial medians | 2.09 / 1.20 | 113.34 / 17.54 | 113.64 / 17.60 |
+| Windows direct to WSL, first trial | 5.63 / 113.27 | 119.17 / 22.12 | 27.80 / 2.23 |
+
+The Windows direct first trial retained the same six xredis
+and eleven Hiredis process handles above the cold baseline
+at both one and 10,000 connections. The peer verified zero
+remaining client connections. RSS still needs allocator
+attribution. The workload performs sequential handshakes
+and round-trip checks while all connections remain open.
+Its timings describe this lifecycle workload. The first
+Windows samples are not repeatability evidence. A larger
+Windows direct campaign is running.
+
+Raw per-connection timings, peer ledgers, binaries and
+independent replay are under
+out/service-extensions/xredis-capacity-85f4ad5c/
+and out/service-extensions/linux-guest-9ce2606c/xredis-capacity-85f4ad5c/.
