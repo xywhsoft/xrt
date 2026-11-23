@@ -22,7 +22,7 @@ def rank(samples, quantile):
     return sorted(samples)[(len(samples) * quantile + 999) // 1000 - 1]
 
 
-def observe(program, cpu, waves, active, dormant, drive):
+def observe(program, cpu, waves, active, dormant, drive, require_wait_phases=False):
     arguments = [str(program), "cohort", str(waves), str(active), str(dormant), drive, "--samples"]
     process = subprocess.run(arguments, env={**os.environ, "XBENCH_PIN_CPU": str(cpu)},
                              capture_output=True, text=True, timeout=waves + 30)
@@ -84,6 +84,8 @@ def observe(program, cpu, waves, active, dormant, drive):
         if backend < -1 or (backend == -1 and any(phase[0] for phase in phases)):
             raise ValueError("missing measured waiter backend")
         result.update(waiter_backend=backend, wait_phases_ns=phases)
+    if require_wait_phases and not any(phase[0] for phase in result.get("wait_phases_ns", ())):
+        raise ValueError("benchmark did not record any required wait phases")
     return result
 
 
@@ -118,6 +120,8 @@ def main():
     parser.add_argument("--report", type=Path, required=True, help="new JSON Lines evidence file")
     parser.add_argument("--waves", type=int, default=256)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--require-wait-phases", action="store_true",
+                        help="reject runs without at least one measured wait call")
     args = parser.parse_args()
     if not 0 <= args.cpu < 1024 or not 1 <= args.waves <= 1024 or args.repeats < 1:
         parser.error("expected CPU in 0..1023, 1..1024 waves and at least one repeat")
@@ -137,7 +141,8 @@ def main():
                     order = DRIVES if repeat % 2 == 0 else reversed(DRIVES)
                     for drive in order:
                         key = {"active": active, "dormant": dormant, "drive": drive, "repeat": repeat + 1}
-                        run = observe(program, args.cpu, args.waves, active, dormant, drive)
+                        run = observe(program, args.cpu, args.waves, active, dormant, drive,
+                                      require_wait_phases=args.require_wait_phases)
                         append(report, "run", **key, **run)
                         rows[drive].append(run)
                         total += run["verified_callbacks"]

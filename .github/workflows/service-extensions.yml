@@ -484,7 +484,7 @@ jobs:
   xcron-linux-cohorts:
     if: github.event_name == 'workflow_dispatch' && inputs.xcron_cohorts
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 110
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -506,6 +506,18 @@ jobs:
           sha256sum "$evidence/cohort" "$runner" > "$evidence/sha256.txt"
           python -B "$runner" "$evidence/cohort" --cpu "$cpu" --waves 256 --repeats 5 \
             --report "$evidence/latency.jsonl"
+      - name: Attribute scheduler and direct-waiter latency
+        shell: bash
+        run: |
+          evidence=out/service-extensions/xcron-linux-cohorts
+          cpu=$(python -c 'import os; print(min(os.sched_getaffinity(0)))')
+          gcc --version > "$evidence/wait-phase-compiler.txt"
+          gcc -O2 -std=c11 -Wall -Wextra -Werror -I. -Iinclude -Iextlibs/xcron/include -pthread \
+            extlibs/xcron/bench/bench_scheduler_wait_phase.c -o "$evidence/cohort-phase" -lm
+          sha256sum "$evidence/cohort-phase" >> "$evidence/sha256.txt"
+          python -B extlibs/xcron/bench/run_scheduler_cohorts.py "$evidence/cohort-phase" \
+            --cpu "$cpu" --waves 64 --repeats 2 --require-wait-phases \
+            --report "$evidence/wait-phases.jsonl"
       - name: Preserve scheduler latency evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

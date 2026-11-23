@@ -24185,3 +24185,26 @@ with its local peer reporting a response send failure. Five isolated
 runs of the same executable passed afterward. A full WSL rerun is in
 progress, along with the full Windows run. The initial failure remains
 in wsl-tests.log.
+
+## 2026-11-23 Wait-phase evidence in the native xcron campaign
+
+The opt-in native Ubuntu job now builds the existing wait-phase
+observer after the ordinary cohort run. It uses the same logical CPU
+and job mixes for eight diagnostic processes with 64 waves each. The
+job preserves the separate executable, compiler receipt, binary hash
+and raw wait-phase journal. The ordinary measurement command and its
+artifact are preserved. The job budget adds ten minutes for these
+diagnostic processes.
+
+The observer can require measured wait calls for each process. A
+Windows control without the phase observer was rejected in that mode
+and passed in ordinary mode, with 2,176 callbacks. The compiled phase
+observer under WSL captured all eight waits for four two-wave processes
+and verified 4,352 callbacks. It reported the monotonic POSIX backend.
+The workflow structure check, Bash syntax, actionlint, ordinary
+maturity and generated headers passed.
+
+A separate two-repeat Windows diagnostic started on logical CPU 10.
+Its raw wait phases and the local verification receipts are under
+out/service-extensions/xcron-native-wait-phases-bfbf7cbc/. Native Linux
+phase attribution and repeatable release tails still need evidence.

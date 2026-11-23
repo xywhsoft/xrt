@@ -138,7 +138,10 @@ Linux run for acceptance.
 
 The Service extensions workflow exposes the same full campaign through its
 `xcron_cohorts` workflow-dispatch input. It preserves the native Ubuntu
-benchmark, build report, CPU description and raw latency journal.
+benchmark, build report, CPU description and raw latency journal. A second
+run uses the same CPU and job mixes to record wait phases for two 64-wave
+processes per drive. The diagnostic executable and journal are preserved
+with the ordinary latency evidence.
 
 The separate wait-phase benchmark samples the wall and monotonic clocks on
 entry to and return from XRT EventWaiter. It also prints the actual waiter
@@ -165,6 +168,7 @@ wait. The integer waiter supplies a relative request. The scheduler
 and precise waiter supply absolute monotonic deadlines. The observer subtracts the entry
 timestamp from that deadline to compute the budget. A zero-call wave emits
 zeros in the other fields. Run the same Python cohort driver with this
-diagnostic executable to retain `wait_phases_ns` and `waiter_backend`
-in each verified run. The phase tuple uses the same field order as the
-raw output. Use the ordinary cohort executable to measure release tails.
+diagnostic executable and `--require-wait-phases` to require captured wait
+calls and retain `wait_phases_ns` and `waiter_backend` in each verified run.
+The phase tuple uses the same field order as the raw output. Use the
+ordinary cohort executable to measure release tails.
