@@ -26522,3 +26522,37 @@ remain configurable and strict release timing stays open.
 Raw reports and replay are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-native-quota-9ce2606c/
 and out/service-extensions/linux-guest-9ce2606c/mqtt-native-quota-high-9ce2606c/.
+
+## 2026-11-24 Redis SDKs with the corrected lease layout
+
+GCC rebuilt the aggregate Redis profile as a static and a
+shared SDK on Windows and in the Ubuntu QEMU/WHPX guest.
+The Windows build used clean bb1cd61d and GCC 16.2.0.
+The guest used clean dc8f7525 and GCC 13.3.0.
+
+Each of the four SDKs contains separate XRT and Redis
+libraries. The package logs show a fresh compile of pool.c.
+The five pool and lease symbols checked by the replay are
+present in each Redis archive, import archive or shared
+library. Both platforms used identical pool.c bytes.
+
+The built-in SDK consumer ran again from each relocated
+directory. The public pool and pool-connect APPs compiled
+from separately copied source and public headers, then
+ran from the same SDK directories with spaces in their
+paths. Across both platforms and linkage modes all twelve
+consumer executions passed. The pool example exercised
+two exclusive members, a binary leased request and physical
+return. The automatic pool example replaced an aborted
+connection and closed the factory. The examples use their
+deterministic protocol fixtures.
+
+PE imports and ELF dependencies matched each linkage mode.
+The ELF loaders resolved both shared libraries in the
+relocated directories. Host replay matched 166 library
+source inputs per platform, copied headers and APP inputs,
+build logs and artifact hashes. The guest comparison
+accounted for Windows checkout line endings.
+
+Receipts are under out/service-extensions/xredis-sdk-bb1cd61d/
+and out/service-extensions/linux-guest-9ce2606c/xredis-sdk-dc8f7525/.
