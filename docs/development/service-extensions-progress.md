@@ -23329,3 +23329,33 @@ drive paths. This test does not identify which part of the platform's
 wait and scheduling path caused it. The raw phase journal and replay
 are under out/service-extensions/xcron-native-cohort-job-feee80b1/wsl-phase/.
 Native Linux data and stable release timing remain open.
+
+## 2026-11-23 Native Linux MQTT broker TLS comparison job
+
+The optional xmqtt_comparison job now builds the pinned Mosquitto
+broker with TLS and runs the existing verified TLS 1.3 observer against
+both brokers. QoS 0, 1 and 2 each measure exact routing to one subscriber
+at 1,000 offers/s and two shared groups across eight subscribers at
+2,000 offers/s. The reliable publisher and subscriber windows are 16.
+The job records OpenSSL and binary identities. It generates a fixture CA
+and localhost credentials outside the evidence directory and removes
+them at exit.
+
+The extracted commands ran on Ubuntu WSL under an unprivileged account.
+The first local build needed the extracted OpenSSL headers' multiarch
+path and the installed shared libraries. The first QoS 0 invocation
+passed an inapplicable Receive Maximum option. The final command uses
+the observer's reliable-window default. The QoS 0 replay passed with
+a fresh test certificate, and each paired workload verified the same
+leaf on both brokers. The test credentials were removed after the runs.
+
+Independent replay checked 60 TLS samples, 180,000 measured publications,
+270,000 deliveries, 120,000 terminal publisher confirmations and 330
+authenticated observer connections. Six of twelve delivery P99 series
+met the repeatability limits. The existing plaintext publisher and
+broker comparisons also passed with the TLS-capable Mosquitto build.
+The ordinary maturity audit and actionlint passed. Native Linux
+execution and formal performance acceptance remain open.
+
+Reports, identities and verification are under
+out/service-extensions/xmqtt-linux-comparison-tls-061f6107/.

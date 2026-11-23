@@ -677,10 +677,10 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Install the Mosquitto build dependency
+      - name: Install Mosquitto build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libcjson-dev
+          sudo apt-get install --no-install-recommends -y libcjson-dev libssl-dev openssl
       - name: Compare MQTT 5 publishers and brokers on native Linux
         shell: bash
         run: |
@@ -700,7 +700,7 @@ jobs:
 
           cmake -S "$RUNNER_TEMP/mosquitto-2.1.2" -B "$RUNNER_TEMP/mosquitto-build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
-            -DWITH_TLS=OFF -DWITH_WEBSOCKETS=OFF -DWITH_TESTS=OFF -DWITH_CLIENTS=OFF \
+            -DWITH_TLS=ON -DWITH_WEBSOCKETS=OFF -DWITH_TESTS=OFF -DWITH_CLIENTS=OFF \
             -DWITH_APPS=OFF -DWITH_PLUGINS=OFF -DWITH_DOCS=OFF -DWITH_LTO=OFF -DWITH_HTTP_API=OFF
           cmake --build "$RUNNER_TEMP/mosquitto-build" --target mosquitto -j2
           cp "$RUNNER_TEMP/mosquitto-build/src/mosquitto" "$evidence/mosquitto"
@@ -725,13 +725,21 @@ jobs:
           gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER -DXRT_MODULE_MEMORY_STATS "$bench/bench_server.c" \
             -o "$evidence/broker-observer" -pthread -lm
 
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER_TLS -DXRT_MODULE_TLS_IDENTITY_RSA \
+            extlibs/xmqtt/examples/server/tls.c -o "$evidence/xmqtt-broker-tls" -pthread -lm
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER -DXRT_MODULE_MEMORY_STATS -DXMQTT_BENCH_TLS \
+            -DXRT_MODULE_TLS_CLIENT_VERIFY -DXRT_MODULE_TLS_STREAM_FUTURE -DXRT_MODULE_TLS_STREAM_RETIRE \
+            -DXRT_MODULE_TLS_RECORD_AES -DXRT_MODULE_TLS_SCHEDULE_SHA256 -DXRT_MODULE_TLS_KEY_EXCHANGE_X25519 \
+            "$bench/bench_server.c" -o "$evidence/broker-observer-tls" -pthread -lm
+
           git rev-parse HEAD > "$evidence/revision.txt"
           lscpu > "$evidence/cpu.txt"
           gcc --version > "$evidence/compiler.txt"
+          openssl version -a > "$evidence/openssl.txt"
           ldd "$evidence/mosquitto" > "$evidence/broker-dependencies.txt"
           sha256sum "$mosquitto_archive" "$paho_archive" "$paho_library" "$evidence/mosquitto" \
             "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
-            > "$evidence/sha256.txt"
+            "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" > "$evidence/sha256.txt"
           cpus=$(python - <<'PY'
           import os
           import subprocess
@@ -764,6 +772,28 @@ jobs:
             --workload exact:1:3000 --workload wildcard:8:10000 --report "$evidence/broker-qos0.json" || status=1
           python -B "$bench/compare_broker.py" "${broker_args[@]}" --qos 2 --window 16 --subscriber-window 16 \
             --workload wildcard:8:3000 --workload shared:8:3000 --report "$evidence/broker-qos2.json" || status=1
+          tls_dir=$(mktemp -d "$RUNNER_TEMP/xmqtt-comparison-tls.XXXXXX")
+          trap 'rm -f -- "$tls_dir"/{ca.pem,ca.key,request.pem,certificate.pem,certificate.der,key.pem,key.der}; rmdir -- "$tls_dir"' EXIT
+          (
+            umask 077
+            openssl req -x509 -newkey rsa:2048 -noenc -sha256 -days 1 -subj /CN=benchmark-CA \
+              -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+              -keyout "$tls_dir/ca.key" -out "$tls_dir/ca.pem"
+            openssl req -new -newkey rsa:2048 -noenc -sha256 -subj /CN=localhost \
+              -keyout "$tls_dir/key.pem" -out "$tls_dir/request.pem"
+            openssl x509 -req -in "$tls_dir/request.pem" -CA "$tls_dir/ca.pem" -CAkey "$tls_dir/ca.key" \
+              -set_serial 1 -days 1 -sha256 -out "$tls_dir/certificate.pem" \
+              -extfile <(printf '%s\n' 'subjectAltName=DNS:localhost' 'extendedKeyUsage=serverAuth')
+            openssl x509 -in "$tls_dir/certificate.pem" -outform DER -out "$tls_dir/certificate.der"
+            openssl rsa -in "$tls_dir/key.pem" -traditional -outform DER -out "$tls_dir/key.der"
+          )
+          tls_args=(--xmqtt "$evidence/xmqtt-broker-tls" --mosquitto "$evidence/mosquitto"
+            --observer "$evidence/broker-observer-tls" --broker-cpu "$broker_cpu" --load-cpus "$load_cpus"
+            --tls-credentials "$tls_dir" --rounds 3000 --warmup 300 --repeats 5)
+          for qos in 0 1 2; do
+            python -B "$bench/compare_broker.py" "${tls_args[@]}" --qos "$qos" --window 16 \
+              --workload exact:1:1000 --workload shared:8:2000 --report "$evidence/broker-tls-qos$qos.json" || status=1
+          done
           exit "$status"
       - name: Preserve native MQTT comparison evidence
         if: always()
