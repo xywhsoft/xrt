@@ -25994,3 +25994,32 @@ P99 series exceeded the repeatability limits. These results
 attribute the measured echo tail and leave strict release
 performance open. Sources, binaries and replay are under
 out/service-extensions/xrpc-app-phases-78dd1e9d/.
+
+## 2026-11-24 xcron 1,024-wave results from the interrupted cohorts
+
+Independent replay matched the recorded binaries, the current
+benchmark and library inputs, the runner hash, and every wave
+retained when the original Windows and Ubuntu VM jobs stopped.
+Windows retained 15 complete processes with 5,898,240 verified
+callbacks. The Ubuntu VM retained 14 with 4,849,664. Each
+environment completed five paired processes for the 64-active
+and 960-dormant cohort, with 1,024 scheduled waves per process.
+Nearest-rank P99.9 uses the second-largest wave within a process.
+The table gives medians of the per-process last callback times.
+
+| Host | Drive | P99 (ms) | P99.9 (ms) |
+| --- | --- | ---: | ---: |
+| Native Windows | scheduler wait | 1.587 | 5.964 |
+| Native Windows | direct precise waiter | 1.187 | 2.024 |
+| Ubuntu QEMU/WHPX guest | scheduler wait | 0.407 | 0.802 |
+| Ubuntu QEMU/WHPX guest | direct precise waiter | 0.272 | 0.821 |
+
+Of the Windows scheduler waves whose last callback was at least
+1 ms late, 273 of 306 were already at least 1 ms late at their
+first callback. All six such Ubuntu scheduler waves were already
+late at the first callback. P99 and P99.9 series for all three
+measured quantities still exceed the repeatability limits. The
+1,024-active cohort remains incomplete in the original journals.
+The recovery cohorts are tracked independently. Inputs and replay
+are under out/service-extensions/xcron-p999-0020e637/ and
+out/service-extensions/linux-guest-9ce2606c/restart-20261124-0415/initial-xcron/.
