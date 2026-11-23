@@ -19,13 +19,15 @@ typedef struct xredisreplynode {
 	size_t Offset, Bytes, ChildCount, FirstChild, Next, Attributes;
 } xredisreplynode;
 
+enum { XREDIS_REPLY_INLINE_BYTES = 64 };
+
 struct xredisreply {
 	xatomic32 References;
 	xredisreplynode* Nodes;
 	unsigned char* Data;
 	size_t Count, NodeCapacity, DataBytes, DataCapacity, Root, Reserved, Peak;
 	xredisreplynode InlineNode[1];
-	unsigned char InlineData[64];
+	unsigned char InlineData[];
 };
 
 typedef struct xredisreplylevel {
@@ -58,10 +60,14 @@ static bool xredisReplyFail(xredisreplyreader* Reader, xerrkind Kind,
 
 static bool xredisReplyOverlap(const xredisreply* Reply, const void* Data, size_t Bytes)
 {
-	return Reply != NULL && (xrtMemRangesOverlap(Reply, sizeof(*Reply), Data, Bytes) ||
+	if (Reply == NULL) return false;
+	const bool ExternalData = Reply->Data != Reply->InlineData;
+	/* Only a fixed-length root gets extra inline space, and it never spills. */
+	size_t InlineBytes = ExternalData ? XREDIS_REPLY_INLINE_BYTES : Reply->DataCapacity;
+	return xrtMemRangesOverlap(Reply, sizeof(*Reply) + InlineBytes, Data, Bytes) ||
 		(Reply->Nodes != Reply->InlineNode && xrtMemRangesOverlap(Reply->Nodes,
 			Reply->NodeCapacity * sizeof(*Reply->Nodes), Data, Bytes)) ||
-		(Reply->Data != Reply->InlineData && xrtMemRangesOverlap(Reply->Data, Reply->DataCapacity, Data, Bytes)));
+		(ExternalData && xrtMemRangesOverlap(Reply->Data, Reply->DataCapacity, Data, Bytes));
 }
 
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
@@ -207,22 +213,31 @@ static xredisreadaction xredisReplyCollect(const xredisreadevent* Event, ptr Use
 {
 	xredisreplyreader* Reader = (xredisreplyreader*)User;
 	xredisreplylevel* Level = &Reader->Levels[Event->Depth];
+	const bool Begin = Event->Kind == XREDIS_READ_BEGIN;
+	const bool FixedPayload = Begin && !(Event->Flags & XREDIS_REPLY_NULL_VALUE) &&
+		Event->Length != XREDIS_LENGTH_UNKNOWN &&
+		(Event->Type == XREDIS_REPLY_BULK_STRING || Event->Type == XREDIS_REPLY_BULK_ERROR || Event->Type == XREDIS_REPLY_VERBATIM);
 	if (Reader->Partial == NULL) {
 		Reader->Peak = 0;
-		if (sizeof(xredisreply) > Reader->Config.MaxOwnedBytes) {
+		size_t Capacity = XREDIS_REPLY_INLINE_BYTES;
+		if (sizeof(xredisreply) + Capacity > Reader->Config.MaxOwnedBytes) {
 			xredisReplyFail(Reader, XERR_RANGE, XREDIS_REPLY_LIMIT, "owned reply header exceeds byte limit"); return XREDIS_READ_FAIL;
 		}
-		xredisreply* Reply = (xredisreply*)xrtCalloc(1, sizeof(*Reply));
+		if (FixedPayload && Event->Depth == 0 && Event->Length > Capacity &&
+			Event->Length <= Reader->Config.MaxOwnedBytes - sizeof(xredisreply))
+			Capacity = (size_t)Event->Length;
+		size_t Bytes = sizeof(xredisreply) + Capacity;
+		xredisreply* Reply = (xredisreply*)xrtMalloc(Bytes);
 		if (Reply == NULL) {
 			xredisReplyFail(Reader, XERR_MEMORY, XREDIS_REPLY_MEMORY, "owned reply allocation failed"); return XREDIS_READ_FAIL;
 		}
-		xrtAtomic32Init(&Reply->References, 1); Reply->Nodes = Reply->InlineNode; Reply->NodeCapacity = 1;
-		Reply->Data = Reply->InlineData; Reply->DataCapacity = sizeof(Reply->InlineData); Reply->Root = XREDIS_REPLY_NONE;
-		Reply->Reserved = sizeof(*Reply); Reply->Peak = sizeof(*Reply); Reader->Peak = Reply->Peak;
+		*Reply = (xredisreply){.Nodes = Reply->InlineNode, .Data = Reply->InlineData, .NodeCapacity = 1,
+			.DataCapacity = Capacity, .Root = XREDIS_REPLY_NONE, .Reserved = Bytes, .Peak = Bytes};
+		xrtAtomic32Init(&Reply->References, 1); Reader->Peak = Bytes;
 		Reader->Partial = Reply;
 	}
 	xredisreply* Reply = Reader->Partial;
-	if (Event->Kind == XREDIS_READ_BEGIN) {
+	if (Begin) {
 		/* A new parent's child level has no pending metadata. Initialize lazily
 		 * so a scalar frame never clears the entire configured depth stack. */
 		if (Event->Depth < Reader->Config.Reader.MaxDepth)
@@ -247,8 +262,7 @@ static xredisreadaction xredisReplyCollect(const xredisreadevent* Event, ptr Use
 				ParentLevel->LastChild = Index; ++Parent->ChildCount;
 			}
 		}
-		if (!(Event->Flags & XREDIS_REPLY_NULL_VALUE) && Event->Length != XREDIS_LENGTH_UNKNOWN &&
-			(Event->Type == XREDIS_REPLY_BULK_STRING || Event->Type == XREDIS_REPLY_BULK_ERROR || Event->Type == XREDIS_REPLY_VERBATIM)) {
+		if (FixedPayload) {
 			if (Event->Length > (uint64)SIZE_MAX) {
 				xredisReplyFail(Reader, XERR_RANGE, XREDIS_REPLY_LIMIT, "owned bulk length overflows size_t"); return XREDIS_READ_FAIL;
 			}

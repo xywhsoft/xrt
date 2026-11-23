@@ -24094,3 +24094,50 @@ release tails remain open. The full Windows trace and independent
 replay are under out/service-extensions/xcron-prearm-deadline-7e0f1688/win/.
 The updated probe, short-run data and audit are under
 out/service-extensions/xcron-cycle-accounting-ecc5c7ec/.
+
+## 2026-11-23 Single allocation for a fixed-length Redis bulk reply
+
+A standalone fixed-length bulk string, bulk error or verbatim string
+now allocates its reply header and payload together. The reply reader
+still admits the payload at BEGIN and accounts for the full requested
+capacity. The 64-byte inline capacity still covers small replies.
+The existing vectors handle attributes, aggregates and unknown-length
+streams.
+
+The focused regression checks binary, bytewise 64-, 65- and 1,024-byte
+replies after destroying their reader, overlap checks, the next frame
+in a coalesced input, exact byte limits and allocator failure. The
+1,024-byte case requests one allocation and one free instead of two
+each and reserves 1,184 bytes instead of 1,248 on both x64 hosts.
+The 65-byte case reserves 225 bytes instead of 352 by avoiding the
+separate rounded-up capacity.
+
+The paired parse-only comparison held the compiler, workload and CPU
+mask constant and alternated five measured samples after one warmup in
+each variant. All checksums matched. Median frames/s changes were:
+
+| Payload | Native Windows | Ubuntu WSL |
+| --- | ---: | ---: |
+| 64 bytes | +3.0% | +3.6% |
+| 65 bytes | +24.9% | +30.4% |
+| 1,024 bytes | +2.7% | +14.3% |
+| 4,096 bytes | +22.8% | +17.0% |
+| Mixed scalar, aggregate and stream | -0.7% | -3.4% |
+
+The Windows fixed-size series passed variation checks. The Windows
+mixed baseline and each WSL comparison exceeded at least one
+variation limit. The Windows eight-connection TCP comparison used a
+separate Redis 8.0.5 peer in WSL, a 1 KiB mixed GET/SET workload and
+the same fixed-arrival observer for both clients. Replay verified all
+280,000 measured offers and the server command ledger. Median
+successful throughput stayed within 0.2% at both 2,000 and 12,000/s.
+The observer refused 1,130 baseline and 298 candidate offers at its
+own window limit across the measured samples. P99 and P99.9 did not
+meet repeatability limits, so the end-to-end tails remain open.
+
+The modular reply tests passed on Windows and WSL. The focused
+single-header tests passed on Windows and under WSL ASan/UBSan
+with leak detection. Ordinary
+maturity and generated-header checks passed. Full suite and native
+Linux release evidence remain separate. The comparisons are under
+out/service-extensions/xredis-owned-blob-742ebdf8/.

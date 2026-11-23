@@ -44,13 +44,15 @@ does not publish pointers or permit racing final Release with unowned access.
 ## Bounded memory and failures
 
 There are two control allocations at creation, bounded by MaxDepth, with no
-payload buffers allocated until the first value begins. A frame header embeds
-one node and 64 payload bytes, so a small scalar uses exactly one allocation.
-Larger replies use geometrically grown node and byte vectors, never individual
-node allocations. Indices and byte offsets survive relocation. Known bulk sizes
-reserve their destination at BEGIN, avoiding fragmented reallocation for that
-bulk. Unknown scalar/stream sizes grow as their bytes arrive. No final flatten,
-second wire parse or publication copy is required.
+payload buffers allocated until the first value begins. The first allocation
+includes a node and space for 64 payload bytes. A fixed-length bulk string,
+bulk error or verbatim string at the root of a frame without attributes uses
+the same allocation for its entire payload, including payloads larger than
+64 bytes. Its capacity is reserved at BEGIN even if the input is fragmented.
+Aggregate replies use geometrically grown node and byte vectors. Indices and
+byte offsets survive relocation. Other fixed-length bulk values reserve their
+destination at BEGIN. Unknown scalar/stream sizes grow as their bytes arrive.
+No final flatten, second wire parse or publication copy is required.
 
 MaxOwnedBytes defaults to 64 MiB. It limits **peak requested frame bytes**, including
 the header/inline storage, unused capacities, and the entire destination while

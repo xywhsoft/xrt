@@ -221,6 +221,84 @@ static void testOwnedGrowth(void)
 	xredisReplyRelease(Bytewise);
 }
 
+static void testOwnedFixedBulk(void)
+{
+	unsigned char Wire[1040];
+	const size_t Sizes[] = {64, 65, 1024};
+	xredisreply* Small = testOwnedParse(XRT_BYTES_LITERAL("+OK\r\n"), NULL, 0, false);
+	xredisreplyinfo Info = {0}; Info.Size = sizeof(Info);
+	testRequire(xredisReplyInfo(Small, &Info), "owned inline size");
+	const size_t InlineBytes = Info.ReservedBytes;
+	xredisReplyRelease(Small);
+	xredisreplyreaderconfig Config; xredisReplyReaderConfigInit(&Config);
+	size_t Head = 0, Bytes = 0;
+	for (size_t Index = 0; Index < sizeof(Sizes) / sizeof(Sizes[0]); ++Index) {
+		size_t Payload = Sizes[Index];
+		Head = (size_t)snprintf((char*)Wire, sizeof(Wire), "$%zu\r\n", Payload);
+		for (size_t Byte = 0; Byte < Payload; ++Byte) Wire[Head + Byte] = (unsigned char)Byte;
+		memcpy(Wire + Head + Payload, "\r\n", 2);
+		Bytes = Head + Payload + 2u;
+		Config.MaxOwnedBytes = InlineBytes + Payload - Sizes[0];
+		xredisreply* Reply = testOwnedParse((xbytesview){Wire, Bytes}, &Config, 0, true);
+		testRequire(xredisReplyInfo(Reply, &Info) && Info.Nodes == 1 && Info.PayloadBytes == Payload &&
+			Info.ReservedBytes == Config.MaxOwnedBytes && Info.PeakBytes == Info.ReservedBytes,
+			"owned fixed bulk charged only once");
+		xredisreplyvalue Value;
+		testRequire(xredisReplyGet(Reply, Info.Root, &Value) && Value.Type == XREDIS_REPLY_BULK_STRING &&
+			Value.Data.Size == Payload && memcmp(Value.Data.Data, Wire + Head, Payload) == 0,
+			"owned split bulk contents after reader destruction");
+		testRequire(!xredisReplyGet(Reply, Info.Root, (xredisreplyvalue*)Value.Data.Data),
+			"owned fixed bulk payload output alias");
+		xrtClearError();
+		xredisReplyRelease(Reply);
+	}
+
+	xredisreplyreader* Reader = NULL; size_t Used;
+	xredisreply* Reply = NULL;
+	testRequire(xredisReplyReaderCreate(&Config, &Reader), "owned fixed bulk reader");
+	memcpy(Wire + Bytes, ":7\r\n", 4);
+	#if defined(XRT_FEATURE_MEMORY_STATS)
+	xmemstats Before, After; xrtMemStatsEnable(true); xrtMemStatsGet(&Before);
+	#endif
+	testRequire(xredisReplyReaderFeed(Reader, (xbytesview){Wire, Bytes + 4u}, &Used, &Reply) == XREDIS_REPLY_READY &&
+		Used == Bytes, "owned fixed bulk stops before next frame");
+	xredisReplyRelease(Reply);
+	#if defined(XRT_FEATURE_MEMORY_STATS)
+	xrtMemStatsGet(&After); xrtMemStatsEnable(false);
+	testRequire((After.MallocCalls - Before.MallocCalls) + (After.CallocCalls - Before.CallocCalls) == 1 &&
+		After.ReallocCalls == Before.ReallocCalls && After.FreeCalls - Before.FreeCalls == 1,
+		"owned fixed bulk uses one allocation and free");
+	#endif
+	testRequire(xredisReplyReaderFeed(Reader, (xbytesview){Wire + Bytes, 4}, &Used, &Reply) == XREDIS_REPLY_READY &&
+		Used == 4, "owned frame after fixed bulk");
+	xredisReplyRelease(Reply);
+
+	xallocationbudget* Budget = NULL; xallocationscope Scope = {0};
+	testRequire(xrtAllocationBudgetCreate(1, &Budget) && xrtAllocationBudgetEnter(Budget, &Scope),
+		"owned fixed bulk OOM setup");
+	Reply = (xredisreply*)(uintptr_t)1;
+	testRequire(xredisReplyReaderFeed(Reader, (xbytesview){Wire, Head}, &Used, &Reply) == XREDIS_REPLY_ERROR &&
+		Reply == (xredisreply*)(uintptr_t)1, "owned fixed bulk OOM output");
+	xredisreplyreaderinfo State = {0}; State.Size = sizeof(State);
+	testRequire(xredisReplyReaderInfo(Reader, &State) && State.Error == XREDIS_REPLY_MEMORY &&
+		State.PartialReservedBytes == 0 && State.PeakOwnedBytes == 0, "owned fixed bulk OOM state");
+	xrtClearError();
+	xallocationbudgetinfo BudgetInfo = {0}; BudgetInfo.Size = sizeof(BudgetInfo);
+	testRequire(xrtAllocationBudgetLeave(&Scope) && xrtAllocationBudgetInfo(Budget, &BudgetInfo) &&
+		BudgetInfo.LiveBytes == 0, "owned fixed bulk OOM leak");
+	xrtAllocationBudgetFree(Budget);
+	xredisReplyReaderDestroy(Reader);
+
+	--Config.MaxOwnedBytes;
+	testRequire(xredisReplyReaderCreate(&Config, &Reader), "owned fixed bulk limited reader");
+	testRequire(xredisReplyReaderFeed(Reader, (xbytesview){Wire, Head}, &Used, &Reply) == XREDIS_REPLY_ERROR &&
+		Reply == (xredisreply*)(uintptr_t)1 && xredisReplyReaderInfo(Reader, &State) &&
+		State.Error == XREDIS_REPLY_LIMIT && State.PeakOwnedBytes <= Config.MaxOwnedBytes &&
+		State.PartialReservedBytes == 0, "owned fixed bulk one byte under limit");
+	xrtClearError();
+	xredisReplyReaderDestroy(Reader);
+}
+
 static void testOwnedDepth(void)
 {
 	unsigned char Wire[8192]; size_t Bytes = 0;
@@ -395,7 +473,7 @@ static void testOwnedAllocations(void)
 	testRequire(xrtGetError() == Previous, "owned warm changed ambient error");
 	#if defined(XRT_FEATURE_MEMORY_STATS)
 	xrtMemStatsGet(&After);
-	testRequire(After.CallocCalls - Before.CallocCalls == 1000 && After.MallocCalls == Before.MallocCalls &&
+	testRequire((After.MallocCalls - Before.MallocCalls) + (After.CallocCalls - Before.CallocCalls) == 1000 &&
 		After.ReallocCalls == Before.ReallocCalls && After.FreeCalls - Before.FreeCalls == 1000,
 		"owned scalar needs exactly one allocation/free"); xrtMemStatsEnable(false);
 	#endif
@@ -468,7 +546,7 @@ static void testOwnedThreads(void)
 
 int main(void)
 {
-	testOwnedKnown(); testOwnedNumbers(); testOwnedGrowth(); testOwnedDepth(); testOwnedErrors(); testOwnedLimits();
+	testOwnedKnown(); testOwnedNumbers(); testOwnedGrowth(); testOwnedFixedBulk(); testOwnedDepth(); testOwnedErrors(); testOwnedLimits();
 	testOwnedLifecycle(); testOwnedAllocations(); testOwnedThreads();
 	printf("[PASS] xredis owned reply: types/tree/attributes/push/streams/all-splits/copy/growth/limits/OOM/threads\n");
 	return 0;
