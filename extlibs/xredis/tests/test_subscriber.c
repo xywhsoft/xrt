@@ -252,11 +252,65 @@ static void subLimit(void)
     const xredissubscriberresult* Result=subResult(F);testRequire(Result->Request.Status==XREDIS_REQUEST_LIMIT && Result->Request.Delivery==XREDIS_NOT_SENT && !xrtAtomic32Load(&P.Commands,XMEMORY_ACQUIRE),"registry failure precedes wire acceptance and rolls back");xrtFutureDestroy(F);subIdle(C);
     F=NULL;testRequire(xredisSubscriberCommand(C,XREDIS_PUBSUB_CMD_PING,NULL,0,5000,&F)==XREDIS_ADMISSION_ACCEPTED && subResult(F)->Request.Status==XREDIS_REQUEST_OK,"connection usable after registry limit");xrtFutureDestroy(F);subClose(&P,C);
 }
+static void subTurnMarker(xnetworker* Worker, ptr Data)
+{
+    (void)Worker;
+    xrtAtomic32FetchAdd((xatomic32*)Data, 1, XMEMORY_RELEASE);
+}
+
+static void subLimitKeepsPendingProgress(void)
+{
+    redispeer Peer;
+    redisPeerStart(&Peer);
+    subpeer State = {.Hold = true};
+    redispeerhook Hook = {subCommand, &State};
+    xrtAtomicPtrStore(&Peer.Hook, &Hook, XMEMORY_RELEASE);
+    xredisclientconfig Config;
+    xredissubscriberconfig Registry;
+    xredisClientConfigInit(&Config);
+    xredisSubscriberConfigInit(&Registry);
+    Config.MaxInFlight = 1;
+    Config.WorkRequests = 1;
+    Registry.MaxSubscriptions = 1;
+    xredisclient* Client = subConnect(&Peer, &State, &Config, &Registry);
+
+    const xbytesview Active = XRT_BYTES_LITERAL("active");
+    const xbytesview Extra = XRT_BYTES_LITERAL("extra");
+    xfuture *First = NULL, *Refused = NULL, *Following = NULL;
+    testRequire(xredisSubscriberCommandAsync(Client, XREDIS_PUBSUB_CMD_SUBSCRIBE, &Active, 1,
+        XRT_WAIT_FOREVER, &First) == XREDIS_ADMISSION_ACCEPTED, "hold the only in-flight credit");
+    redisPeerWait(&Peer.Commands, 1);
+    testRequire(xredisSubscriberCommandAsync(Client, XREDIS_PUBSUB_CMD_SUBSCRIBE, &Extra, 1,
+        XRT_WAIT_FOREVER, &Refused) == XREDIS_ADMISSION_ACCEPTED &&
+        xredisSubscriberCommandAsync(Client, XREDIS_PUBSUB_CMD_PING, NULL, 0,
+        XRT_WAIT_FOREVER, &Following) == XREDIS_ADMISSION_ACCEPTED, "queue two commands behind the ACK");
+    xatomic32 Turns;
+    xrtAtomic32Init(&Turns, 0);
+    for (uint32 Turn = 1; Turn <= 2; ++Turn) {
+        testRequire(xrtNetEnginePost(Peer.Engine, 0, subTurnMarker, &Turns), "client turn marker");
+        redisPeerWait(&Turns, Turn);
+    }
+
+    State.Hold = false;
+    redisPeerReleaseBlocked(&Peer);
+    testRequire(subResult(First)->Request.Status == XREDIS_REQUEST_OK, "first ACK returns the credit");
+    const xredissubscriberresult* Rejection = subResult(Refused);
+    testRequire(Rejection->Request.Status == XREDIS_REQUEST_LIMIT && Rejection->Request.Delivery == XREDIS_NOT_SENT,
+        "the local registry limit retires the head without sending");
+    testRequire(xrtFutureWaitFor(Following, 5000) == XWAIT_OK &&
+        subResult(Following)->Request.Status == XREDIS_REQUEST_OK &&
+        xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 2, "pending PING progresses after a local rejection");
+    xrtFutureDestroy(Following);
+    xrtFutureDestroy(Refused);
+    xrtFutureDestroy(First);
+    subClose(&Peer, Client);
+}
+
 #ifndef XREDIS_SUBSCRIBER_TEST_MAIN
 #define XREDIS_SUBSCRIBER_TEST_MAIN main
 #endif
 int XREDIS_SUBSCRIBER_TEST_MAIN(void)
-{subPipeline(false);subPipeline(true);subLimit();subAbandon(false);subAbandon(true);for(unsigned N=1;N<=4;++N)subFailure(N);subFailure(6);subPartialGrace();subConstructionOOM();subRegistryOOM();subClosedOwners();subSnapshots();subAdoptionOOM();
+{subPipeline(false);subPipeline(true);subLimit();subLimitKeepsPendingProgress();subAbandon(false);subAbandon(true);for(unsigned N=1;N<=4;++N)subFailure(N);subFailure(6);subPartialGrace();subConstructionOOM();subRegistryOOM();subClosedOwners();subSnapshots();subAdoptionOOM();
 #if defined(XREDIS_FEATURE_XREDIS_TLS) && defined(XRT_FEATURE_TLS_IDENTITY_RSA)
 subTLS();
 #endif

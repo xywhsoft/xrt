@@ -6880,7 +6880,8 @@ static void xredisClientPump(xredisclient* Client)
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 	if (Client->TLS != NULL) { xredisClientTlsPump(Client); return; }
 #endif
-	for (size_t Work = 0; Work < Client->Config.WorkRequests && Client->PendingHead != NULL &&
+	size_t Work = 0;
+	for (; Work < Client->Config.WorkRequests && Client->PendingHead != NULL &&
 		Client->SentCount < Client->Config.MaxInFlight && !xredisClientClosing(Client) &&
 		xredisClientTransportOpen(Client); ++Work) {
 		xredisrequest* Request = Client->PendingHead;
@@ -6924,6 +6925,10 @@ static void xredisClientPump(xredisclient* Client)
 			XREDIS_NOT_SENT, NULL, Result == XNET_RESULT_ERROR ? xrtGetError() : NULL);
 		Request->Phase = XREDIS_R_DONE; XREDIS_SUBSCRIBER_RETIRE(Request); xredisClientCancelTimer(Request); xredisRequestRelease(Request);
 	}
+	/* Local rejections can consume a turn without arming native I/O. */
+	if (Work == Client->Config.WorkRequests && Client->PendingHead != NULL &&
+		Client->SentCount < Client->Config.MaxInFlight)
+		xredisClientWake(Client);
 }
 
 static void xredisClientRetire(xredisclient* Client)

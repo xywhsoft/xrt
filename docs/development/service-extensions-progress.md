@@ -25310,3 +25310,24 @@ outside-generator CPU ratios and every tail ratio exceeded them.
 The candidate remains in the evidence directory. Production keeps
 the existing ingestion path. Source variants, binaries, raw samples
 and replay are under out/service-extensions/xredis-submit-batch-2553575b/.
+
+## 2026-11-23 Redis progress after a bounded local rejection
+
+With one request per worker turn and one in-flight slot, a PING could
+stay pending after a previous subscription hit a registry limit.
+The peer had already returned the prior request's credit. The rejected
+request wrote no bytes, so there was no network event to advance the
+next request. The TCP pump now posts another bounded turn when its work
+budget is spent and a pending request has in-flight credit. Transport
+backpressure waits for the stream's writable notification.
+
+The regression holds a prior SUBSCRIBE acknowledgement, queues a
+subscription that exceeds the registry limit and then a PING, and
+releases the acknowledgement after both admission turns. The original
+Windows and WSL tests failed at the PING's wait. The fixed builds
+completed the PING and verified that the Redis peer received only two
+commands. Modular and single-header subscriber tests and static and
+shared package checks passed on both environments. The WSL subscriber
+suite also passed ASan, UBSan and leak checks. Generated headers and
+ordinary maturity passed. The live-queue receipts and package logs are
+under out/service-extensions/xredis-bounded-progress-190dd32b/.
