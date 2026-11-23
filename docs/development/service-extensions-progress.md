@@ -26337,3 +26337,30 @@ did so as well. The release timing gate remains open.
 
 Raw records, binaries and a source-matched replay are under
 out/service-extensions/linux-guest-9ce2606c/xrpc-app-phases-78dd1e9d/.
+
+## 2026-11-24 Ubuntu MQTT backend replication after compiler retirement
+
+The follow-up used the same broker, observer, guest CPU
+placement, route mix, windows and offer rates as the
+earlier epoll and io_uring comparison. The sanitizer and
+xrpc timing jobs had retired. The scheduler and original
+endurance jobs continued. Replay checked each backend,
+binary, broker log and partial counter record across
+20 trials.
+
+At 4,000 offers/s each backend completed three of five
+trials and all six complete trials reached 95 percent of
+the offered rate. The complete-sample median delivery P99
+was 27.649 ms with epoll and 28.295 ms with io_uring.
+At 8,000 offers/s both backends refused quota in all five
+trials. All 14 incomplete trials reported PUBREC reason
+0x97. The complete trials verified 96,000 confirmations
+and 768,000 deliveries. The incomplete trials preserved
+58,683 confirmations and 458,239 deliveries.
+
+The earlier 8,000/s io_uring result did not reproduce in
+this follow-up. Neither backend has a repeatable 8,000/s
+qualification on this guest. The APP backend remains
+selectable under its documented configuration. Reports
+and replay are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-native-backend-quiet-9ce2606c/.
