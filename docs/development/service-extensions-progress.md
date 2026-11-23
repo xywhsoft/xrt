@@ -23196,3 +23196,17 @@ strict release acceptance remain pending.
 
 Build logs, hashes and reports are under
 out/service-extensions/xmqtt-checkpoint-expiry-transports-9c6de84f/.
+
+
+## 2026-11-23 Full xmqtt smoke with benchmark build reuse
+
+The optimized Ubuntu WSL x64 smoke completed all 131 MQTT scenarios
+from 45 distinct builds and 86 copies. Independent replay verified the
+configured argument order, named executables and their hashes, metric
+and observation coverage, and exactly one run per scenario. The source
+and benchmark fingerprints match the current checkout. The report
+records the WSL kernel and the clean feadc3a0 launch revision.
+The native CI and controlled performance runs remain separate.
+
+The report, build log and replay are under
+out/service-extensions/performance-build-reuse-98e35075/.
