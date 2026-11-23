@@ -60,6 +60,12 @@ sent remain available to the peer.
 The TCP example continues its delimiter search at the first new byte after
 each read, including when the final record spans several reads.
 
+The service-extensions workflow measures the TCP example on Windows and Linux
+with the same fixed-arrival schedule and separate observer and APP CPU masks.
+The report includes each mask, the executable and observer hashes, and per-call
+timestamps. With `--auto-affinity`, the observer takes one available logical CPU
+and the APP takes up to two others.
+
 ## Concurrent admission benchmark
 
 Share one client endpoint between 1, 4 or 8 submitting threads. Each thread

@@ -697,12 +697,11 @@ def variation(samples):
             "stable": len(samples) >= 5 and mad <= mid * 0.03 and span <= mid * 0.06}
 
 
-def process_affinity(cpus, pid=None):
+def process_affinity(cpus=None, pid=None):
     if hasattr(os, "sched_setaffinity"):
-        if pid is None:
+        if cpus is not None and pid is None:
             os.sched_setaffinity(0, cpus)
-        if os.sched_getaffinity(pid or 0) != cpus:
-            raise RuntimeError("incorrect process affinity")
+        actual = os.sched_getaffinity(pid or 0)
     elif os.name == "nt":
         import ctypes
         from ctypes import wintypes
@@ -720,16 +719,21 @@ def process_affinity(cpus, pid=None):
             raise ctypes.WinError(ctypes.get_last_error())
         try:
             mask, system = ctypes.c_size_t(), ctypes.c_size_t()
-            requested = sum(1 << cpu for cpu in cpus)
-            if pid is None and not kernel.SetProcessAffinityMask(handle, requested):
+            if cpus is not None and pid is None:
+                requested = sum(1 << cpu for cpu in cpus)
+                if not kernel.SetProcessAffinityMask(handle, requested):
+                    raise ctypes.WinError(ctypes.get_last_error())
+            if not kernel.GetProcessAffinityMask(handle, ctypes.byref(mask), ctypes.byref(system)):
                 raise ctypes.WinError(ctypes.get_last_error())
-            if not kernel.GetProcessAffinityMask(handle, ctypes.byref(mask), ctypes.byref(system)) or mask.value != requested:
-                raise RuntimeError("incorrect process affinity")
+            actual = {cpu for cpu in range(ctypes.sizeof(mask) * 8) if mask.value & (1 << cpu)}
         finally:
             if pid is not None:
                 kernel.CloseHandle(handle)
     else:
         raise RuntimeError("process affinity is unavailable on this platform")
+    if cpus is not None and actual != cpus:
+        raise RuntimeError("incorrect process affinity")
+    return actual
 
 
 def measure_concurrent(executable, report, calls, repeats, rate, cpus):
@@ -831,6 +835,8 @@ def main():
     parser.add_argument("--rate", type=int, default=1600, help="offers per connection per second for --concurrent")
     parser.add_argument("--cpus", type=lambda value: set(map(int, value.split(","))), help="observer CPU mask, inherited by the APP outside saturation")
     parser.add_argument("--app-cpus", type=lambda value: set(map(int, value.split(","))), help="separate APP CPU mask for saturation")
+    parser.add_argument("--auto-affinity", action="store_true",
+                        help="assign one observer CPU and up to two APP CPUs from the inherited mask")
     parser.add_argument("--rates", type=lambda value: tuple(map(int, value.split(","))), default=(1600, 4000, 8000, 16000))
     parser.add_argument("--connections", type=int, default=8)
     parser.add_argument("--workers", type=int, default=2)
@@ -856,6 +862,14 @@ def main():
         parser.error("--observer-native requires a single observer shard")
     if args.raw_dir is not None and not args.saturation:
         parser.error("--raw-dir requires --saturation")
+    if args.auto_affinity:
+        if not args.saturation or args.cpus is not None or args.app_cpus is not None:
+            parser.error("--auto-affinity requires --saturation and no explicit CPU masks")
+        available = sorted(cpu for cpu in process_affinity() if cpu < 64)
+        if len(available) < 2:
+            parser.error("--auto-affinity needs two available logical CPUs")
+        args.cpus = {available[0]}
+        args.app_cpus = set(available[1:3])
     if args.saturation:
         if args.raw_dir is not None and args.raw_dir.exists():
             parser.error("--raw-dir must name a new directory")

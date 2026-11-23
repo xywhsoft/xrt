@@ -23576,3 +23576,44 @@ stage. The current 756eec00 endurance campaign continued.
 
 The initial failures, focused diagnostics and aggregate replay
 receipts are under out/service-extensions/xredis-read-gate-2104cafd/.
+
+## 2026-11-23 xrpc matched Windows and Linux TCP latency evidence
+
+The xrpc matrix now runs the same fixed-arrival TCP workload on Windows
+and Linux. The driver selects one observer CPU and up to two APP CPUs
+from the inherited affinity mask. Both jobs retain the chosen masks,
+all compressed per-request timestamps, the APP binary and the native
+observer library. The APP uses two XRT executor workers. The test uses
+eight staggered connections, eight calls per batch, sixteen batches in
+flight per connection and five alternating duplex/dispatch pairs per rate.
+
+The native Windows and Ubuntu WSL rehearsals selected observer CPU 0
+and APP CPUs 1 and 2. Each completed 20 processes and 1,280,000 measured
+replies while the Windows mixed-load campaigns were running. Independent
+replay verified the binary and driver hashes, scheduled times, send and
+receive ordering, reply and warmup counts, percentiles and repeatability
+decisions. The table gives the median of five process results in microseconds.
+
+| Host | Offered calls/s | Mode | P99 | P99.9 |
+| --- | ---: | --- | ---: | ---: |
+| Native Windows | 32,000 | Duplex | 383.3 | 572.9 |
+| Native Windows | 32,000 | Dispatch | 377.0 | 603.2 |
+| Native Windows | 64,000 | Duplex | 470.4 | 1,291.9 |
+| Native Windows | 64,000 | Dispatch | 351.6 | 614.2 |
+| Ubuntu WSL | 32,000 | Duplex | 787.2 | 1,467.1 |
+| Ubuntu WSL | 32,000 | Dispatch | 600.1 | 865.5 |
+| Ubuntu WSL | 64,000 | Duplex | 902.2 | 1,359.6 |
+| Ubuntu WSL | 64,000 | Dispatch | 737.9 | 1,137.2 |
+
+All eight throughput series met the 3 percent relative MAD and 6 percent
+central range limits. The two Windows dispatch P99 series met both limits.
+The other six P99 series and all eight P99.9 series exceeded at least one
+limit. Stable tail latency and native Linux release acceptance remain open.
+
+Both hosts passed all 11 native observer tests and an affinity probe
+with two logical CPUs. The probe also checked rejection of a single
+available CPU and conflicting explicit masks. Actionlint, ordinary
+maturity and the generated header check passed. Strict maturity still
+reports xrpc and xrpc_duplex as developing. The hosted workflow has
+yet to run this revision. The local commands, raw data and replay are
+under out/service-extensions/xrpc-native-fixed-ci-bd9d6441/.

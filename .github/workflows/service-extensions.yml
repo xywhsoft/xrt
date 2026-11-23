@@ -236,19 +236,10 @@ jobs:
         if: matrix.product == 'xrpc'
         shell: bash
         run: |
-          cpus=$(python - <<'PY'
-          import os
-          available = sorted(os.sched_getaffinity(0))
-          if len(available) < 2:
-              raise SystemExit("TCP latency sampling needs two logical CPUs")
-          print(available[0], ",".join(map(str, available[1:3])))
-          PY
-          )
-          read -r observer app <<< "$cpus"
           python -B extlibs/xrpc/tests/interop/run_tcp_worker.py \
             out/gcc/native/xrpc_examples/examples_tcp_worker_main out/service-extensions/xrpc-tcp-latency-linux.json \
-            --saturation --stagger-arrivals --connections 8 --workers 2 --window-batches 16 \
-            --calls 8000 --rates 4000,8000 --repeats 5 --cpus "$observer" --app-cpus "$app" \
+            --saturation --auto-affinity --stagger-arrivals --connections 8 --workers 2 --window-batches 16 \
+            --calls 8000 --rates 4000,8000 --repeats 5 \
             --observer-native out/xrpc-observer.so --raw-dir out/service-extensions/xrpc-tcp-latency-linux
       - name: Preserve workload smoke evidence
         if: always()
@@ -258,6 +249,8 @@ jobs:
           path: |
             out/service-extensions/*.json
             out/service-extensions/xrpc-tcp-latency-linux/*.jsonl.gz
+            out/gcc/native/xrpc_examples/examples_tcp_worker_main
+            out/xrpc-observer.so
             out/service-extensions/xmqtt-mixed/mixed
             out/service-extensions/xmqtt-mixed/*.json
             out/service-extensions/xmqtt-mixed/*.jsonl
@@ -402,12 +395,24 @@ jobs:
         run: >-
           python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
           --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-windows-smoke.json
+      - name: Fixed-arrival TCP latency samples
+        if: matrix.product == 'xrpc'
+        run: |
+          python -B extlibs/xrpc/tests/interop/run_tcp_worker.py \
+            out/gcc/native/xrpc_examples/examples_tcp_worker_main.exe out/service-extensions/xrpc-tcp-latency-windows.json \
+            --saturation --auto-affinity --stagger-arrivals --connections 8 --workers 2 --window-batches 16 \
+            --calls 8000 --rates 4000,8000 --repeats 5 \
+            --observer-native out/xrpc-observer.dll --raw-dir out/service-extensions/xrpc-tcp-latency-windows
       - name: Preserve workload smoke evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: service-extensions-${{ matrix.product }}-windows-smoke
-          path: out/service-extensions/*.json
+          path: |
+            out/service-extensions/*.json
+            out/service-extensions/xrpc-tcp-latency-windows/*.jsonl.gz
+            out/gcc/native/xrpc_examples/examples_tcp_worker_main.exe
+            out/xrpc-observer.dll
           if-no-files-found: warn
 
   workload-smoke:
