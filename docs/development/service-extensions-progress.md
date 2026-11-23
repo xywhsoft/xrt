@@ -24378,3 +24378,40 @@ The runtime, tests and manifests match the f8e402a0 launch revision.
 The log and audit are under
 out/service-extensions/xmqtt-tls-prefix-bfbf7cbc/wsl/. Hosted native
 Linux sanitizer evidence for the new job is still open.
+
+## 2026-11-23 QoS 2 capacity with distributed publisher credit
+
+One pacer offered 128-byte messages to eight wildcard subscribers
+with a Receive Maximum of 32. The unchanged broker used two workers
+and a 256-delivery limit per session. Each host had five rotated
+trials per rate and per publisher/window pairing. The 1 x 16 and
+4 x 4 pairings use the same 16 total publisher slots. The 4 x 16
+pairing allows 64 slots. The replay verified 60 timed and 10
+calibration samples. The 42 complete ledgers covered 2,064,400
+publications and 16,493,600 deliveries.
+
+| Host | Scheduled offers/s | 1 x 16 complete / at rate | 4 x 4 complete / at rate | 4 x 16 complete / at rate |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 12,000 | 3 / 3 | 5 / 4 | 4 / 4 |
+| Ubuntu WSL | 12,000 | 5 / 0 | 5 / 0 | 0 / 0 |
+| Windows x64 | 24,000 | 0 / 0 | 0 / 0 | 0 / 0 |
+| Ubuntu WSL | 24,000 | 5 / 0 | 5 / 0 | 0 / 0 |
+
+At rate means at least 95 percent of scheduled ingress with the
+complete ledger. At 12,000/s, WSL median ingress rose from 9,362 to
+10,336/s when the same aggregate credit was spread across four
+connections. Both throughput series passed the variation check.
+The delivery P99 medians were 1.123 s and 0.743 s. Both tail series
+exceeded variation limits. At 24,000/s the WSL 4 x 4 median was
+10,265/s and delivery P99 was 5.320 s. The tested two-worker
+profiles leave the sustained 24,000/s capacity open.
+
+All 28 incomplete campaign trials reported PUBREC reason 0x97.
+A separate 12-trial diagnostic repeated the two four-publisher
+pairings at 24,000 offers/s. Eight trials triggered a quota refusal.
+The broker logged 70 reservation denials, all at the per-session
+delivery-count limit. Server-wide count and byte counters recorded
+zero denials. The diagnostic identifies the failed admission check
+without treating a larger publisher window as a capacity gain.
+The reports, broker journals and audits are under
+out/service-extensions/xmqtt-multi-publisher-2acf8474/.
