@@ -23087,3 +23087,30 @@ must accumulate a full continuous interval.
 
 The failed prefix audit, Windows clock events, new build receipt and
 live journal are in out/service-extensions/xredis-windows-clock-restart-3827f672/.
+
+
+## 2026-11-23 Native Linux MQTT reference comparison
+
+A manual xmqtt_comparison input runs the existing MQTT 5 comparison
+drivers on a separate Ubuntu job. The job compiles checksum-pinned
+Paho C 1.3.15 and Mosquitto 2.1.2, pins the broker and load to disjoint
+physical cores, and retains the complete sample rows, matched settings,
+executables and build identities. The publisher comparison covers QoS
+1 and 2 at 1,500 offers/s. The broker comparison covers QoS 0 exact
+and wildcard routing at 3,000 and 10,000 offers/s, and QoS 2 wildcard
+and shared routing at 3,000 offers/s.
+
+The extracted commands completed on Ubuntu WSL. Independent replay
+checked all 24 publisher processes and 40 broker processes, executable
+hashes, alternating sample order, and the variation results. Publishers
+completed all 60,000 measured offers plus warmup, and the independent
+subscriber checked 75,072 binary deliveries. The broker observers
+confirmed 120,000 measured offers and 570,000 expected deliveries.
+
+Every P99 series exceeded at least one repeatability limit on the WSL
+host. Other qualification workloads were running during the diagnostic.
+The native Ubuntu job still needs to run. TLS, durable and longer load
+performance acceptance remain separate workloads. actionlint 1.7.7
+and ordinary MQTT maturity passed.
+
+Evidence is under out/service-extensions/xmqtt-native-comparison-cefaf2b8/.

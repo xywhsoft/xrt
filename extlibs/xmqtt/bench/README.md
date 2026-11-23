@@ -169,6 +169,25 @@ Saturation, receiver overhead, TLS, durable sessions and the native
 72-hour mixed workloads have separate qualification.
 
 
+### Native Linux comparison in CI
+
+Enable `xmqtt_comparison` in a manual service-extensions workflow run.
+The job builds Paho C 1.3.15 and Mosquitto 2.1.2 from checksum-pinned
+source archives. It samples the MQTT 5 QoS 1 and QoS 2 publishers
+against one Mosquitto listener and verifies the binary payload set
+with an independent subscriber. The broker comparison covers QoS 0
+exact and wildcard routing and QoS 2 wildcard and shared delivery.
+Both use plaintext connections and memory-only state. The broker
+process gets one core, and each client or load generator gets the
+same two other cores.
+
+The job alternates implementation order for five measured repetitions
+and saves reports, binary hashes, executable files, revision, and host
+and toolchain identifiers. The reports include per-run latency and
+throughput and their repeatability checks. Encrypted transport,
+restart, and sustained-load qualification use their existing workloads.
+
+
 ## MQTT 5 receiver reference
 
 The receiver comparison sends the same 32-byte payloads to xmqtt and Paho C

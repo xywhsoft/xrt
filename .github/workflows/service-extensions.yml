@@ -41,6 +41,10 @@ on:
         description: Sample native Linux Redis TCP and TLS against pinned Hiredis
         type: boolean
         default: false
+      xmqtt_comparison:
+        description: Sample native Linux MQTT against pinned Paho C and Mosquitto
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -643,4 +647,109 @@ jobs:
         with:
           name: xredis-hiredis-linux
           path: out/service-extensions/xredis-hiredis-linux/
+          if-no-files-found: warn
+
+  xmqtt-linux-comparison:
+    if: github.event_name == 'workflow_dispatch' && inputs.xmqtt_comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install the Mosquitto build dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libcjson-dev
+      - name: Compare MQTT 5 publishers and brokers on native Linux
+        shell: bash
+        run: |
+          evidence=out/service-extensions/xmqtt-linux-comparison
+          mkdir -p "$evidence"
+          mosquitto_archive="$RUNNER_TEMP/mosquitto-2.1.2.tar.gz"
+          paho_archive="$RUNNER_TEMP/paho-1.3.15.tar.gz"
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            https://mosquitto.org/files/source/mosquitto-2.1.2.tar.gz --output "$mosquitto_archive"
+          curl --fail --silent --show-error --location --retry 2 --max-time 120 \
+            https://codeload.github.com/eclipse-paho/paho.mqtt.c/tar.gz/refs/tags/v1.3.15 --output "$paho_archive"
+          printf '%s  %s\n' \
+            fd905380691ac65ea5a93779e8214941829e3d6e038d5edff9eac5fd74cbed02 "$mosquitto_archive" \
+            60ce2cfdc146fcb81c621cb8b45874d2eb1d4693105d048f60e31b8f3468be90 "$paho_archive" | sha256sum --check
+          tar --no-same-owner -xzf "$mosquitto_archive" -C "$RUNNER_TEMP"
+          tar --no-same-owner -xzf "$paho_archive" -C "$RUNNER_TEMP"
+
+          cmake -S "$RUNNER_TEMP/mosquitto-2.1.2" -B "$RUNNER_TEMP/mosquitto-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DWITH_TLS=OFF -DWITH_WEBSOCKETS=OFF -DWITH_TESTS=OFF -DWITH_CLIENTS=OFF \
+            -DWITH_APPS=OFF -DWITH_PLUGINS=OFF -DWITH_DOCS=OFF -DWITH_LTO=OFF -DWITH_HTTP_API=OFF
+          cmake --build "$RUNNER_TEMP/mosquitto-build" --target mosquitto -j2
+          cp "$RUNNER_TEMP/mosquitto-build/src/mosquitto" "$evidence/mosquitto"
+
+          paho="$RUNNER_TEMP/paho.mqtt.c-1.3.15"
+          cmake -S "$paho" -B "$RUNNER_TEMP/paho-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPAHO_BUILD_SHARED=OFF -DPAHO_BUILD_STATIC=ON \
+            -DPAHO_ENABLE_TESTING=OFF -DPAHO_ENABLE_CPACK=OFF -DPAHO_HIGH_PERFORMANCE=ON -DPAHO_WITH_SSL=OFF
+          cmake --build "$RUNNER_TEMP/paho-build" --target paho-mqtt3a-static -j2
+          paho_library="$RUNNER_TEMP/paho-build/src/libpaho-mqtt3a.a"
+
+          flags=(-std=gnu11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION
+            -Iinclude -Iextlibs/xmqtt/include -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h)
+          bench=extlibs/xmqtt/bench
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_CLIENT "$bench/bench_client_reference.c" \
+            -o "$evidence/xmqtt-publish" -pthread -lm
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_CLIENT -DXMQTT_BENCH_PAHO -DPAHO_MQTT_STATIC=1 \
+            -I"$paho/src" "$bench/bench_client_reference.c" "$paho_library" -o "$evidence/paho-publish" -pthread -lrt -ldl -lm
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER extlibs/xmqtt/examples/server/main.c \
+            -o "$evidence/xmqtt-broker" -pthread -lm
+          gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER -DXRT_MODULE_MEMORY_STATS "$bench/bench_server.c" \
+            -o "$evidence/broker-observer" -pthread -lm
+
+          git rev-parse HEAD > "$evidence/revision.txt"
+          lscpu > "$evidence/cpu.txt"
+          gcc --version > "$evidence/compiler.txt"
+          ldd "$evidence/mosquitto" > "$evidence/broker-dependencies.txt"
+          sha256sum "$mosquitto_archive" "$paho_archive" "$paho_library" "$evidence/mosquitto" \
+            "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
+            > "$evidence/sha256.txt"
+          cpus=$(python - <<'PY'
+          import os
+          import subprocess
+          available = os.sched_getaffinity(0)
+          cores = {}
+          for row in subprocess.check_output(["lscpu", "-p=CPU,CORE,SOCKET"], text=True).splitlines():
+              if not row.startswith("#"):
+                  cpu, core, socket = map(int, row.split(","))
+                  if cpu in available:
+                      cores.setdefault((socket, core), cpu)
+          if len(cores) < 3:
+              raise SystemExit("MQTT comparison needs three available cores")
+          broker, first, second = list(cores.values())[:3]
+          print(broker, f"{first},{second}")
+          PY
+          )
+          read -r broker_cpu load_cpus <<< "$cpus"
+
+          status=0
+          for qos in 1 2; do
+            python -B "$bench/compare_client_reference.py" --broker "$evidence/mosquitto" \
+              --xmqtt "$evidence/xmqtt-publish" --paho "$evidence/paho-publish" \
+              --broker-cpu "$broker_cpu" --client-cpus "$load_cpus" --qos "$qos" \
+              --window 16 --rate 1500 --count 3000 --repeats 5 --report "$evidence/publish-qos$qos.json" || status=1
+          done
+          broker_args=(--xmqtt "$evidence/xmqtt-broker" --mosquitto "$evidence/mosquitto"
+            --observer "$evidence/broker-observer" --broker-cpu "$broker_cpu" --load-cpus "$load_cpus"
+            --rounds 3000 --warmup 300 --repeats 5)
+          python -B "$bench/compare_broker.py" "${broker_args[@]}" --qos 0 \
+            --workload exact:1:3000 --workload wildcard:8:10000 --report "$evidence/broker-qos0.json" || status=1
+          python -B "$bench/compare_broker.py" "${broker_args[@]}" --qos 2 --window 16 --subscriber-window 16 \
+            --workload wildcard:8:3000 --workload shared:8:3000 --report "$evidence/broker-qos2.json" || status=1
+          exit "$status"
+      - name: Preserve native MQTT comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xmqtt-linux-comparison
+          path: out/service-extensions/xmqtt-linux-comparison/
           if-no-files-found: warn
