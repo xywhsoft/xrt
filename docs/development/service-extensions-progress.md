@@ -26174,3 +26174,43 @@ the APP configuration and preserves the acceptance criteria.
 
 Evidence, binary identities and replay are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-native-backend-9ce2606c/.
+
+## 2026-11-24 Ubuntu xredis epoll and io_uring open-loop replay
+
+The external Redis observer now selects a backend through
+its benchmark environment. Windows verified 400 local
+requests with the default IOCP build. The Ubuntu guest used
+one optimized executable for automatic, explicit epoll and
+io_uring selection. Each mode verified its reported backend
+and 400 replies against Redis 8.0.5. Both platforms rejected
+an invalid selection before connecting.
+
+The paired Ubuntu campaign used four RESP3 connections,
+a 128-request harness window, 1 KiB binary values and three
+GETs per SET. Redis used guest CPU 1 and the observer used
+CPUs 0 and 3 while sanitizer and endurance work continued.
+Each rate alternated backend order across one warmup pair
+and five measured pairs. Host replay rebuilt the quantiles
+from the individual records and matched the peer command
+ledger after excluding the fixture's INFO checks.
+
+| Offers/s | Backend | Complete measured samples | Median request P99 (ms) | Median request P99.9 (ms) |
+| ---: | --- | ---: | ---: | ---: |
+| 2,000 | epoll | 5/5 | 5.418 | 6.933 |
+| 2,000 | io_uring | 5/5 | 3.474 | 6.115 |
+| 12,000 | epoll | 5/5 | 4.736 | 6.221 |
+| 12,000 | io_uring | 4/5 | | |
+
+At 12,000 offers/s the observer exhausted its 128 slots
+on seven offers in the epoll warmup and 27 offers in one
+measured io_uring trial. Neither sent those offers. All
+385,166 accepted requests across the campaign and probes
+received valid replies within their scheduled deadlines.
+The replay verified all 385,200 scheduled rows and exact
+peer commands, including the two incomplete samples.
+The full five-sample throughput series were repeatable.
+The corresponding P99 and P99.9 series exceeded their
+variation limits. Release performance acceptance remains open.
+
+The source receipts, complete traces and replay are under
+out/service-extensions/linux-guest-9ce2606c/xredis-native-backend-replay-7bf8b8bf/.
