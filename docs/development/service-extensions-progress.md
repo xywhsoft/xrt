@@ -22921,3 +22921,59 @@ gates remain open.
 
 The downloaded logs, artifacts, workload reports and workflow
 replay are under out/service-extensions/native-ci-48b0ba85/.
+
+
+## 2026-11-23 xrpc Windows receive phases and Linux runner latency samples
+
+Two Windows x64 diagnostics each alternated five pairs at 64,000 and
+128,000 fixed-arrival calls/s in duplex and direct-dispatch modes.
+Both used eight staggered peers, two executor workers, a 16-group
+window, four APP logical CPUs and one distinct observer CPU. The
+observer kept its Winsock timing guard. The independent readers
+verified 15,360,000 measured replies, 247,680 joined APP/observer
+phase records, every full-run quantile and 2,301 traced replies at
+or above their run's P99 cutoff. Separate 13-byte short-write
+controls verified 32,096 replies and 1,024 phase records. The first
+short-write attempt had no trace sample at the full-run P99 cutoff.
+The final short-write checks require exact record-time alignment
+and report any tail samples observed.
+
+The second diagnostic records when the APP enters recv and when
+it returns with the record's final byte. The following values
+are per-run medians over the traced P99 cohort. P99 includes the
+whole path for all verified calls, with the uninstrumented APP
+and the traced APP using the same observer.
+
+| Calls/s | APP | End-to-end P99 plain / traced (us) | Final write to recv entry | Remaining time to recv return | Recv returned to record turn | Executor and wake combined |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 64,000 | Duplex | 457.5 / 461.9 | 1.8% | 12.6% | 54.9% | 7.6% |
+| 64,000 | Dispatch | 421.6 / 417.4 | 0.0% | 15.9% | 50.1% | 5.0% |
+| 128,000 | Duplex | 628.6 / 616.4 | 25.3% | 5.8% | 41.2% | 6.3% |
+| 128,000 | Dispatch | 546.7 / 681.5 | 25.0% | 5.8% | 40.8% | 5.4% |
+
+The first interval starts at the write attempt that carries the
+record's final byte. If recv has already begun, the interval is
+zero. At the higher rate, a substantial part of the tail occurs
+while the APP has yet to enter the receive that returns that
+record. Individual executor queue, handler and return-wake time
+have smaller shares. The two diagnostics ran with active endurance
+and smoke workloads. The APP probes can also shift tails. All
+sixteen verified throughput series met the variation limits.
+One P99 series and no P99.9 series met their limits.
+
+The Linux xrpc CI job now records five alternated duplex and
+direct-dispatch samples at 32,000 and 64,000 fixed arrivals/s.
+It uses the existing example and native observer and uploads raw
+timestamps for replay. The command selects disjoint CPU masks from
+the runner's available CPUs. The extracted Bash step passed on
+Ubuntu WSL. Independent replay checked 1,280,000 replies across
+20 processes, both tail quantiles, and the binary and observer
+identities. actionlint and ordinary maturity passed.
+
+The [native Ubuntu job at 7d667770](https://github.com/xywhsoft/xrt/actions/runs/45099155280/job/137445719947)
+passed functional verification in both TCP modes, including 512
+parallel replies and 256 backpressure-isolation replies per mode.
+The new timing step awaits a GitHub run. Repeatable release tails
+and strict release acceptance remain open. Evidence is under
+out/service-extensions/xrpc-windows-handoff-6abe6864/ and
+out/service-extensions/xrpc-windows-read-entry-6abe6864/.
