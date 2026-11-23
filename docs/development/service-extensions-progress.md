@@ -26023,3 +26023,22 @@ measured quantities still exceed the repeatability limits. The
 The recovery cohorts are tracked independently. Inputs and replay
 are under out/service-extensions/xcron-p999-0020e637/ and
 out/service-extensions/linux-guest-9ce2606c/restart-20261124-0415/initial-xcron/.
+
+## 2026-11-24 Full Ubuntu Redis ASan and UBSan suite
+
+The QEMU/WHPX Ubuntu x86-64 guest ran the optimized Redis
+runtime suite from the verified 7bf8b8bf source archive.
+GCC 13 built 39 modular and 54 single-header test executables
+with ASan and UBSan. All 93 passed, with leak detection and
+fatal sanitizer diagnostics enabled. Replay matched the current
+Linux manifest inventory and run order. ELF inspection checked
+the sanitizer libraries and instrumented symbol references in
+every executable. The current Redis library, tests and shared
+build inputs match the archived source.
+
+The suite includes queue, pool, subscription, topology, I/O
+lifetime, deadline, allocation failure and ownership coverage.
+The MQTT sanitizer suite and separate focused ThreadSanitizer
+replays have independent receipts. Source archive digests,
+test logs and replay scripts are under
+out/service-extensions/linux-guest-9ce2606c/service-sanitizers-7bf8b8bf/.
