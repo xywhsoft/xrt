@@ -25282,3 +25282,31 @@ Redis workloads continued. The updated run and the native Linux
 72-hour qualification remain open. Build receipts, smoke, fault
 and startup audit artifacts are under
 out/service-extensions/xmqtt-shared-credit-71db594d/.
+
+## 2026-11-23 Redis batched submission ingestion prototype
+
+The prototype detached a bounded submission prefix under the existing
+worker-turn gate and processed each request after unlocking. It kept
+the FIFO, deadline and close checks. Both variants used the same
+optimized observer, eight connections, a 128-request observer window,
+and a pinned private Redis 8.0.5 peer. The Windows observers reached
+the peer through the WSL loopback forwarder.
+
+Independent replay reconciled 864,000 scheduled offers including
+warmups, 863,404 verified replies, 596 observer-window refusals and
+the Redis command ledgers. It recorded no corrupt replies, client
+overloads or missed deadlines. Ratios compare candidate to baseline
+within complete pairs.
+
+| Observer | Offers/s | Complete pairs | Outside-generator CPU ratio | P99 ratio | P99.9 ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Native Windows | 12,000 | 6 / 7 | 1.091 | 0.952 | 0.465 |
+| Native Windows | 2,000 | 5 / 5 | 1.000 | 1.048 | 0.990 |
+| Ubuntu WSL | 12,000 | 4 / 7 | 1.011 | 0.979 | 0.855 |
+| Ubuntu WSL | 2,000 | 5 / 5 | 0.979 | 1.154 | 1.199 |
+
+The low-rate WSL CPU ratio met the variation limits. The other
+outside-generator CPU ratios and every tail ratio exceeded them.
+The candidate remains in the evidence directory. Production keeps
+the existing ingestion path. Source variants, binaries, raw samples
+and replay are under out/service-extensions/xredis-submit-batch-2553575b/.
