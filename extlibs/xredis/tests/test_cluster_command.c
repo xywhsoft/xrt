@@ -75,7 +75,8 @@ typedef struct qpdeadline {rffixture* Fixture;xredisclusterclient* Client;double
 static void qpInspectDeadline(xnetworker* Worker,ptr Data)
 {(void)Worker;qpdeadline* P=Data;xredisclient* Native=xrtAtomicPtrLoad(&P->Fixture->Nodes[0].Client,XMEMORY_ACQUIRE);xredisrequest* Q=Native->SentHead;xrtMutexLock(&P->Client->Gate);xredisclusteroperation* O=P->Client->All;
  double End=xredisClientDeadline(P->Entered,P->Timeout);
- testRequire(Q && O && O->Route->Entered==O->Entered && O->Deadline==Q->Deadline && O->Deadline<=End && O->Deadline>=End-.002,"APP preflight budget or native queue deadline");xrtMutexUnlock(&P->Client->Gate);xrtAtomic32Store(&P->Done,1,XMEMORY_RELEASE);}
+ /* The APP and native paths group the same time additions differently. */
+ testRequire(Q && O && O->Route->Entered==O->Entered && O->Deadline==Q->Deadline && O->Deadline<=nextafter(End,INFINITY) && O->Deadline>=End-.002,"APP preflight budget or native queue deadline");xrtMutexUnlock(&P->Client->Gate);xrtAtomic32Store(&P->Done,1,XMEMORY_RELEASE);}
 static void qpDeadline(void)
 {
     for(unsigned Default=0;Default<2;++Default){rffixture* F=qpStart();xredisclusterclientconfig Config;xredisClusterClientConfigInit(&Config);Config.Route.Timeout=5007;xredisclusterclient* C=cfCreate(F,&Config);cfReady(C);xrediscommandcatalog* K=qpCatalogue(0,NULL);qpbarrier Gate={0};testRequire(xrtNetEnginePost(F->Base->Peers[0].Engine,1,qpBlock,&Gate),"deadline barrier");redisPeerWait(&Gate.Entered,1);xrtAtomic32Store(&F->Base->HoldBusiness,1,XMEMORY_RELEASE);

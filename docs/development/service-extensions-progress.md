@@ -25819,3 +25819,21 @@ Ubuntu ASan/UBSan with leak detection also passed four runs
 each of the earlier pool, client and TLS shared-pool fixtures.
 The optimized ROLE results and the separate sanitizer logs
 are under out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
+
+## 2026-11-24 Redis Cluster APP deadline representation
+
+A full Ubuntu replay passed the updated ROLE fixtures and
+found a failure in the standalone Cluster command APP's
+deadline assertion. The APP deducts catalogue work from the
+remaining millisecond budget before handing it to the native
+operation. Around the 1,024-second binary exponent boundary,
+the test's recomputed deadline and the native deadline can
+differ by one representable double. A fixed-clock witness
+reproduced the original assertion with the same deadline in
+the operation and native request.
+
+The white-box test permits that single adjacent value while
+retaining exact operation/native agreement and the existing
+early-deadline bound. The fixed-clock witness and the normal
+Windows and Ubuntu single-header cases passed. Evidence is
+under out/service-extensions/linux-guest-9ce2606c/redis-app-deadline-diagnostic/.
