@@ -691,6 +691,14 @@ Run the loopback example as `examples_server_main wait`. It writes a numeric
 endpoint, then accepts test peers until a line arrives on stdin. Both the
 MQTT 5-only and dual-version module configurations have standalone tests.
 
+The TCP example accepts `XMQTT_EXAMPLE_READ_MODE=adaptive` (the default)
+or `XMQTT_EXAMPLE_READ_MODE=direct`. It sets XRT's accepted-stream
+`ReadMode` before starting the listener. On completion backends with
+read probes, adaptive mode can wait for readability without an idle payload
+buffer. Direct mode keeps a payload receive outstanding and can reduce
+completion work on active connections at the cost of more idle memory.
+Readiness backends such as epoll use their regular receive path in both modes.
+
 ```sh
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server
 python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_dual_tests

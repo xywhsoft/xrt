@@ -61,6 +61,12 @@ int main(int Argc, char** Argv)
 			return 2;
 		}
 	}
+	const char* ReadMode = getenv("XMQTT_EXAMPLE_READ_MODE");
+	if (ReadMode && !strcmp(ReadMode, "direct")) Example.ReadMode = XNET_STREAM_READ_DIRECT;
+	else if (ReadMode && strcmp(ReadMode, "adaptive")) {
+		fputs("XMQTT_EXAMPLE_READ_MODE requires adaptive or direct\n", stderr);
+		return 2;
+	}
 	if (!exampleServerStart(&Example, &Config, Workers)) {
 		const xerror* Error = xrtGetError();
 		fprintf(stderr, "MQTT broker startup failed: %s\n", Error ? xrtErrorMessage(Error) : "listener unavailable");

@@ -14,6 +14,7 @@ typedef struct serverexample {
 	xnetaddr Address;
 	xatomic32 ListenerClosed;
 	xnetportbackend Backend;
+	xnetstreamreadmode ReadMode;
 	bool (*Prepare)(xmqttserver* Server, ptr Data);
 	ptr PrepareData;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
@@ -121,6 +122,7 @@ static bool exampleServerStart(serverexample* Example, const xmqttserverconfig* 
 
 	xnetlistenconfig Listen;
 	xrtNetListenConfigInit(&Listen);
+	Listen.Stream.ReadMode = Example->ReadMode;
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
 	if (Example->WebSocket) Listen.Distribution = XNET_ACCEPT_ROUND_ROBIN;
 #endif
