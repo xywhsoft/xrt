@@ -3,8 +3,9 @@
 `XCRON_MODULE_XCRON_CALENDAR` selects expression compilation and public XRT time
 APIs. It implements exact UTC/civil matching and earliest recurrence search for
 the explicit Unix5/seconds6 dialects. It does not select system-local time,
-time-text parsing, IANA zones, scheduling, waiting, callbacks or storage. The
-product root remains developing until the original full scope is delivered.
+time-text parsing, IANA zones, scheduling, waiting, callbacks or storage.
+The [development contract](../../../docs/development/service-extensions-plan.md)
+defines the product scope and required release evidence.
 
 The day rule follows the [Cronie manual](https://man7.org/linux/man-pages/man5/crontab.5.html):
 month/hour/minute/second must match; if either day field contains a star, both day

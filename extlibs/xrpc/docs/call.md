@@ -55,10 +55,11 @@ The [example](../examples/call/main.c) runs without a network service, records
 uncertain delivery, requests cancellation and reads the typed outcome after
 producer destruction. Run README's build command with suite `xrpc_call`.
 Separate tests cover statuses/knowledge, explicit causes, retained payloads,
-observer drop, cancellation/deadline ordering, completion reentry, nonblocking cancellation-capture retirement and construction/OOM boundaries. The benchmark includes complete
-operation/Future creation and destruction; encoding, queues, timers and transport
-remain excluded. Complete async client/server and production acceptance remain
-work under the original four-product contract.
+observer drop, cancellation/deadline ordering, completion reentry, nonblocking
+cancellation-capture retirement and construction/OOM boundaries. The benchmark
+measures operation/Future creation and destruction. The [duplex endpoint](duplex.md)
+documents host-driven completion and deadlines. The
+[TCP APP](../examples/duplex/README.md) shows transport and executor integration.
 
 
 Terminal publication does not wait for an executing cancellation Wake. Core Future
