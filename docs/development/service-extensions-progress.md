@@ -23359,3 +23359,39 @@ execution and formal performance acceptance remain open.
 
 Reports, identities and verification are under
 out/service-extensions/xmqtt-linux-comparison-tls-061f6107/.
+
+## 2026-11-23 Native Linux MQTT client TLS receive comparison job
+
+The optional xmqtt_comparison job now builds the pinned Paho C TLS
+receiver and compares it directly with xmqtt through verified TLS 1.3
+on pinned Mosquitto. The four offered-rate, QoS and window combinations
+reuse the Windows receiver workload. The job records CPU placement,
+OpenSSL dependencies and executable hashes. It prefers four distinct
+cores and can place the broker and publisher on separate logical CPUs
+of one physical core when three cores are available.
+
+The full extracted job completed under Ubuntu WSL on four distinct
+reported cores. It used the checksum-verified local source archives and
+locally unpacked OpenSSL development headers with the installed shared
+libraries. The independent replay checked all 48 TLS receiver runs,
+87,000 measured deliveries and 110,544 broker-side terminal exchanges
+including warmups. It verified the subscription credit and the exact
+acknowledgement phase for each traced packet. It also checked hashes,
+the shared test identity, completed shutdown and the variation results.
+
+| QoS | Window | Offers/s | Application P99 median xmqtt / Paho (us) |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 | 1,200 | 394.1 / 340.1 |
+| 1 | 16 | 3,000 | 760.7 / 609.1 |
+| 2 | 1 | 1,200 | 582.2 / 564.3 |
+| 2 | 16 | 3,000 | 719.8 / 669.4 |
+
+All eight application P99 series exceeded the repeatability limits.
+The earlier plaintext and TLS broker workloads passed in the same
+run. The CPU selector passed the four-core and three-core layouts
+and rejected both insufficient masks. Test key cleanup, binary hashes,
+bash syntax, ordinary maturity and actionlint passed. Native Linux
+execution and stable performance acceptance remain open.
+
+Reports, trace replay and build receipts are under
+out/service-extensions/xmqtt-linux-receive-tls-b93dd8a5/.

@@ -677,11 +677,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Install Mosquitto build dependencies
+      - name: Install MQTT reference build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libcjson-dev libssl-dev openssl
-      - name: Compare MQTT 5 publishers and brokers on native Linux
+      - name: Compare MQTT 5 clients and brokers on native Linux
         shell: bash
         run: |
           evidence=out/service-extensions/xmqtt-linux-comparison
@@ -709,9 +709,10 @@ jobs:
           cmake -S "$paho" -B "$RUNNER_TEMP/paho-build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPAHO_BUILD_SHARED=OFF -DPAHO_BUILD_STATIC=ON \
-            -DPAHO_ENABLE_TESTING=OFF -DPAHO_ENABLE_CPACK=OFF -DPAHO_HIGH_PERFORMANCE=ON -DPAHO_WITH_SSL=OFF
-          cmake --build "$RUNNER_TEMP/paho-build" --target paho-mqtt3a-static -j2
+            -DPAHO_ENABLE_TESTING=OFF -DPAHO_ENABLE_CPACK=OFF -DPAHO_HIGH_PERFORMANCE=ON -DPAHO_WITH_SSL=ON
+          cmake --build "$RUNNER_TEMP/paho-build" --target paho-mqtt3a-static paho-mqtt3as-static -j2
           paho_library="$RUNNER_TEMP/paho-build/src/libpaho-mqtt3a.a"
+          paho_tls="$RUNNER_TEMP/paho-build/src/libpaho-mqtt3as.a"
 
           flags=(-std=gnu11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror -DXRT_IMPLEMENTATION -DXMQTT_IMPLEMENTATION
             -Iinclude -Iextlibs/xmqtt/include -include xmqtt/features.h -include ./single/xrt.h -include ./single/extlibs/xmqtt.h)
@@ -732,14 +733,24 @@ jobs:
             -DXRT_MODULE_TLS_RECORD_AES -DXRT_MODULE_TLS_SCHEDULE_SHA256 -DXRT_MODULE_TLS_KEY_EXCHANGE_X25519 \
             "$bench/bench_server.c" -o "$evidence/broker-observer-tls" -pthread -lm
 
+          receiver_flags=(-DXRT_MODULE_EVENT -DXMQTT_BENCH_RECEIVER_TLS)
+          receiver="$bench/bench_client_receive_reference.c"
+          gcc "${flags[@]}" "${receiver_flags[@]}" -DXMQTT_MODULE_XMQTT_CLIENT_TLS "$receiver" \
+            -o "$evidence/xmqtt-receive-tls" -pthread -lm
+          gcc "${flags[@]}" "${receiver_flags[@]}" -DXMQTT_MODULE_XMQTT_CLIENT -DXMQTT_BENCH_PAHO \
+            -DPAHO_MQTT_STATIC=1 -I"$paho/src" "$receiver" "$paho_tls" \
+            -o "$evidence/paho-receive-tls" -pthread -lrt -ldl -lssl -lcrypto -lm
+
           git rev-parse HEAD > "$evidence/revision.txt"
           lscpu > "$evidence/cpu.txt"
           gcc --version > "$evidence/compiler.txt"
           openssl version -a > "$evidence/openssl.txt"
           ldd "$evidence/mosquitto" > "$evidence/broker-dependencies.txt"
-          sha256sum "$mosquitto_archive" "$paho_archive" "$paho_library" "$evidence/mosquitto" \
+          ldd "$evidence/paho-receive-tls" > "$evidence/paho-tls-dependencies.txt"
+          sha256sum "$mosquitto_archive" "$paho_archive" "$paho_library" "$paho_tls" "$evidence/mosquitto" \
             "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
-            "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" > "$evidence/sha256.txt"
+            "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" \
+            "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" > "$evidence/sha256.txt"
           cpus=$(python - <<'PY'
           import os
           import subprocess
@@ -749,14 +760,21 @@ jobs:
               if not row.startswith("#"):
                   cpu, core, socket = map(int, row.split(","))
                   if cpu in available:
-                      cores.setdefault((socket, core), cpu)
-          if len(cores) < 3:
-              raise SystemExit("MQTT comparison needs three available cores")
-          broker, first, second = list(cores.values())[:3]
-          print(broker, f"{first},{second}")
+                      cores.setdefault((socket, core), []).append(cpu)
+          groups = list(cores.values())
+          if len(groups) < 3 or sum(map(len, groups)) < 4:
+              raise SystemExit("MQTT comparisons need at least three physical cores and four logical CPUs")
+          if len(groups) == 3:
+              # Keep the receiver CPUs on separate cores and share the broker core with the publisher.
+              groups.sort(key=len, reverse=True)
+          broker, first, second = (group[0] for group in groups[:3])
+          publisher = groups[3][0] if len(groups) >= 4 else groups[0][1]
+          print(broker, f"{first},{second}", publisher)
           PY
           )
-          read -r broker_cpu load_cpus <<< "$cpus"
+          read -r broker_cpu load_cpus publisher_cpu <<< "$cpus"
+          printf 'broker=%s\nclients=%s\npublisher=%s\n' \
+            "$broker_cpu" "$load_cpus" "$publisher_cpu" > "$evidence/cpu-placement.txt"
 
           status=0
           for qos in 1 2; do
@@ -793,6 +811,14 @@ jobs:
           for qos in 0 1 2; do
             python -B "$bench/compare_broker.py" "${tls_args[@]}" --qos "$qos" --window 16 \
               --workload exact:1:1000 --workload shared:8:2000 --report "$evidence/broker-tls-qos$qos.json" || status=1
+          done
+          receiver_args=(--xmqtt "$evidence/xmqtt-receive-tls" --paho "$evidence/paho-receive-tls"
+            --broker "$evidence/mosquitto" --broker-cpu "$broker_cpu" --peer-cpu "$publisher_cpu"
+            --client-cpus "$load_cpus" --tls-credentials "$tls_dir" --repeats 5)
+          for workload in '1 1 1200 1800' '1 16 3000 4500' '2 1 1200 1200' '2 16 3000 1200'; do
+            read -r qos window rate count <<< "$workload"
+            python -B "$bench/compare_client_receivers.py" "${receiver_args[@]}" --qos "$qos" --window "$window" \
+              --rate "$rate" --count "$count" --report "$evidence/receive-tls-qos$qos-w$window.json" || status=1
           done
           exit "$status"
       - name: Preserve native MQTT comparison evidence

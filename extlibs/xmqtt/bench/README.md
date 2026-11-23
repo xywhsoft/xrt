@@ -267,6 +267,12 @@ application and publisher rates, application latency percentiles, publisher
 ACK latency and a hash of the broker trace saved alongside the JSON. The
 measured workload includes broker tracing and excludes TLS handshake timing.
 
+The manual service-extensions comparison runs direct TLS receivers at QoS 1
+and 2 with windows 1 and 16. It requires four logical CPUs on at least three
+cores and records the affinity of the broker, publisher and receivers. With
+three cores, the broker and publisher use different logical CPUs of one core.
+[Service extensions workflow](../../../.github/workflows/service-extensions.yml).
+
 ## Longer instrumented measurement
 
 `xmqtt_qos2_resolution` adds eight instrumented variants with 200000 operations,
