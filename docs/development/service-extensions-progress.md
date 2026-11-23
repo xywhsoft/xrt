@@ -26919,3 +26919,27 @@ strict performance repeatability open.
 
 The route, process identity, diagnostics and raw replay
 are under out/service-extensions/xredis-capacity-85f4ad5c/.
+
+## 2026-11-24 Restart native Windows MQTT endurance
+
+A clean aaf7e364 build produced the same executable as
+the tested readiness diagnostic preview. Its compile
+inputs differ from the failed Windows candidate only in
+the diagnostic workload source. The library headers,
+APP listener and harness inputs matched. The 12-second
+Windows smoke verified 770 rounds and 4,669 deliveries
+with exact resource retirement.
+
+A separate run killed its owned broker after 323
+verified rounds. The workload failed and the final
+verifier rejected the interrupted interval. The
+diagnostic binary then began a fresh 259,200-second
+Windows interval at 07:53:54 China Standard Time.
+The first saved replay verified 1,923 rounds over 30.1
+awake seconds with both native roles sampled. No
+previous time carries into this replacement interval.
+The independent Ubuntu workload remained active.
+
+Build inputs, the smoke and injected failure, and the
+replacement journal and process receipt are under
+out/service-extensions/xmqtt-readiness-e5185ff8/.
