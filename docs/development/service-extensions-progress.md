@@ -24531,3 +24531,37 @@ generator. Windows process CPU was variable. Raw records, fixture
 receipts and replay are under
 out/service-extensions/xredis-current-hiredis-bead0d87/.
 Strict performance acceptance remains open.
+
+## 2026-11-23 xredis per-request timer cost
+
+A scratch observer used the same xredis and XRT code for both modes.
+It passed the remaining time budget to regular calls in the finite
+mode and XRT_WAIT_FOREVER in the diagnostic mode. The fixed-arrival
+observer retained its one-second deadline and its bounded drain in
+both modes. Each accepted finite request armed and cancelled exactly
+one engine timer. The diagnostic mode armed none. Neither mode
+recorded a timer firing, rejection or error in the measured traffic.
+
+Both observers used eight RESP3 connections, 12,000 offers/s, a
+128-slot observer window and 1 KiB mixed GET/SET traffic. Each host
+ran seven alternating measured pairs after one warmup pair on logical
+CPUs 6 and 8. Both used a private Redis 8.0.5 instance pinned to WSL
+CPU 10. Independent replay matched the observer and input hashes,
+all 1,152,000 offer rows including warmup, and the Redis command ledgers.
+
+| Observer host | Finite replies / offers | Diagnostic replies / offers | Complete pairs |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 250,837 / 252,000 | 251,868 / 252,000 | 2 of 7 |
+| Ubuntu WSL | 252,000 / 252,000 | 252,000 / 252,000 | 7 of 7 |
+
+All incomplete offers were refused at the observer's window. In WSL,
+the median total process CPU per reply was 122.68 us finite and
+121.66 us diagnostic. The respective CPU outside the generator was
+39.35 and 38.33 us/reply, with lower diagnostic cost in six of seven
+matched pairs. Both P99 and P99.9 series exceeded the variation limits.
+Windows had too few complete pairs to estimate the effect. The WSL
+measurement puts timer overhead well below the previously observed
+CPU gap. The production timeout implementation is unchanged.
+
+The observers, build receipts, traces, and replay are under
+out/service-extensions/xredis-timer-cost-48995748/.
