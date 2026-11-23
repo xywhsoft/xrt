@@ -30,7 +30,7 @@ static void testPacketGrammar(void)
 		xmqttpacket Before=Packet; testRequire(!xmqttPacketInit((xmqttpackettype)0,&Packet) && memcmp(&Before,&Packet,sizeof(Packet))==0,"invalid initializer modified packet"); xrtClearError();
 	}
 	testRequire(!xmqttPacketInit(XMQTT_PACKET_PINGREQ,NULL) && !xmqttCodecConfigInit(NULL),"NULL packet/config outputs"); xrtClearError();
-	xmqttcodecconfig Config; testRequire(xmqttCodecConfigInit(&Config) && Config.Size==sizeof(Config) && Config.MaxPacketBytes==1048576u &&
+	xmqttcodecconfig Config={0}; testRequire(xmqttCodecConfigInit(&Config) && Config.Size==sizeof(Config) && Config.MaxPacketBytes==1048576u &&
 		Config.MaxPayloadBytes==1048576u && Config.MaxPropertyBytes==1048576u && Config.MaxProperties==256 && Config.MaxTopics==1024,"documented config resource defaults");
 }
 

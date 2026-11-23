@@ -25539,3 +25539,16 @@ options yielded byte-identical input before and after this fix.
 The mixed-load probes select the client, pool, tracking and
 subscriber paths. This session-specific regression exercised the
 additional subscription controller.
+
+## 2026-11-23 MQTT packet fixture on Ubuntu GCC 13
+
+GCC 13.3.0 stopped the optimized single-header packet test with a
+maybe-uninitialized diagnostic on the test's output config. The
+fixture now starts with a zeroed config and still requires the
+initializer to return success and fill all documented defaults.
+The same Ubuntu VM compilation and execution passed, and native
+Windows passed both modular and single-header packet tests.
+The existing Ubuntu example peers completed both the handshake
+suite and the 64-connection quota case. The complete suite replay
+is pending. Receipts are under
+out/service-extensions/linux-guest-9ce2606c/redis-session-fix/.
