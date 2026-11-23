@@ -1060,6 +1060,18 @@ retry_compaction_prepare:
         uSummaryBudget-uFixed, &tSessionError);
     if (!pCompaction)
     {
+        if (strcmp(tSessionError.tCause.sOperation, XLLM_SESSION_COMPACTION_NO_PREFIX) == 0)
+        {
+            if (!bForce && tStats.ePressure == XLLM_SESSION_PRESSURE_COMPACT)
+                return XWORK_RESULT_OK;
+            if (tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW)
+                xwork__set_error(pError, XWORK_ERROR_CONTEXT,
+                    "Context exceeds the model input budget and no completed history can be compacted. "
+                    "Shorten the input or use a model with a larger input budget.");
+            else
+                xwork__set_error(pError, XWORK_ERROR_CONTEXT, tSessionError.sMessage);
+            return XWORK_RESULT_ERROR;
+        }
         xwork__set_error(pError, XWORK_ERROR_CONTEXT,
                          tSessionError.sMessage[0]
                              ? tSessionError.sMessage

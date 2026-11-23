@@ -542,6 +542,8 @@ XRT_API bool xllmSessionSnapshotBuildRequest(const xllm_session_snapshot* pSnaps
  * builds a summarizer prompt; commit advances the checkpoint only after a
  * valid summary was obtained. Destroying it without commit aborts safely.
  */
+/* tCause.sOperation for a session with no safely compactable history. */
+#define XLLM_SESSION_COMPACTION_NO_PREFIX "compaction.no_safe_prefix"
 XRT_API xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError);
 /* Select a smaller pair-complete prefix if the prompt cannot fit. Zero uses
  * the session input budget; callers reserve their own system/correction

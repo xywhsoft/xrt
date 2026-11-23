@@ -34,11 +34,12 @@ uint64_t xllm_session__usage_growth(const xllm_session *pSession)
             ? xllm_session__govern_sat_add(24u, xllmEstimateTextTokens(pSession->sSummary))
             : 0u;
     uint64_t uGrowth = 0u;
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
     size_t i;
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
         const xllm_session_entry *pEntry = &pSession->pEntries[i];
-        if (!xllm_session__entry_is_active(pSession, pEntry))
+        if (!xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             continue;
         if (pEntry->uSequence > pSession->uFillSequence &&
             !(pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED))

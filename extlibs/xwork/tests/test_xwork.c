@@ -2204,6 +2204,64 @@ static void test_context_recovery_retry_budget(void)
     }
 }
 
+static xllm_result no_safe_history_complete(void *pData, const xllm_request *pRequest,
+    const xllm_stream_callbacks *pCallbacks, xllm_response **ppResponse, xllm_error *pError)
+{
+    (void)pRequest; (void)pCallbacks; (void)pError;
+    ++*(unsigned *)pData;
+    *ppResponse = mock_response("Accepted the current request.", 0u);
+    return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static void test_compaction_without_safe_history(void)
+{
+    char sInput[14001];
+    memset(sInput, 'x', sizeof(sInput) - 1u);
+    sInput[sizeof(sInput) - 1u] = '\0';
+    for (unsigned i = 0; i < 2u; ++i)
+    {
+        xllm_session_config tSessionConfig;
+        xllmSessionConfigInit(&tSessionConfig);
+        tSessionConfig.uContextWindowTokens = tSessionConfig.uMaxInputTokens = i ? 4200u : 3800u;
+        tSessionConfig.uOutputReserveTokens = tSessionConfig.uMaxOutputTokens = 512u;
+        tSessionConfig.uSafetyReserveTokens = 64u;
+        xllm_session *pSession = xllmSessionCreate(&tSessionConfig, NULL);
+        CHECK(pSession != NULL, "no-safe-prefix fixture creates session");
+        if (!pSession)
+            continue;
+        unsigned uRecoveries = 0u;
+        unsigned uModelCalls = 0u;
+        xwork_agent_config tAgentConfig;
+        xworkAgentConfigInit(&tAgentConfig);
+        tAgentConfig.pSession = pSession;
+        tAgentConfig.sModel = "mock-model";
+        tAgentConfig.sWorkspaceRoot = ".";
+        tAgentConfig.OnModelComplete = no_safe_history_complete;
+        tAgentConfig.pModelUserData = &uModelCalls;
+        tAgentConfig.bAutoSaveSession = false;
+        tAgentConfig.OnExtension = context_limit_policy;
+        tAgentConfig.pExtensionUserData = &uRecoveries;
+        tAgentConfig.OnOwnerRetain = recovery_owner_retain;
+        tAgentConfig.OnOwnerRelease = recovery_owner_release;
+        xwork_error tError;
+        xwork_agent *pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+        xwork_run_result tRun = {0};
+        xwork_result eResult = pAgent ? xworkAgentRun(pAgent, sInput, &tRun, &tError) : XWORK_RESULT_ERROR;
+        if (i)
+            CHECK(pAgent && eResult == XWORK_RESULT_OK && uModelCalls == 1u,
+                "soft pressure without compactable history still sends safe request");
+        else
+            CHECK(pAgent && eResult == XWORK_RESULT_ERROR && tError.eCode == XWORK_ERROR_CONTEXT &&
+                strstr(tError.sMessage, "no completed history") && uModelCalls == 0u,
+                "hard overflow without compactable history reports actionable error");
+        CHECK(uRecoveries == 0u,
+            "no safe prefix never enters a retry wait");
+        xworkRunResultUnit(&tRun);
+        xworkAgentDestroy(pAgent);
+        xllmSessionDestroy(pSession);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -2215,6 +2273,7 @@ int main(int argc, char** argv)
     test_host_recovery();
     test_context_rejection_recovery();
     test_context_recovery_retry_budget();
+    test_compaction_without_safe_history();
     test_path_boundaries();
     test_process_text_normalization();
     test_stream_restart();

@@ -874,6 +874,14 @@ static bool xllm_session__ops_summarize(xllm_session *pSession, const char *sPro
 /* Two-phase transaction (v2 API shape, ops-driven inside)              */
 /* ------------------------------------------------------------------ */
 
+static void xllm_session__compaction_no_prefix(xllm_error *pError)
+{
+    xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+    if (pError)
+        snprintf(pError->tCause.sOperation, sizeof(pError->tCause.sOperation),
+                 "%s", XLLM_SESSION_COMPACTION_NO_PREFIX);
+}
+
 xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForce,
                                               xllm_error *pError)
 {
@@ -956,7 +964,11 @@ xllm_compaction *xllmSessionPrepareCompactionWithBudget(xllm_session *pSession, 
         }
         if (tPlan.uThroughSequence<=pSession->uCompactedThrough)
         {
-            xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+            if (bDefault)
+                xllm_session__compaction_no_prefix(pError);
+            else if (pError && pError->eCode == XLLM_ERROR_NONE)
+                xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
+                                    "no completed prefix is safe to compact yet");
             return NULL;
         }
     }
@@ -974,8 +986,7 @@ retry_smaller_prefix:
     }
     else if (tPlan.uThroughSequence <= pSession->uCompactedThrough)
     {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
-                            "no completed prefix is safe to compact yet");
+        xllm_session__compaction_no_prefix(pError);
         return NULL;
     }
     {

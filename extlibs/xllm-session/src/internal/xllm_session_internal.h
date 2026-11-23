@@ -185,6 +185,10 @@ bool xllm_session__state_require(xllm_session *pSession, xllm_session_state eExp
 void xllm_session__state_set(xllm_session *pSession, xllm_session_state eState);
 uint64_t xllm_session__input_budget(const xllm_session *pSession);
 bool xllm_session__entry_is_active(const xllm_session *pSession, const xllm_session_entry *pEntry);
+const xllm_session_entry *xllm_session__latest_pinned_system(const xllm_session *pSession);
+bool xllm_session__entry_is_rendered(const xllm_session *pSession,
+                                    const xllm_session_entry *pEntry,
+                                    const xllm_session_entry *pLatestSystem);
 bool xllm_session__should_prune_tool(const xllm_session *pSession,
                                      const xllm_session_entry *pEntry);
 uint32_t xllm_session__pending_tool_calls(const xllm_session *pSession);

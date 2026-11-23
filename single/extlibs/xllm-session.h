@@ -642,6 +642,8 @@ XRT_API bool xllmSessionSnapshotBuildRequest(const xllm_session_snapshot* pSnaps
  * builds a summarizer prompt; commit advances the checkpoint only after a
  * valid summary was obtained. Destroying it without commit aborts safely.
  */
+/* tCause.sOperation for a session with no safely compactable history. */
+#define XLLM_SESSION_COMPACTION_NO_PREFIX "compaction.no_safe_prefix"
 XRT_API xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError);
 /* Select a smaller pair-complete prefix if the prompt cannot fit. Zero uses
  * the session input budget; callers reserve their own system/correction
@@ -1062,6 +1064,10 @@ bool xllm_session__state_require(xllm_session *pSession, xllm_session_state eExp
 void xllm_session__state_set(xllm_session *pSession, xllm_session_state eState);
 uint64_t xllm_session__input_budget(const xllm_session *pSession);
 bool xllm_session__entry_is_active(const xllm_session *pSession, const xllm_session_entry *pEntry);
+const xllm_session_entry *xllm_session__latest_pinned_system(const xllm_session *pSession);
+bool xllm_session__entry_is_rendered(const xllm_session *pSession,
+                                    const xllm_session_entry *pEntry,
+                                    const xllm_session_entry *pLatestSystem);
 bool xllm_session__should_prune_tool(const xllm_session *pSession,
                                      const xllm_session_entry *pEntry);
 uint32_t xllm_session__pending_tool_calls(const xllm_session *pSession);
@@ -3683,6 +3689,32 @@ bool xllm_session__entry_is_active(const xllm_session *pSession, const xllm_sess
            pEntry->uSequence > pSession->uTailFloor;
 }
 
+const xllm_session_entry *xllm_session__latest_pinned_system(const xllm_session *pSession)
+{
+    for (size_t i = pSession->iEntryCount; i > 0u; --i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i - 1u];
+        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) &&
+            pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM)
+        {
+            return pEntry;
+        }
+    }
+    return NULL;
+}
+
+bool xllm_session__entry_is_rendered(const xllm_session *pSession,
+                                    const xllm_session_entry *pEntry,
+                                    const xllm_session_entry *pLatestSystem)
+{
+    if (!xllm_session__entry_is_active(pSession, pEntry))
+        return false;
+    /* Old identities stay in the ledger for rewind and recovery. Only the
+     * newest pinned system message is part of the request and its budget. */
+    return !(pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) ||
+           pEntry->tMessage.eRole != XLLM_ROLE_SYSTEM || pEntry == pLatestSystem;
+}
+
 bool xllm_session__should_prune_tool(const xllm_session *pSession, const xllm_session_entry *pEntry)
 {
     size_t iLen;
@@ -3861,9 +3893,10 @@ bool xllmSessionGetStats(const xllm_session *pSession, xllm_session_stats *pStat
         uSummaryTokens = 24u + xllmEstimateTextTokens(pSession->sSummary);
     }
     uRaw = xllm_session__sat_add_u64(uRaw, uSummaryTokens);
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
-        if (xllm_session__entry_is_active(pSession, &pSession->pEntries[i]))
+        if (xllm_session__entry_is_rendered(pSession, &pSession->pEntries[i], pLatestSystem))
         {
             uRaw = xllm_session__sat_add_u64(uRaw, pSession->pEntries[i].uEstimatedTokens);
         }
@@ -3876,7 +3909,7 @@ bool xllmSessionGetStats(const xllm_session *pSession, xllm_session_stats *pStat
     uRendered = xllm_session__sat_add_u64(uRendered, uSummaryTokens);
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
-        if (!xllm_session__entry_is_active(pSession, &pSession->pEntries[i]))
+        if (!xllm_session__entry_is_rendered(pSession, &pSession->pEntries[i], pLatestSystem))
             continue;
         uRendered = xllm_session__sat_add_u64(
             uRendered, bPrune ? xllm_session__pruned_entry_tokens(pSession, &pSession->pEntries[i])
@@ -4019,11 +4052,12 @@ uint64_t xllm_session__usage_growth(const xllm_session *pSession)
             ? xllm_session__govern_sat_add(24u, xllmEstimateTextTokens(pSession->sSummary))
             : 0u;
     uint64_t uGrowth = 0u;
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
     size_t i;
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
         const xllm_session_entry *pEntry = &pSession->pEntries[i];
-        if (!xllm_session__entry_is_active(pSession, pEntry))
+        if (!xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             continue;
         if (pEntry->uSequence > pSession->uFillSequence &&
             !(pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED))
@@ -5135,6 +5169,14 @@ static bool xllm_session__ops_summarize(xllm_session *pSession, const char *sPro
 /* Two-phase transaction (v2 API shape, ops-driven inside)              */
 /* ------------------------------------------------------------------ */
 
+static void xllm_session__compaction_no_prefix(xllm_error *pError)
+{
+    xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+    if (pError)
+        snprintf(pError->tCause.sOperation, sizeof(pError->tCause.sOperation),
+                 "%s", XLLM_SESSION_COMPACTION_NO_PREFIX);
+}
+
 xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForce,
                                               xllm_error *pError)
 {
@@ -5217,7 +5259,11 @@ xllm_compaction *xllmSessionPrepareCompactionWithBudget(xllm_session *pSession, 
         }
         if (tPlan.uThroughSequence<=pSession->uCompactedThrough)
         {
-            xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+            if (bDefault)
+                xllm_session__compaction_no_prefix(pError);
+            else if (pError && pError->eCode == XLLM_ERROR_NONE)
+                xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
+                                    "no completed prefix is safe to compact yet");
             return NULL;
         }
     }
@@ -5235,8 +5281,7 @@ retry_smaller_prefix:
     }
     else if (tPlan.uThroughSequence <= pSession->uCompactedThrough)
     {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
-                            "no completed prefix is safe to compact yet");
+        xllm_session__compaction_no_prefix(pError);
         return NULL;
     }
     {
@@ -6123,21 +6168,9 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
         xllm_session__error(pError, (code), (msg));                                                \
         goto done;                                                                                 \
     } while (0)
-    /* PINNED entries first: the never-compacted cache anchor. Identity is
-     * append-only: when several PINNED system entries exist (an identity
-     * upgrade), only the newest one renders. */
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
+    /* Render the pinned cache anchor before the summary and retained tail. */
     {
-        uint64_t uLastPinnedSystem = 0u;
-        size_t k;
-        for (k = 0u; k < pSession->iEntryCount; ++k)
-        {
-            const xllm_session_entry *pScan = &pSession->pEntries[k];
-            if ((pScan->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
-                pScan->tMessage.eRole == XLLM_ROLE_SYSTEM)
-            {
-                uLastPinnedSystem = pScan->uSequence;
-            }
-        }
         for (i = 0u; i < pSession->iEntryCount; ++i)
         {
             const xllm_session_entry *pEntry = &pSession->pEntries[i];
@@ -6145,8 +6178,7 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
             {
                 continue;
             }
-            if (pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM && uLastPinnedSystem != 0u &&
-                pEntry->uSequence != uLastPinnedSystem)
+            if (!xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             {
                 continue;
             }
@@ -6246,10 +6278,8 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
         const xllm_session_entry *pEntry = &pSession->pEntries[i];
-        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ||
-            pEntry->uSequence <= pSession->uCompactedThrough)
-            continue;
-        if (pEntry->uSequence <= pSession->uTailFloor)
+        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) ||
+            !xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             continue;
         if (pHooks && pHooks->pRenderMessage)
         {

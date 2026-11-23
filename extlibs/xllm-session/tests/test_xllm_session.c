@@ -2471,6 +2471,59 @@ static void test_anthropic_legacy_usage_anchor(void)
     xllmSessionDestroy(loaded);xllmSessionDestroy(s);(void)xrtFileDelete(path);
 }
 
+static void test_superseded_system_prompt_budget(void)
+{
+    const char *sPath = "out/xllm-session-tests/system-prompt-budget.json";
+    xllm_session_config tConfig;
+    xllm_session_stats tStats;
+    xllm_error tError;
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = tConfig.uMaxInputTokens = 4096u;
+    tConfig.uOutputReserveTokens = tConfig.uMaxOutputTokens = 512u;
+    tConfig.uSafetyReserveTokens = 64u;
+    xllm_session *pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "create system prompt history session");
+    if (!pSession)
+        return;
+
+    char sOld[4097];
+    memset(sOld, 'a', sizeof(sOld) - 1u);
+    sOld[sizeof(sOld) - 1u] = '\0';
+    bool bSeeded = true;
+    for (unsigned i = 0; i < 6u; ++i)
+    {
+        sOld[0] = (char)('a' + i);
+        bSeeded = bSeeded && xllmSessionSetSystemPrompt(pSession, sOld, &tError);
+    }
+    bSeeded = bSeeded && xllmSessionSetSystemPrompt(pSession, "Current instructions", &tError);
+    uint64_t uTurn = xllmSessionBeginTurn(pSession);
+    bSeeded = bSeeded && xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, "Continue", 0u);
+    SESSION_CHECK(bSeeded && xllmSessionSave(pSession, sPath, &tError), "save retained prompt revisions");
+    xllmSessionDestroy(pSession);
+    pSession = xllmSessionLoad(sPath, &tError);
+    SESSION_CHECK(pSession != NULL, "open existing prompt history without migration");
+    if (pSession)
+    {
+        xllm_request tRequest;
+        xllmRequestInit(&tRequest);
+        bool bBuilt = xllmSessionGetStats(pSession, &tStats) &&
+            tStats.uEntryCount == 8u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE &&
+            xllmSessionBuildRequest(pSession, &tRequest, &tError);
+        SESSION_CHECK(bBuilt && tRequest.iMessageCount == 2u &&
+            strcmp(tRequest.pMessages[0].sContent, "Current instructions") == 0 &&
+            strcmp(tRequest.pMessages[1].sContent, "Continue") == 0,
+            "superseded pinned prompts do not block a request");
+        SESSION_CHECK(bBuilt && tRequest.iMessageCount == 2u &&
+            tStats.uRawActiveTokens == xllmEstimateMessageTokens(&tRequest.pMessages[0]) +
+                xllmEstimateMessageTokens(&tRequest.pMessages[1]) &&
+            tStats.uRenderedActiveTokens == tStats.uRawActiveTokens,
+            "budget matches the actual rendered messages");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+    }
+    (void)xrtFileDelete(sPath);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
@@ -2478,6 +2531,7 @@ int main(void)
     test_tool_image_text();
     test_compaction_parts();
     test_compaction_prompt_budget();
+    test_superseded_system_prompt_budget();
     test_anthropic_legacy_usage_anchor();
     test_default_profile();
     test_compaction_user_bridge();

@@ -2110,6 +2110,32 @@ bool xllm_session__entry_is_active(const xllm_session *pSession, const xllm_sess
            pEntry->uSequence > pSession->uTailFloor;
 }
 
+const xllm_session_entry *xllm_session__latest_pinned_system(const xllm_session *pSession)
+{
+    for (size_t i = pSession->iEntryCount; i > 0u; --i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i - 1u];
+        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) &&
+            pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM)
+        {
+            return pEntry;
+        }
+    }
+    return NULL;
+}
+
+bool xllm_session__entry_is_rendered(const xllm_session *pSession,
+                                    const xllm_session_entry *pEntry,
+                                    const xllm_session_entry *pLatestSystem)
+{
+    if (!xllm_session__entry_is_active(pSession, pEntry))
+        return false;
+    /* Old identities stay in the ledger for rewind and recovery. Only the
+     * newest pinned system message is part of the request and its budget. */
+    return !(pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) ||
+           pEntry->tMessage.eRole != XLLM_ROLE_SYSTEM || pEntry == pLatestSystem;
+}
+
 bool xllm_session__should_prune_tool(const xllm_session *pSession, const xllm_session_entry *pEntry)
 {
     size_t iLen;
@@ -2288,9 +2314,10 @@ bool xllmSessionGetStats(const xllm_session *pSession, xllm_session_stats *pStat
         uSummaryTokens = 24u + xllmEstimateTextTokens(pSession->sSummary);
     }
     uRaw = xllm_session__sat_add_u64(uRaw, uSummaryTokens);
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
-        if (xllm_session__entry_is_active(pSession, &pSession->pEntries[i]))
+        if (xllm_session__entry_is_rendered(pSession, &pSession->pEntries[i], pLatestSystem))
         {
             uRaw = xllm_session__sat_add_u64(uRaw, pSession->pEntries[i].uEstimatedTokens);
         }
@@ -2303,7 +2330,7 @@ bool xllmSessionGetStats(const xllm_session *pSession, xllm_session_stats *pStat
     uRendered = xllm_session__sat_add_u64(uRendered, uSummaryTokens);
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
-        if (!xllm_session__entry_is_active(pSession, &pSession->pEntries[i]))
+        if (!xllm_session__entry_is_rendered(pSession, &pSession->pEntries[i], pLatestSystem))
             continue;
         uRendered = xllm_session__sat_add_u64(
             uRendered, bPrune ? xllm_session__pruned_entry_tokens(pSession, &pSession->pEntries[i])

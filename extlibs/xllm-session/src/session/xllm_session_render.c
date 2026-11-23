@@ -306,21 +306,9 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
         xllm_session__error(pError, (code), (msg));                                                \
         goto done;                                                                                 \
     } while (0)
-    /* PINNED entries first: the never-compacted cache anchor. Identity is
-     * append-only: when several PINNED system entries exist (an identity
-     * upgrade), only the newest one renders. */
+    const xllm_session_entry *pLatestSystem = xllm_session__latest_pinned_system(pSession);
+    /* Render the pinned cache anchor before the summary and retained tail. */
     {
-        uint64_t uLastPinnedSystem = 0u;
-        size_t k;
-        for (k = 0u; k < pSession->iEntryCount; ++k)
-        {
-            const xllm_session_entry *pScan = &pSession->pEntries[k];
-            if ((pScan->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
-                pScan->tMessage.eRole == XLLM_ROLE_SYSTEM)
-            {
-                uLastPinnedSystem = pScan->uSequence;
-            }
-        }
         for (i = 0u; i < pSession->iEntryCount; ++i)
         {
             const xllm_session_entry *pEntry = &pSession->pEntries[i];
@@ -328,8 +316,7 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
             {
                 continue;
             }
-            if (pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM && uLastPinnedSystem != 0u &&
-                pEntry->uSequence != uLastPinnedSystem)
+            if (!xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             {
                 continue;
             }
@@ -429,10 +416,8 @@ static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_
     for (i = 0u; i < pSession->iEntryCount; ++i)
     {
         const xllm_session_entry *pEntry = &pSession->pEntries[i];
-        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ||
-            pEntry->uSequence <= pSession->uCompactedThrough)
-            continue;
-        if (pEntry->uSequence <= pSession->uTailFloor)
+        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) ||
+            !xllm_session__entry_is_rendered(pSession, pEntry, pLatestSystem))
             continue;
         if (pHooks && pHooks->pRenderMessage)
         {
