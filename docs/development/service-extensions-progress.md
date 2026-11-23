@@ -23210,3 +23210,34 @@ The native CI and controlled performance runs remain separate.
 
 The report, build log and replay are under
 out/service-extensions/performance-build-reuse-98e35075/.
+
+
+## 2026-11-23 Redis lost reply boundaries over verified TLS
+
+The interrupted-pipeline fixture now also forwards verified TLS 1.3
+traffic to a TLS-enabled Redis. The relay and Redis use distinct
+localhost certificates signed by the temporary CA. The relay verifies
+the negotiated cipher, forwards HELLO 3 and the three binary commands,
+sends the selected complete TLS application records, and closes with
+TLS close_notify. The direct reconnect negotiates RESP3 again. The
+first fixture attempt expected the plaintext raw connection sequence.
+The completed TLS fixture accounts for both HELLOs.
+
+Native Windows x64 and Ubuntu WSL clients passed all five integer
+reply cut positions against the isolated Redis 8.0.5 peer in WSL.
+Zero or four bytes preserved the expected closed-stream outcomes.
+One to three bytes reported PROTOCOL with MAY_HAVE_EXECUTED.
+The complete integer remained available after client and engine
+destruction. The independent observer found exactly one INCR and
+value 1 before and after the reconnect in all ten cases. The byte
+ledger, response classification and physical retirement agreed.
+
+WSL ASan/UBSan with leak detection passed all five TLS cuts. The
+plaintext case passed on both client hosts, including a WSL probe
+built without TLS. The WSL TLS restart with edited subscriptions
+also passed. Ordinary maturity, generated headers and actionlint
+passed. The native Linux Redis job now collects the full TLS
+cutoff coverage. Its updated run and strict acceptance are pending.
+
+Raw reports, build logs and the independent audit are under
+out/service-extensions/xredis-tls-cutoffs-87812a9c/.

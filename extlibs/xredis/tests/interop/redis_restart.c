@@ -339,15 +339,18 @@ static uint16 argumentPort(const char* Text)
 	return *End || Port == 0 || Port > UINT16_MAX ? 0 : (uint16)Port;
 }
 
-static xredisclient* rawClient(xnetengine* Engine, uint16 Port)
+static xredisclient* rawClient(xnetengine* Engine, uint16 Port, const redisprobetls* Tls)
 {
 	xnetaddr Address;
 	xredisclient* Client = NULL;
-	require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, Port) &&
-		xredisClientConnect(Engine, &Address, 0, NULL, &Client), "open raw fixture connection");
+	require(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, Port), "fixture loopback address");
+	bool Connected = Tls->Enabled ? redisProbeConnect(Tls, Engine, &Address, 0, NULL, &Client) :
+		xredisClientConnect(Engine, &Address, 0, NULL, &Client);
+	require(Connected, "open fixture connection");
 	xfuture* Ready = xredisClientReady(Client);
 	const xredisreadyresult* State = result(Ready, IO_MS);
-	require(State->Status == XREDIS_READY_OK, "raw fixture connection ready");
+	require(State->Status == XREDIS_READY_OK && (!Tls->Enabled || State->Protocol == XREDIS_RESP3),
+		"fixture connection ready");
 	xrtFutureDestroy(Ready);
 	return Client;
 }
@@ -374,13 +377,15 @@ static void checkIncrement(xfuture* Future)
 	require(Value.Type == XREDIS_REPLY_INTEGER && Value.Integer == 1, "retained increment reply value");
 }
 
-static int lostReply(uint16 RelayPort, uint16 RedisPort, size_t ReplyBytes)
+static int lostReply(uint16 RelayPort, uint16 RedisPort, size_t ReplyBytes, const char* CaFile)
 {
 	bool MutationReplied = ReplyBytes == INCREMENT_REPLY_BYTES;
 	bool Truncated = ReplyBytes && !MutationReplied;
 	xredisrequeststatus Interrupted = Truncated ? XREDIS_REQUEST_PROTOCOL : XREDIS_REQUEST_DISCONNECTED;
+	redisprobetls Tls = {0};
+	redisProbeTlsInit(&Tls, CaFile);
 	xnetengine* Engine = startEngine();
-	xredisclient* Client = rawClient(Engine, RelayPort);
+	xredisclient* Client = rawClient(Engine, RelayPort, &Tls);
 	const xbytesview Applied = XRT_BYTES_LITERAL("xrt:restart:\0applied");
 	xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), Prefix};
 	xfuture* Replied = rawCall(Client, Echo, 2);
@@ -398,13 +403,14 @@ static int lostReply(uint16 RelayPort, uint16 RedisPort, size_t ReplyBytes)
 	checkUnconfirmed(result(Tail, PHASE_MS), Interrupted);
 	closedClient(Client, Interrupted);
 
-	Client = rawClient(Engine, RedisPort);
+	Client = rawClient(Engine, RedisPort, &Tls);
 	xbytesview Get[] = {XRT_BYTES_LITERAL("GET"), Applied};
 	xfuture* Read = rawCall(Client, Get, 2);
 	checkBulk(Read, (xbytesview)XRT_BYTES_LITERAL("1"));
 	xrtFutureDestroy(Read);
 	closedClient(Client, XREDIS_REQUEST_CLOSED);
 	require(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "retire raw fixture engine");
+	redisProbeTlsClose(&Tls);
 	checkBulk(Replied, Prefix);
 	if (MutationReplied) checkIncrement(Mutation);
 	else checkUnconfirmed(result(Mutation, IO_MS), Interrupted);
@@ -421,11 +427,14 @@ static int lostReply(uint16 RelayPort, uint16 RedisPort, size_t ReplyBytes)
 int main(int Argc, char** Argv)
 {
 	if (Argc > 1 && strcmp(Argv[1], "--lost-reply") == 0) {
-		if (Argc != 4 && Argc != 5) return 2;
-		const char* Cut = Argc == 5 ? Argv[4] : "3";
+		if (Argc < 4 || Argc > 6) return 2;
+#if !defined(XREDIS_FEATURE_XREDIS_TLS)
+		if (Argc == 6) return 2;
+#endif
+		const char* Cut = Argc >= 5 ? Argv[4] : "3";
 		if (Cut[0] < '0' || Cut[0] > '0' + INCREMENT_REPLY_BYTES || Cut[1]) return 2;
 		uint16 Relay = argumentPort(Argv[2]), Redis = argumentPort(Argv[3]);
-		return Relay && Redis && Relay != Redis ? lostReply(Relay, Redis, (size_t)(Cut[0] - '0')) : 2;
+		return Relay && Redis && Relay != Redis ? lostReply(Relay, Redis, (size_t)(Cut[0] - '0'), Argc == 6 ? Argv[5] : NULL) : 2;
 	}
 	bool Edit = Argc > 2 && strcmp(Argv[Argc - 1], "--edit-subscriptions") == 0;
 	if (Edit) --Argc;

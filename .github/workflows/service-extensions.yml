@@ -538,6 +538,9 @@ jobs:
             python -B extlibs/xredis/tests/interop/run_redis_restart.py \
               --server "$peer" --client "$evidence/probe" --report "$evidence/lost-reply-$bytes.json" \
               --lost-reply --reply-bytes "$bytes"
+            python -B extlibs/xredis/tests/interop/run_redis_restart.py \
+              --server "$peer" --client "$evidence/probe" --report "$evidence/tls-lost-reply-$bytes.json" \
+              --tls --lost-reply --reply-bytes "$bytes"
           done
           python -B extlibs/xredis/tests/interop/run_redis_restart.py \
             --server "$peer" --client "$evidence/probe" --report "$evidence/tls-edited.json" \

@@ -440,6 +440,14 @@ teardown. Redis records exactly one `INCR` and preserves the value
       --server /usr/bin/redis-server --client out/redis-restart \
       --report out/redis-lost-reply.json --lost-reply --reply-bytes 3
 
+Add `--tls` and use a TLS-enabled probe and Redis to repeat these cuts
+after RESP3 negotiation. Both loopback legs use verified TLS 1.3
+with AES-128-GCM. The relay and Redis have distinct localhost
+certificates from the temporary test CA. The relay forwards the
+selected RESP bytes in authenticated TLS records, then sends TLS
+close_notify. The command ledger includes one HELLO through the
+relay and one HELLO on the direct reconnect.
+
 Pass `--edit-subscriptions` to exercise a four-edit sequence during the
 outage. The replacement exposes the final subscription revision. Its
 new channel receives a binary message and the removed original and

@@ -17,7 +17,8 @@ import time
 import traceback
 
 from run_redis_role import frame, sha
-from run_redis_tls import TLS_CIPHER, certificates, issue_server_certificate, listener_exchange, tls_listener
+from run_redis_tls import (TLS_CIPHER, certificates, issue_server_certificate,
+                           listener_connection, listener_exchange, tls_listener)
 
 
 EDIT_CHANNELS = (b"xrt:restart:\0channel", b"xrt:restart:\0intermediate", b"xrt:restart:\0replacement")
@@ -148,11 +149,29 @@ def wait_client(probe, lines, reader, report):
     require(not reader.is_alive() and lines.get_nowait() is None and lines.empty(), "unexpected client output at exit")
 
 
+def client_ca(runtime, client):
+    ca = str(runtime / "ca.pem")
+    if client.suffix.lower() == ".exe" and platform.system() == "Linux":
+        ca = subprocess.check_output(["wslpath", "-w", ca], text=True, timeout=5).strip()
+    return ca
+
+
 def run_lost_reply(args, report, stack):
     candidates = args.port_candidate or random.sample(range(12000, 45000), 64)
     port = fixture_port(candidates)
     runtime = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="xredis-reply-loss-")))
-    server, identity = start(stack, args.server, runtime, port, "reply-loss", args.report.with_suffix(".redis.log"))
+    upstream_tls = relay_tls = None
+    if args.tls:
+        material = certificates(args.openssl, runtime)
+        material["relay.pem"] = issue_server_certificate(args.openssl, runtime, "relay", "ca")
+        report["public_certificate_hashes"] = material
+        upstream_tls = tls_listener(runtime, "server", "ca")
+        relay_tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        relay_tls.minimum_version = relay_tls.maximum_version = ssl.TLSVersion.TLSv1_3
+        relay_tls.num_tickets = 0
+        relay_tls.load_cert_chain(runtime / "relay.pem", runtime / "relay.key")
+    server, identity = start(stack, args.server, runtime, port, "reply-loss",
+                             args.report.with_suffix(".redis.log"), upstream_tls)
     report["server"] = identity
     relay = stack.enter_context(socket.socket())
     relay_port = fixture_port(candidates) if args.port_candidate else 0
@@ -164,6 +183,8 @@ def run_lost_reply(args, report, stack):
     if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
         time.sleep(1)  # Allow WSL to publish both loopback listeners on Windows.
     command = [str(args.client), "--lost-reply", str(relay_port), str(port), str(args.reply_bytes)]
+    if args.tls:
+        command.append(client_ca(runtime, args.client))
     probe, lines, reader = launch_client(stack, command, args.report.with_suffix(".client.log"), report)
 
     key = b"xrt:restart:\0applied"
@@ -173,8 +194,22 @@ def run_lost_reply(args, report, stack):
     client.settimeout(5)
     relay.close()
     # Forward exactly the three requests and hold the actual Redis responses.
-    with client, socket.create_connection(("127.0.0.1", port), timeout=5) as upstream:
+    with ExitStack() as peers:
+        peers.enter_context(client)
+        if relay_tls is not None:
+            client = peers.enter_context(relay_tls.wrap_socket(client, server_side=True))
+            require(client.version() == "TLSv1.3" and client.cipher()[0] == TLS_CIPHER,
+                    "unexpected TLS profile at the reply relay")
+            report["relay_tls"] = {"version": client.version(), "cipher": client.cipher()[0]}
+        upstream = peers.enter_context(listener_connection(port, tls=upstream_tls, timeout=5))
         with client.makefile("rb") as client_wire, upstream.makefile("rb") as server_wire:
+            if relay_tls is not None:
+                request, wire = frame(client_wire)
+                require(request == [b"HELLO", b"3"], "TLS client did not negotiate RESP3")
+                upstream.sendall(wire)
+                hello, wire = frame(server_wire)
+                require(hello[b"proto"] == 3, "TLS Redis did not negotiate RESP3")
+                client.sendall(wire)
             for expected in ([b"ECHO", prefix], [b"INCR", key], [b"ECHO", tail]):
                 request, wire = frame(client_wire)
                 require(request == expected, f"unexpected pipeline command {request!r}")
@@ -185,13 +220,23 @@ def run_lost_reply(args, report, stack):
         integer_prefix = INCREMENT_REPLY[:args.reply_bytes]
         client.sendall(replies[0][1] + integer_prefix)
         wait_phase(lines, report["phases"], "prefix_verified")
-        stored, _ = listener_exchange(port, ["GET", key])
+        stored, _ = listener_exchange(port, ["GET", key], tls=upstream_tls)
         require(stored == b"1", "independent observer did not see the applied INCR before cutoff")
-        calls = command_calls(info(port, "commandstats"))
-        check_commands(calls, {"echo": 2, "incr": 1, "get": 1}, "before reply cutoff")
+        calls = command_calls(info(port, "commandstats", upstream_tls))
+        expected_calls = {"echo": 2, "incr": 1, "get": 1}
+        if args.tls:
+            expected_calls["hello"] = 1
+        check_commands(calls, expected_calls, "before reply cutoff")
         report["cutoff"] = {"stored_value": 1, "commands": calls, "forwarded_integer_bytes": len(integer_prefix),
                             "withheld_bytes": len(INCREMENT_REPLY) - len(integer_prefix) + len(replies[2][1])}
-        client.shutdown(socket.SHUT_WR)
+        if relay_tls is None:
+            client.shutdown(socket.SHUT_WR)
+        else:
+            try:
+                client.unwrap().close()
+            except (ssl.SSLEOFError, ConnectionResetError):
+                # The probe retires the transport once it classifies the RESP EOF.
+                pass
 
     completed = wait_phase(lines, report["phases"], "complete")
     replied = args.reply_bytes == len(INCREMENT_REPLY)
@@ -201,13 +246,16 @@ def run_lost_reply(args, report, stack):
                           "delivery": "MAY_HAVE_EXECUTED", "read_after_reconnect": 1},
             "unexpected retained result ledger")
     wait_client(probe, lines, reader, report)
-    stored, _ = listener_exchange(port, ["GET", key])
-    fields = info(port, "all")
+    stored, _ = listener_exchange(port, ["GET", key], tls=upstream_tls)
+    fields = info(port, "all", upstream_tls)
     require(server.poll() is None and fields["run_id"] == identity["run_id"] and
             int(fields["process_id"]) == identity["pid"], "Redis identity changed during reply loss")
     require(stored == b"1" and int(fields["connected_clients"]) == 1, "duplicate mutation or surviving application connection")
     calls = command_calls(fields)
-    check_commands(calls, {"echo": 2, "incr": 1, "get": 3}, "after reply loss recovery")
+    expected_calls["get"] = 3
+    if args.tls:
+        expected_calls["hello"] = 2
+    check_commands(calls, expected_calls, "after reply loss recovery")
     report["after"] = {"stored_value": 1, "commands": calls, "connected_clients": 1}
 
 
@@ -231,10 +279,7 @@ def run(args, report, stack):
         rejected_tls = tls_listener(runtime, "untrusted", "wrong")
         after_tls = tls_listener(runtime, "renewed", "ca")
         require(len({before_tls[1], rejected_tls[1], after_tls[1]}) == 3, "fixture TLS identities must differ")
-        ca = str(runtime / "ca.pem")
-        if args.client.suffix.lower() == ".exe" and platform.system() == "Linux":
-            ca = subprocess.check_output(["wslpath", "-w", ca], text=True, timeout=5).strip()
-        client_args.append(ca)
+        client_args.append(client_ca(runtime, args.client))
     if args.edit_subscriptions:
         client_args.append("--edit-subscriptions")
 
@@ -346,7 +391,7 @@ def main():
     parser.add_argument("--port-candidate", type=int, action="append", default=[],
                         help="Caller-screened candidate for cross-host WSL and Windows loopback")
     parser.add_argument("--lost-reply", action="store_true",
-                        help="verify an executed INCR when the loopback relay cuts off its plaintext reply")
+                        help="verify an executed INCR when the loopback relay cuts off its reply")
     parser.add_argument("--reply-bytes", type=int, choices=range(len(INCREMENT_REPLY) + 1),
                         help="integer reply bytes forwarded by --lost-reply (default: 3)")
     args = parser.parse_args()
@@ -354,8 +399,8 @@ def main():
         parser.error("--reply-bytes requires --lost-reply")
     if args.reply_bytes is None:
         args.reply_bytes = len(INCREMENT_REPLY) - 1
-    if args.lost_reply and (args.tls or args.edit_subscriptions):
-        parser.error("--lost-reply uses the separate plaintext pipeline fixture")
+    if args.lost_reply and args.edit_subscriptions:
+        parser.error("--lost-reply is separate from subscription recovery")
     if args.tls and args.openssl is None:
         parser.error("--tls requires openssl to generate temporary identities")
     if args.tls:
