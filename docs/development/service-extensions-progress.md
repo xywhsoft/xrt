@@ -24362,3 +24362,19 @@ and Mosquitto 2.1.2, four publishers, four slots per publisher and
 eight wildcard subscribers. All six verified 900 confirmations and
 7,200 deliveries each. Raw outcomes are under
 out/service-extensions/xmqtt-multi-publisher-2acf8474/.
+
+## 2026-11-23 Full WSL MQTT sanitizer rehearsal
+
+The complete x64 xmqtt_tests command passed in Ubuntu WSL with
+ASan/UBSan and leak detection. The audit matched 38 modular and
+67 single-header executable names, in manifest order, checked
+sanitizer flags on every recorded build and saved executable and
+journal hashes. This run passed the TLS partial-send fixture that
+had stopped the preceding rehearsal. The server TLS and WebSocket
+example-backed entries exercised their no-argument usage paths.
+Independent protocol cases provide the separate transport evidence.
+
+The runtime, tests and manifests match the f8e402a0 launch revision.
+The log and audit are under
+out/service-extensions/xmqtt-tls-prefix-bfbf7cbc/wsl/. Hosted native
+Linux sanitizer evidence for the new job is still open.
