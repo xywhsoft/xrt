@@ -19,6 +19,7 @@ typedef struct xredispoolconnectstate xredispoolconnectstate;
 enum { XREDIS_L_WAITING, XREDIS_L_GRANTED, XREDIS_L_DONE };
 struct xredislease {
     xatomic32 References, Cancelled, Reason;
+    bool EventQueued; /* Pool->Gate, separate from lease admission fields. */
     xmutex Gate;
     xredispool* Pool;
     xredispoolslot* Slot;
@@ -33,7 +34,7 @@ struct xredislease {
     uint64 Timer;
     size_t APIs;
     unsigned Phase;
-    bool EventQueued, Returning, Abort;
+    bool Returning, Abort;
 };
 struct xredispoolslot {
     xredispool* Pool;

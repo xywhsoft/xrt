@@ -26260,3 +26260,32 @@ single-header builds before execution. A rerun with the
 correct xrpc suite and separate Redis compiler diagnostics
 is queued. Logs and receipts are under
 out/service-extensions/linux-guest-9ce2606c/service-sanitizers-7bf8b8bf/.
+
+## 2026-11-24 Redis lease event flag under separate mutexes
+
+The Ubuntu GCC 13 O2 ThreadSanitizer replay reported a read
+in lease admission overlapping the worker's queue flag
+write. The worker holds the pool mutex and the admission
+holds the lease mutex. Disassembly showed that GCC combined
+the admission phase and return flag checks into an eight-byte
+load at lease offset 0x108. That load also covered the
+pool-owned queue flag at offset 0x10c.
+
+The queue flag now occupies an aligned padding position before
+the lease mutex in the tested x64 layout. The pool still
+owns its accesses. Disassembly showed the same admission
+load and the queue flag write at offset 0x0c. The change
+adds no synchronization to the admission path.
+
+The Windows modular and single-header pool tests passed.
+The native Ubuntu single-header pool test passed eight
+consecutive TSan runs on the corrected layout. ASan and UBSan
+are running separately. The focused retry also passed the
+xrpc duplex and xredis TLS subscription single-header tests.
+
+The Redis mixed-load preprocessing includes this lease layout
+and changes with the fix. A new build and continuous interval
+are required for the final Redis candidate. The prior
+journals remain evidence for their recorded binaries.
+Compiler, disassembly and runtime evidence is under
+out/service-extensions/xredis-pool-gate-ceccdbc1/.
