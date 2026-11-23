@@ -24499,3 +24499,35 @@ median ingress of 20,619/s and a delivery P99 of 1.112 s. This
 comparison leaves the prototype experimental and the capacity
 gate open. The raw evidence and independent replay are under
 out/service-extensions/xmqtt-qos2-workers-2945c71f/.
+
+## 2026-11-23 Current xredis and Hiredis TCP comparison
+
+The xredis single-allocation reply build and a fresh observer link
+against pinned Hiredis 1.3.0 used the same 12,000 offers/s, eight
+connections, 128-request observer window and mixed 1 KiB GET/SET.
+Each host used a disposable Redis 8.0.5 process pinned to logical
+CPU 10 and observers on CPUs 6 and 8. Windows observers reached
+the Redis peer through the WSL loopback forwarder. The WSL
+observers used the guest's local loopback.
+
+Independent replay matched executable and sample hashes,
+timestamps, outcomes, Redis command totals and percentiles.
+Each implementation had 168,000 measured offers per environment.
+Windows completed 167,770 xredis and 168,000 Hiredis offers. The
+two incomplete Windows xredis windows refused 230 offers at the
+observer capacity limit. Both WSL implementations completed
+168,000 offers. Neither host recorded corrupt replies, client
+overload or one-second missed deadlines.
+
+| Observer host | Matched complete pairs | P99 xredis / Hiredis (us) | P99.9 xredis / Hiredis (us) | Process CPU xredis / Hiredis (us/completed reply) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64 | 5 of 7 | 2,616.8 / 1,024.1 | 6,057.3 / 1,644.3 | 98.31 / 78.13 |
+| Ubuntu WSL | 7 of 7 | 594.3 / 360.8 | 961.8 / 830.3 | 122.95 / 83.33 |
+
+The table uses matched complete pairs. Both P99 and P99.9 series
+exceeded variation limits on both hosts. The WSL process CPU series
+met the limits and xredis used a median 39.61 us/reply outside the
+generator. Windows process CPU was variable. Raw records, fixture
+receipts and replay are under
+out/service-extensions/xredis-current-hiredis-bead0d87/.
+Strict performance acceptance remains open.
