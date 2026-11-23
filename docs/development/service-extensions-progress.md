@@ -25931,3 +25931,32 @@ delivery P99 series still exceeded the repeatability limits.
 The receipt records the virtual CPU placement and concurrent
 endurance workloads. Reports and independent replay are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-pressure-capacity-7bf8b8bf/.
+
+## 2026-11-24 Native Windows MQTT QoS 2 matched capacity
+
+The current Windows APP and the pinned Mosquitto 2.1.2 used
+the same two broker CPUs and two observer CPUs. The workload
+matched the Ubuntu sweep's payload, fixed rates, eight wildcard
+subscribers and windows of 16. xmqtt used two network workers.
+Windows endurance and xcron workload jobs continued. Host replay
+checked all 58 trials, 1,024,000 confirmed publications and
+8,192,000 verified deliveries across the 56 complete ledgers.
+
+| Offers/s | Complete xmqtt / Mosquitto | Achieved ingress/s xmqtt / Mosquitto | Delivery P99 xmqtt / Mosquitto (ms) |
+| ---: | ---: | ---: | ---: |
+| 4,000 | 5/5 and 5/5 | 4,000 / 4,000 | 1.923 / 1.635 |
+| 6,000 | 5/5 and 5/5 | 6,000 / 5,998 | 1.789 / 3.000 |
+| 8,000 | 5/5 and 5/5 | 7,999 / 7,994 | 2.610 / 3.485 |
+| 10,000 | 5/5 and 5/5 | 9,998 / 9,992 | 2.180 / 17.037 |
+| 12,000 | 3/3 and 3/3 | 11,995 / 11,997 | 2.527 / 6.425 |
+| 16,000 | 3/3 and 3/3 | 15,981 / 10,471 | 4.043 / 784.301 |
+| 24,000 | 1/3 and 3/3 | | |
+
+The table gives matched medians for cohorts with all repetitions
+complete. The Windows reference finished all three 24,000/s
+trials with median ingress of 10,813/s. The other two xmqtt
+trials showed negative PUBREC with reason 0x97. The result
+distinguishes validated delivery, achieved ingress and offered
+rate. All matched delivery P99 series exceeded the repeatability
+limits. Evidence is under
+out/service-extensions/mqtt-windows-qos2-sweep-8e73ec8e/.
