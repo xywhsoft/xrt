@@ -24731,3 +24731,43 @@ capacity and repeatable broker tails remain open.
 This comparison ran on Ubuntu WSL. The compilation commands,
 broker logs, observer journal and replay are under
 out/service-extensions/xmqtt-epoll-rearm-72dfbfd3/.
+
+## 2026-11-23 MQTT single-reference TCP and short delivery frames
+
+The first scratch build passed an existing single reference directly
+to the native TCP send API. The second also stored a complete outgoing
+frame up to 256 bytes in the existing delivery allocation when that
+frame needed a private mutable prefix. The existing large-frame path
+kept the shared payload. Both variants used the same delivery credit
+and release callback contracts.
+
+Each of the three builds on native Windows and Ubuntu WSL passed the
+independent MQTT 5.0/3.1.1 peer and the 64-connection quota and recovery
+fixture. Each build also passed 24 additional wire cases. The cases
+checked binary QoS 1 and QoS 2 frames of 255, 256, 257 and 4,096 bytes,
+including MQTT 5 Message Expiry, packet identifier assignment and
+complete acknowledgements.
+
+The three builds rotated through six trials per host and rate.
+The two-worker broker served four QoS 2 publishers of credit four and
+eight wildcard subscribers of Receive Maximum 32. Four seconds of
+scheduled arrivals used 128-byte plaintext messages. The replay
+matched all six broker binary and input fingerprints, 72 trials and
+68 complete ledgers with 2,424,000 publications and 19,392,000
+deliveries. All four incomplete trials reported PUBREC reason 0x97.
+
+| Host | Offers/s | Complete baseline / single / short | Paired CPU ratio, single / baseline | Paired CPU ratio, short / baseline |
+| --- | ---: | ---: | ---: | ---: |
+| Native Windows | 6,000 | 6 / 6 / 6 | 0.957 | 0.965 |
+| Native Windows | 12,000 | 6 / 5 / 6 | 0.975 | 0.994 |
+| Ubuntu WSL | 6,000 | 5 / 6 / 6 | 0.989 | 0.982 |
+| Ubuntu WSL | 12,000 | 5 / 5 / 6 | 1.005 | 0.990 |
+
+All completed trials reached 95 percent of their offered rate.
+Windows paired CPU ratios exceeded the repeatability limits at both
+rates. WSL repeated CPU ratios with changes within 1.8 percent.
+Only the WSL 6,000/s short-frame P99 series met repeatability.
+The measurements keep the two send changes as benchmark prototypes.
+Broker capacity and tail latency acceptance remain open.
+The source variants, dual-version receipts, broker logs and replay
+are under out/service-extensions/xmqtt-small-frame-refs-a1f1663c/.
