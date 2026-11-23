@@ -25361,3 +25361,15 @@ was 5.014 seconds. The earlier campaigns continued. Completion of
 the updated Windows campaign and native Linux qualification remain
 open. Build, short-run and live receipts are under
 out/service-extensions/xredis-bounded-progress-190dd32b/.
+
+## 2026-11-23 Full Redis runtime replay after the CPU test correction
+
+Native Windows and Ubuntu WSL each ran all 93 optimized modular
+and single-header xredis_tests executables. Each first run passed
+five executables before test_openloop failed to compile. With its
+CPU split assertion corrected, a resumed run passed the remaining
+88, including every single-header test. The combined sets matched
+the prior suite size with no skipped executable. The current xredis
+and XRT build inputs match the 784b0305 candidate. Original and
+resumed logs are under
+out/service-extensions/xredis-bounded-progress-190dd32b/.
