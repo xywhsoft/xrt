@@ -23715,3 +23715,53 @@ The candidate source, patch, binary identities, trace and replay are
 under out/service-extensions/xmqtt-reliable-wire-eeb67147/. The restored
 mainline generated header and ordinary maturity check passed. Native
 Linux and stable capacity acceptance remain open.
+
+## 2026-11-23 MQTT QoS 2 owner queue and Receive Maximum
+
+A local diagnostic sampled every 31st publication at each of eight
+wildcard subscribers. The broker recorded reservation, owner callback,
+first accepted write attempt, PUBREC and PUBCOMP. The observer recorded
+PUBLISH and PUBREL parsing and the start of each acknowledgement write.
+Both sides used the same host monotonic clock. The raw replay joined
+records by publication and subscriber, checked ordering and verified all
+sampled records in completed runs. It also examined the sampled queue
+at the time of each quota refusal.
+
+The first calibration changed the delivery node offset required by the
+broker's intrusive AVL lookup. Those results were discarded. The
+corrected probe preserved the node offset and passed the 2,800/s
+calibration, independent MQTT 5/3.1.1 peer and 64-connection quota
+recovery on Windows and Ubuntu WSL.
+
+The diagnostic and ordinary builds ran 54 trials in total with two
+broker workers, a publisher window of 16 and a four-second offer
+schedule. Thirty-seven trials completed. The diagnostic verified
+331,745 measured delivery phase records through PUBCOMP. At the 36
+traced quota refusals, 263 of 291 outstanding sample observations for
+the rejected destination had already entered its owner callback while
+its Receive Maximum was full and were still waiting for the first send.
+The observation count includes samples seen at consecutive refusals.
+Measured native write retries totaled zero.
+
+At 24,000 offers/s, both environments repeated a subscriber window of
+16 and 32 on the ordinary build. Each count is out of three trials.
+The offered rate criterion requires at least 95 percent of scheduled
+ingress with the full acknowledgement and delivery ledger.
+
+| Host | Subscriber window | Complete | At offered rate | Median delivery P99 on completed runs (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Native Windows | 16 | 1 | 0 | 1,357.5 |
+| Native Windows | 32 | 3 | 1 | 441.3 |
+| Ubuntu WSL | 16 | 0 | 0 | |
+| Ubuntu WSL | 32 | 3 | 0 | 3,138.2 |
+
+For the window of 32, the median P99 lag from the scheduled arrival
+to the publisher reaching that offer was 440.6 ms on Windows and
+3,137.3 ms on WSL. The corresponding instrumented cohorts measured
+median broker send-to-PUBCOMP P99 of 1.7 and 3.3 ms. Increasing credit
+helped the runs drain. Every trial used a 256-delivery session limit.
+
+The probe, source and binary identities, phase journals and independent
+replay are under out/service-extensions/xmqtt-qos2-phases-433e8fbf/.
+Ordinary maturity and generated-header checks passed. Native Linux and
+release capacity acceptance remain open.
