@@ -25904,3 +25904,30 @@ xmqtt records showed the negative PUBREC. The observer continues
 to apply exact publication and delivery validation. Source
 receipts and replay checks are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-qos2-observer-7bf8b8bf/.
+
+## 2026-11-24 Ubuntu MQTT QoS 2 pressure near 10,000 peers
+
+The QEMU/WHPX Ubuntu guest ran five two-worker broker trials
+with 1,000 idle peers and five with 9,968 idle peers. The larger
+cohorts held 9,979 connections during healthy traffic. The
+broker used two vCPUs, with one each for the fixed-arrival
+observer and the pressure controller. Each trial offered
+4,000 QoS 2 publications/s to eight wildcard subscribers
+before, during and after filling an unrelated subscriber quota.
+
+All ten trials completed. Host replay verified 360,000
+publisher confirmations, 2,880,000 fan-out deliveries, 7,993
+quota refusals overlapping healthy traffic, and 2,570 deliveries
+drained or admitted after reclaiming credit.
+
+| Idle peers | Delivery P99 before / during / after (ms) | P99.9 during pressure (ms) | Broker RSS during pressure (MiB) |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 3.618 / 3.552 / 3.474 | 4.746 | 4.89 |
+| 9,968 | 3.336 / 3.525 / 3.578 | 4.711 | 22.14 |
+
+All six ingress series met the repeatability limits and their
+medians ranged from 3,998.3 to 3,999.7 publications/s. The six
+delivery P99 series still exceeded the repeatability limits.
+The receipt records the virtual CPU placement and concurrent
+endurance workloads. Reports and independent replay are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-pressure-capacity-7bf8b8bf/.
