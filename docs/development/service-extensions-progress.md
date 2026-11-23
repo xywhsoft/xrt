@@ -25617,3 +25617,30 @@ receiver comparisons still have unstable tails. Capacity and
 reconnect cohorts have their own receipts. Source identities,
 binaries, reports and independent replay are under
 out/service-extensions/linux-guest-9ce2606c/xmqtt-linux-comparison/.
+
+## 2026-11-23 MQTT Ubuntu connection capacity and churn
+
+The matched Mosquitto 2.1.2 campaign completed the 1, 100, 1,000,
+8,000 and 10,000 connection cohorts on the same Ubuntu VM. The
+prepared-descriptor campaign also completed its 1,000 and 10,000
+connection cohorts. Five pairs per cohort used MQTT 5 and
+concurrency 32 on the same broker and observer CPU placements.
+
+Replay checked 70 executions, 301,010 initial connections,
+30,110 reconnects, and 602,020 PING exchanges. Every execution
+reported the expected over-limit refusals, a new admission after
+drain, and physical retirement to its starting descriptor count.
+The 10,000-connection table gives medians for xmqtt / Mosquitto.
+
+| Profile | Initial connections/s | Connect P99 (ms) | Reconnect P99 (ms) | Idle RSS increase (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| Ordinary | 7,072 / 7,226 | 11.306 / 7.149 | 6.251 / 6.450 | 19.25 / 47.89 |
+| xmqtt descriptor preparation | 8,125 / 7,899 | 5.772 / 6.427 | 5.677 / 5.987 | 19.25 / 47.89 |
+
+Five ordinary and four prepared P99 series met the repeatability
+limits across all measured phases and cohorts. The paired medians
+record the effect of the workload and the selected APP setup.
+The Ubuntu reference job completed successfully. Performance
+release acceptance and completion of endurance remain open.
+Reports and independent replay are under
+out/service-extensions/linux-guest-9ce2606c/xmqtt-linux-comparison/.
