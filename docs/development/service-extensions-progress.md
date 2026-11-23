@@ -25960,3 +25960,37 @@ distinguishes validated delivery, achieved ingress and offered
 rate. All matched delivery P99 series exceeded the repeatability
 limits. Evidence is under
 out/service-extensions/mqtt-windows-qos2-sweep-8e73ec8e/.
+
+## 2026-11-24 Native Windows xrpc APP timing by request
+
+The xrpc TCP APP's ordinary build and instrumented copy used
+the same XRT and xrpc sources, CPU sets, native observer and
+fixed arrivals. Eight staggered peers each offered 8,000
+measured echo requests at both 32,000/s and 64,000/s, with two
+shared executor workers. Each rate and mode had five paired
+runs. The APP buffered per-request timestamps until its sockets
+and executor retired. Its timing clock matched the native observer.
+Replay matched the peer request IDs, scheduled and observed times,
+executor phase order and 2,560,000 exact timed replies.
+
+The table gives medians over five runs. Phase shares use the
+same slowest one percent of replies in each instrumented run.
+
+| Offers/s | Mode | P99 ordinary / instrumented (ms) | Observer pacing | First send attempt to APP read | APP read to handling the record | Executor queue |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 32,000 | Duplex | 13.948 / 14.843 | 32.6% | 31.7% | 7.6% | 0.53% |
+| 32,000 | Dispatch | 13.658 / 13.780 | 34.2% | 36.8% | 7.0% | 0.30% |
+| 64,000 | Duplex | 21.501 / 20.907 | 33.0% | 30.7% | 15.3% | 0.19% |
+| 64,000 | Dispatch | 16.273 / 22.815 | 21.2% | 43.1% | 10.9% | 0.25% |
+
+The APP read timestamp marks the receive returning the record's
+delimiter. Read-to-handling includes earlier work from the same
+read and owner scheduling. The first-send interval includes
+further writes and transport and owner progress. Median throughput
+differed by less than one percent between the pairs of builds.
+Instrumentation and run variation accompanied a 40.2 percent
+P99 difference in the 64,000/s dispatch cohort. Every ordinary
+P99 series exceeded the repeatability limits. These results
+attribute the measured echo tail and leave strict release
+performance open. Sources, binaries and replay are under
+out/service-extensions/xrpc-app-phases-78dd1e9d/.
