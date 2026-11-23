@@ -23408,3 +23408,38 @@ performance and 72-hour native endurance remain open.
 
 The report, build log and independent replay are under
 out/service-extensions/performance-build-reuse-98e35075/.
+
+## 2026-11-23 MQTT checkpoint and restart in the native comparison job
+
+The optional Linux comparison now builds the current checkpoint APP
+through the manifest and runs the same four graceful restart workloads
+against pinned Mosquitto. It saves both broker identities, the runner
+hash and the complete report. The broker and observer are assigned
+distinct CPUs. These workloads cover MQTT 5 QoS 1 and 2, one subscriber
+with 32 offline publications and eight subscribers with 128.
+
+The extracted job passed on Ubuntu WSL using the pinned broker from
+the previous checksum-verified build. A fresh native Windows x64
+build completed the same matrix separately. Independent replay
+verified all 80 samples, 240 broker processes, 6,400 confirmed
+offline publications, 42,240 ordered replay deliveries and 360
+drained sessions restored and exercised after a second restart.
+It recomputed both raw latency percentiles and every repeatability
+decision.
+
+| Host | QoS | Replay deliveries/s xmqtt / Mosquitto | First delivery P99 xmqtt / Mosquitto (us) |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 1 | 22,033 / 17,548 | 115.0 / 417.3 |
+| Windows x64 | 2 | 10,491 / 10,599 | 178.1 / 660.0 |
+| Ubuntu WSL | 1 | 14,834 / 15,381 | 124.5 / 131.4 |
+| Ubuntu WSL | 2 | 7,778 / 8,131 | 128.0 / 118.4 |
+
+These rows summarize the eight-subscriber workloads. Five of
+sixteen replay throughput series and one of sixteen first-delivery
+P99 series met the repeatability limits. Ordinary maturity, diff
+checks and actionlint passed. Native Linux and formal performance
+acceptance remain open. TLS persistence and abrupt termination
+have separate workloads.
+
+Build and run logs, hashes, reports and the replay are under
+out/service-extensions/xmqtt-linux-restart-650bbab0/.

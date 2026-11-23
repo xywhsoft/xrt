@@ -741,6 +741,11 @@ jobs:
             -DPAHO_MQTT_STATIC=1 -I"$paho/src" "$receiver" "$paho_tls" \
             -o "$evidence/paho-receive-tls" -pthread -lrt -ldl -lssl -lcrypto -lm
 
+          python -B tools/build.py --compiler gcc --target-platform linux \
+            --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server_checkpoint_example \
+            --no-single --no-run --cflag=-O2
+          cp out/gcc/native-linux/xmqtt_server_checkpoint_example/examples_server_checkpoint "$evidence/xmqtt-checkpoint"
+
           git rev-parse HEAD > "$evidence/revision.txt"
           lscpu > "$evidence/cpu.txt"
           gcc --version > "$evidence/compiler.txt"
@@ -750,7 +755,8 @@ jobs:
           sha256sum "$mosquitto_archive" "$paho_archive" "$paho_library" "$paho_tls" "$evidence/mosquitto" \
             "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
             "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" \
-            "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" > "$evidence/sha256.txt"
+            "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" "$evidence/xmqtt-checkpoint" \
+            "$bench/compare_broker_restart.py" > "$evidence/sha256.txt"
           cpus=$(python - <<'PY'
           import os
           import subprocess
@@ -790,6 +796,11 @@ jobs:
             --workload exact:1:3000 --workload wildcard:8:10000 --report "$evidence/broker-qos0.json" || status=1
           python -B "$bench/compare_broker.py" "${broker_args[@]}" --qos 2 --window 16 --subscriber-window 16 \
             --workload wildcard:8:3000 --workload shared:8:3000 --report "$evidence/broker-qos2.json" || status=1
+          python -B "$bench/compare_broker_restart.py" --xmqtt "$evidence/xmqtt-checkpoint" --mosquitto "$evidence/mosquitto" \
+            --broker-cpu "$broker_cpu" --load-cpu "${load_cpus%%,*}" --repeats 5 \
+            --workload 1:32:1 --workload 1:32:2 --workload 8:128:1 --workload 8:128:2 \
+            --report "$evidence/broker-restart.json" || status=1
+
           tls_dir=$(mktemp -d "$RUNNER_TEMP/xmqtt-comparison-tls.XXXXXX")
           trap 'rm -f -- "$tls_dir"/{ca.pem,ca.key,request.pem,certificate.pem,certificate.der,key.pem,key.der}; rmdir -- "$tls_dir"' EXIT
           (

@@ -577,6 +577,9 @@ The comparison covers graceful process restarts and serialized replay at
 Receive Maximum 1. Per-ACK commits, abrupt process termination and combined
 TLS/persistence have separate acceptance workloads.
 
+The manual `xmqtt_comparison` workflow runs these four workloads on Linux
+and preserves the broker executables, their identities and the complete report.
+
 ### Idle connections and reconnect waves
 
 Build `examples_server_main` with the `xmqtt_server` suite. The
