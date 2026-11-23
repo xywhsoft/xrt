@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -847,6 +848,8 @@ def main() -> int:
 		_check_environment(result, baseline)
 
 	quality_failures: list[str] = []
+	# Compiler options and overlays are fixed for this invocation.
+	built: dict[tuple[str, str], Path] = {}
 	extension = ".exe" if sys.platform == "win32" else ""
 	for profile_value in profiles:
 		profile_result = {
@@ -863,10 +866,18 @@ def main() -> int:
 			output = (
 				product_output / (benchmark["name"] + extension)
 			)
-			_compile_benchmark(
-				compiler, arguments.arch, benchmark, defaults, output,
-				overlays,
-			)
+			key = (benchmark["source"], benchmark["suite"])
+			previous = built.get(key)
+			if previous is None:
+				_compile_benchmark(
+					compiler, arguments.arch, benchmark, defaults, output,
+					overlays,
+				)
+				built[key] = output
+			else:
+				# Keep each scenario's executable path, including argv[0].
+				shutil.copy2(previous, output)
+				print(f"[reuse] benchmark {output.name} from {previous.name}")
 			metric_names = set(benchmark["metrics"])
 			fact_names = set(benchmark.get("facts", []))
 			observation_names = set(benchmark.get("observations", []))

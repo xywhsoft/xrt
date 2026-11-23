@@ -22998,3 +22998,27 @@ full-length WSL rehearsal started from that verified executable.
 The opt-in GitHub job still needs a native run. The strict release and
 stable Windows/Linux timing gates remain open. Local evidence is under
 out/service-extensions/xcron-native-cohort-job-feee80b1/.
+
+
+## 2026-11-23 Reuse benchmark builds across workload arguments
+
+The workload runner now compiles each distinct benchmark source and
+module-suite pair once per invocation. Identical builds are copied to
+each scenario's original executable name. Each scenario retains its
+own arguments, execution, sample validation and report entry. The
+current Redis workload has 166 scenarios and 47 distinct builds.
+MQTT has 131 scenarios and 45 distinct builds.
+
+The Windows scheduler smoke ran all four named cohort scenarios from
+one compilation. The Ubuntu WSL Redis smoke ran five scenarios from
+three compilations. Its ordinary, stalled and held workloads shared
+one executable build. The allocator-statistics closure built a
+different binary and reported enabled counters. The pinned independent
+TLS peer verified two authenticated cycles. The audit checked every
+selected scenario's bytes, name and arguments, and the 17 performance
+tool tests passed on both hosts.
+
+The case counts describe the build plan. The full post-change smoke
+and elapsed CI budget still need end-to-end verification. Logs and the
+independent audit are under
+out/service-extensions/performance-build-reuse-98e35075/.
