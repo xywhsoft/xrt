@@ -26706,3 +26706,33 @@ Raw per-connection timings, peer ledgers, binaries and
 independent replay are under
 out/service-extensions/xredis-capacity-85f4ad5c/
 and out/service-extensions/linux-guest-9ce2606c/xredis-capacity-85f4ad5c/.
+
+## 2026-11-24 Redis allocator observations after 10,000 connections
+
+The Ubuntu guest repeated the 10,000-connection turnover
+with XRT memory counters. It reconciled 20,000 xredis
+binary replies, zero remaining Redis peers, and the
+original descriptor count. The XRT block ledger recorded
+371,046 allocations and 371,046 frees. At that point the
+process-wide XRT small-block allocator still held 5,630
+spans with 25,373,138 bytes of backing allocation.
+
+The client had 115.70 MiB resident after close in that
+run. A diagnostic malloc_trim after the measurement
+reduced RSS to 44.85 MiB. The glibc arena snapshot before
+trim had 93,163,808 free bytes. This separates measured
+reclaimable allocator pages from the still-retained XRT
+span backing. The span measurement does not account for
+all remaining RSS. No allocator changes were needed to
+run the diagnostic.
+
+A separate optimized ASan and UBSan build with leak
+checking passed the same 10,000-connection workload.
+It reconciled 20,000 xredis binary replies, and the peer
+and descriptor counts returned to baseline. Host replay
+confirmed sanitizer dependencies and instrumentation,
+an empty sanitizer diagnostic log, exact benchmark
+records and the binaries' SHA-256 values.
+
+The diagnostic sources and evidence are under
+out/service-extensions/linux-guest-9ce2606c/xredis-capacity-85f4ad5c/.
