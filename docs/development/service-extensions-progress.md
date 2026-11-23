@@ -26289,3 +26289,22 @@ are required for the final Redis candidate. The prior
 journals remain evidence for their recorded binaries.
 Compiler, disassembly and runtime evidence is under
 out/service-extensions/xredis-pool-gate-ceccdbc1/.
+
+## 2026-11-24 Redis endurance restart after the lease layout fix
+
+The native Ubuntu pool replay also passed ASan and UBSan
+with leak detection. Both platforms built the mixed-load
+probe from the clean dc8f7525 mainline revision and passed
+12-second smoke runs with exact Redis command accounting.
+Windows verified 765 rounds against its separately
+supervised Ubuntu/WSL Redis peer. The Ubuntu QEMU/WHPX
+guest verified 3,052 rounds with a guest-local Redis peer.
+
+Both 72-hour intervals started with the new binaries.
+The first saved host replays validated 4,797 Windows rounds
+over 75.2 awake seconds and 6,307 Ubuntu rounds over 25.0
+awake seconds. Build hashes and continuity receipts are
+under out/service-extensions/xredis-pool-gate-windows-dc8f7525/
+and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
+The earlier Redis journals remain separate, and the MQTT
+endurance binaries were unaffected by the fix.
