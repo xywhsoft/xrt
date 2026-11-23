@@ -23844,3 +23844,26 @@ Linux fixed-arrival and stable release timing remain open.
 The ordinary maturity and generated-header checks passed. Build logs,
 binary identities, replay and the allocator probe are under
 out/service-extensions/xrpc-escaped-method-b7bbbf59/.
+
+## 2026-11-23 xcron finite wait before arming
+
+A preemption after the UTC sample could cross both the occurrence's
+projected deadline and the caller's finite timeout before the scheduler
+armed its waiter. The scheduler used to return TIMEOUT immediately.
+It now determines the projected order first. When the occurrence is
+first or tied, it takes one fresh wall sample and dispatches if due.
+A shorter caller timeout leaves the job pending. A backward wall step
+can leave the job pending even when its earlier projection won.
+
+The deterministic clock test exercises all four cases without arming
+a native timer and checks exactly-once dispatch after the pause and
+recovery. The deadline order assertion failed on the previous build on
+Windows and Ubuntu WSL. Optimized modular and single-header suites, APP
+examples, restart catch-up peers, and static and shared scheduler
+package consumers passed on both environments. The WSL clock suite
+also passed ASan/UBSan with leak detection. Generated headers and
+ordinary maturity passed. Release timing and native Linux acceptance
+remain open.
+
+The failing probes and current regression receipts are under
+out/service-extensions/xcron-prearm-deadline-7e0f1688/.

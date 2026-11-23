@@ -272,7 +272,6 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
         if (Timeout > 0 || Report.HasNext) {
             double Current = Timeout > 0 ? xrtTimer() : Sample;
             if (!isfinite(Sample) || !isfinite(Current)) { Status = XCRON_SCHEDULE_ERROR; break; }
-            if (Current >= Limit) { Status = XCRON_SCHEDULE_TIMEOUT; break; }
             if (Report.HasNext) {
                 uint64 WallDelay = (uint64)Report.Next - (uint64)Now;
                 if (WallDelay > INT64_MAX) WallDelay = INT64_MAX;
@@ -280,6 +279,16 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
                 CallerFirst = Limit < Due;
                 Due = nextafter(Due, INFINITY);
                 if (Due < Deadline) Deadline = Due;
+            }
+            if (Current >= Limit) {
+                /* A pause before arming can cross both deadlines. Resample
+                 * UTC once if the occurrence was projected to come first. */
+                if (!CallerFirst && Sample < Limit) {
+                    Sample = Current;
+                    continue;
+                }
+                Status = XCRON_SCHEDULE_TIMEOUT;
+                break;
             }
         }
         if (!S->HasWaiter) {

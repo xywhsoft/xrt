@@ -21,7 +21,10 @@ wall sample, carried through to the native monotonic timer where available.
 On an occurrence timer wake the scheduler checks wall time again. If the
 caller timeout came before the projected occurrence, Wait returns TIMEOUT
 even when the thread resumes after both deadlines. The next drive can
-dispatch the pending job. If the monotonic clock fails after the timer
+dispatch the pending job. If the thread pauses before arming and the
+occurrence was projected at or before the caller timeout, Wait checks UTC
+again. It dispatches the occurrence if due and otherwise returns TIMEOUT.
+If the monotonic clock fails after the timer
 returns, Wait reports an error, keeps the occurrence pending and
 preserves the caller's output. An explicit wake returns WOKEN so the caller
 can apply APP changes or drive again. With a zero timeout, Wait dispatches

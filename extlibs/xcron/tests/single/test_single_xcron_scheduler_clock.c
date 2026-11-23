@@ -22,6 +22,7 @@ enum { MODEL_CAPACITY = 24, MODEL_STEPS = 2048 };
 static struct {
     xcronscheduler* Scheduler;
     xtime Wall;
+    xtime WallAfterRead;
     double Monotonic;
     double DelayAfterWall;
     uint32 SubNs;
@@ -42,6 +43,10 @@ static xtime readWallWithSubMs(uint32* SubNs)
     *SubNs = Clock.SubNs;
     Clock.Monotonic += Clock.DelayAfterWall;
     Clock.DelayAfterWall = 0;
+    if (Clock.WallAfterRead) {
+        Clock.Wall = Clock.WallAfterRead;
+        Clock.WallAfterRead = 0;
+    }
     return Wall;
 }
 
@@ -89,6 +94,7 @@ static void recordCallback(void* Context)
 static void beginScheduler(xtime Wall, double Monotonic, size_t Capacity, xcrondialect Dialect)
 {
     Clock.Wall = Wall;
+    Clock.WallAfterRead = 0;
     Clock.Monotonic = Monotonic;
     Clock.SubNs = 0;
     Clock.Steps = NULL;
@@ -238,6 +244,40 @@ static void testWaitAfterSamplingDelay(void)
 	testRequire(xcronSchedulerWait(Clock.Scheduler, 1500, &Result) == XCRON_SCHEDULE_DISPATCHED &&
 		report(Result, 1, 32000) && Clock.Called == 1, "time after a UTC sample is not added to the deadline");
 	end();
+}
+
+static void testBothDeadlinesElapsedBeforeArming(void)
+{
+    const struct {
+        int64 Timeout;
+        xtime ResumedWall;
+        xcronschedulestatus Expected;
+    } Cases[] = {
+        {125, 21375, XCRON_SCHEDULE_TIMEOUT},
+        {250, 21375, XCRON_SCHEDULE_DISPATCHED},
+        {500, 21375, XCRON_SCHEDULE_DISPATCHED},
+        {500, 20500, XCRON_SCHEDULE_TIMEOUT}
+    };
+    for (size_t Index = 0; Index < sizeof(Cases) / sizeof(Cases[0]); ++Index) {
+        begin(20750, 100.0);
+        clockjob Job = {.Marker = 1};
+        add(XRT_STR_LITERAL("* * * * * *"), &Job);
+        Clock.DelayAfterWall = 0.625;
+        Clock.WallAfterRead = Cases[Index].ResumedWall;
+        xcronpoll Result;
+        testRequire(xcronSchedulerWait(Clock.Scheduler, Cases[Index].Timeout, &Result) ==
+            Cases[Index].Expected, "pre-arm delay preserves the first projected deadline");
+        if (Cases[Index].Expected == XCRON_SCHEDULE_TIMEOUT) {
+            testRequire(report(Result, 0, 21000) && !Clock.Called,
+                "timeout leaves the occurrence pending");
+            Clock.Wall = 21375;
+            testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED,
+                "the next drive can dispatch the pending occurrence");
+        }
+        testRequire(report(Result, 1, 22000) && Clock.Called == 1,
+            "the occurrence dispatches exactly once");
+        end();
+    }
 }
 
 static void testWaveSample(void)
@@ -482,6 +522,7 @@ int main(void)
     testLateTimerReturn();
     testFractionalDeadline();
     testWaitAfterSamplingDelay();
+    testBothDeadlinesElapsedBeforeArming();
     testWaveSample();
     testClockFailure();
     testDistinctRecurrences();
