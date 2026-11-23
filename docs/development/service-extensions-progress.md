@@ -26481,3 +26481,44 @@ profile selects the pool code and began new continuous
 runs. The four preprocessing fingerprints are under
 out/service-extensions/xredis-pool-gate-windows-dc8f7525/
 and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
+
+## 2026-11-24 Ubuntu MQTT QoS 2 connection delivery budgets
+
+A single Ubuntu QEMU/WHPX broker executable selected an
+APP delivery budget of 256, 512 or 1,024 per connection.
+The server defaults for global count and byte limits stayed
+fixed. The same observer ran against epoll and io_uring
+with two broker workers, eight wildcard subscribers,
+128-byte payloads, and publisher and subscriber windows
+of 16. The independent MQTT 5 and 3.1.1 peer passed on
+both backends. Host replay checked the compiled inputs,
+60 low-rate trials and 30 high-rate trials, including
+every broker counter snapshot and partial observer ledger.
+
+At 4,000 and 8,000 offers/s every budget and backend
+completed all five repetitions. Their median throughput
+remained within 0.1 percent of the offered rate. At
+16,000 offers/s the complete-sample results were as follows.
+
+| Per-connection budget | Backend | Complete | Median ingress/s | Median delivery P99 (ms) | Median delivery P99.9 (ms) |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 256 | epoll | 3/5 | 15,989 | 8.384 | 10.532 |
+| 512 | epoll | 3/5 | 15,993 | 11.512 | 14.969 |
+| 1,024 | epoll | 5/5 | 15,990 | 19.884 | 22.773 |
+| 256 | io_uring | 5/5 | 15,987 | 4.339 | 6.796 |
+| 512 | io_uring | 5/5 | 15,988 | 4.862 | 8.930 |
+| 1,024 | io_uring | 5/5 | 15,991 | 6.356 | 8.752 |
+
+The four incomplete trials reported PUBREC reason 0x97
+and a nonzero broker rejection count. The 86 complete
+trials reconciled 1,584,000 confirmations and 12,672,000
+measured deliveries. The high-rate epoll cohorts had more
+completed trials at 1,024, with a larger median end-to-end
+tail among the completed trials. Every complete high-rate
+series passed throughput repeatability and exceeded the
+P99 and P99.9 variation limits. The APP setting and backend
+remain configurable and strict release timing stays open.
+
+Raw reports and replay are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-native-quota-9ce2606c/
+and out/service-extensions/linux-guest-9ce2606c/mqtt-native-quota-high-9ce2606c/.
