@@ -23241,3 +23241,17 @@ cutoff coverage. Its updated run and strict acceptance are pending.
 
 Raw reports, build logs and the independent audit are under
 out/service-extensions/xredis-tls-cutoffs-87812a9c/.
+
+
+## 2026-11-23 Complete Windows xredis workload smoke
+
+The native Windows x64 smoke that started at f93921b3 completed
+all 166 Redis scenarios. The independent audit checked execution
+order, configured arguments, requested facts and metric samples.
+The implementation fingerprint matches the current checkout.
+The receipt kept the original dirty-worktree flag and benchmark
+runner fingerprint. This run used the pre-reuse runner. The
+optimized native Windows MQTT full smoke started separately.
+
+The original report, log and audit are under
+out/service-extensions/native-ci-48b0ba85/.
