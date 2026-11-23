@@ -23907,3 +23907,44 @@ Ordinary maturity and generated-header checks passed. Strict xredis
 maturity still reports 29 developing modules. Test, package, interop and
 paired throughput evidence is under
 out/service-extensions/xredis-cluster-deadlines-3e5fab5d/.
+
+## 2026-11-23 Native service evidence and two-core comparison runners
+
+[The mainline push run](https://github.com/xywhsoft/xrt/actions/runs/45131835051)
+at 3e5fab5d passed xcron on Linux and Windows, including forced process
+interruption and APP catch-up. The Linux Redis job ran 7,860 mixed-load
+rounds in 30 seconds, verified nine fixed-seed cases and one primary
+failover, and exercised every integer lost-reply boundary over TCP and
+TLS. Independent replay matched the Redis build and journal, and verified
+one executed INCR and MAY_HAVE_EXECUTED in each of the ten cutoff cases.
+
+The same run passed the Windows and Linux xrpc jobs. Independent replay
+checked 1,280,000 timed replies per platform, including the build and
+observer identity, send/arrival timestamps, percentiles and noise
+decisions. All eight throughput series were stable. At 64,000 calls/s,
+the Linux duplex and direct-dispatch P99 medians were 205.4 and 169.6 us,
+with stable P99 and P99.9. The corresponding hosted Windows medians were
+18.6 and 4.9 ms and both tails were unstable. The Linux 32,000 calls/s
+direct-dispatch P99 and both P99.9 series were also unstable.
+
+[The opt-in run](https://github.com/xywhsoft/xrt/actions/runs/45132225495)
+started the full Linux xcron scheduler cohorts. Both MQTT and Hiredis
+comparison jobs stopped before their measurements. Their guests exposed
+four logical CPUs on two cores, while each selector required three
+cores. The jobs now record the guest topology and select a shared-SMT
+profile for such hosts. Client CPU budgets match across each comparator
+pair. Redis separates the server core from both client CPUs. MQTT puts
+the broker and publisher on one core and the receivers on the other.
+The existing three- and four-core placements and the comparison
+workloads are preserved.
+
+Ten selection fixtures, actionlint and a WSL rehearsal passed. WSL
+verified all 14 MQTT workload reports using the hosted binaries.
+The initial Mosquitto restart fixture ran as root and left no
+checkpoint in its private test directory. It passed under an
+unprivileged account. The WSL Redis run verified ten measured xredis/Hiredis
+samples each on TCP and TLS. Both Redis transport comparisons missed
+the variation limits. The updated placement still needs a hosted
+Linux run, and strict performance and native 72-hour acceptance remain
+open. Raw artifacts, runner logs and independent replay are under
+out/service-extensions/native-ci-3e5fab5d/.

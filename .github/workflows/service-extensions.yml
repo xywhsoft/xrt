@@ -602,6 +602,12 @@ jobs:
         run: |
           evidence=out/service-extensions/xredis-hiredis-linux
           mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/revision.txt"
+          lscpu > "$evidence/cpu.txt"
+          LC_ALL=C lscpu -p=CPU,CORE,SOCKET > "$evidence/cpu-topology.csv"
+          cpus=$(python -B tools/select_service_benchmark_cpus.py xredis "$evidence/cpu-topology.csv")
+          read -r fixture_cpus cpu_profile <<< "$cpus"
+          printf 'fixture_cpus=%s\nprofile=%s\n' "$fixture_cpus" "$cpu_profile" > "$evidence/cpu-placement.txt"
           hiredis_sha=25cee4500f359cf5cad3b51ed62059aadfc0939b05150c1f19c7e2829123631c
           archive="$RUNNER_TEMP/hiredis-1.3.0.tar.gz"
           curl --fail --silent --show-error --location --retry 2 --max-time 120 \
@@ -616,27 +622,10 @@ jobs:
           cmake --build "$RUNNER_TEMP/hiredis-build" --target hiredis -j2
           library="$RUNNER_TEMP/hiredis-build/libhiredis.a"
           peer="$RUNNER_TEMP/redis-$REDIS_VERSION/src/redis-server"
-          git rev-parse HEAD > "$evidence/revision.txt"
-          lscpu > "$evidence/cpu.txt"
           gcc --version > "$evidence/compiler.txt"
           openssl version -a > "$evidence/openssl.txt"
           "$peer" --version > "$evidence/redis.txt"
-          sha256sum "$archive" "$library" "$peer" > "$evidence/sha256.txt"
-          cpus=$(python - <<'PY'
-          import os
-          import subprocess
-          available = os.sched_getaffinity(0)
-          cores = {}
-          for row in subprocess.check_output(["lscpu", "-p=CPU,CORE,SOCKET"], text=True).splitlines():
-              if not row.startswith("#"):
-                  cpu, core, socket = map(int, row.split(","))
-                  if cpu in available:
-                      cores.setdefault((socket, core), cpu)
-          if len(cores) < 3:
-              raise SystemExit("Redis comparison needs three available cores")
-          print(",".join(map(str, list(cores.values())[:3])))
-          PY
-          )
+          sha256sum "$archive" "$library" "$peer" "tools/select_service_benchmark_cpus.py" > "$evidence/sha256.txt"
           observer=extlibs/xredis/bench/bench_client_openloop.c
           flags=(-std=gnu11 -O2 -Wall -Wextra -Werror -D_GNU_SOURCE -DXRT_IMPLEMENTATION
             -Iinclude -Iextlibs/xredis/include -include xredis/features.h -include ./single/xrt.h)
@@ -660,7 +649,7 @@ jobs:
               -o "$evidence/hiredis-$transport" -pthread -lm
             python -B extlibs/xredis/bench/compare_hiredis.py \
               --xredis "$evidence/xredis-$transport" --hiredis "$evidence/hiredis-$transport" \
-              --server "$peer" --fixture-cpus "$cpus" "${fixture_tls[@]}" \
+              --server "$peer" --fixture-cpus "$fixture_cpus" "${fixture_tls[@]}" \
               --mixed --connections 4 --rate 2000 --count 4000 --window 128 --payload 1024 --repeats 5 \
               --report "$evidence/$transport.json" --raw-dir "$evidence/$transport-raw" || status=1
           done
@@ -691,6 +680,13 @@ jobs:
         run: |
           evidence=out/service-extensions/xmqtt-linux-comparison
           mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/revision.txt"
+          lscpu > "$evidence/cpu.txt"
+          LC_ALL=C lscpu -p=CPU,CORE,SOCKET > "$evidence/cpu-topology.csv"
+          cpus=$(python -B tools/select_service_benchmark_cpus.py xmqtt "$evidence/cpu-topology.csv")
+          read -r broker_cpu load_cpus publisher_cpu cpu_profile <<< "$cpus"
+          printf 'broker=%s\nclients=%s\npublisher=%s\nprofile=%s\n' \
+            "$broker_cpu" "$load_cpus" "$publisher_cpu" "$cpu_profile" > "$evidence/cpu-placement.txt"
           mosquitto_archive="$RUNNER_TEMP/mosquitto-2.1.2.tar.gz"
           paho_archive="$RUNNER_TEMP/paho-1.3.15.tar.gz"
           curl --fail --silent --show-error --location --retry 2 --max-time 120 \
@@ -752,8 +748,6 @@ jobs:
             --no-single --no-run --cflag=-O2
           cp out/gcc/native-linux/xmqtt_server_checkpoint_example/examples_server_checkpoint "$evidence/xmqtt-checkpoint"
 
-          git rev-parse HEAD > "$evidence/revision.txt"
-          lscpu > "$evidence/cpu.txt"
           gcc --version > "$evidence/compiler.txt"
           openssl version -a > "$evidence/openssl.txt"
           ldd "$evidence/mosquitto" > "$evidence/broker-dependencies.txt"
@@ -763,32 +757,7 @@ jobs:
             "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" \
             "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" "$evidence/xmqtt-checkpoint" \
             "$bench/compare_broker.py" "$bench/bench_server.c" "$bench/test_broker_observer.py" \
-            "$bench/compare_broker_restart.py" "$bench/compare_broker_connections.py" > "$evidence/sha256.txt"
-          cpus=$(python - <<'PY'
-          import os
-          import subprocess
-          available = os.sched_getaffinity(0)
-          cores = {}
-          for row in subprocess.check_output(["lscpu", "-p=CPU,CORE,SOCKET"], text=True).splitlines():
-              if not row.startswith("#"):
-                  cpu, core, socket = map(int, row.split(","))
-                  if cpu in available:
-                      cores.setdefault((socket, core), []).append(cpu)
-          groups = list(cores.values())
-          if len(groups) < 3 or sum(map(len, groups)) < 4:
-              raise SystemExit("MQTT comparisons need at least three physical cores and four logical CPUs")
-          if len(groups) == 3:
-              # Keep the receiver CPUs on separate cores and share the broker core with the publisher.
-              groups.sort(key=len, reverse=True)
-          broker, first, second = (group[0] for group in groups[:3])
-          publisher = groups[3][0] if len(groups) >= 4 else groups[0][1]
-          print(broker, f"{first},{second}", publisher)
-          PY
-          )
-          read -r broker_cpu load_cpus publisher_cpu <<< "$cpus"
-          printf 'broker=%s\nclients=%s\npublisher=%s\n' \
-            "$broker_cpu" "$load_cpus" "$publisher_cpu" > "$evidence/cpu-placement.txt"
-
+            "$bench/compare_broker_restart.py" "$bench/compare_broker_connections.py" "tools/select_service_benchmark_cpus.py" > "$evidence/sha256.txt"
           status=0
           for qos in 1 2; do
             python -B "$bench/compare_client_reference.py" --broker "$evidence/mosquitto" \
