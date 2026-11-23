@@ -321,6 +321,10 @@ static int cohort(int Argc, char** Argv)
     xtime Due;
     if (!Jobs || !cohortRegister(Scheduler, &Wave, Jobs, Dormant, Waves, &Due)) return 4;
     if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) return 5;
+#if defined(_WIN32)
+    ULONG64 CycleStart = 0, CycleEnd = 0;
+    bool HaveCycles = Samples && QueryProcessCycleTime(GetCurrentProcess(), &CycleStart);
+#endif
     double Cpu = processCpuMilliseconds(), Start = xrtTimer();
     xtime First[MAX_WAVES], Last[MAX_WAVES], Span[MAX_WAVES];
 #if defined(XCRON_BENCH_WAIT_PHASE)
@@ -337,6 +341,9 @@ static int cohort(int Argc, char** Argv)
 #endif
     }
     double Seconds = xrtTimer() - Start, CpuEnd = processCpuMilliseconds();
+#if defined(_WIN32)
+    HaveCycles = HaveCycles && QueryProcessCycleTime(GetCurrentProcess(), &CycleEnd) && CycleEnd > CycleStart;
+#endif
     bool Closed = Direct ? xrtEventWaiterUnit(&Waiter) && xrtEventUnit(&Event) : xcronSchedulerDestroy(Scheduler);
     free(Jobs);
     if (!Closed || Seconds <= 0 || Cpu < 0 || CpuEnd < Cpu) return 6;
@@ -345,6 +352,9 @@ static int cohort(int Argc, char** Argv)
     printf("cpu_ns_per_callback: %.3f\nwait_seconds: %.6f\n", (CpuEnd - Cpu) * 1e6 / (Active * Waves), Seconds);
     printf("wall_clock: %s\n", WallClock);
     if (Samples) {
+#if defined(_WIN32)
+        if (HaveCycles) printf("process_cycles: %" PRIu64 "\n", (uint64_t)(CycleEnd - CycleStart));
+#endif
         for (unsigned Index = 0; Index < Waves; ++Index)
             printf("wave_%u_ns: %lld,%lld,%lld\n", Index + 1, (long long)First[Index],
                 (long long)Last[Index], (long long)Span[Index]);

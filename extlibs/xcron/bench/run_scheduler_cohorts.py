@@ -65,6 +65,11 @@ def observe(program, cpu, waves, active, dormant, drive):
         raise ValueError("invalid process CPU or elapsed time")
     result = {"verified_callbacks": callbacks, "samples_ns": samples, "cpu_ns_per_callback": cpu_cost,
               "wait_seconds": elapsed, "wall_clock": fields["wall_clock"]}
+    if "process_cycles" in fields:
+        cycles = int(fields["process_cycles"])
+        if cycles <= 0:
+            raise ValueError("invalid process CPU cycle count")
+        result.update(process_cycles=cycles, process_cycles_per_callback=cycles / callbacks)
     phase_keys = [key for key in fields if key.startswith("phase_")]
     if phase_keys or "waiter_backend" in fields:
         if len(phase_keys) != waves:

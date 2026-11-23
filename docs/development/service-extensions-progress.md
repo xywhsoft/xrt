@@ -24055,3 +24055,42 @@ remaining job steps. Actionlint passed. The full WSL rehearsal started
 with the extracted workflow command, and hosted verification is open.
 The runner log, comparison and WSL rehearsal are under
 out/service-extensions/xmqtt-linux-sanitizers-7e524f64/.
+
+## 2026-11-23 Native Windows xcron cohorts and CPU cycle evidence
+
+The clean 3e5fab5d native Windows campaign on logical CPU 4 completed
+20 processes, 256 timed waves per process, and 2,785,280 callbacks.
+Independent replay checked the original binary and runner identities,
+all wave records, callback counts, percentiles and repeatability.
+The table gives pooled time from the scheduled instant to the last
+callback in each wave.
+
+| Active / dormant jobs | Driver | P99 (ms) | P99.9 (ms) |
+| --- | --- | ---: | ---: |
+| 64 / 960 | scheduler | 2.285 | 7.622 |
+| 64 / 960 | direct precise EventWaiter | 1.884 | 7.691 |
+| 1,024 / 0 | scheduler | 3.561 | 19.494 |
+| 1,024 / 0 | direct precise EventWaiter | 3.316 | 18.236 |
+
+All 12 P99 series exceeded their repeatability limits. Eighteen of
+the twenty processes reported a zero delta from GetProcessTimes.
+The remaining two reported around 15.6 ms over the timed interval.
+The CPU time resolution was insufficient to compare process work in
+these sleeping cohorts.
+
+Raw Windows cohort reports now capture process CPU cycles over the
+timed waves with QueryProcessCycleTime. The report retains the raw
+delta, cycles per verified callback, and the existing process CPU
+time. The regular benchmark smoke format is unchanged. The Windows
+and WSL smoke profiles passed and the short raw campaigns verified
+17,408 callbacks on each host. All four Windows process-cycle deltas
+were positive, with roughly 67 to 1,346 cycles per callback across
+the four short samples. The Linux reports use the existing process
+CPU clock. The cycle readings characterize this host and short
+validation runs. [Windows process CPU cycle counter](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-queryprocesscycletime).
+
+Ordinary maturity and generated-header checks passed. Repeatable
+release tails remain open. The full Windows trace and independent
+replay are under out/service-extensions/xcron-prearm-deadline-7e0f1688/win/.
+The updated probe, short-run data and audit are under
+out/service-extensions/xcron-cycle-accounting-ecc5c7ec/.
