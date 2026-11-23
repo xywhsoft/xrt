@@ -64,8 +64,16 @@ static xmqttclient* connectClient(xnetengine* Engine, const xnetaddr* Address, c
 	require(xmqttClientConnect(Engine, Address, Worker, &Config, &Packet, &Client), "client connect");
 	xfuture* Ready = xmqttClientReady(Client);
 	const xmqttreadyresult* Outcome = result(Ready);
-	require(Outcome->Status == XMQTT_STATUS_OK && Outcome->Negotiated.Accepted &&
-		!Outcome->Negotiated.SessionPresent, "fresh MQTT 5 CONNACK");
+	if (Outcome->Status != XMQTT_STATUS_OK || !Outcome->Negotiated.Accepted ||
+		Outcome->Negotiated.SessionPresent) {
+		fprintf(stderr, "MQTT mixed readiness: client=%s status=%d reason=0x%02x accepted=%u session_present=%u connack=%u\n",
+			Id, (int)Outcome->Status, (unsigned)Outcome->Reason, (unsigned)Outcome->Negotiated.Accepted,
+			(unsigned)Outcome->Negotiated.SessionPresent, (unsigned)(Outcome->Connack != NULL));
+		for (const xerror* Cause = Outcome->Cause; Cause; Cause = xrtErrorCause(Cause))
+			fprintf(stderr, "MQTT mixed readiness cause: domain=%s operation=%s code=%d system=%d\n",
+				xrtErrorDomain(Cause), xrtErrorOperation(Cause), (int)xrtErrorCode(Cause), (int)xrtErrorSystemCode(Cause));
+		require(false, "fresh MQTT 5 CONNACK");
+	}
 	xrtFutureDestroy(Ready);
 	return Client;
 }

@@ -26828,3 +26828,31 @@ Both depths exceeded the P99.9 variation limit. The
 default depth remains 64. Raw source hashes and replays
 are under out/service-extensions/linux-guest-9ce2606c/
 in xredis-capacity-85f4ad5c/ and xredis-reader-depth-ac6ceb38/.
+
+## 2026-11-24 Windows MQTT endurance readiness diagnostics
+
+The previous Windows MQTT mixed workload ended at
+07:28:36 China Standard Time after validating 2,140,127
+rounds over 34,903.7 awake seconds. The final report
+records a failed fresh MQTT 5 CONNACK check and no
+verified retirement. The original observer emitted no
+status, reason or transport error for this check. A
+nearby Windows TCP/IP event identified another workload
+failure. The MQTT cause remains unresolved.
+
+The mixed probe now records the client ID, status,
+CONNACK presence and reason, session flags, and the
+typed cause chain on readiness failure. The readiness
+criteria, workload, and product source are identical.
+A Windows fixture returned a negative CONNACK with
+reason 0x89. The probe reported the reason and receipt
+of CONNACK. A second fixture refused the TCP connection.
+The probe reported that no CONNACK arrived and retained
+the native connect-stream cause. Both probes exited
+with failure. An eight-second mixed run verified 512
+rounds and 3,104 broker deliveries with exact retirement.
+
+The failed interval and original build receipt remain
+under out/service-extensions/xmqtt-shared-credit-71db594d/.
+Windows diagnostic and smoke reports are under
+out/service-extensions/xmqtt-readiness-e5185ff8/.
