@@ -23475,3 +23475,40 @@ Bash syntax, actionlint and ordinary maturity passed.
 
 The raw receipts, logs and replay are under
 out/service-extensions/xmqtt-linux-capacity-4fa678d1/.
+
+## 2026-11-23 xredis close checks on the reply read path
+
+The worker inspects its read buffer before checking client close.
+For a callback that consumes one span and finishes below its read
+budget with an empty buffer, the read callback takes the close gate
+once instead of four times. A worker turn that has no paused read
+also skips its resume-path close check. The gate still precedes
+feeding bytes to the parser or resuming a paused stream.
+
+Optimized native Windows and Ubuntu WSL modular TCP and TLS client
+tests passed. The rebuilt focused single-header tests passed on both
+hosts, including the bounded drain and cancellation paths. WSL
+ASan/UBSan with leak detection also passed the focused TCP and TLS
+tests. The remaining aggregate xredis suite entries were still
+running when this stage was recorded. Ordinary maturity and
+generated header freshness passed.
+
+The fixed-arrival comparison used the same binary GET/SET schedule,
+eight RESP3 connections and a 128-slot window against pinned Redis
+8.0.5 running in WSL. Each host alternated five measured pairs at
+each rate. The independent audit reconciled all 560,000 measured
+offers, including four Windows baseline observer-window refusals,
+plus warmup and exact server command counts.
+
+| Observer | Offers/s | Process CPU excluding generator, before / after (s) | End-to-end P99, before / after (us) |
+| --- | ---: | ---: | ---: |
+| Windows x64 | 2,000 | 0.063 / 0.172 | 1,334.5 / 982.6 |
+| Windows x64 | 12,000 | 0.625 / 0.594 | 674.9 / 704.6 |
+| Ubuntu WSL | 2,000 | 0.212 / 0.214 | 208.4 / 226.4 |
+| Ubuntu WSL | 12,000 | 0.970 / 0.943 | 461.2 / 326.8 |
+
+The table shows five-run medians. Both hosts ran the aggregate test
+build and Windows endurance workloads during the comparison. The
+12,000-offer P99 series exceeded the repeatability limits. Native
+Linux, stable release timing and endurance with the new binary remain
+open. Records are under out/service-extensions/xredis-read-gate-2104cafd/.

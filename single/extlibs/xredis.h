@@ -6728,10 +6728,12 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 
 static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer)
 {
-	if (Client->Reading || xredisClientClosing(Client)) return;
+	if (Client->Reading) return;
 	Client->Reading = true; size_t Bytes = 0, Frames = 0;
-	while (Bytes < Client->Config.ReadBytes && Frames < Client->Config.ReadFrames && !xredisClientClosing(Client)) {
-		xnetspan Span; if (!xrtNetBufFront(Buffer, &Span)) break;
+	while (Bytes < Client->Config.ReadBytes && Frames < Client->Config.ReadFrames) {
+		xnetspan Span;
+		/* The worker owns the buffer. Check close before consuming a readable span. */
+		if (!xrtNetBufFront(Buffer, &Span) || xredisClientClosing(Client)) break;
 		size_t Available = Client->Config.ReadBytes - Bytes;
 		if (Span.Size > Available) Span.Size = Available;
 		xredisreply* Reply = NULL; size_t Consumed = 0;
@@ -6751,7 +6753,7 @@ static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer)
 		else if (Consumed == 0) break;
 	}
 	Client->Reading = false;
-	if (!xredisClientClosing(Client) && (Bytes == Client->Config.ReadBytes || Frames == Client->Config.ReadFrames)) {
+	if ((Bytes == Client->Config.ReadBytes || Frames == Client->Config.ReadFrames) && !xredisClientClosing(Client)) {
 		Client->ReadYielded = true; Client->ReadPaused = true;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 		if (Client->TLS == NULL)
@@ -6971,7 +6973,7 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 	if (!xredisClientClosing(Client)) {
 		const xnetbuf* Buffer = xredisClientTransportBuffer(Client);
 		if (Buffer != NULL && xrtNetBufSize(Buffer) != 0) xredisClientReadBuffer(Client, Buffer);
-		if (!xredisClientClosing(Client) && !Client->ReadEnded && !Client->ReadYielded && Client->ReadPaused) {
+		if (Client->ReadPaused && !Client->ReadEnded && !Client->ReadYielded && !xredisClientClosing(Client)) {
 			Client->ReadPaused = false;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 			if (Client->TLS == NULL && Client->Stream != NULL)
