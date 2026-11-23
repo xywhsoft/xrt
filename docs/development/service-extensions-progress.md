@@ -22884,3 +22884,40 @@ Windows Redis client journal independently reconciled 27,056 windows,
 The completed duration and native Linux qualification are pending.
 Evidence is under
 out/service-extensions/xmqtt-windows-session-expiry-soak-7d667770/.
+
+
+## 2026-11-23 Redis and MQTT workload smoke CI isolation
+
+[Service extensions run 62](https://github.com/xywhsoft/xrt/actions/runs/45047565489)
+at 48b0ba85 completed the xcron and xrpc matrices and the separate
+Redis restart job. Both Redis matrices failed when the TLS
+authentication workload started its Python peer without cryptography.
+Both MQTT matrices exceeded the 60-minute job limit in the workload
+smoke step. Before that step, the Ubuntu MQTT job had passed modules,
+examples, ASan/UBSan, mixed load, broker interruption and the
+checkpoint checks.
+
+The full Redis and MQTT workload smoke commands now have their own
+Linux and Windows matrix jobs and time budgets. The Redis workload
+explicitly installs cryptography 50.0.0, the pin used by the core
+TLS workflow. All eight product/platform smoke combinations and the
+existing functional, package and sanitizer steps are still scheduled.
+actionlint 1.7.7 and the independent step and matrix comparison
+passed. Fresh Windows and Ubuntu WSL virtual environments both
+installed the pin and the TLS peer verified two mutually
+authenticated Redis connection cycles on each host.
+
+For [the run at 7d667770](https://github.com/xywhsoft/xrt/actions/runs/45099155280),
+the Ubuntu xcron result verifies replay of the last emitted action
+after forced termination, bounded catch-up and corrupt-checkpoint
+rejection. The Ubuntu Redis job independently reconciled 8,471
+mixed-load rounds over 30 seconds against the build and journal.
+It also verified the same executed INCR across all five integer reply
+cutoffs, with one mutation on the server after reconnection. The
+successful Windows and Ubuntu xcron jobs and Ubuntu Redis restart
+job are functional evidence. The independent workload matrix has
+yet to run on GitHub. The native 72-hour and matched performance
+gates remain open.
+
+The downloaded logs, artifacts, workload reports and workflow
+replay are under out/service-extensions/native-ci-48b0ba85/.

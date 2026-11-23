@@ -212,6 +212,7 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind shared --verify
       - name: Workload smoke only
+        if: matrix.product == 'xcron' || matrix.product == 'xrpc'
         run: >-
           python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
           --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-linux-smoke.json
@@ -349,6 +350,7 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --kind shared --verify
       - name: Workload smoke only
+        if: matrix.product == 'xcron' || matrix.product == 'xrpc'
         run: >-
           python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
           --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-windows-smoke.json
@@ -358,6 +360,55 @@ jobs:
         with:
           name: service-extensions-${{ matrix.product }}-windows-smoke
           path: out/service-extensions/*.json
+          if-no-files-found: warn
+
+  workload-smoke:
+    name: Workload smoke (${{ matrix.product }}, ${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [xredis, xmqtt]
+        runner: [ubuntu-latest, windows-latest]
+        include:
+          - runner: ubuntu-latest
+            platform: linux
+          - runner: windows-latest
+            platform: windows
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        if: matrix.platform == 'windows'
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Install Redis TLS peer dependency
+        if: matrix.product == 'xredis'
+        run: python -m pip install --disable-pip-version-check cryptography==50.0.0
+      - name: Linux workload smoke
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: >-
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-linux-smoke.json
+      - name: Windows workload smoke
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: >-
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-${{ matrix.platform }}-smoke.json
+      - name: Preserve workload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: service-extensions-${{ matrix.product }}-${{ matrix.platform }}-workload-smoke
+          path: out/service-extensions/performance-${{ matrix.product }}-${{ matrix.platform }}-smoke.json
           if-no-files-found: warn
 
   redis-restart:
