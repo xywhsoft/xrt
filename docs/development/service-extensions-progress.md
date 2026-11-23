@@ -26427,3 +26427,39 @@ and Ubuntu 72-hour intervals are still running.
 The full runtime logs, focused concurrency logs and proof
 are under out/service-extensions/xredis-pool-gate-windows-dc8f7525/
 and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
+
+## 2026-11-24 One and two native xrpc observer processes
+
+Windows and the Ubuntu QEMU/WHPX guest each ran 40 trials
+with one or two native observers, two APP executor workers,
+eight staggered TCP peers and 8,000 measured requests per
+peer. The APP and observer CPU masks stayed fixed within
+each platform. Both campaigns started after their scheduled
+regression builds. Other endurance and scheduler workloads
+continued. Host replay matched the binary and raw record
+hashes and independently verified 5,120,000 replies,
+including all deadlines, tail attribution and quantiles.
+
+| Platform | Offers/s | APP mode | P99 one / two (ms) | P99.9 one / two (ms) |
+| --- | ---: | --- | ---: | ---: |
+| Windows | 32,000 | Duplex | 1.271 / 2.434 | 2.578 / 9.430 |
+| Windows | 32,000 | Dispatch | 1.025 / 2.565 | 2.239 / 11.162 |
+| Windows | 64,000 | Duplex | 1.729 / 1.849 | 3.295 / 5.885 |
+| Windows | 64,000 | Dispatch | 1.668 / 2.022 | 3.236 / 4.984 |
+| Ubuntu guest | 32,000 | Duplex | 2.231 / 2.962 | 2.950 / 4.077 |
+| Ubuntu guest | 32,000 | Dispatch | 2.551 / 2.758 | 3.796 / 3.595 |
+| Ubuntu guest | 64,000 | Duplex | 9.514 / 6.842 | 11.645 / 8.330 |
+| Ubuntu guest | 64,000 | Dispatch | 2.608 / 2.983 | 3.363 / 4.864 |
+
+Each value is the median of five trials. All 16 throughput
+series met repeatability and their medians were within
+0.4 percent of the offered rate. Only the Windows duplex
+cohort with one observing process at 64,000 offers/s met
+repeatability at both P99 and P99.9. The extra process
+reduced the Ubuntu duplex tail at 64,000/s in this
+campaign while raising other measured P99 values. The
+broader release timing gate remains open.
+
+Campaign inputs, raw timestamps and replay are under
+out/service-extensions/xrpc-native-shards-150a6de8/
+and out/service-extensions/linux-guest-9ce2606c/xrpc-native-shards-150a6de8/.
