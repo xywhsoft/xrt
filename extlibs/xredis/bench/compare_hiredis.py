@@ -39,9 +39,13 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def sample(args, client: Path, name: str, command: list[str], raw_path: Path | None = None) -> dict:
+def sample(args, client: Path, name: str, command: list[str], raw_path: Path | None = None,
+           *, workers: int = 1) -> dict:
     env = os.environ.copy()
     env.pop("XREDIS_OPENLOOP_TRACE", None)
+    env.pop("XREDIS_OPENLOOP_WORKERS", None)
+    if name == "xredis" and workers != 1:
+        env["XREDIS_OPENLOOP_WORKERS"] = str(workers)
     if raw_path is not None:
         env["XREDIS_OPENLOOP_TRACE"] = str(raw_path)
     try:
@@ -61,7 +65,7 @@ def sample(args, client: Path, name: str, command: list[str], raw_path: Path | N
     transport = "tls13_aes128gcm_x25519" if getattr(args, "tls_ca", None) else "tcp"
     expected = {
         "client": name, "target": "external_loopback", "arrival_model": "fixed_absolute",
-        "workers": "1" if name == "xredis" else "0", "transport": transport,
+        "workers": str(workers) if name == "xredis" else "0", "transport": transport,
         "memory_stats": "not_compiled", "generator_mode": "0",
         "slot_capacity": str(args.window), "max_inflight": str(args.window),
         "payload_bytes": str(args.payload), "target_rate_per_sec": str(args.rate),
@@ -192,6 +196,7 @@ def main() -> int:
     parser.add_argument("--window", type=int, default=16)
     parser.add_argument("--payload", type=int, default=32)
     parser.add_argument("--connections", type=int, default=1)
+    parser.add_argument("--xredis-workers", type=int, default=1, help="network workers for the xredis observer")
     parser.add_argument("--mixed", action="store_true", help="three binary GETs per SET on each connection")
     parser.add_argument("--tls-ca", type=Path, help="explicit PEM trust for TLS comparison binaries")
     parser.add_argument("--tls-server-name", help="expected peer name and SNI, defaults to localhost")
@@ -202,6 +207,8 @@ def main() -> int:
     if not ((args.port is None or 1 <= args.port <= 65535) and 1 <= args.window <= 128 and
             1 <= args.connections <= 8 and 1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
         parser.error("invalid workload or repeat count")
+    if not 1 <= args.xredis_workers <= args.connections:
+        parser.error("--xredis-workers must be between 1 and --connections")
     clients = {"xredis": args.xredis.resolve(strict=True), "hiredis-1.3.0": args.hiredis.resolve(strict=True)}
     if clients["xredis"] == clients["hiredis-1.3.0"]:
         parser.error("provide two distinct executables")
@@ -236,7 +243,8 @@ def compare(args, clients, parser, fixture) -> int:
     elif args.tls_server_name is not None:
         parser.error("--tls-server-name requires --tls-ca")
     report = {
-        "platform": platform.platform(), "arguments": command, "runs": [], "summary": {},
+        "platform": platform.platform(), "arguments": command, "xredis_workers": args.xredis_workers,
+        "runs": [], "summary": {},
         "executables": {name: {"path": str(path), "sha256": digest(path)} for name, path in clients.items()},
         "inputs": {str(path.relative_to(ROOT)): digest(path) for path in (
             Path(__file__).resolve(), BENCH / "bench_client_openloop.c", BENCH / "openloop_hiredis.h",
@@ -261,7 +269,7 @@ def compare(args, clients, parser, fixture) -> int:
         for name in order:
             raw = args.raw_dir / f"{repeat:03}-{name}.csv" if args.raw_dir is not None else None
             report["runs"].append({"client": name, "repeat": repeat, "warmup": repeat == 0,
-                                   **sample(args, clients[name], name, command, raw)})
+                                   **sample(args, clients[name], name, command, raw, workers=args.xredis_workers)})
     verified = all(run["verified"] for run in report["runs"])
     if fixture is not None:
         try:

@@ -32,10 +32,8 @@ int main(int argc, char** argv)
 #endif
 #if defined(REDIS_OPENLOOP_HIREDIS)
 	if (Config.Port == 0 || Config.Mode == 2 || Config.Stats) return 2;
-	const unsigned Workers = 0;
 	puts("client=hiredis-1.3.0");
 #else
-	const unsigned Workers = Config.Port == 0 ? 2u : 1u;
 	puts("client=xredis");
 #endif
 #if !defined(XRT_FEATURE_MEMORY_STATS)
@@ -54,7 +52,7 @@ int main(int argc, char** argv)
 #else
 	puts("transport=tcp");
 #endif
-	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Workers, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
+	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Result.Workers, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
 	printf("connections=%u\nworkload=%s\n", redisOpenConnections(&Config), Config.Mixed ? "get_set" : "echo");
 	printf("accepted_get: %zu\naccepted_set: %zu\nwindow_peak: %zu\n", Result.AcceptedGets, Result.AcceptedSets, Result.WindowPeak);
 	printf("target_rate_per_sec=%" PRIu64 "\nintended_timeout_ms=%" PRId64 "\n", Config.Rate, Config.Timeout);

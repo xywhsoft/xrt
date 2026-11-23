@@ -49,6 +49,7 @@ typedef struct redisopenresult {
 	uint64 RssPeak, HandlesBefore, HandlesAfter;
 	size_t AcceptedGets, AcceptedSets, SuccessfulGets;
 	uint32 PeerCommands;
+	unsigned Workers;
 	bool StatsCompiled;
 	char Backend[32];
 } redisopenresult;
@@ -349,6 +350,16 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 #if !defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) return false;
 #endif
+	unsigned Workers = 1;
+	if (Config->Port != 0) {
+		const char* Name = getenv("XREDIS_OPENLOOP_WORKERS");
+		if (Name) {
+			redisOpenRequire(Name[0] >= '1' && Name[0] <= '8' && Name[1] == '\0',
+				"XREDIS_OPENLOOP_WORKERS requires a count from 1 to 8");
+			Workers = (unsigned)(Name[0] - '0');
+		}
+		redisOpenRequire(Workers <= redisOpenConnections(Config), "worker count exceeds external connections");
+	}
 	*Output = (redisopenresult){0}; Output->HandlesBefore = redisOpenHandles();
 	redisopenrecord* Records = (redisopenrecord*)calloc(Config->Count, sizeof(*Records));
 	redisopenslot* Slots = (redisopenslot*)calloc(Config->Slots, sizeof(*Slots));
@@ -363,7 +374,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 		redisPeerStart(&Endpoint.Peer); Endpoint.Hook = (redispeerhook){redisOpenPeerCommand, &Endpoint};
 		xrtAtomicPtrStore(&Endpoint.Peer.Hook, &Endpoint.Hook, XMEMORY_RELEASE);
 	} else {
-		xnetengineconfig Engine; xrtNetEngineConfigInit(&Engine); Engine.Workers = 1;
+		xnetengineconfig Engine; xrtNetEngineConfigInit(&Engine); Engine.Workers = Workers;
 		const char* BackendName = getenv("XREDIS_OPENLOOP_BACKEND");
 		if (BackendName && strcmp(BackendName, "auto")) {
 			if (!strcmp(BackendName, "epoll")) Engine.Backend = XNET_PORT_EPOLL;
@@ -376,6 +387,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	}
 	xnetportbackendinfo Backend; redisPeerRequire(xrtNetEngineBackendInfo(Endpoint.Peer.Engine, 0, &Backend), "open-loop backend");
 	snprintf(Output->Backend, sizeof(Output->Backend), "%s", Backend.Name);
+	Output->Workers = xrtNetEngineWorkerCount(Endpoint.Peer.Engine);
 	xredisclientconfig ClientConfig; xredisClientConfigInit(&ClientConfig);
 	ClientConfig.MaxRequests = Config->Slots; if (ClientConfig.MaxInFlight > Config->Slots) ClientConfig.MaxInFlight = Config->Slots;
 	const unsigned Connections = redisOpenConnections(Config);
@@ -393,10 +405,11 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 
 	for (unsigned Index = 0; Index < Connections; ++Index) {
 		xredisclient** Client = &Clients[Index];
+		uint64 Affinity = Config->Port == 0 ? 0 : Index;
 #if defined(REDIS_OPENLOOP_TLS) || defined(REDIS_OPENLOOP_EXTERNAL_TLS)
-		redisPeerRequire(xredisClientTlsConnect(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, &TLS, Client), "open-loop TLS connect");
+		redisPeerRequire(xredisClientTlsConnect(Endpoint.Peer.Engine, &Endpoint.Peer.Address, Affinity, &ClientConfig, NULL, &TLS, Client), "open-loop TLS connect");
 #else
-		redisPeerRequire(xredisClientConnectInit(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, Client), "open-loop connect");
+		redisPeerRequire(xredisClientConnectInit(Endpoint.Peer.Engine, &Endpoint.Peer.Address, Affinity, &ClientConfig, NULL, Client), "open-loop connect");
 #endif
 		xfuture* Ready = xredisClientReady(*Client); redisPeerRequire(xrtFutureWaitFor(Ready, 10000) == XWAIT_OK, "open-loop readiness");
 		const xredisreadyresult* State = (const xredisreadyresult*)xrtFutureValue(Ready);

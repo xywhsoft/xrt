@@ -213,6 +213,14 @@ xredis observer's external TCP engine. Build the xredis observer with
 use `auto` to use XRT's default. The JSON records the active xredis
 backend under `network_backend` in each run's facts.
 
+Set `XREDIS_OPENLOOP_WORKERS` to a count from 1 to 8 for the external
+xredis observer. The default is one. The count must fit the number of
+connections, which are assigned round-robin to the workers. The output
+reports the engine's actual worker count as `workers`. Keep the observer
+CPU budget, connections and window fixed when comparing worker counts.
+With the paired runner, use `--xredis-workers` to set the count. The Hiredis
+observer uses its single event loop.
+
 Add `--raw-dir out/redis-echo-traces` to keep one CSV for each observer
 process, including warmup runs. Use a new directory for each comparison.
 The paired JSON records each file name and SHA-256. Rows follow scheduled

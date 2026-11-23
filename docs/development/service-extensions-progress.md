@@ -26586,3 +26586,28 @@ read. The previous attempt and its terminal report are
 preserved. Use both the report and live process handles
 when interpreting journal prefixes. The restart receipts
 are under out/service-extensions/xredis-win-guest-peer-dc8f7525/.
+
+## 2026-11-24 Redis fixed-arrival observer worker counts
+
+The external TCP and TLS xredis observers can now select up
+to eight XRT network workers and spread the same connections
+across them. The paired runner records the requested count
+and checks the actual count reported by the observer. One
+worker remains the default. The local fixture still runs on
+its two-worker engine and Hiredis uses its single event loop.
+
+Windows IOCP and the Ubuntu QEMU/WHPX guest exercised one,
+two, four and eight workers against dedicated Redis 8.0.5
+peers. Windows verified 4,000 replies across its ten short
+trials. The Ubuntu paired runner verified 6,400 replies
+across 16 trials. Both replayed the exact peer command
+counts, refused invalid and excess worker counts before
+connecting, and verified a 400-reply local-fixture smoke
+with its two workers. Both optimized external TLS variants
+built successfully. The paired runner's ledger tests passed.
+
+The first Windows reference binary used an older benchmark
+metric schema. That smoke is retained with the rejected
+metrics. The passing run rebuilt the reference observer with
+the current benchmark source and pinned Hiredis archive.
+The measurements do not modify the Redis library runtime.
