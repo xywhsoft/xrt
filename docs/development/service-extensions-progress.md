@@ -24702,3 +24702,32 @@ limits. The syscall reduction yielded no repeatable CPU or tail gain.
 The variant remains a benchmark prototype. Source, probes, hashes,
 traces and independent replay are under
 out/service-extensions/xredis-epoll-short-batch-72dfbfd3/.
+
+## 2026-11-23 MQTT QoS 2 after the TCP epoll rearm change
+
+Two builds of the same broker APP and xmqtt single header used XRT
+60353975 and 72dfbfd3. Both selected epoll, two broker workers on
+the same CPU mask, and a separate observer CPU mask. Four QoS 2
+publishers each used four credits. Eight wildcard subscribers each
+advertised Receive Maximum 32. The observer checked each publication,
+terminal publisher acknowledgement, per-publisher ordering and all
+subscriber deliveries. Each trial offered four seconds of arrivals,
+including the correct tail accounting when the pacer fell behind.
+
+| Offered publications/s | Complete trials, old / new | At 95% of rate, old / new | Complete pairs | Matched ingress/s, old / new |
+| --- | ---: | ---: | ---: | ---: |
+| 12,000 | 4 / 3 of 5 | 3 / 3 of 5 | 2 | 11,508 / 11,780 |
+| 24,000 | 3 / 4 of 5 | 0 / 0 of 5 | 2 | 12,388 / 12,893 |
+
+Independent replay verified both binary and input identities, all
+20 trials, 1,008,000 complete publications and 8,064,000 deliveries.
+Every incomplete window reported PUBREC reason 0x97. On the two
+matched 24,000/s trials, median broker CPU was 15.29 / 14.59 seconds
+and median delivery P99 was 3.73 / 3.42 seconds. The matched 12,000/s
+P99 was 222 / 122 ms. The tail series exceeded the variation limits
+and each rate had only two fully paired samples. Sustained 24,000/s
+capacity and repeatable broker tails remain open.
+
+This comparison ran on Ubuntu WSL. The compilation commands,
+broker logs, observer journal and replay are under
+out/service-extensions/xmqtt-epoll-rearm-72dfbfd3/.
