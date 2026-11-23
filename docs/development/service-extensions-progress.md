@@ -25484,3 +25484,29 @@ The 26 check results and artifacts are under
 out/service-extensions/linux-guest-9ce2606c/cron-rpc-evidence/.
 Performance repeatability and strict release status are tracked
 separately.
+
+## 2026-11-23 xrpc Linux VM TCP latency replay
+
+The clean 9ce2606c TCP APP and native observer ran the configured
+fixed-arrival workload on the QEMU/WHPX Ubuntu guest. One vCPU
+served the observer and two served the APP and its two executor
+workers. Eight staggered connections each used a 16-group window.
+Redis and MQTT endurance and the xcron cohort were active in the
+guest. Five alternating duplex/dispatch pairs per rate completed
+at 32,000 and 64,000 offered calls/s. Host replay verified the APP
+and observer hashes, every scheduled arrival and 1,280,000 replies.
+
+| Offered calls/s | Mode | Median completed calls/s | P99 (ms) | P99.9 (ms) |
+| ---: | --- | ---: | ---: | ---: |
+| 32,000 | Duplex | 31,998 | 1.818 | 2.410 |
+| 32,000 | Dispatch | 31,998 | 1.663 | 2.234 |
+| 64,000 | Duplex | 63,901 | 3.110 | 3.951 |
+| 64,000 | Dispatch | 63,972 | 2.061 | 2.720 |
+
+All four throughput series met the variation limits. Only the
+32,000/s duplex series met the limits for both tails. The
+64,000/s tails and the 32,000/s dispatch tails still exceed the
+limits. This campaign records the VM hardware and co-running
+loads. Raw request timestamps, summaries and independent replay
+are under out/service-extensions/linux-guest-9ce2606c/xrpc-tail-evidence/.
+Strict release performance acceptance remains open.
