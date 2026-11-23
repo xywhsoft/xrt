@@ -23810,3 +23810,37 @@ The wire peer extension is part of the existing native matrix. The
 ordinary maturity and generated-header checks passed. The source,
 commands and replay are under out/service-extensions/xmqtt-short-ack-6e46af86/.
 Native Linux and stable capacity acceptance remain open.
+
+## 2026-11-23 xrpc APP escaped method names
+
+The previous stdio, TCP duplex and TCP direct-dispatch examples each
+returned method-not-found for a request whose JSON string decoded to
+echo. The independent reproduction showed the same result on Windows
+and WSL. The shared APP handler now compares the ordinary spelling
+directly and visits escaped JSON strings with the existing XRT reader.
+The match is case sensitive and length aware. The TCP fixture also
+checks that an escaped NUL suffix produces a distinct method name.
+[JSON-RPC 2.0 method member](https://www.jsonrpc.org/specification#request_object)
+and [RFC 8259 string comparison](https://www.rfc-editor.org/rfc/rfc8259.html#section-8.3).
+
+The first fallback build passed a null reader configuration and the
+escaped peer tests failed. The corrected call initializes the JSON
+configuration. Optimized modular examples and both independent peers
+passed on native Windows and Ubuntu WSL. WSL single-header ASan/UBSan
+with leak detection passed the same peers. The allocator probe on
+each host verified the plain request with failure injection armed.
+The escaped request hit one allocation point. An injected failure
+propagated XERR_MEMORY with no prepared reply, and the next attempt
+produced the same reply bytes as the plain request.
+
+The TCP comparison used one connection, depths 1, 8 and 32, both
+endpoint modes, five repeats and 8,192 measured calls per run. The
+observer verified 737,280 timed replies per environment across the
+original plain, corrected plain and corrected escaped cases. Median
+plain throughput changes across cohorts ranged from -3.6 to +3.2
+percent. These local cohorts characterize the APP change. Native
+Linux fixed-arrival and stable release timing remain open.
+
+The ordinary maturity and generated-header checks passed. Build logs,
+binary identities, replay and the allocator probe are under
+out/service-extensions/xrpc-escaped-method-b7bbbf59/.

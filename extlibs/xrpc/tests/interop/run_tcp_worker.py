@@ -44,10 +44,9 @@ def exchange(executable, mode, drive, *settings):
 
 
 def normal(peer):
-    request = {"jsonrpc": "2.0", "id": "tcp-1", "method": "echo", "params": [42]}
     notification = {"jsonrpc": "2.0", "method": "echo"}
-    batch = [notification, {"jsonrpc": "2.0", "id": 9, "method": "missing"}]
-    wire = record(request)
+    batch = [notification, {"jsonrpc": "2.0", "id": 9, "method": "echo\0"}]
+    wire = br'{"jsonrpc":"2.0","id":"tcp-1","method":"\u0065ch\u006F","params":[42]}' + b"\n"
     peer.sendall(wire[:-1])
     peer.sendall(wire[-1:] + record(notification) + record(batch) + b"[\n")
     peer.shutdown(socket.SHUT_WR)
@@ -134,7 +133,7 @@ def dispatch_cases(executable):
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
     return {"cases_per_mode": 9, "modes": list(MODES), "replies_per_mode": 135, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
-            "backpressure_isolation_replies_per_mode": 256, "ok": True}
+            "backpressure_isolation_replies_per_mode": 256, "escaped_method": True, "ok": True}
 
 
 def sample(executable, mode, warmup, batches, calls):

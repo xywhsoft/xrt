@@ -1,6 +1,7 @@
 #ifndef XRPC_EXAMPLE_APP_DISPATCH_H
 #define XRPC_EXAMPLE_APP_DISPATCH_H
 #include <xrpc.h>
+#include <xrt/json.h>
 #include <string.h>
 
 typedef struct apprequest {
@@ -26,11 +27,27 @@ static bool appTakeRequest(uint64 Token, xstrview Input, xbytesview Context,
     return true;
 }
 
+static xjsonvisitaction appMatchEcho(const xjsonevent* Event, ptr Data)
+{
+    bool* Match = Data;
+    *Match = Event->Type == XJSON_EVENT_STRING && Event->Value.String.Size == 4 &&
+        !memcmp(Event->Value.String.Data, "echo", 4);
+    return XJSON_VISIT_NEXT;
+}
+
 static bool appEcho(const xrpcmessage* Request, xrpcreply* Reply, ptr Data)
 {
     (void)Data;
-    if (Request->Method.Raw.Size != 6 || memcmp(Request->Method.Raw.Data, "\"echo\"", 6))
-        return false;
+    xstrview Method = Request->Method.Raw;
+    if (Method.Size != 6 || memcmp(Method.Data, "\"echo\"", 6)) {
+        if (!memchr(Method.Data, '\\', Method.Size)) return false;
+        bool Match = false;
+        xjsonreadconfig Config;
+        xrtJsonReadConfigInit(&Config);
+        if (xrtJsonVisit(Method, &Config, appMatchEcho, &Match) != XJSON_VISIT_DONE)
+            return xrpcReplyAbort(Reply, xrtGetError());
+        if (!Match) return false;
+    }
     xstrview Value = Request->Params.Raw.Size ? Request->Params.Raw : XRT_STR_LITERAL("true");
     return xrpcReplyResult(Reply, Value);
 }

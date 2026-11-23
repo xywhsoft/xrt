@@ -6,6 +6,10 @@ and returns the resulting wire document through its token. app_dispatch.h
 also serves the [stdio example](../stdio/main.c) and
 [TCP and executor example](../tcp_worker/main.c).
 
+The APP compares the plain `echo` spelling directly and uses XRT's JSON
+visitor to compare decoded spellings such as `"\u0065cho"`. Method names
+are case sensitive. The independent stdio and TCP peers exercise both forms.
+
 The stdio APP accepts `--serve` and frames one JSON document per LF-terminated
 input record. The TCP APP accepts `--serve`, prints its ephemeral loopback
 endpoint, and accepts one client. It reassembles records of up to 4096 bytes
