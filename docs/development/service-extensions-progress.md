@@ -24801,3 +24801,38 @@ repeatability. Median PING-after-idle P99 was 16.58 ms and 22.09 ms
 respectively, with both series exceeding the variation limits.
 The build, wire results, 30 trial logs and independent replay are
 under out/service-extensions/xmqtt-app-read-mode-0d9ffbc2/.
+
+## 2026-11-23 MQTT receive mode and compiler translation units
+
+The Windows benchmark rebuilt the 22c3fdd0 APP and the same XRT
+and xmqtt revisions in three layouts. The first used the ordinary
+separately compiled module build. The second put XRT in one
+translation unit and the broker with its APP in another. The third
+compiled both generated headers and the APP together. The builds used
+GCC 16.2.0, C11 and O2. The ordinary build options and the single
+header preprocessor output selected the same XRT and MQTT features.
+The installed compiler reported that LTO support was disabled.
+
+Four profiles rotated on the same broker and observer CPU masks.
+Each offered four seconds of QoS 2 arrivals to eight wildcard
+subscribers. The two-worker broker used four publishers, publisher
+credit four and subscriber Receive Maximum 32. Independent replay
+verified all 40 trials, binary and input identities, 368,000 complete
+publications and 2,944,000 subscriber deliveries. Each incomplete
+trial reported PUBREC reason 0x97.
+
+| Layout and receive mode | Complete at 4,000/s | Median broker CPU at 4,000/s (s) | Complete at 12,000/s |
+| --- | ---: | ---: | ---: |
+| Ordinary modules, adaptive | 5 / 5 | 3.94 | 1 / 5 |
+| Two translation units, adaptive | 5 / 5 | 3.88 | 0 / 5 |
+| One translation unit, adaptive | 5 / 5 | 3.31 | 0 / 5 |
+| One translation unit, direct | 5 / 5 | 3.59 | 0 / 5 |
+
+All complete trials met 95 percent of the offered rate. Throughput
+at 4,000/s was repeatable. Its broker CPU and delivery tail series
+exceeded the variation limits in all profiles. The only complete
+12,000/s run delivered 11,955 publications/s with a delivery P99 of
+71.8 ms. The contemporary paired run leaves the earlier capacity
+difference unattributed to build layout. Broker capacity and tail
+acceptance remain open. Commands, profiles and replay are under
+out/service-extensions/xmqtt-app-read-mode-0d9ffbc2/.
