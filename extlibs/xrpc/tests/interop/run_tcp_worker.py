@@ -18,6 +18,7 @@ import socket
 import statistics
 import struct
 import subprocess
+import sys
 import threading
 import time
 from types import SimpleNamespace
@@ -735,6 +736,49 @@ def process_affinity(cpus=None, pid=None):
     return actual
 
 
+def processor_cores(available):
+    """Group the runner's available logical CPUs by the core exposed by its OS."""
+    if sys.platform.startswith("linux"):
+        try:
+            masks = {
+                int(Path(f"/sys/devices/system/cpu/cpu{cpu}/topology/core_cpus")
+                    .read_text(encoding="ascii").replace(",", ""), 16)
+                for cpu in available
+            }
+        except (OSError, ValueError):
+            return None
+    elif sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        class ProcessorInformation(ctypes.Structure):
+            _fields_ = (("mask", ctypes.c_size_t), ("relationship", ctypes.c_int),
+                        ("relationship_data", ctypes.c_ulonglong * 2))
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        query = kernel.GetLogicalProcessorInformation
+        query.argtypes = (ctypes.POINTER(ProcessorInformation), ctypes.POINTER(wintypes.DWORD))
+        query.restype = wintypes.BOOL
+        size = wintypes.DWORD()
+        stride = ctypes.sizeof(ProcessorInformation)
+        if query(None, ctypes.byref(size)) or ctypes.get_last_error() != 122:
+            return None
+        if not size.value or size.value % stride:
+            return None
+        records = (ProcessorInformation * (size.value // stride))()
+        if not query(records, ctypes.byref(size)) or size.value % stride:
+            return None
+        # RelationProcessorCore is 0. The mask is for the current processor group.
+        masks = {record.mask for record in records[:size.value // stride] if record.relationship == 0}
+    else:
+        return None
+
+    groups = [sorted(cpu for cpu in available if mask & (1 << cpu)) for mask in masks]
+    if sorted(cpu for group in groups for cpu in group) != sorted(available):
+        return None
+    return sorted(group for group in groups if group)
+
+
 def measure_concurrent(executable, report, calls, repeats, rate, cpus):
     data = {"platform": platform.platform(), "machine": platform.machine(),
             "python": platform.python_version(), "binary_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
@@ -781,7 +825,7 @@ def measure_saturation(executable, report, args, raw_dir=None):
             "observer_shards": args.observer_shards,
             "arrival_schedule": "staggered" if args.stagger_arrivals else "aligned",
             "repeats": args.repeats, "broker_cpus": sorted(args.app_cpus), "observer_cpus": sorted(args.cpus),
-            "profiles": [], "complete": False}
+            "available_cpu_cores": args.available_cpu_cores, "profiles": [], "complete": False}
     if raw_dir is not None:
         raw_dir.mkdir(parents=True)
         data["raw_samples_directory"] = str(raw_dir.resolve())
@@ -861,15 +905,16 @@ def main():
         parser.error("--observer-native requires a single observer shard")
     if args.raw_dir is not None and not args.saturation:
         parser.error("--raw-dir requires --saturation")
+    available = sorted(cpu for cpu in process_affinity() if cpu < 64) if args.saturation else []
     if args.auto_affinity:
         if not args.saturation or args.cpus is not None or args.app_cpus is not None:
             parser.error("--auto-affinity requires --saturation and no explicit CPU masks")
-        available = sorted(cpu for cpu in process_affinity() if cpu < 64)
         if len(available) < 2:
             parser.error("--auto-affinity needs two available logical CPUs")
         args.cpus = {available[0]}
         args.app_cpus = set(available[1:3])
     if args.saturation:
+        args.available_cpu_cores = processor_cores(available)
         if args.raw_dir is not None and args.raw_dir.exists():
             parser.error("--raw-dir must name a new directory")
         if not args.cpus or not args.app_cpus or args.cpus & args.app_cpus:

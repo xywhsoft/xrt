@@ -23948,3 +23948,45 @@ the variation limits. The updated placement still needs a hosted
 Linux run, and strict performance and native 72-hour acceptance remain
 open. Raw artifacts, runner logs and independent replay are under
 out/service-extensions/native-ci-3e5fab5d/.
+
+## 2026-11-23 xrpc hosted tail attribution and CPU topology
+
+Independent replay split the slowest one percent of replies in each
+hosted TCP sample into scheduled offer delay, observed credit wait
+and the interval from the first send attempt to the observed reply.
+At 64,000 calls/s on hosted Windows, the median post-send share was
+89.2 percent in duplex and 91.2 percent in direct dispatch. The Linux
+shares were 99.8 and 99.7 percent, with substantially shorter absolute
+tails. The post-send interval includes continuing writes, APP and
+socket progress, and the observer's receive. This evidence locates the
+delay within that interval.
+
+The local Windows comparison reused the hosted APP and observer binaries.
+It alternated five samples per layout, mode and rate at 32,000 and 64,000
+calls/s with eight staggered peers, two executor workers and a 16-group
+window. Independent replay verified 60 runs and 3,840,000 timed replies.
+The table records median P99 and P99.9 at 64,000 calls/s in milliseconds.
+
+| Observer CPU / APP CPUs | Duplex P99 / P99.9 | Dispatch P99 / P99.9 |
+| --- | ---: | ---: |
+| 0 / 1,2, observer shares a core with the APP | 2.82 / 7.69 | 1.86 / 5.04 |
+| 0 / 2,3, APP CPUs are siblings on a separate core | 2.71 / 6.10 | 1.96 / 5.28 |
+| 6 / 1,2, three distinct cores | 3.15 / 7.76 | 1.35 / 4.38 |
+
+All 12 throughput series met the variation limits. All P99 and P99.9
+series exceeded them. The layouts yielded mixed results across both
+rates and modes, so the APP and benchmark affinity defaults stay in use.
+
+Future saturation reports include CPU groups visible in the inherited
+affinity mask before pinning. The runner reads the current Windows
+processor group's core masks or Linux per-core masks. Unavailable
+topology is recorded as null. [Windows processor information](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_logical_processor_information)
+and [Linux CPU topology ABI](https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-system-cpu).
+
+The first local test exposed a missing Python import. With the import
+added, Windows and WSL passed all 11 observer tests and the matched CI
+workload with a restricted inherited mask. Independent replay verified
+the reported groups, percentiles and 1,280,000 replies per environment.
+Ordinary maturity and generated-header checks passed. Hosted topology
+and repeatable Windows release tails remain open. Raw samples and audits
+are under out/service-extensions/xrpc-hosted-tail-8bad77e2/.
