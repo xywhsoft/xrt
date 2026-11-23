@@ -26463,3 +26463,21 @@ broader release timing gate remains open.
 Campaign inputs, raw timestamps and replay are under
 out/service-extensions/xrpc-native-shards-150a6de8/
 and out/service-extensions/linux-guest-9ce2606c/xrpc-native-shards-150a6de8/.
+
+## 2026-11-24 Redis reference benchmark inputs after the lease fix
+
+The TCP and TLS Hiredis comparison observers select xredis
+client or TLS features. GCC preprocessing of each profile
+on Windows and the Ubuntu guest produced byte-identical
+output with the pre-fix and post-fix library headers. The
+lease structure is outside both comparison profiles. The
+Ubuntu replay used the original observer source and kept
+the compiler and configuration fixed across the two headers.
+
+The existing Hiredis observations therefore still describe
+the selected client code. Their earlier throughput and tail
+qualification limits remain applicable. The mixed-load
+profile selects the pool code and began new continuous
+runs. The four preprocessing fingerprints are under
+out/service-extensions/xredis-pool-gate-windows-dc8f7525/
+and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
