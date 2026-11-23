@@ -23395,3 +23395,16 @@ execution and stable performance acceptance remain open.
 
 Reports, trace replay and build receipts are under
 out/service-extensions/xmqtt-linux-receive-tls-b93dd8a5/.
+
+## 2026-11-23 Complete Windows MQTT workload smoke
+
+The optimized native Windows x64 run from clean 859428ec completed
+all 131 MQTT scenarios. It compiled 45 distinct executables and
+reused 86 copies. The independent audit checked the order, arguments,
+declared facts and observations, every metric sample and the bytes
+of each reused executable. The source and benchmark fingerprints
+match the current checkout. These are smoke results. Controlled
+performance and 72-hour native endurance remain open.
+
+The report, build log and independent replay are under
+out/service-extensions/performance-build-reuse-98e35075/.
