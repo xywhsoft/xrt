@@ -1367,7 +1367,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 		return true;
 	}
 	Id = xrtNetWorkerOperationId(pStream->Worker);
-	if ( (Id == 0) || !xrtNetPortWatch(
+	if ( (Id == 0) || !__xrtNetPortWatchStream(
 		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Id,
@@ -1476,8 +1476,8 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		return;
 	}
 	if ( pStream->Socket != NULL ) {
-		/* A partial ready event may have left the other direction armed
-		 * after WatchPending was cleared. Retire it before reusing the fd. */
+		/* The readiness port may still hold the other direction or a
+		 * consumed epoll registration. Remove it before closing the fd. */
 		xnetport* pPort = __xrtNetWorkerPortBorrow(pStream->Worker);
 		if ( (xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_READINESS) != 0 &&
 			 !xrtNetPortUnwatch(pPort, pStream->Socket) ) {

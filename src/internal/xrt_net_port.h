@@ -11,6 +11,7 @@
 #define XRT_NET_PORT_BUCKET_MAX 65536u
 #define XRT_NET_PORT_CACHE_CLASS_MIN 256u
 #define XRT_NET_PORT_CACHE_CLASS_COUNT 4u
+#define XRT_NET_PORT_WATCH_REARM UINT32_C(0x80000000)
 
 
 
@@ -267,6 +268,12 @@ struct xnetport_impl {
 	/* 销毁与跨线程 Post/Wake 之间共享的关闭闸门必须使用原子状态。 */
 	xatomic32 Closing;
 };
+
+
+
+/* Stream 拥有 Socket，并在关闭前移除包含已触发状态的观察。 */
+bool __xrtNetPortWatchStream(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser);
 
 
 

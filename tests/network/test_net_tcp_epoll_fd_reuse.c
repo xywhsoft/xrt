@@ -16,6 +16,7 @@ typedef struct testcontext {
 	int FirstFd;
 	int LastFd;
 	uint32 LastWorker;
+	bool BlockWrite;
 	xatomic32 ReadHeld;
 	xatomic32 ReleaseRead;
 	size_t Received;
@@ -44,10 +45,12 @@ static bool testAccept(xnetlistener* pListener, xnetstream* pStream, ptr pData)
 	pContext->LastWorker = xrtNetWorkerIndex(xrtNetStreamWorker(pStream));
 	if ( xrtAtomic32Load(&pContext->Accepted, XMEMORY_RELAXED) == 0 ) {
 		pContext->FirstFd = pContext->LastFd;
-		testRequire(xrtNetSocketSet(Socket, XNET_OPTION_SEND_BUFFER, 4096),
-			"shrink the stream send buffer");
-		testRequire(xrtNetStreamSend(pStream, Payload, sizeof(Payload)) == XNET_RESULT_OK,
-			"queue enough data to leave the stream write-blocked");
+		if ( pContext->BlockWrite ) {
+			testRequire(xrtNetSocketSet(Socket, XNET_OPTION_SEND_BUFFER, 4096),
+				"shrink the stream send buffer");
+			testRequire(xrtNetStreamSend(pStream, Payload, sizeof(Payload)) == XNET_RESULT_OK,
+				"queue enough data to leave the stream write-blocked");
+		}
 	}
 	(void)xrtAtomic32FetchAdd(&pContext->Accepted, 1, XMEMORY_RELEASE);
 	return true;
@@ -61,10 +64,10 @@ static void testRead(xnetstream* pStream, xnetbuf* pBuffer, ptr pData)
 	(void)pBuffer;
 	testRequire(xrtAtomic32Load(&pContext->Accepted, XMEMORY_ACQUIRE) == 1,
 		"only the first client sends data");
-	testRequire(xrtNetStreamStats(pStream, &Stats) && Stats.QueuedBytes > 0,
-		"unread response must still have a pending write");
-	testRequire(xrtNetStreamAbort(pStream),
-		"abort from the read callback while the write is still pending");
+	testRequire(xrtNetStreamStats(pStream, &Stats) &&
+		(pContext->BlockWrite ? Stats.QueuedBytes > 0 : Stats.QueuedBytes == 0),
+		"verify the read-only or partial readiness case");
+	testRequire(xrtNetStreamAbort(pStream), "abort from the read callback");
 }
 
 static void testEnd(xnetstream* pStream, ptr pData)
@@ -124,7 +127,7 @@ static int testConnect(uint16 iPort)
 	return iFd;
 }
 
-static void testReuse(uint32 iWorkers)
+static void testReuse(uint32 iWorkers, bool bBlockWrite)
 {
 	testcontext Context;
 	xnetengineconfig EngineConfig;
@@ -137,6 +140,7 @@ static void testReuse(uint32 iWorkers)
 	xrtAtomic32Init(&Context.Closed, 0);
 	xrtAtomic32Init(&Context.ListenerClosed, 0);
 	xrtAtomic32Init(&Context.WorkerReady, 0);
+	Context.BlockWrite = bBlockWrite;
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Workers = iWorkers;
 	EngineConfig.Backend = XNET_PORT_EPOLL;
@@ -156,31 +160,40 @@ static void testReuse(uint32 iWorkers)
 		"listen on an ephemeral loopback port");
 
 	int iFirst = testConnect(Address.Port);
-	struct pollfd Incoming = { iFirst, POLLIN, 0 };
-	testRequire(poll(&Incoming, 1, 5000) == 1 && (Incoming.revents & POLLIN),
-		"wait for server data without draining the receive window");
 	testWait(&Context.Accepted, 1, "wait for the first stream");
 	testWaitForWorker(pEngine, &Context);
-	/* Give loopback ACKs time to fill the deliberately small receive window. */
-	(void)poll(NULL, 0, 20);
-	struct pollfd Outgoing = { Context.FirstFd, POLLOUT, 0 };
-	testRequire(poll(&Outgoing, 1, 0) == 0, "the first server socket must be write-blocked");
+	if ( bBlockWrite ) {
+		struct pollfd Incoming = { iFirst, POLLIN, 0 };
+		testRequire(poll(&Incoming, 1, 5000) == 1 && (Incoming.revents & POLLIN),
+			"wait for server data without draining the receive window");
+		/* Give loopback ACKs time to fill the small receive window. */
+		(void)poll(NULL, 0, 20);
+		struct pollfd Outgoing = { Context.FirstFd, POLLOUT, 0 };
+		testRequire(poll(&Outgoing, 1, 0) == 0, "the first server socket must be write-blocked");
+	}
 	testRequire(send(iFirst, "x", 1, 0) == 1, "make the first stream readable");
 	testWait(&Context.Closed, 1, "wait for the first stream to abort");
 	(void)close(iFirst);
 
-	for ( uint32 i = 2; i <= iWorkers * 2 + 1; ++i ) {
+	uint64 ReusedWorkers = 0;
+	uint64 AllWorkers = UINT64_MAX >> (64u - iWorkers);
+	/* An overlapping accept can transiently take the next descriptor.
+	 * Require actual reuse on every worker across complete rotations. */
+	for ( uint32 i = 2; (i <= iWorkers * 4 + 1) && (ReusedWorkers != AllWorkers); ++i ) {
 		int iClient = testConnect(Address.Port);
 		char cByte;
 
 		testWait(&Context.Accepted, i, "wait for the next stream");
-		testRequire(Context.LastFd == Context.FirstFd, "reuse the original server descriptor");
+		if ( Context.LastFd == Context.FirstFd ) {
+			ReusedWorkers |= UINT64_C(1) << Context.LastWorker;
+		}
 		testWaitForWorker(pEngine, &Context);
 		testRequire(recv(iClient, &cByte, 1, MSG_DONTWAIT) < 0 && errno == EAGAIN,
 			"the idle connection must stay open after registering its read watch");
 		(void)close(iClient);
 		testWait(&Context.Closed, i, "wait for the next stream to close");
 	}
+	testRequire(ReusedWorkers == AllWorkers, "reuse the original server descriptor on every worker");
 
 	testRequire(xrtNetListenerClose(pListener), "close the listener");
 	testWait(&Context.ListenerClosed, 1, "wait for listener close");
@@ -273,8 +286,9 @@ static void testRearmPendingRead(void)
 int main(void)
 {
 	#if defined(__linux__) && defined(XRT_FEATURE_NET_PORT_EPOLL)
-		testReuse(1);
-		testReuse(64);
+		testReuse(1, false);
+		testReuse(1, true);
+		testReuse(64, true);
 		testRearmPendingRead();
 		printf("[PASS] TCP epoll descriptor reuse and pending read rearm\n");
 	#else

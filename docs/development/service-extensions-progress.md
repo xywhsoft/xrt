@@ -24598,3 +24598,56 @@ The host was Ubuntu WSL. The generated diagnostic header, build
 receipt, raw observations and independent replay are under
 out/service-extensions/xredis-completion-cost-48995748/. Strict
 performance acceptance remains open.
+
+## 2026-11-23 Rearm an XRT-owned epoll registration in one call
+
+When an ordinary one-shot event consumes the last interested
+direction on an XRT TCP stream, the epoll backend keeps the disabled
+registration until the next backend wait. An immediate rearm changes
+the mask and generation with MOD. A consumed registration counts
+toward the active watch limit again upon rearm. Before the next
+epoll_wait, the backend discards registrations still disabled.
+Consumed tokens occupy the already-read slots of the bounded ready
+array. Stream retirement removes its watch before closing the
+descriptor. Public port watches retain immediate removal on full
+consumption, including registrations for externally duplicated
+descriptors. Error and hangup events follow the removal path.
+[Linux epoll semantics](https://man7.org/linux/man-pages/man7/epoll.7.html).
+
+The first WSL core run hit an assertion that every accept reused the
+same descriptor. The same new test against the original core
+occasionally got a different descriptor in the 64-worker blocked-write
+case. The test now checks that every worker actually receives the
+original descriptor within four rotations and verifies idle and closed
+behavior on each connection. It covers abort from both read-only and
+partial read/write readiness. The modular and single-header TCP and
+TCP Future suites passed on native Windows and WSL. WSL also passed the
+epoll port suite and 25 ASan/UBSan runs of the descriptor test with
+leak detection. A dedicated sanitized probe verified batch order
+independence, immediate public-watch removal, consumed-slot rearm,
+active limit enforcement and cleanup at the next backend wait.
+
+The final-core comparison alternated baseline and candidate observers
+with the same xredis client, eight RESP3 connections, 1 KiB mixed
+GET/SET, and a 128-slot observer window. Both ran on WSL CPUs 6 and 8
+against Redis 8.0.5 on CPU 10. The independent replay matched the four
+executable and input hashes, all 768,000 replies including warmups,
+the Redis command ledger and the epoll control counters.
+
+| Offers/s | Complete plain pairs | Uninstrumented CPU outside generator (us/reply) | Instrumented epoll_ctl calls per run | Uninstrumented P99 (us) |
+| --- | ---: | ---: | ---: | ---: |
+| 2,000 | 5 of 5 | 52.34 / 49.05 | 8,067 / 4,042 | 221.7 / 225.4 |
+| 12,000 | 7 of 7 | 38.06 / 35.68 | 48,065 / 24,005 | 294.5 / 251.1 |
+
+The table reports baseline / candidate medians. At 12,000/s the
+uninstrumented CPU series met the repeatability limits and the
+candidate took less CPU outside the generator in all seven pairs.
+The median fell 6.2%. Both rates reached their throughput targets.
+All uninstrumented P99 and P99.9 series exceeded the variation
+limits. The instrumented arms counted five complete pairs at each
+rate and no failed epoll_ctl calls. Native Linux release-performance
+acceptance remains open.
+
+The first candidate, final rerun, fixture failure diagnosis, builds,
+sanitizer logs and independent replays are under
+out/service-extensions/xredis-epoll-watch-60353975/.

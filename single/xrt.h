@@ -47949,6 +47949,7 @@ bool __xrtSyncDeadlineTime(
 #define XRT_NET_PORT_BUCKET_MAX 65536u
 #define XRT_NET_PORT_CACHE_CLASS_MIN 256u
 #define XRT_NET_PORT_CACHE_CLASS_COUNT 4u
+#define XRT_NET_PORT_WATCH_REARM UINT32_C(0x80000000)
 
 
 
@@ -48205,6 +48206,12 @@ struct xnetport_impl {
 	/* 销毁与跨线程 Post/Wake 之间共享的关闭闸门必须使用原子状态。 */
 	xatomic32 Closing;
 };
+
+
+
+/* Stream 拥有 Socket，并在关闭前移除包含已触发状态的观察。 */
+bool __xrtNetPortWatchStream(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser);
 
 
 
@@ -79376,8 +79383,8 @@ static bool __xrtNetPortSubmit(xnetport* pPort,
 
 
 /* 替换一个 Socket 的 readiness 关注位；事件为零等价于 Unwatch。 */
-XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
-	uint64 Id, uint32 iEvents, ptr pUser)
+static bool __xrtNetPortWatchImpl(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser, bool bStream)
 {
 	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
 		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
@@ -79403,8 +79410,27 @@ XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 	if ( iEvents == 0 ) {
 		return pPort->Driver->Unwatch(pPort, Socket);
 	}
+	if ( bStream && pPort->Driver->Backend == XNET_PORT_EPOLL ) {
+		iEvents |= XRT_NET_PORT_WATCH_REARM;
+	}
 	return pPort->Driver->Watch(pPort,
 		Socket, Id, iEvents, pUser);
+}
+
+
+
+XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser)
+{
+	return __xrtNetPortWatchImpl(pPort, Socket, Id, iEvents, pUser, false);
+}
+
+
+
+bool __xrtNetPortWatchStream(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser)
+{
+	return __xrtNetPortWatchImpl(pPort, Socket, Id, iEvents, pUser, true);
 }
 
 
@@ -85905,6 +85931,7 @@ struct __xrt_net_epoll_watch {
 	uint64 Id;
 	uint64 Token;
 	uint32 Events;
+	bool Rearmable;
 	ptr User;
 };
 
@@ -85920,6 +85947,7 @@ typedef struct __xrt_net_epoll_context {
 	size_t BucketLimit;
 	size_t WatchCount;
 	int ReadyCapacity;
+	int ConsumedCount;
 	uint32 Generation;
 } __xrt_net_epoll_context;
 
@@ -86327,6 +86355,24 @@ static bool __xrtNetEpollUnit(xnetport* pPort)
 
 
 
+/* 移除内核注册并退休用户身份，保留删除结果供调用方决定是否报告。 */
+static int __xrtNetEpollRemove(__xrt_net_epoll_context* pContext,
+	__xrt_net_epoll_watch** ppWatch)
+{
+	__xrt_net_epoll_watch* pWatch = *ppWatch;
+	int iResult = __xrtNetEpollControl(pContext, EPOLL_CTL_DEL, pWatch->Native, NULL);
+	int iSystemCode = iResult == 0 ? 0 : errno;
+
+	*ppWatch = pWatch->Next;
+	if ( pWatch->Events != 0 ) {
+		pContext->WatchCount--;
+	}
+	xrtFree(pWatch);
+	return iSystemCode;
+}
+
+
+
 /* 新增或原子替换一个 one-shot readiness 观察。 */
 static bool __xrtNetEpollWatch(
 	xnetport* pPort,
@@ -86345,7 +86391,10 @@ static bool __xrtNetEpollWatch(
 	uint64 iToken;
 	int iNative;
 	int iOperation;
+	bool bNew;
+	bool bRearmable = (iEvents & XRT_NET_PORT_WATCH_REARM) != 0;
 
+	iEvents &= ~XRT_NET_PORT_WATCH_REARM;
 	if ( (iNativeValue < 0) || (iNativeValue > INT_MAX) ) {
 		__xrtNetSetError(
 			XERR_RANGE,
@@ -86359,7 +86408,8 @@ static bool __xrtNetEpollWatch(
 	iNative = (int)iNativeValue;
 	ppWatch = __xrtNetEpollFind(pContext, iNative);
 	pWatch = *ppWatch;
-	if ( (pWatch == NULL) &&
+	bNew = pWatch == NULL;
+	if ( (bNew || pWatch->Events == 0) &&
 		 (pContext->WatchCount >= pPort->Config.WatchLimit) ) {
 		__xrtNetSetError(
 			XERR_RANGE,
@@ -86370,7 +86420,7 @@ static bool __xrtNetEpollWatch(
 		);
 		return false;
 	}
-	if ( pWatch == NULL ) {
+	if ( bNew ) {
 		if ( !__xrtNetEpollIndexGrow(pContext) ) {
 			return false;
 		}
@@ -86398,7 +86448,7 @@ static bool __xrtNetEpollWatch(
 	) != 0 ) {
 		int iSystemCode = errno;
 
-		if ( iOperation == EPOLL_CTL_ADD ) {
+		if ( bNew ) {
 			xrtFree(pWatch);
 		}
 		__xrtNetEpollError(
@@ -86410,11 +86460,14 @@ static bool __xrtNetEpollWatch(
 		return false;
 	}
 
-	if ( iOperation == EPOLL_CTL_ADD ) {
+	if ( bNew ) {
 		pWatch->Next = *ppWatch;
 		*ppWatch = pWatch;
+	}
+	if ( bNew || pWatch->Events == 0 ) {
 		pContext->WatchCount++;
 	}
+	pWatch->Rearmable = bRearmable;
 	pWatch->Socket = Socket;
 	pWatch->Id = Id;
 	pWatch->Token = iToken;
@@ -86451,18 +86504,8 @@ static bool __xrtNetEpollUnwatch(xnetport* pPort, xnetsocket Socket)
 	if ( pWatch == NULL ) {
 		return true;
 	}
-	if ( (__xrtNetEpollControl(
-		pContext,
-		EPOLL_CTL_DEL,
-		iNative,
-		NULL
-	) != 0) && (errno != ENOENT) ) {
-		int iSystemCode = errno;
-
-		/* 即使内核删除失败，也先退休用户身份以屏蔽迟到事件。 */
-		*ppWatch = pWatch->Next;
-		pContext->WatchCount--;
-		xrtFree(pWatch);
+	int iSystemCode = __xrtNetEpollRemove(pContext, ppWatch);
+	if ( (iSystemCode != 0) && (iSystemCode != ENOENT) ) {
 		__xrtNetEpollError(
 			XNET_ERROR_PORT_WATCH,
 			"unwatch",
@@ -86471,9 +86514,6 @@ static bool __xrtNetEpollUnwatch(xnetport* pPort, xnetsocket Socket)
 		);
 		return false;
 	}
-	*ppWatch = pWatch->Next;
-	pContext->WatchCount--;
-	xrtFree(pWatch);
 	return true;
 }
 
@@ -86579,7 +86619,8 @@ static void __xrtNetEpollPublish(
 	uint32 iRemaining;
 
 	memset(pEvent, 0, sizeof(*pEvent));
-	if ( (pWatch == NULL) || (pWatch->Token != pReady->data.u64) ) {
+	if ( (pWatch == NULL) || (pWatch->Events == 0) ||
+		 (pWatch->Token != pReady->data.u64) ) {
 		return;
 	}
 	iFlags = __xrtNetEpollEventFlags(pWatch, pReady->events);
@@ -86625,19 +86666,33 @@ static void __xrtNetEpollPublish(
 		pEvent->SystemCode = errno;
 	}
 
-	/*
-		事件已经由 EPOLLONESHOT 禁用，即使 DEL 失败也不会再次引用节点。
-		Socket 关闭还会让内核自动删除残留注册。
-	*/
-	(void)__xrtNetEpollControl(
-		pContext,
-		EPOLL_CTL_DEL,
-		pWatch->Native,
-		NULL
-	);
-	*ppWatch = pWatch->Next;
-	pContext->WatchCount--;
-	xrtFree(pWatch);
+	if ( pWatch->Rearmable &&
+		 (pEvent->Flags & (XNET_PORT_EVENT_ERROR | XNET_PORT_EVENT_HANGUP)) == 0 ) {
+		/* EPOLLONESHOT 已禁用该注册。复用已读出的 Ready 槽，
+		 * 在同一轮的 Stream 回调中用一次 MOD 重新武装。 */
+		pContext->Ready[pContext->ConsumedCount++].data.u64 = pWatch->Token;
+		pWatch->Events = 0;
+		pContext->WatchCount--;
+		return;
+	}
+	(void)__xrtNetEpollRemove(pContext, ppWatch);
+}
+
+
+
+static void __xrtNetEpollReleaseConsumed(__xrt_net_epoll_context* pContext)
+{
+	for ( int i = 0; i < pContext->ConsumedCount; i++ ) {
+		uint64 Token = pContext->Ready[i].data.u64;
+		__xrt_net_epoll_watch** ppWatch =
+			__xrtNetEpollFind(pContext, __xrtNetEpollTokenNative(Token));
+		__xrt_net_epoll_watch* pWatch = *ppWatch;
+
+		if ( (pWatch != NULL) && (pWatch->Events == 0) && (pWatch->Token == Token) ) {
+			(void)__xrtNetEpollRemove(pContext, ppWatch);
+		}
+	}
+	pContext->ConsumedCount = 0;
 }
 
 
@@ -86656,6 +86711,8 @@ static xnetresult __xrtNetEpollWait(
 	int iMaximum = pContext->ReadyCapacity;
 	size_t iCount = 0;
 
+	/* 这一批事件的回调已返回；过期的注册在下一次内核等待前回收。 */
+	__xrtNetEpollReleaseConsumed(pContext);
 	*pCount = 0;
 	if ( iCapacity < (size_t)iMaximum ) {
 		iMaximum = (int)iCapacity;
@@ -163148,7 +163205,7 @@ static bool __xrtNetStreamWatch(xnetstream* pStream)
 		return true;
 	}
 	Id = xrtNetWorkerOperationId(pStream->Worker);
-	if ( (Id == 0) || !xrtNetPortWatch(
+	if ( (Id == 0) || !__xrtNetPortWatchStream(
 		__xrtNetWorkerPortBorrow(pStream->Worker),
 		pStream->Socket,
 		Id,
@@ -163257,8 +163314,8 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		return;
 	}
 	if ( pStream->Socket != NULL ) {
-		/* A partial ready event may have left the other direction armed
-		 * after WatchPending was cleared. Retire it before reusing the fd. */
+		/* The readiness port may still hold the other direction or a
+		 * consumed epoll registration. Remove it before closing the fd. */
 		xnetport* pPort = __xrtNetWorkerPortBorrow(pStream->Worker);
 		if ( (xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_READINESS) != 0 &&
 			 !xrtNetPortUnwatch(pPort, pStream->Socket) ) {

@@ -680,8 +680,8 @@ static bool __xrtNetPortSubmit(xnetport* pPort,
 
 
 /* 替换一个 Socket 的 readiness 关注位；事件为零等价于 Unwatch。 */
-XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
-	uint64 Id, uint32 iEvents, ptr pUser)
+static bool __xrtNetPortWatchImpl(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser, bool bStream)
 {
 	if ( (pPort == NULL) || (pPort->Driver == NULL) ||
 		(xrtAtomic32Load(&pPort->Closing, XMEMORY_ACQUIRE) != 0u) ||
@@ -707,8 +707,27 @@ XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 	if ( iEvents == 0 ) {
 		return pPort->Driver->Unwatch(pPort, Socket);
 	}
+	if ( bStream && pPort->Driver->Backend == XNET_PORT_EPOLL ) {
+		iEvents |= XRT_NET_PORT_WATCH_REARM;
+	}
 	return pPort->Driver->Watch(pPort,
 		Socket, Id, iEvents, pUser);
+}
+
+
+
+XRT_API bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser)
+{
+	return __xrtNetPortWatchImpl(pPort, Socket, Id, iEvents, pUser, false);
+}
+
+
+
+bool __xrtNetPortWatchStream(xnetport* pPort, xnetsocket Socket,
+	uint64 Id, uint32 iEvents, ptr pUser)
+{
+	return __xrtNetPortWatchImpl(pPort, Socket, Id, iEvents, pUser, true);
 }
 
 
