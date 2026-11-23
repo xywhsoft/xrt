@@ -63,6 +63,21 @@ python extlibs/xcron/tests/interop/run_restart_catchup.py out/gcc/native/xcron_e
 
 Use the built executable's path and include the `.exe` suffix on Windows.
 
+For a packaged catch-up APP, build the `xcron,file_whole` suite.
+
+```sh
+python tools/package.py --manifest extlibs/xcron/config/modules.json --suite "xcron,file_whole" --kind static --verify
+```
+
+Compile the consumer with `XCRON_MODULE_XCRON` and `XRT_MODULE_FILE_WHOLE`
+and include `xcron/features.h` before the public API headers. The xcron
+package supplies expression and calendar functions. XRT's `file_whole`
+module supplies the APP's bounded reads and checkpoint replacement.
+
+Use the `xcron_scheduler` suite with `XCRON_MODULE_XCRON_SCHEDULER` for
+the poll and wait example. For shared packages, pass `--kind shared`
+and use the shared defines and system libraries in `packages.json`.
+
 The `wake_registration` example shows an APP thread requesting registration
 while the scheduler owner is waiting. Only the owner registers and removes the
 task. The callback signals the requesting thread, which wakes the owner again

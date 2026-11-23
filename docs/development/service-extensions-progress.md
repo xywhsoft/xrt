@@ -24836,3 +24836,36 @@ exceeded the variation limits in all profiles. The only complete
 difference unattributed to build layout. Broker capacity and tail
 acceptance remain open. Commands, profiles and replay are under
 out/service-extensions/xmqtt-app-read-mode-0d9ffbc2/.
+
+## 2026-11-23 Standalone xcron and xrpc package consumers
+
+GCC built and verified four profiles as static and shared packages
+on native Windows x64 and Ubuntu x86_64 WSL at acbcd23e. The scoped
+XRT, xcron and xrpc source and build inputs match 005fb832.
+The 16 verified package configurations ran their built-in consumers
+again after relocation to standalone directories containing spaces.
+The APP builds used copied public headers and package artifacts.
+The loader check verified sibling XRT and extension libraries for
+the shared APPs on both platforms. The Windows import tables and
+WSL ELF dependencies verified the static and single-header APPs.
+The WSL runtime tests used an unprivileged user.
+
+The xcron,file_whole profile ran the restart catch-up APP using
+xcron expression and calendar functions. The XRT file_whole module
+supplied bounded reads and checkpoint replacement.
+The peer checked the catch-up budget, corrupt checkpoint rejection,
+clock rollback, write failure with retry and replay after a forced
+stop. The xcron_scheduler profile verified both poll and wait
+callbacks.
+
+The base xrpc package supplied the JSON-RPC protocol layer. The
+xrpc_examples profile included the XRT socket and executor sources
+for the TCP APP. Its independent peer verified both duplex
+and dispatch modes, including escaped method names, staggered
+and parallel clients, and reset isolation under backpressure.
+
+All three APPs passed as static, shared and single-header consumers
+on both hosts, for 18 APP builds. Compiler and linker commands,
+artifact identities, package manifests, loader checks and peer
+results are under out/service-extensions/xcron-xrpc-sdk-005fb832/.
+The WSL results are supplementary to native Linux release evidence.

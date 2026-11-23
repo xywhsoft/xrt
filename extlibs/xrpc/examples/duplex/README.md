@@ -36,6 +36,19 @@ Build from the repository root.
 python tools/build.py --manifest extlibs/xrpc/config/modules.json --suite xrpc_examples --no-single
 ```
 
+Use the same suite for a packaged TCP consumer.
+
+```sh
+python tools/package.py --manifest extlibs/xrpc/config/modules.json --suite xrpc_examples --kind static --verify
+```
+
+Compile the consumer with `XRPC_MODULE_XRPC`, `XRT_MODULE_NET_SOCKET`,
+`XRT_MODULE_EXECUTOR` and `XRT_MODULE_EVENT`. Include `xrpc/features.h`
+before the public API headers. These XRT modules provide the APP's
+transport and worker dependencies. The base `xrpc` suite supplies the
+JSON-RPC layer. For shared packages, pass `--kind shared` and use the
+shared defines and system libraries in `packages.json`.
+
 Run the independent peer driver without timing options to exercise staggered
 connections, real TCP backpressure and peer reset. The staggered case
 verifies all replies and EOF on the first connection before opening the second.
