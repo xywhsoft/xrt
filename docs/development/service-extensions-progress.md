@@ -10,10 +10,10 @@ The dated entries below retain the earlier implementation and test evidence.
 
 | Extension | Current library scope | Release evidence still open |
 | --- | --- | --- |
-| xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Native Linux and repeatable scheduler tails. |
-| xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Native Linux and repeatable TCP concurrency tails. |
-| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Native Linux, matched release performance, and 72 continuous hours of mixed load. |
-| xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Native Linux, matched client and broker performance, and 72 continuous hours of mixed load. |
+| xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Repeatable scheduler P99/P99.9 and strict release. Native Windows and hosted Linux cohort evidence is recorded below. |
+| xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Repeatable TCP concurrency P99/P99.9 and strict release. Hosted native Windows and Linux workload evidence is recorded below. |
+| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched release performance and 72 continuous awake hours of mixed load on each native platform. Targeted native fault evidence is recorded below. |
+| xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Matched client and broker load and release performance, including QoS 2 under saturation, and 72 continuous awake hours of mixed load on each native platform. |
 
 Work and verification use D:/GIT/xrt on master.
 
@@ -25123,3 +25123,41 @@ executables on native Windows and seven on Ubuntu WSL. Repeatable
 release tails still need evidence. The native replay and Linux
 dependency receipt are under
 out/service-extensions/xcron-native-lineage-a6f10cec/.
+
+## 2026-11-23 xrpc stdio byte-exact records
+
+The optimized baseline cut off a complete input record containing a
+literal NUL on Windows and Ubuntu WSL. Windows text mode also treated
+a literal 0x1A at the start of a record as EOF and converted CRLF
+before counting bytes, admitting a record with 4,097 bytes before LF.
+The stdio APP now uses the XRT standard Reader and scans for LF as
+chunks arrive. The 4,096-byte limit includes any CR. Responses end
+in LF on both systems. Complete malformed records reach the endpoint,
+which returns the JSON-RPC parse error. The example rejects a record
+over the limit and a partial record at EOF.
+[JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification).
+
+The modular suite passed the independent stdio and TCP peers on
+native Windows and Ubuntu WSL. The stdio peer verified both malformed
+records, the valid request following them, and both sides of the
+byte limit. A separate piped run sent eight requests in two writes
+each and received all eight replies before closing the input.
+All 23 modular and single-header xrpc test executables passed on
+each environment. The example suite alone adds the standard
+Reader module.
+
+In the bulk-pipe probe, five alternating pairs per size checked
+all replies for 20,000 55-byte or 2,000 4,096-byte requests per
+process. The first implementation read one byte at a time and
+took 2.435 times the original Windows elapsed time for full records.
+With chunked reads, median elapsed-time ratios to the baseline
+for short and full records were 0.974 and 0.782 on Windows
+and 1.083 and 0.906 on WSL. This probe measures whole-process
+elapsed time including startup and pipe exchange. Artifacts and
+paired measurements are under
+out/service-extensions/xrpc-stdio-bytes-a6f10cec/.
+
+Built-in static and shared package consumers passed on both
+environments. The stdio APP built from relocated public headers
+passed the same framing peer in the static, shared and single-header
+layouts. Import checks verified the intended dependency layout.

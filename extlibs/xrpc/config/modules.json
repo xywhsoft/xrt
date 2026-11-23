@@ -183,7 +183,8 @@
         "xrpc",
         "net_socket",
         "executor",
-        "event"
+        "event",
+        "io_standard"
       ],
       "collect_dependency_assets": [
         "examples"

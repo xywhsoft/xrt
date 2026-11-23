@@ -1,5 +1,10 @@
 #include "../duplex/app_dispatch.h"
+#include <xrt/io.h>
 #include <stdio.h>
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 static bool handle(xrpcduplex* Endpoint, apprequest* Job, xstrview Document)
 {
@@ -18,6 +23,36 @@ static bool handle(xrpcduplex* Endpoint, apprequest* Job, xstrview Document)
     return OK;
 }
 
+static bool serve(xreader* Input, xrpcduplex* Endpoint, apprequest* Job)
+{
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return false;
+#endif
+    char Record[sizeof(Job->Input) + 1]; /* Room for LF after a full record. */
+    size_t Used = 0;
+    for (;;) {
+        size_t Read;
+        if (!xrtReaderRead(Input, Record + Used, sizeof(Record) - Used, &Read)) return false;
+        if (!Read) return Used == 0;
+        size_t Search = Used; /* The previous read already searched this prefix. */
+        size_t Start = 0;
+        Used += Read;
+        while (Search < Used) {
+            const char* End = memchr(Record + Search, '\n', Used - Search);
+            if (!End) break;
+            size_t Bytes = (size_t)(End - (Record + Start));
+            if (!handle(Endpoint, Job, (xstrview){Record + Start, Bytes})) return false;
+            Start += Bytes + 1;
+            Search = Start;
+        }
+        if (Start) {
+            Used -= Start;
+            if (Used) memmove(Record, Record + Start, Used);
+        }
+        if (Used == sizeof(Record)) return false;
+    }
+}
+
 int main(int Argc, char** Argv)
 {
     xrpcduplex* Endpoint = NULL;
@@ -29,14 +64,9 @@ int main(int Argc, char** Argv)
     if (!xrpcDuplexCreate(&Config, &Endpoint)) return 1;
     bool OK = true;
     if (Argc == 2 && strcmp(Argv[1], "--serve") == 0) {
-        char Line[sizeof(Job.Input) + 2]; /* LF and the fgets terminator. */
-        while (OK && fgets(Line, sizeof(Line), stdin)) {
-            /* This APP framing contract is one JSON document per LF record. */
-            size_t Bytes = strlen(Line);
-            OK = Bytes && Line[Bytes - 1] == '\n' &&
-                handle(Endpoint, &Job, (xstrview){Line, Bytes - 1});
-        }
-        if (ferror(stdin)) OK = false;
+        xreader* Input = xrtReaderStdin();
+        OK = Input && serve(Input, Endpoint, &Job);
+        if (Input && !xrtReaderDestroy(Input)) OK = false;
     } else if (Argc == 1) {
         OK = handle(Endpoint, &Job,
             XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"echo\",\"params\":[42]}"));

@@ -22,6 +22,27 @@ def verify_record_limit(executable):
     assert partial.returncode == 2 and not partial.stdout, partial
 
 
+def verify_byte_records(executable):
+    command = [str(Path(executable).resolve()), "--serve"]
+    good = br'{"jsonrpc":"2.0","id":17,"method":"echo","params":["a\u0000b"]}' + b"\n"
+    malformed = (b'{"jsonrpc":"2.0","method":"echo\x00","id":13}\n', b"\x1a\n")
+    result = subprocess.run(command, input=b"".join(malformed) + good, capture_output=True, timeout=10)
+    assert result.returncode == 0, result
+    parse_error = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+    assert [json.loads(line) for line in result.stdout.splitlines()] == [
+        parse_error, parse_error, {"jsonrpc": "2.0", "id": 17, "result": ["a\x00b"]},
+    ], result
+    assert result.stdout.count(b"\n") == 3 and b"\r" not in result.stdout, result
+
+    request = good[:-1]
+    exact = request.ljust(4095, b" ") + b"\r\n"
+    oversized = request.ljust(4096, b" ") + b"\r\n"
+    result = subprocess.run(command, input=exact + oversized + good, capture_output=True, timeout=10)
+    assert result.returncode == 2 and json.loads(result.stdout) == {
+        "jsonrpc": "2.0", "id": 17, "result": ["a\x00b"],
+    }, result
+
+
 def main():
     executable, report = sys.argv[1:]
     call = {"jsonrpc": "2.0", "method": "echo", "id": "app-1", "params": [42]}
@@ -43,10 +64,12 @@ def main():
     assert grouped[1]["id"] == 9 and grouped[1]["error"]["code"] == -32601
     assert malformed["id"] is None and malformed["error"]["code"] == -32700
     verify_record_limit(executable)
+    verify_byte_records(executable)
     out = Path(report)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"cases": 8, "replies": 6, "escaped_method": True, "ok": True, "max_record_bytes": 4096,
-                               "oversized_record_rejected": True, "unterminated_record_rejected": True}) + "\n",
+    out.write_text(json.dumps({"cases": 10, "replies": 10, "escaped_method": True, "ok": True, "max_record_bytes": 4096,
+                               "oversized_record_rejected": True, "unterminated_record_rejected": True,
+                               "byte_records_verified": True}) + "\n",
                    encoding="utf-8")
     print("[pass] APP stdio call, notification, batch, parse error and record limits")
 

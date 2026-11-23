@@ -10,8 +10,10 @@ The APP compares the plain `echo` spelling directly and uses XRT's JSON
 visitor to compare decoded spellings such as `"\u0065cho"`. Method names
 are case sensitive. The independent stdio and TCP peers exercise both forms.
 
-The stdio APP accepts `--serve` and frames one JSON document per LF-terminated
-input record. The TCP APP accepts `--serve`, prints its ephemeral loopback
+The stdio APP accepts `--serve` and reads one JSON document per LF-terminated
+record using XRT's standard input reader. Its 4,096-byte limit counts
+every byte before LF, including CR in CRLF input. On Windows the APP emits
+LF using binary output. Complete malformed JSON records receive a parse error. The TCP APP accepts `--serve`, prints its ephemeral loopback
 endpoint, and accepts one client. It reassembles records of up to 4096 bytes
 across reads. An XRT executor worker handles the copied request and signals the
 owner, which publishes the result with the original token. The example keeps
@@ -45,9 +47,10 @@ python tools/package.py --manifest extlibs/xrpc/config/modules.json --suite xrpc
 Compile the consumer with `XRPC_MODULE_XRPC`, `XRT_MODULE_NET_SOCKET`,
 `XRT_MODULE_EXECUTOR` and `XRT_MODULE_EVENT`. Include `xrpc/features.h`
 before the public API headers. These XRT modules provide the APP's
-transport and worker dependencies. The base `xrpc` suite supplies the
-JSON-RPC layer. For shared packages, pass `--kind shared` and use the
-shared defines and system libraries in `packages.json`.
+transport and worker dependencies. To build the stdio APP with this suite,
+select `XRPC_MODULE_XRPC` and `XRT_MODULE_IO_STANDARD`. The base `xrpc` suite
+supplies the JSON-RPC layer. For shared packages, pass `--kind shared` and
+use the shared defines and system libraries in `packages.json`.
 
 Run the independent peer driver without timing options to exercise staggered
 connections, real TCP backpressure and peer reset. The staggered case
