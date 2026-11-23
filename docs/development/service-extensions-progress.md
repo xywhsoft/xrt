@@ -23990,3 +23990,47 @@ the reported groups, percentiles and 1,280,000 replies per environment.
 Ordinary maturity and generated-header checks passed. Hosted topology
 and repeatable Windows release tails remain open. Raw samples and audits
 are under out/service-extensions/xrpc-hosted-tail-8bad77e2/.
+
+## 2026-11-23 MQTT QoS 2 credit limits and outbound identifier wrap
+
+The two-worker xmqtt broker and Mosquitto 2.1.2 ran on the same
+two logical CPUs on each host. The observer had three distinct cores.
+One publisher sent four seconds of fixed arrivals at 24,000/s to
+eight wildcard subscribers over plaintext MQTT 5. Each publisher and
+subscriber window pair ran five times per broker and per host. The
+outbound limit was 256 deliveries per session. The comparison used the
+unchanged tested broker runtime and retained the partial counters.
+
+| Publisher / subscriber window | Windows complete xmqtt / Mosquitto | WSL complete xmqtt / Mosquitto |
+| --- | ---: | ---: |
+| 16 / 32 | 0/5 / 5/5 | 5/5 / 5/5 |
+| 64 / 32 | 0/5 / 0/5 | 0/5 / 0/5 |
+| 64 / 64 | 0/5 / 4/5 | 0/5 / 5/5 |
+
+The independent replay verified 60 samples, including 24 complete
+publication and delivery ledgers. Every incomplete xmqtt sample
+reported PUBREC reason 0x97. Mosquitto's incomplete 64/32 samples
+failed subscriber count or ordering checks. No completed sample
+sustained 95 percent of the offered rate. With the 16/32 WSL pairing,
+xmqtt completed a median 9,988 publications/s with 5.529 s delivery
+P99. Its P99 lag before the first offer was 5.527 s and publisher
+send-to-confirmation P99 was 3.389 ms. Widening either window in these
+profiles did not establish a sustainable 24,000/s baseline.
+
+The new single-header test holds QoS 2 identifier 1 in the PUBCOMP
+phase, seeds the allocator near wrap on its owner, and fills the
+subscriber's two-slot Receive Maximum. It verifies that releasing
+identifier 65,535 delivers the waiting publication under identifier
+2 while identifier 1 stays reserved. PING still works at full credit.
+After reconnect with Receive Maximum 1, the server replays PUBREL
+under identifier 1 and forwards a fresh publication under identifier
+3. The test verifies every QoS 2 exchange and credit retirement.
+[MQTT 5.0 replay and flow control](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+Modular, MQTT 5.0-only and dual-protocol single-header suites passed
+on native Windows and Ubuntu WSL. The WSL single-header ASan/UBSan
+run with leak detection passed. Ordinary maturity and the generated
+header check passed. The broker
+capacity, native Linux comparisons and 72-hour evidence remain open.
+Window comparison results, raw counters and regression logs are under
+out/service-extensions/xmqtt-qos2-credit-260c5a86/.

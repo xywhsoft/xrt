@@ -1974,6 +1974,107 @@ static void serverAckQuota(void)
 	serverStop(&Fixture);
 }
 
+typedef struct serveridwrap {
+	xmqttserverpeer* Peer;
+	xatomic32 Seeded;
+} serveridwrap;
+
+static void serverSeedOutboundId(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	serveridwrap* State = Data;
+	xmqttserverpeer* Peer = State->Peer;
+	xmqttserversession* Session = Peer->Session;
+	testRequire(Peer->InFlight == 1 && Session->Outgoing.Count == 1 &&
+		Session->SentHead && Session->SentHead->Identifier == 1 &&
+		Session->SentHead->ExpectedAck == XMQTT_PACKET_PUBCOMP,
+		"identifier 1 still reserved through the terminal QoS 2 acknowledgement");
+	/* Skip the completed exchanges needed to reach the 16-bit wrap. */
+	Session->LastIdentifier = UINT16_MAX - 1;
+	xmqttServerPeerDrop(Peer);
+	xrtAtomic32Store(&State->Seeded, 1, XMEMORY_RELEASE);
+}
+
+static void serverQos2IdentifierWrap(void)
+{
+	serverfixture Fixture;
+	serverStart(&Fixture, false, 0);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xnetsocket Publisher = serverDial(&Fixture), Consumer = serverDial(&Fixture);
+	serverQos1Connect(Publisher, Version, "prod");
+	serverPersistentConnect(Consumer, Version, "sink", true, 30, 2, false, 0);
+	const char* Filter[] = {"wrap"};
+	const uint8 Two[] = {2};
+	serverSubscribeWire(Consumer, Version, true, 1, Filter, Two, Two, 1);
+
+	serverPublishQos2(Publisher, Version, "wrap", "old", 11, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 11, 0);
+	serverReleaseQos2(Publisher, Version, 11);
+	serverPublishQos2(Consumer, Version, "wrap", "old", 1, 0, true);
+	serverSendFlowReply(Consumer, Version, 0x50, 1, 0);
+	serverExpectFlowReply(Consumer, Version, 0x62, 1, 0);
+
+	serveridwrap State = {0};
+	xrtAtomic32Init(&State.Seeded, 0);
+	xrtMutexLock(&Fixture.Server->Gate);
+	for (State.Peer = Fixture.Server->Peers; State.Peer &&
+		(!State.Peer->Session || memcmp(State.Peer->Session->ClientName.Data, "sink", 4));
+		State.Peer = State.Peer->Next) { }
+	testRequire(State.Peer && xmqttServerPeerTryRef(State.Peer), "pin the subscriber for the wrap fixture");
+	xnetworker* Worker = xrtNetStreamWorker(State.Peer->Stream);
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	xnetpost Post;
+	testRequire(xrtNetPostInit(&Post) && xrtNetPost(Worker, &Post, serverSeedOutboundId, &State),
+		"seed packet identifier on its owner");
+	double Until = xrtTimer() + 5.0;
+	while (!xrtAtomic32Load(&State.Seeded, XMEMORY_ACQUIRE)) {
+		testRequire(xrtTimer() < Until, "wrap fixture reached the owner");
+		xrtSleep(1);
+	}
+
+	serverPublishQos2(Publisher, Version, "wrap", "last", 12, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 12, 0);
+	serverReleaseQos2(Publisher, Version, 12);
+	serverPublishQos2(Consumer, Version, "wrap", "last", UINT16_MAX, 0, true);
+	serverSendFlowReply(Consumer, Version, 0x50, UINT16_MAX, 0);
+	serverExpectFlowReply(Consumer, Version, 0x62, UINT16_MAX, 0);
+
+	serverPublishQos2(Publisher, Version, "wrap", "next", 13, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 13, 0);
+	serverReleaseQos2(Publisher, Version, 13);
+	serverWaitOutgoing(Fixture.Server, 3, 0);
+	serverPingPeer(Consumer);
+	serverSendFlowReply(Consumer, Version, 0x70, UINT16_MAX, 0);
+	serverPublishQos2(Consumer, Version, "wrap", "next", 2, 0, true);
+	serverSendFlowReply(Consumer, Version, 0x50, 2, 0);
+	serverExpectFlowReply(Consumer, Version, 0x62, 2, 0);
+	serverSendFlowReply(Consumer, Version, 0x70, 2, 0);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+
+	xrtNetSocketClose(Consumer);
+	serverWaitSessions(&Fixture, 1, 1);
+	serverConnections(&Fixture, 1);
+	Consumer = serverDial(&Fixture);
+	serverPersistentConnect(Consumer, Version, "sink", false, 30, 1, true, 0);
+	serverExpectFlowReply(Consumer, Version, 0x62, 1, 0);
+	serverSendFlowReply(Consumer, Version, 0x70, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+
+	serverPublishQos2(Publisher, Version, "wrap", "resumed", 14, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 14, 0);
+	serverReleaseQos2(Publisher, Version, 14);
+	serverPublishQos2(Consumer, Version, "wrap", "resumed", 3, 0, true);
+	serverSendFlowReply(Consumer, Version, 0x50, 3, 0);
+	serverExpectFlowReply(Consumer, Version, 0x62, 3, 0);
+	serverSendFlowReply(Consumer, Version, 0x70, 3, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverPingPeer(Consumer);
+
+	xrtNetSocketClose(Consumer);
+	xrtNetSocketClose(Publisher);
+	serverStop(&Fixture);
+}
+
 typedef struct serverbackpressure {
 	xmqttserverpeer* Peer;
 	xatomic32 Ready, Full;
@@ -2752,6 +2853,7 @@ int main(void)
 	serverLiveHandoff(false);
 	serverLiveHandoff(true);
 	serverOutgoingBackpressure();
+	serverQos2IdentifierWrap();
 	serverAckQuota();
 	serverQos1Exceeded();
 #endif
