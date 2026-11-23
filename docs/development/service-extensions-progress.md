@@ -23617,3 +23617,54 @@ maturity and the generated header check passed. Strict maturity still
 reports xrpc and xrpc_duplex as developing. The hosted workflow has
 yet to run this revision. The local commands, raw data and replay are
 under out/service-extensions/xrpc-native-fixed-ci-bd9d6441/.
+
+## 2026-11-23 MQTT broker saturation failure counts
+
+The fixed-arrival observer records measured sends, validated terminal
+publisher confirmations and subscriber deliveries when a sample fails.
+It collects the counts after retiring its reader threads and excludes
+warmup. The paired comparison retains these counts with the failure
+phase and any MQTT acknowledgement reason. Successful reports and the
+full-ledger pass criterion keep their existing format and semantics.
+The optional native Linux comparison job now runs the observer protocol
+fixture and records hashes for the observer, fixture and comparison
+sources.
+
+The new fixture completes one warmup and one measured QoS 2 exchange,
+then injects a quota refusal. The previous Windows observer recognized
+the refusal and failed the new count assertion. The candidate reported
+two measured sends, one confirmation and one delivery. All seven
+scripted cases passed on native Windows and Ubuntu WSL. WSL ASan/UBSan
+with leak detection passed the same cases.
+
+The rate sweep used eight wildcard subscribers, two xmqtt workers,
+Mosquitto 2.1.2, windows of 16 in both directions, 600 warmup offers and
+a four-second measured offer schedule. The broker masks were 0,2,4,6
+and the observer mask was 8,10. Each rate ran three alternating
+samples per broker while Windows endurance continued. Independent
+replay checked the binary identities and all 36 samples. The 25
+complete samples verified 902,400 confirmations and 7,219,200
+deliveries. The table gives complete samples and then samples that
+also achieved at least 95 percent of the scheduled ingress.
+
+| Host | Offers/s | xmqtt complete / at rate | Mosquitto complete / at rate |
+| --- | ---: | ---: | ---: |
+| Native Windows | 2,800 | 3 / 3 | 3 / 3 |
+| Native Windows | 12,000 | 2 / 2 | 3 / 3 |
+| Native Windows | 24,000 | 0 / 0 | 2 / 0 |
+| Ubuntu WSL | 2,800 | 3 / 3 | 3 / 3 |
+| Ubuntu WSL | 12,000 | 2 / 0 | 3 / 0 |
+| Ubuntu WSL | 24,000 | 0 / 0 | 1 / 0 |
+
+All eight xmqtt failures reported PUBREC reason 0x97. One Windows
+24,000/s run failed before recording a measured send. The other seven
+retained nonzero measured progress. In the three failed 24,000/s Mosquitto samples,
+all 96,000 measured publications had terminal confirmations and
+674,179 to 753,029 of 768,000 expected deliveries had been verified
+when the observer retired. The paired failures retain partial counts
+without contributing latency samples to a completed cohort.
+
+Actionlint, Bash syntax, ordinary maturity and generated headers
+passed. The native Linux job and stable release-capacity baseline
+remain open. The commands, hashes, reports and replay are under
+out/service-extensions/xmqtt-pressure-ledger-efe0fcd0/.

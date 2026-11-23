@@ -24,6 +24,18 @@ PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publis
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
 TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
+PARTIAL_MEASUREMENT = re.compile(
+    r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)\n?$",
+    re.MULTILINE,
+)
+
+
+class ObserverFailure(RuntimeError):
+    def __init__(self, exit_code, errors):
+        match = PARTIAL_MEASUREMENT.search(errors)
+        self.progress = {key: int(value) for key, value in match.groupdict().items()} if match else None
+        detail = PARTIAL_MEASUREMENT.sub("", errors).strip()
+        super().__init__(f"observer exit {exit_code}: {detail}")
 
 
 if os.name == "nt":
@@ -137,7 +149,7 @@ def run_observer(args, port, workload):
         stop(process)
         raise
     if process.returncode:
-        raise RuntimeError(f"observer exit {process.returncode}: {errors.strip()}")
+        raise ObserverFailure(process.returncode, errors)
     result = {key: float(value) for key, value in (line.split(": ", 1) for line in output.splitlines())}
     metrics = METRICS + (("publish_confirmed", "publisher_credit_stalls") + PUBLISHER_METRICS if args.qos else ())
     if kind == "shared":
@@ -349,6 +361,10 @@ def main():
                     with tempfile.TemporaryDirectory(prefix="xmqtt-broker-compare-") as temp:
                         try:
                             row.update(run_sample(args, label, workload, Path(temp)))
+                        except ObserverFailure as error:
+                            row["failure"] = str(error)
+                            if error.progress is not None:
+                                row["failure_progress"] = error.progress
                         except Exception as error:
                             row["failure"] = str(error)
                     print(workload, repeat, label, row.get("failure", row.get("delivery_p99_us")), flush=True)

@@ -730,6 +730,7 @@ jobs:
             -o "$evidence/xmqtt-broker" -pthread -lm
           gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER -DXRT_MODULE_MEMORY_STATS "$bench/bench_server.c" \
             -o "$evidence/broker-observer" -pthread -lm
+          python -B "$bench/test_broker_observer.py" "$evidence/broker-observer"
 
           gcc "${flags[@]}" -DXMQTT_MODULE_XMQTT_SERVER_TLS -DXRT_MODULE_TLS_IDENTITY_RSA \
             extlibs/xmqtt/examples/server/tls.c -o "$evidence/xmqtt-broker-tls" -pthread -lm
@@ -761,6 +762,7 @@ jobs:
             "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
             "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" \
             "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" "$evidence/xmqtt-checkpoint" \
+            "$bench/compare_broker.py" "$bench/bench_server.c" "$bench/test_broker_observer.py" \
             "$bench/compare_broker_restart.py" "$bench/compare_broker_connections.py" > "$evidence/sha256.txt"
           cpus=$(python - <<'PY'
           import os

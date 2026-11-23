@@ -517,7 +517,7 @@ static bool benchRemoteDelivery(benchRemotePeer* Peer, size_t Round, double Arri
 		double Latency = Arrived - (Peer->Start + (double)Round / Peer->Rate);
 		if (Latency < 0) return false;
 		Peer->Samples[Round - Peer->Warmup] = Latency;
-		if (Peer->Shared) ++Peer->Delivered;
+		++Peer->Delivered;
 	}
 	Peer->Last = Arrived;
 	if (Peer->Shared) (void)xrtAtomic32FetchAdd(&Peer->Shared->Finished, 1, XMEMORY_ACQ_REL);
@@ -613,7 +613,7 @@ typedef struct benchRemotePublisher {
 	xcond Changed;
 	struct { benchPublishPhase Phase; size_t Round; double Sent; } Slots[64];
 	uint8 Qos;
-	size_t Window, Warmup, Rounds, CreditStalls;
+	size_t Window, Warmup, Rounds, CreditStalls, Confirmed;
 	double Start, Rate, Last;
 	double *Samples, *FromSend;
 	bool Complete, Failed;
@@ -658,6 +658,7 @@ static int32 benchRemoteConfirm(ptr Context)
 	benchRemotePublisher* P = Context;
 	benchRemoteReader Reader = {.Connection = P->Connection};
 	size_t Finished = 0, Total = P->Warmup + P->Rounds;
+	size_t Measured = 0;
 	while (Finished < Total) {
 		xmqttframe Frame;
 		if (!benchRemoteReadFrame(&Reader, &Frame)) break;
@@ -686,6 +687,7 @@ static int32 benchRemoteConfirm(ptr Context)
 				size_t Sample = Round - P->Warmup;
 				P->Samples[Sample] = Confirmed - (P->Start + (double)Round / P->Rate);
 				P->FromSend[Sample] = Confirmed - P->Slots[Slot].Sent;
+				++Measured;
 			}
 			P->Last = Confirmed;
 			P->Slots[Slot].Phase = BENCH_PUBLISH_FREE;
@@ -697,6 +699,7 @@ static int32 benchRemoteConfirm(ptr Context)
 		if (!xrtMutexUnlock(&P->Gate) || !OK) break;
 		if (Terminal) ++Finished;
 	}
+	P->Confirmed = Measured;
 	P->Complete = Finished == Total && Reader.Begin == Reader.End;
 	if (!P->Complete && xrtMutexLock(&P->Gate)) {
 		P->Failed = true;
@@ -918,6 +921,7 @@ static int benchRemote(int Argc, char** Argv)
 		.Rounds = Rounds, .Rate = (double)Rate};
 	xthread* Confirmations = NULL;
 	bool Gate = false, Changed = false;
+	size_t Sent = 0;
 	bool OK = false;
 	const char* Stage = "allocate measurement buffers";
 	if (!Samples || !Lag || (Shared && !Seen)) goto Done;
@@ -993,6 +997,7 @@ static int benchRemote(int Argc, char** Argv)
 		if (Measured) PacerLag[Sample] = Now - Scheduled;
 		if (!benchRemoteOffer(&Publisher, Round, Scheduled, Now, Measured ? Lag + Sample : NULL,
 			Measured && CreditWait ? CreditWait + Sample : NULL)) goto Done;
+		if (Measured) ++Sent;
 	}
 	Stage = "check subscriber delivery counts and order";
 	if (Shared && !benchRemoteSharedDrain(&Group, State, Peers, (uint32)(Destinations * Total))) goto Done;
@@ -1072,7 +1077,13 @@ Done:
 	free(Lag);
 	free(Samples);
 	free(Seen);
-	if (!OK) fprintf(stderr, "Remote benchmark failed during %s\n", Stage);
+	if (!OK) {
+		size_t Delivered = 0;
+		for (size_t I = 0; I < Peers; ++I) Delivered += State[I].Delivered;
+		fprintf(stderr, "Remote benchmark failed during %s\n"
+			"Partial measurement: sent=%zu confirmed=%zu deliveries=%zu\n",
+			Stage, Sent, Publisher.Confirmed, Delivered);
+	}
 	return OK ? 0 : 1;
 }
 

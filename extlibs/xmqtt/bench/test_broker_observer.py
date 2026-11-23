@@ -8,6 +8,8 @@ import ssl
 import subprocess
 import time
 
+from compare_broker import ObserverFailure
+
 def read(sock, size):
     result = b""
     while len(result) < size:
@@ -59,7 +61,8 @@ def case(binary, name, qos):
         listener.listen()
         listener.settimeout(8)
         port = listener.getsockname()[1]
-        p = subprocess.Popen([binary, "--remote", str(port), "1", "3", "100", "0", "exact", str(qos), "1"],
+        warmup = int(name == "negative-after-progress")
+        p = subprocess.Popen([binary, "--remote", str(port), "1", "3", "100", str(warmup), "exact", str(qos), "1"],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             subscriber, _ = listener.accept()
@@ -80,8 +83,18 @@ def case(binary, name, qos):
                         assert tag == b"\x34"
                         publisher.sendall(b"\x70\x02\x00\x01")
                         check_no_more_publications(publisher)
-                    elif name == "negative-pubrec":
-                        assert tag == bytes([0x34])
+                    elif name in ("negative-pubrec", "negative-after-progress"):
+                        for sequence in range(2 if warmup else 0):
+                            assert tag == b"\x34" and body[-4:] == sequence.to_bytes(4, "big")
+                            subscriber.sendall(b"\x34\x89\x01" + body)
+                            assert frame(subscriber) == (b"\x50", b"\x00\x01")
+                            subscriber.sendall(b"\x62\x02\x00\x01")
+                            assert frame(subscriber) == (b"\x70", b"\x00\x01")
+                            publisher.sendall(b"\x50\x02\x00\x01")
+                            assert frame(publisher) == (b"\x62", b"\x00\x01")
+                            publisher.sendall(b"\x70\x02\x00\x01")
+                            tag, body = frame(publisher)
+                        assert tag == b"\x34"
                         publisher.sendall(bytes.fromhex("50 03 00 01 97"))
                         check_no_more_publications(publisher)
                     elif name == "wrong-pubcomp":
@@ -105,8 +118,10 @@ def case(binary, name, qos):
                         drain(p, [subscriber, publisher])
                     out, err = p.communicate(timeout=8)
                     assert p.returncode == 1 and not out and "Remote benchmark failed" in err, (p.returncode, out, err)
-                    if name == "negative-pubrec":
+                    if name in ("negative-pubrec", "negative-after-progress"):
                         assert "publisher acknowledgement type=5 reason=0x97" in err, err
+                        progress = ObserverFailure(p.returncode, err).progress
+                        assert progress == {"sent": 1 + warmup, "confirmed": warmup, "deliveries": warmup}, err
                     print(name, "rejected", err.strip())
         finally:
             if p.poll() is None:
@@ -225,8 +240,8 @@ def main():
     parser.add_argument("--tls-credentials", type=Path, help="localhost TLS fixture with an additional unrelated wrong.pem CA")
     args = parser.parse_args()
     binary = str(args.observer.resolve(strict=True))
-    for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("wrong-pubcomp", 2),
-                      ("duplicate-delivery", 1)):
+    for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("negative-after-progress", 2),
+                      ("wrong-pubcomp", 2), ("duplicate-delivery", 1)):
         case(binary, name, qos)
     shared_case(binary, False)
     shared_case(binary, True)

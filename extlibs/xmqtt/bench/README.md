@@ -477,9 +477,14 @@ python extlibs/xmqtt/bench/compare_broker.py \
   --repeats 5 --report "out/broker-qos2-rate-$rate.json"
 ```
 
-Keep the JSON from unsuccessful rates. Count a rate as completed only when
-both publication and delivery ledgers match. Compare achieved ingress to the
-scheduled rate for each repetition. Evaluate P99 repeat variation separately.
+Keep the JSON from unsuccessful rates. When the observer retires after a
+failure, the report records the measured sends, terminal publisher
+confirmations and validated deliveries separately in `failure_progress`.
+The counts cover verified work through retirement and exclude warmup.
+A timeout or crash can leave the counts unavailable. Count a rate as
+completed only when both publication and delivery ledgers match. Compare
+achieved ingress to the scheduled rate for each repetition. Evaluate P99
+repeat variation separately.
 
 The scripted observer regression checks negative PUBREC with its reason code,
 early PUBCOMP, a wrong PUBCOMP identifier and duplicate subscriber delivery. It also exercises bounded
