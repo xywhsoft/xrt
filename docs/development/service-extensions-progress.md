@@ -26214,3 +26214,25 @@ variation limits. Release performance acceptance remains open.
 
 The source receipts, complete traces and replay are under
 out/service-extensions/linux-guest-9ce2606c/xredis-native-backend-replay-7bf8b8bf/.
+
+## 2026-11-24 Redis command accounting after local admission limits
+
+The paired runner now reconciles the fixture's commands
+whenever its observer counts are complete and every admitted
+command has a valid reply. Overall acceptance still requires
+every scheduled offer to succeed within the configured deadline.
+
+A native Ubuntu guest run with xredis and Hiredis verified
+all 2,000 control offers. Two saturated runs kept the overall
+comparison failed while verifying exact peer accounting for
+516 admitted ECHOs and 4,152 admitted GET/SET commands.
+The harness rejected 15,484 and 11,848 offers, respectively.
+The older comparator withheld its exact accounting result
+after capacity rejections, even though independent replay
+matched its 427 admitted offers to the peer's ledger.
+A separate attempt failed one observer's warmup and still
+withheld exact command accounting.
+
+The three new regression tests passed on Windows and Ubuntu.
+Both sets of reports and per-offer traces are under
+out/service-extensions/linux-guest-9ce2606c/xredis-fixture-ledger-a0229d8f/.

@@ -100,6 +100,28 @@ def sample(args, client: Path, name: str, command: list[str], raw_path: Path | N
     return sample | {"verified": verified, "accounted": accounted, "facts": facts, "metrics": metrics}
 
 
+def fixture_expected_commands(args, runs):
+    counts = []
+    for run in runs:
+        if not run.get("accounted"):
+            return None
+        metrics = run["metrics"]
+        if metrics["accepted"] != metrics["successful"] or metrics["corrupt"]:
+            return None
+        counts.append(metrics)
+
+    connections = len(counts) * args.connections
+    expected = dict(hello=connections, ping=connections)
+    if args.mixed:
+        gets = sum(metrics["accepted_get"] for metrics in counts)
+        if gets:
+            expected["get"] = gets
+        expected["set"] = len(counts) + sum(metrics["accepted_set"] for metrics in counts)
+    else:
+        expected["echo"] = sum(metrics["accepted"] for metrics in counts)
+    return expected
+
+
 def start_fixture(args, stack: ExitStack):
     interop = BENCH.parent / "tests" / "interop"
     sys.path.insert(0, str(interop))
@@ -147,15 +169,8 @@ def start_fixture(args, stack: ExitStack):
             raise RuntimeError("Redis fixture changed during the comparison")
         report["cpu_after"] = info(args.port, "cpu", tls)
         report["commands"] = calls = command_calls(info(args.port, "commandstats", tls))
-        if all(run["verified"] for run in runs):
-            expected = dict(hello=len(runs) * args.connections, ping=len(runs) * args.connections)
-            if args.mixed:
-                gets = sum(run["metrics"]["accepted_get"] for run in runs)
-                if gets:
-                    expected["get"] = gets
-                expected["set"] = len(runs) + sum(run["metrics"]["accepted_set"] for run in runs)
-            else:
-                expected["echo"] = len(runs) * args.count
+        expected = fixture_expected_commands(args, runs)
+        if expected is not None:
             report["expected_commands"] = expected
             report["ledger_verified"] = {key: count for key, count in calls.items() if key != "info"} == expected
         return report

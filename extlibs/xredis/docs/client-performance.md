@@ -160,7 +160,10 @@ drain by its scheduled deadline. A command already on that FIFO connection
 cannot be discarded independently. The paired runner checks every offer,
 reply and deadline, alternates client order, and keeps the warmups, raw output,
 and executable and source hashes. The report distinguishes verified reply
-counts from variation checks. Variation requires five or more measured
+counts from variation checks. With a dedicated Redis fixture, the command
+ledger compares the peer's counts with admitted commands that returned valid
+replies. Offers rejected locally can still fail the full comparison while
+the peer command counts reconcile. Variation requires five or more measured
 samples, at most 3% relative MAD and at most 6% relative central range.
 
 Build Hiredis 1.3.0 from its codeload tag archive. The archive SHA-256 used
