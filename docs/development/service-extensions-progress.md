@@ -24415,3 +24415,24 @@ zero denials. The diagnostic identifies the failed admission check
 without treating a larger publisher window as a capacity gain.
 The reports, broker journals and audits are under
 out/service-extensions/xmqtt-multi-publisher-2acf8474/.
+
+## 2026-11-23 Complete Windows xcron CPU cycle campaign
+
+The native Windows x64 run at clean 742ebdf8 finished all 20
+processes on logical CPU 4. Independent replay matched the binary
+and runner hashes, the alternating order, 5,120 timed waves,
+2,785,280 callbacks, and all pooled percentiles and variation
+decisions. Each process recorded a positive cycle delta. The
+process-time counter returned zero for 19 of the 20 processes.
+
+| Active / dormant jobs | Drive | Last callback P99 (ms) | Last callback P99.9 (ms) | Median process cycles/callback |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | Scheduler wait | 5.469 | 24.884 | 1,397.6 |
+| 64 / 960 | Direct precise waiter | 2.986 | 23.721 | 861.5 |
+| 1,024 / 0 | Scheduler wait | 5.350 | 10.940 | 99.8 |
+| 1,024 / 0 | Direct precise waiter | 1.842 | 5.922 | 61.8 |
+
+The cycle counter resolves work in these mostly sleeping processes.
+All 12 P99 series exceeded the repeatability limits. Windows tail
+acceptance remains open. The raw run, build receipt and independent
+audit are under out/service-extensions/xcron-cycle-accounting-ecc5c7ec/win/.
