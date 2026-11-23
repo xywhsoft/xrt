@@ -648,6 +648,15 @@ connection checks that acknowledged deliveries have retired.
 Use the test credentials from the TLS example and append `.exe` to the
 checkpoint executable path on Windows.
 
+Append `--expiry-only` and use a new report name to check the session
+deadline through a delayed checkpoint CLOSE on TCP, TLS, WS and WSS.
+Each transport exercises CONNECT before and after a one-second Session
+Expiry. The early peer resumes the session and acknowledges the same
+QoS 1 packet identifier. The late peer starts with Session Present clear.
+The probe observes the committed acknowledgement before stopping the
+broker and checks that the replacement TCP connection has no old delivery
+to replay.
+
 Each peer stays on its original XRT worker. An authorized CONNECT registers
 one session for its Client ID. That session owns its subscriptions and QoS
 records. The peer owns the stream, negotiated transport limits and native

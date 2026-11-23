@@ -192,7 +192,7 @@ jobs:
           assert report["status"] == "failed" and report["native_72h"] is False
           assert fault["event"] == "broker process killed" and fault["verified_rounds"] > 0 and fault["broker_exit"] != 0
           PY
-      - name: Required MQTT authentication across checkpoint transports
+      - name: MQTT authentication and expiry across checkpoint transports
         if: matrix.product == 'xmqtt'
         shell: bash
         run: |
@@ -206,6 +206,9 @@ jobs:
             out/gcc/native/xmqtt_examples/examples_server_auth "$tls_dir" \
             --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint --checkpoint-transports \
             > out/service-extensions/xmqtt-auth-checkpoint-linux.json
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint_transports.py \
+            out/gcc/native/xmqtt_examples/examples_server_checkpoint "$tls_dir" \
+            out/service-extensions/xmqtt-expiry-transports-linux.json --expiry-only
       - name: MQTT checkpoint writer quota
         if: matrix.product == 'xmqtt'
         run: >-
@@ -363,6 +366,19 @@ jobs:
           out/gcc/native/xmqtt_examples/examples_server_auth.exe
           --checkpoint out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe
           > out/service-extensions/xmqtt-auth-checkpoint-windows.json
+      - name: MQTT durable session expiry across checkpoint transports
+        if: matrix.product == 'xmqtt'
+        run: |
+          pacman --noconfirm --needed -S mingw-w64-ucrt-x86_64-openssl
+          tls_dir="$(mktemp -d)"
+          trap 'rm -f -- "$tls_dir"/{certificate.pem,certificate.der,key.pem,key.der}; rmdir -- "$tls_dir"' EXIT
+          MSYS2_ARG_CONV_EXCL='/CN=' openssl req -x509 -newkey rsa:2048 -sha256 -noenc -days 1 -subj /CN=localhost \
+            -addext subjectAltName=DNS:localhost -keyout "$tls_dir/key.pem" -out "$tls_dir/certificate.pem"
+          openssl x509 -in "$tls_dir/certificate.pem" -outform DER -out "$tls_dir/certificate.der"
+          openssl pkey -in "$tls_dir/key.pem" -outform DER -out "$tls_dir/key.der"
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint_transports.py \
+            out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe "$tls_dir" \
+            out/service-extensions/xmqtt-expiry-transports-windows.json --expiry-only
       - name: MQTT checkpoint writer quota
         if: matrix.product == 'xmqtt'
         run: >-

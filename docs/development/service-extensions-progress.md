@@ -23167,3 +23167,32 @@ Existing Windows endurance processes continue with their launch-time
 monitor. The changes apply to new runs. The WSL checks are diagnostic
 and native Linux endurance is still pending. The test scripts,
 journals and audit are under out/service-extensions/mixed-active-clock-1a225f61/.
+
+
+## 2026-11-23 MQTT durable session deadline across transports
+
+The checkpoint example now has a targeted independent peer regression
+for a one-second Session Expiry while the APP's CLOSE write is delayed
+by 1,500 ms. On TCP, TLS, WS and WSS the early successor verifies
+Session Present, the original durable session key and the original
+QoS 1 packet identifier with DUP. The late successor verifies Session
+Present clear and a fresh durable session key. A later broker process
+restores both results over TCP. The completed ACK and expired session
+produce no stale replay.
+
+The first diagnostic read assumed PINGRESP fenced the asynchronous
+outgoing ACK commit. The final probe waits for an actual checkpoint
+change and verifies that the outgoing record was removed before it
+stops the broker. A second diagnostic image showed a valid queued
+delivery in the preceding case's still-subscribed session. Each case
+now uses its own topic.
+
+Optimized native Windows x64 and Ubuntu WSL examples passed both
+expiry cases for each of the four transports. The existing cross-
+transport QoS recovery also passed on both hosts. Single headers,
+ordinary maturity and actionlint 1.7.7 passed. The Windows and Linux
+CI jobs now collect these reports. The updated native CI jobs and
+strict release acceptance remain pending.
+
+Build logs, hashes and reports are under
+out/service-extensions/xmqtt-checkpoint-expiry-transports-9c6de84f/.
