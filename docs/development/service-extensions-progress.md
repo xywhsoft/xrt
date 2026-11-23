@@ -25342,3 +25342,22 @@ components and compares the finite aggregate CPU times of the
 generator and process. Both optimized runtime tests passed after
 the correction. The original failed builds and resumed suite logs
 are under out/service-extensions/xredis-bounded-progress-190dd32b/.
+
+## 2026-11-23 Redis endurance candidate after bounded progress fix
+
+The clean 784b0305 mixed-workload builds used a pinned Redis 8.0.5
+peer. Windows replay verified 1,247 rounds and all 11,223 GET and
+11,223 SET commands over loopback forwarding to Ubuntu WSL.
+The Ubuntu WSL client and Redis peer replay verified 5,054 rounds
+and 45,486 commands of each kind. Both short workloads also
+reconciled Pub/Sub and setup commands.
+
+The updated native Windows client began a new 72-hour campaign at
+22:11 Asia/Shanghai with its own Redis peer in Ubuntu WSL. The
+startup check matched the Windows parent/runner/client processes,
+executable and live Redis PID and run ID. Replay verified the first
+18 windows, 5,661 rounds and 90.120 awake seconds. The largest gap
+was 5.014 seconds. The earlier campaigns continued. Completion of
+the updated Windows campaign and native Linux qualification remain
+open. Build, short-run and live receipts are under
+out/service-extensions/xredis-bounded-progress-190dd32b/.
