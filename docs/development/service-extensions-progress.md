@@ -25837,3 +25837,20 @@ retaining exact operation/native agreement and the existing
 early-deadline bound. The fixed-clock witness and the normal
 Windows and Ubuntu single-header cases passed. Evidence is
 under out/service-extensions/linux-guest-9ce2606c/redis-app-deadline-diagnostic/.
+
+## 2026-11-24 Complete optimized Redis runtime replay on Ubuntu
+
+A replay after the Cluster APP deadline fix found that the
+client could receive the queued reply before the fixture
+recorded the command. The in-flight credit and tombstone
+checks now wait for the peer's command count before asserting
+its exact value. The updated modular and single-header client
+tests passed on native Windows and the Ubuntu guest.
+
+The final Ubuntu runtime replay passed all 93 executables.
+Host replay matched every log, the eleven binaries rebuilt for
+changed fixtures and the other 82 binaries from the original
+run. The earlier failed runs and the final pass are retained
+under out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
+The optimized runtime result covers this suite. Performance
+repeatability and continuous-run release evidence remain open.

@@ -95,6 +95,7 @@ static void testClientTimeoutCancel(void)
 	xfuture* Following = testClientSubmit(Client, "ID", "33", 5000); Result = testClientResult(Following);
 	xredisreplyvalue Value; testRequire(Result->Status == XREDIS_REQUEST_OK && xredisReplyGet(Result->Reply, 0, &Value) && Value.Integer == 33,
 		"late replies shifted next request");
+	redisPeerWait(&Peer.Commands, 3);
 	xredisclientinfo Info = {0}; Info.Size = sizeof(Info); xredisClientInfo(Client, &Info);
 	testRequire(Info.DiscardedReplies == 2 && xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 3, "tombstones/cancelled unsent count");
 	xrtFutureDestroy(Hold); xrtFutureDestroy(Sent); xrtFutureDestroy(Queued); xrtFutureDestroy(Following);
@@ -127,6 +128,8 @@ static void testClientReplyReturnsCredit(void)
 	testRequire(testClientResult(Hold)->Status == XREDIS_REQUEST_OK, "initial request did not complete");
 	const xredisrequestresult* Result = testClientResult(Queued);
 	xredisreplyvalue Value;
+	/* The peer records a command after offering its reply. */
+	redisPeerWait(&Peer.Commands, 2);
 	testRequire(Result->Status == XREDIS_REQUEST_OK && Result->Delivery == XREDIS_REPLIED &&
 		xredisReplyGet(Result->Reply, 0, &Value) && Value.Integer == 42 &&
 		xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 2, "reply did not return in-flight credit");
