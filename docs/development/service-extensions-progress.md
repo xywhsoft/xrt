@@ -26386,3 +26386,25 @@ acceptance still use the full paired workload.
 
 Evidence is under out/service-extensions/xrpc-native-shards-150a6de8/
 and out/service-extensions/linux-guest-9ce2606c/xrpc-native-shards-150a6de8/.
+
+## 2026-11-24 Post-fix Redis mixed-load peer exit
+
+Separate fault fixtures on Windows and the QEMU/WHPX
+Ubuntu guest used the exact dc8f7525 endurance binaries.
+Each ran until a complete mixed-load observation had
+been recorded. The Windows client used a WSL Redis peer.
+The fault harness matched the Redis PID, run ID and
+executable before sending SIGKILL to that guest process.
+The Ubuntu harness verified and killed its guest-local
+Redis process.
+
+Replay matched each workload and build digest and checked
+320 Windows rounds and 1,269 Ubuntu rounds before the
+peer exited. Both observers reported that the workload
+exited without verified retirement. Neither journal contains
+a successful terminal record. The independent endurance
+intervals used different Redis run IDs and continued.
+
+Reports, injected process identities and replay are under
+out/service-extensions/xredis-pool-gate-windows-dc8f7525/
+and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
