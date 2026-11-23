@@ -25698,3 +25698,26 @@ The package checks and source receipts are under
 out/service-extensions/linux-guest-9ce2606c/redis-mqtt-sdk/.
 The complete runtime suites and release performance checks have
 separate records.
+
+
+## 2026-11-24 Redis pool fixture request retirement
+
+The first optimized Ubuntu regression stopped at the single-header
+pool test after 51 passing executables. The original binaries passed
+all 93 tests in a separate replay. The original pool binary passed
+64 additional runs, and a diagnostic build passed another 32 runs.
+
+The partial-claim rollback fixture waited for the second client's
+request count to clear. Its probe on the first client could have
+published its reply while still retaining the request reservation.
+Holding the first client's completion callback reproduced the
+original pool-creation failure deterministically. The fixture now
+checks that the pool rejects a client in this state, then waits
+for both clients to retire their requests before creating the pool.
+
+The updated modular and TLS single-header fixtures passed on native
+Windows and the Ubuntu QEMU/WHPX guest. Generated asset and ordinary
+maturity checks passed. The test change leaves production code and
+the running Windows workload binaries unchanged. The original
+failure, source identities, and before/after proof are under
+out/service-extensions/linux-guest-9ce2606c/redis-pool-native-diagnostic/.

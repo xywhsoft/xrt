@@ -297,6 +297,22 @@ static void poolWorkerReentry(xnetworker* Worker, ptr Data)
     testRequire(xredisLeaseCall(State->Lease, &Ping, 1, 1000, &Future) == XREDIS_ADMISSION_ERROR && Future == (xfuture*)(uintptr_t)1, "sync leased call blocked another engine worker"); xrtClearError();
     xrtAtomic32Store(&State->Done, 1, XMEMORY_RELEASE);
 }
+static void poolWaitIdle(xredisclient* Client)
+{
+    double End = xrtTimer() + 10;
+    for (;;) {
+        xredisclientinfo Info = {0};
+        Info.Size = sizeof(Info);
+        testRequire(xredisClientInfo(Client, &Info), "pool member info");
+        if (!Info.Requests) return;
+        testRequire(xrtTimer() < End, "partial claim native tail");
+        xrtThreadYield();
+    }
+}
+static void poolHoldResult(ptr Data)
+{
+    redisPeerWait(Data, 1);
+}
 static void poolBounds(void)
 {
     redispoolpeer Peer; redisPoolPeerStart(&Peer, 2); xredispoolconfig Config; xredisPoolConfigInit(&Config);
@@ -324,15 +340,25 @@ static void poolBounds(void)
     testRequire(xredisClientCallAsync(Peer.Clients[1], &Hold, 1, 5000, &Held) == XREDIS_ADMISSION_ACCEPTED, "partial claim holder"); redisPeerWait(&Peer.Peers[1].Commands, 2);
     testRequire(xredisPoolCreate(Peer.Peers[0].Engine, 0, Peer.Clients, 2, NULL, &Output) == XREDIS_ADMISSION_OVERLOADED && Output == (xredispool*)(uintptr_t)1,
         "busy partial claim did not roll back");
-    xfuture* Call = NULL; testRequire(xredisClientCall(Peer.Clients[0], &Ping, 1, 5000, &Call) == XREDIS_ADMISSION_ACCEPTED && poolCallWait(Call)->Status == XREDIS_REQUEST_OK,
-        "partial claim retained first member"); xrtFutureDestroy(Call);
-    redisPeerReleaseBlocked(&Peer.Peers[1]); testRequire(poolCallWait(Held)->Status == XREDIS_REQUEST_OK, "partial claim holder release"); xrtFutureDestroy(Held);
-    double End = xrtTimer() + 10;
-    for (;;) {
-        xredisclientinfo Info = {0}; Info.Size = sizeof(Info); xredisClientInfo(Peer.Clients[1], &Info);
-        if (!Info.Requests) break;
-        testRequire(xrtTimer() < End, "partial claim native tail"); xrtThreadYield();
-    }
+    xfuture* Call = NULL;
+    testRequire(xredisClientCallAsync(Peer.Clients[0], &Hold, 1, 5000, &Call) == XREDIS_ADMISSION_ACCEPTED,
+        "partial claim retained first member");
+    redisPeerWait(&Peer.Peers[0].Commands, 2);
+    xatomic32 Retire = {0};
+    xfuturewatch Watch;
+    testRequire(xrtFutureWatchInit(&Watch, poolHoldResult, NULL, &Retire) &&
+        xrtFutureWatchAdd(Call, &Watch) == XFUTURE_WATCH_PENDING, "watch first member's rollback probe");
+    redisPeerReleaseBlocked(&Peer.Peers[0]);
+    testRequire(poolCallWait(Call)->Status == XREDIS_REQUEST_OK, "first member usable after rollback");
+    redisPeerReleaseBlocked(&Peer.Peers[1]);
+    testRequire(poolCallWait(Held)->Status == XREDIS_REQUEST_OK, "partial claim holder release");
+    poolWaitIdle(Peer.Clients[1]);
+    /* A published result can still hold the first member's reservation. */
+    testRequire(xredisPoolCreate(Peer.Peers[0].Engine, 0, Peer.Clients, 2, NULL, &Output) == XREDIS_ADMISSION_OVERLOADED &&
+        Output == (xredispool*)(uintptr_t)1, "pool accepted a completed request before native retirement");
+    xrtAtomic32Store(&Retire, 1, XMEMORY_RELEASE);
+    poolWaitIdle(Peer.Clients[0]);
+    xrtFutureDestroy(Call); xrtFutureDestroy(Held);
     xredispool* Pool = poolFixtureCreate(&Peer, NULL); xfuture* Acquired = poolAcquire(Pool, 5000); xredislease* Lease = poolWait(Acquired)->Lease;
     testRequire(Lease != NULL, "bounds lease"); poolreentry State = {0}; State.Pool = Pool; State.Lease = Lease;
     testRequire(xrtNetEnginePost(Peer.Peers[0].Engine, 1, poolWorkerReentry, &State), "pool reentry post"); redisPeerWait(&State.Done, 1);
