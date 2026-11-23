@@ -24169,3 +24169,19 @@ and Windows release tails remain open.
 
 The downloaded binary, build receipt and raw Linux trace are under
 out/service-extensions/native-ci-3e5fab5d/xcron-linux-cohorts/.
+
+## 2026-11-23 WSL follow-up for single-allocation Redis replies
+
+The matching WSL comparison replay verified 280,000 offered requests
+and 279,331 successful completions against the Redis 8.0.5 command
+ledger. The local outstanding window refused 409 baseline and 260
+candidate offers. Median successful throughput remained within 0.2%
+at both fixed rates. P99 and P99.9 exceeded variation limits for both
+variants and both rates. Raw journals and the independent replay are
+under out/service-extensions/xredis-owned-blob-742ebdf8/.
+
+The first full WSL run stopped at the shared-pool reconnect fixture
+with its local peer reporting a response send failure. Five isolated
+runs of the same executable passed afterward. A full WSL rerun is in
+progress, along with the full Windows run. The initial failure remains
+in wsl-tests.log.
