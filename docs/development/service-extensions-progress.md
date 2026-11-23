@@ -23512,3 +23512,20 @@ build and Windows endurance workloads during the comparison. The
 12,000-offer P99 series exceeded the repeatability limits. Native
 Linux, stable release timing and endurance with the new binary remain
 open. Records are under out/service-extensions/xredis-read-gate-2104cafd/.
+
+## 2026-11-23 Windows xredis endurance for the reply-path candidate
+
+The native Windows mixed client was rebuilt from clean 756eec00.
+It passed a 20-second run against its own Redis 8.0.5 peer in WSL,
+with 1,273 complete rounds and the exact command ledger. The verified
+binary then started a new 72-hour campaign at 13:18 Asia/Shanghai
+with the boot-and-active clock monitor. Its startup receipt and
+journal identify the same client, supervisor and independent Redis
+process. The first two completed windows recorded 322 and 642 rounds
+with a 5.003-second observation gap and agreement between the active
+and monotonic elapsed times.
+
+The previous Windows Redis run and the current Windows MQTT run were
+still active at this check. Completion of the new Windows interval
+and native Linux endurance remain open. Build, smoke and startup
+receipts are under out/service-extensions/xredis-read-gate-2104cafd/.
