@@ -25580,3 +25580,40 @@ on both transports. The comparison records the VM environment
 with the running endurance and cohort jobs. The release
 performance gate remains open. Evidence is under
 out/service-extensions/linux-guest-9ce2606c/xredis-hiredis-linux/.
+
+## 2026-11-23 MQTT client, broker and session comparisons on Ubuntu
+
+The QEMU/WHPX Ubuntu guest ran the registered MQTT 5 comparison
+at clean 9ce2606c against checksum-pinned Paho C 1.3.15 and
+Mosquitto 2.1.2. The broker, client load and independent TLS
+publisher used recorded guest CPU sets. The broker comparison
+used one network worker, fixed arrivals and matched protocol
+settings. Redis and MQTT endurance were active in the guest.
+[Paho C 1.3.15](https://github.com/eclipse-paho/paho.mqtt.c/releases/tag/v1.3.15).
+[Mosquitto source releases](https://mosquitto.org/files/source/).
+
+Host replay checked binaries, paired order, delivery counts and
+latency summaries. The TCP publisher verified 60,000 measured
+publications and 75,072 subscriber deliveries including warmup.
+The brokers verified 300,000 measured publications and 840,000
+deliveries across TCP and TLS. The independent broker trace
+verified 110,544 complete direct TLS receive exchanges, with
+87,000 measured deliveries. Graceful checkpoint/restore cases
+verified 3,200 offline publications and 21,120 replay deliveries
+across 120 broker processes, followed by empty-session checks.
+
+| Workload | xmqtt / reference median P99 (ms) |
+| --- | ---: |
+| TCP publisher QoS 1 at 1,500/s against Paho | 1.118 / 1.235 |
+| TCP publisher QoS 2 at 1,500/s against Paho | 1.534 / 1.373 |
+| TLS receiver QoS 2, window 16 against Paho | 1.550 / 2.325 |
+| TCP broker wildcard QoS 0 at 10,000/s against Mosquitto | 1.921 / 2.436 |
+| TCP broker wildcard QoS 2 at 3,000/s against Mosquitto | 2.397 / 2.879 |
+| TLS broker shared QoS 2 at 2,000/s against Mosquitto | 2.295 / 3.101 |
+
+Among the broker delivery-P99 series, only the xmqtt plaintext
+exact-filter series met both variation limits. Publisher and
+receiver comparisons still have unstable tails. Capacity and
+reconnect cohorts have their own receipts. Source identities,
+binaries, reports and independent replay are under
+out/service-extensions/linux-guest-9ce2606c/xmqtt-linux-comparison/.
