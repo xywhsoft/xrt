@@ -25373,3 +25373,24 @@ the prior suite size with no skipped executable. The current xredis
 and XRT build inputs match the 784b0305 candidate. Original and
 resumed logs are under
 out/service-extensions/xredis-bounded-progress-190dd32b/.
+
+## 2026-11-23 xcron P99.9 repeatability
+
+The scheduler cohort runner now reports per-process P99.9, median
+absolute deviation, central range and repeatability alongside the
+existing P99 fields. Both tails use the same 3 percent relative MAD
+and 6 percent central range rules with at least five repeats.
+The pooled quantiles and P99 fields stayed identical in offline replay.
+
+Replay checked the original binaries and runners and all 20 processes,
+5,120 waves and 2,785,280 callbacks per environment from the native
+Windows and hosted Linux campaigns. None of the 12 P99.9 series on
+either environment met both repeatability limits. At 256 waves per
+process, nearest-rank P99.9 is the largest wave in each process.
+A 1,000-wave synthetic fixture verified the second-largest rank,
+stable and unstable series, and the minimum-repeat behavior.
+
+New runner smoke tests verified 4,352 callbacks and all four cohort
+summaries on native Windows and Ubuntu WSL. Evidence is under
+out/service-extensions/xcron-p999-0020e637/. The release-tail gate remains
+open.
