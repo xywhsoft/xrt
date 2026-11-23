@@ -23061,3 +23061,29 @@ The native Linux job still needs to run, and strict release remains open.
 
 Raw reports, independent replay and local build receipts are under
 out/service-extensions/xredis-hiredis-native-248638d7/.
+
+
+## 2026-11-23 Windows xredis endurance restart after clock correction
+
+The Windows client and its WSL Redis peer stopped at 11:06 UTC+08:00.
+The supervisor reported clock_diverged and kept native_client_72h
+false. An independent replay checked 27,655 observed windows and
+7,101,674 verified rounds over 138,557.715 monotonic seconds. The
+largest observation gap was 5.063 seconds. The last accepted sample's
+wall clock was 1.761 seconds ahead of the monotonic elapsed clock.
+Windows recorded a subsequent forward UTC adjustment of 3.739 seconds.
+The MQTT observer saw the same step and continued with its offset
+within the existing five-second bound. The Redis supervisor retired
+the old peer normally after the failure.
+
+A fresh Windows x64 probe built from 3827f672 passed the 20-second
+startup check with its own Redis 8.0.5 process in WSL. The independent
+completed-workload audit reconciled 1,273 rounds and the server command
+ledger. The new 72-hour campaign started at 11:16 UTC+08:00. The build,
+process and journal identities agreed, with 2,555 rounds at the first
+startup audit. The environment and clock gate are unchanged. The
+previous prefix is retained as an interrupted run, and the new run
+must accumulate a full continuous interval.
+
+The failed prefix audit, Windows clock events, new build receipt and
+live journal are in out/service-extensions/xredis-windows-clock-restart-3827f672/.
