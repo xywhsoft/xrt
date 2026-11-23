@@ -144,6 +144,8 @@ Planned module families (not declarations of implemented modules):
   the observation gap, and reject changes in the suspend counter beyond
   the measurement tolerance. The verifier replays both elapsed clocks.
   UTC offsets remain available for investigating host time corrections.
+  The offline checker accepts legacy journals for diagnostic replay.
+  Native 72-hour qualification requires both uptime and awake-time evidence.
 - Product destruction returns resources to a documented baseline: live operations
   and handles are zero; retained core caches have explicit ownership/accounting.
 

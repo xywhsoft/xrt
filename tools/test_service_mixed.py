@@ -4,7 +4,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_service_mixed import check_build, check_windows, digest
+from unittest.mock import patch
+
+from check_service_mixed import check_build, check_report, check_windows, digest
 from service_mixed_clock import CLOCK_BASIS, validate_clock
 
 
@@ -22,7 +24,7 @@ class MixedEvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "build and run platform families differ"):
                 check_build("xredis", binary, receipt, report, "client_sha256")
 
-    def check_journal(self, first, wall_step=None):
+    def journal(self, first, wall_step=None):
         claim = "native_client_72h"
         start = {"status": "running", claim: False, "seconds_requested": 8,
                  "resource_growth_limits": {"private": 64 * 1024 * 1024, "handles": 32}}
@@ -45,7 +47,37 @@ class MixedEvidenceTest(unittest.TestCase):
                 row["clock"].update(wall_elapsed_seconds=elapsed + wall_step,
                                     offset_seconds=wall_step,
                                     boot_elapsed_seconds=elapsed, active_elapsed_seconds=elapsed)
-        return check_windows(map(json.dumps, (start, sample, end)), report, summary, claim, ("client",), False)
+        return (start, sample, end), report, summary
+
+    def check_journal(self, first, wall_step=None):
+        rows, report, summary = self.journal(first, wall_step)
+        return check_windows(map(json.dumps, rows), report, summary, "native_client_72h", ("client",), False)
+
+    def test_native_acceptance_requires_awake_clock_evidence(self):
+        with tempfile.TemporaryDirectory() as name, patch("check_service_mixed.RELEASE_SECONDS", 8):
+            folder = Path(name)
+            binary = folder / "probe"
+            binary.write_bytes(b"probe")
+            inputs = dict.fromkeys(("extlibs/xredis/tests/interop/redis_mixed.c",
+                                    "single/xrt.h", "single/extlibs/xredis.h"), "0" * 64)
+            receipt = dict(binary_sha256=digest(binary), platform="win32", inputs=inputs, commit="0" * 40)
+            counters = dict(set=900, get=900, publish=100, subscribe=1, hello=4)
+            identity = dict(run_id="fixture", process_id=123, connected_clients=1)
+            common = dict(client_sha256=receipt["binary_sha256"], platform="Windows-10-10.0.19045-SP0",
+                          inputs=inputs, wsl=False, server_owned=False,
+                          server_before=dict(identity, counts=dict.fromkeys(counters, 0)),
+                          server_after=dict(identity, counts=counters), command_delta=counters)
+            report_path = folder / "redis.json"
+            for wall_step in (None, 0):
+                with self.subTest(clock_basis=wall_step):
+                    rows, report, summary = self.journal(5, wall_step)
+                    rows[0].update(common)
+                    report.update(common, workload=summary, native_client_72h=True)
+                    report_path.write_text(json.dumps(report), encoding="utf-8")
+                    report_path.with_suffix(".jsonl").write_text(
+                        "\n".join(map(json.dumps, rows)), encoding="utf-8")
+                    evidence = check_report("xredis", binary, report_path, receipt)
+                    self.assertIs(evidence["native_72h"], wall_step is not None)
 
     def test_reconciles_first_progress_at_startup_deadline(self):
         self.assertEqual(self.check_journal(25)["rounds"], 100)

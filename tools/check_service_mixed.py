@@ -156,11 +156,13 @@ def check_report(product, binary, report_path, receipt):
                 "Redis command ledger mismatch")
 
     platform_name = report["platform"]
-    native = (report["wsl"] is False and platform_name.startswith(("Windows-", "Linux-")) and
-              not any(token in platform_name.lower() for token in ("microsoft", "wsl")) and
-              report["seconds_requested"] >= RELEASE_SECONDS and set(roles) <= summary["baseline"].keys())
-    require(report[claim] is native, "native 72-hour claim disagrees with evidence")
-    return dict(product=product, platform=platform_name, native_72h=native, build_commit=receipt["commit"],
+    native_run = (report["wsl"] is False and platform_name.startswith(("Windows-", "Linux-")) and
+                  not any(token in platform_name.lower() for token in ("microsoft", "wsl")) and
+                  report["seconds_requested"] >= RELEASE_SECONDS and set(roles) <= summary["baseline"].keys())
+    require(report[claim] is native_run, "native 72-hour claim disagrees with evidence")
+    # Replay historical reports with their original claim, then apply the release clock requirement.
+    qualified = native_run and report.get("clock_basis") == CLOCK_BASIS
+    return dict(product=product, platform=platform_name, native_72h=qualified, build_commit=receipt["commit"],
                 windows=summary["windows"], seconds=terminal["seconds"], rounds=rounds)
 
 
@@ -170,7 +172,8 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True, help="completed .json report with sibling .jsonl")
     parser.add_argument("--build-receipt", type=Path, help="defaults to the binary name followed by .build.json")
-    parser.add_argument("--require-native-72h", action="store_true")
+    parser.add_argument("--require-native-72h", action="store_true",
+                        help="require native endurance with uptime and awake-time evidence")
     args = parser.parse_args()
     receipt_path = args.build_receipt or args.binary.with_name(args.binary.name + ".build.json")
     try:

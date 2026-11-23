@@ -24938,3 +24938,32 @@ remains open across campaigns.
 The worker loops, source and binary identities, CPU topology,
 broker logs, comparison reports and independent ledger audits are
 under out/service-extensions/xmqtt-worker-sweep-bdcf4aaf/.
+
+## 2026-11-23 Native mixed-load awake-time release check
+
+The offline verifier now requires the boot-and-active clock basis
+for native 72-hour qualification. Historical journal and build
+receipts still replay with their original counters and reported
+claim. Their verified qualification reflects the release clock
+requirement. The regression fixture passed through the old native
+predicate and reproduced the false qualification before the fix.
+The new test passed on native Windows and Ubuntu WSL.
+
+The historical Windows MQTT smoke remained replayable. Fresh
+20-second runs from the fd65772a workload inputs passed replay.
+Windows MQTT verified 1,234 rounds and 7,482 broker deliveries.
+Ubuntu WSL Redis verified 3,391 rounds and the full Redis 8.0.5
+command ledger. Both short runs recorded boot and active clocks
+and were correctly refused by the strict 72-hour option.
+
+The Windows MQTT supervisor started a new 72-hour run at
+20:12 Asia/Shanghai. Its first 20 windows verified 6,308 rounds
+and 100.12 seconds of awake time with a largest observed gap
+of 5.009 seconds. The audit matched the two live child binaries
+and process ownership to the supervisor and build receipt. The
+earlier Windows MQTT run continues as diagnostic evidence.
+The new Windows run and native Linux qualification are pending.
+
+The build, replay and startup audit are under
+out/service-extensions/xmqtt-awake-clock-fd65772a/. The Redis
+clock smoke is under out/service-extensions/xredis-openloop-profile-fd65772a/.
