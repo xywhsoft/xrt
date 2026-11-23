@@ -26042,3 +26042,31 @@ The MQTT sanitizer suite and separate focused ThreadSanitizer
 replays have independent receipts. Source archive digests,
 test logs and replay scripts are under
 out/service-extensions/linux-guest-9ce2606c/service-sanitizers-7bf8b8bf/.
+
+## 2026-11-24 Ubuntu xcron wait phase measurements
+
+GCC 13 built the phase instrument on the QEMU/WHPX Ubuntu guest
+from 9ce2606c. Host replay matched the runner and binary hashes
+and confirmed that the xcron and XRT sources and benchmark C
+inputs match the current mainline. The benchmark was pinned
+to guest CPU 2 while the endurance workloads continued.
+Replay verified eight processes, 512 scheduled waves and
+278,528 callbacks. Each wave recorded one POSIX monotonic wait.
+
+The table pools two 64-wave runs per row. Each P99 uses its
+own nearest rank. Lateness at waiter return is measured
+against the UTC occurrence, and the return-to-first interval
+uses the monotonic benchmark clock.
+
+| Active / dormant | Drive | Return lateness P99 (us) | Return-to-first P99 (us) | First callback at least 1 ms late |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | scheduler wait | 1476.911 | 21.641 | 3 / 128 |
+| 64 / 960 | direct precise waiter | 1022.181 | 2.966 | 2 / 128 |
+| 1024 / 0 | scheduler wait | 1225.815 | 48.383 | 2 / 128 |
+| 1024 / 0 | direct precise waiter | 621.615 | 14.207 | 1 / 128 |
+
+In all eight late waves, the 1 ms threshold had already been
+crossed when the waiter returned. The uninstrumented
+1,024-wave campaign continues to measure release tails.
+Raw samples, source identity and replay are under
+out/service-extensions/linux-guest-9ce2606c/xcron-vm-wait-phases-b7859664/.
