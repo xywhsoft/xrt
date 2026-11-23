@@ -6,10 +6,12 @@
 #endif
 /* Local healthy fixture, not an interoperability oracle. MQTT frames/replies
  * below use literal protocol bytes independently of the product codec. */
+enum { MQTT_TLS_PREFIX_PAYLOAD=8u*1024u*1024u, MQTT_TLS_PREFIX_LIMIT=MQTT_TLS_PREFIX_PAYLOAD+65536u };
 typedef struct mqttTlsPeer {
     xnetengine* Engine;xnetlistener* Listener;xnetresolver* Resolver;xnetaddr Address;
     xtlscontext* Context;xtlscontext* BoundedServer;xtlsidentity* Identity;xtlsserverconfig Config;xmqttversion Version;
     xatomicptr Server,Raw;xatomic32 Closed,ListenerClosed,Publishes,Lookups,VerifierDrops,ReceivedAcks,Disconnects,Resume,DnsEntered,DnsGate;
+    xatomic32 PausedPrefix;
     unsigned char* Input;size_t Used,Capacity;bool Auth,PauseAfterFirst,Silent,Reject,BlockDns;
     void (*Frame)(xtlsstream*,struct mqttTlsPeer*,unsigned char,const unsigned char*,size_t);ptr FrameData;
 } mqttTlsPeer;
@@ -41,7 +43,7 @@ static inline void mqttTlsFrame(xtlsstream* S,mqttTlsPeer* P,unsigned char Flags
         if(Payload==3)testRequire(!memcmp(B+At,"x\0z",3),"exact binary publication snapshot");
         else if(Payload==32)testRequire(!memcmp(B+At,"0123456789abcdef0123456789abcdef",32),"benchmark binary snapshot");
         else if(Payload==5)testRequire(!memcmp(B+At,"first",5),"exact first-prefix plaintext");
-        else {testRequire(Payload==2u*1024u*1024u,"exact large snapshot size");for(size_t I=0;I<Payload;++I)testRequire(B[At+I]==0x6b,"large caller snapshot bytes");}
+        else {testRequire(Payload==(P->PauseAfterFirst?MQTT_TLS_PREFIX_PAYLOAD:2u*1024u*1024u),"exact large snapshot size");for(size_t I=0;I<Payload;++I)testRequire(B[At+I]==0x6b,"large caller snapshot bytes");}
         xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);
     }else if(Type==6){testRequire(N==2,"PUBREL identifier");unsigned char A[]={0x70,2,B[0],B[1]};mqttTlsSend(S,A,sizeof(A));}
     else if(Type==8 || Type==10){testRequire(N>=2,"subscription identifier");unsigned char A[]={Type==8?0x90:0xb0,4,B[0],B[1],0,Type==8?1:0};
@@ -54,23 +56,31 @@ static inline void mqttTlsFrame(xtlsstream* S,mqttTlsPeer* P,unsigned char Flags
     else if(Type==4 || Type==5 || Type==7)xrtAtomic32FetchAdd(&P->ReceivedAcks,1,XMEMORY_RELEASE);
     else testRequire(false,"expected literal MQTT control kind");
 }
+static inline bool mqttTlsPaused(const mqttTlsPeer* P)
+{
+    return P->PauseAfterFirst && xrtAtomic32Load(&P->Publishes,XMEMORY_ACQUIRE) &&
+        !xrtAtomic32Load(&P->Resume,XMEMORY_ACQUIRE);
+}
 static inline void mqttTlsRead(xtlsstream* S,const xnetbuf* Buffer,ptr Data)
 {
     (void)Buffer;mqttTlsPeer* P=Data;
-    if(P->PauseAfterFirst && xrtAtomic32Load(&P->Publishes,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&P->Resume,XMEMORY_ACQUIRE))return;
+    if(mqttTlsPaused(P))goto Paused;
     for(;;){size_t At=0;
         while(P->Used-At>=2){size_t H=1,N=0;unsigned Shift=0;unsigned char B;
             do{if(At+H==P->Used)goto ReadMore;B=P->Input[At+H++];N|=(size_t)(B&127u)<<Shift;Shift+=7;testRequire(H<=5,"bounded remaining length");}while(B&128u);
             if(N>P->Used-At-H)break;
             if(P->Frame)P->Frame(S,P,P->Input[At],P->Input+At+H,N);else mqttTlsFrame(S,P,P->Input[At],P->Input+At+H,N);At+=H+N;
-            if(P->PauseAfterFirst && xrtAtomic32Load(&P->Publishes,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&P->Resume,XMEMORY_ACQUIRE))break;
+            if(mqttTlsPaused(P))break;
         }
 ReadMore:
         if(At){P->Used-=At;if(P->Used)memmove(P->Input,P->Input+At,P->Used);}
-        if(P->PauseAfterFirst && xrtAtomic32Load(&P->Publishes,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&P->Resume,XMEMORY_ACQUIRE))return;
+        if(mqttTlsPaused(P))goto Paused;
         if(!xrtTlsStreamAvailable(S))return;
         size_t N=0;testRequire(P->Used<P->Capacity && xrtTlsStreamRead(S,P->Input+P->Used,P->Capacity-P->Used,&N)==XTLS_OK && N,"fixture plaintext read");P->Used+=N;
     }
+Paused:
+    /* The first frame was consumed. Observe the following plaintext without draining it. */
+    if(P->Used || xrtTlsStreamAvailable(S))xrtAtomic32Store(&P->PausedPrefix,1,XMEMORY_RELEASE);
 }
 static inline void mqttTlsClosed(xtlsstream* S,xnetresult R,const xerror* E,ptr Data)
 {(void)S;(void)R;(void)E;xrtAtomic32Store(&((mqttTlsPeer*)Data)->Closed,1,XMEMORY_RELEASE);}
@@ -106,8 +116,8 @@ static inline void mqttTlsStartWith(mqttTlsPeer* P,xmqttversion Version,unsigned
     memset(P,0,sizeof(*P));P->Version=Version;P->Auth=(Flags&MQTT_TLS_AUTH)!=0;P->PauseAfterFirst=(Flags&MQTT_TLS_PAUSE)!=0;
     P->Silent=(Flags&MQTT_TLS_SILENT)!=0;P->Reject=(Flags&MQTT_TLS_REJECT)!=0;P->BlockDns=(Flags&MQTT_TLS_BLOCK_DNS)!=0;
     P->Frame=Frame;P->FrameData=Data;
-    P->Capacity=3u*1024u*1024u;P->Input=xrtMalloc(P->Capacity);testRequire(P->Input!=NULL,"fixture bounded input");
-    xrtAtomicPtrInit(&P->Server,NULL);P->Context=testTlsServerContext();
+    P->Capacity=P->PauseAfterFirst?MQTT_TLS_PREFIX_LIMIT:3u*1024u*1024u;P->Input=xrtMalloc(P->Capacity);testRequire(P->Input!=NULL,"fixture bounded input");
+    xrtAtomic32Init(&P->PausedPrefix,0);xrtAtomicPtrInit(&P->Server,NULL);P->Context=testTlsServerContext();
     if(P->Context && (Flags&MQTT_TLS_SINGLE_RECORD)){
         /* Publish application records to Read before handling a following
          * close_notify, even when both records arrive in the same TCP read. */

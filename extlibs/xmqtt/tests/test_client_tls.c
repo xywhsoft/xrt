@@ -33,19 +33,30 @@ static void tlsPrefix(void)
 {
     for(unsigned Mode=0;Mode<3;++Mode){mqttTlsPeer P;mqttTlsStart(&P,XMQTT_VERSION_5,MQTT_TLS_PAUSE);xmqttclienttlsconfig T;char Name[12],Alpn[4];xstrview Protocol;
     xtlsverifier* V=mqttTlsConfigure(&P,&T,Name,&Protocol,Alpn);xmqttclient* C=NULL;xmqttpacket Q=tlsConnect();
-    xmqttclientconfig K;xmqttClientConfigInit(&K);K.Codec.MaxPacketBytes=3u*1024u*1024u;K.Codec.MaxPayloadBytes=3u*1024u*1024u;
+    xmqttclientconfig K;xmqttClientConfigInit(&K);
+    K.Codec.MaxPacketBytes=K.MaxOutgoingBytes=K.MaxPrivateBytes=MQTT_TLS_PREFIX_LIMIT;
+    K.Codec.MaxPayloadBytes=MQTT_TLS_PREFIX_PAYLOAD;
     testRequire(xmqttClientTlsConnect(P.Engine,&P.Address,1,&K,&T,&Q,&C),"prefix TLS factory");xrtTlsVerifierRelease(V);xfuture* Ready=xmqttClientReady(C);
     testRequire(((const xmqttreadyresult*)tlsFuture(Ready))->Status==XMQTT_STATUS_OK,"prefix ready");
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Body.Publish.Topic=XRT_STR_LITERAL("p");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("first");xfuture *First=NULL,*Later=NULL;
     testRequire(xmqttClientPublishAsync(C,&Q,15000,&First)==XMQTT_ADMISSION_ACCEPTED,"first prefix admission");
-    size_t N=2u*1024u*1024u;unsigned char* Bytes=xrtMalloc(N);testRequire(Bytes!=NULL,"large caller payload");memset(Bytes,0x6b,N);Q.Body.Publish.Payload=(xbytesview){Bytes,N};
+    size_t N=MQTT_TLS_PREFIX_PAYLOAD;unsigned char* Bytes=xrtMalloc(N);testRequire(Bytes!=NULL,"large caller payload");memset(Bytes,0x6b,N);Q.Body.Publish.Payload=(xbytesview){Bytes,N};
     testRequire(xmqttClientPublishAsync(C,&Q,15000,&Later)==XMQTT_ADMISSION_ACCEPTED,"later bounded output admission");memset(Bytes,0,N);xrtFree(Bytes);
     testRequire(((const xmqttwriteresult*)tlsFuture(First))->Status==XMQTT_STATUS_OK,"first QoS0 retires independently of later output");
-    testRequire(!xrtFutureDone(Later),"later output remains backpressured");xmqttclientinfo I;testRequire(xmqttClientInfo(C,&I) && I.Requests==1 && I.OutgoingBytes>N,"only later physical request quota remains");
+    mqttTlsWait(&P.PausedPrefix,1,"peer received plaintext beyond the first publication");
+    double RetireBy=xrtTimer()+15;xmqttclientinfo I;
+    for(;;){
+        testRequire(!xrtFutureDone(Later),"later output remains backpressured");
+        testRequire(xmqttClientInfo(C,&I) && I.OutgoingBytes>N,"later wire quota remains");
+        if(I.Requests==1)break;
+        testRequire(I.Requests==2 && xrtTimer()<RetireBy,"first physical request retires");
+        xrtSleep(1);
+    }
     if(!Mode){xrtAtomic32Store(&P.Resume,1,XMEMORY_RELEASE);testRequire(xrtNetEnginePost(P.Engine,0,tlsResumePeer,&P),"explicit slow-reader application resume");
         testRequire(((const xmqttwriteresult*)tlsFuture(Later))->Status==XMQTT_STATUS_OK,"later cut eventually retires");mqttTlsWait(&P.Publishes,2,"both plaintext frames arrive");}
     else {testRequire(Mode==1?xrtFutureCancel(Later):xmqttClientClose(C),"interrupt pending ciphertext prefix");const xmqttwriteresult* R=tlsFuture(Later);
-        testRequire(R->Status==(Mode==1?XMQTT_STATUS_CANCELLED:XMQTT_STATUS_CLOSED) && R->AcceptedBytes && R->Delivery==XMQTT_MAY_HAVE_REACHED_PEER,"accepted partial TLS output remains uncertain after interruption");}
+        testRequire(R->Status==(Mode==1?XMQTT_STATUS_CANCELLED:XMQTT_STATUS_CLOSED) && R->AcceptedBytes &&
+            R->AcceptedBytes<I.OutgoingBytes && R->Delivery==XMQTT_MAY_HAVE_REACHED_PEER,"accepted partial TLS output remains uncertain after interruption");}
     tlsClose(C);mqttTlsStop(&P);xrtFutureDestroy(First);xrtFutureDestroy(Later);xrtFutureDestroy(Ready);
     }
 }

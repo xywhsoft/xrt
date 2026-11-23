@@ -24259,3 +24259,28 @@ adjusted fixture remains open. Receipts, original logs and diagnostic
 runs are under out/service-extensions/xredis-owned-blob-742ebdf8/,
 out/service-extensions/xredis-session-outcome-bfbf7cbc/ and
 out/service-extensions/xredis-shared-connect-bfbf7cbc/.
+
+## 2026-11-23 Verify the MQTT TLS prefix before interruption
+
+The first complete-suite WSL sanitizer rehearsal stopped at the TLS
+partial-send assertion after reaching 52 executables. Repeating the
+original single-header executable reproduced the delivery assertion
+and an immediate physical-quota assertion. In twelve paired trials
+the original executable failed five times.
+
+The fixture now observes authenticated plaintext after the first
+publication while the peer is paused. The test waits for the first
+physical request quota to retire while the later request stays
+pending. A Windows trace showed that the original 2 MiB later
+publication could be fully accepted before the interruption. This
+case uses an 8 MiB publication within explicit fixture byte limits.
+Both interruption paths verify that accepted plaintext is positive
+and less than the pending frame size. The resume path verifies the
+whole message. Other TLS fixtures keep their existing limits.
+
+The final single-header case passed twelve native Windows runs and
+sixteen WSL ASan/UBSan runs with leak detection. The modular WSL
+ASan/UBSan fixture also passed. The test-only change preserves the
+measured production implementation. Full sanitizer verification
+is open. Logs and binary receipts are under
+out/service-extensions/xmqtt-tls-prefix-bfbf7cbc/.
