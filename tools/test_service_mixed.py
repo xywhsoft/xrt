@@ -6,7 +6,7 @@ import unittest
 
 from unittest.mock import patch
 
-from check_service_mixed import check_build, check_report, check_windows, digest
+from check_service_mixed import check_build, check_report, check_running, check_windows, digest
 from service_mixed_clock import CLOCK_BASIS, validate_clock
 
 
@@ -78,6 +78,48 @@ class MixedEvidenceTest(unittest.TestCase):
                         "\n".join(map(json.dumps, rows)), encoding="utf-8")
                     evidence = check_report("xredis", binary, report_path, receipt)
                     self.assertIs(evidence["native_72h"], wall_step is not None)
+
+    def test_native_replay_requires_broker_sample_in_last_window(self):
+        (start, sample, end), report, summary = self.journal(5, wall_step=0)
+        start["native_72h"] = False
+        report["native_72h"] = True
+        sample.update(replays=7, shared0=150, shared1=150)
+        for rank in (50, 95, 99, 999):
+            sample[f"p{rank}_us"] = sample.pop(f"round_p{rank}_us")
+        end.update(replays=7)
+        summary.update(replays=7, shared0=150, shared1=150)
+        roles = ("client", "broker")
+        with self.assertRaisesRegex(ValueError, "missing process resource sample"):
+            check_windows(map(json.dumps, (start, sample, end)), report, summary, "native_72h", roles, True)
+
+        sample["broker"] = sample.pop("client")
+        summary["baseline"] = {"broker": sample["broker"]}
+        result = check_windows(map(json.dumps, (start, sample, end)), report, summary, "native_72h", roles, True)
+        self.assertTrue(result["complete"])
+
+    def test_running_replay_checks_complete_lines_without_a_final_report(self):
+        with tempfile.TemporaryDirectory() as name:
+            folder = Path(name)
+            binary = folder / "probe"
+            binary.write_bytes(b"probe")
+            inputs = dict.fromkeys(("extlibs/xredis/tests/interop/redis_mixed.c",
+                                    "single/xrt.h", "single/extlibs/xredis.h"), "0" * 64)
+            receipt = dict(binary_sha256=digest(binary), platform="win32", inputs=inputs, commit="0" * 40)
+            (start, sample, terminal), _, _ = self.journal(5, wall_step=0)
+            start.update(client_sha256=receipt["binary_sha256"], platform="Windows-10-10.0.19045-SP0",
+                         inputs=inputs, wsl=False, server_owned=False)
+            journal = folder / "redis.jsonl"
+            prefix = b"".join(json.dumps(row).encode() + b"\n" for row in (start, sample))
+            journal.write_bytes(prefix + b'{"partial":')
+            result = check_running("xredis", binary, journal, receipt)
+            self.assertFalse(result["terminal_seen"])
+            self.assertEqual((result["rounds"], result["windows"], result["awake_seconds"]), (100, 1, 5))
+            self.assertEqual(result["latest_sampled_roles"], ["client"])
+            journal.write_bytes(prefix + json.dumps(terminal).encode() + b"\n")
+            self.assertTrue(check_running("xredis", binary, journal, receipt)["terminal_seen"])
+            journal.write_bytes(prefix + b'{"partial":\n')
+            with self.assertRaises(json.JSONDecodeError):
+                check_running("xredis", binary, journal, receipt)
 
     def test_reconciles_first_progress_at_startup_deadline(self):
         self.assertEqual(self.check_journal(25)["rounds"], 100)

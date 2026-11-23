@@ -25161,3 +25161,36 @@ Built-in static and shared package consumers passed on both
 environments. The stdio APP built from relocated public headers
 passed the same framing peer in the static, shared and single-header
 layouts. Import checks verified the intended dependency layout.
+
+## 2026-11-23 Live mixed-load journal verification
+
+The mixed-load verifier accepts an active journal through
+`--running-journal`. It checks the build receipt and binary,
+then replays each complete line against the existing clock,
+progress, latency and resource checks. An unfinished trailing line
+is held for the next replay. Full release verification still takes
+the completed report and reconciles the Redis command or MQTT
+delivery ledger.
+
+The MQTT release replay now requires a broker resource sample
+in the last workload window. The broker serves until the client
+retires. The client may finish while its own last resource sample
+is being collected. The regression reproduced the missing broker
+sample being accepted and now exercises both cases.
+
+The first replay verified 5,741 Redis windows with 1,812,313
+rounds and 28,750.54 awake seconds. The Redis client runs on native
+Windows with a private Redis peer in Ubuntu WSL. The MQTT replay
+verified 783 windows with 241,547 rounds and 3,920.89 awake seconds.
+Both MQTT processes run on native Windows. The largest observer
+gaps were 5.045 and 5.024 seconds respectively. The Windows process
+tree confirmed that both campaigns were live. Their original jobs
+and workloads continued.
+
+All eight verifier tests passed on native Windows and Ubuntu WSL.
+The completed Windows Redis and MQTT smokes and WSL Redis smoke
+replayed successfully. Strict qualification rejected the active
+journal and the Windows MQTT smoke. No self-hosted runner was
+registered for the repository during this check. Native Linux
+72-hour qualification remains open. Replay outputs are under
+out/service-extensions/mixed-live-ffb7ccfe/.

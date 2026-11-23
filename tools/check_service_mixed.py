@@ -1,7 +1,8 @@
-"""Reconcile a completed Redis or MQTT mixed-load report with its journal and build."""
+"""Reconcile Redis or MQTT mixed-load journal evidence with its build."""
 from __future__ import annotations
 
 import argparse
+from itertools import chain
 import json
 import math
 from pathlib import Path
@@ -52,7 +53,9 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
     require(basis in (None, CLOCK_BASIS) and start.get("clock_basis") == basis, "invalid journal clock basis")
     limits = report["resource_growth_limits"]
     require(limits == dict(private=64 * 1024 * 1024, handles=32), "unexpected resource growth limits")
+    require_resources = summary is None or report[claim]
     required_roles = set(roles) - {"server"}
+    required_through_last = required_roles - {"client"}
     prefix = "" if mqtt else "round_"
     percentiles = tuple(f"{prefix}p{rank}_us" for rank in (50, 95, 99, 999))
     previous = dict(rounds=0, seconds=0, cpu_seconds=0, observer_seconds=0, shared0=0, shared1=0)
@@ -94,8 +97,11 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
             terminal = row
             continue
 
-        if windows and report[claim]:
-            require(required_roles <= previous.keys(), "missing process resource sample")
+        if require_resources:
+            # A broker serves until after the last workload window. The
+            # client can retire while its last sample is being collected.
+            require(required_through_last <= row.keys() and
+                    (not windows or required_roles <= previous.keys()), "missing process resource sample")
         cpu = row["cpu_seconds"]
         require(row["samples"] == rounds - previous["rounds"] > 0 and
                 run_time > previous["seconds"] and math.isfinite(cpu) and cpu >= previous["cpu_seconds"],
@@ -117,6 +123,14 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
         previous = row
         windows += 1
 
+    if summary is None:
+        require(windows > 0, "no complete workload windows")
+        return dict(windows=windows, rounds=previous["rounds"], terminal_seen=terminal is not None,
+                    observer_seconds=previous_clock["monotonic_elapsed_seconds"],
+                    awake_seconds=previous_clock.get("active_elapsed_seconds"),
+                    latest_sampled_roles=sorted(role for role in roles if role in previous),
+                    largest_tick_gap_seconds=largest_gap)
+
     require(terminal is not None, "missing journal terminal record")
     expected = {key: value for key, value in terminal.items() if key not in ("observer_seconds", "clock")}
     expected.update(windows=windows, baseline=baseline, cpu_seconds=previous["cpu_seconds"],
@@ -125,6 +139,29 @@ def check_windows(journal, report, summary, claim, roles, mqtt):
         expected.update(shared0=previous["shared0"], shared1=previous["shared1"])
     require(summary == expected, "journal and workload summary disagree")
     return terminal
+
+
+def complete_lines(stream):
+    for line in stream:
+        if not line.endswith(b"\n"):
+            return  # The writer can be appending this line.
+        yield line
+
+
+def check_running(product, binary, journal_path, receipt):
+    mqtt = product == "xmqtt"
+    claim, binary_field = ("native_72h", "binary_sha256") if mqtt else ("native_client_72h", "client_sha256")
+    with journal_path.open("rb") as stream:
+        lines = complete_lines(stream)
+        first = next(lines)
+        start = json.loads(first)
+        check_build(product, binary, receipt, start, binary_field)
+        roles = ("client", "broker") if mqtt else ("client",)
+        if not mqtt and start["server_owned"]:
+            roles += ("server",)
+        progress = check_windows(chain((first,), lines), start, None, claim, roles, mqtt)
+    return dict(product=product, platform=start["platform"], wsl=start["wsl"], build_commit=receipt["commit"],
+                seconds_requested=start["seconds_requested"], **progress)
 
 
 def check_report(product, binary, report_path, receipt):
@@ -170,17 +207,24 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("product", choices=PROBES)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--report", type=Path, required=True, help="completed .json report with sibling .jsonl")
+    evidence = parser.add_mutually_exclusive_group(required=True)
+    evidence.add_argument("--report", type=Path, help="completed .json report with sibling .jsonl")
+    evidence.add_argument("--running-journal", type=Path, help="replay complete lines in an active .jsonl journal")
     parser.add_argument("--build-receipt", type=Path, help="defaults to the binary name followed by .build.json")
     parser.add_argument("--require-native-72h", action="store_true",
                         help="require native endurance with uptime and awake-time evidence")
     args = parser.parse_args()
+    if args.running_journal and args.require_native_72h:
+        parser.error("--require-native-72h requires a completed --report")
     receipt_path = args.build_receipt or args.binary.with_name(args.binary.name + ".build.json")
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         require(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", receipt["commit"]), "invalid build commit")
-        result = check_report(args.product, args.binary, args.report, receipt)
-        require(not args.require_native_72h or result["native_72h"], "native 72-hour coverage is missing")
+        if args.running_journal:
+            result = check_running(args.product, args.binary, args.running_journal, receipt)
+        else:
+            result = check_report(args.product, args.binary, args.report, receipt)
+            require(not args.require_native_72h or result["native_72h"], "native 72-hour coverage is missing")
     except (OSError, ValueError, TypeError, AttributeError, KeyError, StopIteration) as error:
         parser.exit(1, f"mixed workload evidence rejected: {error or 'empty journal'}\n")
     print(json.dumps(result, allow_nan=False))
