@@ -24295,3 +24295,47 @@ record. Both the modular and TLS-enabled single-header reconnect cases
 executed. The raw log and audit are under
 out/service-extensions/xredis-shared-connect-bfbf7cbc/. Native Linux
 release and the 72-hour acceptance runs remain open.
+
+## 2026-11-23 Grouped worker posts for QoS 2 fan-out
+
+A prototype based on f8e402a0 grouped the clean-session recipients of
+one accepted publication by network worker, with up to 16 deliveries
+per post. It kept a separate peer pin and delivery reservation for
+every recipient. The existing owner still handled FIFO delivery,
+expiry, Receive Maximum and acknowledgement retirement. The
+independent MQTT 5.0 and 3.1.1 peer and the 64-connection quota,
+atomic fan-out and credit recovery fixture passed on Windows and WSL.
+[MQTT 5.0 ordering and flow control](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+Two workers served every workload. Publishers used window 16 and
+QoS 2 subscribers used window 32. Both variants used the same
+affinity and observer within each host. Independent replay checked
+64 trials, 47 complete ledgers and all broker post counters. The
+complete trials verified 1,033,200 publications and 9,561,600
+deliveries. Every refusal reported PUBREC reason 0x97.
+
+| Host | Workload | Baseline complete / at rate | Prototype complete / at rate |
+| --- | --- | ---: | ---: |
+| Windows | QoS 0, 2,800/s, 8 subscribers | 3 / 3 | 3 / 3 |
+| WSL | QoS 0, 2,800/s, 8 subscribers | 3 / 3 | 3 / 3 |
+| Windows | QoS 2, 900/s, 32 subscribers | 5 / 5 | 5 / 5 |
+| WSL | QoS 2, 900/s, 32 subscribers | 5 / 5 | 5 / 5 |
+| Windows | QoS 2, 12,000/s, 8 subscribers | 0 / 0 | 1 / 1 |
+| WSL | QoS 2, 12,000/s, 8 subscribers | 5 / 0 | 5 / 0 |
+| Windows | QoS 2, 24,000/s, 8 subscribers | 0 / 0 | 0 / 0 |
+| WSL | QoS 2, 24,000/s, 8 subscribers | 1 / 0 | 3 / 0 |
+
+For each completed 32-subscriber trial, worker posts fell from
+105,669 to 6,669. WSL at 900/s measured 4.09 and 4.13 median CPU
+seconds with both CPU series within variation limits. At 12,000/s
+the complete WSL trials similarly reduced posts from 388,821 to
+97,221 without establishing a repeatable CPU or tail benefit. The
+three complete WSL prototype trials at 24,000/s achieved median
+ingress of 7,820/s with 8.19 s delivery P99.
+
+The mainline broker retains its existing path. These results
+support examining the publisher and subscriber credit cycles
+with additional concurrent publishing connections. The prototype,
+builds, original reports and replay are under
+out/service-extensions/xmqtt-post-groups-f8e402a0/. Ordinary maturity
+and generated headers passed.
