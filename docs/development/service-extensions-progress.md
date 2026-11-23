@@ -23551,3 +23551,28 @@ maturity, generated headers and diff checks passed.
 The change is confined to the APP's line framing. Native Linux
 release timing remains open. The probe, hashes and peer reports
 are under out/service-extensions/xrpc-framing-scan-0d5bf3c4/.
+
+## 2026-11-23 xredis pooled WATCH cancellation fixture ordering
+
+The initial optimized Windows aggregate stopped at the nested WATCH
+quota assertion. The same test passed six isolated reruns. Repeating
+the quota case reproduced the failed assertion with both the
+pre-optimization and current runtimes. A separate baseline trace
+recorded three commands before the read, four at cancellation, and
+NOT_SENT on its cancelled result. The peer publishes the WATCH reply
+before incrementing its command counter. The old test could mistake
+that fourth command for receipt of the nested HOLD, cancel an unsent
+read, and sample a different physical reservation. Another diagnostic
+recorded a closed WATCH after its deadline elapsed.
+
+The test now waits for the WATCH command count before sending the
+nested read. It requires MAY_HAVE_EXECUTED after cancellation before
+checking the physical quota and transaction refusal. Both runtimes
+passed 200 repetitions of this corrected Windows test. The optimized
+modular and single-header pool-session tests passed on Windows and
+Ubuntu WSL. All 93 test executables passed a replay on each platform
+with the corrected test binaries. No runtime code changed in this
+stage. The current 756eec00 endurance campaign continued.
+
+The initial failures, focused diagnostics and aggregate replay
+receipts are under out/service-extensions/xredis-read-gate-2104cafd/.

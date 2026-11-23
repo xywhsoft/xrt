@@ -169,11 +169,19 @@ static void sessionsQuotaAndBusy(void)
     sessionsQuota(&Peer, 0); xfuture* Started = NULL;
     testRequire(xredisLeaseWatch(Lease, &Key, 1, NULL, &Started) == XREDIS_ADMISSION_ACCEPTED, "busy rejection did not preserve lease");
     const xrediswatchresult* Start = sessionsWait(Started); testRequire(Start->Request.Status == XREDIS_REQUEST_OK, "quota WATCH ready"); sessionsQuota(&Peer, 0);
+    /* The peer counts WATCH after publishing its reply. Wait for that count
+     * before waiting for the nested HOLD command. */
+    redisPeerWait(&Peer.Redis.Tx.Peer->Commands, 4);
     xfuture* Read = NULL; uint32 Before = xrtAtomic32Load(&Peer.Redis.Tx.Peer->Commands, XMEMORY_ACQUIRE);
-    testRequire(xredisWatchCallAsync(Start->Watch, &Hold, 1, 5000, &Read) == XREDIS_ADMISSION_ACCEPTED, "quota nested read"); redisPeerWait(&Peer.Redis.Tx.Peer->Commands, Before + 1u);
+    testRequire(xredisWatchCallAsync(Start->Watch, &Hold, 1, 5000, &Read) == XREDIS_ADMISSION_ACCEPTED, "quota nested read");
+    redisPeerWait(&Peer.Redis.Tx.Peer->Commands, Before + 1u);
     testRequire(xredisWatchCommitAsync(Start->Watch, NULL, 0, 5000, &Output) == XREDIS_ADMISSION_OVERLOADED && Output == (xfuture*)(uintptr_t)1,
         "nested transaction escaped aggregate request cap");
-    testRequire(xrtFutureCancel(Read) && ((const xredisrequestresult*)sessionsWait(Read))->Status == XREDIS_REQUEST_CANCELLED, "nested sent read cancel"); sessionsQuota(&Peer, 1);
+    testRequire(xrtFutureCancel(Read), "nested read cancel request");
+    const xredisrequestresult* Cancelled = sessionsWait(Read);
+    testRequire(Cancelled->Status == XREDIS_REQUEST_CANCELLED &&
+        Cancelled->Delivery == XREDIS_MAY_HAVE_EXECUTED, "nested sent read cancel");
+    sessionsQuota(&Peer, 1);
     testRequire(xredisWatchCommitAsync(Start->Watch, NULL, 0, 5000, &Output) == XREDIS_ADMISSION_OVERLOADED && Output == (xfuture*)(uintptr_t)1,
         "nested logical cancellation returned physical quota");
     xfuture* Returned = sessionsReturn(Lease, false), *ScopeClosed = xredisWatchClosed(Start->Watch);
