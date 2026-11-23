@@ -15,8 +15,9 @@ ordinary Session with one retained wire copy and native parse per outgoing
 packet. Slot/generation/identity and trusted clocks are checked; fresh
 CONNACK is required. The host must retire the previous transport first and
 preserve pending Inbox payloads separately. See the [real-file passive example](examples/store_session/README.md).
-Live durable ACK/commit/lease integration and controlled performance/72h
-qualification remain required.
+The optional [durable Client](docs/client_store.md) gates MQTT protocol
+acknowledgements on journal commits. The [APP pending-record example](examples/store_inbox/README.md)
+shows how the application processes and retires a committed delivery.
 The developing [Session image codec](docs/session_image.md) checkpoints bounded
 outgoing QoS/committed incoming identities under an explicit broker/principal/slot
 binding, validates corruption and quotas, and restores independent clock epochs
@@ -24,13 +25,13 @@ and server-assigned MQTT5 identity. See the [offline example](examples/session_i
 The developing [transactional journal](docs/journal.md) adds bounded, checksummed
 records with two sync barriers and redundant latest commit witnesses on an
 explicitly supplied, already published XRT file. See the [storage-worker example](examples/journal/README.md).
-Full file publication/compaction, live transactional Inbox and acknowledgement
-durability remain pending.
+The application owns file provisioning and generation selection. The
+[maintenance example](docs/store_compact_online.md) shows how it schedules
+compaction and publishes a replacement journal.
 The developing [typed store-delta codec](docs/store_delta.md) validates bounded
 MQTT5/3.1.1 transaction batches with explicit flow/delivery keys, session epochs,
 canonical packets and distinct protocol/delivery completion records. See its
-[three-record receive example](examples/store_delta/README.md). It does not yet
-apply recovered state, drive live commits or emit MQTT acknowledgements.
+[three-record receive example](examples/store_delta/README.md).
 Optional [WSS credential handoff](docs/client_ws_tls_resume.md) now connects
 native ticket-only events to the existing bounded TLS resume cache across
 direct/HTTP/URI channels and ordinary reconnect factories. See the
@@ -85,8 +86,8 @@ provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
 numeric, hostname and prepared-address factories. Optional
 [TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
 ticket for explicit subsequent connections, including WSS with the separate leaf.
-Durable sessions, application cache policy and complete WebSocket acceptance remain pending.
-The developing WS/WSS stages above have separate evidence. Optional [hostname/prepared-address Dial](docs/client_dial.md)
+Cross-platform performance and 72-hour qualification remain open.
+The WS/WSS paths above have separate interoperability evidence. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 The [APP Inbox example](examples/inbox/README.md) keeps taken messages across
 Client and Engine destruction. Explicit [Client Session](docs/client_session.md)
@@ -290,8 +291,8 @@ Direct [State-to-Session import](docs/store_session.md) and bounded
 now developing components, with [runnable worker example](examples/journal_worker/README.md).
 The developing [durable Client](docs/client_store.md) gates MQTT protocol
 progress on journal commits. [APP pending record processing](docs/store_inbox.md) covers
-application delivery. Namespace publication, compaction and controlled
-production acceptance remain open.
+application delivery. The [online maintenance example](docs/store_compact_online.md)
+shows APP-owned file selection and compaction.
 
 The developing [mutable typed store](docs/store_write.md) now stages legal changes
 on that borrowed host pool and atomically installs committed metadata before
