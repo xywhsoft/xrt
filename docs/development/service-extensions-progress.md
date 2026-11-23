@@ -23668,3 +23668,50 @@ Actionlint, Bash syntax, ordinary maturity and generated headers
 passed. The native Linux job and stable release-capacity baseline
 remain open. The commands, hashes, reports and replay are under
 out/service-extensions/xmqtt-pressure-ledger-efe0fcd0/.
+
+## 2026-11-23 MQTT reliable PUBLISH preparation and session credit
+
+A prototype copied validated same-version PUBLISH packets when the
+forwarded QoS was unchanged, properties were empty and expiry was absent.
+It patched the flags and the placeholder Packet Identifier. Each of the
+baseline and prototype builds passed 100 byte-for-byte encoder comparisons
+per host, including QoS reduction, RETAIN changes, MQTT 5 and 3.1.1,
+and packets spanning three Remaining Length widths. The prototype
+also passed the independent dual-version peer and the 64-connection
+live quota and recovery fixture on Windows and WSL.
+
+An isolated benchmark ran one million preparations per payload on
+logical CPU 4, with five alternating pairs. The figures are median
+milliseconds for the preparation loop, including allocation and release.
+
+| Host | Payload | Baseline / prototype (ms) |
+| --- | ---: | ---: |
+| Native Windows | 128 bytes | 204.8 / 35.7 |
+| Native Windows | 4,096 bytes | 284.0 / 107.9 |
+| Ubuntu WSL | 128 bytes | 268.7 / 34.6 |
+| Ubuntu WSL | 4,096 bytes | 317.8 / 79.7 |
+
+The end-to-end comparison used two broker workers, eight wildcard
+subscribers and the same observer for both builds. Both QoS 2 windows
+were 16. Independent replay verified 52 samples and their build inputs.
+The 48 complete samples verified 1,059,200 measured publications and
+8,473,600 deliveries. All 2,800/s samples completed, including the
+QoS 0 controls. At 12,000/s the baseline and prototype completed 5/5
+and 4/5 samples on Windows and 4/5 and 3/5 on WSL. All four incomplete
+samples reported PUBREC reason 0x97. Among complete 12,000/s pairs the
+median prototype-to-baseline broker CPU ratio was 0.971 on Windows and
+1.005 on WSL. The prototype stays in the evidence directory pending a
+sustained capacity benefit. The production runtime keeps its encoder.
+
+A separate diagnostic build of the baseline traced the three delivery
+reservation limits at 24,000 offers/s. Five of the six samples reported
+PUBREC reason 0x97. All 14 traced refusals came from the per-session
+limit of 256 deliveries for a destination. The broker-wide delivery count
+and byte limits produced zero refusals in these samples. The trace
+identifies the exhausted quota. The timing of recipient delivery,
+acknowledgement and owner scheduling still needs further measurement.
+
+The candidate source, patch, binary identities, trace and replay are
+under out/service-extensions/xmqtt-reliable-wire-eeb67147/. The restored
+mainline generated header and ordinary maturity check passed. Native
+Linux and stable capacity acceptance remain open.
