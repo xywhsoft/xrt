@@ -25669,3 +25669,32 @@ Host replay matched both APP executables and the interop driver
 hashes and checked the reported protocol outcomes. The complete
 reports are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-native-recovery/.
+
+## 2026-11-23 Redis and MQTT SDKs on the Ubuntu guest
+
+The Ubuntu QEMU/WHPX guest built and verified static and shared
+packages for xredis, xredis_subscription_session, xmqtt and
+xmqtt_examples. The package consumers ran as the unprivileged
+Ubuntu user in independent directories containing spaces. The
+shared APPs and extension libraries loaded their sibling XRT and
+extension libraries. Static APPs had no dynamic dependency on
+either package. Host replay matched the eight SDK receipts,
+14 APP binaries, copied APP sources and 242 distinct library
+source hashes to master. Library closure checks included only
+the relevant library sources.
+
+Both Redis packages with the full client profile ran the real
+Redis 8.0.5 restart and interrupted TLS reply probes. Replay
+checked the changed process identity, the retained uncertain
+outcome and exactly one INCR. The optional subscription-session
+packages ran the independent peer example with one factory
+retry, one generation and a live intent change.
+
+The base and combined MQTT packages ran the native client
+example. Both combined packages also ran the independent MQTT 5
+and 3.1.1 broker peer and the enhanced authentication and
+checkpoint APPs over TCP, TLS, WebSocket and secure WebSocket.
+The package checks and source receipts are under
+out/service-extensions/linux-guest-9ce2606c/redis-mqtt-sdk/.
+The complete runtime suites and release performance checks have
+separate records.
