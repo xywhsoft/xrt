@@ -23114,3 +23114,25 @@ performance acceptance remain separate workloads. actionlint 1.7.7
 and ordinary MQTT maturity passed.
 
 Evidence is under out/service-extensions/xmqtt-native-comparison-cefaf2b8/.
+
+
+## 2026-11-23 Full xredis smoke with benchmark build reuse
+
+The full xredis smoke on Ubuntu WSL completed all 166 configured
+scenarios from 47 distinct builds and 119 copied executables. The
+independent audit matched every scenario's ordered execution, declared
+arguments, facts, observation fields and metric sample counts. Each
+reuse matched the source executable byte for byte. The report's
+workload and source fingerprints match a fresh inventory of the current
+Windows checkout. WSL Git marked the shared checkout dirty using its
+default line-ending behavior. The Windows checkout and the WSL status
+check with the Windows CRLF setting agreed after normalization.
+
+The older complete MQTT smoke on Ubuntu WSL passed all 131 scenarios.
+The optimized MQTT full smoke started in a distinct x64 output directory
+and was still in progress at this check. Native Linux CI and formal
+performance results remain separate.
+
+Raw reports, logs and the audit are under
+out/service-extensions/performance-build-reuse-98e35075/ and
+out/service-extensions/native-ci-48b0ba85/.
