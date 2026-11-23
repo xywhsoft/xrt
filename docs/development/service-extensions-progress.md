@@ -25394,3 +25394,39 @@ New runner smoke tests verified 4,352 callbacks and all four cohort
 summaries on native Windows and Ubuntu WSL. Evidence is under
 out/service-extensions/xcron-p999-0020e637/. The release-tail gate remains
 open.
+
+## 2026-11-23 xredis and xmqtt Linux VM endurance startup
+
+The Ubuntu 24.04.5 x86-64 guest booted its 6.8.0-147-generic
+kernel in QEMU 11.1.0 with WHPX and UEFI pflash on Windows 10.
+It has four virtual CPUs and 3 GiB of RAM. The Ubuntu image
+matched the signed Canonical manifest. The guest built the probes
+with GCC 13.3.0 from the clean 9ce2606c mainline snapshot and
+compiled its isolated Redis 8.0.5 peer from the pinned archive.
+Host replay checked 12 Redis and 16 MQTT build and workload input
+hashes against master. Record the VM environment with any timing
+results. [QEMU WHPX documentation](https://www.qemu.org/docs/master/system/whpx.html).
+[Ubuntu image and signed checksums](https://cloud-images.ubuntu.com/releases/noble/release-20261017/).
+
+The complete 20-second checks verified 5,162 Redis rounds with
+46,458 GET and 46,458 SET commands, and 5,761 MQTT rounds with
+34,927 broker deliveries. Both survived independent offline replay
+on the host. Separate fault cases killed the owned Redis peer
+after 1,292 verified rounds and the MQTT broker after 1,444. Both
+supervisors reported incomplete retirement and refused an endurance
+claim.
+
+The two 72-hour runs began at 22:54:52 Asia/Shanghai. The Redis
+client and its peer use guest CPUs 0 and 1. The MQTT broker and
+client use guest CPUs 2 and 3. Active systemd services and journal
+replay verified 13 initial windows in each run, covering 65 awake
+seconds, 16,763 Redis rounds and 18,351 MQTT rounds. A separate
+Windows witness samples the QEMU process and host awake clock.
+The host also holds a process-scoped Windows system-awake request
+for the endurance window. Both completed reports and continuous
+guest and host clock evidence are still required.
+
+Startup receipts, environment details, build inputs, smoke and
+fault ledgers, and the retained initial live journal windows are
+under out/service-extensions/linux-guest-9ce2606c/. The guest
+services write their ongoing journals under out/linux-vm-release/.
