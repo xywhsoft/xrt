@@ -71,8 +71,15 @@ int main(int argc, char** argv)
 		printf("success_p%u_us: %.3f\nall_p%u_us: %.3f\ngenerator_p%u_us: %.3f\nresponse_p%u_us: %.3f\n",
 			P, Result.Success[Index], P, Result.All[Index], P, Result.Lag[Index], P, Result.Response[Index]);
 	}
-	printf("logical_seconds: %.9f\nretire_seconds: %.9f\nprocess_window_cpu_seconds: %.6f\n", Result.Elapsed, Result.Retire, Result.Cpu);
-	printf("generator_window_cpu_seconds: %.6f\n", Result.GeneratorCpu);
+	printf("logical_seconds: %.9f\nretire_seconds: %.9f\nprocess_window_cpu_seconds: %.6f\n",
+		Result.Elapsed, Result.Retire, Result.Cpu.User + Result.Cpu.Kernel);
+	printf("generator_window_cpu_seconds: %.6f\n", Result.GeneratorCpu.User + Result.GeneratorCpu.Kernel);
+#if defined(_WIN32) || defined(RUSAGE_THREAD)
+	printf("process_window_user_cpu_seconds: %.6f\nprocess_window_kernel_cpu_seconds: %.6f\n",
+		Result.Cpu.User, Result.Cpu.Kernel);
+	printf("generator_window_user_cpu_seconds: %.6f\ngenerator_window_kernel_cpu_seconds: %.6f\n",
+		Result.GeneratorCpu.User, Result.GeneratorCpu.Kernel);
+#endif
 	printf("harness_bytes: %zu\nrequests_peak_sampled: %zu\ncommand_bytes_peak_sampled: %zu\n", Result.HarnessBytes, Result.RequestsPeak, Result.CommandBytesPeak);
 	printf("process_peak_rss_bytes: %" PRIu64 "\nhandles_before: %" PRIu64 "\nhandles_after: %" PRIu64 "\n", Result.RssPeak, Result.HandlesBefore, Result.HandlesAfter);
 	printf("window_malloc_calls: %" PRIu64 "\nwindow_calloc_calls: %" PRIu64 "\nwindow_realloc_calls: %" PRIu64 "\nwindow_memdup_calls: %" PRIu64 "\n", Result.Malloc, Result.Calloc, Result.Realloc, Result.MemDup);

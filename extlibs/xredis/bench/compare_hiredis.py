@@ -25,6 +25,9 @@ REJECTIONS = {"harness_capacity", "client_overloaded", "client_closed",
               "admission_error", "expired_before_admission"}
 COUNTS = REJECTIONS | {"offered", "accepted", "successful", "unsuccessful", "corrupt",
                        "deadline_missed", "accepted_get", "accepted_set"}
+CPU_SCOPES = ("process", "generator")
+CPU_MODES = ("user", "kernel")
+CPU_SPLIT = {f"{scope}_window_{mode}_cpu_seconds" for scope in CPU_SCOPES for mode in CPU_MODES}
 QUALITY = {"success_requests_per_sec", "success_p50_us", "success_p95_us",
            "success_p99_us", "success_p999_us"}
 METRICS = COUNTS | QUALITY | {"generator_p99_us", "process_window_cpu_seconds",
@@ -67,9 +70,18 @@ def sample(args, client: Path, name: str, command: list[str], raw_path: Path | N
     }
     try:
         facts = _parse_facts(result.stdout, set(expected) | {"network_backend"})
-        metrics = _parse_metrics(result.stdout, METRICS)
+        metric_names = METRICS
+        if any(line.partition(":")[0] in CPU_SPLIT for line in result.stdout.splitlines()):
+            metric_names |= CPU_SPLIT
+        metrics = _parse_metrics(result.stdout, metric_names)
     except SystemExit as error:
         return sample | {"verified": False, "error": str(error)}
+    if CPU_SPLIT <= metrics.keys():
+        for scope in CPU_SCOPES:
+            parts = [metrics[f"{scope}_window_{mode}_cpu_seconds"] for mode in CPU_MODES]
+            if min(parts) < 0 or not math.isclose(sum(parts), metrics[f"{scope}_window_cpu_seconds"],
+                                                 rel_tol=0, abs_tol=0.000002):
+                return sample | {"verified": False, "error": f"inconsistent {scope} CPU counters"}
     groups, tail = divmod(args.count, 4 * args.connections)
     sets = groups * args.connections + min(tail, args.connections) if args.mixed else 0
     expected_get = args.count - sets if args.mixed else 0
@@ -246,7 +258,10 @@ def compare(args, clients, parser, fixture) -> int:
         for name in clients:
             results = [run["metrics"] for run in report["runs"] if run["client"] == name and not run["warmup"]]
             report["summary"][name] = group = {}
-            for key in sorted(METRICS - COUNTS):
+            reported = METRICS - COUNTS
+            if all(CPU_SPLIT <= run.keys() for run in results):
+                reported |= CPU_SPLIT
+            for key in sorted(reported):
                 group[key] = stats = _metric_summary([run[key] for run in results])
                 if key in QUALITY and args.repeats >= 5:
                     stats["variation_pass"] = (stats["relative_mad"] <= 0.03 and

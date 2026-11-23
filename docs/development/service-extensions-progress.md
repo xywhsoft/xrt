@@ -24997,3 +24997,54 @@ unprofiled window before selecting a narrower profiling target.
 The exact builds, raw offer data, processor placement, profiling
 experiments and independent replay are under
 out/service-extensions/xredis-openloop-profile-fd65772a/.
+
+## 2026-11-23 Redis observer user and kernel CPU accounting
+
+The fixed-arrival xredis and Hiredis observers now record user and
+kernel CPU for the whole process and the generator. The snapshots
+cover the original measured window through retirement. The
+comparator checks complete nonnegative splits against each scope's
+total, and retains compatibility with reports from older observers.
+Both registered modular TCP and TLS C11 smoke profiles passed on
+native Windows and Ubuntu WSL.
+
+A WSL pilot produced 0.493165 seconds of process user CPU and
+0.567347 seconds of generator user CPU with consistent totals of
+2.861385 and 1.999437 seconds. The host uses tick CPU accounting.
+Linux adjusts the process and thread splits individually. The
+comparator accepts independently adjusted splits and continues to
+check the total thread/process relationship. The parser exercise
+checked legacy output, four valid counters, a missing field, a
+wrong sum and independently adjusted splits.
+[Linux CPU accounting](https://github.com/torvalds/linux/blob/v6.18/kernel/sched/cputime.c).
+
+The paired TCP campaigns used Redis 8.0.5 on WSL CPU 10 and
+observers on CPUs 6 and 8. Windows observers reached Redis through
+the WSL loopback forwarder. Each trial offered 24,000 mixed 1 KiB
+GET/SET operations at 12,000/s across eight RESP3 connections.
+The independent replay checked 1,152,000 offers including warmup
+across the first Windows campaign and both corrected campaigns,
+with their exact Redis command ledgers. One Windows campaign had
+six complete pairs and one xredis observer-window refusal. Its
+repeat had one complete pair and 472 observer-window refusals
+across the two clients. All seven WSL pairs completed.
+
+| Client host | Complete pairs | xredis process user / kernel (us/reply) | Hiredis process user / kernel (us/reply) | xredis / Hiredis reply P99 (us) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64, initial campaign | 6 of 7 | 65.8 / 32.9 | 27.7 / 49.2 | 935.9 / 773.6 |
+| Ubuntu WSL, corrected campaign | 7 of 7 | 32.0 / 88.6 | 14.4 / 68.9 | 1,349.8 / 867.3 |
+
+The medians use complete pairs. WSL process CPU was 120.51 and
+83.33 us/reply for xredis and Hiredis. Generator CPU was 83.31
+and 83.33 us/reply. The xredis median outside the generator
+was 37.50 us/reply. The WSL total process and generator series
+met repeatability. Both per-mode splits and both tail series
+exceeded variation limits, so finer cost attribution and
+performance acceptance remain open.
+
+The verified TLS 1.3 comparison on WSL also passed all 12 windows
+and reconciled 48,000 replies across four RESP3 connections. The
+comparison used the installed OpenSSL runtime and matching headers
+extracted to the evidence directory. The native Windows and WSL
+smoke logs, builds, raw ledgers and independent audits are under
+out/service-extensions/xredis-cpu-split-95ebd875/.

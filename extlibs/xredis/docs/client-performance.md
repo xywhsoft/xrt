@@ -74,6 +74,11 @@ retirement. Thus local results include peer work; external results do not
 include Redis process CPU. The generator polls/yields; its CPU and callback/
 validation bookkeeping are included and must not be attributed solely to the
 library. The benchmark also reports generator-thread CPU for that window.
+On Windows and Linux the observer records user and kernel CPU for both scopes.
+The comparator checks each scope's split against its total and reports all
+available fields. Linux can adjust process and thread CPU splits independently.
+Use process total minus generator total for CPU outside the generator.
+[Linux CPU accounting](https://github.com/torvalds/linux/blob/v6.18/kernel/sched/cputime.c).
 For successful replies, `response_p*_us` measures directly from the timestamp
 immediately before submission to the observation used for `success_p*_us`.
 The response interval includes submission, transport, the server and reply

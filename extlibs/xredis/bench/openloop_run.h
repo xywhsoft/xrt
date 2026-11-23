@@ -1,5 +1,8 @@
 #ifndef XREDIS_BENCH_OPENLOOP_RUN_H
 #define XREDIS_BENCH_OPENLOOP_RUN_H
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
 #endif
@@ -32,9 +35,14 @@
 #include <time.h>
 #endif
 
+typedef struct redisopencpu {
+	double User, Kernel;
+} redisopencpu;
+
 typedef struct redisopenresult {
 	redisopencounts Counts;
-	double Elapsed, Retire, Cpu, GeneratorCpu;
+	double Elapsed, Retire;
+	redisopencpu Cpu, GeneratorCpu;
 	double All[4], Success[4], Lag[4], Response[4];
 	uint64 Malloc, Calloc, Realloc, MemDup, BlockAlloc, BackingAlloc, BackingBytes;
 	size_t HarnessBytes, RequestsPeak, CommandBytesPeak, WindowPeak;
@@ -56,7 +64,7 @@ static void redisOpenRequire(bool Condition, cstr Message)
 static uint64 redisOpenNow(void)
 { return (uint64)(xrtTimer() * (double)REDIS_OPEN_NS); }
 
-static double redisOpenCpu(bool Generator)
+static redisopencpu redisOpenCpu(bool Generator)
 {
 #if defined(_WIN32)
 	FILETIME Created, Exited, Kernel, User; ULARGE_INTEGER K, U;
@@ -65,12 +73,25 @@ static double redisOpenCpu(bool Generator)
 	redisOpenRequire(Ok != 0, "CPU snapshot");
 	K.LowPart = Kernel.dwLowDateTime; K.HighPart = Kernel.dwHighDateTime;
 	U.LowPart = User.dwLowDateTime; U.HighPart = User.dwHighDateTime;
-	return (double)(K.QuadPart + U.QuadPart) / 10000000.0;
+	return (redisopencpu){(double)U.QuadPart / 10000000.0, (double)K.QuadPart / 10000000.0};
+#elif defined(RUSAGE_THREAD)
+	struct rusage Usage;
+	redisOpenRequire(getrusage(Generator ? RUSAGE_THREAD : RUSAGE_SELF, &Usage) == 0, "CPU snapshot");
+	return (redisopencpu){
+		(double)Usage.ru_utime.tv_sec + (double)Usage.ru_utime.tv_usec / 1000000.0,
+		(double)Usage.ru_stime.tv_sec + (double)Usage.ru_stime.tv_usec / 1000000.0,
+	};
 #else
 	struct timespec Time;
 	redisOpenRequire(clock_gettime(Generator ? CLOCK_THREAD_CPUTIME_ID : CLOCK_PROCESS_CPUTIME_ID, &Time) == 0, "CPU snapshot");
-	return (double)Time.tv_sec + (double)Time.tv_nsec / (double)REDIS_OPEN_NS;
+	return (redisopencpu){(double)Time.tv_sec + (double)Time.tv_nsec / (double)REDIS_OPEN_NS, 0};
 #endif
+}
+
+static redisopencpu redisOpenCpuDelta(bool Generator, redisopencpu Start)
+{
+	redisopencpu End = redisOpenCpu(Generator);
+	return (redisopencpu){End.User - Start.User, End.Kernel - Start.Kernel};
 }
 
 static uint64 redisOpenHandles(void)
@@ -398,7 +419,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	if (Config->Stats) xrtMemStatsReset();
 #endif
 	xredisclientinfo Info = {0}; Info.Size = sizeof(Info); uint64 Timeout = (uint64)Config->Timeout * 1000000u;
-	double CpuStart = redisOpenCpu(false), GeneratorStart = redisOpenCpu(true);
+	redisopencpu CpuStart = redisOpenCpu(false), GeneratorStart = redisOpenCpu(true);
 	uint64 Start = redisOpenNow(), Horizon = 0;
 	redisPeerRequire(redisOpenDue(Start, Config->Count - 1u, Config->Rate, &Horizon), "arrival horizon");
 	redisPeerRequire(Horizon <= UINT64_MAX - Timeout - 10u * REDIS_OPEN_NS, "bounded horizon arithmetic");
@@ -476,8 +497,8 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	redisTlsPeerCredentialsDrop(&Credentials);
 #endif
 	Output->Retire = (double)(redisOpenNow() - LogicalEnd) / (double)REDIS_OPEN_NS;
-	Output->GeneratorCpu = redisOpenCpu(true) - GeneratorStart;
-	Output->Cpu = redisOpenCpu(false) - CpuStart;
+	Output->GeneratorCpu = redisOpenCpuDelta(true, GeneratorStart);
+	Output->Cpu = redisOpenCpuDelta(false, CpuStart);
 #if defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) {
 		xmemstats Stats; xrtMemStatsGet(&Stats); Output->Malloc = Stats.MallocCalls; Output->Calloc = Stats.CallocCalls;
