@@ -24208,3 +24208,30 @@ A separate two-repeat Windows diagnostic started on logical CPU 10.
 Its raw wait phases and the local verification receipts are under
 out/service-extensions/xcron-native-wait-phases-bfbf7cbc/. Native Linux
 phase attribution and repeatable release tails still need evidence.
+
+## 2026-11-23 Native Windows xcron wait phase attribution
+
+The Windows diagnostic completed on logical CPU 10 using the
+high-resolution event waiter and precise wall clock. Independent
+replay verified the binary and runner identities, 512 waves, 278,528
+callbacks and one native wait per wave.
+
+| Active / dormant jobs | Drive | Waiter return lateness P99 (us) | Return to first callback P99 (us) |
+| --- | --- | ---: | ---: |
+| 64 / 960 | Scheduler wait | 10,283.1 | 188.0 |
+| 64 / 960 | Direct precise waiter | 14,266.4 | 33.7 |
+| 1,024 / 0 | Scheduler wait | 9,842.9 | 469.7 |
+| 1,024 / 0 | Direct precise waiter | 13,779.0 | 2.6 |
+
+197 waves first called back at least 1 ms after the deadline. In
+195 of them, the waiter itself returned at least 1 ms late. The
+other two returned 816.0 us and 836.8 us late and then took about
+190 us to reach the first callback. The later callbacks in those
+two waves spanned 42.2 us and 44.0 us. The observations locate
+most millisecond-scale delay at or before waiter return on this
+host and distinguish two cases with a measurable dispatch delay.
+
+This two-repeat diagnostic overlapped other verification work on the
+host. The raw Windows trace and independent replay are under
+out/service-extensions/xcron-native-wait-phases-bfbf7cbc/windows/.
+Repeatable uninstrumented release tails remain open.
