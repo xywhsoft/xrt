@@ -26897,3 +26897,25 @@ capacity campaign is queued behind the isolated Redis
 run. Samples and replay are under
 out/service-extensions/xmqtt-shared-pressure-e5185ff8/
 and out/service-extensions/linux-guest-9ce2606c/xmqtt-shared-pressure-e5185ff8/.
+
+## 2026-11-24 Isolated Windows Redis connection turnover
+
+Both diagnostic clients completed two alternating trials
+at 10,000 connections over the direct authenticated WSL
+route. The verifier reconciled all 80,000 ECHOs, 44,000
+HELLO commands, and zero rejected connections. Both
+observers replaced 1,000 connections in each trial.
+The peer verified zero remaining client connections.
+
+The observed starting socket count on the private route
+was zero or nine. Three trials waited for 11,008 earlier
+socket endpoints to retire. The waits lasted 119.6,
+119.9 and 123.0 seconds. With the same Windows TCP
+configuration, the previously interrupted workload
+completed under isolated conditions. This supplements
+the consecutive campaign's failures with a separate
+environment control. Two trials per observer leave
+strict performance repeatability open.
+
+The route, process identity, diagnostics and raw replay
+are under out/service-extensions/xredis-capacity-85f4ad5c/.
