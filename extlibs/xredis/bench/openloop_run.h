@@ -364,6 +364,12 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 		xrtAtomicPtrStore(&Endpoint.Peer.Hook, &Endpoint.Hook, XMEMORY_RELEASE);
 	} else {
 		xnetengineconfig Engine; xrtNetEngineConfigInit(&Engine); Engine.Workers = 1;
+		const char* BackendName = getenv("XREDIS_OPENLOOP_BACKEND");
+		if (BackendName && strcmp(BackendName, "auto")) {
+			if (!strcmp(BackendName, "epoll")) Engine.Backend = XNET_PORT_EPOLL;
+			else if (!strcmp(BackendName, "uring")) Engine.Backend = XNET_PORT_URING;
+			else redisPeerRequire(false, "XREDIS_OPENLOOP_BACKEND requires auto, epoll or uring");
+		}
 		Endpoint.Peer.Engine = xrtNetEngineCreate(&Engine);
 		redisPeerRequire(Endpoint.Peer.Engine != NULL && xrtNetEngineStart(Endpoint.Peer.Engine) &&
 			xrtNetAddrLoopback(&Endpoint.Peer.Address, XNET_FAMILY_IPV4, (uint16)Config->Port), "external loopback engine");

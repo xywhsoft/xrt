@@ -203,6 +203,13 @@ retain Redis INFO commandstats and INFO cpu before and after the run.
 The offered rate is fixed. Successful throughput measures how much of that
 rate the pair delivered at this CPU and connection budget.
 
+On Linux, set `XREDIS_OPENLOOP_BACKEND=epoll` or
+`XREDIS_OPENLOOP_BACKEND=uring` on the paired command to select the
+xredis observer's external TCP engine. Build the xredis observer with
+`-DXRT_MODULE_NET_PORT_URING` to enable io_uring. Unset the variable or
+use `auto` to use XRT's default. The JSON records the active xredis
+backend under `network_backend` in each run's facts.
+
 Add `--raw-dir out/redis-echo-traces` to keep one CSV for each observer
 process, including warmup runs. Use a new directory for each comparison.
 The paired JSON records each file name and SHA-256. Rows follow scheduled
