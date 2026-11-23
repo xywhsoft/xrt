@@ -32,6 +32,11 @@ on:
       - 'tools/**'
       - '.github/workflows/service-extensions.yml'
   workflow_dispatch:
+    inputs:
+      xcron_cohorts:
+        description: Run the full native Linux xcron latency campaign
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -428,6 +433,39 @@ jobs:
         with:
           name: service-extensions-${{ matrix.product }}-${{ matrix.platform }}-workload-smoke
           path: out/service-extensions/performance-${{ matrix.product }}-${{ matrix.platform }}-smoke.json
+          if-no-files-found: warn
+
+  xcron-linux-cohorts:
+    if: github.event_name == 'workflow_dispatch' && inputs.xcron_cohorts
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Measure scheduler and direct-waiter cohorts
+        shell: bash
+        run: |
+          evidence=out/service-extensions/xcron-linux-cohorts
+          mkdir -p "$evidence"
+          cpu=$(python -c 'import os; print(min(os.sched_getaffinity(0)))')
+          git rev-parse HEAD > "$evidence/revision.txt"
+          lscpu > "$evidence/cpu.txt"
+          XBENCH_PIN_CPU="$cpu" python -B tools/measure_performance.py --compiler gcc \
+            --config extlibs/xcron/config/performance_profiles.json --profiles xcron_scheduler_cohort \
+            --smoke --warmups 0 --repeats 1 --report "$evidence/build.json"
+          cp out/performance/gnu/native/xcron/xcron_cohort_1024_wait "$evidence/cohort"
+          runner=extlibs/xcron/bench/run_scheduler_cohorts.py
+          sha256sum "$evidence/cohort" "$runner" > "$evidence/sha256.txt"
+          python -B "$runner" "$evidence/cohort" --cpu "$cpu" --waves 256 --repeats 5 \
+            --report "$evidence/latency.jsonl"
+      - name: Preserve scheduler latency evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xcron-linux-cohorts
+          path: out/service-extensions/xcron-linux-cohorts/
           if-no-files-found: warn
 
   redis-restart:

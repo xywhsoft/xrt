@@ -22977,3 +22977,24 @@ The new timing step awaits a GitHub run. Repeatable release tails
 and strict release acceptance remain open. Evidence is under
 out/service-extensions/xrpc-windows-handoff-6abe6864/ and
 out/service-extensions/xrpc-windows-read-entry-6abe6864/.
+
+
+## 2026-11-23 Native Linux xcron matched-precision cohort job
+
+The service workflow now offers an opt-in native Ubuntu cohort job.
+It builds the existing optimized scheduler benchmark from the checkout
+and alternates scheduler Wait and the precise XRT waiter on one
+available logical CPU. Both 64-active and 1,024-active cases use the
+same five repetitions of 256 waves as the Windows campaign. A separate
+100-minute job covers roughly 86 minutes of scheduled measurements.
+It preserves the built executable, hashes, revision, CPU description
+and the raw journal even if the campaign terminates early.
+
+The extracted job command passed on Ubuntu WSL with two waves per
+case. Independent replay verified all four case/drive combinations,
+eight measured waves, 4,352 callbacks, every pooled quantile and the
+runner and executable identities. actionlint passed. A separate
+full-length WSL rehearsal started from that verified executable.
+The opt-in GitHub job still needs a native run. The strict release and
+stable Windows/Linux timing gates remain open. Local evidence is under
+out/service-extensions/xcron-native-cohort-job-feee80b1/.

@@ -133,6 +133,10 @@ For a shorter verification, set `--waves 2 --repeats 1`. A completed
 report describes the environment that ran it. Use an independent native
 Linux run for acceptance.
 
+The Service extensions workflow exposes the same full campaign through its
+`xcron_cohorts` workflow-dispatch input. It preserves the native Ubuntu
+benchmark, build report, CPU description and raw latency journal.
+
 The separate wait-phase benchmark samples the wall and monotonic clocks on
 entry to and return from XRT EventWaiter. It also prints the actual waiter
 backend. The numeric backend values follow `xeventwaiterbackend` in
