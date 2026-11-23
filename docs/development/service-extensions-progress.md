@@ -25854,3 +25854,36 @@ run. The earlier failed runs and the final pass are retained
 under out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
 The optimized runtime result covers this suite. Performance
 repeatability and continuous-run release evidence remain open.
+
+## 2026-11-24 Ubuntu MQTT QoS 2 overload and matched capacity
+
+The same two broker CPUs, two observer CPUs, eight wildcard
+subscribers and window 16 on each side were held across the sweep
+on the four-vCPU QEMU/WHPX guest. xmqtt used two network workers.
+The guest also ran its endurance and scheduler jobs. Host replay
+checked all 58 broker runs, 35 complete ledgers with 576,000
+measured publications and 4,608,000 verified fan-out deliveries.
+The early campaign used the same pinned binaries and completed
+all five xmqtt trials at both 12,000 and 16,000 offers/s. The
+new matched rerun shows variation in completion at those rates.
+
+| Offers/s | Complete xmqtt / Mosquitto | Median delivery P99 xmqtt / Mosquitto (ms) |
+| ---: | ---: | ---: |
+| 4,000 | 5/5 and 5/5 | 3.484 / 4.402 |
+| 6,000 | 5/5 and 5/5 | 3.914 / 11.696 |
+| 8,000 | 5/5 and 3/5 | |
+| 10,000 | 4/5 and 1/5 | |
+| 12,000 | 2/3 and 0/3 | |
+| 16,000 | 0/3 and 0/3 | |
+| 24,000 | 0/3 and 0/3 | |
+
+Each of Mosquitto's 15 incomplete trials logged outbound drops
+while sending terminal acknowledgements for most or all offered
+publications. Each of xmqtt's eight incomplete trials returned
+PUBREC reason 0x97 and the observer stopped offering further
+messages. Failure progress covers validated deliveries before
+observer retirement. The paired latency columns use complete
+cohorts. Only the 6,000/s Mosquitto delivery P99 series in that
+table met both repeatability limits. Logs, peer configurations,
+captured failure progress and independent replay are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-qos2-attribution-7bf8b8bf/.
