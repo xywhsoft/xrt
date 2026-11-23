@@ -28,8 +28,10 @@ If the monotonic clock fails after the timer
 returns, Wait reports an error, keeps the occurrence pending and
 preserves the caller's output. An explicit wake returns WOKEN so the caller
 can apply APP changes or drive again. With a zero timeout, Wait dispatches
-due jobs and otherwise returns TIMEOUT. An empty scheduler can wait for
-Wake indefinitely.
+due jobs and otherwise returns TIMEOUT. Poll and Wait on an empty scheduler
+do not read UTC. An empty scheduler can wait indefinitely on its Wake event
+without creating a timer waiter. A finite empty wait still uses the monotonic
+caller timeout.
 
 Each drive samples UTC wall time once per dispatch wave. Each due job invokes
 its callback once. Its next deadline follows the original expression strictly
@@ -41,8 +43,8 @@ time-change or resume handler to bring the check forward.
 The heap preserves registration order for equal deadlines. An idle Poll reads
 one wall timestamp and inspects the heap minimum. Registration and removal
 use logarithmic heap updates. Storage is allocated during
-creation and the waiter is initialized on first use of blocking Wait. The
-dispatched APP callback controls execution cost.
+creation. The waiter is initialized on the first wait with a finite deadline.
+The dispatched APP callback controls execution cost.
 
 Dispatch reuses a successful next-time calculation for adjacent due jobs
 with equal compiled rule masks and day-star flags in the same wave.

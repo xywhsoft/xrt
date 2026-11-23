@@ -25194,3 +25194,36 @@ journal and the Windows MQTT smoke. No self-hosted runner was
 registered for the repository during this check. Native Linux
 72-hour qualification remains open. Replay outputs are under
 out/service-extensions/mixed-live-ffb7ccfe/.
+
+## 2026-11-23 Empty xcron scheduler drive
+
+An empty scheduler previously read UTC before it could report idle,
+honor a caller timeout or consume Wake. The clock-loss regression
+failed on native Windows and Ubuntu WSL. Empty Poll and Wait now
+skip UTC. An indefinite empty wait uses the existing wake event
+directly. A finite empty wait retains the monotonic deadline and the
+reusable XRT timer waiter. The job and wall-clock recovery paths keep
+their existing contracts.
+
+The paired idle probe ran one warmup pair and seven alternating
+measured pairs per mode on logical CPU 4. Each polling process made
+six million calls. Each wake process completed 250,000 pre-signalled
+wake-and-wait pairs. Values are median per operation.
+
+| Environment | CPU unit | Empty Poll before / after | Empty Wake and Wait before / after | Registered idle Poll before / after |
+| --- | --- | ---: | ---: | ---: |
+| Native Windows x64 | Thread cycles | 115.71 / 13.70 | 1114.31 / 981.46 | 119.88 / 119.69 |
+| Ubuntu WSL x64 | Thread CPU ns | 27.48 / 4.11 | 40.48 / 20.49 | 27.80 / 27.73 |
+
+The Windows indefinite wake probe retained one fewer process handle.
+It and the WSL probe both verified that the empty wait left the timer
+waiter uninitialized. The idle probe covers already signalled wakes,
+polling and resource use. Scheduling-tail acceptance remains open.
+
+Seven optimized modular and single-header test executables, runnable
+examples, the restart catch-up peer, and static and shared packages passed on
+each environment. The scripted clock and mixed rule test also
+passed WSL AddressSanitizer and UndefinedBehaviorSanitizer with
+leak checks enabled. Generated headers and ordinary maturity passed.
+The failing logs, benchmark sources and paired samples are under
+out/service-extensions/xcron-empty-0bdcbbf6/.

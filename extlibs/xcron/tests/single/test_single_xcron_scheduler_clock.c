@@ -297,6 +297,28 @@ static void testWaveSample(void)
     end();
 }
 
+static void testEmptyScheduler(void)
+{
+    begin(0, NAN);
+    xcronpoll Result = {.Count = 1, .HasNext = true, .Next = 42};
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_IDLE &&
+        !Result.Count && !Result.HasNext, "empty poll does not require a wall clock");
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 0, &Result) == XCRON_SCHEDULE_TIMEOUT &&
+        !Result.Count && !Result.HasNext, "empty zero wait does not read a clock");
+    testRequire(xcronSchedulerWake(Clock.Scheduler) &&
+        xcronSchedulerWait(Clock.Scheduler, XRT_WAIT_FOREVER, &Result) == XCRON_SCHEDULE_WOKEN &&
+        !Result.Count && !Result.HasNext && !Clock.Scheduler->HasWaiter,
+        "empty indefinite wait uses only the wake event");
+
+    Clock.Monotonic = 70.0;
+    const clockstep Timeout = {70.01, 0, 70.01, false};
+    plan(&Timeout, 1);
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 10, &Result) == XCRON_SCHEDULE_TIMEOUT &&
+        !Result.Count && !Result.HasNext && Clock.Scheduler->HasWaiter,
+        "empty finite wait uses its independent monotonic timeout");
+    end();
+}
+
 static void testClockFailure(void)
 {
     begin(0, 30.0);
@@ -524,6 +546,7 @@ int main(void)
     testWaitAfterSamplingDelay();
     testBothDeadlinesElapsedBeforeArming();
     testWaveSample();
+    testEmptyScheduler();
     testClockFailure();
     testDistinctRecurrences();
     testReusedSlotWaveOrder();

@@ -1301,11 +1301,14 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
     double Limit = Timeout > 0 ? xcronScheduleDeadline(Sample, (uint64)Timeout, 0) : INFINITY;
     for (;;) {
         uint32 SubNs = 0;
-        xtime Now = Blocking ? __xrtNowWithSubMs(&SubNs) : xrtNow();
-        if (!Now) {
-            xcronScheduleError(XERR_IO, "wall clock unavailable");
-            Status = XCRON_SCHEDULE_ERROR;
-            break;
+        xtime Now = 0;
+        if (S->Count) {
+            Now = Blocking ? __xrtNowWithSubMs(&SubNs) : xrtNow();
+            if (!Now) {
+                xcronScheduleError(XERR_IO, "wall clock unavailable");
+                Status = XCRON_SCHEDULE_ERROR;
+                break;
+            }
         }
         Status = xcronScheduleDue(S, Now, &Report);
         if (Status != XCRON_SCHEDULE_IDLE || !Wait) break;
@@ -1334,6 +1337,9 @@ static xcronschedulestatus xcronScheduleDrive(xcronscheduler* S, int64 Timeout,
                 Status = XCRON_SCHEDULE_TIMEOUT;
                 break;
             }
+        } else {
+            Status = xrtEventWait(&S->Wake) == XWAIT_OK ? XCRON_SCHEDULE_WOKEN : XCRON_SCHEDULE_ERROR;
+            break;
         }
         if (!S->HasWaiter) {
             if (!xrtEventWaiterInit(&S->Waiter, &S->Wake, 0)) {
