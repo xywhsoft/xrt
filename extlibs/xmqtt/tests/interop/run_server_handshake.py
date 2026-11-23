@@ -259,12 +259,30 @@ def check_qos2(legacy, modern):
     modern.sendall(b"\x70\x02\0\3\xc0\0")
     assert read(modern, 2) == b"\xd0\0"
 
+    legacy.sendall(small_frame(0x34, key + b"\0\x53" + payload))
+    assert read(legacy, 4) == b"\x50\x02\0\x53"
+    legacy.sendall(b"\x62\x02\0\x53")
+    assert read(legacy, 4) == b"\x70\x02\0\x53"
+    expected = small_frame(0x34, key + b"\0\4\0" + payload)
+    assert read(modern, len(expected)) == expected
+    modern.sendall(b"\x50\x03\0\4\x80\xc0\0")
+    assert read(modern, 2) == b"\xd0\0", "negative PUBREC must not trigger PUBREL"
+
 
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
     except ConnectionResetError:
         pass
+
+
+def check_zero_qos_ids(endpoint):
+    for level in (4, 5):
+        for tag in (0x40, 0x50, 0x62, 0x70):
+            peer, _ = connect(endpoint, level, f"zero-id-{level}-{tag}".encode("ascii"))
+            with peer:
+                peer.sendall(bytes((tag, 2, 0, 0, 0xc0, 0)))
+                eof(peer)
 
 
 def open_session(endpoint, level, clean, present):
@@ -390,6 +408,7 @@ def probe(program):
                     check_retained_parallel(endpoint, legacy)
                     check_qos1(legacy, newer)
                     check_qos2(legacy, newer)
+                    check_zero_qos_ids(endpoint)
                     check_session_resume(endpoint, newer, 5)
                     check_session_resume(endpoint, newer, 4)
                     check_will(endpoint, newer, 5)
@@ -398,6 +417,7 @@ def probe(program):
                     eof(newer)
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
+            "zero_qos_ack_ids_rejected": 8, "explicit_negative_pubrec": True,
             "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 

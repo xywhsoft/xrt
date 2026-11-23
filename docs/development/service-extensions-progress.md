@@ -23765,3 +23765,48 @@ The probe, source and binary identities, phase journals and independent
 replay are under out/service-extensions/xmqtt-qos2-phases-433e8fbf/.
 Ordinary maturity and generated-header checks passed. Native Linux and
 release capacity acceptance remain open.
+
+## 2026-11-23 MQTT short acknowledgement boundary
+
+The independent wire peer now checks zero Packet Identifiers in PUBACK,
+PUBREC, PUBREL and PUBCOMP on both versions. Each input includes a trailing
+PINGREQ and requires immediate closure with no reply. The peer also sends
+an explicit negative MQTT 5 PUBREC followed by PINGREQ and verifies that
+the broker returns PINGRESP without starting the release phase. Windows
+and Ubuntu WSL passed the extended peer on the baseline and the prototype.
+A WSL prototype build with the zero-identifier guard deliberately removed
+failed the new closure assertion. The existing 64-connection quota peer
+also passed on both hosts.
+
+The prototype reused the validated fixed header for two-byte
+acknowledgements. It kept the full codec path for longer forms and
+zero identifiers. These forms follow section 3.4 through 3.7 of the
+[MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
+standards. An isolated benchmark used logical CPU 4 and five alternating
+pairs. Values are median milliseconds for three million reads.
+
+| Host | Protocol and frame bytes | Baseline / prototype (ms) |
+| --- | --- | ---: |
+| Native Windows | 3.1.1, 4 | 228.4 / 122.8 |
+| Native Windows | 5.0, 4 | 249.8 / 122.6 |
+| Native Windows | 5.0, 5 | 255.5 / 255.0 |
+| Ubuntu WSL | 3.1.1, 4 | 257.4 / 104.5 |
+| Ubuntu WSL | 5.0, 4 | 275.2 / 105.8 |
+| Ubuntu WSL | 5.0, 5 | 283.3 / 278.8 |
+
+End-to-end replay verified 62 trials and 54 complete ledgers, including
+1,195,200 measured publications and 11,289,600 deliveries. Every
+2,800/s QoS 0 and 900/s QoS 2 trial completed. With eight subscribers
+at 12,000 offers/s and both windows set to 16, Windows completed
+5/5 baseline and 3/5 prototype trials in the initial cohort. A fresh
+Windows cohort completed 4/5 each. Ubuntu WSL completed 3/5 each.
+All eight incomplete trials reported PUBREC reason 0x97. The Windows
+median paired P99 change was +17.7 percent initially and -5.3 percent
+on repeat. The end-to-end results leave the prototype in the evidence
+directory with its source and build receipts.
+
+The wire peer extension is part of the existing native matrix. The
+ordinary maturity and generated-header checks passed. The source,
+commands and replay are under out/service-extensions/xmqtt-short-ack-6e46af86/.
+Native Linux and stable capacity acceptance remain open.
