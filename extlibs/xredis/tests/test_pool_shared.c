@@ -50,7 +50,11 @@ static void sharedBasic(void)
         const xredisrequestresult* R = sharedWait(Calls[I]); xredisreplyvalue V;
         testRequire(R->Status == XREDIS_REQUEST_OK && xredisReplyGet(R->Reply, 0, &V) && V.Data.Size == 5 && !memcmp(V.Data.Data, "s\0\r\n\xff", 5), "shared binary ownership");
     }
-    for (size_t I = 0; I < 3; ++I) testRequire(xrtAtomic32Load(&Peer.Peers[I].Commands, XMEMORY_ACQUIRE) == 5, "shared round robin");
+    for (size_t I = 0; I < 3; ++I) {
+        /* The client can observe a reply before the peer records its command. */
+        redisPeerWait(&Peer.Peers[I].Commands, 5);
+        testRequire(xrtAtomic32Load(&Peer.Peers[I].Commands, XMEMORY_ACQUIRE) == 5, "shared round robin");
+    }
     const char* Controls[] = {"MULTI", "WATCH", "SUBSCRIBE", "ASKING", "QUIT", "READONLY", "SELECT", "AUTH"};
     for (size_t I = 0; I < sizeof(Controls) / sizeof(Controls[0]); ++I) {
         xbytesview Command = {(const unsigned char*)Controls[I], strlen(Controls[I])};

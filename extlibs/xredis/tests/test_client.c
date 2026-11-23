@@ -430,7 +430,11 @@ static void testClientEdges(void)
 			"invalid client config/endpoint changed output"); xrtClearError();
 	}
 	testRequire(xrtNetListenerClose(Peer.Listener), "refusal listener close"); redisPeerWait(&Peer.ListenerClosed, 1);
+	testClientStall Stall = {0};
+	testRequire(xrtNetEnginePost(Peer.Engine, 0, testClientStallWorker, &Stall), "hold worker before connection refusal");
+	redisPeerWait(&Stall.Entered, 1);
 	xredisclient* Client = testClientConnect(&Peer, NULL); xfuture* Future = testClientSubmit(Client, "PING", NULL, 5000);
+	xrtAtomic32Store(&Stall.Release, 1, XMEMORY_RELEASE);
 	const xredisrequestresult* Result = testClientResult(Future);
 	testRequire(Result->Status == XREDIS_REQUEST_DISCONNECTED && Result->Delivery == XREDIS_NOT_SENT && Result->Reply == NULL,
 		"connect failure uncertainty/replay"); xrtFutureDestroy(Future); testClientClose(&Peer, Client);

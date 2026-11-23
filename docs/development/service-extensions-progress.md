@@ -25751,3 +25751,23 @@ executables and recorded two other failures, in client request
 admission and the TLS single-header shared-pool peer counts.
 The original full regression logs remain under
 out/service-extensions/linux-guest-9ce2606c/redis-session-fix/.
+
+## 2026-11-24 Redis client refusal and shared-pool observations
+
+The client refusal fixture now parks the connection worker
+until the request has been admitted. This ensures the fixture
+exercises disconnect of an admitted request when the refused
+connection is processed. The shared-pool round-robin check waits
+for each peer's recorded command count before checking its
+exact value. A peer publishes the count after offering the reply.
+
+The updated fixtures passed five Ubuntu and four native Windows
+optimized runs covering modular and single-header builds. The
+Ubuntu replay of all 93 Redis executables passed both updated
+fixtures and the earlier pool retirement checks. It recorded one
+remaining failure in the single-header ROLE client queued-PING
+assertion. The original client diagnostic build passed all 48
+repeats, so the first request-admission failure remains
+unattributed beyond the fixture ordering hazard. Results and
+replay inputs are under
+out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
