@@ -671,7 +671,7 @@ jobs:
   xmqtt-linux-comparison:
     if: github.event_name == 'workflow_dispatch' && inputs.xmqtt_comparison
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -756,7 +756,7 @@ jobs:
             "$evidence/xmqtt-publish" "$evidence/paho-publish" "$evidence/xmqtt-broker" "$evidence/broker-observer" \
             "$evidence/xmqtt-broker-tls" "$evidence/broker-observer-tls" \
             "$evidence/xmqtt-receive-tls" "$evidence/paho-receive-tls" "$evidence/xmqtt-checkpoint" \
-            "$bench/compare_broker_restart.py" > "$evidence/sha256.txt"
+            "$bench/compare_broker_restart.py" "$bench/compare_broker_connections.py" > "$evidence/sha256.txt"
           cpus=$(python - <<'PY'
           import os
           import subprocess
@@ -831,6 +831,13 @@ jobs:
             python -B "$bench/compare_client_receivers.py" "${receiver_args[@]}" --qos "$qos" --window "$window" \
               --rate "$rate" --count "$count" --report "$evidence/receive-tls-qos$qos-w$window.json" || status=1
           done
+          capacity_args=(--xmqtt "$evidence/xmqtt-broker" --mosquitto "$evidence/mosquitto"
+            --broker-cpu "$broker_cpu" --load-cpu "${load_cpus%%,*}" --concurrency 32 --idle-seconds 2 --repeats 5)
+          python -B "$bench/compare_broker_connections.py" "${capacity_args[@]}" \
+            --clients 1 --clients 100 --clients 1000 --clients 8000 --clients 10000 \
+            --report "$evidence/broker-connections.json" || status=1
+          python -B "$bench/compare_broker_connections.py" "${capacity_args[@]}" --prepare-xmqtt-fds \
+            --clients 1000 --clients 10000 --report "$evidence/broker-connections-prepared.json" || status=1
           exit "$status"
       - name: Preserve native MQTT comparison evidence
         if: always()

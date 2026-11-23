@@ -614,6 +614,11 @@ separately. The POSIX runner raises only its process descriptor limit
 and inherits it into the test broker. Use a host with enough descriptors
 and loopback ports for the largest cohort.
 
+The manual `xmqtt_comparison` workflow runs the full cohort matrix on Linux
+and archives `broker-connections.json` with the executable and runner hashes.
+It also repeats the 1,000- and 10,000-client cohorts with descriptor preparation
+and saves both brokers' results in `broker-connections-prepared.json`.
+
 Add `--trace-connect` to record TCP dial and MQTT handshake times for
 each successful initial or replacement connection. Each sample gives
 the connection index and the two durations in microseconds. Segment

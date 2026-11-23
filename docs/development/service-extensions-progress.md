@@ -23443,3 +23443,35 @@ have separate workloads.
 
 Build and run logs, hashes, reports and the replay are under
 out/service-extensions/xmqtt-linux-restart-650bbab0/.
+
+## 2026-11-23 Native Linux MQTT capacity and reconnect comparison
+
+The manual Linux comparison now runs matched 1-, 100-, 1,000-,
+8,000- and 10,000-client MQTT 5 cohorts against Mosquitto 2.1.2. It
+repeats the 1,000- and 10,000-client cohorts with the existing xmqtt
+APP descriptor preparation option. The reference broker configuration
+is unchanged between modes. The comparison records both binaries, the
+observer hash and each result. The job has a 20-minute budget.
+
+The extracted commands passed on Ubuntu WSL with a fresh xmqtt broker
+from 4fa678d1 and the preceding checksum-verified Mosquitto build.
+Independent replay verified 70 samples, 301,010 initial connections,
+30,110 reconnects, 602,020 PING replies, and 140 capacity refusals.
+Each sample returned to its starting descriptor count and admitted
+a fresh connection after the final drain.
+
+| WSL cohort | xmqtt CONNECT P99 off / on | Mosquitto CONNECT P99 first / second | xmqtt initial connections/s off / on |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 36.34 / 4.98 ms | 5.03 / 4.91 ms | 4,468 / 7,894 |
+| 10,000 | 21.24 / 5.57 ms | 5.78 / 5.72 ms | 6,902 / 7,660 |
+
+Each value is a five-sample median. In the 10,000-client cohort the
+idle RSS increase was 19.25 MiB for xmqtt and 47.89 MiB for Mosquitto
+in both modes. Prepared xmqtt passed the CONNECT P99 repeatability
+check at 1,000 clients and exceeded it at 10,000. The Windows host
+continued its active endurance campaigns during the WSL measurements.
+Native Linux timing and formal performance acceptance remain open.
+Bash syntax, actionlint and ordinary maturity passed.
+
+The raw receipts, logs and replay are under
+out/service-extensions/xmqtt-linux-capacity-4fa678d1/.
