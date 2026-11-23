@@ -26611,3 +26611,50 @@ metric schema. That smoke is retained with the rejected
 metrics. The passing run rebuilt the reference observer with
 the current benchmark source and pinned Hiredis archive.
 The measurements do not modify the Redis library runtime.
+
+## 2026-11-24 Redis worker scaling under a two-CPU client budget
+
+The current observer rotated one, two, four and eight
+xredis workers with Hiredis 1.3.0 on each platform at
+2,000 and 12,000 scheduled requests/s. Each cohort used
+eight RESP3 connections, a 128-request observer window,
+1 KiB binary values and three GETs per SET per connection.
+The one warmup and five measured repeats rotated variant
+order. The release workloads continued in the background.
+
+Windows used IOCP and logical CPUs 6 and 8. A dedicated
+Redis 8.0.5 process on Ubuntu QEMU/WHPX CPU 0 served that
+campaign through loopback SSH forwarding. The subsequent
+Ubuntu campaign used epoll, guest client CPUs 2 and 3 and
+a separate guest-local Redis 8.0.5 peer on CPU 0. Compare
+worker counts within each platform and route.
+
+Host replay verified executable and trace hashes, seven
+common source inputs, all 1,680,000 replies including
+warmup, the fixed schedule and the exact peer commands.
+Each of the 20 throughput series met the repeatability
+limits. Their medians at 12,000 offers/s were within
+0.04 percent of the offered rate. At that rate the latency
+medians across five repeats were as follows.
+
+| Observer | Windows P99 / P99.9 (ms) | Ubuntu P99 / P99.9 (ms) |
+| --- | ---: | ---: |
+| xredis, 1 worker | 1.400 / 2.720 | 0.556 / 3.301 |
+| xredis, 2 workers | 1.317 / 3.192 | 0.625 / 1.128 |
+| xredis, 4 workers | 1.639 / 5.540 | 0.634 / 1.126 |
+| xredis, 8 workers | 1.739 / 8.327 | 0.631 / 1.137 |
+| Hiredis | 1.219 / 1.486 | 0.293 / 0.571 |
+
+Windows P99.9 grew with more workers at 12,000 offers/s.
+The median generator share of the slowest one percent of
+xredis replies was at most 1.2 percent in these cohorts.
+Ubuntu's two-worker series met the P99 variation limit at
+this rate. Every high-rate P99.9 series exceeded variation
+limits. At 2,000/s only the Windows two-worker xredis and
+Windows Hiredis cohorts met both tail limits. These
+measurements support reporting the CPU budget with worker
+counts. The strict performance gate stays open.
+
+The traces, build inputs and independent replays are under
+out/service-extensions/xredis-worker-scale-f3a53364/
+and out/service-extensions/linux-guest-9ce2606c/xredis-worker-scale-f3a53364/.
