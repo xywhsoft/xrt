@@ -22862,3 +22862,25 @@ delivery count. Generated headers and ordinary maturity passed.
 The strict release checker still reports 39 developing modules.
 Evidence is under
 out/service-extensions/xmqtt-session-expiry-retirement-822f4683/.
+
+
+## 2026-11-23 MQTT Windows endurance after the session-expiry fix
+
+The Windows x64 and Ubuntu WSL mixed probes were built from clean
+7d667770. The independent 30-second ledger reconciled 1,914 rounds and
+11,604 broker deliveries on Windows, and 8,761 rounds and 53,114
+broker deliveries on WSL. A separate Windows run killed its private
+broker after 322 verified rounds. The observer recorded the nonzero
+broker exit and classified the run as failed.
+
+The verified Windows executable started a fresh 72-hour client and
+broker run at 10:14 Asia/Shanghai. The running executable fingerprints
+match the launch, build and journal receipts. The first 13 observation
+windows reconciled 4,167 rounds over 65 seconds with a maximum gap of
+5.015 seconds and the expected handle and memory bounds. The native
+Windows Redis client journal independently reconciled 27,056 windows,
+6,909,914 rounds and 37 hours 39 minutes at the same check.
+
+The completed duration and native Linux qualification are pending.
+Evidence is under
+out/service-extensions/xmqtt-windows-session-expiry-soak-7d667770/.
