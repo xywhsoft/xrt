@@ -25048,3 +25048,56 @@ comparison used the installed OpenSSL runtime and matching headers
 extracted to the evidence directory. The native Windows and WSL
 smoke logs, builds, raw ledgers and independent audits are under
 out/service-extensions/xredis-cpu-split-95ebd875/.
+
+## 2026-11-23 Redis atomic connection state prototype
+
+The prototype used one atomic connection state and kept the
+transition, first failure cause and queue mutation serialized.
+Acquire reads replaced the lock round trip for state-only checks.
+The original and prototype observers used the same XRT, GCC flags
+and private Redis 8.0.5 fixture. The Windows client used the WSL
+loopback forwarder. Eight RESP3 connections shared a 128-slot
+observer window with 1 KiB mixed GET/SET payloads.
+
+The initial campaigns alternated five measured pairs at 2,000
+offers/s and seven at 12,000 offers/s. The second campaigns
+reused the binaries and repeated the 12,000/s workload. An
+independent replay matched source and binary hashes, scheduled
+arrivals, quantiles and Redis command ledgers for 1,632,000
+offers including warmups. There were 1,629,192 verified replies,
+2,808 observer-window refusals and zero corrupt or late replies.
+
+| Host and 12,000/s campaign | Complete pairs | Median outside-generator CPU ratio | Median total CPU ratio |
+| --- | ---: | ---: | ---: |
+| Windows x64, initial | 6 of 7 | 0.919 | 0.956 |
+| Windows x64, repeat | 4 of 7 | 1.271 | 1.022 |
+| Ubuntu WSL, initial | 5 of 7 | 0.997 | 0.998 |
+| Ubuntu WSL, repeat | 6 of 7 | 0.994 | 0.998 |
+
+The ratios are prototype divided by baseline within each matched
+pair. The WSL high-rate CPU ratios met the variation limits in
+both campaigns, with less than one percent improvement. Windows
+reversed its initial result on repeat. All four high-rate P99 and
+P99.9 cohorts exceeded the variation limits for at least one
+client. At 2,000/s all 20 trials completed. The prototype lowered
+CPU outside the generator in five WSL pairs and four Windows
+pairs, with the paired CPU ratios exceeding the variation limits.
+The modular and single-header client tests passed on native Windows
+and Ubuntu WSL, including bounded close, connection failure and
+request allocation failures. The current state implementation
+remains on the mainline.
+
+A separate counted build used the original xredis and split
+accepted internal engine posts by caller. The counter ran at the
+wake call site and covered setup and teardown with the workload.
+On Ubuntu WSL, the three 24,000-reply trials recorded 49 to 82
+owner posts and 23,979 to 24,024 posts from other threads. The
+three 4,000-reply trials recorded 48 and 4,025 respectively. The
+84,000 replies and Redis command ledger reconciled. The count
+identifies post origin and covers the engine calls before backend
+wake handling. Owner posts made up at most 0.35 percent at the
+higher rate.
+
+The prototype, binary identities, command ledgers and replay are
+under out/service-extensions/xredis-atomic-state-be995fd1/.
+Native Linux and strict performance acceptance remain open.
