@@ -26752,8 +26752,8 @@ report an outgoing connection refused after recent use of
 the selected local endpoint against the same peer endpoint.
 The host has 16,384 dynamic TCP ports. A later sample of
 the same private route observed 11,009 TIME_WAIT sockets
-and 2,525 established sockets. The event timing explains
-these Hiredis failures at the transport boundary. The
+and 2,525 established sockets. The timing supports local
+endpoint reuse as a cause for these Hiredis failures. The
 other interrupted xredis trials still need typed transport
 cause evidence.
 
@@ -26764,4 +26764,27 @@ process, checks preceding socket occupancy and starts
 each 10,000-connection trial from a cool route. The
 machine TCP configuration stays fixed. Event receipts
 and connection reports are under
+out/service-extensions/xredis-capacity-85f4ad5c/.
+
+## 2026-11-24 Complete Windows direct Redis capacity replay
+
+The Windows-to-WSL private IPv4 campaign ran five trials
+per observer at each connection count. The independent
+replay verified 158,020 ECHOs from 35 completed trials.
+Both xredis and Hiredis passed 5/5 at one and 100
+connections and 4/5 at 1,000 connections. At 10,000,
+xredis passed 4/5 and Hiredis passed 3/5.
+
+The five incomplete trials preserved their partial peer
+ledgers. The two Hiredis turnover failures had nearby
+TCP/IP 4227 events. The two xredis readiness failures
+and one other Hiredis setup failure had no matching
+4227 or 4231 event within three seconds. Redis reported
+zero rejected connections in all five cases.
+
+The direct campaign's process completed with a failure
+status. The follow-up observer verified its process
+creation time and terminal status before waiting for the
+earlier sockets to retire. Strict Windows repeatability
+remains open. Raw results and event correlation are under
 out/service-extensions/xredis-capacity-85f4ad5c/.
