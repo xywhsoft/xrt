@@ -22809,3 +22809,24 @@ comparison and strict release acceptance remain open.
 The scratch sources, build receipts, raw rows, failed HELLO fixture
 and independent audits are under
 out/service-extensions/xredis-worker-queue-87ceecf2/.
+
+
+## 2026-11-23 xcron Windows clock-recovery candidate tail campaign
+
+The optimized Windows x64 scheduler from d74c1951 completed all 20
+processes on logical CPU 4. The independent replay verified the
+source and runner identities, 5,120 measured waves, 2,785,280
+callbacks, every pooled quantile and each repeatability decision.
+
+| Active / dormant | Drive | First / last P99 (us) | First / last P99.9 (us) | Callback span P99 (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 1,318.1 / 1,326.5 | 13,656.4 / 13,670.4 | 22.1 |
+| 64 / 960 | Precise waiter | 846.0 / 846.4 | 10,952.1 / 10,952.6 | 4.8 |
+| 1,024 / 0 | Scheduler Wait | 689.0 / 695.6 | 3,745.9 / 3,752.8 | 12.2 |
+| 1,024 / 0 | Precise waiter | 757.5 / 761.8 | 7,264.3 / 7,267.9 | 16.2 |
+
+All twelve P99 series exceeded the variation limits, including the
+matched direct-waiter controls. The candidate still requires stable
+Windows and native Linux late-dispatch measurements. The journal,
+binary receipt and independent replay are under
+out/service-extensions/xcron-late-clock-loss-f5637e54/.
