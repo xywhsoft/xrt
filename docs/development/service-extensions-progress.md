@@ -25552,3 +25552,31 @@ The existing Ubuntu example peers completed both the handshake
 suite and the 64-connection quota case. The complete suite replay
 is pending. Receipts are under
 out/service-extensions/linux-guest-9ce2606c/redis-session-fix/.
+
+## 2026-11-23 xredis and Hiredis on the Ubuntu guest
+
+The QEMU/WHPX Ubuntu guest ran the registered four-connection
+RESP3 GET/SET comparison with Redis 8.0.5 and source-pinned
+Hiredis 1.3.0. The same 1 KiB payloads, 2,000 scheduled offers/s,
+128-request window, validation and CPU sets applied to each
+pair. One vCPU served the peer and two served each client.
+Five measured pairs plus warmup completed on each transport.
+[Hiredis 1.3.0](https://github.com/redis/hiredis/releases/tag/v1.3.0).
+
+Host replay matched executable and per-offer ledger hashes,
+all 96,000 offers including warmup, all 80,000 measured replies
+and the exact server command counts. The table gives medians of
+the measured samples in microseconds.
+
+| Transport | P99 xredis / Hiredis | P99.9 xredis / Hiredis |
+| --- | ---: | ---: |
+| TCP | 835.9 / 573.7 | 1,206.3 / 968.9 |
+| TLS 1.3 | 1,088.4 / 817.2 | 2,023.4 / 1,421.2 |
+
+The TCP xredis P99.9 series met the variation limits. The other
+tail series still exceeded them. Preprocessing the benchmark at
+the subscription-session fix produced the same benchmark input
+on both transports. The comparison records the VM environment
+with the running endurance and cohort jobs. The release
+performance gate remains open. Evidence is under
+out/service-extensions/linux-guest-9ce2606c/xredis-hiredis-linux/.
