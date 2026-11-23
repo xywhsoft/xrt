@@ -24651,3 +24651,13 @@ acceptance remains open.
 The first candidate, final rerun, fixture failure diagnosis, builds,
 sanitizer logs and independent replays are under
 out/service-extensions/xredis-epoll-watch-60353975/.
+
+## 2026-11-23 Redis and MQTT suite replay after TCP epoll rearm
+
+At 72dfbfd3 the complete xredis_tests suite passed on Ubuntu WSL.
+The replay matched all 39 modular and 54 single-header executables in
+manifest order against the previous accepted run and hashed each binary
+and the source inputs. The core and extension single-header hashes
+matched 72dfbfd3. The modular and single-header xmqtt_server suite
+also passed on the same core. Logs and the ordered xredis receipt
+are under out/service-extensions/xredis-epoll-watch-60353975/.
