@@ -26408,3 +26408,22 @@ intervals used different Redis run IDs and continued.
 Reports, injected process identities and replay are under
 out/service-extensions/xredis-pool-gate-windows-dc8f7525/
 and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
+
+## 2026-11-24 Complete Redis regression after the lease layout fix
+
+Windows and the QEMU/WHPX Ubuntu guest rebuilt the optimized
+xredis_tests suite from the post-fix mainline inputs. Both
+ran all 93 manifest-listed executables, including 39 modular
+and 54 single-header tests. Host replay verified the test
+order and both successful terminal records.
+
+The Ubuntu guest also built the pool session, TLS shared
+pool and TLS shared automatic-connection single-header
+suites with GCC 13 TSan. Each ran to completion with
+libtsan and instrumented symbols. These results extend the
+previous focused lease regression. The separate Windows
+and Ubuntu 72-hour intervals are still running.
+
+The full runtime logs, focused concurrency logs and proof
+are under out/service-extensions/xredis-pool-gate-windows-dc8f7525/
+and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
