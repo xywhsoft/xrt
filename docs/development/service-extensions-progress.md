@@ -24661,3 +24661,44 @@ and the source inputs. The core and extension single-header hashes
 matched 72dfbfd3. The modular and single-header xmqtt_server suite
 also passed on the same core. Logs and the ordered xredis receipt
 are under out/service-extensions/xredis-epoll-watch-60353975/.
+
+## 2026-11-23 Rechecking an unfilled internal epoll batch
+
+A scratch variant of 72dfbfd3 returned from the epoll driver when
+the kernel returned a partial batch with only internal events. The
+public port then resampled the user queue and its original deadline.
+The variant repeated the native poll when the internal events filled
+the whole kernel batch. Linux 6.18 scans the returned batch up to
+capacity, and arrivals during the scan can enter the next poll.
+[Linux eventpoll implementation](https://github.com/torvalds/linux/blob/v6.18/fs/eventpoll.c#L1654-L1737).
+
+The WSL ASan/UBSan probe passed 40 runs per build. A short wake-only
+batch took two native polls in the baseline and one in the variant.
+A full single-slot queue still delivered a socket event after an
+internal wake occupied its first poll. A stale wake also preserved
+the public deadline. Leak detection ran in both probe builds.
+
+The two campaigns used eight RESP3 connections, a 128-request
+observer window and the fixed-arrival mixed 1 KiB GET/SET workload
+on WSL. Observers used CPUs 6 and 8. The Redis 8.0.5 fixture used
+CPU 10. The last portion of the concurrent full xredis suite was
+assigned CPUs 0 through 5 during the first campaign. The second
+campaign reused the same uninstrumented binaries after that suite
+finished. Replay verified all 1,216,000 offer rows including warmup,
+both Redis ledgers and the count builds. All 116 incomplete offers
+were refused at the observer window.
+
+| Offers/s | Instrumented epoll_wait calls per run | Uninstrumented CPU outside generator, first (us/reply) | Uninstrumented CPU outside generator, repeat (us/reply) |
+| --- | ---: | ---: | ---: |
+| 2,000 | 12,060 / 8,069 | 55.90 / 55.31 | 59.93 / 59.31 |
+| 12,000 | 60,980 / 42,492 | 38.63 / 39.63 | 41.39 / 41.51 |
+
+The table reports baseline / variant medians over complete matched
+pairs. At 12,000/s the instrumented count fell 30.3%. The respective
+uninstrumented campaigns had five and six complete pairs. Both
+12,000/s CPU series met repeatability in the second campaign and had
+nearly identical medians. P99 and P99.9 series exceeded repeatability
+limits. The syscall reduction yielded no repeatable CPU or tail gain.
+The variant remains a benchmark prototype. Source, probes, hashes,
+traces and independent replay are under
+out/service-extensions/xredis-epoll-short-batch-72dfbfd3/.
