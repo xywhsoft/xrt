@@ -14,6 +14,7 @@ typedef struct redisconnectpeer {
     xatomic32 SkipLive;
     redispeerhook Hook;
     xatomic32 Accepted, ListenerClosed, Mode, Commands, Hello;
+    bool AllowClosedPing;
 } redisconnectpeer;
 static bool redisConnectPeerCommand(redispeer* Peer, xredisreply* Reply, ptr Data)
 {
@@ -21,6 +22,13 @@ static bool redisConnectPeerCommand(redispeer* Peer, xredisreply* Reply, ptr Dat
     redisPeerRequire(xredisReplyGet(Reply, 0, &Root) && xredisReplyGet(Reply, Root.FirstChild, &Name), "reconnect command frame");
     if (!redisPeerName(Name, "HELLO")) {
         xrtAtomic32FetchAdd(&Fixture->Commands, 1, XMEMORY_RELEASE);
+        if (Fixture->AllowClosedPing && redisPeerName(Name, "PING")) {
+            /* A PING already in the input batch can outlive a deliberate DROP. */
+            xnetresult Result = xrtNetStreamSend(Peer->Stream, "+PONG\r\n", 7);
+            redisPeerRequire(Result == XNET_RESULT_OK || Result == XNET_RESULT_CLOSED,
+                "concurrent PING response");
+            return true;
+        }
         if (redisPeerName(Name, "WATCH") || redisPeerName(Name, "UNWATCH")) { redisPeerSend(Peer, "+OK\r\n", 5); return true; }
         return false;
     }

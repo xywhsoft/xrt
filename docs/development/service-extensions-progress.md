@@ -24235,3 +24235,27 @@ This two-repeat diagnostic overlapped other verification work on the
 host. The raw Windows trace and independent replay are under
 out/service-extensions/xcron-native-wait-phases-bfbf7cbc/windows/.
 Repeatable uninstrumented release tails remain open.
+
+## 2026-11-23 Redis reconnect fixture and full Windows replay
+
+The full Windows replay executed all 93 binaries from the single-
+allocation reply build, with no failure. The first full pass had
+stopped at the subscription TLS session's terminal outcome check.
+Alternating instrumented rebuilds of the fixture passed 12 times
+with the original reply reader and 12 times with the new reader.
+The original Windows failure did not recur.
+
+The first full WSL pass and its rerun stopped on the shared reconnect
+fixture, in modular and TLS-enabled single-header form respectively.
+An instrumented repeat captured XNET_RESULT_CLOSED while the peer
+tried to send PONG. The concurrent case deliberately aborts sockets
+with DROP and permits affected accepted requests to close or disconnect.
+Its peer now accepts a closed PING response in that case. Other send
+results and other cases retain their existing checks.
+
+The adjusted TLS-enabled reconnect fixture passed 32 isolated WSL
+runs and six native Windows runs. Full WSL verification of the
+adjusted fixture remains open. Receipts, original logs and diagnostic
+runs are under out/service-extensions/xredis-owned-blob-742ebdf8/,
+out/service-extensions/xredis-session-outcome-bfbf7cbc/ and
+out/service-extensions/xredis-shared-connect-bfbf7cbc/.

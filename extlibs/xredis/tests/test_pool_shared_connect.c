@@ -139,7 +139,8 @@ static int32 scProduce(ptr Data)
 }
 static void scConcurrent(void)
 {
-    redisconnectpeer Peer; redisConnectPeerStart(&Peer); redisconnectfactory F; xredispoolconnectconfig C; redisConnectFactoryConfig(&F, &Peer, &C); F.Observe = true; C.RetryMin = C.RetryMax = 1;
+    redisconnectpeer Peer; redisConnectPeerStart(&Peer); Peer.AllowClosedPing = true;
+    redisconnectfactory F; xredispoolconnectconfig C; redisConnectFactoryConfig(&F, &Peer, &C); F.Observe = true; C.RetryMin = C.RetryMax = 1;
     xredispool* P = scCreate(&Peer, &F, 4, NULL, &C); scOnline(P, 4, 4); scproducer S[4]; xthread* Threads[4];
     for (unsigned I = 0; I < 4; ++I) {S[I] = (scproducer){P, {0}, {0}, I}; Threads[I] = xrtThreadCreate(scProduce, &S[I], 0); testRequire(Threads[I] != NULL, "shared recovery thread");}
     for (unsigned I = 0; I < 4; ++I) {testRequire(xrtThreadWait(Threads[I]) == XWAIT_OK && !xrtThreadExitCode(Threads[I]), "shared recovery join"); xrtThreadDestroy(Threads[I]);
