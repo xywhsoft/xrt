@@ -24771,3 +24771,33 @@ The measurements keep the two send changes as benchmark prototypes.
 Broker capacity and tail latency acceptance remain open.
 The source variants, dual-version receipts, broker logs and replay
 are under out/service-extensions/xmqtt-small-frame-refs-a1f1663c/.
+
+## 2026-11-23 MQTT Broker example receive profiles
+
+The TCP example at 22c3fdd0 accepts the APP environment setting
+XMQTT_EXAMPLE_READ_MODE. Adaptive is the default. Direct asks an XRT
+completion backend to keep a payload receive outstanding. The example
+sets the mode on accepted streams. Epoll continues to use its standard
+readiness receive path.
+
+The optimized GCC modular builds passed the dual-version MQTT suite
+on native Windows and Ubuntu WSL. Both platforms passed the independent
+wire peer with the default and both named modes, the 64-connection
+pressure fixture in both named modes, and the invalid-setting check
+before listener startup. The same native Windows binary alternated
+the named profiles for throughput and idle resource measurements.
+
+Every 12,000/s and 24,000/s trial in the initial modular cohort stopped
+at MQTT 5 PUBREC reason 0x97. Each rate had five trials per mode with two
+broker workers, four QoS 2 publishers of credit four and eight wildcard
+subscribers of Receive Maximum 32. The ledger preserves the confirmed
+and delivered counts for each incomplete trial.
+
+The five matched idle pairs connected 1,000 clients, held the full
+cohort for two seconds and checked quota refusal, complete PING
+responses, 100 reconnects and admission after drain. Median broker RSS
+growth was 2.68 MiB adaptive and 4.97 MiB direct. Both RSS series met
+repeatability. Median PING-after-idle P99 was 16.58 ms and 22.09 ms
+respectively, with both series exceeding the variation limits.
+The build, wire results, 30 trial logs and independent replay are
+under out/service-extensions/xmqtt-app-read-mode-0d9ffbc2/.
