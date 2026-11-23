@@ -110,6 +110,7 @@ jobs:
           XRPC_TCP_OBSERVER_NATIVE=out/xrpc-observer.so python extlibs/xrpc/tests/interop/test_tcp_observer.py &&
           python extlibs/xrpc/tests/interop/run_tcp_worker.py out/gcc/native/xrpc_examples/examples_tcp_worker_main out/service-extensions/xrpc-tcp-worker-linux.json
       - name: Address and undefined behavior sanitizers
+        if: matrix.product != 'xmqtt'
         run: >-
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json
           --suite ${{ matrix.product }}_tests --no-examples --cflag=-O2
@@ -414,6 +415,22 @@ jobs:
             out/gcc/native/xrpc_examples/examples_tcp_worker_main.exe
             out/xrpc-observer.dll
           if-no-files-found: warn
+
+  xmqtt-linux-sanitizers:
+    name: MQTT sanitizers (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Address and undefined behavior sanitizers
+        run: >-
+          python -u tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json
+          --suite xmqtt_tests --no-examples --jobs 2 --cflag=-O2
+          --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer
+          --ldflag=-fsanitize=address,undefined
 
   workload-smoke:
     name: Workload smoke (${{ matrix.product }}, ${{ matrix.platform }})

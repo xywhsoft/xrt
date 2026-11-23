@@ -24034,3 +24034,24 @@ header check passed. The broker
 capacity, native Linux comparisons and 72-hour evidence remain open.
 Window comparison results, raw counters and regression logs are under
 out/service-extensions/xmqtt-qos2-credit-260c5a86/.
+
+## 2026-11-23 Standalone native Linux MQTT sanitizers
+
+The [native Ubuntu matrix at 3e5fab5d](https://github.com/xywhsoft/xrt/actions/runs/45131835051/job/137548864318)
+passed generated-asset checks and the complete ordinary MQTT module,
+single-header, example and trim step in 19 minutes 41 seconds. The job
+spent its remaining 40 minutes in the sanitizer step. Its final build
+messages were for single-header fixtures. The 60-minute job deadline
+cancelled that step and skipped the later package, independent peer,
+mixed-load and checkpoint checks.
+
+The complete xmqtt_tests ASan/UBSan command now has its own Ubuntu job
+and a separate 60-minute budget. It compiles up to two single-header
+programs concurrently, executes the tests in the original order and
+streams build messages without Python buffering. The original matrix
+keeps every functional, package and interoperability step. A parsed
+workflow comparison verified the sanitizer flags, suite, triggers and
+remaining job steps. Actionlint passed. The full WSL rehearsal started
+with the extracted workflow command, and hosted verification is open.
+The runner log, comparison and WSL rehearsal are under
+out/service-extensions/xmqtt-linux-sanitizers-7e524f64/.
