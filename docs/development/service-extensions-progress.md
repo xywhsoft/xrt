@@ -25721,3 +25721,33 @@ maturity checks passed. The test change leaves production code and
 the running Windows workload binaries unchanged. The original
 failure, source identities, and before/after proof are under
 out/service-extensions/linux-guest-9ce2606c/redis-pool-native-diagnostic/.
+
+## 2026-11-24 Ubuntu continuous-run interruption and recovery
+
+The original QEMU/WHPX process and its host observer stopped.
+Their last host sample was November 24 at 03:14:11 Asia/Shanghai.
+The Redis and MQTT journals preserved 15,541 and 15,535 awake
+seconds with no completion record. The Windows Redis and MQTT
+journals continued independently. The cause of the original
+QEMU process exit remains undetermined.
+
+The original qcow2 passed its integrity check. A new overlay
+retains the stopped image as its backing file. A host supervisor
+created outside the foreground command job watches the new QEMU
+process and records its exit, host awake time and sampling gaps.
+The same verified Linux workload executables started fresh runs
+at 04:21:12 Asia/Shanghai with separate journals. The Windows
+runs retained their existing intervals. The interrupted
+1,024-wave xcron cohorts on both platforms also have separate
+restart journals. Evidence is under
+out/service-extensions/linux-guest-9ce2606c/restart-20261124-0415/.
+
+The restored Ubuntu logs show a successful optimized xmqtt_tests
+suite. Host replay matched all 107 executable runs to the Linux
+manifest, including modular, single-header and example programs.
+Redis passed its dedicated subscription-session suite. The
+later Redis replay with the pool fixture update ran all 93
+executables and recorded two other failures, in client request
+admission and the TLS single-header shared-pool peer counts.
+The original full regression logs remain under
+out/service-extensions/linux-guest-9ce2606c/redis-session-fix/.
