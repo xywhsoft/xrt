@@ -25430,3 +25430,30 @@ Startup receipts, environment details, build inputs, smoke and
 fault ledgers, and the retained initial live journal windows are
 under out/service-extensions/linux-guest-9ce2606c/. The guest
 services write their ongoing journals under out/linux-vm-release/.
+
+## 2026-11-23 Redis recovery and failover in the Ubuntu guest
+
+The QEMU/WHPX Ubuntu 24.04.5 guest built the Redis restart and
+Sentinel probes from clean 9ce2606c with GCC 13.3.0 and used a
+private Redis 8.0.5 peer. Host replay matched the probe binaries,
+test drivers and recorded source hashes to master.
+
+The ten interrupted pipeline cases withheld between zero and
+four bytes of the INCR reply over TCP and TLS 1.3. The replay
+matched each retained reply ledger to the actual cutoff. A partial
+RESP integer reported PROTOCOL. A whole reply boundary reported
+DISCONNECTED. Each case kept the unresolved delivery explicitly
+uncertain, drained back to the connected-client baseline, and
+confirmed exactly one INCR and stored value 1 after reconnect.
+
+Two peer replacement cases verified pool, Pub/Sub and Tracking
+recovery. The edited TLS subscription case rejected the untrusted
+peer, then recovered the current subscription on a trusted peer.
+Nine fixed-seed combinations verified recovery past a refused
+Sentinel seed across the three client factories and the RESP2,
+RESP3 and automatic profiles. The persistent RESP3 pool case
+verified one Sentinel-directed primary failover and client cleanup.
+
+Raw reports, source identities and replay are under
+out/service-extensions/linux-guest-9ce2606c/redis-recovery-evidence/.
+The separate mixed-load and matched-performance gates remain open.
