@@ -51,6 +51,13 @@ matches the complete document before committing reply associations. The
 endpoint preserves typed capacity and lifetime limits for pending IDs,
 in-flight APP work, retained outputs and retained results.
 
+## Example framing
+
+The stdio and TCP worker examples accept one JSON document per LF-terminated
+record, up to 4096 document bytes excluding the delimiter. An oversized
+record or EOF inside a record ends the example's stream. Replies already
+sent remain available to the peer.
+
 ## Concurrent admission benchmark
 
 Share one client endpoint between 1, 4 or 8 submitting threads. Each thread

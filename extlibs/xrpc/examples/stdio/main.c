@@ -29,7 +29,7 @@ int main(int Argc, char** Argv)
     if (!xrpcDuplexCreate(&Config, &Endpoint)) return 1;
     bool OK = true;
     if (Argc == 2 && strcmp(Argv[1], "--serve") == 0) {
-        char Line[4097];
+        char Line[sizeof(Job.Input) + 2]; /* LF and the fgets terminator. */
         while (OK && fgets(Line, sizeof(Line), stdin)) {
             /* This APP framing contract is one JSON document per LF record. */
             size_t Bytes = strlen(Line);

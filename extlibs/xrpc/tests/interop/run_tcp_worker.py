@@ -95,12 +95,33 @@ def staggered_start(first):
         pipelined(second)
 
 
+def maximum_record(peer):
+    request, expected = next(requests(1, 1, first=91))
+    follow_up, next_reply = next(requests(1, 1, first=92))
+    full = request[:-1].ljust(4096, b" ")
+    peer.sendall(full[:4000])
+    peer.sendall(full[4000:] + b"\n" + follow_up)
+    peer.shutdown(socket.SHUT_WR)
+    with peer.makefile("rb") as stream:
+        assert list(stream) == expected + next_reply, "maximum record or following reply changed"
+
+
+def oversized_record(peer):
+    request, expected = next(requests(1, 1, first=93))
+    peer.sendall(request)
+    with peer.makefile("rb") as stream:
+        assert stream.readline() == expected[0]
+        peer.sendall(request[:-1].ljust(4097, b" "))
+        assert stream.read(1) == b"", "oversized record did not close the connection"
+
+
 def dispatch_cases(executable):
     for mode in MODES.values():
         assert exchange(executable, mode, staggered_start, "2", "1") == 0
         assert exchange(executable, mode, normal) == 0
         assert exchange(executable, mode, pipelined) == 0
-        assert exchange(executable, mode, lambda peer: peer.sendall(b" " * 4097)) == 1
+        assert exchange(executable, mode, maximum_record) == 0
+        assert exchange(executable, mode, oversized_record) == 1
         assert exchange(executable, mode, lambda peer: peer.sendall(b"{")) == 1
         healthy, report = multi_exchange(executable, mode, 4, 2, concurrent_peers)
         assert healthy == 0 and report == {"connections": 4, "workers": 2, "requests": 512}
@@ -109,7 +130,7 @@ def dispatch_cases(executable):
         reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
         assert reset == 1 and report is None
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 8, "modes": list(MODES), "replies_per_mode": 131,
+    return {"cases_per_mode": 9, "modes": list(MODES), "replies_per_mode": 134, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 256, "ok": True}
 

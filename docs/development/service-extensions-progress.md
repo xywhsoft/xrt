@@ -23255,3 +23255,22 @@ optimized native Windows MQTT full smoke started separately.
 
 The original report, log and audit are under
 out/service-extensions/native-ci-48b0ba85/.
+
+## 2026-11-23 xrpc APP record size at the framing boundary
+
+The stdio example reserves room for the LF and the fgets terminator
+after the APP's 4096-byte JSON document. The old WSL example rejected
+the exact limit with exit status 2 and no reply. The library still
+receives complete documents through its existing endpoint.
+
+Optimized native Windows x64 and Ubuntu WSL x64 examples passed all
+seven stdio cases. The new cases accept the exact limit, reject an
+oversized record after a valid reply, and reject EOF inside a record.
+Both TCP worker modes also passed nine cases on each host. They
+accept an exact-size split record followed by another request, and
+close on an oversized record after delivering an earlier reply.
+Ordinary maturity and generated single headers passed. The native
+Linux release timing evidence and strict gate remain open.
+
+Reports and the pre-fix reproduction are under
+out/service-extensions/xrpc-app-record-limit-d5185b95/.
