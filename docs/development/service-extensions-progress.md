@@ -24284,3 +24284,14 @@ ASan/UBSan fixture also passed. The test-only change preserves the
 measured production implementation. Full sanitizer verification
 is open. Logs and binary receipts are under
 out/service-extensions/xmqtt-tls-prefix-bfbf7cbc/.
+
+## 2026-11-23 Full WSL Redis suite after reconnect fixture repair
+
+The full modular and single-header xredis_tests suite completed under
+Ubuntu WSL after the shared reconnect fixture repair. The replay audit
+matched all 93 executable names and their order against the previously
+completed suite, recorded their hashes and verified the final pass
+record. Both the modular and TLS-enabled single-header reconnect cases
+executed. The raw log and audit are under
+out/service-extensions/xredis-shared-connect-bfbf7cbc/. Native Linux
+release and the 72-hour acceptance runs remain open.
