@@ -26070,3 +26070,38 @@ crossed when the waiter returned. The uninstrumented
 1,024-wave campaign continues to measure release tails.
 Raw samples, source identity and replay are under
 out/service-extensions/linux-guest-9ce2606c/xcron-vm-wait-phases-b7859664/.
+
+## 2026-11-24 Native Windows xcron timer boundary
+
+A diagnostic wrapper measured SetWaitableTimer and
+WaitForMultipleObjects with the benchmark's QPC clock. The
+ordinary xcron and XRT inputs match the mainline. Both the
+scheduler and the direct precise waiter used the same
+high-resolution timer backend on logical CPU 10. Two 32-wave
+runs per drive verified 131,072 callbacks with 1,024 active
+jobs. The scheduler recovery on CPU 4 and the endurance
+workloads continued during this probe.
+
+The latest possible programmed expiry adds the relative
+duration to the timestamp taken after the arm call returned.
+Subtracting that expiry from the native wait return gives a
+conservative estimate of the overrun. The measurements include
+the time for Windows to resume the thread after the timer wakes it.
+
+| Drive | Native wait overrun lower bound P99 (ms) | Native waiter return lateness P99 (ms) | Waiter return to first callback P99 (ms) | First callbacks at least 1 ms late / also at least 1 ms late at the native wait boundary |
+| --- | ---: | ---: | ---: | ---: |
+| Scheduler | 12.766 | 12.823 | 1.435 | 31 / 29 |
+| Direct precise waiter | 13.757 | 13.764 | 0.149 | 47 / 46 |
+
+Two of the remaining three late waves were within 6 us of the
+threshold at native wait return. In the third wave the
+relative arm was about 548 us later than the projected
+monotonic target. The largest scheduler return-to-first
+interval was 1.435 ms in a wave already 1.599 ms late at
+waiter return. The diagnostic establishes the wait boundary
+for these samples. Separating timer expiry from runnable
+thread delay and measuring repeatable release tails need
+additional evidence.
+
+The wrapper, source hashes, raw logs and replay are under
+out/service-extensions/xcron-windows-timer-boundary-cc1ca32d/.
