@@ -25262,3 +25262,23 @@ native Windows and Ubuntu WSL. WSL ASan/UBSan and leak checks passed
 the server suite. Generated headers and ordinary maturity passed.
 Raw samples and build logs are under
 out/service-extensions/xmqtt-shared-credit-71db594d/.
+
+## 2026-11-23 MQTT endurance candidate with shared delivery credit
+
+Fresh mixed-workload binaries from clean 8d6e70c7 ran 20 seconds on
+native Windows and Ubuntu WSL. Offline replay verified 1,077
+rounds and 6,530 broker deliveries on Windows, and 5,902 rounds
+and 35,781 deliveries on WSL. A separate Windows probe killed the
+broker after 280 verified rounds. It reported failure and no
+native endurance claim.
+
+The updated Windows client and broker began a new 72-hour run at
+21:46 Asia/Shanghai using the same verified build. The startup
+audit checked both owned process IDs and resolved their executable
+path through the artifact directory junction. It replayed the
+first 12 windows, 3,479 rounds and 60.157 awake seconds. The largest
+observation gap was 5.020 seconds. The earlier Windows MQTT and
+Redis workloads continued. The updated run and the native Linux
+72-hour qualification remain open. Build receipts, smoke, fault
+and startup audit artifacts are under
+out/service-extensions/xmqtt-shared-credit-71db594d/.
