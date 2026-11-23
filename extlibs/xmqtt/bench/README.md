@@ -728,6 +728,14 @@ Use disjoint available CPUs and a fresh report path. Append `.exe` to the
 binary paths on Windows. The broker and observer builds match the
 plaintext external comparison above.
 
+Add `--workload shared` to measure two shared groups instead of ordinary
+wildcard fan-out. The full subscriber joins one measured group during
+the pressure phase. The observer verifies one delivery per publication
+in each group through its eight active peers. A separate shared filter
+on the full subscriber confirms the quota during the run and admits
+the same publisher packet identifier after the subscriber drains.
+The subscriber leaves both shared routes before the final measurement.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised

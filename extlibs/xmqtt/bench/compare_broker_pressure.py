@@ -1,4 +1,4 @@
-"""Measure healthy MQTT 5 QoS 2 traffic with a full unrelated recipient."""
+"""Measure healthy MQTT 5 QoS 2 traffic with a full recipient."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
@@ -21,6 +21,8 @@ from run_server_handshake import (connect, eof, finish_qos2, ping, publish_qos2,
                                   read, receive_qos2, small_frame, topic)
 
 BLOCKED = b"pressure/held"
+SHARED = (b"$share/a/+", b"$share/a/pressure/resumed")
+RESUMED = b"pressure/resumed"
 CAPACITY = 256
 SUBSCRIBERS = 8
 REJECTIONS_PER_SECOND = 250
@@ -49,14 +51,14 @@ def running_broker(args, logfile):
 def measure(args, process, port):
     cpu, _, _ = usage(process.pid)
     began = time.perf_counter()
-    result = run_observer(args, port, ("wildcard", SUBSCRIBERS, args.rate))
+    result = run_observer(args, port, (args.workload, SUBSCRIBERS, args.rate))
     elapsed = time.perf_counter() - began
     after, rss, peak = usage(process.pid)
     return result | {"broker_cpu_seconds": after - cpu, "observer_process_seconds": elapsed,
                      "broker_rss_bytes": rss, "broker_peak_rss_bytes": peak}
 
 
-def measure_pressured(args, process, port, producer):
+def measure_pressured(args, process, port, producer, blocked_topic):
     finished, ready = Event(), Event()
     timestamps = []
 
@@ -69,7 +71,7 @@ def measure_pressured(args, process, port, producer):
                 time.sleep(delay)
             if finished.is_set():
                 return
-            publish_qos2(producer, BLOCKED, CAPACITY + 1, struct.pack("!I", sequence), quota=True)
+            publish_qos2(producer, blocked_topic, CAPACITY + 1, struct.pack("!I", sequence), quota=True)
             timestamps.append(time.perf_counter())
             ready.set()
 
@@ -115,13 +117,22 @@ def run_sample(args, logfile, row):
         for number in range(1, CAPACITY + 1):
             publish_qos2(producer, BLOCKED, number, struct.pack("!H", number))
         first = receive_qos2(slow, BLOCKED, b"\0\1")
-        publish_qos2(producer, BLOCKED, CAPACITY + 1, b"full", quota=True)
+        shared = args.workload == "shared"
+        blocked_topic = RESUMED if shared else BLOCKED
+        if shared:
+            # The first filter joins a measured group. The second is a
+            # shared route with only the slow member, used to probe its quota.
+            filters = b"".join(topic(name) + b"\x02" for name in SHARED)
+            slow.sendall(small_frame(0x82, b"\0\2\0" + filters))
+            if read(slow, 7) != b"\x90\x05\0\2\0\2\2":
+                raise RuntimeError("slow subscriber did not receive both shared grants")
+        publish_qos2(producer, blocked_topic, CAPACITY + 1, b"full", quota=True)
         row["quota_checks"] = 1
         ping((slow,))
 
         row["phase"] = "pressured"
-        row["pressured"] = measure_pressured(args, process, endpoint[1], producer)
-        publish_qos2(producer, BLOCKED, CAPACITY + 1, b"still full", quota=True)
+        row["pressured"] = measure_pressured(args, process, endpoint[1], producer, blocked_topic)
+        publish_qos2(producer, blocked_topic, CAPACITY + 1, b"still full", quota=True)
         row["quota_checks"] += 1
         ping((slow,))
         row["phase"] = "drain"
@@ -129,9 +140,15 @@ def run_sample(args, logfile, row):
         for number in range(2, CAPACITY + 1):
             finish_qos2(slow, receive_qos2(slow, BLOCKED, struct.pack("!H", number)))
         ping((slow,))
-        publish_qos2(producer, BLOCKED, CAPACITY + 1, b"credit reclaimed")
-        finish_qos2(slow, receive_qos2(slow, BLOCKED, b"credit reclaimed"))
+        publish_qos2(producer, blocked_topic, CAPACITY + 1, b"credit reclaimed")
+        finish_qos2(slow, receive_qos2(slow, blocked_topic, b"credit reclaimed"))
         ping((slow,))
+        if shared:
+            filters = b"".join(topic(name) for name in SHARED)
+            slow.sendall(small_frame(0xa2, b"\0\3\0" + filters))
+            if read(slow, 7) != b"\xb0\x05\0\3\0\0\0":
+                raise RuntimeError("slow subscriber did not leave both shared routes")
+            row["shared_recovered"] = True
         row["drained"] = CAPACITY + 1
 
         row["phase"] = "recovered"
@@ -150,6 +167,7 @@ def main():
     parser.add_argument("observer", type=Path)
     parser.add_argument("report", type=Path)
     parser.add_argument("--idle", type=int, default=1000)
+    parser.add_argument("--workload", choices=("wildcard", "shared"), default="wildcard")
     parser.add_argument("--rate", type=int, default=4000)
     parser.add_argument("--seconds", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=5)
@@ -176,6 +194,7 @@ def main():
               Path(__file__).resolve().with_name("compare_broker.py"), INTEROP / "run_server_handshake.py"]
     report = {"platform": platform.platform(), "idle_peers": args.idle, "rate": args.rate,
               "rounds": args.rounds, "warmup": args.warmup, "subscribers": SUBSCRIBERS, "workers": 2,
+              "workload": args.workload,
               "qos": args.qos, "publisher_window": args.window, "subscriber_window": args.subscriber_window,
               "reject_rate": REJECTIONS_PER_SECOND, "broker_cpus": sorted(args.broker_cpus),
               "load_cpus": sorted(args.load_cpus), "control_cpu": args.control_cpu,

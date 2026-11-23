@@ -26856,3 +26856,44 @@ The failed interval and original build receipt remain
 under out/service-extensions/xmqtt-shared-credit-71db594d/.
 Windows diagnostic and smoke reports are under
 out/service-extensions/xmqtt-readiness-e5185ff8/.
+
+## 2026-11-24 MQTT shared group with a saturated member
+
+The broker pressure runner can now measure two shared
+groups. A slow recipient joins one of the measured groups
+after filling its delivery quota. A second shared route
+with only the slow recipient verifies 0x97 throughout
+the measurement. Eight active observers verify exactly one
+delivery per publication in each measured group. After the
+slow recipient drains, the peer reuses the rejected
+publisher packet identifier on the second route and
+verifies the resulting delivery before recovery measurement.
+
+Current Windows and Ubuntu completed the shared smoke.
+The default Windows wildcard mode also passed. The
+former Windows broker completed the shared baseline and
+then returned 0x97 to a healthy publication during the
+shared pressure phase. This validates the workload as
+a regression discriminator.
+
+The Ubuntu QEMU/WHPX guest completed all 15 full trials
+at 1,000 and 9,968 idle connections. Host replay verified
+720,000 measured publisher confirmations, 1,440,000
+deliveries and 11,891 quota refusals overlapping the
+healthy observer. All 3,855 drained or reclaimed
+deliveries passed the wire checks. The 9,968-idle trials
+held 9,979 connections in the measured phases.
+
+| Idle peers / offers per second | Delivery P99 before / during / after (ms) | P99.9 during (ms) |
+| --- | ---: | ---: |
+| 1,000 / 4,000 | 8.666 / 8.653 / 4.535 | 14.778 |
+| 9,968 / 4,000 | 2.438 / 2.468 / 2.409 | 4.780 |
+| 9,968 / 8,000 | 2.153 / 2.157 / 2.097 | 4.583 |
+
+The three 8,000/s P99 series met the repeatability limits.
+The table describes the combined pressure workload under
+the recorded CPU placement. The separate Windows
+capacity campaign is queued behind the isolated Redis
+run. Samples and replay are under
+out/service-extensions/xmqtt-shared-pressure-e5185ff8/
+and out/service-extensions/linux-guest-9ce2606c/xmqtt-shared-pressure-e5185ff8/.
