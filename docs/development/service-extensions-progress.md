@@ -23274,3 +23274,35 @@ Linux release timing evidence and strict gate remain open.
 
 Reports and the pre-fix reproduction are under
 out/service-extensions/xrpc-app-record-limit-d5185b95/.
+
+## 2026-11-23 xcron full WSL matched-precision cohort rehearsal
+
+The optimized Ubuntu WSL x64 executable built at feee80b1 completed
+20 processes on logical CPU 0. The independent replay verified the
+alternating order, 5,120 measured waves, 2,785,280 callbacks, every
+pooled quantile and per-process variation decision. The build receipt
+recorded a dirty checkout. Its source fingerprint matches the current
+checkout, and its benchmark fingerprint matches the launch revision's
+build runner and the unchanged benchmark inputs. The executable and
+cohort runner hashes agree with the journal.
+
+| Active / dormant | Drive | First / last P99 (us) | First / last P99.9 (us) | Callback span P99 (us) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | Scheduler Wait | 801.4 / 808.8 | 6,818.4 / 6,825.5 | 25.6 |
+| 64 / 960 | Precise waiter | 173.9 / 174.4 | 3,235.5 / 3,236.2 | 1.2 |
+| 1,024 / 0 | Scheduler Wait | 3,247.9 / 3,253.6 | 3,327.6 / 3,332.7 | 14.9 |
+| 1,024 / 0 | Precise waiter | 166.4 / 171.2 | 3,262.5 / 3,265.2 | 11.2 |
+
+All twelve P99 series exceeded the repeatability limits. In the
+1,024-job scheduler cohort the first callback and the last callback
+were both over three milliseconds late at P99. The within-wave span
+was 14.9 microseconds at P99. The direct control also saw a
+millisecond-scale P99.9. The Windows endurance tests and workload
+smoke overlapped the rehearsal. The results leave stable native
+release timing open.
+
+A follow-up WSL diagnostic started with the existing wait-phase
+executable. It records waiter return and first-callback timing on
+the same CPU for two 64-wave runs of each configuration. Its results
+are pending. The full journal, independent replay and follow-up
+launch are under out/service-extensions/xcron-native-cohort-job-feee80b1/.
