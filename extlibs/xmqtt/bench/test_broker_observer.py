@@ -109,9 +109,12 @@ def case(binary, name, qos):
                         for sequence in range(3):
                             if sequence:
                                 assert frame(publisher) == (tag, body[:-1] + bytes([sequence]))
-                            delivery = b"\x32\x89\x01" + body[:6] + bytes((0, 50 + sequence)) + body[8:-1] + bytes([sequence])
+                            offered = sequence + int(name == "sequence-gap" and sequence > 0)
+                            delivery = b"\x32\x89\x01" + body[:6] + bytes((0, 50 + sequence)) + body[8:-1] + bytes([offered])
+                            if name == "duplicate-delivery" and not sequence:
+                                delivery += delivery
                             try:
-                                subscriber.sendall(delivery if sequence else delivery + delivery)
+                                subscriber.sendall(delivery)
                             except ConnectionError:
                                 if not sequence:
                                     raise
@@ -123,6 +126,8 @@ def case(binary, name, qos):
                         assert "publisher acknowledgement type=5 reason=0x97" in err, err
                         progress = ObserverFailure(p.returncode, err).progress
                         assert progress == {"sent": 1 + warmup, "confirmed": warmup, "deliveries": warmup}, err
+                    if name == "sequence-gap":
+                        assert "Subscriber publication sequence mismatch: expected=1 received=2" in err, err
                     print(name, "rejected", err.strip())
         finally:
             if p.poll() is None:
@@ -327,7 +332,7 @@ def main():
     args = parser.parse_args()
     binary = str(args.observer.resolve(strict=True))
     for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("negative-after-progress", 2),
-                      ("wrong-pubcomp", 2), ("duplicate-delivery", 1)):
+                      ("wrong-pubcomp", 2), ("duplicate-delivery", 1), ("sequence-gap", 1)):
         case(binary, name, qos)
     shared_case(binary, False)
     shared_case(binary, True)

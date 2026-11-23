@@ -25,6 +25,7 @@ PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publis
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
 TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
+BROKER_LOG_TAIL_BYTES = 16 * 1024
 PARTIAL_MEASUREMENT = re.compile(
     r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)\n?$",
     re.MULTILINE,
@@ -369,14 +370,21 @@ def main():
                     row = {"repeat": repeat, "broker": label}
                     group["samples"].append(row)
                     with tempfile.TemporaryDirectory(prefix="xmqtt-broker-compare-") as temp:
+                        directory = Path(temp)
                         try:
-                            row.update(run_sample(args, label, workload, Path(temp)))
+                            row.update(run_sample(args, label, workload, directory))
                         except ObserverFailure as error:
                             row["failure"] = str(error)
                             if error.progress is not None:
                                 row["failure_progress"] = error.progress
                         except Exception as error:
                             row["failure"] = str(error)
+                        log = directory / "broker.log"
+                        if "failure" in row and log.is_file():
+                            with log.open("rb") as output:
+                                size = output.seek(0, os.SEEK_END)
+                                output.seek(max(0, size - BROKER_LOG_TAIL_BYTES))
+                                row["broker_log_tail"] = output.read(BROKER_LOG_TAIL_BYTES).decode("utf-8", errors="replace")
                     print(workload, repeat, label, row.get("failure", row.get("delivery_p99_us")), flush=True)
             if not any("failure" in row for row in group["samples"]):
                 group_metrics = summaries

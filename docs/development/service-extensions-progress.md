@@ -25887,3 +25887,20 @@ cohorts. Only the 6,000/s Mosquitto delivery P99 series in that
 table met both repeatability limits. Logs, peer configurations,
 captured failure progress and independent replay are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-qos2-attribution-7bf8b8bf/.
+
+## 2026-11-24 MQTT comparison failure evidence
+
+The broker comparison now retains a bounded log tail on failure
+and reports sequence mismatches in reliable single-publisher
+deliveries. Both the Windows and Ubuntu optimized observers
+rejected the scripted gap, duplicate, incorrect ACK and
+same-publisher reorder. The normal Ubuntu 3,000/s QoS 2 profile
+completed all six broker runs with exact delivery counts.
+
+At 24,000/s each broker had three incomplete trials. All six
+records retained bounded broker output. The Mosquitto records
+showed a subscriber sequence gap with a drop notice, and the
+xmqtt records showed the negative PUBREC. The observer continues
+to apply exact publication and delivery validation. Source
+receipts and replay checks are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-qos2-observer-7bf8b8bf/.

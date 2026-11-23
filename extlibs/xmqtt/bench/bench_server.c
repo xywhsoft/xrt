@@ -546,19 +546,29 @@ static bool benchRemoteDelivery(benchRemotePeer* Peer, size_t Round, double Arri
 	return true;
 }
 
+static size_t benchRemoteSequence(const unsigned char* Tail)
+{
+	return ((size_t)Tail[0] << 24) | ((size_t)Tail[1] << 16) | ((size_t)Tail[2] << 8) | Tail[3];
+}
+
 static bool benchRemotePublication(benchRemotePeer* Peer, const xmqttframe* Frame, size_t* Round, uint16* Id)
 {
 	size_t Size = 138u + (Peer->Qos ? 2u : 0u);
 	if (Frame->Wire.Size != Size) return false;
 	*Id = Peer->Qos ? benchRemotePacketId(Frame->Wire.Data + 9) : 0;
 	if (Peer->Qos && !*Id) return false;
-	if (Peer->Shared || Peer->Publishers > 1) {
-		*Round = ((size_t)Frame->Wire.Data[Size - 4] << 24) | ((size_t)Frame->Wire.Data[Size - 3] << 16) |
-			((size_t)Frame->Wire.Data[Size - 2] << 8) | Frame->Wire.Data[Size - 1];
-	}
+	const unsigned char* Tail = Frame->Wire.Data + Size - 4;
+	if (Peer->Shared || Peer->Publishers > 1) *Round = benchRemoteSequence(Tail);
 	unsigned char Expected[140];
 	if (*Round >= Peer->Warmup + Peer->Rounds || benchRemoteFrame(Expected, *Round, Peer->Qos, *Id) != Size ||
-		memcmp(Frame->Wire.Data, Expected, Size)) return false;
+		memcmp(Frame->Wire.Data, Expected, Size)) {
+		if (!Peer->Shared && Peer->Publishers == 1) {
+			size_t Observed = benchRemoteSequence(Tail);
+			if (Observed != *Round)
+				fprintf(stderr, "Subscriber publication sequence mismatch: expected=%zu received=%zu\n", *Round, Observed);
+		}
+		return false;
+	}
 	/* Claim before acknowledging, including when QoS 2 is still awaiting PUBREL. */
 	uint32 Unseen = 0;
 	return !Peer->Shared || xrtAtomic32CompareExchange(Peer->Seen + *Round, &Unseen, 1,
