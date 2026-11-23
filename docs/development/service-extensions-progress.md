@@ -26236,3 +26236,27 @@ withheld exact command accounting.
 The three new regression tests passed on Windows and Ubuntu.
 Both sets of reports and per-offer traces are under
 out/service-extensions/linux-guest-9ce2606c/xredis-fixture-ledger-a0229d8f/.
+
+## 2026-11-24 Full Ubuntu MQTT ASan and UBSan suite
+
+The Ubuntu QEMU/WHPX guest ran the optimized MQTT runtime
+suite from the verified 7bf8b8bf source archive. GCC 13
+built 38 modular and 67 single-header test executables with
+ASan and UBSan. All 105 passed with leak detection and fatal
+diagnostics enabled. Host replay matched the manifest and
+test order. ELF inspection verified both sanitizer libraries
+and instrumentation references in every executed program,
+including the modular builds linked through response files.
+The MQTT runtime, tests and build inputs match mainline.
+
+The first focused TSan run verified the xcron scheduler and
+the MQTT dual-protocol and persistent-server single-header
+tests. Each executed with libtsan and instrumented symbols.
+The wrapper disables address randomization in the test
+process to avoid an observed TSan startup mapping failure.
+The xrpc test was absent from the selected suite. GCC's TLS
+PSK maybe-uninitialized diagnostics stopped both Redis
+single-header builds before execution. A rerun with the
+correct xrpc suite and separate Redis compiler diagnostics
+is queued. Logs and receipts are under
+out/service-extensions/linux-guest-9ce2606c/service-sanitizers-7bf8b8bf/.
