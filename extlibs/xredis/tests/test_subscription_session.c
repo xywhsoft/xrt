@@ -92,6 +92,53 @@ static void sessionLargeDiff(void)
     uint64 Revision=sessionSeed(Store,XREDIS_PUBSUB_CMD_SUBSCRIBE,Views,1024);Revision=sessionSeed(Store,XREDIS_PUBSUB_CMD_SUBSCRIBE,Views+1024,76);xredissubscriptionsession* S=sessionCreate(&P,&F,Store,&K);xredissubscriptionsessioncurrent C=sessionCurrent(S,1,Revision);xredisClientRelease(C.Client);
     xbytesview Extra=XRT_BYTES_LITERAL("extra");testRequire(xredisSubscriptionSessionApply(S,XREDIS_PUBSUB_CMD_SUBSCRIBE,&Extra,1,&Revision)==XREDIS_ADMISSION_ACCEPTED,"diff across scan-turn boundary");C=sessionCurrent(S,1,Revision);xredissubscriberinfo I={0};I.Size=sizeof(I);testRequire(xredisSubscriberInfo(C.Client,&I) && I.Entries==1101 && !xrtAtomic32Load(&P.Removes,XMEMORY_ACQUIRE) && xrtAtomic32Load(&P.Adds,XMEMORY_ACQUIRE)==1101,"bounded multi-turn merge adds one key only");xredisClientRelease(C.Client);xfuture* Closed=sessionClose(S,&F);xredisSubscriptionSessionRelease(S);xredisSubscriptionsRelease(Store);sessionPeerStop(&P);xrtFutureDestroy(Closed);
 }
+typedef struct sessionworkerhold { xatomic32 Entered, Released; } sessionworkerhold;
+
+static void sessionHoldWorker(xnetworker* Worker, ptr Data)
+{
+    (void)Worker;
+    sessionworkerhold* Hold=Data;
+    xrtAtomic32Store(&Hold->Entered,1,XMEMORY_RELEASE);
+    redisPeerWait(&Hold->Released,1);
+}
+
+static void sessionClosedDuringSetup(void)
+{
+    sessionpeer Peer;
+    sessionPeerStart(&Peer);
+    xrtAtomic32Store(&Peer.HoldHello,1,XMEMORY_RELEASE);
+    sessionfactory Factory;
+    xredissubscriptionsessionconfig Config;
+    sessionFactoryConfig(&Factory,&Peer,&Config);
+    Config.AttemptTimeout=500;
+    Config.MaxFailures=1;
+    xredissubscriptions* Store=sessionStore();
+    xbytesview Name=XRT_BYTES_LITERAL("stable");
+    sessionSeed(Store,XREDIS_PUBSUB_CMD_SUBSCRIBE,&Name,1);
+    xredissubscriptionsession* Session=sessionCreate(&Peer,&Factory,Store,&Config);
+    xfuture* Closed=xredisSubscriptionSessionClosed(Session);
+    redisPeerWait(&Peer.Accepted,1);
+    redisPeerWait(&Peer.Peers[0].Commands,1);
+
+    sessionworkerhold Hold;
+    xrtAtomic32Init(&Hold.Entered,0);
+    xrtAtomic32Init(&Hold.Released,0);
+    testRequire(xrtNetEnginePost(Peer.Engine,0,sessionHoldWorker,&Hold),"hold controller while HELLO expires");
+    redisPeerWait(&Hold.Entered,1);
+    testRequire(Factory.Closed[0] && xrtFutureWaitFor(Factory.Closed[0],10000)==XWAIT_OK,
+        "native client closes before controller resumes");
+    xrtAtomic32Store(&Hold.Released,1,XMEMORY_RELEASE);
+
+    testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"controller retires after native close");
+    const xredissubscriptionsessionclosed* Result=xrtFutureValue(Closed);
+    testRequire(Result && Result->Status==XREDIS_REQUEST_TIMEOUT && Result->Attempts==1 &&
+        xrtAtomic32Load(&Factory.Drops,XMEMORY_ACQUIRE)==1,"native setup timeout survives physical close");
+    xredisSubscriptionSessionRelease(Session);
+    xredisSubscriptionsRelease(Store);
+    sessionPeerStop(&Peer);
+    xrtFutureDestroy(Closed);
+}
+
 static void sessionFailures(void)
 {
     for(unsigned Mode=0;Mode<7;++Mode){sessionpeer P;sessionPeerStart(&P);sessionfactory F;xredissubscriptionsessionconfig K;sessionFactoryConfig(&F,&P,&K);K.AttemptTimeout=60;K.MaxFailures=2;
@@ -181,7 +228,7 @@ static void sessionTLS(void)
 #endif
 int main(void)
 {
-    puts("[case] flow3");sessionFlow(false);puts("[case] flow2");sessionFlow(true);puts("[case] held target");sessionHeldRevision();puts("[case] concurrent");sessionConcurrent();puts("[case] large");sessionLargeDiff();puts("[case] failures");sessionFailures();sessionPreclosedCandidate();sessionBounds();sessionWorkerOOM();sessionOOM();
+    puts("[case] flow3");sessionFlow(false);puts("[case] flow2");sessionFlow(true);puts("[case] held target");sessionHeldRevision();puts("[case] concurrent");sessionConcurrent();puts("[case] large");sessionLargeDiff();puts("[case] failures");sessionClosedDuringSetup();sessionFailures();sessionPreclosedCandidate();sessionBounds();sessionWorkerOOM();sessionOOM();
 #if defined(XREDIS_SESSION_WHITEBOX)
     sessionWhiteboxClose();sessionWhiteboxDeadline();
 #endif

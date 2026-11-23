@@ -25510,3 +25510,32 @@ limits. This campaign records the VM hardware and co-running
 loads. Raw request timestamps, summaries and independent replay
 are under out/service-extensions/linux-guest-9ce2606c/xrpc-tail-evidence/.
 Strict release performance acceptance remains open.
+
+## 2026-11-23 Redis subscription setup timeout after native close
+
+The Ubuntu VM runtime suite found that a withheld HELLO response
+could terminate the session with INITIALIZATION. Both the client's
+detailed Ready future and its physical Closed future had resolved
+by the time the session worker ran. The close branch used the
+generic INITIALIZATION close status and missed the Ready timeout.
+Diagnostic runs on two guest vCPUs reproduced the wrong status
+16 times in 32 runs, with the expected attempt and context counts.
+
+The session now uses the completed Ready failure when it sees
+physical close during setup. The restore path uses the same
+status mapping and retry decision. A new regression holds the
+controller worker while the native client independently times
+out and closes. It fails against the original producer and
+passes in the updated Windows and Ubuntu VM modular and TLS
+single-header suites. The existing preclosed candidate still
+uses its transport outcome after successful setup. Generated
+headers and ordinary maturity also passed.
+
+Tests, deterministic before output and replay are under
+out/service-extensions/linux-guest-9ce2606c/redis-session-fix/
+and its sibling redis-subscription-qualification directory.
+GCC preprocessing with each running 72-hour build's exact
+options yielded byte-identical input before and after this fix.
+The mixed-load probes select the client, pool, tracking and
+subscriber paths. This session-specific regression exercised the
+additional subscription controller.

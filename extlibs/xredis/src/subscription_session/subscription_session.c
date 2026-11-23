@@ -118,6 +118,15 @@ static xredisrequeststatus xredisSessionReadyStatus(xredisreadystatus Status)
     case XREDIS_READY_CLOSED:return XREDIS_REQUEST_CLOSED;case XREDIS_READY_PROTOCOL:return XREDIS_REQUEST_PROTOCOL;
     case XREDIS_READY_LIMIT:return XREDIS_REQUEST_LIMIT;case XREDIS_READY_MEMORY:return XREDIS_REQUEST_MEMORY;default:return XREDIS_REQUEST_INITIALIZATION;}
 }
+static bool xredisSessionHandleReadyFailure(xredissubscriptionsession* S)
+{
+    const xredisreadyresult* Ready=xrtFutureValue(S->Ready.Future);
+    if(Ready && Ready->Status==XREDIS_READY_OK && Ready->Protocol==S->Config.Protocol)return false;
+    xredisrequeststatus Status=Ready?xredisSessionReadyStatus(Ready->Status):XREDIS_REQUEST_INITIALIZATION;
+    xredisSessionFailure(S,Status,Status!=XREDIS_REQUEST_TIMEOUT &&
+        Status!=XREDIS_REQUEST_DISCONNECTED && Status!=XREDIS_REQUEST_CLOSED);
+    return true;
+}
 static void xredisSessionResultDrop(ptr Value,ptr Data){(void)Data;xrtFree(Value);}
 static void xredisSessionFinish(xredissubscriptionsession* S)
 {
@@ -172,9 +181,7 @@ static void xredisSessionRestore(xredissubscriptionsession* S)
             if(xrtTimer()>=S->Due){xredisSessionFailure(S,XREDIS_REQUEST_TIMEOUT,false);return;}
             if(!S->ReadyOK){
             if(!S->Ready.Future || !xrtFutureDone(S->Ready.Future))return;
-            const xredisreadyresult* Ready=xrtFutureValue(S->Ready.Future);
-            if(!Ready || Ready->Status!=XREDIS_READY_OK || Ready->Protocol!=S->Config.Protocol){xredisrequeststatus Why=Ready?xredisSessionReadyStatus(Ready->Status):XREDIS_REQUEST_INITIALIZATION;
-                xredisSessionFailure(S,Why,Why!=XREDIS_REQUEST_TIMEOUT && Why!=XREDIS_REQUEST_DISCONNECTED && Why!=XREDIS_REQUEST_CLOSED);return;}
+            if(xredisSessionHandleReadyFailure(S))return;
             if(!xredisSessionWatchStop(S,&S->Ready))return;
             S->ReadyOK=true;}
             xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);
@@ -205,7 +212,13 @@ static void xredisSessionWork(xnetworker* Worker,ptr Data)
         S->Draining=true;(void)xredisSessionDrain(S);
         if(xredisSessionClosing(S) && !S->Client && !S->Draining)xredisSessionFinish(S);
     }else if(!S->Client){if(xrtTimer()>=S->Due)xredisSessionStart(S);}
-    else if(xrtFutureDone(S->Closed.Future)){xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);xredisSessionFailure(S,I.CloseStatus==XREDIS_REQUEST_OK?XREDIS_REQUEST_DISCONNECTED:I.CloseStatus,false);}
+    else if(xrtFutureDone(S->Closed.Future)){
+        /* An initialization deadline can resolve both watchers before this turn. */
+        if(!S->Ready.Future || !xrtFutureDone(S->Ready.Future) || !xredisSessionHandleReadyFailure(S)){
+            xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);
+            xredisSessionFailure(S,I.CloseStatus==XREDIS_REQUEST_OK?XREDIS_REQUEST_DISCONNECTED:I.CloseStatus,false);
+        }
+    }
     else{
         xredissubscriptionsinfo I={0};I.Size=sizeof(I);(void)xredisSubscriptionsInfo(S->Store,&I);
         xrtMutexLock(&S->Gate);if(S->Info.DesiredRevision<I.Revision)S->Info.DesiredRevision=I.Revision;bool Needed=!S->Applied || S->Replay || S->Info.AppliedRevision!=S->Info.DesiredRevision;if(!Needed && !S->Closing && S->Info.State!=XREDIS_SESSION_ONLINE){S->Info.State=XREDIS_SESSION_ONLINE;S->Notify=true;}xrtMutexUnlock(&S->Gate);
