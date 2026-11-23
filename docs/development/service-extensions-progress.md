@@ -23306,3 +23306,26 @@ executable. It records waiter return and first-callback timing on
 the same CPU for two 64-wave runs of each configuration. Its results
 are pending. The full journal, independent replay and follow-up
 launch are under out/service-extensions/xcron-native-cohort-job-feee80b1/.
+
+## 2026-11-23 xcron WSL late-wake phase samples
+
+The existing wait-phase executable at 4b5d6ac8 completed eight
+processes on Ubuntu WSL, pinned to logical CPU 0. Independent replay
+verified 512 waves, 278,528 callbacks, the binary and source hashes,
+every pooled percentile and the POSIX monotonic waiter indication.
+
+These are all three waves whose first callback was at least 1 ms late.
+
+| Active jobs | Drive | Waiter return lateness (us) | Return to first callback (us) | Callback span (us) |
+| ---: | --- | ---: | ---: | ---: |
+| 1,024 | Precise waiter | 3,289.3 | 1.6 | 3.9 |
+| 64 | Scheduler Wait | 3,256.9 | 7.1 | 7.0 |
+| 1,024 | Scheduler Wait | 3,242.5 | 12.3 | 5.3 |
+
+Each of the three waves made one wait call. Its monotonic elapsed time
+exceeded the requested deadline budget by 3,242 to 3,289 microseconds.
+The observed delay was already present at the waiter return in both
+drive paths. This test does not identify which part of the platform's
+wait and scheduling path caused it. The raw phase journal and replay
+are under out/service-extensions/xcron-native-cohort-job-feee80b1/wsl-phase/.
+Native Linux data and stable release timing remain open.
