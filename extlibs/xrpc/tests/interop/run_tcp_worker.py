@@ -96,13 +96,15 @@ def staggered_start(first):
 
 
 def maximum_record(peer):
+    prelude, prelude_reply = next(requests(1, 1, first=90))
     request, expected = next(requests(1, 1, first=91))
     follow_up, next_reply = next(requests(1, 1, first=92))
     full = request[:-1].ljust(4096, b" ")
-    peer.sendall(full[:4000])
-    peer.sendall(full[4000:] + b"\n" + follow_up)
-    peer.shutdown(socket.SHUT_WR)
+    peer.sendall(prelude + full[:4000])
     with peer.makefile("rb") as stream:
+        assert stream.readline() == prelude_reply[0]
+        peer.sendall(full[4000:] + b"\n" + follow_up)
+        peer.shutdown(socket.SHUT_WR)
         assert list(stream) == expected + next_reply, "maximum record or following reply changed"
 
 
@@ -130,7 +132,7 @@ def dispatch_cases(executable):
         reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
         assert reset == 1 and report is None
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 9, "modes": list(MODES), "replies_per_mode": 134, "max_record_bytes": 4096,
+    return {"cases_per_mode": 9, "modes": list(MODES), "replies_per_mode": 135, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 256, "ok": True}
 

@@ -57,6 +57,8 @@ The stdio and TCP worker examples accept one JSON document per LF-terminated
 record, up to 4096 document bytes excluding the delimiter. An oversized
 record or EOF inside a record ends the example's stream. Replies already
 sent remain available to the peer.
+The TCP example continues its delimiter search at the first new byte after
+each read, including when the final record spans several reads.
 
 ## Concurrent admission benchmark
 

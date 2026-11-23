@@ -80,7 +80,7 @@ static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
     appexecution* Job, uint64* Requests)
 {
     char Record[sizeof(Job->Request.Input) + 1];
-    size_t Used = 0;
+    size_t Used = 0, Scanned = 0;
     for (;;) {
         size_t Count;
         xnetresult Result = xrtNetSocketRecv(Peer, Record + Used, sizeof(Record) - Used, &Count);
@@ -89,18 +89,22 @@ static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
         Used += Count;
 
         size_t Start = 0;
-        const char* End;
-        while ((End = memchr(Record + Start, '\n', Used - Start)) != NULL) {
+        while (Scanned < Used) {
+            const char* End = memchr(Record + Scanned, '\n', Used - Scanned);
+            if (!End) break;
             size_t Bytes = (size_t)(End - (Record + Start));
             if (!handle(Peer, Endpoint, Workers, Job, (xstrview){Record + Start, Bytes}))
                 return false;
             ++*Requests;
             Start += Bytes + 1;
+            Scanned = Start;
         }
         if (Start) {
             Used -= Start;
-            memmove(Record, Record + Start, Used);
+            if (Used) memmove(Record, Record + Start, Used);
         }
+        /* The remaining bytes have already been searched for a delimiter. */
+        Scanned = Used;
         if (Used == sizeof(Record)) return false;
     }
 }

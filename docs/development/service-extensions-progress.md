@@ -23529,3 +23529,25 @@ The previous Windows Redis run and the current Windows MQTT run were
 still active at this check. Completion of the new Windows interval
 and native Linux endurance remain open. Build, smoke and startup
 receipts are under out/service-extensions/xredis-read-gate-2104cafd/.
+
+## 2026-11-23 xrpc incremental delimiter search in the TCP example
+
+The TCP owner retains its delimiter search position across reads.
+A fragmented record preserves the already searched prefix when
+the APP compacts the buffer. The fixture now sends a valid record
+before the partial maximum-size record and verifies the acknowledgement
+before sending the remainder and the next complete record.
+
+The optimized native Windows and Ubuntu WSL executables passed both
+TCP worker modes and the stdio interop. The TCP tests retained the
+record size, concurrent peers, backpressure and peer failure coverage.
+A separate probe capped each receive to one byte. In each TCP mode
+on both hosts, a valid 4,096-byte record plus LF scanned 8,394,753
+bytes in the baseline and 4,097 bytes in the candidate. Both peers
+verified the same reply. The initial WSL probe needed to undefine
+the C library's memchr macro before installing its counter. Ordinary
+maturity, generated headers and diff checks passed.
+
+The change is confined to the APP's line framing. Native Linux
+release timing remains open. The probe, hashes and peer reports
+are under out/service-extensions/xrpc-framing-scan-0d5bf3c4/.
