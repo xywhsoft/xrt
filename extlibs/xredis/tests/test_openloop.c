@@ -1,5 +1,6 @@
 #include "../bench/openloop_run.h"
 #include "test.h"
+#include <math.h>
 
 static void testOpenSchedule(void)
 {
@@ -120,7 +121,12 @@ static void testOpenRuntime(void)
 		Result.Counts.Corrupt == 0 && Result.HarnessBytes != 0 && Result.PeerCommands == 34, "normal offer ledger/correlation");
 	for (size_t Index = 0; Index < 4; ++Index)
 		testRequire(Result.Response[Index] > 0 && Result.Response[Index] <= Result.Success[Index], "response interval exceeds offer latency");
-	testRequire(Result.GeneratorCpu >= 0 && Result.GeneratorCpu <= Result.Cpu + 0.000001, "generator CPU outside the process window");
+	double GeneratorCpu = Result.GeneratorCpu.User + Result.GeneratorCpu.Kernel;
+	double ProcessCpu = Result.Cpu.User + Result.Cpu.Kernel;
+	testRequire(Result.GeneratorCpu.User >= 0 && Result.GeneratorCpu.Kernel >= 0 &&
+		Result.Cpu.User >= 0 && Result.Cpu.Kernel >= 0 && isfinite(GeneratorCpu) &&
+		isfinite(ProcessCpu) && GeneratorCpu <= ProcessCpu + 0.000001,
+		"generator CPU outside the process window");
 	Config.Count = 16; Config.Rate = 1000000; Config.Mode = 1; Config.Stall = 50; Config.Timeout = 10;
 	testRequire(redisOpenRun(&Config, &Result) && Result.Counts.Outcomes[REDIS_OPEN_EXPIRED] == 16 && Result.Counts.Accepted == 0 &&
 		Result.Counts.Missed == 16 && Result.Lag[0] >= 10000.0 && Result.Response[3] == 0 &&

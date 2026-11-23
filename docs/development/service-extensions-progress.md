@@ -25331,3 +25331,14 @@ shared package checks passed on both environments. The WSL subscriber
 suite also passed ASan, UBSan and leak checks. Generated headers and
 ordinary maturity passed. The live-queue receipts and package logs are
 under out/service-extensions/xredis-bounded-progress-190dd32b/.
+
+## 2026-11-23 Redis open-loop CPU split regression
+
+The full suite stopped at test_openloop on Windows and Ubuntu WSL.
+The earlier CPU observer change split process and generator time
+into user and kernel seconds. The runtime test still treated each
+measurement as a scalar. It now checks the four nonnegative
+components and compares the finite aggregate CPU times of the
+generator and process. Both optimized runtime tests passed after
+the correction. The original failed builds and resumed suite logs
+are under out/service-extensions/xredis-bounded-progress-190dd32b/.
