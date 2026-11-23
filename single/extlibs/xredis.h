@@ -13348,9 +13348,19 @@ static void xredisClusterWork(xnetworker* W,ptr Data)
 {
     (void)W;xredisclusterclient* C=Data;xrtMutexLock(&C->Gate);C->Posted=false;bool Closing=C->Info.Closing;xrtMutexUnlock(&C->Gate);
     if(Closing){xredisClusterRefreshClose(C->Refresh);(void)xredisClusterWatchStop(&C->Metadata);}else xredisClusterDriveRefresh(C);
+    /* A ready backlog must not starve timed waits. Sample once per turn so
+     * the normal ready path does not need a clock read for each selection. */
+    double TurnStarted=C->HeapCount?xrtTimer():0;
     for(size_t N=0;N<C->Config.MaxSteps;++N){
-        xrtMutexLock(&C->Gate);xredisclusteroperation* O=C->ReadyHead;if(O)xredisClusterUnqueueLocked(C,O);xrtMutexUnlock(&C->Gate);
-        if(!O && C->HeapCount && C->Heap[0]->Due<=xrtTimer()){O=C->Heap[0];xredisClusterHeapRemove(C,O);}if(!O)break;xredisClusterOperationStep(C,O);
+        xredisclusteroperation* O=NULL;
+        if(C->HeapCount && C->Heap[0]->Due<=TurnStarted)O=C->Heap[0];
+        xrtMutexLock(&C->Gate);
+        if(!O)O=C->ReadyHead;
+        if(O)xredisClusterUnqueueLocked(C,O);
+        xrtMutexUnlock(&C->Gate);
+        if(!O && C->HeapCount && C->Heap[0]->Due<=xrtTimer())O=C->Heap[0];
+        if(!O)break;
+        xredisClusterOperationStep(C,O);
     }
     xrtMutexLock(&C->Gate);C->Info.HeapEntries=C->HeapCount;Closing=C->Info.Closing;bool Ready=C->ReadyHead!=NULL;xrtMutexUnlock(&C->Gate);
     if(Ready)xredisClusterWake(C);

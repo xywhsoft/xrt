@@ -146,6 +146,49 @@ static void ccQueueBounds(void)
     for(unsigned Kind=0;Kind<2;++Kind){F=rfStart(3);xredisClusterClientConfigInit(&K);if(Kind)K.MaxStorageBytes=1;else K.MaxCommandBytes=1;C=cfCreate(F,&K);cfReady(C);Rejected=(void*)(uintptr_t)1;
         testRequire(xredisClusterClientCall(C,1,A,2,5000,&Rejected)==XREDIS_ADMISSION_OVERLOADED && Rejected==(void*)(uintptr_t)1 && !cfInfo(C).Requests && !cfInfo(C).StorageBytes,"managed aggregate byte quotas");cfStop(F,C);}
 }
+typedef struct ccdeadlineorder {xfuture* Later;xatomic32 Released;bool LaterPending;} ccdeadlineorder;
+static void ccDeadlineOrderNotify(ptr Data)
+{
+    ccdeadlineorder* Order=Data;
+    Order->LaterPending=xrtFutureState(Order->Later)==XFUTURE_PENDING;
+}
+static void ccDeadlineOrderRelease(ptr Data)
+{
+    ccdeadlineorder* Order=Data;
+    xrtAtomic32Store(&Order->Released,1,XMEMORY_RELEASE);
+}
+static void ccDeadlineBeforeReady(void)
+{
+    rffixture* F=rfStart(3);
+    xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);
+    xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);K.MaxSteps=1;
+    xredisclusterclient* C=cfCreate(F,&K);
+    redisPeerWait(&F->Nodes[0].Queries,1);
+    xfuture* First=cfEcho(C,1000);
+    double Due=xrtTimer()+1.01;
+    while(cfInfo(C).HeapEntries!=1){
+        testRequire(xrtTimer()<Due,"first request parked on the deadline heap");
+        xrtSleep(1);
+    }
+    ccbarrier B={0};
+    testRequire(xrtNetEnginePost(F->Base->Peers[0].Engine,1,ccBlock,&B),"hold worker across parked deadline");
+    redisPeerWait(&B.Entered,1);
+    xfuture* Later=cfEcho(C,0);
+    ccdeadlineorder Order={.Later=Later};xfuturewatch Watch={0};
+    testRequire(xrtFutureWatchInit(&Watch,ccDeadlineOrderNotify,ccDeadlineOrderRelease,&Order) &&
+        xrtFutureWatchAdd(First,&Watch)==XFUTURE_WATCH_PENDING,"watch parked request before releasing the worker");
+    while(xrtTimer()<Due)xrtSleep(1);
+    xrtAtomic32Store(&B.Continue,1,XMEMORY_RELEASE);
+    const xredisclusterclientresult* A=cfWait(First);
+    const xredisclusterclientresult* Z=cfWait(Later);
+    redisPeerWait(&Order.Released,1);
+    testRequire(A->Status==XREDIS_CLUSTER_CLIENT_TIMEOUT && Z->Status==XREDIS_CLUSTER_CLIENT_TIMEOUT &&
+        !A->Native && !Z->Native && !xrtAtomic32Load(&F->Base->Business,XMEMORY_ACQUIRE),"only local deadlines expire");
+    bool FirstWon=Order.LaterPending;
+    cfStop(F,C);xrtFutureDestroy(First);xrtFutureDestroy(Later);
+    testRequire(FirstWon,"parked deadline must complete before queued work at the next turn");
+}
+
 static void ccBusyPoolDoesNotRefresh(void)
 {
     rffixture* F=rfStart(3);
@@ -390,7 +433,7 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccBusyPoolDoesNotRefresh();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccElectionWait();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
+{ccValidate();ccBasic();ccRedirects();ccReplicaRoutes();ccReplicaProfile();ccQueueBounds();ccDeadlineBeforeReady();ccBusyPoolDoesNotRefresh();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccElectionWait();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 ccDeadline();ccRecoveryStorage();ccMapAlreadyPublished();
 #endif

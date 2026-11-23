@@ -90,6 +90,9 @@ parent Future/cancel observer,
 route storage, native Future/wire, gates, references, heap updates and timer
 work are real costs. One preallocated min-heap and one timer serve all operations;
 ready queues and embedded posts avoid full active-request scans on completion.
+Each worker turn services timed waits already due before taking ready work,
+within the same phase limit. A wait that becomes due during a busy turn
+gets priority on the next turn.
 
 Close seals admission, stops client routes/metadata and retires client watches,
 posts/timer and progress-engine pin before Closed. Shared Nodes remains open;

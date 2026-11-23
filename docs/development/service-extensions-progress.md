@@ -23867,3 +23867,43 @@ remain open.
 
 The failing probes and current regression receipts are under
 out/service-extensions/xcron-prearm-deadline-7e0f1688/.
+
+## 2026-11-23 xredis Cluster deadline progress under a ready backlog
+
+The managed Cluster worker used to take ready operations before checking
+the timed-wait heap. A blocking test holds the metadata reply, parks a
+request on the heap, freezes the worker through its deadline, and queues
+another request while the worker is stopped. The old build published the
+queued request's timeout first on native Windows and Ubuntu WSL. Both
+commands stayed local. The updated worker takes due heap entries before
+ready work at the start of each turn under the existing phase budget.
+The selection uses one clock sample for that turn and keeps the regular
+deadline and cancellation checks inside each operation.
+
+Optimized modular and single-header tests passed on native Windows x64
+and Ubuntu WSL. The Windows synchronous suite and the WSL single-header
+ASan/UBSan test with leak detection passed. Static and shared package
+consumers passed in both environments. The first parallel shared-package
+attempt used the same output path on Windows and WSL and mixed object
+formats. Rebuilding Windows in the x64 output and WSL in the native
+output passed. The WSL static consumer also passed 36 cases each over
+TCP and verified TLS against Redis 8.0.5, including MOVED/ASK and 1,152
+server-observed INCR executions per transport.
+
+The alternating loopback trial measured 800,000 successful replies per
+environment at pipeline depths 1 and 32 across both worker placements.
+Median throughput changes across the eight cohorts ranged from -4.0
+to +3.6 percent and P99 from -2.8 to +7.0 percent. P99.9 varied in the
+20,000-reply runs, including a +136.1 percent WSL depth-32 cross-worker
+result. That cohort's 100,000-reply follow-up used nine pairs on each
+environment. Median throughput, P99 and P99.9 changed +1.8, +0.2 and
+-5.3 percent on Windows and -5.0, +3.0 and +3.4 percent on WSL.
+Independent replay checked the sample counts, medians and binary digests.
+These measurements leave native Linux and formal performance acceptance
+open. The Windows mixed-load executable selects shared-pool, tracking and
+Pub/Sub modules and does not include the managed Cluster worker.
+
+Ordinary maturity and generated-header checks passed. Strict xredis
+maturity still reports 29 developing modules. Test, package, interop and
+paired throughput evidence is under
+out/service-extensions/xredis-cluster-deadlines-3e5fab5d/.
