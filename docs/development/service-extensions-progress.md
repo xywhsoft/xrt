@@ -26788,3 +26788,43 @@ creation time and terminal status before waiting for the
 earlier sockets to retire. Strict Windows repeatability
 remains open. Raw results and event correlation are under
 out/service-extensions/xredis-capacity-85f4ad5c/.
+
+## 2026-11-24 Redis client parser depth and connection memory
+
+The Ubuntu QEMU/WHPX guest tested two existing APP settings
+independently and together at 10,000 RESP3 connections.
+The four configurations used reader depth 64 or 8 and
+TCP read size 2,048 or 512 bytes. There were three trials
+per configuration on the same client and peer CPU budget.
+All 240,000 binary ECHOs reconciled, including those after
+replacing ten percent of the connections. Each trial
+returned to the original descriptor count.
+
+| Reader depth | TCP read size (bytes) | Median idle RSS growth (MiB) |
+| ---: | ---: | ---: |
+| 64 | 2,048 | 113.35 |
+| 64 | 512 | 113.34 |
+| 8 | 2,048 | 78.86 |
+| 8 | 512 | 78.86 |
+
+The smaller depth saved about 34.5 MiB in this scenario.
+The read-size change had no material idle RSS effect on
+epoll. Reader depth bounds accepted nested replies and
+sizes both parsing stacks. It remains an APP setting.
+
+A separate native fixed-arrival experiment compared both
+depths with default TCP read size and two workers on the
+same eight connections. It reconciled all 336,000
+scheduled offers and replies, including warmup. Throughput
+was repeatable at both rates. The latency medians follow.
+
+| Payload / offers per second | P99 64 / 8 (µs) | P99.9 64 / 8 (µs) |
+| --- | ---: | ---: |
+| 1 KiB / 12,000 | 327.1 / 365.7 | 686.1 / 847.6 |
+| 16 KiB / 2,000 | 319.6 / 366.0 | 611.0 / 552.0 |
+
+Only depth 64 met P99 repeatability in those workloads.
+Both depths exceeded the P99.9 variation limit. The
+default depth remains 64. Raw source hashes and replays
+are under out/service-extensions/linux-guest-9ce2606c/
+in xredis-capacity-85f4ad5c/ and xredis-reader-depth-ac6ceb38/.

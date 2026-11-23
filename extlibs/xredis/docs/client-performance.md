@@ -232,6 +232,14 @@ and sum the two intervals for those same offers. Submit through finish
 includes socket, server and client reply handling.
 [Numeric outcome definitions](../bench/openloop_schedule.h).
 
+At high connection counts, `xredisclientconfig.Replies.Reader.MaxDepth`
+controls the memory reserved for reply nesting. It also bounds the nesting
+the client accepts. On the Ubuntu epoll lifecycle fixture, a depth of 8
+reduced the median idle RSS growth by about 34.5 MiB across 10,000
+connections compared with the default of 64. Fixed-arrival GET/SET runs
+at depth 8 had higher median P99 and greater P99 variation in both
+measured cohorts. [Capacity and latency measurements](../../../docs/development/service-extensions-progress.md#2026-11-24-redis-client-parser-depth-and-connection-memory).
+
 ### Native Linux fixture and CI
 
 On Linux, the paired runner can start a disposable loopback Redis process
