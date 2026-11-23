@@ -40,8 +40,12 @@ static void roleFailures(void)
         {"*3\r\n+master\r\n:-1\r\n*0\r\n",XREDIS_READY_PROTOCOL},{"*3\r\n+master\r\n:0\r\n*1\r\n*2\r\n+h\r\n+1\r\n",XREDIS_READY_PROTOCOL},{"+OK\r\n",XREDIS_READY_PROTOCOL},{"*0\r\n",XREDIS_READY_PROTOCOL},
         {"-NOPERM leaked-password\r\n",XREDIS_READY_SERVER_ERROR},{"-ERR unknown command 'role', with args beginning with: leaked-password\r\n",XREDIS_READY_UNSUPPORTED},
         {"-ERR unknown command 'ROLEX'\r\n",XREDIS_READY_SERVER_ERROR},{"-NOPROTO unsupported version\r\n",XREDIS_READY_SERVER_ERROR},{"-WRONGPASS leaked-password\r\n",XREDIS_READY_AUTH_FAILED}};
-    for(size_t N=0;N<sizeof(Cases)/sizeof(*Cases);++N){redisinitpeerstep Steps[]={{{XRT_BYTES_LITERAL("HELLO"),XRT_BYTES_LITERAL("3")},2,XRT_BYTES_LITERAL(REDIS_INIT_HELLO_REPLY),false,false},{{XRT_BYTES_LITERAL("ROLE")},1,{(cbytes)Cases[N].Response,strlen(Cases[N].Response)},false,false}};
-        roleclientpeer P;roleClientPeerStart(&P,false,false,Steps,2);xredisclientinitconfig Init;xredisClientInitConfigInit(&Init);Init.Mode=XREDIS_INIT_AUTO;Init.Flags=XREDIS_INIT_REQUIRE_MASTER|XREDIS_INIT_CLUSTER_READONLY;xredisclient* C=NULL;testRequire(roleClientPeerConnect(&P,0,NULL,&Init,&C),"role failure admission");xfuture* Ready=xredisClientReady(C);xfuture* Ping=roleClientPing(C,5000);const xredisreadyresult* R=roleClientWait(Ready);testRequire(R->Status==Cases[N].Status && R->Step==XREDIS_INIT_ROLE && !R->Hello && !R->Downgraded,"role typed failure without AUTO downgrade/HELLO leakage");
+    for(size_t N=0;N<sizeof(Cases)/sizeof(*Cases);++N){redisinitpeerstep Steps[]={{{XRT_BYTES_LITERAL("HELLO"),XRT_BYTES_LITERAL("3")},2,XRT_BYTES_LITERAL(REDIS_INIT_HELLO_REPLY),false,false},{{XRT_BYTES_LITERAL("ROLE")},1,{(cbytes)Cases[N].Response,strlen(Cases[N].Response)},true,false}};
+        roleclientpeer P;roleClientPeerStart(&P,false,false,Steps,2);xredisclientinitconfig Init;xredisClientInitConfigInit(&Init);Init.Mode=XREDIS_INIT_AUTO;Init.Flags=XREDIS_INIT_REQUIRE_MASTER|XREDIS_INIT_CLUSTER_READONLY;xredisclient* C=NULL;testRequire(roleClientPeerConnect(&P,0,NULL,&Init,&C),"role failure admission");xfuture* Ready=xredisClientReady(C);xfuture* Ping=roleClientPing(C,5000);
+        redisinitpeer* I=roleClientPeerInit(&P);
+        redisInitPeerStepWait(I,2);
+        redisPeerReleaseBlocked(&I->Peer);
+        const xredisreadyresult* R=roleClientWait(Ready);testRequire(R->Status==Cases[N].Status && R->Step==XREDIS_INIT_ROLE && !R->Hello && !R->Downgraded,"role typed failure without AUTO downgrade/HELLO leakage");
         if(R->Cause){testRequire(strstr(xrtErrorMessage(R->Cause),"leaked-password")==NULL,"redacted role diagnostics");}
         const xredisrequestresult* B=roleClientWait(Ping);testRequire(B->Status==XREDIS_REQUEST_INITIALIZATION && B->Delivery==XREDIS_NOT_SENT,"failed role blocks all queued business");xrtFutureDestroy(Ping);roleClientClose(&P,C);testRequire(xrtAtomic32Load(&roleClientPeerInit(&P)->Peer.Commands,XMEMORY_ACQUIRE)==2,"failed role prevents READONLY");R=roleClientWait(Ready);testRequire(R->Status==Cases[N].Status && R->Step==XREDIS_INIT_ROLE,"retained role terminal status");xrtFutureDestroy(Ready);
     }
@@ -49,10 +53,11 @@ static void roleFailures(void)
 static void roleLimitsAndClose(void)
 {
     redisinitpeerstep Step={{XRT_BYTES_LITERAL("ROLE")},1,{NULL,0},true,false};
-    for(unsigned Trial=0;Trial<4;++Trial){Step.Abort=Trial==3;Step.Response=Trial==2?(xbytesview)XRT_BYTES_LITERAL(ROLE_MASTER_REPLY):(xbytesview){NULL,0};roleclientpeer P;roleClientPeerStart(&P,false,false,&Step,1);xredisclientinitconfig Init;xredisClientInitConfigInit(&Init);Init.Mode=XREDIS_INIT_RESP2;Init.Flags=XREDIS_INIT_REQUIRE_MASTER;Init.Timeout=Trial==0?200:5000;xredisclientconfig K;xredisClientConfigInit(&K);if(Trial==2)K.Replies.Reader.MaxValues=3;
+    for(unsigned Trial=0;Trial<4;++Trial){Step.Response=Trial==2?(xbytesview)XRT_BYTES_LITERAL(ROLE_MASTER_REPLY):(xbytesview){NULL,0};roleclientpeer P;roleClientPeerStart(&P,false,false,&Step,1);xredisclientinitconfig Init;xredisClientInitConfigInit(&Init);Init.Mode=XREDIS_INIT_RESP2;Init.Flags=XREDIS_INIT_REQUIRE_MASTER;Init.Timeout=Trial==0?200:5000;xredisclientconfig K;xredisClientConfigInit(&K);if(Trial==2)K.Replies.Reader.MaxValues=3;
         xredisclient* C=NULL;testRequire(roleClientPeerConnect(&P,0,&K,&Init,&C),"role interrupt admission");xfuture* Ready=xredisClientReady(C);xfuture* Ping=roleClientPing(C,5000);redisinitpeer* I=roleClientPeerInit(&P);redisInitPeerStepWait(I,1);
         if(Trial==1)testRequire(xredisClientClose(C),"close held role");
         if(Trial==2)redisPeerReleaseBlocked(&I->Peer);
+        if(Trial==3)testRequire(xrtNetStreamAbort(I->Peer.Stream),"abort held role");
 
         const xredisreadyresult* R=roleClientWait(Ready);testRequire(R->Status==(Trial==0?XREDIS_READY_TIMEOUT:Trial==1?XREDIS_READY_CLOSED:Trial==2?XREDIS_READY_LIMIT:XREDIS_READY_DISCONNECTED) && R->Step==XREDIS_INIT_ROLE,"role timeout/close/limit/EOF");testRequire(((const xredisrequestresult*)roleClientWait(Ping))->Delivery==XREDIS_NOT_SENT,"interrupted role business never sent");xrtFutureDestroy(Ping);xrtFutureDestroy(Ready);roleClientClose(&P,C);
     }

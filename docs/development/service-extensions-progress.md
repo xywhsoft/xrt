@@ -25804,3 +25804,18 @@ improvement. Production retains the existing send path. The
 timing measurements and replay are under
 out/service-extensions/linux-guest-9ce2606c/redis-phase-samples/
 and out/service-extensions/linux-guest-9ce2606c/redis-short-send/.
+
+## 2026-11-24 Redis ROLE queued request ordering
+
+The ROLE failure peer now holds the error reply until the
+test has queued its PING. In the EOF case, the test aborts
+the accepted transport after the ROLE command arrives and
+the PING is queued. The fixtures verify that an admitted
+request remains unsent after the initialization fails.
+The updated modular, single-header and TLS single-header
+tests passed on Windows and the Ubuntu guest.
+
+Ubuntu ASan/UBSan with leak detection also passed four runs
+each of the earlier pool, client and TLS shared-pool fixtures.
+The optimized ROLE results and the separate sanitizer logs
+are under out/service-extensions/linux-guest-9ce2606c/redis-replay-diagnostics/.
