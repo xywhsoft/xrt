@@ -26308,3 +26308,32 @@ under out/service-extensions/xredis-pool-gate-windows-dc8f7525/
 and out/service-extensions/linux-guest-9ce2606c/xredis-pool-gate-linux-dc8f7525/.
 The earlier Redis journals remain separate, and the MQTT
 endurance binaries were unaffected by the fix.
+
+## 2026-11-24 Ubuntu xrpc TCP APP timing by request
+
+The QEMU/WHPX Ubuntu guest completed 40 fixed-arrival trials
+with ordinary and instrumented TCP APPs. The observer used
+vCPU 0 and the APP used vCPUs 1 and 3 while the original
+endurance and scheduler jobs continued. Host replay matched
+the binary fingerprints, regenerated the APP sources from
+mainline, and verified 2,560,000 replies, request identifiers
+and ordered times across the observer, APP and executor.
+
+| Offers/s | APP mode | Ordinary achieved calls/s | Ordinary P99 (ms) | Instrumented P99 (ms) | Observer pacing | First send attempt to APP read | APP read to handling the record | Executor queue |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 32,000 | Duplex | 31,364 | 112.301 | 121.556 | 43.23% | 40.15% | 10.89% | 0.17% |
+| 32,000 | Dispatch | 31,601 | 54.900 | 202.686 | 74.71% | 17.58% | 5.58% | 0.07% |
+| 64,000 | Duplex | 42,178 | 502.123 | 279.195 | 89.71% | 6.78% | 2.12% | 0.04% |
+| 64,000 | Dispatch | 45,479 | 370.378 | 104.164 | 74.33% | 16.30% | 5.41% | 0.04% |
+
+Medians use five samples per rate and mode. Phase shares
+use the same slowest one percent of replies within each
+instrumented run. At 64,000 offers/s, much of the observed
+delay accumulated before the first send attempt. The
+instrumented dispatch and ordinary P99 medians differed
+substantially. All P99 and P99.9 groups exceeded the
+repeatability limits, and the 64,000/s throughput groups
+did so as well. The release timing gate remains open.
+
+Raw records, binaries and a source-matched replay are under
+out/service-extensions/linux-guest-9ce2606c/xrpc-app-phases-78dd1e9d/.
