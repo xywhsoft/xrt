@@ -26133,3 +26133,44 @@ and 28,468 for MQTT, also without terminal records.
 The QEMU result is Ubuntu on WHPX. Captured receipts,
 journals and the independent replay are under
 out/service-extensions/linux-guest-9ce2606c/restart-20261124-0415/host-witness-prefix-20261124-0540/.
+
+## 2026-11-24 Ubuntu MQTT epoll and io_uring under competing CPU load
+
+One GCC 13 broker APP build on the QEMU/WHPX Ubuntu guest
+selected the backend through its existing APP configuration.
+Independent MQTT 5 and 3.1.1 peers passed with both backends.
+The peer covered bidirectional QoS 1/2, persistent resume,
+takeover, Wills, and exact, wildcard, shared and retained
+routing. The host replay matched the broker inputs to mainline
+and checked each trial's two epoll or two io_uring descriptors.
+
+Two broker workers used guest CPUs 0 and 3, where two sanitizer
+compiler workers also ran. Observer CPUs 1 and 2 shared the
+guest with the endurance and scheduler jobs. Each backend
+offered 16,000 measured QoS 2 publications per repeat to eight
+wildcard subscribers, with windows of 16 and 128-byte payloads.
+The two backends alternated order through five repeats per rate.
+Replay verified 20 trials. The 17 complete ledgers reconciled
+272,000 confirmations and 2,176,000 deliveries. Three trials
+returned PUBREC reason 0x97 and retained partial wire counts.
+
+| Offers/s | Backend | Complete / at least 95% of offered rate | Median achieved ingress/s | Median delivery P99 (ms) |
+| ---: | --- | ---: | ---: | ---: |
+| 4,000 | epoll | 5/5 and 5/5 | 3,990 | 30.660 |
+| 4,000 | io_uring | 4/5 and 4/5 | 3,998 | 25.820 |
+| 8,000 | epoll | 3/5 and 0/5 | 6,688 | 388.455 |
+| 8,000 | io_uring | 5/5 and 5/5 | 7,984 | 20.237 |
+
+Medians describe complete trials. At 8,000 offers/s, median
+offer-lag P99 was 384.191 ms with epoll and 16.534 ms with
+io_uring. Median publisher send-to-confirmation P99 was
+6.415 and 6.120 ms respectively. The delivery measurements
+include delays before an offer could be sent. The two
+five-trial delivery P99 and P99.9 series exceeded the
+repeatability limits. A replay with the same binaries and CPU
+placement is queued after sanitizer compilation and xrpc
+timing work retire. This keeps the transport comparison in
+the APP configuration and preserves the acceptance criteria.
+
+Evidence, binary identities and replay are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-native-backend-9ce2606c/.
