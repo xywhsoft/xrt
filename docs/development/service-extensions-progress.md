@@ -24967,3 +24967,33 @@ The new Windows run and native Linux qualification are pending.
 The build, replay and startup audit are under
 out/service-extensions/xmqtt-awake-clock-fd65772a/. The Redis
 clock smoke is under out/service-extensions/xredis-openloop-profile-fd65772a/.
+
+## 2026-11-23 Redis and Hiredis CPU sampling coverage on WSL
+
+The current xredis and pinned Hiredis 1.3.0 observers ran against
+the same private Redis 8.0.5. The first calibration stopped at
+the comparator's exact Hiredis identity check. The corrected
+campaign rotated each observer with and without 1 ms gprofng
+sampling. Each run used eight RESP3 connections, a 128-entry
+observer window, 1 KiB mixed GET/SET and 12,000 arrivals/s.
+
+Independent replay checked all 720,000 offers, including reply
+content outcomes, scheduled timestamps, percentiles and the
+server command ledger. The 719,345 successful replies had zero
+corrupt or late outcomes. The 655 refusals were at the observer
+window. Both unprofiled observers completed all three trials.
+The profiled xredis and Hiredis observers completed zero and
+two of three trials respectively.
+
+The profiler attributed 3.1 to 16.8 percent of xredis process CPU
+and about 1.0 percent of Hiredis process CPU to sampled frames.
+Process CPU was recorded by the observer over the offer and drain
+window. Successful-reply median P99 increased from 410.1 to 759.1
+us for xredis and from 345.5 to 421.6 us for Hiredis under sampling.
+This experiment leaves function-level CPU attribution unresolved.
+It supports measuring user and kernel time over the same
+unprofiled window before selecting a narrower profiling target.
+
+The exact builds, raw offer data, processor placement, profiling
+experiments and independent replay are under
+out/service-extensions/xredis-openloop-profile-fd65772a/.
