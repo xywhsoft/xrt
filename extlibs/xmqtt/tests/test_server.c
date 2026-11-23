@@ -1098,6 +1098,60 @@ static void serverQos2PressureRecovery(void)
 	serverStop(&Fixture);
 }
 
+static void serverSharedQos2Credit(void)
+{
+	const xmqttversion Version = XMQTT_VERSION_5;
+	const char* Topic = "work/item";
+	const char* SlowFilters[] = {"seed", "$share/team/work/#"};
+	const char* FastFilters[] = {"$share/team/work/#"};
+	const uint8 Two[] = {2,2};
+	serverfixture Fixture;
+	serverStartLimits(&Fixture, false, 0, false, 65536, 4096, 65536, 64, 1, 0, 3);
+	xnetsocket Publisher = serverDial(&Fixture), Slow = serverDial(&Fixture), Fast = serverDial(&Fixture);
+	serverQos1Connect(Publisher, Version, "prod");
+	serverQos1Connect(Slow, Version, "slow");
+	serverQos1Connect(Fast, Version, "fast");
+	serverSubscribeWire(Slow, Version, true, 1, SlowFilters, Two, Two, 2);
+	serverSubscribeWire(Fast, Version, true, 1, FastFilters, Two, Two, 1);
+
+	serverPublishQos2(Publisher, Version, "seed", "hold", 1, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 1, 0);
+	serverReleaseQos2(Publisher, Version, 1);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	for (uint16 Id = 2; Id <= 4; ++Id) {
+		serverPublishQos2(Publisher, Version, Topic, "shared", Id, 0, false);
+		serverExpectFlowReply(Publisher, Version, 0x50, Id, 0);
+		serverReleaseQos2(Publisher, Version, Id);
+		if (Id < 4) {
+			serverCompleteQos2Delivery(Fast, Topic, "shared", Id - 1);
+			serverWaitOutgoing(Fixture.Server, 1, 0);
+		}
+	}
+
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+	serverPublishQos2(Publisher, Version, Topic, "refused", 5, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 5, 0x97);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+
+	serverCompleteQos2Delivery(Slow, "seed", "hold", 1);
+	serverWaitOutgoing(Fixture.Server, 1, 0);
+	serverPublishQos2(Publisher, Version, Topic, "recovered", 5, 0, false);
+	serverExpectFlowReply(Publisher, Version, 0x50, 5, 0);
+	serverReleaseQos2(Publisher, Version, 5);
+	serverCompleteQos2Delivery(Slow, Topic, "recovered", 2);
+	serverCompleteQos2Delivery(Fast, Topic, "shared", 3);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverPingPeer(Slow);
+	serverPingPeer(Fast);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.RejectedPublications == 1 &&
+		Info.Forwarded == 5 && !Info.DroppedDeliveries, "shared QoS 2 preserves single delivery and quota");
+	xrtNetSocketClose(Fast);
+	xrtNetSocketClose(Slow);
+	xrtNetSocketClose(Publisher);
+	serverStop(&Fixture);
+}
+
 static void serverQos2(xmqttversion Origin, xmqttversion Target)
 {
 	serverfixture Fixture;
@@ -2810,6 +2864,7 @@ int main(void)
 	serverOutgoingQos1(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2(XMQTT_VERSION_5, XMQTT_VERSION_5);
 	serverQos2PressureRecovery();
+	serverSharedQos2Credit();
 	serverQos2Window();
 	serverQos2Admission();
 	serverWillFlows(XMQTT_VERSION_5);

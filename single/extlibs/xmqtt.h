@@ -18761,18 +18761,30 @@ static bool xmqttServerCollectShares(xmqttservertargets* Targets, const xmqttser
 	return true;
 }
 
-static xmqttserverlink* xmqttServerShareMember(xmqttservershare* Share)
+static xmqttserverlink* xmqttServerShareMember(xmqttservershare* Share, size_t ReliableLimit)
 {
 	ptr Expected = xrtAtomicPtrLoad(&Share->Cursor, XMEMORY_RELAXED);
 	for (;;) {
+		xmqttserverlink* Member = NULL;
 		xmqttserverlink* Current = Expected;
-		while (xrtAtomic32Load(&Current->Session->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_ONLINE) {
+		do {
+			xmqttserversession* Session = Current->Session;
+			if (xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) == XMQTT_SERVER_ONLINE) {
+				if (!ReliableLimit || !(Current->Options & XMQTT_SUBSCRIBE_QOS_MASK) ||
+					xrtAtomic32Load(&Session->OutgoingCount, XMEMORY_RELAXED) < ReliableLimit) {
+					Member = Current;
+					break;
+				}
+				/* Keep the first online member for the normal reservation
+				 * if the entire group is full. The count is a routing hint. */
+				if (!Member) Member = Current;
+			}
 			Current = Current->Next ? Current->Next : Share->Head;
-			if (Current == Expected) return NULL;
-		}
-		xmqttserverlink* Next = Current->Next ? Current->Next : Share->Head;
+		} while (Current != Expected);
+		if (!Member) return NULL;
+		xmqttserverlink* Next = Member->Next ? Member->Next : Share->Head;
 		if (xrtAtomicPtrCompareExchange(&Share->Cursor, &Expected, Next, XMEMORY_RELAXED, XMEMORY_RELAXED))
-			return Current;
+			return Member;
 	}
 }
 
@@ -18960,8 +18972,9 @@ static uint8 xmqttServerRoute(xmqttserver* Server, xmqttversion Version, uint64 
 	xmqttserverrouteiter Iter = Start;
 	for (xmqttserverlink* Link; (Link = xmqttServerRouteNext(&Iter)) != NULL;)
 		Needed[xmqttServerDeliveryMode(Link, Targets.Retain, SourceQos)] = true;
+	size_t ReliableLimit = ReserveReliable && SourceQos ? Server->Config.MaxOutgoingPublishesPerConnection : 0;
 	for (size_t Index = 0; Index < Targets.ShareCount; ++Index) {
-		xmqttserverlink* Member = xmqttServerShareMember(Targets.Shares[Index].Share);
+		xmqttserverlink* Member = xmqttServerShareMember(Targets.Shares[Index].Share, ReliableLimit);
 		Targets.Shares[Index].Member = Member;
 		if (Member) Needed[xmqttServerDeliveryMode(Member, Targets.Retain, SourceQos)] = true;
 	}

@@ -224,8 +224,12 @@ and reconnect check the session deadline directly.
 
 Offline ordinary subscriptions queue QoS 1/2 within the same count and byte
 budgets. QoS 0 requires a live recipient. Shared rotation selects connected
-members. An accepted in-flight exchange to a shared member can resume with
-that member. Reconnect sends outstanding PUBLISH packets with their original
+members. During a reliable fan-out reservation, the rotation prefers a
+member with available per-session delivery credit. The reservation enforces
+the actual budget if other publishers take credit at the same time. When
+all online members are full, the group uses the normal quota rejection.
+An accepted in-flight exchange to a shared member can resume with that
+member. Reconnect sends outstanding PUBLISH packets with their original
 packet IDs and DUP, or continues a QoS 2 exchange with PUBREL. The current
 connection's Receive Maximum gates replayed PUBLISH packets. Pending and newly
 queued messages follow the original exchanges. Expired unsent records are

@@ -25227,3 +25227,38 @@ passed WSL AddressSanitizer and UndefinedBehaviorSanitizer with
 leak checks enabled. Generated headers and ordinary maturity passed.
 The failing logs, benchmark sources and paired samples are under
 out/service-extensions/xcron-empty-0bdcbbf6/.
+
+## 2026-11-23 Shared QoS 2 capacity and recovery
+
+The broker used to rotate to a saturated shared subscriber even
+when another online subscriber could accept the same publication.
+During reliable fan-out admission, shared rotation now prefers an
+online member with available per-session delivery credit. The
+atomic reservation still enforces session, broker count and byte
+limits. The normal quota response applies when all members are
+full. Each accepted exchange still belongs to one selected member.
+[MQTT 5.0 shared subscriptions](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+The modular regression uses a one-delivery quota and verifies room
+on one member, one negative PUBREC at full capacity, retry with the
+same publisher packet identifier after one member drains, and
+retirement to zero outstanding deliveries. It failed on the former
+broker on native Windows and Ubuntu WSL and passes on both.
+
+An independent wire replay uses two broker workers and the default
+256-delivery session quota. After one member was saturated, the
+former broker confirmed 256 of 512 offers and refused 256 on each
+environment. The current broker confirmed and delivered all 512
+while the second member remained able to complete each exchange.
+It then returned 0x97 with both members full and accepted the
+publisher's retry after one member drained. The observer verified
+each payload, destination and terminal acknowledgement. This case
+measures admission and delivery under a stalled shared member.
+
+The optimized modular and single-header SERVER and SERVER_STORE
+suites, the independent 5.0 and 3.1.1 peer, the 64-connection
+pressure fixture, and the static and shared packages passed on
+native Windows and Ubuntu WSL. WSL ASan/UBSan and leak checks passed
+the server suite. Generated headers and ordinary maturity passed.
+Raw samples and build logs are under
+out/service-extensions/xmqtt-shared-credit-71db594d/.
