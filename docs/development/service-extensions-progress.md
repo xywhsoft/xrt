@@ -25101,3 +25101,25 @@ higher rate.
 The prototype, binary identities, command ledgers and replay are
 under out/service-extensions/xredis-atomic-state-be995fd1/.
 Native Linux and strict performance acceptance remain open.
+
+## 2026-11-23 xcron Linux cohort source lineage
+
+The hosted Linux x64 cohort from 3e5fab5d replayed all 20
+processes, 5,120 measured waves and 2,785,280 callbacks. The
+current Linux module closure for xcron_scheduler,thread selected
+15 library source files. GCC dependency output identified the
+headers used by the library and benchmark. All 135 checked
+library, header and build inputs matched the hosted revision.
+
+The intervening benchmark C changes are Windows-only. GCC 15.2
+preprocessed both benchmark versions to identical Linux text with
+the cohort's options. This establishes the source lineage of the
+earlier native measurements for the current Linux cohort workload.
+The hosted latency and resource figures still identify the original
+runner, binary and CPU allocation.
+
+The current xcron_tests suite passed seven modular and single-header
+executables on native Windows and seven on Ubuntu WSL. Repeatable
+release tails still need evidence. The native replay and Linux
+dependency receipt are under
+out/service-extensions/xcron-native-lineage-a6f10cec/.
