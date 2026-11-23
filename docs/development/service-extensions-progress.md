@@ -25644,3 +25644,28 @@ The Ubuntu reference job completed successfully. Performance
 release acceptance and completion of endurance remain open.
 Reports and independent replay are under
 out/service-extensions/linux-guest-9ce2606c/xmqtt-linux-comparison/.
+
+## 2026-11-23 MQTT Ubuntu enhanced authentication and durable expiry
+
+The Ubuntu guest ran the current MQTT 5 authentication and
+checkpoint APP peers from the clean 9ce2606c build. Enhanced
+authentication completed two rounds on TCP, TLS, WebSocket and
+secure WebSocket. The recovery peers verified eight forced broker
+stops, 16 unique QoS 1 deliveries and 18 unique QoS 2 deliveries
+across same-transport and cross-transport resumes. They checked
+authentication before replay, stable packet identifiers, inbound
+QoS 2 duplicate suppression and physical removal of acknowledged
+deliveries. A stale proof could not reset the session.
+
+All four transports also verified durable session expiry after a
+delayed close. The early reconnect received the original delivery
+identifier. The late reconnect, after a broker restart, observed
+an expired session with its old deliveries absent. The bounded
+checkpoint writer preserved input order and released its retained
+lease when full. The first-send expiry fixture verified aging
+after commit and that an expired discard survived restart.
+
+Host replay matched both APP executables and the interop driver
+hashes and checked the reported protocol outcomes. The complete
+reports are under
+out/service-extensions/linux-guest-9ce2606c/mqtt-native-recovery/.
