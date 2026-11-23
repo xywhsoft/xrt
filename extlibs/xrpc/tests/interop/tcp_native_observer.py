@@ -23,7 +23,8 @@ class Peer(ctypes.Structure):
 
 class NativeObserver:
     def __init__(self, path):
-        self.library = ctypes.CDLL(str(Path(path).resolve(strict=True)))
+        self.path = Path(path).resolve(strict=True)
+        self.library = ctypes.CDLL(str(self.path))
         now = self.library.xrpcTcpObserverNow
         now.argtypes, now.restype = [], ctypes.c_uint64
         before = time.perf_counter_ns()

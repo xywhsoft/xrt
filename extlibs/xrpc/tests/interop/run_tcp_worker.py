@@ -499,7 +499,7 @@ def saturation_drive(streams, start, rate, end, deadline_ns):
                 del streams[peer]
 
 
-def saturation_shard(channel, indexed_peers, settings, cpu):
+def saturation_shard(channel, indexed_peers, settings, cpu, native_path):
     with channel, ExitStack() as sockets:
         for _, peer in indexed_peers:
             sockets.enter_context(peer)
@@ -507,14 +507,24 @@ def saturation_shard(channel, indexed_peers, settings, cpu):
             process_affinity({cpu})
             streams = saturation_streams(indexed_peers, **settings)
             peers = list(streams.values())
+            native = native_peers = None
+            if native_path is not None:
+                from tcp_native_observer import NativeObserver
+                native = NativeObserver(native_path)
+                native_peers = native.prepare(streams, settings["calls"])
             channel.send(("ready", None))
             start, end, deadline_ns = channel.recv()
             used = time.process_time_ns()
-            saturation_drive(streams, start, settings['rate'], end, deadline_ns)
+            if native is None:
+                saturation_drive(streams, start, settings["rate"], end, deadline_ns)
+            else:
+                native.drive(native_peers, settings["window"], settings["rate"], start, end, deadline_ns)
             channel.send(("done", (time.process_time_ns() - used) / 1e9))
-            # Wait for all other shards to finish their measured interval
-            # before spending CPU to serialize the per-reply observations.
+            # Wait until all shards finish measuring before collecting and
+            # serializing the per-reply observations.
             channel.recv()
+            if native is not None:
+                native.collect(native_peers, streams)
             channel.send(("results", [SimpleNamespace(
                 times=peer.times, sent_at=peer.sent_at, credit_wait=peer.credit_wait,
                 peak=peer.peak, stalls=peer.stalls, phase_ns=peer.phase_ns,
@@ -546,7 +556,7 @@ def retire_shard(process):
     process.close()
 
 
-def saturation_sharded(peers, settings, cpus, bounds):
+def saturation_sharded(peers, settings, cpus, bounds, native_path=None):
     indexed = list(enumerate(peers))
     context = multiprocessing.get_context("spawn")
     with ExitStack() as stack:
@@ -556,7 +566,7 @@ def saturation_sharded(peers, settings, cpus, bounds):
             stack.enter_context(coordinator)
             with worker:
                 process = context.Process(target=saturation_shard,
-                                          args=(worker, indexed[shard::len(cpus)], settings, cpu))
+                                          args=(worker, indexed[shard::len(cpus)], settings, cpu, native_path))
                 process.start()
             stack.callback(retire_shard, process)
             children.append((process, coordinator))
@@ -600,8 +610,6 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
     batch_count = (calls + depth - 1) // depth
     if observer_shards < 1 or (observer_shards > 1 and observer_shards > min(connections, len(observer_cpus or ()))):
         raise ValueError("observer shards need distinct CPUs and at least one connection each")
-    if native_observer is not None and observer_shards != 1:
-        raise ValueError("native observer requires one shard")
     shard_cpus = sorted(observer_cpus)[:observer_shards] if observer_shards > 1 else []
     start = elapsed = None
     cpu_seconds = []
@@ -624,7 +632,8 @@ def saturation_sample(executable, mode, calls, connections, workers, rate, windo
                     list(checked_batch(peer, stream, wire, replies))
             peer.setblocking(False)
         if shard_cpus:
-            results, start, cpu_seconds = saturation_sharded(peers, settings, shard_cpus, bounds)
+            native_path = native_observer.path if native_observer is not None else None
+            results, start, cpu_seconds = saturation_sharded(peers, settings, shard_cpus, bounds, native_path)
         else:
             streams = saturation_streams(enumerate(peers), **settings)
             results = list(streams.values())
@@ -887,7 +896,7 @@ def main():
     parser.add_argument("--observer-shards", type=int, default=1,
                         help="split the saturation observer across this many processes and CPUs")
     parser.add_argument("--observer-native", type=Path,
-                        help="load the native verifier shared library for a single saturation observer")
+                        help="load the native verifier shared library in each saturation observer process")
     parser.add_argument("--batch-documents", action="store_true",
                         help="send each scheduled group as one JSON-RPC batch in saturation mode")
     parser.add_argument("--stagger-arrivals", action="store_true",
@@ -901,8 +910,6 @@ def main():
     if (args.batch_documents or args.stagger_arrivals or args.observer_shards != 1 or
             args.observer_native is not None) and not args.saturation:
         parser.error("batch documents, staggered arrivals and observer options require --saturation")
-    if args.observer_native is not None and args.observer_shards != 1:
-        parser.error("--observer-native requires a single observer shard")
     if args.raw_dir is not None and not args.saturation:
         parser.error("--raw-dir requires --saturation")
     available = sorted(cpu for cpu in process_affinity() if cpu < 64) if args.saturation else []

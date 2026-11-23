@@ -146,12 +146,14 @@ timeouts otherwise delay scheduled offers, including the first offer.
 The Windows guard can occupy a full observer CPU even with one peer.
 Use the disjoint CPU masks and retain observer CPU time with the results.
 
-Use `--observer-native <library>` with one observer process to measure how
+Use `--observer-native <library>` to measure how
 the Python event loop affects the result. The same Python coordinator
 prepares requests and expected replies and verifies the APP ledger.
 The native loop paces the same groups, verifies replies byte for byte,
-and timestamps each call at its last observed reply byte. Use the same
-CPU masks and workload for the Python comparison. Build the observer
+and timestamps each call at its last observed reply byte. When combined with
+`--observer-shards`, each process loads the library and uses the shared
+fixed-arrival schedule. Use the same CPU masks and workload for the Python
+comparison. Build the observer
 from the repository root with GCC on Linux or MinGW-w64 on Windows.
 
     gcc -O2 -std=c11 -fPIC -shared extlibs/xrpc/tests/interop/tcp_native_observer.c -o out/xrpc-observer.so

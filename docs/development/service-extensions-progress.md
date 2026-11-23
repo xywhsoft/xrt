@@ -26364,3 +26364,25 @@ qualification on this guest. The APP backend remains
 selectable under its documented configuration. Reports
 and replay are under
 out/service-extensions/linux-guest-9ce2606c/mqtt-native-backend-quiet-9ce2606c/.
+
+## 2026-11-24 Native xrpc saturation observer shards
+
+The TCP benchmark now supports the native byte verifier in
+each existing observer shard. Each process loads the same
+library, prepares its own connections before the ready
+barrier and follows the common absolute offer schedule.
+The coordinator restores connection order after all shards
+finish the measured interval.
+
+All 12 observer tests passed on Windows and the QEMU/WHPX
+Ubuntu guest. The regression used three peers across two
+processes and checked the shared schedule and reply order.
+A separate two-shard APP run verified 16,000 replies per
+platform across duplex and dispatch. Host replay matched
+the executable and library hashes, the eight staggered
+phases, the per-shard CPU assignments and raw P99 and P99.9.
+This smoke establishes the observer path. Capacity and tail
+acceptance still use the full paired workload.
+
+Evidence is under out/service-extensions/xrpc-native-shards-150a6de8/
+and out/service-extensions/linux-guest-9ce2606c/xrpc-native-shards-150a6de8/.
