@@ -26556,3 +26556,33 @@ accounted for Windows checkout line endings.
 
 Receipts are under out/service-extensions/xredis-sdk-bb1cd61d/
 and out/service-extensions/linux-guest-9ce2606c/xredis-sdk-dc8f7525/.
+
+## 2026-11-24 Replace the Windows Redis endurance peer
+
+The Windows run against the Ubuntu/WSL loopback peer ended
+at 06:40:41 China Standard Time with DISCONNECTED and
+MAY_HAVE_EXECUTED. Its final report rejected retirement.
+The journal retains 87,573 validated rounds over 1,422.5
+awake seconds as a failed-run prefix. The peer and
+supervisor were gone when checked. WSL boot records show
+the previous journal ending at 06:40:12 and a new kernel
+at 06:41:13. These timestamps bracket the infrastructure
+interruption without identifying what initiated it.
+
+A fresh 259,200-second Windows interval started at
+06:59:36 with the same dc8f7525 x64 client binary and
+verified observer inputs. It uses a dedicated Redis 8.0.5
+process in the Ubuntu QEMU/WHPX guest, bound to guest
+loopback and reached through a host loopback SSH forward.
+The verifier checked the pinned server identity before
+launch and will reconcile the same server's command
+counters at the end. The existing guest Redis workload
+has a separate peer. No earlier seconds carry forward.
+
+The first saved replay verified 5,081 rounds over 80.2
+awake seconds. The Windows runner, supervisor and tunnel
+and the dedicated guest Redis service were live at the
+read. The previous attempt and its terminal report are
+preserved. Use both the report and live process handles
+when interpreting journal prefixes. The restart receipts
+are under out/service-extensions/xredis-win-guest-peer-dc8f7525/.
