@@ -22830,3 +22830,35 @@ matched direct-waiter controls. The candidate still requires stable
 Windows and native Linux late-dispatch measurements. The journal,
 binary receipt and independent replay are under
 out/service-extensions/xcron-late-clock-loss-f5637e54/.
+
+
+## 2026-11-23 MQTT session expiry during connection retirement
+
+The broker now publishes the session expiry deadline under the session
+gate when the network close callback runs. The deadline applies while
+the closed owner still holds references. An expired session is
+ineligible for new offline delivery and for a new resume claim. A
+replacement still waits for the old owner to retire before it sends
+CONNACK, with Session Present clear for the new session. This follows
+the session lifetime and CONNACK requirements in MQTT 5.0 sections
+4.1.1 and 3.2.2.1.1.
+
+The TCP regression holds the old owner past a one-second expiry with
+one unacknowledged QoS 1 delivery. It verifies that a publisher's later
+QoS 1 packet takes no additional credit, the replacement starts with
+no previous session, and the original delivery releases its credit at
+retirement. Both hosts reproduced the extra queued delivery against the
+old single header. A diagnostic build that captured the deadline but
+omitted the reconnect check failed at the Session Present assertion.
+
+Optimized Windows x64 and Ubuntu WSL passed the dual-version modular
+and single-header suites. WSL ASan/UBSan with leak detection passed the
+regression. The independent checkpoint tests for expiry during the
+first send and writer pressure passed on both hosts. The first suite
+attempt shared a native object directory across hosts. Separate
+target-platform directories resolved the collision. The final test
+accepts both valid PUBACK success encodings and checks the actual
+delivery count. Generated headers and ordinary maturity passed.
+The strict release checker still reports 39 developing modules.
+Evidence is under
+out/service-extensions/xmqtt-session-expiry-retirement-822f4683/.

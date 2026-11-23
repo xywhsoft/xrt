@@ -16351,11 +16351,9 @@ static uint8 xmqttServerClaimId(xmqttserverpeer* Peer, xstrview Id, bool CleanSt
 	if (Old && !CleanStart && Old->Persistent) {
 		xmqttserverpeer* Previous = Old->Peer;
 		xrtMutexLock(&Old->Gate);
-		bool Live = Previous && xrtAtomic32Load(&Previous->SessionExpiry, XMEMORY_RELAXED);
+		bool Live = Previous && (!Old->Expires || Old->Expires > Now) &&
+			xrtAtomic32Load(&Previous->SessionExpiry, XMEMORY_RELAXED);
 		bool Saved = !Previous && Old->Expires > Now;
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
-		if (Server->SessionExpiryTransactions && Old->Expires > 0 && Old->Expires <= Now) Live = false;
-#endif
 		if ((Live || Saved) && Old->Version != Peer->Version) {
 			xrtMutexUnlock(&Old->Gate);
 			xrtMutexUnlock(&Server->Gate);
@@ -20470,20 +20468,24 @@ static void xmqttServerPeerClosed(xmqttserverpeer* Peer)
 	Peer->ClosedAt = xrtTimer();
 	bool Replaced = xrtAtomic32Load(&Peer->TakenOver, XMEMORY_ACQUIRE) != 0;
 	uint32 Expiry = xrtAtomic32Load(&Peer->SessionExpiry, XMEMORY_RELAXED);
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
-	if (Peer->ExpiryOpen) {
-		xrtMutexLock(&Session->Gate);
-		Session->Expires = !Peer->Online && Peer->Resumed ? Peer->ResumeExpiry :
-			(Expiry == UINT32_MAX ? INFINITY : Peer->ClosedAt + Expiry);
-		if (Peer->Will && Peer->Will->Durable)
-			Session->ClosingWillDue = fmin(Peer->ClosedAt + Peer->Will->Delay, Session->Expires);
-		xrtMutexUnlock(&Session->Gate);
+	if (!Session->Persistent) {
+		xrtAtomic32Store(&Session->State, XMQTT_SERVER_SEALED, XMEMORY_RELEASE);
+		return;
 	}
+
+	/* Transport closure starts expiry even while a post still pins its owner. */
+	xrtMutexLock(&Session->Gate);
+	Session->Expires = !Peer->Online && Peer->Resumed ? Peer->ResumeExpiry :
+		(Expiry == UINT32_MAX ? INFINITY : Peer->ClosedAt + Expiry);
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
+	if (Peer->ExpiryOpen && Peer->Will && Peer->Will->Durable)
+		Session->ClosingWillDue = fmin(Peer->ClosedAt + Peer->Will->Delay, Session->Expires);
 #endif
-	if (Session->Persistent && (((Peer->Online || Replaced) && Expiry) || (!Peer->Online && Peer->Resumed))) {
+	if (((Peer->Online || Replaced) && Expiry) || (!Peer->Online && Peer->Resumed)) {
 		uint32 State = XMQTT_SERVER_ONLINE;
 		(void)xrtAtomic32CompareExchange(&Session->State, &State, XMQTT_SERVER_OFFLINE, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE);
 	} else xrtAtomic32Store(&Session->State, XMQTT_SERVER_SEALED, XMEMORY_RELEASE);
+	xrtMutexUnlock(&Session->Gate);
 }
 
 static void xmqttServerDropSession(xmqttserversession* Session)

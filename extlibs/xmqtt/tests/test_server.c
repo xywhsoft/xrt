@@ -2191,6 +2191,70 @@ static void serverTakeoverRoutes(bool Cancel)
 	serverStop(&Fixture);
 }
 
+static void serverExpiresBeforeOwnerRetirement(void)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, false, 0, true, 65536);
+	const xmqttversion Version = XMQTT_VERSION_5;
+	xnetsocket Old = serverDial(&Fixture), Publisher = serverDial(&Fixture);
+	serverPersistentConnect(Old, Version, "soon", true, 1, 1, false, 0);
+	serverQos1Connect(Publisher, Version, "prod");
+	const char* Filter[] = {"expiring"};
+	const uint8 One[] = {1};
+	serverSubscribeWire(Old, Version, true, 1, Filter, One, One, 1);
+	serverPublishQos1(Publisher, Version, "expiring", "before", 1, 0);
+	serverExpectPuback(Publisher, Version, 1, 0);
+	serverExpectQos1(Old, Version, "expiring", "before", 1, 0, NULL, 0);
+
+	xrtMutexLock(&Fixture.Server->Gate);
+	xmqttserversession** Slot = xrtMapGet(&Fixture.Server->Identities, XRT_BYTES_LITERAL("soon"));
+	xmqttserversession* Session = Slot ? *Slot : NULL;
+	xmqttserverpeer* Owner = Session ? Session->Peer : NULL;
+	testRequire(Owner && xmqttServerPeerTryRef(Owner), "pin the original session owner");
+	xrtMutexUnlock(&Fixture.Server->Gate);
+	xrtNetSocketClose(Old);
+
+	double Until = xrtTimer() + 5.0;
+	while (xrtAtomic32Load(&Session->State, XMEMORY_ACQUIRE) != XMQTT_SERVER_OFFLINE) {
+		testRequire(xrtTimer() < Until, "closed owner goes offline before retirement");
+		xrtSleep(1);
+	}
+	xrtSleep(1100);
+	serverPublishQos1(Publisher, Version, "expiring", "after", 2, 0);
+	unsigned char Wire[128];
+	serverRecv(Publisher, Wire, 2);
+	testRequire(Wire[0] == 0x40 && (Wire[1] == 2 || Wire[1] == 3), "post-expiry PUBACK frame");
+	serverRecv(Publisher, Wire + 2, Wire[1]);
+	testRequire(Wire[2] == 0 && Wire[3] == 2 && (Wire[1] == 2 || Wire[4] == 0x10),
+		"post-expiry PUBACK acknowledges the publisher");
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.OutgoingPublishes == 1,
+		"expired subscription cannot admit another delivery");
+
+	xnetsocket New = serverDial(&Fixture);
+	serverSend(New, Wire, serverPersistentWire(Wire, Version, "soon", false, 60, 1));
+	Until = xrtTimer() + 5.0;
+	for (;;) {
+		xrtMutexLock(&Fixture.Server->Gate);
+		bool Reserved = Session->Successor != NULL;
+		xrtMutexUnlock(&Fixture.Server->Gate);
+		if (Reserved) break;
+		testRequire(xrtTimer() < Until, "new connection waits for the expired owner to retire");
+		xrtSleep(1);
+	}
+	size_t Read;
+	testRequire(xrtNetSocketRecv(New, Wire, sizeof(Wire), &Read) == XNET_RESULT_AGAIN,
+		"replacement waits for physical retirement");
+	xmqttServerPeerDrop(Owner);
+	serverConnackState(New, Version, 0, false, true, true, 64);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverPingPeer(New);
+
+	xrtNetSocketClose(New);
+	xrtNetSocketClose(Publisher);
+	serverStop(&Fixture);
+}
+
 static void serverLiveHandoff(bool Cancel)
 {
 	serverfixture Fixture;
@@ -2684,6 +2748,7 @@ int main(void)
 	serverPreparedDeliveryLifetime();
 	serverTakeoverRoutes(false);
 	serverTakeoverRoutes(true);
+	serverExpiresBeforeOwnerRetirement();
 	serverLiveHandoff(false);
 	serverLiveHandoff(true);
 	serverOutgoingBackpressure();
