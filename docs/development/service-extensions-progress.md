@@ -24141,3 +24141,31 @@ with leak detection. Ordinary
 maturity and generated-header checks passed. Full suite and native
 Linux release evidence remain separate. The comparisons are under
 out/service-extensions/xredis-owned-blob-742ebdf8/.
+
+## 2026-11-23 Hosted native Linux xcron waiting cohorts
+
+The [hosted Ubuntu x64 cohort job](https://github.com/xywhsoft/xrt/actions/runs/45132225495/job/137550109406)
+completed on clean 3e5fab5d. GCC 15.2 built the benchmark on an AMD EPYC
+7763 guest with four logical CPUs and two cores. Both drivers used
+logical CPU 0. The 20 processes each ran 256 scheduled waves. An
+independent replay checked the ELF binary and Git runner hashes,
+5,120 wave records, 2,785,280 callbacks and all reported percentiles.
+
+| Active / dormant jobs | Driver | Last callback P99 (us) | Last callback P99.9 (us) | Median process CPU (ns/callback) |
+| --- | --- | ---: | ---: | ---: |
+| 64 / 960 | scheduler | 150.862 | 162.164 | 704.248 |
+| 64 / 960 | direct precise EventWaiter | 133.552 | 139.121 | 452.143 |
+| 1,024 / 0 | scheduler | 148.378 | 1,732.924 | 47.424 |
+| 1,024 / 0 | direct precise EventWaiter | 132.923 | 397.434 | 36.318 |
+
+Four of the 12 P99 series met the repeatability limits. Those four
+included the 1,024-active scheduler's first and last callback
+lateness series. In its three waves with last-callback lateness over
+1 ms, the first callback was already 1.254 to 2.318 ms late. The
+remaining callbacks in those waves took 7.283 to 7.494 us. The trace
+locates most of that delay before the first callback. It does not
+identify a cause within the wait and dispatch path. Repeatable Linux
+and Windows release tails remain open.
+
+The downloaded binary, build receipt and raw Linux trace are under
+out/service-extensions/native-ci-3e5fab5d/xcron-linux-cohorts/.
