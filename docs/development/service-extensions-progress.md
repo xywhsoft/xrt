@@ -27645,3 +27645,60 @@ peer cases on both hosts.
 
 Inputs and replay are under out/service-extensions/xmqtt-tls-single-record-b47eee23/
 and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-single-record-b47eee23/.
+
+## 2026-11-24 Redis reuse of measured command inputs
+
+The prototype reused the result of command validation
+when serializing ordinary calls into freshly allocated
+request storage. The public command encoder and the
+paired command paths kept their existing checks. Both
+Windows and the Ubuntu QEMU/WHPX guest passed the
+command and client suites, including exact binary
+encoding, alias rejection, pipeline correlation,
+cancellation and retirement.
+
+Ten measured repetitions per argument count and host
+produced identical encoded bytes and checksums. The
+table gives the median commands per second in millions
+for five stock and five prototype trials per count.
+
+| Host | Argument count | Stock | Prototype |
+| --- | ---: | ---: | ---: |
+| Windows | 3 | 22.13 | 31.21 |
+| Windows | 33 | 3.18 | 4.11 |
+| Ubuntu guest | 3 | 24.22 | 35.25 |
+| Ubuntu guest | 33 | 3.55 | 4.78 |
+
+The local pipeline fixture verified 2.4 million
+correlated replies, including warmups, at depths 16
+and 128 across both hosts. Median throughput
+changed by at most 1.8 percent. The same local
+fixture and retirement ledger applied to both builds.
+
+The external comparison used eight connections, two
+workers and 1 KiB GET/SET against dedicated Redis
+8.0.5 processes. Windows used IOCP over a private
+loopback forward to the guest. Ubuntu used epoll and
+its guest-local Redis listener. Host replay verified
+672,000 fixed-arrival offers and replies, including
+warmups, and the exact server command ledgers.
+
+| Host | Offers/s | P99 stock / prototype (us) | P99.9 stock / prototype (us) |
+| --- | ---: | ---: | ---: |
+| Windows | 2,000 | 881.9 / 1,002.7 | 1,633.4 / 2,143.0 |
+| Windows | 12,000 | 1,366.0 / 1,544.6 | 1,884.0 / 3,557.7 |
+| Ubuntu guest | 2,000 | 376.5 / 408.9 | 871.5 / 816.7 |
+| Ubuntu guest | 12,000 | 541.0 / 615.1 | 3,379.5 / 1,128.7 |
+
+All external throughput series met repeatability. The
+median P99 rose in all four comparisons, and every
+external tail series exceeded the variation limits.
+The optimization remains a prototype. Current-source
+endurance remained active on both platforms.
+
+The initial Windows pipeline reporter tried to parse
+the fixture's backend label as a number. The corrected
+reporter reads only the benchmark metrics. Inputs,
+source identities and replay are under
+out/service-extensions/xredis-measured-wire-92b456a1/
+and out/service-extensions/linux-guest-9ce2606c/xredis-measured-wire-92b456a1/.
