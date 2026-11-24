@@ -28841,3 +28841,52 @@ Build receipts, smoke journals, and archive checksums are under
 out/service-extensions/xcron-cohorts-8192-7c8045e2/. MQTT sanitizer
 reports are under out/service-extensions/xmqtt-client-flags-1d72ea34/
 transport-verified/.
+
+
+## 2026-11-25 Current MQTT SDK verification and longer xrpc TCP trials
+
+The Windows MQTT runtime suite passed all 105 executables at the
+corrected client layout. Manifest replay matched the 38 modular and
+67 single-header test names, order, binaries, and terminal result.
+The current full Ubuntu runtime suite is in progress. The targeted
+Ubuntu sanitizer suites have their own completed records above.
+
+Native Windows and the Ubuntu QEMU/WHPX guest built and verified
+the static and shared forms of both xmqtt and xmqtt_examples.
+Each host copied all four consumers and ten APP executables to
+directories containing spaces. Client examples passed. Each
+combined package passed 19 independent broker cases and enhanced
+authentication over TCP, TLS, WS, and WSS. The checkpoint suite
+also exercised process exit and cross-transport recovery. Replay
+matched build input blobs, copied libraries and APP executable
+digests. Windows checked PE imports. Ubuntu verified the shared
+libraries resolved from the relocated directories.
+
+The canonical xrpc TCP APP and native observer passed the functional
+peer tests on each host. The 64,000-call/s campaign kept 32 peers,
+two XRT executor workers, two native observer shards, eight records
+per scheduled group, and a 16-group window. It alternated between
+four and twelve seconds per trial for both the duplex APP and its
+direct-dispatch control. The APP and observer masks were fixed
+within each host. Five repetitions completed in every series.
+Replay matched the executable and input identities and reconciled
+all 40 trials, 20,480,000 exact replies, deadlines, and quantiles.
+
+| Host | APP mode | P99 4 s / 12 s (ms) | P99.9 4 s / 12 s (ms) |
+| --- | --- | ---: | ---: |
+| Windows | Duplex | 2.849 / 1.839 | 14.774 / 11.331 |
+| Windows | Direct dispatch | 1.142 / 1.637 | 6.746 / 9.322 |
+| Ubuntu guest | Duplex | 4.157 / 5.184 | 6.797 / 7.793 |
+| Ubuntu guest | Direct dispatch | 3.321 / 3.277 | 5.175 / 7.072 |
+
+These are medians of per-trial quantiles. All eight throughput series
+met repeatability and stayed near the scheduled rate. All P99 and
+P99.9 series exceeded the variation limits. The longer observations
+provide sustained-load evidence. The end-to-end tail and strict
+release gates remain open.
+
+All four primary MQTT and Redis endurance journals continued to
+pass running-prefix replay. Package and runtime receipts are under
+out/service-extensions/xmqtt-client-flags-1d72ea34/. The xrpc source
+receipts, raw timestamps, and independent replays are under
+out/service-extensions/xrpc-sustained-afd8cd9a/.
