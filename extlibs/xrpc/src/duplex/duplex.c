@@ -18,12 +18,22 @@ typedef struct xrpcduplexentry {
     size_t Index;
 } xrpcduplexentry;
 typedef struct xrpcduplexhostjob {
-    struct xrpcduplexhostjob* Next;
     uint64 Token;
     size_t Count;
     bool Batch;
     xstrview Ids[];
 } xrpcduplexhostjob;
+
+/* Owner-only slots use one-based links. An empty slot reuses Next for
+ * the free list; live slots let Close retire one job per work unit. */
+typedef struct xrpcduplexhostslot {
+    xrpcduplexhostjob* Job;
+    uint32 Next, Previous;
+} xrpcduplexhostslot;
+
+/* The lower bits locate the slot; the serial prevents stale matches. */
+enum { XRPC_DUPLEX_HOST_SLOT_BITS = 16,
+       XRPC_DUPLEX_HOST_SLOT_COUNT = 1u << XRPC_DUPLEX_HOST_SLOT_BITS };
 
 struct xrpcduplexoutput {
     xatomic32 References;
@@ -55,7 +65,8 @@ struct xrpcduplex {
     xrpcduplexrequest *SubmitHead,*SubmitTail,*Head,*Tail,*Scan,*ScanEnd;
     xrpcduplexrequest** Deadlines;
     xrpcduplexoutput *OutputHead,*OutputTail,*Selection;
-    xrpcduplexhostjob* HostJobs;
+    xrpcduplexhostslot* HostSlots;
+    uint32 HostHead, HostFree;
     uint64 HostSerial;
     size_t Operations,PendingCalls,Incoming,DeadlineCount,Finishing,OwnedBytes,FixedBytes;
     size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
@@ -104,7 +115,7 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
        (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Result,sizeof(*Result)))))
         return xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex constructor spans");
     xrpcduplexconfig C;if(Config)C=*Config;else xrpcDuplexConfigInit(&C);
-    if(C.Size!=sizeof(C) || !C.MaxOperations || C.MaxOperations>65536 || !C.MaxIncoming || C.MaxIncoming>C.MaxOperations ||
+    if(C.Size!=sizeof(C) || !C.MaxOperations || C.MaxOperations>XRPC_DUPLEX_HOST_SLOT_COUNT || !C.MaxIncoming || C.MaxIncoming>C.MaxOperations ||
        !C.MaxPendingCalls || C.MaxPendingCalls>65536 || !C.MaxControlBytes || !C.MaxFixedBytes || !C.MaxOutputs || C.MaxOutputs>65536 ||
        !C.MaxOutputBytes || !C.MaxResults || C.MaxResults>65536 || !C.MaxResultBytes || !C.MaxTemporaryBytes ||
        !C.MaxWork || C.MaxWork>65536 || C.Encode.Size!=sizeof(C.Encode) ||
@@ -120,14 +131,22 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
        xrpcDecode(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":null}"),&C.Response.Decode,&M,1,&Doc)!=XRPC_DECODE_DONE)return false;
     size_t Count=C.Response.Decode.MaxMessages;
     size_t Fixed=sizeof(xrpcduplex)+C.MaxOperations*sizeof(xrpcduplexrequest*);
+    if (C.OnRequest) Fixed += C.MaxIncoming * sizeof(xrpcduplexhostslot);
     size_t PerMessage=sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u;
     if(Count>(SIZE_MAX-Fixed)/PerMessage)
         return xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex storage overflow");
     size_t Bytes=Fixed+Count*PerMessage;
+    if(Bytes>=C.MaxFixedBytes)
+        return xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex fixed-storage limit");
     xrpcduplex* D=xrtCalloc(1,Bytes);if(!D)goto Memory;
     D->Config=C;D->OwnedBytes=Bytes;D->Scratch=(xrpcmessage*)(D+1);D->Resolutions=(xrpcpendingresolution*)(D->Scratch+Count);
     D->CorrelationIds=(xstrview*)(D->Resolutions+Count);D->CorrelationText=(char*)(D->CorrelationIds+Count);
     D->Deadlines=(xrpcduplexrequest**)(D->CorrelationText+Count*24u);
+    if (C.OnRequest) {
+        D->HostSlots = (xrpcduplexhostslot*)(D->Deadlines + C.MaxOperations);
+        D->HostFree = 1;
+        for (uint32 I = 1; I < C.MaxIncoming; ++I) D->HostSlots[I - 1].Next = I + 1;
+    }
     if(!xrtMutexInit(&D->Gate)){xrtFree(D);return false;}
     xrtAtomic32Init(&D->References,1);
     xrpcpendingconfig P;xrpcPendingConfigInit(&P);P.MaxCalls=C.MaxPendingCalls;
@@ -135,7 +154,6 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
      * Peer IDs are fully validated by the response codec, then filtered below.
      * The comparison key is one type byte plus at most twenty digits. */
     P.Id.MaxInputBytes=22;P.Id.MaxStringBytes=20;P.Id.MaxKeyBytes=21;
-    if(Bytes>=C.MaxFixedBytes){xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex fixed-storage limit");goto Failed;}
     P.MaxOwnedBytes=C.MaxFixedBytes-Bytes;
     if(!xrpcPendingCreate(&P,&D->Pending))goto Failed;
     if(!xrpcResultQuotaCreate(C.MaxOperations,C.MaxControlBytes,&D->Control) ||
@@ -415,11 +433,15 @@ static xstrview xrpcDuplexHostId(const xrpcmessage* Message)
     return XRT_STR_LITERAL("null");
 }
 
-static void xrpcDuplexHostRetire(xrpcduplex* D, xrpcduplexhostjob** Link, bool Completed)
+static void xrpcDuplexHostRetire(xrpcduplex* D, uint32 Slot, bool Completed)
 {
-    xrpcduplexhostjob* Job = *Link;
-    *Link = Job->Next;
-    xrpcResultQuotaFree(Job);
+    xrpcduplexhostslot* Entry = D->HostSlots + Slot - 1;
+    if (Entry->Previous) D->HostSlots[Entry->Previous - 1].Next = Entry->Next;
+    else D->HostHead = Entry->Next;
+    if (Entry->Next) D->HostSlots[Entry->Next - 1].Previous = Entry->Previous;
+    xrpcResultQuotaFree(Entry->Job);
+    *Entry = (xrpcduplexhostslot){.Next = D->HostFree};
+    D->HostFree = Slot;
     xrtMutexLock(&D->Gate);
     --D->Operations;
     --D->Incoming;
@@ -446,8 +468,8 @@ static xrpcduplexadmission xrpcDuplexHostReceive(xrpcduplex* D, xstrview Input,
         xrtMutexUnlock(&D->Gate);
         return XRPC_DUPLEX_CLOSED;
     }
-    if (D->Operations == D->Config.MaxOperations || D->Incoming == D->Config.MaxIncoming ||
-        D->HostSerial == UINT64_MAX) {
+    if (D->Operations == D->Config.MaxOperations || !D->HostFree ||
+        D->HostSerial == (UINT64_MAX >> XRPC_DUPLEX_HOST_SLOT_BITS)) {
         ++D->Rejected;
         xrtMutexUnlock(&D->Gate);
         return XRPC_DUPLEX_OVERLOADED;
@@ -461,11 +483,15 @@ static xrpcduplexadmission xrpcDuplexHostReceive(xrpcduplex* D, xstrview Input,
         xrpcDuplexReport(XERR_MEMORY, XRPC_DUPLEX_MEMORY, "RPC APP job allocation failed");
         return XRPC_DUPLEX_ERROR;
     }
-    Job->Token = ++D->HostSerial;
+    uint32 Slot = D->HostFree;
+    xrpcduplexhostslot* Entry = D->HostSlots + Slot - 1;
+    D->HostFree = Entry->Next;
+    *Entry = (xrpcduplexhostslot){.Job = Job, .Next = D->HostHead};
+    if (D->HostHead) D->HostSlots[D->HostHead - 1].Previous = Slot;
+    D->HostHead = Slot;
+    Job->Token = (++D->HostSerial << XRPC_DUPLEX_HOST_SLOT_BITS) | (Slot - 1u);
     Job->Count = Count;
     Job->Batch = Document && Document->Batch;
-    Job->Next = D->HostJobs;
-    D->HostJobs = Job;
     ++D->Operations;
     ++D->Incoming;
     xrtMutexUnlock(&D->Gate);
@@ -481,7 +507,7 @@ static xrpcduplexadmission xrpcDuplexHostReceive(xrpcduplex* D, xstrview Input,
     }
     if (!D->Config.OnRequest(Job->Token, Input, Context, Document,
         Document ? D->Scratch : NULL, D->Config.User)) {
-        xrpcDuplexHostRetire(D, &D->HostJobs, false);
+        xrpcDuplexHostRetire(D, Slot, false);
         xrtMutexLock(&D->Gate);
         ++D->Rejected;
         xrtMutexUnlock(&D->Gate);
@@ -506,10 +532,10 @@ XRPC_API xrpcduplexadmission xrpcDuplexReply(xrpcduplex* D, uint64 Token, xstrvi
         Status = XRPC_DUPLEX_CLOSED;
         goto Done;
     }
-    xrpcduplexhostjob** Link = &D->HostJobs;
-    while (*Link && (*Link)->Token != Token) Link = &(*Link)->Next;
-    xrpcduplexhostjob* Job = *Link;
-    if (!Job || ((Job->Count == 0) != (Reply.Size == 0))) goto Invalid;
+    uint32 Slot = (uint32)(Token & (XRPC_DUPLEX_HOST_SLOT_COUNT - 1u)) + 1u;
+    if (!D->HostSlots || Slot > D->Config.MaxIncoming) goto Invalid;
+    xrpcduplexhostjob* Job = D->HostSlots[Slot - 1].Job;
+    if (!Job || Job->Token != Token || ((Job->Count == 0) != (Reply.Size == 0))) goto Invalid;
     if (Reply.Size) {
         xrpcdocument Document;
         if (xrpcDecode(Reply, &D->Config.Response.Decode, D->Scratch,
@@ -537,7 +563,7 @@ XRPC_API xrpcduplexadmission xrpcDuplexReply(xrpcduplex* D, uint64 Token, xstrvi
         Output->Wire = (xstrview){(cstr)(Output + 1), Reply.Size};
         xrpcDuplexQueue(D, Output);
     }
-    xrpcDuplexHostRetire(D, Link, true);
+    xrpcDuplexHostRetire(D, Slot, true);
     Status = XRPC_DUPLEX_ACCEPTED;
     goto Done;
 Invalid:
@@ -641,8 +667,8 @@ static bool xrpcDuplexWorkCall(xrpcduplex* D,bool* OK,double Now)
 static bool xrpcDuplexWorkClose(xrpcduplex* D)
 {
     if(!xrpcDuplexIsClosing(D))return false;
-    if (D->HostJobs) {
-        xrpcDuplexHostRetire(D, &D->HostJobs, true);
+    if (D->HostHead) {
+        xrpcDuplexHostRetire(D, D->HostHead, true);
         return true;
     }
     if(D->OutputHead){if(D->OutputHead->Request)D->OutputHead->Request->Output=NULL;
@@ -666,7 +692,7 @@ XRPC_API bool xrpcDuplexStep(xrpcduplex* D)
     }
     D->More|=D->Scan!=NULL || (D->DeadlineCount && D->Deadlines[0]->Deadline<=Now);
     xrtMutexLock(&D->Gate);
-    D->More|=D->SubmitHead!=NULL || (D->Closing && (D->OutputHead || D->HostJobs));
+    D->More|=D->SubmitHead!=NULL || (D->Closing && (D->OutputHead || D->HostHead));
     xrtMutexUnlock(&D->Gate);
     D->Busy=false;return OK;
 }

@@ -455,9 +455,71 @@ static void testDuplexHost(void)
     duplexTestClose(Client);
 }
 
+static void testDuplexHostTokenReuse(size_t Limit)
+{
+    duplexHostTest Host = {0};
+    xrpcduplexconfig Config;
+    testRequire(xrpcDuplexConfigInit(&Config), "indexed host config");
+    Config.MaxIncoming = Config.MaxOperations = Limit;
+    Config.MaxControlBytes = 8u * 1024u * 1024u;
+    Config.MaxWork = 1;
+    xrpcduplex* Client = NULL;
+    testRequire(xrpcDuplexCreate(&Config, &Client), "client without host slots");
+    size_t ClientBytes = duplexTestInfo(Client).OwnedBytes;
+    duplexTestClose(Client);
+
+    Config.OnRequest = duplexHostRequest;
+    Config.User = &Host;
+    xrpcduplexconfig Limited = Config;
+    Limited.MaxFixedBytes = ClientBytes;
+    xrpcduplex* Server = NULL;
+    testRequire(!xrpcDuplexCreate(&Limited, &Server) && !Server,
+        "host index obeys fixed storage budget");
+    xrtClearError();
+    testRequire(xrpcDuplexCreate(&Config, &Server) &&
+        duplexTestInfo(Server).OwnedBytes > ClientBytes, "reserve host index");
+
+    unsigned char Byte = 42;
+    xbytesview Context = {&Byte, 1};
+    xstrview Note = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}");
+    xstrview Empty = {0};
+    uint64 Middle = 0;
+    for (size_t Index = 0; Index < Limit; ++Index) {
+        testRequire(xrpcDuplexReceive(Server, Note, Context) == XRPC_DUPLEX_ACCEPTED,
+            "fill incoming host slots");
+        if (Index == Limit / 2) Middle = Host.Token;
+    }
+    uint64 Last = Host.Token;
+    testRequire(xrpcDuplexReceive(Server, Note, Context) == XRPC_DUPLEX_OVERLOADED &&
+        duplexTestInfo(Server).Incoming == Limit, "host slots enforce admission limit");
+    testRequire(xrpcDuplexReply(Server, Last, Empty) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexReply(Server, Middle, Empty) == XRPC_DUPLEX_ACCEPTED,
+        "retire newest and middle jobs out of order");
+    testRequire(xrpcDuplexReceive(Server, Note, Context) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexReceive(Server, Note, Context) == XRPC_DUPLEX_ACCEPTED,
+        "two released slots accept new jobs");
+    testRequire(xrpcDuplexReply(Server, Middle, Empty) == XRPC_DUPLEX_ERROR &&
+        xrpcDuplexReply(Server, Last, Empty) == XRPC_DUPLEX_ERROR &&
+        duplexTestInfo(Server).Incoming == Limit, "stale tokens cannot consume reused slots");
+    xrtClearError();
+    testRequire(xrpcDuplexReply(Server, Host.Token, Empty) == XRPC_DUPLEX_ACCEPTED,
+        "current token remains usable after stale reply");
+    testRequire(xrpcDuplexClose(Server, XRPC_CALL_CLOSED) &&
+        xrpcDuplexReply(Server, Host.Token, Empty) == XRPC_DUPLEX_CLOSED,
+        "closed endpoint refuses APP replies");
+    for (size_t Remaining = Limit - 1; Remaining; --Remaining) {
+        testRequire(xrpcDuplexStep(Server) &&
+            duplexTestInfo(Server).Incoming == Remaining - 1, "bounded host slot retirement");
+    }
+    testRequire(duplexTestInfo(Server).Drained, "indexed host drain finishes");
+    duplexTestClose(Server);
+}
+
 int main(void)
 {
     testDuplexHost();
+    testDuplexHostTokenReuse(16);
+    testDuplexHostTokenReuse(65536);
     testDuplexStops();
     testDuplexCancelledBatchReply();
     testDuplexResponseSnapshot();

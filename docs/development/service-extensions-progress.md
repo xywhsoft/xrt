@@ -27702,3 +27702,75 @@ reporter reads only the benchmark metrics. Inputs,
 source identities and replay are under
 out/service-extensions/xredis-measured-wire-92b456a1/
 and out/service-extensions/linux-guest-9ce2606c/xredis-measured-wire-92b456a1/.
+\n
+## 2026-11-24 Constant-time xrpc APP reply token lookup
+
+Each duplex endpoint with OnRequest reserves an indexed slot per
+MaxIncoming entry in its original fixed allocation. An opaque 64-bit
+token identifies a slot and its admission serial. Reply checks the full
+stored token before touching the matching job. A free list permits reuse
+after out-of-order replies, and an active list retires one live job per
+close work unit. Client-only endpoints skip the index. No new public
+symbols, runtime allocations or module dependencies are required.
+
+The Windows and Ubuntu QEMU/WHPX in-process measurements pinned one
+CPU per process and timed eight combinations of depth and reply order. The run
+alternated stock and candidate, with a warmup pair and five measured
+pairs per profile. The benchmark verifies every encoded reply and the
+physical retirement ledger. Independent replay matched the source and
+binary hashes, all 384 trial rows and the latency summaries. The two
+variants and their controls verified 52,531,200 replies including warmups.
+
+The table gives stock and slot-index medians in each matched run.
+Reply time includes validation and queueing of the APP reply and consumption
+of the resulting output through Sent and release.
+
+| Host | Outstanding and order | Calls/s before and after | Reply P99 before and after (us) | Reply P99.9 before and after (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | 1 FIFO | 512,709 / 549,462 | 1.400 / 1.400 | 20.400 / 20.700 |
+| Windows | 64 FIFO | 707,417 / 714,705 | 1.500 / 1.300 | 4.200 / 5.600 |
+| Windows | 8,192 FIFO | 94,190 / 734,406 | 29.200 / 1.300 | 70.600 / 2.900 |
+| Windows | 8,192 permuted | 53,572 / 607,815 | 97.300 / 1.700 | 202.100 / 5.800 |
+| Ubuntu guest | 1 FIFO | 529,513 / 566,270 | 1.653 / 1.643 | 16.656 / 14.637 |
+| Ubuntu guest | 64 FIFO | 568,204 / 549,699 | 1.714 / 1.683 | 15.275 / 14.648 |
+| Ubuntu guest | 8,192 FIFO | 84,249 / 544,179 | 36.920 / 1.653 | 91.993 / 16.431 |
+| Ubuntu guest | 8,192 permuted | 52,777 / 503,159 | 94.447 / 2.014 | 176.472 / 23.945 |
+
+At 1,024 outstanding, the indexed P99 medians were 1.300 to
+1.673 us for FIFO and 1.400 to 1.643 us for permuted completion.
+The 8,192-LIFO throughput medians rose 0.8% on Windows and 8.3%
+on Ubuntu, with reply P99 within 2% on each host. The AVL experiment
+found faster high-depth lookup with 16 additional control bytes per
+live job. On Windows its 64-FIFO and 8,192-LIFO throughput medians
+were 12.6% and 24.8% lower than their controls. The fixed slots kept
+the larger measured gains for FIFO and permuted completion.
+
+On both x64 builds the selected index costs 16 bytes per configured
+incoming slot and 8 additional fixed endpoint bytes. Live jobs use
+8 fewer control bytes each. At the default maximum of 64 incoming
+jobs the host endpoint therefore reserves 1,032 additional fixed
+bytes, reducing the net increase to 520 bytes when full. The opaque
+serial rejects new host jobs upon exhausting its 48-bit counter.
+
+The canonical change passed both hosts' full modular and single-header
+xrpc suites and verified static and shared package consumers. The
+new regression fills 16 and 65,536 slots, recycles newest and middle
+slots, rejects stale tokens against their replacements, and retires
+one job per Step through close. It also checks the fixed storage quota.
+Ubuntu GCC additionally ran the duplex tests under ASan and UBSan.
+Both APP peers passed 11 TCP cases per mode and one duplex-only case,
+including pressure and peer reset at 32 connections. The stdio peer
+passed all 10 checks on each host.
+
+Several of the in-process series exceeded the variation limits,
+including the default-depth P99.9 comparisons. The TCP end-to-end
+P99 and P99.9 release gate remains open. The initial Windows test
+output path was an existing retired junction. The successful native
+x64 build used the explicit Windows target path. The Ubuntu replay
+normalized the six affected archive files before applying the
+canonical diff, then matched each rebuilt source hash to the host.
+
+Prototypes, launchers, source fingerprints, raw trial summaries and
+replay are under out/service-extensions/xrpc-host-token-tree-026d8361/,
+out/service-extensions/xrpc-host-token-slots-026d8361/ and the
+matching directories in out/service-extensions/linux-guest-9ce2606c/.\n

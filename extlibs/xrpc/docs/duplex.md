@@ -17,7 +17,10 @@ already parsed message descriptors and the original input and context views.
 They are valid during the callback. Copy the inputs needed by a deferred job.
 The endpoint reserves its own bounded record of the expected IDs and shape.
 A false handler return releases that credit. The handler transfers an accepted
-token to the APP, which may schedule work on its own executor.
+opaque token to the APP, which may schedule work on its own executor. Keep the
+token with its originating endpoint. Its slot is resolved in constant time even
+for out-of-order completion. Host endpoints reserve an index sized by MaxIncoming
+as part of MaxFixedBytes at creation. Client-only endpoints do not allocate it.
 
 After the handler returns, send a reply from the owner with that token.
 Preserve the exact raw IDs in request order and the enclosing object/array

@@ -16,7 +16,8 @@ typedef struct xrpcduplexitem {bool Notify;xstrview Method,Params;} xrpcduplexit
  * Context are borrowed for this call; copy them before deferring. Document
  * and Messages are NULL for malformed JSON, which expects a Parse error.
  * Return false to reject without work; true transfers the job token to the
- * APP. Reply is driven later by the owner, outside this callback. */
+ * APP. Treat the token as opaque and keep it with its endpoint. Reply is
+ * driven later by the owner, outside this callback. */
 typedef bool (*xrpcduplexrequesthandler)(uint64 Token, xstrview Input,
     xbytesview Context, const xrpcdocument* Document, const xrpcmessage* Messages, ptr User);
 
@@ -61,7 +62,8 @@ XRT_EXTERN_C_BEGIN
 /* 128 operations/1024 request IDs/64 incoming jobs; 2 MiB control metadata,
  * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB aggregate concurrent encoding workspace,
  * 16 MiB endpoint/pending fixed storage and 64 owner units per Step. The APP
- * drives all progress. NULL OnRequest selects a client-only endpoint. */
+ * drives all progress. MaxIncoming slots count toward fixed storage
+ * when OnRequest is set. NULL OnRequest selects a client-only endpoint. */
 XRPC_API bool xrpcDuplexConfigInit(xrpcduplexconfig* Config);
 XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Result);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
