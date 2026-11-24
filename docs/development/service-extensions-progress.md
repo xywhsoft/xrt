@@ -27218,3 +27218,42 @@ Strict release timing remains open.
 
 Inputs, compiler logs, raw windows and replay are under
 out/service-extensions/xmqtt-websocket-network-099d0944/.
+
+## 2026-11-24 Ubuntu MQTT QoS 2 across TCP, TLS, WS and WSS
+
+The Ubuntu QEMU/WHPX guest completed the same 80
+trials with the broker on vCPU 1 and the Python
+observer on vCPU 3. The reference was Mosquitto 2.1.2
+built with its bundled WebSocket implementation from
+the repository's pinned source archive. The xmqtt
+broker's production and APP source inputs match the
+current Windows build. Both replays verified the
+program and runner hashes, all window timestamps,
+1,310,720 confirmations and 1,310,720 deliveries.
+
+| Transport | Deliveries/s xmqtt / Mosquitto | Window P99 (ms) | Window P99.9 (ms) |
+| --- | ---: | ---: | ---: |
+| TCP | 30,141 / 29,519 | 1.087 / 1.171 | 1.295 / 1.459 |
+| TLS | 17,788 / 18,944 | 1.609 / 1.565 | 2.044 / 1.982 |
+| WS | 18,570 / 19,469 | 1.490 / 1.415 | 1.798 / 1.748 |
+| WSS | 14,062 / 14,652 | 1.877 / 1.755 | 2.361 / 2.179 |
+
+The table uses five-trial medians at window 16.
+Seven of the eight throughput series met repeatability.
+Both WebSocket series met the P99 limits, and the
+xmqtt WebSocket series met the P99.9 limits. Both
+WSS tail series exceeded the variation limits.
+
+Across the two hosts, the observer's per-series median
+CPU consumption was 63 to 84 percent of one core in
+the window-16 trials. WSS broker CPU on Windows was
+27.2 percent for xmqtt and 55.9 percent for Mosquitto.
+The corresponding Ubuntu values were 50.1 and 44.5
+percent. CPU percentages refer to each measured wall
+interval. The observer and two-peer load limit the
+scope of the timing evidence. Strict release remains
+open.
+
+The Ubuntu build, reference source hash, raw windows
+and host replay are under
+out/service-extensions/linux-guest-9ce2606c/xmqtt-websocket-network-099d0944/.
