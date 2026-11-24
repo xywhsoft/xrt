@@ -155,9 +155,9 @@ def dispatch_cases(executable):
         assert healthy == 0 and report == {"connections": 4, "workers": 2, "requests": 512}
         failed, report = multi_exchange(executable, mode, 2, 2, malformed_peer)
         assert failed == 1 and report is None
-        reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
+        reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer, pressure=True)
         assert reset == 1 and report is None
-        reset, report = multi_exchange(executable, mode, APP_PEER_LIMIT, 1, backpressured_peer)
+        reset, report = multi_exchange(executable, mode, APP_PEER_LIMIT, 1, backpressured_peer, pressure=True)
         assert reset == 1 and report is None
         oversized = subprocess.run([executable, mode, str(APP_PEER_LIMIT + 1), "1"],
                                    capture_output=True, timeout=5)
@@ -228,7 +228,8 @@ def measure(executable, calls, repeats):
             "profiles": profiles}
 
 
-def multi_exchange(executable, mode, connections, workers, drive, app_cpus=None, observer_cpus=None):
+def multi_exchange(executable, mode, connections, workers, drive, app_cpus=None, observer_cpus=None,
+                   *, pressure=False):
     command = [executable, mode, str(connections), str(workers)]
     if app_cpus:
         process_affinity(app_cpus)
@@ -248,8 +249,18 @@ def multi_exchange(executable, mode, connections, workers, drive, app_cpus=None,
             host, port = process.stdout.readline().decode("ascii").strip().split(":")
             assert host == "127.0.0.1"
             with ExitStack() as peers:
-                sockets = [peers.enter_context(socket.create_connection((host, int(port)), timeout=5))
-                           for _ in range(connections)]
+                address = host, int(port)
+                sockets = []
+                if pressure:
+                    # Set the receive buffer before the SYN negotiates the window scale.
+                    stalled = peers.enter_context(socket.socket())
+                    stalled.settimeout(5)
+                    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
+                    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+                    stalled.connect(address)
+                    sockets.append(stalled)
+                sockets.extend(peers.enter_context(socket.create_connection(address, timeout=5))
+                               for _ in range(connections - len(sockets)))
                 for peer in sockets:
                     peer.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 drive(sockets)
@@ -293,8 +304,6 @@ def malformed_peer(peers):
 
 def backpressured_peer(peers):
     stalled, *healthy = peers
-    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
-    stalled.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
     payload = "x" * 3000
     offer = record({"jsonrpc": "2.0", "method": "echo", "params": [payload], "id": 2})
     stalled.sendall(offer)
@@ -310,16 +319,17 @@ def backpressured_peer(peers):
         nonlocal sent
         deadline = time.monotonic() + 5
         while sent < len(pending) and time.monotonic() < deadline:
-            if not select.select([], [stalled], [], 0.2)[1]:
-                assert sent >= len(offer), "peer stalled before accepting a record"
-                return
             try:
                 count = stalled.send(pending[sent:sent + 4096])
             except BlockingIOError:
+                if sent >= len(offer):
+                    return
+                # Allow the first complete record to reach the socket.
+                select.select([], [stalled], [], max(0, min(0.2, deadline - time.monotonic())))
                 continue
             assert count, "peer closed before reaching backpressure"
             sent += count
-        raise AssertionError("failed to fill the slow peer's TCP windows")
+        raise AssertionError(f"slow peer did not block after a full record ({sent} of {len(pending)} bytes accepted)")
 
     def receive(index, after_reset):
         peer = healthy[index]
@@ -337,6 +347,7 @@ def backpressured_peer(peers):
         fill()
         assert select.select([stalled], [], [], 5)[0], "slow peer has no queued replies"
         assert stalled.recv(1, socket.MSG_PEEK) == b"{", "slow peer closed before isolation check"
+        fill()
         list(pool.map(lambda index: receive(index, False), indices))
         fill()
         # SO_LINGER uses two shorts on Winsock and two ints on POSIX.

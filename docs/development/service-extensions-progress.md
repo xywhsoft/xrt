@@ -28557,3 +28557,55 @@ remain open.
 Source receipts, builds, independent peer reports and replays are under
 out/service-extensions/xmqtt-route-classes-97a17d31/ and the matching
 directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 xrpc TCP executor handoff and peer backpressure
+
+The independent peer sets the slow socket's small buffers before
+connecting and requires an actual nonblocking send refusal after
+accepting at least one complete outgoing record. It verifies queued
+reply bytes without consuming them, then reconfirms the pressure.
+Other peers must receive all expected bytes before and after the
+slow connection resets. In the 32-peer case this verifies 3,968
+healthy replies on each side of the reset in each APP mode, plus
+EOF on all 31 healthy peers. The previous readiness timeout could
+expire while the kernel intermittently reported write credit under
+the same unread-reply workload. Pre-connect buffers alone and a
+longer timeout did not reliably produce continuous non-writability.
+
+The final fixture passed five canonical TCP example runs on each
+platform, four further diagnostic runs on Windows and six on the
+Ubuntu QEMU/WHPX guest. Two guest diagnostic runs used ASan, UBSan
+and leak checking. All 20 reports agreed. The Windows mainline
+fixture and all 12 native observer tests then passed.
+
+The diagnostic TCP APP ran the same reply callback either through
+the bounded two-worker executor or directly on the connection
+owner. The latter kept two idle executor threads and performed
+zero submissions. Both builds checked their expected request
+ledgers. Each host completed 40 four-second fixed-arrival trials
+with 32 connections and two native observer shards. Replay
+verified 15,360,000 exact replies and recalculated every quantile.
+CPU accounting covers the APP process through setup, warmup,
+the measured offers and retirement. The table gives medians for
+duplex mode, with the worker-driven and inline results in order.
+
+| Host | Offers/s | APP CPU (s) | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 32,000 | 2.781 / 1.844 | 8.882 / 3.969 | 18.417 / 9.860 |
+| Windows | 64,000 | 4.734 / 3.172 | 1.557 / 1.579 | 5.862 / 10.190 |
+| Ubuntu guest | 32,000 | 4.066 / 1.757 | 5.599 / 20.421 | 13.299 / 39.958 |
+| Ubuntu guest | 64,000 | 6.130 / 3.682 | 63.088 / 11.770 | 89.344 / 21.127 |
+
+Every throughput series met repeatability. Paired APP CPU medians
+for inline duplex execution were 33 to 38 percent lower on Windows
+and 41 to 57 percent lower on the guest. Both Windows 64,000/s
+duplex CPU series met repeatability. Every P99 and P99.9 series
+exceeded its variation limit. The inline control quantifies the
+cost of handing off this small echo handler. The TCP example
+continues to demonstrate a bounded executor. Strict end-to-end
+tail qualification remains open.
+
+Input receipts, builds, peer reports, raw timing traces and replays are
+under out/service-extensions/xrpc-executor-handoff-63c9a5c8/ and the
+corresponding directory under out/service-extensions/linux-guest-9ce2606c/.
