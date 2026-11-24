@@ -148,7 +148,11 @@ static bool runPeer(apppeer* Peer)
     xrpcduplex* Endpoint = NULL;
     if (Peer->Duplex) {
         if (!xrpcDuplexConfigInit(&Config)) return false;
+        /* This APP completes one inbound job at a time and initiates no calls. */
         Config.MaxIncoming = 1;
+        Config.MaxOperations = 1;
+        Config.MaxPendingCalls = 1;
+        Config.Response.Decode.MaxMessages = APP_MAX_MESSAGES;
         Config.OnRequest = takeRequest;
         Config.User = Job;
         if (!xrpcDuplexCreate(&Config, &Endpoint)) return false;

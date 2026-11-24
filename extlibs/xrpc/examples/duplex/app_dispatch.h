@@ -4,6 +4,8 @@
 #include <xrt/json.h>
 #include <string.h>
 
+enum { APP_MAX_MESSAGES = 16 };
+
 typedef struct apprequest {
     uint64 Token;
     size_t InputBytes, ReplyBytes;
@@ -69,9 +71,9 @@ static bool appEmit(const xrpcoutgoing* Message, bool Batch, size_t Bytes, ptr D
 
 static bool appPrepare(apprequest* Job)
 {
-    xrpcmessage Scratch[16];
+    xrpcmessage Scratch[APP_MAX_MESSAGES];
     xrpcdispatchinfo Info = {.Size = sizeof(Info)};
-    if (!xrpcDispatch((xstrview){Job->Input, Job->InputBytes}, NULL, Scratch, 16,
+    if (!xrpcDispatch((xstrview){Job->Input, Job->InputBytes}, NULL, Scratch, APP_MAX_MESSAGES,
         appEcho, NULL, appEmit, Job, &Info)) return false;
     if (Job->ReplyBytes && Info.Batch) Job->Reply[Job->ReplyBytes++] = ']';
     Job->Ready = true;

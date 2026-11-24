@@ -59,7 +59,11 @@ int main(int Argc, char** Argv)
     xrpcduplexconfig Config;
     apprequest Job = {0};
     if (!xrpcDuplexConfigInit(&Config)) return 1;
+    /* This APP completes one inbound job at a time and initiates no calls. */
     Config.MaxIncoming = 1;
+    Config.MaxOperations = 1;
+    Config.MaxPendingCalls = 1;
+    Config.Response.Decode.MaxMessages = APP_MAX_MESSAGES;
     Config.OnRequest = appTakeRequest;
     Config.User = &Job;
     if (!xrpcDuplexCreate(&Config, &Endpoint)) return 1;

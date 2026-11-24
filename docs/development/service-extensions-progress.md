@@ -28426,3 +28426,49 @@ difference. Each run is still accumulating its 72-hour interval.
 Sources, binaries, raw samples, prefix reports and independent replays
 are under out/service-extensions/xredis-close-flag-32007b1c/ and the
 corresponding directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+
+## 2026-11-24 Passive endpoint storage in the xrpc APP examples
+
+The TCP worker and stdio APP endpoints each handle one incoming record at a
+time. Their endpoint configuration now reserves one operation and one
+pending-call slot, and uses the APP dispatcher capacity of 16 inbound
+messages.
+
+With 32 endpoints open, Windows reported 162,573 to 5,734 owned bytes per
+endpoint, and the Ubuntu QEMU/WHPX guest reported 162,645 to 5,806. The
+corresponding 32-endpoint totals went from 5,202,336 to 183,488 bytes and
+from 5,204,640 to 185,792 bytes. These numbers measure fixed storage owned
+by the endpoint.
+
+Both builds produced the same bytes in 30 boundary cases per host across
+duplex TCP, direct TCP and stdio. A new permanent independent TCP case
+accepts 16 requests and closes on the next 17-request batch after returning
+the complete preceding reply. The canonical Windows modular and Ubuntu
+single-header examples passed 12 TCP cases per mode, the extra duplex
+case, parallel and backpressure checks, and 10 stdio cases. The Ubuntu
+ASan and UBSan build passed the independent TCP tests for the prototype.
+The Windows asset maturity and generated single-header checks also passed.
+
+A four-second fixed-arrival measurement used 32 peers and five balanced
+repeats per profile. On each host, 40 trials across duplex and direct
+dispatch verified 7,680,000 exact replies. Duplex medians below compare
+the original and new APP configuration.
+
+| Host | Offered calls/s | Verified calls/s | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 32,000 | 32,001 / 32,000 | 2.082 / 1.046 | 6.722 / 4.325 |
+| Windows | 64,000 | 63,996 / 63,990 | 2.654 / 2.561 | 8.902 / 7.622 |
+| Ubuntu guest | 32,000 | 31,994 / 31,997 | 2.308 / 1.998 | 3.967 / 3.279 |
+| Ubuntu guest | 64,000 | 63,972 / 63,982 | 2.390 / 2.516 | 4.146 / 4.241 |
+
+All 16 throughput series met the repeatability threshold. One Ubuntu
+P99 series and one Ubuntu P99.9 series met the corresponding threshold.
+The direct dispatch control also showed tail variation. The verified
+storage reduction supports the narrower APP defaults. Repeatable TCP
+tail latency remains a release requirement.
+
+Source receipts, builds, byte-parity cases, raw samples and independent
+replays are under out/service-extensions/xrpc-passive-limits-b7133eb2/
+and the matching directory under out/service-extensions/linux-guest-9ce2606c/.
