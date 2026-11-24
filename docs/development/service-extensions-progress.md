@@ -28041,3 +28041,50 @@ Evidence and replay are under
 out/service-extensions/xmqtt-observer-ack-batch-e2f36099/ and
 the sustained subdirectory of its Ubuntu counterpart in
 out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Buffered TLS output in the MQTT broker prototype
+
+An instrumented prototype concatenated up to 16 complete MQTT
+writes already queued for the same TLS connection, with a 2,048-byte
+stack buffer. It offered one combined write. The original per-write
+path handled the remaining cases. Both diagnostic builds used the
+same output counters and the same buffered observer. The prototype
+advanced the individual byte cursors and released references only
+when their associated record had been covered by the accepted bytes.
+
+The native partial-write fixture checked a zero-byte retry, progress
+into the second of three records, exact retry bytes, fatal abort and
+close during a native call. The Ubuntu build also ran this fixture
+under ASan and UBSan. The independent TLS peer passed byte-exact
+MQTT 5.0 and 3.1.1 traffic, fragmentation, QoS 1/2, takeover and
+257 ordered deliveries after quota pressure on both hosts.
+
+Windows and the Ubuntu QEMU/WHPX guest each ran three matched
+pairs at each rate, after a two-run pilot. Both broker variants
+completed all 40 trials. Replay checked source and executable
+identities, equivalent accepted wire lengths in the paired runs,
+the retired-record ledgers and 2,790,400 byte-verified deliveries.
+The table gives median paired changes for the packed variant.
+
+| Host | Offers/s | TLS write calls | Broker CPU | Delivery P99 | Delivery P99.9 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | -2.2% | +14.4% | -46.0% | -73.8% |
+| Windows | 4,000 | -15.9% | -7.6% | +9.4% | +18.6% |
+| Windows | 6,000 | -27.1% | -16.2% | -9.9% | -3.5% |
+| Ubuntu guest | 2,000 | -15.2% | -4.4% | +2.6% | +1.5% |
+| Ubuntu guest | 4,000 | -38.7% | -15.1% | +1.0% | -3.5% |
+| Ubuntu guest | 6,000 | -41.8% | -18.9% | -32.3% | -32.1% |
+
+At the highest offered rate, the Ubuntu paired median
+confirmation throughput increased by 13.3%. The Windows
+rate remained at the scheduled load. At 4,000/s Windows
+had a higher observed P99.9 and at 2,000/s consumed more
+CPU. The three-pair study supports further investigation
+under load. The grouped path remains a prototype while
+repeatability and the low-load tradeoff are evaluated.
+
+Prototype sources, fixtures, raw logs and replay are under
+out/service-extensions/xmqtt-tls-output-batch-66fa4f77/
+and its corresponding Ubuntu evidence directory under
+out/service-extensions/linux-guest-9ce2606c/.
