@@ -27173,3 +27173,48 @@ samples. The strict release tail gate remains open.
 Inputs and replays are under
 out/service-extensions/xrpc-capacity-phases-a7f0572e/ and
 out/service-extensions/linux-guest-9ce2606c/xrpc-capacity-phases-a7f0572e/.
+
+## 2026-11-24 Windows MQTT QoS 2 across TCP, TLS, WS and WSS
+
+The MQTT 5 checkpoint APP in capture mode and pinned
+Mosquitto 2.1.2 compared the four transport listeners.
+Both brokers used one Windows CPU and the same independent
+observer on another CPU. A clean publisher and wildcard
+subscriber exchanged 128-byte binary payloads. The observer
+used windows of one or 16 messages and confirmed both
+QoS 2 legs, ordered payloads and a PING barrier. Each
+encrypted connection verified localhost and negotiated
+TLS 1.3 with TLS_AES_128_GCM_SHA256. Credential generation,
+session setup and final shutdown were outside measurement.
+
+The first pilot offered two WebSocket subprotocols. The
+reference closed both WebSocket handshakes. A single
+mqtt subprotocol passed on both brokers with either
+encryption setting. The independent xmqtt interoperability
+fixture retains the multi-offer Upgrade and passed on
+Windows and the Ubuntu guest.
+
+The Windows campaign and independent replay verified
+80 trials, 1,310,720 publisher confirmations and
+1,310,720 deliveries. Each series had 16,384 measured
+messages and 128 warmup messages per trial. The table
+gives five-trial medians for xmqtt / Mosquitto at window
+16. Latencies are for one entire measured window.
+
+| Transport | Deliveries/s | Window P99 (ms) | Window P99.9 (ms) |
+| --- | ---: | ---: | ---: |
+| TCP | 23,694 / 20,635 | 1.417 / 1.960 | 4.072 / 4.655 |
+| TLS | 20,736 / 18,417 | 1.836 / 1.590 | 5.172 / 3.936 |
+| WS | 14,683 / 14,247 | 2.700 / 2.918 | 6.589 / 7.107 |
+| WSS | 13,979 / 13,560 | 3.073 / 2.502 | 6.036 / 8.005 |
+
+All eight window-16 throughput series met the
+repeatability limits. At window one, only xmqtt over TCP
+met the throughput limit. Every Windows P99 and P99.9
+series exceeded the variation limits. The measurements
+are for two established loopback connections and
+closed-loop windows with the same Python observer.
+Strict release timing remains open.
+
+Inputs, compiler logs, raw windows and replay are under
+out/service-extensions/xmqtt-websocket-network-099d0944/.
