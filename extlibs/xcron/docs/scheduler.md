@@ -51,7 +51,9 @@ with equal compiled rule masks and day-star flags in the same wave.
 Each job advances its own deadline and invokes its callback with its own
 context. When the entire heap has the same due time and rule and is
 already in registration order, the scheduler advances the wave in place.
-The optimized wave uses the same heap storage and next-time calculation.
+Advancing this wave preserves the order, so the scheduler can reuse the
+check until a job is added or removed. The wave uses the same heap storage
+and next-time calculation.
 
 See [the two drive paths](../examples/scheduler/main.c),
 [APP-owned worker dispatch](../examples/executor/main.c), and

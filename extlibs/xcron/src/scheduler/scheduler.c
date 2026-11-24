@@ -27,6 +27,7 @@ struct xcronscheduler {
     uint32 Free;
     uint32 Serial;
     xcrondialect Dialect;
+    bool OrderedWave;
     bool Driving;
     bool HasWaiter;
     xevent Wake;
@@ -99,6 +100,7 @@ static void xcronScheduleRemoveSlot(xcronscheduler* S, uint32 Slot)
     }
     *Job = (xcronslot){.Position = S->Free};
     S->Free = Slot;
+    S->OrderedWave = false;
 }
 
 XCRON_API bool xcronSchedulerCreate(size_t Capacity, xcrondialect Dialect, xcronscheduler** Output)
@@ -154,6 +156,7 @@ XCRON_API bool xcronSchedulerAdd(xcronscheduler* S, xstrview Text, xcroncallback
     S->Jobs[Slot] = (xcronslot){.Expression = Expression, .Callback = Callback,
         .Context = Context, .Next = Next, .Serial = Serial};
     xcronScheduleUp(S, S->Count++, Slot);
+    S->OrderedWave = false;
     *Output = ((uint64)Serial << 32) | ((uint64)Slot + 1);
     return true;
 }
@@ -205,8 +208,10 @@ static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronp
             Previous = Search == XCRON_CALENDAR_FOUND ? &Job->Expression : NULL;
         }
         if (Previous) {
-            if (!Report.Count && S->Count > 1 && xcronScheduleOrderedWave(S, Job)) {
-                /* Equal future deadlines preserve the validated serial order. */
+            if (!Report.Count && S->Count > 1 &&
+                (S->OrderedWave || xcronScheduleOrderedWave(S, Job))) {
+                /* Equal future deadlines preserve the validated order until a job is added or removed. */
+                S->OrderedWave = true;
                 for (uint32 I = 0; I < S->Count; ++I) {
                     xcronslot* Pending = &S->Jobs[S->Heap[I]];
                     Pending->Next = Next;

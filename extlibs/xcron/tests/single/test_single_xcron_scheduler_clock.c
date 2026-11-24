@@ -398,15 +398,49 @@ static void testReusedSlotWaveOrder(void)
     for (unsigned I = 0; I < 4; ++I)
         testRequire(xcronSchedulerAdd(Clock.Scheduler, EverySecond, recordCallback, &Jobs[I], &Ids[I]),
             "register equal-deadline job before slot reuse");
+    xcronpoll Result;
+    Clock.Wall = 11000;
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 4, 12000) && Clock.Called == 4, "dispatch the original ordered wave");
+
     testRequire(xcronSchedulerRemove(Clock.Scheduler, Ids[1]), "remove the second job");
+    Clock.Wall = 12000;
+    const unsigned Survivors[] = {1, 3, 4};
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 3, 13000) && Clock.Called == 7 &&
+        !memcmp(Clock.Trace + 4, Survivors, sizeof(Survivors)),
+        "removing a job preserves callback order after an ordered wave");
     add(EverySecond, &Jobs[4]);
 
-    Clock.Wall = 11000;
+    Clock.Wall = 13000;
     const unsigned Expected[] = {1, 3, 4, 5};
-    xcronpoll Result;
     testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
-        report(Result, 4, 12000) && Clock.Called == 4 && !memcmp(Clock.Trace, Expected, sizeof(Expected)),
+        report(Result, 4, 14000) && Clock.Called == 11 &&
+        !memcmp(Clock.Trace + 7, Expected, sizeof(Expected)),
         "equal deadlines dispatch in registration order after heap slot reuse");
+    end();
+}
+
+static void testAddedRuleToOrderedWave(void)
+{
+    beginScheduler(58999, 40.0, 3, XCRON_SECONDS6);
+    const xstrview EverySecond = XRT_STR_LITERAL("* * * * * *");
+    clockjob First = {.Marker = 1}, Second = {.Marker = 2}, Third = {.Marker = 3};
+    add(EverySecond, &First);
+    add(EverySecond, &Second);
+    xcronpoll Result;
+    Clock.Wall = 59000;
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 2, 60000) && Clock.Called == 2, "dispatch the ordered wave before adding a job");
+    add(XRT_STR_LITERAL("0 * * * * *"), &Third);
+    Clock.Wall = 60000;
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 3, 61000) && Clock.Called == 5 && Clock.Trace[4] == 3,
+        "a new job can share the earlier jobs' due time");
+    Clock.Wall = 61000;
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 2, 62000) && Clock.Called == 7 &&
+        Clock.Trace[5] == 1 && Clock.Trace[6] == 2, "a new job keeps its own recurrence after an ordered wave");
     end();
 }
 
@@ -550,6 +584,7 @@ int main(void)
     testClockFailure();
     testDistinctRecurrences();
     testReusedSlotWaveOrder();
+    testAddedRuleToOrderedWave();
     testLastInstant();
     testMixedScheduler(XCRON_UNIX5);
     testMixedScheduler(XCRON_SECONDS6);
