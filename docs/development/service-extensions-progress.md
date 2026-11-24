@@ -28800,3 +28800,44 @@ transport suites were still running at this checkpoint. Strict
 release acceptance remains open. Source receipts, archive checksums,
 the before and after disassembly, and the independent replay are under
 out/service-extensions/xmqtt-client-flags-1d72ea34/.
+
+
+## 2026-11-25 Longer xcron cohorts and MQTT transport sanitizers
+
+The regular and wait-phase xcron cohort executables now accept up to
+8,192 waves per process. At 1,024 waves nearest-rank P99.9 selects the
+second-largest value. At 8,192 it selects rank 8,184, with eight ranks
+above it. The runner applies the existing percentile and repeatability
+rules. Both executable modes and the runner reject an 8,193-wave request.
+
+Windows and the Ubuntu QEMU/WHPX guest each passed both three-wave
+smokes, with 13,056 verified callbacks per host. Replay checked the
+build inputs at e684d985, executable and runner hashes, all four cases
+in each smoke, and the instrumented wait samples. Both hosts started
+8,192-wave runs with five alternating repeats per drive for each job
+mix. Windows started at 02:46:13 Asia/Shanghai on logical CPU 10.
+Ubuntu started at 02:47:25 on guest CPU 2. Both first benchmark
+processes were live with the expected affinity. The older Windows
+1,024-wave campaign also continues. Repeatability requires completed
+process records.
+
+The clean 1f9aee3b Ubuntu client transport run passed all 11 targeted
+modular tests under GCC 13 ThreadSanitizer. The cases cover TLS,
+WebSocket, secure WebSocket, authenticated reconnect, persisted
+reconnect and transport close. The ASan and UBSan run passed five
+modular and seven single-header tests with leak detection. Its client
+source and generated header match 1f9aee3b. Replay reconciled the
+23 test commands, binary digests, sanitizer dependencies and
+instrumented symbols. The Windows full runtime suite and rebuilt
+MQTT package verification were still in progress.
+
+The four primary Redis and MQTT endurance journals passed another
+running-prefix replay. Both MQTT candidates have more than 13 awake
+minutes. The Redis candidates have approximately 44 and 50 awake
+minutes on Windows and Ubuntu, respectively. These are interval
+prefixes. Strict release acceptance remains open.
+
+Build receipts, smoke journals, and archive checksums are under
+out/service-extensions/xcron-cohorts-8192-7c8045e2/. MQTT sanitizer
+reports are under out/service-extensions/xmqtt-client-flags-1d72ea34/
+transport-verified/.
