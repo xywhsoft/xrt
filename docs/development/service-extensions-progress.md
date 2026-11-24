@@ -27257,3 +27257,56 @@ open.
 The Ubuntu build, reference source hash, raw windows
 and host replay are under
 out/service-extensions/linux-guest-9ce2606c/xmqtt-websocket-network-099d0944/.
+
+## 2026-11-24 xcron validated order across equal-deadline waves
+
+The scheduler now reuses a successful check for an
+already ordered heap with equal rules and deadlines.
+A successful insertion or slot removal invalidates
+the check. The scripted clock tests verified distinct
+recurrences after insertion and registration order
+after removing and reusing a slot. Removing either
+invalidation in isolation made the relevant test fail.
+
+Windows and the Ubuntu QEMU/WHPX guest passed the
+modular suite, single-header suite, and scheduler-enabled
+static and shared package consumers. Ubuntu also
+passed the clock fixture with ASan, leak detection and
+UBSan. The first guest generation check found missing
+declaration headers in the copied build inputs.
+Regeneration produced an implementation header
+byte-identical to the tested Windows input.
+
+An immediate scripted waiter compared the old and new
+scheduler with one active job, 64 active and 960 dormant
+jobs, and 1,024 active jobs. Both platforms ran seven
+alternating pairs of 4,096 waves per profile. They verified
+124,895,232 callbacks with the expected order and next
+deadline. The table gives medians of per-trial P99 at
+1,024 active jobs, in microseconds.
+
+| Host | Wait return to first callback, old / new | Wait return through dispatch, old / new |
+| --- | ---: | ---: |
+| Windows | 3.400 / 0.300 | 6.200 / 3.100 |
+| Ubuntu guest | 2.936 / 0.190 | 14.558 / 5.090 |
+
+A separate native wait probe ran five alternating pairs
+of 12 waves per host with 1,024 active jobs. Replay
+matched the binaries and 245,760 callbacks. The native
+return-to-first measurements were as follows.
+
+| Host | Median old / new (us) | P95 old / new (us) |
+| --- | ---: | ---: |
+| Windows | 7.700 / 2.800 | 12.700 / 5.500 |
+| Ubuntu guest | 9.478 / 3.085 | 21.331 / 4.659 |
+
+In the revised Windows run's latest first callback, the
+waiter returned 27.353 ms after the due time and the
+first callback followed 2.8 us later. The return-to-first
+improvement covers the dispatch path. The ongoing long
+cohorts were built before this change. Strict release tail
+qualification remains open.
+
+Sources, test logs, raw records and replays are under
+out/service-extensions/xcron-ordered-wave-cache-f09adf69/ and
+out/service-extensions/linux-guest-9ce2606c/xcron-ordered-wave-cache-f09adf69/.
