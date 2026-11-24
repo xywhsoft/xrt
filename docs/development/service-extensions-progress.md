@@ -28271,3 +28271,58 @@ Source receipts, binaries, traces and independent replays are under
 out/service-extensions/xrpc-tcp-decoded-9c36b6b9/. The guest evidence is
 mirrored under out/service-extensions/linux-guest-9ce2606c/
 xrpc-tcp-decoded-9c36b6b9/.
+
+
+## 2026-11-24 Compact keys in the xcron scheduler heap
+
+The heap now stores each deadline, registration serial and slot index
+together. Heap comparisons read those keys without visiting the expression
+and callback storage. A compact position array in the same allocation
+maintains live slot locations and the free list. On x64 the three arrays
+still cost 92 bytes per configured job. Each scheduler adds one pointer.
+The first prototype used 96 bytes per job before separating positions
+from the callback storage.
+
+Both the Windows and Ubuntu QEMU/WHPX clock fixtures passed, including
+mixed registration, removal, ID reuse, clock recovery and both drive
+paths. The Ubuntu fixture also passed under ASan, UBSan and leak
+detection. The canonical modular and single-header suites, examples,
+and scheduler-enabled static and shared package consumers passed on
+both hosts. Regeneration on Ubuntu matched the Windows single header.
+
+Seven alternating pairs per profile ran 4,096 waves each with an
+immediate scripted waiter. Replay checked 66,117,632 callbacks per host
+and recalculated all per-run quantiles. The table gives the median
+process P99 for waiter return through the end of dispatch.
+
+| Host | Active / dormant and registration order | Stock (us) | Compact keys (us) |
+| --- | --- | ---: | ---: |
+| Windows | 1 / 0 | 0.200 | 0.200 |
+| Windows | 64 / 960, active first | 2.800 | 2.500 |
+| Windows | 64 / 960, dormant first | 3.800 | 2.500 |
+| Windows | 1,024 / 0 | 3.000 | 3.200 |
+| Ubuntu guest | 1 / 0 | 0.211 | 0.201 |
+| Ubuntu guest | 64 / 960, active first | 4.579 | 4.178 |
+| Ubuntu guest | 64 / 960, dormant first | 6.533 | 5.240 |
+| Ubuntu guest | 1,024 / 0 | 7.545 | 4.509 |
+
+The native probe alternated five pairs of 12-wave processes on each
+host with 64 active and 960 dormant jobs, registered dormant first.
+The pooled first-to-last callback span P95 moved from 9.500 to
+6.800 us on Windows and from 15.068 to 9.458 us in the guest. The
+end-to-end first-callback P99 moved from 3.745 to 1.455 ms on Windows
+and from 0.299 to 0.398 ms in the guest. All seven Windows first
+callbacks at least 1 ms late had already crossed that threshold at
+waiter return. The short real-wait sample leaves the repeatable
+end-to-end tail requirement open.
+
+Fresh uninstrumented cohorts started from the canonical source on
+Windows CPU 4 and Ubuntu guest CPU 2. Both compare scheduler Wait
+with the direct precise XRT waiter over five alternating pairs for
+each job mix, sampling 1,024 waves per process. The start records
+verify the binaries and the matched runner, and both jobs are
+running alongside the existing Redis and MQTT endurance workloads.
+
+Sources, builds, raw samples and independent replays are under
+out/service-extensions/xcron-heap-keys-c8228b01/packed-position/ and
+out/service-extensions/linux-guest-9ce2606c/xcron-heap-keys-c8228b01/.

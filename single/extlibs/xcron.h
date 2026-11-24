@@ -1058,14 +1058,19 @@ typedef struct xcronslot {
     xcronexpression Expression;
     xcroncallback Callback;
     void* Context;
+} xcronslot;
+
+typedef struct xcronduejob {
     xtime Next;
     uint32 Serial;
-    uint32 Position;
-} xcronslot;
+    uint32 Slot;
+} xcronduejob;
 
 struct xcronscheduler {
     xcronslot* Jobs;
-    uint32* Heap;
+    xcronduejob* Heap;
+    /* A live slot points into Heap. A vacant slot links the free list. */
+    uint32* Positions;
     uint32 Capacity;
     uint32 Count;
     uint32 Free;
@@ -1091,58 +1096,56 @@ static bool xcronScheduleOwner(xcronscheduler* S)
     return true;
 }
 
-static bool xcronScheduleEarlier(const xcronscheduler* S, uint32 A, uint32 B)
+static bool xcronScheduleEarlier(const xcronduejob* L, const xcronduejob* R)
 {
-    const xcronslot* L = &S->Jobs[A];
-    const xcronslot* R = &S->Jobs[B];
     return L->Next < R->Next || (L->Next == R->Next && L->Serial < R->Serial);
 }
 
-static void xcronSchedulePlace(xcronscheduler* S, uint32 Position, uint32 Slot)
+static void xcronSchedulePlace(xcronscheduler* S, uint32 Position, xcronduejob Entry)
 {
-    S->Heap[Position] = Slot;
-    S->Jobs[Slot].Position = Position;
+    S->Heap[Position] = Entry;
+    S->Positions[Entry.Slot] = Position;
 }
 
-static void xcronScheduleUp(xcronscheduler* S, uint32 Position, uint32 Slot)
+static void xcronScheduleUp(xcronscheduler* S, uint32 Position, xcronduejob Entry)
 {
     while (Position) {
         uint32 Parent = (Position - 1) / 2;
-        uint32 Other = S->Heap[Parent];
-        if (!xcronScheduleEarlier(S, Slot, Other)) break;
-        xcronSchedulePlace(S, Position, Other);
+        const xcronduejob* Other = &S->Heap[Parent];
+        if (!xcronScheduleEarlier(&Entry, Other)) break;
+        xcronSchedulePlace(S, Position, *Other);
         Position = Parent;
     }
-    xcronSchedulePlace(S, Position, Slot);
+    xcronSchedulePlace(S, Position, Entry);
 }
 
-static void xcronScheduleDown(xcronscheduler* S, uint32 Position, uint32 Slot)
+static void xcronScheduleDown(xcronscheduler* S, uint32 Position, xcronduejob Entry)
 {
     while (Position < S->Count / 2) {
         uint32 Child = Position * 2 + 1;
         if (Child + 1 < S->Count &&
-            xcronScheduleEarlier(S, S->Heap[Child + 1], S->Heap[Child]))
+            xcronScheduleEarlier(&S->Heap[Child + 1], &S->Heap[Child]))
             ++Child;
-        uint32 Other = S->Heap[Child];
-        if (!xcronScheduleEarlier(S, Other, Slot)) break;
-        xcronSchedulePlace(S, Position, Other);
+        const xcronduejob* Other = &S->Heap[Child];
+        if (!xcronScheduleEarlier(Other, &Entry)) break;
+        xcronSchedulePlace(S, Position, *Other);
         Position = Child;
     }
-    xcronSchedulePlace(S, Position, Slot);
+    xcronSchedulePlace(S, Position, Entry);
 }
 
 static void xcronScheduleRemoveSlot(xcronscheduler* S, uint32 Slot)
 {
-    xcronslot* Job = &S->Jobs[Slot];
-    uint32 Position = Job->Position;
-    uint32 Last = S->Heap[--S->Count];
+    uint32 Position = S->Positions[Slot];
+    xcronduejob Last = S->Heap[--S->Count];
     if (Position < S->Count) {
-        if (Position && xcronScheduleEarlier(S, Last, S->Heap[(Position - 1) / 2]))
+        if (Position && xcronScheduleEarlier(&Last, &S->Heap[(Position - 1) / 2]))
             xcronScheduleUp(S, Position, Last);
         else
             xcronScheduleDown(S, Position, Last);
     }
-    *Job = (xcronslot){.Position = S->Free};
+    S->Jobs[Slot] = (xcronslot){0};
+    S->Positions[Slot] = S->Free;
     S->Free = Slot;
     S->OrderedWave = false;
 }
@@ -1150,25 +1153,26 @@ static void xcronScheduleRemoveSlot(xcronscheduler* S, uint32 Slot)
 XCRON_API bool xcronSchedulerCreate(size_t Capacity, xcrondialect Dialect, xcronscheduler** Output)
 {
     if (!xrtMemRangeValid(Output, sizeof(*Output)) || !Capacity || Capacity >= UINT32_MAX ||
-        Capacity > SIZE_MAX / sizeof(xcronslot) || Capacity > SIZE_MAX / sizeof(uint32) ||
+        Capacity > SIZE_MAX / sizeof(xcronslot) || Capacity > SIZE_MAX / (sizeof(xcronduejob) + sizeof(uint32)) ||
         (Dialect != XCRON_UNIX5 && Dialect != XCRON_SECONDS6))
         return xcronScheduleError(XERR_ARGUMENT, "invalid scheduler capacity, dialect or output");
 
     xcronscheduler* S = xrtCalloc(1, sizeof(*S));
     if (!S) return false;
     S->Jobs = xrtCalloc(Capacity, sizeof(*S->Jobs));
-    if (S->Jobs) S->Heap = xrtMalloc(Capacity * sizeof(*S->Heap));
+    if (S->Jobs) S->Heap = xrtMalloc(Capacity * (sizeof(*S->Heap) + sizeof(*S->Positions)));
     if (!S->Heap || !xrtEventInit(&S->Wake, false, false)) {
         xrtFree(S->Heap);
         xrtFree(S->Jobs);
         xrtFree(S);
         return false;
     }
+    S->Positions = (uint32*)(S->Heap + Capacity);
     S->Capacity = (uint32)Capacity;
     S->Dialect = Dialect;
     for (uint32 I = 0; I < S->Capacity; ++I)
-        S->Jobs[I].Position = I + 1;
-    S->Jobs[Capacity - 1].Position = XCRON_NO_SLOT;
+        S->Positions[I] = I + 1;
+    S->Positions[Capacity - 1] = XCRON_NO_SLOT;
     *Output = S;
     return true;
 }
@@ -1195,11 +1199,11 @@ XCRON_API bool xcronSchedulerAdd(xcronscheduler* S, xstrview Text, xcroncallback
         return xcronScheduleError(XERR_RANGE, "cron expression has no future occurrence");
 
     uint32 Slot = S->Free;
-    S->Free = S->Jobs[Slot].Position;
+    S->Free = S->Positions[Slot];
     uint32 Serial = ++S->Serial;
     S->Jobs[Slot] = (xcronslot){.Expression = Expression, .Callback = Callback,
-        .Context = Context, .Next = Next, .Serial = Serial};
-    xcronScheduleUp(S, S->Count++, Slot);
+        .Context = Context};
+    xcronScheduleUp(S, S->Count++, (xcronduejob){Next, Serial, Slot});
     S->OrderedWave = false;
     *Output = ((uint64)Serial << 32) | ((uint64)Slot + 1);
     return true;
@@ -1210,7 +1214,10 @@ XCRON_API bool xcronSchedulerRemove(xcronscheduler* S, xcronjobid Job)
     if (!xcronScheduleOwner(S)) return false;
     uint32 Slot = (uint32)Job - 1;
     uint32 Serial = (uint32)(Job >> 32);
-    if (Slot >= S->Capacity || !Serial || S->Jobs[Slot].Serial != Serial)
+    if (Slot >= S->Capacity || !Serial)
+        return xcronScheduleError(XERR_ARGUMENT, "unknown scheduler job");
+    uint32 Position = S->Positions[Slot];
+    if (Position >= S->Count || S->Heap[Position].Slot != Slot || S->Heap[Position].Serial != Serial)
         return xcronScheduleError(XERR_ARGUMENT, "unknown scheduler job");
     xcronScheduleRemoveSlot(S, Slot);
     return true;
@@ -1218,15 +1225,16 @@ XCRON_API bool xcronSchedulerRemove(xcronscheduler* S, xcronjobid Job)
 
 static bool xcronScheduleOrderedWave(const xcronscheduler* S, const xcronslot* First)
 {
-    if (S->Jobs[S->Heap[S->Count - 1]].Next != First->Next) return false;
-    uint32 Serial = First->Serial;
+    if (S->Heap[S->Count - 1].Next != S->Heap[0].Next) return false;
+    uint32 Serial = S->Heap[0].Serial;
     for (uint32 I = 1; I < S->Count; ++I) {
-        const xcronslot* Job = &S->Jobs[S->Heap[I]];
-        if (Job->Next != First->Next || Job->Serial <= Serial ||
+        const xcronduejob* Entry = &S->Heap[I];
+        const xcronslot* Job = &S->Jobs[Entry->Slot];
+        if (Entry->Next != S->Heap[0].Next || Entry->Serial <= Serial ||
             Job->Expression.Flags != First->Expression.Flags ||
             memcmp(Job->Expression.Fields, First->Expression.Fields, sizeof(First->Expression.Fields)))
             return false;
-        Serial = Job->Serial;
+        Serial = Entry->Serial;
     }
     return true;
 }
@@ -1237,9 +1245,9 @@ static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronp
     const xcronexpression* Previous = NULL;
     xtime Next = 0;
     while (S->Count) {
-        uint32 Slot = S->Heap[0];
-        xcronslot* Job = &S->Jobs[Slot];
-        if (Job->Next > Now) break;
+        xcronduejob Entry = S->Heap[0];
+        if (Entry.Next > Now) break;
+        xcronslot* Job = &S->Jobs[Entry.Slot];
         xcroncallback Callback = Job->Callback;
         void* Context = Job->Context;
         /* Now and the scheduler dialect are fixed for the wave. Pending
@@ -1257,24 +1265,24 @@ static xcronschedulestatus xcronScheduleDue(xcronscheduler* S, xtime Now, xcronp
                 /* Equal future deadlines preserve the validated order until a job is added or removed. */
                 S->OrderedWave = true;
                 for (uint32 I = 0; I < S->Count; ++I) {
-                    xcronslot* Pending = &S->Jobs[S->Heap[I]];
-                    Pending->Next = Next;
+                    S->Heap[I].Next = Next;
+                    const xcronslot* Pending = &S->Jobs[S->Heap[I].Slot];
                     Pending->Callback(Pending->Context);
                 }
                 Report.Count = S->Count;
                 break;
             }
-            Job->Next = Next;
-            xcronScheduleDown(S, 0, Slot);
+            Entry.Next = Next;
+            xcronScheduleDown(S, 0, Entry);
         } else {
-            xcronScheduleRemoveSlot(S, Slot);
+            xcronScheduleRemoveSlot(S, Entry.Slot);
         }
         ++Report.Count;
         Callback(Context);
     }
     if (S->Count) {
         Report.HasNext = true;
-        Report.Next = S->Jobs[S->Heap[0]].Next;
+        Report.Next = S->Heap[0].Next;
     }
     *Result = Report;
     return Report.Count ? XCRON_SCHEDULE_DISPATCHED : XCRON_SCHEDULE_IDLE;
