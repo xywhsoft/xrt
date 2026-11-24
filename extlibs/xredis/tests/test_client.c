@@ -443,19 +443,49 @@ static void testClientEdges(void)
 		"connect failure uncertainty/replay"); xrtFutureDestroy(Future); testClientClose(&Peer, Client);
 }
 
+typedef struct testclientclosehold {
+	xatomic32 Entered, Released;
+} testclientclosehold;
+
+static void testClientHoldForClose(xnetworker* Worker, ptr Data)
+{
+	(void)Worker;
+	testclientclosehold* Hold = Data;
+	xrtAtomic32Store(&Hold->Entered, 1, XMEMORY_RELEASE);
+	redisPeerWait(&Hold->Released, 1);
+}
+
 static void testClientBatchedClose(void)
 {
 	redispeer Peer; redisPeerStart(&Peer); xredisclientconfig Config; xredisClientConfigInit(&Config);
 	Config.WorkRequests = 1; Config.MaxInFlight = 1;
 	xredisclient* Client = testClientConnect(&Peer, &Config); xfuture* Futures[101];
 	Futures[0] = testClientSubmit(Client, "HOLD", NULL, XRT_WAIT_FOREVER); redisPeerWait(&Peer.Commands, 1);
-	for (size_t Index = 1; Index < 101; ++Index) Futures[Index] = testClientSubmit(Client, "PING", NULL, XRT_WAIT_FOREVER);
+	Futures[1] = testClientSubmit(Client, "PING", NULL, XRT_WAIT_FOREVER);
+	testclientclosehold Hold;
+	xrtAtomic32Init(&Hold.Entered, 0);
+	xrtAtomic32Init(&Hold.Released, 0);
+	xnetpost Pause;
+	testRequire(xrtNetPostInit(&Pause) && xrtNetPost(xrtNetEngineWorker(Peer.Engine, 0), &Pause,
+		testClientHoldForClose, &Hold), "pause owner after the first queued request");
+	redisPeerWait(&Hold.Entered, 1);
+	for (size_t Index = 2; Index < 101; ++Index) Futures[Index] = testClientSubmit(Client, "PING", NULL, XRT_WAIT_FOREVER);
+	testRequire(xrtFutureCancel(Futures[100]), "cancel a submitted request before cross-thread close");
 	testRequire(xredisClientClose(Client), "batched close request");
+	xredisclientinfo Info = {.Size = sizeof(Info)};
+	testRequire(xredisClientInfo(Client, &Info) && Info.State == XREDIS_CLIENT_CLOSING &&
+		Info.CloseStatus == XREDIS_REQUEST_CLOSED, "close published before the worker resumes");
+	xrtAtomic32Store(&Hold.Released, 1, XMEMORY_RELEASE);
 	for (size_t Index = 0; Index < 101; ++Index) {
 		const xredisrequestresult* Result = testClientResult(Futures[Index]);
-		testRequire(Result->Status == XREDIS_REQUEST_CLOSED && Result->Delivery == (Index == 0 ? XREDIS_MAY_HAVE_EXECUTED : XREDIS_NOT_SENT),
-			"batched close lost outcome/physical duty"); xrtFutureDestroy(Futures[Index]);
+		xredisrequeststatus Status = Index == 100 ? XREDIS_REQUEST_CANCELLED : XREDIS_REQUEST_CLOSED;
+		xredisdelivery Delivery = Index == 0 ? XREDIS_MAY_HAVE_EXECUTED : XREDIS_NOT_SENT;
+		testRequire(Result->Status == Status && Result->Delivery == Delivery,
+			"batched close lost outcome or delivery certainty");
+		xrtFutureDestroy(Futures[Index]);
 	}
+	testRequire(xrtAtomic32Load(&Peer.Commands, XMEMORY_ACQUIRE) == 1,
+		"batched close sent an additional command");
 	testClientClose(&Peer, Client);
 }
 

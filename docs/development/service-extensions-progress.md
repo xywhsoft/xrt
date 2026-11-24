@@ -28372,3 +28372,57 @@ high-load tails and the Ubuntu saturation results.
 The source, binaries, peer reports and replays are under
 out/service-extensions/xmqtt-tls-pump-08f4d9c2/ and the mirrored evidence
 directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Atomic close publication in the xredis client prototype
+
+The prototype published one irreversible close bit with release ordering
+after recording the close reason. Worker checks acquired the bit. Admission
+and public snapshots kept their existing mutex. The bit fit existing
+padding in both x64 client builds. The TCP fixtures verified publication
+from another thread, cancellation and the delivery certainty of both
+sent and queued requests. Ubuntu verified the same paths with ASan, UBSan
+and leak checking.
+
+The permanent batched-close test now parks the owner after publishing
+one queued request, admits the remaining requests, cancels the last one
+and publishes close before letting the owner resume. It checks the
+published close reason, each terminal result and the peer command count.
+The Windows modular and single-header suites and Ubuntu single-header
+fixture, including its sanitizer run, passed on the mainline library.
+
+Fixed-arrival runs used two worker threads, eight RESP3 connections,
+a 128-slot observer window, 1 KiB mixed GET/SET and Redis 8.0.5. Windows
+used IOCP and a private SSH forward to the Ubuntu peer. The Ubuntu
+QEMU/WHPX guest used local epoll. Independent replay verified 672,000
+scheduled offers and 671,167 correct replies. The other 833 offers were
+observer-window refusals in three high-rate trials. No reply was corrupt
+or late. The table gives complete-trial medians for stock and prototype.
+
+| Host | Offers/s | Complete trials out of five | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 5 / 5 | 1.984 / 1.840 | 4.014 / 3.999 |
+| Windows | 12,000 | 4 / 4 | 1.478 / 1.525 | 3.685 / 5.162 |
+| Ubuntu guest | 2,000 | 5 / 5 | 0.442 / 0.366 | 2.066 / 0.676 |
+| Ubuntu guest | 12,000 | 5 / 4 | 0.499 / 0.509 | 1.103 / 1.180 |
+
+Every fixed-arrival P99 and P99.9 series missed repeatability. In a
+separate closed-loop test, four caller threads shared one client with
+16 outstanding calls per thread. Replay checked 1,440,000 exact ID
+replies on each host. Windows throughput was 175,308 / 175,697 replies/s.
+Ubuntu measured 61,235 / 63,200 replies/s and P99 of 2.482 / 2.349 ms.
+Both Ubuntu series met the throughput and P99 repeatability thresholds.
+At depth 128 in the single-caller fixture, the Windows throughput
+median was 324,168 / 292,564 replies/s, with variation above the limit.
+The production mutex checks remain in place given the mixed results.
+
+The four active endurance prefixes matched their binary receipts.
+The verified awake seconds were 17,448 and 17,712 for Redis on Windows
+and Ubuntu, and 22,496 and 35,474 for MQTT. The source replay matched
+43 of 44 compiled inputs against the current mainline. The Ubuntu
+MQTT workload retains the previously recorded readiness diagnostic
+difference. Each run is still accumulating its 72-hour interval.
+
+Sources, binaries, raw samples, prefix reports and independent replays
+are under out/service-extensions/xredis-close-flag-32007b1c/ and the
+corresponding directory under out/service-extensions/linux-guest-9ce2606c/.
