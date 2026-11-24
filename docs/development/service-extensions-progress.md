@@ -28326,3 +28326,49 @@ running alongside the existing Redis and MQTT endurance workloads.
 Sources, builds, raw samples and independent replays are under
 out/service-extensions/xcron-heap-keys-c8228b01/packed-position/ and
 out/service-extensions/linux-guest-9ce2606c/xcron-heap-keys-c8228b01/.
+
+
+## 2026-11-24 Batched delivery credit after broker TLS acknowledgements
+
+A prototype retired consecutive terminal acknowledgements in the current
+TLS read before pumping the outgoing queue. It flushed before processing
+another packet type and before asking TLS for another read. The path
+covered nonpersistent sessions. Packet and delivery limits stayed fixed.
+
+The independent peer passed for stock and prototype on Windows and the
+Ubuntu QEMU/WHPX guest, including an ASan and UBSan run with leak checking.
+The permanent peer covers a two-message Receive Maximum, eight ordered
+QoS 2 deliveries, coalesced acknowledgements and a final PING barrier.
+It requires delivery after one complete PUBCOMP while the next PUBCOMP is
+still fragmented. The stock broker passed the updated peer on both hosts.
+A diagnostic build that skipped the flush on partial input failed that
+specific check by timeout.
+
+Both brokers used two workers, four publishers, eight wildcard subscribers,
+128-byte payloads, MQTT 5 QoS 2, window 16 and authenticated TLS 1.3. Each
+host ran 30 measured trials and two pilots with the buffered observer.
+Replay verified all 64 trial ledgers and 10,022,400 delivery payloads.
+This table gives stock and prototype medians from five matched trials.
+
+| Host | Offers/s | Confirmations/s | Delivery P99 (ms) |
+| --- | ---: | ---: | ---: |
+| Windows | 2,000 | 2,000 / 2,000 | 4.878 / 3.881 |
+| Windows | 4,000 | 3,999 / 4,000 | 2.815 / 2.552 |
+| Windows | 6,000 | 5,999 / 5,999 | 3.260 / 15.406 |
+| Ubuntu guest | 2,000 | 2,000 / 1,999 | 4.900 / 5.118 |
+| Ubuntu guest | 4,000 | 3,803 / 3,898 | 266.847 / 166.273 |
+| Ubuntu guest | 6,000 | 3,723 / 3,662 | 3,027 / 3,162 |
+
+Eleven ingress series, two P99 series and one P99.9 series met the
+repeatability thresholds. The 6,000/s Windows P99.9 also rose from
+5.085 to 20.008 ms. Separate instrumented trials counted fewer
+credit-triggered pump calls. At 6,000 offers/s, 100,096 qualifying
+acknowledgements triggered 50,477 such calls on Windows and 39,315
+on Ubuntu, including warmup. At 2,000 offers/s the corresponding
+counts were 52,096 acknowledgements and 50,541 or 41,432 pump calls.
+The existing production pump remains in place given the Windows
+high-load tails and the Ubuntu saturation results.
+
+The source, binaries, peer reports and replays are under
+out/service-extensions/xmqtt-tls-pump-08f4d9c2/ and the mirrored evidence
+directory under out/service-extensions/linux-guest-9ce2606c/.

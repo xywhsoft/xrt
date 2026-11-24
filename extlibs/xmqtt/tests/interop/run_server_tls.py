@@ -176,6 +176,49 @@ def verify_quota_recovery(endpoint, context):
     return {"quota_refusals": 2, "other_topic_deliveries": 1, "ordered_recovered_deliveries": capacity + 1}
 
 
+
+def verify_coalesced_credit(endpoint, context):
+    topic_name = b"tls/coalesced-credit"
+    with ExitStack() as stack:
+        peers = []
+        for name in (b"credit-consumer", b"credit-producer"):
+            raw = stack.enter_context(socket.create_connection(endpoint, timeout=10))
+            peer = stack.enter_context(context.wrap_socket(raw, server_hostname="localhost"))
+            mqtt_connect(peer, name, receive_maximum=2)
+            connack(peer)
+            assert receive(peer) == (0xd0, b"")
+            peers.append(peer)
+        subscriber, producer = peers
+        subscriber.sendall(small_frame(0x82, b"\0\1\0" + topic(topic_name) + b"\2"))
+        assert receive(subscriber) == (0x90, b"\0\1\0\2")
+        for number in range(1, 9):
+            publish_qos2(producer, topic_name, number, bytes([number]))
+
+        identifiers = [receive_qos2(subscriber, topic_name, bytes([n])) for n in (1, 2)]
+        for group in range(1, 5):
+            subscriber.sendall(b"".join(small_frame(0x50, ident) for ident in identifiers))
+            assert [receive(subscriber), receive(subscriber)] == [(0x62, ident) for ident in identifiers]
+            acknowledgements = b"".join(small_frame(0x70, ident) for ident in identifiers)
+            if group == 4:
+                subscriber.sendall(acknowledgements + b"\xc0\0")
+                assert receive(subscriber) == (0xd0, b"")
+                break
+
+            next_number = 2 * group + 1
+            if group == 2:
+                # The first complete PUBCOMP frees credit before the second PUBCOMP is complete.
+                subscriber.sendall(acknowledgements[:-2])
+                first = receive_qos2(subscriber, topic_name, bytes([next_number]))
+                subscriber.sendall(acknowledgements[-2:])
+            else:
+                subscriber.sendall(acknowledgements)
+                first = receive_qos2(subscriber, topic_name, bytes([next_number]))
+            identifiers = [first, receive_qos2(subscriber, topic_name, bytes([next_number + 1]))]
+        for peer in peers:
+            finish(peer)
+    return {"ordered_deliveries": 8, "fragmented_terminal_ack": True, "ping_barrier": True}
+
+
 def ping_measurement(endpoint, context, count):
     runs = []
     with context.wrap_socket(socket.create_connection(endpoint, timeout=10),
@@ -224,6 +267,7 @@ def main():
             address = (host, int(port))
             verify(address, context)
             quota = verify_quota_recovery(address, context)
+            coalesced = verify_coalesced_credit(address, context)
             ping = ping_measurement(address, context, args.ping_samples) if args.ping_samples else None
             server.stdin.write("\n")
             server.stdin.flush()
@@ -234,7 +278,7 @@ def main():
     result = {"tls_1_3": True, "verified_identity": True, "mqtt_5_and_311": True,
               "fragmented_connect_and_publish": True, "qos_1_and_2": True,
               "live_tls_takeover": True, "clean_tls_close": True, "queued_qos1_deliveries": 48,
-              "qos2_quota_recovery": quota}
+              "qos2_quota_recovery": quota, "qos2_coalesced_credit": coalesced}
     if ping is not None:
         result["loopback_ping"] = ping
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
