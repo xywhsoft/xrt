@@ -27516,3 +27516,37 @@ Windows build and journal are under
 out/service-extensions/xcron-p999-0020e637/. The
 Ubuntu journal and host replay are under
 out/service-extensions/linux-guest-9ce2606c/xcron-recovery-complete-20261124/.
+
+## 2026-11-24 MQTT TLS observer worker split
+
+A diagnostic observer distributed its twelve TLS
+connections across two engine workers. The ordinary
+observer used one. Broker and observer CPU budgets
+were unchanged between the variants. Four MQTT 5
+publishers offered QoS 2 traffic to eight wildcard
+subscribers. The matched campaign alternated both
+observers and both brokers across five repetitions.
+
+| Host | Offers/s | Observer TLS workers | Complete xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: |
+| Windows | 2,500 | 1 | 2/5 and 1/5 |
+| Windows | 2,500 | 2 | 0/5 and 0/5 |
+| Ubuntu guest | 2,500 | 1 | 0/5 and 0/5 |
+| Ubuntu guest | 2,500 | 2 | 5/5 and 4/5 |
+
+All twenty attempts per host at 4,000 offers/s were
+incomplete. Every xmqtt failure returned PUBREC reason
+0x97. Every Mosquitto failure logged outgoing drops.
+Host replay checked all 80 trial records, fingerprints,
+authenticated connections, partial counts and 576,000
+verified deliveries from the complete trials. At
+2,500/s the complete Ubuntu dual-worker xmqtt trials
+had a median delivery P99 of 33.836 ms.
+
+The split improved completion on the guest at 2,500/s
+and reduced it on Windows. The regular benchmark
+continues to use the one-worker observer. The experiment
+leaves the repeatable high-fan-out TLS baseline open.
+
+Inputs and replay are under out/service-extensions/xmqtt-tls-workers-d5b26ff1/
+and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-workers-d5b26ff1/observer-split-replay/.
