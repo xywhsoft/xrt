@@ -27773,7 +27773,7 @@ canonical diff, then matched each rebuilt source hash to the host.
 Prototypes, launchers, source fingerprints, raw trial summaries and
 replay are under out/service-extensions/xrpc-host-token-tree-026d8361/,
 out/service-extensions/xrpc-host-token-slots-026d8361/ and the
-matching directories in out/service-extensions/linux-guest-9ce2606c/.\n
+matching directories in out/service-extensions/linux-guest-9ce2606c/.
 
 ## 2026-11-24 TCP replay before and after indexed xrpc replies
 
