@@ -27550,3 +27550,44 @@ leaves the repeatable high-fan-out TLS baseline open.
 
 Inputs and replay are under out/service-extensions/xmqtt-tls-workers-d5b26ff1/
 and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-workers-d5b26ff1/observer-split-replay/.
+
+## 2026-11-24 MQTT TLS delivery reservation diagnosis
+
+A local diagnostic build counted failed reservations by
+connection, aggregate count, aggregate bytes, allocation
+and native write-size credit. It logged the counters only
+when the APP retired. A second diagnostic setting raised
+the APP connection budget from 256 to 1,024, leaving the
+aggregate count and byte limits at their defaults.
+
+Both Windows and the Ubuntu QEMU/WHPX guest ran five
+rotating repetitions of the ordinary APP and both
+diagnostic settings at 2,500 and 4,000 offers/s. The
+same one-worker TLS observer verified four publishers,
+eight wildcard subscribers, MQTT 5, QoS 2 and windows
+of 16. The broker used two workers. Replay checked all
+60 trials and 672,000 deliveries from complete trials.
+
+Every failure in the 40 traced trials matched one or
+more connection-credit refusals. The other diagnostic
+counters were zero throughout. In each traced sample
+the count of connection-credit refusals matched the
+broker's rejected-publication total.
+
+| Host | Offers/s | Complete, ordinary / 256 / 1,024 | Delivery P99 for complete 256 / 1,024 samples (ms) |
+| --- | ---: | ---: | ---: |
+| Windows | 2,500 | 2/5, 3/5, 5/5 | 32.412 / 91.616 |
+| Ubuntu guest | 2,500 | 2/5, 0/5, 2/5 | unavailable / 249.003 |
+| Windows | 4,000 | 0/5, 0/5, 0/5 | |
+| Ubuntu guest | 4,000 | 0/5, 0/5, 0/5 | |
+
+At 4,000/s, the median native queue acceptance before
+retirement increased from 7,359 to 31,698 on Windows
+and from 3,144 to 12,905 on Ubuntu. Those counters
+include warmup and describe how far a failed trial
+proceeded. The production default remains 256. The
+remaining TLS capacity and release-tail checks stay open.
+
+Inputs, partial ledgers and replay are under
+out/service-extensions/xmqtt-tls-reservation-e892861c/
+and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-reservation-e892861c/.
