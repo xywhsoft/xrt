@@ -27591,3 +27591,57 @@ remaining TLS capacity and release-tail checks stay open.
 Inputs, partial ledgers and replay are under
 out/service-extensions/xmqtt-tls-reservation-e892861c/
 and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-reservation-e892861c/.
+
+## 2026-11-24 MQTT TLS record sizing and quota recovery
+
+The diagnostic build assembled the two spans of an
+outbound MQTT write into one TLS record when at most
+512 plaintext bytes remained. The independent TLS
+peer measured two records in the ordinary build and
+one in the diagnostic build for 140- and 512-byte
+writes. The 513- and 780-byte writes used the same
+two record extents in both builds. Both peers verified
+exact MQTT payloads, identifiers and QoS completion.
+
+A separate fixture forced zero-byte retry, partial
+prefix and body writes and native errors. Windows
+GCC and Ubuntu ASan/UBSan each verified 24 calls.
+The Windows fixture used static input storage after
+GCC flagged the original diagnostic pointer.
+
+Four publishers and eight wildcard subscribers ran
+MQTT 5 QoS 2 with authenticated TLS 1.3. Both builds
+used two broker workers, the same one-worker observer,
+windows of 16 and unchanged quotas. Host replay
+checked 80 trials and 3,456,000 deliveries from the
+44 complete trials.
+
+| Host | Offers/s | Offers per trial | Complete, ordinary / combined | Delivery P99, ordinary / combined (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 6,000 | 5/5 and 5/5 | 3.005 / 5.301 |
+| Windows | 2,500 | 6,000 | 5/5 and 5/5 | 8.413 / 8.816 |
+| Ubuntu guest | 2,000 | 6,000 | 5/5 and 5/5 | 6.283 / 5.295 |
+| Ubuntu guest | 2,500 | 6,000 | 3/5 and 4/5 | 13.680 / 10.972 |
+| Windows | 2,000 | 30,000 | 0/5 and 0/5 | |
+| Ubuntu guest | 2,000 | 30,000 | 4/5 and 3/5 | 69.311 / 8.278 |
+
+All 20 trials at 4,000 offers/s ended with a quota
+refusal. At 2,000 offers/s in the short trials, median
+broker CPU seconds fell from 2.797 to 2.328 on Windows
+and from 2.30 to 2.24 on the guest. The tail variation
+exceeded the limits in all complete series. The
+30,000-offer trials also left sustained admission
+unresolved. The combined write remains a diagnostic
+prototype.
+
+The permanent peer regression fills the TLS delivery
+budget while a subscriber advertises Receive Maximum
+one. It verifies two negative PUBRECs, delivery on
+another topic during pressure, credit reclamation after
+PUBCOMP, retry with the same publication identifier
+and 257 ordered deliveries to the recovering peer.
+Both builds passed this regression and the earlier TLS
+peer cases on both hosts.
+
+Inputs and replay are under out/service-extensions/xmqtt-tls-single-record-b47eee23/
+and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-single-record-b47eee23/.
