@@ -28472,3 +28472,44 @@ tail latency remains a release requirement.
 Source receipts, builds, byte-parity cases, raw samples and independent
 replays are under out/service-extensions/xrpc-passive-limits-b7133eb2/
 and the matching directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Endurance interruption during the Ubuntu guest update
+
+At 06:39 UTC the Ubuntu guest's unattended apt upgrade updated libc6
+and requested a systemd re-exec. Its journal records restarts of ssh,
+the Linux Redis and MQTT workloads, the dedicated Redis peer serving
+Windows, and the Linux xcron cohorts. The QEMU/WHPX host process stayed
+up. The Windows Redis observer reported DISCONNECTED and
+MAY_HAVE_EXECUTED. The final verifier rejected that attempt.
+
+| Interrupted workload | Verified awake seconds | Verified rounds |
+| --- | ---: | ---: |
+| Windows Redis | 19,266 | 1,227,308 |
+| Ubuntu Redis | 19,323 | 4,852,463 |
+| Ubuntu MQTT | 37,080 | 9,999,933 |
+
+The interrupted Ubuntu runs have no retirement record. The Linux
+xcron journal retains three completed 1,024-wave runs and the
+interruption history. Both Windows MQTT and Windows xcron kept
+their original observers.
+
+Ubuntu restarted the same Redis and MQTT binaries in new attempt
+directories. Fresh 12-second smoke reports passed the independent
+mixed-load verifier before each new 259,200-second interval. The
+current guest processes produced accepted prefixes of 145 awake
+seconds each, with 36,813 Redis rounds and 41,396 MQTT rounds. The
+Linux xcron runner started a new cohort journal on the original CPU.
+A service re-execution now creates a new attempt directory for each
+guest workload while preserving previous evidence.
+
+The Windows Redis supervisor obtained the restarted peer's new
+identity, then verified the 12-second smoke and launched a new
+259,200-second interval with the same client binary. The new
+supervisor, SSH forward, Redis peer and observer were live, and the
+new journal verified 6,716 rounds over 105 awake seconds. Each fresh
+qualification interval starts at zero.
+
+The systemd events, package versions, interrupted journals, and fresh
+Windows receipts are under out/service-extensions/after-ubuntu-apt-20261124-1439/.
+The fresh guest attempts are under /home/ubuntu/service-recovery-20261124-0639/.
