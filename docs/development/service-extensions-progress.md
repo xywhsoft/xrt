@@ -27080,3 +27080,51 @@ code 2. The 32-peer cap belongs to this APP example.
 
 Run inputs, raw records, independent replay and reset
 results are under out/service-extensions/xrpc-capacity-255c0e43/.
+
+## 2026-11-24 Ubuntu xrpc TCP capacity and dual-platform tail phases
+
+The Ubuntu QEMU/WHPX guest completed the same 60
+fixed-arrival TCP trials as Windows. The two native
+observer shards used vCPUs 0 and 2, and the APP used
+vCPUs 1 and 3 with two executor workers. Host replay
+matched source and binary fingerprints, rechecked the
+raw timestamps and reconciled all 5,760,000 replies.
+The table gives five-trial medians at 32 peers.
+
+| Offers/s | Mode | Verified replies/s | P99 (ms) | P99.9 (ms) |
+| ---: | --- | ---: | ---: | ---: |
+| 32,000 | Duplex | 31,993 | 1.353 | 2.734 |
+| 32,000 | Direct dispatch | 31,995 | 1.163 | 1.960 |
+| 64,000 | Duplex | 63,961 | 3.099 | 6.903 |
+| 64,000 | Direct dispatch | 63,980 | 1.765 | 3.586 |
+
+All Ubuntu throughput series met repeatability. The
+32-peer duplex series at 32,000/s met repeatability for
+P99. Every Ubuntu P99.9 series exceeded the variation
+limit. Windows and the Linux guest used distinct masks
+and scheduling environments.
+
+A second replay attributed the same slowest 0.1 percent
+of replies in each trial across both platforms. At 32
+peers, the median share from first send attempt to observed
+reply ranged from 96.38 to 99.98 percent across the four
+Windows series and 96.47 to 99.76 percent across the four
+Ubuntu series. This interval covers the remaining socket
+writes, transport, APP processing and observer reads.
+At eight Windows peers and 32,000/s, the median pacing
+share before the first send attempt was 70.10 percent
+in duplex and 85.32 percent in direct dispatch. These
+measurements isolate where to collect additional timestamps
+for each peer count. The strict tail gate remains open.
+
+The Ubuntu guest independently verified 3,968 healthy
+replies on each side of the pressured peer's reset in each
+APP mode, and all 31 healthy peers observed EOF. The
+regular interop driver now includes that 32-peer scenario
+and rejects 33 peers. All 22 interop cases passed on both
+platforms. The Windows observer suite passed all 12 tests
+with the native verifier enabled.
+
+Raw records and replay are under
+out/service-extensions/xrpc-capacity-255c0e43/ and
+out/service-extensions/linux-guest-9ce2606c/xrpc-capacity-255c0e43/.
