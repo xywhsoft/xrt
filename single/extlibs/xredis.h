@@ -8886,7 +8886,10 @@ static xredisadmission xredisSharedPoolCallAdmit(xredispool* Pool, const xbytesv
         xredispoolslot* Slot = Pool->Info.State == XREDIS_POOL_OPEN ? Pool->IdleHead : NULL;
         xredisclient* Client = Slot ? Slot->Client : NULL;
         if (Client) {
-            xredisClientRetain(Client);
+            if (!xredisClientRetain(Client)) {
+                xrtMutexUnlock(&Pool->Gate);
+                return XREDIS_ADMISSION_ERROR;
+            }
             xredisPoolIdleRemove(Pool, Slot); xredisPoolIdleAppend(Pool, Slot);
         }
         xrtMutexUnlock(&Pool->Gate);
