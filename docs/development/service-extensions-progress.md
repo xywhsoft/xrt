@@ -28756,3 +28756,47 @@ with no terminal record. Strict maturity still reports 2 xcron,
 2 xrpc, 29 xredis and 39 xmqtt modules in developing status.
 The source receipts, fault journals, verifier outputs and relocated
 SDK replays are under out/service-extensions/current-mqtt-19301c31/.
+
+
+## 2026-11-25 MQTT client worker flag separation
+
+The GCC 13 O2 ThreadSanitizer build on the Ubuntu QEMU/WHPX guest
+reported conflicting accesses during the ordinary mixed TCP workload.
+The application thread wrote Posted under Gate while submitting a
+subscription. The worker combined its ReadEnded and NativeClosed
+checks into an eight-byte load at offset 0x278 followed by a mask.
+Posted occupied the first byte of that load. The observer rejected
+the incomplete report.
+
+Commit 1f9aee3b places the Gate-protected Posted, startup publication,
+and abort flags in padding before Gate. The private reference count
+remains at offset zero. In the diagnostic x64 layout the object size
+fell from 1,376 to 1,368 bytes. The worker now tests its transport
+flags with a four-byte load at offset 0x278. Posted is at offset 4.
+The code retains the existing lock, reference, and post operations.
+
+With the same instrumented mixed workload, five independent 36-second
+runs passed on the corrected build. Replay checked 36,046 rounds,
+instrumentation, and empty client and broker diagnostics. Separate
+36-second Redis runs against a private Redis 8.0.5 peer passed
+ThreadSanitizer and verified 4,642 TCP rounds and 3,548 TLS 1.3 rounds.
+The initial Redis launch selected the peer supervisor executable
+and was rejected during readiness. The reported Redis runs pin
+the verified Redis server executable. GCC retained its existing
+thread-fence instrumentation warning.
+
+The clean Windows and Ubuntu MQTT binaries each pin 13 build inputs
+at 1f9aee3b. Independent replay reconciled both fault and smoke reports.
+The verifier rejected the interrupted runs after the broker was killed
+at 322 verified rounds on Windows and 1,418 on Ubuntu. The same binaries
+then passed fresh 12-second runs with 768 and 3,390 verified rounds,
+respectively. The earlier MQTT journals remain evidence for their
+recorded binaries. New 72-hour intervals started at 02:37 Asia/Shanghai
+on both hosts. The Redis intervals continue on their original
+candidate. The four primary journals passed running-prefix replay.
+
+The larger Windows runtime suite and the focused Ubuntu ASan/UBSan
+transport suites were still running at this checkpoint. Strict
+release acceptance remains open. Source receipts, archive checksums,
+the before and after disassembly, and the independent replay are under
+out/service-extensions/xmqtt-client-flags-1d72ea34/.
