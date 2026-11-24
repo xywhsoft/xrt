@@ -27818,3 +27818,37 @@ duplex-only case and 10 stdio cases on both hosts.
 Sources, binaries, traces and peer reports are under
 out/service-extensions/xrpc-tcp-host-slots-4f2003eb/ and its
 corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Completed xcron cohorts with cached deadline order
+
+The current scheduler from 5df4bc29 completed both 256-wave cohorts
+on Windows and the Ubuntu QEMU/WHPX guest. Each host used one
+pinned CPU and five alternating pairs for each of the two active-job
+mixes. Independent replay matched the host-specific binary and
+runner hashes, reconciled 20 processes and 2,785,280 callbacks at
+each host, and recomputed all 10,240 wave records. The selected
+inputs matched the archived c1595811 source with the current
+scheduler. Windows and Ubuntu runner bytes used different line
+endings, so the replay checked their exact hashes separately.
+
+The table gives final callback lateness for the 1,024-active mix.
+
+| Host | Drive | Median process P99 (ms) | Median process P99.9 (ms) | Pooled P99.9 (ms) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Scheduler Wait | 3.681 | 21.287 | 31.763 |
+| Windows | Direct precise waiter | 1.768 | 6.076 | 21.793 |
+| Ubuntu guest | Scheduler Wait | 0.721 | 1.051 | 1.518 |
+| Ubuntu guest | Direct precise waiter | 0.473 | 2.882 | 3.623 |
+
+All first- and last-callback lateness P99 and P99.9 series exceeded
+the variation limit in both job mixes on both hosts. At 1,024
+active jobs, the first callback had already crossed 1 ms in 210
+of 227 such Windows scheduler waves and all four such Ubuntu
+scheduler waves. With 256 waves per process, the per-process P99.9
+is the maximum. The pooled metric uses 1,280 waves per series.
+The scheduler timing gate remains open.
+
+Inputs, journals and replay are under
+out/service-extensions/xcron-candidate-cohorts-5df4bc29/ and the
+corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
