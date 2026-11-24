@@ -27702,7 +27702,7 @@ reporter reads only the benchmark metrics. Inputs,
 source identities and replay are under
 out/service-extensions/xredis-measured-wire-92b456a1/
 and out/service-extensions/linux-guest-9ce2606c/xredis-measured-wire-92b456a1/.
-\n
+
 ## 2026-11-24 Constant-time xrpc APP reply token lookup
 
 Each duplex endpoint with OnRequest reserves an indexed slot per
@@ -28163,3 +28163,53 @@ Sources, binaries, fixtures and replays are under
 out/service-extensions/xmqtt-tls-output-threshold-b8beefaf/
 and the corresponding directory under
 out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 xredis scatter/gather sends for queued TCP requests
+
+The prototype offered up to eight already pending ordinary requests through
+one xrtNetStreamSendRefs call. It limited the offer to 64 KiB, available
+write credit, in-flight slots and the remaining worker request budget.
+The existing path handled sensitive commands, transactions, tracking and
+subscription control, ASKING pairs and TLS. A rejected offer restored the
+original FIFO and retried through the single-request path.
+
+The Windows and Ubuntu QEMU/WHPX fixtures checked reply order, exact peer
+command counts, queued expiry and cancellation, worker and in-flight bounds,
+and fallback after injected AGAIN and memory errors. Both passed the client
+suite. Ubuntu repeated the fixture and suite with ASan, UBSan and leak checks.
+
+Fixed-arrival comparisons used two client workers, eight RESP3 connections,
+a 128-request observer window, 1 KiB GET/SET and Redis 8.0.5. Windows used
+IOCP and a private SSH forward to the peer. Ubuntu used guest-local epoll.
+Replay reconciled 48 trials, 672,000 scheduled offers and 670,921
+byte-verified replies against the independent peer command ledgers.
+The 1,079 remaining offers were observer-window refusals in one Windows
+prototype warmup. All measured trials completed.
+
+The table gives stock and prototype medians from five alternating repetitions.
+
+| Host | Offers/s | Replies/s | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 2,000 / 2,000 | 1.130 / 1.350 | 2.469 / 3.540 |
+| Windows | 12,000 | 11,997 / 11,996 | 1.597 / 1.917 | 4.540 / 4.608 |
+| Ubuntu guest | 2,000 | 2,000 / 2,000 | 0.397 / 0.395 | 0.697 / 0.692 |
+| Ubuntu guest | 12,000 | 12,000 / 12,000 | 0.561 / 0.498 | 1.148 / 1.054 |
+
+All eight throughput series met repeatability. Every P99 series and seven
+P99.9 series exceeded the variation limit. The separate instrumented trials
+grouped zero requests at 2,000/s on either host and 258 of 24,000 on Windows
+and 69 of 24,000 on Ubuntu at 12,000/s.
+
+In the closed-loop local ID benchmark, replay verified 2.4 million replies.
+At pipeline depth 128, median throughput rose from 333,267 to 395,382/s on
+Windows and from 66,194 to 73,051/s on Ubuntu. Only the two Ubuntu throughput
+series met repeatability at that depth. At depth 16, median throughput was
+approximately level on both platforms. The production send path remains in
+place given the limited batching opportunity and unsettled fixed-arrival
+tails. This leaves the existing endurance intervals on their current source.
+
+The exact sources, binaries, raw samples and replay are under
+out/service-extensions/xredis-send-refs-5285af8b/. The Linux evidence archive
+is mirrored under out/service-extensions/linux-guest-9ce2606c/
+xredis-send-refs-5285af8b/.
