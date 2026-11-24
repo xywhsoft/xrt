@@ -28609,3 +28609,101 @@ tail qualification remains open.
 Input receipts, builds, peer reports, raw timing traces and replays are
 under out/service-extensions/xrpc-executor-handoff-63c9a5c8/ and the
 corresponding directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Shared Redis pool client references and first selection
+
+The shared pool now checks client retention before selecting the native
+request path. An injected reference-count limit exposed the old admission
+on Windows and Ubuntu QEMU/WHPX. The canonical fixture verifies the typed
+admission error, preserves the caller's Future slot, observes zero new peer
+commands and successfully uses the member on the following call.
+Commit 5b886da6 passed two runs each of the shared pool, shared TLS, shared
+ASKING and shared reconnect fixtures on both platforms. The optional
+selection prototype also passed ASan, UBSan and leak checking on Ubuntu.
+
+Both benchmark variants had the reference fix. The prototype combined
+the initial validation and member selection under one pool lock and
+avoided rotating a one-member idle list. On each platform a real Redis
+8.0.5 campaign used eight RESP3 connections, two client workers, a
+128-request window and 1 KiB GET/SET values at fixed arrival times.
+Windows used IOCP and a private SSH forward. Ubuntu used local epoll.
+Independent replay reconciled 48 trials and 672,000 exact replies across
+the two hosts, including warmups and peer command counts.
+
+| Host | Offers/s | P99 checked / prototype (ms) | P99.9 checked / prototype (ms) |
+| --- | ---: | ---: | ---: |
+| Windows | 2,000 | 0.705 / 0.784 | 1.047 / 0.985 |
+| Windows | 12,000 | 0.883 / 0.873 | 1.161 / 1.311 |
+| Ubuntu guest | 2,000 | 0.231 / 0.242 | 0.426 / 0.433 |
+| Ubuntu guest | 12,000 | 0.276 / 0.277 | 0.551 / 0.532 |
+
+All eight real-peer throughput series met repeatability. The high-rate
+Windows and low-rate Ubuntu P99 pairs met repeatability. Only the
+high-rate Ubuntu prototype met it for P99.9. The separate closed-loop
+comparison used four producers, a depth of 16 per producer and either
+one or eight pool members. It verified 5,760,000 exact replies and each
+member's command count. In the Windows one-member case the median fell
+from 208,595 to 180,477 replies/s and the prototype exceeded the
+repeatability limit. In the other three cases throughput medians stayed
+within 1.4 percent. The reference fix is the current production
+candidate. The combined selection optimization remains experimental.
+
+Receipts, fault logs, binaries and replay are under
+out/service-extensions/xredis-shared-picker-7bf51de1/ and the matching
+directory under out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-25 Endurance and scheduler replay after resumed work
+
+The previous Windows Redis and MQTT journals last sampled around
+16:38 Asia/Shanghai on November 24. Their processes were absent
+on recheck. Replay verified 6,701 and 31,465 awake seconds respectively
+and found no completed retirement record. The cause of those stops
+remains undetermined. The QEMU process and its original Windows
+clock observer were still live.
+
+Fresh Windows and Ubuntu Redis binaries pin the clean 5b886da6
+source. Both passed the 12-second smoke and began new 72-hour
+intervals. The preceding Ubuntu Redis build was retired after
+preserving 40,600 verified seconds. The first renewed Windows attempt
+used a dedicated peer whose original service deadline would expire
+before the client completed 72 hours. A fresh peer with a four-day
+service limit passed smoke and took over from a new observer.
+The earlier Windows attempt retains its 316-second prefix.
+
+Windows MQTT started a new interval with the previously verified
+binary after recomputing its tracked build input hashes. Ubuntu MQTT
+continued the existing interval and replay had accepted 40,919 awake
+seconds by 02:08. Its recorded diagnostic-only input difference remains
+in the build lineage. A new Windows host observer and awake request
+cover 80 hours from launch. Clock replay verified 367 seconds of overlap
+for the same QEMU process, with each observed gap under 5.08 seconds.
+These snapshots are prefix evidence for the four live workloads.
+
+The Ubuntu xcron journal completed 20 processes and 11,141,120
+verified callbacks over 1,024 waves per process. The interrupted
+Windows journal completed both 64-task series and verified 655,360
+callbacks. Independent replay checked the executable and runner
+identities, process order and every stored quantile. The table gives
+the median per-process last-callback lateness in milliseconds.
+
+| Host | Active tasks | Drive | P99 (ms) | P99.9 (ms) |
+| --- | ---: | --- | ---: | ---: |
+| Windows | 64 | Scheduler Wait | 1.498 | 4.951 |
+| Windows | 64 | Direct precise waiter | 5.096 | 18.317 |
+| Ubuntu guest | 64 | Scheduler Wait | 0.172 | 0.281 |
+| Ubuntu guest | 64 | Direct precise waiter | 0.197 | 1.003 |
+| Ubuntu guest | 1,024 | Scheduler Wait | 0.149 | 0.287 |
+| Ubuntu guest | 1,024 | Direct precise waiter | 0.151 | 0.204 |
+
+No last-callback P99 or P99.9 series met repeatability. Windows
+started the missing 1,024-active-task cohort using the focused
+runner from aaf34471. Default and focused Windows smoke reports
+and the focused Ubuntu smoke verified the selected job mixes.
+The strict maturity checker still rejects all four products.
+
+Run receipts, clock replay and scheduler journals are under
+out/service-extensions/resume-20261125/. The exact Redis candidate
+build and fresh Windows observer are under the shared-pool evidence
+directory's release/windows-72h-full/ path.
