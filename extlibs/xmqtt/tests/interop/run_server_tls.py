@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify the XRT MQTT/TLS listener with Python's independent TLS stack."""
 import argparse
+from contextlib import ExitStack
 import json
 import math
 import queue
@@ -12,7 +13,7 @@ from pathlib import Path
 from threading import Thread
 from time import perf_counter_ns
 
-from run_server_handshake import read, small_frame, topic
+from run_server_handshake import finish_qos2, ping, publish_qos2, read, receive_qos2, small_frame, topic
 
 
 def frame(kind, body):
@@ -36,10 +37,13 @@ def receive(sock):
     raise AssertionError("invalid Remaining Length")
 
 
-def mqtt_connect(sock, name, level=5, clean=True, persistent=False):
+def mqtt_connect(sock, name, level=5, clean=True, persistent=False, receive_maximum=None):
     body = b"\0\4MQTT" + bytes((level, 2 if clean else 0, 0, 0))
     if level == 5:
-        body += b"\x05\x11\0\0\0\x3c" if persistent else b"\0"
+        properties = b"\x11\0\0\0\x3c" if persistent else b""
+        if receive_maximum is not None:
+            properties += b"\x21" + receive_maximum.to_bytes(2, "big")
+        body += bytes((len(properties),)) + properties
     wire = small_frame(0x10, body + topic(name))
     # Separate TLS writes fragment the MQTT fixed/variable header.
     sock.sendall(wire[:1])
@@ -130,6 +134,48 @@ def verify(endpoint, context):
         finish(producer)
 
 
+def verify_quota_recovery(endpoint, context):
+    capacity = 256  # Standalone APP's default outbound delivery credit.
+    blocked, healthy = b"tls/blocked", b"tls/healthy"
+    with ExitStack() as stack:
+        peers = []
+        for name, receive_maximum in ((b"quota-slow", 1), (b"quota-fast", None), (b"quota-publisher", None)):
+            raw = stack.enter_context(socket.create_connection(endpoint, timeout=10))
+            peer = stack.enter_context(context.wrap_socket(raw, server_hostname="localhost"))
+            mqtt_connect(peer, name, receive_maximum=receive_maximum)
+            connack(peer)
+            assert receive(peer) == (0xd0, b"")
+            peers.append(peer)
+        slow, fast, producer = peers
+        for peer, name in ((slow, blocked), (fast, healthy)):
+            peer.sendall(small_frame(0x82, b"\0\1\0" + topic(name) + b"\2"))
+            assert receive(peer) == (0x90, b"\0\1\0\2")
+
+        for number in range(1, capacity + 1):
+            publish_qos2(producer, blocked, number, number.to_bytes(2, "big"))
+        first = receive_qos2(slow, blocked, b"\0\1")
+        retry = capacity + 1
+        publish_qos2(producer, blocked, retry, b"refused", quota=True)
+        publish_qos2(producer, healthy, retry + 1, b"healthy")
+        finish_qos2(fast, receive_qos2(fast, healthy, b"healthy"))
+
+        slow.sendall(small_frame(0x50, first))
+        assert receive(slow) == (0x62, first)
+        publish_qos2(producer, blocked, retry, b"still refused", quota=True)
+        slow.sendall(small_frame(0x70, first))
+        second = receive_qos2(slow, blocked, b"\0\2")
+
+        publish_qos2(producer, blocked, retry, b"retried")
+        finish_qos2(slow, second)
+        for number in range(3, capacity + 1):
+            finish_qos2(slow, receive_qos2(slow, blocked, number.to_bytes(2, "big")))
+        finish_qos2(slow, receive_qos2(slow, blocked, b"retried"))
+        ping(peers)
+        for peer in peers:
+            finish(peer)
+    return {"quota_refusals": 2, "other_topic_deliveries": 1, "ordered_recovered_deliveries": capacity + 1}
+
+
 def ping_measurement(endpoint, context, count):
     runs = []
     with context.wrap_socket(socket.create_connection(endpoint, timeout=10),
@@ -177,6 +223,7 @@ def main():
             assert host == "127.0.0.1" and sep
             address = (host, int(port))
             verify(address, context)
+            quota = verify_quota_recovery(address, context)
             ping = ping_measurement(address, context, args.ping_samples) if args.ping_samples else None
             server.stdin.write("\n")
             server.stdin.flush()
@@ -186,11 +233,12 @@ def main():
                 server.kill()
     result = {"tls_1_3": True, "verified_identity": True, "mqtt_5_and_311": True,
               "fragmented_connect_and_publish": True, "qos_1_and_2": True,
-              "live_tls_takeover": True, "clean_tls_close": True, "queued_qos1_deliveries": 48}
+              "live_tls_takeover": True, "clean_tls_close": True, "queued_qos1_deliveries": 48,
+              "qos2_quota_recovery": quota}
     if ping is not None:
         result["loopback_ping"] = ping
     args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("[pass] MQTT/TLS 1.3 independent peer, fragmented packets, QoS 1/2 and live takeover")
+    print("[pass] MQTT/TLS 1.3 independent peer, fragmentation, QoS 1/2, takeover and quota recovery")
 
 
 if __name__ == "__main__":
