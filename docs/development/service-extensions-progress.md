@@ -28115,3 +28115,51 @@ The sampled prefixes continue the existing intervals. The final
 72-hour reports and host awake-time proof remain required.
 The source replay and build receipts are under
 out/service-extensions/xmqtt-tls-output-threshold-b8beefaf/.
+
+
+## 2026-11-24 Minimum queue depths for grouped broker TLS writes
+
+The stock build used the current release source. Two streamlined
+prototypes grouped existing complete writes when at least two or
+three fit in the queue budget and 2,048-byte buffer. They shared
+the stock path for a single write, used the original per-record
+retirement, and omitted the preceding prototype's counters.
+Both prototypes passed the forced partial acceptance, retry bytes,
+abort and close checks. The two-record fixture verified the exact
+boundary for each threshold. The Ubuntu fixture passed ASan and
+UBSan, and both platforms passed the independent TLS peer suite.
+
+The benchmark used four publishers, eight wildcard subscribers,
+MQTT 5 QoS 2, send and receive limits of 16, authenticated TLS 1.3,
+two broker workers and the buffered observer. Five repetitions
+rotated the three broker builds at each rate. The 2,000, 4,000
+and 6,000/s trials offered 12,000, 20,000 and 30,000 messages.
+Replay independently matched the inputs, all 96 trial records
+including pilots, and 15,033,600 byte-verified deliveries.
+
+The table gives delivery latency medians in milliseconds. Each
+triple lists stock, two-record and three-record results in order.
+Broker CPU shows the median paired change against stock.
+
+| Host | Offers/s | P99 (ms) | P99.9 (ms) | Broker CPU two / three |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 3.541 / 3.352 / 3.883 | 9.076 / 4.508 / 27.100 | -1.8% / -5.7% |
+| Windows | 4,000 | 2.678 / 2.931 / 2.625 | 3.582 / 5.784 / 3.699 | -0.2% / 0.0% |
+| Windows | 6,000 | 2.612 / 2.807 / 2.188 | 4.302 / 4.745 / 3.143 | -6.4% / -5.4% |
+| Ubuntu guest | 2,000 | 4.150 / 3.767 / 3.045 | 6.776 / 5.769 / 5.160 | -3.5% / -1.7% |
+| Ubuntu guest | 4,000 | 4.938 / 7.329 / 7.864 | 7.576 / 9.110 / 10.513 | -9.1% / -7.2% |
+| Ubuntu guest | 6,000 | 1,381 / 839 / 930 | 1,392 / 862 / 941 | -18.1% / -14.0% |
+
+All 18 complete ingress series met repeatability. Only the
+stock Ubuntu 2,000/s P99 series met repeatability. All P99.9
+series exceeded their variation limit. At the 6,000/s offered
+rate Ubuntu median confirmation throughput was 4,695 stock,
+5,115 with the two-record minimum and 5,050 with three.
+The Windows medians stayed at the schedule. The threshold
+choice remains under evaluation given the low-load Windows
+P99.9 and the Ubuntu 4,000/s tail measurements.
+
+Sources, binaries, fixtures and replays are under
+out/service-extensions/xmqtt-tls-output-threshold-b8beefaf/
+and the corresponding directory under
+out/service-extensions/linux-guest-9ce2606c/.
