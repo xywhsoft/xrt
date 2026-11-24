@@ -27910,3 +27910,42 @@ used the current peer and matched its host-side hash.
 Sources, raw reports and replay are under
 out/service-extensions/xmqtt-tls-credit-states-2effdd1b/ and the
 corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Matched TLS fan-out with a 64-delivery window
+
+The ordinary xmqtt broker and Mosquitto 2.1.2 used the same
+pinned two-CPU budget and authenticated TLS 1.3 identity within
+each comparison. Four publishers offered 128-byte MQTT 5 QoS 2
+messages to eight wildcard subscribers. Publisher windows were
+16, subscriber Receive Maximum was 64, and the observer used one
+TLS worker. The xmqtt per-connection delivery cap was 256.
+Mosquitto used 64 in-flight messages and 192 queued messages.
+
+| Host | Offers/s | Offers per trial | xmqtt completed | Mosquitto completed |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 30,000 | 2/5 | 2/5 |
+| Ubuntu guest | 2,000 | 30,000 | 1/5 | 2/5 |
+| Windows | 4,000 | 6,000 | 0/5 | 0/5 |
+| Ubuntu guest | 4,000 | 6,000 | 0/5 | 0/5 |
+
+Replay verified the source and binary fingerprints, all 40
+scheduled trials and 1,680,000 byte-exact deliveries from
+complete trials. Every xmqtt failure included PUBREC reason
+0x97. Every Mosquitto failure logged outgoing drops. Raw
+records preserve the partial confirmation and delivery counts.
+The Windows completed trials at 2,000/s had delivery P99
+medians of 59.406 and 75.213 ms for xmqtt and Mosquitto.
+The respective Ubuntu complete-trial medians were 65.521 and
+78.165 ms. Repeatable capacity and tail acceptance remain open.
+
+The first Ubuntu launch ran under root. Mosquitto dropped
+privileges and could not open the generated test certificate.
+The table and replay use the corrected unprivileged launch.
+The original comparison is archived separately with its
+failure logs and receipt.
+
+Windows inputs and evidence are under
+out/service-extensions/xmqtt-tls-receive64-e2f36099/. Ubuntu
+evidence is under the matching directory in
+out/service-extensions/linux-guest-9ce2606c/.
