@@ -42,14 +42,14 @@ def read_http_head(sock):
 
 
 class WsPeer:
-    def __init__(self, sock, early=b""):
+    def __init__(self, sock, early=b"", *, protocols=b"other, mqtt"):
         self.sock = sock
         self.input = b""
         self.close_reply = None
         key = base64.b64encode(os.urandom(16))
         query = (b"GET /mqtt HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\n"
                  b"Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
-                 b"Sec-WebSocket-Key: " + key + b"\r\nSec-WebSocket-Protocol: other, mqtt\r\n\r\n")
+                 b"Sec-WebSocket-Key: " + key + b"\r\nSec-WebSocket-Protocol: " + protocols + b"\r\n\r\n")
         sock.sendall(query + early)
         head = read_http_head(sock)
         assert head.startswith(b"HTTP/1.1 101 "), head
