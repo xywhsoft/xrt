@@ -315,8 +315,6 @@ def main():
         args.subscriber_window = args.window
     if args.broker_cpu is not None:
         args.broker_cpus = {args.broker_cpu}
-    if args.tls_credentials and args.xmqtt_workers != 1:
-        parser.error("the TLS example requires a single comparison worker")
     if not (args.broker_cpus | args.load_cpus) <= affinity(os.getpid()) or args.broker_cpus & args.load_cpus:
         parser.error("broker and observer need disjoint available logical CPUs")
     if not 1 <= args.rounds <= 100000 or not 0 <= args.warmup <= 100000 or not 3 <= args.repeats <= 31:
@@ -355,7 +353,7 @@ def main():
                          "leaf": fingerprint(args.tls_credentials / "certificate.der")}
     args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    summaries = ("ingress_per_sec", "delivery_p99_us", "offer_lag_p99_us", "pacer_lag_p99_us")
+    summaries = ("ingress_per_sec", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us", "pacer_lag_p99_us")
     if args.qos:
         summaries += PUBLISHER_METRICS
     try:

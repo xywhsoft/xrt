@@ -559,7 +559,14 @@ Repeat with `--qos 0` and `--qos 1` for the corresponding MQTT flows.
 TLS handshakes finish before the measured interval. Broker process CPU
 includes connection setup and warmup. Both measurements include the same
 observer TLS worker, Futures and plaintext copies. Compare the brokers
-within a TLS workload. Run the scripted observer cases with the same
+within a TLS workload. To compare two xmqtt workers with a two-CPU
+budget for either broker, replace the single-CPU argument with
+`--broker-cpus 0,2 --xmqtt-workers 2`. For a fan-out profile, add
+`--publishers 4` at QoS 1 or 2 and use `--workload wildcard:8:4000`.
+Repeat with `--xmqtt-workers 1` and the same CPU set to measure scaling.
+The report includes delivery P99 and P99.9 variation across repetitions.
+
+Run the scripted observer cases with the same
 `--tls-credentials` directory and an additional unrelated CA in
 `wrong.pem` to cover idle and duplicate shared delivery over TLS and
 rejection of an unrelated CA or a wrong DNS name before any MQTT traffic.
