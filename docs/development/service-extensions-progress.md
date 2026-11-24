@@ -28707,3 +28707,52 @@ Run receipts, clock replay and scheduler journals are under
 out/service-extensions/resume-20261125/. The exact Redis candidate
 build and fresh Windows observer are under the shared-pool evidence
 directory's release/windows-72h-full/ path.
+
+
+## 2026-11-25 Current mixed-load candidates and shared Redis SDKs
+
+A clean Ubuntu QEMU/WHPX build of the MQTT mixed-load observer at
+19301c31 passed a 12-second smoke with 3,453 rounds and 20,934
+verified deliveries. Among its 13 tracked build inputs, the only
+change since the previous Ubuntu MQTT candidate was the stderr
+diagnostic for a failed fresh-CONNACK readiness check. Both the
+new and older Ubuntu MQTT attempts have separate private test
+peers. The exact 19301c31 attempt started its 72-hour interval
+at 02:15 Asia/Shanghai. The two Redis attempts continue using
+the clean 5b886da6 binaries. The Windows MQTT binary retains
+its recorded aaf7e364 source identity and matching build inputs.
+
+Separate fault attempts terminated a dedicated Redis peer or
+MQTT broker after the verifier accepted progress in its journal.
+The workload failed in all four attempts and the verifier
+rejected every incomplete report. The same candidate binaries
+passed fresh 12-second smoke reports with a new peer process.
+
+| Candidate | Verified rounds before peer exit | Verified fresh rounds |
+| --- | ---: | ---: |
+| Windows Redis | 322 | 767 |
+| Ubuntu Redis | 1,300 | 3,095 |
+| Windows MQTT | 321 | 768 |
+| Ubuntu MQTT | 1,448 | 3,521 |
+
+The independent replay matched the candidate digests, peer
+process identities and both verifier outcomes. The Windows Redis
+fault peer was reached through a private SSH forward. Ubuntu Redis
+and both MQTT tests used local peers. These reports cover process
+exit and a fresh workload run. Crash durability and reconnect
+behavior have separate acceptance cases.
+
+The GNU aggregate xredis SDK rebuilt and passed package verification
+with both static and shared linkage on Windows and Ubuntu QEMU/WHPX.
+Each linkage ran the package consumer and four public API examples
+from relocated paths containing spaces. The examples were pool, pool_connect,
+pool_shared and pool_shared_connect. Independent replay reconciled
+each host's 166 source inputs, 139 relocated headers, artifacts and
+logs for all 20 executions. The package inputs include the shared
+pool retention correction from 5b886da6.
+
+The four primary endurance journals passed running-prefix replay
+with no terminal record. Strict maturity still reports 2 xcron,
+2 xrpc, 29 xredis and 39 xmqtt modules in developing status.
+The source receipts, fault journals, verifier outputs and relocated
+SDK replays are under out/service-extensions/current-mqtt-19301c31/.
