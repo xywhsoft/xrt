@@ -27004,3 +27004,40 @@ have separate evidence.
 The snapshot, build receipts and replay are under
 out/service-extensions/xcron-win-ready-5dbd94e6/ and
 out/service-extensions/linux-guest-9ce2606c/xcron-recovery-prefix-0802/.
+
+## 2026-11-24 Windows xcron wait return under controlled CPU occupancy
+
+The Windows session did not grant the system ETW logger
+access. A user-mode control instead pinned the existing
+1,024-job instrumented benchmark to logical CPU 10. A
+separate high-priority process produced short CPU pulses
+on CPU 10 or on CPU 2. The third condition used no
+pulse. The expiry projection and pulse timestamps used
+the same QPC scale. The test did not change production
+priorities or waiter behavior.
+[Microsoft SystemTraceProvider session documentation](https://learn.microsoft.com/en-us/windows/win32/etw/configuring-and-starting-a-systemtraceprovider-session).
+
+Independent replay verified 12 processes, 144 measured
+waves and 147,456 callbacks. The pulse covered the full
+projected timer-expiry interval in all 48 same-CPU waves.
+Every native wait returned after the pulse ended, with
+17.3 to 46.7 microseconds from pulse end to return.
+With the pulse on CPU 2, 39 of 48 waits returned while
+the pulse was still active. The two drive modes had
+similar timer overrun medians on the same CPU.
+
+| CPU condition | Scheduler native overrun median (µs) | Direct waiter native overrun median (µs) |
+| --- | ---: | ---: |
+| No pulse | 978.7 | 719.8 |
+| Pulse on CPU 2 | 1,165.4 | 462.6 |
+| Pulse on CPU 10 | 2,019.6 | 2,017.7 |
+
+The same-CPU scheduler's return-to-first callback P99
+was 42.3 microseconds over the 24 measured waves.
+The control demonstrates how runnable CPU contention
+can dominate the measured path. It leaves native
+thread-ready timestamps and attribution of spontaneous
+long-run late waves open. The long qualification
+cohorts remain separate. Raw timer timestamps, pulse
+records and replay are under
+out/service-extensions/xcron-win-ready-5dbd94e6/.
