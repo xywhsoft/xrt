@@ -28213,3 +28213,61 @@ The exact sources, binaries, raw samples and replay are under
 out/service-extensions/xredis-send-refs-5285af8b/. The Linux evidence archive
 is mirrored under out/service-extensions/linux-guest-9ce2606c/
 xredis-send-refs-5285af8b/.
+
+
+## 2026-11-24 Reuse decoded echo fields in the xrpc TCP APP
+
+The TCP worker example takes the exact ID and parameter spans from the
+duplex OnRequest callback for an ordinary single echo call. It rebases
+the spans onto the job's existing owned input copy. The executor encodes
+the result using the existing xrpc encoder. Batch, notification, escaped
+method and error inputs still use the dispatcher. The two views cost 32
+bytes per x64 TCP peer.
+
+The separate loopback check verified 1,080 exact replies per build on
+Windows and the Ubuntu QEMU/WHPX guest. It alternated plain and escaped
+methods, varied raw IDs and parameter sizes and checked the notification
+barriers. Both modes passed the independent TCP peer suite, and Ubuntu
+repeated it with ASan, UBSan and leak checks. The canonical example then
+passed its Windows modular build and the updated independent TCP peer
+suite on both platforms. The updated peer checks an exact signed-zero
+ID and an escaped method in successive frames.
+
+The one-thread benchmark ran receive, the same executor callback inline,
+reply validation and output retirement. Each platform replay checked
+2.4 million replies across both payload sizes. The table gives medians
+of five alternating repetitions, after one warmup pair.
+
+| Host | Parameter string | Stock (us/call) | Decoded views (us/call) |
+| --- | ---: | ---: | ---: |
+| Windows | 8 bytes | 2.864 | 1.923 |
+| Windows | 3,000 bytes | 19.652 | 10.608 |
+| Ubuntu guest | 8 bytes | 4.527 | 2.923 |
+| Ubuntu guest | 3,000 bytes | 29.780 | 19.263 |
+
+All four Windows series and the 3,000-byte Ubuntu stock series met the
+repeatability limit. Each trial verified the exact result bytes.
+
+The fixed-arrival TCP campaigns used 32 peers, two XRT executor workers
+and two native observer shards. Replay verified 80 trials, 7,680,000
+measured replies and their APP ledgers. All 16 throughput series met
+repeatability. The table gives stock and decoded-view medians in duplex
+mode. The direct-dispatch controls are in the replay.
+
+| Host | Offers/s | Replies/s | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 32,000 | 32,001 / 32,000 | 0.298 / 0.289 | 0.609 / 0.649 |
+| Windows | 64,000 | 63,986 / 63,994 | 1.552 / 1.033 | 6.454 / 5.107 |
+| Ubuntu guest | 32,000 | 31,995 / 31,996 | 2.054 / 1.969 | 3.387 / 3.205 |
+| Ubuntu guest | 64,000 | 63,964 / 63,948 | 2.681 / 2.510 | 4.868 / 4.138 |
+
+Several tail series exceeded variation limits, including both Windows
+P99.9 profiles. The guest shares the physical host with the running
+endurance campaigns and a brief Windows functional check overlapped its
+timed runs. The APP change reduces processing work, and strict TCP tail
+qualification remains open.
+
+Source receipts, binaries, traces and independent replays are under
+out/service-extensions/xrpc-tcp-decoded-9c36b6b9/. The guest evidence is
+mirrored under out/service-extensions/linux-guest-9ce2606c/
+xrpc-tcp-decoded-9c36b6b9/.

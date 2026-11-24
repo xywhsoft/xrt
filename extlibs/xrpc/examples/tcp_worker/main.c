@@ -12,6 +12,7 @@ enum { MAX_PEERS = 32, MAX_WORKERS = 8 };
 
 typedef struct appexecution {
     apprequest Request;
+    xstrview EchoId, EchoParams;
     xevent* Done;
 } appexecution;
 
@@ -23,10 +24,41 @@ typedef struct apppeer {
     uint64 Requests;
 } apppeer;
 
+static bool takeRequest(uint64 Token, xstrview Input, xbytesview Context,
+    const xrpcdocument* Document, const xrpcmessage* Messages, ptr Data)
+{
+    appexecution* Job = Data;
+    if (!appTakeRequest(Token, Input, Context, Document, Messages, &Job->Request))
+        return false;
+    Job->EchoId = (xstrview){0};
+    if (Document && !Document->Batch && Document->Count == 1 &&
+        Messages[0].Kind == XRPC_MESSAGE_CALL && Messages[0].Method.Raw.Size == 6 &&
+        !memcmp(Messages[0].Method.Raw.Data, "\"echo\"", 6)) {
+        xstrview Id = Messages[0].Id.Raw;
+        xstrview Params = Messages[0].Params.Raw;
+        /* Rebase the borrowed fields onto the job's input copy before the worker runs. */
+        Job->EchoId = (xstrview){Job->Request.Input + (Id.Data - Input.Data), Id.Size};
+        Job->EchoParams = Params.Size
+            ? (xstrview){Job->Request.Input + (Params.Data - Input.Data), Params.Size}
+            : XRT_STR_LITERAL("true");
+    }
+    return true;
+}
+
 static void execute(ptr Data)
 {
     appexecution* Job = Data;
-    (void)appPrepare(&Job->Request);
+    if (Job->EchoId.Size) {
+        xrpcoutgoing Response = {
+            .Kind = XRPC_MESSAGE_RESULT,
+            .Id = Job->EchoId,
+            .Result = Job->EchoParams,
+        };
+        Job->Request.Ready = xrpcEncodeWrite(Job->Request.Reply, sizeof(Job->Request.Reply) - 1,
+            &Response, 1, false, NULL, &Job->Request.ReplyBytes);
+    } else {
+        (void)appPrepare(&Job->Request);
+    }
     xrtEventSet(Job->Done);
 }
 
@@ -117,8 +149,8 @@ static bool runPeer(apppeer* Peer)
     if (Peer->Duplex) {
         if (!xrpcDuplexConfigInit(&Config)) return false;
         Config.MaxIncoming = 1;
-        Config.OnRequest = appTakeRequest;
-        Config.User = &Job->Request;
+        Config.OnRequest = takeRequest;
+        Config.User = Job;
         if (!xrpcDuplexCreate(&Config, &Endpoint)) return false;
     }
 

@@ -48,10 +48,12 @@ def normal(peer):
     notification = {"jsonrpc": "2.0", "method": "echo"}
     batch = [notification, {"jsonrpc": "2.0", "id": 9, "method": "echo\0"}]
     wire = br'{"jsonrpc":"2.0","id":"tcp-1","method":"\u0065ch\u006F","params":[42]}' + b"\n"
-    peer.sendall(wire[:-1])
+    echo = br'{"jsonrpc":"2.0","id":-0,"method":"echo","params":{"value":[1, 2]}}'
+    peer.sendall(echo + b"\n" + wire[:-1])
     peer.sendall(wire[-1:] + record(notification) + record(batch) + b"[\n")
     peer.shutdown(socket.SHUT_WR)
     with peer.makefile("rb") as stream:
+        assert stream.readline() == br'{"jsonrpc":"2.0","result":{"value":[1, 2]},"id":-0}' + b"\n"
         messages = [json.loads(line) for line in stream]
     assert messages[0] == {"jsonrpc": "2.0", "id": "tcp-1", "result": [42]}
     assert len(messages) == 3 and len(messages[1]) == 1
@@ -151,7 +153,7 @@ def dispatch_cases(executable):
         assert oversized.returncode == 2 and not oversized.stdout
     assert exchange(executable, MODES["duplex"], reply_before_mixed_record) == 1
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 11, "modes": list(MODES), "replies_per_mode": 135, "max_record_bytes": 4096,
+    return {"cases_per_mode": 11, "modes": list(MODES), "replies_per_mode": 136, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 2 * BACKPRESSURE_CALLS_PER_PEER,
             "capacity_backpressure_isolation_replies_per_mode": 2 * (APP_PEER_LIMIT - 1) * BACKPRESSURE_CALLS_PER_PEER,
