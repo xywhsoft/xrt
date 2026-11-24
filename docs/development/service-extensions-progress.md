@@ -26973,3 +26973,34 @@ and recoverable quota during measured pressure. The
 strict Windows latency gate remains open. Reports and
 independent replay are under
 out/service-extensions/xmqtt-shared-pressure-e5185ff8/.
+
+## 2026-11-24 xcron recovery cohort prefix after 12 processes
+
+The live Windows and Ubuntu recovery journals each
+contained 12 complete processes at the 08:02 China
+Standard Time snapshot. Host replay matched source
+inputs, binaries, runner hashes, affinity, deadlines
+and series summaries. The two prefixes contain
+5,505,024 verified callbacks. The 64-active and
+960-dormant cohort completed five pairs per host.
+Only the first pair was complete at 1,024 active jobs.
+
+| Host | Drive | Last callback P99 (ms) | Last callback P99.9 (ms) |
+| --- | --- | ---: | ---: |
+| Windows | Scheduler wait | 16.425 | 31.050 |
+| Windows | Direct precise waiter | 27.262 | 44.812 |
+| Ubuntu QEMU/WHPX | Scheduler wait | 3.961 | 19.860 |
+| Ubuntu QEMU/WHPX | Direct precise waiter | 7.193 | 11.554 |
+
+These are per-process medians for the 64-active cohort.
+All tail series exceeded the variation limits. For the
+scheduler, 1,125 of 1,153 Windows waves and 260 of 262
+Ubuntu waves ending at least 1 ms late were already
+at least 1 ms late at their first callback. Both
+recovery supervisors continue toward the full
+1,024-active cohort. The earlier interrupted cohorts
+have separate evidence.
+
+The snapshot, build receipts and replay are under
+out/service-extensions/xcron-win-ready-5dbd94e6/ and
+out/service-extensions/linux-guest-9ce2606c/xcron-recovery-prefix-0802/.
