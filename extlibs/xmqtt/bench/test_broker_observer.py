@@ -299,6 +299,68 @@ def shared_case(binary, duplicate, tls=None, ca=None):
                 process.wait(timeout=5)
 
 
+def batched_qos2_case(binary, tls, ca):
+    count = 48
+    with ExitStack() as stack:
+        listener = stack.enter_context(socket.socket())
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(2)
+        listener.settimeout(7)
+        port = listener.getsockname()[1]
+        command = [binary, "--remote", str(port), "1", str(count), "8000", "0",
+                   "exact", "2", "64", "64", "--tls", str(ca), "localhost"]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            def accept():
+                peer = stack.enter_context(listener.accept()[0])
+                peer.settimeout(7)
+                secure = stack.enter_context(tls.wrap_socket(peer, server_side=True))
+                assert frame(secure)[0] == b"\x10"
+                secure.sendall(b"\x20\x03\x00\x00\x00")
+                return secure
+
+            subscriber = accept()
+            assert frame(subscriber) == (b"\x82", b"\x00\x01\x00\x00\x04load\x02")
+            subscriber.sendall(b"\x90\x04\x00\x01\x00\x02")
+            publisher = accept()
+
+            publications = []
+            for sequence in range(count):
+                kind, body = frame(publisher)
+                assert kind == b"\x34" and len(body) == 137 and body[:6] == b"\x00\x04load"
+                assert body[8:] == b"\x00" + b"A" * 124 + sequence.to_bytes(4, "big")
+                publications.append(body)
+            identifiers = [body[6:8] for body in publications]
+            assert len(set(identifiers)) == count and b"\x00\x00" not in identifiers
+            publisher.sendall(b"".join(b"\x50\x02" + identifier for identifier in identifiers))
+            for identifier in identifiers:
+                assert frame(publisher) == (b"\x62", identifier)
+            publisher.sendall(b"".join(b"\x70\x02" + identifier for identifier in identifiers))
+
+            # One TLS write crosses the boundary of the observer's input buffer.
+            subscriber.sendall(b"".join(b"\x34\x89\x01" + body for body in publications))
+            for identifier in identifiers:
+                assert frame(subscriber) == (b"\x50", identifier)
+            subscriber.sendall(b"".join(b"\x62\x02" + identifier for identifier in identifiers))
+            for identifier in identifiers:
+                assert frame(subscriber) == (b"\x70", identifier)
+            for peer in (publisher, subscriber):
+                assert frame(peer) == (b"\xc0", b"")
+                peer.sendall(b"\xd0\x00")
+
+            out, err = process.communicate(timeout=8)
+            assert process.returncode == 0, (process.returncode, out, err)
+            metrics = dict(line.split(": ", 1) for line in out.splitlines())
+            assert all(int(metrics[k]) == count for k in ("offered", "deliveries", "publish_confirmed"))
+            assert int(metrics["subscriber_ack_packets"]) == 2 * count
+            assert 2 <= int(metrics["subscriber_ack_writes"]) <= 6, metrics
+            print("coalesced TLS QoS 2 acknowledgements verified")
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
 def reject_tls_identity(binary, tls, ca, name):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -346,6 +408,7 @@ def main():
         shared_case(binary, False, tls, root / "ca.pem")
         shared_case(binary, True, tls, root / "ca.pem")
         multi_publisher_case(binary, False, tls, root / "ca.pem")
+        batched_qos2_case(binary, tls, root / "ca.pem")
         reject_tls_identity(binary, tls, root / "wrong.pem", "localhost")
         reject_tls_identity(binary, tls, root / "ca.pem", "wrong.invalid")
 

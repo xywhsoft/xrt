@@ -544,6 +544,12 @@ python extlibs/xmqtt/bench/compare_broker.py --xmqtt out/compare-server-tls \
   --qos 2 --workload exact:1:1000 --workload shared:8:2000 --report out/broker-tls-q2.json
 ```
 
+For TLS QoS 2, each subscriber combines up to 32 acknowledgements
+from already buffered input. It flushes before reading more bytes and
+records delivery completion after the corresponding write succeeds.
+The comparison reports acknowledgement packets and TLS write
+submissions, including warmup, when the observer emits those counters.
+
 Supply `ca.pem`, the same RSA test certificate as `certificate.pem` and
 `certificate.der`, and its private key as `key.pem` and PKCS#1 `key.der`.
 The certificate needs a DNS SAN for `localhost` and must chain to the

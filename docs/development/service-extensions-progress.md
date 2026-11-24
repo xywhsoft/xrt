@@ -27949,3 +27949,57 @@ Windows inputs and evidence are under
 out/service-extensions/xmqtt-tls-receive64-e2f36099/. Ubuntu
 evidence is under the matching directory in
 out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Buffered TLS QoS 2 acknowledgements in the observer
+
+The benchmark observer sends up to 32 verified PUBREC and
+PUBCOMP packets from already buffered input in one TLS write.
+It flushes before another potentially blocking read, including
+when the remaining input contains part of a frame. It records
+delivery completion when the combined write succeeds. The
+comparison verifies both acknowledgement and write counts.
+A successful subscriber still checks packet IDs, sequence,
+payload and the terminal publisher confirmations.
+
+Windows and the Ubuntu QEMU/WHPX guest alternated the prior
+per-acknowledgement write and the batched diagnostic against
+each broker. Both variants used one TLS observer worker, a
+two-CPU observer mask and the same four publishers and eight
+wildcard subscribers. Both brokers used the same two-CPU
+budget. Host replay checked 80 trials including pilots and
+2,412,800 byte-exact deliveries from complete trials.
+
+At 4,000 offers/s and 6,000 offers per trial, all 24
+per-acknowledgement trials ended before completion.
+The batched observer completed the following trials.
+
+| Host | Subscriber Receive Maximum | xmqtt completed | Mosquitto completed |
+| --- | ---: | ---: | ---: |
+| Windows | 16 | 3/3 | 1/3 |
+| Windows | 64 | 3/3 | 3/3 |
+| Ubuntu guest | 16 | 3/3 | 3/3 |
+| Ubuntu guest | 64 | 3/3 | 3/3 |
+
+Each successful run at that rate verified 104,192 subscriber
+acknowledgements including warmup. The batched observer used
+34,148 to 51,803 submissions for xmqtt on Windows and 31,398
+to 35,093 on Ubuntu. At 2,000 offers/s all 24 measured runs
+completed and the paired median observer CPU changed by less
+than five percent in each of the four host and broker series.
+The three-trial cohorts identify a material observer limit at
+4,000/s. Five-run sustained capacity and tail checks remain
+open for the updated observer.
+
+The canonical observer built with and without TLS on both
+platforms. The independent benchmark peers passed the existing
+plain and TLS cases for order, duplication, shared groups
+and certificate identity. The added TLS peer packed 48 PUBLISH
+records across the input-buffer boundary and checked all 96
+acknowledgement packets in order. The diagnostic comparison
+used 96 separate submissions and four batched submissions
+on each host. The canonical binary also passed that peer.
+
+Prototype, replay, canonical fingerprints and fixtures are under
+out/service-extensions/xmqtt-observer-ack-batch-e2f36099/ and
+the matching directory in out/service-extensions/linux-guest-9ce2606c/.

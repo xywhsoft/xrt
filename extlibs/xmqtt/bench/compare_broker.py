@@ -21,6 +21,7 @@ METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "d
            "delivery_p50_us", "delivery_p95_us", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us",
            "pacer_lag_p99_us")
 OBSERVER_CPU_METRICS = ("observer_cpu_seconds", "pacer_cpu_seconds")
+OBSERVER_ACK_METRICS = ("subscriber_ack_packets", "subscriber_ack_writes")
 PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
@@ -163,6 +164,10 @@ def run_observer(args, port, workload):
         metrics += ("tls_connections",)
     if result.keys() & set(OBSERVER_CPU_METRICS):
         metrics += OBSERVER_CPU_METRICS
+    has_ack_metrics = (args.tls_credentials is not None and args.qos == 2
+                       and any(key in result for key in OBSERVER_ACK_METRICS))
+    if has_ack_metrics:
+        metrics += OBSERVER_ACK_METRICS
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     destinations = SHARED_GROUPS if kind == "shared" else peers
@@ -170,6 +175,12 @@ def run_observer(args, port, workload):
         raise ValueError("publication and delivery counts do not match the workload")
     if args.tls_credentials and result["tls_connections"] != peers + publishers:
         raise ValueError("missing authenticated observer connections")
+    if has_ack_metrics:
+        packets = result["subscriber_ack_packets"]
+        writes = result["subscriber_ack_writes"]
+        expected = (args.rounds + args.warmup) * destinations * 2
+        if packets != expected or not writes.is_integer() or not 0 < writes <= packets:
+            raise ValueError("invalid subscriber acknowledgement ledger")
     if kind == "shared":
         low, high = (result[key] for key in SHARED_METRICS)
         if not (low.is_integer() and high.is_integer() and low <= high <= args.rounds

@@ -443,6 +443,9 @@ typedef struct benchRemotePeer {
 	xatomic32* Seen;
 	xatomic32 ExpectPing;
 	size_t Delivered;
+#if defined(XMQTT_BENCH_TLS)
+	size_t AckPackets, AckWrites;
+#endif
 	bool Complete;
 } benchRemotePeer;
 
@@ -454,12 +457,62 @@ static bool benchPing(benchConnection Connection)
 		Reply[0] == 0xd0 && !Reply[1];
 }
 
+static bool benchRemoteDelivery(benchRemotePeer* Peer, size_t Round, double Arrived);
+
+#if defined(XMQTT_BENCH_TLS)
+enum { BENCH_REMOTE_ACK_LIMIT = 32 };
+
+typedef struct benchRemoteAcks {
+	benchRemotePeer* Peer;
+	size_t Count, ReadyCount;
+	unsigned char Wire[BENCH_REMOTE_ACK_LIMIT * 4];
+	size_t Ready[BENCH_REMOTE_ACK_LIMIT];
+} benchRemoteAcks;
+
+static bool benchRemoteFlushAcks(benchRemoteAcks* Batch)
+{
+	if (!Batch || !Batch->Count) return true;
+	benchRemotePeer* Peer = Batch->Peer;
+	if (!benchWireSend(Peer->Connection, Batch->Wire, Batch->Count * 4)) return false;
+	Peer->AckPackets += Batch->Count;
+	++Peer->AckWrites;
+	double Arrived = Batch->ReadyCount ? xrtTimer() : 0;
+	for (size_t Index = 0; Index < Batch->ReadyCount; ++Index)
+		if (!benchRemoteDelivery(Peer, Batch->Ready[Index], Arrived)) return false;
+	Batch->Count = Batch->ReadyCount = 0;
+	return true;
+}
+#endif
+
 typedef struct benchRemoteReader {
 	benchConnection Connection;
 	benchRemoteShared* Shared;
 	unsigned char Bytes[4096];
 	size_t Begin, End;
+#if defined(XMQTT_BENCH_TLS)
+	benchRemoteAcks* Acks;
+#endif
 } benchRemoteReader;
+
+static bool benchRemoteQos2Ack(benchRemoteReader* Reader, benchRemotePeer* Peer,
+	unsigned char Header, uint16 Id, size_t Round)
+{
+#if defined(XMQTT_BENCH_TLS)
+	benchRemoteAcks* Batch = Reader->Acks;
+	if (Batch) {
+		if (Batch->Count == BENCH_REMOTE_ACK_LIMIT && !benchRemoteFlushAcks(Batch)) return false;
+		unsigned char* Wire = Batch->Wire + Batch->Count++ * 4;
+		Wire[0] = Header;
+		Wire[1] = 2;
+		Wire[2] = (uint8)(Id >> 8);
+		Wire[3] = (uint8)Id;
+		if (Round != SIZE_MAX) Batch->Ready[Batch->ReadyCount++] = Round;
+		return true;
+	}
+#endif
+	return benchWireFlowReply(Reader->Connection, Header, Id) &&
+		(Round == SIZE_MAX || benchRemoteDelivery(Peer, Round, xrtTimer()));
+}
 
 static bool benchRemoteSharedReadable(const benchRemoteReader* Reader)
 {
@@ -490,6 +543,11 @@ static bool benchRemoteReadFrame(benchRemoteReader* Reader, xmqttframe* Frame)
 			return true;
 		}
 		if (Status != XMQTT_WIRE_MORE || Pending == sizeof(Reader->Bytes)) return false;
+
+#if defined(XMQTT_BENCH_TLS)
+		/* Flush before the next potentially blocking read, including partial records. */
+		if (!benchRemoteFlushAcks(Reader->Acks)) return false;
+#endif
 		if (Pending && Reader->Begin) memmove(Reader->Bytes, Reader->Bytes + Reader->Begin, Pending);
 		if (Reader->Shared && Reader->Connection.Socket && !benchRemoteSharedReadable(Reader)) return false;
 		size_t Read = benchWireRead(Reader->Connection, Reader->Bytes + Pending,
@@ -580,6 +638,10 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 	typedef struct { uint16 Id; size_t Round; } pending;
 	pending Pending[64] = {0};
 	benchRemoteReader Reader = {.Connection = Peer->Connection, .Shared = Peer->Shared};
+#if defined(XMQTT_BENCH_TLS)
+	benchRemoteAcks Acks = {.Peer = Peer};
+	if (Peer->Connection.Tls && Peer->Qos == 2) Reader.Acks = &Acks;
+#endif
 	size_t Received = 0, Finished = 0, Total = Peer->Warmup + Peer->Rounds;
 	size_t Next[BENCH_MAX_PUBLISHERS];
 	for (size_t Lane = 0; Lane < Peer->Publishers; ++Lane) Next[Lane] = Lane;
@@ -587,6 +649,9 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 		xmqttframe Frame;
 		if (!benchRemoteReadFrame(&Reader, &Frame)) return false;
 		if (Peer->Shared && Frame.Header.Type == XMQTT_PACKET_PINGRESP) {
+#if defined(XMQTT_BENCH_TLS)
+			if (!benchRemoteFlushAcks(Reader.Acks)) return false;
+#endif
 			return !Frame.Body.Size && xrtAtomic32Load(&Peer->ExpectPing, XMEMORY_ACQUIRE) && Reader.Begin == Reader.End;
 		}
 		if (Frame.Header.Type == XMQTT_PACKET_PUBLISH) {
@@ -604,7 +669,7 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 					if (Pending[I].Id == Id) return false;
 					if (!Pending[I].Id && !Free) Free = Pending + I;
 				}
-				if (!Free || !benchWireFlowReply(Peer->Connection, 0x50, Id)) return false;
+				if (!Free || !benchRemoteQos2Ack(&Reader, Peer, 0x50, Id, SIZE_MAX)) return false;
 				*Free = (pending){Id, Round};
 			} else {
 				if ((Peer->Qos && !benchWireFlowReply(Peer->Connection, 0x40, Id)) ||
@@ -617,12 +682,14 @@ static bool benchRemoteReadFrames(benchRemotePeer* Peer)
 			size_t I = 0;
 			if (!Id) return false;
 			while (I < Peer->Window && Pending[I].Id != Id) ++I;
-			if (I == Peer->Window || !benchWireFlowReply(Peer->Connection, 0x70, Id) ||
-				!benchRemoteDelivery(Peer, Pending[I].Round, xrtTimer())) return false;
+			if (I == Peer->Window || !benchRemoteQos2Ack(&Reader, Peer, 0x70, Id, Pending[I].Round)) return false;
 			Pending[I].Id = 0;
 			++Finished;
 		} else return false;
 	}
+#if defined(XMQTT_BENCH_TLS)
+	if (!benchRemoteFlushAcks(Reader.Acks)) return false;
+#endif
 	return Reader.Begin == Reader.End;
 }
 
@@ -1209,7 +1276,17 @@ static int benchRemote(int Argc, char** Argv)
 		benchPercentile(Lag, Rounds, 0.99), benchPercentile(PacerLag, Rounds, 0.99));
 	printf("observer_cpu_seconds: %.9f\npacer_cpu_seconds: %.9f\n", ObserverCpu, PacerCpu);
 #if defined(XMQTT_BENCH_TLS)
-	if (Ca) printf("tls_connections: %lu\n", Peers + PublisherCount);
+	if (Ca) {
+		printf("tls_connections: %lu\n", Peers + PublisherCount);
+		if (Qos == 2) {
+			size_t Packets = 0, Writes = 0;
+			for (size_t I = 0; I < Peers; ++I) {
+				Packets += State[I].AckPackets;
+				Writes += State[I].AckWrites;
+			}
+			printf("subscriber_ack_packets: %zu\nsubscriber_ack_writes: %zu\n", Packets, Writes);
+		}
+	}
 #endif
 	if (Shared) {
 		size_t Min = Rounds, Max = 0;
