@@ -27852,3 +27852,61 @@ The scheduler timing gate remains open.
 Inputs, journals and replay are under
 out/service-extensions/xcron-candidate-cohorts-5df4bc29/ and the
 corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 MQTT TLS fan-out at the subscriber receive limit
+
+A diagnostic build took one subscriber-worker snapshot after
+the first connection-credit refusal. The trace used a pinned peer
+and a worker post. It recorded MQTT waiting and acknowledgement
+states and user-space TLS/TCP pending bytes. There was no periodic
+sampling and the production settings did not change.
+
+The independent MQTT/TLS peer withheld one PUBREC under Receive
+Maximum one. Both runtimes recorded 255 waiting deliveries and
+one awaiting PUBREC, with zero pending output. That peer also
+verified two quota refusals, delivery on an unrelated topic during
+pressure, credit recovery after PUBCOMP and 257 ordered deliveries.
+
+The performance cohorts used four publishers, eight wildcard
+subscribers, authenticated TLS 1.3, QoS 2 and a publisher window
+of 16. They varied only the subscriber's Receive Maximum and
+compared the diagnostic and ordinary builds. Both brokers used
+two workers and the same 256-delivery cap. The observer used one
+TLS worker. Independent replay checked 52 records including
+four pilots and 4,704,000 byte-verified deliveries from complete
+trials. The measured completion counts are below.
+
+| Host | Offers/s and offers per trial | Receive Maximum | Ordinary completed | Diagnostic completed |
+| --- | --- | ---: | ---: | ---: |
+| Windows | 2,000 and 30,000 | 16 | 1/3 | 1/3 |
+| Windows | 2,000 and 30,000 | 64 | 3/3 | 3/3 |
+| Windows | 4,000 and 6,000 | 16 | 0/3 | 0/3 |
+| Windows | 4,000 and 6,000 | 64 | 2/3 | 1/3 |
+| Ubuntu guest | 2,000 and 30,000 | 16 | 3/3 | 3/3 |
+| Ubuntu guest | 2,000 and 30,000 | 64 | 2/3 | 3/3 |
+| Ubuntu guest | 4,000 and 6,000 | 16 | 0/3 | 0/3 |
+| Ubuntu guest | 4,000 and 6,000 | 64 | 0/3 | 0/3 |
+
+All 15 refusal snapshots with the diagnostic, including the pilots,
+had a full MQTT send window and no pending TLS ciphertext or TCP
+send bytes at sampling. The delay from refusal to capture was
+1 to 599 us. With a window of 16, 237 to 240 deliveries were still
+waiting and 16 awaited PUBREC or PUBCOMP. With a window of 64,
+192 were waiting and 64 awaited PUBREC or PUBCOMP. Windows had
+zero entries in the MQTT output queue in all of these snapshots.
+Ubuntu held up to six queued MQTT writes, including up to three
+PUBLISH and three PUBREL records. The snapshots localize the
+saturation at the MQTT flow-control boundary. They do not measure
+the time each acknowledgement spent at the remote observer.
+
+A window of 64 improved completion in the Windows 2,000/s cohort.
+It did not produce the same result across platforms and rates.
+The three-pair diagnosis leaves repeatable matched capacity and
+tail latency open. For the Ubuntu control, the first test invocation
+used the earlier peer without the quota case. The verified rerun
+used the current peer and matched its host-side hash.
+
+Sources, raw reports and replay are under
+out/service-extensions/xmqtt-tls-credit-states-2effdd1b/ and the
+corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
