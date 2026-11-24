@@ -59,6 +59,7 @@ int main(int Argc, char** Argv)
     xrpcduplexconfig Config;
     apprequest Job = {0};
     if (!xrpcDuplexConfigInit(&Config)) return 1;
+    Config.MaxIncoming = 1;
     Config.OnRequest = appTakeRequest;
     Config.User = &Job;
     if (!xrpcDuplexCreate(&Config, &Endpoint)) return 1;

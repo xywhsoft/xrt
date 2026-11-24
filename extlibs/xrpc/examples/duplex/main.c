@@ -25,6 +25,7 @@ int main(void)
     xrpcduplexconfig Config;
     apprequest Job = {0};
     if (!xrpcDuplexConfigInit(&Config)) return 1;
+    Config.MaxIncoming = 1;
     Config.OnRequest = appTakeRequest;
     Config.User = &Job;
     bool OK = xrpcDuplexCreate(NULL, &Client) && xrpcDuplexCreate(&Config, &Server) &&

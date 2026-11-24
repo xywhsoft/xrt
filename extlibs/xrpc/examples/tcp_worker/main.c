@@ -116,6 +116,7 @@ static bool runPeer(apppeer* Peer)
     xrpcduplex* Endpoint = NULL;
     if (Peer->Duplex) {
         if (!xrpcDuplexConfigInit(&Config)) return false;
+        Config.MaxIncoming = 1;
         Config.OnRequest = appTakeRequest;
         Config.User = &Job->Request;
         if (!xrpcDuplexCreate(&Config, &Endpoint)) return false;

@@ -26,7 +26,8 @@ Pass `--serve CLIENTS WORKERS` to share one bounded XRT executor across
 up to 32 connections and 8 executor workers. The APP accepts the requested
 number of loopback connections and starts each connection's owner as it
 arrives. Requests can complete while the listener waits for another peer.
-Each connection queues one copied job at a time. The owner shuts
+Each connection queues one copied job at a time. The examples set
+MaxIncoming to one to match that bound. The owner shuts
 down its output when it finishes, and the listener owner retains the
 socket until that thread retires. The APP checks the executor completion
 ledger before freeing job storage. With explicit counts, it prints
