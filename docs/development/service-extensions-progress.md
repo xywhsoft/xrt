@@ -27128,3 +27128,48 @@ with the native verifier enabled.
 Raw records and replay are under
 out/service-extensions/xrpc-capacity-255c0e43/ and
 out/service-extensions/linux-guest-9ce2606c/xrpc-capacity-255c0e43/.
+
+## 2026-11-24 xrpc APP request phases at 32 TCP peers
+
+Windows and the Ubuntu QEMU/WHPX guest each ran 40
+ordinary and instrumented APP trials at 32 TCP peers.
+Both campaigns used two native observer shards, two
+XRT executor workers and staggered fixed arrivals.
+The ordinary and instrumented binaries used the same
+protocol, handler and APP sources. The instrumented
+copy saved seven timestamps per request at shutdown.
+Host replay matched source and binary fingerprints
+and reconciled 7,680,000 replies, including request
+IDs, deadlines, ordered phases and quantiles.
+
+| Host | Offers/s | Mode | P99 ordinary / instrumented (ms) | P99.9 ordinary / instrumented (ms) | First send to APP read | APP read to record handling | Executor queue |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 32,000 | Duplex | 0.263 / 0.255 | 2.255 / 0.461 | 72.58% | 19.39% | 1.20% |
+| Windows | 32,000 | Direct dispatch | 0.226 / 0.232 | 0.293 / 0.325 | 7.37% | 63.24% | 2.25% |
+| Windows | 64,000 | Duplex | 0.229 / 0.267 | 0.794 / 1.488 | 70.90% | 22.90% | 2.56% |
+| Windows | 64,000 | Direct dispatch | 0.476 / 0.205 | 4.395 / 0.326 | 49.07% | 26.08% | 3.10% |
+| Ubuntu guest | 32,000 | Duplex | 1.266 / 1.466 | 2.361 / 2.616 | 6.28% | 80.47% | 4.52% |
+| Ubuntu guest | 32,000 | Direct dispatch | 1.156 / 1.105 | 2.569 / 1.834 | 2.13% | 84.01% | 2.83% |
+| Ubuntu guest | 64,000 | Duplex | 2.155 / 2.093 | 3.810 / 3.787 | 18.09% | 69.67% | 3.67% |
+| Ubuntu guest | 64,000 | Direct dispatch | 1.539 / 1.638 | 2.789 / 3.435 | 6.95% | 77.30% | 6.97% |
+
+Each table value is the median of five trials. Phase
+shares use the same slowest 0.1 percent of replies
+within each instrumented trial. The first-send interval
+includes remaining writes, transport and the APP returning
+from the read that produced the terminating newline.
+The APP read-to-record interval includes handling
+earlier records from that read and owner scheduling.
+
+All throughput series met repeatability. Both ordinary
+Windows modes at 32,000/s met repeatability for P99.
+Every ordinary P99.9 series exceeded the variation limit
+on both hosts. One instrumented Ubuntu series met both
+tail limits. The ordinary and instrumented tails differed
+in several cohorts, especially Windows direct dispatch
+at 64,000/s. The phase shares describe the instrumented
+samples. The strict release tail gate remains open.
+
+Inputs and replays are under
+out/service-extensions/xrpc-capacity-phases-a7f0572e/ and
+out/service-extensions/linux-guest-9ce2606c/xrpc-capacity-phases-a7f0572e/.
