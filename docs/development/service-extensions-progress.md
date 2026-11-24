@@ -27377,3 +27377,54 @@ Evidence is under out/service-extensions/xredis-compact-reader-13892bfc/
 and out/service-extensions/xredis-reader-gate-1a31d34d/.
 The native archive and launch evidence are under the
 corresponding directories in out/service-extensions/linux-guest-9ce2606c/.
+
+## 2026-11-24 xrpc copied and borrowed TCP record comparison
+
+A TCP APP prototype let the executor read the APP-owned
+receive buffer while its connection owner waited. The
+duplex receive callback captured only the request token.
+The receive buffer remained with the peer until executor
+retirement, including when the owner's wait failed.
+
+Windows and the Ubuntu QEMU/WHPX guest each completed
+40 fixed-arrival trials and verified 2,720,000 replies.
+Both builds used the same XRT and xrpc sources, with two
+APP workers, two native observer shards, and staggered
+arrivals. The 64,000/s profile used 32 peers with small
+echo requests. The 4,000/s profile used eight peers with
+a 3,000-byte string parameter. Host replay reproduced
+the Ubuntu quantiles and checked the portable input
+hashes against those from Windows.
+
+| Host | Offers/s | Mode | P99 copied / borrowed (ms) | P99.9 copied / borrowed (ms) |
+| --- | ---: | --- | ---: | ---: |
+| Windows | 64,000 | Duplex | 4.807 / 3.507 | 12.982 / 8.684 |
+| Windows | 64,000 | Direct dispatch | 1.299 / 6.176 | 5.633 / 12.266 |
+| Windows | 4,000 | Duplex | 1.417 / 1.643 | 10.450 / 12.575 |
+| Windows | 4,000 | Direct dispatch | 1.745 / 3.421 | 9.800 / 7.653 |
+| Ubuntu guest | 64,000 | Duplex | 2.852 / 2.864 | 4.665 / 4.630 |
+| Ubuntu guest | 64,000 | Direct dispatch | 2.119 / 2.287 | 3.573 / 4.358 |
+| Ubuntu guest | 4,000 | Duplex | 1.793 / 1.780 | 2.790 / 2.535 |
+| Ubuntu guest | 4,000 | Direct dispatch | 1.310 / 1.317 | 1.906 / 2.511 |
+
+Each value is the median of five trials. Within each
+profile and mode, throughput medians differed by less
+than 0.02 percent. Every throughput series met the
+repeatability limits, and every tail series exceeded
+them. The TCP example retains its existing copy. Strict
+release timing remains open.
+
+After correcting the fault fixture's sleep call and
+runner argument, Ubuntu ASan, leak detection and UBSan
+verified that workers in both modes could finish
+reading their record after an injected owner wait
+failure. The independent TCP peer gained a narrower
+permanent regression, checking that a later batch
+mixing requests and responses leaves the earlier
+reply intact. All 23 cases passed against the
+optimized modular example on both platforms.
+The separate oversized-input probe also verified the
+reply prefix before EOF or reset.
+
+Evidence is under out/service-extensions/xrpc-tcp-record-view-c1595811/
+and out/service-extensions/linux-guest-9ce2606c/xrpc-tcp-record-view-c1595811/.
