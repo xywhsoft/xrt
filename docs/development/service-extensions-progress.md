@@ -27310,3 +27310,70 @@ qualification remains open.
 Sources, test logs, raw records and replays are under
 out/service-extensions/xcron-ordered-wave-cache-f09adf69/ and
 out/service-extensions/linux-guest-9ce2606c/xcron-ordered-wave-cache-f09adf69/.
+
+## 2026-11-24 xredis compact RESP nesting state and endurance
+
+Open aggregate frames keep their streamed state as a
+boolean alongside the existing pending-attribute state.
+An aggregate that enters the stack has either the streamed
+flag or zero. The event reader reconstructs the public flag
+when the aggregate ends. Windows and Ubuntu GCC both
+measured 32 to 24 bytes per level and 2,384 to 1,872 bytes
+for the depth-64 reader allocation.
+
+The Ubuntu QEMU/WHPX capacity replay verified 20
+alternating trials, 110,000 initial RESP3 connections,
+11,000 replacements, 220,000 binary echoes and exact
+peer command counts. Every trial retired to its original
+descriptor count. At 10,000 connections the median idle
+RSS increase fell from 113.34 to 108.46 MiB. The earlier
+and compact variants used the same Redis 8.0.5 peer
+configuration and two worker CPUs.
+
+A separate fixed-arrival comparison on the guest verified
+336,000 scheduled 1 KiB GET/SET offers and replies across
+eight connections, including warmups. Both variants used
+epoll and two workers. All throughput series met the
+repeatability limits. The table gives measured medians.
+
+| Offers/s | P99 old / compact (us) | P99.9 old / compact (us) |
+| ---: | ---: | ---: |
+| 2,000 | 361.8 / 260.5 | 1,743.6 / 418.2 |
+| 12,000 | 389.3 / 338.5 | 1,533.5 / 695.3 |
+
+The compact 2,000/s series met both tail limits. Both
+12,000/s series exceeded them. The Windows in-process
+reader benchmark verified identical checksums across
+12 samples, with measured medians of 5.90 and 5.82
+million frames/s. The compact Windows series exceeded
+the throughput variation limits.
+
+The Windows and Ubuntu modular and single-header reader
+and owned-reply tests passed, including split frames,
+nested streams, attributes and OOM. The Ubuntu reader
+also passed ASan, leak detection and UBSan. Both hosts
+verified static and shared client package consumers.
+The initial reduced Ubuntu compile lacked the owned-reply
+fixture's thread dependency. The first open-loop launch
+used the older runner schema. The successful builds
+include that dependency and the current runner inputs.
+
+Clean 1a31d34d mixed-load builds passed both 12-second
+smokes. Separate fault fixtures killed their own Redis
+peers after 321 verified Windows rounds and 1,317 Ubuntu
+rounds. Both observers returned a retirement failure and
+the final verifier rejected both interrupted journals.
+
+New 72-hour intervals for 1a31d34d started on Windows
+and the Ubuntu guest after the smoke checks. The local
+first replay accepted 220.4 awake seconds on Windows and
+275.1 seconds on Ubuntu. The Windows supervisor holds
+its own process-scoped power request and uses a dedicated
+guest loopback SSH path and Redis peer. The earlier
+dc8f7525 intervals continue in independent fixtures.
+Strict performance and endurance qualification are open.
+
+Evidence is under out/service-extensions/xredis-compact-reader-13892bfc/
+and out/service-extensions/xredis-reader-gate-1a31d34d/.
+The native archive and launch evidence are under the
+corresponding directories in out/service-extensions/linux-guest-9ce2606c/.
