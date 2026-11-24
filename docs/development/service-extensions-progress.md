@@ -28003,3 +28003,41 @@ on each host. The canonical binary also passed that peer.
 Prototype, replay, canonical fingerprints and fixtures are under
 out/service-extensions/xmqtt-observer-ack-batch-e2f36099/ and
 the matching directory in out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Sustained 4,000/s TLS fan-out with the buffered observer
+
+The updated observer from 66fa4f77 ran the same 30,000-offer
+profile on Windows and the Ubuntu QEMU/WHPX guest. Four
+publishers used a window of 16. Eight wildcard subscribers
+advertised Receive Maximum of 16 or 64. The brokers used
+matching per-connection quotas and two-CPU budgets. Both used
+the same authenticated TLS 1.3 identity within each host.
+
+| Host | Subscriber window | Completed xmqtt / Mosquitto | xmqtt P99 / P99.9 (ms) | Mosquitto P99 / P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 16 | 5/5 and 0/5 | 3.045 / 6.897 | |
+| Windows | 64 | 5/5 and 0/5 | 8.605 / 14.121 | |
+| Ubuntu guest | 16 | 5/5 and 5/5 | 77.344 / 85.686 | 20.960 / 32.851 |
+| Ubuntu guest | 64 | 5/5 and 5/5 | 168.265 / 172.224 | 25.168 / 28.729 |
+
+Replay checked the source and executable hashes, all 40
+scheduled trials and 7,200,000 byte-verified deliveries from
+complete trials. Every complete trial verified 488,192
+subscriber acknowledgements including warmup. Mosquitto
+reported outgoing drops in each incomplete Windows trial.
+The Ubuntu xmqtt medians were 3,957 and 3,946 confirmations/s.
+The corresponding Mosquitto medians were 3,995 and 3,998.
+Every complete throughput series met repeatability. All
+complete P99 and P99.9 series exceeded the variation limits.
+
+Both Windows and Ubuntu xmqtt sustained the workload with
+both receive limits. The observed Ubuntu delivery tails and
+the incomplete Windows reference leave matched performance
+acceptance open. Separate optimization measurements target
+the broker's existing TLS output queue.
+
+Evidence and replay are under
+out/service-extensions/xmqtt-observer-ack-batch-e2f36099/ and
+the sustained subdirectory of its Ubuntu counterpart in
+out/service-extensions/linux-guest-9ce2606c/.
