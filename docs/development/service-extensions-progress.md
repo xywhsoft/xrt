@@ -28890,3 +28890,64 @@ pass running-prefix replay. Package and runtime receipts are under
 out/service-extensions/xmqtt-client-flags-1d72ea34/. The xrpc source
 receipts, raw timestamps, and independent replays are under
 out/service-extensions/xrpc-sustained-afd8cd9a/.
+
+
+## 2026-11-25 MQTT native runtime closeout and xrpc owner affinity
+
+The corrected MQTT candidate passed all 105 executables in the
+Ubuntu QEMU/WHPX native runtime suite. Replay matched the 38
+modular and 67 single-header test names, order, executable digests,
+source inputs, and success record. Windows has the matching
+runtime inventory and both platforms verified the current SDKs.
+
+The earlier 4- and 12-second xrpc trials were replayed again for
+the slowest 0.1 percent of replies. Across series, the median
+share of latency from the first send attempt to the observed
+reply was 99.82 to 99.98 percent on Windows and 96.99 to 99.48
+percent on Ubuntu. That interval includes remaining socket writes,
+APP processing, and the observer's read.
+
+A separate experiment compared the shared two-CPU APP mask with
+one CPU for all 32 connection owners and one for both executor
+workers. The diagnostic executable and observer were identical
+within each host. Both APP modes passed the independent TCP peer,
+including backpressure and reset, and the 12 observer tests.
+Five alternating pairs per mode tested 64,000 offered calls/s
+with 32 peers, two workers, two observer shards, and four-second
+offers. A separate Ubuntu loopback probe confirmed the actual
+thread masks through procfs. All 35 threads shared the mask in
+the control. The partitioned run placed 32 owners on CPU 1,
+two workers on CPU 3, and the main thread on both.
+
+| Host | Mode | P99 shared / partitioned (ms) | P99.9 shared / partitioned (ms) |
+| --- | --- | ---: | ---: |
+| Windows | Duplex | 0.233 / 183.143 | 1.808 / 293.683 |
+| Windows | Direct dispatch | 0.220 / 26.615 | 0.629 / 39.906 |
+| Ubuntu guest | Duplex | 3.717 / 41.069 | 8.438 / 57.430 |
+| Ubuntu guest | Direct dispatch | 2.457 / 6.588 | 4.270 / 9.951 |
+
+Replay reconciled 40 trials, 10,240,000 exact replies, deadlines,
+and quantiles. The shared placement had lower median tails in all
+four groups. Only Windows shared direct-dispatch P99 met the
+repeatability limit. The end-to-end tail and strict release gates
+remain open.
+
+Three superseded MQTT attempts were retired after preserving and
+replaying their journals. The Windows supervisor recorded an
+incomplete run after its old client exited. The two older Ubuntu
+units were stopped after their process identities were checked.
+
+| Superseded attempt | Final verified awake seconds | Verified rounds |
+| --- | ---: | ---: |
+| Windows aaf7e364 | 4,172 | 266,698 |
+| Ubuntu 9ce2606c | 44,721 | 13,052,308 |
+| Ubuntu 19301c31 | 3,371 | 922,778 |
+
+The four primary Redis and MQTT attempts passed running-prefix
+replay after the retirement. Their original 72-hour intervals
+continue. The runtime archive and source replay are under
+out/service-extensions/xmqtt-client-flags-1d72ea34/. The xrpc inputs,
+traces and replays are under out/service-extensions/
+xrpc-worker-affinity-88fa1f09/ and xrpc-sustained-afd8cd9a/.
+The retired journals are under out/service-extensions/
+superseded-mqtt-20261125-0310/.
