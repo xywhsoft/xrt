@@ -61,6 +61,8 @@ def normal(peer):
 
 
 MODES = {"duplex": "--serve", "dispatch": "--dispatch-only"}
+APP_PEER_LIMIT = 32
+BACKPRESSURE_CALLS_PER_PEER = 128
 
 
 def requests(count, depth, first=1):
@@ -131,10 +133,18 @@ def dispatch_cases(executable):
         assert failed == 1 and report is None
         reset, report = multi_exchange(executable, mode, 2, 1, backpressured_peer)
         assert reset == 1 and report is None
+        reset, report = multi_exchange(executable, mode, APP_PEER_LIMIT, 1, backpressured_peer)
+        assert reset == 1 and report is None
+        oversized = subprocess.run([executable, mode, str(APP_PEER_LIMIT + 1), "1"],
+                                   capture_output=True, timeout=5)
+        assert oversized.returncode == 2 and not oversized.stdout
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 9, "modes": list(MODES), "replies_per_mode": 135, "max_record_bytes": 4096,
+    return {"cases_per_mode": 11, "modes": list(MODES), "replies_per_mode": 135, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
-            "backpressure_isolation_replies_per_mode": 256, "escaped_method": True, "ok": True}
+            "backpressure_isolation_replies_per_mode": 2 * BACKPRESSURE_CALLS_PER_PEER,
+            "capacity_backpressure_isolation_replies_per_mode": 2 * (APP_PEER_LIMIT - 1) * BACKPRESSURE_CALLS_PER_PEER,
+            "capacity_peers": APP_PEER_LIMIT, "oversized_peer_count_rejected": True,
+            "escaped_method": True, "ok": True}
 
 
 def sample(executable, mode, warmup, batches, calls):
@@ -257,7 +267,7 @@ def malformed_peer(peers):
 
 
 def backpressured_peer(peers):
-    stalled, healthy = peers
+    stalled, *healthy = peers
     stalled.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
     stalled.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
     payload = "x" * 3000
@@ -286,21 +296,29 @@ def backpressured_peer(peers):
             sent += count
         raise AssertionError("failed to fill the slow peer's TCP windows")
 
-    fill()
-    assert select.select([stalled], [], [], 5)[0], "slow peer has no queued replies"
-    assert stalled.recv(1, socket.MSG_PEEK) == b"{", "slow peer closed before isolation check"
-    with healthy.makefile("rb") as stream:
-        wire, replies = next(requests(128, 128))
-        list(checked_batch(healthy, stream, wire, replies))
+    def receive(index, after_reset):
+        peer = healthy[index]
+        count = BACKPRESSURE_CALLS_PER_PEER
+        first = (2 * index + int(after_reset)) * count + 1
+        wire, replies = next(requests(count, count, first))
+        with peer.makefile("rb") as stream:
+            list(checked_batch(peer, stream, wire, replies))
+            if after_reset:
+                peer.shutdown(socket.SHUT_WR)
+                assert stream.read(1) == b"", "healthy peer did not retire after reset"
+
+    indices = range(len(healthy))
+    with ThreadPoolExecutor(max_workers=len(healthy)) as pool:
+        fill()
+        assert select.select([stalled], [], [], 5)[0], "slow peer has no queued replies"
+        assert stalled.recv(1, socket.MSG_PEEK) == b"{", "slow peer closed before isolation check"
+        list(pool.map(lambda index: receive(index, False), indices))
         fill()
         # SO_LINGER uses two shorts on Winsock and two ints on POSIX.
         linger = struct.pack("@HH" if os.name == "nt" else "@ii", 1, 0)
         stalled.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger)
         stalled.close()
-        wire, replies = next(requests(128, 128, first=129))
-        list(checked_batch(healthy, stream, wire, replies))
-        healthy.shutdown(socket.SHUT_WR)
-        assert stream.read(1) == b"", "healthy peer did not retire after reset"
+        list(pool.map(lambda index: receive(index, True), indices))
 
 
 def percentiles(samples, prefix):
@@ -930,7 +948,7 @@ def main():
             parser.error("observer shards need distinct CPUs and at least one connection each")
         if not all(1 <= rate <= 100000 and args.calls <= rate * 15 for rate in args.rates):
             parser.error("saturation offers must fit a 15 second horizon at each rate")
-        if not (1 <= args.connections <= 32 and 1 <= args.workers <= 8 and 1 <= args.window_batches <= 64):
+        if not (1 <= args.connections <= APP_PEER_LIMIT and 1 <= args.workers <= 8 and 1 <= args.window_batches <= 64):
             parser.error("saturation allows 1..32 connections, 1..8 workers and 1..64 batches in flight")
     for cpus in (args.cpus, args.app_cpus):
         if cpus and not all(0 <= index < 64 for index in cpus):

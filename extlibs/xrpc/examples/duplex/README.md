@@ -55,11 +55,12 @@ use the shared defines and system libraries in `packages.json`.
 Run the independent peer driver without timing options to exercise staggered
 connections, real TCP backpressure and peer reset. The staggered case
 verifies all replies and EOF on the first connection before opening the second.
-The backpressure case shares one executor worker across two connections.
-The driver leaves one connection's large replies unread until its send window
-stalls. It verifies 128 ordered replies on the healthy connection, fills the
-slow connection again, and resets it with zero linger. The healthy connection
-completes another 128 replies and retires cleanly. Both APP modes run this case.
+The backpressure case shares one executor worker across two and then 32
+connections. The driver leaves one connection's large replies unread until its
+send window stalls. It verifies 128 ordered replies on each healthy connection,
+fills the slow connection again, and resets it with zero linger. Each healthy
+connection completes another 128 replies and retires cleanly. Both APP modes
+run these cases and reject requests to serve 33 connections.
 
 ```sh
 python extlibs/xrpc/tests/interop/run_tcp_worker.py out/gcc/native/xrpc_examples/examples_tcp_worker_main out/xrpc-tcp-peer.json
