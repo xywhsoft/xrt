@@ -27478,3 +27478,41 @@ its pinned runtime DLLs.
 
 Inputs and replay are under out/service-extensions/xmqtt-tls-workers-d5b26ff1/
 and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-workers-d5b26ff1/.
+
+## 2026-11-24 Completed xcron recovery cohorts at 1,024 waves
+
+Windows and the Ubuntu QEMU/WHPX guest each completed
+20 processes and 11,141,120 verified callbacks. Both
+hosts alternated Scheduler Wait and the direct precise
+XRT waiter for five pairs per job mix. The replay
+checked the recovered binary and runner identities,
+callback counts, all 40,960 wave records and both
+pooled and per-process quantiles.
+
+The table gives end-to-end lateness of the final
+callback for the 1,024-active mix, in milliseconds.
+
+| Host | Drive | Median process P99 | Median process P99.9 | Pooled P99.9 |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Scheduler Wait | 1.908 | 7.139 | 7.139 |
+| Windows | Direct precise waiter | 2.781 | 9.879 | 30.306 |
+| Ubuntu guest | Scheduler Wait | 0.488 | 1.836 | 2.378 |
+| Ubuntu guest | Direct precise waiter | 0.629 | 1.611 | 7.763 |
+
+Both job mixes exceeded the P99 and P99.9 first and
+last callback variation limits on both hosts. At
+1,024 active jobs, the first callback was already at
+least 1 ms late in 326 of 351 such Windows scheduler
+waves and 12 of 14 such Ubuntu scheduler waves. The
+other waves in those counts first crossed 1 ms during
+callback dispatch.
+
+The measured scheduler inputs predate 5df4bc29.
+The separate 256-wave campaigns on the current
+scheduler began after these recovery cohorts retired.
+Strict release timing remains open.
+
+Windows build and journal are under
+out/service-extensions/xcron-p999-0020e637/. The
+Ubuntu journal and host replay are under
+out/service-extensions/linux-guest-9ce2606c/xcron-recovery-complete-20261124/.
