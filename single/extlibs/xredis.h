@@ -4075,8 +4075,7 @@ typedef struct xredisreaderlevel {
 	uint64 Remaining;
 	uint64 Seen;
 	xredisreplytype Type;
-	uint32 Flags;
-	bool Attributes;
+	bool Streamed, Attributes;
 } xredisreaderlevel;
 
 typedef struct xredisreaderparse {
@@ -4269,7 +4268,7 @@ static bool xredisReaderType(xredisreader* Reader, unsigned char Byte)
 		if (Parent->Type == XREDIS_REPLY_PUSH && Parent->Seen == 0 &&
 			Type != XREDIS_REPLY_SIMPLE_STRING && Type != XREDIS_REPLY_BULK_STRING)
 			return xredisReaderFail(Reader, XERR_PROTOCOL, XREDIS_READER_PROTOCOL, "push kind must be a string");
-		if ((Parent->Flags & XREDIS_REPLY_STREAMED) &&
+		if (Parent->Streamed &&
 			(xredisReaderPairs(Parent->Type) ? Parent->Seen / 2u : Parent->Seen) >= Reader->Config.MaxContainerItems)
 			return xredisReaderFail(Reader, XERR_RANGE, XREDIS_READER_LIMIT, "streamed aggregate item limit exceeded");
 	}
@@ -4499,10 +4498,11 @@ XREDIS_API xredisreadstatus xredisReaderFeed(xredisreader* Reader,
 			if (P->Current.Flags & XREDIS_REPLY_NULL_VALUE) P->State = XREDIS_RS_END;
 			else if (xredisReaderAggregate(P->Current.Type)) {
 				xredisreaderlevel* Level = &Reader->Stack[P->Depth++];
-				*Level = (xredisreaderlevel){0}; Level->Type = P->Current.Type; Level->Flags = P->Current.Flags;
-				Level->Remaining = (Level->Flags & XREDIS_REPLY_STREAMED) ? 0 :
+				*Level = (xredisreaderlevel){0}; Level->Type = P->Current.Type;
+				Level->Streamed = (P->Current.Flags & XREDIS_REPLY_STREAMED) != 0;
+				Level->Remaining = Level->Streamed ? 0 :
 					(xredisReaderPairs(Level->Type) ? P->Current.Length * 2u : P->Current.Length);
-				P->State = !(Level->Flags & XREDIS_REPLY_STREAMED) && Level->Remaining == 0 ? XREDIS_RS_END_CONTAINER : XREDIS_RS_TYPE;
+				P->State = !Level->Streamed && Level->Remaining == 0 ? XREDIS_RS_END_CONTAINER : XREDIS_RS_TYPE;
 			} else {
 				P->Remaining = P->Current.Length;
 				P->State = (P->Current.Flags & XREDIS_REPLY_STREAMED) ? XREDIS_RS_CHUNK :
@@ -4514,7 +4514,7 @@ XREDIS_API xredisreadstatus xredisReaderFeed(xredisreader* Reader,
 		if (P->State == XREDIS_RS_END_CONTAINER) {
 			xredisreaderlevel* Level = &Reader->Stack[--P->Depth];
 			P->Current = (xredisreadevent){0}; P->Current.Type = Level->Type;
-			P->Current.Flags = Level->Flags; P->Current.Depth = P->Depth;
+			P->Current.Flags = Level->Streamed ? XREDIS_REPLY_STREAMED : 0; P->Current.Depth = P->Depth;
 			P->Current.Length = xredisReaderPairs(Level->Type) ? Level->Seen / 2u : Level->Seen;
 			P->State = XREDIS_RS_END; continue;
 		}
@@ -4534,7 +4534,7 @@ XREDIS_API xredisreadstatus xredisReaderFeed(xredisreader* Reader,
 			else {
 				xredisreaderlevel* Parent = &Reader->Stack[P->Depth - 1u];
 				++Parent->Seen; Parent->Attributes = false;
-				if (!(Parent->Flags & XREDIS_REPLY_STREAMED) && --Parent->Remaining == 0) P->State = XREDIS_RS_END_CONTAINER;
+				if (!Parent->Streamed && --Parent->Remaining == 0) P->State = XREDIS_RS_END_CONTAINER;
 				else P->State = XREDIS_RS_TYPE;
 			}
 			continue;
@@ -4553,7 +4553,7 @@ XREDIS_API xredisreadstatus xredisReaderFeed(xredisreader* Reader,
 		switch (P->State) {
 			case XREDIS_RS_TYPE:
 				if (Byte == '.') {
-					if (P->Depth == 0 || !(Reader->Stack[P->Depth - 1u].Flags & XREDIS_REPLY_STREAMED) ||
+					if (P->Depth == 0 || !Reader->Stack[P->Depth - 1u].Streamed ||
 						Reader->Stack[P->Depth - 1u].Attributes ||
 						(xredisReaderPairs(Reader->Stack[P->Depth - 1u].Type) && (Reader->Stack[P->Depth - 1u].Seen & 1u))) {
 						xredisReaderFail(Reader, XERR_PROTOCOL, XREDIS_READER_PROTOCOL, "invalid streamed aggregate terminator or orphan attributes"); goto failed;
