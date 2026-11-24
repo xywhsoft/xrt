@@ -27774,3 +27774,47 @@ Prototypes, launchers, source fingerprints, raw trial summaries and
 replay are under out/service-extensions/xrpc-host-token-tree-026d8361/,
 out/service-extensions/xrpc-host-token-slots-026d8361/ and the
 matching directories in out/service-extensions/linux-guest-9ce2606c/.\n
+
+## 2026-11-24 TCP replay before and after indexed xrpc replies
+
+The copied APP sources, XRT, native observer and compiler flags
+matched within each comparison. The executable selected the xrpc
+single header from 026d8361 or 4f2003eb. Two native observer shards
+sent staggered fixed arrivals in batches of eight with a 16-batch
+window. The TCP APP used two executor workers and up to 32 peers.
+Its owner waits for each peer's outstanding job before taking the
+next record. The in-process slot-depth gains therefore have a
+different workload from this APP.
+
+Windows and the Ubuntu QEMU/WHPX guest each completed all 60 trials.
+The replay checked the executable, source and compressed trace
+identities and independently calculated the quantiles. Each host
+verified 5,120,000 measured replies and all APP request ledgers.
+All throughput series met repeatability. Every duplex P99 and
+P99.9 series exceeded its variation limits on both hosts.
+
+| Host | Offers/s and peers | Duplex replies/s before and after | Duplex P99 before and after (ms) | Duplex P99.9 before and after (ms) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | 32,000 and 8 | 32,000 / 32,000 | 0.412 / 0.383 | 2.935 / 1.659 |
+| Windows | 32,000 and 32 | 32,000 / 32,001 | 0.288 / 0.296 | 0.432 / 0.552 |
+| Windows | 64,000 and 32 | 63,994 / 63,992 | 0.521 / 1.651 | 2.277 / 4.652 |
+| Ubuntu guest | 32,000 and 8 | 31,989 / 31,993 | 2.338 / 2.271 | 3.883 / 3.596 |
+| Ubuntu guest | 32,000 and 32 | 31,974 / 31,985 | 2.747 / 2.793 | 4.649 / 4.386 |
+| Ubuntu guest | 64,000 and 32 | 63,934 / 63,916 | 5.282 / 4.925 | 8.593 / 8.010 |
+
+The direct-dispatch reference also varied. At 64,000 offers/s the
+Windows P99 median moved from 2.415 to 0.628 ms for that reference
+while duplex moved in the other direction. These results establish
+delivery and throughput for the tested APP. Release acceptance
+still needs a repeatable end-to-end tail comparison.
+
+The three one-job APP examples now set MaxIncoming to one in
+58b79de4. This reduces their x64 index reservation by 1,008 bytes
+per endpoint compared with the 64-slot default used in the runs
+above. The modified examples built and ran on both hosts. The
+independent peers checked 11 TCP cases in each mode, one
+duplex-only case and 10 stdio cases on both hosts.
+
+Sources, binaries, traces and peer reports are under
+out/service-extensions/xrpc-tcp-host-slots-4f2003eb/ and its
+corresponding directory in out/service-extensions/linux-guest-9ce2606c/.
