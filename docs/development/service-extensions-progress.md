@@ -28513,3 +28513,47 @@ qualification interval starts at zero.
 The systemd events, package versions, interrupted journals, and fresh
 Windows receipts are under out/service-extensions/after-ubuntu-apt-20261124-1439/.
 The fresh guest attempts are under /home/ubuntu/service-recovery-20261124-0639/.
+
+
+## 2026-11-24 MQTT reliable-only fan-out and mixed QoS refusal
+
+The independent TLS fixture now combines a regular QoS 2 subscriber
+with a shared QoS 0 subscriber on the same topic. Both negative PUBRECs
+are followed by a PING barrier on the QoS 0 connection. The barrier
+verifies that refused publishes never reached that subscription. The
+fixture then verifies an independent best-effort-only publication, the
+shared delivery after PUBCOMP restores credit, and all 257 ordered
+reliable deliveries. Stock and prototype reports agree on Windows and
+the Ubuntu QEMU/WHPX guest. The guest also ran the prototype with ASan,
+UBSan and leak checking. The canonical Windows modular APP passed the
+committed peer fixture.
+
+A prototype skipped a second subscriber walk when reliable reservations
+were complete and the selected delivery modes contained no QoS 0 routes.
+Both versions used two broker workers, the same buffered observer,
+authenticated TLS 1.3, MQTT 5 QoS 2, four publishers, eight wildcard
+subscribers, 128-byte payloads and send and receive windows of 16.
+Five balanced repeats offered 12,000, 20,000 or 30,000 publications per
+trial. Independent replay verified the input identities, 64 trials
+including pilots, and 9,782,400 deliveries in complete trials.
+
+| Host | Offers/s | Complete stock / prototype | Confirmations/s stock / prototype | Delivery P99 stock / prototype (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 5/5 and 5/5 | 2,000 / 2,000 | 11.306 / 8.027 |
+| Windows | 4,000 | 5/5 and 5/5 | 3,999 / 3,999 | 5.570 / 3.655 |
+| Windows | 6,000 | 4/5 and 5/5 | 5,999 / 5,999 | 6.496 / 3.947 |
+| Ubuntu guest | 2,000 | 5/5 and 5/5 | 2,000 / 2,000 | 4.964 / 4.624 |
+| Ubuntu guest | 4,000 | 5/5 and 5/5 | 3,450 / 3,618 | 788.186 / 528.848 |
+| Ubuntu guest | 6,000 | 5/5 and 5/5 | 4,069 / 3,847 | 2,346.474 / 2,771.536 |
+
+The incomplete Windows stock trial received quota reason 0x97 after
+22,053 confirmed offers. The Linux 6,000/s prototype had a paired median
+of 3.3% lower confirmation throughput, 10.7% higher P99 and 11.5% higher
+P99.9. No delivery P99 or P99.9 series met repeatability. These results
+support the mixed-QoS regression test and leave the route optimization
+as an unshipped prototype. TLS saturation and release-tail qualification
+remain open.
+
+Source receipts, builds, independent peer reports and replays are under
+out/service-extensions/xmqtt-route-classes-97a17d31/ and the matching
+directory under out/service-extensions/linux-guest-9ce2606c/.
