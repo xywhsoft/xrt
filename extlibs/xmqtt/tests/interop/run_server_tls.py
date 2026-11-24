@@ -139,14 +139,15 @@ def verify_quota_recovery(endpoint, context):
     blocked, healthy = b"tls/blocked", b"tls/healthy"
     with ExitStack() as stack:
         peers = []
-        for name, receive_maximum in ((b"quota-slow", 1), (b"quota-fast", None), (b"quota-publisher", None)):
+        for name, receive_maximum in ((b"quota-slow", 1), (b"quota-fast", None),
+                                      (b"quota-publisher", None), (b"quota-optional", None)):
             raw = stack.enter_context(socket.create_connection(endpoint, timeout=10))
             peer = stack.enter_context(context.wrap_socket(raw, server_hostname="localhost"))
             mqtt_connect(peer, name, receive_maximum=receive_maximum)
             connack(peer)
             assert receive(peer) == (0xd0, b"")
             peers.append(peer)
-        slow, fast, producer = peers
+        slow, fast, producer, optional = peers
         for peer, name in ((slow, blocked), (fast, healthy)):
             peer.sendall(small_frame(0x82, b"\0\1\0" + topic(name) + b"\2"))
             assert receive(peer) == (0x90, b"\0\1\0\2")
@@ -154,18 +155,29 @@ def verify_quota_recovery(endpoint, context):
         for number in range(1, capacity + 1):
             publish_qos2(producer, blocked, number, number.to_bytes(2, "big"))
         first = receive_qos2(slow, blocked, b"\0\1")
+        shared = b"$share/quota/" + blocked
+        optional_only = b"tls/optional-only"
+        optional.sendall(small_frame(0x82, b"\0\1\0" + topic(shared) + b"\0" +
+                                     topic(optional_only) + b"\0"))
+        assert receive(optional) == (0x90, b"\0\1\0\0\0")
+
         retry = capacity + 1
         publish_qos2(producer, blocked, retry, b"refused", quota=True)
+        ping((optional,))
         publish_qos2(producer, healthy, retry + 1, b"healthy")
         finish_qos2(fast, receive_qos2(fast, healthy, b"healthy"))
 
         slow.sendall(small_frame(0x50, first))
         assert receive(slow) == (0x62, first)
         publish_qos2(producer, blocked, retry, b"still refused", quota=True)
+        ping((optional,))
+        publish_qos2(producer, optional_only, retry + 2, b"best effort only")
+        assert receive(optional) == (0x30, topic(optional_only) + b"\0best effort only")
         slow.sendall(small_frame(0x70, first))
         second = receive_qos2(slow, blocked, b"\0\2")
 
         publish_qos2(producer, blocked, retry, b"retried")
+        assert receive(optional) == (0x30, topic(blocked) + b"\0retried")
         finish_qos2(slow, second)
         for number in range(3, capacity + 1):
             finish_qos2(slow, receive_qos2(slow, blocked, number.to_bytes(2, "big")))
@@ -173,7 +185,8 @@ def verify_quota_recovery(endpoint, context):
         ping(peers)
         for peer in peers:
             finish(peer)
-    return {"quota_refusals": 2, "other_topic_deliveries": 1, "ordered_recovered_deliveries": capacity + 1}
+    return {"quota_refusals": 2, "other_topic_deliveries": 1, "ordered_recovered_deliveries": capacity + 1,
+            "shared_qos0_after_recovery": 1, "best_effort_only": 1}
 
 
 
