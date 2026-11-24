@@ -27428,3 +27428,53 @@ reply prefix before EOF or reset.
 
 Evidence is under out/service-extensions/xrpc-tcp-record-view-c1595811/
 and out/service-extensions/linux-guest-9ce2606c/xrpc-tcp-record-view-c1595811/.
+
+## 2026-11-24 MQTT QoS 2 TLS with two broker CPUs
+
+Windows and the Ubuntu QEMU/WHPX guest compared xmqtt
+with one or two network workers against Mosquitto 2.1.2.
+Both brokers used the same two-CPU budget. Four
+publishers and eight subscribers used MQTT 5, QoS 2,
+128-byte payloads, window 16 and authenticated TLS 1.3.
+The same fixed-arrival observer used two CPUs and one
+TLS engine worker. Existing TLS APP arguments passed
+the independent MQTT 3.1.1 and 5.0 peer tests on both
+platforms. Both two-worker pilots completed, verifying
+115,200 deliveries over 144 authenticated connections.
+
+Each platform attempted 60 measured trials. The
+2,000/s shared-group profiles completed all 20 trials
+per platform. Replays checked 240,000 terminal
+publication confirmations and 480,000 deliveries
+across the two hosts. The matched medians below are
+for five complete trials per series, in milliseconds.
+
+| Host | xmqtt workers | Delivery P99 xmqtt / Mosquitto | Delivery P99.9 xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: |
+| Windows | 1 | 1.521 / 1.808 | 5.385 / 3.438 |
+| Windows | 2 | 2.517 / 2.647 | 6.098 / 8.435 |
+| Ubuntu guest | 1 | 1.514 / 1.517 | 4.266 / 1.961 |
+| Ubuntu guest | 2 | 1.519 / 1.541 | 3.340 / 3.668 |
+
+Every ingress series in the table met repeatability.
+Only one delivery P99 series met it, and every P99.9
+series exceeded the variation limits. Both fan-out
+profiles, at 4,000 and 8,000 offers per second, had
+eight wildcard recipients. All 40 attempts per host
+were incomplete. Every xmqtt failure returned PUBREC
+reason 0x97. Every Mosquitto failure logged outgoing
+message drops. Partial counts remain in their trial
+records. The shared profiles and the one-worker
+observer leave the broker's TLS saturation point open.
+
+The first Windows interoperability setup passed the
+wrong trust anchor to the legacy fixture and omitted
+the optional 3.1.1 codec from the build. The final
+interop uses its own self-signed fixture and the
+registered example's codec selection. The comparison
+uses the same temporary CA and signed leaf for both
+brokers on each host. The Windows reference ran with
+its pinned runtime DLLs.
+
+Inputs and replay are under out/service-extensions/xmqtt-tls-workers-d5b26ff1/
+and out/service-extensions/linux-guest-9ce2606c/xmqtt-tls-workers-d5b26ff1/.
