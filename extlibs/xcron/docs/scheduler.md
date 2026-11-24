@@ -136,8 +136,9 @@ It saves each verified process immediately, including raw wave readings,
 count, affinity and benchmark binary identity. Its summaries report pooled
 P50/P95/P99/P99.9 and the variation across per-process P99 values.
 The default is five 256-wave processes per drive and job mix.
-For a shorter verification, set `--waves 2 --repeats 1`. A completed
-report describes the environment that ran it. Use an independent native
+For a shorter verification, set `--waves 2 --repeats 1`. Use
+`--active-tasks 64` or `--active-tasks 1024` to measure one job mix in
+its own journal. A completed report describes the environment that ran it. Use an independent native
 Linux run for acceptance.
 
 The Service extensions workflow exposes the same full campaign through its

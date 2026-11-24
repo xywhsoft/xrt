@@ -123,22 +123,26 @@ def main():
     parser.add_argument("--report", type=Path, required=True, help="new JSON Lines evidence file")
     parser.add_argument("--waves", type=int, default=256)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--active-tasks", type=int, choices=tuple(active for active, _ in COHORTS),
+                        help="run only the job mix with this many active tasks")
     parser.add_argument("--require-wait-phases", action="store_true",
                         help="reject runs without at least one measured wait call")
     args = parser.parse_args()
     if not 0 <= args.cpu < 1024 or not 1 <= args.waves <= 1024 or args.repeats < 1:
         parser.error("expected CPU in 0..1023, 1..1024 waves and at least one repeat")
 
+    cohorts = tuple(mix for mix in COHORTS if args.active_tasks in (None, mix[0]))
     program = args.program.resolve(strict=True)
     identity = sha256(program.read_bytes()).hexdigest()
     runner = sha256(Path(__file__).read_bytes()).hexdigest()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("x", encoding="utf-8") as report:
         append(report, "start", platform=platform.platform(), program=str(program), binary_sha256=identity,
-               runner_sha256=runner, cpu=args.cpu, waves=args.waves, repeats=args.repeats)
+               runner_sha256=runner, cpu=args.cpu, waves=args.waves, repeats=args.repeats,
+               cohorts=cohorts)
         total = 0
         try:
-            for active, dormant in COHORTS:
+            for active, dormant in cohorts:
                 rows = {drive: [] for drive in DRIVES}
                 for repeat in range(args.repeats):
                     order = DRIVES if repeat % 2 == 0 else reversed(DRIVES)
