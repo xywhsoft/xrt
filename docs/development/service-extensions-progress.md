@@ -28951,3 +28951,54 @@ traces and replays are under out/service-extensions/
 xrpc-worker-affinity-88fa1f09/ and xrpc-sustained-afd8cd9a/.
 The retired journals are under out/service-extensions/
 superseded-mqtt-20261125-0310/.
+
+
+## 2026-11-25 Redis fixed-arrival credit comparison
+
+The current xredis TCP observer and the pinned Hiredis 1.3.0
+observer ran at 12,000 offers/s with eight RESP3 connections and
+1 KiB binary GET/SET values. Both clients used the same
+observer credit window for a trial. The campaign rotated windows
+of 32, 64, and 128, with one one-second warmup and five
+four-second measured trials per observer and window. xredis used
+two network workers. Hiredis used its single event loop. Each
+host used one separate Redis 8.0.5 peer for the whole campaign.
+Windows ran its observers on CPUs 6 and 8 through a private SSH
+forward to the guest peer. Ubuntu used guest-local epoll with
+observer CPUs 2 and 3 and Redis on CPU 0. The initial 512-slot
+pilot exposed the observer's 128-request in-flight cap and was
+retired before the corrected campaign.
+
+Independent replay matched the executable and Hiredis identities,
+all 72 trials, and the Redis command ledgers. It recomputed all
+16 latency quantiles for each trial from 3,024,000 scheduled offers,
+including the warmups. Windows verified 1,511,048 replies and
+Ubuntu verified 1,511,452. The other 1,500 offers were refused
+at the observer credit limit. Every accepted reply reconciled.
+
+| Host | Window | Complete measured trials xredis / Hiredis | P99 xredis / Hiredis (ms) |
+| --- | ---: | ---: | ---: |
+| Windows | 32 | 1/5 and 3/5 | 0.971 / 0.832 |
+| Windows | 64 | 4/5 and 5/5 | 0.997 / 0.915 |
+| Windows | 128 | 5/5 and 5/5 | 1.045 / 0.881 |
+| Ubuntu guest | 32 | 2/5 and 2/5 | 0.662 / 0.161 |
+| Ubuntu guest | 64 | 3/5 and 3/5 | 0.686 / 0.262 |
+| Ubuntu guest | 128 | 5/5 and 5/5 | 0.680 / 0.156 |
+
+The table uses per-observer medians from complete trials. At 128
+all four throughput series met repeatability near 12,000 replies/s.
+The separate per-trial xredis/Hiredis ratios give median P99 ratios
+of 1.035 on Windows and 4.401 on Ubuntu. The corresponding P99.9
+ratios were 1.183 and 3.032. Every tail series and paired tail
+ratio exceeded the variation limits. Median CPU cost per verified
+reply, including the generator, was 1.219 times Hiredis on Windows
+and 1.421 times on Ubuntu, with both paired ratios repeatable.
+In the xredis 128-credit series the median generator share of the
+slowest one percent was 1.82 percent on Windows and 1.04 percent on
+Ubuntu. The interval after submission includes the server, transport,
+and reply observation. Strict release performance remains open.
+
+All four primary Redis and MQTT endurance journals passed
+running-prefix replay during the campaign. The source receipts,
+builds, raw offers and independent replays are under
+out/service-extensions/xredis-credit-1f304619/.
