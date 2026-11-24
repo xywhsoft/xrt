@@ -27041,3 +27041,42 @@ long-run late waves open. The long qualification
 cohorts remain separate. Raw timer timestamps, pulse
 records and replay are under
 out/service-extensions/xcron-win-ready-5dbd94e6/.
+
+## 2026-11-24 Native Windows xrpc TCP capacity and peer reset
+
+The xrpc TCP APP and its direct-dispatch control used
+the same binaries as the request-phase campaign. No
+APP or library source changed from their build. Each
+run used two native observer shards, two XRT executor
+workers, and 8, 16 or 32 TCP peers. The observer
+offered 32,000 or 64,000 calls per second in staggered
+batches of eight through a 16-batch per-peer window.
+Each offered rate ran for two seconds. Observer CPUs
+were 8 and 10, and APP CPUs were 0 and 2.
+
+Independent replay checked the raw traces and matched
+every sequence and APP ledger. All 60 trials completed
+and all 5,760,000 replies were verified. Throughput
+stayed within the repeatability limit in each series.
+Every P99 and P99.9 series exceeded the variation
+limits. The 32-peer results below are medians of five
+trials per mode and offered rate.
+
+| Offers/s | Mode | Verified replies/s | P99 (ms) | P99.9 (ms) |
+| ---: | --- | ---: | ---: | ---: |
+| 32,000 | Duplex | 32,000 | 4.501 | 8.282 |
+| 32,000 | Direct dispatch | 32,001 | 5.098 | 9.047 |
+| 64,000 | Duplex | 63,992 | 7.521 | 11.583 |
+| 64,000 | Direct dispatch | 63,999 | 4.807 | 10.679 |
+
+A separate run used one executor worker and filled
+one peer's unread reply path. Each mode returned
+3,968 exact replies across the other 31 peers before
+the stalled peer reset and another 3,968 afterwards.
+All 31 healthy peers observed EOF during retirement.
+The APP reported the failed peer through exit code 1
+and rejected a request to serve 33 peers with exit
+code 2. The 32-peer cap belongs to this APP example.
+
+Run inputs, raw records, independent replay and reset
+results are under out/service-extensions/xrpc-capacity-255c0e43/.
