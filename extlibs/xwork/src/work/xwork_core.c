@@ -881,6 +881,9 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
     xworkErrorInit(&PolicyError);
     if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
+    /* A synchronous delegate must eventually return to its supervisor. */
+    if (Agent->bSynchronousDelegation && Context.bRecoveryWaiting)
+        return false;
     xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
     xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
     Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";
@@ -912,7 +915,7 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     return true;
 }
 
-bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
+bool xwork__checkpoint(xwork_agent *pAgent, xwork_error *pError)
 {
     xllm_error tError;
     uint32_t Attempt=0;
@@ -934,6 +937,25 @@ retry_checkpoint:
         return false;
     }
     return true;
+}
+
+bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
+{
+    if (!pAgent || !pAgent->bAutoSaveSession || !pAgent->sSessionPath || !pAgent->sSessionPath[0])
+        return true;
+    const char *sJournal = xllmSessionJournalPath(pAgent->pSession);
+    xllm_session_config tConfig;
+    xllm_session_state eState = xllmSessionGetState(pAgent->pSession);
+    xfileinfo tInfo;
+    /* In-flight turns/results are individually flushed. Keep that journal
+     * until a boundary or a bounded size calls for rolling it into a snapshot.
+     * Append-only callers still get the existing full autosave barrier. */
+    if (sJournal && xllmSessionGetConfig(pAgent->pSession, &tConfig) &&
+        tConfig.eJournalDurability == XLLM_SESSION_DURABILITY_FLUSH &&
+        eState != XLLM_SESSION_STATE_RECOVERY_REQUIRED && eState != XLLM_SESSION_STATE_CORRUPT &&
+        xrtPathStat(sJournal, true, &tInfo) && tInfo.Size < 1024u * 1024u)
+        return true;
+    return xwork__checkpoint(pAgent, pError);
 }
 
 bool xworkAgentWaitRecovery(xwork_agent *Agent,const char *Stage,xwork_error *Error,uint32_t Attempt)

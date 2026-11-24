@@ -2490,6 +2490,7 @@ struct xwork_agent
     uint64_t uParentRunId;
     uint64_t uParentTaskId;
     uint64_t uParentAgentTurn;
+    bool bSynchronousDelegation;
     uint64_t uSubagentSequence;
     /* python persistent REPL (python tool; state lives for the agent's life) */
     xprocess *pPyProc;
@@ -2597,6 +2598,7 @@ xroot xwork__artifact_open_directory(const xwork_agent *Agent, const char *Absol
 xfile xwork__artifact_temp(xroot Directory, char Name[64]);
 void xwork__runtime_observability_unit(xwork_runtime *pRuntime);
 bool xwork__save(xwork_agent *pAgent, xwork_error *pError);
+bool xwork__checkpoint(xwork_agent *pAgent, xwork_error *pError);
 bool xwork__recover(xwork_agent*,const char*,xwork_error*,uint32_t,bool);
 const xwork_tool_entry *xwork__find_tool(const xwork_agent *pAgent, const char *sName);
 void xwork__tool_entry_unit(xwork_tool_entry *pTool);
@@ -3692,6 +3694,9 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
     xworkErrorInit(&PolicyError);
     if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
+    /* A synchronous delegate must eventually return to its supervisor. */
+    if (Agent->bSynchronousDelegation && Context.bRecoveryWaiting)
+        return false;
     xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
     xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
     Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";
@@ -3723,7 +3728,7 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     return true;
 }
 
-bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
+bool xwork__checkpoint(xwork_agent *pAgent, xwork_error *pError)
 {
     xllm_error tError;
     uint32_t Attempt=0;
@@ -3745,6 +3750,25 @@ retry_checkpoint:
         return false;
     }
     return true;
+}
+
+bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
+{
+    if (!pAgent || !pAgent->bAutoSaveSession || !pAgent->sSessionPath || !pAgent->sSessionPath[0])
+        return true;
+    const char *sJournal = xllmSessionJournalPath(pAgent->pSession);
+    xllm_session_config tConfig;
+    xllm_session_state eState = xllmSessionGetState(pAgent->pSession);
+    xfileinfo tInfo;
+    /* In-flight turns/results are individually flushed. Keep that journal
+     * until a boundary or a bounded size calls for rolling it into a snapshot.
+     * Append-only callers still get the existing full autosave barrier. */
+    if (sJournal && xllmSessionGetConfig(pAgent->pSession, &tConfig) &&
+        tConfig.eJournalDurability == XLLM_SESSION_DURABILITY_FLUSH &&
+        eState != XLLM_SESSION_STATE_RECOVERY_REQUIRED && eState != XLLM_SESSION_STATE_CORRUPT &&
+        xrtPathStat(sJournal, true, &tInfo) && tInfo.Size < 1024u * 1024u)
+        return true;
+    return xwork__checkpoint(pAgent, pError);
 }
 
 bool xworkAgentWaitRecovery(xwork_agent *Agent,const char *Stage,xwork_error *Error,uint32_t Attempt)
@@ -17566,6 +17590,18 @@ static uint64_t xwork__tool_batch_hash(const xllm_response *pResponse)
     return uHash;
 }
 
+static bool xwork__is_file_observation(const xwork_tool_entry *pTool,
+                                      const xwork_tool_batch_output *pOutput)
+{
+    if (!pTool || !pOutput->bSuccess || pOutput->iImageSize ||
+        pTool->uEffects != XWORK_TOOL_EFFECT_READ)
+        return false;
+    /* Process polling and tools with effects can repeat legitimately. Restrict
+     * the guard to the built-in file observations with stable text results. */
+    return strcmp(pTool->sName, "read") == 0 || strcmp(pTool->sName, "ls") == 0 ||
+           strcmp(pTool->sName, "glob") == 0 || strcmp(pTool->sName, "grep") == 0;
+}
+
 static uint64_t xwork__request_fingerprint(const xllm_request *pRequest)
 {
     uint64_t uHash = UINT64_C(1469598103934665603);
@@ -18779,7 +18815,7 @@ retry_compaction_commit:
             xwork__recover(pAgent,tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY?"resource":"storage",pError,++uPrepareRecoveries,true))goto retry_compaction_commit;
         goto cleanup;
     }
-    if (!xwork__save(pAgent, pError))
+    if (!xwork__checkpoint(pAgent, pError))
         goto cleanup;
     ++pRun->uCompactions;
     uContextRecoveries=0u;
@@ -18938,6 +18974,8 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
     uint64_t uUserMessageSequence = 0u;
     uint64_t uPreviousBatchHash = 0u;
     uint32_t uRepeatedBatches = 0u;
+    uint64_t uPreviousObservation = 0u;
+    uint32_t uUnchangedObservations = 0u;
     uint32_t uConsecutiveToolFailures = 0u;
     uint32_t uExtensionCompactions = 0u;
     uint32_t uVerificationPrompts = 0u;
@@ -19038,9 +19076,10 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
                              "user prompt has no durable ledger sequence");
             goto cleanup;
         }
-        if (!xwork__save(pAgent, pError))
-            goto cleanup;
     }
+    /* The next process must recover the same profile before replaying the
+     * journaled turns and results. Establish that snapshot before dispatch. */
+    if (!xwork__checkpoint(pAgent, pError)) goto cleanup;
     memset(&tEvent, 0, sizeof(tEvent));
     tEvent.eKind = XWORK_EVENT_AGENT_START;
     tEvent.uAgentTurn = uTurn;
@@ -19555,6 +19594,8 @@ retry_request_build:
         {
             bool bBatchHadSuccess = false;
             bool bFailureLimitReached = false;
+            bool bObservation = true;
+            uint64_t uObservation = uBatchHash;
             uint32_t BatchRecoveries=0;
 retry_batch_allocation:
             ;xwork_tool_batch_output *pOutputs =
@@ -19627,6 +19668,12 @@ retry_ordered_result:
                     xllmResponseDestroy(pResponse);
                     goto cleanup;
                 }
+                if (bObservation)
+                {
+                    bObservation = xwork__is_file_observation(pExecutedTool, &pOutputs[i]);
+                    uObservation = xwork__hash_bytes(uObservation, pOutputs[i].sContent);
+                    uObservation = (uObservation ^ UINT64_C(0xff)) * UINT64_C(1099511628211);
+                }
                 ++tRun.uToolCalls;
                 if (pOutputs[i].bEffectApplied && pExecutedTool &&
                     (pExecutedTool->uEffects & XWORK_TOOL_EFFECT_WORKSPACE_WRITE) != 0u)
@@ -19671,6 +19718,36 @@ retry_ordered_result:
                 uRepeatedBatches = 0u;
                 uPreviousBatchHash = 0u;
             }
+            if (!bObservation || !uUnchangedObservations || uObservation != uPreviousObservation)
+                uUnchangedObservations = bObservation ? 1u : 0u;
+            else
+                ++uUnchangedObservations;
+            uPreviousObservation = uObservation;
+            if (uUnchangedObservations == 6u)
+            {
+                uint64_t uHintTurn = xwork__begin_turn_retained(pAgent, pError);
+                if (!uHintTurn || !xllmSessionAddText(pAgent->pSession, uHintTurn, XLLM_ROLE_USER,
+                     "The same file tools returned the same data repeatedly. Use the existing "
+                     "results, inspect a different location or report what is missing. Do not "
+                     "repeat the same unchanged reads.", XLLM_SESSION_ENTRY_SYNTHETIC) ||
+                    !xwork__save(pAgent, pError))
+                {
+                    if (!pError || pError->eCode == XWORK_ERROR_NONE)
+                        xwork__set_error(pError, XWORK_ERROR_CONTEXT, "cannot save the observation-loop hint");
+                    eResult = XWORK_RESULT_ERROR;
+                    xllmResponseDestroy(pResponse);
+                    goto cleanup;
+                }
+            }
+            if (uUnchangedObservations >= 8u)
+            {
+                xwork__set_error(pError, XWORK_ERROR_LOOP_GUARD,
+                    "Task paused after repeated file reads returned unchanged results. "
+                    "Continue with a different approach or explain what should be checked.");
+                eResult = XWORK_RESULT_LIMIT;
+                xllmResponseDestroy(pResponse);
+                goto cleanup;
+            }
             if (bFailureLimitReached ||
                 (!bBatchHadSuccess && uRepeatedBatches >= pAgent->uRepeatedToolBatchLimit &&
                  uRepeatedBatches >= pAgent->uConsecutiveFailureLimit))
@@ -19698,6 +19775,10 @@ retry_ordered_result:
         bNeedNewTurn = true;
     }
 
+    if (xllmSessionJournalPath(pAgent->pSession) && !xwork__checkpoint(pAgent, pError)) {
+        eResult = XWORK_RESULT_ERROR;
+        goto cleanup;
+    }
     (void)xllmSessionGetStats(pAgent->pSession, &tRun.tFinalSessionStats);
     memset(&tEvent, 0, sizeof(tEvent));
     tEvent.eKind = XWORK_EVENT_AGENT_DONE;
@@ -19760,7 +19841,7 @@ xwork_result xwork__agent_run_claimed(xwork_agent *Agent, const char *Prompt,
         xwork_result Status = xwork__agent_extension(Agent, &Context, Error);
         if (Status != XWORK_RESULT_OK || Context.bHandled)
         {
-            if (Status == XWORK_RESULT_OK && !xwork__save(Agent, Error))
+            if (Status == XWORK_RESULT_OK && !xwork__checkpoint(Agent, Error))
                 return XWORK_RESULT_ERROR;
             return Status;
         }
@@ -21490,6 +21571,7 @@ static bool xwork__delegate_compose(xwork_delegate_args *pArgs, xwork_error *pEr
     pChild->uParentAgentTurn = pArgs->uParentTurn;
     pChild->uParentRunId = pArgs->uParentRunId;
     pChild->uParentTaskId = pArgs->pEntry ? pArgs->pEntry->uId : pArgs->pParent->uParentTaskId;
+    pChild->bSynchronousDelegation = !pArgs->pEntry;
     pChild->bAllowSubagentDelegation = pType->bAllowDelegation;
 
     xwork_agent_extension_context Extension = {0};
@@ -21806,6 +21888,7 @@ xwork_result xworkAgentRunReadOnlySubagent(xwork_agent *pParent,
                 goto cleanup;
     }
     pChild->uAgentDepth = 1u;
+    pChild->bSynchronousDelegation = true;
     pChild->uDelegationId = xwork__atomic_add_u64(&pParent->uSubagentSequence, 1u);
     pChild->uParentAgentTurn = pConfig->uParentAgentTurn;
     if (!xworkAgentRegisterBuiltinReadOnlyTools(pChild, pError))

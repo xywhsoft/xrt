@@ -525,6 +525,7 @@ struct xwork_agent
     uint64_t uParentRunId;
     uint64_t uParentTaskId;
     uint64_t uParentAgentTurn;
+    bool bSynchronousDelegation;
     uint64_t uSubagentSequence;
     /* python persistent REPL (python tool; state lives for the agent's life) */
     xprocess *pPyProc;
@@ -632,6 +633,7 @@ xroot xwork__artifact_open_directory(const xwork_agent *Agent, const char *Absol
 xfile xwork__artifact_temp(xroot Directory, char Name[64]);
 void xwork__runtime_observability_unit(xwork_runtime *pRuntime);
 bool xwork__save(xwork_agent *pAgent, xwork_error *pError);
+bool xwork__checkpoint(xwork_agent *pAgent, xwork_error *pError);
 bool xwork__recover(xwork_agent*,const char*,xwork_error*,uint32_t,bool);
 const xwork_tool_entry *xwork__find_tool(const xwork_agent *pAgent, const char *sName);
 void xwork__tool_entry_unit(xwork_tool_entry *pTool);

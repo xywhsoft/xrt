@@ -887,6 +887,7 @@ static bool xwork__delegate_compose(xwork_delegate_args *pArgs, xwork_error *pEr
     pChild->uParentAgentTurn = pArgs->uParentTurn;
     pChild->uParentRunId = pArgs->uParentRunId;
     pChild->uParentTaskId = pArgs->pEntry ? pArgs->pEntry->uId : pArgs->pParent->uParentTaskId;
+    pChild->bSynchronousDelegation = !pArgs->pEntry;
     pChild->bAllowSubagentDelegation = pType->bAllowDelegation;
 
     xwork_agent_extension_context Extension = {0};
@@ -1203,6 +1204,7 @@ xwork_result xworkAgentRunReadOnlySubagent(xwork_agent *pParent,
                 goto cleanup;
     }
     pChild->uAgentDepth = 1u;
+    pChild->bSynchronousDelegation = true;
     pChild->uDelegationId = xwork__atomic_add_u64(&pParent->uSubagentSequence, 1u);
     pChild->uParentAgentTurn = pConfig->uParentAgentTurn;
     if (!xworkAgentRegisterBuiltinReadOnlyTools(pChild, pError))
