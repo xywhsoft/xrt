@@ -173,9 +173,13 @@ typedef struct xmqttwsstate {
 } xmqttwsstate;
 #endif
 struct xmqttclient {
-    xatomic32 Refs;xmutex Gate;xnetengine* Engine;xnetworker* Worker;xnetstream* Stream;
+    xatomic32 Refs;
+    /* Keep Gate-protected writes out of the worker state word. The compiler
+     * may combine adjacent worker flag reads into a wider load. */
+    bool Posted,Started,AbortRequested;
+    xmutex Gate;xnetengine* Engine;xnetworker* Worker;xnetstream* Stream;
     xmqttclientconfig Config;xmqttclientinfo Info;xmqttquota* Quota;
-    xnetpost Post;bool Posted,Started,Stopped,ReadEnded,NativeClosed,ProblemInfo,ReceivePaused,AbortRequested,Draining,DrainClosing;
+    xnetpost Post;bool Stopped,ReadEnded,NativeClosed,ProblemInfo,ReceivePaused,Draining,DrainClosing;
     xpromise* ReadyPromise;xfuture* ReadyFuture;xcancel* ReadyCancel;xmqttreadybox* ReadyBox;
     xmqttstartup* Startup;size_t SetupOffset;xmqttpacket SetupPacket;
     xmqttproperty *SetupProps,*Props;
