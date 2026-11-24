@@ -28088,3 +28088,30 @@ Prototype sources, fixtures, raw logs and replay are under
 out/service-extensions/xmqtt-tls-output-batch-66fa4f77/
 and its corresponding Ubuntu evidence directory under
 out/service-extensions/linux-guest-9ce2606c/.
+
+
+## 2026-11-24 Current source audit of the live endurance builds
+
+The four running journals replayed against their recorded binary
+hashes and clean build receipts. The receipts pin 44 inputs across
+native Windows and the Ubuntu QEMU/WHPX guest. Host replay matched
+the recorded hashes to the labeled commits and checked each input
+against b8beefaf. It accounted for checkout line endings, including
+the mixed endings in one Windows build script.
+
+All Redis inputs match current mainline on both hosts. All
+Windows MQTT inputs match. The Ubuntu MQTT build predates
+44dd96e5, which adds readiness failure diagnostics to the mixed
+workload. The diff preserves the readiness predicate and the
+successful path. The broker, client, XRT and remaining compiled
+inputs match current mainline on both platforms.
+
+| Workload | Windows sampled awake time (s) | Ubuntu guest sampled awake time (s) |
+| --- | ---: | ---: |
+| xredis | 12,099.557 | 12,155.051 |
+| xmqtt | 17,147.216 | 29,912.298 |
+
+The sampled prefixes continue the existing intervals. The final
+72-hour reports and host awake-time proof remain required.
+The source replay and build receipts are under
+out/service-extensions/xmqtt-tls-output-threshold-b8beefaf/.
