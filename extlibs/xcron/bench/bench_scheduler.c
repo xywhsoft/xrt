@@ -290,7 +290,8 @@ static void cohortQuantiles(const char* Name, const char* Unit, xtime* Values, u
 
 static int cohort(int Argc, char** Argv)
 {
-    enum { MAX_WAVES = 1024, MAX_JOBS = 4096 };
+    /* Keep eight ranks above nearest-rank P99.9 in the longest sample. */
+    enum { MAX_WAVES = 8192, MAX_JOBS = 4096 };
     unsigned Waves, Active, Dormant;
     bool Samples = Argc == 7 && !strcmp(Argv[6], "--samples");
     if ((Argc != 6 && !Samples) || !cohortValue(Argv[2], MAX_WAVES, &Waves) || !Waves ||

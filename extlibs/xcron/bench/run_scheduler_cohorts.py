@@ -13,6 +13,7 @@ import sys
 
 
 COHORTS = ((64, 960), (1024, 0))
+MAX_WAVES = 8192
 DRIVES = ("wait", "waiter-precise")
 MEASURES = ("first_lateness", "last_lateness", "callback_span")
 TAIL_QUANTILES = (("99", 990), ("999", 999))
@@ -128,8 +129,8 @@ def main():
     parser.add_argument("--require-wait-phases", action="store_true",
                         help="reject runs without at least one measured wait call")
     args = parser.parse_args()
-    if not 0 <= args.cpu < 1024 or not 1 <= args.waves <= 1024 or args.repeats < 1:
-        parser.error("expected CPU in 0..1023, 1..1024 waves and at least one repeat")
+    if not 0 <= args.cpu < 1024 or not 1 <= args.waves <= MAX_WAVES or args.repeats < 1:
+        parser.error(f"expected CPU in 0..1023, 1..{MAX_WAVES} waves and at least one repeat")
 
     cohorts = tuple(mix for mix in COHORTS if args.active_tasks in (None, mix[0]))
     program = args.program.resolve(strict=True)
