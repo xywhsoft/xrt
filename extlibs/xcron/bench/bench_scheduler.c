@@ -264,18 +264,32 @@ static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, bool Pre
 #endif
     *Wave = (cronwave){.Count = Wave->Count};
     if (Scheduler) {
-        xcronpoll Result;
-        if (xcronSchedulerWait(Scheduler, 3000, &Result) != XCRON_SCHEDULE_DISPATCHED ||
-            Result.Count != Wave->Count || !Result.HasNext || Result.Next != Due + 1000) return false;
+        xcronpoll Result = {0};
+        xcronschedulestatus Status = xcronSchedulerWait(Scheduler, 3000, &Result);
+        if (Status != XCRON_SCHEDULE_DISPATCHED || Result.Count != Wave->Count ||
+            !Result.HasNext || Result.Next != Due + 1000) {
+            fprintf(stderr, "scheduler wave due=%lld status=%d count=%zu expected=%u has_next=%d next=%lld\n",
+                (long long)Due, (int)Status, Result.Count, Wave->Count, Result.HasNext, (long long)Result.Next);
+            return false;
+        }
     } else {
-        xtime Observed;
+        xtime Observed = 0;
         bool Ready = Precise ? waitPrecise(Waiter, Due, &Observed) : waitUntil(Waiter, Due, &Observed);
-        if (!Ready || Observed >= Due + 1000) return false;
+        if (!Ready || Observed >= Due + 1000) {
+            fprintf(stderr, "direct waiter wave due=%lld ready=%d observed=%lld precise=%d\n",
+                (long long)Due, Ready, (long long)Observed, Precise);
+            return false;
+        }
         for (unsigned Index = 0; Index < Wave->Count; ++Index) cohortCallback(&Jobs[Index]);
     }
-    return !Wave->Unexpected && Wave->Called == Wave->Count && Wave->FirstWall >= Due &&
+    bool Valid = !Wave->Unexpected && Wave->Called == Wave->Count && Wave->FirstWall >= Due &&
         Wave->LastWall >= Wave->FirstWall && Wave->LastWall < Due + 1000 && Wave->LastNs >= Wave->FirstNs &&
         cohortLateness(Due, Wave->LastWall, Wave->LastSubNs) >= cohortLateness(Due, Wave->FirstWall, Wave->FirstSubNs);
+    if (!Valid)
+        fprintf(stderr, "callback wave due=%lld called=%u expected=%u unexpected=%d first=%lld last=%lld\n",
+            (long long)Due, Wave->Called, Wave->Count, Wave->Unexpected,
+            (long long)Wave->FirstWall, (long long)Wave->LastWall);
+    return Valid;
 }
 
 static void cohortQuantiles(const char* Name, const char* Unit, xtime* Values, unsigned Count, double Scale)
@@ -333,7 +347,10 @@ static int cohort(int Argc, char** Argv)
 #endif
     for (unsigned Index = 0; Index < Waves; ++Index) {
         Due += 1000;
-        if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) return 5;
+        if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) {
+            fprintf(stderr, "cohort failed at measured wave %u of %u\n", Index + 1, Waves);
+            return 5;
+        }
         First[Index] = cohortLateness(Due, Wave.FirstWall, Wave.FirstSubNs);
         Last[Index] = cohortLateness(Due, Wave.LastWall, Wave.LastSubNs);
         Span[Index] = (xtime)(Wave.LastNs - Wave.FirstNs);
