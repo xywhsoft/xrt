@@ -29086,3 +29086,38 @@ counter snapshots as controls. Strict release performance stays open.
 
 The source receipts, native archive, traces and independent replay
 are under out/service-extensions/xredis-native-phases-136739dc/.
+
+
+## 2026-11-25 Ubuntu Redis generator and network worker placement
+
+The paired diagnostic used the previous 12,000-offer/s fixture,
+workload and two-CPU observer budget. In the shared placement the
+generator and both workers could run on CPUs 2 and 3. In the split
+placement the generator used CPU 2 and both workers used CPU 3.
+The same diagnostic binary verified the actual Linux affinity of
+the generator and each worker before timing. The stock and Hiredis
+controls stayed on the shared mask.
+
+Replay verified all 1,008,000 offers, 1,007,874 replies, 29,652 phase
+samples, and the exact Redis command ledger. One shared diagnostic
+warmup offer and 125 offers in a measured Hiredis trial hit the
+observer credit cap. The failed compile of the first affinity probe
+is archived with the corrected run.
+
+All five measured trials completed for each diagnostic placement.
+Shared and split median P99/P99.9 were 499.4/741.2 us and
+505.5/783.3 us respectively. The paired split-to-shared P99 ratio
+was 1.033 and met repeatability. The P99.9 ratio was 1.036 and
+exceeded the variation limit. In the slowest sampled percent the
+median post-to-worker-entry share was 37.8% shared and 37.6% split.
+The send-offer-to-final-reply-feed shares were 60.8% and 59.0%.
+Keep the shared placement as the comparison control. Strict
+performance acceptance remains open.
+
+The ordinary release-maturity check passed for all four products.
+Strict mode still reports developing modules in xcron (2), xrpc
+(2), xredis (29), and xmqtt (39). All four active Redis and MQTT
+endurance runs passed another running-prefix replay.
+
+The affinity build receipt, refusal records, and replay are under
+out/service-extensions/xredis-native-affinity-702f611f/.
