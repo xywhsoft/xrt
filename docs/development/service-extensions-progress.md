@@ -29043,3 +29043,46 @@ Its first child affinity was verified. The original Ubuntu
 The archived and current Windows MQTT journals, new scheduler build
 receipt, and independent replay are under
 out/service-extensions/resume-20261125-evening/.
+
+
+## 2026-11-25 Ubuntu Redis request phases at 12,000 offers/s
+
+The Ubuntu QEMU/WHPX guest alternated the current xredis observer,
+its phase probe with and without the 1 ms counter snapshots, and
+Hiredis 1.3.0. All four used eight RESP3 connections, 128 observer
+slots, and 1 KiB GET/SET values. The dedicated Redis 8.0.5 fixture
+ran on CPU 0 and the observers on CPUs 2 and 3. xredis used two
+epoll workers. Each variant ran one one-second warmup and five
+four-second measured trials. The two phase variants used the same
+binary. The observer and library inputs match the current mainline.
+
+Host replay verified all 1,008,000 replies, 24 trial and trace
+identities, 16 quantiles per trial, and the exact command ledger.
+All throughput series met repeatability near 12,000 verified
+replies/s. The table uses medians of the measured trial quantiles.
+
+| Observer | P99 (us) | P99.9 (us) | Generator and client CPU per reply (us) |
+| --- | ---: | ---: | ---: |
+| xredis | 469.3 | 690.2 | 114.14 |
+| xredis phase probe | 474.0 | 720.8 | 114.46 |
+| xredis phase probe, snapshots disabled | 473.7 | 670.2 | 114.41 |
+| Hiredis 1.3.0 | 100.9 | 183.6 | 83.25 |
+
+The paired probe-to-stock P99 ratio was 1.016 and met the
+repeatability limits. Disabling the snapshots gave a repeatable
+paired P99 ratio of 1.002. Each P99.9 series exceeded its variation
+limits. The stock xredis/Hiredis paired P99 ratio was 4.741 with
+excess variation. Its paired CPU cost ratio of 1.371 was repeatable.
+
+Replay verified 29,652 phase samples and selected the slowest one
+percent per measured trial. For those tail samples the median share
+of post-to-worker-entry was 45.0% with snapshots and 39.5% without.
+Send-offer-to-final-reply-feed accounted for 53.8% and 56.6%,
+respectively. That interval includes transport, Redis scheduling,
+and client receive dispatch. The worker gate and dequeue together
+were below 0.04% in each variant. This trace supports testing worker
+placement and receive dispatch while keeping the client gate and
+counter snapshots as controls. Strict release performance stays open.
+
+The source receipts, native archive, traces and independent replay
+are under out/service-extensions/xredis-native-phases-136739dc/.
