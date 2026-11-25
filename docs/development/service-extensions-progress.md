@@ -29164,3 +29164,45 @@ Strict end-to-end performance remains open.
 
 The build identities, initial attempt, raw traces and exact replay
 are under out/service-extensions/xredis-wire-release-7130687e/.
+
+
+## 2026-11-25 xrpc TCP APP short reply sends
+
+The control writes each reply and newline as two spans in one
+scatter send. The scratch variant copies replies shorter than
+128 bytes and their newline into a small stack buffer for one
+ordinary send. It preserves the large-reply path and the bounded
+host executor in both APP modes.
+
+The independent TCP peer passed for both builds on Windows and the
+Ubuntu QEMU/WHPX guest, including batch framing, peer reset and
+backpressure isolation at 32 peers. A separate exact-byte check
+covered replies of 126, 127, 128, 129 and 4,024 bytes in each mode.
+The guest ran both checks on the variant under ASan and UBSan with
+leak detection.
+
+Each host completed 20 four-second trials with 32 TCP peers,
+64,000 fixed offers/s, two XRT executor workers and two native
+observer shards. Replay verified all 40 trial identities,
+10,240,000 replies, fixed-arrival deadlines and source receipts
+against master. Both APPs used identical CPU budgets per host.
+All throughput series and paired throughput ratios met
+repeatability. The table reports medians of per-trial quantiles.
+
+| Host | Mode | P99 control / variant (ms) | P99.9 control / variant (ms) |
+| --- | --- | ---: | ---: |
+| Windows | Duplex | 0.213 / 0.221 | 1.240 / 2.867 |
+| Windows | Direct dispatch | 0.208 / 0.215 | 1.458 / 0.736 |
+| Ubuntu guest | Duplex | 1.716 / 1.842 | 2.620 / 2.805 |
+| Ubuntu guest | Direct dispatch | 1.760 / 1.465 | 3.540 / 2.180 |
+
+None of the paired tail ratios met repeatability. The paired APP
+CPU ratio met repeatability for Windows direct dispatch at 1.012
+and Ubuntu duplex at 0.983. Keep the existing scatter writer.
+The longer TCP tail qualification remains open.
+
+All four Redis and MQTT endurance intervals passed running-prefix
+replay. The original and new Windows witness journals for the
+same QEMU process overlapped by 2,271.66 verified seconds.
+The TCP APP comparison is under
+out/service-extensions/xrpc-short-replies-93920347/.
