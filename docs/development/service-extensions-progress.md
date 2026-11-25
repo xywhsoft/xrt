@@ -29002,3 +29002,44 @@ All four primary Redis and MQTT endurance journals passed
 running-prefix replay during the campaign. The source receipts,
 builds, raw offers and independent replays are under
 out/service-extensions/xredis-credit-1f304619/.
+## 2026-11-25 Windows MQTT endurance restart and scheduler replay
+
+At the 22:42 Asia/Shanghai check, running-prefix replay verified these
+four active mixed-load intervals:
+
+| Product | Host | Awake hours | Verified rounds |
+| --- | --- | ---: | ---: |
+| xredis | Windows | 20.590 | 4,723,072 |
+| xredis | Ubuntu QEMU/WHPX guest | 20.679 | 19,493,614 |
+| xmqtt | Ubuntu QEMU/WHPX guest | 20.075 | 21,032,302 |
+| xmqtt | Windows, new interval | 0.085 | 19,519 |
+
+The previous Windows MQTT supervisor recorded cancellation at 14:44:33
+Asia/Shanghai. Its preserved prefix replay verified 43,603.377 awake
+seconds and 2,782,248 rounds. The terminal report has native_72h=false.
+After the 12-second smoke passed, the same verified MQTT binary and
+source receipt started a fresh interval at 22:37:08 on November 25.
+Its first replay covered both the broker and client. A fresh 80-hour
+awake guard and QEMU clock witness cover the new interval. The other
+three intervals continued in their existing processes. All four
+72-hour qualifications remain open.
+
+The completed Windows 1,024-wave xcron run on CPU 4 verified 10,485,760
+callbacks and all reported percentiles on independent replay. Median
+per-process last-callback P99/P99.9 lateness was 1.919/4.633 ms for
+scheduler wait and 1.783/7.253 ms for the direct precise waiter.
+Both drives exceeded the tail repeatability limits.
+
+The earlier Windows 8,192-wave run ended after its first 524,288
+verified callbacks and recorded benchmark exit 5. The benchmark now
+reports the failing wave and the observed state. The regular and
+wait-phase builds each verified 6,528 callbacks in focused runs.
+A forced late direct-waiter wave emitted the expected diagnostic.
+The verified regular binary started a new five-pair 8,192-wave
+campaign on CPU 10 at 22:44:26, with both job mixes in sequence.
+Its first child affinity was verified. The original Ubuntu
+8,192-wave run continued. Strict timing acceptance remains open.
+
+The archived and current Windows MQTT journals, new scheduler build
+receipt, and independent replay are under
+out/service-extensions/resume-20261125-evening/.
