@@ -29121,3 +29121,46 @@ endurance runs passed another running-prefix replay.
 
 The affinity build receipt, refusal records, and replay are under
 out/service-extensions/xredis-native-affinity-702f611f/.
+
+
+## 2026-11-25 Ubuntu Redis wire ownership and backend comparison
+
+Both xredis builds enabled epoll and io_uring at compile time. The
+stock binary selected each backend in turn. A second binary also
+recorded the release callback of the request's send buffer. It
+retained the previous post, worker, receive and resolution samples.
+Hiredis 1.3.0 used the same Redis 8.0.5 fixture, CPU allocation and
+12,000-offer/s workload. The earlier build omitted the io_uring
+feature and failed its io_uring startup attempts. Its logs and
+partial results are archived separately.
+
+Host replay verified 1,260,000 offers, 1,259,967 replies, 30 trial
+records, and every fixture command. The io_uring phase probe hit the
+observer credit cap for 33 offers across two measured trials. The
+following table uses medians of complete measured trial quantiles.
+
+| Observer | Complete trials | P99 (us) | P99.9 (us) | CPU per reply (us) |
+| --- | ---: | ---: | ---: | ---: |
+| xredis epoll | 5/5 | 487.4 | 709.9 | 114.69 |
+| xredis io_uring | 5/5 | 521.5 | 762.2 | 118.00 |
+| xredis epoll phase probe | 5/5 | 495.4 | 745.1 | 114.95 |
+| xredis io_uring phase probe | 3/5 | 589.1 | 2710.4 | 117.92 |
+| Hiredis 1.3.0 | 5/5 | 98.0 | 178.2 | 83.27 |
+
+The stock io_uring-to-epoll paired P99 ratio was 1.085 and exceeded
+the variation limits. The paired CPU ratio of 1.028 was repeatable.
+This workload provides no basis for switching the release control
+from epoll.
+
+The release callback preceded the final reply feed in all 29,649
+phase samples. For the slowest sampled percent of complete measured
+epoll trials, the median shares were 39.3% from post to worker
+entry, 3.2% from send offer to wire release, and 53.1% from release
+to final reply feed. The three complete io_uring probe trials gave
+28.6%, 2.9%, and 63.3% respectively. Wire release records the end of
+XRT's reference ownership. The remaining interval includes kernel
+transport, peer scheduling and processing, and receive dispatch.
+Strict end-to-end performance remains open.
+
+The build identities, initial attempt, raw traces and exact replay
+are under out/service-extensions/xredis-wire-release-7130687e/.
