@@ -49,7 +49,8 @@ static void xmqttSWFinish(ptr Context,const xmqttcommitresult* Result)
 XMQTT_API bool xmqttStoreWriteConfigInit(xmqttstorewriteconfig* C)
 {
     if(!xmqttSWSpan(C,sizeof(*C)))return xmqttSWError(XERR_ARGUMENT,"invalid store-writer config output");
-    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536};return xmqttJournalWorkerConfigInit(&C->Worker);
+    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536,.ProtocolOnly=true};
+    return xmqttJournalWorkerConfigInit(&C->Worker);
 }
 XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqttstorestate* State,
     const xmqttstorewriteconfig* C,xmqttstorewrite** Out)

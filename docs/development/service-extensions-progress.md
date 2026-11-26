@@ -29461,3 +29461,40 @@ the APP replay with ASan/UBSan. Independent replay matched the
 legacy and APP journal hashes across hosts. Both CI jobs now run the
 APP migration check. Logs and receipts are under
 out/service-extensions/xmqtt-app-inbox-3eb8e5bb/.
+
+
+
+## 2026-11-26 Protocol-only persistence as the MQTT Writer default
+
+StoreWriteConfigInit now selects the protocol-only receive path.
+The store still restores protocol state and journals QoS 2 receive
+identities before acknowledgement. The Client exposes new payloads
+through its bounded receive queue. The legacy receive-payload path
+requires explicit ProtocolOnly=false. The APP compaction and
+reconnect fixtures still exercise that compatibility path.
+
+The optimized Windows and Ubuntu QEMU/WHPX runs each passed the
+same 18 test and example executions. The WS/WSS and enhanced-auth
+fixtures now verify the default Client delivery path, including
+coalesced input arriving before durable OPEN. Both platforms built
+static and shared client-store SDKs whose linked consumers check
+the default initializer. The compatibility reconnect example
+passed six real Mosquitto 2.1.2 cases per host on TCP for MQTT 5
+and 3.1.1, cutting the connection around PUBACK, PUBREC or
+PUBCOMP. The first Windows broker launch used an incomplete
+binary archive and failed to load its DLLs. The full Windows
+distribution then passed.
+
+The first Windows single-header build identified a missing check
+of the config initializer in the test harness. The final Windows
+matrix passed with the test checks corrected. The initial Ubuntu
+matrix used the same production inputs and preceded the two
+test-only corrections. The corrected Ubuntu modular tests passed.
+The supplemental single-header and ASan/UBSan executions are
+recorded separately as they finish. Receipts are under
+out/service-extensions/xmqtt-default-protocol-71334173/.
+
+The four original Redis and MQTT mixed-load intervals were live
+and passed running-prefix replay at about 12:07 Asia/Shanghai.
+The Windows/Ubuntu Redis intervals had 34.01/34.10 verified awake
+hours. Windows/Ubuntu MQTT had 13.50/33.50 hours.

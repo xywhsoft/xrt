@@ -273,8 +273,8 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
     xtaskpool* Pool=jwPool(1);
     D.IO.Pool=Pool;
     xmqttstorewriteconfig WC;
-    xmqttStoreWriteConfigInit(&WC);
-    WC.ProtocolOnly=ProtocolOnly;
+    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly,"protocol-only Writer default");
+    if(!ProtocolOnly)WC.ProtocolOnly=false;
     xmqttstorewrite* W=NULL;
         testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
     D.IO.Base.Calls=0;

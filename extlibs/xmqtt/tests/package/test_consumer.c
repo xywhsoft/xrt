@@ -237,7 +237,7 @@ int main(void)
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     {xmqttstorewriteconfig C;xmqttstorewrite* W=(xmqttstorewrite*)(uintptr_t)1;xfuture* F=(xfuture*)(uintptr_t)1;size_t Need=99;
-    if(!xmqttStoreWriteConfigInit(&C)||C.MaxScratchBytes!=1048576||C.MaxModelWork!=65536||C.Worker.WorkTransactions!=32||
+    if(!xmqttStoreWriteConfigInit(&C)||!C.ProtocolOnly||C.MaxScratchBytes!=1048576||C.MaxModelWork!=65536||C.Worker.WorkTransactions!=32||
        xmqttStoreWriteCreate(NULL,NULL,NULL,&C,&W)||W!=(xmqttstorewrite*)(uintptr_t)1||
        xmqttStoreWriteAppendAsync(NULL,XRT_BYTES_LITERAL("x"),100,&F)!=XMQTT_JWORK_ERROR||F!=(xfuture*)(uintptr_t)1||
        xmqttStoreWriteInfo(NULL,NULL)||xmqttStoreWriteRead(NULL,1,NULL,0,NULL,&Need)!=XMQTT_STORE_ERROR||Need!=99||

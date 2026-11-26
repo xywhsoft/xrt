@@ -160,7 +160,7 @@ static const void* saResult(xfuture* F)
     return xrtFutureValue(F);
 }
 
-static void saInbox(xmqttstorewrite* Writer,saPeer* Peer,unsigned Transport)
+static void saDelivery(xmqttclient* Client,xmqttstorewrite* Writer,saPeer* Peer,unsigned Transport)
 {
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE_TLS)
     if(Transport)mqttTlsWait(&Peer->TLS.ReceivedAcks,1,"TLS coalesced publication acknowledged");
@@ -169,21 +169,17 @@ static void saInbox(xmqttstorewrite* Writer,saPeer* Peer,unsigned Transport)
     (void)Transport;
 #endif
     mqttAuthWait(&Peer->TCP.Acks,1);
-    unsigned char Wire[128];
-    xmqttstoreview View;
-
-    size_t Size=0;
-    stStatus(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Size),XMQTT_STORE_DONE,"post-proof durable delivery");
-    xmqttcodecbuffers B={0};
-    xmqttpacket P;
+    xmqttmessage* Message=NULL;
+    testRequire(xmqttClientTakeMessage(Client,&Message),"post-proof APP delivery");
+    const xmqttpacket* P=xmqttMessagePacket(Message);
     xbytesview Payload=Transport?XRT_BYTES_LITERAL("yes"):XRT_BYTES_LITERAL("quarantine");
-    testRequire(xmqttPacketRead5(View.Wire,XMQTT_SERVER_TO_CLIENT,NULL,&B,&P,NULL)==XMQTT_CODEC_DONE&&
-                P.Identifier==77&&P.Body.Publish.Payload.Size==Payload.Size&&
-                !memcmp(P.Body.Publish.Payload.Data,Payload.Data,Payload.Size),"exact early delivery after OPEN");
-    xfuture* Ack=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
-                jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"coalesced application delivery committed once");
-    xrtFutureDestroy(Ack);
+    testRequire(P&&P->Type==XMQTT_PACKET_PUBLISH&&P->Identifier==77&&P->Body.Publish.Payload.Size==Payload.Size&&
+                !memcmp(P->Body.Publish.Payload.Data,Payload.Data,Payload.Size),"exact early delivery after OPEN");
+    xmqttMessageRelease(Message);
+    Message=NULL;
+    xmqttstorewriteinfo Info=swInfo(Writer);
+    testRequire(!xmqttClientTakeMessage(Client,&Message)&&Info.State.Transactions==1&&!Info.State.Inbox,
+                "one APP delivery and only OPEN journaled");
 }
 
 static void saReauth(xmqttclient* C,xmqttstorewrite* W,unsigned Transport)
@@ -268,9 +264,9 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
     }else testRequire(xmqttSessionCreate(&SK,&Session),"fresh auth fixture Session");
     xtaskpool* Pool=jwPool(1);
     xmqttstorewriteconfig WC;
-    xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"auth fixture Writer");
+    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly&&
+        xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"protocol-only auth Writer");
     Drive.Base.Calls=0;
     if(Accept)Drive.Hold=7;
 
@@ -300,9 +296,10 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
     if(Accept){
         jwAwait(&Drive.Entered);
         if(Mode==SA_HEARTBEAT)mqttAuthWait(&Peer.TCP.Pings,4);
+        xmqttmessage* Early=NULL;
         testRequire(xmqttSessionInfo(Session,&SessionInfo)&&!SessionInfo.Connected&&
                     xrtFutureState(Ready)==XFUTURE_PENDING&&!swInfo(Writer).State.Transactions&&
-                    !swInfo(Writer).State.Inbox,"accepted proof waits behind actual OPEN and quarantines coalesced frames");
+                    !xmqttClientTakeMessage(C,&Early),"accepted proof waits behind actual OPEN and quarantines coalesced frames");
         if(LateCancel)testRequire(xrtFutureCancel(Ready)&&xmqttClientPollRetired(C)==XWAIT_TIMEOUT,
                                   "cancel accepted proof while physical OPEN sync is held");
         xrtAtomic32Store(&Drive.Release,1,XMEMORY_RELEASE);
@@ -312,7 +309,7 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
         Mode==SA_TIMEOUT?XMQTT_STATUS_TIMEOUT:XMQTT_STATUS_AUTHENTICATION;
     testRequire(R->Status==Expected,"Ready distinguishes proof, cancel and timeout");
     if(Success){
-        if(Mode==SA_EARLY)saInbox(Writer,&Peer,Transport);
+        if(Mode==SA_EARLY)saDelivery(C,Writer,&Peer,Transport);
         saReauth(C,Writer,Transport);
         xfuture* Closing=NULL;
         testRequire(xmqttClientDisconnectAsync(C,NULL,10000,&Closing)==XMQTT_ADMISSION_ACCEPTED,"auth-gated session graceful close");
@@ -331,7 +328,7 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     if(Peer.Resolver)testRequire(xrtNetResolverDestroy(Peer.Resolver),"retire Auth hostname resolver");
 #endif
-    uint64 After=Accept?(Mode==SA_EARLY?4u:2u):Before;
+    uint64 After=Accept?2u:Before;
     testRequire(swInfo(Writer).State.Transactions==After&&(Accept||!Drive.Base.Calls),"failed proof never appends");
     testRequire(xmqttSessionDestroy(Session)&&xmqttStoreWriteDestroy(Writer),"auth fixture owners released");
     jwPoolDone(Pool);

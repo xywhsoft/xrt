@@ -28,9 +28,11 @@ controller observes retirement. When waiting for a replacement, check that
 the controller has reached the next generation before acquiring a lease. Retransmission and completion of
 durable obligations follow the journal across generations.
 
-Use `xmqttStoreWriteReadPending` and `xmqttStoreWriteRetireAsync` on the same
-Writer while online, offline or reconnecting. The APP processes the record and
-waits for a committed retirement before advancing its cursor. The
+The default Writer exposes new deliveries through the leased Client's
+`xmqttClientTakeMessage`. Applications with existing Inbox journals may
+use the [legacy migration example](../examples/store_inbox/README.md).
+For continued legacy operation, use `ProtocolOnly=false` and retire pending
+records with `xmqttStoreWriteRetireAsync`. The
 controller reserves protocol mutations and Writer lifecycle until Destroy.
 When policy allows another attempt, an unusable Writer stops it with
 `XMQTT_STATUS_SESSION`.

@@ -20,7 +20,8 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * cleanup pool and must differ from the Writer's IO pool. Both must keep
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
- * the transferred Session. Use StoreWriteReadPending and StoreWriteRetireAsync
+ * the transferred Session. TakeMessage receives new publications with the default
+ * Writer. For the legacy Inbox, use StoreWriteReadPending and StoreWriteRetireAsync
  * throughout the controller lifetime.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt

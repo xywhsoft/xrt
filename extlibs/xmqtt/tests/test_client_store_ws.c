@@ -11,15 +11,14 @@ static bool dwWall(ptr User,uint64* Value)
 static bool dwFrame(xwsstream* Stream,mqttWsPeer* Peer,unsigned char Kind,const unsigned char* Body,size_t Bytes)
 {
     dwpeer* Case=(dwpeer*)Peer;
-    uint64 Before=Case->Mode==DW_TRUNCATE?1:3;
     if(Kind==0x10)
         testRequire(!swInfo(Case->Writer).State.Transactions,"MQTT CONNECT after Upgrade precedes OPEN");
     else if(Kind==0x32)
-        testRequire(swInfo(Case->Writer).State.Transactions==Before+1,"outgoing attempt is durable at the peer");
+        testRequire(swInfo(Case->Writer).State.Transactions==2,"outgoing attempt is durable at the peer");
     else if(Kind==0xe0){
         const unsigned char Close5[]={4,5,0x11,0,0,0,17};
         bool Expected=Peer->Version==XMQTT_VERSION_5?Bytes==sizeof(Close5)&&!memcmp(Body,Close5,Bytes):Bytes==0;
-        testRequire(Expected&&swInfo(Case->Writer).State.Transactions==Before+2,"complete DISCONNECT before durable END");
+        testRequire(Expected&&swInfo(Case->Writer).State.Transactions==3,"complete DISCONNECT before durable END");
         if(Case->Mode==DW_TRUNCATE){
             xrtAtomic32FetchAdd(&Peer->Disconnects,1,XMEMORY_RELEASE);
             testRequire(xrtWsStreamAbort(Stream),"drop transport before WebSocket close handshake");
@@ -105,29 +104,24 @@ static void dwProof(xmqttclient* Client,xmqttstorewrite* Writer)
 }
 #endif
 
-static void dwInbox(xmqttclient* Client,xmqttstorewrite* Writer,xmqttversion Version)
+static void dwDelivery(xmqttclient* Client,xmqttstorewrite* Writer,xmqttversion Version)
 {
     double Deadline=xrtTimer()+10;
-    unsigned char Buffer[128];
-
-    xmqttstoreview View;
-    size_t Size=0;
-    xmqttstorestatus Status;
-    do{
-        Status=xmqttStoreWriteReadPending(Writer,Buffer,sizeof(Buffer),&View,&Size);
-        if(Status==XMQTT_STORE_EMPTY){testRequire(xrtTimer()<Deadline,"durable coalesced inbox eventually visible");xrtSleep(1);}
-    }while(Status==XMQTT_STORE_EMPTY);
-    stStatus(Status,XMQTT_STORE_DONE,"one coalesced Inbox delivery");
+    xmqttmessage* Message=NULL;
+    while(!xmqttClientTakeMessage(Client,&Message)){
+        testRequire(xrtTimer()<Deadline,"coalesced publication eventually visible");
+        xrtSleep(1);
+    }
+    xbytesview Wire=xmqttMessagePacket(Message)->Wire;
     const unsigned char V5[]={0x30,8,0,2,'i','n',0,'x',0,'z'};
     const unsigned char V311[]={0x30,7,0,2,'i','n','x',0,'z'};
-    testRequire(Version==XMQTT_VERSION_5?Size==sizeof(V5)&&!memcmp(Buffer,V5,Size):
-                Size==sizeof(V311)&&!memcmp(Buffer,V311,Size),"exact WS/MQTT binary payload with no frame duplication");
-    xmqttmessage* Volatile=NULL;
-    testRequire(!xmqttClientTakeMessage(Client,&Volatile)&&!Volatile,"delivery lives only in durable Inbox");
-    xfuture* Ack=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED&&
-                jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"application ACK persisted");
-    xrtFutureDestroy(Ack);
+    testRequire(Version==XMQTT_VERSION_5?Wire.Size==sizeof(V5)&&!memcmp(Wire.Data,V5,Wire.Size):
+                Wire.Size==sizeof(V311)&&!memcmp(Wire.Data,V311,Wire.Size),"exact WS/MQTT binary payload");
+    xmqttMessageRelease(Message);
+    Message=NULL;
+    xmqttstorewriteinfo Info=swInfo(Writer);
+    testRequire(!xmqttClientTakeMessage(Client,&Message)&&Info.State.Transactions==1&&!Info.State.Inbox,
+                "one APP delivery and only OPEN journaled");
 }
 
 static void dwPublish(xmqttclient* Client,uint64 Attempt)
@@ -196,9 +190,9 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
     stStatus(xmqttStoreStateRecover(Journal,&SC,&State),XMQTT_STORE_DONE,"empty store behind HTTP and MQTT");
     xtaskpool* Pool=jwPool(1);
     xmqttstorewriteconfig WC;
-    xmqttStoreWriteConfigInit(&WC);
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"store WS Inbox Writer");
+    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly&&
+        xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"protocol-only WS Writer");
     Drive.Base.Calls=0;
     if(Coalesced)Drive.Hold=7;
 
@@ -234,8 +228,9 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
     if(Coalesced){
         jwAwait(&Drive.Entered);
         xmqttsessioninfo Info;
+        xmqttmessage* Early=NULL;
         testRequire(xmqttSessionInfo(Session,&Info)&&!Info.Connected&&xrtFutureState(Ready)==XFUTURE_PENDING&&
-                    !swInfo(Writer).State.Transactions&&!swInfo(Writer).State.Inbox,
+                    !swInfo(Writer).State.Transactions&&!xmqttClientTakeMessage(Client,&Early),
                     "coalesced MQTT input remains ordered behind physical OPEN");
         xrtAtomic32Store(&Drive.Release,1,XMEMORY_RELEASE);
     }
@@ -249,8 +244,8 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
                     Http.Status==401&&!Http.Upgraded&&!Drive.Base.Calls,"HTTP rejection produces no journal operation");
     }else{
         testRequire(Result->Status==XMQTT_STATUS_OK,"durable WS is Ready");
-        if(Coalesced)dwInbox(Client,Writer,Version);
-        dwPublish(Client,Coalesced?4:2);
+        if(Coalesced)dwDelivery(Client,Writer,Version);
+        dwPublish(Client,2);
         xmqttpacket Disconnect;
         xmqttPacketInit(XMQTT_PACKET_DISCONNECT,&Disconnect);
         if(V5){
@@ -263,7 +258,7 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
         const xmqttwriteresult* End=mqttWsFuture(Closing);
         Graceful=Mode!=DW_TRUNCATE;
         Live=!Graceful&&V5;
-        Records=Coalesced?6:Live?3:4;
+        Records=Live?3:4;
         testRequire(End->Status==(Graceful?XMQTT_STATUS_OK:XMQTT_STATUS_TRANSPORT)&&
                     End->AcceptedBytes==(V5?9u:2u)&&End->Delivery==XMQTT_MAY_HAVE_REACHED_PEER,
                     "native WS close determines local status after complete MQTT DISCONNECT");

@@ -83,6 +83,7 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
     X->Pool=xrtTaskPoolCreate(&T);
     xmqttstorewriteconfig C;
     xmqttStoreWriteConfigInit(&C);
+    C.ProtocolOnly=false;
     check(X->Pool&&xmqttStoreWriteCreate(X->Pool,J,State,&C,&X->Writer)&&mqttExampleJournalSlotDetach(X->Slot,J),
         "create sole Store Writer");
 }

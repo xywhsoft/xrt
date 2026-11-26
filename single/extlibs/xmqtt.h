@@ -3190,8 +3190,9 @@ typedef struct xmqttstorewrite xmqttstorewrite;
 typedef struct xmqttstorewriteconfig {
     size_t Size,MaxScratchBytes,MaxModelWork;
     xmqttjournalworkerconfig Worker;
-    /* Connected Clients hand new incoming publications to the normal receive
-     * queue. Only the QoS 2 receive identity and handshake are journaled. */
+    /* Defaults to true. Connected Clients hand new incoming publications to the
+     * normal receive queue and journal QoS 2 identity and handshake only.
+     * False enables legacy journaling of incoming payloads for compatibility. */
     bool ProtocolOnly;
 } xmqttstorewriteconfig;
 typedef struct xmqttstorewriteinfo {size_t Size,ScratchBytes;xmqttstorestateinfo State;xmqttjournalworkerinfo Worker;} xmqttstorewriteinfo;
@@ -3306,11 +3307,11 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. With a ProtocolOnly Writer, TakeMessage returns
+ * Ready follows durable OPEN. With the default ProtocolOnly Writer, TakeMessage returns
  * new publications from the bounded connection queue. QoS 2 identity is
  * committed before PUBREC. Recovering the protocol session cannot restore
- * messages from that volatile queue. With the default Writer configuration,
- * StoreWriteReadPending inspects deliveries recorded in the journal.
+ * messages from that volatile queue. Set ProtocolOnly=false before creating
+ * the Writer to keep the legacy incoming payload journal.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
@@ -3474,7 +3475,8 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * cleanup pool and must differ from the Writer's IO pool. Both must keep
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
- * the transferred Session. Use StoreWriteReadPending and StoreWriteRetireAsync
+ * the transferred Session. TakeMessage receives new publications with the default
+ * Writer. For the legacy Inbox, use StoreWriteReadPending and StoreWriteRetireAsync
  * throughout the controller lifetime.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt
@@ -14752,7 +14754,8 @@ static void xmqttSWFinish(ptr Context,const xmqttcommitresult* Result)
 XMQTT_API bool xmqttStoreWriteConfigInit(xmqttstorewriteconfig* C)
 {
     if(!xmqttSWSpan(C,sizeof(*C)))return xmqttSWError(XERR_ARGUMENT,"invalid store-writer config output");
-    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536};return xmqttJournalWorkerConfigInit(&C->Worker);
+    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536,.ProtocolOnly=true};
+    return xmqttJournalWorkerConfigInit(&C->Worker);
 }
 XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqttstorestate* State,
     const xmqttstorewriteconfig* C,xmqttstorewrite** Out)

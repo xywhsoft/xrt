@@ -1,9 +1,10 @@
-# Processing durable pending publications in the APP
+# Legacy journal-backed pending publications
 
-Recover the journal state and transfer it to `xmqttStoreWriteCreate`. Use that
-Writer for the connected Client or for offline processing. The
-[APP example](../examples/store_inbox/README.md) reads, processes and retires a
-record, then verifies the result after reopening the journal.
+Use the [APP migration example](../examples/store_inbox/README.md) to copy
+existing pending publications into a separate APP-owned journal. To continue
+using the legacy receive path with a connected Client, recover its state and
+set `ProtocolOnly=false` before calling `xmqttStoreWriteCreate`. The remaining
+APIs also work offline with recovered legacy records.
 
 `xmqttStoreWriteReadPending` copies the oldest committed record into a caller
 buffer. It reports the required size on LIMIT and leaves the view unchanged.

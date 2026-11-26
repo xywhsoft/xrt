@@ -15,9 +15,10 @@ ordinary Session with one retained wire copy and native parse per outgoing
 packet. Slot/generation/identity and trusted clocks are checked; fresh
 CONNACK is required. The host must retire the previous transport first and
 preserve pending Inbox payloads separately. See the [real-file passive example](examples/store_session/README.md).
-The optional [durable Client](docs/client_store.md) gates MQTT protocol
-acknowledgements on journal commits. The [APP pending-record example](examples/store_inbox/README.md)
-shows how the application processes and retires a committed delivery.
+The optional [durable Client](docs/client_store.md) journals protocol state and
+exposes new incoming publications through the Client receive queue.
+The [APP migration example](examples/store_inbox/README.md) transfers old
+pending records into an APP-owned journal for processing and confirmation.
 The developing [Session image codec](docs/session_image.md) checkpoints bounded
 outgoing QoS/committed incoming identities under an explicit broker/principal/slot
 binding, validates corruption and quotas, and restores independent clock epochs

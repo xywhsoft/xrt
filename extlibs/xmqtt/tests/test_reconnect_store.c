@@ -164,6 +164,7 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     xtaskpool* Pool=jwPool(2);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
+    WC.ProtocolOnly=false;
     xmqttstorewrite* Writer=NULL;
     testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"controller Inbox Writer");
     Drive.Base.Calls=0;

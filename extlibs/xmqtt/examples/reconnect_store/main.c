@@ -538,6 +538,7 @@ int main(int Argc,char** Argv)
     Cleanup=xrtTaskPoolCreate(&PC);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
+    WC.ProtocolOnly=false; /* This example still exercises the legacy Inbox format. */
     if(!Storage||!Cleanup||!xmqttStoreWriteCreate(Storage,Journal,State,&WC,&Writer))goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Slot)(void)mqttExampleJournalSlotDetach(Slot,Journal);

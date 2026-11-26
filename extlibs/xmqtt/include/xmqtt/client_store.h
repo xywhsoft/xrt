@@ -33,11 +33,11 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. With a ProtocolOnly Writer, TakeMessage returns
+ * Ready follows durable OPEN. With the default ProtocolOnly Writer, TakeMessage returns
  * new publications from the bounded connection queue. QoS 2 identity is
  * committed before PUBREC. Recovering the protocol session cannot restore
- * messages from that volatile queue. With the default Writer configuration,
- * StoreWriteReadPending inspects deliveries recorded in the journal.
+ * messages from that volatile queue. Set ProtocolOnly=false before creating
+ * the Writer to keep the legacy incoming payload journal.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,

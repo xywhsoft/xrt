@@ -10,8 +10,9 @@ typedef struct xmqttstorewrite xmqttstorewrite;
 typedef struct xmqttstorewriteconfig {
     size_t Size,MaxScratchBytes,MaxModelWork;
     xmqttjournalworkerconfig Worker;
-    /* Connected Clients hand new incoming publications to the normal receive
-     * queue. Only the QoS 2 receive identity and handshake are journaled. */
+    /* Defaults to true. Connected Clients hand new incoming publications to the
+     * normal receive queue and journal QoS 2 identity and handshake only.
+     * False enables legacy journaling of incoming payloads for compatibility. */
     bool ProtocolOnly;
 } xmqttstorewriteconfig;
 typedef struct xmqttstorewriteinfo {size_t Size,ScratchBytes;xmqttstorestateinfo State;xmqttjournalworkerinfo Worker;} xmqttstorewriteinfo;
