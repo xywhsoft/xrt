@@ -29593,3 +29593,12 @@ awake hours. Windows and Ubuntu MQTT had 14.17 and 34.16 hours. Strict
 release and continuous 72-hour acceptance remain open. Evidence, including
 the initial failures, is under
 out/service-extensions/xmqtt-retire-legacy-inbox-9bab66f1/.
+
+
+The plaintext client-and-broker probe rebuilt from clean eec256d5 on both
+hosts and matched the previous qualified rebuild byte for byte. An independent
+read of the live binaries also matched the Windows load header and all 16 PE
+section records and bytes, and the Ubuntu ELF header and all 14 program
+headers and segments. The MQTT intervals retain their original receipts.
+The localhost workload does not enable client persistence. The fresh build
+receipts and loaded-image comparisons are in the same evidence directory.
