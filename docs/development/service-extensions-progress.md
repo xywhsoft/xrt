@@ -29315,3 +29315,41 @@ wait and 99.95% for the precise waiter. Median CPU cost was
 395 and 266 ns per callback respectively. Both campaigns continue.
 The full timing acceptance stays open. Prefix evidence and replay
 are under out/service-extensions/xcron-long-prefix-20261126/.
+
+
+## 2026-11-26 Ubuntu MQTT runtime after the write-budget fix
+
+The Ubuntu QEMU/WHPX guest rebuilt and passed the full MQTT runtime
+suite at a82b228b. Independent replay matched the terminal success,
+the 38 modular and 67 single-header executions in manifest order,
+all 105 binary digests and the selected source inputs. The rebuilt
+Windows suite ran all 38 modular tests and was compiling the
+single-header suite at the 11:21 Asia/Shanghai check. The static
+and shared package runs have separate completed records on both
+hosts. Runtime archives, logs and replay are under
+out/service-extensions/xmqtt-sdk-write-budget-a82b228b/.
+
+
+## 2026-11-26 Ubuntu xcron wake timer slack comparison
+
+On the Ubuntu QEMU/WHPX guest the same process binary ran twenty
+24-wave trials on CPU 0. Each wave had 64 scheduled tasks and 960
+dormant tasks. Five alternating pairs per drive compared the
+inherited 50,000 ns slack with 1 ns set on the benchmark thread.
+Every trial measured its actual setting. Replay matched the build
+and all 30,720 callbacks, and recomputed the percentiles from the
+wait and first-callback timestamps. The reported values are medians
+of per-trial percentiles in microseconds.
+
+| Drive | Wait return P50 at 50,000 ns / 1 ns | First callback P95 at 50,000 ns / 1 ns | Return to first callback P95 at 50,000 ns / 1 ns |
+| --- | ---: | ---: | ---: |
+| Scheduler wait | 86.010 / 33.728 | 104.780 / 53.805 | 5.170 / 4.879 |
+| Direct precise waiter | 83.280 / 33.015 | 116.708 / 57.149 | 2.124 / 1.943 |
+
+The paired wait-return P50 differences had medians of -52.409 and
+-51.970 microseconds respectively. The setting was local to the
+benchmark thread. These 24-wave samples characterize typical wake
+timing. The original longer campaigns and strict tail acceptance
+remain open. Replay and the archived build and samples are under
+out/service-extensions/xcron-timer-slack-a82b228b/.
+[Linux timer slack manual](https://man7.org/linux/man-pages/man2/PR_SET_TIMERSLACK.2const.html).
