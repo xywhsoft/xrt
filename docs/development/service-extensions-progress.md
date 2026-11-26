@@ -30025,3 +30025,45 @@ Windows and Ubuntu MQTT had 1.25 and 1.23 verified awake hours.
 Redis had 37.35 and 37.44 hours. The paired tail and strict release
 gates remain open. Raw reports, failure logs, inputs and replay
 are under out/service-extensions/xmqtt-qos2-release-e0dc446a/.
+
+
+## 2026-11-26 Ubuntu QoS 2 broker CPU attribution
+
+The Ubuntu QEMU/WHPX guest reused the hash-verified e0dc446a broker,
+observer and Mosquitto 2.1.2 executables from the reference sweep.
+Each trial scheduled 60,000 measured QoS 2 publications at 6,000/s
+after 600 warmup offers, with one publisher, eight wildcard
+subscribers and windows of 16. CPU masks were 0,3 for the broker
+and 1,2 for the observer. The campaign alternated three unprofiled
+pairs, three pairs with CPU-clock sampling, and then three pairs
+with syscall tracepoint counts. Replay verified all 18 trials,
+1,080,000 confirmations and 8,640,000 deliveries.
+
+| Broker | Unprofiled user CPU (s) | Unprofiled kernel CPU (s) | Unprofiled total CPU (s) | Profiled total CPU (s) |
+| --- | ---: | ---: | ---: | ---: |
+| xmqtt | 1.95 | 7.73 | 9.75 | 10.04 |
+| Mosquitto | 0.87 | 6.21 | 7.08 | 7.23 |
+
+Columns report medians independently. The guest exposes software
+CPU-clock events. The hardware cycle and instruction probes returned
+unsupported. The 199 Hz DWARF call stacks yielded 5,306 xmqtt samples
+and 4,174 Mosquitto samples. The sampled periods covered 88.2–88.6%
+and 96.6–96.9% of the respective measured process CPU intervals.
+TCP send paths formed the largest kernel category on both brokers,
+with median sample weights of 5.186 and 4.588 seconds. xmqtt call
+chains frequently included xrtNetSocketSendVec and the XRT stream
+write driver. Its eventfd category had 0.327 seconds of median sample
+weight. Its leading named userspace leaves included the XRT ownership
+mutation begin and end paths.
+
+The six tracepoint trials recorded 100% enabled coverage for all
+16 selected counters. Each broker issued exactly 1,090,826 TCP send
+calls per trial. xmqtt used sendmsg and Mosquitto used sendto.
+Median epoll wait calls were 570,238 and 230,073 respectively.
+Median epoll control calls were 809,472 and 2,181,670. xmqtt also
+recorded medians of 809,464 recvfrom and 110,911 write calls.
+Mosquitto recorded a median of 718,832 read and 27 write calls.
+
+The receipts, exact tracepoint counts, DWARF stacks and replay are
+under out/service-extensions/xmqtt-qos2-cpu-e0dc446a/. The broker
+CPU cost and paired tail criteria remain open for strict release.
