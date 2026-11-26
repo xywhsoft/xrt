@@ -128,11 +128,14 @@ def main():
                         help="run only the job mix with this many active tasks")
     parser.add_argument("--require-wait-phases", action="store_true",
                         help="reject runs without at least one measured wait call")
+    parser.add_argument("--include-poll", action="store_true",
+                        help="also drive scheduler polling from the precise host waiter")
     args = parser.parse_args()
     if not 0 <= args.cpu < 1024 or not 1 <= args.waves <= MAX_WAVES or args.repeats < 1:
         parser.error(f"expected CPU in 0..1023, 1..{MAX_WAVES} waves and at least one repeat")
 
     cohorts = tuple(mix for mix in COHORTS if args.active_tasks in (None, mix[0]))
+    drives = (*DRIVES, "poll") if args.include_poll else DRIVES
     program = args.program.resolve(strict=True)
     identity = sha256(program.read_bytes()).hexdigest()
     runner = sha256(Path(__file__).read_bytes()).hexdigest()
@@ -140,13 +143,14 @@ def main():
     with args.report.open("x", encoding="utf-8") as report:
         append(report, "start", platform=platform.platform(), program=str(program), binary_sha256=identity,
                runner_sha256=runner, cpu=args.cpu, waves=args.waves, repeats=args.repeats,
-               cohorts=cohorts)
+               cohorts=cohorts, **({"drives": drives} if args.include_poll else {}))
         total = 0
         try:
             for active, dormant in cohorts:
-                rows = {drive: [] for drive in DRIVES}
+                rows = {drive: [] for drive in drives}
                 for repeat in range(args.repeats):
-                    order = DRIVES if repeat % 2 == 0 else reversed(DRIVES)
+                    offset = repeat % len(drives)
+                    order = drives[offset:] + drives[:offset]
                     for drive in order:
                         key = {"active": active, "dormant": dormant, "drive": drive, "repeat": repeat + 1}
                         run = observe(program, args.cpu, args.waves, active, dormant, drive,
@@ -154,7 +158,7 @@ def main():
                         append(report, "run", **key, **run)
                         rows[drive].append(run)
                         total += run["verified_callbacks"]
-                for drive in DRIVES:
+                for drive in drives:
                     append(report, "series", active=active, dormant=dormant, drive=drive,
                            metrics=summarize(rows[drive]))
             if sha256(program.read_bytes()).hexdigest() != identity:

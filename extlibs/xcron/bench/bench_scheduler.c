@@ -263,9 +263,20 @@ static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, bool Pre
     phaseReset();
 #endif
     *Wave = (cronwave){.Count = Wave->Count};
+    if (Waiter) {
+        xtime Observed = 0;
+        bool Ready = Precise ? waitPrecise(Waiter, Due, &Observed) : waitUntil(Waiter, Due, &Observed);
+        if (!Ready || Observed >= Due + 1000) {
+            fprintf(stderr, "host waiter wave due=%lld ready=%d observed=%lld precise=%d\n",
+                (long long)Due, Ready, (long long)Observed, Precise);
+            return false;
+        }
+    }
     if (Scheduler) {
         xcronpoll Result = {0};
-        xcronschedulestatus Status = xcronSchedulerWait(Scheduler, 3000, &Result);
+        xcronschedulestatus Status = Waiter
+            ? xcronSchedulerPoll(Scheduler, &Result)
+            : xcronSchedulerWait(Scheduler, 3000, &Result);
         if (Status != XCRON_SCHEDULE_DISPATCHED || Result.Count != Wave->Count ||
             !Result.HasNext || Result.Next != Due + 1000) {
             fprintf(stderr, "scheduler wave due=%lld status=%d count=%zu expected=%u has_next=%d next=%lld\n",
@@ -273,13 +284,6 @@ static bool cohortWave(xcronscheduler* Scheduler, xeventwaiter* Waiter, bool Pre
             return false;
         }
     } else {
-        xtime Observed = 0;
-        bool Ready = Precise ? waitPrecise(Waiter, Due, &Observed) : waitUntil(Waiter, Due, &Observed);
-        if (!Ready || Observed >= Due + 1000) {
-            fprintf(stderr, "direct waiter wave due=%lld ready=%d observed=%lld precise=%d\n",
-                (long long)Due, Ready, (long long)Observed, Precise);
-            return false;
-        }
         for (unsigned Index = 0; Index < Wave->Count; ++Index) cohortCallback(&Jobs[Index]);
     }
     bool Valid = !Wave->Unexpected && Wave->Called == Wave->Count && Wave->FirstWall >= Due &&
@@ -311,7 +315,8 @@ static int cohort(int Argc, char** Argv)
     if ((Argc != 6 && !Samples) || !cohortValue(Argv[2], MAX_WAVES, &Waves) || !Waves ||
         !cohortValue(Argv[3], MAX_JOBS, &Active) || !Active ||
         !cohortValue(Argv[4], MAX_JOBS, &Dormant) || Active + Dormant > MAX_JOBS ||
-        (strcmp(Argv[5], "wait") && strcmp(Argv[5], "waiter") && strcmp(Argv[5], "waiter-precise"))) return 1;
+        (strcmp(Argv[5], "wait") && strcmp(Argv[5], "poll") &&
+            strcmp(Argv[5], "waiter") && strcmp(Argv[5], "waiter-precise"))) return 1;
     if (!cohortAffinity()) return 2;
 #if defined(_WIN32)
     HMODULE Kernel = GetModuleHandleA("kernel32.dll");
@@ -321,21 +326,21 @@ static int cohort(int Argc, char** Argv)
 #else
     const char* WallClock = "clock-realtime";
 #endif
-    bool Direct = strcmp(Argv[5], "wait") != 0;
-    bool Precise = !strcmp(Argv[5], "waiter-precise");
+    bool Poll = !strcmp(Argv[5], "poll");
+    bool Direct = !Poll && strcmp(Argv[5], "wait") != 0;
+    bool Precise = Poll || !strcmp(Argv[5], "waiter-precise");
     xevent Event = {0};
     xeventwaiter Waiter = {0};
     xcronscheduler* Scheduler = NULL;
-    if (Direct) {
-        if (!xrtEventInit(&Event, false, false) || !xrtEventWaiterInit(&Waiter, &Event, 0)) return 3;
-    } else if (!xcronSchedulerCreate(Active + Dormant, XCRON_SECONDS6, &Scheduler)) {
-        return 3;
-    }
+    xeventwaiter* HostWaiter = Direct || Poll ? &Waiter : NULL;
+    if (HostWaiter && (!xrtEventInit(&Event, false, false) ||
+        !xrtEventWaiterInit(&Waiter, &Event, 0))) return 3;
+    if (!Direct && !xcronSchedulerCreate(Active + Dormant, XCRON_SECONDS6, &Scheduler)) return 3;
     cronjob* Jobs = calloc(Active, sizeof(*Jobs));
     cronwave Wave = {.Count = Active};
     xtime Due;
     if (!Jobs || !cohortRegister(Scheduler, &Wave, Jobs, Dormant, Waves, &Due)) return 4;
-    if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) return 5;
+    if (!cohortWave(Scheduler, HostWaiter, Precise, &Wave, Jobs, Due)) return 5;
 #if defined(_WIN32)
     ULONG64 CycleStart = 0, CycleEnd = 0;
     bool HaveCycles = Samples && QueryProcessCycleTime(GetCurrentProcess(), &CycleStart);
@@ -347,7 +352,7 @@ static int cohort(int Argc, char** Argv)
 #endif
     for (unsigned Index = 0; Index < Waves; ++Index) {
         Due += 1000;
-        if (!cohortWave(Scheduler, &Waiter, Precise, &Wave, Jobs, Due)) {
+        if (!cohortWave(Scheduler, HostWaiter, Precise, &Wave, Jobs, Due)) {
             fprintf(stderr, "cohort failed at measured wave %u of %u\n", Index + 1, Waves);
             return 5;
         }
@@ -362,7 +367,8 @@ static int cohort(int Argc, char** Argv)
 #if defined(_WIN32)
     HaveCycles = HaveCycles && QueryProcessCycleTime(GetCurrentProcess(), &CycleEnd) && CycleEnd > CycleStart;
 #endif
-    bool Closed = Direct ? xrtEventWaiterUnit(&Waiter) && xrtEventUnit(&Event) : xcronSchedulerDestroy(Scheduler);
+    bool Closed = !HostWaiter || (xrtEventWaiterUnit(&Waiter) && xrtEventUnit(&Event));
+    if (Scheduler && !xcronSchedulerDestroy(Scheduler)) Closed = false;
     free(Jobs);
     if (!Closed || Seconds <= 0 || Cpu < 0 || CpuEnd < Cpu) return 6;
     printf("drive: %s\nactive_jobs: %u\ndormant_jobs: %u\nwaves: %u\nverified_callbacks: %u\n",

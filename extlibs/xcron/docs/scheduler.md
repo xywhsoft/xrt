@@ -79,7 +79,9 @@ The `waiter` mode uses the relative integer-millisecond XRT API.
 The `waiter-precise` mode reads the fractional UTC sample and supplies
 the same kind of absolute monotonic deadline as Scheduler Wait. The
 precise control calls the due callbacks directly. Use it to compare
-dispatch spans under matched deadline precision.
+dispatch spans under matched deadline precision. The `poll` mode uses
+that same precise host waiter, then calls Scheduler Poll to dispatch
+the due jobs. This measures a host-paced nonblocking scheduler drive.
 
 Each path discards the first wave. The report records first and last
 callback lateness against the scheduled UTC second using the native wall
@@ -112,6 +114,7 @@ environment and CPU affinity with the results.
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 wait --samples
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter --samples
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_waiter cohort 256 1024 0 waiter-precise --samples
+XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 poll --samples
 ```
 
 Run the matched-precision campaign on the machine being measured. Use
@@ -132,7 +135,9 @@ python extlibs/xcron/bench/run_scheduler_cohorts.py \
 On Windows use the same executable path with an `.exe` suffix. Keep
 the build report and executable with the run. The runner alternates
 Scheduler Wait and the precise direct waiter over both job mixes.
-It saves each verified process immediately, including raw wave readings,
+Add `--include-poll` to measure all three drives. The runner rotates their
+order and records the selected drives in the journal. It saves each
+verified process immediately, including raw wave readings,
 count, affinity and benchmark binary identity. Its summaries report pooled
 P50/P95/P99/P99.9 and variation across per-process P99 and P99.9 values.
 The default is five 256-wave processes per drive and job mix.

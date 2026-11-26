@@ -30381,3 +30381,60 @@ At about 16:51 Asia/Shanghai, all four continuing Redis and
 MQTT endurance journals passed running-prefix replay. Windows
 and Ubuntu Redis had 38.74 and 38.83 verified awake hours. The
 MQTT intervals had 2.64 and 2.63 hours.
+
+## 2026-11-26 Host-paced xcron polling and wait phase comparison
+
+The scheduler benchmark now supports a host-paced poll drive.
+It waits for the UTC deadline with the same precise host waiter
+as the direct control, then calls Scheduler Poll. The callback
+count, registration order, context and next UTC occurrence are
+checked as in Scheduler Wait. The cohort runner's include-poll
+option rotates the three drives and records their order. The
+default profile continues to alternate its two established drives.
+
+Native Windows on logical CPU 4 and the Ubuntu QEMU/WHPX guest
+on vCPU 0 built the ordinary and wait-phase programs from the
+same benchmark input bytes. The 0- and 8,193-wave commands and
+an unknown drive were rejected. Each host verified 3,456
+callbacks across the plain poll, default profile and relative
+waiter checks. Ordinary release maturity passed.
+
+Each instrumented campaign completed 12 processes and 96
+waves, with 64 active and 960 dormant jobs or 1,024 active
+jobs. Replay matched both build receipts, the selected drive
+order, sample counts, wait phases and quantiles for 104,448
+callbacks. The three drives used the same waiter backend
+within each host. The table shows pooled phase percentiles
+for 1,024 active jobs in microseconds. Each cell uses 16 waves.
+
+| Host | Phase | Scheduler Wait | Host waiter + Scheduler Poll | Direct precise waiter |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Wait return lateness, P50 | 638.4 | 288.7 | 599.2 |
+| Windows | Return to first callback, P95 | 10.2 | 4.9 | 2.0 |
+| Ubuntu guest | Wait return lateness, P50 | 80.7 | 79.8 | 80.7 |
+| Ubuntu guest | Return to first callback, P95 | 5.2 | 4.6 | 2.2 |
+
+The short instrumented cohorts validate phase boundaries.
+With 16 waves per cell the P95 selects its largest value.
+One guest 64-task poll wave had a 117.7 microsecond span
+between its first and last callbacks. The sample does not
+establish release-level P99 or P99.9 repeatability.
+
+The 8,192-wave Windows journal had eight finished 64-task
+runs with 4,194,304 callbacks. It extends the prior replay's
+exact journal prefix and uses the same binary and build
+receipt. The historical Windows benchmark C input identity
+carries forward from that replay. The interrupted original Ubuntu
+journal retains 47,185,920 callbacks in 15 runs. The active
+1,024-task Ubuntu retry completed its first process with
+8,388,608 callbacks. The original and retry records were
+replayed separately. The Windows and retry benchmark children
+were live when their snapshots were taken. The larger timing
+campaigns and strict release remain open.
+
+Builds, native logs, phase replay and the preserved prefixes
+are under out/service-extensions/xcron-host-poll-d5ef110c/.
+At about 17:04 Asia/Shanghai, the Windows and Ubuntu Redis
+journals passed running-prefix replay at 38.95 and 39.04
+verified awake hours. The MQTT intervals had 2.85 and 2.83
+hours, respectively.
