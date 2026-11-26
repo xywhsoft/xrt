@@ -30258,3 +30258,64 @@ running-prefix replay after the controls. At about 16:24
 Asia/Shanghai, the Windows and Ubuntu Redis intervals had 38.28
 and 38.37 verified awake hours. The MQTT intervals had 2.19
 and 2.17 hours.
+
+## 2026-11-26 Serial TCP records and xrpc offer depth
+
+A second replay of the earlier instrumented 32-peer campaigns
+matched the receive trace and observer hashes for 40 recorded
+trials and 3,840,000 replies. The APP used one read timestamp for
+all complete records from that read. For each of the slowest
+0.1% of scheduled calls, replay split the same socket's read-to-
+record interval at the first record and at the previous records'
+submit, worker start, worker finish, owner resume and send entry.
+
+At 64,000 calls/s, the cohorts' median read-to-record share of
+scheduled latency was 22.90% and 26.08% for Windows duplex and
+direct dispatch. The Ubuntu QEMU/WHPX guest had 69.67% and
+77.30%. In all four cohorts, earlier records from the same read
+accounted for more than 99.9% of that interval. The sum of their
+submit-to-worker-start and worker-finish-to-owner-resume phases
+accounted for median shares of 20.09% and 20.20% of total tail
+time on Windows and 58.84% and 73.02% on the guest. The phase
+shares apply to the older instrumented executions.
+
+A separate experiment used the current APP and compared two
+and eight newline records per scheduled send. Both used 32
+peers, two XRT executor workers, two native observer shards,
+64,000 calls/s and credit for up to 128 calls per peer. The
+same APP binary ran both shapes within each platform. Build
+receipts verified all ten source inputs. The two-record observer
+shortened the group period from four to one millisecond and
+kept the native verifier ABI. The smaller send group produced
+four times as many scheduled sends. The two host campaigns
+ran sequentially while the endurance jobs continued.
+
+Replay verified all 40 four-second trials, 10,240,000 exact
+replies, APP ledgers, schedules and per-position quantiles.
+The table reports cohort medians in eight-record / two-record order.
+
+| Host | APP mode | P99 (µs) | P99.9 (µs) | P99 schedule-to-send attempt (µs) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Duplex | 203.00 / 104.95 | 354.40 / 431.65 | 3.50 / 3.75 |
+| Windows | Direct dispatch | 198.30 / 98.75 | 322.50 / 470.90 | 3.50 / 3.65 |
+| Ubuntu guest | Duplex | 1,857.25 / 1,699.08 | 2,774.36 / 2,883.61 | 19.30 / 162.71 |
+| Ubuntu guest | Direct dispatch | 1,560.97 / 1,203.25 | 2,545.96 / 2,050.54 | 11.26 / 76.87 |
+
+For eight-record duplex, the median per-position P99 increased
+from 77.2 to 241.6 µs on Windows and from 665.7 to 2,413.4 µs
+on the guest from the first to the eighth record. All four paired
+throughput and observer CPU ratios met repeatability. The two
+observer shards together spent almost two CPU-seconds per
+elapsed second. Only the
+Ubuntu direct-dispatch P99 ratio met repeatability, at 0.769.
+All paired P99.9 ratios exceeded variation limits. The evidence
+identifies serial processing of ready records and the earlier
+records' executor handoffs as targets for the native APP timing
+work. The strict TCP tail and release gates remain open.
+
+The raw samples, compiled observer, source and replay are under
+out/service-extensions/xrpc-offer-depth-45ddd03d/. The four
+Redis and MQTT continuous journals passed running-prefix replay
+after the timed runs. At about 16:36 Asia/Shanghai, Windows and
+Ubuntu Redis had 38.49 and 38.58 verified awake hours. MQTT had
+2.39 and 2.38 hours.
