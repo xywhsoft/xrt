@@ -15,7 +15,7 @@ typedef enum xmqttstoredeltatype {
     XMQTT_STORE_BIND=1,XMQTT_STORE_OPEN,XMQTT_STORE_END,XMQTT_STORE_CLEAR,
     XMQTT_STORE_OUT_PUT,XMQTT_STORE_OUT_ATTEMPT,XMQTT_STORE_OUT_PUBREL,
     XMQTT_STORE_OUT_COMPLETE,XMQTT_STORE_IN_ACCEPT,XMQTT_STORE_IN_PUBREL,
-    XMQTT_STORE_IN_COMPLETE,XMQTT_STORE_INBOX_ACK
+    XMQTT_STORE_IN_COMPLETE,XMQTT_STORE_INBOX_ACK,XMQTT_STORE_IN_TRACK
 } xmqttstoredeltatype;
 typedef enum xmqttstoredeltastatus {
     XMQTT_STORE_DELTA_ERROR=-3,XMQTT_STORE_DELTA_MALFORMED=-2,
@@ -36,6 +36,8 @@ typedef enum xmqttstoredeltastatus {
  *      PUBREC completion must be negative. IN_ACCEPT: Key plus canonical full-
  *      topic PUBLISH Data; id matches QoS1/2,0 for QoS0. It atomically represents
  *      payload/delivery AND QoS2 identity acceptance. Other fields zero.
+ * IN_TRACK: Key/id of an accepted QoS2 PUBLISH for protocol-only persistence.
+ *      Flags, Reason and Data are empty. No pending delivery is created.
  * IN_PUBREL/IN_COMPLETE: Key/id only. INBOX_ACK: Key only, original acceptance
  *      Epoch; distinct from receive completion and valid after protocol reset.
  * Every record has nonzero Epoch. Data otherwise empty. No TLS/auth secrets. */

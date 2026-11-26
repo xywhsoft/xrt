@@ -82,6 +82,7 @@ state and are not inferred by a syntax codec.
 |IN_PUBREL|Key/id, durable received-PUBREL stage.|
 |IN_COMPLETE|Key/id, protocol identity completion only. Pending application payload remains independent.|
 |INBOX_ACK|Key and its original acceptance Epoch, including after protocol reset. This is a durable application-completion intent, not plain memory Release.|
+|IN_TRACK|Key, Epoch and the nonzero identifier of an accepted QoS 2 PUBLISH. It records receive identity without storing a delivery or any wire bytes.|
 
 These are representations, not authorization to apply an arbitrary transition.
 The future store must reject invalid epoch/key/stage/identity/clock order and

@@ -2,6 +2,7 @@
 #include "../examples/common/store_compact.h"
 #include <xmqtt/store_write.h>
 #include "support/journal_peer.h"
+#include "support/store_write_peer.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
 static const char* Names[]={"journal.slot","journal.0","journal.1"};
@@ -330,6 +331,95 @@ static void portableCheckpoint(xmqttversion V)
     jpFileClose(Target);
 }
 
+static void protocolCheckpoint(xmqttversion V)
+{
+    jpdrive SourceDrive={0},TargetDrive={0};
+    jpfile Source=jpFile(&SourceDrive),Target=jpFile(&TargetDrive);
+    xmqttjournalconfig JC=stJournalConfig(V);
+    xmqttstorestateconfig C=stConfig(V);
+    C.MaxInbox=0;
+    C.MaxIncoming=2;
+    xmqttjournal* J=jpCreate(Source,&JC);
+    xmqttstorestate* State=NULL;
+    stStatus(xmqttStoreStateRecover(J,&C,&State),XMQTT_STORE_DONE,"empty protocol store");
+    xmqttstorewriteconfig WConfig;
+    testRequire(xmqttStoreWriteConfigInit(&WConfig),"writer config");
+    xtaskpool* Pool=jwPool(1);
+    xmqttstorewrite* W=NULL;
+    testRequire(xmqttStoreWriteCreate(Pool,J,State,&WConfig,&W),"protocol writer");
+    xmqttstoredelta Ops[]={
+        {.Type=XMQTT_STORE_BIND,.Epoch=1,.WallMilliseconds=C.WallMilliseconds,
+         .Data=XRT_BYTES_LITERAL("delta-client")},
+        {.Type=XMQTT_STORE_OPEN,.Epoch=1,.WallMilliseconds=C.WallMilliseconds,
+         .Expiry=V==XMQTT_VERSION_5?60:UINT32_MAX},
+        {.Type=XMQTT_STORE_IN_TRACK,.Epoch=1,.Key=1,.Identifier=7},
+        {.Type=XMQTT_STORE_IN_TRACK,.Epoch=1,.Key=2,.Identifier=8},
+        {.Type=XMQTT_STORE_IN_PUBREL,.Epoch=1,.Key=2,.Identifier=8}
+    };
+    xfuture* Future=swOps(W,&C.Delta,Ops,sizeof(Ops)/sizeof(Ops[0]));
+    testRequire(jwOutcome(Future)->Status==XMQTT_COMMIT_OK,"commit two payload-free receive identities");
+    xrtFutureDestroy(Future);
+    xmqttstoreview View={0};
+    size_t Required=1;
+    stStatus(xmqttStoreWriteRead(W,1,NULL,0,&View,&Required),XMQTT_STORE_DONE,"read metadata without buffer");
+    testRequire(View.Qos==2&&View.Identifier==7&&!Required&&!View.Wire.Data&&!View.InboxPending&&
+        !View.Pubrel&&!swInfo(W).State.Inbox,"receive tracking retains no business payload");
+    xmqttstoredelta Duplicate={.Type=XMQTT_STORE_IN_TRACK,.Epoch=1,.Key=3,.Identifier=8};
+    Future=swOps(W,&C.Delta,&Duplicate,1);
+    const xmqttcommitresult* Result=jwOutcome(Future);
+    testRequire(Result->Status==XMQTT_COMMIT_LIMIT&&!Result->AppendCalled&&swInfo(W).State.LastKey==2,
+        "receive quota applies without inbox entries");
+    xrtFutureDestroy(Future);
+    Duplicate.Type=XMQTT_STORE_INBOX_ACK;
+    Duplicate.Identifier=0;
+    Duplicate.Key=2;
+    Future=swOps(W,&C.Delta,&Duplicate,1);
+    Result=jwOutcome(Future);
+    testRequire(Result->Status==XMQTT_COMMIT_INVALID&&!Result->AppendCalled,
+        "protocol identity cannot be retired by application acknowledgement");
+    xrtFutureDestroy(Future);
+    testRequire(xmqttStoreWriteDestroy(W),"retire protocol writer");
+    jwPoolDone(Pool);
+
+    J=jpReopen(Source,&JC);
+    xmqttstorecheckpoint* Snapshot=NULL;
+    stStatus(xmqttStoreCheckpointRecover(J,&C,&Snapshot),XMQTT_STORE_DONE,"replay metadata-only journal");
+    testRequire(xmqttJournalDestroy(J),"retire source journal");
+    jpFileClose(Source);
+    JC.Generation=++C.Generation;
+    J=jpCreate(Target,&JC);
+    expect(xmqttStoreCheckpointWrite(Snapshot,J,84),XMQTT_JOURNAL_DONE,"checkpoint metadata-only rows");
+    xmqttStoreCheckpointDestroy(Snapshot);
+    testRequire(xmqttJournalDestroy(J),"retire checkpoint writer");
+    J=jpReopen(Target,&JC);
+    stStatus(xmqttStoreStateRecover(J,&C,&State),XMQTT_STORE_DONE,"cold restore checkpoint");
+    testRequire(info(State).Incoming==2&&!info(State).Inbox&&info(State).LastKey==2,
+        "restore tracks only protocol state");
+    for(size_t I=0;I<2;++I){
+        stStatus(xmqttStoreStateView(State,XMQTT_STORE_INCOMING,I,&View),XMQTT_STORE_DONE,"restore receive identity");
+        testRequire(View.Key==I+1&&View.Identifier==7+I&&View.Qos==2&&View.Pubrel==(I==1)&&
+            !View.Wire.Data&&!View.Wire.Size&&!View.InboxPending,"restore exact QoS2 stage without payload");
+    }
+    Pool=jwPool(1);
+    testRequire(xmqttStoreWriteCreate(Pool,J,State,&WConfig,&W),"resume tracker from checkpoint");
+    xmqttstoredelta Resume[]={
+        {.Type=XMQTT_STORE_OPEN,.Flags=XMQTT_STORE_DELTA_SESSION_PRESENT,.Epoch=1,
+         .WallMilliseconds=C.WallMilliseconds,.Expiry=Ops[1].Expiry},
+        {.Type=XMQTT_STORE_IN_COMPLETE,.Epoch=1,.Key=2,.Identifier=8},
+        {.Type=XMQTT_STORE_IN_TRACK,.Epoch=1,.Key=3,.Identifier=8}
+    };
+    Future=swOps(W,&C.Delta,Resume,sizeof(Resume)/sizeof(Resume[0]));
+    testRequire(jwOutcome(Future)->Status==XMQTT_COMMIT_OK,"complete and reuse restored identifier atomically");
+    xrtFutureDestroy(Future);
+    stStatus(xmqttStoreWriteRead(W,2,NULL,0,&View,&Required),XMQTT_STORE_EMPTY,"completed identity retired");
+    stStatus(xmqttStoreWriteRead(W,3,NULL,0,&View,&Required),XMQTT_STORE_DONE,"new identity committed");
+    testRequire(View.Identifier==8&&!View.Pubrel&&!View.Wire.Size&&swInfo(W).State.Incoming==2,
+        "reused identifier starts at PUBLISH");
+    testRequire(xmqttStoreWriteDestroy(W),"retire restored writer");
+    jwPoolDone(Pool);
+    jpFileClose(Target);
+}
+
 enum {COMPACT_CORRUPT_CASES=12};
 static void corrupt(xmqttversion V,unsigned Case)
 {
@@ -415,10 +505,12 @@ int main(void)
         local(V,false);
         local(V,true);
         portableCheckpoint(V);
+        protocolCheckpoint(V);
         for(unsigned Case=0;Case<=COMPACT_CORRUPT_CASES;++Case)corrupt(V,Case);
     }
     puts("[PASS] bounded typed rotation, state equivalence, expiry and subsequent native Writer");
     puts("[PASS] portable checkpoint ownership, descriptor refusals and uncertain writes");
+    puts("[PASS] metadata-only receive identities in MQTT 5 and 3.1.1 journals and checkpoints");
     puts("[PASS] 26 independent checkpoint cases, exact format and failure classifications");
 #if defined(TEST_COMPACT_FAULTS)
     puts("[PASS] eight injected checkpoint allocation, data and selector write failures");

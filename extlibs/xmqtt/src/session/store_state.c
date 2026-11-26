@@ -212,8 +212,10 @@ static xmqttstorestatus xmqttSAdd(xmqttstorestate* S,xmqttstoreview View,bool Ou
     if(!E)return XMQTT_STORE_ERROR;
     memset(E,0,sizeof(*E));
     E->Allocation=N;E->Out=Out;E->Receive=Receive;E->View=View;
-    E->View.Wire.Data=(const unsigned char*)(E+1);
-    memcpy(E+1,View.Wire.Data,View.Wire.Size);
+    if(View.Wire.Size){
+        E->View.Wire.Data=(const unsigned char*)(E+1);
+        memcpy(E+1,View.Wire.Data,View.Wire.Size);
+    }else E->View.Wire.Data=NULL;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     if(S->Plan){S->Plan->PhysicalBytes+=N;xmqttSPlanTouch(S->Plan,E,true);
     }else
@@ -238,9 +240,10 @@ static xmqttstorestatus xmqttSAdd(xmqttstorestate* S,xmqttstoreview View,bool Ou
 static xmqttstorestatus xmqttSInsert(xmqttstorestate* S,const xmqttstoredelta* D)
 {
     bool Out=D->Type==XMQTT_STORE_OUT_PUT;
-    uint8 Qos=(D->Data.Data[0]>>1)&3u;
+    bool Track=D->Type==XMQTT_STORE_IN_TRACK;
+    uint8 Qos=Track?2u:(D->Data.Data[0]>>1)&3u;
     xmqttstoreview View={.Epoch=D->Epoch,.Key=D->Key,.Identifier=D->Identifier,.Qos=Qos,
-        .Attempted=(D->Flags&1u)!=0,.Sent=(D->Flags&2u)!=0,.InboxPending=!Out,.Wire=D->Data};
+        .Attempted=(D->Flags&1u)!=0,.Sent=(D->Flags&2u)!=0,.InboxPending=!Out&&!Track,.Wire=D->Data};
     return xmqttSAdd(S,View,Out,!Out&&Qos==2?2u:0u);
 }
 static xmqttstorestatus xmqttSApply(xmqttstorestate* S,const xmqttstoredelta* D)
@@ -301,7 +304,8 @@ static xmqttstorestatus xmqttSApply(xmqttstorestate* S,const xmqttstoredelta* D)
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
             if(S->Plan&&!S->WriteEstablished)return xmqttSError(XMQTT_STORE_STATE_ERROR,"fresh broker OPEN is required before live flow transitions");
 #endif
-            if(D->Type==XMQTT_STORE_OUT_PUT||D->Type==XMQTT_STORE_IN_ACCEPT)return xmqttSInsert(S,D);
+            if(D->Type==XMQTT_STORE_OUT_PUT||D->Type==XMQTT_STORE_IN_ACCEPT||D->Type==XMQTT_STORE_IN_TRACK)
+                return xmqttSInsert(S,D);
             xmqttstoreentry* E=xmqttSFind(S,D->Key);
             if(!E||E->View.Epoch!=D->Epoch||E->View.Identifier!=D->Identifier)return xmqttSError(XMQTT_STORE_CORRUPT,"stale flow key/identifier");
             if(D->Type==XMQTT_STORE_OUT_ATTEMPT){
@@ -441,8 +445,10 @@ static xmqttstorestatus xmqttSCEntry(xmqttstorestate* S,const unsigned char* H,x
 {
     uint8 Flags=H[22],Reason=H[23];
     bool Out=(Flags&XMQTT_CK_OUT)!=0,Receive=(Flags&XMQTT_CK_RECEIVE)!=0;
+    if(!Wire.Size&&(!Receive||(Flags&~(XMQTT_CK_RECEIVE|XMQTT_CK_PUBREL))||!xmqttSCGet(H+20,2)))
+        return xmqttSError(XMQTT_STORE_CORRUPT,"invalid metadata-only receive checkpoint");
     xmqttstoreview View={.Key=xmqttSCGet(H,8),.Epoch=xmqttSCGet(H+8,8),.Identifier=(uint16)xmqttSCGet(H+20,2),
-        .Qos=(Wire.Data[0]>>1)&3u,.Wire=Wire,.PubrecReason=Reason,
+        .Qos=Wire.Size?(Wire.Data[0]>>1)&3u:2u,.Wire=Wire,.PubrecReason=Reason,
         .Attempted=(Flags&XMQTT_CK_ATTEMPT)!=0,.Sent=(Flags&XMQTT_CK_SENT)!=0,
         .Pubrel=(Flags&XMQTT_CK_PUBREL)!=0,.InboxPending=(Flags&XMQTT_CK_INBOX)!=0};
     if((Flags&~63u)||!View.Key||View.Key>LastKey||!View.Epoch||View.Epoch>S->Info.Epoch||
@@ -452,11 +458,13 @@ static xmqttstorestatus xmqttSCEntry(xmqttstorestate* S,const unsigned char* H,x
              (Reason&&(!View.Pubrel||Reason!=0x10||S->Info.Version!=XMQTT_VERSION_5))):
             ((!Receive&&!View.InboxPending)||View.Attempted||View.Sent||Reason)))
         return xmqttSError(XMQTT_STORE_CORRUPT,"invalid store checkpoint flow stage or flags");
-    xmqttstoredelta Packet={.Type=Out?XMQTT_STORE_OUT_PUT:XMQTT_STORE_IN_ACCEPT,
-        .Identifier=View.Identifier,.Data=Wire};
-    xmqttstoredeltastatus Decode=xmqttInternalStorePacket(&S->Config.Delta,&Packet,Properties,Capacity);
-    if(Decode!=XMQTT_STORE_DELTA_DONE)return Decode==XMQTT_STORE_DELTA_LIMIT?XMQTT_STORE_LIMIT:
-        Decode==XMQTT_STORE_DELTA_ERROR?XMQTT_STORE_ERROR:XMQTT_STORE_CORRUPT;
+    if(Wire.Size){
+        xmqttstoredelta Packet={.Type=Out?XMQTT_STORE_OUT_PUT:XMQTT_STORE_IN_ACCEPT,
+            .Identifier=View.Identifier,.Data=Wire};
+        xmqttstoredeltastatus Decode=xmqttInternalStorePacket(&S->Config.Delta,&Packet,Properties,Capacity);
+        if(Decode!=XMQTT_STORE_DELTA_DONE)return Decode==XMQTT_STORE_DELTA_LIMIT?XMQTT_STORE_LIMIT:
+            Decode==XMQTT_STORE_DELTA_ERROR?XMQTT_STORE_ERROR:XMQTT_STORE_CORRUPT;
+    }
     return xmqttSAdd(S,View,Out,Receive?(View.Pubrel?3u:2u):0u);
 }
 static xmqttstorestatus xmqttSCRows(xmqttstorestate* S,xbytesview Data,xmqttcheckpointcursor* Cut,
@@ -475,7 +483,7 @@ static xmqttstorestatus xmqttSCRows(xmqttstorestate* S,xbytesview Data,xmqttchec
         const unsigned char* H=Data.Data+At;
         size_t Bytes=(size_t)xmqttSCGet(H+16,4);
         At+=XMQTT_CK_ENTRY;
-        if(!Bytes||Bytes>Data.Size-At)
+        if(Bytes>Data.Size-At)
             return xmqttSError(XMQTT_STORE_CORRUPT,"invalid checkpoint packet length");
         xmqttstorestatus Status=xmqttSCEntry(S,H,(xbytesview){Data.Data+At,Bytes},Cut->LastKey,Properties,Capacity);
         if(Status!=XMQTT_STORE_DONE)return Status;
@@ -638,7 +646,7 @@ static xmqttjournalstatus xmqttSCWrite(xmqttjournal* J,const xmqttstorestate* S,
             H[22]=(E->Out?XMQTT_CK_OUT:0u)|(V->Attempted?XMQTT_CK_ATTEMPT:0u)|(V->Sent?XMQTT_CK_SENT:0u)|
                 (V->Pubrel?XMQTT_CK_PUBREL:0u)|(V->InboxPending?XMQTT_CK_INBOX:0u)|(E->Receive?XMQTT_CK_RECEIVE:0u);
             H[23]=V->PubrecReason;
-            memcpy(H+XMQTT_CK_ENTRY,V->Wire.Data,V->Wire.Size);
+            if(V->Wire.Size)memcpy(H+XMQTT_CK_ENTRY,V->Wire.Data,V->Wire.Size);
             At+=XMQTT_CK_ENTRY+V->Wire.Size;
             ++Rows;
             E=E->Next;

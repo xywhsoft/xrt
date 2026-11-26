@@ -52,7 +52,7 @@ XMQTT_INTERNAL xmqttstoredeltastatus xmqttInternalStorePacket(const xmqttstorede
 static xmqttstoredeltastatus xmqttDValidate(const xmqttstoredeltaconfig* K,const xmqttstoredelta* D,xmqttproperty* P,size_t N)
 {
     if(!D->Epoch||D->WallMilliseconds>INT64_MAX)return xmqttDError(XMQTT_STORE_DELTA_PROTOCOL,"invalid delta epoch or wall clock");
-    bool Flow=D->Type>=XMQTT_STORE_OUT_PUT&&D->Type<=XMQTT_STORE_INBOX_ACK;
+    bool Flow=D->Type>=XMQTT_STORE_OUT_PUT&&D->Type<=XMQTT_STORE_IN_TRACK;
     if((Flow&&!D->Key)||(!Flow&&D->Key))return xmqttDError(XMQTT_STORE_DELTA_PROTOCOL,"invalid delta flow/delivery key");
     if(Flow&&(D->Expiry||D->WallMilliseconds))return xmqttDError(XMQTT_STORE_DELTA_PROTOCOL,"unexpected flow clock/expiry metadata");
     if(D->Type!=XMQTT_STORE_BIND&&D->Type!=XMQTT_STORE_OUT_PUT&&D->Type!=XMQTT_STORE_IN_ACCEPT&&D->Data.Size)return xmqttDError(XMQTT_STORE_DELTA_PROTOCOL,"unexpected delta body");
@@ -80,6 +80,7 @@ static xmqttstoredeltastatus xmqttDValidate(const xmqttstoredeltaconfig* K,const
         if(D->Flags||D->Reason)break;
         return xmqttInternalStorePacket(K,D,P,N);
     case XMQTT_STORE_OUT_ATTEMPT:case XMQTT_STORE_IN_PUBREL:case XMQTT_STORE_IN_COMPLETE:
+    case XMQTT_STORE_IN_TRACK:
         if(!D->Identifier||D->Flags||D->Reason)break;
         return XMQTT_STORE_DELTA_DONE;
     case XMQTT_STORE_OUT_PUBREL:

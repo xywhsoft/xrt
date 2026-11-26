@@ -29354,3 +29354,28 @@ timing. The original longer campaigns and strict tail acceptance
 remain open. Replay and the archived build and samples are under
 out/service-extensions/xcron-timer-slack-a82b228b/.
 [Linux timer slack manual](https://man7.org/linux/man-pages/man2/PR_SET_TIMERSLACK.2const.html).
+
+
+## 2026-11-26 Metadata-only MQTT client receive checkpoints
+
+Typed client stores can record accepted QoS 2 identifiers without
+recording incoming application payloads. IN_TRACK stores the key,
+epoch and identifier. Recovery exposes the same incoming QoS 2
+stage used to restore a Session, and a metadata-only checkpoint row
+has zero wire bytes. Normal receive limits, duplicate identifiers
+and protocol completion apply independently of any Inbox capacity.
+Existing IN_ACCEPT and INBOX_ACK records still replay with their
+original semantics. The durable Client still uses the existing receive
+path while the APP delivery integration is developed.
+
+Windows and the Ubuntu QEMU/WHPX guest passed the modular and
+single-header checkpoint suites for MQTT 5 and 3.1.1. A fixture starts
+with zero Inbox credits, commits two receive stages, checks quota and
+application-acknowledgement refusal, restores both from a cold
+checkpoint, and completes and reuses one identifier atomically.
+The existing legacy, expiry, corruption and uncertain-write cases
+also passed. Ubuntu passed the single-header suite under ASan/UBSan.
+Generated declarations, API documentation and ordinary maturity
+checks passed. The source overlay hashes, compiler identity, logs
+and binary receipts are under
+out/service-extensions/xmqtt-store-in-track-a270eb79/.

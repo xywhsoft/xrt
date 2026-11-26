@@ -66,7 +66,8 @@ XMQTT_API xmqttstorestatus xmqttStoreStateRecover(xmqttjournal* Journal,
  * Wire/ClientId remain readable until Destroy, independent of Journal lifetime.
  * Getters allocate nothing, preserve ambient error on DONE/EMPTY and require
  * outputs disjoint from every State-owned allocation. INCOMING includes only
- * active QoS2 identities; INBOX includes only pending application deliveries. */
+ * active QoS2 identities, with an empty Wire for metadata-only records.
+ * INBOX includes only pending application deliveries. */
 XMQTT_API bool xmqttStoreStateInfo(const xmqttstorestate* State,xmqttstorestateinfo* Info);
 XMQTT_API xmqttstorestatus xmqttStoreStateView(const xmqttstorestate* State,
     xmqttstoreviewkind Kind,size_t Index,xmqttstoreview* View);
