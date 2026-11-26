@@ -30856,3 +30856,57 @@ the initial test compile failures, timing samples and replay are under
 out/service-extensions/xredis-read-modes-506c9426/. The ongoing Redis
 and MQTT journals replayed 40.66/40.75 and 4.56/4.54 awake hours on
 Windows/Ubuntu respectively.
+
+## 2026-11-26 xrpc grouped first-reply phases and vector writes
+
+The compact APP trace records the last read, executor submission,
+worker entry, preparation completion, owner resumption and first send
+for each group. Each connection's initial request ID maps its contiguous
+group ledger to the native observer. The trace is emitted after the
+executor and connection owners retire. A separate direct-dispatch
+prototype gathers up to four prepared replies and their delimiters into
+one send vector. Short positive sends advance through the array and
+skip bytes only after the socket reports them written.
+
+Both platforms passed the TCP peer suite, valid-prefix ordering,
+arena-capacity checks and silent notifications. The injected vector
+writer returned short counts across delimiters, a zero count and a
+write error after a partial success. The guest repeated the vector
+tests with ASan, UBSan and leak checking. The first diagnostic launch
+needed a multiprocessing main guard. The subsequent Windows 128-call
+pilot reached the trace write but failed the process CPU check. A
+2,048-call pilot on both hosts fully replayed 8,192 replies.
+
+The ordinary compact app, trace and vector variants rotated in five
+four-second trials per platform at 64,000 scheduled calls/s, 32 peers,
+two executor workers and two native observer shards. Independent replay
+matched all 30 trials, 7,680,000 exact replies, timing quantiles and
+every traced group count. The table gives compact / vector medians.
+
+| Host | APP CPU (s) | P99 (ms) | P99.9 (ms) |
+| --- | ---: | ---: | ---: |
+| Windows | 2.844 / 1.734 | 0.167 / 0.133 | 0.283 / 0.266 |
+| Ubuntu guest | 2.552 / 2.209 | 0.886 / 0.577 | 1.570 / 0.989 |
+
+All paired throughput ratios met repeatability. The Ubuntu vector CPU
+ratio met repeatability at 0.865. The Windows CPU ratio of 0.607 and
+both hosts' vector P99 and P99.9 ratios exceeded the variation limits.
+The single-outstanding-call check verified 81,920 replies. Direct
+dispatch throughput medians for compact / vector were 30,273 / 30,357
+calls/s on Windows and 12,424 / 12,487 on Ubuntu.
+
+For the slowest 0.1% of first replies in each trace trial, observer send
+to APP read accounted for a median 60.4% of elapsed time on Windows and
+36.0% on Ubuntu. Executor queueing accounted for 15.9% and 18.1%.
+Worker preparation completion to owner resumption accounted for 2.9%
+and 35.8%. The send-to-read interval includes transport and runnable
+thread scheduling. These measurements bound the traced APP phases.
+Windows trace P99 matched the ordinary compact app within the paired
+variation limits. The other traced tail ratios exceeded those limits.
+
+The vector variant remains a test candidate. Ordinary release maturity
+passed and strict release acceptance remains open. Raw timing and group
+ledgers, source receipts and replay are under
+out/service-extensions/xrpc-group-first-reply-30d86d9c/. The live Redis
+and MQTT intervals replayed 40.87/40.96 and 4.77/4.76 awake hours on
+Windows/Ubuntu respectively.
