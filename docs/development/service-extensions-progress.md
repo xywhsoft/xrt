@@ -29548,3 +29548,11 @@ journals passed prefix replay. Windows/Ubuntu Redis had 34.39/34.48
 verified awake hours and Windows/Ubuntu MQTT had 13.88/33.87 hours.
 Exact source hashes, reports, corrected replay and the original
 failure logs are under out/service-extensions/xmqtt-retire-online-inbox-10e52a3d/.
+
+
+
+Plaintext TCP probes built from clean bd3e5d5a are byte-identical to
+the previous candidate on Windows and Ubuntu. The original running
+MQTT intervals keep their source and binary receipts. Both new build
+receipts and the independent byte comparison are in the same evidence
+directory.
