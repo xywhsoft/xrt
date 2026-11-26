@@ -29425,3 +29425,13 @@ the existing TLS, WS/WSS, enhanced-auth and reconnect paths with the
 default Writer. Generated headers, dependency trimming and ordinary
 maturity passed. Source receipts, logs and artifacts are under
 out/service-extensions/xmqtt-client-protocol-only-b25a066f/.
+
+
+
+Rebuilding the plaintext mixed probe from clean f1347b0b produced
+the exact prior binary on Windows and Ubuntu. The earlier matched
+sections and segments still apply to the running candidates. All
+four Redis and MQTT mixed-load intervals passed running-prefix
+replay during the test runs and continue with their original
+receipts. The new build receipts and hash comparison are in the
+protocol-only evidence folder.
