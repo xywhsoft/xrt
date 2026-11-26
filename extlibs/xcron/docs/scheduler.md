@@ -99,14 +99,14 @@ XBENCH_PIN_CPU=4 python tools/measure_performance.py \
   --profiles xcron_scheduler_cohort --report out/xcron-cohort.json
 ```
 
-The same benchmark executable accepts up to 1,024 measured waves. The
+The same benchmark executable accepts up to 8,192 measured waves. The
 `--samples` option emits first callback lateness, last callback lateness
 and monotonic dispatch span in that order, all in nanoseconds.
 The raw values are printed after timing ends. The benchmark still emits
 the standard quantiles. Five runs of 256 waves per configuration give
-1,280 observations for pooled P99.9 and separate per-process P99 estimates
-for stability checks. Record the operating environment and CPU affinity
-with the results.
+1,280 observations for pooled P99.9. Use 8,192 waves per process for
+more observations in each process's P99.9 tail. Record the operating
+environment and CPU affinity with the results.
 
 ```sh
 XBENCH_PIN_CPU=4 ./xcron_cohort_1024_wait cohort 256 1024 0 wait --samples
@@ -134,12 +134,12 @@ the build report and executable with the run. The runner alternates
 Scheduler Wait and the precise direct waiter over both job mixes.
 It saves each verified process immediately, including raw wave readings,
 count, affinity and benchmark binary identity. Its summaries report pooled
-P50/P95/P99/P99.9 and the variation across per-process P99 values.
+P50/P95/P99/P99.9 and variation across per-process P99 and P99.9 values.
 The default is five 256-wave processes per drive and job mix.
-For a shorter verification, set `--waves 2 --repeats 1`. Use
+Use `--waves 8192` for the longer campaign or `--waves 2 --repeats 1`
+to verify that the executable and runner work together. Use
 `--active-tasks 64` or `--active-tasks 1024` to measure one job mix in
-its own journal. A completed report describes the environment that ran it. Use an independent native
-Linux run for acceptance.
+its own journal. Use an independent native Linux run for acceptance.
 
 The Service extensions workflow exposes the same full campaign through its
 `xcron_cohorts` workflow-dispatch input. It preserves the native Ubuntu

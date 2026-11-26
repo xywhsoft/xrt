@@ -29848,3 +29848,33 @@ with a different executable. Native 72-hour acceptance and strict
 release remain open. The startup receipts, code comparison, fault
 and smoke evidence, and retained build products are under
 out/service-extensions/xmqtt-offline-write-limit-1f301bed/candidate-e0dc446a/.
+
+
+## 2026-11-26 xcron calendar and scheduler package isolation
+
+The calendar-only single-header test now rejects the scheduler and
+XRT event waiter features at compile time. The calendar size profile
+also checks the corresponding defined symbol prefixes. The scheduler
+SDK consumer verifies an empty nonblocking poll, then registers a
+job, waits for its callback, and checks the supplied context.
+
+Windows and the Ubuntu QEMU/WHPX guest each passed seven optimized
+runtime tests, two dependency trim probes, four static and shared
+package consumers, and the calendar single-header symbol check.
+Forcing either excluded feature produced the expected compile error
+on both platforms. The calendar packages had zero scheduler and
+waiter symbols. The scheduler packages exposed all seven scheduler
+functions and their separately owned XRT libraries supplied the
+waiter. The first guest fixture lacked the root LICENSE used by the
+header generator. After including the root files, the full matrix
+passed. The Windows export replay covers the PE ordinal and hint
+columns emitted by the installed GNU tools.
+
+The same 8,192-wave campaigns continued. Replay matched six Windows
+64-task runs with 3,145,728 callbacks and 15 Ubuntu runs with
+47,185,920 callbacks. The Ubuntu count includes ten 64-task and
+five 1,024-task runs. The usage guide now documents the 8,192-wave
+limit and per-process P99 and P99.9 checks. Full timing and strict
+release remain open. The source overlay, logs, hashed packages
+and timing prefixes are under
+out/service-extensions/xcron-optional-c323f96a/.

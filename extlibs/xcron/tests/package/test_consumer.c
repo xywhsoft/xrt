@@ -21,7 +21,10 @@ int main(void)
     unsigned Count = 0;
     xcronjobid Job;
     if (!xcronSchedulerCreate(1, XCRON_SECONDS6, &Scheduler)) return 2;
-    bool OK = xcronSchedulerAdd(Scheduler, XRT_STR_LITERAL("* * * * * *"), tick, &Count, &Job) &&
+    xcronpoll Poll;
+    bool OK = xcronSchedulerPoll(Scheduler, &Poll) == XCRON_SCHEDULE_IDLE &&
+        Poll.Count == 0 && !Poll.HasNext &&
+        xcronSchedulerAdd(Scheduler, XRT_STR_LITERAL("* * * * * *"), tick, &Count, &Job) &&
         xcronSchedulerWait(Scheduler, 3000, NULL) == XCRON_SCHEDULE_DISPATCHED &&
         Count == 1 && xcronSchedulerRemove(Scheduler, Job);
     if (!xcronSchedulerDestroy(Scheduler) || !OK) return 3;
