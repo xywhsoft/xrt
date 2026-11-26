@@ -29727,3 +29727,60 @@ validates the controls needed for a subsequent performance campaign.
 The strict performance and endurance gates stay open. The source
 overlay, compile receipts, peak replay and complete fixtures are under
 out/service-extensions/xredis-window-50e69385/.
+
+
+## 2026-11-26 Redis observer checks only outstanding Futures
+
+The fixed-arrival xredis observer partitions its existing slot-index
+array into active and available ranges. Each pass examines the active
+range. A release moves the last active index into the vacated position
+and returns the retired index to the available range. A rejected
+offer uses no active index. The fixed slot and watch storage are reused
+after the release callback. The timestamp and one-record-per-offer
+accounting are preserved.
+
+The Windows modular and single-header open-loop runtime tests passed.
+The Ubuntu QEMU/WHPX guest passed the matching runtime suite under
+ASan/UBSan with leak detection. Against a private Redis peer paused
+for 35 ms, the candidate reached 446 outstanding offers in Windows
+and 422 in Ubuntu with a 1,024-slot window. Independent replay matched
+the exact peak, Redis command ledger and all 48,000 replies per host.
+
+Both hosts alternated the capacity-scanning observer, active-slot
+observer and pinned Hiredis 1.3.0 with one warmup and five eight-second
+trials per observer. The workload used a 1,024-slot window, eight RESP3
+connections, 1 KiB GET/SET payloads and 12,000 planned offers/s. Each
+host used a two-CPU observer mask and a dedicated Redis 8.0.5 peer.
+Windows used IOCP through a private SSH relay. Ubuntu used guest-local
+epoll. The host campaigns ran sequentially.
+
+All 2,952,000 offers returned correct replies. Replay matched the 36
+trials, binary identities, all raw latency quantiles and command
+ledgers. The table reports medians of the measured trial quantiles.
+
+| Host | Observer | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: |
+| Windows | Capacity scan | 999.7 | 1523.8 |
+| Windows | Active slots | 1089.5 | 1869.8 |
+| Windows | Hiredis | 828.4 | 1032.7 |
+| Ubuntu guest | Capacity scan | 346.4 | 577.0 |
+| Ubuntu guest | Active slots | 343.9 | 574.0 |
+| Ubuntu guest | Hiredis | 97.7 | 166.6 |
+
+Both paired throughput ratios were repeatable near 1.000. The paired
+CPU ratios for the whole process were 0.989 and 0.998 on Windows and
+Ubuntu. Both met repeatability. Paired P99, P99.9 and generator P99
+ratios exceeded the variability limits on both hosts. Windows
+generator P99 medians were 5.7 us for capacity scan and 16.2 us for
+active slots. Ubuntu recorded 7.3 us and 6.1 us. The change removes
+empty-slot scans from the measurement harness. The data leave the
+strict tail and release-performance gates open.
+
+All four Redis and MQTT endurance attempts passed running-prefix
+replay at about 13:23 Asia/Shanghai. Windows and Ubuntu Redis had
+35.27 and 35.36 verified awake hours. Windows and Ubuntu MQTT had
+14.77 and 34.76 hours. The Ubuntu filesystem recovered 67,596,288
+bytes by retiring three duplicate archive files after matching their
+SHA-256 values against the verified Windows copies. Original traces
+and both sets of live journals remained in place. Evidence is under
+out/service-extensions/xredis-active-slots-777dbd79/.

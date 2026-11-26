@@ -53,8 +53,9 @@ deadline admission.
 
 ## Limits and instrumentation
 
-The harness allocates its bounded record, slot, free-index, payload and sample
-buffers before the measured window. Count is at most 1,000,000; at most 4096
+The harness allocates its bounded record, slot, index, payload and sample
+buffers before the measured window. The xredis generator checks only slots
+with outstanding Futures and returns each slot after watch retirement. Count is at most 1,000,000; at most 4096
 observer slots; payload 8..256 KiB; slot-count times payload at most 64 MiB.
 The arrival horizon is at most 30 seconds, intended timeout at most 10 seconds,
 and fault injection stall at most 5 seconds. Held-fixture responses additionally

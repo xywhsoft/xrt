@@ -235,7 +235,6 @@ typedef struct redisopenslot {
 	xatomic32 Done;
 	uint64 Observed;
 	size_t Id;
-	bool Active;
 } redisopenslot;
 typedef struct redisopenpeer {
 	redispeer Peer;
@@ -285,7 +284,7 @@ static void redisOpenObserve(redisopenslot* Slot, const redisopenconfig* Config,
 	}
 	redisPeerRequire(redisOpenFinish(&Records[Slot->Id], Slot->Observed, REDIS_OPEN_ACCEPTED,
 		Status, Valid, (uint64)Config->Timeout * 1000000u, Counts), "open-loop accepted ledger");
-	xrtFutureDestroy(Slot->Future); Slot->Future = NULL; Slot->Active = false;
+	xrtFutureDestroy(Slot->Future); Slot->Future = NULL;
 }
 
 static void redisOpenWarmCommand(xredisclient* Client, const xbytesview* Args, size_t Count, xbytesview Expected)
@@ -363,12 +362,12 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	*Output = (redisopenresult){0}; Output->HandlesBefore = redisOpenHandles();
 	redisopenrecord* Records = (redisopenrecord*)calloc(Config->Count, sizeof(*Records));
 	redisopenslot* Slots = (redisopenslot*)calloc(Config->Slots, sizeof(*Slots));
-	size_t* Free = (size_t*)malloc(Config->Slots * sizeof(*Free));
+	size_t* Indices = (size_t*)malloc(Config->Slots * sizeof(*Indices));
 	unsigned char* Payload = (unsigned char*)malloc(Config->Payload);
 	uint64* Samples = (uint64*)malloc(Config->Count * sizeof(*Samples));
-	redisPeerRequire(Records != NULL && Slots != NULL && Free != NULL && Payload != NULL && Samples != NULL, "bounded harness storage");
-	Output->HarnessBytes = Config->Count * (sizeof(*Records) + sizeof(*Samples)) + Config->Slots * (sizeof(*Slots) + sizeof(*Free)) + Config->Payload;
-	for (size_t Index = 0; Index < Config->Slots; ++Index) Free[Index] = Index;
+	redisPeerRequire(Records != NULL && Slots != NULL && Indices != NULL && Payload != NULL && Samples != NULL, "bounded harness storage");
+	Output->HarnessBytes = Config->Count * (sizeof(*Records) + sizeof(*Samples)) + Config->Slots * (sizeof(*Slots) + sizeof(*Indices)) + Config->Payload;
+	for (size_t Index = 0; Index < Config->Slots; ++Index) Indices[Index] = Index;
 	redisopenpeer Endpoint; memset(&Endpoint, 0, sizeof(Endpoint)); Endpoint.Hold = Config->Mode == 2;
 	if (Config->Port == 0) {
 		redisPeerStart(&Endpoint.Peer); Endpoint.Hook = (redispeerhook){redisOpenPeerCommand, &Endpoint};
@@ -444,12 +443,21 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	redisPeerRequire(Horizon <= UINT64_MAX - Timeout - 10u * REDIS_OPEN_NS, "bounded horizon arithmetic");
 	uint64 Limit = Horizon + Timeout + 10u * REDIS_OPEN_NS;
 	if (Config->Mode == 1) xrtSleep(Config->Stall);
-	size_t Next = 0, Active = 0, Available = Config->Slots;
+	/* The first Active indices own accepted Futures. The suffix supplies free slots. */
+	size_t Next = 0, Active = 0;
 	uint64 SampleAt = Start;
 	while (Next < Config->Count || Active != 0) {
 		uint64 Now = redisOpenNow(); redisPeerRequire(Now < Limit, "bounded open-loop drain deadline");
-		for (size_t Index = 0; Index < Config->Slots; ++Index) if (Slots[Index].Active && xrtAtomic32Load(&Slots[Index].Done, XMEMORY_ACQUIRE)) {
-			redisOpenObserve(&Slots[Index], Config, Records, &Output->Counts); Free[Available++] = Index; --Active;
+		for (size_t Cursor = 0; Cursor < Active;) {
+			size_t Index = Indices[Cursor];
+			redisopenslot* Slot = &Slots[Index];
+			if (!xrtAtomic32Load(&Slot->Done, XMEMORY_ACQUIRE)) {
+				++Cursor; continue;
+			}
+			redisOpenObserve(Slot, Config, Records, &Output->Counts);
+			--Active;
+			Indices[Cursor] = Indices[Active];
+			Indices[Active] = Index;
 		}
 		for (size_t Work = 0; Next < Config->Count && Work < 128; ++Work) {
 			uint64 Due = 0; redisPeerRequire(redisOpenDue(Start, Next, Config->Rate, &Due), "fixed arrival timestamp"); Now = redisOpenNow();
@@ -457,14 +465,14 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 			redisopenrecord* Record = &Records[Next]; Record->Due = Due; Record->Submitted = Now;
 			redisopenoutcome Outcome = REDIS_OPEN_PENDING;
 			if (Now - Due >= Timeout) Outcome = REDIS_OPEN_EXPIRED;
-			else if (Available == 0) Outcome = REDIS_OPEN_CAPACITY;
+			else if (Active == Config->Slots) Outcome = REDIS_OPEN_CAPACITY;
 			else {
-				redisopenslot* Slot = &Slots[Free[--Available]]; Slot->Id = Next; Slot->Active = true; Slot->Observed = 0;
+				redisopenslot* Slot = &Slots[Indices[Active]]; Slot->Id = Next; Slot->Observed = 0;
 				xrtAtomic32Store(&Slot->Done, 0, XMEMORY_RELAXED);
 				xbytesview Args[3];
 				size_t ArgCount = redisOpenCommand(Config, Next, Payload, Args);
 				uint64 At = redisOpenNow(); Record->Submitted = At;
-				if (At - Due >= Timeout) { Outcome = REDIS_OPEN_EXPIRED; Slot->Active = false; Free[Available++] = (size_t)(Slot - Slots); }
+				if (At - Due >= Timeout) Outcome = REDIS_OPEN_EXPIRED;
 				else {
 					int64 Remaining = (int64)((Timeout - (At - Due)) / 1000000u);
 					xredisadmission Admission = xredisClientCallAsync(Clients[Next % Connections], Args, ArgCount, Remaining, &Slot->Future);
@@ -477,7 +485,6 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 					} else {
 						Outcome = Admission == XREDIS_ADMISSION_OVERLOADED ? REDIS_OPEN_OVERLOADED :
 							Admission == XREDIS_ADMISSION_CLOSED ? REDIS_OPEN_CLOSED : REDIS_OPEN_ERROR;
-						Slot->Active = false; Free[Available++] = (size_t)(Slot - Slots);
 					}
 				}
 			}
@@ -530,7 +537,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 		Output->Counts.Outcomes[REDIS_OPEN_OVERLOADED] + Output->Counts.Outcomes[REDIS_OPEN_CLOSED] + Output->Counts.Outcomes[REDIS_OPEN_ERROR] +
 		Output->Counts.Outcomes[REDIS_OPEN_EXPIRED] == Config->Count, "open-loop no omitted offers");
 	redisOpenSummarize(Config, Output, Records, Samples);
-	free(Samples); free(Payload); free(Free); free(Slots); free(Records);
+	free(Samples); free(Payload); free(Indices); free(Slots); free(Records);
 	Output->HandlesAfter = redisOpenHandles(); return Output->Counts.Corrupt == 0 && (Config->Mode != 0 || Output->Counts.Successful != 0);
 }
 #endif
