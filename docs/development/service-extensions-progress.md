@@ -30185,3 +30185,76 @@ The prototype, generated header, scope patch and replay are under
 out/service-extensions/xmqtt-owner-wake-e0dc446a/. CPU savings
 were 1.1–2.8% in these cohorts. The prototype stays in the test
 fixture and the production tail gate remains open.
+
+## 2026-11-26 Shared and shard-local xrpc TCP reply gaps
+
+Replay matched the report, observer binding and all 40 raw trace
+hashes for the sustained 64,000-call/s campaign. The two platforms
+accounted for 20,480,000 exact replies. The historical source input
+blobs still match master. Each observer shard drives 16 of the
+32 peers and records reply completion against the same monotonic
+clock. The analysis merges both shards' timestamps inside each
+four- or twelve-second offer interval. A peer is outstanding across
+a gap when it sent the group containing its next reply by the
+start of the gap and observed that reply at or after the end.
+
+For each trial, the longest joint gap had peers outstanding on
+both shards in 6 of 20 Windows trials and all 20 Ubuntu QEMU/WHPX
+trials. The replay also measured all joint gaps of at least 1 ms,
+equivalent to eight scheduled group phases across the workload.
+For each request among the slowest 0.1% by scheduled latency,
+it counted the overlap of its send-to-reply interval with those
+gaps. The denominator is the sum of scheduled latencies in that
+same set. The final column reports the median across the five
+trials per cohort for gaps with peers outstanding on both shards
+throughout.
+
+| Host | APP mode | Offer interval | Longest joint gap, median (ms) | Outstanding peers across that gap, median | Slowest 0.1% of requests' summed latency inside qualifying gaps |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Windows | Duplex | 4 s | 1.920 | 6 | 0.00% |
+| Windows | Duplex | 12 s | 3.472 | 1 | 4.19% |
+| Windows | Direct dispatch | 4 s | 4.094 | 2 | 0.00% |
+| Windows | Direct dispatch | 12 s | 6.302 | 3 | 3.21% |
+| Ubuntu guest | Duplex | 4 s | 1.161 | 11 | 0.00% |
+| Ubuntu guest | Duplex | 12 s | 3.349 | 12 | 0.81% |
+| Ubuntu guest | Direct dispatch | 4 s | 1.388 | 7 | 0.76% |
+| Ubuntu guest | Direct dispatch | 12 s | 2.598 | 16 | 1.72% |
+
+An Ubuntu control reused the checksum-verified APP and native
+observer. The guest checkout had the same ten build input hashes.
+The test-only runner added hooks to collect the dedicated process
+IDs and apply a pause through a pidfd. It verified the stopped
+state of each target thread before timing the pause and resumed
+the target in cleanup. Nine four-second trials rotated three
+conditions. The observer verified 2,304,000 exact replies.
+Independent replay checked all reply counts, timestamps and
+the APP request counts, including the warmup.
+
+- With the APP paused, the longest joint gap inside the verified
+  stop window was 12.026–14.963 ms. Both observers continued to
+  submit batches. The three to five replies received in each
+  window completed near its start.
+- With one observer paused, it recorded zero sends and replies in
+  its verified stop window. The other recorded 389–466 replies
+  and the longest joint gap in that window was 0.216–0.355 ms.
+- With no pause, the same 12 ms observation window contained
+  replies on both shards and the longest joint gap was
+  0.196–0.343 ms.
+
+A single observer pause and an APP pause have distinguishable
+signatures under these conditions. Even counting the partial
+overlaps of every qualifying gap, the median coincident share of
+the slowest replies' time is at most 4.19%. Phase timestamps at
+the APP and observer sockets are still needed to attribute the
+larger end-to-end tail. The timing replay establishes overlap.
+The causes of individual historical gaps and the strict tail
+and release gates remain open.
+
+The source and binary receipts, archived raw trial digests,
+analysis scripts, control timings and independent replay are
+under out/service-extensions/xrpc-shared-tail-gaps-d7c5c7f5/.
+The four Redis and MQTT mixed-load candidates also passed
+running-prefix replay after the controls. At about 16:24
+Asia/Shanghai, the Windows and Ubuntu Redis intervals had 38.28
+and 38.37 verified awake hours. The MQTT intervals had 2.19
+and 2.17 hours.
