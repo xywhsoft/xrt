@@ -30102,3 +30102,45 @@ The prototype remains in the test fixture. The new CPU cost and
 tail evidence leaves the production performance gate open. The
 generated header, exact patch, binaries, reports and replay are
 under out/service-extensions/xmqtt-sendvec-one-e0dc446a/.
+
+
+## 2026-11-26 QoS 2 worker cost and eventfd activity
+
+The e0dc446a broker and observer binaries were reused on native
+Windows and the Ubuntu QEMU/WHPX guest. Each host held one pair
+of broker CPUs and a separate pair of observer CPUs fixed. Five
+alternating pairs compared one worker and two workers at 4,000,
+6,000 and 10,000 scheduled MQTT 5 QoS 2 publications/s. The
+workload had one publisher, eight wildcard subscribers, 128-byte
+payloads, and windows of 16. The guest observed two broker
+threads for one worker and three threads for two workers.
+
+| Host | Scheduled offers/s | Complete trials, one / two workers | Median broker CPU, one / two (s) | Median delivery P99, one / two (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 4,000 | 5/5 and 5/5 | 4.313 / 5.391 | 1.091 / 0.298 |
+| Windows | 6,000 | 5/5 and 5/5 | 9.609 / 11.734 | 1.049 / 0.406 |
+| Windows | 10,000 | 4/5 and 5/5 | 6.039 / 9.766 | 1.224 / 0.579 |
+| Ubuntu | 4,000 | 5/5 and 5/5 | 3.560 / 4.610 | 0.972 / 0.839 |
+| Ubuntu | 6,000 | 4/5 and 5/5 | 8.050 / 9.700 | 2.559 / 1.490 |
+| Ubuntu | 10,000 | 5/5 and 5/5 | 6.000 / 7.420 | 18.096 / 2.589 |
+
+Replay checked all 60 trials and the complete ledgers for
+2,760,000 confirmations and 22,080,000 deliveries. The two
+incomplete single-worker trials returned PUBREC reason 0x97.
+The paired throughput ratios met repeatability in every series.
+The Windows 4,000/s paired delivery P99 ratio met repeatability
+at 0.280. The other P99 and all P99.9 ratios exceeded the limits.
+The guest paired CPU ratios met repeatability, at 1.289, 1.198
+and 1.237 in ascending rate order.
+
+Six separate guest trials counted eventfd syscalls at 4,000/s.
+Perf filtered read and write tracepoints by descriptors verified
+as eventfds before and after each run. The trials verified
+1,152,000 additional deliveries. One worker issued a median of
+24,340 eventfd writes and 48,680 reads per trial. Two workers
+issued 49,048 writes and 97,823 reads. Both issued 442,826
+sendmsg calls per trial.
+
+The raw deliveries, refusal progress, exact eventfd filters and
+replay are under out/service-extensions/xmqtt-two-worker-cost-e0dc446a/.
+The strict release gate remains open.
