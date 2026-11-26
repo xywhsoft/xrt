@@ -1649,6 +1649,58 @@ static void serverPersistentFlows(void)
 	serverStop(&Fixture);
 }
 
+static void serverOfflineWriteLimit(xmqttversion Version)
+{
+	serverfixture Fixture;
+	serverStartConfigured(&Fixture, Version == XMQTT_VERSION_311, 0, true, 65536);
+	xnetsocket Publisher = serverDial(&Fixture), Subscriber = serverDial(&Fixture);
+	serverQos1Connect(Publisher, XMQTT_VERSION_5, "prod");
+	serverPersistentConnect(Subscriber, Version, "save", Version == XMQTT_VERSION_5, 60, 1, false, 0);
+	const char* Filter[] = {"budget"};
+	const uint8 Two[] = {2};
+	serverSubscribeWire(Subscriber, Version, true, 1, Filter, Two, Two, 1);
+	xrtNetSocketClose(Subscriber);
+	serverWaitSessions(&Fixture, 1, 1);
+	serverConnections(&Fixture, 1);
+
+	/* The 128-byte listener write limit is smaller than the broker's
+	 * inbound packet limit. No destination transport exists at admission. */
+	unsigned char Large[140] = {0}, Wire[256];
+	xmqttcodecconfig Codec;
+	xmqttpacket Packet;
+	size_t Bytes;
+	testRequire(xmqttCodecConfigInit(&Codec) && xmqttPacketInit(XMQTT_PACKET_PUBLISH, &Packet),
+		"offline publication fixture configuration");
+	Packet.Flags = 4;
+	Packet.Identifier = 1;
+	Packet.Body.Publish.Topic = (xstrview)XRT_STR_LITERAL("budget");
+	Packet.Body.Publish.Payload = (xbytesview){Large, sizeof(Large)};
+	testRequire(xmqttPacketWrite5(Wire, sizeof(Wire), &Packet, XMQTT_CLIENT_TO_SERVER, &Codec, &Bytes) && Bytes > 128,
+		"encoded offline publication exceeds egress write limit");
+	serverSend(Publisher, Wire, Bytes);
+	serverExpectFlowReply(Publisher, XMQTT_VERSION_5, 0x50, 1, 0);
+	serverReleaseQos2(Publisher, XMQTT_VERSION_5, 1);
+	serverPublishQos2(Publisher, XMQTT_VERSION_5, "budget", "fits", 2, 0, false);
+	serverExpectFlowReply(Publisher, XMQTT_VERSION_5, 0x50, 2, 0);
+	serverReleaseQos2(Publisher, XMQTT_VERSION_5, 2);
+	serverWaitOutgoing(Fixture.Server, 2, 0);
+
+	Subscriber = serverDial(&Fixture);
+	serverPersistentConnect(Subscriber, Version, "save", false, 60, 1, true, 0);
+	serverPublishQos2(Subscriber, Version, "budget", "fits", 1, 0, true);
+	serverSendFlowReply(Subscriber, Version, 0x50, 1, 0);
+	serverExpectFlowReply(Subscriber, Version, 0x62, 1, 0);
+	serverSendFlowReply(Subscriber, Version, 0x70, 1, 0);
+	serverWaitOutgoing(Fixture.Server, 0, 0);
+	serverPingPeer(Subscriber);
+	xmqttserverinfo Info;
+	testRequire(xmqttServerInfo(Fixture.Server, &Info) && Info.DroppedDeliveries == 1 &&
+		Info.Forwarded == 1 && Info.Established == 2, "oversized backlog item retires while the session remains online");
+	xrtNetSocketClose(Subscriber);
+	xrtNetSocketClose(Publisher);
+	serverStop(&Fixture);
+}
+
 static void serverOfflineLimit(void)
 {
 	serverfixture Fixture;
@@ -2873,6 +2925,7 @@ int main(void)
 	serverPersistentFlows();
 	serverExpiredSession();
 	serverOfflineLimit();
+	serverOfflineWriteLimit(XMQTT_VERSION_5);
 	serverOutgoingExpiry();
 	serverOutgoingLimit();
 	serverConcurrentRoutes(SERVER_EXACT, false);
@@ -2883,6 +2936,7 @@ int main(void)
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	serverCompatibility();
 	serverPersistent311();
+	serverOfflineWriteLimit(XMQTT_VERSION_311);
 	serverWillFlows(XMQTT_VERSION_311);
 	serverRouting(XMQTT_VERSION_311);
 	serverWildcardRoutes(XMQTT_VERSION_311);

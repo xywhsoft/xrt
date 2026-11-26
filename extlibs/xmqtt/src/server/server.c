@@ -3021,12 +3021,11 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 		Undelivered |= Durable && !Delivery->SentGeneration;
 		if (Durable && !xmqttServerCanRead(Peer)) break;
 #endif
-		bool TooLarge = Publication->Size > Peer->PacketLimit;
-#if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
-		if (Durable && !Release && !xmqttServerOutputFits(Peer, Publication->Size)) TooLarge = true;
-#endif
 		if (!Retry) (void)xmqttServerPopWaiting(Session);
-		if (!Release && (TooLarge || (Undelivered && !xmqttServerPrepareWaiting(Delivery)))) {
+		/* Offline admission cannot know the next connection's fixed write limit. */
+		if (!Release && (Publication->Size > Peer->PacketLimit ||
+			!xmqttServerOutputFits(Peer, Publication->Size) ||
+			(Undelivered && !xmqttServerPrepareWaiting(Delivery)))) {
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 			if (Durable) {
 				if (!Retry) xmqttServerPrependWaiting(Session, Delivery);
@@ -3066,8 +3065,7 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 				}
 #endif
 			}
-			Result = xmqttServerOutputFits(Peer, Publication->Size) ?
-				xmqttServerSendDelivery(Peer, Delivery) : XNET_RESULT_ERROR;
+			Result = xmqttServerSendDelivery(Peer, Delivery);
 		}
 		if (Result != XNET_RESULT_OK) {
 			if (!Retry) xmqttServerPrependWaiting(Session, Delivery);

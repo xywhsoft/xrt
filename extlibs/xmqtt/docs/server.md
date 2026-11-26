@@ -232,9 +232,13 @@ An accepted in-flight exchange to a shared member can resume with that
 member. Reconnect sends outstanding PUBLISH packets with their original
 packet IDs and DUP, or continues a QoS 2 exchange with PUBREL. The current
 connection's Receive Maximum gates replayed PUBLISH packets. Pending and newly
-queued messages follow the original exchanges. Expired unsent records are
-removed before transmission. Inbound QoS 2 retains the duplicate-detection ID
-and pending PUBREL phase across reconnect.
+queued messages follow the original exchanges. A PUBLISH that exceeds the
+current connection's packet limit or can never fit its configured output
+queue is discarded, so the remaining backlog can drain. Temporary queue
+pressure waits for transport progress. A QoS 2 exchange already at PUBREL
+continues with that control packet. Expired unsent records are removed before
+transmission. Inbound QoS 2 retains the duplicate-detection ID and pending
+PUBREL phase across reconnect.
 
 Offline admission exhaustion ends that session and increments
 `OutgoingPublishOverloads`. Server shutdown releases in-memory state and drains

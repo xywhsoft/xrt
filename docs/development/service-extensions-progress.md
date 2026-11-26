@@ -29784,3 +29784,37 @@ bytes by retiring three duplicate archive files after matching their
 SHA-256 values against the verified Windows copies. Original traces
 and both sets of live journals remained in place. Evidence is under
 out/service-extensions/xredis-active-slots-777dbd79/.
+
+
+## 2026-11-26 Broker resume with a smaller output queue
+
+An offline session can accept a publication before its next transport
+is known. The volatile resume path used to abort that transport if the
+first queued PUBLISH could never fit its fixed output budget. The
+same record remained at the head of the session. Resume now applies
+the existing oversized-delivery retirement path to that fixed limit
+as well as the recipient's Maximum Packet Size. A temporary wait for
+native write credit still preserves the delivery. An exchange already
+in PUBREL continues with the original identifier.
+[MQTT 5.0 sections 3.1.2.11.4 and 4.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+The modular TCP regression admitted two publications while a session
+was offline with a 128-byte listener write limit. The older broker
+closed the resumed transport. The fixed broker retired the oversized
+first packet, delivered the following QoS 2 packet and maintained
+the session. Both protocol levels were tested. The independent TLS
+peer obtained both source PUBRECs on each host and reproduced the
+same defect with a 32 KiB PUBLISH. On the fixed broker it observed
+Session Present and finished the following QoS 2 exchange on the
+resumed connection for both MQTT 5 and 3.1.1. An initial TLS fixture
+encoded the wrong Remaining Length width. Stock and fixed reports
+were replayed after its length calculation was corrected.
+
+Windows and the Ubuntu QEMU/WHPX guest each verified eight optimized
+test and demo programs, the static and shared SDK consumers, and
+the durable checkpoint and outgoing recovery cases. The Ubuntu
+dual-protocol single-header broker test passed ASan/UBSan with
+leak detection. Generated headers, API docs and ordinary maturity
+checks passed. Replay reconciled source hashes, old and new TLS
+binaries and the resulting protocol traces. Records are under
+out/service-extensions/xmqtt-offline-write-limit-1f301bed/.
