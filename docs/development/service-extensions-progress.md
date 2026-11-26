@@ -29275,3 +29275,43 @@ that high-load cohort. The release control retains the existing
 writer. TLS capacity and tail qualification remain open.
 Evidence is under
 out/service-extensions/xmqtt-single-record-buffered-d0909aac/.
+
+
+## 2026-11-26 MQTT SDKs after the write-budget fix
+
+Windows and the Ubuntu QEMU/WHPX guest rebuilt the xmqtt and
+xmqtt_examples packages in static and shared form. The Windows
+source included fd0e13a6, whose changes from the guest's a82b228b
+are documentation only. Each host linked and ran four relocated
+consumers and ten APPs. Replay verified the source and artifact
+hashes and the shared library imports from directories containing
+spaces. Each host verified 38 independent broker cases and eight
+transport authentication cases across its two combined packages.
+
+An additional broker linked against each combined static and shared
+package. All four package-linked executions returned PUBREC
+reason 0x97 for the 32 KiB write-budget case and delivered the next
+small QoS 2 publication on the same session. The replay matched
+the package library fingerprints and verified that shared consumers
+loaded the relocated XRT and xmqtt libraries. Artifacts and
+replays are under out/service-extensions/xmqtt-sdk-write-budget-a82b228b/.
+
+
+## 2026-11-26 First complete 8,192-wave Linux scheduler cohorts
+
+Independent replay matched the binary, runner and completed
+samples from both running 8,192-wave campaigns. The Windows
+snapshot verified 2,621,440 callbacks in five 64-task runs.
+The Ubuntu snapshot verified 38,797,312 callbacks in ten 64-task
+runs and four 1,024-task runs. The 64-task cohorts also hold
+960 dormant jobs.
+
+For the five complete runs per Ubuntu drive, the median per-run
+last-callback P99/P99.9 was 0.208/0.393 ms for scheduler wait and
+0.186/0.323 ms for the direct precise waiter. Only the scheduler
+P99 met repeatability. In the slowest 0.1 percent per run, the
+median share before the first callback was 99.53% for scheduler
+wait and 99.95% for the precise waiter. Median CPU cost was
+395 and 266 ns per callback respectively. Both campaigns continue.
+The full timing acceptance stays open. Prefix evidence and replay
+are under out/service-extensions/xcron-long-prefix-20261126/.
