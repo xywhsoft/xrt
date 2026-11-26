@@ -900,6 +900,17 @@ static bool xmqttServerPeerTrace(const void* Data, xrtownershipvisitor Visit, pt
 
 static const xrtownershipops xmqttServerPeerOps = {xmqttServerPeerCount, xmqttServerPeerTrace};
 
+static bool xmqttServerOutputFits(const xmqttserverpeer* Peer, size_t Bytes)
+{
+#if defined(XMQTT_SERVER_QUEUED_OUTPUT)
+	if (Peer->Output) {
+		size_t Limit = Peer->Output->Limit;
+		return Bytes <= Limit && sizeof(xmqttserverwrite) <= Limit - Bytes;
+	}
+#endif
+	return Bytes <= xrtNetStreamWriteLimit(Peer->Stream);
+}
+
 static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer);
 
 #if defined(XMQTT_SERVER_QUEUED_OUTPUT)
@@ -1037,8 +1048,8 @@ static xnetresult xmqttServerQueueOutput(xmqttserverpeer* Peer, const xnetref* P
 {
 	xmqttserveroutput* Out = Peer->Output;
 	size_t Size = Parts[0].Size + (Count == 2 ? Parts[1].Size : 0);
+	if (!xmqttServerOutputFits(Peer, Size)) return XNET_RESULT_ERROR;
 	size_t Charge = sizeof(xmqttserverwrite) + Size;
-	if (Charge > Out->Limit) return XNET_RESULT_ERROR;
 	xnetresult Result = XNET_RESULT_AGAIN;
 	xrtMutexLock(&Out->Gate);
 	if (Out->Stopped) Result = XNET_RESULT_CLOSED;
@@ -3012,7 +3023,7 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 #endif
 		bool TooLarge = Publication->Size > Peer->PacketLimit;
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
-		if (Durable && !Release && Publication->Size > xrtNetStreamWriteLimit(Peer->Stream)) TooLarge = true;
+		if (Durable && !Release && !xmqttServerOutputFits(Peer, Publication->Size)) TooLarge = true;
 #endif
 		if (!Retry) (void)xmqttServerPopWaiting(Session);
 		if (!Release && (TooLarge || (Undelivered && !xmqttServerPrepareWaiting(Delivery)))) {
@@ -3055,7 +3066,7 @@ static void xmqttServerPumpOutgoing(xmqttserverpeer* Peer)
 				}
 #endif
 			}
-			Result = Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream) ?
+			Result = xmqttServerOutputFits(Peer, Publication->Size) ?
 				xmqttServerSendDelivery(Peer, Delivery) : XNET_RESULT_ERROR;
 		}
 		if (Result != XNET_RESULT_OK) {
@@ -3202,7 +3213,7 @@ static bool xmqttServerPostOutgoing(xmqttserverpeer* Peer, xmqttserverpublicatio
 	if (Publication->Size <= Peer->PacketLimit &&
 		(Peer->Session->Persistent || !xrtAtomic32Load(&Peer->OutgoingStopped, XMEMORY_RELAXED))) {
 		xmqttserverdelivery* Delivery = NULL;
-		if (Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream))
+		if (xmqttServerOutputFits(Peer, Publication->Size))
 			Delivery = xmqttServerNewDelivery(Peer->Session, Publication);
 		if (Delivery) {
 			Delivery->AnnouncePost = !Reliable;
@@ -3287,7 +3298,7 @@ static bool xmqttServerReserveRouteDelivery(xmqttserversession* Session, xmqttse
 		Session->Persistent && Publication->IdOffset && xmqttServerCanQueueOffline(Session, State);
 	xmqttserverpeer* Pinned = Eligible && !Session->Persistent && xmqttServerPeerTryRef(Peer) ? Peer : NULL;
 	Eligible = Eligible && (Session->Persistent || Pinned);
-	xmqttserverdelivery* Delivery = Eligible && (!Peer || Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream)) ?
+	xmqttserverdelivery* Delivery = Eligible && (!Peer || xmqttServerOutputFits(Peer, Publication->Size)) ?
 		xmqttServerNewDelivery(Session, Publication) : NULL;
 	if (Session->Persistent) xrtMutexUnlock(&Session->Gate);
 	if (!Eligible) {
@@ -3323,7 +3334,7 @@ static bool xmqttServerQueuePrepared(xmqttserverdelivery* Delivery)
 	}
 	if (!Peer) return false;
 	bool Fits = Delivery->Publication->Size <= Peer->PacketLimit &&
-		Delivery->Publication->Size <= xrtNetStreamWriteLimit(Peer->Stream);
+		xmqttServerOutputFits(Peer, Delivery->Publication->Size);
 #if defined(XMQTT_FEATURE_XMQTT_SERVER_STORE)
 	/* A new transport may have a different limit. Its worker must retire
 	 * a committed delivery in the store before discarding it. */
