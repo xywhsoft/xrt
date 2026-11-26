@@ -29976,3 +29976,52 @@ completed 72-hour evidence remain open.
 
 The original failures, native socket trace, recheck archives and
 source proof are under out/service-extensions/xmqtt-full-e0dc446a/.
+
+
+## 2026-11-26 QoS 2 fixed-arrival reference sweep on the resume candidate
+
+Native Windows and the Ubuntu QEMU/WHPX guest rebuilt the e0dc446a
+broker and observer from the current sources. The same observer on
+each host exercised xmqtt and checksum-pinned Mosquitto 2.1.2 in
+alternating order. Each trial used MQTT 5, plaintext TCP, 128-byte
+payloads, one publisher, eight wildcard subscribers, and windows
+of 16. Each broker had two logical CPUs and each observer had
+two separate CPUs. xmqtt used two network workers. The host
+campaigns ran sequentially with the continuous and scheduler jobs
+still active.
+
+Independent replay verified source and program hashes, paired
+order, 116 trials and the complete-trial ledger of 1,576,000
+publisher confirmations and 12,608,000 fan-out deliveries.
+
+| Scheduled offers/s | Windows complete xmqtt / Mosquitto | Ubuntu complete xmqtt / Mosquitto |
+| ---: | ---: | ---: |
+| 4,000 | 5/5 and 5/5 | 5/5 and 5/5 |
+| 6,000 | 4/5 and 5/5 | 5/5 and 5/5 |
+| 8,000 | 4/5 and 4/5 | 5/5 and 5/5 |
+| 10,000 | 4/5 and 5/5 | 5/5 and 5/5 |
+| 12,000 | 2/3 and 2/3 | 3/3 and 0/3 |
+| 16,000 | 2/3 and 1/3 | 3/3 and 0/3 |
+| 24,000 | 0/3 and 2/3 | 0/3 and 0/3 |
+
+All eleven incomplete xmqtt trials returned PUBREC reason 0x97.
+All fourteen incomplete Mosquitto trials reported outbound drops.
+The reports retain the confirmed and delivered counts reached in
+those trials. xmqtt's completed Ubuntu trials at 16,000 offers/s
+had median ingress of 15,995/s and median delivery P99/P99.9 of
+7.830/12.015 ms.
+
+At 4,000 offers/s the median per-trial delivery P99/P99.9 was
+0.399/2.097 ms for xmqtt and 1.012/32.879 ms for Mosquitto on
+Windows. Ubuntu recorded 0.845/2.012 and 1.255/2.737 ms. The
+complete paired cohorts all met throughput ratio repeatability.
+The paired P99 and P99.9 ratios exceeded the repeatability
+limits in every complete cohort. On Ubuntu, the paired
+xmqtt/Mosquitto broker CPU time ratios met repeatability from
+4,000 to 10,000 offers/s, with medians of 1.37 to 1.43.
+
+The continuous journals passed prefix replay after the comparison.
+Windows and Ubuntu MQTT had 1.25 and 1.23 verified awake hours.
+Redis had 37.35 and 37.44 hours. The paired tail and strict release
+gates remain open. Raw reports, failure logs, inputs and replay
+are under out/service-extensions/xmqtt-qos2-release-e0dc446a/.
