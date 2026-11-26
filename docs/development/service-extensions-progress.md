@@ -29878,3 +29878,40 @@ limit and per-process P99 and P99.9 checks. Full timing and strict
 release remain open. The source overlay, logs, hashed packages
 and timing prefixes are under
 out/service-extensions/xcron-optional-c323f96a/.
+
+
+## 2026-11-26 Ubuntu guest storage recovery and scheduler resumption
+
+At 14:33 Asia/Shanghai the guest filesystem reported ENOSPC.
+GCC failed to close its temporary response file while building
+the full e0dc446a MQTT regression. The superseded MQTT interval
+from 1f9aee3b also terminated. Its journal replay verifies
+129,329.321 awake seconds and 37,768,956 rounds before the error.
+The current e0dc446a MQTT and 5b886da6 Redis mixed-load supervisors
+kept their original processes, build receipts and continuous
+journals. After the incident, their prefixes verified 1,555.518
+and 131,885.583 awake seconds, respectively.
+
+The full MQTT regression retry uses tmpfs for both the compiler
+temporary files and test products. To add disk headroom for
+the live journals, the guest archive of an earlier MQTT runtime
+suite was checked against its SHA-256 verified Windows copy.
+The two guest copies of all 105 executables matched the archive
+and the original replay receipt. The duplicate guest archive
+and binaries were removed. Available space increased from
+116,539,392 to 426,201,088 bytes. The Windows archive remains
+under out/service-extensions/xmqtt-sdk-write-budget-a82b228b/linux-runtime/.
+
+Systemd stopped and launched the original Ubuntu xcron unit at
+14:32:58. The subsequent launcher failed because its build
+log already existed. The original journal retains ten complete
+64-task runs and five complete 1,024-task runs. Its digest matched
+the earlier archived prefix. A separate 1,024-task campaign
+started at 14:39:21 with the same cohort binary and runner,
+CPU 2, 8,192 waves and five repetitions per drive. The new unit
+and its first benchmark process were both live at verification.
+The original complete 64-task series and partial 1,024-task prefix
+remain available.
+
+The incident logs, archive verification and fresh campaign receipt
+are under out/service-extensions/xmqtt-full-e0dc446a/.
