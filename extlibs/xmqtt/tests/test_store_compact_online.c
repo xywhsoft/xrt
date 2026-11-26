@@ -185,6 +185,14 @@ static void takeEcho(xmqttclient* Client,uint8 Value)
     check(Payload.Size==1&&Payload.Data[0]==Value,"echo preserves APP payload");
     xmqttMessageRelease(Message);
 }
+#if defined(TEST_ONLINE_FAULTS)
+static void pauseOnlineWrite(void)
+{
+    xrtAtomic32Store(&onlineEntered,0,XMEMORY_RELAXED);
+    xrtAtomic32Store(&onlineReleased,0,XMEMORY_RELAXED);
+    xrtAtomic32Store(&onlineHook,1,XMEMORY_RELEASE);
+}
+#endif
 static void connected(xmqttversion V)
 {
     onlinefixture X={0};
@@ -222,7 +230,7 @@ static void connected(xmqttversion V)
     C.MaxEntries=4;
     xfuture* F;
 #if defined(TEST_ONLINE_FAULTS)
-    xrtAtomic32Store(&onlineHook,1,XMEMORY_RELEASE);
+    pauseOnlineWrite();
     F=compact(X.Writer,X.Slot,&C);
     mqttExampleWait(&onlineEntered);
     check(xrtFutureCancel(F),"request cancellation during inactive native write");
@@ -234,9 +242,7 @@ static void connected(xmqttversion V)
     outcome(F,XMQTT_COMMIT_STORAGE,XMQTT_JOURNAL_IO,XMQTT_JOURNAL_NOT_COMMITTED);
     check(!current(X.Writer).Worker.Failed,"inactive I/O failure leaves old Writer usable");
     xrtFutureDestroy(F);
-    xrtAtomic32Store(&onlineEntered,0,XMEMORY_RELEASE);
-    xrtAtomic32Store(&onlineReleased,0,XMEMORY_RELEASE);
-    xrtAtomic32Store(&onlineHook,1,XMEMORY_RELEASE);
+    pauseOnlineWrite();
 #endif
     F=compact(X.Writer,X.Slot,&C);
 #if defined(TEST_ONLINE_FAULTS)

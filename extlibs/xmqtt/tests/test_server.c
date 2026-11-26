@@ -1,3 +1,8 @@
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#else
+#include <errno.h>
+#endif
 #include "test.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
@@ -209,6 +214,29 @@ static void serverEof(xnetsocket Socket)
 	xrtNetSocketClose(Socket);
 }
 
+static void serverDialRefused(const serverfixture* Fixture)
+{
+	xnetsocket Socket = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_STREAM, 0);
+	testRequire(Socket != NULL, "open refusal probe socket");
+	xnetresult Status = xrtNetSocketConnect(Socket, &Fixture->Address);
+	if (Status == XNET_RESULT_OK) {
+		testRequire(xrtNetSocketSet(Socket, XNET_OPTION_NONBLOCK, 1), "bounded refusal probe read");
+		serverEof(Socket);
+		return;
+	}
+	/* An abortive close can arrive before the blocking connect returns. */
+#if defined(_WIN32) || defined(_WIN64)
+	const int32 Reset = WSAECONNRESET;
+#else
+	const int32 Reset = ECONNRESET;
+#endif
+	const xerror* Error = xrtGetError();
+	testRequire(Status == XNET_RESULT_ERROR && xrtErrorCode(Error) == XNET_ERROR_SOCKET_CONNECT &&
+		xrtErrorSystemCode(Error) == Reset, "expected reset during connection admission");
+	xrtClearError();
+	testRequire(xrtNetSocketClose(Socket), "close refusal probe socket");
+}
+
 static void serverTakenOver(xnetsocket Socket)
 {
 	unsigned char Reply[3];
@@ -302,8 +330,7 @@ static void serverControl(void)
 	testRequire(Pong[0] == 0xd0 && !Pong[1], "replacement retains active identity after old drop");
 	xnetsocket Idle = serverDial(&Fixture);
 	serverConnections(&Fixture, 2);
-	xnetsocket Over = serverDial(&Fixture);
-	serverEof(Over);
+	serverDialRefused(&Fixture);
 	serverEof(Idle); /* Pending CONNECT timer frees one slot. */
 	serverConnections(&Fixture, 1);
 
@@ -2968,8 +2995,7 @@ int main(void)
 #endif
 	serverfixture Fixture;
 	serverStart(&Fixture, false, 1);
-	xnetsocket Socket = serverDial(&Fixture);
-	serverEof(Socket);
+	serverDialRefused(&Fixture);
 	serverStop(&Fixture);
 	puts("[PASS] MQTT TCP CONNECT, exact, wildcard, shared and retained routing, bidirectional QoS 1/2, persistent sessions, Wills, quotas, authorization, takeover, deadlines, OOM and retirement");
 	return 0;

@@ -274,13 +274,28 @@ static void csPacketPhysicalRetirement(xmqttversion V)
     xrtAtomic32Store(&csProbeFreeRelease,1,XMEMORY_RELEASE);testRequire(xrtThreadWaitFor(T,8000)==XWAIT_OK && xrtThreadExitCode(T)==0,"physical packet release join");xrtThreadDestroy(T);xrtAtomicPtrStore(&csProbeFreeTarget,NULL,XMEMORY_RELEASE);
     testRequire(!csInfo(S).Objects && csInfo(S).LiveBytes==csInfo(S).BaseBytes && xmqttSessionPublish(S,&Q,&Other)==XMQTT_SESSION_DONE,"physical packet capacity becomes reusable afterward");testRequire(xmqttSessionEnd(S,NULL,xrtTimer())==XMQTT_SESSION_DONE && xmqttSessionDestroy(S),"physical packet end");xmqttSessionPacketRelease(Other);
 }
+static int32 csCancelRequestThread(ptr Data)
+{
+    return xrtFutureCancel(Data)?0:1;
+}
 static void csRequestPhysicalRetirement(xmqttversion V)
 {
     xmqttsession* S;csPair(V,&S);mqttResumePeer P;mqttResumeStart(&P,V,0,false);xmqttclientconfig K={0};xmqttClientConfigInit(&K);K.MaxRequests=1;K.WriteChunkBytes=K.WriteBytes=1;xfuture* Ready;xmqttclient* C=csConnect(&P,S,&Ready,&K);csReady(Ready);csProbeReset(1);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Identifier=33;Q.Body.Publish.Topic=XRT_STR_LITERAL("bounded");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("request");xfuture* F=NULL;testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED,"physical request admission");mqttResumeWait(&csProbeSeen,1);
-    testRequire(C->Session->Selected!=NULL,"native gate synchronizes selected request");csProbeDelayFree(C->Session->Selected);testRequire(xrtFutureCancel(F),"physical request cancel");mqttResumeWait(&csProbeFreeEntered,1);xmqttclientinfo CI;xmqttClientInfo(C,&CI);xfuture* Other=(xfuture*)(uintptr_t)1;
+    testRequire(C->Session->Selected!=NULL,"native gate synchronizes selected request");
+    csProbeDelayFree(C->Session->Selected);
+    /* The cancellation caller can drop the last request reference. */
+    xthread* Cancel=xrtThreadCreate(csCancelRequestThread,F,0);
+    testRequire(Cancel!=NULL,"physical request cancellation thread");
+    mqttResumeWait(&csProbeFreeEntered,1);
+    xmqttclientinfo CI;
+    xmqttClientInfo(C,&CI);
+    xfuture* Other=(xfuture*)(uintptr_t)1;
     testRequire(CI.Requests==1 && CI.OutgoingBytes && xmqttClientPublishAsync(C,&Q,8000,&Other)==XMQTT_ADMISSION_OVERLOADED && Other==(xfuture*)(uintptr_t)1,"request storage remains charged while allocator free is held");
-    xrtAtomic32Store(&csProbeFreeRelease,1,XMEMORY_RELEASE);csDone(S,C);xrtAtomicPtrStore(&csProbeFreeTarget,NULL,XMEMORY_RELEASE);csProbeReset(0);testRequire(((const xmqttwriteresult*)csResult(F))->Status==XMQTT_STATUS_CANCELLED,"logical cancellation remains typed");Other=NULL;
+    xrtAtomic32Store(&csProbeFreeRelease,1,XMEMORY_RELEASE);
+    testRequire(xrtThreadWaitFor(Cancel,8000)==XWAIT_OK && xrtThreadExitCode(Cancel)==0,"physical request cancellation join");
+    xrtThreadDestroy(Cancel);
+    csDone(S,C);xrtAtomicPtrStore(&csProbeFreeTarget,NULL,XMEMORY_RELEASE);csProbeReset(0);testRequire(((const xmqttwriteresult*)csResult(F))->Status==XMQTT_STATUS_CANCELLED,"logical cancellation remains typed");Other=NULL;
     testRequire(xmqttClientPublish(C,&Q,8000,&Other)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)csResult(Other))->Status==XMQTT_STATUS_OK,"same id/request capacity reused after real free");csDone(S,C);csClose(C);mqttResumeStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Other);xrtFutureDestroy(Ready);testRequire(xmqttSessionDestroy(S),"physical request cleanup");
 }
 #endif

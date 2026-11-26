@@ -29943,3 +29943,36 @@ Replay matched source blobs, the two compiled APPs per host, and
 the authentication, recovery and expiry reports. Evidence is under
 out/service-extensions/xmqtt-full-e0dc446a/. Matched performance
 and continuous mixed load remain open.
+
+
+## 2026-11-26 MQTT full Windows and Ubuntu runtime recheck
+
+The optimized runtime suite exposed three test synchronization cases.
+A Windows cancellation diagnostic reproduced the last request reference
+being dropped on the caller of FutureCancel. That thread was also
+responsible for releasing the test's allocator gate. The fixture now
+cancels from a separate thread. The test driver still checks the
+original byte and request charges before releasing the gate and
+joining the cancellation caller.
+
+The Ubuntu online compaction test could observe the first protocol
+version's already signaled gate in its second run. Both controlled
+writes now rearm the entry and release flags before starting each
+checkpoint. The round-robin broker admission probe also observed
+ECONNRESET from connect after the server refused the fourth socket.
+The two intentional attach-refusal cases now verify either that
+specific connect reset or EOF/reset after a successful connect.
+Other peer dials continue to require successful connect.
+
+Both hosts passed seven focused programs and all 105 runtime
+programs in manifest order, including 38 modular and 67 single-header.
+Each full recheck executed the original unmodified suite binaries
+and six rebuilt programs covering the three fixture changes. Both
+archives record the matching input and executable digests and
+individual test logs. The production candidate remains e0dc446a.
+The MQTT and Redis continuous journals passed prefix replay while
+the full tests ran. Strict release, matched performance and the
+completed 72-hour evidence remain open.
+
+The original failures, native socket trace, recheck archives and
+source proof are under out/service-extensions/xmqtt-full-e0dc446a/.
