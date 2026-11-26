@@ -29818,3 +29818,33 @@ leak detection. Generated headers, API docs and ordinary maturity
 checks passed. Replay reconciled source hashes, old and new TLS
 binaries and the resulting protocol traces. Records are under
 out/service-extensions/xmqtt-offline-write-limit-1f301bed/.
+
+
+### Fresh mixed-load intervals after the resume fix
+
+The mixed client-and-broker probe rebuilt from clean e0dc446a on
+both hosts. An independent replay compared executable bytes and
+found a different Windows PE code section and a different Ubuntu
+ELF executable load segment. New 72-hour intervals started from
+that commit at 14:12:38 on Windows and 14:13:40 on the Ubuntu
+QEMU/WHPX guest, Asia/Shanghai. The older intervals continue with
+their original source and binary receipts.
+
+Separate termination tests killed a dedicated broker after 321
+verified Windows rounds and 1,486 verified Ubuntu rounds. The
+verifier refused both incomplete reports. New 12-second runs then
+passed with 767 and 3,571 verified rounds. Both new continuous
+journals passed running-prefix replay after launch, with 130.178
+verified awake seconds on Windows and 70.022 on Ubuntu. Brokers,
+clients and supervisors were live at that check. The Windows
+launcher started the process before its PowerShell redirection
+line failed. Process identity was recovered from the live command
+line, and the same interval continued with its workload logs.
+
+At the prefix check, the older Windows and Ubuntu MQTT intervals
+had 15.63 and 35.62 verified awake hours. The existing Windows and
+Ubuntu Redis intervals had 36.13 and 36.22. No interval was combined
+with a different executable. Native 72-hour acceptance and strict
+release remain open. The startup receipts, code comparison, fault
+and smoke evidence, and retained build products are under
+out/service-extensions/xmqtt-offline-write-limit-1f301bed/candidate-e0dc446a/.
