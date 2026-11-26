@@ -29915,3 +29915,31 @@ remain available.
 
 The incident logs, archive verification and fresh campaign receipt
 are under out/service-extensions/xmqtt-full-e0dc446a/.
+
+
+## 2026-11-26 MQTT authentication and recovery on the resume candidate
+
+The e0dc446a broker source passed independent MQTT 5 peer tests on
+native Windows and the Ubuntu QEMU/WHPX guest. Each host built the
+authentication and checkpoint APPs against the production single
+headers. Enhanced authentication passed on TCP, TLS, WS and WSS.
+Each host completed four broker process stops in plaintext and
+four in the multi-transport authentication scenario. Each scenario
+recovered eight unique QoS 1 and nine unique QoS 2 deliveries.
+The peer verified replay only after authentication, original
+in-flight identifiers, inbound QoS 2 deduplication and refusal
+of a stale proof attempting to reset a persisted session.
+
+The unauthenticated checkpoint peer verified both WS to WSS and
+WSS to WS recovery via TLS before a broker stop and TCP after
+acknowledgement. It verified retained state, offline FIFO and
+retirement of completed deliveries. All four transports passed
+the one-second session expiry test with a delayed durable CLOSE.
+The first standalone compilation resolved XRT feature macros
+after the checkpoint APP checked them. Preloading the generated
+feature headers corrected the fixture on both hosts.
+
+Replay matched source blobs, the two compiled APPs per host, and
+the authentication, recovery and expiry reports. Evidence is under
+out/service-extensions/xmqtt-full-e0dc446a/. Matched performance
+and continuous mixed load remain open.
