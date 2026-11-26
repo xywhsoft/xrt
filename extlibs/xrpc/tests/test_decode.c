@@ -38,6 +38,16 @@ static void testRpcKnown(void)
 	testRequire(Doc.InvalidCount == 0 && Messages[0].Kind == XRPC_MESSAGE_RESULT && Messages[0].Result.Kind == XRPC_VALUE_NULL &&
 		Messages[1].Kind == XRPC_MESSAGE_ERROR && rpcText(Messages[1].ErrorCode.Raw, "-32601") &&
 		rpcText(Messages[1].ErrorMessage.Raw, "\"no\"") && rpcText(Messages[1].ErrorData.Raw, "{\"code\":1}"), "response/error fields");
+	Doc = rpcRead("[{\"jsonrpc\":\"2.0\",\"\\u0069d\":1,\"res\\u0075lt\":[1],\"results\":false},"
+		"{\"jsonrpc\":\"2.0\",\"i\\u0064\":2,\"err\\u006fr\":{\"code\":-1,\"message\":\"e\"}},"
+		"{\"\\u006a\\u0073\\u006f\\u006e\\u0072\\u0070\\u0063\":\"2.0\","
+		"\"method\":\"m\",\"par\\u0061ms\":{},\"idx\":0,\"i\\n\":0}]",
+		XRPC_DECODE_DUPLEX, Messages, 16);
+	testRequire(Doc.InvalidCount == 0 && Messages[0].Kind == XRPC_MESSAGE_RESULT &&
+		rpcText(Messages[0].Id.Raw, "1") && rpcText(Messages[0].Result.Raw, "[1]") &&
+		Messages[1].Kind == XRPC_MESSAGE_ERROR && rpcText(Messages[1].Id.Raw, "2") &&
+		Messages[2].Kind == XRPC_MESSAGE_NOTIFICATION && rpcText(Messages[2].Params.Raw, "{}"),
+		"escaped fields and similarly named extensions");
 	Doc = rpcRead("{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"result\":0,\"error\":false,\"id\":0}", XRPC_DECODE_REQUESTS, Messages, 1);
 	testRequire(Doc.InvalidCount == 0 && Messages[0].Kind == XRPC_MESSAGE_CALL, "request mode extra fields");
 	Doc = rpcRead("{\"jsonrpc\":\"2.0\",\"result\":0,\"method\":false,\"params\":false,\"id\":0}", XRPC_DECODE_RESPONSES, Messages, 1);

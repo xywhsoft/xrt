@@ -30938,3 +30938,57 @@ exceeded the variation limits on both hosts. The older continuous
 runs retain their original binary identity. Release timing and
 continuous endurance remain open. Raw reports and independent replay
 are under out/service-extensions/xmqtt-same-wire-390ba78a/.
+
+Windows and Ubuntu both passed the 12-second mixed workload at
+2276e4ed with 770 and 3,583 verified rounds. The exact binaries
+started independent 72-hour runs at 19:21 Asia/Shanghai. In
+separate broker-termination probes both verifiers rejected the
+incomplete workloads after 642 and 2,974 verified rounds.
+Receipts are in candidate-2276e4ed/ under the same evidence directory.
+
+
+## 2026-11-26 Length-based xrpc envelope name matching
+
+The decoder now matches ordinary envelope names by length and
+compares escaped candidates only at lengths their JSON spelling
+can occupy. The raw value spans, duplicate recognition and
+existing grammar validation stay the same. The test suite covers
+a fully escaped version field, escaped ID, result, error and params,
+and similarly named unknown members.
+
+Both x64 hosts passed the stock and candidate single-header decoder
+tests and the normal TCP example peer. The Windows modular decoder
+suite and the Ubuntu QEMU/WHPX ASan/UBSan run with leak detection passed.
+The first standalone guest build lacked the shared test header.
+The initial TCP probe also expected prototype-only report fields.
+The corrected scenario used the current mainline peer runner.
+
+Independent replay verified 96 million measured decodes across the
+two hosts, six alternating measured pairs per input. The table
+reports median nanoseconds per decoded envelope, stock / candidate.
+
+| Input | Windows | Ubuntu guest |
+| --- | ---: | ---: |
+| Ordinary request | 479.1 / 452.7 | 657.8 / 603.3 |
+| Escaped request | 561.7 / 587.7 | 749.9 / 724.5 |
+| Request with unknown fields | 942.0 / 834.8 | 1,248.1 / 1,094.4 |
+| Result response | 384.1 / 357.1 | 523.1 / 484.0 |
+
+All paired codec ratios met repeatability. The first Windows prototype
+with an extra scan for escapes took about 625.5 ns on the escaped
+request. The length-filtered variant took 587.7 ns and remains slower
+than stock on that Windows input.
+
+Five TCP pairs per host used the normal APP, 32 peers, two executor
+workers, two observer shards and 64,000 scheduled calls/s. Independent
+replay verified all 5,120,000 replies and their raw timing quantiles.
+Paired throughput ratios were repeatable within 0.04% of one. The
+paired Windows P99 and P99.9 ratios were 1.015 and 1.002 under the
+central variation limits. The raw series includes a 16.3 ms stock
+P99.9 outlier. Both Ubuntu tail ratios exceeded the variation limits.
+Strict release timing remains open. Sources, receipts and replay are
+under out/service-extensions/xrpc-field-dispatch-2276e4ed/.
+
+Current running-prefix replay verified 41.47/41.56 awake hours for
+Redis and 13.61/13.59 awake minutes for MQTT on Windows/Ubuntu.
+All four supervisors remained live on the same binaries.

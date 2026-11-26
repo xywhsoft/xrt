@@ -1576,12 +1576,31 @@ static bool xrpcDecodeBegin(xjsonscantype Type)
 
 static uint32 xrpcDecodeField(xstrview Name)
 {
-	if (xrpcDecodeAscii(Name, "jsonrpc", false)) return XRPC_F_VERSION;
-	if (xrpcDecodeAscii(Name, "id", false)) return XRPC_F_ID;
-	if (xrpcDecodeAscii(Name, "method", false)) return XRPC_F_METHOD;
-	if (xrpcDecodeAscii(Name, "params", false)) return XRPC_F_PARAMS;
-	if (xrpcDecodeAscii(Name, "result", false)) return XRPC_F_RESULT;
-	if (xrpcDecodeAscii(Name, "error", false)) return XRPC_F_ERROR;
+	const char* Text = Name.Data + 1;
+	size_t Size = Name.Size - 2u;
+	switch (Size) {
+		case 2: return memcmp(Text, "id", 2) == 0 ? XRPC_F_ID : 0;
+		case 5: return memcmp(Text, "error", 5) == 0 ? XRPC_F_ERROR : 0;
+		case 6:
+			if (memcmp(Text, "method", 6) == 0) return XRPC_F_METHOD;
+			if (memcmp(Text, "params", 6) == 0) return XRPC_F_PARAMS;
+			return memcmp(Text, "result", 6) == 0 ? XRPC_F_RESULT : 0;
+		case 7:
+			if (memcmp(Text, "jsonrpc", 7) == 0) return XRPC_F_VERSION;
+			break;
+	}
+	/* Only \uXXXX can escape a letter. Each escape adds five bytes. */
+	if (Size < 7 || Size > 42) return 0;
+	switch (Size % 5) {
+		case 0: return xrpcDecodeAscii(Name, "error", false) ? XRPC_F_ERROR : 0;
+		case 1:
+			if (xrpcDecodeAscii(Name, "method", false)) return XRPC_F_METHOD;
+			if (xrpcDecodeAscii(Name, "params", false)) return XRPC_F_PARAMS;
+			return xrpcDecodeAscii(Name, "result", false) ? XRPC_F_RESULT : 0;
+		case 2:
+			if (xrpcDecodeAscii(Name, "id", false)) return XRPC_F_ID;
+			return xrpcDecodeAscii(Name, "jsonrpc", false) ? XRPC_F_VERSION : 0;
+	}
 	return 0;
 }
 
