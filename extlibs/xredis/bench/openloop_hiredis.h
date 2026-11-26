@@ -94,7 +94,7 @@ static redisContext* redisOpenHiredisConnect(const redisopenconfig* Config, unsi
 
 typedef struct redisopenconnection {
 	redisContext* Client;
-	size_t Pending[128];
+	size_t* Pending;
 	size_t Read, Written;
 	int Flushed;
 } redisopenconnection;
@@ -104,14 +104,16 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	memset(Output, 0, sizeof(*Output));
 	snprintf(Output->Backend, sizeof(Output->Backend), "hiredis_nonblocking");
 	Output->HandlesBefore = redisOpenHandles();
-	const size_t Window = Config->Slots < 128u ? Config->Slots : 128u;
+	const size_t Window = Config->Slots;
 	const unsigned Connections = redisOpenConnections(Config);
 	redisopenconnection Peers[REDIS_OPEN_MAX_CONNECTIONS] = {0};
 	redisopenrecord* Records = calloc(Config->Count, sizeof(*Records));
 	uint64* Samples = malloc(Config->Count * sizeof(*Samples));
 	unsigned char* Payload = malloc(Config->Payload);
-	redisOpenRequire(Records != NULL && Samples != NULL && Payload != NULL, "Hiredis observer allocation");
-	Output->HarnessBytes = Config->Count * (sizeof(*Records) + sizeof(*Samples)) + Config->Payload + sizeof(Peers);
+	size_t PendingBytes = Connections * Window * sizeof(size_t);
+	size_t* Pending = malloc(PendingBytes);
+	redisOpenRequire(Records != NULL && Samples != NULL && Payload != NULL && Pending != NULL, "Hiredis observer allocation");
+	Output->HarnessBytes = Config->Count * (sizeof(*Records) + sizeof(*Samples)) + Config->Payload + sizeof(Peers) + PendingBytes;
 #if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
 	SSL_CTX* Context = redisOpenHiredisTlsContext(Config);
 #endif
@@ -121,6 +123,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 			, Context
 #endif
 		);
+		Peers[Index].Pending = Pending + Index * Window;
 		Peers[Index].Flushed = 1;
 	}
 #if defined(REDIS_OPENLOOP_EXTERNAL_TLS)
@@ -217,6 +220,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	Output->GeneratorCpu = redisOpenCpuDelta(true, GeneratorStart);
 	Output->Cpu = redisOpenCpuDelta(false, CpuStart);
 	redisOpenSummarize(Config, Output, Records, Samples);
+	free(Pending);
 	free(Payload);
 	free(Samples);
 	free(Records);

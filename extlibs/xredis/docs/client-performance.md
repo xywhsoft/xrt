@@ -58,10 +58,13 @@ buffers before the measured window. Count is at most 1,000,000; at most 4096
 observer slots; payload 8..256 KiB; slot-count times payload at most 64 MiB.
 The arrival horizon is at most 30 seconds, intended timeout at most 10 seconds,
 and fault injection stall at most 5 seconds. Held-fixture responses additionally
-fit its 64 KiB buffer. One client uses at most min(slots,128) in flight and a
-client request quota equal to the slot count. Existing client command/response
-byte limits still apply. Physical Close verifies zero client requests/command/
-initialization bytes before teardown.
+fit its 64 KiB buffer. Both comparison observers share the configured number
+of slots across all connections. Each xredis connection uses that number as
+its request and in-flight limit. Hiredis retains a bounded FIFO of offer IDs
+on each connection. Both report the configured limit as max_inflight.
+Existing xredis command and response byte limits still apply. Physical Close
+verifies zero client requests, command bytes and initialization bytes before
+teardown.
 
 The local fixture uses two engine workers (client and peer), plus the generator.
 An external loopback Redis uses one client engine worker plus the generator.

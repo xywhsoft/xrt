@@ -29692,3 +29692,38 @@ replay at about 13:08 Asia/Shanghai. Windows and Ubuntu Redis had
 35.01 and 35.10 verified awake hours. Windows and Ubuntu MQTT had
 14.51 and 34.50 hours. Build receipts, failures and exact replays are
 under out/service-extensions/xredis-worker-sustained-232abe7d/.
+
+
+## 2026-11-26 Matched wide Redis observer windows
+
+Both fixed-arrival observers now accept the same configured window of
+1 to 4096 outstanding offers. The xredis harness sets each connection's
+request and in-flight limits from that window. The Hiredis harness
+allocates a bounded FIFO for each connection before timing. The CLI
+reports and verifies the same global window for both. The default
+library client configuration and the 128-credit comparison profile
+remain available.
+
+Windows and the Ubuntu QEMU/WHPX guest passed the 512-credit comparison
+CLI with pinned Hiredis 1.3.0 and Redis 8.0.5. Both ran another
+eight-connection RESP3 comparison at 12,000 offers/s with a
+1,024-credit cap. During each observation an independent connection
+paused the workload peer for 35 ms after the verified command count
+showed the trial was active. The cases passed the real peer command
+ledger and verified all 48,000 replies per observer and host.
+
+Independent trace replay reconstructed the peak outstanding offer
+counts and matched the observers. The Windows peaks were 440 for
+xredis and 451 for Hiredis. Ubuntu reached 420 and 416 respectively.
+The live script verified one pause command in each case. Its first
+case omitted that counter in the final JSON after ledger normalization.
+The replay verified the unmodified workload command counts and the
+recorded second pause count.
+
+Windows passed the modular and single-header open-loop runtime tests.
+The Ubuntu guest passed the equivalent runtime test with single-header
+XRT and memory counters. Ordinary maturity passed. The wider window
+validates the controls needed for a subsequent performance campaign.
+The strict performance and endurance gates stay open. The source
+overlay, compile receipts, peak replay and complete fixtures are under
+out/service-extensions/xredis-window-50e69385/.

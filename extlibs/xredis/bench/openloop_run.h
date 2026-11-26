@@ -389,7 +389,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	snprintf(Output->Backend, sizeof(Output->Backend), "%s", Backend.Name);
 	Output->Workers = xrtNetEngineWorkerCount(Endpoint.Peer.Engine);
 	xredisclientconfig ClientConfig; xredisClientConfigInit(&ClientConfig);
-	ClientConfig.MaxRequests = Config->Slots; if (ClientConfig.MaxInFlight > Config->Slots) ClientConfig.MaxInFlight = Config->Slots;
+	ClientConfig.MaxRequests = Config->Slots; ClientConfig.MaxInFlight = Config->Slots;
 	const unsigned Connections = redisOpenConnections(Config);
 	xredisclient* Clients[REDIS_OPEN_MAX_CONNECTIONS] = {0};
 #if defined(REDIS_OPENLOOP_TLS)

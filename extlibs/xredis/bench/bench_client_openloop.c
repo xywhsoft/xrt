@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 #else
 	puts("transport=tcp");
 #endif
-	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Result.Workers, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
+	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Result.Workers, Config.Slots, Config.Payload, Config.Slots);
 	printf("connections=%u\nworkload=%s\n", redisOpenConnections(&Config), Config.Mixed ? "get_set" : "echo");
 	printf("accepted_get: %zu\naccepted_set: %zu\nwindow_peak: %zu\n", Result.AcceptedGets, Result.AcceptedSets, Result.WindowPeak);
 	printf("target_rate_per_sec=%" PRIu64 "\nintended_timeout_ms=%" PRId64 "\n", Config.Rate, Config.Timeout);

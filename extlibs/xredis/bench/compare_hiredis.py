@@ -193,7 +193,7 @@ def main() -> int:
     parser.add_argument("--fixture-tls", action="store_true", help="give the fixture freshly generated TLS credentials")
     parser.add_argument("--rate", type=int, default=5000)
     parser.add_argument("--count", type=int, default=20000)
-    parser.add_argument("--window", type=int, default=16)
+    parser.add_argument("--window", type=int, default=16, help="total measurement credits (1..4096)")
     parser.add_argument("--payload", type=int, default=32)
     parser.add_argument("--connections", type=int, default=1)
     parser.add_argument("--xredis-workers", type=int, default=1, help="network workers for the xredis observer")
@@ -204,7 +204,7 @@ def main() -> int:
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--raw-dir", type=Path, help="new directory for per-offer CSV traces")
     args = parser.parse_args()
-    if not ((args.port is None or 1 <= args.port <= 65535) and 1 <= args.window <= 128 and
+    if not ((args.port is None or 1 <= args.port <= 65535) and 1 <= args.window <= 4096 and
             1 <= args.connections <= 8 and 1 <= args.repeats <= 100 and args.rate > 0 and args.count > 1):
         parser.error("invalid workload or repeat count")
     if not 1 <= args.xredis_workers <= args.connections:
