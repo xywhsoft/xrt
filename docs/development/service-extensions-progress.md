@@ -30319,3 +30319,65 @@ Redis and MQTT continuous journals passed running-prefix replay
 after the timed runs. At about 16:36 Asia/Shanghai, Windows and
 Ubuntu Redis had 38.49 and 38.58 verified awake hours. MQTT had
 2.39 and 2.38 hours.
+
+## 2026-11-26 Ordered APP reply preparation with fewer executor jobs
+
+The first grouped TCP prototype admitted up to four buffered
+documents into the duplex endpoint before handling their replies.
+On Windows and the Ubuntu QEMU/WHPX guest, the peer test reproduced
+an earlier reply being lost when a later mixed request/response
+batch sealed the endpoint. The failure logs are retained. The
+ordered prototype uses one worker job to prepare up to four pure
+echo replies from the current read. The connection owner admits
+and publishes one document at a time in wire order. It never
+waits for an additional read to fill a group. The duplex endpoint
+still has one inbound slot and the library source is unchanged.
+The grouped APP carries three additional fixed request/reply
+buffers per peer. It also gives up the control's decoded-view
+fast path for ordinary duplex echo calls.
+
+The control and ordered prototype passed the independent TCP
+suite on both hosts, including fragmentation, batch limits,
+staggered admission, backpressure, and isolation from a peer
+reset at 32 connections. The Ubuntu prototype repeated the suite
+under ASan and UBSan with leak detection. All five tested builds
+also verified 45 exact replies in nine cases with one to nine
+valid records followed by a fatal mixed batch and another record.
+The initial ordered build failed with an unused static helper.
+The prototype marks that shared helper inline and retains the
+compiler logs and separate input hashes.
+
+Both hosts ran five alternating pairs per mode with 32 peers,
+64,000 scheduled calls/s, two XRT executor workers, and two native
+observer shards. Each offer interval lasted four seconds.
+Independent replay matched the build and raw trial hashes,
+the APP request and executor ledgers, and every scheduled
+latency quantile for 10,240,000 verified replies. Every
+grouped run submitted 64,512 jobs for 258,048 requests,
+including warmup, versus one job per request in the control.
+The table gives medians in control / grouped order.
+
+| Host | APP mode | APP CPU (s) | P99 (ms) | P99.9 (ms) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Duplex | 4.000 / 3.281 | 0.204 / 0.190 | 0.327 / 0.312 |
+| Windows | Direct dispatch | 3.922 / 2.813 | 0.200 / 0.167 | 0.386 / 0.306 |
+| Ubuntu guest | Duplex | 4.051 / 2.802 | 1.857 / 0.910 | 2.888 / 1.439 |
+| Ubuntu guest | Direct dispatch | 3.823 / 2.546 | 1.444 / 0.856 | 2.251 / 1.395 |
+
+Every paired throughput, executor-job and P99 ratio met
+repeatability. Median paired P99 ratios were 0.935 and 0.836
+on Windows, and 0.459 and 0.593 on Ubuntu in duplex and
+direct-dispatch order. The Windows direct-dispatch and Ubuntu
+duplex CPU ratios met repeatability at 0.749 and 0.681.
+All P99.9 ratios exceeded the variation limits. The largest
+Ubuntu duplex P99.9 was 25.383 ms with grouping and 4.842 ms
+in the control. The ordered build stays in the test fixture
+while the larger per-peer storage and tail remain open.
+
+The exact sources, functional transcripts, compiler records,
+raw timings and replays are under
+out/service-extensions/xrpc-executor-groups-529a99c5/.
+At about 16:51 Asia/Shanghai, all four continuing Redis and
+MQTT endurance journals passed running-prefix replay. Windows
+and Ubuntu Redis had 38.74 and 38.83 verified awake hours. The
+MQTT intervals had 2.64 and 2.63 hours.
