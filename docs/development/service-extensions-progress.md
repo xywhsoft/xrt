@@ -30144,3 +30144,44 @@ sendmsg calls per trial.
 The raw deliveries, refusal progress, exact eventfd filters and
 replay are under out/service-extensions/xmqtt-two-worker-cost-e0dc446a/.
 The strict release gate remains open.
+
+
+## 2026-11-26 Linux same-worker internal post wake experiment
+
+An Ubuntu QEMU/WHPX test fixture regenerated the XRT single header
+with a narrow Linux change in the internal post path. A post from
+the destination worker skips the port wake. Cross-thread posts
+retain their wake. The normal worker deadline calculation already
+uses an immediate poll while internal commands are pending. The
+control broker rebuilt byte for byte from e0dc446a.
+
+All 30 uninstrumented trials completed. Replay verified 1,440,000
+QoS 2 publisher confirmations and 11,520,000 deliveries to eight
+wildcard subscribers. Each row uses five alternating pairs.
+
+| Scheduled offers/s | Workers | Control / variant CPU median (s) | Paired variant / control CPU ratio |
+| ---: | ---: | ---: | ---: |
+| 4,000 | 1 | 3.56 / 3.49 | 0.9718 |
+| 6,000 | 2 | 9.76 / 9.67 | 0.9846 |
+| 10,000 | 2 | 7.42 / 7.34 | 0.9892 |
+
+All paired CPU and throughput ratios met repeatability. The
+paired P99 and P99.9 ratios exceeded repeatability limits at
+each rate. A separate descriptor-filtered 4,000/s set completed
+all four trials. The single-worker control and variant issued
+24,211 and 9 eventfd writes. The two-worker control and variant
+issued 49,165 and 25,102 writes. Each trial issued 442,826 sendmsg
+calls and delivered the full ledger.
+
+The variant passed five modular engine programs, one engine
+single-header program, and one broker single-header program
+covering MQTT 5 and 3.1.1. Coverage includes reposting, fairness,
+shutdown, external threads, OOM and persistent broker replay.
+The archive wrapper reported a trailing carriage return after
+writing the archive. The LF-normalized script, seven terminal
+test results and archive checksum verified independently.
+
+The prototype, generated header, scope patch and replay are under
+out/service-extensions/xmqtt-owner-wake-e0dc446a/. CPU savings
+were 1.1–2.8% in these cohorts. The prototype stays in the test
+fixture and the production tail gate remains open.
