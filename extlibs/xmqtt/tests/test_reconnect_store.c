@@ -87,9 +87,18 @@ static void drWriterReserved(xmqttstorewrite* Writer)
 static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* Drive)
 {
     (void)rcOnline(R,1);
-    testRequire(drWaitState(W,2).Inbox==1,"first Client committed its Inbox delivery");
     xmqttclientlease L={0};
     testRequire(xmqttReconnectAcquire(R,&L)&&L.Generation==1,"lease original durable Client");
+    xmqttmessage* Message=NULL;
+    double Deadline=xrtTimer()+5;
+    while(!xmqttClientTakeMessage(L.Client,&Message)){
+        testRequire(xrtTimer()<Deadline,"first Client queues the publication");
+        xrtSleep(1);
+    }
+    xbytesview Payload=xmqttMessagePacket(Message)->Body.Publish.Payload;
+    testRequire(Payload.Size==16&&!memcmp(Payload.Data,"before-reconnect",16)&&
+        !swInfo(W).State.Inbox&&swInfo(W).State.Transactions==1,"APP owns the first publication after OPEN");
+    xmqttMessageRelease(Message);
     xmqttpacket P;
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&P);
     P.Flags=2;
@@ -99,7 +108,7 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
     testRequire(xmqttClientPublishAsync(L.Client,&P,5000,&Original)==XMQTT_ADMISSION_ACCEPTED,"original QoS1 admission");
     rcWait(&Peer->Publishes,1);
     testRequire(xmqttClientWaitFor(L.Client,5000)==XWAIT_OK,"old transport and durable END retire");
-    xmqttstorestateinfo State=drWaitState(W,4);
+    xmqttstorestateinfo State=drWaitState(W,3);
     testRequire(!State.LiveAtCut&&State.Outgoing==1,"old END retains durable outgoing obligation");
     xmqttreconnectinfo Info;
     testRequire(xmqttReconnectInfo(R,&Info)&&Info.State==XMQTT_RECONNECT_RETIRING&&
@@ -107,7 +116,7 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
     const xmqttwriteresult* Result=xrtFutureValue(Original);
     xmqttclientstoreoutcome Outcome;
     testRequire(Result&&Result->Status!=XMQTT_STATUS_OK&&xmqttClientStoreOutcome(Result,&Outcome)&&
-        Outcome.Attempt.Sequence==3&&Outcome.Attempt.Effect==XMQTT_JOURNAL_COMMITTED,
+        Outcome.Attempt.Sequence==2&&Outcome.Attempt.Effect==XMQTT_JOURNAL_COMMITTED,
         "old Future retains original local failure and committed attempt");
     drWriterReserved(W);
     if(!Drive){
@@ -117,35 +126,23 @@ static void drReplay(rcPeer* Peer,xmqttreconnect* R,xmqttstorewrite* W,jwdrive* 
         return;
     }
 
-    unsigned char Wire[128];
-
-    xmqttstoreview View;
-    size_t Required=0;
-    xmqttmessage* Message=NULL;
-    testRequire(!xmqttClientTakeMessage(L.Client,&Message)&&
-        xmqttStoreWriteReadPending(W,Wire,sizeof(Wire),&View,&Required)==XMQTT_STORE_DONE,
-        "durable-only Inbox remains readable offline");
-    xfuture* Ack=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,5000,&Ack)==XMQTT_JWORK_ACCEPTED,"offline application ACK");
-    jwAwait(&Drive->Entered);
     testRequire(xmqttReconnectRelease(&L),"release original Client lease");
     rcWait(&Peer->Connects,2);
-    testRequire(!xmqttReconnectAcquire(R,&L)&&xrtFutureState(Ack)==XFUTURE_PENDING&&swInfo(W).State.Transactions==4,
-        "replacement attaches while application ACK is pending; Ready waits for durable OPEN");
+    jwAwait(&Drive->Entered);
+    testRequire(!xmqttReconnectAcquire(R,&L)&&swInfo(W).State.Transactions==3,
+        "replacement is fenced until the new OPEN commits");
     xrtAtomic32Store(&Drive->Release,1,XMEMORY_RELEASE);
-    testRequire(jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"old application ACK commits");
     Info=rcOnline(R,2);
     rcWait(&Peer->Replays,1);
-    State=drWaitState(W,7);
+    State=drWaitState(W,5);
     testRequire(Info.Generation==2&&Info.Attempts==2&&State.Outgoing==0&&State.Inbox==0&&
         xrtFutureValue(Original)==Result&&Result->Status!=XMQTT_STATUS_OK,
         "DUP replay retires obligation without resolving the original Future again");
-    xrtFutureDestroy(Ack);
     rcClose(R);
     testRequire(xrtFutureValue(Original)==Result,"old Future outlives controller");
     xrtFutureDestroy(Original);
     State=swInfo(W).State;
-    testRequire(State.Transactions==8&&!State.LiveAtCut,"second physical END is durable");
+    testRequire(State.Transactions==6&&!State.LiveAtCut,"second physical END is durable");
 }
 
 static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
@@ -164,11 +161,10 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     xtaskpool* Pool=jwPool(2);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
-    WC.ProtocolOnly=false;
     xmqttstorewrite* Writer=NULL;
     testRequire(xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"controller Inbox Writer");
     Drive.Base.Calls=0;
-    if(Mode==DR_REPLAY)Drive.Hold=35;
+    if(Mode==DR_REPLAY)Drive.Hold=28;
     else if(Mode==DR_LATE_OPEN)Drive.Hold=7;
     else if(Mode==DR_UNCERTAIN_OPEN){Drive.Base.Fail=7;Drive.Base.FlushOnFailure=true;}
 
@@ -222,17 +218,8 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
             "start new controller from recovered obligations");
         testRequire(rcOnline(R,1).Generation==1,"recovered state starts a new controller generation");
         rcWait(&Peer.Replays,1);
-        xmqttstorestateinfo Replayed=drWaitState(Writer,6);
-        testRequire(Replayed.Outgoing==0&&Replayed.Inbox==1,"cold DUP retires only protocol obligation");
-        unsigned char Wire[128];
-        size_t Required=0;
-
-        xmqttstoreview View;
-        xfuture* Ack=NULL;
-        testRequire(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Required)==XMQTT_STORE_DONE&&
-            xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,5000,&Ack)==XMQTT_JWORK_ACCEPTED&&
-            jwOutcome(Ack)->Effect==XMQTT_JOURNAL_COMMITTED,"restored Inbox separately acknowledged");
-        xrtFutureDestroy(Ack);
+        xmqttstorestateinfo Replayed=drWaitState(Writer,5);
+        testRequire(!Replayed.Outgoing&&!Replayed.Inbox,"cold DUP retires the restored protocol obligation");
         rcClose(R);
     }else if(Mode==DR_LATE_OPEN){
         jwAwait(&Drive.Entered);
@@ -273,7 +260,7 @@ static void drCase(xmqttversion Version,drmode Mode,bool Hostname)
     SC.WallMilliseconds=200000;
     stStatus(xmqttStoreStateRecover(Journal,&SC,&State),XMQTT_STORE_DONE,"ordinary cold journal recovery");
     xmqttstorestateinfo Recovery=stInfo(State);
-    uint64 Sequences=(Mode==DR_REPLAY||Mode==DR_COLD)?8:Mode==DR_LATE_OPEN?4:1;
+    uint64 Sequences=(Mode==DR_REPLAY||Mode==DR_COLD)?6:Mode==DR_LATE_OPEN?4:1;
     testRequire(Recovery.Transactions==Sequences&&Recovery.Outgoing==0&&Recovery.Inbox==0,
         "reopened file reports authoritative durable effects");
     xmqttStoreStateDestroy(State);
@@ -361,6 +348,6 @@ int main(void)
         drCase(Version,DR_COLD,true);
 #endif
     }
-    puts("[PASS] combined subscription recovery and durable automatic TCP reconnect, cold recovery, lease/ACK ordering, late OPEN reconciliation and uncertain storage fail-stop");
+    puts("[PASS] subscription recovery, durable TCP reconnect, cold recovery, lease and OPEN ordering, and uncertain storage fail-stop");
     return 0;
 }

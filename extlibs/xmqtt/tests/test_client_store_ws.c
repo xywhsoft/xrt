@@ -191,7 +191,7 @@ static void dwCase(xmqttversion Version,bool TLS,dwmode Mode)
     xtaskpool* Pool=jwPool(1);
     xmqttstorewriteconfig WC;
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly&&
+    testRequire(xmqttStoreWriteConfigInit(&WC)&&
         xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"protocol-only WS Writer");
     Drive.Base.Calls=0;
     if(Coalesced)Drive.Hold=7;

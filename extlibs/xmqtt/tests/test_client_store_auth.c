@@ -265,7 +265,7 @@ static void saCase(saMode Mode,unsigned Transport,sa_dial DialMode)
     xtaskpool* Pool=jwPool(1);
     xmqttstorewriteconfig WC;
     xmqttstorewrite* Writer=NULL;
-    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly&&
+    testRequire(xmqttStoreWriteConfigInit(&WC)&&
         xmqttStoreWriteCreate(Pool,Journal,State,&WC,&Writer),"protocol-only auth Writer");
     Drive.Base.Calls=0;
     if(Accept)Drive.Hold=7;

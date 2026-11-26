@@ -347,22 +347,20 @@ survival requires a separate storage qualification.
 
 #### APP-scheduled checkpoints
 
-Add `--policy automatic` to let the APP checkpoint after the trigger
-commits. Select `--policy pressure` to make room before the trigger reaches
-the configured file limit. The first client subscribes to a separate trigger
-topic. While PUBREC or PUBCOMP is withheld, an independent publisher delivers
-one QoS 1 message. No application ACK is submitted before the native process
-exits. In idle mode the committed Inbox entry is included in the checkpoint.
-In pressure mode the 15,200-byte limit forces a rotation before the acceptance
-can commit. The oracle verifies that the frame could not fit in the old
-generation and checks an independent CRC chain through the new IN_ACCEPT
-delta following the checkpoint.
+Add `--policy automatic` to let the APP checkpoint after committing a
+trigger in its separate `journal.app`. The first Client subscribes to a
+trigger topic. While PUBREC or PUBCOMP is withheld, an independent publisher
+delivers one QoS 1 message. Select `--policy pressure` to rotate the protocol
+journal ahead of the trigger. The oracle checks that the protocol
+transactions committed after restart would have exceeded the old
+generation's 15,200-byte limit.
 
 The runner waits for the client PUBACK before terminating the process.
 After restart, the new client resumes the QoS 2 exchange. The application takes
-the recovered pending record, verifies its payload, and commits a durable
-ACK. The broker sends no second trigger delivery in the observed recovery.
-The final cold reopen checks END and an empty Inbox.
+the recovered record from its own journal, verifies its payload and commits a
+durable confirmation there. The oracle reconciles the APP journal with the
+trigger packet and acknowledgement on the wire. The final protocol journal
+cold reopen verifies END and completed obligations.
 
 Select `--policy replay-transactions`, `--policy replay-operations` or
 `--policy replay-bytes` to exhaust a replay quota with physical space still

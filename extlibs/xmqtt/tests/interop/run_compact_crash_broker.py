@@ -87,17 +87,6 @@ def check_publish(wire, mqtt, qos, identifier, topic, payload):
     assert wire[body:] == field(topic) + identifier.to_bytes(2, 'big') + properties + payload
 
 
-def check_inbox_delta(delta, mqtt, key):
-    version = 5 if mqtt == 5 else 4
-    assert delta[:32] == struct.pack('>8sHBBIQQ', b'XMQDSET\0', 1, version, 0, 1, len(delta), 0)
-    wire = delta[80:]
-    identifier = struct.unpack_from('>H', delta, 36)[0]
-    assert identifier > 0
-    assert delta[32:80] == struct.pack('>BBBxHHI4xQQQQ', 9, 0, 0, identifier, 48, 0, 1, key, 0, len(wire))
-    check_publish(wire, mqtt, 1, identifier, TRIGGER_TOPIC, TRIGGER_BODY)
-    return identifier
-
-
 def read_journal(path, generation, mqtt):
     journal = path.read_bytes()
     assert journal[:8] == b'XMQWAL\0\0'
@@ -158,7 +147,7 @@ def replay_limit(quota, mqtt, fault):
     return caps[quota]
 
 
-def checkpoint(root, match, mqtt, fault, automatic, pressure, budget):
+def checkpoint(root, match, mqtt, fault, automatic, budget):
     generation, sequence, identifier = map(int, match.group(1, 2, 3))
     key, previous_bytes, selected_bytes = map(int, match.group(5, 6, 7))
     stage = match[4]
@@ -175,51 +164,36 @@ def checkpoint(root, match, mqtt, fault, automatic, pressure, budget):
     assert (root/'journal.0').stat().st_size == previous_bytes > selected_bytes
 
     frames = read_journal(root/'journal.1', generation, mqtt)
-    recovery_sequence = sequence + pressure
-    assert len(frames) == recovery_sequence and frames[sequence-1][1:] == selected[2:]
-    payloads = [frame[0] for frame in frames]
-    meta, rows = payloads[:2]
+    assert len(frames) == sequence and frames[-1][1:] == selected[2:]
+    meta, rows = [frame[0] for frame in frames]
     assert meta[:8] == b'XMQCKPT\0' and meta[8:11] == bytes((1, 5 if mqtt == 5 else 4, 7))
-    count = 2 if automatic and not pressure else 1
-    assert struct.unpack_from('>QQ', meta, 16) == (1, key+count-1)
-    assert struct.unpack_from('>Q', meta, 48)[0] == count
-    assert rows[:16] == b'XMQCROW\0' + struct.pack('>II', count, 0)
-    at = 16
-    inbox_id = None
-    for expected_key in range(key, key+count):
-        row_key, epoch, wire_size, row_id, flags, reason = struct.unpack_from('>QQIHBB', rows, at)
-        assert (row_key, epoch, reason) == (expected_key, 1, 0) and row_id > 0
-        at += 24
-        wire = rows[at:at+wire_size]
-        assert len(wire) == wire_size
-        at += wire_size
-        if row_key == key:
-            assert row_id == identifier and flags & 3 == 3 and not flags & 48
-            assert bool(flags & 8) == (fault == 2)
-            check_publish(wire, mqtt, 2, identifier, TOPIC, PAYLOAD)
-        else:
-            assert row_key == key+1 and flags == 16
-            check_publish(wire, mqtt, 1, row_id, TRIGGER_TOPIC, TRIGGER_BODY)
-            inbox_id = row_id
-    assert at == len(rows)
-    if pressure:
-        delta = payloads[2]
-        if budget:
-            quota, cap = budget
-            prior = replay_measure(read_journal(root/'journal.0', 1, mqtt), mqtt)
-            assert prior[quota] == cap, (prior, budget)
-            assert previous_bytes + 64 + len(delta) <= REPLAY_FILE_CAP
-            assert replay_measure(frames, mqtt)[quota] <= cap
-        else:
-            assert previous_bytes <= 15200 < previous_bytes+64+len(delta)
-        inbox_id = check_inbox_delta(delta, mqtt, key+1)
-    result = dict(generation=generation, sequence=sequence, recovery_sequence=recovery_sequence,
+    assert struct.unpack_from('>QQ', meta, 16) == (1, key)
+    assert struct.unpack_from('>Q', meta, 48)[0] == 1
+    assert rows[:16] == b'XMQCROW\0' + struct.pack('>II', 1, 0)
+    row_key, epoch, wire_size, row_id, flags, reason = struct.unpack_from('>QQIHBB', rows, 16)
+    assert (row_key, epoch, row_id, reason) == (key, 1, identifier, 0)
+    assert flags & 3 == 3 and not flags & 48 and bool(flags & 8) == (fault == 2)
+    assert len(rows) == 40 + wire_size
+    check_publish(rows[40:], mqtt, 2, identifier, TOPIC, PAYLOAD)
+    result = dict(generation=generation, sequence=sequence, recovery_sequence=sequence,
         packet_id=identifier, stage=stage, key=key, previous_bytes=previous_bytes,
         selected_bytes=selected_bytes, recovery_bytes=frames[-1][1],
         control_sha256=digest(root/'journal.slot'), journal_sha256=digest(root/'journal.1'))
-    if inbox_id is not None:
-        result['inbox'] = dict(key=key+1, packet_id=inbox_id)
+    if automatic:
+        app = read_journal(root/'journal.app', 1, mqtt)
+        assert len(app) == 1
+        wire = app[0][0]
+        _, body = varint(wire, 1)
+        app_id = struct.unpack_from('>H', wire, body+len(field(TRIGGER_TOPIC)))[0]
+        assert app_id != 0
+        check_publish(wire, mqtt, 1, app_id, TRIGGER_TOPIC, TRIGGER_BODY)
+        result['app_inbox'] = dict(packet_id=app_id, sha256=digest(root/'journal.app'))
     if budget:
+        quota, cap = budget
+        prior = replay_measure(read_journal(root/'journal.0', 1, mqtt), mqtt)
+        assert prior[quota] == cap, (prior, budget)
+        assert previous_bytes <= REPLAY_FILE_CAP
+        assert replay_measure(frames, mqtt)[quota] <= cap
         result['replay_pressure'] = dict(quota=quota, cap=cap, previous=prior,
                                          recovered=replay_measure(frames, mqtt), physical_cap=REPLAY_FILE_CAP)
     return result
@@ -271,6 +245,8 @@ def case(args, client, transport, mqtt, fault, scratch, name):
     root.mkdir()
     for leaf in ('journal.slot', 'journal.0', 'journal.1'):
         (root/leaf).touch()
+    if automatic:
+        (root/'journal.app').touch()
     directory = windows_path(root) if cross else str(root)
     slot = [directory, budget[0], str(budget[1])] if budget else [directory]
     ca = windows_path(scratch.parent/'ca.pem') if cross and transport.startswith(('tls', 'wss')) else str(scratch.parent/'ca.pem')
@@ -320,7 +296,7 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                         assert cut_output.splitlines().count('AUTO_ARMED') == 1
                         assert cut_output.splitlines().count('AUTO_ROTATED 1 1') == 1
                     assert exited and int(exited[2]) == (1 if cross or os.name == 'nt' else -9)
-                    snapshot = checkpoint(root, match, mqtt, fault, automatic, pressure, budget)
+                    snapshot = checkpoint(root, match, mqtt, fault, automatic, budget)
                     for thread in tuple(getattr(proxy, 'front_threads', proxy.threads)):
                         thread.join(8)
                         assert not thread.is_alive(), 'old transport did not retire after native process exit'
@@ -332,7 +308,7 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                     expected = ' '.join(str(snapshot[k]) for k in ('generation', 'recovery_sequence', 'packet_id', 'stage', 'key'))
                     assert f'RECOVERED {expected}' in output, output
                     assert 'Fresh process settled the compacted QoS 2 obligation.' in output, output
-                    end = (5 if fault == 2 else 6) + automatic + pressure
+                    end = 5 if fault == 2 else 6
                     assert f'Committed graceful END at {end}.' in output and f'VERIFIED 2 {end}' in output, output
                     proxy.wait(lambda: any(r['type'] == 14 and r['generation'] == 2 for r in proxy.rows))
                     history_topic = HISTORY_TOPIC.decode() if replay else None
@@ -349,19 +325,22 @@ def case(args, client, transport, mqtt, fault, scratch, name):
                         final = replay_measure(latest, mqtt)
                         assert final['transactions'] == end and final[quota] <= budget[1]
                         assert latest[snapshot['sequence']-1][1] == snapshot['selected_bytes']
-                        ack_payload = latest[end-2][0]
-                        version = 5 if mqtt == 5 else 4
-                        assert ack_payload[:32] == struct.pack('>8sHBBIQQ', b'XMQDSET\0', 1, version, 0, 1, 80, 0)
-                        assert ack_payload[32:] == struct.pack('>BBBxHHI4xQQQQ', 12, 0, 0, 0, 48, 0, 1,
-                                                               snapshot['inbox']['key'], 0, 0)
                         snapshot['replay_pressure']['final'] = final
+                    if pressure and not replay:
+                        latest = read_journal(root/'journal.1', 2, mqtt)
+                        appended_bytes = latest[-1][1] - latest[snapshot['sequence']-1][1]
+                        assert snapshot['previous_bytes'] <= 15200 < snapshot['previous_bytes'] + appended_bytes
+                        snapshot['protocol_bytes_after_rotation'] = appended_bytes
                     if automatic:
-                        inbox_id = snapshot['inbox']['packet_id']
-                        inbox_key = snapshot['inbox']['key']
-                        assert output.splitlines().count(f'INBOX_ACKED {inbox_key} {end-1} {inbox_id}') == 1, output
-                        assert trigger_trace(proxy) == [(1, 2, inbox_id)]
+                        app_id = snapshot['app_inbox']['packet_id']
+                        assert output.splitlines().count(f'APP_PROCESSING {app_id}') == 1, output
+                        assert output.splitlines().count(f'APP_ACKED {app_id}') == 1, output
+                        app = read_journal(root/'journal.app', 1, mqtt)
+                        assert len(app) == 2 and app[1][0] == b''
+                        check_publish(app[0][0], mqtt, 1, app_id, TRIGGER_TOPIC, TRIGGER_BODY)
+                        assert trigger_trace(proxy) == [(1, 2, app_id)]
                         assert [(r['generation'], r['identifier']) for r in proxy.rows if
-                                r['type'] == 4 and r['direction'] == 'cs'] == [(1, inbox_id)]
+                                 r['type'] == 4 and r['direction'] == 'cs'] == [(1, app_id)]
                     first = next(r for r in proxy.rows if r['direction'] == 'cs' and r['type'] == 3 and r['topic'] == TOPIC.decode())
                     assert first['identifier'] == snapshot['packet_id']
                     assert (root/'journal.1').stat().st_size > snapshot['selected_bytes']

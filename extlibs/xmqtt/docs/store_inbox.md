@@ -1,10 +1,9 @@
 # Legacy journal-backed pending publications
 
 Use the [APP migration example](../examples/store_inbox/README.md) to copy
-existing pending publications into a separate APP-owned journal. To continue
-using the legacy receive path with a connected Client, recover its state and
-set `ProtocolOnly=false` before calling `xmqttStoreWriteCreate`. The remaining
-APIs also work offline with recovered legacy records.
+existing pending publications into a separate APP-owned journal. The following
+compatibility APIs operate on old records. New intake and business confirmations
+belong to the APP.
 
 `xmqttStoreWriteReadPending` copies the oldest committed record into a caller
 buffer. It reports the required size on LIMIT and leaves the view unchanged.

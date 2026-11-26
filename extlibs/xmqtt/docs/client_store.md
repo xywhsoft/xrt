@@ -11,8 +11,7 @@ Use a trusted endpoint bound to the journal's broker, principal and Client slot.
 The nonblocking clock callback runs on the Engine worker and supplies trusted,
 nondecreasing Unix milliseconds.
 
-The Writer defaults to `xmqttstorewriteconfig.ProtocolOnly`, so it delivers
-new incoming publications through `xmqttClientTakeMessage`. QoS 0 and 1 use
+Use `xmqttClientTakeMessage` to receive new publications. QoS 0 and 1 use
 the ordinary bounded receive queue. Before accepting QoS 2, the Client reserves
 room for the live message, commits its receive identity without payload, then
 queues the message and PUBREC in that order. A failed commit does not publish
@@ -21,12 +20,8 @@ the retiring Client queue.
 
 The queue is volatile. Recovery preserves QoS 2 deduplication, including when
 the process exits after commit and before the APP takes the message. The APP
-owns any durability of business processing. Earlier journal entries remain
-readable. For legacy compatibility, set `ProtocolOnly=false` before creating
-the Writer. This mode journals
-each accepted PUBLISH, including QoS 0, before any ACK. Its persisted packet
-has a full topic and no alias property, and the APP can
-[read and retire pending publications](store_inbox.md) while connected.
+owns any durability of business processing. For pending deliveries recorded
+by an earlier Client, use the [legacy migration example](../examples/store_inbox/README.md).
 
 For QoS 2, a duplicate PUBLISH repeats PUBREC without another acceptance.
 A known PUBREL commits the release and identifier retirement together before

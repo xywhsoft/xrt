@@ -236,8 +236,7 @@ static void cgReceivePublish(cg_receive_peer* Peer,unsigned Qos,bool Duplicate,b
 }
 
 typedef enum cg_receive_mode {
-    CG_FLOW,CG_ACCEPT_CLOSE,CG_RELEASE_CLOSE,CG_WRITE_FAIL,CG_INBOX_LIMIT
-    ,CG_LIVE_LEASE
+    CG_FLOW,CG_ACCEPT_CLOSE,CG_RELEASE_CLOSE,CG_WRITE_FAIL,CG_QUEUE_LIMIT
 } cg_receive_mode;
 
 static void cgTakeProtocolMessage(xmqttclient* C,unsigned Qos)
@@ -255,7 +254,7 @@ static void cgTakeProtocolMessage(xmqttclient* C,unsigned Qos)
     xmqttMessageRelease(Message);
 }
 
-static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
+static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode)
 {
     cgdrive D={0};
     str NativePath=NULL;
@@ -267,20 +266,18 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
     xmqttjournalconfig JC=stJournalConfig(V);
     xmqttjournal* J=jpCreate(File,&JC);
     xmqttstorestateconfig SC=stConfig(V);
-    if(Mode==CG_INBOX_LIMIT||ProtocolOnly)SC.MaxInbox=0;
+    SC.MaxInbox=0;
     xmqttstorestate* Store=NULL;
     stStatus(xmqttStoreStateRecover(J,&SC,&Store),XMQTT_STORE_DONE,"empty receive store");
     xtaskpool* Pool=jwPool(1);
     D.IO.Pool=Pool;
     xmqttstorewriteconfig WC;
-    testRequire(xmqttStoreWriteConfigInit(&WC)&&WC.ProtocolOnly,"protocol-only Writer default");
-    if(!ProtocolOnly)WC.ProtocolOnly=false;
+    testRequire(xmqttStoreWriteConfigInit(&WC),"protocol Writer config");
     xmqttstorewrite* W=NULL;
         testRequire(xmqttStoreWriteCreate(Pool,J,Store,&WC,&W),"receive store writer");
     D.IO.Base.Calls=0;
     if(Mode==CG_FLOW||Mode==CG_ACCEPT_CLOSE)D.IO.Hold=14;
     if(Mode==CG_RELEASE_CLOSE)D.IO.Hold=21;
-    if(Mode==CG_LIVE_LEASE)D.IO.Hold=21;
     if(Mode==CG_WRITE_FAIL)D.IO.Base.Fail=8;
 
     xmqttsessionconfig SK;
@@ -292,7 +289,7 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
     xmqttclientconfig Cfg;
     xmqttClientConfigInit(&Cfg);
     Cfg.Version=V;
-    if(ProtocolOnly&&Mode==CG_INBOX_LIMIT)Cfg.MaxMessageBytes=1;
+    if(Mode==CG_QUEUE_LIMIT)Cfg.MaxMessageBytes=1;
     Cfg.WriteChunkBytes=1; /* Reuses the normal partial ACK send path. */
     xmqttpacket Connect;
     xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);
@@ -317,21 +314,21 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
     const unsigned char Pubrel[]={0x62,2,0,9};
     bool Alias=V==XMQTT_VERSION_5&&Mode==CG_FLOW;
     cgReceivePublish(&Peer,Mode==CG_FLOW?1:2,false,Alias,false);
-    if(ProtocolOnly&&Mode==CG_FLOW){
+    if(Mode==CG_FLOW){
         cgReceiveAck(&Peer,1,0x40,9,false,1);
         cgTakeProtocolMessage(C,1);
         cgReceivePublish(&Peer,2,false,Alias,Alias);
     }
     uint64 FinalTx=0;
-    size_t FinalInbox=0,FinalIncoming=0;
+    size_t FinalIncoming=0;
     unsigned FinalAcks=0;
     if(Mode==CG_FLOW||Mode==CG_ACCEPT_CLOSE){
         jwAwait(&D.IO.Entered);
         xmqttsessioninfo Info;
         testRequire(xmqttSessionInfo(Session,&Info)&&Info.Incoming==0&&
-                     Info.Prepared==(Mode==CG_ACCEPT_CLOSE||ProtocolOnly?1u:0u)&&
+                     Info.Prepared==1&&
                     swInfo(W).State.Inbox==0,"while acceptance sync is held only provisional receive credit exists");
-        cgReceiveNoAck(&Peer,ProtocolOnly&&Mode==CG_FLOW?1:0);
+        cgReceiveNoAck(&Peer,Mode==CG_FLOW?1:0);
         xmqttmessage* Early=NULL;
         testRequire(!xmqttClientTakeMessage(C,&Early),"no delivery before durable acceptance");
         if(Mode==CG_ACCEPT_CLOSE){
@@ -340,64 +337,26 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
         xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
     }
     if(Mode==CG_FLOW){
-        if(!ProtocolOnly){
-            cgReceiveAck(&Peer,1,0x40,9,false,2);
-            cgReceivePublish(&Peer,2,false,Alias,Alias);
-        }
-        uint64 Tx=ProtocolOnly?2:3;
-        size_t Inbox=ProtocolOnly?0:2;
+        uint64 Tx=2;
         cgReceiveAck(&Peer,2,0x50,9,false,Tx);
-        if(ProtocolOnly)cgTakeProtocolMessage(C,2);
+        cgTakeProtocolMessage(C,2);
         cgReceivePublish(&Peer,2,true,Alias,Alias);
         cgReceiveAck(&Peer,3,0x50,9,false,Tx);
-        testRequire(swInfo(W).State.Inbox==Inbox&&swInfo(W).State.Incoming==1,"duplicate QoS2 creates no new durable delivery");
+        testRequire(!swInfo(W).State.Inbox&&swInfo(W).State.Incoming==1,"duplicate QoS2 creates no new durable delivery");
         xmqttmessage* Duplicate=NULL;
         testRequire(!xmqttClientTakeMessage(C,&Duplicate),"duplicate suppressed in APP queue");
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
         cgReceiveAck(&Peer,4,0x70,9,false,++Tx);
-        testRequire(swInfo(W).State.Incoming==0&&swInfo(W).State.Inbox==Inbox,"retired id frees protocol tracking");
+        testRequire(swInfo(W).State.Incoming==0&&!swInfo(W).State.Inbox,"retired id frees protocol tracking");
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
         cgReceiveAck(&Peer,5,0x70,9,true,Tx);
         cgReceivePublish(&Peer,2,false,Alias,Alias);
         cgReceiveAck(&Peer,6,0x50,9,false,++Tx);
-        if(ProtocolOnly)cgTakeProtocolMessage(C,2);
+        cgTakeProtocolMessage(C,2);
         cgReceivePublish(&Peer,0,false,Alias,Alias);
-        if(ProtocolOnly)cgTakeProtocolMessage(C,0);
-        else {
-            double Deadline=xrtTimer()+10;
-            ++Tx;
-            while(swInfo(W).State.Transactions!=Tx){testRequire(xrtTimer()<Deadline,"QoS0 durable acceptance");xrtSleep(1);}
-        }
-        FinalTx=Tx+1;FinalInbox=ProtocolOnly?0:4;FinalIncoming=1;FinalAcks=6;
+        cgTakeProtocolMessage(C,0);
+        FinalTx=Tx+1;FinalIncoming=1;FinalAcks=6;
         testRequire(xmqttClientClose(C),"close after entire receive sequence");
-    }else if(Mode==CG_LIVE_LEASE){
-        cgReceiveAck(&Peer,1,0x50,9,false,2);
-
-        xmqttstoreview View;
-        unsigned char Buffer[64];
-        size_t Bytes=0;
-        stStatus(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Bytes),XMQTT_STORE_DONE,
-                 "lease acquired while actual TCP Client owns Writer");
-        testRequire(View.Key==1&&View.Qos==2&&View.Wire.Data==Buffer&&Bytes==View.Wire.Size,"live delivery snapshot");
-        xfuture* Ack=NULL;
-        testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED,"application ACK admitted alongside Client");
-        jwAwait(&D.IO.Entered);
-        cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
-        double Deadline=xrtTimer()+10;
-        while(!swInfo(W).Worker.Queued){
-            testRequire(xrtTimer()<Deadline,"PUBREL transaction queues concurrently with in-flight lease ACK");
-            xrtSleep(1);
-        }
-        testRequire(swInfo(W).State.Inbox==1&&swInfo(W).State.Incoming==1,"staged ACK has no visible effect");
-        cgReceiveNoAck(&Peer,1);
-        xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
-        const xmqttcommitresult* R=jwOutcome(Ack);
-        testRequire(R->Status==XMQTT_COMMIT_OK&&R->Sequence==3&&R->Effect==XMQTT_JOURNAL_COMMITTED,"application ACK commits first");
-        cgReceiveAck(&Peer,2,0x70,9,false,4);
-        testRequire(!swInfo(W).State.Inbox&&!swInfo(W).State.Incoming,"protocol retirement leaves no delivery or receive identity");
-        xrtFutureDestroy(Ack);
-        testRequire(xmqttClientClose(C),"close after independent app and protocol ACKs");
-        FinalTx=5;FinalAcks=2;
     }else if(Mode==CG_RELEASE_CLOSE){
         cgReceiveAck(&Peer,1,0x50,9,false,2);
         cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
@@ -406,20 +365,20 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
         cgReceiveNoAck(&Peer,1);
         testRequire(xmqttClientClose(C)&&xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"close retains in-flight PUBREL retirement");
         xrtAtomic32Store(&D.IO.Release,1,XMEMORY_RELEASE);
-        FinalTx=4;FinalInbox=ProtocolOnly?0:1;FinalAcks=1;
+        FinalTx=4;FinalAcks=1;
     }else if(Mode==CG_ACCEPT_CLOSE){
-        FinalTx=3;FinalInbox=ProtocolOnly?0:1;FinalIncoming=1;
+        FinalTx=3;FinalIncoming=1;
     }else FinalTx=Mode==CG_WRITE_FAIL?1:2;
 
     testRequire(xmqttClientWaitFor(C,15000)==XWAIT_OK,"retire actual Client and all receive writes");
     xmqttclientinfo Closing;
     testRequire(xmqttClientInfo(C,&Closing),"receive close status");
-    if(Mode==CG_WRITE_FAIL||Mode==CG_INBOX_LIMIT)
+    if(Mode==CG_WRITE_FAIL||Mode==CG_QUEUE_LIMIT)
         testRequire(Closing.CloseStatus==(Mode==CG_WRITE_FAIL?XMQTT_STATUS_INITIALIZATION:XMQTT_STATUS_LIMIT),"typed failed acceptance");
     xrtAtomicPtrStore(&D.Client,NULL,XMEMORY_RELEASE);
-    if(ProtocolOnly&&(Mode==CG_ACCEPT_CLOSE||Mode==CG_RELEASE_CLOSE))cgTakeProtocolMessage(C,2);
+    if(Mode==CG_ACCEPT_CLOSE||Mode==CG_RELEASE_CLOSE)cgTakeProtocolMessage(C,2);
     xmqttmessage* Unchanged=(xmqttmessage*)(uintptr_t)1;
-    testRequire(!xmqttClientTakeMessage(C,&Unchanged)&&Unchanged==(xmqttmessage*)(uintptr_t)1,"durable delivery stays out of connection-local queue");
+    testRequire(!xmqttClientTakeMessage(C,&Unchanged)&&Unchanged==(xmqttmessage*)(uintptr_t)1,"APP drained all accepted messages");
     testRequire(xmqttClientDestroy(C),"destroy receive Client");
     mqttExampleStop(&Peer.Net);
     testRequire(xrtAtomic32Load(&Peer.Net.Acks,XMEMORY_ACQUIRE)==FinalAcks,"no uncommitted or post-close ACK");
@@ -435,23 +394,11 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
     Store=NULL;
     stStatus(xmqttStoreStateRecover(J,&SC,&Store),XMQTT_STORE_DONE,"fresh receive replay");
     xmqttstorestateinfo Model=stInfo(Store);
-    testRequire(Model.Transactions==FinalTx&&Model.Inbox==FinalInbox&&Model.Incoming==FinalIncoming,"recovery exactly matches expected ACK cut");
-    if(ProtocolOnly&&FinalIncoming){
+    testRequire(Model.Transactions==FinalTx&&!Model.Inbox&&Model.Incoming==FinalIncoming,"recovery exactly matches expected ACK cut");
+    if(FinalIncoming){
         xmqttstoreview Record=stView(Store,XMQTT_STORE_INCOMING,0);
         testRequire(Record.Identifier==9&&Record.Qos==2&&!Record.Wire.Size&&!Record.InboxPending,
             "cold replay recovers only the receive identity");
-    }
-    for(size_t I=0;I<Model.Inbox;++I){
-        xmqttstoreview Record=stView(Store,XMQTT_STORE_INBOX,I);
-        const unsigned char Body5[]={0,1,'t',0,9,0,'x'};
-        const unsigned char Body311[]={0,1,'t',0,9,'x'};
-        const unsigned char BodyZero5[]={0,1,'t',0,'x'};
-        const unsigned char BodyZero311[]={0,1,'t','x'};
-        bool Zero=Mode==CG_FLOW&&I==3;
-        const unsigned char* Body=V==XMQTT_VERSION_5?(Zero?BodyZero5:Body5):(Zero?BodyZero311:Body311);
-        size_t Bytes=(V==XMQTT_VERSION_5?sizeof(Body5):sizeof(Body311))-(Zero?2u:0u);
-        testRequire(Record.Key==I+1&&Record.Wire.Size==Bytes+2&&
-                    !memcmp(Record.Wire.Data+2,Body,Bytes),"recovered payload has full topic and no connection-only alias");
     }
     if(Mode==CG_ACCEPT_CLOSE||Mode==CG_RELEASE_CLOSE){
         xmqttstoresessionconfig Import;
@@ -475,7 +422,7 @@ static void cgReceiveCase(xmqttversion V,cg_receive_mode Mode,bool ProtocolOnly)
             cgReceivePublish(&Peer,2,true,false,false);
             cgReceiveAck(&Peer,1,0x50,9,false,FinalTx+1);
             xmqttmessage* Duplicate=NULL;
-            testRequire(swInfo(W).State.Inbox==(ProtocolOnly?0u:1u)&&!xmqttClientTakeMessage(C,&Duplicate),
+            testRequire(!swInfo(W).State.Inbox&&!xmqttClientTakeMessage(C,&Duplicate),
                 "replayed duplicate delivers no additional payload");
             cgReceiveSend(&Peer,Pubrel,sizeof(Pubrel));
             cgReceiveAck(&Peer,2,0x70,9,false,FinalTx+2);
@@ -1248,14 +1195,9 @@ int main(void)
     puts("[PASS] outgoing attempt-before-PUBLISH, ACK-before-result, PUBREC-before-PUBREL and exact durable replay for both protocol levels");
     for(unsigned V=0;V<2;++V)for(unsigned Mode=0;Mode<8;++Mode)cgCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
     for(unsigned V=0;V<2;++V)
-        for(cg_receive_mode Mode=CG_FLOW;Mode<=CG_INBOX_LIMIT;++Mode){
-            cgReceiveCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode,false);
-            cgReceiveCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode,true);
-        }
-    cgReceiveCase(XMQTT_VERSION_311,CG_LIVE_LEASE,false);
-    cgReceiveCase(XMQTT_VERSION_5,CG_LIVE_LEASE,false);
+        for(cg_receive_mode Mode=CG_FLOW;Mode<=CG_QUEUE_LIMIT;++Mode)
+            cgReceiveCase(V?XMQTT_VERSION_5:XMQTT_VERSION_311,Mode);
     puts("[PASS] both protocol levels route protocol-only deliveries to the APP with durable QoS2 and no duplicate after cold recovery");
-    puts("[PASS] live QoS2 protocol retirement queues behind an application ACK while file sync is held");
-    puts("[PASS] live receive persists before ACK, deduplicates across actual reconnect, retires QoS2 before PUBCOMP and recovers canonical delivery");
+    puts("[PASS] live receive identity persists before PUBREC and retires before PUBCOMP, including late close");
     puts("[PASS] actual TCP CONNACK waits for durable BIND/OPEN; late Close/deadline retain IO and END duties,both MQTT levels; storage/clock refusal and exclusive Writer ownership");return 0;
 }

@@ -83,7 +83,6 @@ static void begin(onlinefixture* X,xmqttversion V,bool Expired,bool Pending,uint
     X->Pool=xrtTaskPoolCreate(&T);
     xmqttstorewriteconfig C;
     xmqttStoreWriteConfigInit(&C);
-    C.ProtocolOnly=false;
     check(X->Pool&&xmqttStoreWriteCreate(X->Pool,J,State,&C,&X->Writer)&&mqttExampleJournalSlotDetach(X->Slot,J),
         "create sole Store Writer");
 }
@@ -147,7 +146,7 @@ static const xmqttstorecheckpointresult* outcome(xfuture* F,xmqttcommitstatus St
     return R;
 }
 static bool wall(ptr C,uint64* Out){(void)C;*Out=3000;return true;}
-static void publish(xmqttclient* Client,uint8 Value)
+static xfuture* publish(xmqttclient* Client,uint8 Value)
 {
     xmqttpacket P;
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&P);
@@ -155,22 +154,35 @@ static void publish(xmqttclient* Client,uint8 Value)
     P.Body.Publish.Topic=XRT_STR_LITERAL("test/online");
     P.Body.Publish.Payload=(xbytesview){&Value,1};
     xfuture* F=NULL;
-    check(xmqttClientPublishAsync(Client,&P,10000,&F)==XMQTT_ADMISSION_ACCEPTED&&
-        xrtFutureWaitFor(F,10000)==XWAIT_OK,"live QoS 1 round trip");
+    check(xmqttClientPublishAsync(Client,&P,10000,&F)==XMQTT_ADMISSION_ACCEPTED,"admit live QoS 1 publish");
+    return F;
+}
+static xmqttclientstoreoutcome published(xfuture* F)
+{
+    check(xrtFutureWaitFor(F,10000)==XWAIT_OK,"live QoS 1 round trip");
     const xmqttwriteresult* R=xrtFutureValue(F);
     xmqttclientstoreoutcome O;
     check(R&&R->Status==XMQTT_STATUS_OK&&R->Delivery==XMQTT_PEER_ACCEPTED&&xmqttClientStoreOutcome(R,&O)&&
         O.Attempt.Effect==XMQTT_JOURNAL_COMMITTED&&O.Completion.Effect==XMQTT_JOURNAL_COMMITTED,
         "durable QoS 1 proof on existing connection");
     xrtFutureDestroy(F);
+    return O;
 }
 static void waitAcks(mqttExamplePeer* Peer,uint32 Count)
 {
     double End=xrtTimer()+10;
     while(xrtAtomic32Load(&Peer->Acks,XMEMORY_ACQUIRE)<Count){
-        check(xrtTimer()<End,"peer sees durable inbound PUBACK");
+        check(xrtTimer()<End,"peer sees inbound PUBACK");
         xrtSleep(1);
     }
+}
+static void takeEcho(xmqttclient* Client,uint8 Value)
+{
+    xmqttmessage* Message=NULL;
+    check(xmqttClientTakeMessage(Client,&Message),"APP takes accepted echo");
+    xbytesview Payload=xmqttMessagePacket(Message)->Body.Publish.Payload;
+    check(Payload.Size==1&&Payload.Data[0]==Value,"echo preserves APP payload");
+    xmqttMessageRelease(Message);
 }
 static void connected(xmqttversion V)
 {
@@ -198,24 +210,16 @@ static void connected(xmqttversion V)
     check(xrtFutureWaitFor(R,10000)==XWAIT_OK&&((const xmqttreadyresult*)xrtFutureValue(R))->Status==XMQTT_STATUS_OK,
         "wait for durable broker OPEN");
     xrtFutureDestroy(R);
-    publish(Client,'a');
+    xmqttclientstoreoutcome First=published(publish(Client,'a'));
     waitAcks(&Peer,1);
-    unsigned char Buffer[128];
-
-    xmqttstoreview View;
-    size_t Bytes;
-    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE,
-        "hold pending delivery lease across rotation");
-    uint64 FirstKey=View.Key;
+    takeEcho(Client,'a');
+    check(!current(X.Writer).State.Inbox,"only the outbound QoS state was journaled");
 
     mqttExampleCompactConfig C;
     mqttExampleCompactConfigInit(&C);
     C.MinReclaimBytes=1;C.MaxScratchBytes=512;
-    C.MaxEntries=0;
-    xfuture* F=compact(X.Writer,X.Slot,&C);
-    outcome(F,XMQTT_COMMIT_LIMIT,XMQTT_JOURNAL_LIMIT,XMQTT_JOURNAL_NOT_COMMITTED);
-    xrtFutureDestroy(F);
     C.MaxEntries=4;
+    xfuture* F;
 #if defined(TEST_ONLINE_FAULTS)
     xrtAtomic32Store(&onlineHook,1,XMEMORY_RELEASE);
     F=compact(X.Writer,X.Slot,&C);
@@ -238,21 +242,20 @@ static void connected(xmqttversion V)
     mqttExampleWait(&onlineEntered);
     check(current(X.Writer).Worker.Busy,"read model while inactive storage call is held");
 #endif
-    xfuture* Ack=NULL;
-    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&Ack)==XMQTT_JWORK_ACCEPTED,
-        "same lease can queue an ACK behind the rotation");
+    xfuture* Next=publish(Client,'b');
 #if defined(TEST_ONLINE_FAULTS)
-    check(xrtFutureState(Ack)==XFUTURE_PENDING,"later ACK waits for the physical checkpoint");
+    check(xrtFutureState(Next)==XFUTURE_PENDING,"later publish waits for the physical checkpoint");
     xrtAtomic32Store(&onlineReleased,1,XMEMORY_RELEASE);
     xrtAtomic32Store(&onlineHook,0,XMEMORY_RELEASE);
 #endif
     const xmqttstorecheckpointresult* Cut=outcome(F,XMQTT_COMMIT_OK,XMQTT_JOURNAL_DONE,XMQTT_JOURNAL_COMMITTED);
-    check(Cut->PreviousGeneration==1&&Cut->Generation==2&&Cut->Sequence==2&&Cut->PreviousBytes>Cut->Bytes,
+    check(Cut->PreviousGeneration==1&&Cut->Generation==2&&Cut->Sequence==1&&Cut->PreviousBytes>Cut->Bytes,
         "publish exact smaller checkpoint and keep generation-local sequence");
-    check(xrtFutureWaitFor(Ack,10000)==XWAIT_OK,"later ACK retires");
-    const xmqttcommitresult* A=xrtFutureValue(Ack);
-    check(A&&A->Effect==XMQTT_JOURNAL_COMMITTED&&A->Sequence==Cut->Sequence+1,"leased application ACK is the first new delta");
-    xrtFutureDestroy(Ack);
+    xmqttclientstoreoutcome Second=published(Next);
+    check(Second.Key>First.Key&&Second.Attempt.Sequence==Cut->Sequence+1&&
+        Second.Completion.Sequence==Cut->Sequence+2,"live publish continues in the selected journal");
+    waitAcks(&Peer,2);
+    takeEcho(Client,'b');
     C.MinReclaimBytes=UINT64_MAX;
     xfuture* Skip=compact(X.Writer,X.Slot,&C);
     const xmqttstorecheckpointresult* Empty=outcome(Skip,XMQTT_COMMIT_OK,XMQTT_JOURNAL_EMPTY,XMQTT_JOURNAL_NOT_COMMITTED);
@@ -261,18 +264,14 @@ static void connected(xmqttversion V)
         "insufficient byte reduction preserves the cut");
     xrtFutureDestroy(Skip);
 
-    publish(Client,'b');
-    waitAcks(&Peer,2);
-    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&
-        View.Key>FirstKey,"same TCP connection advances durable delivery keys");
     check(xmqttClientClose(Client)&&xmqttClientWaitFor(Client,10000)==XWAIT_OK&&xmqttClientDestroy(Client),
         "physical client retirement after online rotation");
     mqttExampleStop(&Peer);
     check(xmqttSessionDestroy(Session),"release Session after driver");
     xmqttstorestateinfo Recovered=reopen(&X,2);
-    check(Recovered.Inbox==1&&Recovered.LastKey>FirstKey&&!Recovered.LiveAtCut,
-        "new generation replays late ACK, second publish, and native END");
-    check(Cut->Generation==2&&Cut->Sequence==2,"retained maintenance Future survives writer destruction");
+    check(!Recovered.Inbox&&!Recovered.Outgoing&&Recovered.LastKey==Second.Key&&!Recovered.LiveAtCut,
+        "selected journal replays the protocol state and native END");
+    check(Cut->Generation==2&&Cut->Sequence==1,"retained maintenance Future survives writer destruction");
     xrtFutureDestroy(F);
     end(&X);
 }
@@ -455,7 +454,7 @@ int main(void)
         explicitPressure(V,QUOTA_TRANSACTIONS,14350);
     }
     puts("[PASS] storage quotas refuse without rotation, APP compaction and one ACK retry");
-    puts("[PASS] online APP rotation on the same TCP connection, pending delivery, FIFO and expiry");
+    puts("[PASS] online APP rotation on the same TCP connection, continued protocol writes, FIFO and expiry");
 #if defined(TEST_ONLINE_FAULTS)
     uncertain(XMQTT_VERSION_5);
     uncertain(XMQTT_VERSION_311);

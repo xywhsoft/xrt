@@ -29512,3 +29512,39 @@ are byte-identical to the previous qualified probes on both hosts.
 The running MQTT intervals therefore retain the earlier matching
 Windows sections and Ubuntu program segments. The receipts and
 replay are in the same evidence directory.
+
+
+
+## 2026-11-26 Removal of the live MQTT Client Inbox path
+
+The durable Client now has one receive policy. It delivers payloads
+through the bounded Client queue and journals only QoS 2 receive
+identities and handshake transitions. The temporary ProtocolOnly
+switch and the separate payload encoding and admission path were
+removed. The legacy store format and migration example remain
+available for earlier records.
+
+The APP compaction example consumes its trigger from the Client and
+commits the trigger and its later APP confirmation to journal.app.
+The protocol checkpoint contains only the outstanding outbound
+obligation. The independent runner verifies both logs, correlates the
+APP record with the broker trace, terminates the Client process and
+then verifies exact recovery and completion. It verifies physical
+file pressure and all three replay quotas.
+
+Windows and the Ubuntu QEMU/WHPX guest each verified 18 optimized
+test and example programs, static and shared SDK consumers, both
+legacy migration cases, and 38 Mosquitto 2.1.2 cases. The latter
+include 32 compact/restart cases and six reconnect cases. Automatic
+compaction ran over TCP, TLS 1.3 and WSS over TLS 1.3. Ubuntu also
+passed the Client-store single-header test under ASan/UBSan. The first
+online fault fixture timed out while waiting for a legacy row write.
+Both hosts passed when the hook intercepted the protocol checkpoint
+descriptor. The first Windows TLS/WSS command lacked OpenSSL on
+PATH. It passed with the explicit installed binary.
+
+At 12:30 Asia/Shanghai, the four live Redis and MQTT mixed-load
+journals passed prefix replay. Windows/Ubuntu Redis had 34.39/34.48
+verified awake hours and Windows/Ubuntu MQTT had 13.88/33.87 hours.
+Exact source hashes, reports, corrected replay and the original
+failure logs are under out/service-extensions/xmqtt-retire-online-inbox-10e52a3d/.

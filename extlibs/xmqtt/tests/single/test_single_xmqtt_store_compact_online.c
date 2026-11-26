@@ -13,7 +13,7 @@ static xatomic32 onlineHook,onlineEntered,onlineReleased,onlineWrites;
 static bool onlineWrite(xfile File,uint64 Offset,const void* Data,size_t Bytes,size_t* Written)
 {
     uint32 Mode=xrtAtomic32Load(&onlineHook,XMEMORY_ACQUIRE);
-    if((Mode==1||Mode==2)&&Bytes>=8&&!memcmp(Data,"XMQCROW",8)){
+    if((Mode==1||Mode==2)&&Bytes>=8&&!memcmp(Data,"XMQCKPT",8)){
         if(Mode==2){xrtSetErrorKind(XERR_IO);return false;}
         xrtAtomic32Store(&onlineEntered,1,XMEMORY_RELEASE);
         double End=xrtTimer()+10;

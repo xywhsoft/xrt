@@ -239,60 +239,77 @@ static bool compactManual(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,c
     return Done;
 }
 
-static bool compactAutomatic(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,const mqttExampleCompactConfig* Compact,
-    xfuture* Publish,bool Pressure,uint64 InboxKey,xmqttstorecheckpointresult* Selection)
+static xmqttjournalconfig compactInboxConfig(xmqttversion Version)
 {
-    /* In the capacity scenario the APP opens room before releasing its
-     * next input. Its store configuration supplies the fixture's limit. */
-    if(Pressure&&(!compactManual(Writer,Slot,Compact,Selection)||
-       Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
+    xmqttjournalconfig App;
+    xmqttJournalConfigInit(&App);
+    App.Version=Version;
+    App.Generation=1;
+    App.Binding=XRT_BYTES_LITERAL("example/reconnect/app-trigger");
+    return App;
+}
 
+static bool compactTriggerPacket(const xmqttpacket* Packet)
+{
+    return Packet&&Packet->Type==XMQTT_PACKET_PUBLISH&&((Packet->Flags>>1)&3u)==1&&
+        Packet->Body.Publish.Topic.Size==compactTriggerTopic.Size&&
+        !memcmp(Packet->Body.Publish.Topic.Data,compactTriggerTopic.Data,compactTriggerTopic.Size)&&
+        Packet->Body.Publish.Payload.Size==compactTriggerBody.Size&&
+        !memcmp(Packet->Body.Publish.Payload.Data,compactTriggerBody.Data,compactTriggerBody.Size);
+}
+
+static bool compactWaitTrigger(xmqttclient* Client,xfuture* Publish,xroot Root,xmqttversion Version)
+{
     puts("AUTO_ARMED");
     if(fflush(stdout)!=0)return false;
     double Deadline=xrtTimer()+5;
-    for(;;){
-        xmqttstorewriteinfo Info;
-        if(!xmqttStoreWriteInfo(Writer,&Info)||Info.Worker.Closed||
-           xrtFutureState(Publish)!=XFUTURE_PENDING||xrtTimer()>=Deadline)return false;
-        if(Info.State.Inbox==1&&Info.State.LastKey==InboxKey&&
-           (!Pressure||Info.Worker.Journal.Sequence==3))break;
+    xmqttmessage* Message=NULL;
+    while(!xmqttClientTakeMessage(Client,&Message)){
+        if(xrtFutureState(Publish)!=XFUTURE_PENDING||xrtTimer()>=Deadline)return false;
         xrtSleep(1);
     }
-    if(!Pressure&&(!compactManual(Writer,Slot,Compact,Selection)||
-       Selection->Effect!=XMQTT_JOURNAL_COMMITTED))return false;
-    puts("AUTO_ROTATED 1 1");
-    return true;
+    const xmqttpacket* Packet=xmqttMessagePacket(Message);
+    xmqttjournalconfig App=compactInboxConfig(Version);
+    xmqttjournal* Journal=NULL;
+    xfile File=NULL;
+    uint64 Sequence=0;
+    bool OK=compactTriggerPacket(Packet)&&
+        mqttExampleOpenNativeJournal(Root,"journal.app",&App,true,&File,&Journal)==XMQTT_JOURNAL_DONE&&
+        xmqttJournalAppend(Journal,Packet->Wire,&Sequence)==XMQTT_JOURNAL_DONE&&Sequence==1;
+    xmqttMessageRelease(Message);
+    return mqttExampleCloseNativeJournal(Journal,&File)&&OK;
 }
 
-static bool compactInboxAck(xmqttstorewrite* Writer,xmqttversion Version,uint64 InboxKey)
+static bool compactInboxAck(xroot Root,xmqttversion Version)
 {
-    unsigned char Wire[1024];
-    size_t Bytes=0;
+    xmqttjournalconfig App=compactInboxConfig(Version);
+    xmqttjournal* Journal=NULL;
+    xfile File=NULL;
+    if(mqttExampleOpenNativeJournal(Root,"journal.app",&App,false,&File,&Journal)!=XMQTT_JOURNAL_DONE)return false;
 
-    xmqttstoreview View;
-    if(xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Bytes)!=XMQTT_STORE_DONE||
-       View.Key!=InboxKey||View.Epoch!=1||View.Qos!=1||!View.InboxPending)return false;
+    xmqttjournalrecord Record;
     xmqttpacket Packet;
-    xbytesview Input={Wire,Bytes};
-    xmqttcodecstatus Decoded=Version==XMQTT_VERSION_5
-        ?xmqttPacketRead5(Input,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL)
-        :xmqttPacketRead311(Input,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL);
-    if(Decoded!=XMQTT_CODEC_DONE||Packet.Type!=XMQTT_PACKET_PUBLISH||Packet.Identifier!=View.Identifier||
-       Packet.Body.Publish.Topic.Size!=compactTriggerTopic.Size||
-       memcmp(Packet.Body.Publish.Topic.Data,compactTriggerTopic.Data,compactTriggerTopic.Size)||
-       Packet.Body.Publish.Payload.Size!=compactTriggerBody.Size||
-       memcmp(Packet.Body.Publish.Payload.Data,compactTriggerBody.Data,compactTriggerBody.Size))return false;
-    xfuture* F=NULL;
-    if(xmqttStoreWriteRetireAsync(Writer,View.Epoch,View.Key,10000,&F)!=XMQTT_JWORK_ACCEPTED)return false;
-    const xmqttcommitresult* Result=xrtFutureWaitFor(F,10000)==XWAIT_OK?xrtFutureValue(F):NULL;
-    bool Done=Result&&Result->Status==XMQTT_COMMIT_OK&&Result->Effect==XMQTT_JOURNAL_COMMITTED;
-    if(Done)printf("INBOX_ACKED %llu %llu %u\n",(unsigned long long)View.Key,
-        (unsigned long long)Result->Sequence,(unsigned)View.Identifier);
-    xrtFutureDestroy(F);
-    return Done&&xmqttStoreWriteReadPending(Writer,Wire,sizeof(Wire),&View,&Bytes)==XMQTT_STORE_EMPTY;
+    bool OK=xmqttJournalNext(Journal,&Record)==XMQTT_JOURNAL_DONE&&
+        (Version==XMQTT_VERSION_5?xmqttPacketRead5(Record.Data,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL):
+            xmqttPacketRead311(Record.Data,XMQTT_SERVER_TO_CLIENT,NULL,NULL,&Packet,NULL))==XMQTT_CODEC_DONE&&
+        compactTriggerPacket(&Packet);
+    if(OK){
+        uint16 Identifier=Packet.Identifier;
+        xmqttjournalstatus Status=xmqttJournalNext(Journal,&Record);
+        if(Status==XMQTT_JOURNAL_DONE){
+            OK=Record.Sequence==2&&!Record.Data.Size&&xmqttJournalNext(Journal,&Record)==XMQTT_JOURNAL_EMPTY;
+        }else {
+            uint64 Sequence=0;
+            OK=Status==XMQTT_JOURNAL_EMPTY&&printf("APP_PROCESSING %u\n",(unsigned)Identifier)>=0&&fflush(stdout)==0&&
+                xmqttJournalAppend(Journal,(xbytesview){0},&Sequence)==XMQTT_JOURNAL_DONE&&Sequence==2;
+            if(OK)printf("APP_ACKED %u\n",(unsigned)Identifier);
+        }
+    }
+    return mqttExampleCloseNativeJournal(Journal,&File)&&OK;
 }
 
-static void compactCut(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,xfuture* Publish,bool Auto,bool Pressure,uint64 InboxKey)
+static void compactCut(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,xfuture* Publish,
+    xmqttclient* Client,xroot Root,xmqttversion Version,bool Auto,bool Pressure)
 {
     /* The fixture signals only after independently observing the dropped ACK. */
     if(fgetc(stdin)!='c'||xrtFutureState(Publish)!=XFUTURE_PENDING)return;
@@ -309,7 +326,11 @@ static void compactCut(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,xfut
     Config.MaxEntries=4;
     Config.MaxScratchBytes=1024;
     xmqttstorecheckpointresult Result={0};
-    bool Selected=Auto?compactAutomatic(Writer,Slot,&Config,Publish,Pressure,InboxKey,&Result):compactManual(Writer,Slot,&Config,&Result);
+    bool Selected=true;
+    if(Pressure)Selected=compactManual(Writer,Slot,&Config,&Result)&&Result.Effect==XMQTT_JOURNAL_COMMITTED;
+    if(Selected&&Auto)Selected=compactWaitTrigger(Client,Publish,Root,Version);
+    if(Selected&&!Pressure)Selected=compactManual(Writer,Slot,&Config,&Result);
+    if(Selected&&Auto)puts("AUTO_ROTATED 1 1");
     bool Held=Selected&&Result.Status==XMQTT_COMMIT_OK&&Result.Effect==XMQTT_JOURNAL_COMMITTED&&
        Result.PreviousGeneration==1&&Result.Generation==2&&Result.Sequence==2&&Result.Bytes<Result.PreviousBytes&&
        xrtFutureState(Publish)==XFUTURE_PENDING;
@@ -324,12 +345,12 @@ static void compactCut(xmqttstorewrite* Writer,mqttExampleJournalSlot* Slot,xfut
 }
 
 static bool compactRestore(const xmqttstorestate* State,const xmqttsessionconfig* SessionConfig,
-    const xmqttstorestateconfig* Config,bool Auto,bool Pressure,uint64 InboxKey,xmqttsession** Session)
+    const xmqttstorestateconfig* Config,uint64 ExpectedKey,xmqttsession** Session)
 {
     xmqttstorestateinfo Info;
     xmqttstoreview Outgoing;
     if(!xmqttStoreStateInfo(State,&Info)||!Info.LiveAtCut||!Info.HasSession||Info.Outgoing!=1||
-       Info.Transactions!=(Pressure?3u:2u)||Info.Inbox!=(Auto?1u:0u)||Info.LastKey!=(Auto?InboxKey:1u)||
+       Info.Transactions!=2||Info.Inbox||Info.LastKey!=ExpectedKey||
        xmqttStoreStateView(State,XMQTT_STORE_OUTGOING,0,&Outgoing)!=XMQTT_STORE_DONE||
        Outgoing.Qos!=2||!Outgoing.Attempted)return false;
     xmqttstoresessionconfig Restore;
@@ -472,7 +493,7 @@ int main(int Argc,char** Argv)
     SC.Binding=JC.Binding;
     SC.ClientId=Id;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
-    uint64 InboxKey=ReplayQuota?COMPACT_HISTORY_PUBLISHES+2u:2u;
+    uint64 ExpectedKey=ReplayQuota?COMPACT_HISTORY_PUBLISHES+1u:1u;
     if(ReplayQuota){
         if(!strcmp(ReplayQuota,"transactions"))SC.MaxTransactions=ReplayLimit;
         else if(!strcmp(ReplayQuota,"operations"))SC.MaxOperations=ReplayLimit;
@@ -529,7 +550,7 @@ int main(int Argc,char** Argv)
     SK.ClientId=Id;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Resume){
-        if(!compactRestore(State,&SK,&SC,Auto,Pressure,InboxKey,&Session))goto Done;
+        if(!compactRestore(State,&SK,&SC,ExpectedKey,&Session))goto Done;
     }else
 #endif
     if(!xmqttSessionCreate(&SK,&Session))goto Done;
@@ -538,7 +559,6 @@ int main(int Argc,char** Argv)
     Cleanup=xrtTaskPoolCreate(&PC);
     xmqttstorewriteconfig WC;
     xmqttStoreWriteConfigInit(&WC);
-    WC.ProtocolOnly=false; /* This example still exercises the legacy Inbox format. */
     if(!Storage||!Cleanup||!xmqttStoreWriteCreate(Storage,Journal,State,&WC,&Writer))goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Slot)(void)mqttExampleJournalSlotDetach(Slot,Journal);
@@ -576,7 +596,7 @@ int main(int Argc,char** Argv)
     if(Resume){
         if(!replayed(Writer))goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
-        if(Auto&&!compactInboxAck(Writer,Version,InboxKey))goto Done;
+        if(Auto&&!compactInboxAck(Root,Version))goto Done;
 #endif
         puts("Fresh process settled the compacted QoS 2 obligation.");
         goto Disconnect;
@@ -593,7 +613,7 @@ int main(int Argc,char** Argv)
     if(xmqttClientPublishAsync(Lease.Client,&Packet,10000,&Publish)!=XMQTT_ADMISSION_ACCEPTED)goto Done;
 #if defined(RECONNECT_EXAMPLE_COMPACT)
     if(Cut){
-        compactCut(Writer,Slot,Publish,Auto,Pressure,InboxKey);
+        compactCut(Writer,Slot,Publish,Lease.Client,Root,Version,Auto,Pressure);
         goto Done;
     }
 #endif

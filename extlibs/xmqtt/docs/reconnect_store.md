@@ -28,12 +28,10 @@ controller observes retirement. When waiting for a replacement, check that
 the controller has reached the next generation before acquiring a lease. Retransmission and completion of
 durable obligations follow the journal across generations.
 
-The default Writer exposes new deliveries through the leased Client's
+The Writer exposes new deliveries through the leased Client's
 `xmqttClientTakeMessage`. Applications with existing Inbox journals may
 use the [legacy migration example](../examples/store_inbox/README.md).
-For continued legacy operation, use `ProtocolOnly=false` and retire pending
-records with `xmqttStoreWriteRetireAsync`. The
-controller reserves protocol mutations and Writer lifecycle until Destroy.
+The controller reserves protocol mutations and Writer lifecycle until Destroy.
 When policy allows another attempt, an unusable Writer stops it with
 `XMQTT_STATUS_SESSION`.
 Destroy the controller, dispose of the Writer and recover the journal before
@@ -120,12 +118,12 @@ and cold-reopens the journal again. [Run the checkpoint qualification](../tests/
 
 
 The runner also uses `compact-auto-cut` and `compact-auto-resume` to
-checkpoint after a trigger delivery commits. With `compact-pressure-cut`
-and `compact-pressure-resume` the APP opens space before releasing the
-next input into the physical file limit. In both cases the broker receives
-the network acknowledgment before termination. The restored
-application reads and processes the pending record and
-commits its separate application acknowledgment.
+checkpoint after the APP commits a trigger delivery to `journal.app`.
+With `compact-pressure-cut` and `compact-pressure-resume`, the APP selects
+the smaller protocol journal before admitting the trigger. The broker
+receives the network acknowledgement before termination. The restored
+application reads and processes the pending record and commits the
+application acknowledgement in `journal.app`.
 
 The replay-pressure variants use `compact-replay-cut` and
 `compact-replay-resume` followed by DIRECTORY, a quota name

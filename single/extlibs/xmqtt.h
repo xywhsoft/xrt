@@ -3190,10 +3190,6 @@ typedef struct xmqttstorewrite xmqttstorewrite;
 typedef struct xmqttstorewriteconfig {
     size_t Size,MaxScratchBytes,MaxModelWork;
     xmqttjournalworkerconfig Worker;
-    /* Defaults to true. Connected Clients hand new incoming publications to the
-     * normal receive queue and journal QoS 2 identity and handshake only.
-     * False enables legacy journaling of incoming payloads for compatibility. */
-    bool ProtocolOnly;
 } xmqttstorewriteconfig;
 typedef struct xmqttstorewriteinfo {size_t Size,ScratchBytes;xmqttstorestateinfo State;xmqttjournalworkerinfo Worker;} xmqttstorewriteinfo;
 XRT_EXTERN_C_BEGIN
@@ -3307,11 +3303,9 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. With the default ProtocolOnly Writer, TakeMessage returns
- * new publications from the bounded connection queue. QoS 2 identity is
- * committed before PUBREC. Recovering the protocol session cannot restore
- * messages from that volatile queue. Set ProtocolOnly=false before creating
- * the Writer to keep the legacy incoming payload journal.
+ * Ready follows durable OPEN. TakeMessage returns new publications from the
+ * bounded connection queue. QoS 2 identity is committed before PUBREC.
+ * Application messages in the connection queue are volatile.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
@@ -3475,8 +3469,8 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * cleanup pool and must differ from the Writer's IO pool. Both must keep
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
- * the transferred Session. TakeMessage receives new publications with the default
- * Writer. For the legacy Inbox, use StoreWriteReadPending and StoreWriteRetireAsync
+ * the transferred Session. TakeMessage receives new publications on the leased
+ * Client. StoreWriteReadPending and StoreWriteRetireAsync serve old Inbox records
  * throughout the controller lifetime.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt
@@ -4697,7 +4691,7 @@ XMQTT_INTERNAL bool xmqttInternalJournalWorkerBind(xmqttjournalworker* Worker,xm
 typedef xmqttclientstoreclock xmqttstorewall;
 typedef struct xmqttclientstoreplan {xmqttstorewrite* Writer;xmqttstorewall Wall;ptr User;} xmqttclientstoreplan;
 XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
-    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,bool* ProtocolOnly,xtaskpool** Pool);
+    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool);
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable);
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Identifier);
@@ -6770,8 +6764,8 @@ typedef struct xmqttclientstorestate {
     xmqttstoredeltatype Action;
     xmqttclientstatus AckMetadata;
     uint16 Identifier;
-    uint8 AcceptQos,AckType,AckReason,EndReason;
-    bool ExplicitEnd,EndSettled,ProtocolOnly;
+    uint8 AckType,AckReason,EndReason;
+    bool ExplicitEnd,EndSettled;
     bool Claimed,EverOpened,Applying,OpenCommitted,Ending,EndCommitted,Broken,Fallback,EndWallValid;
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_STORE)
     bool Resume,OpenUnapplied;
@@ -7090,7 +7084,7 @@ static bool xmqttStoreClientAttach(xmqttclient* C,const xmqttclientstoreplan* P)
     xmqttclientstorestate* D=xrtCalloc(1,Bytes);if(!D)return false;
     C->Store=D;D->Plan=*P;xrtAtomic32Init(&D->Watching,0);C->Info.PrivateBytes+=Bytes;
     if(!xmqttInternalStoreWriteDriverClaim(P->Writer,C,C->Session->State,&D->Delta,&D->Initial,
-        &D->EverOpened,&D->ProtocolOnly,&D->Pool))return false;
+        &D->EverOpened,&D->Pool))return false;
     D->Claimed=true;xmqttsessioninfo I;xstrview Id;
     if(!xmqttSessionInfo(C->Session->State,&I)||!xmqttSessionClientId(C->Session->State,&Id))return false;
     if(D->Delta.Version!=C->Config.Version||D->Initial.Outgoing!=I.ActiveOutgoing||D->Initial.Incoming!=I.Incoming||I.HasState!=D->Initial.HasSession||
@@ -8213,20 +8207,14 @@ static void xmqttReceiveTwoQueue(xmqttclient* C,uint16 Id,uint8 Type,bool Unknow
     F->State[Id]|=(unsigned char)Flag;
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-static void xmqttStoreReceivePublishAck(xmqttclient* C,unsigned Qos,uint16 Id)
+static void xmqttStoreReceivePubrec(xmqttclient* C,uint16 Id)
 {
-    if(Qos==1){
-        xmqttreceiveflow* F=C->ReceiveFlow;
-        F->Identifiers[(F->Head+F->Count)%F->Capacity]=Id;
-        ++F->Count;
-    }else if(Qos==2){
-        xmqttreceivetwo* F=C->ReceiveTwo;
-        if(!(F->State[Id]&XMQTT_RX_ACTIVE)){
-            F->State[Id]|=XMQTT_RX_ACTIVE;
-            ++F->Inflight;
-        }
-        xmqttReceiveTwoQueue(C,Id,0x50,false);
+    xmqttreceivetwo* F=C->ReceiveTwo;
+    if(!(F->State[Id]&XMQTT_RX_ACTIVE)){
+        F->State[Id]|=XMQTT_RX_ACTIVE;
+        ++F->Inflight;
     }
+    xmqttReceiveTwoQueue(C,Id,0x50,false);
 }
 /* Only the connection worker adds deliveries. Call both with Gate held. */
 static bool xmqttReceiveMessageFits(const xmqttclient* C,const xmqttmessage* M)
@@ -8433,23 +8421,19 @@ static void xmqttStoreClientReceiveResult(xmqttclient* C,bool Committed,bool Sen
     xmqttclientstorestate* D=C->Store;
     xmqttsession* Session=C->Session->State;
     uint16 Id=D->Identifier;
-    bool Queued=false;
-    if(D->Action==XMQTT_STORE_IN_ACCEPT || D->Action==XMQTT_STORE_IN_TRACK){
-        if(D->AcceptQos==2 &&
-           xmqttInternalSessionReceive(Session,C,Id,Committed?1u:2u,NULL)!=XMQTT_SESSION_DONE)abort();
+    if(D->Action==XMQTT_STORE_IN_TRACK){
+        if(xmqttInternalSessionReceive(Session,C,Id,Committed?1u:2u,NULL)!=XMQTT_SESSION_DONE)abort();
         xmqttmessage* Message=D->Message;
         D->Message=NULL;
+        if(!Message)abort();
         if(!Committed){xmqttMessageRelease(Message);return;}
         ++D->Initial.LastKey;
         xrtMutexLock(&C->Gate);
-        if(Message){
-            if(!xmqttReceiveMessageFits(C,Message))abort(); /* Only the APP could have drained the queue. */
-            xmqttReceiveMessageQueue(C,Message);
-            Queued=true;
-        }
+        if(!xmqttReceiveMessageFits(C,Message))abort(); /* Only the APP could have drained the queue. */
+        xmqttReceiveMessageQueue(C,Message);
         ++C->Info.Received;
         xrtMutexUnlock(&C->Gate);
-        if(Send)xmqttStoreReceivePublishAck(C,D->AcceptQos,Id);
+        if(Send)xmqttStoreReceivePubrec(C,Id);
     }else if(D->Action==XMQTT_STORE_IN_COMPLETE){
         if(!Committed)return;
         uint8 Reason=0;
@@ -8461,7 +8445,7 @@ static void xmqttStoreClientReceiveResult(xmqttclient* C,bool Committed,bool Sen
         *State|=XMQTT_RX_RELEASED;
         xmqttReceiveTwoQueue(C,Id,0x70,false);
     }else abort();
-    if(Send || Queued)xmqttClientNotify(C);
+    xmqttClientNotify(C);
 }
 
 static bool xmqttStoreClientReceive(xmqttclient* C,const xmqttpacket* P)
@@ -8499,89 +8483,49 @@ static bool xmqttStoreClientReceive(xmqttclient* C,const xmqttpacket* P)
         return xmqttStoreClientSubmit(C,Ops,2,Deadline);
     }
 
-    unsigned Qos=(P->Flags>>1)&3u;
     xstrview Resolved={0};
     if(!xmqttReceiveAlias(C,P,&Resolved))return false;
-    if(Qos && C->Peer.SendPacketBytes<4){
+    if(C->Peer.SendPacketBytes<4){
         xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);
         return false;
     }
-    if(Qos==2 && xmqttInternalSessionReceiveState(C->Session->State,C,Id)>=2){
+    if(xmqttInternalSessionReceiveState(C->Session->State,C,Id)>=2){
         if(!xmqttInternalStoreWriteDriverIncoming(D->Plan.Writer,C,Id)){
             xmqttClientFail(C,XMQTT_STATUS_SESSION,NULL);
             return false;
         }
-        xmqttStoreReceivePublishAck(C,Qos,Id);
+        xmqttStoreReceivePubrec(C,Id);
         return true;
     }
     if(D->Initial.LastKey==UINT64_MAX){
         xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);
         return false;
     }
-    if(Qos==1 && !xmqttReceivePrepare(C))return false;
-    if(Qos==2){
-        xmqttsessionstatus S=xmqttInternalSessionReceive(C->Session->State,C,Id,0,NULL);
-        if(S!=XMQTT_SESSION_DONE){
-            xmqttClientFail(C,S==XMQTT_SESSION_LIMIT?XMQTT_STATUS_LIMIT:XMQTT_STATUS_SESSION,NULL);
-            return false;
-        }
+    xmqttsessionstatus S=xmqttInternalSessionReceive(C->Session->State,C,Id,0,NULL);
+    if(S!=XMQTT_SESSION_DONE){
+        xmqttClientFail(C,S==XMQTT_SESSION_LIMIT?XMQTT_STATUS_LIMIT:XMQTT_STATUS_SESSION,NULL);
+        return false;
     }
 
-    xmqttstoredelta Op={.Type=XMQTT_STORE_IN_ACCEPT,.Epoch=D->Epoch,.Key=D->Initial.LastKey+1u,
-                        .Identifier=Id,.Data=P->Wire};
     bool Accepted=false;
-    D->AcceptQos=(uint8)Qos;
-    if(D->ProtocolOnly){
-        if(Qos!=2 || D->Message)abort();
-        xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
-        xmqttmessage* Message=xmqttMessageCopy(C,P,&Failure,Resolved.Size?&Resolved:NULL);
-        if(!Message){
-            xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);
-        }else {
-            xrtMutexLock(&C->Gate);
-            bool Room=xmqttReceiveMessageFits(C,Message);
-            xrtMutexUnlock(&C->Gate);
-            if(Room){
-                Op.Type=XMQTT_STORE_IN_TRACK;
-                Op.Data=(xbytesview){0};
-                Accepted=xmqttStoreClientSubmit(C,&Op,1,Deadline);
-                if(Accepted)D->Message=Message;
-            }else xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);
-            if(!Accepted)xmqttMessageRelease(Message);
-        }
-        if(!Accepted && xmqttInternalSessionReceive(C->Session->State,C,Id,2,NULL)!=XMQTT_SESSION_DONE)abort();
-        return Accepted;
+    if(D->Message)abort();
+    xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
+    xmqttmessage* Message=xmqttMessageCopy(C,P,&Failure,Resolved.Size?&Resolved:NULL);
+    if(!Message){
+        xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);
+    }else {
+        xrtMutexLock(&C->Gate);
+        bool Room=xmqttReceiveMessageFits(C,Message);
+        xrtMutexUnlock(&C->Gate);
+        if(Room){
+            xmqttstoredelta Op={.Type=XMQTT_STORE_IN_TRACK,.Epoch=D->Epoch,
+                                .Key=D->Initial.LastKey+1u,.Identifier=Id};
+            Accepted=xmqttStoreClientSubmit(C,&Op,1,Deadline);
+            if(Accepted)D->Message=Message;
+        }else xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);
+        if(!Accepted)xmqttMessageRelease(Message);
     }
-
-    /* Non-aliased frames use the already decoded input span. Only an alias
-     * needs re-encoding. Props belongs to the consumed frame and is reusable. */
-    unsigned char* Canonical=NULL;
-    size_t CanonicalBytes=0;
-    size_t Alias=0;
-    while(Alias<P->Properties.Count && P->Properties.Data[Alias].Id!=XMQTT_PROPERTY_TOPIC_ALIAS)++Alias;
-    if(Alias<P->Properties.Count){
-        xmqttpacket Packet=*P;
-        if(Resolved.Size)Packet.Body.Publish.Topic=Resolved;
-        --Packet.Properties.Count;
-        memmove(C->Props+Alias,C->Props+Alias+1,(Packet.Properties.Count-Alias)*sizeof(*C->Props));
-        if(!xmqttPacketSize5(&Packet,XMQTT_SERVER_TO_CLIENT,&D->Delta.Codec,&CanonicalBytes) ||
-           CanonicalBytes>D->Delta.MaxBytes){
-            xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);
-            goto Done;
-        }
-        Canonical=xmqttStoreClientBuffer(C,CanonicalBytes);
-        if(!Canonical)goto Done;
-        size_t Written=0;
-        if(!xmqttPacketWrite5(Canonical,CanonicalBytes,&Packet,XMQTT_SERVER_TO_CLIENT,&D->Delta.Codec,&Written)){
-            xmqttClientFail(C,XMQTT_STATUS_INITIALIZATION,xrtGetError());
-            goto Done;
-        }
-        Op.Data=(xbytesview){Canonical,Written};
-    }
-    Accepted=xmqttStoreClientSubmit(C,&Op,1,Deadline);
-Done:
-    if(Canonical)xmqttStoreClientBufferFree(C,Canonical,CanonicalBytes);
-    if(!Accepted && Qos==2 && xmqttInternalSessionReceive(C->Session->State,C,Id,2,NULL)!=XMQTT_SESSION_DONE)abort();
+    if(!Accepted && xmqttInternalSessionReceive(C->Session->State,C,Id,2,NULL)!=XMQTT_SESSION_DONE)abort();
     return Accepted;
 }
 #endif
@@ -8735,7 +8679,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
                 return xmqttStoreClientReceive(C,P);
             if(P->Type==XMQTT_PACKET_PUBLISH){
                 unsigned Qos=(P->Flags>>1)&3u;
-                if(!C->Store->ProtocolOnly || Qos==2)return xmqttStoreClientReceive(C,P);
+                if(Qos==2)return xmqttStoreClientReceive(C,P);
                 if(Qos==1 && C->Peer.SendPacketBytes<4){xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);return false;}
             }else if(P->Type!=XMQTT_PACKET_PUBACK&&P->Type!=XMQTT_PACKET_PUBREC&&P->Type!=XMQTT_PACKET_PUBCOMP&&
                P->Type!=XMQTT_PACKET_SUBACK&&P->Type!=XMQTT_PACKET_UNSUBACK){
@@ -9836,7 +9780,7 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
     /* Apply a committed protocol transition before ending Session. */
     if(!(C->Store&&C->Store->Future&&
-         (C->Store->Transmit||C->Store->Action==XMQTT_STORE_IN_ACCEPT||C->Store->Action==XMQTT_STORE_IN_TRACK||
+         (C->Store->Transmit||C->Store->Action==XMQTT_STORE_IN_TRACK||
           C->Store->Action==XMQTT_STORE_IN_COMPLETE)))
 #endif
         xmqttClientSessionEnd(C);
@@ -14754,7 +14698,7 @@ static void xmqttSWFinish(ptr Context,const xmqttcommitresult* Result)
 XMQTT_API bool xmqttStoreWriteConfigInit(xmqttstorewriteconfig* C)
 {
     if(!xmqttSWSpan(C,sizeof(*C)))return xmqttSWError(XERR_ARGUMENT,"invalid store-writer config output");
-    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536,.ProtocolOnly=true};
+    *C=(xmqttstorewriteconfig){.Size=sizeof(*C),.MaxScratchBytes=1048576,.MaxModelWork=65536};
     return xmqttJournalWorkerConfigInit(&C->Worker);
 }
 XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqttstorestate* State,
@@ -14875,7 +14819,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteReconnectUsable(xmqttstorewrite* W,co
 }
 #endif
 XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
-    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,bool* ProtocolOnly,xtaskpool** Pool)
+    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
@@ -14897,7 +14841,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     if(!xrtMutexLock(&W->Gate))abort();
     if(OK&&(Reserved||!W->Pending)){
         *Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);
-        *Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*ProtocolOnly=W->Config.ProtocolOnly;*Pool=W->Pool;
+        *Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;
     }
     else {W->Driver=NULL;OK=false;}
     xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
