@@ -29317,16 +29317,17 @@ The full timing acceptance stays open. Prefix evidence and replay
 are under out/service-extensions/xcron-long-prefix-20261126/.
 
 
-## 2026-11-26 Ubuntu MQTT runtime after the write-budget fix
+## 2026-11-26 Windows and Ubuntu MQTT runtime after the write-budget fix
 
 The Ubuntu QEMU/WHPX guest rebuilt and passed the full MQTT runtime
 suite at a82b228b. Independent replay matched the terminal success,
 the 38 modular and 67 single-header executions in manifest order,
-all 105 binary digests and the selected source inputs. The rebuilt
-Windows suite ran all 38 modular tests and was compiling the
-single-header suite at the 11:21 Asia/Shanghai check. The static
-and shared package runs have separate completed records on both
-hosts. Runtime archives, logs and replay are under
+all 105 binary digests and the selected source inputs. Windows
+finished at 11:22 Asia/Shanghai on d05a231e. The joint replay
+matched all 38 modular and 67 single-header executions with
+the Windows binaries and terminal success as well. Static and
+shared package runs have separate completed records on both hosts.
+Runtime archives, logs and replay are under
 out/service-extensions/xmqtt-sdk-write-budget-a82b228b/.
 
 
