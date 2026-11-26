@@ -30067,3 +30067,38 @@ Mosquitto recorded a median of 718,832 read and 27 write calls.
 The receipts, exact tracepoint counts, DWARF stacks and replay are
 under out/service-extensions/xmqtt-qos2-cpu-e0dc446a/. The broker
 CPU cost and paired tail criteria remain open for strict release.
+
+
+## 2026-11-26 Linux TCP single-span send experiment
+
+The Ubuntu QEMU/WHPX guest rebuilt the e0dc446a broker byte for byte.
+In a separate test fixture, a regenerated core single header makes
+xrtNetSocketSendVec call send for a validated, nonempty Linux TCP
+vector with one span. It preserves MSG_NOSIGNAL, EINTR retry and
+the existing result conversion. The test uses the same MQTT APP,
+observer, two broker workers, CPU masks, Receive Maximum and
+outstanding limits in both builds.
+
+Five alternating pairs at each of 6,000 and 10,000 scheduled
+QoS 2 publications/s completed. Every trial verified 60,000
+publisher confirmations and 480,000 deliveries to eight wildcard
+subscribers. Replay verified 1,200,000 confirmations and 9,600,000
+deliveries across the 20 uninstrumented trials.
+
+| Offers/s | Control / variant CPU median (s) | Paired variant / control CPU ratio | Paired throughput ratio |
+| ---: | ---: | ---: | ---: |
+| 6,000 | 9.74 / 9.64 | 0.9876 | 0.99999 |
+| 10,000 | 7.40 / 7.35 | 0.9959 | 0.99996 |
+
+The CPU and throughput ratios met repeatability in both cohorts.
+The paired P99 and P99.9 ratios exceeded the repeatability limits.
+A separate 6,000/s tracepoint pair verified complete wire ledgers.
+The control issued 1,090,826 sendmsg calls. The variant issued
+484,800 sendmsg and 606,026 sendto calls. The shift covered more
+than half of the socket sends and yielded a 0.4–1.2% paired CPU
+reduction in these tests.
+
+The prototype remains in the test fixture. The new CPU cost and
+tail evidence leaves the production performance gate open. The
+generated header, exact patch, binaries, reports and replay are
+under out/service-extensions/xmqtt-sendvec-one-e0dc446a/.
