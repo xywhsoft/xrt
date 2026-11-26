@@ -29379,3 +29379,19 @@ Generated declarations, API documentation and ordinary maturity
 checks passed. The source overlay hashes, compiler identity, logs
 and binary receipts are under
 out/service-extensions/xmqtt-store-in-track-a270eb79/.
+
+
+
+The committed 821382cb rebuilt the plaintext client-and-broker mixed
+probe on both hosts. Each rebuilt file was byte-for-byte identical
+to the prior write-budget candidate. Independent replay also matched
+all 16 Windows section records and bytes, and all 14 Ubuntu program
+headers and segments, against the binaries in the live intervals.
+The MQTT intervals continue with their original receipts. They
+exercise plaintext TCP and do not exercise the optional client store.
+
+At approximately 11:33 Asia/Shanghai, all four supervisors were
+live and the running-prefix checks passed. Verified awake hours
+were 33.438 and 33.528 for Windows and Ubuntu Redis, and 12.933
+and 32.924 for Windows and Ubuntu MQTT. Probe receipts, binary
+comparisons and prefix snapshots are in the same evidence folder.
