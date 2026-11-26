@@ -269,6 +269,36 @@ def check_qos2(legacy, modern):
     assert read(modern, 2) == b"\xd0\0", "negative PUBREC must not trigger PUBREL"
 
 
+def check_same_qos_wire(endpoint, publisher):
+    key = topic(b"flow/wire")
+    with ExitStack() as peers:
+        subscribers = []
+        for options in (2, 10):
+            subscriber, _ = connect(endpoint, 5, f"wire-{options}".encode("ascii"))
+            subscribers.append(peers.enter_context(subscriber))
+            subscriber.sendall(small_frame(0x82, b"\0\1\0" + key + bytes((options,))))
+            assert read(subscriber, 6) == b"\x90\4\0\1\0\2"
+        # The server example accepts a maximum complete packet of 16 KiB.
+        widths = ((126, b"\x7e"), (127, b"\x7f"), (128, b"\x80\x01"), (16381, b"\xfd\x7f"))
+        for number, (size, width) in enumerate(widths, 1):
+            source = struct.pack("!H", 0xa000 + number)
+            target = struct.pack("!H", number)
+            length = size - len(key) - 3
+            payload = (bytes(range(256)) * ((length + 255) // 256))[:length]
+            retain = number % 2
+            wire = bytes((0x3c | retain,)) + width + key + source + b"\0" + payload
+            for _ in range(2):
+                publisher.sendall(wire)
+                assert read(publisher, 4) == small_frame(0x50, source)
+            publisher.sendall(small_frame(0x62, source))
+            assert read(publisher, 4) == small_frame(0x70, source)
+            for flag, subscriber in zip((0x34, 0x34 | retain), subscribers, strict=True):
+                expected = bytes((flag,)) + width + key + target + b"\0" + payload
+                assert read(subscriber, len(expected)) == expected
+                finish_qos2(subscriber, target)
+            ping(subscribers)
+
+
 def eof(sock):
     try:
         assert sock.recv(1) == b"", "extra MQTT data after closure"
@@ -408,6 +438,7 @@ def probe(program):
                     check_retained_parallel(endpoint, legacy)
                     check_qos1(legacy, newer)
                     check_qos2(legacy, newer)
+                    check_same_qos_wire(endpoint, newer)
                     check_zero_qos_ids(endpoint)
                     check_session_resume(endpoint, newer, 5)
                     check_session_resume(endpoint, newer, 4)
@@ -417,7 +448,7 @@ def probe(program):
                     eof(newer)
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
-            "zero_qos_ack_ids_rejected": 8, "explicit_negative_pubrec": True,
+            "zero_qos_ack_ids_rejected": 8, "explicit_negative_pubrec": True, "same_qos_wire_boundaries": 4,
             "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 

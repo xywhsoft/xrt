@@ -17604,10 +17604,25 @@ static xmqttserverpublication* xmqttServerCopyPublication(xbytesview Wire, uint8
 static xmqttserverpublication* xmqttServerEncodePublish(const xmqttpacket* Packet, xmqttversion Origin,
 	xmqttversion Target, uint8 Flags, bool Rewrite, double Expires, const xmqttcodecconfig* Codec)
 {
-	if (Origin == Target && !Rewrite) return xmqttServerCopyPublication(Packet->Wire, Flags, (xstrview){0});
+	bool Reliable = (Flags & XMQTT_PUBLISH_QOS_MASK) != 0;
+	if (Origin == Target) {
+		if (!Rewrite) return xmqttServerCopyPublication(Packet->Wire, Flags, (xstrview){0});
+		if (Target == XMQTT_VERSION_5 && Reliable && !Expires && !Packet->Properties.Count &&
+			!((Packet->Flags ^ Flags) & XMQTT_PUBLISH_QOS_MASK)) {
+			/* The decoded wire already has canonical lengths and the same identifier layout. */
+			xmqttserverpublication* Publication = xmqttServerCopyPublication(Packet->Wire, Flags, (xstrview){0});
+			if (Publication) {
+				size_t At = (size_t)((cbytes)Packet->Body.Publish.Topic.Data - Packet->Wire.Data) +
+					Packet->Body.Publish.Topic.Size;
+				Publication->IdOffset = (uint32)At;
+				Publication->Wire[At] = 0;
+				Publication->Wire[At + 1] = 1;
+			}
+			return Publication;
+		}
+	}
 	xmqttpacket Out = *Packet;
 	Out.Flags = Flags;
-	bool Reliable = (Flags & XMQTT_PUBLISH_QOS_MASK) != 0;
 	Out.Identifier = Reliable ? 1 : 0;
 	xmqttproperty Properties[XMQTT_SERVER_MAX_PROPERTIES];
 	if (Target == XMQTT_VERSION_311) Out.Properties = (xmqttpropertylist){0};

@@ -30910,3 +30910,31 @@ ledgers, source receipts and replay are under
 out/service-extensions/xrpc-group-first-reply-30d86d9c/. The live Redis
 and MQTT intervals replayed 40.87/40.96 and 4.77/4.76 awake hours on
 Windows/Ubuntu respectively.
+
+
+## 2026-11-26 Broker reuse of validated MQTT 5 publication frames
+
+The broker copies the decoded wire when forwarding reliable MQTT 5
+publications with unchanged QoS, no properties and no expiry. The
+copy still receives the normalized flags and a packet identifier slot
+for each downstream delivery. Protocol conversion, QoS changes,
+properties and expiry continue through the encoder.
+
+Both variants passed the independent dual-version peer on Windows and
+Ubuntu QEMU/WHPX. The peer verified four complete wire lengths up to
+the example's 16 KiB ceiling, including duplicate inbound QoS 2,
+Retain As Published and per-recipient packet identifiers. The direct
+encoder comparison also matched the full wire for a three-byte
+Remaining Length. The Windows modular broker suite and the Ubuntu
+dual-version ASan/UBSan and checkpoint suites passed.
+
+The median single-frame time for a 16-byte topic was 205.5 versus
+35.5 ns on Windows and 241.0 versus 32.4 ns in the Ubuntu guest.
+All five pairs per host completed the fixed-arrival workload of
+6,000 QoS 2 publications/s to eight wildcard subscribers. Median
+broker CPU time was 7.469 versus 7.094 seconds on Windows and 5.900
+versus 5.880 seconds on Ubuntu. Paired P99 and P99.9 delivery ratios
+exceeded the variation limits on both hosts. The older continuous
+runs retain their original binary identity. Release timing and
+continuous endurance remain open. Raw reports and independent replay
+are under out/service-extensions/xmqtt-same-wire-390ba78a/.
