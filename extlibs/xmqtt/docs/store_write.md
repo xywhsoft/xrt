@@ -26,9 +26,10 @@ metadata into a hash overlay, retaining existing canonical wire pointers. Only
 new payload entries copy their wire. A reset may touch all entries; it never
 copies all retained payloads. Invalid records, quotas, staging OOM or refusal
 leave the original model untouched. Recovered live-at-cut state is a candidate:
-a new recorded OPEN is required before live protocol flow operations. Independent
-application Inbox ACKs remain legal before that OPEN. The host must derive OPEN
-from actual authentication/CONNACK and physically retire an old transport.
+a new recorded OPEN is required before live protocol flow operations. The host
+must derive OPEN from actual authentication/CONNACK and physically retire an
+old transport. See the [offline migration](store_inbox.md) for older business
+Inbox records.
 
 The original monotonic deadline is captured before wrapper validation/locking
 and passed as an absolute value into native admission. Cancel/expiry/Close are
@@ -129,7 +130,8 @@ extension callback/destructor code resident through all retained results/tails.
 ## Qualification scope and costs
 
 The [real-file example](../examples/store_write/README.md) commits a recovered
-application Inbox ACK and verifies fresh replay after physical shutdown. Tests
+legacy Inbox ACK as an encoded delta in an offline writer and verifies fresh
+replay after physical shutdown. Tests
 separate adversarial histories, quotas/OOM, observer/native tails, actual post-sync
 error-key failures, concurrent reads/producers and complete file failure models.
 Independent literal Python bytes and process-cut checks qualify storage only.

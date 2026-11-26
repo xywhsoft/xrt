@@ -64,17 +64,6 @@ XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* Writer,xmqttstorewriteinfo* 
  * This read is neither a delivery claim/lease nor an application ACK capability. */
 XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* Writer,uint64 Key,
     ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
-/* Copy the oldest committed pending publication. The same output and buffer
- * rules as StoreWriteRead apply. Peeking does not change the committed model.
- * The application controls consumption, concurrency and retry. */
-XMQTT_API xmqttstorestatus xmqttStoreWriteReadPending(xmqttstorewrite* Writer,
-    ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
-/* Append retirement of one pending publication by its stored epoch and key.
- * May run alongside a connected Client. A stale key or epoch resolves INVALID
- * before any append. This operation does not change the MQTT receive identity.
- * Inspect the Future's commit effect before proceeding or retrying. */
-XMQTT_API xmqttjournaladmission xmqttStoreWriteRetireAsync(xmqttstorewrite* Writer,
-    uint64 Epoch,uint64 Key,int64 Timeout,xfuture** Future);
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* Writer);
 /* Close first; same-pool or own callback/admission joins are rejected. */
 XMQTT_API xwaitresult xmqttStoreWriteWaitFor(xmqttstorewrite* Writer,int64 Timeout);

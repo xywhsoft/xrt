@@ -76,38 +76,8 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     W->Operations=W->Scratch;W->Properties=Props?(xmqttproperty*)((unsigned char*)W->Scratch+Ops*sizeof(*W->Operations)):NULL;
     if(!xmqttJournalWorkerCreate(Pool,Journal,&C->Worker,&W->Worker))goto Failure;
     if(!xmqttInternalJournalWorkerBind(W->Worker,xmqttSWPrepare,xmqttSWFinish,W))abort();
-    xmqttInternalStoreWriteIndexPending(State,W);
     *Out=W;return true;
 Failure:xmqttInternalStoreWriteRelease(State,W,false);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return false;
-}
-XMQTT_API xmqttjournaladmission xmqttStoreWriteRetireAsync(xmqttstorewrite* W,uint64 Epoch,
-    uint64 Key,int64 Timeout,xfuture** Future)
-{
-    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
-    if(!W||!Epoch||!Key||!Future||Timeout<XRT_WAIT_FOREVER){
-        xmqttSWError(XERR_ARGUMENT,"invalid committed record retirement arguments");
-        return XMQTT_JWORK_ERROR;
-    }
-    if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
-    bool Valid=xmqttSWOutput(W,Future,sizeof(*Future));
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    bool Closed=W->Unusable;
-#endif
-    xrtMutexUnlock(&W->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    if(Closed)return XMQTT_JWORK_CLOSED;
-#endif
-    if(!Valid){
-        xmqttSWError(XERR_ARGUMENT,"retirement Future overlaps owned state");
-        return XMQTT_JWORK_ERROR;
-    }
-    xmqttstoredelta Op={.Type=XMQTT_STORE_INBOX_ACK,.Epoch=Epoch,.Key=Key};
-    unsigned char Batch[128];
-    size_t Bytes=0;
-    xmqttstoredeltastatus Status=xmqttStoreDeltaWrite(&W->Delta,&Op,1,NULL,0,Batch,sizeof(Batch),&Bytes);
-    if(Status!=XMQTT_STORE_DELTA_DONE)
-        return Status==XMQTT_STORE_DELTA_LIMIT?XMQTT_JWORK_OVERLOADED:XMQTT_JWORK_ERROR;
-    return xmqttInternalJournalWorkerAppendAt(W->Worker,(xbytesview){Batch,Bytes},Deadline,Future);
 }
 static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,int64 Timeout,double Deadline,xfuture** Future)
 {
@@ -185,8 +155,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     if(OK)W->Driver=Owner;
     xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
     /* Reap native tails outside the model gate: backing frees can reenter Info. */
-    /* A reconnect reservation excludes other protocol mutations. The new
-     * generation may use the committed projection while an Inbox ACK settles. */
+    /* The reconnect reservation grants access to the committed projection. */
     xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Failed&&!I.Closed&&
         (Reserved||(!I.Requests&&!I.Tasks));
     if(!xrtMutexLock(&W->Gate))abort();
@@ -200,7 +169,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Id)
 {
     if(!xrtMutexLock(&W->Gate))abort();
-    if(!Owner||W->Driver!=Owner)abort(); /* Reads committed State even during a concurrent Inbox ACK. */
+    if(!Owner||W->Driver!=Owner)abort();
     uint64 Key=xmqttInternalStoreWriteIncomingKey(W->State,W,Id);
     if(!xrtMutexUnlock(&W->Gate))abort();
     return Key;
@@ -281,8 +250,9 @@ XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
     bool OK=xmqttSWOutput(W,Info,sizeof(*Info));if(OK){xmqttInternalStoreWriteInfo(W->State,W,&I.State);*Info=I;}xrtMutexUnlock(&W->Gate);
     return OK?true:xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer Info output");
 }
-static xmqttstorestatus xmqttSWRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
+XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
 {
+    if(!Key){xmqttSWError(XERR_ARGUMENT,"invalid committed record key");return XMQTT_STORE_ERROR;}
     if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XMQTT_STORE_ERROR;}
     if(!xrtMutexLock(&W->Gate))return XMQTT_STORE_ERROR;
     xmqttstorestatus S;
@@ -290,13 +260,6 @@ static xmqttstorestatus xmqttSWRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,siz
     else S=xmqttInternalStoreWriteRead(W->State,W,Key,Buffer,Capacity,View,Required);
     xrtMutexUnlock(&W->Gate);if(S==XMQTT_STORE_ERROR)xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer read output/key");return S;
 }
-XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
-{
-    if(!Key){xmqttSWError(XERR_ARGUMENT,"invalid committed record key");return XMQTT_STORE_ERROR;}
-    return xmqttSWRead(W,Key,Buffer,Capacity,View,Required);
-}
-XMQTT_API xmqttstorestatus xmqttStoreWriteReadPending(xmqttstorewrite* W,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
-{return xmqttSWRead(W,0,Buffer,Capacity,View,Required);}
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* W)
 {
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)

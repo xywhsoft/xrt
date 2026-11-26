@@ -1,4 +1,5 @@
 #include "test.h"
+#include "support/legacy_store_ops.h"
 #include "../examples/common/store_compact.h"
 #include <xmqtt/store_write.h>
 #include "support/journal_peer.h"
@@ -105,10 +106,10 @@ static void writer(mqttExampleJournalSlot* Slot,xmqttjournal* J,xmqttstorestate*
     size_t Bytes;
 
     xmqttstoreview View;
-    testRequire(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&
-        View.Key==1&&View.Epoch==4&&View.Pubrel,"old epoch Inbox delivery retains FIFO and retired PUBREL stage");
+    testRequire(xmqttStoreWriteRead(W,1,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&
+        View.InboxPending&&View.Key==1&&View.Epoch==4&&View.Pubrel,"old epoch Inbox delivery retains its key and retired PUBREL stage");
     xfuture* F=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(W,View.Epoch,View.Key,5000,&F)==XMQTT_JWORK_ACCEPTED&&
+    testRequire(swLegacyAck(W,&C->Delta,View.Epoch,View.Key,5000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,5000)==XWAIT_OK,"post-compaction durable Inbox ACK");
     const xmqttcommitresult* Result=xrtFutureValue(F);
     testRequire(Result&&Result->Effect==XMQTT_JOURNAL_COMMITTED,"Inbox acknowledgement committed");

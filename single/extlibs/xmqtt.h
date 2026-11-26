@@ -3244,17 +3244,6 @@ XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* Writer,xmqttstorewriteinfo* 
  * This read is neither a delivery claim/lease nor an application ACK capability. */
 XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* Writer,uint64 Key,
     ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
-/* Copy the oldest committed pending publication. The same output and buffer
- * rules as StoreWriteRead apply. Peeking does not change the committed model.
- * The application controls consumption, concurrency and retry. */
-XMQTT_API xmqttstorestatus xmqttStoreWriteReadPending(xmqttstorewrite* Writer,
-    ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
-/* Append retirement of one pending publication by its stored epoch and key.
- * May run alongside a connected Client. A stale key or epoch resolves INVALID
- * before any append. This operation does not change the MQTT receive identity.
- * Inspect the Future's commit effect before proceeding or retrying. */
-XMQTT_API xmqttjournaladmission xmqttStoreWriteRetireAsync(xmqttstorewrite* Writer,
-    uint64 Epoch,uint64 Key,int64 Timeout,xfuture** Future);
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* Writer);
 /* Close first; same-pool or own callback/admission joins are rejected. */
 XMQTT_API xwaitresult xmqttStoreWriteWaitFor(xmqttstorewrite* Writer,int64 Timeout);
@@ -3470,8 +3459,7 @@ typedef xmqttclientstatus (*xmqttreconnectstorefactory)(xnetengine* Engine,uint6
  * running. The stored factory argument selects transport; Config.FactoryData,
  * retry and notification policy follow Reconnect. Session caps come from
  * the transferred Session. TakeMessage receives new publications on the leased
- * Client. StoreWriteReadPending and StoreWriteRetireAsync serve old Inbox records
- * throughout the controller lifetime.
+ * Client.
  * Each new connection waits for actual retirement of the previous Client,
  * leases and storage effects. An unusable Writer prevents the next attempt
  * with SESSION. Recover the authoritative journal before constructing another
@@ -4668,7 +4656,6 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* State,const v
 XMQTT_INTERNAL size_t xmqttInternalStoreWriteDispose(xmqttstorestate* State,const void* Owner,xmqttstoreplan* Plan);
 XMQTT_INTERNAL void xmqttInternalStoreWriteRefund(xmqttstorestate* State,const void* Owner,size_t Bytes);
 XMQTT_INTERNAL void xmqttInternalStoreWriteInfo(xmqttstorestate* State,const void* Owner,xmqttstorestateinfo* Info);
-XMQTT_INTERNAL void xmqttInternalStoreWriteIndexPending(xmqttstorestate* State,const void* Owner);
 XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWriteRead(xmqttstorestate* State,const void* Owner,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required);
 XMQTT_INTERNAL bool xmqttJournalWriteStart(xmqttjournal* Journal,xmqttversion Version,xbytesview Binding,uint64 Generation,uint64 Sequence,uint32 Chain,uint64 End,void* Output,size_t Bytes);
 typedef xmqttcommitstatus (*xmqttstoreprepare)(ptr Context,xbytesview Data);
@@ -13213,9 +13200,6 @@ XMQTT_API xmqttstoredeltastatus xmqttStoreDeltaRead(const xmqttstoredeltaconfig*
 typedef struct xmqttstoreentry {
     struct xmqttstoreentry *Next,*Previous,*KeyNext,*IdNext;
     xmqttstoreview View;size_t Allocation;unsigned Receive;bool Out;
-#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-    struct xmqttstoreentry *PendingPrevious,*PendingNext;
-#endif
 } xmqttstoreentry;
 struct xmqttstorestate {
     xmqttstorestateconfig Config;xmqttstorestateinfo Info;
@@ -13227,9 +13211,6 @@ struct xmqttstorestate {
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     const void* WriteOwner;bool WriteEstablished;xmqttstoreplan *Plan,*Retiring;uint32 JournalChain;uint64 JournalEnd;xstrview ExpectedId;
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-    xmqttstoreentry *PendingHead,*PendingTail;
 #endif
 };
 static bool xmqttSSpan(const void* P,size_t N){return (P||!N)&&xrtMemRangeValid(P,N);}
@@ -13289,8 +13270,7 @@ static xmqttstorechange* xmqttSPlanTouch(xmqttstoreplan* P,xmqttstoreentry* E,bo
 {
     if(P->Count==P->Capacity)abort(); /* batch-derived bound is established before allocation */
     xmqttstorechange* N=P->Nodes+P->Count++;
-    /* The pending index belongs to the committed model only. */
-    memcpy(&N->Value,E,offsetof(xmqttstoreentry,PendingPrevious));
+    N->Value=*E;
     N->Base=Fresh?NULL:E;N->Fresh=Fresh?E:NULL;N->Alive=true;
     size_t B=xmqttSPlanKey(P,E->View.Key);N->KeyNext=P->Keys[B];P->Keys[B]=N;xmqttSPlanLinkId(P,N);return N;
 }
@@ -13337,30 +13317,12 @@ static void xmqttSUnlinkId(xmqttstorestate* S,xmqttstoreentry* E)
     {xmqttstoreentry** P=&S->Ids[xmqttSIdBucket(S,E->View.Identifier,E->Out)];while(*P!=E)P=&(*P)->IdNext;*P=E->IdNext;E->IdNext=NULL;}
     if(E->Out)--S->Info.Outgoing;else {--S->Info.Incoming;E->Receive=0;}
 }
-#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-static void xmqttSLinkPending(xmqttstorestate* S,xmqttstoreentry* E)
-{
-    E->PendingPrevious=S->PendingTail;
-    E->PendingNext=NULL;
-    if(S->PendingTail)S->PendingTail->PendingNext=E;else S->PendingHead=E;
-    S->PendingTail=E;
-}
-static void xmqttSUnlinkPending(xmqttstorestate* S,xmqttstoreentry* E)
-{
-    if(E->PendingPrevious)E->PendingPrevious->PendingNext=E->PendingNext;else S->PendingHead=E->PendingNext;
-    if(E->PendingNext)E->PendingNext->PendingPrevious=E->PendingPrevious;else S->PendingTail=E->PendingPrevious;
-    E->PendingNext=E->PendingPrevious=NULL;
-}
-#endif
 static void xmqttSDelete(xmqttstorestate* S,xmqttstoreentry* E)
 {
     if(E->Out||E->Receive)xmqttSUnlinkId(S,E);
     if(E->View.InboxPending)--S->Info.Inbox;
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
     if(S->Plan){((xmqttstorechange*)E)->Alive=false;S->Info.MemoryBytes-=E->Allocation;return;}
-#endif
-#if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
-    if(S->WriteOwner&&E->View.InboxPending)xmqttSUnlinkPending(S,E);
 #endif
     xmqttstoreentry** P=&S->Keys[xmqttSKeyBucket(S,E->View.Key)];while(*P!=E)P=&(*P)->KeyNext;*P=E->KeyNext;
     if(E->Previous)E->Previous->Next=E->Next;else S->Head=E->Next;
@@ -14110,7 +14072,7 @@ XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWritePrepare(xmqttstorestate* 
     size_t Buckets=0,N=0;if(!xmqttSPlanSize(Cap,&Buckets,&N)||N>MaxPlanBytes)return XMQTT_STORE_LIMIT;
     xmqttstoreplan* P=xrtCalloc(1,N);if(!P)return XMQTT_STORE_ERROR;
     P->Allocation=N;P->PhysicalBytes=S->Info.MemoryBytes;P->Work=D->Count;P->MaxWork=MaxWork;P->Capacity=Cap;P->Buckets=Buckets;P->Nodes=(xmqttstorechange*)(P+1);P->Keys=(xmqttstorechange**)(P->Nodes+Cap);P->Ids=P->Keys+Buckets;
-    memcpy(&P->Shadow,S,offsetof(xmqttstorestate,PendingHead));
+    P->Shadow=*S;
     P->Shadow.Plan=P;xmqttstorestatus Status=XMQTT_STORE_DONE;
     for(size_t I=0;I<D->Count;++I){Status=xmqttSApply(&P->Shadow,D->Operations+I);if(P->Exhausted)Status=XMQTT_STORE_LIMIT;if(Status!=XMQTT_STORE_DONE)break;}
     if(Status!=XMQTT_STORE_DONE){xmqttSPlanFree(S,P);return Status;}
@@ -14129,19 +14091,13 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteFinish(xmqttstorestate* S,const void*
         if(E){
             if(!N->Alive){xmqttSDelete(S,E);continue;}
             if(E->Receive&&!N->Value.Receive)xmqttSUnlinkId(S,E);
-            if(E->View.InboxPending&&!N->Value.View.InboxPending){
-                xmqttSUnlinkPending(S,E);
-                --S->Info.Inbox;
-            }
+            if(E->View.InboxPending&&!N->Value.View.InboxPending)--S->Info.Inbox;
             E->View=N->Value.View;E->Receive=N->Value.Receive;
         }else if(N->Alive){
             E=N->Fresh;if(!E)abort();E->View=N->Value.View;E->Receive=N->Value.Receive;E->Out=N->Value.Out;
             size_t B=xmqttSKeyBucket(S,E->View.Key);E->KeyNext=S->Keys[B];S->Keys[B]=E;
             if(E->Out||E->Receive){B=xmqttSIdBucket(S,E->View.Identifier,E->Out);E->IdNext=S->Ids[B];S->Ids[B]=E;if(E->Out)++S->Info.Outgoing;else ++S->Info.Incoming;}
-            if(E->View.InboxPending){
-                xmqttSLinkPending(S,E);
-                ++S->Info.Inbox;
-            }
+            if(E->View.InboxPending)++S->Info.Inbox;
             E->Previous=S->Tail;E->Next=NULL;if(S->Tail)S->Tail->Next=E;else S->Head=E;S->Tail=E;N->Fresh=NULL;
         }
         if(E&&N->Alive){uintptr_t A=(uintptr_t)E;if(A<S->Lowest)S->Lowest=A;if(A+E->Allocation>S->Highest)S->Highest=A+E->Allocation;}
@@ -14166,18 +14122,12 @@ XMQTT_INTERNAL void xmqttInternalStoreWriteRefund(xmqttstorestate* S,const void*
 {if(!S||S->WriteOwner!=Owner||Bytes>S->Info.MemoryBytes)abort();S->Info.MemoryBytes-=Bytes;}
 XMQTT_INTERNAL void xmqttInternalStoreWriteInfo(xmqttstorestate* S,const void* Owner,xmqttstorestateinfo* Info)
 {if(!S||S->WriteOwner!=Owner)abort();*Info=S->Info;}
-XMQTT_INTERNAL void xmqttInternalStoreWriteIndexPending(xmqttstorestate* S,const void* Owner)
-{
-    if(!S||S->WriteOwner!=Owner||S->PendingHead||S->PendingTail)abort();
-    for(xmqttstoreentry* E=S->Head;E;E=E->Next)
-        if(E->View.InboxPending)xmqttSLinkPending(S,E);
-}
 XMQTT_INTERNAL xmqttstorestatus xmqttInternalStoreWriteRead(xmqttstorestate* S,const void* Owner,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
 {
     if(!S||S->WriteOwner!=Owner)abort();
     if(!xmqttSOutput(S,Buffer,Capacity)||!xmqttSOutput(S,View,sizeof(*View))||!xmqttSOutput(S,Required,sizeof(*Required))||
        !xmqttSSeparate(Buffer,Capacity,View,sizeof(*View))||!xmqttSSeparate(Buffer,Capacity,Required,sizeof(*Required))||!xmqttSSeparate(View,sizeof(*View),Required,sizeof(*Required)))return XMQTT_STORE_ERROR;
-    xmqttstoreentry* E=Key?xmqttSFindBase(S,Key):S->PendingHead;if(!E)return XMQTT_STORE_EMPTY;
+    xmqttstoreentry* E=xmqttSFindBase(S,Key);if(!E)return XMQTT_STORE_EMPTY;
     *Required=E->View.Wire.Size;if(Capacity<E->View.Wire.Size)return XMQTT_STORE_LIMIT;
     if(E->View.Wire.Size)memcpy(Buffer,E->View.Wire.Data,E->View.Wire.Size);
     *View=E->View;View->Wire.Data=Buffer;return XMQTT_STORE_DONE;
@@ -14725,38 +14675,8 @@ XMQTT_API bool xmqttStoreWriteCreate(xtaskpool* Pool,xmqttjournal* Journal,xmqtt
     W->Operations=W->Scratch;W->Properties=Props?(xmqttproperty*)((unsigned char*)W->Scratch+Ops*sizeof(*W->Operations)):NULL;
     if(!xmqttJournalWorkerCreate(Pool,Journal,&C->Worker,&W->Worker))goto Failure;
     if(!xmqttInternalJournalWorkerBind(W->Worker,xmqttSWPrepare,xmqttSWFinish,W))abort();
-    xmqttInternalStoreWriteIndexPending(State,W);
     *Out=W;return true;
 Failure:xmqttInternalStoreWriteRelease(State,W,false);xrtFree(W->Scratch);xrtMutexUnit(&W->Gate);xrtFree(W);return false;
-}
-XMQTT_API xmqttjournaladmission xmqttStoreWriteRetireAsync(xmqttstorewrite* W,uint64 Epoch,
-    uint64 Key,int64 Timeout,xfuture** Future)
-{
-    double Deadline=Timeout<0?INFINITY:xrtTimer()+(double)Timeout/1000.0;
-    if(!W||!Epoch||!Key||!Future||Timeout<XRT_WAIT_FOREVER){
-        xmqttSWError(XERR_ARGUMENT,"invalid committed record retirement arguments");
-        return XMQTT_JWORK_ERROR;
-    }
-    if(!xrtMutexLock(&W->Gate))return XMQTT_JWORK_ERROR;
-    bool Valid=xmqttSWOutput(W,Future,sizeof(*Future));
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    bool Closed=W->Unusable;
-#endif
-    xrtMutexUnlock(&W->Gate);
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)
-    if(Closed)return XMQTT_JWORK_CLOSED;
-#endif
-    if(!Valid){
-        xmqttSWError(XERR_ARGUMENT,"retirement Future overlaps owned state");
-        return XMQTT_JWORK_ERROR;
-    }
-    xmqttstoredelta Op={.Type=XMQTT_STORE_INBOX_ACK,.Epoch=Epoch,.Key=Key};
-    unsigned char Batch[128];
-    size_t Bytes=0;
-    xmqttstoredeltastatus Status=xmqttStoreDeltaWrite(&W->Delta,&Op,1,NULL,0,Batch,sizeof(Batch),&Bytes);
-    if(Status!=XMQTT_STORE_DELTA_DONE)
-        return Status==XMQTT_STORE_DELTA_LIMIT?XMQTT_JWORK_OVERLOADED:XMQTT_JWORK_ERROR;
-    return xmqttInternalJournalWorkerAppendAt(W->Worker,(xbytesview){Batch,Bytes},Deadline,Future);
 }
 static xmqttjournaladmission xmqttSWAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,int64 Timeout,double Deadline,xfuture** Future)
 {
@@ -14834,8 +14754,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     if(OK)W->Driver=Owner;
     xrtMutexUnlock(&W->Gate);if(!OK)return xmqttSWError(XERR_STATE,"store writer is already active or claimed");
     /* Reap native tails outside the model gate: backing frees can reenter Info. */
-    /* A reconnect reservation excludes other protocol mutations. The new
-     * generation may use the committed projection while an Inbox ACK settles. */
+    /* The reconnect reservation grants access to the committed projection. */
     xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Failed&&!I.Closed&&
         (Reserved||(!I.Requests&&!I.Tasks));
     if(!xrtMutexLock(&W->Gate))abort();
@@ -14849,7 +14768,7 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Id)
 {
     if(!xrtMutexLock(&W->Gate))abort();
-    if(!Owner||W->Driver!=Owner)abort(); /* Reads committed State even during a concurrent Inbox ACK. */
+    if(!Owner||W->Driver!=Owner)abort();
     uint64 Key=xmqttInternalStoreWriteIncomingKey(W->State,W,Id);
     if(!xrtMutexUnlock(&W->Gate))abort();
     return Key;
@@ -14930,8 +14849,9 @@ XMQTT_API bool xmqttStoreWriteInfo(xmqttstorewrite* W,xmqttstorewriteinfo* Info)
     bool OK=xmqttSWOutput(W,Info,sizeof(*Info));if(OK){xmqttInternalStoreWriteInfo(W->State,W,&I.State);*Info=I;}xrtMutexUnlock(&W->Gate);
     return OK?true:xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer Info output");
 }
-static xmqttstorestatus xmqttSWRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
+XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
 {
+    if(!Key){xmqttSWError(XERR_ARGUMENT,"invalid committed record key");return XMQTT_STORE_ERROR;}
     if(!W){xmqttSWError(XERR_ARGUMENT,"NULL store writer");return XMQTT_STORE_ERROR;}
     if(!xrtMutexLock(&W->Gate))return XMQTT_STORE_ERROR;
     xmqttstorestatus S;
@@ -14939,13 +14859,6 @@ static xmqttstorestatus xmqttSWRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,siz
     else S=xmqttInternalStoreWriteRead(W->State,W,Key,Buffer,Capacity,View,Required);
     xrtMutexUnlock(&W->Gate);if(S==XMQTT_STORE_ERROR)xmqttSWError(XERR_ARGUMENT,"invalid/overlapping store-writer read output/key");return S;
 }
-XMQTT_API xmqttstorestatus xmqttStoreWriteRead(xmqttstorewrite* W,uint64 Key,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
-{
-    if(!Key){xmqttSWError(XERR_ARGUMENT,"invalid committed record key");return XMQTT_STORE_ERROR;}
-    return xmqttSWRead(W,Key,Buffer,Capacity,View,Required);
-}
-XMQTT_API xmqttstorestatus xmqttStoreWriteReadPending(xmqttstorewrite* W,ptr Buffer,size_t Capacity,xmqttstoreview* View,size_t* Required)
-{return xmqttSWRead(W,0,Buffer,Capacity,View,Required);}
 XMQTT_API bool xmqttStoreWriteClose(xmqttstorewrite* W)
 {
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_STORE)

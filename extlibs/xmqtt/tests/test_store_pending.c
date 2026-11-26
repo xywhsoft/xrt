@@ -1,4 +1,5 @@
 #include "support/store_write_peer.h"
+#include "support/legacy_store_ops.h"
 #include <xrt/thread.h>
 
 typedef struct pending_fixture {
@@ -74,26 +75,27 @@ static xmqttstoreview pendingRead(xmqttstorewrite* W,uint64 Key)
     unsigned char Buffer[64];
     xmqttstoreview View;
     size_t Required=0;
-    stStatus(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Required),XMQTT_STORE_DONE,"read committed pending publication");
-    testRequire(View.Key==Key&&View.Wire.Data==Buffer&&View.Wire.Size==Required&&Buffer[Required-1]=='x',
-        "copy canonical packet in key order");
+    stStatus(xmqttStoreWriteRead(W,Key,Buffer,sizeof(Buffer),&View,&Required),XMQTT_STORE_DONE,"read committed pending publication");
+    testRequire(View.InboxPending&&View.Key==Key&&View.Wire.Data==Buffer&&View.Wire.Size==Required&&Buffer[Required-1]=='x',
+        "copy canonical packet by key");
     View.Wire=(xbytesview){0};
     return View;
 }
-static void pendingEmpty(xmqttstorewrite* W)
+static void pendingAbsent(xmqttstorewrite* W,uint64 Key)
 {
     unsigned char Buffer[64];
     xmqttstoreview View={.Key=99};
     size_t Required=99;
-    stStatus(xmqttStoreWriteReadPending(W,Buffer,sizeof(Buffer),&View,&Required),XMQTT_STORE_EMPTY,"empty pending projection");
+    stStatus(xmqttStoreWriteRead(W,Key,Buffer,sizeof(Buffer),&View,&Required),XMQTT_STORE_EMPTY,"absent committed record");
     testRequire(View.Key==99&&Required==99,"empty publishes no outputs");
 }
-static xfuture* pendingRetire(xmqttstorewrite* W,uint64 Epoch,uint64 Key,int64 Timeout)
+static xfuture* pendingRetire(xmqttstorewrite* W,const xmqttstoredeltaconfig* Delta,
+    uint64 Epoch,uint64 Key,int64 Timeout)
 {
     xfuture* F=NULL;
     double Deadline=xrtTimer()+10;
     for(;;){
-        xmqttjournaladmission Admission=xmqttStoreWriteRetireAsync(W,Epoch,Key,Timeout,&F);
+        xmqttjournaladmission Admission=swLegacyAck(W,Delta,Epoch,Key,Timeout,&F);
         if(Admission==XMQTT_JWORK_ACCEPTED)return F;
         testRequire(Admission==XMQTT_JWORK_OVERLOADED&&!F&&xrtTimer()<Deadline,"bounded application admission retry");
         xrtSleep(1);
@@ -105,19 +107,19 @@ static void pendingCheck(xmqttversion V)
     pendingStart(&X,V,3,0,0,false);
     xmqttstoreview View={.Key=99};
     size_t Need=0;
-    stStatus(xmqttStoreWriteReadPending(X.Writer,NULL,0,&View,&Need),XMQTT_STORE_LIMIT,"short buffer reports size");
+    stStatus(xmqttStoreWriteRead(X.Writer,1,NULL,0,&View,&Need),XMQTT_STORE_LIMIT,"short buffer reports size");
     testRequire(View.Key==99&&Need>0,"size refusal publishes only required bytes");
     unsigned char Buffer[64];
-    stStatus(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,(size_t*)&View),
+    stStatus(xmqttStoreWriteRead(X.Writer,1,Buffer,sizeof(Buffer),&View,(size_t*)&View),
         XMQTT_STORE_ERROR,"overlapping outputs refused");
     xrtClearError();
 
     const xmqttstoreview First=pendingRead(X.Writer,1);
     testRequire(pendingRead(X.Writer,1).Epoch==First.Epoch,"peeking does not claim or advance");
-    xfuture* F=pendingRetire(X.Writer,First.Epoch+1,First.Key,10000);
+    xfuture* F=pendingRetire(X.Writer,&X.StateConfig.Delta,First.Epoch+1,First.Key,10000);
     testRequire(jwOutcome(F)->Status==XMQTT_COMMIT_INVALID&&!jwOutcome(F)->AppendCalled,"wrong epoch rejected before I/O");
     xrtFutureDestroy(F);
-    F=pendingRetire(X.Writer,First.Epoch,First.Key,0);
+    F=pendingRetire(X.Writer,&X.StateConfig.Delta,First.Epoch,First.Key,0);
     testRequire(jwOutcome(F)->Status==XMQTT_COMMIT_TIMEOUT&&!jwOutcome(F)->AppendCalled,"expired retirement leaves committed record");
     xrtFutureDestroy(F);
     (void)pendingRead(X.Writer,1);
@@ -126,24 +128,26 @@ static void pendingCheck(xmqttversion V)
     xallocationscope Scope={0};
     testRequire(xrtAllocationBudgetCreate(1,&Budget)&&xrtAllocationBudgetEnter(Budget,&Scope),"actual one-byte admission cap");
     xfuture* Unchanged=(xfuture*)(uintptr_t)1;
-    testRequire(xmqttStoreWriteRetireAsync(X.Writer,First.Epoch,First.Key,10000,&Unchanged)==XMQTT_JWORK_ERROR&&
+    testRequire(swLegacyAck(X.Writer,&X.StateConfig.Delta,First.Epoch,First.Key,10000,&Unchanged)==XMQTT_JWORK_ERROR&&
         Unchanged==(xfuture*)(uintptr_t)1&&xrtAllocationBudgetLeave(&Scope),"OOM preserves output and pending record");
     xallocationbudgetinfo Info={.Size=sizeof(Info)};
     testRequire(xrtAllocationBudgetInfo(Budget,&Info)&&Info.Rejections&&!Info.LiveBytes,"failed allocations refunded");
     xrtAllocationBudgetFree(Budget);xrtClearError();
 
-    F=pendingRetire(X.Writer,First.Epoch,2,10000);
+    F=pendingRetire(X.Writer,&X.StateConfig.Delta,First.Epoch,2,10000);
     const xmqttcommitresult* Result=jwOutcome(F);
-    testRequire(Result->Effect==XMQTT_JOURNAL_COMMITTED,"retire middle key in pending index");
+    testRequire(Result->Effect==XMQTT_JOURNAL_COMMITTED,"retire the middle legacy record");
     xrtFutureDestroy(F);
     (void)pendingRead(X.Writer,1);
-    F=pendingRetire(X.Writer,First.Epoch,First.Key,10000);
+    F=pendingRetire(X.Writer,&X.StateConfig.Delta,First.Epoch,First.Key,10000);
     Result=jwOutcome(F);
     testRequire(Result->Effect==XMQTT_JOURNAL_COMMITTED&&swInfo(X.Writer).State.Inbox==1,"retire oldest pending key");
-    xfuture* Duplicate=pendingRetire(X.Writer,First.Epoch,First.Key,10000);
+    xfuture* Duplicate=pendingRetire(X.Writer,&X.StateConfig.Delta,First.Epoch,First.Key,10000);
     testRequire(jwOutcome(Duplicate)->Status==XMQTT_COMMIT_INVALID&&!jwOutcome(Duplicate)->AppendCalled,
         "repeated retirement leaves the next record intact");
     xrtFutureDestroy(Duplicate);
+    pendingAbsent(X.Writer,1);
+    pendingAbsent(X.Writer,2);
     (void)pendingRead(X.Writer,3);
     pendingFinish(&X,1);
     testRequire(jwOutcome(F)==Result&&Result->Sequence==6,"commit result outlives every storage owner");
@@ -154,7 +158,7 @@ static void pendingLate(xmqttversion V,bool Close)
     pending_fixture X;
     pendingStart(&X,V,1,21,0,false);
     const xmqttstoreview View=pendingRead(X.Writer,1);
-    xfuture* F=pendingRetire(X.Writer,View.Epoch,View.Key,10000);
+    xfuture* F=pendingRetire(X.Writer,&X.StateConfig.Delta,View.Epoch,View.Key,10000);
     jwAwait(&X.Drive.Entered);
     (void)pendingRead(X.Writer,1); /* old committed view before sync finishes */
     if(Close)testRequire(xmqttStoreWriteClose(X.Writer),"close while ACK file sync is held");
@@ -172,13 +176,13 @@ static void pendingFailure(xmqttversion V,unsigned Fail)
     pending_fixture X;
     pendingStart(&X,V,1,0,Fail,false);
     const xmqttstoreview View=pendingRead(X.Writer,1);
-    xfuture* F=pendingRetire(X.Writer,View.Epoch,View.Key,10000);
+    xfuture* F=pendingRetire(X.Writer,&X.StateConfig.Delta,View.Epoch,View.Key,10000);
     const xmqttcommitresult* R=jwOutcome(F);
     bool May=Fail==21;
     testRequire(R->Status==XMQTT_COMMIT_STORAGE&&
                 R->Effect==(May?XMQTT_JOURNAL_MAY_BE_COMMITTED:XMQTT_JOURNAL_NOT_COMMITTED),"typed physical ACK refusal/uncertainty");
     xfuture* Refused=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&Refused)==XMQTT_JWORK_CLOSED&&!Refused,
+    testRequire(swLegacyAck(X.Writer,&X.StateConfig.Delta,View.Epoch,View.Key,10000,&Refused)==XMQTT_JWORK_CLOSED&&!Refused,
         "failed writer rejects new retirement until recovery");
     pendingFinish(&X,May?0:1);
     xrtFutureDestroy(F);
@@ -192,19 +196,23 @@ static void pendingCancelledPool(xmqttversion V)
     testRequire(Holding!=NULL,"native blocker");
     jwAwait(&Block.Started);
     const xmqttstoreview View=pendingRead(X.Writer,1);
-    xfuture* F=pendingRetire(X.Writer,View.Epoch,View.Key,10000);
+    xfuture* F=pendingRetire(X.Writer,&X.StateConfig.Delta,View.Epoch,View.Key,10000);
     testRequire(xrtTaskPoolCancel(X.Pool),"cancel actual queued native pump");
     const xmqttcommitresult* R=jwOutcome(F);
     testRequire(R->Status==XMQTT_COMMIT_INITIALIZATION&&!R->AppendCalled&&
                 R->Effect==XMQTT_JOURNAL_NOT_COMMITTED,"native drop settles accepted ACK without IO");
     xfuture* Refused=NULL;
-    testRequire(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&Refused)==XMQTT_JWORK_CLOSED&&!Refused,
+    testRequire(swLegacyAck(X.Writer,&X.StateConfig.Delta,View.Epoch,View.Key,10000,&Refused)==XMQTT_JWORK_CLOSED&&!Refused,
         "cancelled pool rejects new retirement");
     pendingFinish(&X,1);
     xrtFutureDestroy(F);
     xrtFutureDestroy(Holding);
 }
-typedef struct pending_partition {xmqttstorewrite* Writer;unsigned Offset;} pending_partition;
+typedef struct pending_partition {
+    xmqttstorewrite* Writer;
+    const xmqttstoredeltaconfig* Delta;
+    unsigned Offset;
+} pending_partition;
 
 static int32 pendingConsume(ptr Data)
 {
@@ -215,7 +223,7 @@ static int32 pendingConsume(ptr Data)
         size_t Required;
         stStatus(xmqttStoreWriteRead(P->Writer,Key,Buffer,sizeof(Buffer),&View,&Required),
             XMQTT_STORE_DONE,"read assigned APP partition record");
-        xfuture* F=pendingRetire(P->Writer,View.Epoch,View.Key,10000);
+        xfuture* F=pendingRetire(P->Writer,P->Delta,View.Epoch,View.Key,10000);
         testRequire(jwOutcome(F)->Effect==XMQTT_JOURNAL_COMMITTED,"commit retirement from APP partition");
         xrtFutureDestroy(F);
     }
@@ -228,7 +236,7 @@ static void pendingConcurrent(xmqttversion V)
     pending_partition Work[4];
     xthread* Threads[4];
     for(unsigned I=0;I<4;++I){
-        Work[I]=(pending_partition){X.Writer,I+1};
+        Work[I]=(pending_partition){X.Writer,&X.StateConfig.Delta,I+1};
         Threads[I]=xrtThreadCreate(pendingConsume,Work+I,0);
         testRequire(Threads[I]!=NULL,"parallel APP partition");
     }
@@ -236,7 +244,8 @@ static void pendingConcurrent(xmqttversion V)
         testRequire(xrtThreadWaitFor(Threads[I],20000)==XWAIT_OK&&xrtThreadExitCode(Threads[I])==0,"join APP partition");
         xrtThreadDestroy(Threads[I]);
     }
-    pendingEmpty(X.Writer);
+    pendingAbsent(X.Writer,1);
+    testRequire(!swInfo(X.Writer).State.Inbox,"all legacy records retired");
     pendingFinish(&X,0);
 }
 int main(void)

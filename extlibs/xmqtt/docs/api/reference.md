@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `230` 个函数、`352` 个常量或宏、
+当前登记 `228` 个函数、`352` 个常量或宏、
 `154` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -1148,7 +1148,7 @@
 
 [查看带契约注释的公共头](../../include/xmqtt/store_write.h)
 
-### 函数 (10)
+### 函数 (8)
 
 - `xmqttStoreWriteAppendAsync`
 - `xmqttStoreWriteClose`
@@ -1157,8 +1157,6 @@
 - `xmqttStoreWriteDestroy`
 - `xmqttStoreWriteInfo`
 - `xmqttStoreWriteRead`
-- `xmqttStoreWriteReadPending`
-- `xmqttStoreWriteRetireAsync`
 - `xmqttStoreWriteWaitFor`
 
 ### 类型 (2)

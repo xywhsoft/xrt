@@ -29556,3 +29556,40 @@ the previous candidate on Windows and Ubuntu. The original running
 MQTT intervals keep their source and binary receipts. Both new build
 receipts and the independent byte comparison are in the same evidence
 directory.
+
+
+## 2026-11-26 Retirement of the MQTT Writer Inbox interfaces
+
+The public Writer no longer has an oldest-pending reader or an application
+retirement operation. It retains keyed copying for committed protocol records.
+Writer creation no longer scans recovered entries to build a pending index.
+The committed model and staged transactions no longer carry the index links.
+
+Older journal and checkpoint records still decode and replay. The offline
+migration example enumerates their pending deliveries and writes confirmations
+to its separate APP journal. The unclaimed low-level Writer still accepts
+encoded legacy deltas for storage fixtures. A connected or reserved Client
+uses the existing exclusive protocol append path.
+
+Windows and the Ubuntu QEMU/WHPX guest each passed 13 modular tests, 16
+single-header tests and five examples. The six focused tests using the final
+fixture header passed again on both hosts. Ubuntu also passed the pending
+fixture under ASan/UBSan. Both hosts verified the static and shared SDK
+consumers and symbol tables. The keyed Reader remained present and the two
+retired symbols were absent. Generated headers, API reference and ordinary
+maturity checks passed.
+
+Against Mosquitto 2.1.2, each host passed 24 TCP process-cut and recovery cases
+across MQTT 5 and 3.1.1, manual and automatic compaction, file pressure and
+all three replay quotas. Independent replay matched the APP binaries and
+case identities. The two APP migration cases produced identical source and
+destination journal hashes on the two hosts. Initial builds found one stale
+metadata copy offset and a fixture include path. Both were corrected and
+the complete matrix passed.
+
+The live Redis and MQTT mixed-load journals passed prefix replay at about
+12:47 Asia/Shanghai. Windows and Ubuntu Redis had 34.67 and 34.76 verified
+awake hours. Windows and Ubuntu MQTT had 14.17 and 34.16 hours. Strict
+release and continuous 72-hour acceptance remain open. Evidence, including
+the initial failures, is under
+out/service-extensions/xmqtt-retire-legacy-inbox-9bab66f1/.

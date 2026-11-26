@@ -1,4 +1,5 @@
 #include "test.h"
+#include "support/legacy_store_ops.h"
 #include "../examples/common/store_compact_online.h"
 #include "../examples/common/journal_files.h"
 #include "../examples/common/client_peer.h"
@@ -395,9 +396,9 @@ static void explicitPressure(xmqttversion Version,onlinequota Quota,uint64 FileB
     xmqttstoreview View;
     size_t Bytes;
     xfuture* F=NULL;
-    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
+    check(xmqttStoreWriteRead(X.Writer,1,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.InboxPending&&View.Key==1,
         "take delivery before the refusal");
-    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
+    check(swLegacyAck(X.Writer,&X.State.Delta,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,10000)==XWAIT_OK,"get terminal ACK refusal");
     const xmqttcommitresult* R=xrtFutureValue(F);
     check(R&&R->Status==XMQTT_COMMIT_LIMIT&&R->Effect==XMQTT_JOURNAL_NOT_COMMITTED&&
@@ -424,9 +425,9 @@ static void explicitPressure(xmqttversion Version,onlinequota Quota,uint64 FileB
     xrtFutureDestroy(F);
 
     F=NULL;
-    check(xmqttStoreWriteReadPending(X.Writer,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.Key==1,
+    check(xmqttStoreWriteRead(X.Writer,1,Buffer,sizeof(Buffer),&View,&Bytes)==XMQTT_STORE_DONE&&View.InboxPending&&View.Key==1,
         "a definite refusal releases the exact delivery for APP retry");
-    check(xmqttStoreWriteRetireAsync(X.Writer,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
+    check(swLegacyAck(X.Writer,&X.State.Delta,View.Epoch,View.Key,10000,&F)==XMQTT_JWORK_ACCEPTED&&
         xrtFutureWaitFor(F,10000)==XWAIT_OK,"submit the ACK again after rotation");
     R=xrtFutureValue(F);
     check(R&&R->Status==XMQTT_COMMIT_OK&&R->Effect==XMQTT_JOURNAL_COMMITTED&&
