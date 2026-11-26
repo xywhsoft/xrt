@@ -166,7 +166,8 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-linux.json &&
-          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-pressure-linux.json --pressure-clients 64
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-pressure-linux.json --pressure-clients 64 &&
+          python extlibs/xmqtt/tests/interop/run_server_quota_retire.py out/gcc/native/xmqtt_examples/examples_server_main out/service-extensions/xmqtt-broker-quota-retire-linux.json
       - name: MQTT mixed load and separate broker termination
         if: matrix.product == 'xmqtt'
         shell: bash
@@ -358,7 +359,8 @@ jobs:
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind static --verify
           python tools/package.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_server --kind shared --verify
           python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-windows.json &&
-          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-pressure-windows.json --pressure-clients 64
+          python extlibs/xmqtt/tests/interop/run_server_handshake.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-pressure-windows.json --pressure-clients 64 &&
+          python extlibs/xmqtt/tests/interop/run_server_quota_retire.py out/gcc/native/xmqtt_examples/examples_server_main.exe out/service-extensions/xmqtt-broker-quota-retire-windows.json
       - name: Required MQTT authentication across checkpoint restart
         if: matrix.product == 'xmqtt'
         run: >-

@@ -30755,3 +30755,55 @@ The earlier long runs continue on their separate CPUs. Final timings
 and strict release acceptance remain open. Receipts, raw samples and
 independent replay are under
 out/service-extensions/xcron-three-drive-51f6eb0d/.
+
+## 2026-11-26 MQTT aggregate delivery credit across forced TCP retirement
+
+The independent wire peer now holds the entire default aggregate MQTT 5
+QoS 2 delivery count. Sixty-four clean sessions reserve 256 deliveries
+each with Receive Maximum 1 and hold the first exchange at PUBREL. The
+healthy route receives PUBREC 0x97 at the aggregate limit. A TCP reset
+of one full session permits the previously refused packet identifier to
+complete on the healthy route. A new clean connection with the original
+Client ID refills exactly 256 slots and restores the aggregate refusal.
+A second reset permits healthy traffic again and the 63 surviving
+sessions drain all 16,128 deliveries in order.
+
+Native Windows and the Ubuntu QEMU/WHPX guest passed at 66 and 10,000
+live connections, with two broker workers. At 10,000 connections, the
+two reset-to-verified-exchange times were 0.200 and 0.240 ms on Windows
+and 0.417 and 1.425 ms on Ubuntu. These times include the complete
+client exchange and its duplicate-detection PING barrier. The original
+Ubuntu control socket defaults measured about 40–43 ms. With TCP_NODELAY
+on the control peers the observed delay disappeared in the follow-up.
+Both socket configurations are preserved in the reports.
+
+The optional MQTT 3.1.1 build passed the regular dual-protocol suite,
+the 128-peer pressure-and-drain case and the 66-peer TCP reset case on
+both hosts. The Ubuntu 66-peer case also passed ASan and UBSan with leak
+detection. The initial unextended MQTT 5 broker refused the legacy
+CONNECT in the dual-protocol probe. The 66-peer case is wired into the
+two native CI jobs. The local runs verified those commands' equivalent
+inputs and the workflow structure.
+
+The current candidate also passed five fresh fixed-arrival shared-route
+pressure trials on each host. Each broker kept 1,000 idle peers, two
+shared groups with eight healthy observers and an additional full
+subscriber. The three phases offered 4,000 QoS 2 publications/s for
+three seconds each. Independent replay matched 360,000 publisher
+confirmations, 720,000 healthy deliveries and 7,982 verified quota
+replies overlapping the healthy observer. All six ingress series met
+repeatability near 4,000/s.
+
+| Host | Healthy delivery P99 before / during / after pressure (ms) |
+| --- | ---: |
+| Windows | 0.214 / 0.213 / 0.204 |
+| Ubuntu guest | 1.885 / 1.878 / 1.902 |
+
+The Windows pressure P99 and its three P99.9 series exceeded the
+variation limits. Ubuntu exceeded the limit for the recovery P99.9.
+This establishes bounded recovery and shared-route delivery on the
+tested candidate. Broader release capacity and tail acceptance remain
+open. Receipts, fault reports, fixed-arrival runs and independent replay
+are under out/service-extensions/xmqtt-aggregate-reset-0c6368f2/.
+The continuing Redis prefixes verified 40.46/40.55 hours and the MQTT
+prefixes verified 4.36/4.34 hours on Windows and Ubuntu respectively.

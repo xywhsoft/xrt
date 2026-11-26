@@ -422,18 +422,23 @@ def probe(program):
 
 
 
-def publish_qos2(peer, name, number, payload, quota=False):
+def offer_qos2(peer, name, number, payload):
     identifier = struct.pack("!H", number)
     peer.sendall(small_frame(0x34, topic(name) + identifier + b"\0" + payload))
-    expected = identifier + b"\x97" if quota else identifier
     header = read(peer, 2)
-    assert header == bytes((0x50, len(expected))), f"unexpected PUBREC header {header.hex()}"
+    assert header in (b"\x50\x02", b"\x50\x03"), f"unexpected PUBREC header {header.hex()}"
     reply = read(peer, header[1])
-    assert reply == expected, f"unexpected PUBREC {reply.hex()}, wanted {expected.hex()}"
-    if quota:
-        return
+    assert reply in (identifier, identifier + b"\x97"), f"unexpected PUBREC {reply.hex()}"
+    if len(reply) == 3:
+        return False
     peer.sendall(small_frame(0x62, identifier))
     assert read(peer, 4) == small_frame(0x70, identifier)
+    return True
+
+
+def publish_qos2(peer, name, number, payload, quota=False):
+    accepted = offer_qos2(peer, name, number, payload)
+    assert accepted != quota, f"unexpected quota status for PUBLISH {number}"
 
 
 def receive_qos2(peer, name, payload):

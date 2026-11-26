@@ -749,6 +749,27 @@ on the full subscriber confirms the quota during the run and admits
 the same publisher packet identifier after the subscriber drains.
 The subscriber leaves both shared routes before the final measurement.
 
+### Aggregate QoS 2 quota after TCP reset
+
+The independent TCP peer fills the broker's default global delivery count
+with 64 subscribers holding 256 deliveries each. Each subscriber advertises
+Receive Maximum 1 and keeps its first exchange open at PUBREL. A publication
+to a separate healthy route receives a quota acknowledgement while the
+aggregate count is full.
+
+The peer resets one subscriber's TCP connection, verifies a new healthy
+exchange, and refills all 256 delivery slots with a fresh session using the
+same Client ID. It repeats the reset and checks every pending delivery on
+the surviving sessions in order.
+
+    python extlibs/xmqtt/tests/interop/run_server_quota_retire.py \
+      /path/to/examples_server_main out/broker-aggregate-reset.json --clients 10000
+
+The default is 66 connections. Larger runs fill the remaining capacity
+with idle MQTT peers. The report records time from each forced close to a
+verified healthy exchange and the negative replies seen during that time.
+The control publisher and subscriber use TCP_NODELAY.
+
 ## Continuous MQTT 5 mixed load
 
 The interop workload runs the xmqtt client and broker in two supervised
