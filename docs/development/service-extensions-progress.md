@@ -29206,3 +29206,72 @@ replay. The original and new Windows witness journals for the
 same QEMU process overlapped by 2,271.66 verified seconds.
 The TCP APP comparison is under
 out/service-extensions/xrpc-short-replies-93920347/.
+
+
+## 2026-11-26 MQTT queued transport write budget
+
+The independent TLS peer used a 32 KiB TCP write limit and a
+32 KiB MQTT packet. Before a82b228b, the publisher received a
+successful PUBREC for that packet, and the subscriber closed when
+its queued output could not fit the write node and payload. The
+next publish received no-matching-subscribers. The corrected broker
+returned PUBREC reason 0x97 for the oversized delivery and completed
+the next small QoS 2 exchange on the same subscriber. Windows and
+the Ubuntu QEMU/WHPX guest reproduced both outcomes. The single-header
+boundary test passed under ASan/UBSan and leak detection on Ubuntu.
+
+Both platforms rebuilt the modular TLS, WS/WSS and checkpoint APPs
+from the current source. Independent peers verified MQTT 5 and
+3.1.1 over TLS, 257 ordered QoS 2 recoveries under quota, fragmented
+terminal ACKs, WS/WSS takeover and shutdown, durable offline FIFO,
+and session expiry across TCP, TLS, WS and WSS. The full checkpoint
+writer and durable first-send expiry cases also passed. Replay
+matched all four protocol reports across platforms, six executable
+digests, and their source receipts.
+
+The rebuilt plaintext mixed-load probes verified 961 Windows and
+4,418 Ubuntu rounds in separate 15-second runs. Isolated broker
+termination was detected after 321 and 1,488 verified rounds.
+The current and running Windows probes have identical bytes in all
+16 PE sections. The two differing bytes are in the PE checksum and
+COFF string table. The Ubuntu program headers and all program
+segments match. Its only differing byte is in the ELF string table.
+The existing continuous journals keep their original file digests
+and receipts. The active TCP intervals and the new transport
+checks cover different runtime configurations.
+
+The four active Redis and MQTT prefixes independently passed replay
+at about 10:48 Asia/Shanghai. Awake hours were 32.69 and 32.78 for
+Windows and Ubuntu Redis, and 12.18 and 32.17 for Windows and Ubuntu
+MQTT. Strict endurance remains open. Artifacts and replay are under
+out/service-extensions/xmqtt-write-budget-d0909aac/.
+
+
+## 2026-11-26 MQTT single-record TLS writes with a buffered observer
+
+The earlier short-write variant put both spans of one MQTT packet
+into a TLS record when up to 512 bytes remained. Both hosts verified
+the 140-, 512-, 513- and 780-byte record boundaries, the native
+partial-write and retry fixture, and the independent TLS peer.
+The candidate and fixture passed ASan/UBSan and leak detection on
+Ubuntu. The current buffered observer was identical within each
+campaign.
+
+Replay matched 60 trials and 9,920,000 byte-verified deliveries.
+The broker used two workers, four publishers, eight wildcard
+subscribers, and send and receive windows of 16. Five paired
+repeats ran each rate on each host. Windows maintained 6,000/s
+at the highest rate in both variants. On Ubuntu, median confirmed
+throughput increased from 4,337/s to 4,689/s against 6,000
+offers/s. The paired ratio of 1.083 met repeatability. Ubuntu
+paired CPU ratios were 0.964, 0.960 and 0.929 at 2,000, 4,000
+and 6,000 offers/s, respectively, and met repeatability.
+
+Every paired P99 and P99.9 ratio exceeded the variation limits.
+At 2,000/s on Ubuntu, median P99 was 2.812 ms for the stock build
+and 4.151 ms for the variant. At 6,000/s on Ubuntu, it was 1,902 ms
+and 1,381 ms respectively. Neither reached the offered rate in
+that high-load cohort. The release control retains the existing
+writer. TLS capacity and tail qualification remain open.
+Evidence is under
+out/service-extensions/xmqtt-single-record-buffered-d0909aac/.
