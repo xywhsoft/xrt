@@ -30496,3 +30496,71 @@ replay are under out/service-extensions/xmqtt-client-current-029741e2/.
 At about 17:16 Asia/Shanghai, the Windows and Ubuntu Redis
 journals passed running-prefix replay at 39.15 and 39.24 verified
 awake hours. The MQTT intervals had 3.05 and 3.03 hours.
+
+## 2026-11-26 CPU and eventfd counts for Ubuntu MQTT TLS QoS 2 receive
+
+The Ubuntu QEMU/WHPX guest reused the exact client fixtures
+from the e0dc446a comparison with Paho C 1.3.15 and Mosquitto
+2.1.2. The longer trials kept MQTT 5, TLS 1.3, a receive window
+of 16, 32-byte payloads and 3,000 fixed offers/s. There were
+18,000 measured messages per trial plus 128 warmups. The
+clients had the same two-CPU mask. Separate CPUs drove the
+publisher and broker. The probe attached to the individual
+subscriber after SUBACK and before the first publication.
+
+Each client ran three uninstrumented controls, three 499 Hz
+CPU-clock profiles, three syscall-count trials, three profiles
+with a 250 microsecond CPU-clock period and three eventfd-count
+trials. The 30 executions verified 540,000 application deliveries
+and replayed 543,840 complete broker handshakes including warmup.
+The uninstrumented client-process CPU medians were 0.946 seconds
+for xmqtt and 0.772 for Paho. Their procfs user and system CPU
+medians were 0.45/0.49 and 0.37/0.39 seconds respectively.
+The longer workload reproduced the earlier CPU gap.
+
+The initial CPU-clock sample periods covered 19.7–52.3% of
+reported client CPU. The shorter sampling period covered
+3.4–18.2%. The full traces are retained. Process-wide CPU
+breakdown by sampled stack remains open. The syscall counts
+reported 100% enabled coverage. The table gives medians.
+The descriptor-filtered rows come from separate trials.
+
+| Subscriber syscall | xmqtt | Paho |
+| --- | ---: | ---: |
+| sendmsg | 36,258 | 0 |
+| recvfrom | 59,243 | 1 |
+| epoll wait | 161,886 | 0 |
+| epoll control | 47,421 | 0 |
+| poll | 0 | 72,514 |
+| all writes | 71,070 | 36,259 |
+| eventfd writes | 71,020 | 0 |
+| eventfd read attempts | 142,040 | 0 |
+
+The descriptor IDs stayed identical from readiness to the
+barrier after the final reliable acknowledgement. Xmqtt had
+one eventfd in each trial. Paho had none at either boundary and
+created no eventfds in the observation window. The raw filtered
+counters capture both successful and empty read attempts.
+
+Three short tracepoint runs verified an additional 1,536
+measured deliveries and retained 7,546 eventfd write stacks.
+Every sampled write had the destination XRT engine worker
+on its stack. Of these writes, 3,690 came from xmqttTlsRead
+through xmqttClientWakeLocked and xrtNetPost, and 2,778 came
+through the same path from xmqttTlsWritten. The remaining
+1,078 came from xrtNetStreamResume via the stream control
+request. These call sites make same-worker wake handling
+a concrete target for a matched variant. Its CPU gain and
+P99/P99.9 remain to be verified.
+
+Two longer write-stack attempts exhausted diagnostic scratch
+space. Their archives and failure logs were copied to Windows
+and verified before the duplicate guest raw files were retired.
+The completed shorter runs use the same protocol, rate and
+window and provide the call-site evidence above. Receipts,
+raw traces and replays are under
+out/service-extensions/xmqtt-client-tls-cpu-80b3ee99/.
+The external Redis and MQTT 72-hour candidates kept their
+existing journals. At about 17:35 Asia/Shanghai their Windows
+and Ubuntu prefixes verified 39.46/39.55 Redis awake hours and
+3.37/3.35 MQTT awake hours.
