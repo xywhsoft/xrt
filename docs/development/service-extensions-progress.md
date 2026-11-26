@@ -30659,3 +30659,58 @@ Redis logs and the compressed ledgers are in
 out/service-extensions/xredis-primary-exit-43610ee8/. These are targeted
 fault results for one promotable replica. The matched performance,
 continuous mixed-load and strict release gates stay open.
+
+## 2026-11-26 Shared reply storage for ordered xrpc APP groups
+
+The TCP APP prototype keeps at most four input spans into one stable
+4,097-byte receive buffer. The executor prepares pure echo replies into
+one 8,192-byte arena, and the socket owner publishes them in wire order.
+When a reply cannot fit, the owner sends the prepared prefix before
+submitting the remaining spans with the reclaimed arena. It never waits
+for another TCP read to fill a group. The fixed job structure occupies
+12,472 bytes on both tested x64 ABIs. The previous grouped prototype
+allocated a separate 4 KiB input and 8 KiB reply array for each record.
+
+The native Windows and Ubuntu QEMU/WHPX builds passed the full peer
+suite, nine ordered valid-prefix cases before a fatal mixed batch,
+and six arena cases including split writes and silent notifications.
+A deterministic fixture prepared 3,843 and 5,140 reply bytes in two
+passes into the same arena and verified that the input stayed intact.
+The Ubuntu candidate repeated these checks under ASan and UBSan with
+leak detection.
+
+Both platforms rotated stock, separate-buffer grouping, and shared-arena
+grouping five times per mode at 64,000 scheduled calls/s across 32
+connections. The four-second trials used two executor workers, two
+observer shards and eight records per scheduled write. Independent
+replay verified all 60 trials and 15,360,000 measured replies. Every
+paired throughput ratio met repeatability near 1.000. Both grouped
+variants submitted 64,512 jobs per 258,048 requests including warmup.
+The table reports stock / shared-arena trial medians.
+
+| Host | APP mode | APP CPU (s) | P99 (ms) | P99.9 (ms) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Duplex | 4.172 / 3.375 | 0.201 / 0.187 | 0.332 / 0.306 |
+| Windows | Direct dispatch | 3.844 / 2.594 | 0.198 / 0.163 | 0.293 / 0.419 |
+| Ubuntu guest | Duplex | 4.106 / 2.904 | 1.978 / 0.992 | 3.124 / 1.574 |
+| Ubuntu guest | Direct dispatch | 3.928 / 2.543 | 1.486 / 0.859 | 2.305 / 1.577 |
+
+The Ubuntu paired CPU ratios were repeatable at 0.690 and 0.646.
+On Windows the paired duplex P99 ratio was repeatable at 0.925.
+The shared-arena P99.9 ratios exceeded the variation limits in every
+comparison. In the worst shared-arena direct-dispatch trial on each
+host, 83.6% and 81.4% of the summed latency of the slowest 256 replies
+was between the observer's send and its receipt of the first reply in
+that write. Time between the first and later replies accounted for 4.0%
+and 6.9%. This leaves the socket, APP executor and observer first-reply
+phases as targets for further measurement.
+
+The separate single-outstanding-call check verified 122,880 replies.
+Its Windows duplex median throughput was 29,404 calls/s for stock and
+27,981 for the shared arena. The Ubuntu medians were 11,230 and 11,755.
+The variant remains in the test fixture while the release tail stays
+open. Source and build receipts, functional and sanitizer results,
+raw samples and replays are under
+out/service-extensions/xrpc-compact-groups-abbbdfb1/. The Redis Windows
+and Ubuntu journals replayed 40.10 and 40.19 continuous awake hours,
+and the MQTT journals replayed 4.00 and 3.99 hours.
