@@ -30438,3 +30438,61 @@ At about 17:04 Asia/Shanghai, the Windows and Ubuntu Redis
 journals passed running-prefix replay at 38.95 and 39.04
 verified awake hours. The MQTT intervals had 2.85 and 2.83
 hours, respectively.
+
+## 2026-11-26 Matched client reference tests on the MQTT resume candidate
+
+Native Windows and the Ubuntu QEMU/WHPX guest rebuilt the MQTT
+5 publisher and receiver fixtures. The client and runner inputs
+match e0dc446a. The same fixture sources built the Paho C 1.3.15
+comparators using high-performance static libraries from the
+checksum-pinned release. Each host used a Mosquitto 2.1.2 loopback
+broker with persistence disabled. There were two logical CPUs
+available to each client and separate CPUs for the broker and
+the TLS publisher. Host campaigns ran sequentially with the
+continuous workloads still running.
+
+Each workload had a window of 16, 32-byte binary payloads, one
+warmup pair and five alternating measured pairs. TCP publication
+scheduled 4,500 offers at 1,500/s per sample. Direct TLS receive
+scheduled 6,000 offers at 3,000/s per sample, negotiated TLS 1.3
+with TLS_AES_128_GCM_SHA256 and authenticated the localhost
+fixture certificate. Both clients used volatile protocol state.
+
+Replay matched the exact binaries, normalized Git source inputs,
+per-trial ledgers and paired summaries for all 96 executions.
+There were 180,000 measured TCP publications and 240,000 measured
+TLS application deliveries. The independent TCP observer checked
+222,144 payloads including warmups. The TLS replay matched
+294,144 complete broker delivery handshakes including warmups.
+The first Windows Paho link lacked the crypt32 dependency, and
+the first independent replay expected the Linux broker shutdown
+code on Windows. Linking crypt32 and checking the actual
+platform termination code resolved both checks. The raw results
+were preserved.
+
+The table gives medians of measured trial quantiles, in
+xmqtt / Paho order. TLS rows use application delivery timing.
+
+| Host | Workload | P99 (ms) | P99.9 (ms) |
+| --- | --- | ---: | ---: |
+| Windows | TCP publish QoS 1 | 0.189 / 1.489 | 5.589 / 7.727 |
+| Windows | TCP publish QoS 2 | 0.256 / 0.289 | 12.448 / 11.112 |
+| Windows | TLS receive QoS 1 | 0.156 / 0.203 | 0.422 / 0.591 |
+| Windows | TLS receive QoS 2 | 0.343 / 3.533 | 0.856 / 10.921 |
+| Ubuntu guest | TCP publish QoS 1 | 0.321 / 0.293 | 0.502 / 0.447 |
+| Ubuntu guest | TCP publish QoS 2 | 0.410 / 0.382 | 0.582 / 0.544 |
+| Ubuntu guest | TLS receive QoS 1 | 0.235 / 0.239 | 0.378 / 0.344 |
+| Ubuntu guest | TLS receive QoS 2 | 0.441 / 0.415 | 0.646 / 0.575 |
+
+All paired throughput ratios met repeatability and stayed near
+1.000. Only Ubuntu TLS receive QoS 1 met paired P99 and P99.9
+repeatability. Its paired ratios were 1.005 and 1.098. The Ubuntu
+TLS receive QoS 2 paired client-process CPU ratio met repeatability
+at 1.204, with separate medians of 0.310 and 0.256 seconds. Client
+tail and strict release acceptance remain open.
+
+Build receipts, native reports, independent broker traces and
+replay are under out/service-extensions/xmqtt-client-current-029741e2/.
+At about 17:16 Asia/Shanghai, the Windows and Ubuntu Redis
+journals passed running-prefix replay at 39.15 and 39.24 verified
+awake hours. The MQTT intervals had 3.05 and 3.03 hours.
