@@ -30564,3 +30564,62 @@ The external Redis and MQTT 72-hour candidates kept their
 existing journals. At about 17:35 Asia/Shanghai their Windows
 and Ubuntu prefixes verified 39.46/39.55 Redis awake hours and
 3.37/3.35 MQTT awake hours.
+
+## 2026-11-26 Same-worker wake variant for Ubuntu MQTT TLS QoS 2 receive
+
+The Ubuntu QEMU/WHPX guest rebuilt the TLS client control
+byte for byte from e0dc446a. The variant reused the isolated
+XRT header from the broker experiment. A source comparison
+verified that the only header change skips the Linux port
+wake when the posting thread is the destination worker.
+The worker's deadline calculation observes pending commands
+before waiting. A post from another thread still wakes the port.
+
+The same pinned Mosquitto 2.1.2 broker and Paho C 1.3.15 client
+served as references. The 15 timed trials rotated the control,
+variant and Paho five times. Each scheduled 18,000 measured
+QoS 2 messages at 3,000/s plus 128 warmup messages, using
+MQTT 5, TLS 1.3 and a window of 16. Separate CPUs drove the
+broker and publisher. All clients had the same two-CPU mask.
+Six more trials counted eventfd calls from SUBACK to the
+barrier after the final reliable acknowledgement.
+
+| Client | Process CPU, median (s) | Delivery P99, median (ms) | Delivery P99.9, median (ms) |
+| --- | ---: | ---: | ---: |
+| xmqtt control | 0.948 | 0.428 | 0.673 |
+| xmqtt same-worker variant | 0.871 | 0.413 | 0.593 |
+| Paho | 0.763 | 0.432 | 0.625 |
+
+The paired variant/control CPU ratio was 0.936 and met
+repeatability. The variant/Paho ratio was 1.150 and also
+met repeatability. All paired throughput ratios were
+repeatable near 1.000. The variant/control P99 and P99.9
+ratios both exceeded the variation limits.
+
+The control made a median of 71,100 eventfd writes and
+142,200 read attempts. All three variant trials recorded
+zero for both. Process-scoped filters used the descriptor
+ID verified at both boundaries. No eventfds were created
+or retired in those windows. Independent replay verified
+all 21 trials, 378,000 measured deliveries, 380,688 broker
+handshakes including warmup, and the exact syscall counts.
+
+A two-worker fixture used an unlimited epoll wait and
+verified both workers were parked before each round. Each
+binary completed 128 rounds that posted from the calling
+thread to worker 0, reposted from worker 0 to itself and
+then posted from worker 0 to parked worker 1. The first
+control fixture omitted embedded Post initialization and
+was rejected. The repaired fixture initialized every Post
+and all runs passed. A broad archive exclusion also omitted
+the control binary. Its separate transfer matched the
+build receipt and completed the independent replay.
+
+The variant stays in the test fixture while end-to-end
+tail acceptance remains open. Build receipts, syscall
+counters, trace and replay are under
+out/service-extensions/xmqtt-client-owner-wake-bea42a02/.
+The duplicate guest trace was retired after its exact
+Windows copy was verified. At about 17:45 Asia/Shanghai,
+the Windows/Ubuntu Redis prefixes verified 39.64/39.73
+awake hours and MQTT verified 3.54/3.52 awake hours.
