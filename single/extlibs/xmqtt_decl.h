@@ -5983,7 +5983,13 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 typedef struct xmqttstorewrite xmqttstorewrite;
-typedef struct xmqttstorewriteconfig {size_t Size,MaxScratchBytes,MaxModelWork;xmqttjournalworkerconfig Worker;} xmqttstorewriteconfig;
+typedef struct xmqttstorewriteconfig {
+    size_t Size,MaxScratchBytes,MaxModelWork;
+    xmqttjournalworkerconfig Worker;
+    /* Connected Clients hand new incoming publications to the normal receive
+     * queue. Only the QoS 2 receive identity and handshake are journaled. */
+    bool ProtocolOnly;
+} xmqttstorewriteconfig;
 typedef struct xmqttstorewriteinfo {size_t Size,ScratchBytes;xmqttstorestateinfo State;xmqttjournalworkerinfo Worker;} xmqttstorewriteinfo;
 XRT_EXTERN_C_BEGIN
 /* Developing semantic storage owner, not a connected MQTT Client. Defaults:
@@ -6096,7 +6102,11 @@ XRT_EXTERN_C_BEGIN
  * Clock returns trusted nondecreasing Unix epoch milliseconds (<=INT64_MAX);
  * it runs on the Engine worker and must be nonblocking. Use a trusted TCP endpoint
  * for the same logical broker/principal/slot as the Writer.
- * Ready follows durable OPEN. Use StoreWriteReadPending to inspect recorded deliveries.
+ * Ready follows durable OPEN. With a ProtocolOnly Writer, TakeMessage returns
+ * new publications from the bounded connection queue. QoS 2 identity is
+ * committed before PUBREC. Recovering the protocol session cannot restore
+ * messages from that volatile queue. With the default Writer configuration,
+ * StoreWriteReadPending inspects deliveries recorded in the journal.
  * SUBSCRIBE/UNSUBSCRIBE are ordinary broker operations. The caller reconciles
  * subscription intent after broker reset. Output changes only on success. */
 XMQTT_API bool xmqttClientConnectStore(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,

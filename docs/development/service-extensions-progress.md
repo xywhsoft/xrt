@@ -29395,3 +29395,33 @@ live and the running-prefix checks passed. Verified awake hours
 were 33.438 and 33.528 for Windows and Ubuntu Redis, and 12.933
 and 32.924 for Windows and Ubuntu MQTT. Probe receipts, binary
 comparisons and prefix snapshots are in the same evidence folder.
+
+
+
+## 2026-11-26 Protocol-only MQTT client receives
+
+An optional ProtocolOnly Writer uses the normal bounded Client message
+queue for new incoming publications. QoS 0 and 1 need no receive
+transaction. QoS 2 allocates and checks the live message first, commits
+only its receive identity, then queues the delivery before PUBREC.
+A commit failure releases the staged message and rolls back the
+provisional identifier. A confirmed late commit publishes the delivery
+to the still-live Client object even when the connection has closed.
+Incoming identities and outgoing protocol obligations are recoverable.
+Application payloads in the connection queue are volatile. The default
+Writer retains the existing journal-backed pending-delivery API.
+
+The TCP fixture ran five protocol-only cases per version on Windows
+and the Ubuntu QEMU/WHPX guest in both modular and single-header
+builds. Held sync, actual reconnect and packet-identifier reuse,
+resolved MQTT 5 topic aliases, storage failure, queue byte refusal
+and late Close exercised the actual packet and journal paths.
+Cold restore recovered the QoS 2 id without an Inbox entry. The
+guest also passed the single-header fixture with ASan/UBSan.
+
+Both hosts verified the static and shared client-store SDK consumers.
+Ten additional transport and reconnect executions per host verified
+the existing TLS, WS/WSS, enhanced-auth and reconnect paths with the
+default Writer. Generated headers, dependency trimming and ordinary
+maturity passed. Source receipts, logs and artifacts are under
+out/service-extensions/xmqtt-client-protocol-only-b25a066f/.

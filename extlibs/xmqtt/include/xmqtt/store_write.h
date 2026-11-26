@@ -7,7 +7,13 @@
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_STORE_WRITE)
 typedef struct xmqttstorewrite xmqttstorewrite;
-typedef struct xmqttstorewriteconfig {size_t Size,MaxScratchBytes,MaxModelWork;xmqttjournalworkerconfig Worker;} xmqttstorewriteconfig;
+typedef struct xmqttstorewriteconfig {
+    size_t Size,MaxScratchBytes,MaxModelWork;
+    xmqttjournalworkerconfig Worker;
+    /* Connected Clients hand new incoming publications to the normal receive
+     * queue. Only the QoS 2 receive identity and handshake are journaled. */
+    bool ProtocolOnly;
+} xmqttstorewriteconfig;
 typedef struct xmqttstorewriteinfo {size_t Size,ScratchBytes;xmqttstorestateinfo State;xmqttjournalworkerinfo Worker;} xmqttstorewriteinfo;
 XRT_EXTERN_C_BEGIN
 /* Developing semantic storage owner, not a connected MQTT Client. Defaults:

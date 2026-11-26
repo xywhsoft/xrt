@@ -6,7 +6,7 @@
 typedef xmqttclientstoreclock xmqttstorewall;
 typedef struct xmqttclientstoreplan {xmqttstorewrite* Writer;xmqttstorewall Wall;ptr User;} xmqttclientstoreplan;
 XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
-    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool);
+    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,bool* ProtocolOnly,xtaskpool** Pool);
 XMQTT_INTERNAL void xmqttInternalStoreWriteDriverRelease(xmqttstorewrite* W,const void* Owner,bool Reusable);
 XMQTT_INTERNAL xmqttjournaladmission xmqttInternalStoreWriteDriverAppend(xmqttstorewrite* W,const void* Owner,xbytesview Data,double Deadline,xfuture** Future);
 XMQTT_INTERNAL uint64 xmqttInternalStoreWriteDriverIncoming(xmqttstorewrite* W,const void* Owner,uint16 Identifier);

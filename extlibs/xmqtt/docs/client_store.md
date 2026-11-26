@@ -11,15 +11,26 @@ Use a trusted endpoint bound to the journal's broker, principal and Client slot.
 The nonblocking clock callback runs on the Engine worker and supplies trusted,
 nondecreasing Unix milliseconds.
 
-The receive driver journals each accepted PUBLISH, including QoS 0. It queues
-PUBACK or PUBREC only after commit. MQTT 5 alias binds and lookups follow the
-existing connection rules; the persisted packet has a full topic and no alias
-property. The APP can [read and retire pending publications](store_inbox.md) while
-the Client is connected.
+Set `xmqttstorewriteconfig.ProtocolOnly` before creating the Writer to deliver
+new incoming publications through `xmqttClientTakeMessage`. QoS 0 and 1 use
+the ordinary bounded receive queue. Before accepting QoS 2, the Client reserves
+room for the live message, commits its receive identity without payload, then
+queues the message and PUBREC in that order. A failed commit does not publish
+the message. A late confirmed commit after local close still publishes it to
+the retiring Client queue.
+
+The queue is volatile. Recovery preserves QoS 2 deduplication, including when
+the process exits after commit and before the APP takes the message. The APP
+owns any durability of business processing. Earlier journal entries remain
+readable. With the default Writer configuration the receive driver journals
+each accepted PUBLISH, including QoS 0, before any ACK. Its persisted packet
+has a full topic and no alias property, and the APP can
+[read and retire pending publications](store_inbox.md) while connected.
 
 For QoS 2, a duplicate PUBLISH repeats PUBREC without another acceptance.
 A known PUBREL commits the release and identifier retirement together before
-PUBCOMP, retaining the unacknowledged delivery. If the connection closes after
+PUBCOMP. A previously journaled application delivery remains readable until
+its separate retirement. If the connection closes after
 that commit but before PUBCOMP, the next connection answers retried PUBREL with
 0x92 in MQTT 5 or the four-byte PUBCOMP in MQTT 3.1.1. A fresh PUBLISH can then
 reuse the identifier. See [MQTT 5.0 Sections 3.7.2.1 and 4.3.3](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)

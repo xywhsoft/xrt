@@ -168,7 +168,8 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteReconnectUsable(xmqttstorewrite* W,co
     return OK&&xmqttJournalWorkerInfo(W->Worker,&Info)&&!Info.Failed&&!Info.Closed;
 }
 #endif
-XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,xtaskpool** Pool)
+XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const void* Owner,xmqttsession* Session,
+    xmqttstoredeltaconfig* Delta,xmqttstorestateinfo* Info,bool* Opened,bool* ProtocolOnly,xtaskpool** Pool)
 {
     if(!W||!Owner||!xrtMutexLock(&W->Gate))return false;
     /* Inspect the native owner before reading the pump-owned Pending slot. */
@@ -188,7 +189,10 @@ XMQTT_INTERNAL bool xmqttInternalStoreWriteDriverClaim(xmqttstorewrite* W,const 
     xmqttjournalworkerinfo I;OK=xmqttJournalWorkerInfo(W->Worker,&I)&&!I.Failed&&!I.Closed&&
         (Reserved||(!I.Requests&&!I.Tasks));
     if(!xrtMutexLock(&W->Gate))abort();
-    if(OK&&(Reserved||!W->Pending)){*Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);*Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*Pool=W->Pool;}
+    if(OK&&(Reserved||!W->Pending)){
+        *Delta=W->Delta;xmqttInternalStoreWriteInfo(W->State,W,Info);
+        *Opened=xmqttInternalStoreWriteEverOpened(W->State,W);*ProtocolOnly=W->Config.ProtocolOnly;*Pool=W->Pool;
+    }
     else {W->Driver=NULL;OK=false;}
     xrtMutexUnlock(&W->Gate);return OK?true:xmqttSWError(XERR_STATE,"store writer has an active native tail");
 }
