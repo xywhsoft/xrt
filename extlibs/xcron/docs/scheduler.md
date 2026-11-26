@@ -180,5 +180,10 @@ timestamp from that deadline to compute the budget. A zero-call wave emits
 zeros in the other fields. Run the same Python cohort driver with this
 diagnostic executable and `--require-wait-phases` to require captured wait
 calls and retain `wait_phases_ns` and `waiter_backend` in each verified run.
+The `wait_metrics` series field reports pooled quantiles and per-process
+P99/P99.9 repeatability for final waiter return lateness and the monotonic
+interval from that return to the first callback. It reports how many waves
+from each process entered the summary. Waves without a measured wait are
+excluded from these two measures and still count in callback lateness.
 The phase tuple uses the same field order as the raw output. Use the
 ordinary cohort executable to measure release tails.

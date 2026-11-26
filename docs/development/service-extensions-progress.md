@@ -30714,3 +30714,44 @@ raw samples and replays are under
 out/service-extensions/xrpc-compact-groups-abbbdfb1/. The Redis Windows
 and Ubuntu journals replayed 40.10 and 40.19 continuous awake hours,
 and the MQTT journals replayed 4.00 and 3.99 hours.
+
+## 2026-11-26 Matched xcron cohorts with wait-phase summaries
+
+The cohort runner now summarizes final waiter return lateness and the
+monotonic interval from that return to the first callback separately.
+Each summary includes the number of measured waits per process,
+pooled percentiles and per-process P99/P99.9 repeatability. The
+uninstrumented journal retains its original fields. A required-phase run
+of the uninstrumented executable was rejected. Synthetic input checks
+covered signed wall-clock samples and waves with no recorded wait.
+
+Independent replay recalculated the raw callback and waiter distributions
+from 24 processes, 192 waves and 104,448 verified callbacks across native
+Windows and the Ubuntu QEMU/WHPX guest. The same three drives ran on each
+host. The table gives pooled P99 phase values for the 1,024-active mix in
+microseconds. Each cell contains sixteen waves, making this P99 the
+largest sample.
+
+| Host | Drive | Waiter return lateness | Waiter return to first callback |
+| --- | --- | ---: | ---: |
+| Windows | Scheduler Wait | 973.6 | 4.4 |
+| Windows | Host waiter and Scheduler Poll | 1,011.9 | 5.2 |
+| Windows | Direct precise waiter | 916.3 | 2.0 |
+| Ubuntu guest | Scheduler Wait | 105.1 | 4.7 |
+| Ubuntu guest | Host waiter and Scheduler Poll | 82.4 | 5.5 |
+| Ubuntu guest | Direct precise waiter | 120.6 | 1.9 |
+
+Replay also checked the unchanged completed prefixes of the earlier
+8,192-wave runs. Windows retained 4,194,304 callbacks. Ubuntu retained
+47,185,920 callbacks in the interrupted original journal and 8,388,608
+in the live retry. The active supervisors and benchmark children were
+confirmed separately.
+
+Fresh uninstrumented runs rotate the same three drives across five
+repetitions of 1,024 waves for each job mix. The Windows child uses CPU 4
+and the Ubuntu guest child uses vCPU 0. Both supervisors and children
+were live with the exact recorded affinity, binary and runner hashes.
+The earlier long runs continue on their separate CPUs. Final timings
+and strict release acceptance remain open. Receipts, raw samples and
+independent replay are under
+out/service-extensions/xcron-three-drive-51f6eb0d/.

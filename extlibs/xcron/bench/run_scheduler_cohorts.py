@@ -91,25 +91,39 @@ def observe(program, cpu, waves, active, dormant, drive, require_wait_phases=Fal
     return result
 
 
+def summarize_groups(groups):
+    pooled = [value for group in groups for value in group]
+    summary = {"pooled_ns": {label: rank(pooled, quantile) for label, quantile in QUANTILES}}
+    for label, quantile in TAIL_QUANTILES:
+        tail = sorted(rank(group, quantile) for group in groups)
+        center = median(tail)
+        mad = median(abs(value - center) for value in tail)
+        central_range = tail[-2] - tail[1] if len(tail) >= 5 else None
+        summary[f"p{label}_per_process_ns"] = tail
+        summary[f"p{label}_mad_ns"] = mad
+        summary[f"p{label}_central_range_ns"] = central_range
+        summary[f"p{label}_stable"] = (
+            central_range is not None and mad * 100 <= abs(center) * 3 and central_range * 100 <= abs(center) * 6
+        )
+    return summary
+
+
 def summarize(runs):
-    result = {}
-    for index, name in enumerate(MEASURES):
-        groups = [[sample[index] for sample in run["samples_ns"]] for run in runs]
-        pooled = [value for group in groups for value in group]
-        summary = {"pooled_ns": {label: rank(pooled, quantile) for label, quantile in QUANTILES}}
-        for label, quantile in TAIL_QUANTILES:
-            tail = sorted(rank(group, quantile) for group in groups)
-            center = median(tail)
-            mad = median(abs(value - center) for value in tail)
-            central_range = tail[-2] - tail[1] if len(tail) >= 5 else None
-            summary[f"p{label}_per_process_ns"] = tail
-            summary[f"p{label}_mad_ns"] = mad
-            summary[f"p{label}_central_range_ns"] = central_range
-            summary[f"p{label}_stable"] = (
-                central_range is not None and mad * 100 <= center * 3 and central_range * 100 <= center * 6
-            )
-        result[name] = summary
-    return result
+    return {
+        name: summarize_groups([[sample[index] for sample in run["samples_ns"]] for run in runs])
+        for index, name in enumerate(MEASURES)
+    }
+
+
+def summarize_wait_phases(runs):
+    waited = [[phase for phase in run.get("wait_phases_ns", ()) if phase[0]] for run in runs]
+    if not all(waited):
+        return {}
+    return {
+        "waited_waves_per_process": [len(group) for group in waited],
+        "waiter_return_lateness": summarize_groups([[phase[3] for phase in group] for group in waited]),
+        "waiter_return_to_first": summarize_groups([[phase[4] for phase in group] for group in waited]),
+    }
 
 
 def append(report, event, **fields):
@@ -159,8 +173,9 @@ def main():
                         rows[drive].append(run)
                         total += run["verified_callbacks"]
                 for drive in drives:
+                    phases = summarize_wait_phases(rows[drive])
                     append(report, "series", active=active, dormant=dormant, drive=drive,
-                           metrics=summarize(rows[drive]))
+                           metrics=summarize(rows[drive]), **({"wait_metrics": phases} if phases else {}))
             if sha256(program.read_bytes()).hexdigest() != identity:
                 raise ValueError("benchmark binary changed during measurement")
         except (KeyError, OSError, subprocess.SubprocessError, ValueError) as error:
