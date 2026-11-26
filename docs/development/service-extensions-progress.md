@@ -29602,3 +29602,49 @@ section records and bytes, and the Ubuntu ELF header and all 14 program
 headers and segments. The MQTT intervals retain their original receipts.
 The localhost workload does not enable client persistence. The fresh build
 receipts and loaded-image comparisons are in the same evidence directory.
+
+
+## 2026-11-26 Ubuntu Redis worker wait and CPU comparison
+
+The same phase-sampling xredis binary ran with one blocking epoll worker,
+one continuously polling epoll worker, and two blocking epoll workers.
+The polling diagnostic forced an immediate readiness check even when a
+request timer was armed. Hiredis 1.3.0 used its fixed-arrival observer with
+nonblocking sockets. All observers shared the same two-CPU mask and sent
+12,000 offers/s over eight RESP3 connections with 128 credits and 1 KiB
+binary GET/SET values. A separately pinned Redis 8.0.5 process served the
+entire campaign. The native Ubuntu guest used the current xredis and XRT
+inputs. Only the diagnostic build included the wait override.
+
+Across a warmup and five measured trials per mode, all 24 trials verified
+every request. Independent replay matched the build inputs and binaries,
+all 1,008,000 offers and replies, 44,478 phase samples, every Redis command
+and all 16 latency quantiles per trial. The table uses medians of measured
+trial quantiles. CPU includes the client generator and network work.
+
+| Observer | P99 (us) | P99.9 (us) | CPU per reply (us) |
+| --- | ---: | ---: | ---: |
+| xredis, one blocking worker | 346.7 | 516.8 | 112.86 |
+| xredis, one polling worker | 231.8 | 402.9 | 154.50 |
+| xredis, two blocking workers | 472.4 | 687.9 | 114.53 |
+| Hiredis 1.3.0 | 93.7 | 165.0 | 83.25 |
+
+All throughput series met repeatability near 12,000 replies/s. The paired
+polling-to-blocking CPU ratio of 1.370 met repeatability, and both paired
+tail ratios exceeded the variance limit. Polling trial P99.9 reached
+1,968.8 us. For the slowest one percent of phase samples, the median
+per-trial mean from post to worker entry was 157.3 us with one blocking
+worker and 119.9 us with polling. The median mean from wire release to
+reply feed was 243.8 us and 90.9 us respectively. This latter interval
+includes kernel transport, the peer and socket receive dispatch.
+
+The paired two-to-one blocking ratios were 1.372 for P99 and 1.310 for
+P99.9. Both met repeatability on this machine and workload. The one-worker
+blocking profile is the next control for longer uninstrumented comparisons.
+The current diagnostic leaves the strict performance gate open.
+
+At about 12:58 Asia/Shanghai both Redis and both MQTT 72-hour intervals
+were live and passed running-prefix replay. Windows/Ubuntu Redis had
+34.85/34.94 verified awake hours. Windows/Ubuntu MQTT had 14.34/34.34 hours.
+Scripts, hashes, traces and replay are under
+out/service-extensions/xredis-worker-wait-5b8ccd5c/.
