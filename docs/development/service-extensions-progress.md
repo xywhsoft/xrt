@@ -29498,3 +29498,17 @@ The four original Redis and MQTT mixed-load intervals were live
 and passed running-prefix replay at about 12:07 Asia/Shanghai.
 The Windows/Ubuntu Redis intervals had 34.01/34.10 verified awake
 hours. Windows/Ubuntu MQTT had 13.50/33.50 hours.
+
+
+
+The supplemental Ubuntu matrix passed all six modular and single-header
+auth, WS and WSS executions with the corrected test harness. The same
+six executions passed under ASan/UBSan before that test-only correction.
+Both suites used identical production inputs. Independent replay matched
+the case names, terminal results and archived sanitizer libraries.
+
+The plaintext client-and-broker probes rebuilt from clean e3e71b81
+are byte-identical to the previous qualified probes on both hosts.
+The running MQTT intervals therefore retain the earlier matching
+Windows sections and Ubuntu program segments. The receipts and
+replay are in the same evidence directory.
