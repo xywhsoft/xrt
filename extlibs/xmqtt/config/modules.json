@@ -2786,7 +2786,9 @@
         "xmqtt_store_session",
         "vfs",
         "memory_stats",
-        "file_temp"
+        "file_temp",
+        "file_root",
+        "file_lock"
       ],
       "public_headers": [],
       "internal_headers": [],

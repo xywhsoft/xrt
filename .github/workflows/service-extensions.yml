@@ -222,6 +222,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint --outgoing-expiry
           > out/service-extensions/xmqtt-outgoing-expiry-linux.json
+      - name: MQTT legacy delivery migration into the APP inbox
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_inbox_migration.py
+          out/gcc/native/xmqtt_examples/examples_store_inbox_main
+          > out/service-extensions/xmqtt-inbox-migration-linux.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |
@@ -385,6 +391,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe --outgoing-expiry
           > out/service-extensions/xmqtt-outgoing-expiry-windows.json
+      - name: MQTT legacy delivery migration into the APP inbox
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_inbox_migration.py
+          out/gcc/native/xmqtt_examples/examples_store_inbox_main.exe
+          > out/service-extensions/xmqtt-inbox-migration-windows.json
       - name: Optional xcron scheduler package and dependencies
         if: matrix.product == 'xcron'
         run: |

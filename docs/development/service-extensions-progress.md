@@ -29435,3 +29435,29 @@ four Redis and MQTT mixed-load intervals passed running-prefix
 replay during the test runs and continue with their original
 receipts. The new build receipts and hash comparison are in the
 protocol-only evidence folder.
+
+
+
+## 2026-11-26 Legacy MQTT deliveries in an APP-owned inbox
+
+The runnable store_inbox example now locks two independent files and
+copies pending deliveries from a recovered legacy protocol journal to
+an APP journal. The APP owns its bounded FIFO, serialization and
+confirmation records. Repeated migration uses the highest imported
+key, including after all imported messages have been confirmed.
+Processing uses the original namespace, epoch and key as its
+idempotency identity. The legacy protocol journal remains available
+for session recovery and for verification of the migration source.
+
+Windows and the Ubuntu QEMU/WHPX guest passed the modular and
+single-header pending-store tests and the cross-process APP example
+for MQTT 5 and 3.1.1. Each version imported two pending deliveries,
+skipped the already confirmed middle key, exercised a failed output
+sink before confirmation, and consumed both from the APP journal
+while the legacy file was unavailable. A second migration did no
+writes. The runner also rejected corrupt committed data before any
+effect and rejected a hard link between the two files. Ubuntu passed
+the APP replay with ASan/UBSan. Independent replay matched the
+legacy and APP journal hashes across hosts. Both CI jobs now run the
+APP migration check. Logs and receipts are under
+out/service-extensions/xmqtt-app-inbox-3eb8e5bb/.
