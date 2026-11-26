@@ -29648,3 +29648,47 @@ were live and passed running-prefix replay. Windows/Ubuntu Redis had
 34.85/34.94 verified awake hours. Windows/Ubuntu MQTT had 14.34/34.34 hours.
 Scripts, hashes, traces and replay are under
 out/service-extensions/xredis-worker-wait-5b8ccd5c/.
+
+
+## 2026-11-26 Sustained Redis worker comparison
+
+Windows and the Ubuntu QEMU/WHPX guest rebuilt the regular optimized
+xredis observer and pinned Hiredis 1.3.0 observer. Each host alternated
+xredis with one and two blocking workers and Hiredis, using one warmup
+and five 12-second trials per observer. All ran 12,000 offers/s, eight
+RESP3 connections, a 128-credit observer window and 1 KiB binary GET/SET.
+The two-CPU client masks were verified per host. Windows used IOCP
+through a private SSH relay to a guest Redis 8.0.5 peer. Ubuntu used
+guest-local epoll and its own Redis 8.0.5 peer. The two campaigns ran
+sequentially while the endurance workloads continued.
+
+Replay matched the build identities, compressed traces, 36 trial rows
+and Redis command ledgers. Of 4,392,000 planned offers, 4,391,524
+received correct replies. The other 476 were refused at the observer
+credit limit. The Windows refusals were 117 across three xredis
+two-worker trials and 259 in one Hiredis trial. Ubuntu refused 21 and
+79 in the last one- and two-worker xredis trials respectively. There
+were no missed deadlines. Independent replay decoded the Ubuntu
+runner's literal newline delimiters and kept the original records.
+
+| Host | Observer | Fully admitted measured trials | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | xredis, one worker | 5/5 | 1044.9 | 1910.0 |
+| Windows | xredis, two workers | 2/5 | 990.9 | 3297.1 |
+| Windows | Hiredis | 4/5 | 855.5 | 2028.0 |
+| Ubuntu guest | xredis, one worker | 4/5 | 347.7 | 565.4 |
+| Ubuntu guest | xredis, two workers | 4/5 | 498.6 | 1368.9 |
+| Ubuntu guest | Hiredis | 5/5 | 96.3 | 172.1 |
+
+Percentiles are medians from the fully admitted trials. The incomplete
+trials stay in the release evaluation. Only the Ubuntu Hiredis P99
+met the tail-variation limits. The 128-credit profile needs to remain
+available as a bounded workload. A larger matched comparison also
+needs an observer width above the existing Hiredis driver cap of 128.
+The strict performance gate stays open.
+
+The four Redis and MQTT endurance intervals passed running-prefix
+replay at about 13:08 Asia/Shanghai. Windows and Ubuntu Redis had
+35.01 and 35.10 verified awake hours. Windows and Ubuntu MQTT had
+14.51 and 34.50 hours. Build receipts, failures and exact replays are
+under out/service-extensions/xredis-worker-sustained-232abe7d/.
