@@ -30,9 +30,12 @@ def main():
  parser.add_argument('--runtime-root',type=Path)
  parser.add_argument('--case',type=int,nargs=2,metavar=('FACTORY','PROTOCOL'))
  parser.add_argument('--load',type=int,nargs=4,metavar=('COUNT','RATE','SLOTS','TIMEOUT_MS'))
- parser.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
+ trigger=parser.add_mutually_exclusive_group()
+ trigger.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
+ trigger.add_argument('--kill-primary',action='store_true',help='kill the owned primary and observe automatic Sentinel promotion')
  a=parser.parse_args()
  if a.control and not a.load:parser.error('--control requires --load')
+ if a.kill_primary and (not a.listen or not a.case):parser.error('--kill-primary requires --listen master and one --case')
  if a.load:
   count,rate,slots,timeout=a.load
   if not a.listen or not (0<rate<=100000 and 3*rate<=count<=min(300000,30*rate) and 1<=slots<=1024 and 1<=timeout<=10000):
@@ -53,11 +56,17 @@ def main():
       'Three exclusive pool members; binary PING on each lease. Per-offer latency starts at the planned arrival.',
       'Windows probe may use loopback forwarding to the WSL Redis host. Client and controller clocks are independent.',
   ]
+ if a.kill_primary:
+  result['trigger']='primary_exit'
+  result['limits'][0]='Disposable loopback topology. The verified primary process is killed once and Sentinel promotes the replica.'
  def save():report.write_text(json.dumps(result,indent=2)+'\n')
  def identity(port):
   data,_=exchange(port,['INFO','SERVER']);return dict(line.split(b':',1) for line in data.split(b'\r\n') if b':' in line)
- def owned():
+ def owned(retired=None):
   for name,port,p in children:
+   if p is retired:
+    assert p.poll() is not None,'owned primary still running'
+    continue
    info=identity(port);expected=next(x for x in result['fixtures'] if x['name']==name);assert p.poll() is None and int(info[b'process_id'])==p.pid and info[b'run_id'].decode()==expected['run_id']
  temporary=tempfile.TemporaryDirectory(prefix='sentinel-discovery ',dir=a.runtime_root)
  try:
@@ -137,6 +146,7 @@ def main():
    if a.load:args.extend(['load',*map(str,a.load)])
    probe=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);prefix=[]
    case=dict(factory=factory,protocol=protocol,initial_port=initial,target_port=destination,process_id=probe.pid,ready=False,exit_code=None);result['cases'].append(case);save()
+   retired=None
    try:
     def expect(marker,seconds):
      due=time.monotonic()+seconds
@@ -166,27 +176,45 @@ def main():
      case['old_live_before_hint']=True
     else:
      sent=time.monotonic()
-     exchange(sentinel,['SENTINEL','FAILOVER','cache'])
+     if a.kill_primary:
+      name,victim_port,retired=next(row for row in children if row[1]==current)
+      assert name=='master' and victim_port==initial and retired.poll() is None
+      retired.kill()
+      exit_code=retired.wait(timeout=5)
+      assert exit_code!=0
+      case['primary_exit']=dict(pid=retired.pid,port=victim_port,run_id=initial_run,exit_code=exit_code)
+      case['manual_failover_requests']=0
+     else:
+      exchange(sentinel,['SENTINEL','FAILOVER','cache'])
+      case['manual_failover_requests']=1
      ack=time.monotonic();due=ack+25
-     case['manual_failover_requests']=1
-     if a.load:case['controller_timing_seconds']=dict(marker_to_send=sent-marker,send_to_ack=ack-sent)
+     if a.kill_primary:
+      case['controller_timing_seconds']=dict(signal_to_exit=ack-sent)
+      if a.load:case['controller_timing_seconds']['marker_to_signal']=sent-marker
+      save()
+     elif a.load:
+      case['controller_timing_seconds']=dict(marker_to_send=sent-marker,send_to_ack=ack-sent)
      case['interrupted_control_reads']=0
      while True:
       try:
        endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache'])
        new,_=exchange(target,['ROLE'])
-       old,_=exchange(current,['ROLE'])
+       old=None
+       if retired is None:old,_=exchange(current,['ROLE'])
       except (ConnectionError,TimeoutError,ssl.SSLEOFError,ssl.SSLZeroReturnError,ValueError) as error:
        # Role changes can kill authenticated read-only side connections too.
        if not tls or (isinstance(error,ValueError) and str(error)!='incomplete fixture RESP line'):
         raise
        case['interrupted_control_reads']+=1
       else:
-       if int(endpoint[1])==target and new[0]==b'master' and old[0]==b'slave':
-        if not a.replicas or old[3]==b'connected':
-         if a.load:case['controller_timing_seconds']['send_to_verified_roles']=time.monotonic()-sent
-         break
-      assert time.monotonic()<due,'manual failover did not complete';time.sleep(.05)
+       former_ready=old is None or (old[0]==b'slave' and (not a.replicas or old[3]==b'connected'))
+       if int(endpoint[1])==target and new[0]==b'master' and former_ready:
+        if a.kill_primary:
+         case['controller_timing_seconds']['exit_to_verified_primary']=time.monotonic()-ack
+        elif a.load:
+         case['controller_timing_seconds']['send_to_verified_roles']=time.monotonic()-sent
+        break
+      assert time.monotonic()<due,'Sentinel failover did not complete';time.sleep(.05)
     output,_=probe.communicate(None if a.load else 'GO\n',timeout=45 if a.load else 35)
     case.update(exit_code=probe.returncode,output=''.join(prefix)+output,probe_reaped=probe.poll() is not None)
     assert probe.returncode==0,case['output']
@@ -194,7 +222,7 @@ def main():
      ledger=report.with_name(f'{report.stem}-{factory}-{protocol}-offers.csv.gz')
      case['load']=load_report(output,a.load,a.control,ledger)
      case['output']=''.join(prefix)+'\n'.join(line for line in output.splitlines() if not line.startswith('LOAD '))
-    save();owned()
+    save();owned(retired)
     print('factory',factory,'protocol',protocol,
           'fixed-arrival workload passed' if a.load else 'persistent pool refresh passed' if a.refresh else
           'persistent pool failover passed',flush=True)

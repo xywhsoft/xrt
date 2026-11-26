@@ -30623,3 +30623,39 @@ The duplicate guest trace was retired after its exact
 Windows copy was verified. At about 17:45 Asia/Shanghai,
 the Windows/Ubuntu Redis prefixes verified 39.64/39.73
 awake hours and MQTT verified 3.54/3.52 awake hours.
+
+## 2026-11-26 Sentinel promotion after primary process exit
+
+The Sentinel pool fixture accepts `--kill-primary --listen master
+--case FACTORY PROTOCOL`. It verifies the identities of its disposable
+loopback processes, kills the original owned primary once and requires
+Sentinel to publish the replacement with no manual failover command.
+The controller checks the replacement's ROLE and revalidates fixture
+ownership at close. The manual failover and no-election paths still run.
+
+The native Windows client with a WSL Redis peer and the Ubuntu
+QEMU/WHPX client with a guest-local Redis peer each passed six Redis
+8.0.5 cases. Both used the native three-member pool, RESP3 and two XRT
+workers. Plain TCP and TLS 1.3 each covered an in-flight BLPOP and a
+fixed-arrival PING workload. The queued lease reached the verified new
+primary. BLPOP kept its uncertain outcome and was absent on the new
+primary. Both clients also passed the manual TCP failover and the
+matching TCP workload without an election.
+
+| Client host | Transport | Exit to verified primary under load (s) | Successful / offered | After full replacement |
+| --- | --- | ---: | ---: | ---: |
+| Windows | TCP | 6.136 | 10,808 / 18,000 | 9,739 / 9,739 |
+| Windows | TLS 1.3 | 5.393 | 11,267 / 18,000 | 10,185 / 10,185 |
+| Ubuntu guest | TCP | 6.169 | 11,859 / 18,000 | 10,795 / 10,795 |
+| Ubuntu guest | TLS 1.3 | 5.985 | 12,018 / 18,000 | 10,941 / 10,941 |
+
+The six load cases used 1,000 scheduled offers/s, 64 observer slots and
+a 200 ms deadline. Both no-election runs returned 18,000 exact replies.
+The independent replay checked all 108,000 offer records, including unsuccessful
+offers during promotion, delivery certainty and post-recovery results.
+It also checked exact client and runner digests, owned exit status,
+Sentinel down and switch events, and fixture retirement. Receipts,
+Redis logs and the compressed ledgers are in
+out/service-extensions/xredis-primary-exit-43610ee8/. These are targeted
+fault results for one promotable replica. The matched performance,
+continuous mixed-load and strict release gates stay open.
