@@ -225,6 +225,13 @@ CPU budget, connections and window fixed when comparing worker counts.
 With the paired runner, use `--xredis-workers` to set the count. The Hiredis
 observer uses its single event loop.
 
+Use `--xredis-read-mode adaptive|direct|probe` with the paired runner to
+set the xredis observer's existing `Stream.ReadMode` option. The native
+observer also accepts `XREDIS_OPENLOOP_READ_MODE` and reports the selected
+mode as `stream_read_mode`. The paired runner verifies that fact when a
+mode is requested and clears inherited read-mode settings for Hiredis.
+The default observer mode is adaptive.
+
 Add `--raw-dir out/redis-echo-traces` to keep one CSV for each observer
 process, including warmup runs. Use a new directory for each comparison.
 The paired JSON records each file name and SHA-256. Rows follow scheduled

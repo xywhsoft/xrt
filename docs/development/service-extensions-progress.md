@@ -30807,3 +30807,52 @@ open. Receipts, fault reports, fixed-arrival runs and independent replay
 are under out/service-extensions/xmqtt-aggregate-reset-0c6368f2/.
 The continuing Redis prefixes verified 40.46/40.55 hours and the MQTT
 prefixes verified 4.36/4.34 hours on Windows and Ubuntu respectively.
+
+## 2026-11-26 xredis stream read mode comparison
+
+The fixed-arrival observer now selects the existing XRT adaptive, direct
+or probe receive mode through the client configuration. The paired runner
+owns the setting and verifies the reported mode when requested. The
+unselected native observer uses the default adaptive mode.
+
+Windows and Ubuntu each rotated the three modes in one xredis executable
+and a checksum-pinned Hiredis 1.3.0 reference. Each mode ran a warmup and
+five four-second trials with one network worker on xredis, a two-CPU
+observer budget, eight RESP3 connections and 1,024 credits. The offered
+load was 12,000 mixed 1 KiB binary GET/SET requests/s. Windows IOCP
+reached a private Redis 8.0.5 instance through an SSH relay. The Ubuntu
+QEMU/WHPX run used epoll and a fresh guest-local Redis 8.0.5 instance.
+
+Independent replay checked 48 trials, all 2,016,000 planned offers and
+matching byte-verified replies, the command counts observed by each
+Redis instance, selected modes and all raw timing quantiles. The table
+reports medians from the measured trials.
+
+| Host | Observer | P99 (us) | P99.9 (us) | Process CPU per reply (us) |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Adaptive | 1024.8 | 1566.2 | 106.4 |
+| Windows | Direct | 1057.2 | 1670.6 | 100.6 |
+| Windows | Probe | 1069.3 | 2133.9 | 101.2 |
+| Windows | Hiredis | 858.4 | 1114.4 | 83.0 |
+| Ubuntu guest | Adaptive | 295.6 | 509.6 | 112.9 |
+| Ubuntu guest | Direct | 295.1 | 507.5 | 112.6 |
+| Ubuntu guest | Probe | 285.6 | 519.6 | 112.5 |
+| Ubuntu guest | Hiredis | 114.2 | 231.2 | 83.3 |
+
+All paired throughput ratios met repeatability near 1.000. Every P99
+and P99.9 ratio against adaptive exceeded the variation limit. The
+Windows probe CPU ratio met repeatability at 0.948. Both alternative
+Ubuntu modes had repeatable CPU ratios near 0.998. The measured tails
+provide no basis to switch the default. Strict performance acceptance
+remains open.
+
+The local observer validated all three settings and rejected an invalid
+string. The guest paired CLI smoke verified direct mode and both peer
+ledgers. The Windows single-header runtime test passed in all modes.
+The Ubuntu matching test passed under ASan and UBSan with leak
+detection after fixing the test build inputs. The Windows Hiredis
+observer also rebuilt from the updated benchmark source. Build receipts,
+the initial test compile failures, timing samples and replay are under
+out/service-extensions/xredis-read-modes-506c9426/. The ongoing Redis
+and MQTT journals replayed 40.66/40.75 and 4.56/4.54 awake hours on
+Windows/Ubuntu respectively.

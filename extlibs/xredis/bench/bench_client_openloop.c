@@ -41,6 +41,9 @@ int main(int argc, char** argv)
 #endif
 	bool Valid = redisOpenRun(&Config, &Result); redisopencounts* C = &Result.Counts;
 	printf("arrival_model=fixed_absolute\ntarget=%s\nnetwork_backend=%s\n", Config.Port == 0 ? "local_fixture" : "external_loopback", Result.Backend);
+#if !defined(REDIS_OPENLOOP_HIREDIS)
+	printf("stream_read_mode=%s\n", Result.ReadMode);
+#endif
 	printf("memory_stats=%s\n", Config.Stats ? "enabled" : Result.StatsCompiled ? "compiled_disabled" : "not_compiled");
 #if defined(REDIS_OPENLOOP_TLS)
 	puts("transport=TLS13_AES128GCM_X25519_fixture");

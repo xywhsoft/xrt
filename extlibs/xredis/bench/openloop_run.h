@@ -52,6 +52,7 @@ typedef struct redisopenresult {
 	unsigned Workers;
 	bool StatsCompiled;
 	char Backend[32];
+	cstr ReadMode;
 } redisopenresult;
 
 static void redisOpenRequire(bool Condition, cstr Message)
@@ -349,6 +350,16 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 #if !defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) return false;
 #endif
+	cstr ReadMode = getenv("XREDIS_OPENLOOP_READ_MODE");
+	if (ReadMode == NULL) ReadMode = "adaptive";
+	xnetstreamreadmode StreamReadMode;
+	if (!strcmp(ReadMode, "adaptive")) StreamReadMode = XNET_STREAM_READ_ADAPTIVE;
+	else if (!strcmp(ReadMode, "direct")) StreamReadMode = XNET_STREAM_READ_DIRECT;
+	else if (!strcmp(ReadMode, "probe")) StreamReadMode = XNET_STREAM_READ_PROBE;
+	else {
+		redisOpenRequire(false, "XREDIS_OPENLOOP_READ_MODE requires adaptive, direct or probe");
+		return false;
+	}
 	unsigned Workers = 1;
 	if (Config->Port != 0) {
 		const char* Name = getenv("XREDIS_OPENLOOP_WORKERS");
@@ -360,6 +371,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 		redisOpenRequire(Workers <= redisOpenConnections(Config), "worker count exceeds external connections");
 	}
 	*Output = (redisopenresult){0}; Output->HandlesBefore = redisOpenHandles();
+	Output->ReadMode = ReadMode;
 	redisopenrecord* Records = (redisopenrecord*)calloc(Config->Count, sizeof(*Records));
 	redisopenslot* Slots = (redisopenslot*)calloc(Config->Slots, sizeof(*Slots));
 	size_t* Indices = (size_t*)malloc(Config->Slots * sizeof(*Indices));
@@ -388,6 +400,7 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	snprintf(Output->Backend, sizeof(Output->Backend), "%s", Backend.Name);
 	Output->Workers = xrtNetEngineWorkerCount(Endpoint.Peer.Engine);
 	xredisclientconfig ClientConfig; xredisClientConfigInit(&ClientConfig);
+	ClientConfig.Stream.ReadMode = StreamReadMode;
 	ClientConfig.MaxRequests = Config->Slots; ClientConfig.MaxInFlight = Config->Slots;
 	const unsigned Connections = redisOpenConnections(Config);
 	xredisclient* Clients[REDIS_OPEN_MAX_CONNECTIONS] = {0};

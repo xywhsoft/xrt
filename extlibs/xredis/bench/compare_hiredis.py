@@ -40,12 +40,15 @@ def digest(path: Path) -> str:
 
 
 def sample(args, client: Path, name: str, command: list[str], raw_path: Path | None = None,
-           *, workers: int = 1) -> dict:
+           *, workers: int = 1, read_mode: str | None = None) -> dict:
     env = os.environ.copy()
     env.pop("XREDIS_OPENLOOP_TRACE", None)
     env.pop("XREDIS_OPENLOOP_WORKERS", None)
+    env.pop("XREDIS_OPENLOOP_READ_MODE", None)
     if name == "xredis" and workers != 1:
         env["XREDIS_OPENLOOP_WORKERS"] = str(workers)
+    if name == "xredis" and read_mode is not None:
+        env["XREDIS_OPENLOOP_READ_MODE"] = read_mode
     if raw_path is not None:
         env["XREDIS_OPENLOOP_TRACE"] = str(raw_path)
     try:
@@ -72,6 +75,8 @@ def sample(args, client: Path, name: str, command: list[str], raw_path: Path | N
         "intended_timeout_ms": "1000", "connections": str(args.connections),
         "workload": "get_set" if args.mixed else "echo",
     }
+    if name == "xredis" and read_mode is not None:
+        expected["stream_read_mode"] = read_mode
     try:
         facts = _parse_facts(result.stdout, set(expected) | {"network_backend"})
         metric_names = METRICS
@@ -197,6 +202,8 @@ def main() -> int:
     parser.add_argument("--payload", type=int, default=32)
     parser.add_argument("--connections", type=int, default=1)
     parser.add_argument("--xredis-workers", type=int, default=1, help="network workers for the xredis observer")
+    parser.add_argument("--xredis-read-mode", choices=("adaptive", "direct", "probe"),
+                        help="explicit XRT stream read mode for xredis")
     parser.add_argument("--mixed", action="store_true", help="three binary GETs per SET on each connection")
     parser.add_argument("--tls-ca", type=Path, help="explicit PEM trust for TLS comparison binaries")
     parser.add_argument("--tls-server-name", help="expected peer name and SNI, defaults to localhost")
@@ -253,6 +260,8 @@ def compare(args, clients, parser, fixture) -> int:
         )},
         "variation_limits": {"minimum_repeats": 5, "relative_mad": 0.03, "relative_central_range": 0.06},
     }
+    if args.xredis_read_mode is not None:
+        report["xredis_read_mode"] = args.xredis_read_mode
     if args.tls_ca is not None:
         report["tls_ca_sha256"] = digest(args.tls_ca)
     if args.raw_dir is not None:
@@ -269,7 +278,8 @@ def compare(args, clients, parser, fixture) -> int:
         for name in order:
             raw = args.raw_dir / f"{repeat:03}-{name}.csv" if args.raw_dir is not None else None
             report["runs"].append({"client": name, "repeat": repeat, "warmup": repeat == 0,
-                                   **sample(args, clients[name], name, command, raw, workers=args.xredis_workers)})
+                                   **sample(args, clients[name], name, command, raw, workers=args.xredis_workers,
+                                            read_mode=args.xredis_read_mode)})
     verified = all(run["verified"] for run in report["runs"])
     if fixture is not None:
         try:
