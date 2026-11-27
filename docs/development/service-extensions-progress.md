@@ -31889,3 +31889,55 @@ out/service-extensions/xmqtt-observer-placement-adb9f505/.
 Running-prefix replay accepted 64.07/64.16 hours for Redis and
 22.83/22.83 for MQTT on Windows/Ubuntu. All four endurance
 supervisors were live.
+
+
+## 2026-11-27 Short MQTT TLS records with the balanced observer
+
+The Windows and AES-enabled Ubuntu comparisons regenerated
+the current xmqtt single header from the canonical sources.
+The experimental server uses one TLS write for two MQTT spans
+with at most 512 bytes remaining. Both builds passed an
+independent TLS peer for MQTT 5 and 3.1.1, QoS 1 and 2,
+fragmentation, quota recovery and retirement. The injection
+fixture verified 24 writes per platform covering zero credit,
+partial writes, retries, the cutoff and errors. Independent
+record replay confirmed that 140- and 512-byte publications
+used one TLS record in the experiment, and 513- and 780-byte
+publications retained the existing spans.
+
+The broker had two workers and two CPUs. The same observer
+used two CPUs and assigned the four publishers and eight
+wildcard subscribers alternately across two TLS workers.
+Both versions used 128-byte MQTT 5 QoS 2 payloads, windows
+of 16, and 512 warmups. The pairs used the same CA and TLS
+1.3 server identity. Independent replay checked 70 trial
+records and connection-worker assignments. The 51 complete
+trials confirmed 532,000 publications and verified 4,256,000
+deliveries. The table reports medians from complete trials in
+stock / experimental order.
+
+| Host | Scheduled/s | Completed | Confirmed/s | Delivery P99 ms |
+| --- | ---: | ---: | ---: | ---: |
+| Ubuntu guest | 2,000 | 5 / 5 | 2,000 / 2,000 | 3.381 / 3.390 |
+| Ubuntu guest | 4,000 | 5 / 5 | 3,998 / 3,999 | 13.261 / 8.752 |
+| Ubuntu guest | 8,000 | 5 / 5 | 4,689 / 4,804 | 1,048.181 / 987.767 |
+| Windows | 2,000 | 5 / 5 | 2,000 / 2,000 | 1.200 / 1.883 |
+| Windows | 4,000 | 5 / 5 | 3,999 / 3,999 | 8.521 / 3.619 |
+| Windows | 6,000 | 0 / 0 | | |
+| Windows | 8,000 | 0 / 1 | / 7,986 | / 18.679 |
+
+The Ubuntu paired broker CPU ratios were 0.979, 0.979 and
+0.983. Its 8,000/s throughput ratio was 1.026. Those ratios
+met repeatability. Windows CPU and all paired delivery tail
+ratios exceeded the variation limits. Each incomplete Windows
+sample returned PUBREC reason 0x97. The partial ledgers
+remain in the result. A single complete 8,000/s Windows
+sample gives no paired estimate. The experiment remains in
+the test snapshot and the strict TLS performance gate stays open.
+
+The fixtures and temporary AES-enabled VM retired. Sources,
+wire traces, build receipts, partial ledgers and independent
+replay are under out/service-extensions/xmqtt-short-record-e29400b3/.
+Running-prefix verification accepted 64.25/64.34 awake hours
+for Redis and 23.01/23.01 for MQTT on Windows/Ubuntu.
+All four endurance supervisors were live.
