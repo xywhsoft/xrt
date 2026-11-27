@@ -31454,3 +31454,54 @@ callback P99 and P99.9 were 14.012 and 24.577 ms in that process.
 The diagnostic, raw data and replays are under
 out/service-extensions/xcron-interleaved-50dcea56/.
 Strict scheduler timing acceptance remains open.
+
+
+## 2026-11-27 Native 8,000-peer MQTT comparison and Windows overload
+
+The original Windows exact-filter run completed all five
+xmqtt trials with 160,000 confirmations and 160,000 deliveries.
+The delivery medians were 236.7 us at P99 and 381.3 us at
+P99.9. Both tails exceeded the variation limits. The Windows
+reference again hit the outer observer timeout in every trial.
+
+The bounded observer then repeated one Windows wildcard pair
+at 4,000 scheduled publications/s. xmqtt confirmed all 32,000
+and verified 256,000 deliveries. The reference reached the offer
+deadline with 4,364 sends, 4,361 terminal confirmations and
+34,784 verified deliveries. The other 27,636 scheduled offers
+remained unissued. At 500 scheduled publications/s, both brokers
+completed 4,000 confirmations and 32,000 deliveries. Observed
+ingress was 500.1/s for xmqtt and 369.167/s for Mosquitto, with
+delivery P99 of 364.9 us and 2,819,984.3 us respectively.
+The two rate observations are individual diagnostic pairs.
+
+The first Ubuntu campaign inherited a descriptor soft limit of
+1,024 from SSH. All 30 rows failed during fixture admission.
+The retry raised the limit to 16,384 in the measurement process
+tree. Its live observer limit was checked in procfs. The initial
+reports and the completed retry are both preserved.
+
+All 30 native Ubuntu trials completed using the same xmqtt
+candidate and pinned Mosquitto 2.1.2. Each of the three MQTT 5
+QoS 2 profiles used 8,000 total connections, one publisher,
+4,000 scheduled publications/s, 128-byte payloads and windows
+of 16. Test order alternated in five pairs per profile. Replay
+matched the build receipts, both idle PING barriers, 960,000
+publication confirmations and 3,520,000 deliveries.
+
+| Ubuntu workload | Delivery P99 us, xmqtt / Mosquitto | Delivery P99.9 us, xmqtt / Mosquitto | Paired broker CPU ratio |
+| --- | ---: | ---: | ---: |
+| Eight wildcard subscribers | 1,077.4 / 2,012.5 | 2,365.4 / 3,551.8 | 1.385 |
+| Eight shared subscribers, two groups | 561.1 / 752.8 | 996.9 / 2,635.8 | 1.440 |
+| One exact subscriber | 490.9 / 609.9 | 1,037.1 / 2,471.7 | 1.362 |
+
+Paired throughput ratios met repeatability near 1.000.
+All CPU ratios met repeatability. The paired idle RSS ratio
+was approximately 0.406 in each profile and met repeatability.
+Every paired tail series exceeded the variation limits.
+The full reports and replays are under
+out/service-extensions/xmqtt-live-8000-1af8ef79/.
+
+The Ubuntu interleaved xcron campaign started after the MQTT
+retry. Its CPU 0 affinity and first 55,296 callbacks were
+verified against the live process and exact-input receipt.
