@@ -32488,3 +32488,44 @@ Running TCP journals verified 66.66 / 66.75 Redis awake
 hours and 25.42 / 25.42 MQTT awake hours on Windows / Ubuntu.
 All four endurance supervisors remained live. The strict
 release gates remain open.
+
+
+## 2026-11-27 MQTT SDKs with Linux TLS output grouping
+
+Native Windows x64 and an AES-enabled Ubuntu x64 QEMU/WHPX
+guest built c12cb87a with GNU in static and shared form for
+the xmqtt and xmqtt_examples profiles. Both hosts ran four
+relocated package consumers and twelve separately linked APPs
+from paths containing spaces. The replay checked artifacts,
+144 copied headers and 362 distinct Git inputs per host.
+
+Each host verified 40 independent broker cases, eight
+enhanced-authentication cases across TCP, TLS, WS and WSS,
+and six checkpoint/recovery cases across the two combined
+packages. The combined packages also linked the native TLS
+broker APP directly. Its independent peer verified MQTT 5
+and 3.1.1, fragmented input, QoS 1/2, takeover, quota recovery
+and ordered delivery after fragmented terminal acknowledgement.
+
+The package-linked TLS Brokers delivered the same eight
+142-byte MQTT frames in each static and shared run. Linux
+grouped them into one 1,136-byte TLS record. Windows emitted
+sixteen TLS records in each run. Live process inspection
+verified both shared libraries mapped from the relocated
+kit and confirmed the static runs had no such mappings.
+
+The separate Ubuntu TLS single-header executable passed
+ASan, UBSan and leak checking with an independent peer.
+The initial guest archive omitted the generated declaration
+headers. Native regeneration supplied them, reproduced the
+archived xmqtt implementation header byte for byte and
+passed the generated-header check before the SDK builds.
+Logs, exact package identities, live library maps and replay
+are under out/service-extensions/xmqtt-sdk-c12cb87a/.
+The diagnostic guest retired after the capture.
+
+All four ordinary maturity audits passed. Strict checks still
+reported 2 developing modules for xcron, 2 for xrpc, 29 for
+xredis and 39 for xmqtt. Running TCP journal replay verified
+66.92 / 67.01 awake hours for Redis and 25.68 / 25.69 for
+MQTT on Windows / Ubuntu. All four supervisors remained live.
