@@ -32110,3 +32110,52 @@ out/service-extensions/xmqtt-quota-observer-3cbaa8a2/.
 Running-prefix replay accepted 64.88 / 64.97 hours for Redis
 and 23.64 / 23.64 for MQTT on Windows / Ubuntu. All four
 endurance supervisors remained live.
+
+
+## 2026-11-27 MQTT TLS broker CPU and syscall attribution
+
+The AES-enabled Ubuntu QEMU/WHPX guest reused the broker and
+balanced observer from the quota campaign, with Mosquitto 2.1.2
+and the matching cJSON and OpenSSL runtime digests. Four
+publishers and eight wildcard subscribers exercised MQTT 5,
+QoS 2, TLS 1.3 and windows of 16. Each trial scheduled 16,000
+measured publications after 512 warmups. Three repetitions at
+4,000 and 8,000 offers/s rotated plain runs, process CPU-clock
+sampling and per-process syscall counts.
+
+Independent replay checked all 36 trials, including process
+identity, CPU affinity, source and binary identities, trace
+digests and 36,657 sampled call stacks. The 33 complete runs
+verified 528,000 admitted publications and 4,224,000 exact
+subscriber deliveries. The three incomplete Mosquitto runs at
+8,000/s confirmed every offer and reported outgoing drops.
+Their partial delivery counts and stacks are preserved. Two
+pilot fixes added the missing sampled CPU field and retired
+perf stat with SIGINT after disabling counters.
+
+| 4,000 offers/s | xmqtt | Mosquitto |
+| --- | ---: | ---: |
+| Control CPU seconds, user | 2.14 | 1.17 |
+| Control CPU seconds, system | 2.17 | 1.60 |
+| Sampled TCP send, median ms | 1,302 | 987 |
+| Sampled RSA handshake frames, median ms | 79 | 8 |
+| Sampled eventfd frames, median ms | 138 | 0 |
+| Sendmsg calls | 297,260 | 0 |
+| Write calls across descriptors | 157,275 | 297,344 |
+| Epoll waits | 303,265 | 104,094 |
+
+CPU and syscall observation covers the observer subprocess,
+including its TLS handshakes, and finishes before broker
+retirement. The 4,000/s sample periods covered 84.9–88.5%
+of procfs broker CPU. Xmqtt's named AES-GCM leaves accounted
+for a median 598 ms at this rate. Some OpenSSL symbols were
+unavailable, and 290 ms had another libcrypto leaf. The
+source inspection found that the hardware AES-GCM code
+clears a 960-byte software schedule buffer on every record
+despite the hardware path reading the already prepared cipher
+keys. The kernel send and eventfd samples remain separate
+costs to address.
+
+The source identities, raw profiles, syscall counts and replay
+are under out/service-extensions/xmqtt-tls-broker-cpu-4b8a8f2b/.
+The strict TLS performance gate remains open.
