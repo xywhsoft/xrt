@@ -32991,3 +32991,54 @@ All four TCP endurance supervisors continued. The
 journals verified 68.56 / 68.66 Redis awake hours and
 27.32 / 27.32 MQTT awake hours on Windows / Ubuntu.
 Strict performance and release acceptance remain open.
+
+## 2026-11-27 Cross-platform xredis TLS grouping comparison
+
+The same grouping candidate and baseline used native
+Windows IOCP and Ubuntu guest epoll. The Ubuntu run
+reused the three exact executables from the previous
+comparison. Windows rebuilt them from the same pinned
+inputs and verified the two header digests. Both hosts
+used one network worker and the same private Redis 8.0.5
+process and TLS 1.3 credentials. Windows reached it
+through a dedicated loopback SSH forward. Client CPUs
+were 9 and 11 on Windows and 2 and 3 on Ubuntu.
+The host and guest campaigns ran sequentially.
+
+The first two profiles repeated eight connections at
+12,000 calls/s with 1 KiB values and one connection
+at 32,000 calls/s with 256-byte values. The third held
+the 32,000 rate and 256-byte payload while spreading
+calls across four connections. Each used a 1,024-credit
+observer. Evaluation covered five alternating measured
+pairs, one warmup pair and one separately instrumented
+trial per profile. Replay checked all 78 trials and
+5,016,000 exact replies and reconciled the independent
+Redis command ledgers on the same server identity.
+
+| Host | Connections | Paired P99 ratio | Paired P99.9 ratio | Paired process CPU per reply | Grouped commands in separate sample |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 8 | 1.002 | 1.001 | 0.984 | 14 / 12,000 |
+| Windows | 1 | 0.973 | 1.050 | 1.010 | 825 / 32,000 |
+| Windows | 4 | 0.957 | 0.973 | 1.019 | 542 / 32,000 |
+| Ubuntu guest | 8 | 0.997 | 0.960 | 1.000 | 0 / 12,000 |
+| Ubuntu guest | 1 | 0.874 | 0.905 | 0.996 | 4,952 / 32,000 |
+| Ubuntu guest | 4 | 0.955 | 0.979 | 1.002 | 520 / 32,000 |
+
+Values are candidate over baseline. The paired throughput
+ratios were repeatable near 1.000. At four connections,
+the two paired P99 ratios met repeatability, and Windows
+used 1.9% more CPU per reply. Only the Ubuntu four-connection
+paired P99.9 ratio met repeatability. At one connection the
+Ubuntu P99 median still fell, from 330.3 to 291.0 us, but
+the paired tails exceeded the accepted variation limits.
+The Windows single-connection paired P99 improved by 2.7%
+and met repeatability. Its P99.9 exceeded the variation
+limit. These results leave the production path in place.
+
+The temporary peer and diagnostic guest retired after the
+checks. Build receipts, raw samples and independent replay
+are under out/service-extensions/xredis-tls-groups-cross-a5190125/.
+The four existing TCP journals verified 68.74 / 68.83 Redis
+awake hours and 27.50 / 27.50 MQTT awake hours on Windows /
+Ubuntu. Strict performance and release gates remain open.
