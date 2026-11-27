@@ -31408,3 +31408,49 @@ Running-prefix replay verified 62.65/62.74 awake hours for
 Redis and 21.41/21.41 for MQTT on Windows/Ubuntu. All four
 endurance supervisors remained live. Strict release remains
 open.
+
+
+## 2026-11-27 Interleaved xcron wait and dispatch phases
+
+Replay selected the slowest ceiling of one thousandth of the
+last-callback observations from each completed process in the
+archived 1,024- and 8,192-wave campaigns. The median share of
+each group's lateness accumulated before the first callback
+was 99.83% or higher on Windows and 97.08% to 99.86% on Ubuntu.
+All 213 selected Windows waves and 140 of 150 Ubuntu waves
+spent at least 90% of their lateness before the first callback.
+These historical samples resolve the callback span and the
+pre-first-callback interval. The latter includes the waiter.
+
+The diagnostic rotates Scheduler Wait, a precise host waiter
+followed by Scheduler Poll, and the direct precise waiter
+across consecutive UTC seconds. It retains the same registered
+job set throughout the process. The direct control advances
+the scheduler after sampling and checks the count, order and
+next occurrence. Each complete block records the waiter
+backend, waiter return, first- and last-callback lateness and
+monotonic phase lengths. The binary flushes one block at a time
+so completed waves survive an interrupted process.
+
+Windows CPU 8 and Ubuntu guest CPU 0 each verified 36,864
+callbacks in 36 short waves. The three drives used the same
+waiter backend within each host. The short-run P50 return-to-first
+intervals were 3.0/3.3/1.5 us on Windows and 3.3/3.9/1.6 us on
+Ubuntu in Wait/Poll/direct order. The independent replay checked
+the chronological order, callback counts, source receipts and
+phase summaries. The native archive contained CRLF translations.
+Replay matched the archived bytes to the native compiler receipt
+and checked normalized equality with mainline.
+
+The Windows 1,024-job campaign started on CPU 8 with five
+repetitions of 4,096 waves per drive. The live child affinity
+and source-bound prefix were checked independently. The prefix
+covered 248,832 callbacks across 243 timed waves. The Ubuntu
+campaign is queued behind the corrected MQTT comparison.
+The existing 8,192-wave Windows retry on CPU 10 also completed
+its first process with 8,388,608 verified callbacks. Its final
+callback P99 and P99.9 were 14.012 and 24.577 ms in that process.
+
+The diagnostic, raw data and replays are under
+out/service-extensions/xcron-interleaved-50dcea56/.
+Strict scheduler timing acceptance remains open.
