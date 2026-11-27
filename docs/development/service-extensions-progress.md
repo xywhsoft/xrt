@@ -32357,3 +32357,76 @@ four supervisors remained live. The Windows xcron interleaved
 campaign verified 11,910,144 callbacks in its first live
 repeat. Matched performance and the strict release gates
 remain open.
+
+
+## 2026-11-27 Bounded MQTT TLS record groups through quota refusals
+
+The existing two-to-sixteen-write, 2,048-byte grouping prototype
+regenerated from current broker source and the 4abf8fee Core
+header with hardware AES-GCM scratch cleanup. Both platforms
+passed forced partial acceptance, zero-credit retry, error,
+reentrant close and release checks. The independent TLS peer
+passed MQTT 5 and 3.1.1, QoS 1 and 2, fragmentation, takeover
+and quota recovery. Eight identical 142-byte MQTT packets used
+16 TLS records in the baseline and one 1,136-byte record in
+the candidate on each host.
+
+The balanced observer continued through quota PUBREC and
+reconciled every accepted sequence with all eight wildcard
+subscribers. Four publishers, both QoS 2 windows of 16, TLS
+1.3 AES-128-GCM, two broker workers and 128-byte payloads
+were fixed within each pair. Windows ran broker CPUs 0 and 2
+and observer CPUs 4 and 6. The AES-enabled Ubuntu QEMU/WHPX
+guest ran broker CPUs 0 and 3 and observer CPUs 1 and 2.
+Independent replay checked all 100 uninstrumented trials,
+1,920,000 measured offers, 38 quota refusals and 15,359,696
+verified deliveries. All refusals occurred on Windows.
+
+The initial 60 trials covered 2,000, 4,000 and 8,000 offers/s.
+Ubuntu paired CPU ratios were 0.989, 0.942 and 0.902 and met
+repeatability. At 8,000 offers/s the paired ingress ratio
+was 1.041 and met repeatability. Windows ingress ratios met
+repeatability near 1.000. Windows CPU ratios and all initial
+paired delivery tails exceeded the variation limits.
+
+The two longer campaigns each ran five pairs per rate. The
+table gives medians of the candidate/baseline ratios. The
+8,000/s workload offers 40,000 publications per trial.
+
+| Host | Offers/s | Offers/trial | Ingress ratio | Broker CPU ratio | Delivery P99 ratio | Delivery P99.9 ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 16,000 | 1.000 | 0.915 | 1.057 | 2.507 |
+| Windows | 8,000 | 40,000 | 1.000 | 0.920 | 0.649 | 0.545 |
+| Ubuntu guest | 4,000 | 32,000 | 1.000 | 0.943 | 0.748 | 0.732 |
+| Ubuntu guest | 8,000 | 40,000 | 1.026 | 0.911 | 0.934 | 0.932 |
+
+All ingress ratios met repeatability. CPU met it in all rows
+except Windows 2,000/s. Both delivery tails met it only in
+the Ubuntu 8,000/s row. At Windows 2,000/s the P99.9 trial
+medians were 1.656 and 3.517 ms. The grouping patch remains
+in the diagnostic snapshot given that change and the
+remaining tail variation.
+
+Eight separate Ubuntu syscall trials verified all 96,000
+offers and 768,000 deliveries. Median sendmsg counts per
+12,000 measured offers fell from 225,260 to 174,060 at
+4,000/s and to 162,852 at 8,000/s. At 8,000/s epoll_wait
+increased from 193,089 to 216,822, while write calls across
+descriptors increased from 102,423 to 112,198. The counters
+include observer setup and warmup. Binary receipts, wire
+records, measured rows and replays are under
+out/service-extensions/xmqtt-group-quota-4abf8fee/.
+The diagnostic guest retired and the endurance guest remained live.
+
+The Windows and Ubuntu interleaved xcron campaigns each
+completed their first 4,096-block repeat with 12,582,912
+verified callbacks. Both continued their second repeat.
+Windows last-callback P99/P99.9 in Wait, Poll and direct
+precise waiter order were 9.715/129.161, 7.728/142.542 and
+7.012/86.487 ms. Ubuntu values were 0.229/1.112, 0.221/2.238
+and 0.224/2.106 ms. This is one repeat on each host.
+
+Running TCP journals verified 66.34 / 66.44 Redis awake
+hours and 25.10 / 25.11 MQTT awake hours in Windows /
+Ubuntu order. All four supervisors remained live.
+The strict release gates remain open.
