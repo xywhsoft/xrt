@@ -31170,3 +31170,74 @@ The placement probe, source receipts, interrupted attempts and
 replay are under out/service-extensions/xmqtt-worker-placement-07bc9d3e/.
 The test used an APP fixture. Product performance acceptance and
 the running endurance intervals remain open.
+
+## 2026-11-27 Current xredis TCP and TLS comparison at eight connections
+
+Windows x64 IOCP and Ubuntu x86_64 QEMU/WHPX epoll rebuilt the
+four observers from the d5147862 source inputs. The runtime
+inputs match the active 5b886da6 xredis candidate. Both hosts
+used the same private Redis 8.0.5 process, pinned to guest
+CPU 0. Windows reached it through its own SSH relay. Ubuntu
+used direct loopback. Host campaigns ran sequentially while
+the endurance runs continued.
+
+Each observer had a two-CPU budget. xredis used one network
+worker. The clients used eight RESP3 connections, 1,024 credits,
+and a mix of three GETs per SET with 1 KiB binary values.
+The four client and transport combinations ran in rotated
+order at 2,000 and 12,000 fixed arrivals/s, with one one-second
+warmup and five four-second measurements per combination.
+Hiredis 1.3.0 used OpenSSL 4.1.0 on Windows and 3.0.13 on Ubuntu.
+Both TLS observers required TLS 1.3, AES-128-GCM and X25519.
+Each rejected missing credentials, an untrusted CA and a wrong
+hostname before Redis executed any commands.
+
+Independent replay matched all 96 trial records and 2,352,000
+byte-verified replies, their scheduled arrivals and 16 quantiles
+per trial. Each host accounted for 881,984 GETs, 294,064 SETs
+including seeds, 384 HELLOs and 384 PINGs. All eight paired
+throughput ratios met repeatability near 1.000. The table
+reports medians in xredis / Hiredis order. CPU time includes
+the workload generator and any network worker.
+
+| Host | Offers/s | Transport | P99 (us) | P99.9 (us) | CPU per reply (us) |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Windows | 2,000 | TCP | 860.1 / 723.9 | 1,254.3 / 845.8 | 527.3 / 500.0 |
+| Windows | 2,000 | TLS | 861.7 / 766.2 | 1,337.1 / 944.2 | 523.4 / 498.0 |
+| Windows | 12,000 | TCP | 1,061.4 / 912.4 | 1,469.7 / 1,178.1 | 103.2 / 83.3 |
+| Windows | 12,000 | TLS | 1,145.3 / 995.4 | 1,520.0 / 1,246.6 | 114.9 / 83.3 |
+| Ubuntu guest | 2,000 | TCP | 348.6 / 172.8 | 553.7 / 336.6 | 544.8 / 498.9 |
+| Ubuntu guest | 2,000 | TLS | 430.4 / 240.2 | 606.9 / 414.8 | 574.0 / 499.3 |
+| Ubuntu guest | 12,000 | TCP | 330.4 / 159.8 | 585.4 / 317.1 | 112.7 / 83.3 |
+| Ubuntu guest | 12,000 | TLS | 576.7 / 250.4 | 878.6 / 439.2 | 129.8 / 83.1 |
+
+At 12,000 offers/s the paired xredis CPU ratios for TCP and TLS
+were 1.238 and 1.379 on Windows and 1.352 and 1.557 on Ubuntu.
+All four met the repeatability limits. Only the Windows
+2,000-offer TLS P99 ratio met the tail variation limits. Every
+paired P99.9 ratio exceeded those limits.
+
+Separate Ubuntu strace 6.8 runs verified 8,000 replies per
+combination at 2,000 offers/s and matched the TCP endpoints and
+command ledger. Both clients made 8,017 TCP sends in plaintext
+and 8,033 over TLS. The plaintext receive calls for xredis and
+Hiredis were 8,025 and 9,292, including 8 and 1,275 EAGAINs.
+With TLS the counts were 15,773 and 17,971, including 7,841
+and 1,809 EAGAINs. Both TLS clients received 6,407,691 bytes.
+These totals include connection setup and retirement. The
+untraced trials supply all timing figures in the table.
+
+The initial Windows build reported two warnings in the unchanged
+Hiredis SSL source. Only that translation unit allowed the
+two warning classes. An initial preflight assertion expected a
+metrics line after TLS failure. All rejection logs were
+preserved and the corrected check also verified the unchanged
+Redis command ledger. The dedicated peer retired and its
+temporary key directory was removed. Source receipts, both
+replays and raw evidence are under
+`out/service-extensions/xredis-transport-current-d5147862/`.
+
+Running-prefix replay verified 62.03 and 62.12 awake hours for
+Redis and 20.79 and 20.79 for MQTT on Windows and Ubuntu.
+The same four endurance processes remained live. Full endurance
+and strict performance acceptance remain open.
