@@ -1,6 +1,6 @@
 """Compare loopback MQTT 5 fan-out with an identical fixed-arrival observer."""
 import argparse
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 import ctypes
 import hashlib
 import json
@@ -12,7 +12,9 @@ import re
 import socket
 import ssl
 import statistics
+import struct
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -195,9 +197,41 @@ def run_observer(args, port, workload):
     return result
 
 
+@contextmanager
+def idle_connections(port, count):
+    if not count:
+        yield lambda: None
+        return
+    fixture = Path(__file__).resolve().parents[1] / "tests/interop"
+    sys.path.insert(0, str(fixture))
+    try:
+        from run_server_handshake import connect_packet, ping, read
+    finally:
+        sys.path.pop(0)
+    endpoint = ("127.0.0.1", port)
+    linger = struct.pack("HH" if os.name == "nt" else "ii", 1, 0)
+    with ExitStack() as stack:
+        peers = []
+        for start in range(0, count, 64):
+            first = len(peers)
+            for index in range(start, min(start + 64, count)):
+                peer = stack.enter_context(socket.create_connection(endpoint, timeout=5))
+                # Repeated 10,000-peer trials must release local ports on teardown.
+                peer.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger)
+                peer.sendall(connect_packet(5, f"compare-idle-{index}".encode("ascii")))
+                peers.append(peer)
+            for peer in peers[first:]:
+                kind, remaining = read(peer, 2)
+                if kind != 0x20 or not 3 <= remaining < 128 or read(peer, remaining)[:2] != b"\0\0":
+                    raise RuntimeError("idle peer did not receive a successful MQTT 5 CONNACK")
+        ping(peers)
+        yield lambda: ping(peers)
+
+
 def run_sample(args, implementation, workload, directory):
     path = directory / "broker.log"
     tls = args.tls_credentials
+    connection_limit = args.idle_peers + workload[1] + args.publishers if args.idle_peers else 1024
     cwd = None
     if implementation == "mosquitto":
         with socket.socket() as reservation:
@@ -213,7 +247,7 @@ def run_sample(args, implementation, workload, directory):
             security = ("certfile certificate.pem\nkeyfile key.pem\n"
                         f"tls_version tlsv1.3\nciphers_tls1.3 {TLS_CIPHER}\n")
         config.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\npersistence false\n"
-                          "max_connections 1024\nmax_packet_size 16384\nset_tcp_nodelay true\n"
+                          f"max_connections {connection_limit}\nmax_packet_size 16384\nset_tcp_nodelay true\n"
                           "sys_interval 0\nlog_dest stderr\nlog_type error\nlog_type notice\n"
                           + limits + security, encoding="ascii")
         command = [str(args.mosquitto), "-c", str(config)]
@@ -224,6 +258,8 @@ def run_sample(args, implementation, workload, directory):
         if tls:
             command.extend((str(tls / "certificate.der"), str(tls / "key.der")))
         command.append("--compare")
+        if args.idle_peers:
+            command.append(str(connection_limit))
         if args.xmqtt_workers != 1:
             command.extend(("--workers", str(args.xmqtt_workers)))
         pattern = re.compile(r"^127\.0\.0\.1:(\d+)$", re.M)
@@ -250,11 +286,15 @@ def run_sample(args, implementation, workload, directory):
                         pass
                 time.sleep(0.01)
             time.sleep(0.05)
-            cpu, _, _ = usage(broker.pid)
-            start_time = time.perf_counter()
-            result = run_observer(args, port, workload)
-            seconds = time.perf_counter() - start_time
-            after, rss, peak = usage(broker.pid)
+            with idle_connections(port, args.idle_peers) as verify_idle:
+                cpu, idle_rss, _ = usage(broker.pid)
+                start_time = time.perf_counter()
+                result = run_observer(args, port, workload)
+                seconds = time.perf_counter() - start_time
+                after, rss, peak = usage(broker.pid)
+                verify_idle()
+            if args.idle_peers:
+                result.update(idle_peers_verified=args.idle_peers, broker_idle_rss_bytes=idle_rss)
             result.update(broker_cpu_seconds=after - cpu, observer_process_seconds=seconds,
                           broker_rss_bytes=rss, broker_peak_rss_bytes=peak)
         finally:
@@ -314,10 +354,17 @@ def main():
                         help="Receive Maximum advertised by each subscriber, defaults to --window")
     parser.add_argument("--publishers", type=int, choices=range(1, 9), metavar="1..8", default=1,
                         help="publishing connections sharing the reliable arrival schedule")
+    parser.add_argument("--idle-peers", type=int, default=0,
+                        help="hold and verify this many additional plaintext MQTT 5 connections")
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--tls-credentials", type=Path, metavar="DIRECTORY",
                         help="use the same CA and localhost test identity for both brokers")
     args = parser.parse_args()
+    if args.idle_peers < 0 or any(args.idle_peers + peers + args.publishers > 10000
+                                for _, peers, _ in args.workload):
+        parser.error("idle peers and workload peers must fit 10,000 total connections")
+    if args.idle_peers and args.tls_credentials:
+        parser.error("--idle-peers requires a plaintext comparison")
     if args.subscriber_window is not None and not args.qos:
         parser.error("--subscriber-window requires QoS 1 or 2")
     if args.publishers > 1 and not args.qos:
@@ -362,6 +409,10 @@ def main():
         report["tls"] = {"cipher": TLS_CIPHER, "observer_group": "X25519", "dns_name": "localhost",
                          "trust_anchor": fingerprint(args.tls_credentials / "ca.pem"),
                          "leaf": fingerprint(args.tls_credentials / "certificate.der")}
+    if args.idle_peers:
+        report["idle_peers"] = args.idle_peers
+        report["idle_peer_fixture"] = fingerprint(Path(__file__).resolve().parents[1] /
+                                                   "tests/interop/run_server_handshake.py")
     args.report = args.report.resolve()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     summaries = ("ingress_per_sec", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us", "pacer_lag_p99_us")

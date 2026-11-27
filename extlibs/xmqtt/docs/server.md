@@ -741,5 +741,13 @@ and retransmission. The Will benchmark registers a 128-byte binary payload
 on each new publisher connection and verifies all subscribers receive it
 after DISCONNECT 0x04. Throughput includes registration. Delivery latency
 starts at DISCONNECT.
+
+The Mosquitto comparison in `bench/compare_broker.py` accepts
+`--idle-peers` for plaintext MQTT 5 workloads. For example,
+`--idle-peers 9991 --workload wildcard:8:4000 --qos 2` measures fan-out
+at 10,000 total connections with the default single publisher. Each
+sample verifies the idle peers before and after measuring the load,
+and reports idle broker RSS separately from the timed workload.
+
 The protocol baselines are [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).

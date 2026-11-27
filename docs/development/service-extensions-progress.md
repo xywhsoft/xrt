@@ -31082,3 +31082,47 @@ The active Redis and MQTT workloads kept their existing
 binaries and journals. Exact build, runtime and clock evidence
 is under out/service-extensions/xmqtt-runtime-2276e4ed/.
 Matched release performance and completed endurance remain open.
+
+
+## 2026-11-27 Matched MQTT 5 fan-out with live idle peers
+
+The broker comparison can hold idle plaintext MQTT 5 connections
+during an active workload. It uses equal admission limits, submits
+idle CONNECTs in groups of 64 and verifies every CONNACK. PING
+barriers before and after the workload verify that every idle peer
+is still present. The observer and broker used plaintext TCP over loopback.
+The original comparison mode and scripted observer fault checks passed.
+The first Windows pilot used sequential CONNECTs and was stopped
+during the first 10,000-connection pair. Its completed reports and
+interrupted logs were preserved.
+
+The same observer and checksum-pinned Mosquitto 2.1.2 were used
+against the current 2276e4ed xmqtt broker. Each trial offered
+32,000 MQTT 5 QoS 2 publications at 4,000/s with 128-byte payloads,
+one publisher, eight wildcard subscribers and windows of 16.
+The broker and observer each had two logical CPUs. There were five
+alternating pairs per platform and connection count. The native
+campaigns ran sequentially while endurance continued. Independent
+replay verified 1,120,000 confirmed publications and 8,960,000
+deliveries from the 35 complete trials.
+
+| Platform and connections | Complete xmqtt / Mosquitto | Delivery P99 (ms) | Idle RSS (MiB) |
+| --- | ---: | ---: | ---: |
+| Windows, 1,000 | 5 / 5 | 0.639 / 5.251 | 7.49 / 13.38 |
+| Windows, 10,000 | 5 / 0 | 0.521 / — | 30.51 / — |
+| Ubuntu guest, 1,000 | 5 / 5 | 2.481 / 5.941 | 4.71 / 11.28 |
+| Ubuntu guest, 10,000 | 5 / 5 | 1.854 / 2.816 | 22.02 / 54.39 |
+
+Every matched ingress and delivery rate ratio met repeatability.
+All three paired idle RSS ratios also met repeatability. The
+Ubuntu broker CPU ratios were repeatable at 1.37 and 1.39.
+The matched P99 and P99.9 series exceeded the variation limits.
+
+All five Windows Mosquitto 10,000-connection trials timed out.
+A separate unmeasured attempt reproduced a timeout during CONNACK
+collection. The controller had opened 8,192 TCP sockets and the
+reference broker log recorded 8,191 accepted client IDs. That
+attempt ended before the workload started. The failure logs,
+command receipts and independent replay are under
+out/service-extensions/xmqtt-live-peer-compare-2868a9ba/.
+Broader performance acceptance remains open.
