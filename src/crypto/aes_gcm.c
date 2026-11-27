@@ -733,7 +733,8 @@ static void __xrtAesGcmCrypt(
 /* 为软件 AES 展开轮密钥；AES-NI 路径直接使用状态内的标准轮密钥。 */
 static bool __xrtAesGcmPrepare(
 	const xaesgcm* pState,
-	uint64 pExpanded[XRT_INTERNAL_AES_EXPANDED_WORDS]
+	uint64 pExpanded[XRT_INTERNAL_AES_EXPANDED_WORDS],
+	bool* pExpandedUsed
 )
 {
 	if ( !__xrtAesHasBackend(&pState->Cipher, 0) ) {
@@ -744,6 +745,8 @@ static bool __xrtAesGcmPrepare(
 		  XRT_INTERNAL_AES_BACKEND_ARM_AES)) != 0 ) {
 		return true;
 	}
+	/* The hardware paths consume the round keys directly from the cipher. */
+	*pExpandedUsed = true;
 	return __xrtAesExpand(&pState->Cipher, pExpanded);
 }
 
@@ -828,11 +831,12 @@ XRT_API bool xrtAesGcmEncrypt(
 	uint8 Counter[XRT_AES_BLOCK_SIZE];
 	uint8 Tag[XRT_AES_BLOCK_SIZE];
 	bool bResult = false;
+	bool bExpandedUsed = false;
 
 	if ( !__xrtAesGcmValidate(
 		pState, pNonce, iNonceSize, pAad, iAadSize,
 		pPlain, iPlainSize, pCipher, pTag
-	) || !__xrtAesGcmPrepare(pState, Expanded) ) {
+	) || !__xrtAesGcmPrepare(pState, Expanded, &bExpandedUsed) ) {
 		goto cleanup;
 	}
 	__xrtAesGcmCounter(pState, pNonce, iNonceSize, Counter);
@@ -849,7 +853,9 @@ XRT_API bool xrtAesGcmEncrypt(
 cleanup:
 	xrtSecureZero(Tag, sizeof(Tag));
 	xrtSecureZero(Counter, sizeof(Counter));
-	xrtSecureZero(Expanded, sizeof(Expanded));
+	if ( bExpandedUsed ) {
+		xrtSecureZero(Expanded, sizeof(Expanded));
+	}
 	return bResult;
 }
 
@@ -872,11 +878,12 @@ XRT_API bool xrtAesGcmDecrypt(
 	uint8 Counter[XRT_AES_BLOCK_SIZE];
 	uint8 Tag[XRT_AES_BLOCK_SIZE];
 	bool bResult = false;
+	bool bExpandedUsed = false;
 
 	if ( !__xrtAesGcmValidate(
 		pState, pNonce, iNonceSize, pAad, iAadSize,
 		pCipher, iCipherSize, pPlain, pTag
-	) || !__xrtAesGcmPrepare(pState, Expanded) ) {
+	) || !__xrtAesGcmPrepare(pState, Expanded, &bExpandedUsed) ) {
 		goto cleanup;
 	}
 	__xrtAesGcmCounter(pState, pNonce, iNonceSize, Counter);
@@ -896,7 +903,9 @@ XRT_API bool xrtAesGcmDecrypt(
 cleanup:
 	xrtSecureZero(Tag, sizeof(Tag));
 	xrtSecureZero(Counter, sizeof(Counter));
-	xrtSecureZero(Expanded, sizeof(Expanded));
+	if ( bExpandedUsed ) {
+		xrtSecureZero(Expanded, sizeof(Expanded));
+	}
 	return bResult;
 }
 

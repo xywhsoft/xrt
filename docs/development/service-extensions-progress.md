@@ -32159,3 +32159,64 @@ costs to address.
 The source identities, raw profiles, syscall counts and replay
 are under out/service-extensions/xmqtt-tls-broker-cpu-4b8a8f2b/.
 The strict TLS performance gate remains open.
+
+
+## 2026-11-27 Avoid clearing unused hardware AES-GCM scratch
+
+AES-GCM now clears the 960-byte software round-key workspace
+when it enters the software key preparation path. AES-NI and
+ARM hardware use the expanded keys in the cipher state. Software
+preparation and cleanup of the counter, tag and actual temporary
+key material retain their existing behavior. The mainline XRT
+single header regenerated and matched the tested candidate.
+
+The Windows x64 modular and single-header AES-GCM and TLS record
+programs passed. The native single-header xmqtt TLS broker and
+xredis TLS suites also passed. The Ubuntu vector programs passed
+on the software-only and AES-enabled QEMU/WHPX guest profiles.
+The independent TLS peer passed with both broker binaries on
+both systems, including MQTT 5 and 3.1.1, QoS 1/2, fragmentation,
+takeover and quota recovery. The first Windows micro build
+selected declarations from the include directory. The corrected
+build forces the tested single header. The Redis test rerun
+used the manifest's xredis_tls suite.
+
+The small-record benchmark reused an AES-128 key state and
+changed the 96-bit nonce for each encryption. It verified the
+final plaintext after timing. The five alternating pairs per
+size produced the following repeatable elapsed time ratios.
+
+| Bytes | Windows candidate / original | Ubuntu guest candidate / original |
+| ---: | ---: | ---: |
+| 5 | 0.476 | 0.488 |
+| 19 | 0.489 | 0.500 |
+| 125 | 0.641 | 0.641 |
+| 141 | 0.685 | 0.679 |
+
+The balanced observer replayed 88 TLS broker trials, including
+two longer tail retests. It verified 1,200,000 measured offers,
+2,337 quota refusals and 9,581,304 deliveries. The paired
+Ubuntu broker CPU ratios were 0.951, 0.951 and 0.966 at
+2,000, 4,000 and 8,000 scheduled/s and met repeatability.
+The seven-pair 4,000/s retest gave a repeatable ratio of 0.956.
+The 8,000/s Ubuntu throughput, P99 and P99.9 ratios were
+repeatable at 0.997, 1.006 and 1.009. Windows accepted
+throughput ratios ranged from 0.990 to 1.000 and met
+repeatability. Its longest 2,000/s retest used observer CPUs
+4 and 6 so the scheduler campaign on CPU 8 had a separate
+logical CPU. Delivery P99 medians were 1.329 and 1.225 ms.
+The paired Windows tails and Ubuntu 4,000/s tails varied
+beyond the repeatability limits. Strict TLS tail acceptance
+remains open.
+
+The existing TCP endurance configurations select no AES-GCM
+implementation. Replaying both binaries' compiler selections
+on both platforms generated identical preprocessed output
+with either Core header. The Ubuntu Redis replay used its
+exact 5b886da6 generated header and verified the archive line
+endings against the build receipt. At the checkpoint the
+Windows/Ubuntu runs had 65.28/65.38 Redis awake hours and
+24.04/24.05 MQTT awake hours. All four runs remained live.
+The AES diagnostic guest retired. Source receipts, vectors,
+observer and peer results, raw rows and replay are under
+out/service-extensions/xmqtt-tls-broker-cpu-4b8a8f2b/unused-aes-scratch/.
