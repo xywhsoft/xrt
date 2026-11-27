@@ -31941,3 +31941,51 @@ replay are under out/service-extensions/xmqtt-short-record-e29400b3/.
 Running-prefix verification accepted 64.25/64.34 awake hours
 for Redis and 23.01/23.01 for MQTT on Windows/Ubuntu.
 All four endurance supervisors were live.
+
+
+## 2026-11-27 Bounded groups of queued MQTT TLS writes
+
+The experiment concatenates up to 16 already queued complete MQTT
+writes and at most 2,048 plaintext bytes on one TLS stream. It
+honors the existing drive budget and adds no wait. On Windows and
+the AES-enabled Ubuntu QEMU/WHPX guest an independent TLS peer
+received the same eight 142-byte MQTT packets in order. The
+existing broker used 16 TLS records and the experimental broker
+used one 1,136-byte record. Both hosts verified partial acceptance
+into a subsequent write, zero-credit retry, fatal error, reentrant
+close and reference release. Both brokers also passed the
+independent MQTT 5 and 3.1.1 TLS peer on each host.
+
+Five alternating pairs per host and rate used two broker workers,
+the two-worker alternating observer, four publishers, eight wildcard
+subscribers and 128-byte MQTT 5 QoS 2 payloads. Independent replay
+checked 60 trials, 544,000 confirmations and 4,352,000 deliveries
+from the 52 complete trials. The table reports stock / experiment
+counts and complete-trial medians.
+
+| Host | Scheduled/s | Complete trials | Confirmed/s | Delivery P99 ms |
+| --- | ---: | ---: | ---: | ---: |
+| Ubuntu guest | 2,000 | 5 / 5 | 2,000 / 2,000 | 2.738 / 2.853 |
+| Ubuntu guest | 4,000 | 5 / 5 | 3,998 / 3,999 | 11.672 / 7.756 |
+| Ubuntu guest | 8,000 | 5 / 5 | 4,686 / 4,864 | 1,052.654 / 954.090 |
+| Windows | 2,000 | 5 / 5 | 2,000 / 2,000 | 1.505 / 1.018 |
+| Windows | 4,000 | 5 / 5 | 3,999 / 3,999 | 4.070 / 4.270 |
+| Windows | 8,000 | 0 / 2 | / 7,997 | / 11.938 |
+
+The Ubuntu paired CPU ratios of 0.979, 0.942 and 0.910 met
+repeatability. The Ubuntu 8,000/s paired throughput ratio was
+1.023 and met repeatability. All paired tail ratios and Windows
+CPU ratios exceeded the variation limits. Each of the eight
+incomplete Windows trials returned PUBREC reason 0x97. Partial
+trial ledgers are preserved. The experiment stays in the test
+snapshot while its Windows overload and cross-platform tail
+results remain unresolved. The strict TLS performance gate is open.
+
+The diagnostic guest retired after replay. Exact sources, binaries,
+wire checks, raw trial ledgers and replay are under
+out/service-extensions/xmqtt-grouped-tls-aa618bd9/. The endurance
+guest continued to run. Running-prefix replay verified 64.40 /
+64.50 awake hours for xredis and 23.16 / 23.17 for xmqtt on
+Windows / Ubuntu. All four runs remained live. The strict audit
+still reports 2 developing modules for xcron, 2 for xrpc, 29 for
+xredis and 39 for xmqtt.
