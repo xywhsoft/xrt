@@ -32171,15 +32171,18 @@ key material retain their existing behavior. The mainline XRT
 single header regenerated and matched the tested candidate.
 
 The Windows x64 modular and single-header AES-GCM and TLS record
-programs passed. The native single-header xmqtt TLS broker and
-xredis TLS suites also passed. The Ubuntu vector programs passed
+programs passed. The native xmqtt single-header TLS broker test
+passed. The xredis_tls_tests suite passed three modular and
+three single-header programs for TLS host selection, client
+behavior and open-loop load. The Ubuntu vector programs passed
 on the software-only and AES-enabled QEMU/WHPX guest profiles.
 The independent TLS peer passed with both broker binaries on
 both systems, including MQTT 5 and 3.1.1, QoS 1/2, fragmentation,
 takeover and quota recovery. The first Windows micro build
 selected declarations from the include directory. The corrected
-build forces the tested single header. The Redis test rerun
-used the manifest's xredis_tls suite.
+build forces the tested single header. The initial xredis_tls
+selection built the library without executing tests. The final
+run selected xredis_tls_tests and verified all six executions.
 
 The small-record benchmark reused an AES-128 key state and
 changed the 96-bit nonce for each encryption. It verified the
