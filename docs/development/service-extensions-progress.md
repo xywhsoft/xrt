@@ -31358,3 +31358,53 @@ out/service-extensions/xmqtt-live-8000-1af8ef79/.
 Running-prefix replay verified 62.47/62.56 awake hours for
 Redis and 21.22/21.23 for MQTT on Windows/Ubuntu. All four
 endurance supervisors remained live.
+
+
+## 2026-11-27 MQTT observer offer deadline and Windows shared fan-out
+
+The fixed-arrival observer now caps the offer phase at the
+end of the scheduled arrival interval plus five seconds.
+The single-publisher credit wait uses the remaining budget.
+The multi-publisher pacer also bounds its wait and stops
+offering after the deadline. An incomplete offer phase exits
+through normal observer cleanup and reports the existing
+partial send, confirmation and delivery ledger. Timing
+samples from completed workloads retain their original
+definitions.
+
+Native Windows and Ubuntu QEMU/WHPX rebuilt the updated
+observer from the mainline inputs at O2 with warnings fatal.
+Both passed the scripted observer suite, including the new
+one- and two-publisher QoS 2 deadline regressions. The
+scripted peer returns credit throughout the load while
+holding throughput below the planned rate. The previous
+binary failed both cutoff assertions on both hosts and
+still sent after 7.26 seconds. The new binary stopped
+offering within the cutoff window and returned a verified
+partial ledger. Windows cleanup can still wait on a native
+read, so the test releases the peer after its offer cutoff
+check. The ordinary xmqtt maturity audit passed.
+
+The Windows 8,000-connection shared-filter profile also
+completed on the original binary. Both brokers were
+configured for the same 7,991 idle peers, one publisher,
+eight subscribers in two shared groups, and 4,000 scheduled
+QoS 2 publications/s. Replay checked 160,000 confirmations
+and 320,000 deliveries from the five xmqtt trials. Median
+delivery throughput was 8,000.153/s. The P99 median of
+241.2 us met repeatability. P99.9 was 2,397.5 us and exceeded
+the variation limits. All five reference trials hit the old
+outer observer timeout after idle-peer admission.
+
+The Windows exact-filter workload had captured the old
+observer source identity before the source update. The
+original Ubuntu comparison uses the fixed source snapshot.
+The high-rate wildcard rerun and lower-rate control with
+the bounded Windows observer are queued behind that campaign.
+Logs, receipts and independent replays are under
+out/service-extensions/xmqtt-live-8000-1af8ef79/.
+
+Running-prefix replay verified 62.65/62.74 awake hours for
+Redis and 21.41/21.41 for MQTT on Windows/Ubuntu. All four
+endurance supervisors remained live. Strict release remains
+open.

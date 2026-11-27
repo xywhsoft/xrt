@@ -498,6 +498,10 @@ Keep the JSON from unsuccessful rates. When the observer retires after a
 failure, the report records the measured sends, terminal publisher
 confirmations and validated deliveries separately in `failure_progress`.
 The counts cover verified work through retirement and exclude warmup.
+The observer stops issuing publications five seconds after the end of the
+scheduled arrival interval. Slow acknowledgements can return credit
+throughout that interval. An incomplete schedule reports its partial
+ledger as a failure.
 Failed samples also preserve up to 16 KiB of broker output. The reliable
 single-publisher observer reports expected and observed sequence numbers
 when validation sees a sequence mismatch. A timeout or crash can leave
@@ -508,8 +512,8 @@ repeat variation separately.
 
 The scripted observer regression checks negative PUBREC with its reason code,
 early PUBCOMP, a wrong PUBCOMP identifier, duplicate subscriber delivery
-and a gap in the subscriber sequence. It also exercises bounded socket
-retirement after failure.
+and a gap in the subscriber sequence. It also verifies deadline accounting
+with slow, continuous acknowledgements and one or two publishers.
 
 ```text
 python extlibs/xmqtt/bench/test_broker_observer.py /path/to/bench_server

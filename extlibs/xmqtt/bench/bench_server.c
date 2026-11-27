@@ -739,7 +739,7 @@ typedef struct benchRemotePublisher {
 /* Publisher and ACK reader share only one short send and slot transition
  * at a time. Packet identifiers are recycled only once fully confirmed. */
 static benchOfferResult benchRemoteOffer(benchRemotePublisher* P, size_t Round, double Scheduled, double Ready,
-	double* Lag, double* CreditWait)
+	double* Lag, double* CreditWait, double Deadline)
 {
 	if (!P->Qos) {
 		unsigned char Frame[138];
@@ -754,7 +754,9 @@ static benchOfferResult benchRemoteOffer(benchRemotePublisher* P, size_t Round, 
 		return xrtMutexUnlock(&P->Gate) ? BENCH_OFFER_BLOCKED : BENCH_OFFER_ERROR;
 	if (CreditWait && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) ++P->CreditStalls;
 	while (!P->Failed && P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) {
-		if (xrtCondWaitFor(&P->Changed, &P->Gate, 5000) != XWAIT_OK) {
+		double Left = (Deadline - xrtTimer()) * 1000;
+		if (Left <= 0 || xrtCondWaitFor(&P->Changed, &P->Gate,
+			(int64)fmin(5000, ceil(Left))) != XWAIT_OK) {
 			(void)xrtMutexUnlock(&P->Gate);
 			return BENCH_OFFER_ERROR;
 		}
@@ -764,11 +766,14 @@ static benchOfferResult benchRemoteOffer(benchRemotePublisher* P, size_t Round, 
 	if (!P->Failed) {
 		unsigned char Frame[140];
 		size_t Size = benchRemoteFrame(Frame, Round, P->Qos, (uint16)(Slot + 1));
-		P->Slots[Slot].Round = Round;
-		P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_RECEIPT;
-		P->Slots[Slot].Sent = xrtTimer();
-		if (Lag) *Lag = P->Slots[Slot].Sent - Scheduled;
-		Sent = benchWireSend(P->Connection, Frame, Size);
+		double SentAt = xrtTimer();
+		if (SentAt < Deadline) {
+			P->Slots[Slot].Round = Round;
+			P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_RECEIPT;
+			P->Slots[Slot].Sent = SentAt;
+			if (Lag) *Lag = SentAt - Scheduled;
+			Sent = benchWireSend(P->Connection, Frame, Size);
+		}
 	}
 	return xrtMutexUnlock(&P->Gate) && Sent ? BENCH_OFFER_SENT : BENCH_OFFER_ERROR;
 }
@@ -854,13 +859,15 @@ static int32 benchRemoteConfirm(ptr Context)
 /* One pacer offers each lane its own fixed subset of the arrival schedule.
  * A flow without credit does not delay offers on eligible flows. */
 static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count, size_t Warmup,
-	size_t Rounds, double Start, double Rate, double* Lag, double* PacerLag, double* CreditWait)
+	size_t Rounds, double Start, double Rate, double* Lag, double* PacerLag, double* CreditWait,
+	double Deadline)
 {
 	benchRemoteCredit* Credit = Publishers[0].Credit;
 	size_t Total = Warmup + Rounds, Offered = 0, Cursor = 0;
 	bool Waiting = false;
 	while (Offered < Total) {
 		double Now = xrtTimer(), NextDue = INFINITY;
+		if (Now >= Deadline) return false;
 		bool Sent = false, Blocked = false;
 		for (size_t Offset = 0; Offset < Count; ++Offset) {
 			size_t Lane = (Cursor + Offset) % Count;
@@ -876,7 +883,7 @@ static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count,
 			size_t Sample = Measured ? Round - Warmup : 0;
 			if (!P->ReadyAt) P->ReadyAt = Now;
 			benchOfferResult Result = benchRemoteOffer(P, Round, Scheduled, P->ReadyAt,
-				Measured ? Lag + Sample : NULL, Measured ? CreditWait + Sample : NULL);
+				Measured ? Lag + Sample : NULL, Measured ? CreditWait + Sample : NULL, Deadline);
 			if (Result == BENCH_OFFER_ERROR) return false;
 			if (Result == BENCH_OFFER_BLOCKED) {
 				Blocked = true;
@@ -907,7 +914,7 @@ static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count,
 			xrtAtomic32Store(&Credit->Waiting, 1, XMEMORY_RELEASE);
 			Waiting = true;
 		} else {
-			double Delay = fmin(5000, (NextDue - xrtTimer()) * 1000);
+			double Delay = fmin(5000, (fmin(Deadline, NextDue) - xrtTimer()) * 1000);
 			if (Delay >= 1) {
 				xwaitresult Result = benchRemoteWaitCredit(Credit, (int64)Delay);
 				if (Result != XWAIT_OK && (Result != XWAIT_TIMEOUT || !isfinite(NextDue))) return false;
@@ -1222,20 +1229,23 @@ static int benchRemote(int Argc, char** Argv)
 	double CpuStart = benchObserverCpu(false), PacerStart = benchObserverCpu(true);
 	if (CpuStart < 0 || PacerStart < 0) goto Done;
 	Stage = "offer scheduled publications";
+	/* Bound the total offer phase even when slow confirmations keep arriving. */
+	double OfferDeadline = Start + (double)(Warmup + Rounds) / (double)Rate + 5.0;
 	if (PublisherCount > 1) {
 		if (!benchRemoteOfferMany(Publishers, PublisherCount, Warmup, Rounds, Start, (double)Rate,
-			Lag, PacerLag, CreditWait)) goto Done;
+			Lag, PacerLag, CreditWait, OfferDeadline)) goto Done;
 	} else for (size_t Round = 0; Round < Warmup + Rounds; ++Round) {
 		double Scheduled = Start + (double)Round / (double)Rate;
 		double Now;
 		while ((Now = xrtTimer()) < Scheduled) {
 			if (Scheduled - Now > 0.003) xrtSleep(1);
 		}
+		if (Now >= OfferDeadline) goto Done;
 		bool Measured = Round >= Warmup;
 		size_t Sample = Measured ? Round - Warmup : 0;
 		if (Measured) PacerLag[Sample] = Now - Scheduled;
 		if (benchRemoteOffer(Publishers, Round, Scheduled, Now, Measured ? Lag + Sample : NULL,
-			Measured && CreditWait ? CreditWait + Sample : NULL) != BENCH_OFFER_SENT) goto Done;
+			Measured && CreditWait ? CreditWait + Sample : NULL, OfferDeadline) != BENCH_OFFER_SENT) goto Done;
 		if (Measured) ++Publishers[0].Sent;
 	}
 	double PacerCpu = benchObserverCpu(true) - PacerStart;

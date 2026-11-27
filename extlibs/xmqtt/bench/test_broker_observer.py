@@ -220,6 +220,84 @@ def multi_publisher_case(binary, reorder, tls=None, ca=None):
                 process.wait(timeout=5)
 
 
+def offer_deadline_case(binary, publishers):
+    rounds, rate = 64, 1000
+    with ExitStack() as stack:
+        listener = stack.enter_context(socket.socket())
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        listener.settimeout(8)
+        command = [binary, "--remote", str(listener.getsockname()[1]), "1", str(rounds), str(rate),
+                   "0", "exact", "2", "1", "--publishers", str(publishers)]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            peers = []
+            for index in range(publishers + 1):
+                peer = stack.enter_context(listener.accept()[0])
+                peer.settimeout(3)
+                peer.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                tag, body = frame(peer)
+                assert tag == b"\x10" and body[-8:] == f"{index:08d}".encode(), body
+                peer.sendall(b"\x20\x03\x00\x00\x00")
+                if index == 0:
+                    assert frame(peer) == (b"\x82", b"\x00\x01\x00\x00\x04load\x02")
+                    peer.sendall(b"\x90\x04\x00\x01\x00\x02")
+                peers.append(peer)
+            subscriber, *sources = peers
+            started = time.monotonic()
+            last_offer = acknowledged = 0
+            seen = set()
+            while sources and process.poll() is None and time.monotonic() < started + 7.5:
+                ready, _, _ = select.select(sources, [], [], 0.05)
+                for publisher in ready:
+                    try:
+                        tag, body = frame(publisher)
+                    except (EOFError, ConnectionError):
+                        sources.remove(publisher)
+                        continue
+                    sequence = int.from_bytes(body[-4:], "big")
+                    assert tag == b"\x34" and body[:9] == b"\x00\x04load\x00\x01\x00"
+                    assert len(body) == 137 and 0 <= sequence < rounds and sequence not in seen
+                    seen.add(sequence)
+                    last_offer = time.monotonic() - started
+                    # Return each credit well inside the inactivity timeout, but
+                    # too slowly to complete the schedule within its total budget.
+                    time.sleep(0.24)
+                    identifier = (acknowledged + 1).to_bytes(2, "big")
+                    try:
+                        subscriber.sendall(b"\x34\x89\x01" + body[:6] + identifier + body[8:])
+                        assert frame(subscriber) == (b"\x50", identifier)
+                        subscriber.sendall(b"\x62\x02" + identifier)
+                        assert frame(subscriber) == (b"\x70", identifier)
+                        publisher_id = body[6:8]
+                        publisher.sendall(b"\x50\x02" + publisher_id)
+                        assert frame(publisher) == (b"\x62", publisher_id)
+                        publisher.sendall(b"\x70\x02" + publisher_id)
+                    except (EOFError, ConnectionError):
+                        continue
+                    acknowledged += 1
+
+            assert 4.1 <= last_offer < 5.9 and 8 <= acknowledged < rounds, (last_offer, acknowledged)
+            # On Windows a native read may still be blocked during observer
+            # cleanup. Release it after the independent offer cutoff check.
+            for peer in peers:
+                try:
+                    peer.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+            out, err = process.communicate(timeout=7)
+            assert process.returncode == 1 and not out and "failed during offer scheduled publications" in err, err
+            progress = ObserverFailure(process.returncode, err).progress
+            assert progress is not None, err
+            assert progress["confirmed"] <= acknowledged <= progress["confirmed"] + 1, progress
+            assert acknowledged <= progress["deliveries"] <= len(seen) <= progress["sent"] < rounds, progress
+            print(f"offer deadline retained the partial ledger with {publishers} publisher(s)")
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
 def shared_case(binary, duplicate, tls=None, ca=None):
     with ExitStack() as stack:
         listener = stack.enter_context(socket.socket())
@@ -400,6 +478,8 @@ def main():
     shared_case(binary, True)
     multi_publisher_case(binary, False)
     multi_publisher_case(binary, True)
+    for publishers in (1, 2):
+        offer_deadline_case(binary, publishers)
     if args.tls_credentials:
         root = args.tls_credentials.resolve(strict=True)
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
