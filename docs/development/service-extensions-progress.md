@@ -31761,3 +31761,76 @@ out/service-extensions/xredis-linux-aes-95e17ae7/.
 Windows/Ubuntu long-run prefix replay accepted 63.69/63.78
 awake hours for xredis and 22.45/22.45 for xmqtt.
 All four long-run supervisors were live.
+
+
+## 2026-11-27 MQTT 5 TLS capacity in an AES-enabled Ubuntu guest
+
+The separate Ubuntu 6.8.0-147 QEMU/WHPX guest exposed AES-NI,
+PCLMUL and SSSE3. The current single-header inputs built the xmqtt
+TLS broker, fixed-arrival observer and TLS receiver. The rebuilt
+receiver matched the binary from the earlier client comparison.
+Pinned Mosquitto 2.1.2 and Paho C 1.3.15 used the same verified
+OpenSSL 3.0.13 shared libraries. Both sides used authenticated
+TLS 1.3 with AES-128-GCM and the localhost fixture identity.
+
+The current observer passed the scripted cases for publisher
+ordering, QoS 2 duplicate rejection, coalesced acknowledgements,
+wrong CA, wrong hostname, and the absolute offer deadline.
+The first preflight omitted the observer argument, and the
+first runtime check mistyped the OpenSSL hash. The final run
+used the required executable and checked both library hashes
+against the prior verified runtime receipt.
+
+The broker comparison held the same two CPUs, four publishers,
+eight subscribers and 16-entry publisher/receiver windows.
+Two xmqtt workers served each trial. Each variant completed
+five alternating trials per profile with 8,000 scheduled offers
+and 512 warmups. Independent replay matched 320,000 measured
+publisher confirmations and 2,080,000 byte-verified deliveries
+across the 40 trials. The table reports observed rates and
+delivery tails in xmqtt / Mosquitto order.
+
+| MQTT 5 QoS 2 workload | Confirmed/s | Verified deliveries/s | Delivery P99 (ms) | Delivery P99.9 (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Shared, 2,000 scheduled/s | 2,000 / 2,000 | 4,000 / 4,000 | 2.021 / 2.021 | 2.054 / 2.170 |
+| Wildcard, 2,000 scheduled/s | 2,000 / 2,000 | 15,998 / 15,998 | 2.548 / 3.104 | 3.523 / 3.591 |
+| Wildcard, 4,000 scheduled/s | 3,647 / 3,997 | 29,178 / 31,977 | 195.868 / 8.057 | 197.622 / 9.245 |
+| Wildcard, 8,000 scheduled/s | 3,497 / 5,201 | 27,973 / 41,611 | 1,268.460 / 534.157 | 1,286.903 / 537.698 |
+
+All throughput ratios met repeatability. The paired ingress
+ratios at 4,000 and 8,000 offers/s were 0.912 and 0.670.
+The matching broker CPU ratios were 1.604 and 1.940 and met
+repeatability. The 2,000/s shared delivery P99 ratio was
+repeatable near 1.000. Other paired tail ratios exceeded
+the variation limits.
+
+For the 4,000/s wildcard profile, the xmqtt run's median
+pacer lateness P99 was 194.592 ms. Its publisher P99 from
+actual send was 2.317 ms. At 8,000/s those statistics were
+1,266.860 and 2.412 ms. The fixed-arrival delivery latency
+includes the growing time before the observer issued the
+publish. This observation identifies a delay in the pacing
+phase; the comparison retains the single TLS worker in the
+observer and leaves broker/observer attribution open.
+
+The TLS receiver trials compared xmqtt and Paho at 3,000
+messages/s with a window of 16 and 32-byte binary payloads.
+The independent broker trace verified 73,536 complete
+delivery handshakes per QoS level including warmups. Both
+paired throughput ratios met repeatability near 1.000.
+The QoS 2 CPU ratio was 1.146 and met repeatability. The
+median application P99 was 431.4/443.2 us for QoS 2 and
+261.8/266.4 us for QoS 1. The paired client tails exceeded
+the variation limits.
+
+Both temporary credential directories and the dedicated
+guest retired. Replay, source and binary identities, and
+the raw broker traces are under
+out/service-extensions/xmqtt-linux-aes-cad097f1/. Two prior
+temporary Redis test trees were mirrored and matched by
+size and SHA-256 for 918 files before releasing them from
+the endurance guest. That guest had 118 MiB available at
+the checkpoint. Running-prefix verification accepted
+63.92/64.01 awake hours for Redis and 22.68/22.68 for MQTT
+on Windows/Ubuntu. All four endurance supervisors were live.
+The strict performance gates remain open.
