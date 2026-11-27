@@ -31505,3 +31505,47 @@ out/service-extensions/xmqtt-live-8000-1af8ef79/.
 The Ubuntu interleaved xcron campaign started after the MQTT
 retry. Its CPU 0 affinity and first 55,296 callbacks were
 verified against the live process and exact-input receipt.
+
+
+## 2026-11-27 xrpc shared and connection-sharded APP executors
+
+Windows x64 IOCP and Ubuntu x86_64 QEMU/WHPX epoll compared the
+mainline TCP APP's two-thread executor with two one-thread executors.
+The prototype assigned each accepted connection to one shard for its
+lifetime. Each shard had 16 queue slots, matching the shared arm's
+32-slot total. Retirement checked submitted, executed and completed
+jobs against the request count for each shard.
+
+Both layouts passed the protocol peer suites on both hosts, including
+32-peer backpressure and reset isolation. Each mode verified 7,936
+healthy replies during the capacity backpressure case. The observer
+suite passed all 12 cases per host with the native observer selected.
+Earlier invocations interpreted the observer path as a test filter or
+skipped the native cases. Those logs and the full reruns are preserved.
+
+Five alternating pairs per mode drove 32 peers with staggered
+arrivals, eight records per scheduled group, 16 in-flight groups per
+peer and a total offered rate of 64,000 calls/s. Each APP had two
+logical CPUs. The two native observers shared their own two-CPU
+budget. Measurement replay verified all 40 trials, 10,240,000
+exact replies, per-call timing, and group-first and group-last
+quantiles. Source replay matched the actual mixed-end-of-line Windows
+checkout and the translated archive inputs on Ubuntu to the build
+receipts and checked normalized equality with mainline.
+
+| Host | APP mode | P99 us, shared / sharded | P99.9 us, shared / sharded |
+| --- | --- | ---: | ---: |
+| Windows | JSON-RPC duplex | 215.5 / 218.4 | 402.5 / 418.3 |
+| Windows | Dispatch only | 206.6 / 214.5 | 360.6 / 415.0 |
+| Ubuntu guest | JSON-RPC duplex | 2,303.4 / 1,933.1 | 3,520.0 / 2,961.1 |
+| Ubuntu guest | Dispatch only | 1,692.2 / 1,814.2 | 2,598.2 / 2,945.1 |
+
+Median throughput ranged from 63,980 to 63,999 calls/s. All paired
+throughput ratios met repeatability near 1.000. The paired P99 ratios
+met repeatability on Windows at 1.020 and 1.038. Both Ubuntu P99
+series and all P99.9 series exceeded the variation limits. The CPU
+field measures the observers. APP CPU was outside this comparison.
+
+The APP retains its existing shared executor. Strict end-to-end
+performance remains open. The prototype, receipts, test logs and
+raw replay are under out/service-extensions/xrpc-executor-shards-1e36be07/.
