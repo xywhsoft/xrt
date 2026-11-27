@@ -32931,3 +32931,63 @@ supervisors remained live. Verified awake time was
 68.29 / 68.38 Redis hours and 27.05 / 27.05 MQTT hours
 on Windows / Ubuntu. Continuous and strict release
 acceptance remain open.
+
+## 2026-11-27 Bounded xredis TLS request grouping
+
+The experimental client groups two to eight already
+queued ordinary commands into at most 4 KiB of plaintext.
+It respects the remaining worker turn and in-flight budget
+and never waits for another request. It leaves credentials,
+transactions, leased ASKING and Tracking or subscriber
+control on the existing path. Only requests touched by the
+accepted plaintext prefix become sent FIFO obligations.
+The experiment changes the xredis client source in the
+isolated build. Both arms use the same XRT, benchmark
+observer and Redis fixture.
+
+Windows IOCP and Ubuntu epoll passed the existing TLS
+lifecycle, partial-write, cancellation, deadline, close,
+verification and OOM suite with the variant. In an
+additional controlled run the worker held ten pending
+binary ECHOs while the caller cancelled one. Both hosts
+reported the cancelled request as NOT_SENT, verified
+nine ordered replies and observed eight commands in one
+TLS application record. The Windows Tracking and leased
+ASKING test closures also passed. The first guest
+functional build lacked the root test and TLS fixture
+headers. These were restored from the same revision
+before the verified run.
+
+The four-vCPU AES-enabled Ubuntu QEMU/WHPX guest used
+one Redis 8.0.5 CPU and two client/observer CPUs. Both
+builds used authenticated TLS 1.3, RESP3, a 1,024-request
+window and one epoll worker. Each profile ran five
+alternating three-second pairs, one warmup pair and one
+separate instrumented sample. Replay recalculated all
+timing quantiles and reconciled all 1,452,000 exact
+replies and the independent Redis command ledger.
+
+| Connections / payload / scheduled rate | P99 us stock / grouped | P99.9 us stock / grouped | Process CPU us per reply stock / grouped | Instrumented grouped commands |
+| --- | ---: | ---: | ---: | ---: |
+| 8 / 1 KiB / 12,000 per s | 284.5 / 289.6 | 435.0 / 492.8 | 125.81 / 126.09 | 0 of 12,000 |
+| 1 / 256 B / 32,000 per s | 324.1 / 290.9 | 466.9 / 439.5 | 53.77 / 53.51 | 5,173 of 32,000 |
+
+The table gives run medians. Both paired throughput
+ratios were repeatable near 1.000. At one connection
+the paired P99 ratio of 0.898 and P99.9 ratio of 0.967
+were repeatable. The paired ratio for CPU outside the
+generator was 0.990. At eight connections the paired
+tail ratios exceeded the variation limits. The
+prototype stays in the diagnostic snapshot. Native
+Windows timing and broader burst profiles are still
+needed before changing the release path.
+
+The dedicated Redis peer retired and removed its
+temporary credentials. Build receipts, prototype source,
+verified timing archives and functional results are
+under out/service-extensions/xredis-tls-request-groups-5b2d5c0a/.
+The separate QEMU guest retired after the capture.
+All four TCP endurance supervisors continued. The
+journals verified 68.56 / 68.66 Redis awake hours and
+27.32 / 27.32 MQTT awake hours on Windows / Ubuntu.
+Strict performance and release acceptance remain open.
