@@ -32223,3 +32223,75 @@ Windows/Ubuntu runs had 65.28/65.38 Redis awake hours and
 The AES diagnostic guest retired. Source receipts, vectors,
 observer and peer results, raw rows and replay are under
 out/service-extensions/xmqtt-tls-broker-cpu-4b8a8f2b/unused-aes-scratch/.
+
+
+## 2026-11-27 Redis TLS after the AES-GCM scratch change
+
+Native Windows x64 IOCP and an AES-enabled Ubuntu 24.04 x64
+QEMU/WHPX epoll guest compared the 4b8a8f2b and 6a1d9d5f XRT
+headers in otherwise matching xredis builds. Both used the
+corrected Redis observer from a64e79df. Pinned Hiredis 1.3.0
+with OpenSSL was the TCP and TLS reference. Windows observer
+CPUs 4 and 6 reached the private Redis 8.0.5 process through a
+local SSH relay while the guest used host CPU mask 15. Ubuntu
+observer CPUs 2 and 3 used guest-local TCP with host CPU mask
+63. The same Redis fixture ran on guest CPU 0 throughout.
+Compare paired results within each operating system.
+
+All five arms per platform used eight RESP3 connections, a
+1,024-request window and 1 KiB GET/SET payloads at 12,000
+scheduled requests/s. Replay verified all 60 trials, 2,520,000
+byte-exact replies including warmup, and the command ledgers.
+Each TLS binary used TLS 1.3 AES-128-GCM with X25519 and
+rejected missing credentials, an untrusted CA and a wrong
+hostname without changing the Redis command ledger.
+
+| Host | Arm | CPU us/reply | P99 us | P99.9 us |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Previous xredis TLS | 107.422 | 1003.299 | 1228.300 |
+| Windows | Current xredis TLS | 115.234 | 999.134 | 1207.901 |
+| Windows | Hiredis TLS | 83.008 | 978.868 | 1177.068 |
+| Ubuntu guest | Previous xredis TLS | 127.657 | 252.633 | 407.029 |
+| Ubuntu guest | Current xredis TLS | 127.268 | 247.364 | 387.522 |
+| Ubuntu guest | Hiredis TLS | 83.325 | 178.989 | 323.940 |
+
+The table gives trial medians. Process CPU includes the load
+generator. All paired throughput series met repeatability near
+1.000. For current versus previous xredis, Ubuntu CPU had a
+repeatable paired ratio of 1.000 and Windows CPU exceeded the
+variation limit. On Windows both paired tail series met the
+central repeatability limits. On Ubuntu only P99 met them.
+The full distributions retain a Windows P99.9 ratio of 14.725
+and an Ubuntu P99 ratio of 2.346. In both outlier trials the
+slowest 48 current-build requests spent most of their elapsed
+time after submission. Current xredis TLS used 1.394 times the
+Hiredis CPU per reply on Windows and 1.527 on Ubuntu in the
+paired comparisons. Ubuntu TCP had a repeatable paired CPU
+ratio of 1.401 against Hiredis. Its TLS and TCP paired tails
+against Hiredis exceeded the variation limits.
+
+The separate Ubuntu CPU profile and syscall runs each verified
+288,000 replies. Replay matched 26,937 timestamped CPU stacks.
+The current TLS samples covered 72.8 to 76.3 percent of measured
+process CPU and 24.3 to 33.8 percent of non-generator CPU. The
+largest observed non-generator leaf was socket send (114 ms
+median sampled), with AES/GHASH at 21 ms. The counted current
+TLS medians were 24,033 sendmsg, 48,074 recvfrom and 48,083
+epoll_ctl calls per 24,000 requests. Current TCP recorded
+24,017, 24,025 and 24,042 respectively. Four separate 500/s
+stack and file descriptor traces verified 3,200 replies. Each
+TLS trace located 817 same-worker EAGAIN reads in the TCP
+control task after TLS read resume, plus eight on opening.
+The TCP traces each had only the eight opening EAGAIN reads.
+These traces identify the control path at the traced rate.
+
+The first guest build archive lacked the test support directory
+and the first runner archive lacked its shared Python imports.
+Both were supplied before timed trials. The fixture and
+diagnostic guest retired after replay. Source, timing, stacks,
+counters and peer evidence are under
+out/service-extensions/xredis-aes-scratch-a64e79df/.
+The separate continuous TCP replay verified 65.83 / 65.92 Redis
+awake hours and 24.58 / 24.59 MQTT awake hours in Windows /
+Ubuntu order. All four interval supervisors remained live.
+Matched performance and completed 72-hour qualification remain open.
