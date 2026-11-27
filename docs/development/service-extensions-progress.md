@@ -31549,3 +31549,61 @@ field measures the observers. APP CPU was outside this comparison.
 The APP retains its existing shared executor. Strict end-to-end
 performance remains open. The prototype, receipts, test logs and
 raw replay are under out/service-extensions/xrpc-executor-shards-1e36be07/.
+
+
+## 2026-11-27 xredis worker CPU samples on Ubuntu
+
+Ubuntu x86_64 QEMU/WHPX repeated the pinned xredis and Hiredis
+1.3.0 TCP and TLS comparisons with five alternating unprofiled and
+profiled pairs per combination. The compiled inputs match the
+current fcf9589b xredis source tree. A dedicated Redis 8.0.5 process
+used guest CPU 0. The observer used CPUs 2 and 3 with eight RESP3
+connections, 1,024 credits and 12,000 fixed arrivals/s of 1 KiB
+GET/SET traffic. TLS retained certificate and hostname verification,
+AES-128-GCM, X25519 and TLS 1.3.
+
+Replay matched 44 trial rows, all 1,008,000 offers and byte-verified
+replies, all stored latency quantiles and the private peer's command
+ledger. Perf 6.8.12 recorded a sample per 2 ms of CPU-clock while
+using a monotonic event clock. Replay selected 23,470 frame-pointer
+samples inside the exact offer-through-last-completion windows and
+checked their process, thread and CPU identities. Paired process CPU
+ratios with profiling were 1.002 to 1.018 and met repeatability.
+Every paired P99 and P99.9 ratio exceeded the variation limits.
+
+| Observer | Transport | Unprofiled process CPU (s) | Unprofiled generator CPU (s) | P99 (us) | P99.9 (us) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| xredis | TCP | 2.695 | 1.999 | 397.7 | 659.0 |
+| Hiredis | TCP | 1.994 | 1.994 | 226.2 | 569.3 |
+| xredis | TLS | 3.096 | 1.996 | 760.8 | 1,267.2 |
+| Hiredis | TLS | 1.994 | 1.994 | 363.5 | 3,646.4 |
+
+The median unprofiled windows contained 24,000 exact replies each.
+TCP send syscalls contained 756 of the 1,149 xredis TCP worker
+samples. In the TLS worker, 826 of 2,402 samples were in socket send
+and 722 had an XRT AES/GHASH leaf. The TLS AES/GHASH symbols included
+the software AES S-box and carryless-multiply fallback. The sample
+period accounts for 57–68% of the TCP worker CPU and 83–85% of the
+TLS worker CPU measured outside the generator. These counts show
+the sampled hotspots. Hiredis performs its networking and OpenSSL
+work in the generator thread.
+
+The guest exposes neither AES-NI nor PCLMULQDQ. The Windows host
+exposes both and SSSE3, based on a direct CPUID check. This result
+covers the guest's software fallback. Release evidence for an
+AES-capable Linux deployment and matched repeatable tails remains
+open. The per-request timer and completion probes are separate
+historical evidence.
+
+The initial runner omitted a comparator dependency. A second
+attempt requested a CPU field unavailable in that recording.
+The corrected capture used explicit CPU fields and frame-pointer
+addresses. It retained the earlier failure logs and the first
+profiler header. Build identities, scripts, raw traces, CPU flags
+and independent replay are under
+out/service-extensions/xredis-perf-fcf9589b/. All temporary Redis
+fixtures retired.
+
+Running-prefix replay accepted 63.29/63.39 awake hours for xredis
+and 22.05/22.06 for xmqtt on Windows/Ubuntu. The same four endurance
+supervisors were live and the strict performance gates remain open.
