@@ -31989,3 +31989,56 @@ guest continued to run. Running-prefix replay verified 64.40 /
 Windows / Ubuntu. All four runs remained live. The strict audit
 still reports 2 developing modules for xcron, 2 for xrpc, 29 for
 xredis and 39 for xmqtt.
+
+
+## 2026-11-27 Destination-worker posts for reliable MQTT fan-out
+
+The prototype groups a publication's existing delivery reservations
+by destination worker. It covers groups of up to eight live,
+nonpersistent recipients and sends one FIFO list per worker.
+It uses the existing delivery nodes, holds each original peer pin
+until dispatch, and adds no wait, allocation or quota. Other
+routes retain the original posting path. Both builds passed the
+independent TLS peer on Windows and the AES-enabled Ubuntu guest,
+including MQTT 5 and 3.1.1, fragmentation, takeover, quota recovery
+and a fragmented terminal acknowledgement.
+
+Both brokers used two workers and the same two-worker observer
+with alternating placement. Four publishers offered 128-byte MQTT 5
+QoS 2 messages to eight wildcard subscribers with windows of 16.
+Five alternating pairs per platform and rate used the same
+verified TLS 1.3 identity. Engine post counts were sampled after
+broker drain. Replay verified 60 trials and checked 330,000
+confirmations and 2,640,000 deliveries from the 40 complete trials.
+The first replay assumed the Linux archive had the Git blob's
+line endings for the example. The corrected replay matched the
+actual archived bytes and checked normalized equality with mainline.
+
+| Host | Scheduled/s | Complete, existing / grouped | Paired posts ratio | Paired ingress ratio | Paired delivery P99 ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 5 / 5 | 0.769 | 1.000 | 0.948 |
+| Windows | 6,000 | 0 / 0 | | | |
+| Windows | 8,000 | 0 / 0 | | | |
+| Ubuntu guest | 2,000 | 5 / 5 | 0.750 | 1.000 | 1.353 |
+| Ubuntu guest | 6,000 | 5 / 5 | 0.716 | 0.974 | 1.140 |
+| Ubuntu guest | 8,000 | 5 / 5 | 0.711 | 1.014 | 0.969 |
+
+All reported post and ingress ratios met repeatability. The
+Ubuntu 6,000/s increase in P99 and P99.9 (ratios 1.140 and
+1.132) also met repeatability. Its median observed ingress
+was 4,769/s on the existing broker and 4,642/s with grouping.
+Paired broker CPU on Ubuntu ranged from 0.997 to 1.032, and
+the Windows CPU and tail ratios exceeded the variation limits.
+Each of the 20 incomplete Windows trials returned PUBREC reason
+0x97. The observer stopped on the first quota rejection and
+preserved the partial ledger. Those trials do not measure
+sustained admission and delivery through overload. The prototype
+stays in the diagnostic snapshot given the Ubuntu tail regression.
+
+The diagnostic guest retired. Source receipts, raw ledgers,
+post counters and independent replay are under
+out/service-extensions/xmqtt-worker-post-groups-4bf34aed/.
+Running-prefix verification accepted 64.60 / 64.69 awake hours
+for xredis and 23.36 / 23.36 for xmqtt on Windows / Ubuntu.
+All four endurance processes remained live. The strict release
+and TLS capacity gates stay open.
