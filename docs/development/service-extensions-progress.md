@@ -32295,3 +32295,65 @@ The separate continuous TCP replay verified 65.83 / 65.92 Redis
 awake hours and 24.58 / 24.59 MQTT awake hours in Windows /
 Ubuntu order. All four interval supervisors remained live.
 Matched performance and completed 72-hour qualification remain open.
+
+
+## 2026-11-27 Redis TLS worker posts on ciphertext drain
+
+The xredis TLS stream used the same callback for Writable and
+Drain. The candidate retained Writable and limited Drain to
+partial TLS writes and the conditions already used by the TCP
+callback for pending work. New submissions and returned
+in-flight credit retain their own scheduling. The candidate
+xredis single header regenerated identically on both platforms.
+Windows passed five modular and five single-header programs for
+TLS, observer accounting, leased ASKING and cache tracking.
+
+Native Windows IOCP and an AES-enabled Ubuntu x64 QEMU/WHPX
+epoll guest used the same private Redis 8.0.5 fixture and held
+the 5e4ef3a9 Core and observer inputs fixed. Windows reached it
+through an SSH relay and pinned its observers to CPUs 4 and 6.
+The Ubuntu observers used guest-local connections and CPUs 2
+and 3. The Windows functional build overlapped the Ubuntu
+campaign on the same physical host. Each load arm used TLS
+1.3 AES-128-GCM, eight RESP3 connections, 1,024 credits and
+1 KiB GET/SET values. Replay checked 48 trials, 1,176,000
+byte-exact replies including warmup, and both command ledgers.
+
+| Host | Offers/s | Paired process CPU ratio | Paired P99 ratio | Paired P99.9 ratio |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 0.989 | 1.004 | 0.985 |
+| Windows | 12,000 | 0.997 | 1.006 | 0.918 |
+| Ubuntu guest | 2,000 | 0.996 | 1.057 | 0.955 |
+| Ubuntu guest | 12,000 | 0.995 | 1.063 | 1.183 |
+
+Ratios are candidate over baseline. All throughput ratios
+met repeatability near 1.000. Process CPU includes the load
+generator and met repeatability except at 12,000/s on Windows.
+Only the two 12,000/s P99 series met tail repeatability.
+At that rate Ubuntu CPU outside the generator had a repeatable
+ratio of 0.988. Its P99 medians were 326.0 and 342.6 us.
+
+Eight separate Ubuntu syscall-counter trials verified 192,000
+replies. Per 24,000 replies the median epoll_wait count fell
+from 154,517 to 109,433, and all write calls fell from
+77,435 to 54,880. Both arms had 24,033 sendmsg, 48,074
+recvfrom and 48,083 epoll_ctl calls. Four low-rate stack and
+descriptor traces separately verified 3,200 replies. Each
+retained 817 EAGAIN reads in the TCP control task after TLS
+resume and eight during connection opening. Low-rate traced
+eventfd counts were similar between arms.
+
+The first Linux build lacked GCC after the guest reboot.
+The isolated guest installed the compiler and reran the
+build before collecting timing. The disposable peer and guest
+retired. Source, build receipts, raw trials and replays are
+under out/service-extensions/xredis-tls-drain-5e4ef3a9/.
+The candidate stays in the diagnostic snapshot given the
+small observed CPU benefit and the increased Ubuntu P99.
+
+Running TCP journals verified 66.09 / 66.18 Redis awake hours
+and 24.85 / 24.85 MQTT awake hours on Windows / Ubuntu. All
+four supervisors remained live. The Windows xcron interleaved
+campaign verified 11,910,144 callbacks in its first live
+repeat. Matched performance and the strict release gates
+remain open.
