@@ -31666,3 +31666,61 @@ under out/service-extensions/xredis-aes-backends-3e8a0a8f/.
 Running-prefix replay accepted 63.44/63.53 awake hours for
 Redis and 22.20/22.20 for MQTT on Windows/Ubuntu. All four
 endurance supervisors were live.
+
+
+## 2026-11-27 xredis comparison in an AES-enabled Ubuntu guest
+
+A separate Ubuntu 24.04.5 guest used kernel 6.8.0-147 and
+QEMU/WHPX with four vCPUs. It booted from the checked cloud
+image and a private writable overlay. The three explicitly
+requested AES-NI, PCLMUL and SSSE3 flags were observed in
+the guest. The four ongoing endurance processes continued
+in their existing environments.
+
+The run reused the exact previously verified Redis 8.0.5,
+xredis and Hiredis 1.3.0 binaries. The OpenSSL 3.0.13 shared
+libraries matched their recorded SHA-256 hashes. A separate
+xredis executable built the same capability probe as the
+Windows comparison. Its two diagnostic modes confirmed
+actual AES-GCM state masks 3 and 0 before timing.
+
+One private Redis peer used guest CPU 0. Observers shared
+a two-vCPU budget on CPUs 2 and 3 and connected over guest
+loopback. Each variant ran one warmup and five rotated
+four-second measurements with eight RESP3 connections,
+1,024 credits and 12,000 scheduled 1 KiB GET/SET requests/s.
+TLS retained the same verification and cipher profile.
+Independent replay checked all 36 rows, 1,512,000 exact
+replies, the command ledger, and all stored quantiles.
+
+| Observer | Process CPU us/reply | P99 us | P99.9 us |
+| --- | ---: | ---: | ---: |
+| xredis TCP | 117.22 | 247.7 | 403.2 |
+| Hiredis TCP | 83.33 | 151.7 | 324.4 |
+| xredis TLS | 128.20 | 285.5 | 451.6 |
+| Hiredis TLS | 83.33 | 233.5 | 405.8 |
+| xredis diagnostic, accelerated | 128.07 | 288.2 | 448.3 |
+| xredis diagnostic, software | 137.25 | 336.4 | 509.5 |
+
+Throughput ratios met repeatability near 1.000. The paired
+accelerated-to-stock TLS CPU ratio was 0.998, and the
+software-to-accelerated ratios were 1.074 for process CPU
+and 1.212 for CPU outside the generator. Both software
+ratios met repeatability. The paired stock-to-Hiredis CPU
+ratios were 1.407 for TCP and 1.539 for TLS, also repeatable.
+The TCP paired P99 and P99.9 ratios of 1.598 and 1.219 met
+repeatability. Both TLS reference tail ratios exceeded the
+variation limits. These comparisons scope the remaining CPU
+gap to this hosted Linux environment.
+
+Every observer reported the same 29.92 MiB peak RSS. A separate
+launcher experiment increased RSS by 128 MiB before spawning a
+fresh child. Child getrusage reported 11,520 then 142,592 KiB
+while its own /proc/self/status VmHWM stayed near 10,300 KiB.
+This reproduces inherited launcher peaks and makes the campaign's
+Linux peak RSS unsuitable for an xredis/Hiredis memory comparison.
+
+The private Redis peer retired. Build identities, VM configuration,
+raw traces and replay are under
+out/service-extensions/xredis-linux-aes-95e17ae7/. Strict performance
+acceptance remains open.
