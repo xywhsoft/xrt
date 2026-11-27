@@ -31300,3 +31300,61 @@ and replays are under out/service-extensions/xredis-tls-resume-489af9ea/.
 Running-prefix checks on the four existing binaries verified
 62.23/62.32 awake hours for Redis and 20.99/20.99 for MQTT on
 Windows/Ubuntu. All four endurance supervisors remained live.
+
+
+## 2026-11-27 Windows MQTT 5 fan-out at 8,000 connections
+
+The 8,000-connection profile uses the current 2276e4ed xmqtt
+broker and the same pinned Mosquitto 2.1.2 and observer as the
+1,000- and 10,000-connection comparisons. Both brokers used
+two logical CPUs and a separate two-CPU observer budget. One
+publisher and eight wildcard subscribers ran beside 7,991 idle
+peers with MQTT 5 QoS 2, 128-byte payloads and windows of 16.
+Each of five alternating pairs scheduled 32,000 offers at
+4,000/s after 600 warmup publications.
+
+The five xmqtt trials passed both idle PING barriers. Replay
+verified 160,000 publication confirmations and 1,280,000
+subscriber deliveries. The median rates were 3,999.971
+confirmations/s and 31,999.767 deliveries/s. Delivery P99
+was 325.6 us and met the variation limit. P99.9 was 1,085.2 us
+and exceeded it. Median idle RSS was 25.14 MiB.
+
+All five Mosquitto trials passed the initial 7,991-idle-peer
+barrier and reached the active observer. The observer hit the
+28.15-second outer timeout in each case. Exact confirmations
+and deliveries are unavailable for these trials. Paired tail
+and throughput ratios require complete measurements. The
+10,000-peer admission boundary on the Windows reference is
+documented separately by the Windows CRT initialization and
+the polling table's listener slot.
+[Mosquitto startup](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mosquitto.c#L412-L419),
+[Mosquitto polling table](https://github.com/eclipse-mosquitto/mosquitto/blob/v2.1.2/src/mux_poll.c#L59-L94).
+
+A separate observer prototype applies one absolute offer
+deadline five seconds after the end of the scheduled arrivals.
+Slow confirmations can keep renewing the existing inactivity
+wait. The prototype bounds the single-publisher credit wait
+and the multi-publisher scheduling loop and uses the existing
+partial measurement ledger on failure. It passed the scripted
+observer suite on Windows and Ubuntu. In a real loopback
+protocol fixture acknowledging fewer than five offers/s, the
+last candidate PUBLISH was observed between 5.10 and 5.36 s
+with either one or two publishers. The stock observer still
+offered traffic after 7.28 s. On both platforms the candidate
+reported 22 or 23 sends, 21 confirmations and 21 deliveries.
+The Windows peer allowed the offer observation window to
+finish before closing its sockets to release blocked receives.
+The first test expected observer retirement within that window
+and failed before collecting the ledger.
+
+The 8,000-peer Windows shared and exact-filter runs are under
+the same live controller. The Ubuntu comparison is queued
+behind that controller so the load campaigns run sequentially.
+The bounded-offer prototype remains in the test snapshot.
+Commands, reports, logs and replay are under
+out/service-extensions/xmqtt-live-8000-1af8ef79/.
+
+Running-prefix replay verified 62.47/62.56 awake hours for
+Redis and 21.22/21.23 for MQTT on Windows/Ubuntu. All four
+endurance supervisors remained live.
