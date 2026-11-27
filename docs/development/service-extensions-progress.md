@@ -31509,7 +31509,7 @@ verified against the live process and exact-input receipt.
 
 ## 2026-11-27 xrpc shared and connection-sharded APP executors
 
-Windows x64 IOCP and Ubuntu x86_64 QEMU/WHPX epoll compared the
+Windows x64 and Ubuntu x86_64 QEMU/WHPX used blocking XRT sockets to compare the
 mainline TCP APP's two-thread executor with two one-thread executors.
 The prototype assigned each accepted connection to one shard for its
 lifetime. Each shard had 16 queue slots, matching the shared arm's
@@ -32799,3 +32799,75 @@ prefixes verified 5,686,272 and 5,320,704 additional
 callbacks respectively. Ordinary xcron maturity passed.
 The strict audit still reports two developing modules.
 Release timing requires the uninstrumented paired tails.
+
+## 2026-11-27 xrpc executor scaling on native Windows and Linux
+
+The canonical TCP worker APP built from 62fb72fe on
+Windows x64 and on the six-vCPU Ubuntu QEMU/WHPX guest.
+The builds selected the same public modules and used
+the same blocking XRT socket API. Both passed the
+independent peer tests, including 7,936 verified healthy
+replies per mode around a reset at the 32-peer limit.
+Both hosts also passed all 12 observer tests with the
+native verifier loaded.
+
+The two hosts ran sequentially. Each APP had four CPUs
+and two additional CPUs ran the two native observer
+shards. The Windows mask used six distinct physical
+cores. The guest QEMU process used the same host CPU
+mask for all runs. Within each host the same APP binary
+ran with one, two, four and eight executor workers.
+Five rotated samples per worker count and mode offered
+64,000 calls/s for four seconds with 32 staggered
+connections, eight records per write and a 16-group
+window per peer. Each APP reconciled 258,048 jobs,
+including warmup. Replay checked all 80 trials and
+20,480,000 byte-verified measured replies. APP CPU
+comes from GetProcessTimes on Windows and wait4 on
+Linux through process retirement.
+
+| Host | Mode | P99 µs at 1 / 2 / 4 / 8 workers | P99.9 µs | APP CPU s |
+| --- | --- | --- | --- | --- |
+| Windows | Duplex | 272 / 262 / 252 / 250 | 434 / 388 / 356 / 349 | 4.63 / 5.02 / 5.17 / 5.05 |
+| Windows | Dispatch only | 248 / 244 / 239 / 240 | 433 / 372 / 347 / 344 | 4.23 / 4.61 / 4.72 / 4.69 |
+| Ubuntu guest | Duplex | 632 / 679 / 908 / 1,334 | 972 / 988 / 1,274 / 1,928 | 6.82 / 7.53 / 7.96 / 8.26 |
+| Ubuntu guest | Dispatch only | 599 / 645 / 792 / 1,123 | 952 / 961 / 1,111 / 1,576 | 6.12 / 7.18 / 7.71 / 8.08 |
+
+All paired throughput ratios met repeatability near
+1.000. Compared with two workers, the Ubuntu duplex
+four-worker P99 ratio of 1.344 and the eight-worker
+P99.9 ratio of 1.924 met repeatability. The two ratios
+for APP CPU were 1.057 and 1.098 and also met it.
+The Ubuntu one-worker duplex CPU ratio of 0.908 met
+repeatability. Its paired tail ratios did not.
+The Windows duplex four- and eight-worker P99 ratios
+were 0.961 and 0.957 and met repeatability. Their
+P99.9 ratios did not. The default stays at two workers.
+
+The replay split each slowest 0.1% reply's scheduled
+latency at first send and at that write's first reply.
+In Ubuntu duplex the median summed share after the
+first reply increased from 62.7% at two workers to
+76.4% at eight. The share before first send was 2.2%
+and 0.6%. This points to processing and observing the
+remaining records of an already started group for
+this workload. The phase includes socket observation
+and does not isolate a particular APP queue.
+
+The initial Ubuntu observer test used the wrong
+environment variable and skipped three native cases.
+The corrected run exercised all 12. The initial
+source replay assumed uniform line endings. The
+verified replay matches the raw checkout or archived
+input to the compiler receipt before normalizing
+for comparison to Git. Receipts, executable and raw
+timing records and replay are under
+out/service-extensions/xrpc-native-workers-62fb72fe/.
+The separate diagnostic guest retired.
+
+The four continuous TCP supervisors remained live.
+Running-prefix replay verified 68.02 / 68.11 Redis
+awake hours and 26.78 / 26.78 MQTT awake hours on
+Windows / Ubuntu. Ordinary xrpc maturity passed.
+Strict mode still reports xrpc and xrpc_duplex as
+developing. The broader release tail gate remains open.
