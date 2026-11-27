@@ -15869,6 +15869,70 @@ static void xmqttServerCloseNative(xmqttserverpeer* Peer)
 #endif
 }
 
+static void xmqttServerRetireWrite(xmqttserveroutput* Out, size_t* Budget)
+{
+	xmqttserverwrite* Write = Out->Head;
+	Out->Head = Write->Next;
+	if (!Out->Head) Out->Tail = &Out->Head;
+	size_t Charge = sizeof(*Write) + Write->Size;
+	Out->Queued -= Charge;
+	*Budget -= Charge;
+	xrtMutexUnlock(&Out->Gate);
+	xmqttServerReleaseWrite(Write);
+	xrtMutexLock(&Out->Gate);
+}
+
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS) && defined(__linux__)
+enum { XMQTT_SERVER_TLS_GROUP_BYTES = 2048, XMQTT_SERVER_TLS_GROUP_WRITES = 16 };
+
+/* Group writes already queued for Linux TLS within the current drive budget. */
+static xnetresult xmqttServerSendTlsGroup(xmqttserverpeer* Peer, size_t Budget,
+	size_t* Offered, size_t* Sent)
+{
+	xmqttserveroutput* Out = Peer->Output;
+	const xmqttserverwrite* Write = Out->Head;
+	size_t Size = 0;
+	unsigned Count = 0;
+	for (const xmqttserverwrite* Item = Write; Item && Count < XMQTT_SERVER_TLS_GROUP_WRITES; Item = Item->Next) {
+		if (sizeof(*Item) + Item->Size > Budget || Item->Size > XMQTT_SERVER_TLS_GROUP_BYTES - Size) break;
+		Size += Item->Size;
+		Budget -= sizeof(*Item) + Item->Size;
+		++Count;
+	}
+	if (Count < 2) return XNET_RESULT_AGAIN;
+
+	unsigned char Plain[XMQTT_SERVER_TLS_GROUP_BYTES];
+	size_t Offset = 0;
+	for (unsigned Index = 0; Index < Count; ++Index, Write = Write->Next) {
+		for (size_t I = 0; I < Write->Count; ++I) {
+			const xnetref* Part = Write->Parts + I;
+			if (Part->Size) memcpy(Plain + Offset, Part->Data, Part->Size);
+			Offset += Part->Size;
+		}
+	}
+	*Offered = Size;
+	xrtMutexUnlock(&Out->Gate);
+	xtlsresult Result = xrtTlsStreamSend(Peer->Tls, Plain, Size, Sent);
+	xrtMutexLock(&Out->Gate);
+	return Result == XTLS_OK ? XNET_RESULT_OK :
+		Result == XTLS_AGAIN ? XNET_RESULT_AGAIN : XNET_RESULT_ERROR;
+}
+
+static void xmqttServerConsumeTlsGroup(xmqttserveroutput* Out, size_t* Budget, size_t Sent)
+{
+	while (Sent && !Out->Closed) {
+		xmqttserverwrite* Write = Out->Head;
+		size_t Remaining = Write->Size - Write->Written;
+		if (Sent < Remaining) {
+			Write->Written += Sent;
+			break;
+		}
+		Sent -= Remaining;
+		xmqttServerRetireWrite(Out, Budget);
+	}
+}
+#endif
+
 static void xmqttServerDriveOutput(xmqttserverpeer* Peer)
 {
 	xmqttserveroutput* Out = Peer->Output;
@@ -15878,10 +15942,23 @@ static void xmqttServerDriveOutput(xmqttserverpeer* Peer)
 	size_t Budget = Out->Queued;
 	while (Budget && Out->Head && !Out->Closed) {
 		xmqttserverwrite* Write = Out->Head;
-		xrtMutexUnlock(&Out->Gate);
 		size_t Sent = 0;
-		xnetresult Result = xmqttServerWriteNative(Peer, Write, &Sent);
-		xrtMutexLock(&Out->Gate);
+		xnetresult Result;
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS) && defined(__linux__)
+		size_t Group = 0;
+		if (Write->Next && !Write->Written && Peer->Tls
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_WS)
+			&& !Peer->Ws
+#endif
+			)
+			Result = xmqttServerSendTlsGroup(Peer, Budget, &Group, &Sent);
+		if (!Group)
+#endif
+		{
+			xrtMutexUnlock(&Out->Gate);
+			Result = xmqttServerWriteNative(Peer, Write, &Sent);
+			xrtMutexLock(&Out->Gate);
+		}
 		if (Out->Closed) break;
 		if (Result != XNET_RESULT_OK && Result != XNET_RESULT_AGAIN) {
 			xrtMutexUnlock(&Out->Gate);
@@ -15889,16 +15966,16 @@ static void xmqttServerDriveOutput(xmqttserverpeer* Peer)
 			xmqttServerAbortTransport(Peer);
 			return;
 		}
+#if defined(XMQTT_FEATURE_XMQTT_SERVER_TLS) && defined(__linux__)
+		if (Group) {
+			xmqttServerConsumeTlsGroup(Out, &Budget, Sent);
+			if (Sent != Group) break;
+			continue;
+		}
+#endif
 		Write->Written += Sent;
 		if (Write->Written != Write->Size) break;
-		Out->Head = Write->Next;
-		if (!Out->Head) Out->Tail = &Out->Head;
-		size_t Charge = sizeof(*Write) + Write->Size;
-		Out->Queued -= Charge;
-		Budget -= Charge;
-		xrtMutexUnlock(&Out->Gate);
-		xmqttServerReleaseWrite(Write);
-		xrtMutexLock(&Out->Gate);
+		xmqttServerRetireWrite(Out, &Budget);
 	}
 	bool Finish = Out->Finishing && !Out->Head && !Out->Closed;
 	if (Finish) Out->Finishing = false;

@@ -32430,3 +32430,61 @@ Running TCP journals verified 66.34 / 66.44 Redis awake
 hours and 25.10 / 25.11 MQTT awake hours in Windows /
 Ubuntu order. All four supervisors remained live.
 The strict release gates remain open.
+
+
+## 2026-11-27 Linux TLS broker output grouping
+
+The backlog candidate required 512 complete plaintext bytes
+before grouping. Windows and the AES-enabled Ubuntu QEMU/WHPX
+guest passed the 511/512 byte boundary, partial acceptance,
+zero-credit retry, close and release fixtures. The independent
+TLS peer passed both MQTT versions and quota recovery. Replay
+checked 40 long trials, 1,280,000 offers, 21 quota refusals
+and 10,239,832 byte-verified deliveries. All refusals were
+observed on Windows.
+
+Windows 2,000/s trial P99.9 medians were 2.071 and 1.967 ms
+in baseline/candidate order. Paired tails exceeded variation
+limits. At 8,000 offers/s the repeatable Windows paired CPU
+ratio was 0.988. On Ubuntu the paired 8,000/s ingress, CPU,
+P99 and P99.9 ratios were 1.008, 0.992, 0.981 and 0.980
+and met repeatability. Eight separate syscall trials verified
+96,000 offers and 768,000 deliveries. At 8,000/s the median
+sendmsg count per 12,000 measured offers fell from 225,260
+to 221,745. The earlier unthresholded candidate reached
+162,852. The 512-byte candidate remains in the diagnostic
+snapshot given the limited benefit.
+
+The broker now groups up to sixteen already queued complete
+writes and 2,048 bytes on Linux native TLS. It respects the
+existing drive budget and consumes the accepted prefix in
+order. On Windows and WebSocket the existing per-write path
+continues. The exact amended source generated the same
+Linux TLS broker binary as the unthresholded performance
+candidate. Its prior sustained 8,000/s cohort had repeatable
+paired ingress, CPU, P99 and P99.9 ratios of 1.026, 0.911,
+0.934 and 0.932.
+
+Both platforms verified the generated header, the modular
+session-store test and the TLS, WS/WSS and session-store
+single-header programs. Independent TLS peers passed against
+the final binaries. The eight 142-byte publications used one
+TLS record on Linux. Windows emitted the same sixteen records
+as its baseline. A focused Linux retry and retirement fixture
+also passed. The initial parity check encountered a copied
+header with different line endings, then a missing dev/bench
+header in the guest snapshot. Native regeneration matched the
+normalized Windows-generated header, and the build used the
+archived support files before the final rerun.
+
+The original build receipts and exact preprocessor commands
+for the two active MQTT TCP runs replayed identical output
+after selecting the current Core and MQTT headers. The
+diagnostic guest retired. Replays, build logs and source
+receipts are under
+out/service-extensions/xmqtt-tls-backlog-a746f437/.
+
+Running TCP journals verified 66.66 / 66.75 Redis awake
+hours and 25.42 / 25.42 MQTT awake hours on Windows / Ubuntu.
+All four endurance supervisors remained live. The strict
+release gates remain open.
