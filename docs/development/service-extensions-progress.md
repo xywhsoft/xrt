@@ -32662,3 +32662,71 @@ The TCP journals verified 67.39 / 67.48 Redis awake hours
 and 26.15 / 26.15 MQTT awake hours on Windows / Ubuntu.
 All four supervisors remained live. The strict release
 and performance gates remain open.
+
+## 2026-11-27 MQTT TLS on epoll and io_uring
+
+The TCP and TLS Broker examples now use the same APP
+backend setting. The Windows examples built on master,
+rejected an invalid backend name with exit code 2 and
+ran in auto mode. The TLS peer passed fragmentation,
+MQTT 5 and 3.1.1, QoS 1 and 2, takeover and quota recovery.
+
+Ubuntu x64 in the six-vCPU AES-enabled QEMU/WHPX guest
+built the shared xmqtt_examples SDK with net_port_uring
+explicitly selected. Its package consumer passed. Both
+backends used the same linked TLS example, libxmqtt.so and
+libxrt.so. Replay verified the loaded library paths and
+214 compiled source inputs against 009423b8. Each trial
+observed exactly two epoll descriptors or two io_uring
+descriptors on the live Broker. Both backends passed the
+independent TLS peer, including ordered recovery after
+quota exhaustion and a fragmented terminal acknowledgement.
+
+The two Broker workers shared guest CPUs 0, 3, 4 and 5.
+The balanced observer used guest CPUs 1 and 2 and four
+publishers, eight wildcard subscribers, 128-byte payloads
+and publisher/subscriber windows of 16. Five alternating
+pairs at each rate used authenticated TLS 1.3 and MQTT 5
+QoS 2. Replay verified all 20 trials, 360,000 confirmed
+publications, no quota refusals and 2,880,000 deliveries.
+
+| Offers/s | Backend | Accepted/s | Broker CPU s | Peak RSS MiB | Delivery P99 ms | P99.9 ms |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 4,000 | epoll | 3,999 | 3.27 | 4.12 | 5.097 | 7.121 |
+| 4,000 | io_uring | 3,999 | 3.49 | 4.88 | 7.602 | 9.733 |
+| 8,000 | epoll | 6,199 | 4.81 | 4.14 | 863.091 | 870.559 |
+| 8,000 | io_uring | 6,222 | 5.11 | 4.99 | 842.098 | 854.281 |
+
+The table gives trial medians. The paired io_uring to
+epoll throughput ratios were 1.000 and 0.980. CPU ratios
+were 1.067 and 1.077 and peak RSS ratios were 1.184 and
+1.207. These six paired ratios met repeatability. Delivery
+P99 and P99.9 ratios exceeded the variation limits at both
+rates. At 8,000/s median offer pacing P99 was 862.372 ms
+with epoll and 841.200 ms with io_uring. This accounts
+for most of each end-to-end P99. The TLS Broker keeps
+epoll as the Linux default.
+
+A separate syscall campaign verified 72,000 confirmations
+and 576,000 deliveries in six runs. Per 12,000 scheduled
+offers, epoll medians were 161,141 sendmsg, 202,121 recvfrom,
+180,951 epoll_wait and 198,974 epoll_ctl calls. io_uring had
+zero of those calls and 157,933 io_uring_enter calls.
+Median write calls rose from 101,158 to 117,809. Removing
+these socket and readiness syscalls through backend
+selection did not reduce measured Broker CPU.
+
+The first Windows build requested a nonexistent test suite.
+The corrected module selection built both examples. The first
+Ubuntu APP link used an include path absent in raw package
+output. The rerun used the project headers and the previous
+SDK consumer's feature definitions plus net_port_uring.
+Independent replay, loader receipts, raw trials and the
+retired diagnostic guest record are under
+out/service-extensions/xmqtt-tls-backends-73a45020/.
+
+The four continuous TCP supervisors remained live. Journal
+replay verified 67.63 / 67.72 Redis awake hours and
+26.39 / 26.39 MQTT awake hours on Windows / Ubuntu.
+The ordinary MQTT maturity check passed. Strict performance
+and release acceptance remain open.
