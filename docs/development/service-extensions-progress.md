@@ -32529,3 +32529,69 @@ reported 2 developing modules for xcron, 2 for xrpc, 29 for
 xredis and 39 for xmqtt. Running TCP journal replay verified
 66.92 / 67.01 awake hours for Redis and 25.68 / 25.69 for
 MQTT on Windows / Ubuntu. All four supervisors remained live.
+
+
+## 2026-11-27 Packaged MQTT TLS broker against Mosquitto
+
+Native Windows x64 and an AES-enabled Ubuntu x64 QEMU/WHPX
+guest compared the relocated c12cb87a shared SDK broker with
+the pinned Mosquitto 2.1.2 executable and its verified OpenSSL
+runtime. Both brokers used the same CPU mask within a host.
+Xmqtt used two workers and the balanced two-worker observer
+had separate CPUs. Four publishers and eight wildcard
+subscribers used MQTT 5 QoS 2, TLS 1.3 AES-128-GCM, 128-byte
+payloads, windows of 16 and a common verified leaf certificate.
+The broker limits were 1,024 connections, 16 KiB packets
+and 256 queued plus in-flight deliveries per subscriber.
+Both ran with volatile protocol state.
+
+Five alternating pairs at 2,000, 4,000, 6,000 and 8,000
+scheduled offers/s per host attempted 1,440,000 offers.
+Replay matched the binary and library hashes, reference
+settings, observer worker placement, complete delivery
+ledgers and partial-result logs for all 80 trials. The 64
+complete trials offered 1,056,000 publications, returned two
+quota refusals and verified 8,447,984 deliveries.
+
+| Host | Offers/s | Complete xmqtt / Mosquitto | Accepted/s median xmqtt / Mosquitto | Delivery P99 ms median xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 5 / 5 | 2,000 / 2,000 | 1.034 / 1.005 |
+| Windows | 4,000 | 5 / 5 | 4,000 / 3,999 | 3.040 / 4.030 |
+| Windows | 6,000 | 5 / 0 | 5,999 / | 3.692 / |
+| Windows | 8,000 | 5 / 0 | 7,997 / | 6.544 / |
+| Ubuntu guest | 2,000 | 5 / 5 | 2,000 / 2,000 | 2.549 / 3.565 |
+| Ubuntu guest | 4,000 | 5 / 5 | 3,999 / 3,999 | 9.652 / 7.745 |
+| Ubuntu guest | 6,000 | 5 / 4 | 5,096 / 5,992 | 696.122 / 24.654 |
+| Ubuntu guest | 8,000 | 5 / 0 | 5,127 / | 1,664.467 / |
+
+All 16 incomplete reference trials confirmed 24,000 offers
+at the publisher and logged outgoing drops. The observer
+then rejected the partial subscriber ledger. For example,
+Windows reference at 8,000/s verified 122,905 to 140,268
+of 192,000 expected deliveries per trial. Ubuntu reference
+at that rate verified 190,027 to 191,905. Results above
+use the complete runs in each arm.
+
+The matched Windows 4,000/s P99 ratio was a repeatable 0.753
+and peak RSS ratio was a repeatable 0.477. Its paired CPU
+ratio of 1.202 exceeded the variation limit. Ubuntu 2,000/s
+and 4,000/s CPU cost per delivery ratios were 1.536 and 1.573
+and met repeatability. Ubuntu's paired latency ratios at
+those rates exceeded the variation limits. At 6,000/s the
+xmqtt observer's median pacing P99 was 695.133 ms and
+its publisher P99 measured from actual send was 3.011 ms.
+The fixed-arrival tail includes the accumulated time before
+the observer could issue the publications.
+
+The first guest loader check split the relocated libcjson
+path at its space. Reading the full resolved path restored
+the exact digest match before timing. Package receipts,
+pinned executables, reference configurations, raw rows
+and replays are under
+out/service-extensions/xmqtt-sdk-reference-44b463ec/.
+The diagnostic guest retired after capture.
+
+Running TCP replay verified 67.20 / 67.29 Redis awake
+hours and 25.96 / 25.96 MQTT awake hours on Windows /
+Ubuntu. All four supervisors remained live. Strict
+performance and release acceptance remain open.
