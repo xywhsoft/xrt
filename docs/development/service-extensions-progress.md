@@ -31047,3 +31047,38 @@ repetitions per drive. The supervisor and correctly pinned child
 were live at verification. Raw samples, clock records and replay
 are under out/service-extensions/xrpc-release-080d04f2/scheduler/.
 Scheduler tail acceptance remains open.
+
+
+## 2026-11-27 Current MQTT runtime and relocated SDK replay
+
+Windows x64 and Ubuntu x86_64 QEMU/WHPX tested 2276e4ed.
+The Windows mainline checkout has the identical MQTT and core
+input tree. Both hosts passed all 38 modular and 67 single-header
+runtime programs. The native Ubuntu run compiled single-header
+programs in batches to bound tmpfs usage. Independent replay
+verified all 210 executable digests and both manifest orders.
+The Linux test archive was mirrored and verified before freeing
+the temporary guest copy.
+
+The same broker revision passed aggregate QoS 2 retirement with
+two workers and 10,000 concurrent connections on both hosts.
+The independent peer filled 16,384 credits, verified a quota
+response, reset a full TCP recipient and completed a healthy
+exchange. A replacement reused exactly 256 credits. The test drained
+all 16,128 surviving deliveries in order after a second reset.
+
+Each host passed two static and two shared package profiles,
+the relocated package consumers and ten APP builds. Shared
+APPs resolved the packaged XRT and MQTT libraries. Independent
+peers verified both protocol versions, the four same-QoS wire
+boundaries, enhanced authentication over TCP, TLS, WS and WSS,
+and checkpoint recovery with a change of transport.
+
+The new 60-hour Windows system-awake request runs alongside
+the earlier request. Both host clock witnesses watched the same
+QEMU process, with more than 17 minutes of verified overlap. The request
+extends through the current MQTT candidate's 72-hour window.
+The active Redis and MQTT workloads kept their existing
+binaries and journals. Exact build, runtime and clock evidence
+is under out/service-extensions/xmqtt-runtime-2276e4ed/.
+Matched release performance and completed endurance remain open.
