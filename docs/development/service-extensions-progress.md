@@ -31126,3 +31126,47 @@ attempt ended before the workload started. The failure logs,
 command receipts and independent replay are under
 out/service-extensions/xmqtt-live-peer-compare-2868a9ba/.
 Broader performance acceptance remains open.
+
+
+## 2026-11-27 Active broker worker placement at 10,000 connections
+
+The Ubuntu QEMU/WHPX fixture uses the current 2276e4ed MQTT
+and core sources. The APP opens an ordinary round-robin idle
+listener and three active listeners through public XRT APIs.
+It keeps 9,991 idle peers and fixes the publisher to worker 0.
+The subscriber listener places eight subscribers on worker 0,
+four on each worker, or all eight on worker 1. Attachment
+counters and PING barriers verify those placements and every
+idle peer. All modes use two engine workers and the same
+broker and observer CPU budgets.
+
+Five rotated trials per placement scheduled 32,000 MQTT 5
+QoS 2 publications at 4,000/s to eight wildcard subscribers.
+Replay verified 480,000 confirmations and 3,840,000 deliveries.
+
+| Subscriber placement | Broker CPU (s) | Delivery P99 (ms) | Delivery P99.9 (ms) |
+| --- | ---: | ---: | ---: |
+| All on publisher worker | 4.85 | 1.272 | 2.568 |
+| Four per worker | 6.04 | 1.096 | 2.260 |
+| All on opposite worker | 5.55 | 1.195 | 2.518 |
+
+Paired CPU ratios to the four-per-worker mode were 0.796 and
+0.917, both repeatable. The paired ingress ratios were close
+to one and repeatable. Both paired tail distributions exceeded
+the variation limits.
+
+A separate full-load trace for each mode completed its wire
+ledger. All three issued 586,826 sendmsg calls. In table order,
+eventfd writes were 31,868, 64,648 and 31,176, and epoll waits
+were 174,271, 413,825 and 298,114. Futex calls were 1, 8,332
+and 1,444. These counts show greater control work when active
+subscribers are split across both workers. Each trace counter
+reported full enabled coverage. The first profiling driver
+failed when select received a high-numbered control descriptor
+after opening the idle sockets. Poll handled that descriptor in
+the successful retry.
+
+The placement probe, source receipts, interrupted attempts and
+replay are under out/service-extensions/xmqtt-worker-placement-07bc9d3e/.
+The test used an APP fixture. Product performance acceptance and
+the running endurance intervals remain open.
