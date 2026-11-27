@@ -52,15 +52,7 @@ int main(int Argc, char** Argv)
 	Config.Allow311 = true;
 #endif
 	serverexample Example = {0};
-	const char* Backend = getenv("XMQTT_EXAMPLE_BACKEND");
-	if (Backend && strcmp(Backend, "auto")) {
-		if (!strcmp(Backend, "epoll")) Example.Backend = XNET_PORT_EPOLL;
-		else if (!strcmp(Backend, "uring")) Example.Backend = XNET_PORT_URING;
-		else {
-			fputs("XMQTT_EXAMPLE_BACKEND requires auto, epoll or uring\n", stderr);
-			return 2;
-		}
-	}
+	if (!exampleServerSelectBackend(&Example)) return 2;
 	const char* ReadMode = getenv("XMQTT_EXAMPLE_READ_MODE");
 	if (ReadMode && !strcmp(ReadMode, "direct")) Example.ReadMode = XNET_STREAM_READ_DIRECT;
 	else if (ReadMode && strcmp(ReadMode, "adaptive")) {

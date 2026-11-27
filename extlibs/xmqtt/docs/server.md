@@ -599,6 +599,9 @@ python tools/build.py --manifest extlibs/xmqtt/config/modules.json --suite xmqtt
 ```
 
 Run the produced `examples_server_tls` with `certificate.der key.der`.
+The TCP and TLS examples both accept `XMQTT_EXAMPLE_BACKEND` values
+`auto`, `epoll` and `uring`. On Linux, add `,net_port_uring` to the
+selected build suite and use a kernel with io_uring enabled to select `uring`.
 The interop script `extlibs/xmqtt/tests/interop/run_server_tls.py` accepts the
 example path, a credentials directory containing those files and the trusted
 `certificate.pem`, and a JSON report path. Optional `--ping-samples 1000`

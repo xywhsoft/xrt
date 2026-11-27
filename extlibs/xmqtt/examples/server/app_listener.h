@@ -6,6 +6,8 @@
 #include <xrt/thread.h>
 #include <xrt/time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef struct serverexample {
 	xmqttserver* Server;
@@ -29,6 +31,19 @@ typedef struct serverexample {
 	bool RequireMethod;
 #endif
 } serverexample;
+
+static inline bool exampleServerSelectBackend(serverexample* Example)
+{
+	const char* Backend = getenv("XMQTT_EXAMPLE_BACKEND");
+	if (!Backend || !strcmp(Backend, "auto")) return true;
+	if (!strcmp(Backend, "epoll")) Example->Backend = XNET_PORT_EPOLL;
+	else if (!strcmp(Backend, "uring")) Example->Backend = XNET_PORT_URING;
+	else {
+		fputs("XMQTT_EXAMPLE_BACKEND requires auto, epoll or uring\n", stderr);
+		return false;
+	}
+	return true;
+}
 
 #if defined(XMQTT_EXAMPLE_SERVER_WS)
 static bool exampleServerWsAccept(serverexample* Example, xnetstream* Stream);

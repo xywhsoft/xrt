@@ -22,6 +22,8 @@ int main(int Argc, char** Argv)
 		puts("usage: examples_server_tls certificate.der rsa-private-key.der [--compare [--workers 1..64]]");
 		return Argc == 1 ? 0 : 1;
 	}
+	serverexample Example = {0};
+	if (!exampleServerSelectBackend(&Example)) return 2;
 	xtlsserverconfig Tls;
 	if (!exampleServerLoadTls(&Tls, Argv[1], Argv[2])) return 1;
 
@@ -30,7 +32,7 @@ int main(int Argc, char** Argv)
 #if defined(XMQTT_FEATURE_XMQTT_CODEC311)
 	Config.Allow311 = true;
 #endif
-	serverexample Example = {.Tls = &Tls};
+	Example.Tls = &Tls;
 	char Endpoint[80];
 	bool Ready = exampleServerStart(&Example, &Config, Workers) &&
 		xrtNetAddrEndpointText(&Example.Address, Endpoint, sizeof(Endpoint));
