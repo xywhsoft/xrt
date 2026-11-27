@@ -31834,3 +31834,58 @@ the checkpoint. Running-prefix verification accepted
 63.92/64.01 awake hours for Redis and 22.68/22.68 for MQTT
 on Windows/Ubuntu. All four endurance supervisors were live.
 The strict performance gates remain open.
+
+
+## 2026-11-27 MQTT TLS observer worker placement
+
+The AES-enabled Ubuntu QEMU/WHPX guest ran the same xmqtt and
+Mosquitto 2.1.2 brokers with one diagnostic observer binary.
+The observer selected one TLS worker, two TLS workers with
+alternating connections, or two TLS workers with subscriber
+and publisher roles separated. It checked each opened TLS
+stream's TCP worker through the public XRT API and recorded the
+12 connection assignments before timing. Each layout passed
+the independent TLS observer fixtures, including identity
+rejection, QoS ordering, acknowledgement batching and deadlines.
+
+The two broker CPUs and two observer CPUs stayed fixed. Each
+trial offered 8,000 measured MQTT 5 QoS 2 publications after
+512 warmups, using four publishers, eight wildcard subscribers,
+128-byte payloads, and publisher and subscriber windows of 16.
+Each broker/layout/rate combination had five rotated repetitions.
+Replay matched the canonical sources and binaries, all 60 trial
+records, and 440,000 confirmations and 3,520,000 deliveries
+from 55 complete trials. The table uses complete-trial medians.
+
+| Scheduled/s | TLS observer placement | Complete xmqtt / Mosquitto | Confirmed/s xmqtt / Mosquitto | Delivery P99 ms xmqtt / Mosquitto |
+| ---: | --- | ---: | ---: | ---: |
+| 4,000 | One worker | 5 / 5 | 3,547 / 3,998 | 262.831 / 5.364 |
+| 4,000 | Two, alternating | 5 / 5 | 3,998 / 3,997 | 9.663 / 7.539 |
+| 4,000 | Two, split by role | 4 / 5 | 3,997 / 3,997 | 3.465 / 3.344 |
+| 8,000 | One worker | 5 / 5 | 3,437 / 5,137 | 1,319.289 / 551.795 |
+| 8,000 | Two, alternating | 5 / 5 | 4,656 / 5,900 | 708.728 / 354.266 |
+| 8,000 | Two, split by role | 4 / 2 | 7,975 / 7,966 | 18.920 / 17.111 |
+
+The 8,000/s xmqtt alternating-to-single paired throughput
+ratio was 1.355 and met repeatability. With two alternating
+workers at that rate, the xmqtt-to-Mosquitto ratios for
+throughput, P99, P99.9 and broker process CPU were 0.794,
+1.973, 1.957 and 1.700. All four met repeatability. At
+4,000/s the alternating layout reached a repeatable paired
+throughput ratio near 1.000 against Mosquitto. Its paired
+tail ratios exceeded the variation limits.
+
+All five incomplete trials used the role split. The two
+xmqtt runs returned PUBREC reason 0x97. The three Mosquitto
+runs failed the subscriber delivery check. The retained
+partial ledgers preserve sends, confirmations and deliveries.
+The faster observer exposes broker pressure that can be
+masked by a single observer worker. Strict TLS performance
+acceptance remains open.
+
+The credential fixture and dedicated guest retired. Sources,
+build hashes, connection maps and replay are under
+out/service-extensions/xmqtt-observer-placement-adb9f505/.
+Running-prefix replay accepted 64.07/64.16 hours for Redis and
+22.83/22.83 for MQTT on Windows/Ubuntu. All four endurance
+supervisors were live.
