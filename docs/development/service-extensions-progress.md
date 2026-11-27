@@ -32730,3 +32730,72 @@ replay verified 67.63 / 67.72 Redis awake hours and
 26.39 / 26.39 MQTT awake hours on Windows / Ubuntu.
 The ordinary MQTT maturity check passed. Strict performance
 and release acceptance remain open.
+
+## 2026-11-27 xcron Linux timer expiry and runnable delay
+
+A separate six-vCPU Ubuntu QEMU/WHPX guest ran the three
+interleaved drives with 1,024 jobs pinned to vCPU 0.
+The benchmark captured monotonic wait entry and return
+timestamps alongside the existing callback checks. A
+guest-local tracefs instance used the monotonic trace clock.
+Replay matched each wait to its kernel timer arm and expiry
+by timer identity, then to the benchmark thread's sched_waking
+and first sched_switch. There were no dropped trace events.
+The benchmark ran unprivileged. The fixture elevated only
+the tracer and set a separate, time-bounded pulse process to
+SCHED_FIFO for the occupied-CPU control.
+
+The idle trace matched all 120 waves and 122,880
+callbacks. The occupied trace matched all 36 waves and
+36,864 callbacks. Times below are medians in microseconds.
+Timer handling is measured from the kernel's earliest
+expiry to the expiry tracepoint. The kernel recorded a
+50 µs range from earliest to latest expiry. The time from
+sched_waking to switch includes scheduler wake processing
+and time waiting for CPU.
+
+| Condition | Drive | Timer handling | Waking to switch | Switch to waiter return | Waiter return to first callback |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Idle | Scheduler Wait | 69.9 | 10.0 | 8.9 | 2.5 |
+| Idle | Waiter + Scheduler Poll | 74.0 | 11.0 | 8.6 | 3.4 |
+| Idle | Direct waiter | 73.0 | 10.5 | 8.6 | 1.5 |
+| Occupied | Scheduler Wait | 52.9 | 2,979.5 | 8.6 | 2.8 |
+| Occupied | Waiter + Scheduler Poll | 53.0 | 2,977.0 | 8.1 | 3.4 |
+| Occupied | Direct waiter | 52.9 | 2,978.0 | 7.8 | 1.3 |
+
+The slowest idle waiter returned 387.9 µs late. Its
+kernel expiry occurred 359.0 µs after the earliest
+expiry, followed by 17.0 µs from waking to switch.
+In the occupied control, every measured timer expired
+while the pulse owned the CPU and none of the benchmark
+threads switched in before the pulse ended. The trace
+observed a direct switch from the pulse in 32 waves.
+The control explains one way late scheduling can occur
+while dispatch remains in the low microseconds for all
+three drives. The traces cover diagnostic samples and
+do not establish the cause of the spontaneous long
+cohort tails.
+
+Replay also matched the first complete interleaved cohort
+on each host to its binary and journal checksums. The two
+cohorts shared 11,929 scheduled UTC seconds. Windows had
+706 waiter returns of at least 1 ms and Ubuntu had 27.
+Three coincided, within the zero to six range of the
+offset controls using shifts from one through 30 seconds
+in either direction. Their 12 slowest waiter returns per
+host had no exact second in common. This comparison gives
+no evidence of a common stall at those scheduled seconds.
+
+The first trace replay exposed a compiler dependency path
+containing parent components. Normalizing that path matched
+its recorded digest to master. Trace sources, the verified
+raw archive and the two complete cohort samples are under
+out/service-extensions/xcron-linux-wake-e6667095/.
+The separate diagnostic guest retired.
+
+The long Windows and Ubuntu campaigns remained live with
+12,582,912 completed callbacks apiece. Second-cohort
+prefixes verified 5,686,272 and 5,320,704 additional
+callbacks respectively. Ordinary xcron maturity passed.
+The strict audit still reports two developing modules.
+Release timing requires the uninstrumented paired tails.
