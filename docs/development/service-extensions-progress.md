@@ -32595,3 +32595,70 @@ Running TCP replay verified 67.20 / 67.29 Redis awake
 hours and 25.96 / 25.96 MQTT awake hours on Windows /
 Ubuntu. All four supervisors remained live. Strict
 performance and release acceptance remain open.
+
+
+## 2026-11-27 MQTT TLS broker worker count and receive pauses
+
+The six-vCPU AES-enabled Ubuntu QEMU/WHPX guest held broker
+CPUs 0, 3, 4 and 5 and observer CPUs 1 and 2 fixed. Two and
+four broker workers shared the same four-CPU allowance.
+The guest process was confined to host CPUs 0, 2, 4, 6, 9
+and 11. Use within-campaign comparisons for this topology.
+
+Both builds ran the same c12cb87a SDK APP and libxmqtt.so.
+The second libxrt.so deferred TCP read pause until after the
+plaintext callback and paused only when plaintext remained.
+Its package consumer and both independent TLS peers passed,
+including partial input, MQTT 5/3.1.1, QoS 1/2, takeover and
+quota recovery. Source and loader replay confirmed the
+single Core source change and identical dynamic exports.
+The initial source replay compared a CRLF fixture with the
+LF compiler input. Normalizing the fixture reproduced the
+recorded digest.
+
+Five alternating repeats per rate and build verified all
+40 uninstrumented trials, 720,000 publications and 5,760,000
+deliveries. The balanced observer used MQTT 5 QoS 2,
+authenticated TLS 1.3, four publishers, eight wildcard
+subscribers, 128-byte payloads and both windows of 16.
+
+| 8,000 scheduled/s | Accepted/s | Broker CPU s per trial | Delivery P99 ms |
+| --- | ---: | ---: | ---: |
+| Existing, 2 workers | 6,376 | 4.66 | 756.987 |
+| Existing, 4 workers | 5,774 | 6.76 | 1,141.367 |
+| Deferred pause, 2 workers | 6,307 | 4.53 | 791.475 |
+| Deferred pause, 4 workers | 5,776 | 6.62 | 1,133.972 |
+
+The existing four-worker paired throughput and CPU ratios
+were 0.901 and 1.455 and met repeatability. Its P99 ratio of
+1.543 exceeded the variation limit. At 4,000/s the two
+worker counts sustained the schedule and had a repeatable
+CPU ratio of 1.357. At 8,000/s the median hottest broker
+thread used 58% and 38% of the observer window in the two
+existing configurations. The observer consumed about 1.83
+and 1.81 CPU cores on average during that window.
+
+The deferred-pause CPU ratios at 8,000/s were 0.972 and
+0.977 and met repeatability. Its two-worker P99 ratio was
+1.504 at 4,000/s and 1.028 at 8,000/s, with both outside
+the repeatability limits. The four-worker high-rate P99
+ratio of 1.045 met repeatability. The variant stays in the
+diagnostic snapshot given the tail measurements.
+
+The separate syscall campaign verified 144,000 publications
+and 1,152,000 deliveries across twelve runs. At two workers
+the median recvfrom count per 12,000 measured offers fell
+from 204,746 to 101,978 and epoll_ctl from 201,622 to
+101,990. The four-worker counts showed similar reductions.
+With original reads the four-worker arm used 357,482
+epoll_wait calls versus 186,181 at two workers. Median
+sendmsg counts were 155,170 and 161,733, respectively.
+Receipts, per-thread snapshots, counters and independent
+replay are under
+out/service-extensions/xmqtt-linux-worker-pause-48eb9a09/.
+The diagnostic guest retired.
+
+The TCP journals verified 67.39 / 67.48 Redis awake hours
+and 26.15 / 26.15 MQTT awake hours on Windows / Ubuntu.
+All four supervisors remained live. The strict release
+and performance gates remain open.
