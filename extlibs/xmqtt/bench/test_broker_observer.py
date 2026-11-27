@@ -135,15 +135,17 @@ def case(binary, name, qos):
                 p.wait(timeout=5)
 
 
-def multi_publisher_case(binary, reorder, tls=None, ca=None):
+def multi_publisher_case(binary, reorder, tls=None, ca=None, rejected=(), replace_delivery=False):
     with ExitStack() as stack:
         listener = stack.enter_context(socket.socket())
         listener.bind(("127.0.0.1", 0))
         listener.listen()
         listener.settimeout(8)
         port = listener.getsockname()[1]
-        command = [binary, "--remote", str(port), "1", "5", "100", "1", "exact", "2", "1", "2",
-                   "--publishers", "2"]
+        command = [binary, "--remote", str(port), "1", "5", "100", "1", "exact", "2", "1", "2"]
+        if rejected:
+            command.append("--count-quota-rejections")
+        command.extend(("--publishers", "2"))
         if tls:
             command.extend(("--tls", str(ca), "localhost"))
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -169,17 +171,25 @@ def multi_publisher_case(binary, reorder, tls=None, ca=None):
                 assert body[9:] == b"A" * 124 + sequence.to_bytes(4, "big")
                 return body
 
+            def deliver(body, sequence):
+                delivery_id = (20 + sequence).to_bytes(2, "big")
+                subscriber.sendall(b"\x34\x89\x01" + body[:6] + delivery_id + body[8:])
+                assert frame(subscriber) == (b"\x50", delivery_id)
+                subscriber.sendall(b"\x62\x02" + delivery_id)
+                assert frame(subscriber) == (b"\x70", delivery_id)
+
             def confirm(publisher, body, sequence):
                 identifier = body[6:8]
+                if sequence in rejected:
+                    publisher.sendall(b"\x50\x04" + identifier + b"\x97\x00")
+                    if replace_delivery and sequence == 3:
+                        deliver(body, sequence)
+                    return
                 publisher.sendall(b"\x50\x02" + identifier)
                 assert frame(publisher) == (b"\x62", identifier)
                 publisher.sendall(b"\x70\x02" + identifier)
-                if not reorder:
-                    delivery_id = (20 + sequence).to_bytes(2, "big")
-                    subscriber.sendall(b"\x34\x89\x01" + body[:6] + delivery_id + body[8:])
-                    assert frame(subscriber) == (b"\x50", delivery_id)
-                    subscriber.sendall(b"\x62\x02" + delivery_id)
-                    assert frame(subscriber) == (b"\x70", delivery_id)
+                if not reorder and not (replace_delivery and sequence == 5):
+                    deliver(body, sequence)
 
             held = receive_publication(first, 0)
             # Complete the other publisher before returning any credit to the first.
@@ -200,20 +210,34 @@ def multi_publisher_case(binary, reorder, tls=None, ca=None):
                 assert process.returncode == 1 and not out and "check subscriber delivery counts" in err, err
                 print("same-publisher reorder rejected")
             else:
-                for peer in (first, second, subscriber):
+                for peer in ((subscriber, first, second) if rejected else (first, second, subscriber)):
                     assert frame(peer) == (b"\xc0", b"")
                     peer.sendall(b"\xd0\x00")
                 out, err = process.communicate(timeout=8)
+                if replace_delivery:
+                    assert process.returncode == 1 and not out and "disagrees with publisher outcome" in err, err
+                    assert ObserverFailure(process.returncode, err).progress == {
+                        "sent": 5, "confirmed": 4, "deliveries": 4, "rejected": 1}
+                    print("delivery for a refused round cannot replace an accepted round")
+                    return
                 assert process.returncode == 0 and not err, (out, err)
                 metrics = dict(line.split(": ") for line in out.splitlines())
-                assert metrics["offered"] == metrics["deliveries"] == metrics["publish_confirmed"] == "5"
+                assert metrics["offered"] == "5"
+                rejected_measured = len(rejected) - int(0 in rejected)
+                assert metrics["deliveries"] == metrics["publish_confirmed"] == str(5 - rejected_measured)
+                if rejected:
+                    assert int(metrics["publish_rejected"]) == rejected_measured
+                    assert int(metrics["warmup_rejected"]) == int(0 in rejected)
+                    if len(rejected) == 6:
+                        assert float(metrics["delivery_p99_us"]) == float(metrics["publisher_p99_us"]) == 0
                 assert int(metrics["publisher_credit_stalls"]) > 0
                 for name in OBSERVER_CPU_METRICS:
                     cpu = float(metrics[name])
                     assert math.isfinite(cpu) and cpu >= 0
                 if tls:
                     assert metrics["tls_connections"] == "3"
-                print("unblocked publisher advanced and cross-publisher order was accepted")
+                print("quota outcomes reconciled" if rejected else
+                      "unblocked publisher advanced and cross-publisher order was accepted")
         finally:
             if process.poll() is None:
                 process.kill()
@@ -478,6 +502,9 @@ def main():
     shared_case(binary, True)
     multi_publisher_case(binary, False)
     multi_publisher_case(binary, True)
+    multi_publisher_case(binary, False, rejected=(0, 3))
+    multi_publisher_case(binary, False, rejected=tuple(range(6)))
+    multi_publisher_case(binary, False, rejected=(0, 3), replace_delivery=True)
     for publishers in (1, 2):
         offer_deadline_case(binary, publishers)
     if args.tls_credentials:
@@ -488,6 +515,7 @@ def main():
         shared_case(binary, False, tls, root / "ca.pem")
         shared_case(binary, True, tls, root / "ca.pem")
         multi_publisher_case(binary, False, tls, root / "ca.pem")
+        multi_publisher_case(binary, False, tls, root / "ca.pem", rejected=(0, 3))
         batched_qos2_case(binary, tls, root / "ca.pem")
         reject_tls_identity(binary, tls, root / "wrong.pem", "localhost")
         reject_tls_identity(binary, tls, root / "ca.pem", "wrong.invalid")

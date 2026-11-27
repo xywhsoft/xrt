@@ -30,7 +30,7 @@ SHARED_GROUPS = 2
 TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
 BROKER_LOG_TAIL_BYTES = 16 * 1024
 PARTIAL_MEASUREMENT = re.compile(
-    r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)\n?$",
+    r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)(?: rejected=(?P<rejected>\d+))?\n?$",
     re.MULTILINE,
 )
 
@@ -38,7 +38,7 @@ PARTIAL_MEASUREMENT = re.compile(
 class ObserverFailure(RuntimeError):
     def __init__(self, exit_code, errors):
         match = PARTIAL_MEASUREMENT.search(errors)
-        self.progress = {key: int(value) for key, value in match.groupdict().items()} if match else None
+        self.progress = {key: int(value) for key, value in match.groupdict().items() if value is not None} if match else None
         detail = PARTIAL_MEASUREMENT.sub("", errors).strip()
         super().__init__(f"observer exit {exit_code}: {detail}")
 
@@ -145,6 +145,9 @@ def run_observer(args, port, workload):
                str(rate), str(args.warmup), kind]
     if args.qos:
         command.extend((str(args.qos), str(args.window), str(args.subscriber_window)))
+    count_quota = getattr(args, "count_quota_rejections", False)
+    if count_quota:
+        command.append("--count-quota-rejections")
     publishers = getattr(args, "publishers", 1)
     if publishers > 1:
         command.extend(("--publishers", str(publishers)))
@@ -160,6 +163,8 @@ def run_observer(args, port, workload):
         raise ObserverFailure(process.returncode, errors)
     result = {key: float(value) for key, value in (line.split(": ", 1) for line in output.splitlines())}
     metrics = METRICS + (("publish_confirmed", "publisher_credit_stalls") + PUBLISHER_METRICS if args.qos else ())
+    if count_quota:
+        metrics += ("publish_rejected", "warmup_rejected")
     if kind == "shared":
         metrics += SHARED_METRICS
     if args.tls_credentials:
@@ -173,24 +178,28 @@ def run_observer(args, port, workload):
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     destinations = SHARED_GROUPS if kind == "shared" else peers
-    if result["offered"] != args.rounds or result["deliveries"] != destinations * args.rounds:
+    confirmed = result.get("publish_confirmed", args.rounds)
+    rejected = result.get("publish_rejected", 0.0)
+    warmup_rejected = result.get("warmup_rejected", 0.0)
+    if (not rejected.is_integer() or not warmup_rejected.is_integer() or warmup_rejected > args.warmup
+            or confirmed + rejected != args.rounds):
+        raise ValueError("publisher outcomes do not match the workload")
+    if result["offered"] != args.rounds or result["deliveries"] != destinations * confirmed:
         raise ValueError("publication and delivery counts do not match the workload")
     if args.tls_credentials and result["tls_connections"] != peers + publishers:
         raise ValueError("missing authenticated observer connections")
     if has_ack_metrics:
         packets = result["subscriber_ack_packets"]
         writes = result["subscriber_ack_writes"]
-        expected = (args.rounds + args.warmup) * destinations * 2
-        if packets != expected or not writes.is_integer() or not 0 < writes <= packets:
+        expected = (confirmed + args.warmup - warmup_rejected) * destinations * 2
+        if packets != expected or not writes.is_integer() or not min(1, packets) <= writes <= packets:
             raise ValueError("invalid subscriber acknowledgement ledger")
     if kind == "shared":
         low, high = (result[key] for key in SHARED_METRICS)
-        if not (low.is_integer() and high.is_integer() and low <= high <= args.rounds
+        if not (low.is_integer() and high.is_integer() and low <= high <= confirmed
                 and low * peers <= result["deliveries"] <= high * peers):
             raise ValueError("invalid shared member delivery bounds")
     if args.qos:
-        if result["publish_confirmed"] != args.rounds:
-            raise ValueError("missing terminal publisher confirmations")
         stalls = result["publisher_credit_stalls"]
         if not stalls.is_integer() or stalls > args.rounds:
             raise ValueError("invalid publisher credit-stall count")
@@ -348,6 +357,8 @@ def main():
     parser.add_argument("--rounds", type=int, default=6000)
     parser.add_argument("--warmup", type=int, default=512)
     parser.add_argument("--qos", type=int, choices=(0, 1, 2), default=0)
+    parser.add_argument("--count-quota-rejections", action="store_true",
+                        help="continue QoS 2 offers after quota PUBREC and reconcile accepted deliveries")
     parser.add_argument("--window", type=int, choices=range(1, 65), metavar="1..64", default=16,
                         help="publisher outstanding window for QoS 1/2")
     parser.add_argument("--subscriber-window", type=int, choices=range(1, 65), metavar="1..64",
@@ -369,6 +380,8 @@ def main():
         parser.error("--subscriber-window requires QoS 1 or 2")
     if args.publishers > 1 and not args.qos:
         parser.error("multiple publishers require QoS 1 or 2")
+    if args.count_quota_rejections and args.qos != 2:
+        parser.error("--count-quota-rejections requires --qos 2")
     if args.qos and args.subscriber_window is None:
         args.subscriber_window = args.window
     if args.broker_cpu is not None:
@@ -409,6 +422,8 @@ def main():
         report["tls"] = {"cipher": TLS_CIPHER, "observer_group": "X25519", "dns_name": "localhost",
                          "trust_anchor": fingerprint(args.tls_credentials / "ca.pem"),
                          "leaf": fingerprint(args.tls_credentials / "certificate.der")}
+    if args.count_quota_rejections:
+        report["count_quota_rejections"] = True
     if args.idle_peers:
         report["idle_peers"] = args.idle_peers
         report["idle_peer_fixture"] = fingerprint(Path(__file__).resolve().parents[1] /
@@ -418,6 +433,8 @@ def main():
     summaries = ("ingress_per_sec", "delivery_p99_us", "delivery_p999_us", "offer_lag_p99_us", "pacer_lag_p99_us")
     if args.qos:
         summaries += PUBLISHER_METRICS
+    if args.count_quota_rejections:
+        summaries += ("publish_confirmed", "publish_rejected", "warmup_rejected")
     try:
         for workload in args.workload:
             group = {"filter": workload[0], "subscribers": workload[1], "scheduled_rate": workload[2], "samples": []}
