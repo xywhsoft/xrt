@@ -113,6 +113,20 @@ static uint64 redisOpenRss(void)
 #if defined(_WIN32)
 	PROCESS_MEMORY_COUNTERS Memory; memset(&Memory, 0, sizeof(Memory)); Memory.cb = sizeof(Memory);
 	redisOpenRequire(K32GetProcessMemoryInfo(GetCurrentProcess(), &Memory, sizeof(Memory)) != 0, "process memory snapshot"); return Memory.PeakWorkingSetSize;
+#elif defined(__linux__)
+	/* VmHWM belongs to the current memory image. ru_maxrss can include the launcher before exec. */
+	FILE* Status = fopen("/proc/self/status", "r");
+	redisOpenRequire(Status != NULL, "process memory snapshot");
+	char Line[128], Unit[3];
+	uint64 KiB = 0;
+	while (fgets(Line, sizeof(Line), Status) != NULL) {
+		if (sscanf(Line, "VmHWM: %" SCNu64 " %2s", &KiB, Unit) == 2 && strcmp(Unit, "kB") == 0)
+			break;
+		KiB = 0;
+	}
+	fclose(Status);
+	redisOpenRequire(KiB > 0 && KiB <= UINT64_MAX / 1024u, "process peak RSS in KiB");
+	return KiB * 1024u;
 #else
 	struct rusage Usage; redisOpenRequire(getrusage(RUSAGE_SELF, &Usage) == 0, "process memory snapshot"); return (uint64)Usage.ru_maxrss * 1024u;
 #endif

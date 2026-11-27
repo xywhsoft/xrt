@@ -31724,3 +31724,40 @@ The private Redis peer retired. Build identities, VM configuration,
 raw traces and replay are under
 out/service-extensions/xredis-linux-aes-95e17ae7/. Strict performance
 acceptance remains open.
+
+
+## 2026-11-27 Redis observer peak RSS after exec
+
+The Linux xredis and Hiredis open-loop observers now read
+the current process image's VmHWM from /proc/self/status.
+The measurement stays outside the timed request window.
+The runtime library and its mixed-load observer are outside
+this change's source closure.
+
+The Linux regression touches 128 MiB in a parent, forks,
+then execs the test executable. Linking the new regression
+against the old benchmark header failed on the inherited
+peak. The corrected single-header runtime passed the
+regression and the workload tests. The Windows targeted
+modular and single-header runtime tests both passed. An
+initial Windows invocation combined mutually exclusive
+selectors; the two individual runs completed successfully.
+
+A fresh private Redis 8.0.5 peer verified all 96,000 replies
+from eight fixed-arrival probes. The child observers used
+eight RESP3 connections, 1 KiB GET/SET and 12,000 offers/s.
+With an ordinary launcher, the prior binaries both reported
+25,427,968 bytes. With the launcher holding another 128 MiB,
+both reported 159,645,696 bytes. The corrected xredis runs
+reported 3,866,624 and 3,854,336 bytes. Corrected Hiredis
+reported 3,403,776 and 3,342,336 bytes. The first live probe
+tried plaintext on the verification helper's TLS endpoint.
+The corrected probe verified both listener identities and
+the exact Redis command ledger.
+
+The probe peer and the temporary AES-enabled VM retired.
+The build hashes, test logs and probe report are under
+out/service-extensions/xredis-linux-aes-95e17ae7/.
+Windows/Ubuntu long-run prefix replay accepted 63.69/63.78
+awake hours for xredis and 22.45/22.45 for xmqtt.
+All four long-run supervisors were live.

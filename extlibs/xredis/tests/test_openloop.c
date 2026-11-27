@@ -1,6 +1,10 @@
 #include "../bench/openloop_run.h"
 #include "test.h"
 #include <math.h>
+#if defined(__linux__)
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 static void testOpenSchedule(void)
 {
@@ -142,8 +146,42 @@ static void testOpenRuntime(void)
 #endif
 }
 
-int main(void)
+#if defined(__linux__)
+static void testOpenRssAfterExec(void)
 {
+	const size_t Bytes = 128u * 1024u * 1024u;
+	const long PageSize = sysconf(_SC_PAGESIZE);
+	testRequire(PageSize > 0, "process memory page size");
+	unsigned char* Allocation = malloc(Bytes);
+	testRequire(Allocation != NULL, "allocate launcher pages");
+	volatile unsigned char* Pages = Allocation;
+	for (size_t Index = 0; Index < Bytes; Index += (size_t)PageSize)
+		Pages[Index] = 1;
+	pid_t Child = fork();
+	testRequire(Child >= 0, "fork RSS launcher");
+	if (Child == 0) {
+		execl("/proc/self/exe", "test_openloop", "--check-rss-after-exec", (char*)NULL);
+		_exit(127);
+	}
+	int Status = 0;
+	testRequire(waitpid(Child, &Status, 0) == Child, "wait for RSS child");
+	free(Allocation);
+	testRequire(WIFEXITED(Status) && WEXITSTATUS(Status) == 0, "benchmark RSS included launcher pages");
+}
+#endif
+
+int main(int argc, char** argv)
+{
+#if defined(__linux__)
+	if (argc == 2 && strcmp(argv[1], "--check-rss-after-exec") == 0) {
+		const uint64 Peak = redisOpenRss();
+		return Peak == 0 || Peak >= 64u * 1024u * 1024u;
+	}
+	testOpenRssAfterExec();
+#else
+	(void)argc;
+	(void)argv;
+#endif
 	testOpenSchedule(); testOpenLedger(); testOpenResponse(); testOpenInvalid(); testOpenMixed(); testOpenRuntime();
 	puts("[PASS] xredis open-loop workload: absolute offers/no omission/all outcomes/binary/deadlines/overload/watch retirement/process counters"); return 0;
 }
