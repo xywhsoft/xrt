@@ -173,6 +173,11 @@ Use `--primary-loss --during-election` to also submit writes after the old
 primary exits while the candidate still reports itself a replica. These
 probes retain their original deadline through multiple map generations and
 each verifies one increment on the promoted primary.
+Add `--rejoin-primary` to restart the former primary with its original
+Cluster node configuration. The driver checks that the node returns as a
+replica with the recovered counters. Each native client then starts from
+that replica as its only seed and verifies explicit routing to the promoted
+primary and APP-selected replica reads.
 
 ```sh
 python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_cluster_client,xredis_role_client --kind static --verify

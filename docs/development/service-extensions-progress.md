@@ -32871,3 +32871,63 @@ awake hours and 26.78 / 26.78 MQTT awake hours on
 Windows / Ubuntu. Ordinary xrpc maturity passed.
 Strict mode still reports xrpc and xrpc_duplex as
 developing. The broader release tail gate remains open.
+
+## 2026-11-27 xredis Cluster former-primary rejoin
+
+The real Cluster fixture now accepts --rejoin-primary
+after a primary-loss test. It restarts the originally
+owned Redis process with its existing node configuration.
+It verifies a new process and Redis run ID, the original
+Cluster node ID, and a connected replica role. All four
+nodes must report the promoted primary as the slot owner.
+An independent READONLY connection checks the original
+binary value and all three recovery counters on the
+restarted replica before the native probe starts.
+
+Each native probe starts with the former primary as
+its only metadata seed. RESP3 SHARDS and RESP2 SLOTS
+both route an ordinary GET to the promoted primary in
+one wire attempt without MOVED. The same probe verifies
+APP-selected reads on the replica and explicit primary
+routing when APP replica policy denies that endpoint.
+
+Windows x64 with WSL Redis and Ubuntu QEMU/WHPX with
+guest-local Redis each passed plaintext and TLS 1.3
+trials against Redis 8.0.5. TLS was used for client
+traffic, the Cluster bus and replication. In every
+trial the old primary observed an on-wire BLPOP before
+exit. The client reported DISCONNECTED and
+MAY_HAVE_EXECUTED with one attempt. Each recovery
+counter was exactly one on the new primary and was
+later independently read from the restarted replica.
+
+| Client host | Transport | Exit to survivor convergence (ms) | Restart to replica and data convergence (ms) |
+| --- | --- | ---: | ---: |
+| Windows | TCP | 3,481 | 54 |
+| Windows | TLS 1.3 | 3,551 | 66 |
+| Ubuntu guest | TCP | 3,805 | 57 |
+| Ubuntu guest | TLS 1.3 | 3,840 | 73 |
+
+These durations describe this fixture's single trial
+per case and include the controller's polling interval.
+The first compile passed equivalent module selectors
+with different replacement text. The build retains the
+source's empty definitions. The first rejoin assertion
+expected one pool lookup, as in the warm-primary case.
+The diagnostic confirmed a cold pool used two lookups
+and exactly one wire attempt to the correct endpoint.
+The warm-primary assertions retain the one-lookup check.
+The CLI rejected rejoin without primary-loss injection.
+
+Independent replay matched both native binaries, all
+compiled fixture inputs, the RESP slot-owner snapshots,
+the restarted Redis logs and all twelve recovery counters.
+Build receipts, raw fault evidence and replay are under
+out/service-extensions/xredis-cluster-rejoin-26d65709/.
+The separate diagnostic guest retired.
+
+Ordinary xredis maturity passed. The four TCP endurance
+supervisors remained live. Verified awake time was
+68.29 / 68.38 Redis hours and 27.05 / 27.05 MQTT hours
+on Windows / Ubuntu. Continuous and strict release
+acceptance remain open.

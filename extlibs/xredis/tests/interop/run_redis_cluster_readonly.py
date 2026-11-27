@@ -172,6 +172,58 @@ def check_primary_loss(clients, children, metadata, master, replica, slot, repor
         evidence["probes_terminal"] = all(process.poll() is not None for _, _, _, process, _ in probes)
 
 
+def check_rejoined(clients, children, metadata, report, exchange, connect, ca):
+    old, promoted, slot = (metadata[name] for name in ("primary", "replica", "slot"))
+    nodes = {node["port"]: node for node in metadata["nodes"]}
+    original = dict(children)[old]
+    assert original.poll() is not None
+    assert identity(promoted, dict(children)[promoted], exchange) == nodes[promoted]["run_id"]
+    began = time.monotonic()
+    with report.with_name(f"{report.stem}-rejoined-server.log").open("xb") as log:
+        process = subprocess.Popen(original.args, stdout=log, stderr=subprocess.STDOUT)
+    children.append((old, process))
+
+    run_id = wait_until(lambda: identity(old, process, exchange), 10, "restarted Redis startup")
+    assert run_id != nodes[old]["run_id"]
+    assert exchange(old, ["CLUSTER", "MYID"])[0] == nodes[old]["node_id"].encode()
+    keys = [(f"xrt-owned:failover:{{fixed}}:{case['label']}", b"1") for case in metadata["primary_loss"]["cases"]]
+
+    def converged():
+        role, _ = exchange(old, ["ROLE"])
+        if role[:4] != [b"slave", b"127.0.0.1", promoted, b"connected"]:
+            return False
+        expected_owner = [promoted, nodes[promoted]["node_id"].encode()]
+        for port in nodes:
+            slots, _ = exchange(port, ["CLUSTER", "SLOTS"])
+            if not any(first <= slot <= last and owner[1:3] == expected_owner
+                       for first, last, owner, *_ in slots):
+                return False
+        with connect(old, timeout=2) as connection, connection.makefile("rb") as reply:
+            send(connection, ["READONLY"])
+            assert frame(reply)[0] == b"OK"
+            for key, expected in [(KEY, VALUE), *keys]:
+                send(connection, ["GET", key])
+                if frame(reply)[0] != expected:
+                    return False
+        return True
+
+    wait_until(converged, 25, "former primary rejoins as a replica with recovered data")
+    evidence = dict(old_port=old, promoted_port=promoted, pid=process.pid, run_id=run_id,
+                    node_id=nodes[old]["node_id"], restart_to_convergence_ms=(time.monotonic() - began) * 1000,
+                    role=exchange(old, ["ROLE"])[0][0].decode(), replicated_counters=len(keys), cases=[])
+    metadata["rejoin"] = evidence
+    for client in clients:
+        command = [str(client), "rejoined", str(promoted), str(old)]
+        if ca:
+            command.append(client_path(client, ca))
+        run = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=35)
+        evidence["cases"].append(dict(client=str(client), sha256=sha(client), exit_code=run.returncode, output=run.stdout))
+        assert run.returncode == 0 and "[PASS] real Cluster rejoin:" in run.stdout, run.stdout
+        print(client.name, "rejoined replica seed passed", flush=True)
+    assert identity(old, process, exchange) == run_id
+    assert exchange(promoted, ["ROLE"])[0][0] == b"master"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--client", type=Path, action="append", required=True)
@@ -179,11 +231,14 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--primary-loss", action="store_true", help="kill the owned primary and observe automatic election")
     parser.add_argument("--during-election", action="store_true", help="also offer unsent writes before the replica promotes")
+    parser.add_argument("--rejoin-primary", action="store_true", help="restart the old primary and check replica seeding")
     parser.add_argument("--tls", action="store_true", help="require server-authenticated TLS 1.3 on every node")
     parser.add_argument("--openssl", type=Path, default=shutil.which("openssl"))
     args = parser.parse_args()
     if args.during_election and not args.primary_loss:
         parser.error("--during-election requires --primary-loss")
+    if args.rejoin_primary and not args.primary_loss:
+        parser.error("--rejoin-primary requires --primary-loss")
     if args.tls and args.openssl is None:
         parser.error("--tls needs OpenSSL to generate fixture certificates")
     server = args.server.absolute()
@@ -317,6 +372,8 @@ def main():
             if args.primary_loss:
                 check_primary_loss(clients, children, result, master, replica, slot, report, args.during_election,
                                    exchange, connect, ca)
+            if args.rejoin_primary:
+                check_rejoined(clients, children, result, report, exchange, connect, ca)
             result["complete"] = True
         except BaseException:
             result["failure"] = traceback.format_exc()
@@ -325,12 +382,13 @@ def main():
             for _, process in children:
                 if process.poll() is None:
                     process.terminate()
-            for port, process in children:
+            for _, process in children:
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+            for port in dict(children):
                 shutil.copy2(runtime / str(port) / "server.log", report.with_name(f"{report.stem}-{port}.log"))
             result["processes_terminal"] = all(process.poll() is not None for _, process in children)
             report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
