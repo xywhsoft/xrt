@@ -32042,3 +32042,71 @@ Running-prefix verification accepted 64.60 / 64.69 awake hours
 for xredis and 23.36 / 23.36 for xmqtt on Windows / Ubuntu.
 All four endurance processes remained live. The strict release
 and TLS capacity gates stay open.
+
+
+## 2026-11-27 Complete MQTT QoS 2 admission and delivery ledgers
+
+The benchmark option --count-quota-rejections releases the publisher
+slot on a quota PUBREC and continues the fixed-arrival schedule.
+Every accepted sequence must complete at every ordinary subscriber
+or once per shared group. Each refused sequence must be absent.
+The observer checks each publisher's order at ordinary subscribers,
+and counts warmup and measured refusals separately. Throughput and
+delivery tails use accepted and verified work. The existing default
+still fails the sample on a negative PUBREC.
+
+Windows and Ubuntu QEMU/WHPX passed the scripted observer suites
+with plaintext and authenticated TLS builds. The cases include a
+refused warmup, mixed outcomes across two publishers, all offers
+refused, and a refused delivery substituted for an accepted delivery
+while the aggregate count stayed correct. The latter case failed
+the sequence reconciliation and preserved all four partial counts.
+
+The existing broker and the destination-worker group prototype
+reused their previous binary identities. The current observer was
+built with the same two alternating TLS workers. Four publishers
+offered 128-byte MQTT 5 QoS 2 messages to eight wildcard subscribers.
+Both brokers used two workers and windows of 16. Replay verified
+all 60 trials, 540,000 offers, 537,789 accepted publications,
+2,211 refusals and 4,302,312 deliveries. All refusals were on
+Windows. The Windows scheduler campaign ran on observer CPU 8
+during this diagnostic.
+
+| Host | Scheduled/s | Median refusals, existing / grouped | Median accepted/s, existing / grouped | Median delivery P99 ms, existing / grouped |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 2,000 | 0 / 0 | 2,000 / 2,000 | 1.348 / 1.102 |
+| Windows | 6,000 | 51 / 65 | 5,962 / 5,952 | 40.172 / 42.400 |
+| Windows | 8,000 | 10 / 164 | 7,955 / 7,870 | 25.665 / 35.655 |
+| Ubuntu guest | 2,000 | 0 / 0 | 2,000 / 2,000 | 2.641 / 2.768 |
+| Ubuntu guest | 6,000 | 0 / 0 | 4,720 / 4,664 | 405.642 / 426.161 |
+| Ubuntu guest | 8,000 | 0 / 0 | 4,700 / 4,687 | 1,041.914 / 1,056.413 |
+
+At 8,000 offers/s on Windows the paired posts-per-confirmation
+ratio was 0.641 and the accepted throughput ratio was 0.986.
+Both met repeatability. The refusal and P99 ratios exceeded the
+variation limits. Ubuntu at that rate had repeatable ratios of
+0.993 for accepted throughput, 1.003 for broker CPU and 1.020
+for delivery P99. The grouped post path remains a prototype.
+
+The AES-enabled Ubuntu guest also compared the existing broker to
+pinned Mosquitto 2.1.2 using the same observer, limits and TLS setup
+at 4,000 and 8,000 scheduled/s. The first attempt omitted the
+pinned cJSON loader path. The second lacked the observer source
+required in the receipt. The final run matched the cJSON and
+OpenSSL runtime hashes and the exact diagnostic observer source.
+Replay verified all 20 trials, 240,000 offers and 1,918,048
+deliveries. One xmqtt run at 8,000/s recorded all 244 refusals.
+
+At 4,000/s both brokers sustained 3,998 accepted/s. At 8,000/s the
+medians were 4,735 and 5,881 accepted/s in xmqtt / Mosquitto order.
+The paired xmqtt throughput ratio was 0.805 and its CPU ratio
+was 1.682. Both met repeatability. The delivery P99 medians
+were 1,024.333 and 539.248 ms. Paired delivery tails exceeded
+the variation limits. Strict TLS performance remains open.
+
+The diagnostic guest retired. Source, fixture, refusal and
+delivery ledgers and independent replays are under
+out/service-extensions/xmqtt-quota-observer-3cbaa8a2/.
+Running-prefix replay accepted 64.88 / 64.97 hours for Redis
+and 23.64 / 23.64 for MQTT on Windows / Ubuntu. All four
+endurance supervisors remained live.
