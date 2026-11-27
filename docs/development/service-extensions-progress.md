@@ -30992,3 +30992,58 @@ under out/service-extensions/xrpc-field-dispatch-2276e4ed/.
 Current running-prefix replay verified 41.47/41.56 awake hours for
 Redis and 13.61/13.59 awake minutes for MQTT on Windows/Ubuntu.
 All four supervisors remained live on the same binaries.
+
+
+## 2026-11-27 Current xrpc runtime and SDK replay
+
+Windows x64 and Ubuntu x86_64 QEMU/WHPX built and tested mainline
+080d04f2. Each passed 11 modular and 12 single-header runtime tests.
+The Ubuntu suite passed again with ASan, UBSan and leak detection.
+The example builds and independent stdio and TCP peers passed.
+Windows also passed the generated-header, API inventory and API
+documentation checks. Dependency trimming and ordinary maturity
+passed on both systems.
+
+The base protocol and APP example SDKs each passed static and
+shared package verification on both hosts. Relocated consumers ran
+from paths containing spaces. The TCP worker APP passed against
+static packages, shared packages and the standalone single headers
+on both platforms. Each shared executable resolved its sibling
+xrpc and XRT libraries. Replay checked all eight package kits,
+six TCP APP executables and 57 distinct tracked source inputs.
+The base protocol package's source closure excludes the socket
+and executor implementations.
+
+A stale Windows output junction prevented the first functional
+build. The duplicate suite spelling produced an identical selected
+closure and a fresh output directory. The first guest trim attempt
+lacked the root trim fixtures and the initial consumer relocation
+filled tmpfs. The replay included the trim fixtures, narrowed the
+checkout to the exercised assets and passed both checks. Original
+failures, binary hashes and independent replay are under
+out/service-extensions/xrpc-release-080d04f2/. The release
+performance gate remains open.
+
+
+## 2026-11-27 xcron clock step and completed scheduler cohorts
+
+Independent replay verified both completed three-drive campaigns,
+each with 16,711,680 callbacks and 1,024 waves per process. Four
+Windows last-callback P99 series and one Ubuntu series met the
+repeatability limits. Every P99.9 series exceeded them. The
+Ubuntu 8,192-wave retry completed 83,886,080 callbacks across the
+two 1,024-job series. Neither met P99 or P99.9 repeatability.
+
+The Windows 8,192-wave run preserved 63,963,136 verified callbacks.
+Its terminal record was at a due wave of 06:02:30 UTC. Windows
+Kernel-General event 53060 records a clock step forward from
+06:02:29.9248123 to 06:02:36.4524414 UTC. The scheduler dispatched
+1,024 callbacks once and returned 06:02:37 as its next deadline.
+The benchmark correctly rejected the interrupted one-second series.
+
+A fresh Windows run on CPU 10 covers only the 1,024-job cohort,
+with the original binary and runner hashes, 8,192 waves, and five
+repetitions per drive. The supervisor and correctly pinned child
+were live at verification. Raw samples, clock records and replay
+are under out/service-extensions/xrpc-release-080d04f2/scheduler/.
+Scheduler tail acceptance remains open.
