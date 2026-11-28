@@ -33486,3 +33486,33 @@ Generated-header parity and ordinary maturity passed.
 The in-progress 72-hour journals retain their original binary
 identity. This source change requires fresh candidate-build
 evidence. Strict performance and release acceptance remain open.
+
+## 2026-11-28 MQTT mixed campaign on the capability fix
+
+Both TCP mixed-load executables were rebuilt from clean 9b30d5b6
+inputs after the QoS 2 validation change. The Ubuntu QEMU/WHPX
+runner used an exact detached checkout fetched from a verified
+incremental bundle against the preceding candidate's source
+objects. The Windows build used the mainline checkout. The
+new executable digests differ from the previous candidate.
+
+Both completed 20-second verified smoke runs. Windows verified
+1,278 mixed rounds and Ubuntu verified 5,842. Independent
+process-fault runs then killed their owned brokers after 641
+and 2,916 verified rounds. Both recorded failed retirement
+and were rejected by the 72-hour evidence checker.
+
+The new continuous intervals began on November 28 at 09:52:54
+on Windows and 09:52:59 on Ubuntu, Asia/Shanghai. The first
+archived replay confirmed 95.16 and 90.03 awake seconds,
+respectively, with both client and broker roles sampled.
+Windows holds a process-scoped 78-hour system-awake request.
+The Ubuntu supervisor is a dedicated transient systemd unit
+on the established endurance guest. The previous intervals
+were still active with just over 38.5 verified awake hours
+each. Their journals remain tied to the previous executables.
+
+The startup receipt, copied guest executable, report and
+fault evidence are under out/service-extensions/xmqtt-mixed-9b30d5b6/.
+Both current 72-hour intervals and strict release acceptance
+remain open.
