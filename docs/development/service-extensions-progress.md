@@ -33452,3 +33452,37 @@ out/service-extensions/xrpc-framed-reply-ef46485a/.
 The diagnostic guest retired after both replays. Ordinary
 xrpc maturity passed. The broader tail and strict release
 gates remain open.
+
+## 2026-11-28 MQTT 5 capability checks on QoS 2 retransmission
+
+A QoS 2 PUBLISH can find an incoming packet ID already held
+until PUBREL. The previous server returned its saved PUBREC
+before checking the packet against the connection's advertised
+capabilities. The modular regression reproduced this with
+Retain disabled, and the independent TCP peer reproduced it
+with an unsupported Topic Alias.
+
+The server checks both capabilities before the QoS 2 lookup.
+A valid duplicate still receives the saved PUBREC. An invalid
+retransmission gets the same DISCONNECT reason as the first
+PUBLISH, 0x9a for unsupported Retain or 0x94 for unsupported
+Topic Alias. The MQTT 5 specification describes these limits
+in its CONNACK and PUBLISH rules.
+[MQTT 5.0 standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+
+Windows x64 and the Ubuntu x64 QEMU/WHPX guest passed the
+modular and single-header server suites. The guest also passed
+the dual-version single-header suite with ASan, UBSan and leak
+detection. Independent TCP and authenticated TLS 1.3 peers on
+each host confirmed that the valid duplicate receives PUBREC,
+the alias violation receives DISCONNECT, and the connection
+closes. A separate 64-connection pressure probe observed two
+quota refusals and drained all 257 reliable deliveries per
+platform. The checked source overlay, executable identities,
+reports and replay are under
+out/service-extensions/xmqtt-qos2-capabilities-b3476e8f/.
+
+Generated-header parity and ordinary maturity passed.
+The in-progress 72-hour journals retain their original binary
+identity. This source change requires fresh candidate-build
+evidence. Strict performance and release acceptance remain open.

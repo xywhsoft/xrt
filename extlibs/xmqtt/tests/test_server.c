@@ -1981,19 +1981,27 @@ static void serverAdvertisedCapabilities(void)
 {
 	serverfixture Fixture;
 	serverStartLimits(&Fixture, false, 0, false, 0, 4096, 0, 64, 0, 0, 0);
-	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason;} Cases[] = {
-		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0}, /* Incorrect wildcard syntax closes without response. */
-		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2},
-		{{0x82,16,0,1,0,0,10,'$','s','h','a','r','e','/','g','/','a',4}, 18, 0},
-		{{0x82,9,0,1,2,11,1,0,1,'a',0}, 11, 0xa1},
-		{{0x31,4,0,1,'a',0}, 6, 0x9a},
-		{{0x30,7,0,1,'a',3,35,0,1}, 9, 0x94}
+	static const struct {unsigned char Wire[24]; size_t Size; uint8 Reason; bool PendingQos2;} Cases[] = {
+		{{0x82,8,0,1,0,0,2,'a','#',0}, 10, 0, false}, /* Incorrect wildcard syntax closes without response. */
+		{{0x82,9,0,1,0,0,3,'a','/','#',0}, 11, 0xa2, false},
+		{{0x82,16,0,1,0,0,10,'$','s','h','a','r','e','/','g','/','a',4}, 18, 0, false},
+		{{0x82,9,0,1,2,11,1,0,1,'a',0}, 11, 0xa1, false},
+		{{0x31,4,0,1,'a',0}, 6, 0x9a, false},
+		{{0x30,7,0,1,'a',3,35,0,1}, 9, 0x94, false},
+		{{0x3d,6,0,1,'a',0,7,0}, 8, 0x9a, true},
+		{{0x3c,9,0,1,'a',0,7,3,35,0,1}, 11, 0x94, true}
 	};
 	for (size_t Index = 0; Index < sizeof(Cases)/sizeof(Cases[0]); ++Index) {
 		unsigned char Wire[32];
 		xnetsocket Socket = serverDial(&Fixture);
 		serverSend(Socket, Wire, serverConnectWire(Wire, XMQTT_VERSION_5, true, 0, "caps"));
 		serverConnackConfigured(Socket, XMQTT_VERSION_5, 0, false, false, 64);
+		if (Cases[Index].PendingQos2) {
+			serverPublishQos2(Socket, XMQTT_VERSION_5, "a", "", 7, 0, false);
+			serverExpectFlowReply(Socket, XMQTT_VERSION_5, 0x50, 7, 0x10);
+			serverPublishQos2(Socket, XMQTT_VERSION_5, "a", "", 7, XMQTT_PUBLISH_DUP, false);
+			serverExpectFlowReply(Socket, XMQTT_VERSION_5, 0x50, 7, 0x10);
+		}
 		serverSend(Socket, Cases[Index].Wire, Cases[Index].Size);
 		if (Cases[Index].Reason) {
 			serverRecv(Socket, Wire, 3);

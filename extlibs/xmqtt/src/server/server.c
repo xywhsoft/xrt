@@ -4883,14 +4883,6 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 {
 	xmqttserver* Server = Peer->Server;
 	unsigned Qos = (Packet->Flags & XMQTT_PUBLISH_QOS_MASK) >> 1;
-	if (Qos == 2) {
-		xmqttserverack* Pending = (xmqttserverack*)xrtAVLFind(&Peer->Session->Incoming, &Packet->Identifier,
-			xmqttServerCompareAck, NULL);
-		if (Pending && Pending->Phase == XMQTT_SERVER_ACK_AWAIT_PUBREL) {
-			xmqttServerSendId(Peer, 0x50, Packet->Identifier, Pending->Reason);
-			return;
-		}
-	}
 	bool Retain = (Packet->Flags & XMQTT_PUBLISH_RETAIN) != 0;
 	if (Retain && !Server->Config.MaxRetainedTopics && Peer->Version == XMQTT_VERSION_5) {
 		xmqttServerProtocolClose(Peer, 0x9a, Now);
@@ -4904,6 +4896,15 @@ static void xmqttServerPublish(xmqttserverpeer* Peer, const xmqttpacket* Packet,
 			return;
 		}
 		if (Properties[Index].Id == XMQTT_PROPERTY_MESSAGE_EXPIRY) Expiry = Properties + Index;
+	}
+	/* Connection capabilities also constrain retransmitted PUBLISH packets. */
+	if (Qos == 2) {
+		xmqttserverack* Pending = (xmqttserverack*)xrtAVLFind(&Peer->Session->Incoming, &Packet->Identifier,
+			xmqttServerCompareAck, NULL);
+		if (Pending && Pending->Phase == XMQTT_SERVER_ACK_AWAIT_PUBREL) {
+			xmqttServerSendId(Peer, 0x50, Packet->Identifier, Pending->Reason);
+			return;
+		}
 	}
 	uint8 Reason = 0;
 	xmqttserverack* Ack = NULL;

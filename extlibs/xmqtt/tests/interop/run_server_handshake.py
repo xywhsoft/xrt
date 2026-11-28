@@ -269,6 +269,21 @@ def check_qos2(legacy, modern):
     assert read(modern, 2) == b"\xd0\0", "negative PUBREC must not trigger PUBREL"
 
 
+def check_qos2_duplicate_alias(dial, retire):
+    with dial() as peer:
+        peer.sendall(connect_packet(5, b"duplicate-alias"))
+        header = read(peer, 2)
+        assert header[0] == 0x20 and header[1] < 64
+        assert read(peer, header[1])[:2] == b"\0\0"
+        prefix = topic(b"caps/alias") + b"\0\x07"
+        for kind in (0x34, 0x3c):
+            peer.sendall(small_frame(kind, prefix + b"\0"))
+            assert read(peer, 5) == b"\x50\x03\0\x07\x10"
+        peer.sendall(small_frame(0x3c, prefix + b"\x03\x23\0\1"))
+        assert read(peer, 3) == b"\xe0\x01\x94", "an unsupported alias in a retransmission must be rejected"
+        retire(peer)
+
+
 def check_same_qos_wire(endpoint, publisher):
     key = topic(b"flow/wire")
     with ExitStack() as peers:
@@ -508,6 +523,7 @@ def probe(program):
                     check_retained_parallel(endpoint, legacy)
                     check_qos1(legacy, newer)
                     check_qos2(legacy, newer)
+                    check_qos2_duplicate_alias(lambda: socket.create_connection(endpoint, timeout=5), eof)
                     check_same_qos_wire(endpoint, newer)
                     check_zero_qos_ids(endpoint)
                     check_session_resume(endpoint, newer, 5)
@@ -520,6 +536,7 @@ def probe(program):
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
             "zero_qos_ack_ids_rejected": 8, "explicit_negative_pubrec": True, "same_qos_wire_boundaries": 4,
+            "qos2_duplicate_alias_rejected": True,
             "takeover_qos2_will": True, "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
