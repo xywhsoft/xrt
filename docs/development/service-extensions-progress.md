@@ -34181,3 +34181,57 @@ The diagnostic guest retired after archive verification.
 Both Redis TLS and both MQTT TCP endurance journals
 passed running-prefix replay during the comparisons.
 Ordinary xrpc maturity and generated-header parity passed.
+
+## 2026-11-28 xcron dispatch loop and synchronized native baseline
+
+The ordered-wave experiment compared the current loop
+with local heap, job and count variables, and with
+separate loops for setting deadlines and calling the
+jobs. Each Windows x64 and Ubuntu x64 QEMU/WHPX arm
+passed the clock fixture, including callback order,
+registration and slot reuse. The scripted waiter used
+8,192 waves and seven rotations per profile. Replay
+verified 198,352,896 callbacks per host across the
+one-job, 64-active/960-dormant and 1,024-active cases.
+Every build used the existing 92 bytes of configured job
+storage on x64.
+
+At 1,024 active jobs, the paired P99 ratios for waiter
+return through dispatch were 0.833 and 0.971 on Windows
+and 0.846 and 1.150 on Ubuntu for local variables and
+split loops respectively. Neither variant met tail
+repeatability on both hosts. The scheduler retains the
+current loop.
+
+A separate uninstrumented native benchmark starts
+Scheduler Wait and the precise direct XRT waiter from
+the same UTC second. Both discard the same warm-up
+wave, use the same callbacks and run on separate CPUs.
+The launcher swaps their CPUs on successive repeats.
+The journal verifies the first scheduled deadline,
+each wave and callback count in both arms. It records
+UTC and monotonic clock offsets during the runs and
+retains failures. This measures relative lateness for
+the same scheduled seconds.
+
+Both native smoke tests switched CPU placement and
+verified 32,768 callbacks per host. The full Windows
+and Ubuntu campaigns started at 12:52:43 and 12:52:44
+Asia/Shanghai on November 28. Each requests six paired
+repetitions of 8,192 waves, with 1,024 callbacks per arm
+per wave. Startup replay matched the parent and child
+processes, the initial shared deadline and CPU affinity.
+Windows uses CPUs 8 and 10. The Ubuntu guest uses
+vCPUs 0 and 1 with host processor mask 85. Both were
+running their first pair at capture. Strict scheduler
+tail acceptance remains open.
+
+Source archives, raw timings, build receipts, native
+process launch receipts and logs are under
+D:/XRT-results/service-extensions/xcron-wave-loop-225448d2/.
+The diagnostic guest remains live for its campaign.
+Redis TLS and MQTT TCP running-prefix replay verified
+about 1.8 and 3.0 continuous awake hours per host,
+respectively. Generated-header parity and ordinary
+xcron maturity passed. Strict mode still lists xcron
+and xcron_scheduler as developing.
