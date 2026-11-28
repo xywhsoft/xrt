@@ -44,13 +44,11 @@ def main() -> None:
     parser.add_argument("product", choices=PROBES)
     parser.add_argument("--output", type=Path, required=True, help="new binary path, with .exe on Windows")
     parser.add_argument("--compiler", default="gcc")
-    parser.add_argument("--tls", action="store_true", help="include the Redis TLS probe path")
+    parser.add_argument("--tls", action="store_true", help="build the TLS mixed-load probe")
     args = parser.parse_args()
     windows = sys.platform == "win32"
     if not windows and sys.platform != "linux":
         parser.error("the mixed probes target Linux and Windows")
-    if args.tls and args.product != "xredis":
-        parser.error("--tls is supported by the Redis workload")
     output = args.output.absolute()
     if windows and output.suffix.lower() != ".exe":
         parser.error("use an .exe output on Windows")
@@ -64,13 +62,18 @@ def main() -> None:
     stem = args.product.upper()
     folder = f"extlibs/{args.product}"
     source, modules = PROBES[args.product]
+    extra_defines = ()
     if args.tls:
-        modules += ("TLS",)
+        if args.product == "xmqtt":
+            modules += ("CLIENT_TLS", "SERVER_TLS")
+            extra_defines = ("-DXMQTT_MIXED_TLS", "-DXRT_MODULE_TLS_IDENTITY_RSA")
+        else:
+            modules += ("TLS",)
     platform_define = "-DWIN32_LEAN_AND_MEAN" if windows else "-D_GNU_SOURCE"
     links = ["-lws2_32", "-liphlpapi", "-lbcrypt", "-ladvapi32"] if windows else ["-pthread", "-lm"]
     compile_command = [
         compiler, "-std=gnu11", "-O2", "-Wall", "-Wextra", "-Werror", platform_define,
-        *(f"-D{stem}_MODULE_{stem}_{module}" for module in modules),
+        *(f"-D{stem}_MODULE_{stem}_{module}" for module in modules), *extra_defines,
         "-DXRT_IMPLEMENTATION", f"-D{stem}_IMPLEMENTATION", "-Iinclude", f"-I{folder}/include",
         "-include", f"{args.product}/features.h", "-include", "./single/xrt.h",
         "-include", f"./single/extlibs/{args.product}.h", f"{folder}/tests/interop/{source}",
@@ -83,10 +86,13 @@ def main() -> None:
     subprocess.run(command, cwd=ROOT, check=True)
     if inputs(compile_command) != fingerprint or git_state(ROOT)[0] != commit:
         raise SystemExit("build inputs changed; discard this binary and use a new output path")
+    record = dict(product=args.product, platform=platform.platform(), commit=commit,
+                  worktree_dirty=dirty, compiler=version, command=command,
+                  inputs=fingerprint, binary_sha256=digest(output))
+    if args.product == "xmqtt":
+        record["transport"] = "tls13" if args.tls else "tcp"
     with receipt.open("x", encoding="utf-8") as stream:
-        json.dump(dict(product=args.product, platform=platform.platform(), commit=commit,
-                       worktree_dirty=dirty, compiler=version, command=command,
-                       inputs=fingerprint, binary_sha256=digest(output)), stream, indent=2)
+        json.dump(record, stream, indent=2)
         stream.write("\n")
     print(receipt)
 

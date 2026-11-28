@@ -38,6 +38,16 @@ def check_build(product, binary, receipt, report, binary_field):
     built, observed = input_hashes(receipt), input_hashes(report)
     source, _ = PROBES[product]
     required = (f"extlibs/{product}/tests/interop/{source}", "single/xrt.h", f"single/extlibs/{product}.h")
+    if product == "xmqtt":
+        transport = report.get("transport", "tcp")
+        require(transport in ("tcp", "tls13") and receipt.get("transport", "tcp") == transport,
+                "MQTT build and run transports differ")
+        if transport == "tls13":
+            tls = report["tls"]
+            require(tls["hostname"] == "localhost" and tls["cipher"] == "TLS_AES_128_GCM_SHA256" and
+                    all(re.fullmatch(r"[0-9a-f]{64}", tls[name]) for name in ("leaf_sha256", "ca_sha256")),
+                    "invalid MQTT TLS identity evidence")
+            required += ("extlibs/xmqtt/examples/server/app_tls.h",)
     require(all(path in built and path in observed for path in required), "missing build input fingerprint")
     require(all(built[path] == observed[path] for path in built.keys() & observed.keys()),
             "build and run input fingerprints differ")

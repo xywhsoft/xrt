@@ -1,6 +1,11 @@
-/* One native broker process and one native client workload, over loopback TCP. */
+/* One native broker process and one native client workload, over private loopback. */
 #include "../../../../dev/bench/bench_common.h"
 #include "../../examples/server/app_listener.h"
+#if defined(XMQTT_MIXED_TLS)
+#include "../../examples/server/app_tls.h"
+static xmqttclienttlsconfig ClientTls;
+static xtlsserverconfig BrokerTls;
+#endif
 
 enum { DIRECT = 1, MEMBERS = 2, CLIENTS = 4, BURST = 6, BYTES = 256, REPLAY_INTERVAL = 16,
 	DEADLINE = 5000, SAMPLE_LIMIT = 8192 };
@@ -61,7 +66,12 @@ static xmqttclient* connectClient(xnetengine* Engine, const xnetaddr* Address, c
 	Packet.Body.Connect.KeepAlive = 5;
 	Packet.Body.Connect.ClientId = (xstrview){Id, strlen(Id)};
 	xmqttclient* Client = NULL;
+#if defined(XMQTT_MIXED_TLS)
+	require(xmqttClientTlsConnect(Engine, Address, Worker, &Config, &ClientTls, &Packet, &Client),
+		"client TLS connect");
+#else
 	require(xmqttClientConnect(Engine, Address, Worker, &Config, &Packet, &Client), "client connect");
+#endif
 	xfuture* Ready = xmqttClientReady(Client);
 	const xmqttreadyresult* Outcome = result(Ready);
 	if (Outcome->Status != XMQTT_STATUS_OK || !Outcome->Negotiated.Accepted ||
@@ -273,8 +283,15 @@ static int broker(void)
 	Config.MaxConnections = 32;
 	Config.MaxRetainedTopics = 1;
 	serverexample Example = {0};
+#if defined(XMQTT_MIXED_TLS)
+	Example.Tls = &BrokerTls;
+#endif
 	require(exampleServerStart(&Example, &Config, 2), "broker start");
+#if defined(XMQTT_MIXED_TLS)
+	printf("{\"port\":%u,\"transport\":\"tls13\"}\n", (unsigned)Example.Address.Port);
+#else
 	printf("{\"port\":%u}\n", (unsigned)Example.Address.Port);
+#endif
 	fflush(stdout);
 	(void)getchar();
 	require(exampleServerDrain(&Example), "broker drain");
@@ -290,10 +307,44 @@ static int broker(void)
 	return 0;
 }
 
+#if defined(XMQTT_MIXED_TLS)
+static void configureClientTls(const char* CaPath)
+{
+	unsigned char Ca[8192];
+	size_t Size = exampleServerReadDer(CaPath, Ca, sizeof(Ca));
+	xx509store* Store = xrtX509StoreCreate();
+	require(Size && Store && xrtX509StoreAddData(Store, (xbytesview){Ca, Size}, NULL),
+		"read runtime TLS trust anchor");
+	xtlsverifierconfig Verify;
+	xrtTlsVerifierConfigInit(&Verify);
+	Verify.Store = Store;
+	xtlsverifier* Verifier = xrtTlsVerifierCreate(&Verify);
+	xrtX509StoreFree(Store);
+	require(Verifier && xmqttClientTlsConfigInit(&ClientTls), "client TLS verifier");
+	ClientTls.Session.ServerName = ClientTls.Session.VerifyName = (xstrview)XRT_STR_LITERAL("localhost");
+	ClientTls.Session.Verifier = Verifier;
+}
+#endif
+
 int main(int Argc, char** Argv)
 {
+#if defined(XMQTT_MIXED_TLS)
+	if (Argc == 4 && !strcmp(Argv[1], "--broker")) {
+		require(exampleServerLoadTls(&BrokerTls, Argv[2], Argv[3]), "broker TLS identity");
+		int Result = broker();
+		exampleServerReleaseTls(&BrokerTls);
+		return Result;
+	}
+	if (Argc == 6 && !strcmp(Argv[1], "--load")) {
+		configureClientTls(Argv[5]);
+		int Result = load(argument(Argv[2], 1, UINT16_MAX), argument(Argv[3], 1, 73 * 3600), argument(Argv[4], 2, 100));
+		xrtTlsVerifierRelease((xtlsverifier*)ClientTls.Session.Verifier);
+		return Result;
+	}
+#else
 	if (Argc == 2 && !strcmp(Argv[1], "--broker")) return broker();
 	if (Argc == 5 && !strcmp(Argv[1], "--load"))
 		return load(argument(Argv[2], 1, UINT16_MAX), argument(Argv[3], 1, 73 * 3600), argument(Argv[4], 2, 100));
+#endif
 	return 2;
 }

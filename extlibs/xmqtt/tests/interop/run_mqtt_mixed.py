@@ -144,6 +144,7 @@ def main():
     parser.add_argument("--seconds", type=int, default=60)
     parser.add_argument("--pause-ms", type=int, default=3)
     parser.add_argument("--kill-broker-after", type=int, help="separate fault run, inject after a verified window")
+    parser.add_argument("--tls-directory", type=Path, help="directory with ca.der, certificate.der and key.der")
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
     if not (1 <= args.seconds <= 73 * 3600 and 2 <= args.pause_ms <= 100):
@@ -162,8 +163,20 @@ def main():
                  ROOT / "extlibs/xmqtt/examples/server/app_listener.h", ROOT / "tools/test_xrudp_native_soak.py",
                  ROOT / "single/xrt.h", ROOT / "single/extlibs/xmqtt.h", ROOT / "tools/service_mixed_clock.py",
              )}}
+    broker_arguments, client_arguments = ["--broker"], []
+    state["transport"] = "tls13" if args.tls_directory else "tcp"
     clock = None
     try:
+        if args.tls_directory:
+            material = args.tls_directory.resolve(strict=True)
+            ca, certificate, key = (material / name for name in ("ca.der", "certificate.der", "key.der"))
+            require(all(path.is_file() for path in (ca, certificate, key)), "missing MQTT TLS material")
+            broker_arguments.extend(map(str, (certificate, key)))
+            client_arguments.append(str(ca))
+            state["tls"] = dict(hostname="localhost", cipher="TLS_AES_128_GCM_SHA256",
+                                leaf_sha256=digest(certificate), ca_sha256=digest(ca))
+            helper = ROOT / "extlibs/xmqtt/examples/server/app_tls.h"
+            state["inputs"][helper.relative_to(ROOT).as_posix()] = digest(helper)
         with ExitStack() as cleanup, Path(f"{base}.jsonl").open("x", encoding="utf-8") as journal:
             def append(event):
                 journal.write(json.dumps(event, allow_nan=False) + "\n")
@@ -177,13 +190,14 @@ def main():
                 state[f"{role}_pid"] = process.pid
                 return process
 
-            broker = start(["--broker"], "broker", stdin=subprocess.PIPE)
+            broker = start(broker_arguments, "broker", stdin=subprocess.PIPE)
             status = read_output(broker)
             ready = wait_output(status, 10)
             require(ready and isinstance(ready["port"], int) and 1 <= ready["port"] <= 65535, "broker readiness")
+            require(ready.get("transport", "tcp") == state["transport"], "broker transport mismatch")
             state["port"] = ready["port"]
             clock = WorkloadClock()
-            client = start(["--load", str(ready["port"]), str(args.seconds), str(args.pause_ms)], "client")
+            client = start(["--load", str(ready["port"]), str(args.seconds), str(args.pause_ms), *client_arguments], "client")
             append(state)
             state["client"] = watch(client, broker, args, state, append, clock)
             require(args.kill_broker_after is None, "fault run unexpectedly completed")

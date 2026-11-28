@@ -34436,3 +34436,46 @@ D:/XRT-results/service-extensions/tls-peer-key-update-0cec4069/.
 Exact TLS build receipts and journal snapshots are in
 D:/XRT-results/service-extensions/xredis-rekey-endurance-86818d9d/.
 Endurance and matched performance qualification are open.
+
+## 2026-11-28 MQTT TLS mixed workload and rekey coverage
+
+The native MQTT mixed probe has a TLS build selection and
+keeps the existing TCP workload. A TLS pair uses the same
+QoS 0/1/2, wildcard, shared subscription, No Local, retained
+replay and graceful retirement checks. The probe accepts
+runtime DER trust and identity inputs. It verifies localhost
+with the configured trust anchor and the broker restricts the
+negotiation to TLS 1.3 AES-128-GCM. Its report carries public
+certificate fingerprints. The evidence checker verifies
+transport agreement and the TLS helper input digest.
+
+Windows IOCP and Ubuntu x64 QEMU/WHPX passed the native
+smoke. Authenticated TLS verified 1,281 and 4,780 rounds
+respectively in 20 seconds. An untrusted CA failed before
+accepted CONNACK on each. Separate killed-broker trials
+failed after verified progress. The existing TCP smoke
+passed and both TCP binaries matched the corresponding
+active 9b30d5b6 executables byte for byte. Nine evidence
+checker tests passed on each platform.
+
+The diagnostic build lowers the AES-GCM record cap to 4,096.
+Its client and broker exchanged records under new keys while
+retaining the QoS 2 publication and payload checks. Windows
+verified 1,591 rounds and 9,646 deliveries with 14 committed
+peer updates in each process. Ubuntu verified 5,595 rounds and
+33,920 deliveries with 47 committed updates in each process.
+The authenticated close and broker delivery ledgers matched.
+
+The first Windows compiler ran out of committed memory
+while the diagnostic VM was starting. Reducing the VM's
+RAM from 3,072 to 1,536 MiB let the build finish. The initial
+guest smoke reached TCP retirement and its CLI audit required
+a Git revision. The checksummed source-archive build passed
+the checker functions with the original uncommitted build
+receipt. The final 72-hour launch binds to clean committed
+builds and uses the strict CLI checker.
+
+Evidence is in
+D:/XRT-results/service-extensions/xmqtt-tls-mixed-3a116f85/.
+The matched Mosquitto TLS comparison is running separately.
+Native endurance and release acceptance remain open.

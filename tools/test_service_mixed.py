@@ -24,6 +24,30 @@ class MixedEvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "build and run platform families differ"):
                 check_build("xredis", binary, receipt, report, "client_sha256")
 
+    def test_mqtt_tls_evidence_matches_transport_and_identity(self):
+        with tempfile.TemporaryDirectory() as name:
+            binary = Path(name) / "probe"
+            binary.write_bytes(b"probe")
+            inputs = dict.fromkeys(("extlibs/xmqtt/tests/interop/mqtt_mixed.c",
+                                    "single/xrt.h", "single/extlibs/xmqtt.h"), "0" * 64)
+            report = dict(binary_sha256=digest(binary), platform="Linux-x86_64", inputs=inputs.copy())
+            receipt = dict(binary_sha256=report["binary_sha256"], platform=report["platform"], inputs=inputs.copy())
+            check_build("xmqtt", binary, receipt, report, "binary_sha256")
+            report["transport"] = "tls13"
+            with self.assertRaisesRegex(ValueError, "MQTT build and run transports differ"):
+                check_build("xmqtt", binary, receipt, report, "binary_sha256")
+            receipt["transport"] = "tls13"
+            report["tls"] = dict(hostname="localhost", cipher="TLS_AES_128_GCM_SHA256",
+                                 leaf_sha256="0" * 64, ca_sha256="1" * 64)
+            with self.assertRaisesRegex(ValueError, "missing build input fingerprint"):
+                check_build("xmqtt", binary, receipt, report, "binary_sha256")
+            helper = "extlibs/xmqtt/examples/server/app_tls.h"
+            report["inputs"][helper] = receipt["inputs"][helper] = "2" * 64
+            check_build("xmqtt", binary, receipt, report, "binary_sha256")
+            report["tls"]["leaf_sha256"] = "short"
+            with self.assertRaisesRegex(ValueError, "invalid MQTT TLS identity evidence"):
+                check_build("xmqtt", binary, receipt, report, "binary_sha256")
+
     def journal(self, first, wall_step=None):
         claim = "native_client_72h"
         start = {"status": "running", claim: False, "seconds_requested": 8,
