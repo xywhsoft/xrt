@@ -33572,3 +33572,24 @@ phase analysis and identity replay are under
 out/service-extensions/xcron-interleaved-proof-abee5e5a/
 and out/service-extensions/xcron-interleaved-50dcea56/.
 Generated-header parity and ordinary xcron maturity passed.
+
+## 2026-11-28 Superseded Ubuntu MQTT interval stopped by the user manager
+
+The guest system journal shows user@1000.service stopping the
+2276e4ed MQTT test at 02:05:24 UTC. The supervisor and both
+workload processes had retired at inspection. The runner left
+no terminal report. The mirrored journal passed running-prefix
+replay through 139,447.004 awake seconds, 27,880 sampled
+windows and 41,500,878 verified rounds. It is retained as
+incomplete evidence for that executable.
+
+The current 9b30d5b6 interval is a system service under
+system.slice. Its original supervisor remained active across
+the user-manager shutdown. The next Windows and Ubuntu prefix
+replays covered 926.47 and 925.33 awake seconds, respectively,
+with client and broker roles sampled on both platforms.
+
+The old Linux executable, exact build receipt, final journal,
+systemd extract and digest-checked replay are under
+out/service-extensions/xmqtt-mixed-9b30d5b6/previous-ubuntu-retirement/.
+The current 72-hour runs and strict release gates remain open.
