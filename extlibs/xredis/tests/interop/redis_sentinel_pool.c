@@ -153,6 +153,14 @@ static bool sprContains(xbytesview V,cstr Text)
 {size_t N=strlen(Text);for(size_t I=0;I+N<=V.Size;++I)if(!memcmp(V.Data+I,Text,N))return true;return false;}
 static xfuture* sprIdentity(xredislease* L,cstr Run)
 {xbytesview A[]={XRT_BYTES_LITERAL("INFO"),XRT_BYTES_LITERAL("SERVER")};xfuture* F=sprCall(L,A,2);xredisreplyvalue V=sprValue(F);char Needle[60];snprintf(Needle,sizeof(Needle),"run_id:%s",Run);sprRequire(sprContains(V.Data,Needle),"owned member run identity");return F;}
+static void sprRejoinWrite(xredislease* L,int64 Expected)
+{
+    const xbytesview Increment[]={XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("xredis-sentinel-rejoin")};
+    xfuture* F=sprCall(L,Increment,2);
+    xredisreplyvalue Value=sprValue(F);
+    sprRequire(Value.Type==XREDIS_REPLY_INTEGER && Value.Integer==Expected,"one write on the promoted primary");
+    xrtFutureDestroy(F);
+}
 static void sprClosePool(xredispool* P)
 {
     xfuture* Closed=xredisPoolClosed(P);
@@ -282,13 +290,14 @@ int main(int Argc,char** Argv)
 #endif
     bool Learn=Argc==10 && (!strcmp(Argv[8],"seed-master") || !strcmp(Argv[8],"seed-replica"));
     bool Secure=Argc==13;
-    bool Listen=(Argc==9 || Secure) && !strcmp(Argv[8],"events-master");
+    bool Rejoin=(Argc==9 || Secure) && !strcmp(Argv[8],"events-master-rejoin");
+    bool Listen=Rejoin || ((Argc==9 || Secure) && !strcmp(Argv[8],"events-master"));
     bool Replicas=(Argc==9&&!strcmp(Argv[8],"replica")) || (Learn&&!strcmp(Argv[8],"seed-replica"));
     bool Refresh=Argc==9&&!strcmp(Argv[8],"refresh");
 #if !defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     if(Listen)return 2;
 #else
-    if(Load.Count && !Listen)return 2;
+    if(Load.Count && (!Listen || Rejoin))return 2;
 #endif
     if((Argc!=8 && !Learn && !Listen && !(Argc==9 && (Replicas || Refresh))) || strlen(Argv[3])!=40 || strlen(Argv[4])!=40)return 2;
 #if !defined(SPR_TLS)
@@ -380,6 +389,21 @@ int main(int Argc,char** Argv)
     }
     xredislease* New=sprLease(Waiting);xfuture* Current=sprIdentity(New,Argv[4]);const xredisrequestresult* OldResult=sprWait(Old);sprRequire(OldResult->Status!=XREDIS_REQUEST_OK && OldResult->Delivery==XREDIS_MAY_HAVE_EXECUTED,"old sent operation retains uncertainty");xfuture* List=sprCall(New,Clients,2);sprRequire(!sprContains(sprValue(List).Data,Command),"no old blocking command replayed on selected node");xrtFutureDestroy(List);
     xredissentinelpoolinfo I={0};I.Size=sizeof(I);sprRequire(xredisSentinelPoolInfo(P,&I) && I.Generation==2 && I.Changes==1 && I.Port==(uint16)Next,"whole verified generation replaced");
+    if(Rejoin){
+        sprRejoinWrite(New,1);
+        puts("PROMOTED");
+        fflush(stdout);
+        sprRequire(fgets(Go,sizeof(Go),stdin) && !strcmp(Go,"REJOIN\n"),"former primary rejoined");
+        xfuture* AcquiredAfterRejoin=sprAcquire(P);
+        xredislease* AfterRejoin=sprLease(AcquiredAfterRejoin);
+        xfuture* AfterRejoinID=sprIdentity(AfterRejoin,Argv[4]);
+        sprRejoinWrite(AfterRejoin,2);
+        sprRequire(xredisSentinelPoolInfo(P,&I) && I.Generation==2 && I.Changes==1 && I.Port==(uint16)Next,
+            "rejoined replica did not displace the verified primary");
+        xrtFutureDestroy(AfterRejoinID);
+        xrtFutureDestroy(AcquiredAfterRejoin);
+        puts("REJOIN verified generation=2 writes=2");
+    }
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_EVENTS)
     if(Listen){
         xredissentineleventinfo Snapshot={.Size=sizeof(Snapshot)};

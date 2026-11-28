@@ -33356,3 +33356,43 @@ are under out/service-extensions/xmqtt-group-retire-76e3d986/.
 The diagnostic guest retired after capture. The two existing
 MQTT TCP long runs continued at 37.82 verified awake hours.
 Matched performance and strict release acceptance remain open.
+
+## 2026-11-28 xredis Sentinel former-primary rejoin
+
+The real Redis 8.0.5 interop probe keeps the original Sentinel
+pool open across primary process death, automatic promotion and
+former-primary restart. A blocking command is present on the old
+node before it exits. Its result retains delivery uncertainty,
+and the promoted node has no replayed blocking command. The
+queued lease reaches the verified next generation and performs
+one increment before the former primary is restarted.
+
+The fixture restarts the former primary with its original
+invocation, directory and port. PID and Redis run ID both
+change. The Sentinel log contains one promotion and one
+subsequent conversion of the old primary to a replica. The
+controller confirms the replica's upstream ROLE and checks that
+it received the first increment. A fresh lease from the same pool
+then identifies the promoted node, performs the second
+increment and confirms that the pool stays at generation two
+with one endpoint change. Independent reads on both Redis
+processes return the exact counts in sequence.
+
+Windows x64 IOCP to a Redis peer in WSL and Ubuntu x64 epoll in
+the QEMU/WHPX guest each passed plaintext RESP3, mutual TLS 1.3
+RESP2 and mutual TLS 1.2 AUTO rejoin. The manual failover
+control also passed on both. Each TLS case retained the native
+and independent certificate and ACL checks. All processes and
+temporary TLS files retired. The Linux service-extension CI
+runs the plaintext case with the pinned Redis peer. The job
+step parsed as YAML and passed Bash syntax checking.
+
+The first guest artifact command included the object directory
+in its file checksum list. Capturing only files preserved the
+four completed reports and their logs. Independent replay
+matched 26 guest artifacts, both executable digests, the three
+current fixture inputs and all eight reports before the test
+guest retired. Receipts are under
+out/service-extensions/xredis-sentinel-rejoin-2c1590a7/.
+Ordinary xredis maturity passes. The matched performance and
+strict release gates remain open.

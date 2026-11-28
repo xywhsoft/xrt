@@ -75,3 +75,21 @@ while the pool runs. Applications can reserve a bounded number of indexes
 and initially return UNREACHABLE for unassigned slots. Publish updates to
 those slots with synchronization appropriate to the pool's callback threads.
 [Redis Sentinel peer discovery guidance](https://redis.io/docs/latest/develop/reference/sentinel-clients/#sentinels-list-automatic-refresh).
+
+## Primary restart verification
+
+The owned Redis fixture kills the primary while a blocking command is in
+flight. The queued lease reaches the Sentinel-promoted node. The old request
+keeps delivery uncertainty and the probe verifies that it was never replayed.
+The former primary restarts on its original port. Sentinel reconfigures it as
+a replica, and the same native pool writes to the promoted primary before
+and after that rejoin. The controller verifies that the new replica receives
+both writes. The case keeps persistence disabled.
+
+Run on Linux with a Redis server that supports Sentinel. For mutual TLS,
+add --tls 13 and supply --openssl if OpenSSL is outside PATH.
+
+    python3 -B extlibs/xredis/tests/interop/build_sentinel_probe.py --output out/sentinel-probe
+    python3 -B extlibs/xredis/tests/interop/run_redis_sentinel_pool.py \
+      --server /path/to/redis-server --client out/sentinel-probe \
+      --report out/sentinel-rejoin.json --listen master --case 0 3 --kill-primary --rejoin

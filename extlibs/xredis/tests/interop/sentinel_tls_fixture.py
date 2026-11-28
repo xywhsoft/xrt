@@ -81,7 +81,7 @@ class SentinelTls:
                 "+multi +slaveof +ping +exec +subscribe +config|rewrite +role +publish +info "
                 "+client|setname +client|kill +script|kill\n"
                 "user xredis-data on >fixture-data-pass ~xredis-owned-failover-empty "
-                "+auth +hello +ping +info +role +client|list +blpop +xread\n")
+                "~xredis-sentinel-rejoin +auth +hello +ping +info +role +client|list +blpop +xread +incr\n")
 
     def query(self, port, args, auth, context):
         with socket.create_connection(("127.0.0.1", port), timeout=2) as raw:

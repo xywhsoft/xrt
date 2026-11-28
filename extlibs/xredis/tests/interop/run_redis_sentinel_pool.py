@@ -33,7 +33,9 @@ def main():
  trigger=parser.add_mutually_exclusive_group()
  trigger.add_argument('--control',action='store_true',help='run the same fixed-arrival workload without requesting failover')
  trigger.add_argument('--kill-primary',action='store_true',help='kill the owned primary and observe automatic Sentinel promotion')
+ parser.add_argument('--rejoin',action='store_true',help='restart the former primary and verify replication and the same pool')
  a=parser.parse_args()
+ if a.rejoin and (not a.kill_primary or a.load):parser.error('--rejoin requires --kill-primary without --load')
  if a.control and not a.load:parser.error('--control requires --load')
  if a.kill_primary and (not a.listen or not a.case):parser.error('--kill-primary requires --listen master and one --case')
  if a.load:
@@ -47,7 +49,7 @@ def main():
   matrix=[tuple(a.case)]
  client=a.client.absolute();report=a.report.absolute();report.parent.mkdir(parents=True,exist_ok=True)
  transport='mutual TLS 1.'+str(a.tls-10)+' with Redis ACL' if a.tls else 'plaintext'
- result=dict(schema=1,complete=False,mode='events-'+a.listen if a.listen else 'replica' if a.replicas else 'refresh' if a.refresh else 'master',transport=transport,client_sha256=sha(client),server_version=subprocess.check_output([a.server,'--version'],text=True).strip(),server_sha256=sha(a.server),runner_sha256=sha(__file__),fixtures=[],cases=[],limits=['Owned loopback fixture; server and client run on the same host.','Each probe holds three old leases and one queued acquisition; the old blocking command is observed server-side and checked for replay.','Refresh mode remaps Sentinel to another master and confirms the old node and connections remain live before the hint.' if a.refresh else 'Failover mode triggers a real Sentinel election.']);children=[];logs=[]
+ result=dict(schema=1,complete=False,mode='events-'+a.listen if a.listen else 'replica' if a.replicas else 'refresh' if a.refresh else 'master',transport=transport,client_sha256=sha(client),server_version=subprocess.check_output([a.server,'--version'],text=True).strip(),server_sha256=sha(a.server),runner_sha256=sha(__file__),fixtures=[],cases=[],limits=['Owned loopback fixture; server and client run on the same host.','Each probe holds three old leases and one queued acquisition; the old blocking command is observed server-side and checked for replay.','Refresh mode remaps Sentinel to another master and confirms the old node and connections remain live before the hint.' if a.refresh else 'Failover mode triggers a real Sentinel election.']);children=[];logs=[];launches={}
  if a.load:
   result['load']=dict(schedule=a.load,control=a.control,pool_members=3,engine_workers=2,
       ledger_helper_sha256=sha(Path(__file__).with_name('sentinel_load_report.py')))
@@ -85,7 +87,8 @@ def main():
    exchange=tls.exchange
   master,replica,sentinel,_=ports
   def start(name,port):
-   directory=runtime/name;directory.mkdir();log=(directory/'server.log').open('wb');logs.append((name,log));args=[a.server,'--bind','127.0.0.1','--port',str(port),'--dir',str(directory),'--save','','--appendonly','no','--repl-diskless-sync-delay','0']
+   directory=runtime/name;directory.mkdir()
+   args=[a.server,'--bind','127.0.0.1','--port',str(port),'--dir',str(directory),'--save','','--appendonly','no','--repl-diskless-sync-delay','0']
    if name=='replica':args+=['--replicaof','127.0.0.1',str(master)]
    if name=='sentinel':
     config=directory/'sentinel.conf';config.write_text(f'bind 127.0.0.1\nport {port}\ndir {json.dumps(str(directory))}\nsentinel monitor cache 127.0.0.1 {master} 1\nsentinel down-after-milliseconds cache 5000\nsentinel failover-timeout cache 10000\n');args=[a.server,str(config),'--sentinel']
@@ -93,13 +96,20 @@ def main():
     config=directory/'redis.conf'
     config.write_text(tls.config(name,port,master,directory),encoding='utf-8')
     args=[a.server,str(config)]+(['--sentinel'] if name=='sentinel' else [])
+   launches[name]=args
+   return launch(name,port,args,directory/'server.log')
+
+  def launch(name,port,args,log_path):
+   log=log_path.open('xb');logs.append((name,log,log_path))
    p=subprocess.Popen(args,stdout=log,stderr=subprocess.STDOUT);children.append((name,port,p));due=time.monotonic()+10
    while True:
     assert p.poll() is None,(name,'process exited',p.returncode)
     try:info=identity(port);assert int(info[b'process_id'])==p.pid;break
     except OSError:
      assert time.monotonic()<due;time.sleep(.02)
-   result['fixtures'].append(dict(name=name,port=port,pid=p.pid,run_id=info[b'run_id'].decode()));save()
+   fixture=dict(name=name,port=port,pid=p.pid,run_id=info[b'run_id'].decode())
+   result['fixtures'].append(fixture);save()
+   return fixture
   for name,port in zip(('master','replica','sentinel'),ports):start(name,port)
 
   def listed_replica(port):
@@ -110,6 +120,21 @@ def main():
     if int(fields[b'port'])==port and not any(flag in flags for flag in (b's_down',b'o_down',b'disconnected')):
      return fields
    return None
+
+  def confirm_replicated(primary,former,expected):
+   key='xredis-sentinel-rejoin'
+   assert exchange(primary,['GET',key])[0]==expected.encode()
+   due=time.monotonic()+30
+   while True:
+    endpoint,_=exchange(sentinel,['SENTINEL','GET-MASTER-ADDR-BY-NAME','cache'])
+    source,_=exchange(primary,['ROLE'])
+    role,_=exchange(former,['ROLE'])
+    assert endpoint==[b'127.0.0.1',str(primary).encode()] and source[0]==b'master', 'verified primary changed'
+    if (role[:4]==[b'slave',b'127.0.0.1',primary,b'connected'] and
+        listed_replica(former) and exchange(former,['GET',key])[0]==expected.encode()):
+     return
+    assert time.monotonic()<due,'former primary did not rejoin and replicate'
+    time.sleep(.05)
 
   due=time.monotonic()+15
   while True:
@@ -139,7 +164,8 @@ def main():
    if a.control:destination=initial
    initial_run=run(initial)
    args=[str(client),str(sentinel),str(destination),initial_run,run(destination),str(factory),str(protocol),'3']
-   if a.listen:args.append('events-'+a.listen)
+   if a.rejoin:args.append('events-master-rejoin')
+   elif a.listen:args.append('events-'+a.listen)
    elif a.replicas:args.append('replica')
    elif a.refresh:args.append('refresh')
    if tls:args.extend(tls.probe_args(client))
@@ -215,9 +241,30 @@ def main():
          case['controller_timing_seconds']['send_to_verified_roles']=time.monotonic()-sent
         break
       assert time.monotonic()<due,'Sentinel failover did not complete';time.sleep(.05)
-    output,_=probe.communicate(None if a.load else 'GO\n',timeout=45 if a.load else 35)
+    release=None if a.load else 'GO\n'
+    if a.rejoin:
+     probe.stdin.write(release);probe.stdin.flush()
+     expect('PROMOTED',25)
+     assert retired is not None and retired.poll() is not None
+     restart=launch('rejoined-master',current,launches['master'],runtime/'master'/'rejoin.log')
+     assert restart['pid']!=retired.pid and restart['run_id']!=initial_run
+     case['rejoin']=dict(restart=restart,upstream_port=target,replicated_counts=[])
+     save();owned(retired)
+     confirm_replicated(target,current,'1')
+     case['rejoin']['replicated_counts'].append(1);save()
+     release='REJOIN\n'
+    output,_=probe.communicate(release,timeout=45 if a.load else 35)
     case.update(exit_code=probe.returncode,output=''.join(prefix)+output,probe_reaped=probe.poll() is not None)
     assert probe.returncode==0,case['output']
+    if a.rejoin:
+     assert 'REJOIN verified generation=2 writes=2' in output.splitlines()
+     confirm_replicated(target,current,'2')
+     with (runtime/'sentinel'/'server.log').open(encoding='utf-8') as log:
+      evidence=log.read()
+     assert f'+switch-master cache 127.0.0.1 {current} 127.0.0.1 {target}' in evidence
+     assert f'+convert-to-slave slave 127.0.0.1:{current} 127.0.0.1 {current}' in evidence
+     case['rejoin']['replicated_counts'].append(2)
+     case['rejoin']['sentinel_conversion']=True
     if a.load:
      ledger=report.with_name(f'{report.stem}-{factory}-{protocol}-offers.csv.gz')
      case['load']=load_report(output,a.load,a.control,ledger)
@@ -238,7 +285,7 @@ def main():
   for name,port,p in children:
    try:p.wait(timeout=5)
    except subprocess.TimeoutExpired:p.kill();p.wait(timeout=5)
-  for name,log in logs:
-   log.close();shutil.copy2(Path(temporary.name)/name/'server.log',report.with_name(report.stem+'-'+name+'.log'))
+  for name,log,log_path in logs:
+   log.close();shutil.copy2(log_path,report.with_name(report.stem+'-'+name+'.log'))
   temporary.cleanup();result['runtime_material_removed']=not Path(temporary.name).exists();result['processes_terminal']=all(p.poll() is not None for _,_,p in children);save()
 if __name__=='__main__':main()
