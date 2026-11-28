@@ -33276,3 +33276,35 @@ under out/service-extensions/xrpc-app-completion-b5161073/. The
 diagnostic guest retired after the capture. Ordinary xrpc maturity
 passed. The matched tail and strict release gates remain open.
 Current MQTT TCP prefixes verified 37.56 awake hours on both hosts.
+
+## 2026-11-28 xcron lazy waiter failure and recovery
+
+The scripted xcron clock test now injects I/O errors both before
+the first waiter initialization and after a waiter is live.
+A native Wake is signaled before initialization fails. The failed
+call keeps its output sentinel and leaves the original deadline
+pending. The successful retry observes that same event. A later
+backend wait failure preserves the initialized waiter. The next
+retry uses it and dispatches the pending occurrence exactly once.
+
+Windows x64 and the Ubuntu x64 QEMU/WHPX guest built and passed
+the modular and single-header tests and the APP examples. The
+guest also passed the scripted test under ASan and UBSan with
+leak detection. Two isolated Windows mutations respectively
+cleared the wake on initialization failure and forgot the
+initialized waiter after a backend error. The new case rejected
+both. Replay matched the source and executable digests before
+the diagnostic guest retired.
+
+The independent APP checkpoint driver passed on both platforms.
+After forced process exit the last committed occurrence was
+2,000 ms and the first replayed occurrence was 3,000 ms. It also
+verified write refusal, a malformed checkpoint and a wall-clock
+rollback. Receipts are under
+out/service-extensions/xcron-waiter-recovery-83e3722f/.
+
+The two long scheduler timing campaigns remained active. Each
+had four verified repeats totaling 50,331,648 callbacks. The
+Windows and Ubuntu fifth prefixes had 9,139,200 and 8,776,704
+verified callbacks respectively. The normal maturity audit and
+generated-header check passed. Strict release timing remains open.

@@ -28,6 +28,8 @@ static struct {
     uint32 SubNs;
     const clockstep* Steps;
     size_t Count, Consumed;
+    size_t WaiterInitCalls;
+    bool FailWaiterInit, FailWait, CheckPendingWake;
     unsigned Trace[MODEL_CAPACITY];
     size_t Called;
 } Clock;
@@ -55,8 +57,28 @@ static double readMonotonic(void)
     return Clock.Monotonic;
 }
 
+static bool initWaiter(xeventwaiter* Waiter, xevent* Event, uint32 Flags)
+{
+    ++Clock.WaiterInitCalls;
+    if (Clock.FailWaiterInit) {
+        Clock.FailWaiterInit = false;
+        xrtSetErrorKind(XERR_IO);
+        return false;
+    }
+    return xrtEventWaiterInit(Waiter, Event, Flags);
+}
+
 static xwaitresult waitStep(xeventwaiter* Waiter, double Deadline)
 {
+    if (Clock.FailWait) {
+        Clock.FailWait = false;
+        xrtSetErrorKind(XERR_IO);
+        return XWAIT_ERROR;
+    }
+    if (Clock.CheckPendingWake) {
+        Clock.CheckPendingWake = false;
+        return xrtEventWaiterWaitFor(Waiter, 0);
+    }
     testRequire(Clock.Consumed < Clock.Count, "unexpected clock wait");
     const clockstep* Step = &Clock.Steps[Clock.Consumed++];
     testRequire(Deadline >= Step->Deadline - 1e-12 &&
@@ -70,15 +92,17 @@ static xwaitresult waitStep(xeventwaiter* Waiter, double Deadline)
     return xrtEventWaiterWaitFor(Waiter, 0);
 }
 
-/* Script only the scheduler's three clock/wait call sites. XRT keeps its
- * native clock, including the real event used by the explicit wake case. */
+/* Script the scheduler's clock and waiter calls. XRT keeps the real
+ * waiter lifetime and the native event used by explicit wake cases. */
 #define xrtNow readWall
 #define __xrtNowWithSubMs readWallWithSubMs
 #define xrtTimer readMonotonic
+#define xrtEventWaiterInit initWaiter
 #define __xrtEventWaiterWaitUntil waitStep
 #define XCRON_IMPLEMENTATION
 #include "../../../../single/extlibs/xcron.h"
 #undef __xrtEventWaiterWaitUntil
+#undef xrtEventWaiterInit
 #undef xrtTimer
 #undef __xrtNowWithSubMs
 #undef xrtNow
@@ -99,6 +123,8 @@ static void beginScheduler(xtime Wall, double Monotonic, size_t Capacity, xcrond
     Clock.SubNs = 0;
     Clock.Steps = NULL;
     Clock.Count = Clock.Consumed = Clock.Called = 0;
+    Clock.WaiterInitCalls = 0;
+    Clock.FailWaiterInit = Clock.FailWait = Clock.CheckPendingWake = false;
     testRequire(xcronSchedulerCreate(Capacity, Dialect, &Clock.Scheduler), "create clock-test scheduler");
 }
 
@@ -359,6 +385,43 @@ static void testClockFailure(void)
     end();
 }
 
+static void testWaiterFailure(void)
+{
+    begin(40750, 40.0);
+    clockjob Job = {.Marker = 1};
+    add(XRT_STR_LITERAL("* * * * * *"), &Job);
+    const xcronpoll Sentinel = {.Count = 17, .HasNext = true, .Next = 42};
+    xcronpoll Result = Sentinel;
+    testRequire(xcronSchedulerWake(Clock.Scheduler), "publish a wake before lazy waiter initialization");
+    Clock.FailWaiterInit = true;
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_ERROR &&
+        xrtErrorKind(xrtGetError()) == XERR_IO && report(Result, 17, 42) && !Clock.Called &&
+        !Clock.Scheduler->HasWaiter && Clock.WaiterInitCalls == 1,
+        "failed waiter initialization preserves the report, due job and retry");
+    xrtClearError();
+    testRequire(xcronSchedulerPoll(Clock.Scheduler, &Result) == XCRON_SCHEDULE_IDLE &&
+        report(Result, 0, 41000), "the original occurrence stays pending");
+
+    Clock.CheckPendingWake = true;
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_WOKEN &&
+        report(Result, 0, 41000) && !Clock.Called && Clock.Scheduler->HasWaiter &&
+        Clock.WaiterInitCalls == 2, "waiter retry observes the original wake event");
+
+    Result = Sentinel;
+    Clock.FailWait = true;
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_ERROR &&
+        xrtErrorKind(xrtGetError()) == XERR_IO && report(Result, 17, 42) && !Clock.Called &&
+        Clock.Scheduler->HasWaiter && Clock.WaiterInitCalls == 2,
+        "backend wait failure preserves the initialized waiter and pending job");
+    xrtClearError();
+    const clockstep Due = {40.25, 41000, 40.25, false};
+    plan(&Due, 1);
+    testRequire(xcronSchedulerWait(Clock.Scheduler, 1000, &Result) == XCRON_SCHEDULE_DISPATCHED &&
+        report(Result, 1, 42000) && Clock.Called == 1 && Clock.Trace[0] == 1 &&
+        Clock.WaiterInitCalls == 2, "recovered waiter dispatches the original occurrence once");
+    end();
+}
+
 static void testDistinctRecurrences(void)
 {
     const xtime Monday = XRT_TIME_UNIX_EPOCH + INT64_C(4) * 86400000;
@@ -582,6 +645,7 @@ int main(void)
     testWaveSample();
     testEmptyScheduler();
     testClockFailure();
+    testWaiterFailure();
     testDistinctRecurrences();
     testReusedSlotWaveOrder();
     testAddedRuleToOrderedWave();

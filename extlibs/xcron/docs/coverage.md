@@ -9,8 +9,10 @@ callback delivery, late occurrences, bounded admission and stale job handles.
 The scripted clock test covers explicit Wake after a forward step, a backward
 step during a timed wait, the wall sample shared by a callback wave, clock
 failure and recovery, and retirement at the last representable occurrence.
-It drives native event signaling for the Wake cases and scripts only the
-scheduler's relative wait and clock observations. The modular and
+It also injects failures during lazy waiter initialization and a subsequent
+wait. A native wake survives initialization failure, and a retry delivers
+the original occurrence once. The fixture scripts absolute deadline waits
+and clock observations while retaining native event and waiter lifetimes. The modular and
 single-header scheduler tests also drive the native blocking path.
 
 The scheduler benchmark measures idle Poll throughput, process CPU usage
