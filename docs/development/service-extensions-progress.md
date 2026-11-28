@@ -33174,3 +33174,53 @@ retired after evidence capture. Build receipts, the compiled
 binary comparison and both TLS reports are under
 out/service-extensions/service-tcp-identity-c4828a93/.
 The matched performance and strict release gates remain open.
+
+## 2026-11-28 Redis TLS input pause and same-worker wake comparison
+
+The Ubuntu x64 QEMU/WHPX guest exposed AES-NI and PCLMULQDQ.
+Four isolated builds at d7c08432 used the stock Core, deferred
+TLS input pause, same-worker internal posts without a port wake,
+and both changes. The deferred variant still pauses reading
+when the callback leaves plaintext unread. The same-worker
+variant keeps port wakes for all cross-thread internal posts.
+
+Each build used one epoll worker, two observer CPUs, eight
+RESP3 connections and 1,024 credits. Redis 8.0.5 ran on its own
+guest CPU. The workload used authenticated TLS 1.3 AES-128-GCM,
+X25519 and 1 KiB GET/SET values. Independent replay matched
+56 trials, 1,184,000 byte-verified replies and the full Redis
+command ledger. The table gives paired candidate/stock medians
+from five untraced blocks per rate.
+
+| Offers/s | Variant | Process CPU per reply | CPU outside generator per reply | P99 | P99.9 |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 2,000 | Deferred pause | 0.9945 | 0.9500 | 0.9852 | 0.9400 |
+| 2,000 | Same-worker wake | 0.9924 | 0.9375 | 0.9418 | 1.0130 |
+| 2,000 | Both | 0.9907 | 0.9142 | 1.0043 | 1.0482 |
+| 12,000 | Deferred pause | 0.9837 | 0.9498 | 0.9539 | 0.9195 |
+| 12,000 | Same-worker wake | 0.9800 | 0.9382 | 0.9425 | 0.9625 |
+| 12,000 | Both | 0.9732 | 0.9180 | 1.0343 | 1.3567 |
+
+Throughput and both CPU series met repeatability. All candidate
+tail series exceeded the accepted variation limits. At 500/s,
+two counted blocks each verified 1,000 replies per build.
+Deferred pause cut receive EAGAINs from 1,025 to eight in each
+block. Same-worker posting cut eventfd writes from 3,071 to
+1,017. The combined build retained those reductions with 1,017
+or 1,018 eventfd writes. Every block made 1,033 sendmsg calls.
+
+The stock and combined headers each passed 128 parked-worker
+rounds covering external, same-worker and cross-worker posts.
+The combined header passed five independent stream, slow-reader,
+backpressure, OOM and TLS WebSocket tests. The first guest used
+the default CPU profile. The timed guest used an explicit AES
+profile and an archive including the header generator's LICENSE
+input. Replay matched the executable and trace digests before
+the private peer and diagnostic guest retired.
+
+The release path stays on the stock implementation. The combined
+high-rate P99.9 result warrants keeping the two changes separate
+for further qualification. Source snapshots, trials and replay
+are under out/service-extensions/xredis-tls-wake-interaction-d7c08432/.
+The Windows and Ubuntu MQTT TCP runs continued at 37.25 verified
+awake hours each. Matched performance and strict release remain open.
