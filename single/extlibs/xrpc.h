@@ -3759,30 +3759,41 @@ typedef enum xrpcduplexcontrol {
 
 static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input,const xrpcdocument* Decoded)
 {
-    xrpcresponses* Responses=NULL;
-    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,Decoded,&Responses,D->Results);
-    if(S!=XRPC_RESPONSE_DONE)return S==XRPC_RESPONSE_LOCAL_ERROR?XRPC_DUPLEX_ERROR:xrpcDuplexProtocol(D);
-    xrpcresponseinfo I={0};I.Size=sizeof(I);xrpcResponsesInfo(Responses,&I);
-    for(size_t N=0;N<I.Count;++N)D->CorrelationIds[N]=xrpcDuplexCorrelationId(I.Messages+N,D->CorrelationText+N*24u);
-    if(!xrpcPendingProbeBatch(D->Pending,D->CorrelationIds,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
+    const xrpcdecodeconfig* Decode=&D->Config.Response.Decode;
+    xrpcdocument Document;
+    if(!Decoded){
+        xrpcdecodestatus S=xrpcDecode(Input,Decode,D->Scratch,Decode->MaxMessages,&Document);
+        if(S==XRPC_DECODE_LOCAL_ERROR)return XRPC_DUPLEX_ERROR;
+        if(S==XRPC_DECODE_PARSE_ERROR || Document.InvalidCount)return xrpcDuplexProtocol(D);
+        Decoded=&Document;
+    }
+
+    size_t Count=Decoded->Count;
+    for(size_t N=0;N<Count;++N)
+        D->CorrelationIds[N]=xrpcDuplexCorrelationId(D->Scratch+N,D->CorrelationText+N*24u);
+    if(!xrpcPendingProbeBatch(D->Pending,D->CorrelationIds,Count,D->Resolutions))return XRPC_DUPLEX_ERROR;
     xrpcduplexrequest* R=NULL;size_t Matches=0;
-    for(size_t N=0;N<I.Count;++N)if(D->Resolutions[N].Status==XRPC_PENDING_MATCHED){
+    for(size_t N=0;N<Count;++N)if(D->Resolutions[N].Status==XRPC_PENDING_MATCHED){
         xrpcduplexentry* E=D->Resolutions[N].Call.User;
         if(!R){R=E->Request;for(size_t K=0;K<R->Count;++K)xrpcDuplexMap(R)[K]=SIZE_MAX;}
-        if(E->Request!=R || !R->Sent || R->Finishing || I.Batch!=R->Batch || xrpcDuplexMap(R)[E->Index]!=SIZE_MAX)goto Protocol;
+        if(E->Request!=R || !R->Sent || R->Finishing || Decoded->Batch!=R->Batch ||
+            xrpcDuplexMap(R)[E->Index]!=SIZE_MAX)return xrpcDuplexProtocol(D);
         xrpcDuplexMap(R)[E->Index]=N;++Matches;
     }
-    if(!R){D->UnknownResponses+=I.Count;xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ACCEPTED;}
-    if(Matches!=I.Count || Matches!=R->Replies)goto Protocol;
-    if(!xrpcPendingTakeBatch(D->Pending,D->CorrelationIds,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
-    for(size_t N=0;N<I.Count;++N){xrpcduplexentry* E=D->Resolutions[N].Call.User;E->Token.Serial=0;}
+    if(!R){D->UnknownResponses+=Count;return XRPC_DUPLEX_ACCEPTED;}
+    if(Matches!=Count || Matches!=R->Replies)return xrpcDuplexProtocol(D);
+
+    xrpcresponses* Responses=NULL;
+    xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,
+        Decode->MaxMessages,Decoded,&Responses,D->Results);
+    if(S!=XRPC_RESPONSE_DONE)return S==XRPC_RESPONSE_LOCAL_ERROR?XRPC_DUPLEX_ERROR:xrpcDuplexProtocol(D);
+    if(!xrpcPendingTakeBatch(D->Pending,D->CorrelationIds,Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
+    for(size_t N=0;N<Count;++N){xrpcduplexentry* E=D->Resolutions[N].Call.User;E->Token.Serial=0;}
     R->Responses=Responses;
     size_t At=xrpcDuplexMap(R)[0];xrpccallstatus Status=R->Batch?XRPC_CALL_BATCH_DONE:
-        I.Messages[At].Kind==XRPC_MESSAGE_ERROR?XRPC_CALL_REMOTE_ERROR:XRPC_CALL_OK;
+        D->Scratch[At].Kind==XRPC_MESSAGE_ERROR?XRPC_CALL_REMOTE_ERROR:XRPC_CALL_OK;
     xrpcDuplexPrepareFinish(D,R,Status);if(!xrpcDuplexFinish(D,R))return XRPC_DUPLEX_ERROR;
     return XRPC_DUPLEX_ACCEPTED;
-Protocol:
-    xrpcResponsesRelease(Responses);return xrpcDuplexProtocol(D);
 }
 /* The fixed outer grammar lets us validate only the metadata here and run
  * the untouched inner document through the ordinary bounded duplex decoder. */

@@ -33654,3 +33654,34 @@ out/service-extensions/xredis-prechecked-write-e7dcd220/.
 The private peer and diagnostic guest retired after capture.
 Generated-header parity and ordinary xredis maturity passed.
 Matched performance and strict release acceptance remain open.
+
+## 2026-11-28 xrpc response correlation before snapshot allocation
+
+The duplex endpoint now validates reply IDs and the complete response shape
+before reserving result credit. Valid replies with only retired or unknown
+IDs increment the unknown count without copying the wire bytes. A rejected
+protocol group leaves all live calls uncommitted. If a matched reply cannot
+reserve its snapshot, the APP can retry that document after credit returns.
+The response-specific decoder still handles valid response extensions.
+
+The new fixture retains one completed Future to fill the result quota while
+another call is pending. The stock Windows single-header executable failed
+when it tried to reserve a snapshot for the two stale replies. The fixed
+executable counted both replies without changing the retained results or
+the quota refusal counter. Retrying the matched reply after releasing the
+held Future completed the live call. The existing malformed and mismatched
+group cases now run at full quota and verify protocol closure.
+
+Windows x64 GCC 16.2 and Ubuntu x64 GCC 13.3 in a QEMU/WHPX guest each
+passed 11 modular and 12 single-header tests. The focused Ubuntu duplex
+suite passed ASan, UBSan and leak detection and a separate GCC TSan run.
+Generated-header parity and ordinary maturity passed. The first Windows
+attempt used an unavailable default output path. Selecting the Windows
+target used the existing native Windows output tree and reproduced the
+runtime failure on stock before the fix.
+
+The guest verified the source overlay against mainline input digests.
+The captured logs and sanitizer binaries matched the guest archive digest
+before the isolated diagnostic guest retired. Evidence is under
+out/service-extensions/xrpc-response-quota-038cd09d/. The matched TCP APP
+tail comparison and strict xrpc release acceptance remain open.

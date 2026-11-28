@@ -149,6 +149,47 @@ static void testDuplexResponseSnapshot(void)
 	}
 }
 
+static void testDuplexResponseQuota(void)
+{
+    duplexTestContext Context;
+    duplexTestInit(&Context);
+    xrpcduplexconfig Config;
+    testRequire(xrpcDuplexConfigInit(&Config), "response quota config");
+    Config.MaxResults = 3;
+    xrpcduplex* D = duplexTestCreate(&Context, &Config);
+    xfuture *Held = NULL, *Live = NULL;
+    testRequire(xrpcDuplexCall(D, XRT_STR_LITERAL("held"), (xstrview){0}, XRT_WAIT_FOREVER, &Held) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexCall(D, XRT_STR_LITERAL("live"), (xstrview){0}, XRT_WAIT_FOREVER, &Live) == XRPC_DUPLEX_ACCEPTED,
+        "admit two calls sharing the result quota");
+    uint64 Token;
+    xrpcDuplexOutputRelease(duplexTestSend(D, &Token));
+    xrpcDuplexOutputRelease(duplexTestSend(D, &Token));
+    testRequire(xrpcDuplexReceive(D, XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}"),
+        (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED, "fill remaining result quota with a retained snapshot");
+    duplexTestResult(Held, XRPC_CALL_OK, XRPC_REPLIED);
+    testRequire(duplexTestInfo(D).Results == 3, "result quota is full");
+
+    const xstrview Reply = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":2}");
+    testRequire(xrpcDuplexReceive(D, Reply, (xbytesview){0}) == XRPC_DUPLEX_ERROR && !xrtFutureDone(Live),
+        "matched reply can be retried after a result quota refusal");
+    xrtClearError();
+    uint64 Refusals = duplexTestInfo(D).ResultRefusals;
+    const xstrview Stale = XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},"
+        "{\"jsonrpc\":\"2.0\",\"id\":\"99\",\"result\":99,\"params\":1,\"params\":[]}]");
+    testRequire(xrpcDuplexReceive(D, Stale, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED,
+        "unmatched replies require no result quota");
+    xrpcduplexinfo Info = duplexTestInfo(D);
+    testRequire(Info.UnknownResponses == 2 && Info.Results == 3 && Info.ResultRefusals == Refusals &&
+        !Info.Closing && !xrtFutureDone(Live), "ignored responses leave the live call and quota intact");
+
+    xrtFutureDestroy(Held);
+    testRequire(xrpcDuplexReceive(D, Reply, (xbytesview){0}) == XRPC_DUPLEX_ACCEPTED,
+        "retry the matched reply after releasing held credit");
+    duplexTestResult(Live, XRPC_CALL_OK, XRPC_REPLIED);
+    duplexTestClose(D);
+    xrtFutureDestroy(Live);
+}
+
 static void testDuplexResponseAtomicity(void)
 {
     static const char* Bad[]={
@@ -158,7 +199,12 @@ static void testDuplexResponseAtomicity(void)
         "[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"method\":\"effect\"}]",
         "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1}",
         "[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":2,\"error\":{}}]"};
-    for(size_t K=0;K<sizeof(Bad)/sizeof(Bad[0]);++K){duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(&C,NULL);xfuture* F=NULL;
+    for(size_t K=0;K<sizeof(Bad)/sizeof(Bad[0]);++K){
+        duplexTestContext C;duplexTestInit(&C);
+        xrpcduplexconfig Config;
+        testRequire(xrpcDuplexConfigInit(&Config),"response atomicity config");
+        Config.MaxResults=1;
+        xrpcduplex* D=duplexTestCreate(&C,&Config);xfuture* F=NULL;
         xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("echo"),(xstrview){0}},{true,XRT_STR_LITERAL("note"),(xstrview){0}},{false,XRT_STR_LITERAL("echo"),(xstrview){0}}};
         testRequire(xrpcDuplexBatch(D,Items,3,5000,&F)==XRPC_DUPLEX_ACCEPTED,"duplex atomic batch admit");uint64 T;xrpcduplexoutput* O=duplexTestSend(D,&T);
         testRequire(xrpcDuplexReceive(D,(xstrview){Bad[K],strlen(Bad[K])},(xbytesview){0})==XRPC_DUPLEX_PROTOCOL && xrtFutureState(F)==XFUTURE_PENDING,"bad response partially completed live batch");
@@ -523,6 +569,7 @@ int main(void)
     testDuplexStops();
     testDuplexCancelledBatchReply();
     testDuplexResponseSnapshot();
+    testDuplexResponseQuota();
     testDuplexResponseAtomicity();
     testDuplexAllocation();
     testDuplexConcurrency();

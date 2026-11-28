@@ -50,8 +50,11 @@ A result distinguishes local refusal, not sent, possibly executed, and
 received reply. The APP drives at the next monotonic deadline and on Wake.
 
 A valid remote response batch can arrive in any order. The pending table
-matches the complete document before committing reply associations. The
-endpoint preserves typed capacity and lifetime limits for pending IDs,
+matches the complete document before allocating a result snapshot. Valid
+replies to retired or unknown IDs are counted without taking result credit.
+If a matched reply encounters a local snapshot allocation or quota error,
+the call remains pending and the APP can retry with the same document.
+The endpoint preserves typed capacity and lifetime limits for pending IDs,
 in-flight APP work, retained outputs and retained results.
 
 ## Example framing
