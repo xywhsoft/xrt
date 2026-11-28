@@ -7,7 +7,12 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-enum { MAX_PEERS = 32, MAX_WORKERS = 8, MAX_RECORDS = 4 };
+enum { MAX_PEERS = 32, MAX_WORKERS = 8 };
+#if defined(_WIN32) || defined(_WIN64)
+enum { MAX_RECORDS = 8 };
+#else
+enum { MAX_RECORDS = 4 };
+#endif
 
 typedef struct appecho {
     xstrview Id, Result;

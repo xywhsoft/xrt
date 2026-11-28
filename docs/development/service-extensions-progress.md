@@ -34810,3 +34810,55 @@ The instrumented source, builds, per-record timestamps
 and independent replay are under
 D:/XRT-results/service-extensions/xrpc-tcp-owner-phases-f67712f0/.
 Strict xrpc TCP tail qualification remains open.
+
+## 2026-11-28 Eight ready records in the Windows xrpc TCP APP
+
+The Windows TCP example can submit up to eight complete
+records from an existing read in one executor job. The
+other platforms use four. The receive buffer and reply
+arena retain their 4,096-byte and 8,192-byte limits.
+The owner sends completed replies in order and reuses the
+arena after sending a prepared prefix. The group limit is
+local to the example.
+
+Windows and Ubuntu x64 QEMU/WHPX compared the four-record
+and eight-record APPs with 32 staggered connections,
+two executor workers and two native observers. Each host
+completed 25 four-second trials at 64,000 scheduled calls/s,
+including the four-record dispatch-only control. Replay
+matched 12,800,000 exact replies and APP ledgers.
+
+| Host | Profile | Paired eight/four throughput | P99 | P99.9 |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Independent records | 1.000 | 0.905 | 0.380 |
+| Windows | Eight-member arrays | 1.000 | 1.021 | 1.112 |
+| Ubuntu | Independent records | 1.000 | 0.974 | 1.038 |
+| Ubuntu | Eight-member arrays | 1.000 | 0.954 | 1.008 |
+
+Throughput and Windows independent-record P99 met
+repeatability. The remaining tail ratios exceeded the
+variation limits. Windows duplex independent-record
+P99 medians were 192.4 and 173.8 microseconds for four
+and eight records. The one-outstanding-call comparison
+verified 40,960 replies. Its paired throughput, P99 and
+P99.9 ratios were 0.983, 0.970 and 1.142. All exceeded
+the repeatability variation limits.
+
+The additional Windows comparison ran both modes with
+the eight-record cap and replayed 2,560,000 replies.
+Its paired duplex/dispatch P99 ratio was 1.101, and its
+send-to-reply P99 ratio was 1.099. Both met repeatability.
+The scheduled-arrival P99 remains just above the planned
+10% relative limit and P99.9 exceeded the variation limit.
+
+The final Windows modular and single-header APPs passed
+the independent peer fixtures. The final Windows build's
+runtime sections match the measured candidate. Full
+file hashes differ; the runtime section comparison
+checked the section addresses, sizes and loadable bytes.
+The final Ubuntu binary matches the four-record control
+byte for byte and passed the same independent peer tests.
+Ordinary xrpc maturity passed. The candidate builds,
+raw comparisons and final receipts are retained under
+D:/XRT-results/service-extensions/xrpc-eight-ready-records-5d79a3bd/.
+Strict TCP tail qualification remains open.

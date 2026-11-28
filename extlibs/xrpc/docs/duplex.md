@@ -65,7 +65,8 @@ record or EOF inside a record ends the example's stream. Replies already
 sent remain available to the peer.
 The TCP example continues its delimiter search at the first new byte after
 each read, including when the final record spans several reads. It sends one
-executor job for up to four complete records that are already buffered. The
+executor job for complete records that are already buffered. The limit is
+eight records on Windows and four on other platforms. The
 peer keeps one 4,097-byte input buffer and one 8,192-byte reply buffer until the
 executor has retired. A single record can use the descriptors from the
 endpoint's request callback. For several records, the worker prepares the
