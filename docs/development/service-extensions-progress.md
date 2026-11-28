@@ -12,7 +12,7 @@ The dated entries below retain the earlier implementation and test evidence.
 | --- | --- | --- |
 | xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Repeatable scheduler P99/P99.9 and strict release. Native Windows and hosted Linux cohort evidence is recorded below. |
 | xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Repeatable TCP concurrency P99/P99.9 and strict release. Hosted native Windows and Linux workload evidence is recorded below. |
-| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched release performance and final-build qualification. The 5b886da6 TCP candidate passed 72 continuous awake hours on both native platforms. Targeted native fault evidence is recorded below. |
+| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched performance and strict release acceptance. The current TCP probe is byte-identical to the 5b886da6 executables that passed 72 continuous awake hours on both native platforms. Targeted native fault evidence is recorded below. |
 | xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Matched client and broker load and release performance, including QoS 2 under saturation, and 72 continuous awake hours of mixed load on each native platform. |
 
 Work and verification use D:/GIT/xrt on master.
@@ -33133,3 +33133,44 @@ of the separate xcron interleaved campaign records four complete
 repeats per platform at 50,331,648 callbacks each, with both fifth
 repeats still running. Endurance, final timing and strict release
 acceptance remain open.
+
+## 2026-11-28 Current TCP mixed-build identity and Redis TLS regression
+
+Native Windows x64 and Ubuntu x64 QEMU/WHPX rebuilt the two
+TCP mixed probes with the compiler versions and arguments in
+the original endurance receipts. The rebuilds verified every
+compiled input of each historical binary using its receipt.
+The two historical Windows build scripts have different file
+digests. The compiler arguments and compiled inputs matched.
+
+The Windows mainline builds and the Ubuntu archive builds at
+c4828a93 are byte-for-byte identical to their corresponding
+original xredis 5b886da6 and xmqtt 2276e4ed executables.
+This includes the complete PE or ELF file and all sections.
+The compiler selectors omit TLS and AES-GCM. The preprocessed
+xredis inputs are identical. The preprocessed xmqtt difference
+adds an uncalled inline helper from the broker APP header.
+The original workload reports keep their original source and
+binary identities.
+
+The original xredis reports each passed a fresh full 72-hour
+replay. At the same check the two xmqtt TCP runs continued at
+37.11 verified awake hours each. Both running journal prefixes
+still cover the client and broker.
+
+The TLS-enabled xredis mixed builds at c4828a93 also passed a
+30-second regression against private Redis 8.0.5 peers. The
+independent observers pinned the leaf and verified TLS 1.3
+with AES-128-GCM. Each run exercised four clients, two workers
+and depth-eight pipelines. Windows through a loopback relay
+verified 1,742 rounds and Ubuntu guest-local verified 7,299.
+The terminal reports reconciled every Redis command and the
+initial and final connected-client baselines.
+
+The first guest upload lost its shared-memory staging directory.
+A private temporary mount allowed a hash-verified upload before
+the native TLS build. The Windows relay and diagnostic guest
+retired after evidence capture. Build receipts, the compiled
+binary comparison and both TLS reports are under
+out/service-extensions/service-tcp-identity-c4828a93/.
+The matched performance and strict release gates remain open.
