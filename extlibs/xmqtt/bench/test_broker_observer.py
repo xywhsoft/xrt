@@ -401,7 +401,7 @@ def shared_case(binary, duplicate, tls=None, ca=None):
                 process.wait(timeout=5)
 
 
-def batched_qos2_case(binary, tls, ca):
+def batched_qos2_case(binary, tls, ca, workers=None):
     count = 48
     with ExitStack() as stack:
         listener = stack.enter_context(socket.socket())
@@ -410,7 +410,10 @@ def batched_qos2_case(binary, tls, ca):
         listener.settimeout(7)
         port = listener.getsockname()[1]
         command = [binary, "--remote", str(port), "1", str(count), "8000", "0",
-                   "exact", "2", "64", "64", "--tls", str(ca), "localhost"]
+                   "exact", "2", "64", "64"]
+        if workers is not None:
+            command += ["--tls-workers", str(workers)]
+        command += ["--tls", str(ca), "localhost"]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             def accept():
@@ -456,7 +459,8 @@ def batched_qos2_case(binary, tls, ca):
             assert all(int(metrics[k]) == count for k in ("offered", "deliveries", "publish_confirmed"))
             assert int(metrics["subscriber_ack_packets"]) == 2 * count
             assert 2 <= int(metrics["subscriber_ack_writes"]) <= 6, metrics
-            print("coalesced TLS QoS 2 acknowledgements verified")
+            assert metrics.get("tls_workers") == (str(workers) if workers is not None else None)
+            print(f"coalesced TLS QoS 2 acknowledgements verified with {workers or 1} worker(s)")
         finally:
             if process.poll() is None:
                 process.kill()
@@ -517,6 +521,7 @@ def main():
         multi_publisher_case(binary, False, tls, root / "ca.pem")
         multi_publisher_case(binary, False, tls, root / "ca.pem", rejected=(0, 3))
         batched_qos2_case(binary, tls, root / "ca.pem")
+        batched_qos2_case(binary, tls, root / "ca.pem", workers=2)
         reject_tls_identity(binary, tls, root / "wrong.pem", "localhost")
         reject_tls_identity(binary, tls, root / "ca.pem", "wrong.invalid")
 

@@ -567,10 +567,14 @@ connection count and keeps hashes of the public CA and leaf.
 
 Repeat with `--qos 0` and `--qos 1` for the corresponding MQTT flows.
 TLS handshakes finish before the measured interval. Broker process CPU
-includes connection setup and warmup. Both measurements include the same
-observer TLS worker, Futures and plaintext copies. Compare the brokers
-within a TLS workload. To compare two xmqtt workers with a two-CPU
-budget for either broker, replace the single-CPU argument with
+includes connection setup and warmup. Both brokers use the same observer
+TLS worker count, Futures and plaintext copies. By default the observer
+uses one TLS worker. Increase `--tls-workers` with a separate observer CPU
+budget when the observer cannot sustain the scheduled offers. Active TLS
+connections are assigned round robin and the report records the worker
+count. Keep both the worker count and CPU budget equal across brokers.
+To compare two xmqtt workers with a two-CPU budget for either broker,
+replace the single-CPU argument with
 `--broker-cpus 0,2 --xmqtt-workers 2`. For a fan-out profile, add
 `--publishers 4` at QoS 1 or 2 and use `--workload wildcard:8:4000`.
 Repeat with `--xmqtt-workers 1` and the same CPU set to measure scaling.

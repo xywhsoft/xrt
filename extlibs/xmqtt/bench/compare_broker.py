@@ -151,7 +151,10 @@ def run_observer(args, port, workload):
     publishers = getattr(args, "publishers", 1)
     if publishers > 1:
         command.extend(("--publishers", str(publishers)))
+    tls_workers = getattr(args, "tls_workers", None)
     if args.tls_credentials:
+        if tls_workers is not None:
+            command.extend(("--tls-workers", str(tls_workers)))
         command.extend(("--tls", str(args.tls_credentials / "ca.pem"), "localhost"))
     process = start(command, args.load_cpus, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -169,6 +172,8 @@ def run_observer(args, port, workload):
         metrics += SHARED_METRICS
     if args.tls_credentials:
         metrics += ("tls_connections",)
+        if tls_workers is not None:
+            metrics += ("tls_workers",)
     if result.keys() & set(OBSERVER_CPU_METRICS):
         metrics += OBSERVER_CPU_METRICS
     has_ack_metrics = (args.tls_credentials is not None and args.qos == 2
@@ -188,6 +193,8 @@ def run_observer(args, port, workload):
         raise ValueError("publication and delivery counts do not match the workload")
     if args.tls_credentials and result["tls_connections"] != peers + publishers:
         raise ValueError("missing authenticated observer connections")
+    if tls_workers is not None and result.get("tls_workers") != tls_workers:
+        raise ValueError("observer TLS worker count does not match the workload")
     if has_ack_metrics:
         packets = result["subscriber_ack_packets"]
         writes = result["subscriber_ack_writes"]
@@ -370,7 +377,11 @@ def main():
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--tls-credentials", type=Path, metavar="DIRECTORY",
                         help="use the same CA and localhost test identity for both brokers")
+    parser.add_argument("--tls-workers", type=int, choices=range(1, 65), metavar="1..64",
+                        help="observer TLS worker count, defaults to one")
     args = parser.parse_args()
+    if args.tls_workers is not None and not args.tls_credentials:
+        parser.error("--tls-workers requires --tls-credentials")
     if args.idle_peers < 0 or any(args.idle_peers + peers + args.publishers > 10000
                                 for _, peers, _ in args.workload):
         parser.error("idle peers and workload peers must fit 10,000 total connections")
@@ -420,6 +431,7 @@ def main():
               "workloads": []}
     if args.tls_credentials:
         report["tls"] = {"cipher": TLS_CIPHER, "observer_group": "X25519", "dns_name": "localhost",
+                         "observer_workers": args.tls_workers or 1,
                          "trust_anchor": fingerprint(args.tls_credentials / "ca.pem"),
                          "leaf": fingerprint(args.tls_credentials / "certificate.der")}
     if args.count_quota_rejections:

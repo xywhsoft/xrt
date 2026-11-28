@@ -966,7 +966,8 @@ typedef struct benchRemoteTransport {
 } benchRemoteTransport;
 
 #if defined(XMQTT_BENCH_TLS)
-static bool benchRemoteTlsStart(benchRemoteTransport* Transport, const char* Ca, const char* Name)
+static bool benchRemoteTlsStart(benchRemoteTransport* Transport, const char* Ca, const char* Name,
+	uint32 Workers)
 {
 	unsigned char Pem[65536];
 	FILE* File = fopen(Ca, "rb");
@@ -1007,9 +1008,10 @@ static bool benchRemoteTlsStart(benchRemoteTransport* Transport, const char* Ca,
 	Transport->Client.ServerName = Transport->Client.VerifyName = (xstrview){Name, strlen(Name)};
 	xnetengineconfig Engine;
 	xrtNetEngineConfigInit(&Engine);
-	Engine.Workers = 1;
+	Engine.Workers = Workers;
 	Transport->Engine = xrtNetEngineCreate(&Engine);
-	return Transport->Engine && xrtNetEngineStart(Transport->Engine);
+	return Transport->Engine && xrtNetEngineWorkerCount(Transport->Engine) == Workers &&
+		xrtNetEngineStart(Transport->Engine);
 }
 
 static bool benchRemoteTlsStop(benchRemoteTransport* Transport)
@@ -1031,7 +1033,8 @@ static bool benchRemoteConnect(benchConnection* Connection, const benchRemoteTra
 		xnetstreamconfig Tcp;
 		xrtNetStreamConfigInit(&Tcp);
 		Tcp.NoDelay = true;
-		Connection->Tls = xrtTlsStreamConnect(Transport->Engine, Address, 0, &Tcp,
+		uint32 Worker = (uint32)(Index % xrtNetEngineWorkerCount(Transport->Engine));
+		Connection->Tls = xrtTlsStreamConnect(Transport->Engine, Address, Worker, &Tcp,
 			&Transport->Client, NULL, NULL, NULL);
 		xfuture* Open = Connection->Tls ? xrtTlsStreamWaitAsync(Connection->Tls, XTLS_STREAM_WAIT_OPEN) : NULL;
 		bool Ready = benchTlsAwait(Open, NULL);
@@ -1040,7 +1043,11 @@ static bool benchRemoteConnect(benchConnection* Connection, const benchRemoteTra
 			fprintf(stderr, "TLS connection %zu: %s\n", Index, Error ? xrtErrorMessage(Error) : "open timed out");
 		}
 		if (Open) xrtFutureDestroy(Open);
-		return Ready && benchMqttConnect(*Connection, Frame, Size, false, RequiredWindow);
+		if (!Ready) return false;
+		xnetstream* Stream = xrtTlsStreamTransport(Connection->Tls);
+		xnetworker* Owner = Stream ? xrtNetStreamWorker(Stream) : NULL;
+		return Owner && xrtNetWorkerIndex(Owner) == Worker &&
+			benchMqttConnect(*Connection, Frame, Size, false, RequiredWindow);
 	}
 #else
 	(void)Transport;
@@ -1107,11 +1114,16 @@ static int benchRemote(int Argc, char** Argv)
 #if defined(XMQTT_BENCH_TLS)
 	const char* Ca = NULL;
 	const char* Name = NULL;
+	unsigned long TlsWorkers = 0;
 	if (Argc >= 4 && !strcmp(Argv[Argc - 3], "--tls")) {
 		Ca = Argv[Argc - 2];
 		Name = Argv[Argc - 1];
 		Argc -= 3;
 		if (!*Ca || !*Name) return 2;
+	}
+	if (Argc >= 4 && !strcmp(Argv[Argc - 2], "--tls-workers")) {
+		if (!Ca || !benchRemoteNumber(Argv[Argc - 1], 1, 64, &TlsWorkers)) return 2;
+		Argc -= 2;
 	}
 #endif
 	unsigned long PublisherCount = 1;
@@ -1136,7 +1148,7 @@ static int benchRemote(int Argc, char** Argv)
 		fprintf(stderr, "Usage: bench_server --remote PORT SUBSCRIBERS ROUNDS RATE WARMUP exact|wildcard|shared "
 			"[QOS PUBLISHER_WINDOW [SUBSCRIBER_WINDOW]] [--count-quota-rejections] [--publishers 1..8]"
 #if defined(XMQTT_BENCH_TLS)
-			" [--tls CA_PEM DNS_NAME]"
+			" [[--tls-workers 1..64] --tls CA_PEM DNS_NAME]"
 #endif
 			"\n");
 		return 2;
@@ -1195,7 +1207,7 @@ static int benchRemote(int Argc, char** Argv)
 	xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port);
 #if defined(XMQTT_BENCH_TLS)
 	Stage = "initialize authenticated TLS";
-	if (Ca && !benchRemoteTlsStart(&Transport, Ca, Name)) goto Done;
+	if (Ca && !benchRemoteTlsStart(&Transport, Ca, Name, TlsWorkers ? (uint32)TlsWorkers : 1)) goto Done;
 #endif
 	Stage = "connect and subscribe";
 	bool Wild = !strcmp(Argv[7], "wildcard");
@@ -1338,6 +1350,7 @@ static int benchRemote(int Argc, char** Argv)
 #if defined(XMQTT_BENCH_TLS)
 	if (Ca) {
 		printf("tls_connections: %lu\n", Peers + PublisherCount);
+		if (TlsWorkers) printf("tls_workers: %u\n", xrtNetEngineWorkerCount(Transport.Engine));
 		if (Qos == 2) {
 			size_t Packets = 0, Writes = 0;
 			for (size_t I = 0; I < Peers; ++I) {
