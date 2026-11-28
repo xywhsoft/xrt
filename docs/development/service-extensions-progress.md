@@ -34685,3 +34685,68 @@ comparison reports and replay are retained under
 D:/XRT-results/service-extensions/xmqtt-pacer-standard-978dc9ab/.
 The native mixed-load observers continued in parallel.
 Endurance and strict release qualification remain open.
+
+## 2026-11-28 xrpc TCP first-record decode reuse experiment
+
+The TCP APP diagnostic variant admits the first complete
+record in a buffered group before submitting the executor job.
+The worker reuses the already decoded ID and parameter spans
+for an ordinary echo request or echo array. It prepares the
+other records in the same reply arena. The owner continues
+to send each reply before admitting the next record. This
+preserves the one-inbound-slot budget and the ordered prefix
+before a fatal later record.
+
+Windows x64 and the Ubuntu x64 QEMU/WHPX guest built both
+APPs with the same Core and xrpc headers. Both builds
+passed the independent TCP peer suite and each platform
+passed all twelve native observer tests. The first guest
+runner imported the observer class from the wrong module.
+It exited before building an executable. The corrected
+runner used the same source archive and the failed launch
+log is retained.
+
+Each host completed five paired four-second repetitions
+at 64,000 fixed arrivals/s over 32 staggered connections.
+This diagnostic uses two logical CPUs for the APP and
+two separate CPUs for native observers on each host.
+It compares independent newline records and eight-member
+JSON-RPC arrays. The independent-record profile includes
+the stock APP in dispatch-only mode. The two hosts ran
+sequentially and the guest reserved separate CPUs for the
+MQTT TLS endurance workload.
+
+Replay verified the executable and trace hashes, reply
+and APP ledgers, and scheduled-delay and send-to-reply
+percentiles for 12,800,000 replies across all 50 trials.
+
+| Host | Profile | Paired candidate/stock throughput | P99 ratio | P99.9 ratio |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Independent records | 1.000 | 0.933 | 0.744 |
+| Windows | Eight-member arrays | 1.000 | 1.014 | 1.058 |
+| Ubuntu | Independent records | 1.000 | 0.966 | 1.030 |
+| Ubuntu | Eight-member arrays | 1.000 | 1.727 | 1.702 |
+
+All four throughput ratios met repeatability. The paired
+record P99 series exceeded the variation limit on both
+hosts. Windows array P99.9 showed a repeatable increase.
+Ubuntu array tails varied substantially.
+
+On Windows the candidate's independent-record P99 was
+a repeatable 1.152 times the dispatch-only result.
+The corresponding P99 ratio from actual send was 1.146,
+with 3.8 µs median offer-lag P99 in both arms. In the
+candidate's slowest 0.1% of replies, a median 67.0% of
+summed latency fell between the send and the first
+reply to that write. This interval covers the socket,
+owner scheduling, request admission and executor work.
+The current trace cannot attribute the remaining Windows
+gap to an individual APP phase.
+
+The candidate and its build, fixture, trace and replay
+records are retained under
+D:/XRT-results/service-extensions/xrpc-first-decoded-record-bc030fb1/.
+The candidate stays in the diagnostic artifacts. Further
+phase attribution and strict xrpc tail acceptance remain
+open. The xcron paired trials and the Redis and MQTT
+mixed-load supervisors continued on both hosts.
