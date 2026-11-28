@@ -59,6 +59,7 @@ struct xtlssession {
 	bool TransportEof;
 	bool FatalSent;
 	bool PeerAlertSet;
+	bool ReadUpdateRequested;
 	xbytesview Protocol;
 	xtlsalertlevel PeerAlertLevel;
 	xtlsalert PeerAlert;

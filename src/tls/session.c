@@ -2168,6 +2168,17 @@ xtlsresult __xrtTlsSessionRecordNext(
 			"TLS record scratch is not empty"
 		);
 	}
+	/* 留出空间接收已经在途的旧密钥记录。发送背压时继续读，下次驱动再请求。 */
+	if ( (pSession->ReadKey.Sequence >= XTLS_AES_GCM_RECORD_LIMIT / 2u) &&
+		!pSession->ReadUpdateRequested && (pSession->State == XTLS_STATE_READY) &&
+		(pSession->Version == XTLS_VERSION_13) &&
+		(pSession->ReadKey.Aead == XTLS_AEAD_AES_GCM) &&
+		(pSession->KeyUpdate != NULL) ) {
+		Result = pSession->KeyUpdate(pSession, XTLS_KEY_UPDATE_REQUESTED);
+		if ( (Result != XTLS_OK) && (Result != XTLS_AGAIN) ) {
+			return Result;
+		}
+	}
 	Result = __xrtTlsSessionRecordParse(pSession, &Wire);
 	if ( Result != XTLS_OK ) {
 		return Result;

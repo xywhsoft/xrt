@@ -228,7 +228,8 @@ static void testTlsServerAutomaticUpdate(
 		size_t iRemaining;
 		xtlsrecordkey Before;
 
-		/* 边界前一条仍用旧密钥；下一条必须先排队 KeyUpdate。 */
+		/* 跳到写入边界，模拟对端已经请求接收换钥。 */
+		pTarget->ReadUpdateRequested = true;
 		pSource->WriteKey.Sequence = iLimit - 2u;
 		pTarget->ReadKey.Sequence = iLimit - 2u;
 		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
@@ -288,6 +289,75 @@ static void testTlsServerAutomaticUpdate(
 	}
 }
 
+
+
+/* 双方都能在只接收应用数据时请求对端换钥。 */
+static void testTlsServerAutomaticReadUpdate(
+	xtlssession* pClient,
+	xtlssession* pServer,
+	test_tls_server_rng* pRng
+)
+{
+	for ( size_t i = 0; i < 2u; i++ ) {
+		xtlssession* pSource = i == 0 ? pClient : pServer;
+		xtlssession* pTarget = i == 0 ? pServer : pClient;
+		xtlsresult (*Drive)(xtlssession*) =
+			i == 0 ? xrtTlsServerDrive : xrtTlsClientDrive;
+		uint64 iLimit = __xrtTlsRecordKeyLimit(&pSource->WriteKey);
+		uint64 iThreshold = iLimit / 2u;
+		uint64 iSendBefore = pTarget->WriteKey.Sequence;
+		size_t iUpdateSize = __xrtTlsRecordSealSize(&pTarget->WriteKey, 5u, 0);
+		size_t iSendLimit = xrtTlsContextLimits(pTarget->Context)->SendLimit;
+		uint8 Fill[1024] = { 0 };
+
+		pSource->WriteKey.Sequence = iThreshold - 2u;
+		pTarget->ReadKey.Sequence = iThreshold - 2u;
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
+			"before", 6u, pRng) && (xrtTlsSessionSendSize(pTarget) == 0),
+			"automatic receive KeyUpdate ran before its threshold");
+
+		for ( size_t iRemaining = iSendLimit; iRemaining != 0; ) {
+			size_t iChunk = iRemaining < sizeof(Fill) ? iRemaining : sizeof(Fill);
+			testRequire(__xrtTlsSessionSend(pTarget, Fill, iChunk) == XTLS_OK,
+				"receive KeyUpdate backpressure setup failed");
+			iRemaining -= iChunk;
+		}
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0,
+			"cross", 5u, pRng) && testTlsServerTransfer(pSource, pTarget,
+			i == 0, "while full", 10u, pRng) &&
+			(pTarget->ReadKey.Sequence == iThreshold + 1u) &&
+			(pTarget->WriteKey.Sequence == iSendBefore) &&
+			(xrtTlsSessionSendSize(pTarget) == iSendLimit),
+			"send backpressure stalled authenticated reads or changed write epoch");
+		testRequire(xrtTlsSessionSendConsume(pTarget, iSendLimit),
+			"receive KeyUpdate send drain failed");
+		testRequire((Drive(pTarget) == XTLS_AGAIN) &&
+			(pTarget->WriteKey.Sequence == 0) &&
+			(xrtTlsSessionSendSize(pTarget) == iUpdateSize),
+			"receive limit must request a KeyUpdate after write credit returns");
+		testRequire((Drive(pTarget) == XTLS_AGAIN) &&
+			testTlsServerTransfer(pSource, pTarget, i == 0,
+				"in flight", 9u, pRng) &&
+			(xrtTlsSessionSendSize(pTarget) == iUpdateSize),
+			"receive epoch requested more than one KeyUpdate");
+
+		/* 对端可以用最后一个旧记录号应答，后续数据使用新 epoch。 */
+		pSource->WriteKey.Sequence = iLimit - 1u;
+		pTarget->ReadKey.Sequence = iLimit - 1u;
+		testRequire(testTlsServerPostHandshake(pClient, pServer, pRng) &&
+			(pSource->WriteKey.Sequence == 0) && (pTarget->ReadKey.Sequence == 0) &&
+			testTlsServerTransfer(pSource, pTarget, i == 0, "next epoch", 10u, pRng),
+			"receive KeyUpdate did not continue through the old key limit");
+
+		pSource->WriteKey.Sequence = iThreshold - 1u;
+		pTarget->ReadKey.Sequence = iThreshold - 1u;
+		testRequire(testTlsServerTransfer(pSource, pTarget, i == 0, "repeat", 6u, pRng) &&
+			(xrtTlsSessionSendSize(pTarget) == iUpdateSize) &&
+			testTlsServerPostHandshake(pClient, pServer, pRng) &&
+			(pTarget->ReadKey.Sequence == 0),
+			"the next receive epoch did not rearm automatic KeyUpdate");
+	}
+}
 
 
 /* 验证真实客户端与服务端的证书握手、更新 epoch、数据和认证关闭。 */
@@ -405,6 +475,7 @@ int main(void)
 		ServerData, sizeof(ServerData) - 1u, &Rng
 	), "TLS data transfer after server KeyUpdate failed");
 	testTlsServerAutomaticUpdate(pClient, pServer, &Rng);
+	testTlsServerAutomaticReadUpdate(pClient, pServer, &Rng);
 	testRequire((xrtTlsServerTicketNew(
 		pServer, &pServerResume
 	) == XTLS_OK) && (pServerResume != NULL) &&

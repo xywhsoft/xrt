@@ -1901,6 +1901,7 @@ static xtlsresult __xrtTlsClientKeyUpdateCommit(
 	/* 上方成功后只执行无失败提交。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	pSession->ReadKey = Next.ReadKey;
+	pSession->ReadUpdateRequested = false;
 	xrtSecureZero(&Next.ReadKey, sizeof(Next.ReadKey));
 	memcpy(
 		pState->ServerApplicationTraffic,
@@ -2018,6 +2019,9 @@ XRT_API xtlsresult xrtTlsClientKeyUpdate(
 		pState->ClientApplicationTraffic,
 		Next.WriteTraffic, pState->HashSize
 	);
+	if ( Request == XTLS_KEY_UPDATE_REQUESTED ) {
+		pSession->ReadUpdateRequested = true;
+	}
 	xrtSecureZero(&Next, sizeof(Next));
 	if ( !__xrtTlsClientWait(pSession, true) ) {
 		return __xrtTlsClientFailed(pSession);

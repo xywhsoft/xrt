@@ -34347,3 +34347,37 @@ endurance open. Peer response semantics follow
 
 The diagnostic scripts, exact variant headers, binaries and raw
 reports are in D:/XRT-results/service-extensions/xredis-tls-record-limit-e19199e5/.
+
+## 2026-11-28 TLS 1.3 receive-key rotation on mainline
+
+The f0b0d889 Ubuntu TLS run stopped with DISCONNECTED and
+MAY_HAVE_EXECUTED at 15:23:11 Asia/Shanghai. Its final verified
+sample had 1,864,038 mixed rounds and 7,493.08 awake seconds.
+The e19199e5 Windows run stopped at 20:04:41 with the same
+request outcome after 1,863,992 verified rounds and 32,296.39
+awake seconds. These are the last sampled round counts before
+failure. The previous diagnostic reproductions identify the
+receive record limit as a cause of this signature.
+
+TLS 1.3 AES-GCM now requests a peer KeyUpdate at half the
+per-key receive record limit. It remembers a committed request
+until the next peer receive key is installed. While the send
+queue is full, it continues consuming authenticated input and
+retries the request on later drive calls. The hard record cap
+and the existing write rotation are retained.
+
+The focused Windows and Ubuntu x64 tests fail on 0cec4069
+after send credit returns. Both pass with the new Core.
+The fixture covers client and server initiation, authenticated
+reads under a full send queue, one queued request per receive
+epoch, a peer response using the last old record sequence,
+and a second update after the first receive epoch retires.
+The full Core and extension regressions are in progress.
+
+Source snapshots and initial reports are in
+D:/XRT-results/service-extensions/tls-peer-key-update-0cec4069/.
+The f0b0d889 guest terminal report is in the original
+xredis-deadline-endurance-f0b0d889 artifact directory.
+The earlier Windows terminal files remain in
+xredis-tls-endurance-2e21ad6e. Strict release acceptance
+and final-build endurance are open.

@@ -633,6 +633,7 @@ static xtlsresult __xrtTlsServerKeyUpdateCommit(
 	/* 密文应答成功后只执行不会失败的 epoch 提交。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	pSession->ReadKey = Next.ReadKey;
+	pSession->ReadUpdateRequested = false;
 	xrtSecureZero(&Next.ReadKey, sizeof(Next.ReadKey));
 	memcpy(
 		pState->ClientApplicationTraffic,
@@ -750,6 +751,9 @@ XRT_API xtlsresult xrtTlsServerKeyUpdate(
 		pState->ServerApplicationTraffic,
 		Next.WriteTraffic, pState->HashSize
 	);
+	if ( Request == XTLS_KEY_UPDATE_REQUESTED ) {
+		pSession->ReadUpdateRequested = true;
+	}
 	xrtSecureZero(&Next, sizeof(Next));
 	if ( !__xrtTlsServerWait(pSession, true) ) {
 		return __xrtTlsServerFailed(pSession);

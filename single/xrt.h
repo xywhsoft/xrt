@@ -55215,6 +55215,7 @@ struct xtlssession {
 	bool TransportEof;
 	bool FatalSent;
 	bool PeerAlertSet;
+	bool ReadUpdateRequested;
 	xbytesview Protocol;
 	xtlsalertlevel PeerAlertLevel;
 	xtlsalert PeerAlert;
@@ -183087,6 +183088,17 @@ xtlsresult __xrtTlsSessionRecordNext(
 			"TLS record scratch is not empty"
 		);
 	}
+	/* 留出空间接收已经在途的旧密钥记录。发送背压时继续读，下次驱动再请求。 */
+	if ( (pSession->ReadKey.Sequence >= XTLS_AES_GCM_RECORD_LIMIT / 2u) &&
+		!pSession->ReadUpdateRequested && (pSession->State == XTLS_STATE_READY) &&
+		(pSession->Version == XTLS_VERSION_13) &&
+		(pSession->ReadKey.Aead == XTLS_AEAD_AES_GCM) &&
+		(pSession->KeyUpdate != NULL) ) {
+		Result = pSession->KeyUpdate(pSession, XTLS_KEY_UPDATE_REQUESTED);
+		if ( (Result != XTLS_OK) && (Result != XTLS_AGAIN) ) {
+			return Result;
+		}
+	}
 	Result = __xrtTlsSessionRecordParse(pSession, &Wire);
 	if ( Result != XTLS_OK ) {
 		return Result;
@@ -188541,6 +188553,7 @@ static xtlsresult __xrtTlsClientKeyUpdateCommit(
 	/* 上方成功后只执行无失败提交。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	pSession->ReadKey = Next.ReadKey;
+	pSession->ReadUpdateRequested = false;
 	xrtSecureZero(&Next.ReadKey, sizeof(Next.ReadKey));
 	memcpy(
 		pState->ServerApplicationTraffic,
@@ -188658,6 +188671,9 @@ XRT_API xtlsresult xrtTlsClientKeyUpdate(
 		pState->ClientApplicationTraffic,
 		Next.WriteTraffic, pState->HashSize
 	);
+	if ( Request == XTLS_KEY_UPDATE_REQUESTED ) {
+		pSession->ReadUpdateRequested = true;
+	}
 	xrtSecureZero(&Next, sizeof(Next));
 	if ( !__xrtTlsClientWait(pSession, true) ) {
 		return __xrtTlsClientFailed(pSession);
@@ -196282,6 +196298,7 @@ static xtlsresult __xrtTlsServerKeyUpdateCommit(
 	/* 密文应答成功后只执行不会失败的 epoch 提交。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	pSession->ReadKey = Next.ReadKey;
+	pSession->ReadUpdateRequested = false;
 	xrtSecureZero(&Next.ReadKey, sizeof(Next.ReadKey));
 	memcpy(
 		pState->ClientApplicationTraffic,
@@ -196399,6 +196416,9 @@ XRT_API xtlsresult xrtTlsServerKeyUpdate(
 		pState->ServerApplicationTraffic,
 		Next.WriteTraffic, pState->HashSize
 	);
+	if ( Request == XTLS_KEY_UPDATE_REQUESTED ) {
+		pSession->ReadUpdateRequested = true;
+	}
 	xrtSecureZero(&Next, sizeof(Next));
 	if ( !__xrtTlsServerWait(pSession, true) ) {
 		return __xrtTlsServerFailed(pSession);
