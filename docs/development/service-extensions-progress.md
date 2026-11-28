@@ -34538,3 +34538,65 @@ D:/XRT-results/service-extensions/xmqtt-tls-endurance-ef7e4621/.
 The guest remains live for the continuous TLS workload.
 Full endurance, matched performance and release acceptance
 are open.
+
+## 2026-11-28 Ubuntu MQTT TLS publisher pacing control
+
+The TLS fan-out comparison was repeated against the same xmqtt
+Broker with three observer builds. The first used the original
+observer from 3a116f85. Two diagnostic builds used the same
+phase counters and allowed either one publication or up to
+four already-due publications from the same connection per
+completed TLS send. The pacer sends immediately when eligible.
+Each publication keeps its own scheduled time and identifier.
+The publisher still acquires the connection gate before
+claiming outstanding slots and stops at the first occupied
+slot. Confirmation and subscriber acknowledgement paths
+use their existing send ordering.
+
+An AES-enabled Ubuntu x64 QEMU/WHPX guest assigned two logical
+CPUs each to the Broker, observer, and active TLS endurance.
+The workload used four publishers, eight wildcard subscribers,
+128-byte MQTT 5 QoS 2 payloads, 16-item windows, two Broker
+workers and two observer TLS workers. Profiles scheduled
+4,000 or 8,000 publications per second with 512 warmup
+publications per trial. Six permutations of the three arms
+balanced their trial positions at each rate. Both diagnostic
+observers passed the independent acknowledgement, credit,
+offer deadline and TLS identity fixtures. Archive replay
+matched the binaries and all 36 trials with 720,000 measured
+publications, 5,760,000 deliveries and zero quota refusals.
+
+| Offers/s | Observer | Actual median ingress/s | Median delivery P99 ms | Median pacer P99 ms | Median send-to-PUBCOMP P99 ms |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 4,000 | Original | 3,999 | 11.878 | 10.820 | 2.081 |
+| 4,000 | One publication | 3,999 | 19.977 | 18.837 | 2.210 |
+| 4,000 | Up to four due publications | 3,999 | 3.200 | 1.470 | 1.996 |
+| 8,000 | Original | 5,843 | 1,095.185 | 1,093.854 | 2.565 |
+| 8,000 | One publication | 5,726 | 1,181.792 | 1,180.668 | 2.487 |
+| 8,000 | Up to four due publications | 7,996 | 3.343 | 1.594 | 2.454 |
+
+At 8,000 scheduled arrivals/s, the four-publication diagnostic
+reduced the median number of publisher TLS writes from 24,512
+to 16,154, including warmup. The median sum of publisher
+TLS send waits fell from 3.729 to 2.509 seconds. The
+four-publication build reported delivery P99 between 2.856
+and 6.040 ms across the six trials. The single-publication
+build ranged from 857.811 to 1,256.399 ms. All six paired
+ingress gains agreed and the median paired ratio was 1.396.
+The paired delivery tail ratios exceeded the repeatability
+limits. The absolute latency values apply to this CPU
+allocation. The pacing intervention supports a substantial
+observer contribution to the high-load tail under this
+allocation.
+
+The source variants are diagnostic artifacts under
+D:/XRT-results/service-extensions/xmqtt-pacer-groups-7d663b14/.
+The archive also contains program receipts, fixture logs,
+trial records and independent replay. A failed grouped TLS
+send can leave the remote result of its frames uncertain.
+Completed-write counts cover successfully completed groups.
+Exit and partial-delivery accounting for a failed group
+need verification before adopting grouping in the standard
+observer. Matched Windows and reference Broker runs, the
+continuous mixed-load results, and strict release acceptance
+remain open.
