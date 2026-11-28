@@ -34372,7 +34372,7 @@ The fixture covers client and server initiation, authenticated
 reads under a full send queue, one queued request per receive
 epoch, a peer response using the last old record sequence,
 and a second update after the first receive epoch retires.
-The full Core and extension regressions are in progress.
+The full Core and extension regression results are recorded below.
 
 Source snapshots and initial reports are in
 D:/XRT-results/service-extensions/tls-peer-key-update-0cec4069/.
@@ -34381,3 +34381,58 @@ xredis-deadline-endurance-f0b0d889 artifact directory.
 The earlier Windows terminal files remain in
 xredis-tls-endurance-2e21ad6e. Strict release acceptance
 and final-build endurance are open.
+
+## 2026-11-28 TLS rekey regression and fresh endurance
+
+The 86818d9d source passed the native Windows and Ubuntu
+Core TLS, xredis and xmqtt suites.
+
+| Suite | Windows modular / single | Ubuntu modular / single |
+| --- | ---: | ---: |
+| TLS roles, session records and stream | 35 / 10 | 25 / 9 |
+| xredis TLS, caching and subscriber | 5 / 5 | 5 / 5 |
+| xmqtt server TLS, client TLS and WS/WSS | 5 / 6 | 5 / 6 |
+
+The Windows Core row includes IOCP-specific coverage.
+The Ubuntu focused KeyUpdate test also passed ASan and
+UBSan with leak detection. The initial guest archive
+omitted the declaration headers. The next Core run exhausted
+the root filesystem's compiler scratch space during single
+test builds. The final run supplied the declaration headers,
+used a task-local TMPDIR on the existing tmpfs, and retained
+both unsuccessful attempt logs. Generated header parity passed.
+
+The same Ubuntu Core was built with a diagnostic record limit
+of 4,096 and tested against the pinned Redis 8.0.5 OpenSSL
+peer. Three 20-second mixed runs verified 4,747, 4,784 and
+4,901 rounds. Each run used exactly four Redis HELLO commands
+and one SUBSCRIBE. Replay reconciled the authenticated TLS
+transport, 14,432 PUBLISH commands and 129,888 commands each
+for SET and GET. The caps used in the release build retain
+their standard repository values.
+
+The exact 86818d9d Windows IOCP and Ubuntu epoll mixed
+clients passed server-verified TLS 1.3 AES-128-GCM smoke
+tests. The separate fault cases interrupted the owned
+Windows relay or Ubuntu Redis process and the strict
+checker rejected both results. The new Ubuntu and Windows
+72-hour observers began at 21:29:28 and 21:29:55
+Asia/Shanghai. First replays verified 65.04 and 40.10 awake
+seconds with the exact committed binary receipts. The
+terminal e19199e5 Windows peer retired after its reported
+process and Redis identity were checked.
+
+The TCP-only MQTT probe rebuilt from 86818d9d is byte
+identical on each platform to its active 9b30d5b6 executable.
+Replay matched all thirteen inputs per build and the
+compiler identities. The initial Windows receipt check
+missed the build script with mixed line endings. The raw
+compiler input matches its receipt and its normalized text
+matches the Git blob. Replay verified 11.56 awake hours on
+both MQTT client and broker intervals at capture.
+
+The suite, diagnostic and MQTT identity evidence is in
+D:/XRT-results/service-extensions/tls-peer-key-update-0cec4069/.
+Exact TLS build receipts and journal snapshots are in
+D:/XRT-results/service-extensions/xredis-rekey-endurance-86818d9d/.
+Endurance and matched performance qualification are open.
