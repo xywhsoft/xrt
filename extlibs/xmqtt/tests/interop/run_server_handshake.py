@@ -419,6 +419,76 @@ def running_server(program, *arguments):
                 server.kill()
 
 
+def check_takeover_qos2_will(dial, retire_old):
+    incoming = b"takeover/observed/in"
+    outgoing = b"takeover/out"
+    will = b"takeover/observed/will"
+    expected = small_frame(0x30, topic(incoming) + b"\0pending\0\xff")
+    will_frame = small_frame(0x30, topic(will) + b"\0old-connection")
+
+    def request(peer, client_id, clean=True, will_delay=None):
+        flags = (2 if clean else 0) | (4 if will_delay is not None else 0)
+        body = b"\0\4MQTT" + bytes((5, flags, 0, 0)) + b"\x05\x11\0\0\0\x1e" + topic(client_id)
+        if will_delay is not None:
+            body += b"\x05\x18" + will_delay.to_bytes(4, "big") + topic(will) + topic(b"old-connection")
+        peer.sendall(small_frame(0x10, body))
+
+    def accepted(peer, present=False):
+        header = read(peer, 2)
+        assert header[0] == 0x20
+        ack = read(peer, header[1])
+        assert ack[:2] == bytes((present, 0)), ack.hex()
+
+    def subscribe(peer, name, qos):
+        peer.sendall(small_frame(0x82, b"\0\1\0" + topic(name) + bytes((qos,))))
+        assert read(peer, 6) == b"\x90\x04\0\1\0" + bytes((qos,))
+
+    with dial() as observer, dial() as publisher:
+        request(observer, b"takeover-observer")
+        accepted(observer)
+        subscribe(observer, b"takeover/observed/#", 0)
+        request(publisher, b"takeover-publisher")
+        accepted(publisher)
+        for clean in (False, True):
+            client_id = b"takeover-replace" if clean else b"takeover-resume"
+            with dial() as old, dial() as successor:
+                request(old, client_id, will_delay=5 if clean else 1)
+                accepted(old)
+                subscribe(old, outgoing, 2)
+                publish_qos2(publisher, outgoing, 202, b"unconfirmed\0")
+                outgoing_id = receive_qos2(old, outgoing, b"unconfirmed\0")
+                old.sendall(small_frame(0x50, outgoing_id))
+                assert read(old, 4) == small_frame(0x62, outgoing_id)
+
+                # Packet identifiers are scoped to a direction.
+                incoming_id = outgoing_id
+                publication = topic(incoming) + incoming_id + b"\0pending\0\xff"
+                old.sendall(small_frame(0x34, publication))
+                assert read(old, 4) == small_frame(0x50, incoming_id)
+                assert read(observer, len(expected)) == expected
+
+                request(successor, client_id, clean)
+                assert read(old, 3) == b"\xe0\x01\x8e"
+                retire_old(old)
+                accepted(successor, present=not clean)
+                if clean:
+                    observer.settimeout(3)
+                    assert read(observer, len(will_frame)) == will_frame, "Clean Start releases the old Will"
+                    successor.sendall(small_frame(0x62, incoming_id))
+                    forgotten = small_frame(0x70, incoming_id + b"\x92")
+                    assert read(successor, len(forgotten)) == forgotten, "Clean Start forgets prior QoS 2 identifiers"
+                    ping((successor, observer))
+                else:
+                    assert read(successor, 4) == small_frame(0x62, outgoing_id)
+                    successor.sendall(small_frame(0x70, outgoing_id) + small_frame(0x3c, publication))
+                    assert read(successor, 4) == small_frame(0x50, incoming_id)
+                    successor.sendall(small_frame(0x62, incoming_id))
+                    assert read(successor, 4) == small_frame(0x70, incoming_id)
+                    ping((successor, observer))
+                    time.sleep(2.1)  # One-second Will Delay and one expiry sweep.
+                    ping((observer,))  # The resumed session cancels the old Will.
+
+
 def probe(program):
     with running_server(program, "wait") as endpoint:
         preserved, connack5 = connect(endpoint, 5, b"literal")
@@ -444,12 +514,13 @@ def probe(program):
                     check_session_resume(endpoint, newer, 4)
                     check_will(endpoint, newer, 5)
                     check_will(endpoint, newer, 4)
+                    check_takeover_qos2_will(lambda: socket.create_connection(endpoint, timeout=5), eof)
                     newer.sendall(b"\xe0\0")
                     eof(newer)
     return {"mqtt5_connack": connack5, "mqtt311_connack": connack311,
             "takeover_connack": duplicate, "remaining_peer_ping": True,
             "zero_qos_ack_ids_rejected": 8, "explicit_negative_pubrec": True, "same_qos_wire_boundaries": 4,
-            "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
+            "takeover_qos2_will": True, "dual_version_routes": True, "wildcard_overlap": True, "shared_routing": True, "retained_routing": True, "parallel_replays": 2048, "bidirectional_qos1": True, "bidirectional_qos2": True, "persistent_resume": True, "live_takeover": True, "wills": True, "exact_case": True, "no_local": True, "unsubscribe": True}
 
 
 

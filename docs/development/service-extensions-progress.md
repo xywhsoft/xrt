@@ -33042,3 +33042,34 @@ are under out/service-extensions/xredis-tls-groups-cross-a5190125/.
 The four existing TCP journals verified 68.74 / 68.83 Redis
 awake hours and 27.50 / 27.50 MQTT awake hours on Windows /
 Ubuntu. Strict performance and release gates remain open.
+\
+\
+## 2026-11-28 MQTT session takeover with bidirectional QoS 2 and a delayed Will\
+\
+An independent MQTT 5 peer leaves one outbound QoS 2 delivery\
+awaiting PUBCOMP and one inbound delivery awaiting PUBREL. Both\
+directions use the same nonzero packet identifier. The old owner\
+also has a delayed Will. Both takeover paths require DISCONNECT\
+reason 0x8E on the old connection.\
+\
+A resumed session reports Session Present, replays its outbound\
+PUBREL with the same identifier, and completes both directions.\
+The observer checks that the retransmitted inbound PUBLISH causes\
+no second delivery and that the old Will stays cancelled through\
+its one-second delay and an expiry sweep. Clean Start clears\
+Session Present, emits the old Will within three seconds despite\
+the original five-second delay, rejects the old inbound identifier\
+with PUBCOMP reason 0x92, and leaves no old outbound frame.\
+\
+Native Windows x64 and the Ubuntu x64 QEMU/WHPX guest passed the\
+independent TCP and authenticated TLS 1.3 runs against fef6dcdf.\
+The initial guest source archive lacked shared test headers. The\
+rerun used the missing fixture files from the same revision. Replay\
+verified both final script digests and all four binary digests.\
+The separate diagnostic guest retired after the archive checks.\
+Raw evidence is under out/service-extensions/xmqtt-takeover-qos2-will-fef6dcdf/.\
+\
+The live takeover runs used in-memory broker state. The TCP mixed-load\
+runs at 2276e4ed continued on Windows and Ubuntu with 36.75 and 36.76\
+verified awake hours for the client and broker. Final-source endurance\
+and strict release acceptance remain open.\

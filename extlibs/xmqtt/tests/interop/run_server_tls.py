@@ -13,7 +13,8 @@ from pathlib import Path
 from threading import Thread
 from time import perf_counter_ns
 
-from run_server_handshake import finish_qos2, ping, publish_qos2, read, receive_qos2, small_frame, topic
+from run_server_handshake import (check_takeover_qos2_will, finish_qos2, ping, publish_qos2, read,
+                                  receive_qos2, small_frame, topic)
 
 
 def frame(kind, body):
@@ -132,6 +133,8 @@ def verify(endpoint, context):
                 successor.sendall(b"\x40\x02" + recv_id)
             finish(successor)
         finish(producer)
+
+    check_takeover_qos2_will(connect, lambda peer: peer.unwrap().close())
 
 
 def verify_quota_recovery(endpoint, context):
@@ -290,7 +293,7 @@ def main():
                 server.kill()
     result = {"tls_1_3": True, "verified_identity": True, "mqtt_5_and_311": True,
               "fragmented_connect_and_publish": True, "qos_1_and_2": True,
-              "live_tls_takeover": True, "clean_tls_close": True, "queued_qos1_deliveries": 48,
+              "live_tls_takeover": True, "takeover_qos2_will": True, "clean_tls_close": True, "queued_qos1_deliveries": 48,
               "qos2_quota_recovery": quota, "qos2_coalesced_credit": coalesced}
     if ping is not None:
         result["loopback_ping"] = ping
