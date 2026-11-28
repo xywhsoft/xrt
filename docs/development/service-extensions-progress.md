@@ -33516,3 +33516,59 @@ The startup receipt, copied guest executable, report and
 fault evidence are under out/service-extensions/xmqtt-mixed-9b30d5b6/.
 Both current 72-hour intervals and strict release acceptance
 remain open.
+
+## 2026-11-28 Completed interleaved xcron timing and mainline identity
+
+The Windows x64 and Ubuntu x64 QEMU/WHPX captures each
+finished five repetitions of 4,096 waves per drive at 1,024
+jobs per wave. Independent replay matched all 62,914,560
+callbacks per host, the per-repeat offsets, the stored program
+and runner digests, and every complete CSV digest. Windows
+used CPU 8 and the Ubuntu guest used CPU 0.
+
+Both native rebuilds used the same diagnostic source and
+original compiler options from the captures. The complete PE
+and ELF executables built at abee5e5a match the respective
+executables that ran all five repetitions. The first source
+check compared archived bytes directly to Git blobs. Git
+archive contained line-ending translations. The corrected
+check matches raw compiled input digests to the archive and
+compares normalized contents to Git.
+
+| Environment | Drive | Last callback P99/P99.9, median us | Paired P99/P99.9 vs direct waiter |
+| --- | --- | --- | --- |
+| Windows | Direct waiter | 1162.8 / 1786.8 | reference |
+| Windows | Scheduler Wait | 1122.7 / 1728.1 | 0.979 / 1.033 |
+| Windows | Host waiter then Poll | 1142.8 / 1762.1 | 0.983 / 0.987 |
+| Ubuntu guest | Direct waiter | 149.5 / 264.3 | reference |
+| Ubuntu guest | Scheduler Wait | 160.8 / 283.6 | 1.019 / 0.932 |
+| Ubuntu guest | Host waiter then Poll | 158.9 / 273.9 | 1.061 / 1.062 |
+
+The ratios are medians of paired per-repeat quantiles. All
+four paired P99 series meet the existing variation limits.
+Only the Windows Scheduler Wait paired P99.9 meets them.
+All six absolute last-callback P99 and P99.9 series exceed
+the variation limits.
+
+The replay also sums the exact phases for the five latest
+last callbacks per drive and repetition. The final waiter
+return accounts for 94.5% and 97.9% of summed lateness for
+Scheduler Wait and host-paced Poll on Ubuntu. The Windows
+shares are 59.5% and 78.1%. All 22 Windows waves with at
+least 1 ms from first to last callback in the monotonic
+measure occurred in the first repetition. The longest span
+was 201.2 ms. The data locate that interval within callback
+dispatch and leave its underlying cause unassigned.
+
+The uninstrumented Windows 8,192-wave campaign on CPU 10
+remained live with four verified repetitions per drive and
+67,108,864 callbacks. The completed Ubuntu uninstrumented
+1,024-job series previously exceeded the repeatability limits.
+The interleaved capture supplies phase diagnostics and the
+matched comparison. Strict release timing remains open.
+
+The original journals, native build receipts, terminal
+phase analysis and identity replay are under
+out/service-extensions/xcron-interleaved-proof-abee5e5a/
+and out/service-extensions/xcron-interleaved-50dcea56/.
+Generated-header parity and ordinary xcron maturity passed.
