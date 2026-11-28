@@ -694,11 +694,9 @@ static void xredisClientCancelTimer(xredisrequest* Request)
 static bool xredisClientArm(xredisrequest* Request, double Deadline)
 {
 	if (Deadline == INFINITY) return true;
-	double Milliseconds = ceil((Deadline - xrtTimer()) * 1000.0);
-	int64 Timeout = Milliseconds <= 0 ? 0 : Milliseconds >= 0x1p63 ? INT64_MAX : (int64)Milliseconds;
 	xredisRequestRef(Request);
-	Request->Timer = xrtNetEngineAfter(Request->Client->Engine, xrtNetWorkerIndex(Request->Client->Worker),
-		Timeout, xredisClientTimer, Request);
+	Request->Timer = __xrtNetEngineSchedule(Request->Client->Engine, xrtNetWorkerIndex(Request->Client->Worker),
+		Deadline, xredisClientTimer, Request);
 	if (Request->Timer != 0) return true;
 	xredisRequestRelease(Request); return false;
 }
@@ -798,10 +796,9 @@ static void xredisClientInitTimer(xnetworker* Worker, uint64 Id, xnetresult Resu
 static bool xredisClientInitArm(xredisclient* Client)
 {
 	if (!Client->Managed || Client->InitDeadline == INFINITY) return true;
-	double Remaining = ceil((Client->InitDeadline - xrtTimer()) * 1000.0);
-	int64 Timeout = Remaining <= 0 ? 0 : Remaining >= 0x1p63 ? INT64_MAX : (int64)Remaining;
 	xredisClientRef(Client);
-	Client->InitTimer = xrtNetEngineAfter(Client->Engine, xrtNetWorkerIndex(Client->Worker), Timeout, xredisClientInitTimer, Client);
+	Client->InitTimer = __xrtNetEngineSchedule(Client->Engine, xrtNetWorkerIndex(Client->Worker),
+		Client->InitDeadline, xredisClientInitTimer, Client);
 	if (Client->InitTimer != 0) return true;
 	xredisClientRelease(Client); return false;
 }

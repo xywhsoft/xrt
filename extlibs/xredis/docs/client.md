@@ -49,9 +49,9 @@ Timeout is signed milliseconds, -1 forever and zero already due. Its monotonic
 deadline is captured at call entry and includes validation/encoding, admission
 queueing, connection setup and response processing. A delayed worker does not
 restart that timeout when it finally dequeues a request. Equality expires.
-Timers arm on the worker using the remaining original deadline, rounded outward
-to the public millisecond timer API. Cancellation/deadline is rechecked before
-send and before logical response completion, rather than trusting timer order.
+The worker schedules finite timers at the original monotonic deadline.
+Cancellation and deadline are rechecked before send and before logical
+response completion.
 
 NOT_SENT means TCP did not accept the command. MAY_HAVE_EXECUTED means TCP
 accepted its bytes; it does not prove peer receipt or execution. REPLIED records

@@ -12,7 +12,7 @@ The dated entries below retain the earlier implementation and test evidence.
 | --- | --- | --- |
 | xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Repeatable scheduler P99/P99.9 and strict release. Native Windows and hosted Linux cohort evidence is recorded below. |
 | xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Repeatable TCP concurrency P99/P99.9 and strict release. Hosted native Windows and Linux workload evidence is recorded below. |
-| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched performance and strict release acceptance. The current TCP probe is byte-identical to the 5b886da6 executables that passed 72 continuous awake hours on both native platforms. Targeted native fault evidence is recorded below. |
+| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched performance and strict release acceptance. The 5b886da6 TCP probes passed 72 continuous awake hours on both native platforms. The absolute-deadline change updates the mixed probe inputs. Final-build endurance and targeted fault replay remain open. |
 | xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Matched client and broker load and release performance, including QoS 2 under saturation, and 72 continuous awake hours of mixed load on each native platform. |
 
 Work and verification use D:/GIT/xrt on master.
@@ -34235,3 +34235,36 @@ about 1.8 and 3.0 continuous awake hours per host,
 respectively. Generated-header parity and ordinary
 xcron maturity passed. Strict mode still lists xcron
 and xcron_scheduler as developing.
+
+## 2026-11-28 xredis request and initialization timer deadlines
+
+The request and drain-grace timer uses the original absolute
+monotonic deadline when arming on the connection worker. Managed
+connection initialization uses its original deadline as well.
+The existing XRT extension timer entry avoids converting the
+remaining budget to relative whole milliseconds and sampling
+the clock again. Infinite budgets, timer reservation failure,
+cancellation, and the delivery status rules are unchanged.
+
+The single-header regression holds the HELLO reply while a
+request waits for initialization. A posted callback inspects
+both live deadlines on their owner worker and requires exact
+equality with the recorded budgets. The same test on 6c77e1d4
+failed on both platforms. The observed initialization and request
+offsets were 62.200 and 12.300 microseconds on Windows and
+26.903 and 30.961 microseconds on Ubuntu. With the fix, both
+timers match and the handshake and queued request complete.
+
+Windows x64 IOCP and Ubuntu x64 QEMU/WHPX each passed 12
+optimized modular and 12 single-header runtime tests covering
+managed setup, TLS, deadlines, drain, cancellation, pools,
+WATCH, transactions, caching, ASKING and Pub/Sub. The Ubuntu
+initialization test passed ASan and UBSan with leak detection.
+Generated-header parity and ordinary xredis maturity passed.
+
+The stock and candidate source snapshots, test receipts and
+matched fixed-arrival TCP/TLS campaign are under
+D:/XRT-results/service-extensions/xredis-absolute-deadline-6c77e1d4/.
+The campaign is in progress. Previous TCP and TLS endurance
+evidence remains bound to its recorded builds. Strict release
+acceptance is open.
