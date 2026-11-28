@@ -35039,3 +35039,57 @@ and strict performance requirements remain open.
 SDKs, relocated programs, trust results, build receipts,
 the command ledger and the endurance prefix snapshot are
 under D:/XRT-results/service-extensions/xredis-current-sdk-4314ecb6/.
+
+## 2026-11-29 Current MQTT SDKs and independent client and broker peers
+
+Windows x64 and Ubuntu x64 QEMU/WHPX rebuilt xmqtt and XRT
+from the same archived mainline 66e847db inputs. The xmqtt
+and xmqtt_examples profiles each passed static and shared
+package verification on both systems. Per host, four relocated
+package consumers and twelve separately linked example programs
+ran from directories containing spaces. The relocation replay
+checked all artifacts and 144 copied declaration headers.
+Live TLS Broker inspection proved the shared executables loaded
+the sibling XRT and xmqtt libraries in their relocated kits.
+
+Each host also built a relocated XRT and xmqtt amalgamation
+translation unit and linked six standalone consumers against it.
+The independent TCP client peer verified 31 cases per linkage,
+including MQTT 5.0 and 3.1.1 fragmentation, QoS 1, refusal,
+limit, timeout and retirement behavior. The same independent
+Broker peers exercised MQTT 5.0 and 3.1.1 on plain TCP and TLS,
+enhanced authentication on TCP, TLS, WS and WSS, and checkpoint
+recovery across transport transitions and process stops.
+Recovery verified offline FIFO, QoS 1 DUP, QoS 2 PUBREL and
+completion, delayed Will and expiry boundaries. The replay
+matched 155 client wire cases, 66 Broker TCP case fields,
+12 authentication modes and 30 recovery cases per host.
+It tied the relocated build and protocol inputs to the exact
+archive bytes and 463 normalized Git source blobs per host.
+
+The first archive omitted the two declaration single headers.
+Including both restored generated-header parity. The first
+standalone checkpoint APP evaluated XRT feature gates before
+including the generated XRT feature header. Preloading the
+generated MQTT and Core feature headers enabled authentication
+and all configured transports in the APP. The successful builds
+used the same product inputs.
+
+One Ubuntu single-header cross-transport test timed out while
+awaiting the third, offline QoS 1 delivery after TLS reconnect.
+The original log was retained. The same executable passed an
+unmodified peer retry. A diagnostic observer read the checkpoint
+before TLS reconnect and verified both WS and WSS directions,
+three linkages and 23 repetitions. All 138 paths retained the
+keyed queued publication and completed. The initial timeout
+has no confirmed cause and remains a reliability follow-up.
+
+The Windows and Linux running journals were replayed while
+this stage ran. Redis TLS had 2.59 / 2.60 verified awake hours.
+MQTT TCP had 14.20 / 14.20 and MQTT TLS had 2.27 / 2.24.
+The xcron paired runs on both hosts were in repeat five of six
+after four recorded pairs. Strict release remains open.
+
+Builds, receipts, initial failures, native capture SHA-256
+and replay are under
+D:/XRT-results/service-extensions/xmqtt-current-sdk-66e847db/.
