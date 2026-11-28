@@ -33225,3 +33225,54 @@ for further qualification. Source snapshots, trials and replay
 are under out/service-extensions/xredis-tls-wake-interaction-d7c08432/.
 The Windows and Ubuntu MQTT TCP runs continued at 37.25 verified
 awake hours each. Matched performance and strict release remain open.
+
+## 2026-11-28 xrpc APP executor completion handoff
+
+The TCP APP's stock worker signals the auto-reset event for every
+job. An isolated candidate uses an atomic completion state so a
+reply finished before the owner arms its wait can bypass the event.
+A second candidate allows up to 128 pause instructions before
+arming the same blocking path. All arms submit one job per document
+to the existing bounded two-thread executor.
+
+Both candidates passed 128 forced completions before the wait and
+128 after it was armed on each platform, with no stale event.
+All six native APP builds also passed the full independent TCP
+suite, including 7,936 healthy replies per mode around a reset at
+32 peers. The initial test wrapper asserted a value from void
+thread cleanup. The corrected wrapper passed. The first observer
+unit runs passed nine tests and skipped three because of the
+environment selector. The corrected runs exercised all 12. Both
+timed runners explicitly loaded the native observer libraries.
+
+Windows x64 and the six-vCPU Ubuntu QEMU/WHPX guest ran serially.
+Each APP used four CPUs and the two native observer shards used
+separate CPUs. Each four-second trial used 32 staggered peers,
+eight records per write, a 16-group credit window and 64,000 fixed
+offers/s. Replay verified 60 trials, 15,360,000 replies and
+258,048 APP jobs per trial including warmup. Cells give medians
+in stock / completion check / short poll order.
+
+| Host | Mode | P99 (µs) | P99.9 (µs) | APP CPU (s) |
+| --- | --- | --- | --- | --- |
+| Windows | Duplex | 238 / 234 / 232 | 348 / 348 / 358 | 4.69 / 4.95 / 5.03 |
+| Windows | Dispatch only | 224 / 224 / 227 | 340 / 330 / 350 | 4.36 / 4.31 / 4.73 |
+| Ubuntu guest | Duplex | 577 / 580 / 673 | 780 / 781 / 1,150 | 7.28 / 7.33 / 7.42 |
+| Ubuntu guest | Dispatch only | 533 / 537 / 534 | 735 / 747 / 725 | 6.98 / 7.05 / 7.17 |
+
+The paired throughput ratios stayed repeatable near 1.000. The
+Windows duplex completion check had stable paired P99 and P99.9
+ratios near 1.000. On Ubuntu the completion check increased
+paired APP CPU by 0.4–0.7% across modes with stable ratios.
+Short polling increased paired duplex CPU by 7.3% on Windows
+and 1.9% on Ubuntu with stable ratios. Ubuntu's short-poll
+duplex tails exceeded the variation limits. In stock duplex
+trials on both hosts, a median 73% of the slowest 0.1% replies'
+summed latency was after receipt of their groups' first reply.
+The stock APP remains the release baseline.
+
+Source inputs, compiler receipts and the exact timing replays are
+under out/service-extensions/xrpc-app-completion-b5161073/. The
+diagnostic guest retired after the capture. Ordinary xrpc maturity
+passed. The matched tail and strict release gates remain open.
+Current MQTT TCP prefixes verified 37.56 awake hours on both hosts.
