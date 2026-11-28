@@ -33593,3 +33593,64 @@ The old Linux executable, exact build receipt, final journal,
 systemd extract and digest-checked replay are under
 out/service-extensions/xmqtt-mixed-9b30d5b6/previous-ubuntu-retirement/.
 The current 72-hour runs and strict release gates remain open.
+
+## 2026-11-28 Redis command encoding after preflight
+
+Ordinary client admission measures and validates its borrowed
+argument vector before allocating the wire buffer. The prototype
+reuses that preflight when writing the newly allocated frame.
+It shares the wire encoder with the fully checked public
+writer. The measured ASKING and CACHING prefixes use the same
+encoded query bytes. The subscriber writer keeps its own checks.
+
+Each platform passed seven modular and seven single-header
+programs, including public command validation, TLS, CACHING,
+leased ASKING and subscriptions. The first suite selection
+omitted the test-only memory-statistics dependency. Selecting
+the registered test suites supplied it.
+
+A direct encoder measurement included the initial sizing pass
+for both arms. Six alternating pairs per argument count used
+two million encodes per arm, with the first pair as warmup.
+The replay matched the wire lengths and checksums. Timings are
+medians in ns per encode, stock / candidate.
+
+| Host | Three arguments | Sixteen arguments |
+| --- | ---: | ---: |
+| Windows | 34.0 / 24.0 | 141.7 / 104.8 |
+| Ubuntu guest | 34.8 / 22.0 | 135.1 / 102.8 |
+
+All four paired encoder improvements met repeatability. The
+end-to-end workload used the same private Redis 8.0.5 peer,
+eight RESP3 connections, one network worker, 1,024 credits,
+and 1 KiB GET/SET values. Windows IOCP reached the guest peer
+through a loopback relay. Ubuntu epoll ran guest-local with
+AES-NI enabled. The two host campaigns ran serially. Both
+TLS arms verified the same TLS 1.3 identity and rejected
+missing credentials, an untrusted CA and a wrong hostname.
+
+Replay verified all 96 trials and 1,792,000 byte-exact replies
+at 2,000 and 12,000 scheduled calls/s, including the warmups.
+The Redis command ledgers matched on both hosts. Every paired
+throughput ratio met repeatability near 1.000. The high-rate
+table gives candidate / stock paired ratios.
+
+| Host | Transport | CPU per reply | P99 | P99.9 |
+| --- | --- | ---: | ---: | ---: |
+| Windows | TCP | 1.054 | 0.997 | 0.997 |
+| Windows | TLS | 1.076 | 1.000 | 1.000 |
+| Ubuntu guest | TCP | 1.002 | 1.036 | 1.006 |
+| Ubuntu guest | TLS | 1.002 | 1.058 | 1.037 |
+
+The Windows TCP CPU increase and both Ubuntu P99 increases
+met repeatability. The Windows TLS CPU ratio and both Ubuntu
+P99.9 ratios exceeded the variation limits. The small encoder
+saving did not improve the release workload. The existing
+encoding path remains the release baseline.
+
+The source overlay, generated headers, binary receipts, exact
+reply traces and replays are under
+out/service-extensions/xredis-prechecked-write-e7dcd220/.
+The private peer and diagnostic guest retired after capture.
+Generated-header parity and ordinary xredis maturity passed.
+Matched performance and strict release acceptance remain open.
