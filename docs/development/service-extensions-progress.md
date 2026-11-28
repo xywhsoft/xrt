@@ -34862,3 +34862,66 @@ Ordinary xrpc maturity passed. The candidate builds,
 raw comparisons and final receipts are retained under
 D:/XRT-results/service-extensions/xrpc-eight-ready-records-5d79a3bd/.
 Strict TCP tail qualification remains open.
+
+## 2026-11-28 Current xredis TCP and TLS comparison against Hiredis
+
+The xredis observers were rebuilt from e6cd0804. Their
+Redis and Core inputs match 86818d9d, which is used by
+the current TLS endurance binaries. Both platforms
+used previously verified Hiredis 1.3.0 observer binaries
+and matching OpenSSL runtime digests. They shared one
+pinned Redis 8.0.5 peer with verified server and TLS
+certificate identities. Windows used a dedicated
+loopback SSH relay. Ubuntu x64 QEMU/WHPX used guest
+loopback. The two observation intervals ran in sequence.
+
+Each comparison used eight RESP3 connections, a 1,024
+request window, one xredis network worker and the same
+two-CPU allowance for both observer processes. The
+fixed-arrival workload used three GETs per SET with
+1 KiB values and verified TLS 1.3 AES-128-GCM when
+selected. At each offered rate and transport, one
+warmup pair preceded five measured pairs. Both clients
+rejected absent trust material, an unrelated CA and
+a wrong hostname before any Redis command was counted.
+
+Replay matched 96 ordered trials, 1,792,000 byte-checked
+replies, all stored latency quantiles and the independent
+command ledgers. Every paired throughput ratio met
+repeatability near 1.000. At 12,000 scheduled requests/s
+the complete samples had these per-arm median latencies
+and paired xredis/Hiredis process CPU ratios.
+
+| Host | Transport | P99 µs xredis / Hiredis | P99.9 µs xredis / Hiredis | Paired CPU ratio |
+| --- | --- | ---: | ---: | ---: |
+| Windows | TCP | 1,202.2 / 1,228.8 | 1,709.2 / 1,712.1 | 1.147 |
+| Windows | TLS | 1,299.2 / 1,273.8 | 1,759.5 / 1,730.3 | 1.204 |
+| Ubuntu | TCP | 430.4 / 257.3 | 686.5 / 488.1 | 1.402 |
+| Ubuntu | TLS | 508.3 / 313.6 | 765.2 / 565.2 | 1.521 |
+
+At 12,000/s the paired Windows TLS P99 ratio of 1.038
+met repeatability. The other paired Windows tail ratios
+exceeded the variation limits. Ubuntu had repeatable
+paired TCP and TLS P99 ratios of 1.663 and 1.637. Its
+TLS P99.9 ratio of 1.352 and both process CPU ratios also
+met repeatability. The process CPU counter includes the
+generator and both client implementations keep different
+work on the generator thread.
+
+The replay isolated timing for each trial's slowest 1%
+of requests at 12,000/s. On Ubuntu TLS the median of the
+per-trial mean time after submission was 569 µs for
+xredis and 368 µs for Hiredis. Before submission the
+corresponding values were 58 and 73 µs. This localizes
+the observed Linux tail gap to the interval covering
+client submission, transport and receipt. The raw
+timestamps leave the individual client and peer phases
+open for finer attribution.
+
+The private Redis peer and relay retired. Build
+receipts, trust checks, traces and replay are under
+D:/XRT-results/service-extensions/xredis-rekey-hiredis-e6cd0804/.
+The independent 86818d9d TLS endurance runs continued.
+Running-prefix replay checked 6,371.49 Windows and
+6,417.70 Ubuntu awake seconds. Matched performance
+and strict release qualification remain open.
