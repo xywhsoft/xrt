@@ -34265,6 +34265,85 @@ Generated-header parity and ordinary xredis maturity passed.
 The stock and candidate source snapshots, test receipts and
 matched fixed-arrival TCP/TLS campaign are under
 D:/XRT-results/service-extensions/xredis-absolute-deadline-6c77e1d4/.
-The campaign is in progress. Previous TCP and TLS endurance
-evidence remains bound to its recorded builds. Strict release
-acceptance is open.
+The completed campaign and subsequent endurance evidence are
+recorded below. Strict release acceptance is open.
+
+## 2026-11-28 xredis absolute deadline comparison and TLS candidates
+
+Windows x64 IOCP and Ubuntu x64 QEMU/WHPX epoll compared the
+6c77e1d4 and f0b0d889 headers with identical Core, observer and
+Redis 8.0.5 peer inputs. Windows used an isolated loopback
+relay and Ubuntu used guest-local TCP. One network worker
+handled eight RESP3 connections, a window of 1,024 and a
+three-to-one GET/SET mix with 1 KiB values. The five paired
+measured trials per transport and rate followed one warmup.
+Three-second measured intervals scheduled 2,000 or 12,000
+requests per second. TLS used verified TLS 1.3 AES-128-GCM.
+
+Independent replay verified all 96 trials, 1,792,000 replies,
+the full scheduled-offer ledgers, binary fingerprints and both
+Redis command ledgers. All eight paired throughput ratios met
+repeatability near 1.000. The Windows 12,000/s TLS P99 ratio was
+1.004 and met repeatability. The remaining P99 ratios and all
+P99.9 ratios exceeded the limits. Ubuntu's four paired process
+CPU ratios met repeatability between 1.000 and 1.003. The 2,000/s
+Windows TCP and TLS ratios were 1.005 and 1.029. Both met
+repeatability. The higher-rate Windows CPU ratios exceeded the
+limits. Process CPU includes the workload generator.
+
+On the exact f0b0d889 mixed-load builds the Ubuntu and Windows
+smoke and separate fault cases completed as expected. Both
+fault reports failed the strict checker. The Ubuntu and Windows
+TLS intervals began at 13:18:18 and 13:20:30 Asia/Shanghai. Replay
+verified 4,551.84 and 4,423.12 awake seconds respectively at
+capture. The Linux profile shows client and peer resources.
+The Windows loopback relay profile shows client resources.
+
+The first Ubuntu archive omitted the workload's scheduling
+header. The corrected archive matches the recorded source
+identity. The first Windows smoke passed its wire checks and
+the evidence verifier detected line-ending differences between
+build inputs and the archived runner snapshot. All eight input
+differences were limited to line endings. The corrected
+snapshot uses the recorded bytes. The same binary passed the
+rerun, completed its fault case and began the continuous test.
+
+Raw comparisons and replay are in
+D:/XRT-results/service-extensions/xredis-absolute-deadline-6c77e1d4/.
+Mixed-build receipts, smoke/fault results and journal snapshots
+are in D:/XRT-results/service-extensions/xredis-deadline-endurance-f0b0d889/.
+The comparison guest was reused for these intervals. The prior
+TCP 72-hour reports cover the 5b886da6 binaries. Final candidate
+endurance, matched performance and strict release are open.
+
+## 2026-11-28 xredis TLS receive key usage diagnosis
+
+The e19199e5 Ubuntu Redis TLS interval exited at 13:13:36
+Asia/Shanghai with DISCONNECTED and MAY_HAVE_EXECUTED. The last
+verified sample contains 1,864,034 rounds and 7,593.17 awake
+seconds. The locally owned Redis peer retired after the client
+failure. The runner log records the logical disconnect result.
+The original journal, terminal report and executable are in
+D:/XRT-results/service-extensions/xredis-tls-endurance-2e21ad6e/ubuntu-terminal/.
+
+The same guest ran three trials with a diagnostic Core header
+that lowers its per-key AES-GCM record limit to 4,096 and traces
+the exhausted record operation. All three reproduced the
+disconnect with the receive record open at sequence 4,096.
+The exact old binary passed the 20-second control with 4,866
+verified rounds. These results support receive-key exhaustion
+as the explanation for the older long-run failure.
+
+A diagnostic variant requests a peer TLS 1.3 KeyUpdate at
+receive sequence 2,048 and tracks one outstanding request per
+read epoch. It uses the existing role-specific KeyUpdate.
+The three runs verified 14,614 mixed rounds and 144 requested
+and committed peer updates against Redis 8.0.5/OpenSSL. The
+terminal logs reconciled byte-checked replies and command counts.
+The bounded experiment leaves production integration, receive
+progress under send backpressure, native regression and final
+endurance open. Peer response semantics follow
+[RFC 8446 Section 4.6.3](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.6.3).
+
+The diagnostic scripts, exact variant headers, binaries and raw
+reports are in D:/XRT-results/service-extensions/xredis-tls-record-limit-e19199e5/.
