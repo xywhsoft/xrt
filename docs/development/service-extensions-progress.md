@@ -34925,3 +34925,67 @@ The independent 86818d9d TLS endurance runs continued.
 Running-prefix replay checked 6,371.49 Windows and
 6,417.70 Ubuntu awake seconds. Matched performance
 and strict release qualification remain open.
+
+## 2026-11-28 Ubuntu xredis TLS request phase attribution
+
+A diagnostic observer adds per-request timestamps to one
+of every 17 scheduled offers. The probe records admission
+publication, connection-worker dequeue, first TLS send
+attempt, read-buffer processing for the completed reply,
+the final RESP feed and Future resolution. The observer
+records receipt of the Future notification on the same
+monotonic clock. This build keeps the normal admission,
+worker and transport paths.
+
+Ubuntu x64 QEMU/WHPX used the exact stock xredis TLS
+and Hiredis 1.3.0 executables from the current Hiredis
+comparison. A private Redis 8.0.5 peer occupied one CPU
+and all three observers shared a separate two-CPU mask.
+The workload offered 12,000 GET/SET requests per second
+over eight RESP3 connections with a 1,024-slot window
+and verified TLS 1.3 AES-128-GCM. Each observer ran
+one warmup and five three-second measured trials.
+
+The independent replay matched all 18 trials, 576,000
+byte-checked replies, 11,296 phase records and the
+complete Redis command ledger. It verified the archived
+compiler input digests and all 16 stored quantiles per
+trial. The initial replay assumed Git-format newlines.
+The corrected replay verifies the exact archive bytes
+and compares the normalized contents to the Git blobs.
+
+The paired probe-to-stock ratios were 1.000 for
+throughput, 0.984 for P99, 0.973 for P99.9 and 1.002
+for process CPU per reply. All met repeatability.
+The stock xredis/Hiredis P99 ratio of 1.591 and CPU
+ratio of 1.518 were repeatable. Its P99.9 ratio of
+1.427 exceeded the variation limit.
+
+Replay selected the slowest 1% of the instrumented
+sampled requests in each measured trial. There were
+110 such samples across the five repetitions. The
+table gives medians of per-trial mean phase times.
+
+| Phase | µs |
+| --- | ---: |
+| Scheduled time to submission | 42.515 |
+| Submission to admission publication | 3.491 |
+| Publication to worker dequeue | 209.872 |
+| Worker dequeue to first send attempt | 1.082 |
+| First send attempt to read processing for the final reply | 325.845 |
+| Read processing before final RESP feed | 0.148 |
+| Final RESP feed | 0.869 |
+| Parsed reply to Future resolution | 1.459 |
+| Resolution to observer observation | 0.279 |
+
+Publication-to-dequeue includes the worker wake,
+dispatch and pending work. The send-to-read interval
+includes transport, peer service, partial input and
+client readiness and TLS processing. It needs finer
+attribution to distinguish delays inside the interval.
+
+The private Redis peer retired. The instrumented source,
+build receipts, traces and replay are under
+D:/XRT-results/service-extensions/xredis-tls-request-phases-ddda57e6/.
+Strict performance and 72-hour release qualification
+remain open.
