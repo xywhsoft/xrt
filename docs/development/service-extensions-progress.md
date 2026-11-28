@@ -34989,3 +34989,53 @@ build receipts, traces and replay are under
 D:/XRT-results/service-extensions/xredis-tls-request-phases-ddda57e6/.
 Strict performance and 72-hour release qualification
 remain open.
+
+## 2026-11-28 Current Redis SDKs and TLS endurance milestone
+
+The Redis and Core SDKs were rebuilt from the 4314ecb6
+source archive with GCC on Windows x64 and Ubuntu x64
+QEMU/WHPX. Both the static and shared packages passed
+the aggregate package consumer. Each native linkage
+then ran from a relocated directory containing spaces.
+The relocated tests ran the package consumer, the
+exclusive pool, automatic exclusive pool, shared pool,
+automatic shared pool and TLS examples.
+
+Each platform also built the TLS example from the
+relocated single-header XRT and xredis files. All three
+linkages on each platform completed a verified TLS
+connection, RESP3 initialization and PING against a
+private Redis 8.0.5 peer. Each rejected the unrelated
+CA. The peer command ledger contained exactly six
+HELLO and six PING commands across both hosts. Windows
+used a private loopback forward and Ubuntu connected
+over guest loopback. The fixture and forward retired.
+
+Independent replay matched 166 library source inputs
+per platform to the source archive and Git blobs,
+139 copied headers, all artifacts and the recorded
+consumer logs. It verified 26 relocated successful
+executions and the six trust refusals. PE imports and
+ELF dependencies matched each linkage. The Linux
+loader reports identify the relocated libraries.
+
+The earlier f0b0d889 Windows endurance peer belonged
+to the terminated workload. Its exact identity was
+matched before release, and the successful Redis
+shutdown and inactive peer unit were archived. The
+old diagnostic guest powered off. The active Windows
+candidate forward uses the independent endurance guest.
+
+The 86818d9d Ubuntu run passed 1,864,038 rounds, the
+last recorded round count of the older Ubuntu TLS
+failure. Its archived running prefix verified
+1,880,759 rounds in 7,793.27 awake seconds. Windows
+verified 456,538 rounds in 7,764.15 awake seconds.
+Both current workloads were active at capture. The
+larger round count validates progress beyond the
+previous Ubuntu failure point. The continuous 72-hour
+and strict performance requirements remain open.
+
+SDKs, relocated programs, trust results, build receipts,
+the command ledger and the endurance prefix snapshot are
+under D:/XRT-results/service-extensions/xredis-current-sdk-4314ecb6/.
