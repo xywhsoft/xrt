@@ -34750,3 +34750,63 @@ The candidate stays in the diagnostic artifacts. Further
 phase attribution and strict xrpc tail acceptance remain
 open. The xcron paired trials and the Redis and MQTT
 mixed-load supervisors continued on both hosts.
+
+## 2026-11-28 Windows xrpc TCP owner phase attribution
+
+A diagnostic APP records QueryPerformanceCounter ticks for
+each completed record. It measures socket read return,
+executor submit, worker start and completion, owner resume,
+request admission, reply validation and queued output
+selection. It records the start and return of the socket
+write separately. The diagnostic writes its buffers after
+the workers and peer owners retire. Its independent
+wire test matches the standard APP's test report.
+
+The four-arm comparison alternates the standard and
+instrumented builds in duplex and dispatch-only modes.
+Both use 32 staggered connections, two executor workers,
+two APP CPUs and two separate observer CPUs. Five
+repetitions per arm scheduled 64,000 records per second.
+Replay matched 5,120,000 verified replies and joined
+2,560,000 APP records to native observer timestamps.
+The join verifies peer order from the initial request
+ID and checks that the elapsed phases sum to each
+individual scheduled-to-reply latency.
+
+The duplex/dispatch P99 ratio was 1.146 for the
+ordinary build and 1.141 for the instrumented build.
+Both met repeatability. The ratios from actual send
+were 1.137 and 1.145 respectively and met repeatability.
+Instrumentation increased the median paired P99 by
+2.9% for duplex and 2.7% for dispatch. The duplex
+overhead ratio and both instrumentation P99.9 ratios
+exceeded the variation limits.
+
+For each trial the replay selected the same slowest
+1% of replies before attributing the phases. The table
+gives medians of per-trial mean phase times in microseconds.
+
+| Phase | Duplex | Dispatch |
+| --- | ---: | ---: |
+| Send to socket read return | 56.15 | 51.57 |
+| Earlier executor groups from that read | 91.77 | 73.38 |
+| Remaining read-return to submit time | 0.33 | 0.41 |
+| Submit to worker start | 33.59 | 27.13 |
+| Worker reply preparation | 15.23 | 17.59 |
+| Worker completion to owner resume | 5.13 | 5.11 |
+| Earlier records prepared in the same executor job | 28.07 | 19.65 |
+| Admission, reply validation and output selection | 2.59 | 0.00 |
+| Socket write start to observer delivery | 26.35 | 33.86 |
+
+The time from read return to submit is dominated by
+completing earlier groups from the same read. The
+four-record APP cap splits the eight-record offer
+when all eight records are available in the same read.
+A larger bounded APP group can reduce executor turns
+in this workload. Its effect on first-record timing
+and reply arena fallback still requires comparison.
+
+The instrumented source, builds, per-record timestamps
+and independent replay are under
+D:/XRT-results/service-extensions/xrpc-tcp-owner-phases-f67712f0/.
+Strict xrpc TCP tail qualification remains open.
