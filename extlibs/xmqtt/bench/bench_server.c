@@ -738,6 +738,9 @@ typedef struct benchRemotePublisher {
 	double Start, Rate, Last, ReadyAt;
 	double *Samples, *FromSend;
 	bool Complete, Failed, Stalled;
+#if defined(XMQTT_BENCH_TLS)
+	size_t PublishPackets, PublishWrites, Uncertain;
+#endif
 } benchRemotePublisher;
 
 /* Publisher and ACK reader share only one short send and slot transition
@@ -781,6 +784,64 @@ static benchOfferResult benchRemoteOffer(benchRemotePublisher* P, size_t Round, 
 	}
 	return xrtMutexUnlock(&P->Gate) && Sent ? BENCH_OFFER_SENT : BENCH_OFFER_ERROR;
 }
+
+#if defined(XMQTT_BENCH_TLS)
+enum { BENCH_TLS_PUBLISH_GROUP = 4 };
+
+/* Keep one writer per connection. Only consecutive due publications with
+ * available identifiers can share a write. */
+static benchOfferResult benchRemoteOfferTls(benchRemotePublisher* P, double Now, double Deadline,
+	double* Lag, double* PacerLag, double* CreditWait, size_t* Issued)
+{
+	if (!xrtMutexLock(&P->Gate)) return BENCH_OFFER_ERROR;
+	benchOfferResult Result = BENCH_OFFER_ERROR;
+	if (!P->Failed) {
+		unsigned char Wire[140 * BENCH_TLS_PUBLISH_GROUP];
+		size_t Frames = 0, Size = 0;
+		for (; Frames < BENCH_TLS_PUBLISH_GROUP && Frames < P->Window; ++Frames) {
+			size_t Round = P->Next + Frames * P->Stride;
+			size_t Slot = (Round / P->Stride) % P->Window;
+			if (Round >= P->Warmup + P->Rounds || P->Start + (double)Round / P->Rate > Now ||
+				P->Slots[Slot].Phase != BENCH_PUBLISH_FREE) break;
+			Size += benchRemoteFrame(Wire + Size, Round, P->Qos, (uint16)(Slot + 1));
+		}
+		double SentAt = xrtTimer();
+		if (!Frames) Result = BENCH_OFFER_BLOCKED;
+		else if (SentAt < Deadline) {
+			size_t Measured = 0;
+			for (size_t I = 0; I < Frames; ++I) {
+				size_t Round = P->Next + I * P->Stride;
+				size_t Slot = (Round / P->Stride) % P->Window;
+				P->Slots[Slot].Round = Round;
+				P->Slots[Slot].Phase = BENCH_PUBLISH_WAIT_RECEIPT;
+				P->Slots[Slot].Sent = SentAt;
+				if (Round < P->Warmup) continue;
+				size_t Sample = Round - P->Warmup;
+				double Scheduled = P->Start + (double)Round / P->Rate;
+				double Ready = I ? Now : P->ReadyAt;
+				Lag[Sample] = SentAt - Scheduled;
+				PacerLag[Sample] = Ready - Scheduled;
+				CreditWait[Sample] = SentAt - Ready;
+				++Measured;
+			}
+			xfuture* Future = xrtTlsStreamSendAsync(P->Connection.Tls, Wire, Size);
+			if (Future) {
+				if (benchTlsFinish(Future)) {
+					P->Sent += Measured;
+					P->PublishPackets += Frames;
+					++P->PublishWrites;
+					*Issued = Frames;
+					Result = BENCH_OFFER_SENT;
+				} else {
+					/* A submitted write can fail after making wire progress. */
+					P->Uncertain = Measured;
+				}
+			}
+		}
+	}
+	return xrtMutexUnlock(&P->Gate) ? Result : BENCH_OFFER_ERROR;
+}
+#endif
 
 static bool benchRemoteCreditChanged(benchRemotePublisher* P)
 {
@@ -895,8 +956,16 @@ static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count,
 			bool Measured = Round >= Warmup;
 			size_t Sample = Measured ? Round - Warmup : 0;
 			if (!P->ReadyAt) P->ReadyAt = Now;
-			benchOfferResult Result = benchRemoteOffer(P, Round, Scheduled, P->ReadyAt,
-				Measured ? Lag + Sample : NULL, Measured ? CreditWait + Sample : NULL, Deadline);
+			size_t Issued = 1;
+			bool Tls = false;
+			benchOfferResult Result;
+#if defined(XMQTT_BENCH_TLS)
+			Tls = P->Connection.Tls != NULL;
+			if (Tls) Result = benchRemoteOfferTls(P, Now, Deadline, Lag, PacerLag, CreditWait, &Issued);
+			else
+#endif
+				Result = benchRemoteOffer(P, Round, Scheduled, P->ReadyAt,
+					Measured ? Lag + Sample : NULL, Measured ? CreditWait + Sample : NULL, Deadline);
 			if (Result == BENCH_OFFER_ERROR) return false;
 			if (Result == BENCH_OFFER_BLOCKED) {
 				Blocked = true;
@@ -904,15 +973,15 @@ static bool benchRemoteOfferMany(benchRemotePublisher* Publishers, size_t Count,
 				P->Stalled = true;
 				continue;
 			}
-			if (Measured) {
+			if (Measured && !Tls) {
 				PacerLag[Sample] = P->ReadyAt - Scheduled;
 				++P->Sent;
 			}
 			P->ReadyAt = 0;
 			P->Stalled = false;
-			P->Next += Count;
+			P->Next += Count * Issued;
 			Cursor = (Lane + 1) % Count;
-			++Offered;
+			Offered += Issued;
 			Sent = true;
 			break;
 		}
@@ -1351,6 +1420,14 @@ static int benchRemote(int Argc, char** Argv)
 	if (Ca) {
 		printf("tls_connections: %lu\n", Peers + PublisherCount);
 		if (TlsWorkers) printf("tls_workers: %u\n", xrtNetEngineWorkerCount(Transport.Engine));
+		if (PublisherCount > 1) {
+			size_t Packets = 0, Writes = 0;
+			for (size_t I = 0; I < PublisherCount; ++I) {
+				Packets += Publishers[I].PublishPackets;
+				Writes += Publishers[I].PublishWrites;
+			}
+			printf("publisher_publish_packets: %zu\npublisher_publish_writes: %zu\n", Packets, Writes);
+		}
 		if (Qos == 2) {
 			size_t Packets = 0, Writes = 0;
 			for (size_t I = 0; I < Peers; ++I) {
@@ -1427,6 +1504,11 @@ Done:
 			"Partial measurement: sent=%zu confirmed=%zu deliveries=%zu",
 			Stage, Sent, Confirmed, Delivered);
 		if (CountQuota) fprintf(stderr, " rejected=%zu", Rejected);
+#if defined(XMQTT_BENCH_TLS)
+		size_t Uncertain = 0;
+		for (size_t I = 0; I < PublisherCount; ++I) Uncertain += Publishers[I].Uncertain;
+		if (Uncertain) fprintf(stderr, " uncertain=%zu", Uncertain);
+#endif
 		fputc('\n', stderr);
 	}
 	return OK ? 0 : 1;

@@ -24,13 +24,15 @@ METRICS = ("offered", "deliveries", "measurement_seconds", "ingress_per_sec", "d
            "pacer_lag_p99_us")
 OBSERVER_CPU_METRICS = ("observer_cpu_seconds", "pacer_cpu_seconds")
 OBSERVER_ACK_METRICS = ("subscriber_ack_packets", "subscriber_ack_writes")
+PUBLISH_WRITE_METRICS = ("publisher_publish_packets", "publisher_publish_writes")
 PUBLISHER_METRICS = ("publisher_p99_us", "publisher_credit_wait_p99_us", "publisher_from_send_p99_us")
 SHARED_METRICS = ("share_min_deliveries", "share_max_deliveries")
 SHARED_GROUPS = 2
 TLS_CIPHER = "TLS_AES_128_GCM_SHA256"
 BROKER_LOG_TAIL_BYTES = 16 * 1024
 PARTIAL_MEASUREMENT = re.compile(
-    r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)(?: rejected=(?P<rejected>\d+))?\n?$",
+    r"^Partial measurement: sent=(?P<sent>\d+) confirmed=(?P<confirmed>\d+) deliveries=(?P<deliveries>\d+)"
+    r"(?: rejected=(?P<rejected>\d+))?(?: uncertain=(?P<uncertain>\d+))?\n?$",
     re.MULTILINE,
 )
 
@@ -180,6 +182,10 @@ def run_observer(args, port, workload):
                        and any(key in result for key in OBSERVER_ACK_METRICS))
     if has_ack_metrics:
         metrics += OBSERVER_ACK_METRICS
+    has_publish_writes = (args.tls_credentials is not None and publishers > 1
+                          and any(key in result for key in PUBLISH_WRITE_METRICS))
+    if has_publish_writes:
+        metrics += PUBLISH_WRITE_METRICS
     if set(result) != set(metrics) or not all(math.isfinite(v) and v >= 0 for v in result.values()):
         raise ValueError(f"invalid observer output {output!r}")
     destinations = SHARED_GROUPS if kind == "shared" else peers
@@ -201,6 +207,13 @@ def run_observer(args, port, workload):
         expected = (confirmed + args.warmup - warmup_rejected) * destinations * 2
         if packets != expected or not writes.is_integer() or not min(1, packets) <= writes <= packets:
             raise ValueError("invalid subscriber acknowledgement ledger")
+    if has_publish_writes:
+        packets = result["publisher_publish_packets"]
+        writes = result["publisher_publish_writes"]
+        group = min(args.window, 4)
+        if (packets != args.rounds + args.warmup or not writes.is_integer()
+                or not math.ceil(packets / group) <= writes <= packets):
+            raise ValueError("invalid publisher write ledger")
     if kind == "shared":
         low, high = (result[key] for key in SHARED_METRICS)
         if not (low.is_integer() and high.is_integer() and low <= high <= confirmed

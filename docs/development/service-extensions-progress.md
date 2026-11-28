@@ -34616,3 +34616,72 @@ rotation fix continued on both hosts at capture.
 The unchanged binary, journal and terminal report are retained
 under D:/XRT-results/service-extensions/xredis-deadline-endurance-f0b0d889/windows/.
 The final-candidate TLS endurance requirement remains open.
+
+## 2026-11-28 Native MQTT TLS comparison with grouped publishing
+
+The standard observer submits up to four already-due MQTT
+publications in one TLS write on a connection. It preserves
+the scheduled timestamp and checks available packet identifiers
+for each publication. It retains the overall offer deadline.
+The report verifies the packet and write counts including
+warmup. The comparison parser also reads earlier observers'
+reports.
+
+When a submitted write fails, the partial ledger counts
+its measured publications as uncertain. Completed write
+counts, terminal confirmations and subscriber deliveries
+remain separately observable. The diagnostic executable
+injects failure after a resolved four-packet TLS write.
+It checks four measured packets in an all-measured group
+and two in a group spanning warmup. Both native hosts
+reported the expected uncertainty and rejected the samples.
+In the Windows warmup case the subscriber observed both
+measured packets from the failed write. This validates
+that a partial report can record delivery without recording
+local send completion. The plain TCP and authenticated TLS
+observer fixtures passed on both hosts. MQTT feature and
+API generation checks and ordinary maturity passed.
+
+The matched profiles use Mosquitto 2.1.2 and the same
+server-verified TLS 1.3 AES-128-GCM parameters on each host.
+Two Broker workers share two logical CPUs for xmqtt, with
+a separate two-CPU budget for the observer. Mosquitto
+has the same Broker CPU budget. Four publishers, eight
+wildcard subscribers, 128-byte MQTT 5 QoS 2 payloads,
+and 16-item windows match the previous workload. Ubuntu
+ran in an AES-enabled QEMU/WHPX guest. The two hosts'
+comparison windows ran sequentially.
+
+| Host | Offers/s | Complete xmqtt / Mosquitto | Actual xmqtt median ingress/s | Delivery P99 ms xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 4,000 | 5 / 5 | 3,999 | 4.680 / 8.658 |
+| Windows | 8,000 | 5 / 0 | 7,997 | 11.955 / — |
+| Ubuntu | 4,000 | 5 / 5 | 3,999 | 3.685 / 4.969 |
+| Ubuntu | 8,000 | 5 / 0 | 7,997 | 5.296 / — |
+
+Replay matched 40 ordered trials and 800,000 measured
+offers. It reconciled 799,988 publisher confirmations
+and 6,033,169 verified deliveries including observed
+prefixes of incomplete trials. At 8,000 offers/s,
+xmqtt delivered all admitted publications on both hosts.
+The fifth Windows trial reported 12 quota refusals
+and delivered the 23,988 accepted publications to all
+eight subscribers. Ubuntu had zero refusals. Mosquitto
+confirmed all scheduled publications and logged subscriber
+queue drops in all ten 8,000/s trials. Those trials
+cannot provide complete-sample tail percentiles.
+
+At 4,000/s both paired throughput ratios were repeatable
+near 1.000. The paired xmqtt/Mosquitto CPU ratios were
+1.196 on Windows and 1.271 on Ubuntu and met the
+repeatability limits. The paired P99 and P99.9 tails
+exceeded the variation limits on both hosts. At 8,000/s
+median xmqtt pacer P99 was 2.683 ms on Windows and
+3.568 ms on Ubuntu. Median publisher P99 from actual
+send to PUBCOMP was 4.292 ms and 3.377 ms respectively.
+
+Source and build receipts, fixture and injection logs,
+comparison reports and replay are retained under
+D:/XRT-results/service-extensions/xmqtt-pacer-standard-978dc9ab/.
+The native mixed-load observers continued in parallel.
+Endurance and strict release qualification remain open.

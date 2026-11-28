@@ -497,7 +497,10 @@ python extlibs/xmqtt/bench/compare_broker.py \
 Keep the JSON from unsuccessful rates. When the observer retires after a
 failure, the report records the measured sends, terminal publisher
 confirmations and validated deliveries separately in `failure_progress`.
-The counts cover verified work through retirement and exclude warmup.
+The counts exclude warmup. For a failed TLS publisher write, the optional
+`uncertain` count covers publications submitted by that write and omitted
+from `sent`. A broker can receive these publications before the local write
+fails. Confirmations and deliveries count independent protocol observations.
 The observer stops issuing publications five seconds after the end of the
 scheduled arrival interval. Slow acknowledgements can return credit
 throughout that interval. An incomplete schedule reports its partial
@@ -553,6 +556,11 @@ from already buffered input. It flushes before reading more bytes and
 records delivery completion after the corresponding write succeeds.
 The comparison reports acknowledgement packets and TLS write
 submissions, including warmup, when the observer emits those counters.
+With two or more TLS publishers at QoS 1 or 2, the pacer can group up to
+four consecutive, already-due publications from the same connection.
+It sends immediately at the first eligible publication and stops at an
+occupied credit slot. Each publication retains its scheduled timestamp.
+The report verifies the publisher packet and write counts including warmup.
 
 Supply `ca.pem`, the same RSA test certificate as `certificate.pem` and
 `certificate.der`, and its private key as `key.pem` and PKCS#1 `key.der`.

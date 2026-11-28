@@ -236,6 +236,7 @@ def multi_publisher_case(binary, reorder, tls=None, ca=None, rejected=(), replac
                     assert math.isfinite(cpu) and cpu >= 0
                 if tls:
                     assert metrics["tls_connections"] == "3"
+                    assert metrics["publisher_publish_packets"] == metrics["publisher_publish_writes"] == "6"
                 print("quota outcomes reconciled" if rejected else
                       "unblocked publisher advanced and cross-publisher order was accepted")
         finally:
@@ -499,6 +500,9 @@ def main():
     parser.add_argument("--tls-credentials", type=Path, help="localhost TLS fixture with an additional unrelated wrong.pem CA")
     args = parser.parse_args()
     binary = str(args.observer.resolve(strict=True))
+    error = ObserverFailure(1, "Remote benchmark failed during offer scheduled publications\n"
+                            "Partial measurement: sent=6 confirmed=3 deliveries=2 rejected=1 uncertain=4\n")
+    assert error.progress == {"sent": 6, "confirmed": 3, "deliveries": 2, "rejected": 1, "uncertain": 4}
     for name, qos in (("early-pubcomp", 2), ("negative-pubrec", 2), ("negative-after-progress", 2),
                       ("wrong-pubcomp", 2), ("duplicate-delivery", 1), ("sequence-gap", 1)):
         case(binary, name, qos)
