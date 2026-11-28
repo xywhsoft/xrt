@@ -12,7 +12,7 @@ The dated entries below retain the earlier implementation and test evidence.
 | --- | --- | --- |
 | xcron | Cron expression and recurrence calculation. The optional scheduler registers callbacks with their context and supports polling or blocking. The APP examples own restart catch-up, checkpoint storage, time zones, and execution policy. | Repeatable scheduler P99/P99.9 and strict release. Native Windows and hosted Linux cohort evidence is recorded below. |
 | xrpc | Bounded JSON-RPC 2.0 message processing, dispatch and call correlation. The APP examples own TCP and stdio framing, connection lifetime, and the XRT executor. | Repeatable TCP concurrency P99/P99.9 and strict release. Hosted native Windows and Linux workload evidence is recorded below. |
-| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched release performance and 72 continuous awake hours of mixed load on each native platform. Targeted native fault evidence is recorded below. |
+| xredis | RESP2/3 client over TCP/TLS, binary calls and pipelines, pools, Pub/Sub, Tracking, fixed Sentinel seeds with primary failover, and explicit Cluster key/slot routing. APP examples cover command lookup, automatic key extraction, and replica policy. | Matched release performance and final-build qualification. The 5b886da6 TCP candidate passed 72 continuous awake hours on both native platforms. Targeted native fault evidence is recorded below. |
 | xmqtt | MQTT 5.0 client and single-node broker, with optional 3.1.1 support. Protocol state may use optional persistence. APP examples own deployment, business Inbox, and application acknowledgement policy. | Matched client and broker load and release performance, including QoS 2 under saturation, and 72 continuous awake hours of mixed load on each native platform. |
 
 Work and verification use D:/GIT/xrt on master.
@@ -33042,34 +33042,57 @@ are under out/service-extensions/xredis-tls-groups-cross-a5190125/.
 The four existing TCP journals verified 68.74 / 68.83 Redis
 awake hours and 27.50 / 27.50 MQTT awake hours on Windows /
 Ubuntu. Strict performance and release gates remain open.
-\
-\
-## 2026-11-28 MQTT session takeover with bidirectional QoS 2 and a delayed Will\
-\
-An independent MQTT 5 peer leaves one outbound QoS 2 delivery\
-awaiting PUBCOMP and one inbound delivery awaiting PUBREL. Both\
-directions use the same nonzero packet identifier. The old owner\
-also has a delayed Will. Both takeover paths require DISCONNECT\
-reason 0x8E on the old connection.\
-\
-A resumed session reports Session Present, replays its outbound\
-PUBREL with the same identifier, and completes both directions.\
-The observer checks that the retransmitted inbound PUBLISH causes\
-no second delivery and that the old Will stays cancelled through\
-its one-second delay and an expiry sweep. Clean Start clears\
-Session Present, emits the old Will within three seconds despite\
-the original five-second delay, rejects the old inbound identifier\
-with PUBCOMP reason 0x92, and leaves no old outbound frame.\
-\
-Native Windows x64 and the Ubuntu x64 QEMU/WHPX guest passed the\
-independent TCP and authenticated TLS 1.3 runs against fef6dcdf.\
-The initial guest source archive lacked shared test headers. The\
-rerun used the missing fixture files from the same revision. Replay\
-verified both final script digests and all four binary digests.\
-The separate diagnostic guest retired after the archive checks.\
-Raw evidence is under out/service-extensions/xmqtt-takeover-qos2-will-fef6dcdf/.\
-\
-The live takeover runs used in-memory broker state. The TCP mixed-load\
-runs at 2276e4ed continued on Windows and Ubuntu with 36.75 and 36.76\
-verified awake hours for the client and broker. Final-source endurance\
-and strict release acceptance remain open.\
+
+## 2026-11-28 MQTT session takeover with bidirectional QoS 2 and a delayed Will
+
+An independent MQTT 5 peer leaves one outbound QoS 2 delivery
+awaiting PUBCOMP and one inbound delivery awaiting PUBREL. Both
+directions use the same nonzero packet identifier. The old owner
+also has a delayed Will. Both takeover paths require DISCONNECT
+reason 0x8E on the old connection.
+
+A resumed session reports Session Present, replays its outbound
+PUBREL with the same identifier, and completes both directions.
+The observer checks that the retransmitted inbound PUBLISH causes
+no second delivery and that the old Will stays cancelled through
+its one-second delay and an expiry sweep. Clean Start clears
+Session Present, emits the old Will within three seconds despite
+the original five-second delay, rejects the old inbound identifier
+with PUBCOMP reason 0x92, and leaves no old outbound frame.
+
+Native Windows x64 and the Ubuntu x64 QEMU/WHPX guest passed the
+independent TCP and authenticated TLS 1.3 runs against fef6dcdf.
+The initial guest source archive lacked shared test headers. The
+rerun used the missing fixture files from the same revision. Replay
+verified both final script digests and all four binary digests.
+The separate diagnostic guest retired after the archive checks.
+Raw evidence is under out/service-extensions/xmqtt-takeover-qos2-will-fef6dcdf/.
+
+The live takeover runs used in-memory broker state. The TCP mixed-load
+runs at 2276e4ed continued on Windows and Ubuntu with 36.75 and 36.76
+verified awake hours for the client and broker. Final-source endurance
+and strict release acceptance remain open.
+
+## 2026-11-28 xredis completed Windows and Ubuntu TCP endurance
+
+The two xredis 5b886da6 binaries finished 72 continuous awake
+hours of their TCP mixed workload. The strict evidence checker
+accepted each terminal report, sampled resource ledger and full
+journal with the boot-and-active clock basis. Both runs used four
+clients, two workers and a pipeline depth of eight.
+
+| Client | Peer | Verified mixed rounds | Journal windows | Maximum observation gap |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Dedicated Redis in the Ubuntu guest | 16,529,515 | 51,758 | 5.080 s |
+| Ubuntu x64 QEMU/WHPX | Guest-local Redis | 68,670,992 | 51,821 | 5.086 s |
+
+The Windows evidence remains in the existing
+xredis-shared-picker-7bf51de1/release/windows-72h-full artifact directory.
+The guest binary, build receipt, report and journal were mirrored to
+out/service-extensions/xredis-tcp-72h-5b886da6/. All four SHA-256 digests
+matched the guest and the mirrored evidence passed the same checker.
+
+The qualification binds to the exact 5b886da6 TCP binaries.
+The repository has since changed the shared AES-GCM implementation.
+Final-build evidence must account for that change in the TLS path.
+Matched performance and strict release acceptance remain open.
