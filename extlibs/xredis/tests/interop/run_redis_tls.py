@@ -15,7 +15,8 @@ from run_redis_init import digest, run
 from run_redis_role import frame, send
 
 
-def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str, *, cluster_peer: bool = False) -> str:
+def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str, *,
+                             cluster_peer: bool = False, days: int = 2) -> str:
     def command(*arguments: str) -> None:
         subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
     command("req", "-newkey", "rsa:2048", "-nodes", "-sha256", "-subj", "/CN=localhost",
@@ -24,18 +25,18 @@ def issue_server_certificate(openssl: Path, root: Path, name: str, issuer: str, 
     (root / "server.ext").write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
                                      f"extendedKeyUsage={usage}\nsubjectAltName=DNS:localhost,IP:127.0.0.1\n", encoding="utf-8")
     command("x509", "-req", "-in", f"{name}.csr", "-CA", f"{issuer}.pem", "-CAkey", f"{issuer}.key", "-CAcreateserial",
-            "-days", "2", "-sha256", "-extfile", "server.ext", "-out", f"{name}.pem")
+            "-days", str(days), "-sha256", "-extfile", "server.ext", "-out", f"{name}.pem")
     return digest(root / f"{name}.pem")
 
 
-def certificates(openssl: Path, root: Path, *, cluster_peer: bool = False) -> dict[str, str]:
+def certificates(openssl: Path, root: Path, *, cluster_peer: bool = False, days: int = 2) -> dict[str, str]:
     def command(*arguments: str) -> None:
         subprocess.run([str(openssl), *arguments], cwd=root, check=True, capture_output=True, timeout=30)
     for name in ("ca", "wrong"):
-        command("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "2",
+        command("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", str(days),
                 "-subj", f"/CN=xredis-fixture-{name}", "-keyout", f"{name}.key", "-out", f"{name}.pem",
                 "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
-    server = issue_server_certificate(openssl, root, "server", "ca", cluster_peer=cluster_peer)
+    server = issue_server_certificate(openssl, root, "server", "ca", cluster_peer=cluster_peer, days=days)
     return {"ca.pem": digest(root / "ca.pem"), "wrong.pem": digest(root / "wrong.pem"), "server.pem": server}
 
 
