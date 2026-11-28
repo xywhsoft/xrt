@@ -33215,8 +33215,9 @@ The combined header passed five independent stream, slow-reader,
 backpressure, OOM and TLS WebSocket tests. The first guest used
 the default CPU profile. The timed guest used an explicit AES
 profile and an archive including the header generator's LICENSE
-input. Replay matched the executable and trace digests before
-the private peer and diagnostic guest retired.
+input. The private peer retired after measurement. Replay
+matched the executable and trace digests before the diagnostic
+guest retired.
 
 The release path stays on the stock implementation. The combined
 high-rate P99.9 result warrants keeping the two changes separate
