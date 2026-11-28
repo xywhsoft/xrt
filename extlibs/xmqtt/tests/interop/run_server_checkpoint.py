@@ -671,6 +671,115 @@ def verify_online_transactions(program, directory):
 
 
 
+def verify_same_id_qos2_will_restart(program, directory):
+    image = directory / "same-identifier.bin"
+    clean_image = directory / "same-identifier-clean.bin"
+    mode = "restore-online-will"
+    client = b"same-identifier"
+    incoming, outgoing, will_topic = (b"same-id/in", b"same-id/out", b"same-id/will")
+    will_payload = b"old-owner"
+    will_delay = 30
+    will = b"\x05\x18" + will_delay.to_bytes(4, "big") + topic(will_topic) + topic(will_payload)
+
+    def obligations(path):
+        data = path.read_bytes()
+        return [(data[at], data[at + 1], data[at + 2:at + 4])
+                for at, _, _ in session_records(data) if data[at] in (3, 4, 5, 6)]
+
+    with broker(program, "capture", image):
+        pass
+
+    with ExitStack() as sockets:
+        # Kill the broker before closing the owner's socket.
+        with broker(program, mode, image, crash=True) as address:
+            owner = sockets.enter_context(persistent(address, client, True, will=will))
+            subscribe(owner, outgoing, 1, 2)
+            publisher, _ = connect(address, 5, b"same-id-publisher")
+            observer, _ = connect(address, 5, b"same-id-observer")
+            with publisher, observer:
+                subscribe(observer, incoming, 1, 0)
+                publisher_id = b"\0\x12"
+                publisher.sendall(frame(0x34, topic(outgoing) + publisher_id + b"\0outgoing"))
+                assert receive(publisher) == (0x50, publisher_id)
+                publisher.sendall(frame(0x62, publisher_id))
+                assert receive(publisher) == (0x70, publisher_id)
+
+                identifier = received_publish(owner, 0x34, outgoing, b"outgoing")
+                assert identifier != b"\0\0"
+                owner.sendall(frame(0x50, identifier))
+                assert receive(owner) == (0x62, identifier)
+                publication = topic(incoming) + identifier + b"\0incoming\0\xff"
+                owner.sendall(frame(0x34, publication))
+                assert receive(owner) == (0x50, identifier)
+                assert receive(observer) == (0x30, topic(incoming) + b"\0incoming\0\xff")
+                barrier(observer)
+
+    pending = obligations(image)
+    assert len(pending) == 3, pending
+    assert (3, 0, identifier) in pending and (5, 7, identifier) in pending, pending
+    assert any(kind == 6 for kind, _, _ in pending)
+    clean_image.write_bytes(image.read_bytes())
+
+    with ExitStack() as sockets:
+        with broker(program, mode, image, crash=True) as address:
+            observer, _ = connect(address, 5, b"same-id-observer")
+            with observer:
+                subscribe(observer, b"same-id/#", 1, 0)
+                owner = sockets.enter_context(persistent(address, client, False, True))
+                assert receive(owner) == (0x62, identifier)
+                assert sorted(row[0] for row in obligations(image)) == [3, 5]
+                owner.sendall(frame(0x70, identifier) + frame(0x3c, publication))
+                assert receive(owner) == (0x50, identifier)
+                owner.sendall(frame(0x62, identifier))
+                assert receive(owner) == (0x70, identifier)
+                barrier(owner)
+                barrier(observer)
+                assert obligations(image) == []
+
+    with broker(program, mode, image, crash=True) as address:
+        with persistent(address, client, False, True) as owner:
+            barrier(owner)
+            owner.sendall(frame(0x62, identifier))
+            assert receive(owner) == (0x70, identifier + b"\x92")
+        observer, _ = connect(address, 5, b"same-id-observer")
+        with observer:
+            subscribe(observer, will_topic, 1, 0)
+            barrier(observer)
+
+    with broker(program, mode, clean_image, crash=True) as address:
+        observer, _ = connect(address, 5, b"same-id-observer")
+        with observer:
+            subscribe(observer, b"same-id/#", 1, 0)
+            deadline = time.monotonic() + 6
+            while True:
+                with socket.create_connection(address, timeout=6) as owner:
+                    owner.sendall(persistent_connect(client, True))
+                    kind, ack = receive(owner)
+                    assert kind == 0x20
+                    if ack[:2] == b"\0\0":
+                        owner.sendall(frame(0x62, identifier))
+                        assert receive(owner) == (0x70, identifier + b"\x92")
+                        barrier(owner)
+                        break
+                    assert ack[:2] == b"\0\x89" and time.monotonic() < deadline
+                time.sleep(0.025)
+
+            observer.settimeout(max(0.001, deadline - time.monotonic()))
+            assert receive(observer) == (0x30, topic(will_topic) + b"\0" + will_payload)
+            barrier(observer)
+            assert obligations(clean_image) == []
+
+    with broker(program, mode, clean_image, crash=True) as address:
+        observer, _ = connect(address, 5, b"same-id-observer")
+        with observer:
+            check_retained_value(observer, will_topic, 1, will_payload)
+            barrier(observer)
+
+    return {"restored_same_id_bidirectional_qos2": True,
+            "restored_will_cancelled_before_resume": True,
+            "restored_clean_start_publishes_prior_will": True}
+
+
 def verify_outbound_transactions(program, directory):
     image = directory / "outbound-transactions.bin"
     name, subscriber = b"atomic/outbound", b"durable-outbound"
@@ -1649,6 +1758,8 @@ def main():
     cases = parser.add_mutually_exclusive_group()
     cases.add_argument("--full-writer", action="store_true", help="run the synchronized writer quota case")
     cases.add_argument("--outgoing-expiry", action="store_true", help="run the delayed first-send expiry case")
+    cases.add_argument("--same-id-will-restart", action="store_true",
+                       help="run the combined QoS 2 and Will crash case")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="xmqtt-retained-") as directory:
         folder = Path(directory)
@@ -1658,9 +1769,13 @@ def main():
         if args.outgoing_expiry:
             print(json.dumps(verify_first_send_expiry(args.program, folder)))
             return
+        if args.same_id_will_restart:
+            print(json.dumps(verify_same_id_qos2_will_restart(args.program, folder)))
+            return
         print(json.dumps({**verify(args.program, folder), **verify_sessions(args.program, folder),
                           **verify_reset(args.program, folder), **verify_pubrel_commit(args.program, folder),
                           **verify_online_transactions(args.program, folder),
+                          **verify_same_id_qos2_will_restart(args.program, folder),
                           **verify_outbound_transactions(args.program, folder),
                           **verify_first_send_expiry(args.program, folder),
                           **verify_qos1_transactions(args.program, folder),

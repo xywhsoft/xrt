@@ -33096,3 +33096,40 @@ The qualification binds to the exact 5b886da6 TCP binaries.
 The repository has since changed the shared AES-GCM implementation.
 Final-build evidence must account for that change in the TLS path.
 Matched performance and strict release acceptance remain open.
+
+## 2026-11-28 MQTT dual-direction QoS 2 and delayed Will after process exit
+
+The MQTT 5 checkpoint APP persists an inbound QoS 2 record and
+an outbound PUBREL phase with the same nonzero packet identifier
+under one connected session. The checkpoint also has that
+session's retained Will with a 30-second delay. The tester forces
+process exit while the owning socket stays open. The resume and
+Clean Start branches begin from identical checkpoint bytes.
+
+On resume the broker sets Session Present, replays the outbound
+PUBREL, and completes both directions without forwarding the
+duplicate inbound PUBLISH. The Will record is gone by CONNACK.
+After completing both exchanges the tester kills the process
+again. A fresh restart finds no outbound exchange or Will and
+returns PUBCOMP 0x92 for the old inbound identifier.
+
+Clean Start discards both old QoS 2 records. Its observer receives
+the old Will within the six-second test bound. The next process
+reads that retained Will from the checkpoint and verifies its
+topic and payload.
+
+Native Windows x64 and Ubuntu x64 QEMU/WHPX compiled the modular
+checkpoint APP from a62012f8. Both passed five focused repetitions
+and the full independent checkpoint suite with 73 report fields.
+The service extensions workflow runs the focused case on both jobs.
+Replay checked the binary and script digests, including archived
+line endings for the guest imports, before retiring the diagnostic
+guest. Receipts and logs are under
+out/service-extensions/xmqtt-checkpoint-same-id-a62012f8/.
+
+The TCP MQTT mixed workload at 2276e4ed remains live with
+36.93 Windows and 36.94 Ubuntu awake hours. Independent replay
+of the separate xcron interleaved campaign records four complete
+repeats per platform at 50,331,648 callbacks each, with both fifth
+repeats still running. Endurance, final timing and strict release
+acceptance remain open.

@@ -223,6 +223,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint --outgoing-expiry
           > out/service-extensions/xmqtt-outgoing-expiry-linux.json
+      - name: MQTT bidirectional QoS 2 and Will after process restart
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
+          out/gcc/native/xmqtt_examples/examples_server_checkpoint --same-id-will-restart
+          > out/service-extensions/xmqtt-same-id-will-restart-linux.json
       - name: MQTT legacy delivery migration into the APP inbox
         if: matrix.product == 'xmqtt'
         run: >-
@@ -393,6 +399,12 @@ jobs:
           python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
           out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe --outgoing-expiry
           > out/service-extensions/xmqtt-outgoing-expiry-windows.json
+      - name: MQTT bidirectional QoS 2 and Will after process restart
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python extlibs/xmqtt/tests/interop/run_server_checkpoint.py
+          out/gcc/native/xmqtt_examples/examples_server_checkpoint.exe --same-id-will-restart
+          > out/service-extensions/xmqtt-same-id-will-restart-windows.json
       - name: MQTT legacy delivery migration into the APP inbox
         if: matrix.product == 'xmqtt'
         run: >-
