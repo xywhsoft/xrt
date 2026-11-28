@@ -33921,3 +33921,60 @@ benchmark rows and independent replay are under
 D:/XRT-results/service-extensions/xrpc-release-bbfeb1c6/.
 The diagnostic guest retired after archive verification.
 The MQTT TCP and Redis TLS endurance guests continued.
+
+## 2026-11-28 xrpc current TCP APP fixed-arrival comparison
+
+Windows x64 and Ubuntu x64 in a six-vCPU QEMU/WHPX
+guest built the TCP APP and native observer from b9259a99.
+Both passed all twelve observer tests and the independent
+peer suite, including 7,936 checked healthy replies per
+mode when a peer reset at the 32-connection limit.
+
+The two hosts ran sequentially. The APP used four CPUs
+and two executor workers. Two native observer shards
+used separate CPUs. Each of 32 staggered connections
+had a sixteen-group window and used eight calls per
+scheduled write. The two modes ran five alternating
+pairs at each profile after 64 warmup calls per peer.
+The measured intervals each scheduled six seconds.
+The batch profile sends one JSON-RPC array per group
+and verifies all eight members of its reply.
+
+Replay matched 60 trials and 19,200,000 exact measured
+replies. APP request totals included all warmup jobs.
+The replay rebuilt each reply's latency from its due
+time, actual send and receive timestamps. All paired
+throughput ratios met repeatability near 1.000.
+
+| Host | Workload | P99 us, duplex / dispatch | P99.9 us, duplex / dispatch | Paired APP CPU ratio |
+| --- | --- | ---: | ---: | ---: |
+| Windows | 32,000/s records | 272.9 / 262.6 | 463.2 / 460.3 | 1.089 |
+| Windows | 64,000/s records | 251.7 / 240.3 | 466.6 / 451.1 | 1.078 |
+| Windows | 64,000/s arrays | 184.1 / 164.8 | 361.4 / 351.0 | 1.565 |
+| Ubuntu guest | 32,000/s records | 785.2 / 719.1 | 1,165.2 / 1,025.1 | 1.042 |
+| Ubuntu guest | 64,000/s records | 790.2 / 702.2 | 1,142.8 / 993.5 | 1.050 |
+| Ubuntu guest | 64,000/s arrays | 403.3 / 386.4 | 577.6 / 565.5 | 1.205 |
+
+For 64,000/s records the paired P99 ratios were repeatable
+at 1.050 on Windows and 1.136 on Ubuntu. The Windows
+record and array P99.9 ratios also met repeatability.
+The 64,000/s Ubuntu record profile's slowest 0.1% of
+duplex replies spent a median 72.3% of summed latency
+after the first reply from the same write. Time from
+the scheduled offer to first send accounted for 4.0%.
+
+The paired Ubuntu array CPU ratio of 1.205 met
+repeatability. The Windows array ratio exceeded the
+variation limit. In the TCP example an ordinary echo call
+can use the decoded fields passed to OnRequest. A batch
+takes the generic dispatch path and parses the copied
+input again on the worker. The endpoint also validates and
+owns the APP's complete reply. These are distinct costs.
+
+The throughput traces and observed higher-rate tails
+leave strict release acceptance open. Build receipts,
+raw rows and independent replay are under
+D:/XRT-results/service-extensions/xrpc-tcp-release-b9259a99/.
+The diagnostic guest retired after the archive check.
+Windows and Ubuntu MQTT had about 102 verified awake
+minutes. The Redis TLS runs had about 29 and 28 minutes.
