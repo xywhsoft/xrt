@@ -34111,3 +34111,73 @@ both Redis TLS workloads and 2.19 on both MQTT TCP workloads.
 All four build receipts match the current mainline source
 inputs for their probes. Ordinary xrpc maturity passed.
 Strict release still reports xrpc and xrpc_duplex as developing.
+
+## 2026-11-28 xrpc TCP example groups records already buffered
+
+The APP submits one executor job for up to four complete
+newline records from a read. A single record can still
+use the duplex decoder's request descriptors. The peer
+owns the receive and reply storage through executor
+retirement. For several records the worker prepares the
+echo replies in one shared buffer. The owner admits and
+sends each record in order. A later rejection leaves the
+earlier sent replies available. If a reply exceeds the
+remaining buffer, the owner writes the prepared prefix
+and the worker retries that record in an empty buffer.
+The APP preserves the 4,096-byte record limit and the
+8,192-byte reply buffer.
+
+The Windows x64 and Ubuntu x64 QEMU/WHPX comparisons used
+32 staggered peers, two APP workers and two native observer
+shards. They verified 23,040,000 measured calls across 60
+six-second trials at 64,000 fixed arrivals/s. Four-record
+groups submitted 96,512 jobs for 386,048 records per trial,
+including warmup. The two-record control submitted 193,024.
+One peer's measured job structure increased from 12,856 to
+12,992 bytes with four descriptors. Both capacity proofs
+prepared a 3,843-byte reply prefix and then a 5,140-byte
+reply into the same buffer.
+
+| Host | Profile | Paired throughput | P99 | P99.9 | APP CPU |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Windows | Independent records | 1.000 | 0.877 | 0.907 | 0.658 |
+| Ubuntu guest | Independent records | 1.000 | 0.618 | 0.661 | 0.560 |
+| Windows | Eight-item arrays | 1.000 | 0.959 | 1.010 | 0.930 |
+| Ubuntu guest | Eight-item arrays | 1.000 | 1.008 | 1.004 | 1.010 |
+
+Ratios are group-of-four duplex over the previous APP.
+Throughput and P99 ratios met repeatability in all four
+profiles. Both independent-record CPU ratios met it.
+Record P99.9 met it on Windows. The Ubuntu record and
+both array P99.9 series exceeded the variation limits.
+Against the same four-record APP in dispatch-only mode,
+duplex record P99 was 1.144 on Windows and 1.070 on Ubuntu,
+both repeatable. The matched Windows tail keeps strict
+TCP acceptance open. The synchronous one-outstanding-call
+comparison verified 122,880 replies. Its Windows duplex
+throughput and P99 ratios were 0.963 and 1.054, both
+repeatable. This tradeoff accompanies the sustained-load
+improvement.
+
+The final mainline files dropped the measurement-only
+ledger and fixed the APP group size at four. Each host
+passed eleven modular and twelve single-header tests,
+the modular example suite and matching modular and
+single-header TCP peer reports. The new cases exercise
+reply-buffer reuse, silent notifications and nine valid
+prefix lengths before a fatal mixed batch. The Ubuntu
+APP passed ASan and UBSan with leak detection and the
+TSan peer suite. The compiler retained its thread-fence
+warning. The original arena fixture exceeded its test
+input cap with spaced JSON and was corrected before the
+passing runs. The sanitizer runner's original trailing
+carriage return was followed by a clean rerun of the
+same verified TSan binary.
+
+Source snapshots, build and peer receipts, raw timing
+and replays are under
+D:/XRT-results/service-extensions/xrpc-coalesced-records-e946f728/.
+The diagnostic guest retired after archive verification.
+Both Redis TLS and both MQTT TCP endurance journals
+passed running-prefix replay during the comparisons.
+Ordinary xrpc maturity and generated-header parity passed.

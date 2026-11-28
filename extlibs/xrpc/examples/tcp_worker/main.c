@@ -7,18 +7,24 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-enum { MAX_PEERS = 32, MAX_WORKERS = 8 };
+enum { MAX_PEERS = 32, MAX_WORKERS = 8, MAX_RECORDS = 4 };
 
 typedef struct appecho {
     xstrview Id, Result;
 } appecho;
 
+typedef struct apprecord {
+    xstrview Input, Reply;
+} apprecord;
+
 typedef struct appexecution {
-    apprequest Request;
+    apprecord Records[MAX_RECORDS];
     appecho Echo[APP_MAX_MESSAGES];
     size_t EchoCount;
     bool EchoBatch;
+    char Input[APP_INPUT_CAPACITY + 1], Replies[APP_REPLY_CAPACITY];
+    size_t First, Count, Prepared;
+    uint64 Token, Submitted;
     xevent* Done;
 } appexecution;
 
@@ -34,21 +40,24 @@ static bool takeRequest(uint64 Token, xstrview Input, xbytesview Context,
     const xrpcdocument* Document, const xrpcmessage* Messages, ptr Data)
 {
     appexecution* Job = Data;
-    if (!appTakeRequest(Token, Input, Context, Document, Messages, &Job->Request))
-        return false;
+    (void)Input;
+    (void)Context;
+    if (Job->Token) return false;
+    Job->Token = Token;
     Job->EchoCount = 0;
+    if (Job->Count != 1) return true;
     if (!Document || !Document->Count || Document->Count > APP_MAX_MESSAGES) return true;
 
-    /* Keep the spans in the APP-owned input while the executor runs. */
+    /* Both the peer and its input buffer live through executor retirement. */
     for (size_t Index = 0; Index < Document->Count; ++Index) {
         const xrpcmessage* Message = Messages + Index;
         if (Message->Kind != XRPC_MESSAGE_CALL || Message->Method.Raw.Size != 6 ||
             memcmp(Message->Method.Raw.Data, "\"echo\"", 6)) return true;
         xstrview Id = Message->Id.Raw;
         xstrview Params = Message->Params.Raw;
-        Job->Echo[Index].Id = (xstrview){Job->Request.Input + (Id.Data - Input.Data), Id.Size};
+        Job->Echo[Index].Id = Id;
         Job->Echo[Index].Result = Params.Size
-            ? (xstrview){Job->Request.Input + (Params.Data - Input.Data), Params.Size}
+            ? Params
             : XRT_STR_LITERAL("true");
     }
     Job->EchoBatch = Document->Batch;
@@ -68,11 +77,28 @@ static void execute(ptr Data)
                 .Result = Job->Echo[Index].Result,
             };
         }
-        Job->Request.Ready = xrpcEncodeWrite(Job->Request.Reply, sizeof(Job->Request.Reply) - 1,
-            Responses, Job->EchoCount, Job->EchoBatch, NULL, &Job->Request.ReplyBytes);
-    } else {
-        (void)appPrepare(&Job->Request);
+        size_t Bytes;
+        if (xrpcEncodeWrite(Job->Replies, sizeof(Job->Replies) - 1,
+            Responses, Job->EchoCount, Job->EchoBatch, NULL, &Bytes)) {
+            Job->Records[0].Reply = (xstrview){Job->Replies, Bytes};
+            Job->Prepared = 1;
+        } else Job->Prepared = 0;
+        xrtEventSet(Job->Done);
+        return;
     }
+
+    size_t Used = 0, Index = Job->First;
+    /* The owner leaves the input intact until the job and its replies retire. */
+    for (; Index < Job->Count; ++Index) {
+        apprecord* Record = &Job->Records[Index];
+        char* Reply = Job->Replies + Used;
+        size_t Bytes;
+        if (!appPrepareReply(Record->Input, Reply, sizeof(Job->Replies) - Used, &Bytes))
+            break;
+        Record->Reply = (xstrview){Reply, Bytes};
+        Used += Bytes;
+    }
+    Job->Prepared = Index;
     xrtEventSet(Job->Done);
 }
 
@@ -91,27 +117,15 @@ static bool sendRecord(xnetsocket Peer, xstrview Wire)
     return xrtNetSocketSend(Peer, Spans[1].Data, 1, &Sent) == XNET_RESULT_OK && Sent == 1;
 }
 
-static bool handle(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
-    appexecution* Job, xstrview Document)
+static bool publish(xnetsocket Peer, xrpcduplex* Endpoint, appexecution* Job, const apprecord* Record)
 {
-    if (Endpoint) {
-        if (xrpcDuplexReceive(Endpoint, Document, (xbytesview){0}) != XRPC_DUPLEX_ACCEPTED ||
-            !Job->Request.Token) return false;
-    } else {
-        memcpy(Job->Request.Input, Document.Data, Document.Size);
-        Job->Request.InputBytes = Document.Size;
-    }
-    if (!xrtExecutorSubmit(Workers, execute, Job, NULL, NULL) ||
-        xrtEventWait(Job->Done) != XWAIT_OK || !Job->Request.Ready) return false;
+    if (!Endpoint) return !Record->Reply.Size || sendRecord(Peer, Record->Reply);
 
-    if (!Endpoint) {
-        xstrview Reply = {Job->Request.Reply, Job->Request.ReplyBytes};
-        Job->Request.ReplyBytes = 0;
-        Job->Request.Ready = false;
-        return !Reply.Size || sendRecord(Peer, Reply);
-    }
-    if (!appPublish(Endpoint, &Job->Request) || Job->Request.Token) return false;
-
+    /* Admit and send each reply before a later record can close the endpoint. */
+    if ((!Job->Token && xrpcDuplexReceive(Endpoint, Record->Input, (xbytesview){0}) != XRPC_DUPLEX_ACCEPTED) ||
+        !Job->Token || xrpcDuplexReply(Endpoint, Job->Token, Record->Reply) != XRPC_DUPLEX_ACCEPTED)
+        return false;
+    Job->Token = 0;
     xrpcduplexoutput* Output = NULL;
     uint64 Token;
     int Count = xrpcDuplexNext(Endpoint, &Output, &Token);
@@ -122,14 +136,36 @@ static bool handle(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
     return Sent;
 }
 
+static bool perform(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
+    appexecution* Job, uint64* Requests)
+{
+    Job->EchoCount = 0;
+    if (Job->Count == 1 && Endpoint &&
+        (xrpcDuplexReceive(Endpoint, Job->Records[0].Input, (xbytesview){0}) != XRPC_DUPLEX_ACCEPTED ||
+            !Job->Token)) return false;
+    for (size_t First = 0; First < Job->Count;) {
+        Job->First = First;
+        if (!xrtExecutorSubmit(Workers, execute, Job, NULL, NULL)) return false;
+        ++Job->Submitted;
+        if (xrtEventWait(Job->Done) != XWAIT_OK || Job->Prepared == First) return false;
+        for (; First < Job->Prepared; ++First) {
+            if (!publish(Peer, Endpoint, Job, &Job->Records[First])) return false;
+            ++*Requests;
+        }
+        /* A reply that could not fit gets an empty arena on the next job. */
+    }
+    Job->Count = 0;
+    return true;
+}
+
 static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
     appexecution* Job, uint64* Requests)
 {
-    char Record[sizeof(Job->Request.Input) + 1];
+    char* Record = Job->Input;
     size_t Used = 0, Scanned = 0;
     for (;;) {
         size_t Count;
-        xnetresult Result = xrtNetSocketRecv(Peer, Record + Used, sizeof(Record) - Used, &Count);
+        xnetresult Result = xrtNetSocketRecv(Peer, Record + Used, sizeof(Job->Input) - Used, &Count);
         if (Result == XNET_RESULT_CLOSED) return Used == 0;
         if (Result != XNET_RESULT_OK || !Count) return false;
         Used += Count;
@@ -139,19 +175,20 @@ static bool receive(xnetsocket Peer, xrpcduplex* Endpoint, xexecutor* Workers,
             const char* End = memchr(Record + Scanned, '\n', Used - Scanned);
             if (!End) break;
             size_t Bytes = (size_t)(End - (Record + Start));
-            if (!handle(Peer, Endpoint, Workers, Job, (xstrview){Record + Start, Bytes}))
+            Job->Records[Job->Count++].Input = (xstrview){Record + Start, Bytes};
+            if (Job->Count == MAX_RECORDS && !perform(Peer, Endpoint, Workers, Job, Requests))
                 return false;
-            ++*Requests;
             Start += Bytes + 1;
             Scanned = Start;
         }
+        if (!perform(Peer, Endpoint, Workers, Job, Requests)) return false;
         if (Start) {
             Used -= Start;
             if (Used) memmove(Record, Record + Start, Used);
         }
         /* The remaining bytes have already been searched for a delimiter. */
         Scanned = Used;
-        if (Used == sizeof(Record)) return false;
+        if (Used == sizeof(Job->Input)) return false;
     }
 }
 
@@ -232,15 +269,16 @@ static bool serve(xnetsocket Listener, bool Duplex, unsigned Clients, unsigned T
         if (xrtThreadExitCode(Owners[Index])) OK = false;
         xrtThreadDestroy(Owners[Index]);
     }
-    uint64 Requests = 0;
+    uint64 Requests = 0, Jobs = 0;
     for (unsigned Index = 0; Index < Accepted; ++Index) {
         Requests += Peers[Index].Requests;
+        Jobs += Peers[Index].Job.Submitted;
         if (!xrtNetSocketClose(Peers[Index].Socket)) OK = false;
     }
     xexecutorstats Stats;
     if (!xrtExecutorClose(Workers) || xrtExecutorWait(Workers) != XWAIT_OK ||
-        !xrtExecutorGet(Workers, &Stats) || Stats.Submitted != Requests || Stats.Completed != Requests ||
-        Stats.Executed != Requests || Stats.Queued || Stats.Running || Stats.Rejected || Stats.Cancelled) OK = false;
+        !xrtExecutorGet(Workers, &Stats) || Stats.Submitted != Jobs || Stats.Completed != Jobs ||
+        Stats.Executed != Jobs || Stats.Queued || Stats.Running || Stats.Rejected || Stats.Cancelled) OK = false;
     if (!xrtExecutorDestroy(Workers)) abort();
     for (unsigned Index = 0; Index < Accepted; ++Index)
         if (Peers[Index].Job.Done && !xrtEventDestroy(Peers[Index].Job.Done)) OK = false;

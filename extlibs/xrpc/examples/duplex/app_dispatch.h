@@ -4,18 +4,18 @@
 #include <xrt/json.h>
 #include <string.h>
 
-enum { APP_MAX_MESSAGES = 16 };
+enum { APP_MAX_MESSAGES = 16, APP_INPUT_CAPACITY = 4096, APP_REPLY_CAPACITY = 8192 };
 
 typedef struct apprequest {
     uint64 Token;
     size_t InputBytes, ReplyBytes;
     bool Ready;
-    char Input[4096], Reply[8192];
+    char Input[APP_INPUT_CAPACITY], Reply[APP_REPLY_CAPACITY];
 } apprequest;
 
 /* This sample APP owns one queued document. A real APP can hand its owned
  * copy to a worker instead and send the completed reply from the owner. */
-static bool appTakeRequest(uint64 Token, xstrview Input, xbytesview Context,
+static inline bool appTakeRequest(uint64 Token, xstrview Input, xbytesview Context,
     const xrpcdocument* Document, const xrpcmessage* Messages, ptr Data)
 {
     (void)Context;
@@ -54,30 +54,44 @@ static bool appEcho(const xrpcmessage* Request, xrpcreply* Reply, ptr Data)
     return xrpcReplyResult(Reply, Value);
 }
 
+typedef struct appreplybuffer {
+    char* Data;
+    size_t Capacity, Used;
+} appreplybuffer;
+
 static bool appEmit(const xrpcoutgoing* Message, bool Batch, size_t Bytes, ptr Data)
 {
-    apprequest* Job = Data;
+    appreplybuffer* Buffer = Data;
     size_t Prefix = Batch ? 1u : 0u;
-    if (Bytes >= sizeof(Job->Reply) - Job->ReplyBytes - Prefix) return false;
+    size_t Available = Buffer->Capacity - Buffer->Used;
+    if (Available <= Prefix || Bytes >= Available - Prefix) return false;
     if (Batch) {
-        char Separator = Job->ReplyBytes ? ',' : '[';
-        Job->Reply[Job->ReplyBytes++] = Separator;
+        char Separator = Buffer->Used ? ',' : '[';
+        Buffer->Data[Buffer->Used++] = Separator;
     }
-    if (!xrpcEncodeWrite(Job->Reply + Job->ReplyBytes, Bytes, Message, 1, false, NULL, NULL))
+    if (!xrpcEncodeWrite(Buffer->Data + Buffer->Used, Bytes, Message, 1, false, NULL, NULL))
         return false;
-    Job->ReplyBytes += Bytes;
+    Buffer->Used += Bytes;
+    return true;
+}
+
+static bool appPrepareReply(xstrview Input, char* Reply, size_t Capacity, size_t* Written)
+{
+    xrpcmessage Scratch[APP_MAX_MESSAGES];
+    xrpcdispatchinfo Info = {.Size = sizeof(Info)};
+    appreplybuffer Buffer = {.Data = Reply, .Capacity = Capacity};
+    if (!xrpcDispatch(Input, NULL, Scratch, APP_MAX_MESSAGES, appEcho, NULL, appEmit, &Buffer, &Info))
+        return false;
+    if (Buffer.Used && Info.Batch) Reply[Buffer.Used++] = ']';
+    *Written = Buffer.Used;
     return true;
 }
 
 static bool appPrepare(apprequest* Job)
 {
-    xrpcmessage Scratch[APP_MAX_MESSAGES];
-    xrpcdispatchinfo Info = {.Size = sizeof(Info)};
-    if (!xrpcDispatch((xstrview){Job->Input, Job->InputBytes}, NULL, Scratch, APP_MAX_MESSAGES,
-        appEcho, NULL, appEmit, Job, &Info)) return false;
-    if (Job->ReplyBytes && Info.Batch) Job->Reply[Job->ReplyBytes++] = ']';
-    Job->Ready = true;
-    return true;
+    Job->Ready = appPrepareReply((xstrview){Job->Input, Job->InputBytes}, Job->Reply,
+        sizeof(Job->Reply), &Job->ReplyBytes);
+    return Job->Ready;
 }
 
 static bool appPublish(xrpcduplex* Endpoint, apprequest* Job)

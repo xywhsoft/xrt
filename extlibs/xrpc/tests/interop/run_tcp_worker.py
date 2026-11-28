@@ -156,15 +156,37 @@ def decoded_batches(peer):
         assert list(stream) == expected, "echo batch replies, exact IDs or fallback changed"
 
 
-def reply_before_mixed_record(peer):
-    request, expected = next(requests(1, 1))
-    mixed = [{"jsonrpc": "2.0", "method": "echo", "id": 2},
-             {"jsonrpc": "2.0", "result": 17, "id": 55}]
-    peer.sendall(request + record(mixed))
+def reply_before_mixed_record(peer, count):
+    request, expected = next(requests(count, count))
+    mixed = [{"jsonrpc": "2.0", "method": "echo", "id": 900},
+             {"jsonrpc": "2.0", "result": 17, "id": 901}]
+    later, _ = next(requests(1, 1, first=1000))
+    peer.sendall(request + record(mixed) + later)
     peer.shutdown(socket.SHUT_WR)
     with peer.makefile("rb") as stream:
-        assert stream.readline() == expected[0], "the later invalid batch dropped an earlier reply"
-        assert stream.read(1) == b"", "the mixed batch did not close the duplex connection"
+        assert list(stream) == expected, "the mixed batch changed the earlier replies or failed to close"
+
+
+def shared_reply_buffer(peer):
+    short = b"[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]\n"
+    payload = "x" * 3900
+    echo = {"jsonrpc": "2.0", "id": 7, "method": "echo", "params": [payload]}
+    invalid = {"jsonrpc": "2.0", "id": None,
+               "error": {"code": -32600, "message": "Invalid Request"}}
+    reply = {"jsonrpc": "2.0", "id": 7, "result": [payload]}
+    large = json.dumps([0] * 15 + [echo], separators=(",", ":")).encode("ascii") + b"\n"
+    prefix = short * 3 + large
+    assert len(prefix) <= 4097
+    notification = record({"jsonrpc": "2.0", "method": "echo"})
+    request, _ = next(requests(1, 1, first=8))
+    peer.sendall(prefix[:413])
+    peer.sendall(prefix[413:] + notification + request)
+    peer.shutdown(socket.SHUT_WR)
+    with peer.makefile("rb") as stream:
+        assert [json.loads(line) for line in stream] == [
+            [invalid] * 16, [invalid] * 16, [invalid] * 16,
+            [invalid] * 15 + [reply], {"jsonrpc": "2.0", "id": 8, "result": [42]},
+        ], "reusing the reply buffer changed order, bytes or notification suppression"
 
 
 def dispatch_cases(executable):
@@ -174,6 +196,7 @@ def dispatch_cases(executable):
         assert exchange(executable, mode, pipelined) == 0
         assert exchange(executable, mode, inbound_batch_limit) == 1
         assert exchange(executable, mode, decoded_batches) == 0
+        assert exchange(executable, mode, shared_reply_buffer) == 0
         assert exchange(executable, mode, maximum_record) == 0
         assert exchange(executable, mode, oversized_record) == 1
         assert exchange(executable, mode, lambda peer: peer.sendall(b"{")) == 1
@@ -188,15 +211,16 @@ def dispatch_cases(executable):
         oversized = subprocess.run([executable, mode, str(APP_PEER_LIMIT + 1), "1"],
                                    capture_output=True, timeout=5)
         assert oversized.returncode == 2 and not oversized.stdout
-    assert exchange(executable, MODES["duplex"], reply_before_mixed_record) == 1
+    for count in range(1, 10):
+        assert exchange(executable, MODES["duplex"], lambda peer: reply_before_mixed_record(peer, count)) == 1
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 13, "modes": list(MODES), "replies_per_mode": 137, "max_record_bytes": 4096,
+    return {"cases_per_mode": 14, "modes": list(MODES), "replies_per_mode": 137, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 2 * BACKPRESSURE_CALLS_PER_PEER,
             "capacity_backpressure_isolation_replies_per_mode": 2 * (APP_PEER_LIMIT - 1) * BACKPRESSURE_CALLS_PER_PEER,
             "capacity_peers": APP_PEER_LIMIT, "oversized_peer_count_rejected": True,
-            "duplex_only_cases": 1, "reply_before_mixed_record": True, "inbound_batch_limit": 16,
-            "decoded_batch_replies_per_mode": 6, "escaped_method": True, "ok": True}
+            "duplex_only_cases": 9, "reply_before_mixed_record": True, "inbound_batch_limit": 16,
+            "decoded_batch_replies_per_mode": 6, "shared_buffer_replies_per_mode": 5, "escaped_method": True, "ok": True}
 
 
 def sample(executable, mode, warmup, batches, calls):

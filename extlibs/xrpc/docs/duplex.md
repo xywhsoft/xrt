@@ -64,7 +64,14 @@ record, up to 4096 document bytes excluding the delimiter. An oversized
 record or EOF inside a record ends the example's stream. Replies already
 sent remain available to the peer.
 The TCP example continues its delimiter search at the first new byte after
-each read, including when the final record spans several reads.
+each read, including when the final record spans several reads. It sends one
+executor job for up to four complete records that are already buffered. The
+peer keeps one 4,097-byte input buffer and one 8,192-byte reply buffer until the
+executor has retired. A single record can use the descriptors from the
+endpoint's request callback. For several records, the worker prepares the
+echo responses and the owner admits each record and sends its reply in order.
+When the reply buffer fills, the owner sends the prepared prefix before
+reusing the buffer.
 
 The service-extensions workflow measures the TCP example on Windows and Linux
 with the same fixed-arrival schedule and separate observer and APP CPU masks.
