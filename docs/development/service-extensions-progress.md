@@ -34046,3 +34046,68 @@ digest-checked replay are under
 D:/XRT-results/service-extensions/xcron-clock-step-53126/.
 The Windows and Ubuntu Redis TLS and MQTT TCP mixed-load
 journals continued to record awake time.
+
+## 2026-11-28 xrpc owner reads the close reason without the admission lock
+
+The endpoint stores its first close reason in one atomic
+field. The first close and incoming or outgoing admission
+still serialize under the existing gate. The owner reads
+the published reason without taking that lock for receive,
+reply, output selection, start, and send confirmation.
+The concurrent test races two closers from other threads
+and checks the reason observed by the owner. It also
+checks that the selected unsent output cannot start and
+that physical delivery status stays distinct for the
+already sent and unsent calls.
+
+Windows x64 and Ubuntu x64 QEMU/WHPX each passed eleven
+modular and twelve single-header tests, all twelve native
+observer tests, and thirteen independent TCP peer cases
+per mode. The Ubuntu duplex suite passed ASan and UBSan
+with leak detection and a separate TSan run. The compiler
+retained its existing TSan warning for a Core thread fence.
+Static and shared xrpc and xrpc_examples packages passed on
+both hosts. Replay verified eight source-checked SDKs and
+all six relocated TCP APPs using static, shared or
+single-header linkage.
+
+The existing in-memory endpoint benchmark used one pinned
+CPU and five alternating pairs of 600,000 completed calls
+per arm on each host. The paired candidate/stock throughput
+ratio was 1.0157 on Windows and 1.0172 on Ubuntu. Both met
+repeatability. This benchmark includes the protocol
+round trip and Future retirement.
+
+The 32-peer TCP trials used two APP executor workers and
+two separate native observer shards per host. They rotated
+the earlier duplex endpoint, the atomic-close endpoint
+and dispatch-only mode through five six-second repeats.
+Replay verified all 60 trials and 23,040,000 measured
+replies at 64,000 scheduled calls/s. The paired
+candidate/stock medians were as follows.
+
+| Host | Profile | Throughput | P99 | P99.9 | APP CPU |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Windows | Records | 1.000 | 0.979 | 0.977 | 0.993 |
+| Windows | Eight-item arrays | 1.000 | 0.999 | 0.973 | 1.009 |
+| Ubuntu guest | Records | 1.000 | 0.999 | 0.995 | 1.003 |
+| Ubuntu guest | Eight-item arrays | 1.000 | 1.002 | 1.006 | 1.000 |
+
+Throughput ratios met repeatability in all four profiles.
+Windows array P99.9 and Ubuntu array tails met
+repeatability. Both record tail comparisons exceeded the
+variation limits. Relative to dispatch-only, the earlier
+Ubuntu duplex record P99 ratio was 1.111 and repeatable.
+The atomic variant's ratio was 1.196 and exceeded the
+variation limit. The in-memory improvement supports the
+change and the strict TCP tail gate remains open.
+
+Source archives, compiler receipts, wire samples and
+replay are under
+D:/XRT-results/service-extensions/xrpc-duplex-seal-396acc4e/.
+The diagnostic guest retired after archive verification.
+Running-prefix replay confirmed about 0.96 awake hours on
+both Redis TLS workloads and 2.19 on both MQTT TCP workloads.
+All four build receipts match the current mainline source
+inputs for their probes. Ordinary xrpc maturity passed.
+Strict release still reports xrpc and xrpc_duplex as developing.

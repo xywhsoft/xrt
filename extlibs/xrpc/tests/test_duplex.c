@@ -273,6 +273,74 @@ static void testDuplexConcurrency(void)
         duplexTestClose(A);duplexTestClose(B);
     }
 }
+typedef struct duplexTestCloser {
+    xrpcduplex* Duplex;
+    const xatomic32* Start;
+    xrpccallstatus Reason;
+} duplexTestCloser;
+
+static int32 duplexTestSeal(ptr Data)
+{
+    duplexTestCloser* Closer = Data;
+    while (!xrtAtomic32Load(Closer->Start, XMEMORY_ACQUIRE)) xrtThreadYield();
+    return xrpcDuplexClose(Closer->Duplex, Closer->Reason) ? 0 : 1;
+}
+
+static void testDuplexConcurrentSeal(void)
+{
+    duplexTestContext Context;
+    duplexTestInit(&Context);
+    xrpcduplex* D = duplexTestCreate(&Context, NULL);
+    xfuture *Sent = NULL, *Unsent = NULL;
+    xstrview Method = XRT_STR_LITERAL("echo");
+    xstrview Empty = {0};
+    testRequire(xrpcDuplexCall(D, Method, Empty, XRT_WAIT_FOREVER, &Sent) == XRPC_DUPLEX_ACCEPTED,
+        "concurrent seal admits first call");
+    uint64 Token;
+    xrpcduplexoutput* SentOutput = duplexTestSend(D, &Token);
+    xrpcDuplexOutputRelease(SentOutput);
+    testRequire(xrpcDuplexCall(D, Method, Empty, XRT_WAIT_FOREVER, &Unsent) == XRPC_DUPLEX_ACCEPTED &&
+        xrpcDuplexStep(D), "concurrent seal queues second call");
+    xrpcduplexoutput* Selected = NULL;
+    testRequire(xrpcDuplexNext(D, &Selected, &Token) == 1, "concurrent seal selects second call");
+
+    xatomic32 Start;
+    xrtAtomic32Init(&Start, 0);
+    duplexTestCloser Closers[] = {{D, &Start, XRPC_CALL_TIMEOUT}, {D, &Start, XRPC_CALL_TRANSPORT}};
+    xthread* A = xrtThreadCreate(duplexTestSeal, Closers, 0);
+    xthread* B = xrtThreadCreate(duplexTestSeal, Closers + 1, 0);
+    testRequire(A && B, "start concurrent closers");
+    xrtAtomic32Store(&Start, 1, XMEMORY_RELEASE);
+    xstrview Unknown = XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"999\",\"result\":null}");
+    double End = xrtTimer() + 10;
+    xrpcduplexadmission Admission;
+    do {
+        Admission = xrpcDuplexReceive(D, Unknown, (xbytesview){0});
+        testRequire((Admission == XRPC_DUPLEX_ACCEPTED || Admission == XRPC_DUPLEX_CLOSED) &&
+            xrtTimer() < End, "owner observes concurrent close");
+        xrtThreadYield();
+    } while (Admission == XRPC_DUPLEX_ACCEPTED);
+
+    xrpcduplexinfo Observed = duplexTestInfo(D);
+    testRequire(Observed.Closing && (Observed.Reason == XRPC_CALL_TIMEOUT ||
+        Observed.Reason == XRPC_CALL_TRANSPORT), "close reason published with closed state");
+    testRequire(!xrpcDuplexStarted(D, Token) && !xrpcDuplexSent(D, Token),
+        "seal stops previously selected unsent output");
+    testRequire(xrtThreadWaitFor(A, 5000) == XWAIT_OK && xrtThreadExitCode(A) == 0 &&
+        xrtThreadWaitFor(B, 5000) == XWAIT_OK && xrtThreadExitCode(B) == 0,
+        "concurrent closers retire");
+    xrtThreadDestroy(A);
+    xrtThreadDestroy(B);
+    testRequire(xrpcDuplexClose(D, XRPC_CALL_CLOSED) && duplexTestInfo(D).Reason == Observed.Reason,
+        "later closes preserve the first reason");
+    duplexTestClose(D);
+    duplexTestResult(Sent, Observed.Reason, XRPC_MAY_HAVE_EXECUTED);
+    duplexTestResult(Unsent, Observed.Reason, XRPC_NOT_SENT);
+    xrpcDuplexOutputRelease(Selected);
+    xrtFutureDestroy(Sent);
+    xrtFutureDestroy(Unsent);
+}
+
 typedef struct duplexTestReentry {xrpcduplex* D;xfuture* Extra;unsigned Calls;} duplexTestReentry;
 static void duplexTestReenter(ptr Data)
 {
@@ -573,6 +641,7 @@ int main(void)
     testDuplexResponseAtomicity();
     testDuplexAllocation();
     testDuplexConcurrency();
+    testDuplexConcurrentSeal();
     testDuplexFailureAndReentry();
     testDuplexCompactCorrelation();
     testDuplexSetupTimeout();
