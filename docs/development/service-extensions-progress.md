@@ -34477,5 +34477,64 @@ builds and uses the strict CLI checker.
 
 Evidence is in
 D:/XRT-results/service-extensions/xmqtt-tls-mixed-3a116f85/.
-The matched Mosquitto TLS comparison is running separately.
+The matched Mosquitto TLS comparison results are recorded below.
 Native endurance and release acceptance remain open.
+
+## 2026-11-28 Native MQTT TLS endurance and Broker load comparison
+
+The exact ef7e4621 Windows and Ubuntu mixed builds passed
+server-verified TLS smoke tests and independent fault runs.
+The strict checker accepted the short smoke reports and
+rejected both killed-Broker reports. Both continuous TLS
+runs observe the Broker and client processes. The Windows
+interval began at 21:49:08 and Ubuntu at 21:50:40
+Asia/Shanghai. First archived prefix checks verified
+135.27 and 90.11 awake seconds, respectively. The TCP
+intervals retained their original binary identities.
+
+Separately, both hosts used the 3a116f85 Broker APP and
+observer compiled from the pinned source archive. The
+matched benchmark used Mosquitto 2.1.2, two xmqtt workers,
+two TLS observer workers, four publishers, eight wildcard
+subscribers, 128-byte MQTT 5 QoS 2 payloads and 16-item
+in-flight windows. The peers share the same TLS 1.3
+AES-128-GCM credentials within each host. The broker and
+observer have disjoint logical CPU budgets within a host.
+
+Replay matched the two platform build and program receipts,
+40 ordered trials, 800,000 offered publications and
+5,842,003 recorded deliveries including observed parts of
+incomplete trials. Median P99 values below use only complete
+samples. A dash means every reference trial was incomplete.
+
+| Host | Offers/s | Complete xmqtt / Mosquitto | Delivery P99 ms xmqtt / Mosquitto |
+| --- | ---: | ---: | ---: |
+| Windows | 4,000 | 5 / 3 | 4.132 / 6.824 |
+| Windows | 8,000 | 5 / 0 | 11.567 / — |
+| Ubuntu | 4,000 | 5 / 5 | 3.747 / 6.488 |
+| Ubuntu | 8,000 | 5 / 0 | 176.383 / — |
+
+The incomplete Mosquitto trials confirmed every scheduled
+publication and logged subscriber queue drops. The Ubuntu
+4,000/s completed pairs had a repeatable xmqtt/Mosquitto
+broker CPU ratio of 1.360 and throughput ratio of 1.000.
+Paired P99 and P99.9 exceeded the repeatability limits.
+At 8,000/s Ubuntu xmqtt verified every expected delivery
+with zero quota refusals in all five trials. Median actual
+ingress was 7,576/s. In those five trials, measured pacer
+P99 was within 1.1 ms of delivery P99. Median publisher P99
+after the actual send was 2.086 ms. The configuration does
+not meet the release tail target. The Ubuntu benchmark ran
+on an AES-enabled QEMU/WHPX guest with 1,536 MiB of RAM.
+Existing endurance tasks remained active. The Windows
+endurance build and smoke used the same physical host
+during part of the Ubuntu measurement window.
+
+The comparison archive and replay are in
+D:/XRT-results/service-extensions/xmqtt-tls-mixed-3a116f85/comparison/.
+TLS build receipts, public identity material and journal
+snapshots are in
+D:/XRT-results/service-extensions/xmqtt-tls-endurance-ef7e4621/.
+The guest remains live for the continuous TLS workload.
+Full endurance, matched performance and release acceptance
+are open.
