@@ -33747,3 +33747,65 @@ The diagnostic guest retired after the verified archive capture.
 The continuous MQTT TCP intervals verified about 57 awake minutes
 each on Windows and Ubuntu at 9b30d5b6. TLS tail repeatability,
 72-hour endurance and strict release acceptance remain open.
+
+## 2026-11-28 x86 GHASH tail scratch on full blocks
+
+The prototype allocates and clears the sixteen-byte tail
+scratch only when a PCLMUL GHASH field ends with a short
+block. It still clears the scratch immediately after loading
+that padded block. The regenerated test header differs only
+in that x86 GHASH function. The candidate retains the
+existing field padding and authentication checks.
+
+Windows x64 GCC 16.2 and Ubuntu x64 GCC 13.3 passed the
+AES-GCM and TLS record vector programs. The Ubuntu candidate
+also passed the vector programs with ASan, UBSan and leak
+detection. Both brokers passed the independent authenticated
+TLS peer suite on both hosts, including MQTT 5 and 3.1.1,
+fragmentation, QoS 1/2, quota recovery and session takeover.
+The captured x86 assembly shows the volatile clear on the
+partial block branch only.
+
+Five alternating microbenchmark pairs used AES-NI and PCLMUL
+with a reused AES-128 key, distinct 96-bit nonces and five
+bytes of AAD. They verified the final plaintext after timing.
+All four paired elapsed time ratios met repeatability.
+
+| Bytes | Windows candidate / stock | Ubuntu candidate / stock |
+| ---: | ---: | ---: |
+| 5 | 0.961 | 0.995 |
+| 16 | 0.960 | 0.981 |
+| 141 | 0.938 | 0.963 |
+| 1,024 | 0.954 | 0.958 |
+
+The six-vCPU Ubuntu QEMU/WHPX guest held two broker CPUs and
+four observer CPUs separate. Both epoll brokers used two
+workers and the same four-worker observer build. Four
+publishers and eight wildcard subscribers used authenticated
+TLS 1.3 AES-128-GCM, MQTT 5 QoS 2, 128-byte payloads and both
+windows of 16. Five alternating pairs at 4,000 and 8,000
+scheduled offers/s verified all 800,000 publications and
+6,400,000 deliveries without a quota refusal.
+
+| Offers/s | Broker CPU ratio | Ingress ratio | Delivery P99 ratio | Delivery P99.9 ratio |
+| ---: | ---: | ---: | ---: | ---: |
+| 4,000 | 1.0092 | 1.000 | 1.0083 | 1.0070 |
+| 8,000 | 1.0073 | 1.000 | 0.8918 | 0.7657 |
+
+Each ratio is the median of paired candidate/stock samples.
+CPU and ingress met repeatability at both rates. Only the
+4,000/s P99 ratio met repeatability among the delivery tails.
+One 8,000/s stock trial had a delivery P99 of 120.6 ms.
+The higher-rate tail comparison needs a repeatable timing
+window before it can support a release decision. The
+repeatable Broker CPU increases govern this decision.
+The prototype remains in the diagnostic snapshot.
+
+Raw measurements, assembly, sanitizer logs, source and
+binary receipts and independent replay are under
+out/service-extensions/ghash-full-block-1756b89e/.
+The diagnostic guest retired after the archive digest
+matched. The Windows and Ubuntu MQTT TCP journals each
+verified about 65.9 awake minutes on 9b30d5b6. TLS matched
+performance, 72-hour endurance and strict release acceptance
+remain open.
