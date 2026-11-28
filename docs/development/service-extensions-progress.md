@@ -35093,3 +35093,36 @@ after four recorded pairs. Strict release remains open.
 Builds, receipts, initial failures, native capture SHA-256
 and replay are under
 D:/XRT-results/service-extensions/xmqtt-current-sdk-66e847db/.
+
+## 2026-11-29 Completed synchronized xcron scheduler baseline
+
+Windows x64 and Ubuntu x64 QEMU/WHPX completed all six pairs
+of 8,192 one-second waves. Each arm executed 1,024 callbacks
+per wave. The two arms used the same deadlines and alternated
+CPU placement between pairs. Independent replay verified
+100,663,296 callbacks per host, all 24 child output streams,
+actual CPU placement, program and runner hashes, and the
+stored quantiles against the raw wave records. The Ubuntu
+supervisor completed successfully. Windows and Ubuntu builds
+from 9debb93c reproduce the measured PE and ELF byte for byte.
+
+| Host | Last callback percentile | Scheduler Wait, us | Direct waiter, us | Paired ratio |
+| --- | --- | ---: | ---: | ---: |
+| Windows | P99 | 1,585.2 | 3,718.8 | 1.005 |
+| Windows | P99.9 | 3,903.5 | 9,251.2 | 0.714 |
+| Ubuntu guest | P99 | 304.7 | 275.3 | 1.070 |
+| Ubuntu guest | P99.9 | 472.6 | 654.2 | 0.935 |
+
+The arm columns are medians of the six per-arm quantiles.
+The ratio column is the median of the six paired ratios.
+Every absolute and paired tail series exceeds the existing
+repeatability limits. The direct waiter P99 on Windows spans
+1,215 to 15,022 us across the six pairs with alternating
+CPU placement. The median same-wave difference quantile for
+the last callback is 342.5 us at P99 on Windows and 75.2 us
+on Ubuntu. These differences retain per-wave alignment.
+Strict scheduler tail acceptance remains open.
+
+Journal, raw samples, verified guest archive, current-source
+builds and replay are under
+D:/XRT-results/service-extensions/xcron-wave-loop-225448d2/.
