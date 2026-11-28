@@ -33396,3 +33396,59 @@ guest retired. Receipts are under
 out/service-extensions/xredis-sentinel-rejoin-2c1590a7/.
 Ordinary xredis maturity passes. The matched performance and
 strict release gates remain open.
+
+## 2026-11-28 xrpc contiguous TCP reply framing
+
+The TCP APP candidate puts the newline in the existing reply
+array before handing a nonempty reply to the endpoint or the
+direct sender. The duplex endpoint accepts the newline as JSON
+whitespace and preserves it in its immutable wire output.
+The APP sends that contiguous span, advancing after each
+positive short write. Existing JSON reply limits are preserved.
+
+The stock and candidate builds passed the independent TCP
+suite on Windows x64 and the six-vCPU Ubuntu QEMU/WHPX guest.
+This included 7,936 checked healthy replies per mode during
+the 32-peer backpressure and reset case. The candidate also
+passed injected positive short writes, zero and error returns
+after partial progress. Both platforms passed all 12 observer
+tests with the native verifier selected. The first preparatory
+observer command used the wrong environment selector and
+skipped the three native cases. The corrected commands ran
+all 12. The Windows receipt was rebuilt after correcting the
+order of the paired timing arms.
+
+The hosts ran serially. Each APP had four CPUs, two executor
+workers and 32 staggered connections. Two observer shards
+used separate CPUs. Five alternating eight-second pairs per
+mode offered 64,000 calls/s in groups of eight. Replay matched
+40 trials, 20,480,000 measured replies and 514,048 APP jobs
+per trial including warmup. The table gives stock / framed
+medians.
+
+| Host | APP mode | APP CPU (s) | P99 (us) | P99.9 (us) |
+| --- | --- | --- | --- | --- |
+| Windows | Duplex | 9.312 / 9.375 | 238.8 / 236.6 | 360.1 / 362.6 |
+| Windows | Dispatch only | 8.625 / 8.469 | 223.8 / 223.2 | 337.1 / 342.7 |
+| Ubuntu guest | Duplex | 14.594 / 14.469 | 579.9 / 577.4 | 777.6 / 771.2 |
+| Ubuntu guest | Dispatch only | 13.966 / 13.815 | 538.3 / 536.7 | 745.5 / 743.4 |
+
+All paired throughput ratios met repeatability at 1.000.
+On Ubuntu the paired APP CPU ratios of 0.990 and 0.993 met
+repeatability. The duplex P99 and P99.9 ratios were 0.992 and
+0.992, both repeatable. The direct-dispatch tail ratios
+exceeded variation limits. On Windows the duplex P99 and
+direct-dispatch P99 and P99.9 ratios met repeatability.
+Both Windows APP CPU ratios and duplex P99.9 exceeded the
+variation limits.
+
+The independent strace 6.8 pass ran 8,192 exact replies per mode
+and build with one peer. It counted one sendmsg per stock reply
+and one sendto per candidate reply, with no write errors.
+The existing scatter writer remains the release baseline.
+Source and binary receipts, raw rows, syscall logs and
+independent replays are under
+out/service-extensions/xrpc-framed-reply-ef46485a/.
+The diagnostic guest retired after both replays. Ordinary
+xrpc maturity passed. The broader tail and strict release
+gates remain open.
