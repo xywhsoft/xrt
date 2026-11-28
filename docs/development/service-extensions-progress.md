@@ -34600,3 +34600,19 @@ need verification before adopting grouping in the standard
 observer. Matched Windows and reference Broker runs, the
 continuous mixed-load results, and strict release acceptance
 remain open.
+
+## 2026-11-28 Terminal Windows Redis TLS result before receive-key rotation
+
+The f0b0d889 Windows interval ended at 21:58:23 Asia/Shanghai
+with XREDIS_REQUEST_DISCONNECTED and XREDIS_MAY_HAVE_EXECUTED.
+Its final journal sample records 1,864,018 verified mixed
+rounds and 31,070.48 awake seconds, close to the same round
+count at which the corresponding Ubuntu build disconnected.
+Replay checked the Windows binary receipt and 6,203 sampled
+windows. The strict checker rejected the failed terminal
+report. The Redis TLS runs with the 86818d9d receive-key
+rotation fix continued on both hosts at capture.
+
+The unchanged binary, journal and terminal report are retained
+under D:/XRT-results/service-extensions/xredis-deadline-endurance-f0b0d889/windows/.
+The final-candidate TLS endurance requirement remains open.
