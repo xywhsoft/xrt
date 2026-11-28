@@ -10,9 +10,15 @@
 
 enum { MAX_PEERS = 32, MAX_WORKERS = 8 };
 
+typedef struct appecho {
+    xstrview Id, Result;
+} appecho;
+
 typedef struct appexecution {
     apprequest Request;
-    xstrview EchoId, EchoParams;
+    appecho Echo[APP_MAX_MESSAGES];
+    size_t EchoCount;
+    bool EchoBatch;
     xevent* Done;
 } appexecution;
 
@@ -30,32 +36,40 @@ static bool takeRequest(uint64 Token, xstrview Input, xbytesview Context,
     appexecution* Job = Data;
     if (!appTakeRequest(Token, Input, Context, Document, Messages, &Job->Request))
         return false;
-    Job->EchoId = (xstrview){0};
-    if (Document && !Document->Batch && Document->Count == 1 &&
-        Messages[0].Kind == XRPC_MESSAGE_CALL && Messages[0].Method.Raw.Size == 6 &&
-        !memcmp(Messages[0].Method.Raw.Data, "\"echo\"", 6)) {
-        xstrview Id = Messages[0].Id.Raw;
-        xstrview Params = Messages[0].Params.Raw;
-        /* Rebase the borrowed fields onto the job's input copy before the worker runs. */
-        Job->EchoId = (xstrview){Job->Request.Input + (Id.Data - Input.Data), Id.Size};
-        Job->EchoParams = Params.Size
+    Job->EchoCount = 0;
+    if (!Document || !Document->Count || Document->Count > APP_MAX_MESSAGES) return true;
+
+    /* Keep the spans in the APP-owned input while the executor runs. */
+    for (size_t Index = 0; Index < Document->Count; ++Index) {
+        const xrpcmessage* Message = Messages + Index;
+        if (Message->Kind != XRPC_MESSAGE_CALL || Message->Method.Raw.Size != 6 ||
+            memcmp(Message->Method.Raw.Data, "\"echo\"", 6)) return true;
+        xstrview Id = Message->Id.Raw;
+        xstrview Params = Message->Params.Raw;
+        Job->Echo[Index].Id = (xstrview){Job->Request.Input + (Id.Data - Input.Data), Id.Size};
+        Job->Echo[Index].Result = Params.Size
             ? (xstrview){Job->Request.Input + (Params.Data - Input.Data), Params.Size}
             : XRT_STR_LITERAL("true");
     }
+    Job->EchoBatch = Document->Batch;
+    Job->EchoCount = Document->Count;
     return true;
 }
 
 static void execute(ptr Data)
 {
     appexecution* Job = Data;
-    if (Job->EchoId.Size) {
-        xrpcoutgoing Response = {
-            .Kind = XRPC_MESSAGE_RESULT,
-            .Id = Job->EchoId,
-            .Result = Job->EchoParams,
-        };
+    if (Job->EchoCount) {
+        xrpcoutgoing Responses[APP_MAX_MESSAGES];
+        for (size_t Index = 0; Index < Job->EchoCount; ++Index) {
+            Responses[Index] = (xrpcoutgoing){
+                .Kind = XRPC_MESSAGE_RESULT,
+                .Id = Job->Echo[Index].Id,
+                .Result = Job->Echo[Index].Result,
+            };
+        }
         Job->Request.Ready = xrpcEncodeWrite(Job->Request.Reply, sizeof(Job->Request.Reply) - 1,
-            &Response, 1, false, NULL, &Job->Request.ReplyBytes);
+            Responses, Job->EchoCount, Job->EchoBatch, NULL, &Job->Request.ReplyBytes);
     } else {
         (void)appPrepare(&Job->Request);
     }

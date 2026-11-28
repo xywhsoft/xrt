@@ -131,6 +131,31 @@ def inbound_batch_limit(peer):
         assert stream.read(1) == b"", "oversized batch emitted a partial reply"
 
 
+def decoded_batches(peer):
+    first = (
+        br'[{"jsonrpc":"2.0","id":-0e+01,"method":"echo","params":{"values":[1, 2]}},'
+        br'{"jsonrpc":"2.0","id":"x\u0031","method":"echo","params":[1e9999]},'
+        br'{"jsonrpc":"2.0","id":1e9999,"method":"echo"}]'
+    )
+    mixed = (
+        br'[{"jsonrpc":"2.0","id":14,"method":"echo","params":[14]},'
+        br'{"jsonrpc":"2.0","method":"echo"},'
+        br'{"jsonrpc":"2.0","id":15,"method":"\u0065cho"}]'
+    )
+    last = br'[{"jsonrpc":"2.0","id":null,"method":"echo","params":[]}]'
+    peer.sendall(b"\n".join((first, mixed, last)) + b"\n")
+    peer.shutdown(socket.SHUT_WR)
+    expected = [
+        (br'[{"jsonrpc":"2.0","result":{"values":[1, 2]},"id":-0e+01},'
+         br'{"jsonrpc":"2.0","result":[1e9999],"id":"x\u0031"},'
+         br'{"jsonrpc":"2.0","result":true,"id":1e9999}]' + b"\n"),
+        br'[{"jsonrpc":"2.0","result":[14],"id":14},{"jsonrpc":"2.0","result":true,"id":15}]' + b"\n",
+        br'[{"jsonrpc":"2.0","result":[],"id":null}]' + b"\n",
+    ]
+    with peer.makefile("rb") as stream:
+        assert list(stream) == expected, "echo batch replies, exact IDs or fallback changed"
+
+
 def reply_before_mixed_record(peer):
     request, expected = next(requests(1, 1))
     mixed = [{"jsonrpc": "2.0", "method": "echo", "id": 2},
@@ -148,6 +173,7 @@ def dispatch_cases(executable):
         assert exchange(executable, mode, normal) == 0
         assert exchange(executable, mode, pipelined) == 0
         assert exchange(executable, mode, inbound_batch_limit) == 1
+        assert exchange(executable, mode, decoded_batches) == 0
         assert exchange(executable, mode, maximum_record) == 0
         assert exchange(executable, mode, oversized_record) == 1
         assert exchange(executable, mode, lambda peer: peer.sendall(b"{")) == 1
@@ -164,12 +190,13 @@ def dispatch_cases(executable):
         assert oversized.returncode == 2 and not oversized.stdout
     assert exchange(executable, MODES["duplex"], reply_before_mixed_record) == 1
     print("[pass] TCP worker dispatch, staggered admission, framing, peer fault and backpressure isolation")
-    return {"cases_per_mode": 12, "modes": list(MODES), "replies_per_mode": 137, "max_record_bytes": 4096,
+    return {"cases_per_mode": 13, "modes": list(MODES), "replies_per_mode": 137, "max_record_bytes": 4096,
             "staggered_replies_per_mode": 256, "parallel_replies_per_mode": 512, "peer_fault_isolation": True,
             "backpressure_isolation_replies_per_mode": 2 * BACKPRESSURE_CALLS_PER_PEER,
             "capacity_backpressure_isolation_replies_per_mode": 2 * (APP_PEER_LIMIT - 1) * BACKPRESSURE_CALLS_PER_PEER,
             "capacity_peers": APP_PEER_LIMIT, "oversized_peer_count_rejected": True,
-            "duplex_only_cases": 1, "reply_before_mixed_record": True, "inbound_batch_limit": 16, "escaped_method": True, "ok": True}
+            "duplex_only_cases": 1, "reply_before_mixed_record": True, "inbound_batch_limit": 16,
+            "decoded_batch_replies_per_mode": 6, "escaped_method": True, "ok": True}
 
 
 def sample(executable, mode, warmup, batches, calls):

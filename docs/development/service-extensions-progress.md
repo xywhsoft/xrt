@@ -33978,3 +33978,47 @@ D:/XRT-results/service-extensions/xrpc-tcp-release-b9259a99/.
 The diagnostic guest retired after the archive check.
 Windows and Ubuntu MQTT had about 102 verified awake
 minutes. The Redis TLS runs had about 29 and 28 minutes.
+
+## 2026-11-28 xrpc decoded echo batches in the TCP APP
+
+The TCP example reuses decoded ID and parameter spans for a
+batch of ordinary echo calls. The APP rebases these spans
+onto the job's owned input before handing it to the
+executor. It reserves space for up to 16 pairs of spans per
+peer and encodes the entire result array once. The generic
+dispatch path handles notifications, escaped method names
+and mixed batches. The new exact-wire cases check original
+ID spellings, one-element arrays and fallback. The xrpc
+library modules keep the same protocol endpoint contract.
+
+The Windows and Ubuntu x64 QEMU/WHPX builds passed the
+optimized modular examples, 12 native observer tests and
+13 independent TCP peer cases per mode. The Ubuntu
+candidate passed the same peer suite under ASan and UBSan
+with leak detection.
+
+At 64,000 scheduled calls/s the 32-peer workload verified
+15,360,000 replies across both hosts. The APP used two
+executor workers and the native observer used two shards.
+Each host ran five alternating six-second pairs for each
+profile. Paired candidate/stock ratios were as follows.
+
+| Host | Profile | Throughput | P99 | P99.9 | APP CPU |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Windows | Records | 1.000 | 1.013 | 1.061 | 1.043 |
+| Windows | Eight-item arrays | 1.000 | 0.834 | 0.935 | 0.629 |
+| Ubuntu guest | Records | 1.000 | 1.007 | 1.000 | 0.996 |
+| Ubuntu guest | Eight-item arrays | 1.000 | 0.950 | 0.982 | 0.891 |
+
+Throughput and record P99 ratios met repeatability on
+both hosts. The Windows record P99.9 increase met it as
+well. Ubuntu array APP CPU decreased in all five pairs
+and met repeatability. Windows array CPU fell in four
+pairs and exceeded the variation limit. Windows array
+tails and Ubuntu array P99.9 also exceeded the limit.
+Strict TCP tail and release acceptance remain open.
+
+Build inputs, binary digests, exact reply timing and
+replay are under D:/XRT-results/service-extensions/xrpc-decoded-batches-3865a3d9/.
+The diagnostic guest retired after archive verification.
+Both endurance guests stayed live.
