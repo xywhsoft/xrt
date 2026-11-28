@@ -33861,3 +33861,63 @@ guest disk. Both Redis TLS intervals remain active.
 The independent MQTT TCP intervals continued on Windows
 and Ubuntu with about 74 verified awake minutes each.
 Matched performance and final release acceptance remain open.
+
+## 2026-11-28 xrpc SDKs and concurrent replies after correlation fix
+
+Windows x64 and Ubuntu x64 QEMU/WHPX built bbfeb1c6
+with the xrpc response correlation fix. Per host, eleven
+optimized modular and twelve single-header tests passed.
+Header parity, dependency trimming and ordinary maturity
+passed. The xrpc and Core source used here matches the
+217c9ad3 runtime and sanitizer evidence.
+
+Each host verified static and shared kits for xrpc and
+xrpc_examples. All package consumers ran from relocated
+directories containing spaces. The independent TCP peer
+passed with static, shared and single-header APP examples
+on both hosts. It verified identical wire results through
+the normal endpoint and dispatch-only modes. Socket and
+executor sources are confined to the xrpc_examples SDK
+profile. The shared examples resolved the xrpc and XRT
+libraries belonging to their relocated kit. Replay matched
+all eight package kits and all six APP executables against
+their source and artifact digests.
+
+The native optimized concurrent benchmark compared the
+038cd09d xrpc single-header baseline with bbfeb1c6. It
+used the same current Core, compiler flags, benchmark,
+and four-CPU allowance within each host. The host and
+guest measurements ran sequentially. The owner transfers
+complete documents in memory. Each producer has one
+outstanding call. The latency includes admission, owner
+wake and result verification.
+
+There was a warmup pair and five alternating measured
+pairs at one, four and eight producers. Each measured
+run completed 100,000 calls per producer. Replay verified
+13,000,000 measured calls per environment.
+
+| Environment | Producers | Throughput ratio | P99 ratio | P99.9 ratio |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1 | 1.0000 | 1.0033 | 0.9990 |
+| Windows | 4 | 0.9858 | 1.0513 | 1.0226 |
+| Windows | 8 | 1.0083 | 1.0031 | 1.0207 |
+| Ubuntu guest | 1 | 1.0118 | 0.9861 | 0.9317 |
+| Ubuntu guest | 4 | 1.0000 | 0.9734 | 0.9922 |
+| Ubuntu guest | 8 | 0.9956 | 1.0139 | 1.0082 |
+
+The table gives paired current/baseline medians. Every
+throughput series met repeatability. Both 8-producer
+P99 and P99.9 series and the one-producer Windows P99
+series met repeatability. At eight producers the current
+Windows medians were 146,824 calls/s and 97.9 us P99.
+The Ubuntu guest medians were 79,098 calls/s and 186.9 us
+P99. These timings measure the in-memory endpoint. The
+matched TCP APP tail gate and the strict release check
+for xrpc and xrpc_duplex remain open.
+
+Sources, package and loader receipts, relocated APPs,
+benchmark rows and independent replay are under
+D:/XRT-results/service-extensions/xrpc-release-bbfeb1c6/.
+The diagnostic guest retired after archive verification.
+The MQTT TCP and Redis TLS endurance guests continued.
