@@ -33809,3 +33809,55 @@ matched. The Windows and Ubuntu MQTT TCP journals each
 verified about 65.9 awake minutes on 9b30d5b6. TLS matched
 performance, 72-hour endurance and strict release acceptance
 remain open.
+
+## 2026-11-28 xredis native TLS endurance startup
+
+Windows x64 and Ubuntu x64 rebuilt the Redis mixed workload
+with TLS selected from e19199e5. The Ubuntu executable uses
+a hash-verified Git archive in a dedicated AES-NI QEMU/WHPX
+guest. The Windows executable uses the mainline checkout,
+and its supervisor runs a verified snapshot of the runner
+and evidence checker. Replay matched the build inputs and
+both binary identities. The runs supplement the verified
+5b886da6 TCP intervals.
+
+Each client uses four connections, two workers, pipeline
+depth eight and 3 ms pacing. Both connect to separate
+loopback Redis 8.0.5 processes in the guest. Windows uses
+a dedicated local SSH relay. Both profiles verify the same
+leaf fingerprint, localhost name and TLS 1.3 AES-128-GCM
+suite. The test helper issues a seven-day CA and leaf for
+this run. OpenSSL verified the name, trust chain and
+expiration beyond the 78-hour supervisor window. Private
+keys stay in the guest's mode-0700 runtime directory.
+
+Both 20-second smoke reports reconciled all workload
+commands and returned to their connected-client baselines.
+The separate Ubuntu fault run killed its owned Redis after
+1,266 verified rounds. The Windows fault run stopped its
+owned loopback relay after 288 verified rounds. Both
+reported failed retirement and failed the evidence checker.
+
+| Client | Smoke rounds | Continuous start, Asia/Shanghai | First archived awake seconds | Verified rounds at archive |
+| --- | ---: | --- | ---: | ---: |
+| Windows x64 | 1,171 | November 28 11:06:19 | 95.24 | 5,410 |
+| Ubuntu x64 QEMU/WHPX | 4,978 | November 28 11:07:02 | 55.03 | 13,788 |
+
+The first Ubuntu unit used the same stderr filename as
+the workload runner. The runner requires an exclusive
+file and exited before recording a sample. Its failed
+unit and empty journal are archived. The running unit
+uses separate supervisor logs. Windows holds a scoped
+system-awake request for the observation interval. Both
+supervisors invoke the strict native checker after the
+terminal report.
+
+Build and startup receipts, initial journals, fault
+reports, private-fixture launch scripts without key
+material and independent replay are under
+D:/XRT-results/service-extensions/xredis-tls-endurance-2e21ad6e/.
+That drive has room for the journals and dedicated
+guest disk. Both Redis TLS intervals remain active.
+The independent MQTT TCP intervals continued on Windows
+and Ubuntu with about 74 verified awake minutes each.
+Matched performance and final release acceptance remain open.
