@@ -33685,3 +33685,65 @@ The captured logs and sanitizer binaries matched the guest archive digest
 before the isolated diagnostic guest retired. Evidence is under
 out/service-extensions/xrpc-response-quota-038cd09d/. The matched TCP APP
 tail comparison and strict xrpc release acceptance remain open.
+
+## 2026-11-28 MQTT TLS fan-out with two and four observer workers
+
+The MQTT benchmark accepts an explicit TLS observer worker count.
+It assigns the authenticated connections round robin, checks each
+connection owner and records the engine's worker count in the report.
+The default observer still uses one worker. Windows x64 and Ubuntu
+x64 each passed the plaintext and TLS observer suites, including
+coalesced QoS 2 acknowledgements across two workers. Six invalid
+worker arguments were rejected on each host. A Linux comparison
+through the public command line verified all six four-worker samples
+at 1,000 scheduled publications/s.
+
+The AES-enabled six-vCPU Ubuntu QEMU/WHPX guest ran epoll xmqtt
+at 217c9ad3 against the pinned Mosquitto 2.1.2 and its verified
+OpenSSL and cJSON dependencies. The c2fa5801 observer competed for
+four CPUs in both configurations. Both brokers used CPUs 0 and 3,
+with two xmqtt workers. Four publishers and eight wildcard
+subscribers used MQTT 5 QoS 2, authenticated TLS 1.3 AES-128-GCM,
+128-byte payloads, a window of 16 in each direction and a limit of
+256 queued plus in-flight deliveries per subscriber. The observer
+alternated the two brokers and the two observer layouts across five
+blocks per rate. The measured intervals scheduled 16,000 and 24,000
+publications at 4,000 and 8,000/s respectively.
+
+Replay verified all 40 trials, including exact source and binary
+identities, reference limits, and broker log digests. The 37 complete
+trials reconciled 728,000 confirmed publications, zero quota refusals
+and 5,824,000 exact deliveries. The remaining three were Mosquitto
+at 8,000/s. Each confirmed all 24,000 publications and logged
+subscriber queue drops. The observer recorded 190,933, 191,966 and
+190,416 deliveries of 192,000 expected.
+
+| Offers/s | Observer workers | Complete xmqtt / Mosquitto | xmqtt accepted/s | Delivery P99 ms, xmqtt / Mosquitto | Broker CPU seconds, xmqtt / Mosquitto |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 4,000 | 2 | 5 / 5 | 4,000 | 1.185 / 1.342 | 4.35 / 2.90 |
+| 4,000 | 4 | 5 / 5 | 4,000 | 1.481 / 1.408 | 4.47 / 3.02 |
+| 8,000 | 2 | 5 / 3 | 7,999 | 2.987 / 5.314 | 4.16 / 2.87 |
+| 8,000 | 4 | 5 / 4 | 7,998 | 1.747 / 5.684 | 4.14 / 2.93 |
+
+The table uses complete-run medians. At 8,000/s the paired xmqtt
+four-to-two observer throughput and Broker CPU ratios met repeatability
+at 1.000 and 0.993. The pacing P99 medians were 0.902 ms with four
+workers and 2.280 ms with two. The paired pacing, delivery P99 and
+P99.9 ratios exceeded the variation limits. The publisher P99 after
+actual send was about 1 ms with either layout. The extra observer
+workers used a repeatable 19.5% more observer CPU at this rate.
+
+At 4,000/s both observer layouts sustained the schedule on both
+brokers. The paired xmqtt/Mosquitto Broker CPU cost per delivery was
+1.490 with two observer workers and 1.475 with four. Both ratios
+met repeatability. This leaves a measured Broker CPU gap even in
+a workload with complete delivery and little pacing delay.
+
+The first comparison wrapper stopped before the timed samples on an
+indentation error. The corrected script hash, compiler receipts,
+observer cases, broker logs and independent replay are under
+out/service-extensions/xmqtt-tls-observer-workers-217c9ad3/.
+The diagnostic guest retired after the verified archive capture.
+The continuous MQTT TCP intervals verified about 57 awake minutes
+each on Windows and Ubuntu at 9b30d5b6. TLS tail repeatability,
+72-hour endurance and strict release acceptance remain open.
