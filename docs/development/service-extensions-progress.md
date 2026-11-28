@@ -34022,3 +34022,27 @@ Build inputs, binary digests, exact reply timing and
 replay are under D:/XRT-results/service-extensions/xrpc-decoded-batches-3865a3d9/.
 The diagnostic guest retired after archive verification.
 Both endurance guests stayed live.
+
+## 2026-11-28 Windows xcron direct waiter interrupted by clock step
+
+The uninstrumented 1,024-job comparison on Windows CPU 10
+finished five Scheduler Wait repetitions and four direct
+waiter repetitions of 8,192 waves each. The timing journal
+contains 75,497,472 verified callbacks from those complete
+repetitions. Last-callback P99 ranged from 1.11 to 14.01 ms
+for Scheduler Wait and 1.05 to 12.72 ms for the direct
+waiter.
+
+The last direct-waiter repetition stopped at wave 1,792.
+The control expected a wake at 11:39:34.000 Asia/Shanghai
+and observed 11:39:36.506. The Windows Kernel-General
+record 53126 shows a 2.505965-second forward correction
+spanning the scheduled instant. The interrupted repetition
+did not measure the xcron scheduler. The completed repeats
+still show wide tail variation and strict timing remains open.
+
+The launch receipt, wave journal, exact system event and
+digest-checked replay are under
+D:/XRT-results/service-extensions/xcron-clock-step-53126/.
+The Windows and Ubuntu Redis TLS and MQTT TCP mixed-load
+journals continued to record awake time.
