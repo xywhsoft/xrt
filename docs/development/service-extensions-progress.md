@@ -33308,3 +33308,51 @@ had four verified repeats totaling 50,331,648 callbacks. The
 Windows and Ubuntu fifth prefixes had 9,139,200 and 8,776,704
 verified callbacks respectively. The normal maturity audit and
 generated-header check passed. Strict release timing remains open.
+
+## 2026-11-28 MQTT Linux TLS accepted-prefix retirement
+
+The isolated candidate detaches a group of fully accepted MQTT
+writes with one queue gate acquisition. It releases their
+references in order outside the gate and keeps the queue charge
+reserved until the releases finish. A partially accepted record
+stays at the head with its accepted byte offset.
+
+The targeted fixture verified zero-credit retry, partial
+acceptance, transport errors and closure during a release
+callback. In the callback test TLS accepts nine bytes across
+three records. The first two records are detached, two bytes
+are marked on the third and the original charge is still
+reserved when the callback closes the output. Every reference
+retires once. The fixture passed under ASan and UBSan with leak
+detection. The stock and candidate brokers also passed the
+same independent TLS peer suite, including version negotiation,
+same-identifier QoS 2 takeover with a delayed Will, fragmented
+terminal acknowledgements and quota recovery.
+
+The AES-enabled Ubuntu x64 QEMU/WHPX guest used two epoll
+broker workers and two balanced observer workers on disjoint
+CPU sets. Five alternating pairs per rate drove MQTT 5 QoS 2
+through four publishers and eight wildcard subscribers.
+The verified TLS 1.3 identity, 128-byte payloads and send and
+receive windows of 16 matched. Replay reconciled all 400,000
+scheduled and accepted publications, 3,200,000 byte-verified
+subscriber deliveries and the acknowledgement ledgers.
+
+| Scheduled/s | Accepted/s, stock / candidate | Broker CPU s, stock / candidate | Delivery P99 ms, stock / candidate |
+| ---: | ---: | ---: | ---: |
+| 4,000 | 4,000 / 3,999 | 3.61 / 3.59 | 7.044 / 5.304 |
+| 8,000 | 6,582 / 6,509 | 3.99 / 4.01 | 640.484 / 680.073 |
+
+The paired CPU ratios of 0.997 and 1.005 and ingress ratios of
+1.000 and 0.994 met repeatability. At 4,000/s the paired P99
+ratio of 0.812 exceeded the variation limit. At 8,000/s the
+paired P99 and P99.9 ratios of 1.033 and 1.034 met repeatability.
+Pacing P99 rose in the same direction and accounted for most
+of the high-rate end-to-end tail. The source stays in the
+diagnostic snapshot given the high-rate result.
+
+Source and binary receipts, sanitizer logs and delivery replays
+are under out/service-extensions/xmqtt-group-retire-76e3d986/.
+The diagnostic guest retired after capture. The two existing
+MQTT TCP long runs continued at 37.82 verified awake hours.
+Matched performance and strict release acceptance remain open.
